@@ -1,0 +1,46 @@
+{
+  "scenario": "fault",
+  "input": {
+    "chat": {
+      "model": "grok-4-1-fast-reasoning-bad",
+      "messages": [
+        {
+          "role": "system",
+          "content": "Reply with the word OK."
+        },
+        {
+          "role": "user",
+          "content": "Hello"
+        }
+      ]
+    },
+    "image": {
+      "model": "grok-2-image-1212-bad",
+      "prompt": "A black-and-white coloring book page with clean outlines.",
+      "n": 1,
+      "responseFormat": "b64_json"
+    }
+  },
+  "output": {
+    "chat": {
+      "ok": false,
+      "error": {
+        "code": "PROVIDER_HTTP_ERROR",
+        "message": "Not Found",
+        "details": {
+          "status": "400"
+        }
+      }
+    },
+    "image": {
+      "ok": false,
+      "error": {
+        "code": "PROVIDER_HTTP_ERROR",
+        "message": "Not Found",
+        "details": {
+          "status": "400"
+        }
+      }
+    }
+  }
+}
