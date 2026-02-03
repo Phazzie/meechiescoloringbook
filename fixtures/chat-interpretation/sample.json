@@ -1,0 +1,41 @@
+{
+  "scenario": "sample",
+  "input": {
+    "message": "Make a checklist about growth"
+  },
+  "output": {
+    "ok": true,
+    "value": {
+      "spec": {
+        "title": "Growth Checklist",
+        "items": [
+          {
+            "number": 1,
+            "label": "Set goals daily"
+          },
+          {
+            "number": 2,
+            "label": "Learn new skills"
+          }
+        ],
+        "listMode": "list",
+        "alignment": "left",
+        "numberAlignment": "strict",
+        "listGutter": "normal",
+        "whitespaceScale": 50,
+        "textSize": "small",
+        "fontStyle": "rounded",
+        "textStrokeWidth": 6,
+        "colorMode": "black_and_white_only",
+        "decorations": "none",
+        "illustrations": "none",
+        "shading": "none",
+        "border": "plain",
+        "borderThickness": 8,
+        "variations": 1,
+        "outputFormat": "pdf",
+        "pageSize": "US_Letter"
+      }
+    }
+  }
+}

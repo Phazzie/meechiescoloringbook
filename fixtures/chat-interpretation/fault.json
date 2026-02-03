@@ -1,0 +1,13 @@
+{
+  "scenario": "fault",
+  "input": {
+    "message": "??"
+  },
+  "output": {
+    "ok": false,
+    "error": {
+      "code": "CHAT_INPUT_INVALID",
+      "message": "Chat message is too short or invalid."
+    }
+  }
+}

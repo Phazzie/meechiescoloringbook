@@ -28,7 +28,7 @@
         "code": "PROVIDER_HTTP_ERROR",
         "message": "Not Found",
         "details": {
-          "status": "400"
+          "status": "404"
         }
       }
     },
@@ -38,7 +38,7 @@
         "code": "PROVIDER_HTTP_ERROR",
         "message": "Not Found",
         "details": {
-          "status": "400"
+          "status": "404"
         }
       }
     }

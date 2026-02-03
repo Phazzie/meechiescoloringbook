@@ -1,0 +1,41 @@
+{
+  "scenario": "fault",
+  "input": {
+    "spec": {
+      "title": "Dream Big",
+      "items": [
+        {
+          "number": 1,
+          "label": "Shine"
+        }
+      ],
+      "listMode": "list",
+      "alignment": "left",
+      "numberAlignment": "strict",
+      "listGutter": "normal",
+      "whitespaceScale": 50,
+      "textSize": "small",
+      "fontStyle": "rounded",
+      "textStrokeWidth": 6,
+      "colorMode": "black_and_white_only",
+      "decorations": "none",
+      "illustrations": "none",
+      "shading": "none",
+      "border": "plain",
+      "borderThickness": 8,
+      "variations": 1,
+      "outputFormat": "pdf",
+      "pageSize": "US_Letter"
+    },
+    "prompt": "A dreamy coloring page with gradients.",
+    "variations": 1,
+    "outputFormat": "pdf"
+  },
+  "output": {
+    "ok": false,
+    "error": {
+      "code": "PROMPT_MISSING_REQUIRED_PHRASES",
+      "message": "Prompt missing required phrases for deterministic generation."
+    }
+  }
+}

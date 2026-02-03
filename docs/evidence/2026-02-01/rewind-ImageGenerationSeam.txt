@@ -1,0 +1,14 @@
+# Purpose: Store seam-scoped contract test output for evidence.
+# Why: Provide a focused proof trail for the specified seam.
+# Info flow: vitest output -> evidence file -> review.
+
+
+ RUN  v3.2.4 /Users/hbpheonix/coloringbook
+
+ ✓ tests/contract/image-generation.test.ts (4 tests) 51ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  16:33:25
+   Duration  1.45s (transform 459ms, setup 0ms, collect 580ms, tests 51ms, environment 0ms, prepare 498ms)
+

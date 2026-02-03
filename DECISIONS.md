@@ -1117,6 +1117,31 @@ Short, durable decisions with context and tradeoffs.
     - `DECISIONS.md`
   - Commands: `npm run verify`, `npm test`.
 - Self-critique: The riskiest assumption is that deterministic templates are sufficient to represent the comedic tone without LLM help; evidence will be contract tests, fixtures, and UI wiring.
+## 2026-01-27 - Alignment phrase consistency (plan + self-critique)
+- Date: 2026-01-27
+- Decision: Keep the alignment sentence identical across PromptAssemblySeam and DriftDetectionSeam by introducing a shared helper so prompt generation, validation, fixtures, and probes stay in sync.
+- Context: The alignment language informs the prompt assembly template and the drift detection checks; duplication risked drift or new failure modes when the provider limit shifted or the spec changed.
+- Alternatives: Maintain separate strings per seam or allow the sentence to evolve independently; both choices would require repeated fixture/probe audits and raise the likelihood of missing a violation.
+- Consequences: Added `src/lib/utils/alignment-line.ts`, reused it in both adapters, and updated prompt/drift fixtures plus the image-generation probe so they all emit “all numbers vertically aligned; all text left-aligned; treat blank space as intentional; do not fill empty space.”
+- Revisit criteria: Revisit if alignment rules need to diverge per list mode, page size, or localized languages so the helper can be extended responsibly.
+- Plan:
+  - Goal: Synchronize the deterministic alignment clause across prompt assembly, drift detection, fixtures, and probes so the same sentence is generated and verified.
+  - Seams: PromptAssemblySeam, DriftDetectionSeam.
+  - Files:
+    - `src/lib/utils/alignment-line.ts`
+    - `src/lib/adapters/prompt-assembly.adapter.ts`
+    - `src/lib/adapters/drift-detection.adapter.ts`
+    - `fixtures/prompt-assembly/sample.json`
+    - `fixtures/prompt-assembly/title-only.json`
+    - `fixtures/drift-detection/sample.json`
+    - `fixtures/drift-detection/title-only.json`
+    - `fixtures/drift-detection/fault.json`
+    - `fixtures/image-generation/sample.json`
+    - `fixtures/image-generation/dense-scene.json`
+    - `probes/image-generation.probe.mjs`
+  - Commands: `npm test`, `npm run verify`.
+- Self-critique: The riskiest assumption was that every artifact would be updated; evidence is the uniform sentence in fixtures/probes and the passing verify outputs showing no drift between prompt assembly and the drift detection scan.
+
 ## 2026-01-27 - Plan checklist + evidence refresh
 - Date: 2026-01-27
 - Decision: Capture the detailed remaining-work checklist and tie it to the latest `docs/evidence/2026-01-27` proof so the governance plan stays auditable.
@@ -1137,3 +1162,43 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-01-27/test.txt; docs/evidence/2026-01-27/verify.txt; docs/evidence/2026-01-27/chamber-lock.json; docs/evidence/2026-01-27/seam-ledger.json
   - Summary: Documented the granular checklist update and tied the latest verify evidence to the gate.
   - Risks: Must update this cipher entry whenever governance docs change again.
+
+## 2026-01-27 - Manual/chat builder + storage + PWA enforcement
+- Date: 2026-01-27
+- Decision: Gate the UI around the full seam loop, persist creations/drafts under the new storage keys, and polish the PWA manifest/icons so the Meechie coloring experience stays deterministic and installable.
+- Context: To keep the product autonomous, we needed the manual + chat builders to trigger all seams without shortcuts, ensure creation storage/drafts remain deterministic, and deliver Android install metadata without introducing accidental I/O.
+- Alternatives: Let the UI skip validation on Generate, store creations in uncontrolled storage, or defer the PWA polish until later; all would break Seam-Driven Development compliance.
+- Consequences: `Generate` now waits for `SpecValidationSeam`, the UI surfaces prompts/violations, creation favorites/deletion operate through `CreationStoreSeam`, drafts persist via `cb_drafts_v1`, and the manifest now lists PNG/maskable icons for Android install.
+- Revisit criteria: Only revisit if new storage requirements, creation features, or PWA expectations arise.
+- Plan:
+  - Goal: Enforce the entire seam loop in the main page, extend creation/draft persistence, and deliver Android-ready PWA metadata.
+  - Seams: SpecValidationSeam, PromptAssemblySeam, DriftDetectionSeam, CreationStoreSeam, SessionSeam, OutputPackagingSeam.
+  - Files:
+    - `src/routes/+page.svelte`
+    - `contracts/spec-validation.contract.ts`
+    - `fixtures/spec-validation/*`
+    - `tests/contract/spec-validation.test.ts`
+    - `src/lib/adapters/spec-validation.adapter.ts`
+    - `src/lib/adapters/creation-store.adapter.ts`
+    - `static/manifest.webmanifest`
+    - `static/icons/icon-192.png`
+    - `static/icons/icon-512.png`
+    - `static/icons/icon-maskable.png`
+    - `docs/evidence/2026-01-27/npm-test-2026-01-27-0330.txt`
+    - `docs/evidence/2026-01-27/npm-verify-2026-01-27-0340.txt`
+    - `docs/evidence/2026-01-27/npm-build-2026-01-27-0350.txt`
+  - Commands: `npm test`, `npm run verify`, `npm run build`.
+- Self-critique: The risk was that Surface-bias in the UI might tempt us to skip validation or storage; we guard by gating the Generate button on validation results and persisting everything through the adapters plus evidence logs.
+- Cipher Gate:
+  - Date: 2026-01-27
+  - Seams: SpecValidationSeam, PromptAssemblySeam, DriftDetectionSeam, CreationStoreSeam, SessionSeam, OutputPackagingSeam
+  - Evidence: docs/evidence/2026-01-27/npm-test-2026-01-27-0330.txt; docs/evidence/2026-01-27/npm-verify-2026-01-27-0340.txt; docs/evidence/2026-01-27/npm-build-2026-01-27-0350.txt
+  - Summary: Added validation gating, creation favorite/delete controls, indefinite draft persistence, and Android-ready manifest/icons while proving the flow with full `npm test`/`npm run verify`/`npm run build` evidence.
+  - Risks: Need to rerun the gate if we alter any seam that touches validation, storage, or packaging again.
+
+- Cipher Gate:
+  - Date: 2026-02-01
+  - Seams: ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-02-01/rewind-ProviderAdapterSeam.txt; docs/evidence/2026-02-01/npm-test.txt; docs/evidence/2026-02-01/npm-verify.txt; docs/evidence/2026-02-01/probe-provider-adapter.txt; docs/evidence/2026-02-01/probe-chat-interpretation.txt; docs/evidence/2026-02-01/probe-image-generation.txt
+  - Summary: Refreshed provider/chat/image probes and aligned ProviderAdapterSeam fault status handling with probe-backed fixtures.
+  - Risks: Provider error status codes can change; fixtures and test stubs must be refreshed when probes change.
