@@ -1,0 +1,17 @@
+{
+  "scenario": "fault",
+  "input": {
+    "images": [],
+    "outputFormat": "pdf",
+    "fileBaseName": "coloring-page-abc",
+    "pageSize": "US_Letter",
+    "variants": ["print"]
+  },
+  "output": {
+    "ok": false,
+    "error": {
+      "code": "NO_IMAGES",
+      "message": "No images provided for packaging."
+    }
+  }
+}

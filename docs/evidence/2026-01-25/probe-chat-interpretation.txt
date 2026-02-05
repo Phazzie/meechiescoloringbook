@@ -1,0 +1,6 @@
+Source: user-run probes (2026-01-25)
+Command: node probes/chat-interpretation.probe.mjs
+Output:
+Chat interpretation probe complete.
+Title: Growth Checklist
+Items: 6

@@ -1,0 +1,13 @@
+<!--
+Purpose: PWA icon for installable home-screen tiles.
+Why: Provide a crisp, recognizable mark for the coloring book app.
+Info flow: Manifest references icon -> browser installs app with icon.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+	<rect x="32" y="32" width="448" height="448" rx="48" fill="#fffaf4" stroke="#1c1712" stroke-width="24" />
+	<rect x="96" y="96" width="320" height="320" rx="32" fill="none" stroke="#1c1712" stroke-width="12" />
+	<polygon points="256,132 272,180 324,180 282,210 298,260 256,230 214,260 230,210 188,180 240,180" fill="none" stroke="#1c1712" stroke-width="12" stroke-linejoin="round" />
+	<circle cx="170" cy="338" r="20" fill="none" stroke="#1c1712" stroke-width="10" />
+	<circle cx="342" cy="338" r="20" fill="none" stroke="#1c1712" stroke-width="10" />
+	<path d="M210 370c20 22 72 22 92 0" fill="none" stroke="#1c1712" stroke-width="10" stroke-linecap="round" />
+</svg>

@@ -1,0 +1,35 @@
+# Purpose: Store npm run verify output for evidence.
+# Why: Provide an audit trail for Seam-Driven Development verification.
+# Info flow: Command output -> evidence file -> review.
+
+> coloringbook-svelte@0.0.1 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /Users/hbpheonix/coloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+
+> coloringbook-svelte@0.0.1 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/hbpheonix/coloringbook
+
+ ✓ tests/contract/chat-interpretation.test.ts (4 tests) 39ms
+ ✓ tests/contract/image-generation.test.ts (4 tests) 42ms
+ ✓ tests/contract/provider-adapter.test.ts (4 tests) 48ms
+ ✓ tests/contract/spec-validation.test.ts (5 tests) 9ms
+ ✓ tests/contract/drift-detection.test.ts (5 tests) 6ms
+ ✓ tests/contract/creation-store.test.ts (3 tests) 8ms
+ ✓ tests/contract/meechie-tool.test.ts (5 tests) 9ms
+ ✓ tests/contract/auth-context.test.ts (4 tests) 8ms
+ ✓ tests/contract/prompt-assembly.test.ts (5 tests) 6ms
+ ✓ tests/contract/session.test.ts (3 tests) 7ms
+ ✓ tests/contract/output-packaging.test.ts (4 tests) 5ms
+
+ Test Files  11 passed (11)
+      Tests  46 passed (46)
+   Start at  15:22:11
+   Duration  5.08s (transform 495ms, setup 0ms, collect 4.27s, tests 186ms, environment 4ms, prepare 2.66s)

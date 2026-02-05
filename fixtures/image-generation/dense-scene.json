@@ -1,0 +1,52 @@
+{
+  "scenario": "sample",
+  "input": {
+    "spec": {
+      "title": "Bold Lines",
+      "items": [
+        { "number": 1, "label": "Focus" },
+        { "number": 2, "label": "Create" }
+      ],
+      "footerItem": { "number": 99, "label": "GO" },
+      "listMode": "list",
+      "alignment": "left",
+      "numberAlignment": "strict",
+      "listGutter": "loose",
+      "whitespaceScale": 40,
+      "textSize": "medium",
+      "fontStyle": "block",
+      "textStrokeWidth": 8,
+      "colorMode": "color",
+      "decorations": "dense",
+      "illustrations": "scene",
+      "shading": "hatch",
+      "border": "decorative",
+      "borderThickness": 10,
+      "variations": 1,
+      "outputFormat": "pdf",
+      "pageSize": "US_Letter"
+    },
+    "prompt": "Black-and-white coloring book page for print.\nSTYLE:\n[Describe the vibe. Include outline-only and easy to color.]\nVibe: bold geometric glam outline-only, easy to color. Color: color.\nTEXT (exact):\n[Main quote EXACT — do not alter text.]\nBold Lines\n[Secondary line EXACT — omit if none.]\nGO\nTYPOGRAPHY:\nBold bubble letters; thick outlines.\nGlitter outline only (no shading).\nFont: block. Stroke: 8px.\nLAYOUT:\nUS Letter 8.5x11 portrait. Left-align the quote. Line 1 headline; line 2 below.\nKeep generous whitespace; treat blank space intentional.\nList items: 1. Focus; 2. Create (Gutter: loose).\nall numbers vertically aligned; all text left-aligned; treat blank space as intentional; do not fill empty space.\nDECORATIONS:\nDecorations: dense outline icons. Illustrations: scene outlines. Shading: hatch. Border: decorative 10px.\nOUTPUT:\nCrisp vector-like linework. Colored outlines on white. Printable.\nNEGATIVE PROMPT:\nno gradients\nno filled shapes\nno extra words",
+    "variations": 1,
+    "outputFormat": "pdf"
+  },
+  "output": {
+    "ok": true,
+    "value": {
+      "images": [
+        {
+          "id": "image-1",
+          "format": "png",
+          "mimeType": "image/png",
+          "data": "c3R1Yi1pbWFnZQ==",
+          "encoding": "base64"
+        }
+      ],
+      "revisedPrompt": "stubbed revised prompt",
+      "modelMetadata": {
+        "provider": "xai",
+        "model": "grok-2-image-1212"
+      }
+    }
+  }
+}

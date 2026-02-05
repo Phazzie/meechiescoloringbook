@@ -1,0 +1,38 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-01-23T23:25:59.464Z",
+  "cipher": {
+    "date": "2026-01-23",
+    "seams": "Tooling (no seams)",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-01-23/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-01-23/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-01-23/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-01-23/proof-tape.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-01-23/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-01-23/cipher-gate.json",
+        "exists": true
+      }
+    ],
+    "summary": "Added assumption alarm enforcement, git hook install script, and CI verify workflow while keeping evidence automation intact.",
+    "risks": "Evidence folder selection by date could misclassify the latest run; mitigate by rerunning verify if dates drift."
+  },
+  "latestChangeMs": 1769210737090.2537,
+  "status": "ok"
+}

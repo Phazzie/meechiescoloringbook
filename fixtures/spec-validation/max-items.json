@@ -1,0 +1,59 @@
+{
+  "scenario": "fault",
+  "input": {
+    "spec": {
+      "title": "Too Many Items",
+      "items": [
+        { "number": 1, "label": "One" },
+        { "number": 2, "label": "Two" },
+        { "number": 3, "label": "Three" },
+        { "number": 4, "label": "Four" },
+        { "number": 5, "label": "Five" },
+        { "number": 6, "label": "Six" },
+        { "number": 7, "label": "Seven" },
+        { "number": 8, "label": "Eight" },
+        { "number": 9, "label": "Nine" },
+        { "number": 10, "label": "Ten" },
+        { "number": 11, "label": "Eleven" },
+        { "number": 12, "label": "Twelve" },
+        { "number": 13, "label": "Thirteen" },
+        { "number": 14, "label": "Fourteen" },
+        { "number": 15, "label": "Fifteen" },
+        { "number": 16, "label": "Sixteen" },
+        { "number": 17, "label": "Seventeen" },
+        { "number": 18, "label": "Eighteen" },
+        { "number": 19, "label": "Nineteen" },
+        { "number": 20, "label": "Twenty" },
+        { "number": 21, "label": "Twenty-One" }
+      ],
+      "footerItem": { "number": 97, "label": "YOU" },
+      "listMode": "list",
+      "alignment": "left",
+      "numberAlignment": "strict",
+      "listGutter": "normal",
+      "whitespaceScale": 50,
+      "textSize": "small",
+      "fontStyle": "rounded",
+      "textStrokeWidth": 6,
+      "colorMode": "black_and_white_only",
+      "decorations": "none",
+      "illustrations": "none",
+      "shading": "none",
+      "border": "plain",
+      "borderThickness": 8,
+      "variations": 1,
+      "outputFormat": "pdf",
+      "pageSize": "US_Letter"
+    }
+  },
+  "output": {
+    "ok": false,
+    "issues": [
+      {
+        "code": "ITEMS_TOO_MANY",
+        "field": "items",
+        "message": "List cannot exceed 20 items."
+      }
+    ]
+  }
+}

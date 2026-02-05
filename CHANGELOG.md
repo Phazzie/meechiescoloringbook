@@ -7,7 +7,9 @@ Info flow: Changes -> entries -> release communication.
 
 All notable user-visible changes for this repo.
 
-## Unreleased
+-## Unreleased
+- Wired the main UI and chat builder to enforce the full seam loop (SpecValidation → PromptAssembly → ImageGeneration → DriftDetection → OutputPackaging → CreationStore), gating Generate on validation, surfacing prompt/drift debug info, and adding creation favorites/deletion plus draft persistence.
+- Added Manifest + Android-ready PNG/maskable icons for Meechie's Coloring Book PWA alongside the existing SVG asset.
 - Added server-side xAI chat/image endpoints with client adapters calling `/api/chat-interpretation` and `/api/image-generation`.
 - Added PWA manifest, icon, and service worker registration for Android installability.
 - Embedded Meechie tools directly in the main page and reused the component for `/meechie`.
@@ -22,6 +24,7 @@ All notable user-visible changes for this repo.
 - Built the worksheet-style UI with manual builder, chat stub, debug panel, and saved creation list.
 - Aligned prompt assembly with left/center alignment, centered list columns when requested, and removed decorative instructions to match constraints.
 - Added alignment phrase checks to drift detection and reinforced deterministic SVG layout assertions.
+- Added a shared alignment-line utility so PromptAssemblySeam, DriftDetectionSeam, fixtures, and probes all emit the “all numbers vertically aligned; all text left-aligned; treat blank space as intentional; do not fill empty space” sentence, eliminating drift between seams.
 - Removed external font loading and ensured SVG-to-PNG/PDF outputs render on white backgrounds.
 - Expanded user options (list mode/gutter, typography, color, decorations, illustrations, shading, border, and page size) with deterministic prompt + renderer enforcement.
 - Added title-only drift detection coverage and dense/scene renderer proof fixtures for deterministic SVG output.

@@ -1,0 +1,68 @@
+
+> coloringbook-svelte@0.0.1 verify
+> npm run chamber:lock && npm run verify:runner && npm run shaolin:lint && npm run assumption:alarm && npm run seam:ledger && npm run clan:chain && npm run proof:tape && npm run cipher:gate
+
+
+> coloringbook-svelte@0.0.1 chamber:lock
+> node scripts/chamber-lock.mjs
+
+
+> coloringbook-svelte@0.0.1 verify:runner
+> node scripts/verify-runner.mjs
+
+
+> coloringbook-svelte@0.0.1 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /Users/hbpheonix/coloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> coloringbook-svelte@0.0.1 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/hbpheonix/coloringbook
+
+ ✓ tests/contract/image-generation.test.ts (4 tests) 33ms
+ ✓ tests/contract/chat-interpretation.test.ts (4 tests) 34ms
+ ✓ tests/contract/provider-adapter.test.ts (4 tests) 35ms
+ ✓ tests/contract/spec-validation.test.ts (5 tests) 7ms
+ ✓ tests/contract/meechie-tool.test.ts (5 tests) 5ms
+ ✓ tests/contract/output-packaging.test.ts (4 tests) 5ms
+ ✓ tests/contract/auth-context.test.ts (4 tests) 5ms
+ ✓ tests/contract/creation-store.test.ts (3 tests) 6ms
+ ✓ tests/contract/drift-detection.test.ts (5 tests) 7ms
+ ✓ tests/contract/prompt-assembly.test.ts (5 tests) 7ms
+ ✓ tests/contract/session.test.ts (3 tests) 5ms
+
+ Test Files  11 passed (11)
+      Tests  46 passed (46)
+   Start at  22:22:24
+   Duration  1.48s (transform 505ms, setup 0ms, collect 1.30s, tests 149ms, environment 2ms, prepare 898ms)
+
+
+> coloringbook-svelte@0.0.1 shaolin:lint
+> node scripts/shaolin-lint.mjs
+
+
+> coloringbook-svelte@0.0.1 assumption:alarm
+> node scripts/assumption-alarm.mjs
+
+
+> coloringbook-svelte@0.0.1 seam:ledger
+> node scripts/seam-ledger.mjs
+
+
+> coloringbook-svelte@0.0.1 clan:chain
+> node scripts/clan-chain.mjs
+
+
+> coloringbook-svelte@0.0.1 proof:tape
+> node scripts/proof-tape.mjs
+
+
+> coloringbook-svelte@0.0.1 cipher:gate
+> node scripts/cipher-gate.mjs
+

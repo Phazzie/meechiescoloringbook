@@ -1,0 +1,35 @@
+{
+  "scenario": "sample",
+  "input": {
+    "spec": {
+      "title": "Dream Big",
+      "items": [
+        { "number": 1, "label": "Shine" },
+        { "number": 2, "label": "Grow" }
+      ],
+      "footerItem": { "number": 97, "label": "YOU" },
+      "dedication": "Jade",
+      "listMode": "list",
+      "alignment": "left",
+      "numberAlignment": "strict",
+      "listGutter": "normal",
+      "whitespaceScale": 50,
+      "textSize": "small",
+      "fontStyle": "rounded",
+      "textStrokeWidth": 6,
+      "colorMode": "black_and_white_only",
+      "decorations": "none",
+      "illustrations": "none",
+      "shading": "none",
+      "border": "plain",
+      "borderThickness": 8,
+      "variations": 1,
+      "outputFormat": "pdf",
+      "pageSize": "US_Letter"
+    }
+  },
+  "output": {
+    "ok": true,
+    "issues": []
+  }
+}

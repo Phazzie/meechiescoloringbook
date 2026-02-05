@@ -1,0 +1,404 @@
+{
+  "scenario": "sample",
+  "input": {
+    "saveCreation": {
+      "record": {
+        "id": "creation-1",
+        "createdAtISO": "2026-01-22T00:00:00.000Z",
+        "intent": {
+          "title": "Dream Big",
+          "items": [
+            {
+              "number": 1,
+              "label": "Shine"
+            },
+            {
+              "number": 2,
+              "label": "Grow"
+            }
+          ],
+          "footerItem": {
+            "number": 97,
+            "label": "YOU"
+          },
+          "alignment": "left",
+          "numberAlignment": "strict",
+          "whitespaceScale": 50,
+          "textSize": "small",
+          "colorMode": "black_and_white_only",
+          "decorations": "none",
+          "illustrations": "none",
+          "shading": "none",
+          "border": "plain",
+          "variations": 1,
+          "outputFormat": "pdf",
+          "pageSize": "US_Letter",
+          "listMode": "list",
+          "listGutter": "normal",
+          "fontStyle": "rounded",
+          "textStrokeWidth": 6,
+          "borderThickness": 8
+        },
+        "assembledPrompt": "Create a black-and-white coloring book page for print.",
+        "revisedPrompt": "deterministic-svg renderer (no revision)",
+        "images": [
+          {
+            "b64": "c3R1Yi1pbWFnZQ=="
+          }
+        ],
+        "favorite": false,
+        "violations": [],
+        "fixesApplied": [],
+        "authContext": {
+          "kind": "anonymous",
+          "capabilities": [
+            "generate",
+            "store"
+          ],
+          "rateLimitTier": "anonymous"
+        },
+        "owner": {
+          "kind": "anonymous",
+          "sessionId": "session-123"
+        }
+      }
+    },
+    "listCreations": {
+      "owner": {
+        "kind": "anonymous",
+        "sessionId": "session-123"
+      }
+    },
+    "getCreation": {
+      "id": "creation-1"
+    },
+    "deleteCreation": {
+      "id": "creation-1"
+    },
+    "saveDraft": {
+      "draft": {
+        "updatedAtISO": "2026-01-22T00:00:00.000Z",
+        "intent": {
+          "title": "Dream Big",
+          "items": [
+            {
+              "number": 1,
+              "label": "Shine"
+            },
+            {
+              "number": 2,
+              "label": "Grow"
+            }
+          ],
+          "footerItem": {
+            "number": 97,
+            "label": "YOU"
+          },
+          "alignment": "left",
+          "numberAlignment": "strict",
+          "whitespaceScale": 50,
+          "textSize": "small",
+          "colorMode": "black_and_white_only",
+          "decorations": "none",
+          "illustrations": "none",
+          "shading": "none",
+          "border": "plain",
+          "variations": 1,
+          "outputFormat": "pdf",
+          "pageSize": "US_Letter",
+          "listMode": "list",
+          "listGutter": "normal",
+          "fontStyle": "rounded",
+          "textStrokeWidth": 6,
+          "borderThickness": 8
+        },
+        "chatMessage": "Make a checklist about growth"
+      }
+    },
+    "getDraft": {},
+    "clearDraft": {}
+  },
+  "output": {
+    "saveCreation": {
+      "ok": true,
+      "value": {
+        "id": "creation-1",
+        "createdAtISO": "2026-01-22T00:00:00.000Z",
+        "intent": {
+          "title": "Dream Big",
+          "items": [
+            {
+              "number": 1,
+              "label": "Shine"
+            },
+            {
+              "number": 2,
+              "label": "Grow"
+            }
+          ],
+          "footerItem": {
+            "number": 97,
+            "label": "YOU"
+          },
+          "alignment": "left",
+          "numberAlignment": "strict",
+          "whitespaceScale": 50,
+          "textSize": "small",
+          "colorMode": "black_and_white_only",
+          "decorations": "none",
+          "illustrations": "none",
+          "shading": "none",
+          "border": "plain",
+          "variations": 1,
+          "outputFormat": "pdf",
+          "pageSize": "US_Letter",
+          "listMode": "list",
+          "listGutter": "normal",
+          "fontStyle": "rounded",
+          "textStrokeWidth": 6,
+          "borderThickness": 8
+        },
+        "assembledPrompt": "Create a black-and-white coloring book page for print.",
+        "revisedPrompt": "deterministic-svg renderer (no revision)",
+        "images": [
+          {
+            "b64": "c3R1Yi1pbWFnZQ=="
+          }
+        ],
+        "favorite": false,
+        "violations": [],
+        "fixesApplied": [],
+        "authContext": {
+          "kind": "anonymous",
+          "capabilities": [
+            "generate",
+            "store"
+          ],
+          "rateLimitTier": "anonymous"
+        },
+        "owner": {
+          "kind": "anonymous",
+          "sessionId": "session-123"
+        }
+      }
+    },
+    "listCreations": {
+      "ok": true,
+      "value": [
+        {
+          "id": "creation-1",
+          "createdAtISO": "2026-01-22T00:00:00.000Z",
+          "intent": {
+            "title": "Dream Big",
+            "items": [
+              {
+                "number": 1,
+                "label": "Shine"
+              },
+              {
+                "number": 2,
+                "label": "Grow"
+              }
+            ],
+            "footerItem": {
+              "number": 97,
+              "label": "YOU"
+            },
+            "alignment": "left",
+            "numberAlignment": "strict",
+            "whitespaceScale": 50,
+            "textSize": "small",
+            "colorMode": "black_and_white_only",
+            "decorations": "none",
+            "illustrations": "none",
+            "shading": "none",
+            "border": "plain",
+            "variations": 1,
+            "outputFormat": "pdf",
+            "pageSize": "US_Letter",
+            "listMode": "list",
+            "listGutter": "normal",
+            "fontStyle": "rounded",
+            "textStrokeWidth": 6,
+            "borderThickness": 8
+          },
+          "assembledPrompt": "Create a black-and-white coloring book page for print.",
+          "revisedPrompt": "deterministic-svg renderer (no revision)",
+          "images": [
+            {
+              "b64": "c3R1Yi1pbWFnZQ=="
+            }
+          ],
+          "favorite": false,
+          "violations": [],
+          "fixesApplied": [],
+          "authContext": {
+            "kind": "anonymous",
+            "capabilities": [
+              "generate",
+              "store"
+            ],
+            "rateLimitTier": "anonymous"
+          },
+          "owner": {
+            "kind": "anonymous",
+            "sessionId": "session-123"
+          }
+        }
+      ]
+    },
+    "getCreation": {
+      "ok": true,
+      "value": {
+        "id": "creation-1",
+        "createdAtISO": "2026-01-22T00:00:00.000Z",
+        "intent": {
+          "title": "Dream Big",
+          "items": [
+            {
+              "number": 1,
+              "label": "Shine"
+            },
+            {
+              "number": 2,
+              "label": "Grow"
+            }
+          ],
+          "footerItem": {
+            "number": 97,
+            "label": "YOU"
+          },
+          "alignment": "left",
+          "numberAlignment": "strict",
+          "whitespaceScale": 50,
+          "textSize": "small",
+          "colorMode": "black_and_white_only",
+          "decorations": "none",
+          "illustrations": "none",
+          "shading": "none",
+          "border": "plain",
+          "variations": 1,
+          "outputFormat": "pdf",
+          "pageSize": "US_Letter",
+          "listMode": "list",
+          "listGutter": "normal",
+          "fontStyle": "rounded",
+          "textStrokeWidth": 6,
+          "borderThickness": 8
+        },
+        "assembledPrompt": "Create a black-and-white coloring book page for print.",
+        "revisedPrompt": "deterministic-svg renderer (no revision)",
+        "images": [
+          {
+            "b64": "c3R1Yi1pbWFnZQ=="
+          }
+        ],
+        "favorite": false,
+        "violations": [],
+        "fixesApplied": [],
+        "authContext": {
+          "kind": "anonymous",
+          "capabilities": [
+            "generate",
+            "store"
+          ],
+          "rateLimitTier": "anonymous"
+        },
+        "owner": {
+          "kind": "anonymous",
+          "sessionId": "session-123"
+        }
+      }
+    },
+    "deleteCreation": {
+      "ok": true,
+      "value": true
+    },
+    "saveDraft": {
+      "ok": true,
+      "value": {
+        "updatedAtISO": "2026-01-22T00:00:00.000Z",
+        "intent": {
+          "title": "Dream Big",
+          "items": [
+            {
+              "number": 1,
+              "label": "Shine"
+            },
+            {
+              "number": 2,
+              "label": "Grow"
+            }
+          ],
+          "footerItem": {
+            "number": 97,
+            "label": "YOU"
+          },
+          "alignment": "left",
+          "numberAlignment": "strict",
+          "whitespaceScale": 50,
+          "textSize": "small",
+          "colorMode": "black_and_white_only",
+          "decorations": "none",
+          "illustrations": "none",
+          "shading": "none",
+          "border": "plain",
+          "variations": 1,
+          "outputFormat": "pdf",
+          "pageSize": "US_Letter",
+          "listMode": "list",
+          "listGutter": "normal",
+          "fontStyle": "rounded",
+          "textStrokeWidth": 6,
+          "borderThickness": 8
+        },
+        "chatMessage": "Make a checklist about growth"
+      }
+    },
+    "getDraft": {
+      "ok": true,
+      "value": {
+        "updatedAtISO": "2026-01-22T00:00:00.000Z",
+        "intent": {
+          "title": "Dream Big",
+          "items": [
+            {
+              "number": 1,
+              "label": "Shine"
+            },
+            {
+              "number": 2,
+              "label": "Grow"
+            }
+          ],
+          "footerItem": {
+            "number": 97,
+            "label": "YOU"
+          },
+          "alignment": "left",
+          "numberAlignment": "strict",
+          "whitespaceScale": 50,
+          "textSize": "small",
+          "colorMode": "black_and_white_only",
+          "decorations": "none",
+          "illustrations": "none",
+          "shading": "none",
+          "border": "plain",
+          "variations": 1,
+          "outputFormat": "pdf",
+          "pageSize": "US_Letter",
+          "listMode": "list",
+          "listGutter": "normal",
+          "fontStyle": "rounded",
+          "textStrokeWidth": 6,
+          "borderThickness": 8
+        },
+        "chatMessage": "Make a checklist about growth"
+      }
+    },
+    "clearDraft": {
+      "ok": true,
+      "value": true
+    }
+  }
+}

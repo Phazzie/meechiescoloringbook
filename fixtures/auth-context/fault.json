@@ -1,0 +1,13 @@
+{
+  "scenario": "fault",
+  "input": {
+    "sessionId": "bad id"
+  },
+  "output": {
+    "ok": false,
+    "error": {
+      "code": "SESSION_ID_INVALID",
+      "message": "Session ID contains invalid characters."
+    }
+  }
+}

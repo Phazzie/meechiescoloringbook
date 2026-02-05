@@ -1,0 +1,30 @@
+{
+  "scenario": "sample",
+  "input": {
+    "spec": {
+      "title": "Dream Big",
+      "items": [],
+      "listMode": "title_only",
+      "alignment": "left",
+      "numberAlignment": "strict",
+      "listGutter": "normal",
+      "whitespaceScale": 50,
+      "textSize": "small",
+      "fontStyle": "rounded",
+      "textStrokeWidth": 6,
+      "colorMode": "black_and_white_only",
+      "decorations": "none",
+      "illustrations": "none",
+      "shading": "none",
+      "border": "plain",
+      "borderThickness": 8,
+      "variations": 1,
+      "outputFormat": "pdf",
+      "pageSize": "US_Letter"
+    }
+  },
+  "output": {
+    "ok": true,
+    "issues": []
+  }
+}

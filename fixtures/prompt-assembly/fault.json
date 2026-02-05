@@ -1,0 +1,55 @@
+{
+  "scenario": "fault",
+  "input": {
+    "spec": {
+      "title": "Long List",
+      "items": [
+        { "number": 1, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 2, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 3, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 4, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 5, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 6, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 7, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 8, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 9, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 10, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 11, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 12, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 13, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 14, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 15, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 16, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 17, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 18, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 19, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" },
+        { "number": 20, "label": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD" }
+      ],
+      "listMode": "list",
+      "alignment": "left",
+      "numberAlignment": "strict",
+      "listGutter": "normal",
+      "whitespaceScale": 50,
+      "textSize": "small",
+      "fontStyle": "rounded",
+      "textStrokeWidth": 6,
+      "colorMode": "black_and_white_only",
+      "decorations": "none",
+      "illustrations": "none",
+      "shading": "none",
+      "border": "plain",
+      "borderThickness": 8,
+      "variations": 1,
+      "outputFormat": "pdf",
+      "pageSize": "US_Letter"
+    },
+    "styleHint": "clean worksheet"
+  },
+  "output": {
+    "ok": false,
+    "error": {
+      "code": "PROMPT_TOO_LONG",
+      "message": "Prompt exceeds provider length limit (1024)."
+    }
+  }
+}

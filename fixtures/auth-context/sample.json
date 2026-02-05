@@ -1,0 +1,14 @@
+{
+  "scenario": "sample",
+  "input": {
+    "sessionId": "session-123"
+  },
+  "output": {
+    "ok": true,
+    "value": {
+      "kind": "anonymous",
+      "capabilities": ["generate", "store"],
+      "rateLimitTier": "anonymous"
+    }
+  }
+}

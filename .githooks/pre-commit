@@ -1,0 +1,11 @@
+#!/bin/sh
+# Purpose: Enforce Seam-Driven Development verification before commits.
+# Why: Prevent committing changes without evidence and gate checks.
+# Info flow: git commit -> npm run verify -> commit allowed/blocked.
+
+npm run verify
+status=$?
+if [ $status -ne 0 ]; then
+	printf '%s\n' "pre-commit: npm run verify failed. Commit blocked."
+	exit $status
+fi

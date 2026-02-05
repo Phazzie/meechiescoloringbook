@@ -1,0 +1,18 @@
+<!--
+Purpose: Base HTML shell for the SvelteKit app.
+Why: Provide the root document structure for hydration.
+Info flow: SvelteKit injects head/body -> browser renders app.
+-->
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#1c1712" />
+		<link rel="manifest" href="/manifest.webmanifest" />
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

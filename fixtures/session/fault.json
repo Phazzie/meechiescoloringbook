@@ -1,0 +1,11 @@
+{
+  "scenario": "fault",
+  "input": {},
+  "output": {
+    "ok": false,
+    "error": {
+      "code": "BROWSER_REQUIRED",
+      "message": "Session access requires a browser environment."
+    }
+  }
+}

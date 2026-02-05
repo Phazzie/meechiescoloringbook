@@ -1,0 +1,26 @@
+# Purpose: Store npm test output for evidence.
+# Why: Provide an audit trail for Seam-Driven Development contract tests.
+# Info flow: Command output -> evidence file -> review.
+
+> coloringbook-svelte@0.0.1 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/hbpheonix/coloringbook
+
+ ✓ tests/contract/drift-detection.test.ts (5 tests) 6ms
+ ✓ tests/contract/image-generation.test.ts (7 tests) 8ms
+ ✓ tests/contract/creation-store.test.ts (3 tests) 7ms
+ ✓ tests/contract/meechie-tool.test.ts (5 tests) 5ms
+ ✓ tests/contract/spec-validation.test.ts (5 tests) 10ms
+ ✓ tests/contract/prompt-assembly.test.ts (5 tests) 7ms
+ ✓ tests/contract/auth-context.test.ts (4 tests) 4ms
+ ✓ tests/contract/chat-interpretation.test.ts (4 tests) 5ms
+ ✓ tests/contract/provider-adapter.test.ts (4 tests) 5ms
+ ✓ tests/contract/session.test.ts (3 tests) 4ms
+ ✓ tests/contract/output-packaging.test.ts (4 tests) 4ms
+
+ Test Files  11 passed (11)
+      Tests  49 passed (49)
+   Start at  18:25:55
+   Duration  2.43s (transform 679ms, setup 0ms, collect 3.16s, tests 65ms, environment 3ms, prepare 864ms)

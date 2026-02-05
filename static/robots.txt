@@ -1,0 +1,6 @@
+# Purpose: Define crawler rules for the site.
+# Why: Provide a default allow-all policy for search engines.
+# Info flow: Crawlers read this file -> indexer behavior.
+# allow crawling everything by default
+User-agent: *
+Disallow:

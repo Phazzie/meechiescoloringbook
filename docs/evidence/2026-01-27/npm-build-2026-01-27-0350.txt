@@ -1,0 +1,77 @@
+
+> coloringbook-svelte@0.0.1 build
+> vite build
+
+vite v7.3.1 building ssr environment for production...
+transforming...
+✓ 217 modules transformed.
+rendering chunks...
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 367 modules transformed.
+rendering chunks...
+computing gzip size...
+.svelte-kit/output/client/_app/version.json                                  0.03 kB │ gzip:   0.05 kB
+.svelte-kit/output/client/.vite/manifest.json                                4.41 kB │ gzip:   0.76 kB
+.svelte-kit/output/client/_app/immutable/assets/0.mkz9uJ5Y.css               0.46 kB │ gzip:   0.30 kB
+.svelte-kit/output/client/_app/immutable/assets/MeechieTools.M4KaM2rD.css    1.69 kB │ gzip:   0.61 kB
+.svelte-kit/output/client/_app/immutable/assets/2.BQ_vpo9c.css               5.46 kB │ gzip:   1.63 kB
+.svelte-kit/output/client/_app/immutable/entry/start.e4W8NzBa.js             0.08 kB │ gzip:   0.09 kB
+.svelte-kit/output/client/_app/immutable/nodes/3.CjqZyQ8K.js                 0.29 kB │ gzip:   0.20 kB
+.svelte-kit/output/client/_app/immutable/chunks/qFOF2X2_.js                  0.32 kB │ gzip:   0.25 kB
+.svelte-kit/output/client/_app/immutable/chunks/DVahMC8C.js                  0.38 kB │ gzip:   0.28 kB
+.svelte-kit/output/client/_app/immutable/chunks/CZR12zGq.js                  0.53 kB │ gzip:   0.34 kB
+.svelte-kit/output/client/_app/immutable/nodes/1.CnSQ1m1T.js                 0.56 kB │ gzip:   0.35 kB
+.svelte-kit/output/client/_app/immutable/chunks/DQr_rF9z.js                  1.06 kB │ gzip:   0.61 kB
+.svelte-kit/output/client/_app/immutable/chunks/BQMlezMH.js                  1.37 kB │ gzip:   0.77 kB
+.svelte-kit/output/client/_app/immutable/chunks/SGaSzeKS.js                  1.53 kB │ gzip:   0.67 kB
+.svelte-kit/output/client/_app/immutable/nodes/0.44XdEMqQ.js                 3.21 kB │ gzip:   1.43 kB
+.svelte-kit/output/client/_app/immutable/chunks/C7OrJ61q.js                  6.05 kB │ gzip:   2.70 kB
+.svelte-kit/output/client/_app/immutable/entry/app.BZ-6wW2q.js               6.91 kB │ gzip:   3.22 kB
+.svelte-kit/output/client/_app/immutable/chunks/BNwSTUR7.js                 22.08 kB │ gzip:   8.78 kB
+.svelte-kit/output/client/_app/immutable/chunks/FkstRU26.js                 25.97 kB │ gzip:  10.23 kB
+.svelte-kit/output/client/_app/immutable/chunks/BLpcfjx6.js                 74.81 kB │ gzip:  20.64 kB
+.svelte-kit/output/client/_app/immutable/nodes/2.CNtYKGf5.js               478.05 kB │ gzip: 193.44 kB
+✓ built in 16.91s
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 2 modules transformed.
+rendering chunks...
+computing gzip size...
+.svelte-kit/output/client/service-worker.mjs  1.37 kB │ gzip: 0.60 kB
+✓ built in 109ms
+.svelte-kit/output/server/.vite/manifest.json                                        5.51 kB
+.svelte-kit/output/server/_app/immutable/assets/_layout.mkz9uJ5Y.css                 0.46 kB
+.svelte-kit/output/server/_app/immutable/assets/MeechieTools.M4KaM2rD.css            1.69 kB
+.svelte-kit/output/server/_app/immutable/assets/_page.BQ_vpo9c.css                   5.46 kB
+.svelte-kit/output/server/chunks/shared-server.js                                    0.28 kB
+.svelte-kit/output/server/entries/pages/meechie/_page.svelte.js                      0.37 kB
+.svelte-kit/output/server/internal.js                                                0.38 kB
+.svelte-kit/output/server/chunks/chat-interpretation.contract.js                     0.45 kB
+.svelte-kit/output/server/chunks/shared.contract.js                                  0.51 kB
+.svelte-kit/output/server/chunks/environment.js                                      0.66 kB
+.svelte-kit/output/server/chunks/image-generation.contract.js                        1.02 kB
+.svelte-kit/output/server/chunks/utils.js                                            1.15 kB
+.svelte-kit/output/server/chunks/equality.js                                         1.23 kB
+.svelte-kit/output/server/entries/fallbacks/error.svelte.js                          1.37 kB
+.svelte-kit/output/server/chunks/context.js                                          1.70 kB
+.svelte-kit/output/server/entries/endpoints/api/image-generation/_server.ts.js       2.47 kB
+.svelte-kit/output/server/entries/pages/_layout.svelte.js                            2.98 kB
+.svelte-kit/output/server/chunks/provider-adapter.adapter.js                         4.53 kB
+.svelte-kit/output/server/chunks/spec-validation.contract.js                         4.83 kB
+.svelte-kit/output/server/entries/endpoints/api/chat-interpretation/_server.ts.js    6.72 kB
+.svelte-kit/output/server/chunks/exports.js                                          7.01 kB
+.svelte-kit/output/server/chunks/MeechieTools.js                                    11.34 kB
+.svelte-kit/output/server/remote-entry.js                                           18.25 kB
+.svelte-kit/output/server/chunks/shared.js                                          18.45 kB
+.svelte-kit/output/server/entries/pages/_page.svelte.js                             25.69 kB
+.svelte-kit/output/server/chunks/index.js                                           29.33 kB
+.svelte-kit/output/server/chunks/internal.js                                        76.64 kB
+.svelte-kit/output/server/index.js                                                 126.91 kB
+✓ built in 33.79s
+
+Run npm run preview to preview your production build locally.
+
+> Using @sveltejs/adapter-auto
+  Could not detect a supported production environment. See https://svelte.dev/docs/kit/adapters to learn how to configure your app to run on the platform of your choosing
+  ✔ done

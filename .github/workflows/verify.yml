@@ -1,0 +1,22 @@
+# Purpose: Enforce Seam-Driven Development gates in CI.
+# Why: Prevent unverified changes from landing in main.
+# Info flow: push/PR -> npm run verify -> pass/fail.
+name: verify
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify
+        run: npm run verify

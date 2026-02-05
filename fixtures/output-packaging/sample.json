@@ -1,0 +1,40 @@
+{
+  "scenario": "sample",
+  "input": {
+    "images": [
+      {
+        "id": "image-1",
+        "format": "svg",
+        "mimeType": "image/svg+xml",
+        "data": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"2550\" height=\"3300\"></svg>",
+        "encoding": "utf8"
+      }
+    ],
+    "outputFormat": "pdf",
+    "fileBaseName": "coloring-page-abc",
+    "pageSize": "US_Letter",
+    "variants": ["print", "square", "chat"]
+  },
+  "output": {
+    "ok": true,
+    "value": {
+      "files": [
+        {
+          "filename": "coloring-page-abc.pdf",
+          "mimeType": "application/pdf",
+          "dataBase64": "JVBERi0xLgo="
+        },
+        {
+          "filename": "coloring-page-abc-square.png",
+          "mimeType": "image/png",
+          "dataBase64": "iVBORw0KGgo="
+        },
+        {
+          "filename": "coloring-page-abc-chat.png",
+          "mimeType": "image/png",
+          "dataBase64": "iVBORw0KGgo="
+        }
+      ]
+    }
+  }
+}

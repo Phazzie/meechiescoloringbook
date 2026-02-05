@@ -1,0 +1,130 @@
+{
+  "tool": "proof-tape",
+  "generatedAt": "2026-01-25T03:45:51.118Z",
+  "evidenceDir": "docs/evidence/2026-01-25",
+  "files": [
+    {
+      "name": "assumption-alarm.json",
+      "path": "docs/evidence/2026-01-25/assumption-alarm.json",
+      "sizeBytes": 1639,
+      "modifiedAt": "2026-01-25T03:45:50.419Z",
+      "commands": []
+    },
+    {
+      "name": "chamber-lock.json",
+      "path": "docs/evidence/2026-01-25/chamber-lock.json",
+      "sizeBytes": 9710,
+      "modifiedAt": "2026-01-25T03:45:41.647Z",
+      "commands": []
+    },
+    {
+      "name": "cipher-gate.json",
+      "path": "docs/evidence/2026-01-25/cipher-gate.json",
+      "sizeBytes": 1132,
+      "modifiedAt": "2026-01-25T03:45:08.837Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.json",
+      "path": "docs/evidence/2026-01-25/clan-chain.json",
+      "sizeBytes": 1250,
+      "modifiedAt": "2026-01-25T03:45:50.882Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.md",
+      "path": "docs/evidence/2026-01-25/clan-chain.md",
+      "sizeBytes": 888,
+      "modifiedAt": "2026-01-25T03:45:50.883Z",
+      "commands": []
+    },
+    {
+      "name": "probe-chat-interpretation.txt",
+      "path": "docs/evidence/2026-01-25/probe-chat-interpretation.txt",
+      "sizeBytes": 47,
+      "modifiedAt": "2026-01-25T03:42:48.445Z",
+      "commands": []
+    },
+    {
+      "name": "probe-image-generation.txt",
+      "path": "docs/evidence/2026-01-25/probe-image-generation.txt",
+      "sizeBytes": 44,
+      "modifiedAt": "2026-01-25T03:42:54.614Z",
+      "commands": []
+    },
+    {
+      "name": "probe-provider-adapter.txt",
+      "path": "docs/evidence/2026-01-25/probe-provider-adapter.txt",
+      "sizeBytes": 36,
+      "modifiedAt": "2026-01-25T03:42:42.915Z",
+      "commands": []
+    },
+    {
+      "name": "proof-tape.json",
+      "path": "docs/evidence/2026-01-25/proof-tape.json",
+      "sizeBytes": 3865,
+      "modifiedAt": "2026-01-25T03:45:08.531Z",
+      "commands": []
+    },
+    {
+      "name": "proof-tape.md",
+      "path": "docs/evidence/2026-01-25/proof-tape.md",
+      "sizeBytes": 1355,
+      "modifiedAt": "2026-01-25T03:45:08.531Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.json",
+      "path": "docs/evidence/2026-01-25/seam-ledger.json",
+      "sizeBytes": 10316,
+      "modifiedAt": "2026-01-25T03:45:50.651Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.md",
+      "path": "docs/evidence/2026-01-25/seam-ledger.md",
+      "sizeBytes": 1054,
+      "modifiedAt": "2026-01-25T03:45:50.651Z",
+      "commands": []
+    },
+    {
+      "name": "shaolin-lint.json",
+      "path": "docs/evidence/2026-01-25/shaolin-lint.json",
+      "sizeBytes": 577,
+      "modifiedAt": "2026-01-25T03:45:50.189Z",
+      "commands": []
+    },
+    {
+      "name": "test.txt",
+      "path": "docs/evidence/2026-01-25/test.txt",
+      "sizeBytes": 1090,
+      "modifiedAt": "2026-01-25T03:45:49.954Z",
+      "commands": [
+        "coloringbook-svelte@0.0.1 test",
+        "vitest run"
+      ]
+    },
+    {
+      "name": "verify.txt",
+      "path": "docs/evidence/2026-01-25/verify.txt",
+      "sizeBytes": 1902,
+      "modifiedAt": "2026-01-25T03:45:51.050Z",
+      "commands": [
+        "coloringbook-svelte@0.0.1 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "coloringbook-svelte@0.0.1 test",
+        "vitest run",
+        "coloringbook-svelte@0.0.1 shaolin:lint",
+        "node scripts/shaolin-lint.mjs",
+        "coloringbook-svelte@0.0.1 assumption:alarm",
+        "node scripts/assumption-alarm.mjs",
+        "coloringbook-svelte@0.0.1 seam:ledger",
+        "node scripts/seam-ledger.mjs",
+        "coloringbook-svelte@0.0.1 clan:chain",
+        "node scripts/clan-chain.mjs",
+        "coloringbook-svelte@0.0.1 proof:tape",
+        "node scripts/proof-tape.mjs"
+      ]
+    }
+  ]
+}

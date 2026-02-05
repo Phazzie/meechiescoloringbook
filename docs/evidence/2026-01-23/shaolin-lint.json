@@ -1,0 +1,25 @@
+{
+  "tool": "shaolin-lint",
+  "generatedAt": "2026-01-23T23:25:58.236Z",
+  "latestChangeMs": 1769210517377.2546,
+  "evidence": [
+    {
+      "name": "verify",
+      "status": "ok",
+      "path": "/Users/hbpheonix/coloringbook/docs/evidence/2026-01-23/verify.txt",
+      "mtimeMs": 1769210757994.303
+    },
+    {
+      "name": "test",
+      "status": "ok",
+      "path": "/Users/hbpheonix/coloringbook/docs/evidence/2026-01-23/test.txt",
+      "mtimeMs": 1769210757997.4834
+    }
+  ],
+  "summary": {
+    "ok": 2,
+    "missing": 0,
+    "stale": 0,
+    "overallStatus": "ok"
+  }
+}

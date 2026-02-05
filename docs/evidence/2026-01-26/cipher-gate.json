@@ -1,0 +1,22 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-01-26T20:22:19.313Z",
+  "cipher": {
+    "date": "2026-01-26",
+    "seams": "Governance",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-01-26/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-01-26/verify.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Added a governance rule to define jargon/flags in plain language.",
+    "risks": "None beyond enforcement drift if definitions are skipped."
+  },
+  "latestChangeMs": 1769458655791.9504,
+  "status": "ok"
+}

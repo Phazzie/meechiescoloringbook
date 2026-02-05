@@ -1,0 +1,11 @@
+#!/bin/sh
+# Purpose: Enforce Seam-Driven Development verification before pushes.
+# Why: Prevent pushing changes without evidence and gate checks.
+# Info flow: git push -> npm run verify -> push allowed/blocked.
+
+npm run verify
+status=$?
+if [ $status -ne 0 ]; then
+	printf '%s\n' "pre-push: npm run verify failed. Push blocked."
+	exit $status
+fi

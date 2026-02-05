@@ -1,0 +1,15 @@
+{
+  "scenario": "fault",
+  "input": {
+    "toolId": "lineup",
+    "prompt": "Rank these excuses:",
+    "items": ["My phone died"]
+  },
+  "output": {
+    "ok": false,
+    "error": {
+      "code": "LINEUP_TOO_SHORT",
+      "message": "Lineup requires at least two items to rank." 
+    }
+  }
+}

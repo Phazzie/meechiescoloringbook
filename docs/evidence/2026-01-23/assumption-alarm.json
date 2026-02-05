@@ -1,0 +1,30 @@
+{
+  "tool": "assumption-alarm",
+  "generatedAt": "2026-01-23T23:25:58.480Z",
+  "blockedSeams": [
+    "AuthContextSeam",
+    "CreationStoreSeam",
+    "ChatInterpretationSeam",
+    "ProviderAdapterSeam",
+    "SessionSeam"
+  ],
+  "assumptions": [
+    {
+      "date": "2026-01-23",
+      "seams": "AuthContextSeam, CreationStoreSeam, ChatInterpretationSeam, ProviderAdapterSeam, SessionSeam",
+      "statement": "Probes are blocked in v1 due to missing credentials or environment; adapters remain stubbed and deterministic for now.",
+      "validation": "Run probes when credentials/environment are available; update fixtures and evidence accordingly.",
+      "status": "open",
+      "seamList": [
+        "AuthContextSeam",
+        "CreationStoreSeam",
+        "ChatInterpretationSeam",
+        "ProviderAdapterSeam",
+        "SessionSeam"
+      ],
+      "missingFields": []
+    }
+  ],
+  "missingSeamCoverage": [],
+  "invalidAssumptions": []
+}

@@ -1,0 +1,34 @@
+{
+  "scenario": "sample",
+  "input": {
+    "spec": {
+      "title": "Dream Big",
+      "items": [],
+      "listMode": "title_only",
+      "alignment": "left",
+      "numberAlignment": "strict",
+      "listGutter": "normal",
+      "whitespaceScale": 50,
+      "textSize": "small",
+      "fontStyle": "rounded",
+      "textStrokeWidth": 6,
+      "colorMode": "black_and_white_only",
+      "decorations": "none",
+      "illustrations": "none",
+      "shading": "none",
+      "border": "plain",
+      "borderThickness": 8,
+      "variations": 1,
+      "outputFormat": "pdf",
+      "pageSize": "US_Letter"
+    },
+    "styleHint": "quiet minimalist"
+  },
+  "output": {
+    "ok": true,
+    "value": {
+      "prompt": "Black-and-white coloring book page for print.\nSTYLE:\n[Describe the vibe. Include outline-only and easy to color.]\nVibe: quiet minimalist outline-only, easy to color. Color: black and white only.\nTEXT (exact):\n[Main quote EXACT — do not alter text.]\nDream Big\n[Secondary line EXACT — omit if none.]\nTYPOGRAPHY:\nBold bubble letters; thick outlines.\nGlitter outline only (no shading).\nFont: rounded. Stroke: 6px.\nLAYOUT:\nUS Letter 8.5x11 portrait. Left-align the quote. Line 1 headline; line 2 below.\nKeep generous whitespace; treat blank space intentional.\nNo list.\nall text left-aligned; treat blank space as intentional; do not fill empty space.\nDECORATIONS:\nDecorations: none. Illustrations: none. Shading: none. Border: plain 8px.\nOUTPUT:\nCrisp vector-like linework. Black outlines on white. Printable.\nNEGATIVE PROMPT:\nno color\nno grayscale\nno shading\nno gradients\nno filled shapes\nno extra words",
+      "templateVersion": "v2"
+    }
+  }
+}

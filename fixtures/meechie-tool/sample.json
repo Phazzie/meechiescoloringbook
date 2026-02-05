@@ -1,0 +1,15 @@
+{
+  "scenario": "sample",
+  "input": {
+    "toolId": "apology_translator",
+    "apology": "I'm sorry you feel that way"
+  },
+  "output": {
+    "ok": true,
+    "value": {
+      "toolId": "apology_translator",
+      "headline": "Translation",
+      "response": "I'm not sorry for what I did. I'm sorry you noticed. Meechie don't accept returns on half-ass apologies."
+    }
+  }
+}

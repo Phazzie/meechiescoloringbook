@@ -1,0 +1,48 @@
+{
+  "scenario": "fault",
+  "input": {
+    "spec": {
+      "title": "Bad Spec",
+      "items": [
+        { "number": 0, "label": "Bad\nLabel" }
+      ],
+      "listMode": "list",
+      "alignment": "left",
+      "numberAlignment": "strict",
+      "listGutter": "normal",
+      "whitespaceScale": 50,
+      "textSize": "small",
+      "fontStyle": "rounded",
+      "textStrokeWidth": 6,
+      "colorMode": "black_and_white_only",
+      "decorations": "none",
+      "illustrations": "none",
+      "shading": "hatch",
+      "border": "plain",
+      "borderThickness": 8,
+      "variations": 1,
+      "outputFormat": "pdf",
+      "pageSize": "US_Letter"
+    }
+  },
+  "output": {
+    "ok": false,
+    "issues": [
+      {
+        "code": "ITEM_NUMBER_OUT_OF_RANGE",
+        "field": "items[0].number",
+        "message": "Item number must be between 1 and 999."
+      },
+      {
+        "code": "LABEL_INVALID_CHARS",
+        "field": "items[0].label",
+        "message": "Label contains invalid characters."
+      },
+      {
+        "code": "SPEC_INVALID",
+        "field": "shading",
+        "message": "Shading requires decorations or illustrations."
+      }
+    ]
+  }
+}

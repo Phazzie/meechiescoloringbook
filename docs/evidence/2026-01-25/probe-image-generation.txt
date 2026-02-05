@@ -1,0 +1,5 @@
+Source: user-run probes (2026-01-25)
+Command: node probes/image-generation.probe.mjs
+Output:
+Image generation probe failed.
+400 {"code":"Operation was attempted past the valid range","error":"Prompt len is larger than the maximum allowed length which is 1024"}

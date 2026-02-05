@@ -1,0 +1,5 @@
+Source: user-run probes (2026-01-25)
+Command: node probes/provider-adapter.probe.mjs
+Output:
+Provider probe complete. Chat content length: 2.
+Image base64 length: 0.

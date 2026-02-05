@@ -1,0 +1,24 @@
+
+> coloringbook-svelte@0.0.1 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/hbpheonix/coloringbook
+
+ ✓ tests/contract/image-generation.test.ts (4 tests) 58ms
+ ✓ tests/contract/chat-interpretation.test.ts (4 tests) 55ms
+ ✓ tests/contract/provider-adapter.test.ts (4 tests) 58ms
+ ✓ tests/contract/auth-context.test.ts (4 tests) 7ms
+ ✓ tests/contract/drift-detection.test.ts (5 tests) 7ms
+ ✓ tests/contract/spec-validation.test.ts (5 tests) 36ms
+ ✓ tests/contract/creation-store.test.ts (3 tests) 13ms
+ ✓ tests/contract/prompt-assembly.test.ts (5 tests) 16ms
+ ✓ tests/contract/meechie-tool.test.ts (5 tests) 8ms
+ ✓ tests/contract/output-packaging.test.ts (4 tests) 12ms
+ ✓ tests/contract/session.test.ts (3 tests) 15ms
+
+ Test Files  11 passed (11)
+      Tests  46 passed (46)
+   Start at  22:18:17
+   Duration  5.93s (transform 3.44s, setup 0ms, collect 8.60s, tests 284ms, environment 4ms, prepare 2.84s)
+

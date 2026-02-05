@@ -32,8 +32,8 @@ Follow this order, no shortcuts:
 6. Adapter: `src/lib/adapters/<seam>.adapter.ts` (real I/O via JailedFs).
 
 ## Governance
-- Plan + self-critique before code changes. List files and constraints.
-- Replace "locks" with a mandatory checklist gate (see below). Each item must be verifiable by file paths or command output.
+- **Planning enforcement:** Plan + self-critique before code changes. List files and constraints; the plan must include the exact seam names (already listed in `docs/seams.md`), exact file paths to be touched, and exact commands that will be run.
+- Replace "locks" with a mandatory checklist gate (see below). Each checklist entry must be verifiable by a file path, a directory path, or concrete command output (no fuzzy claims).
 - When asked for evidence, provide actual command output.
 - Always keep track of who Wu-Bob consists of (which 1-3 Wu-Tang members are combined with Robert C. Martin).
 - When a seam changes, include exact command output for `npm run verify` and `npm test`.
@@ -41,7 +41,7 @@ Follow this order, no shortcuts:
 - Use the full term "Seam-Driven Development" in prose; do not use the acronym.
 - Automation is required: `npm run verify` must be used for seam changes; it runs chamber lock, evidence capture, shaolin lint, seam ledger, clan chain, and proof tape.
 - Use `npm run rewind -- --seam <SeamName>` for seam-scoped contract verification when full verify is not required.
-- When introducing jargon or flags (for example: deterministic, compressed provider prompt, CLI flags), define them briefly in plain language.
+- When introducing jargon or flags (for example: deterministic compressed provider prompt, CLI flags that start with `-`), define them briefly in plain language near their first mention so non-coders can follow along.
 
 ## Plan + Self-Critique Template
 - Plan: goal, exact seam names (must already exist in `docs/seams.md`), exact file paths to be touched, exact commands to run. No vague or aspirational language.
@@ -73,7 +73,7 @@ Info flow: ...
 
 ## Only Exception (Must Be Explicitly Stated)
 - Docs/comments/formatting-only changes with zero behavioral impact. If there is any doubt, treat it as a seam change.
-- Governance-only doc changes (naming conventions, seam inventory format, enforcement rules) still require a micro Plan + Self-Critique.
+- Governance-only doc changes (naming conventions, seam inventory format, enforcement rules) still require a micro Plan + Self-Critique that lists the seams (if any), files, commands, and how behavior stays unchanged.
 
 ## Non-Negotiable Mandates (Short)
 - Adapters must not import `fs` or `fs.promises` directly.
@@ -85,11 +85,12 @@ Info flow: ...
 
 ## Checklist Before Saying "Done"
 - Plan + self-critique completed.
-- Fixtures are fresh (<= 7 days) or waiver recorded in `DECISIONS.md` with the assumption being made and a plan for later validation.
+- Fixtures are fresh (<= 7 days) or waiver recorded in `DECISIONS.md` with the assumption being made, the assumption documented in `LESSONS_LEARNED.md`/`DECISIONS.md`, and a stated plan for later validation.
 - Mock loads fixtures by scenario (no logic shortcuts).
 - Fault fixture fails before adapter work (red proof).
 - Adapter uses JailedFs and async I/O only.
 - `npm run verify` and `npm test` are green.
+- The checklist gate has entries that can each be tied to an actual file path or command output (e.g., `docs/evidence/2026-01-27/npm-test-2026-01-27-0330.txt`).
 
 ## Anti-Laziness / Blocked
 - Primary failure modes: skipping steps, guessing instead of probing, declaring completion without evidence.

@@ -1,0 +1,138 @@
+{
+  "scenario": "fault",
+  "input": {
+    "saveCreation": {
+      "record": {
+        "id": "creation-1",
+        "createdAtISO": "2026-01-22T00:00:00.000Z",
+        "intent": {
+          "title": "Dream Big",
+          "items": [
+            {
+              "number": 1,
+              "label": "Shine"
+            }
+          ],
+          "alignment": "left",
+          "numberAlignment": "strict",
+          "whitespaceScale": 50,
+          "textSize": "small",
+          "colorMode": "black_and_white_only",
+          "decorations": "none",
+          "illustrations": "none",
+          "shading": "none",
+          "variations": 1,
+          "outputFormat": "pdf",
+          "pageSize": "US_Letter",
+          "listMode": "list",
+          "listGutter": "normal",
+          "fontStyle": "rounded",
+          "textStrokeWidth": 6,
+          "border": "plain",
+          "borderThickness": 8
+        },
+        "assembledPrompt": "Create a black-and-white coloring book page for print.",
+        "owner": {
+          "kind": "anonymous",
+          "sessionId": "session-123"
+        }
+      }
+    },
+    "listCreations": {
+      "owner": {
+        "kind": "anonymous",
+        "sessionId": "session-123"
+      }
+    },
+    "getCreation": {
+      "id": "creation-1"
+    },
+    "deleteCreation": {
+      "id": "creation-1"
+    },
+    "saveDraft": {
+      "draft": {
+        "updatedAtISO": "2026-01-22T00:00:00.000Z",
+        "intent": {
+          "title": "Dream Big",
+          "items": [
+            {
+              "number": 1,
+              "label": "Shine"
+            }
+          ],
+          "alignment": "left",
+          "numberAlignment": "strict",
+          "whitespaceScale": 50,
+          "textSize": "small",
+          "colorMode": "black_and_white_only",
+          "decorations": "none",
+          "illustrations": "none",
+          "shading": "none",
+          "variations": 1,
+          "outputFormat": "pdf",
+          "pageSize": "US_Letter",
+          "listMode": "list",
+          "listGutter": "normal",
+          "fontStyle": "rounded",
+          "textStrokeWidth": 6,
+          "border": "plain",
+          "borderThickness": 8
+        }
+      }
+    },
+    "getDraft": {},
+    "clearDraft": {}
+  },
+  "output": {
+    "saveCreation": {
+      "ok": false,
+      "error": {
+        "code": "BROWSER_REQUIRED",
+        "message": "Creation store requires a browser environment."
+      }
+    },
+    "listCreations": {
+      "ok": false,
+      "error": {
+        "code": "BROWSER_REQUIRED",
+        "message": "Creation store requires a browser environment."
+      }
+    },
+    "getCreation": {
+      "ok": false,
+      "error": {
+        "code": "BROWSER_REQUIRED",
+        "message": "Creation store requires a browser environment."
+      }
+    },
+    "deleteCreation": {
+      "ok": false,
+      "error": {
+        "code": "BROWSER_REQUIRED",
+        "message": "Creation store requires a browser environment."
+      }
+    },
+    "saveDraft": {
+      "ok": false,
+      "error": {
+        "code": "BROWSER_REQUIRED",
+        "message": "Creation store requires a browser environment."
+      }
+    },
+    "getDraft": {
+      "ok": false,
+      "error": {
+        "code": "BROWSER_REQUIRED",
+        "message": "Creation store requires a browser environment."
+      }
+    },
+    "clearDraft": {
+      "ok": false,
+      "error": {
+        "code": "BROWSER_REQUIRED",
+        "message": "Creation store requires a browser environment."
+      }
+    }
+  }
+}

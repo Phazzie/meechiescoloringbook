@@ -1,0 +1,26 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-01-27T18:46:25.526Z",
+  "cipher": {
+    "date": "2026-01-27",
+    "seams": "SpecValidationSeam, PromptAssemblySeam, DriftDetectionSeam, CreationStoreSeam, SessionSeam, OutputPackagingSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-01-27/npm-test-2026-01-27-0330.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-01-27/npm-verify-2026-01-27-0340.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-01-27/npm-build-2026-01-27-0350.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Added validation gating, creation favorite/delete controls, indefinite draft persistence, and Android-ready manifest/icons while proving the flow with full `npm test`/`npm run verify`/`npm run build` evidence.",
+    "risks": "Need to rerun the gate if we alter any seam that touches validation, storage, or packaging again."
+  },
+  "latestChangeMs": 1769539418525.1326,
+  "status": "ok"
+}

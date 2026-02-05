@@ -1,0 +1,34 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-01-25T03:45:51.370Z",
+  "cipher": {
+    "date": "2026-01-25",
+    "seams": "ProviderAdapterSeam, ChatInterpretationSeam, ImageGenerationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-01-25/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-01-25/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-01-24/probe-provider-adapter.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-01-24/probe-chat-interpretation.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-01-24/probe-image-generation.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Implemented xAI-backed provider adapter and server routes, updated client adapters/tests/fixtures, added PWA assets, and embedded Meechie tools in the main UI; probes are blocked due to DNS.",
+    "risks": "xAI probes failed because DNS resolution is unavailable; fixtures remain stubbed until probes can run."
+  },
+  "latestChangeMs": 1769312678769.1633,
+  "status": "ok"
+}
