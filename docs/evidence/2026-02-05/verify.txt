@@ -17,19 +17,19 @@ svelte-check found 0 errors and 0 warnings
 
  RUN  v3.2.4 /Users/hbpheonix/coloringbook
 
- ✓ tests/contract/image-generation.test.ts (4 tests) 35ms
- ✓ tests/contract/chat-interpretation.test.ts (4 tests) 36ms
+ ✓ tests/contract/chat-interpretation.test.ts (4 tests) 38ms
  ✓ tests/contract/provider-adapter.test.ts (4 tests) 44ms
- ✓ tests/contract/spec-validation.test.ts (6 tests) 10ms
- ✓ tests/contract/prompt-assembly.test.ts (5 tests) 6ms
- ✓ tests/contract/drift-detection.test.ts (5 tests) 6ms
+ ✓ tests/contract/image-generation.test.ts (4 tests) 41ms
+ ✓ tests/contract/meechie-tool.test.ts (5 tests) 6ms
+ ✓ tests/contract/spec-validation.test.ts (6 tests) 8ms
  ✓ tests/contract/creation-store.test.ts (3 tests) 8ms
- ✓ tests/contract/meechie-tool.test.ts (5 tests) 7ms
- ✓ tests/contract/auth-context.test.ts (4 tests) 4ms
- ✓ tests/contract/session.test.ts (3 tests) 4ms
+ ✓ tests/contract/prompt-assembly.test.ts (5 tests) 7ms
+ ✓ tests/contract/drift-detection.test.ts (5 tests) 7ms
+ ✓ tests/contract/session.test.ts (3 tests) 6ms
+ ✓ tests/contract/auth-context.test.ts (4 tests) 6ms
  ✓ tests/contract/output-packaging.test.ts (4 tests) 5ms
 
  Test Files  11 passed (11)
       Tests  47 passed (47)
-   Start at  00:36:38
-   Duration  3.72s (transform 575ms, setup 0ms, collect 4.73s, tests 165ms, environment 3ms, prepare 1.50s)
+   Start at  00:43:01
+   Duration  5.41s (transform 2.51s, setup 0ms, collect 6.67s, tests 175ms, environment 2ms, prepare 2.01s)
