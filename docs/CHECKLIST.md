@@ -21,19 +21,26 @@ Info flow: Plan -> commands -> evidence -> decisions -> completion.
 - [ ] Contract tests exist under `tests/contract/`.
 - [ ] PWA assets exist in `src/app.html`, `static/manifest.webmanifest`, `static/icons/`, and `src/service-worker.ts`.
 
-## Phase 2 - Provider probes (real-world behavior)
+## Phase 2 - Browser probes (real-world behavior)
+- [ ] Run `node probes/browser-seams.probe.mjs` and save output to `docs/evidence/YYYY-MM-DD/probe-browser-seams.txt`.
+- [ ] If the browser probe is blocked, record an Assumption entry (a dated blocked-probe note) in `DECISIONS.md`, run `npm run assumption:alarm`, and stop.
+
+## Phase 3 - Provider probes (real-world behavior)
 - [ ] Load credentials with `set -a; source .env; set +a` (exports variables from `.env` for the current shell).
 - [ ] Run `node probes/provider-adapter.probe.mjs` and save output to `docs/evidence/YYYY-MM-DD/probe-provider-adapter.txt`.
 - [ ] Run `node probes/chat-interpretation.probe.mjs` and save output to `docs/evidence/YYYY-MM-DD/probe-chat-interpretation.txt`.
 - [ ] Run `node probes/image-generation.probe.mjs` and save output to `docs/evidence/YYYY-MM-DD/probe-image-generation.txt`.
 - [ ] If any probe is blocked, record an Assumption entry (a dated blocked-probe note) in `DECISIONS.md`, run `npm run assumption:alarm`, and stop.
 
-## Phase 3 - Fixtures refresh (probe-backed)
+## Phase 4 - Fixtures refresh (probe-backed)
+- [ ] Update `fixtures/session/` to match the latest browser probe outputs.
+- [ ] Update `fixtures/auth-context/` to match the latest browser probe outputs.
+- [ ] Update `fixtures/creation-store/` to match the latest browser probe outputs.
 - [ ] Update `fixtures/provider-adapter/` to match the latest probe outputs.
 - [ ] Update `fixtures/chat-interpretation/` to match the latest probe outputs.
 - [ ] Update `fixtures/image-generation/` to match the latest probe outputs.
 
-## Phase 4 - Contract-first seam verification
+## Phase 5 - Contract-first seam verification
 - [ ] Run `npm run rewind -- --seam AuthContextSeam` (the `--seam` flag selects a single seam contract test) and save output to `docs/evidence/YYYY-MM-DD/rewind-auth-context-seam.txt`.
 - [ ] Run `npm run rewind -- --seam CreationStoreSeam` and save output to `docs/evidence/YYYY-MM-DD/rewind-creation-store-seam.txt`.
 - [ ] Run `npm run rewind -- --seam PromptAssemblySeam` and save output to `docs/evidence/YYYY-MM-DD/rewind-prompt-assembly-seam.txt`.
@@ -46,21 +53,21 @@ Info flow: Plan -> commands -> evidence -> decisions -> completion.
 - [ ] Run `npm run rewind -- --seam SessionSeam` and save output to `docs/evidence/YYYY-MM-DD/rewind-session-seam.txt`.
 - [ ] Run `npm run rewind -- --seam SpecValidationSeam` and save output to `docs/evidence/YYYY-MM-DD/rewind-spec-validation-seam.txt`.
 
-## Phase 5 - Full verification (required for seam changes)
+## Phase 6 - Full verification (required for seam changes)
 - [ ] Run `npm test` and save output to `docs/evidence/YYYY-MM-DD/npm-test.txt`.
 - [ ] Run `npm run verify` and save output to `docs/evidence/YYYY-MM-DD/npm-verify.txt`.
 - [ ] Confirm automation outputs exist under `docs/evidence/YYYY-MM-DD/` (chamber lock, shaolin lint, seam ledger, clan chain, proof tape, cipher gate).
 
-## Phase 6 - PWA build validation
+## Phase 7 - PWA build validation
 - [ ] Run `npm run build` and save output to `docs/evidence/YYYY-MM-DD/npm-build.txt`.
 - [ ] Confirm the build output includes the manifest and icons (inspect the build folder or emitted assets list).
 
-## Phase 7 - Documentation gates
+## Phase 8 - Documentation gates
 - [ ] Update `DECISIONS.md` with a Cipher Gate entry (a dated evidence-linked change record).
 - [ ] Update `CHANGELOG.md` with user-visible changes only.
 - [ ] Update `LESSONS_LEARNED.md` with any new pitfalls or fixes.
 - [ ] Update `docs/seams.md` with Last probe dates and notes that match evidence.
 - [ ] Confirm every touched file starts with a Purpose/Why/Info flow comment.
 
-## Phase 8 - Final status
+## Phase 9 - Final status
 - [ ] Capture `git status -sb` output to `docs/evidence/YYYY-MM-DD/git-status.txt`.

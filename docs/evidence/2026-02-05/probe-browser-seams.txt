@@ -1,0 +1,4 @@
+Browser seam probe complete.
+Session id: session-123
+Auth kind: anonymous
+Creation count: 1

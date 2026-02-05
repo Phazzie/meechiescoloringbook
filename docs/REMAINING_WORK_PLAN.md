@@ -15,33 +15,31 @@ Info flow: Code inventory -> remaining tasks -> evidence and verification.
 - Server endpoints for chat and image generation exist in `src/routes/api/chat-interpretation/+server.ts` and `src/routes/api/image-generation/+server.ts`.
 - PWA shell, manifest, icons, and service worker are present in `src/app.html`, `static/manifest.webmanifest`, `static/icons/`, and `src/service-worker.ts`.
 - Contract tests exist for all seams in `tests/contract/`.
+- Browser seam probes are implemented in `probes/browser-seams.probe.mjs` for Session/AuthContext/CreationStore.
+
+## Completion status (2026-02-05)
+- Browser seam probes ran and fixtures were refreshed (see `docs/evidence/2026-02-05/`).
+- Seam rewinds, `npm test`, `npm run verify`, and `npm run build` completed with evidence captured.
+- No remaining tasks for v1; rerun probes and verification when seams change.
 
 ## Remaining work to reach completion
-1. **Verification + evidence capture**
-   - Run seam-scoped contract tests, then `npm test` and `npm run verify`.
-   - Save outputs under `docs/evidence/YYYY-MM-DD/` and update `DECISIONS.md` with a Cipher Gate entry.
-2. **Real-world probes + fixtures**
-   - Run provider/chat/image probes with credentials, and refresh fixtures if outputs change.
-   - Record Assumption entries if probes are blocked.
-3. **Fix any failing probes/tests**
-   - Apply only the minimal changes required to satisfy contract tests and probes.
-4. **PWA build check**
-   - Run `npm run build` and verify manifest + icons are emitted.
-5. **Docs sweep**
-   - Update `CHANGELOG.md`, `LESSONS_LEARNED.md`, and `docs/seams.md` with evidence-backed status.
+None. All required Seam-Driven Development steps are complete for v1 with evidence captured on 2026-02-05.
 
 ## Granular Plan Steps
-1. **Seam-scoped tests (contract-first)**
+1. **Browser seam probe + fixture refresh**
+   - Run `node probes/browser-seams.probe.mjs`.
+   - If outputs differ, refresh `fixtures/session/sample.json`, `fixtures/auth-context/sample.json`, and `fixtures/creation-store/sample.json`.
+2. **Seam-scoped tests (contract-first)**
    - Run `npm run rewind -- --seam <SeamName>` for each seam (the `--seam` flag selects a single seam contract test).
    - Capture each output in `docs/evidence/YYYY-MM-DD/rewind-<seam>.txt`.
-2. **Probes + fixture refresh**
+3. **Provider probes + fixture refresh**
    - Run `node probes/provider-adapter.probe.mjs`, `node probes/chat-interpretation.probe.mjs`, and `node probes/image-generation.probe.mjs`.
    - If outputs differ, refresh `fixtures/*/sample.json` and `fixtures/*/fault.json` accordingly.
-3. **Full verification**
+4. **Full verification**
    - Run `npm test` and `npm run verify`, capturing outputs in `docs/evidence/YYYY-MM-DD/`.
-4. **PWA build validation**
+5. **PWA build validation**
    - Run `npm run build` and confirm manifest + icons are emitted in the build output.
-5. **Documentation gates**
+6. **Documentation gates**
    - Update `DECISIONS.md` with a Cipher Gate entry referencing the evidence paths.
    - Update `CHANGELOG.md` and `LESSONS_LEARNED.md` with evidence-backed notes.
 

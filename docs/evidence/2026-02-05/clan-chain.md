@@ -5,21 +5,21 @@ Info flow: seam ledger -> chain summary -> review.
 -->
 # Clan Chain
 
-Generated at: 2026-02-05T01:59:35.643Z
+Generated at: 2026-02-05T05:36:43.155Z
 Evidence folder: docs/evidence/2026-02-05
 
 Clean seams:
+- AuthContextSeam (owner: hbpheonix)
+- CreationStoreSeam (owner: hbpheonix)
 - ChatInterpretationSeam (owner: hbpheonix)
 - ImageGenerationSeam (owner: hbpheonix)
 - ProviderAdapterSeam (owner: hbpheonix)
+- SessionSeam (owner: hbpheonix)
 
 Dirty seams:
-- AuthContextSeam (owner: hbpheonix, status: blocked)
-- CreationStoreSeam (owner: hbpheonix, status: blocked)
 - PromptAssemblySeam (owner: hbpheonix, status: na)
 - DriftDetectionSeam (owner: hbpheonix, status: na)
 - MeechieToolSeam (owner: hbpheonix, status: na)
 - OutputPackagingSeam (owner: hbpheonix, status: na)
-- SessionSeam (owner: hbpheonix, status: blocked)
 - SpecValidationSeam (owner: hbpheonix, status: na)
 

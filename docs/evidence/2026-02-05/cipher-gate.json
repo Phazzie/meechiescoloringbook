@@ -1,38 +1,38 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-02-05T01:59:36.358Z",
+  "generatedAt": "2026-02-05T05:36:43.819Z",
   "cipher": {
-    "date": "2026-02-01",
-    "seams": "ProviderAdapterSeam",
+    "date": "2026-02-05",
+    "seams": "AuthContextSeam, CreationStoreSeam, SessionSeam",
     "evidence": [
       {
-        "path": "docs/evidence/2026-02-01/rewind-ProviderAdapterSeam.txt",
+        "path": "docs/evidence/2026-02-05/probe-browser-seams.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-02-01/npm-test.txt",
+        "path": "docs/evidence/2026-02-05/rewind-auth-context-seam.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-02-01/npm-verify.txt",
+        "path": "docs/evidence/2026-02-05/rewind-creation-store-seam.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-02-01/probe-provider-adapter.txt",
+        "path": "docs/evidence/2026-02-05/rewind-session-seam.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-02-01/probe-chat-interpretation.txt",
+        "path": "docs/evidence/2026-02-05/npm-test.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-02-01/probe-image-generation.txt",
+        "path": "docs/evidence/2026-02-05/npm-verify.txt",
         "exists": true
       }
     ],
-    "summary": "Refreshed provider/chat/image probes and aligned ProviderAdapterSeam fault status handling with probe-backed fixtures.",
-    "risks": "Provider error status codes can change; fixtures and test stubs must be refreshed when probes change."
+    "summary": "Ran browser seam probes, refreshed localStorage-backed fixtures, and verified contract/test coverage for Session/AuthContext/CreationStore.",
+    "risks": "Probe output depends on Playwright and localStorage keys; changes in browser storage behavior require probe updates."
   },
-  "latestChangeMs": 1769987327122.8296,
+  "latestChangeMs": 1770269560519.6091,
   "status": "ok"
 }

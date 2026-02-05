@@ -5,12 +5,12 @@ Info flow: seam checks -> ledger table -> review.
 -->
 # Seam Ledger
 
-Generated at: 2026-02-05T01:59:35.243Z
+Generated at: 2026-02-05T05:36:42.864Z
 
 | Seam | Status | Contract | Probe | Fixtures | Mock | Tests | Adapter |
 | --- | --- | --- | --- | --- | --- | --- | --- |
- AuthContextSeam | ⛔ | ✅ | ⛔ | ✅ | ✅ | ✅ | ✅ 
- CreationStoreSeam | ⛔ | ✅ | ⛔ | ✅ | ✅ | ✅ | ✅ 
+ AuthContextSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ 
+ CreationStoreSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ 
  PromptAssemblySeam | — | ✅ | — | ✅ | ✅ | ✅ | ✅ 
  ChatInterpretationSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ 
  ImageGenerationSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ 
@@ -18,6 +18,6 @@ Generated at: 2026-02-05T01:59:35.243Z
  MeechieToolSeam | — | ✅ | — | ✅ | ✅ | ✅ | ✅ 
  ProviderAdapterSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ 
  OutputPackagingSeam | — | ✅ | — | ✅ | ✅ | ✅ | ✅ 
- SessionSeam | ⛔ | ✅ | ⛔ | ✅ | ✅ | ✅ | ✅ 
+ SessionSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ 
  SpecValidationSeam | — | ✅ | — | ✅ | ✅ | ✅ | ✅ 
 

@@ -15,6 +15,21 @@ Short, durable decisions with context and tradeoffs.
 - Consequences:
 - Revisit criteria:
 
+## 2026-02-05 - Browser seam probe with Playwright
+- Date: 2026-02-05
+- Decision: Add a Playwright-based browser probe to capture localStorage-backed seams (Session/AuthContext/CreationStore).
+- Context: These seams depend on real browser storage APIs that are not available in Node-only probes.
+- Alternatives: Use jsdom with a storage shim, or manually maintain fixtures without probing.
+- Consequences: Adds a Playwright dev dependency and requires a local browser install for probe runs.
+- Revisit criteria: If a lighter-weight browser runner provides the same localStorage fidelity.
+
+- Cipher Gate:
+  - Date: 2026-02-05
+  - Seams: AuthContextSeam, CreationStoreSeam, SessionSeam
+  - Evidence: docs/evidence/2026-02-05/probe-browser-seams.txt; docs/evidence/2026-02-05/rewind-auth-context-seam.txt; docs/evidence/2026-02-05/rewind-creation-store-seam.txt; docs/evidence/2026-02-05/rewind-session-seam.txt; docs/evidence/2026-02-05/npm-test.txt; docs/evidence/2026-02-05/npm-verify.txt
+  - Summary: Ran browser seam probes, refreshed localStorage-backed fixtures, and verified contract/test coverage for Session/AuthContext/CreationStore.
+  - Risks: Probe output depends on Playwright and localStorage keys; changes in browser storage behavior require probe updates.
+
 ## 2026-01-26 - Add AI agent reference notes to AGENTS.md
 - Date: 2026-01-26
 - Decision: Add a short AI agent reference notes section to `AGENTS.md` pointing to sources of truth, naming rules, and evidence locations.
@@ -311,7 +326,7 @@ Short, durable decisions with context and tradeoffs.
   - Seams: ProviderAdapterSeam, ChatInterpretationSeam, ImageGenerationSeam
   - Statement: DNS resolution is unavailable in the current environment, so xAI probe calls cannot complete and fixtures remain stubbed.
   - Validation: Restore DNS/network access and rerun `node probes/provider-adapter.probe.mjs`, `node probes/chat-interpretation.probe.mjs`, and `node probes/image-generation.probe.mjs` to refresh fixtures and evidence.
-  - Status: blocked
+  - Status: closed (probes ran 2026-02-01)
 
 ## 2026-01-24 - xAI provider integration (chat + image)
 - Date: 2026-01-24
@@ -1020,7 +1035,7 @@ Short, durable decisions with context and tradeoffs.
   - Seams: AuthContextSeam, CreationStoreSeam, ChatInterpretationSeam, ProviderAdapterSeam, SessionSeam
   - Statement: Probes are blocked in v1 due to missing credentials or environment; adapters remain stubbed and deterministic for now.
   - Validation: Run probes when credentials/environment are available; update fixtures and evidence accordingly.
-  - Status: open
+  - Status: closed (browser probes ran 2026-02-05; provider probes ran 2026-02-01)
 
 ## 2026-01-23 - Git hooks + CI enforcement (plan + self-critique)
 - Date: 2026-01-23

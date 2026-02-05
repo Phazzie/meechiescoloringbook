@@ -1,10 +1,10 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-02-05T01:58:17.551Z",
+  "generatedAt": "2026-02-05T05:36:26.742Z",
   "seams": [
     {
       "seam": "AuthContextSeam",
-      "status": "blocked",
+      "status": "ok",
       "checks": [
         {
           "kind": "contract",
@@ -13,8 +13,8 @@
         },
         {
           "kind": "probe",
-          "path": "TBD (blocked)",
-          "status": "blocked"
+          "path": "probes/browser-seams.probe.mjs",
+          "status": "ok"
         },
         {
           "kind": "fixtures",
@@ -40,7 +40,7 @@
     },
     {
       "seam": "CreationStoreSeam",
-      "status": "blocked",
+      "status": "ok",
       "checks": [
         {
           "kind": "contract",
@@ -49,8 +49,8 @@
         },
         {
           "kind": "probe",
-          "path": "TBD (blocked)",
-          "status": "blocked"
+          "path": "probes/browser-seams.probe.mjs",
+          "status": "ok"
         },
         {
           "kind": "fixtures",
@@ -328,7 +328,7 @@
     },
     {
       "seam": "SessionSeam",
-      "status": "blocked",
+      "status": "ok",
       "checks": [
         {
           "kind": "contract",
@@ -337,8 +337,8 @@
         },
         {
           "kind": "probe",
-          "path": "TBD (blocked)",
-          "status": "blocked"
+          "path": "probes/browser-seams.probe.mjs",
+          "status": "ok"
         },
         {
           "kind": "fixtures",
@@ -400,8 +400,8 @@
     }
   ],
   "summary": {
-    "ok": 8,
-    "blocked": 3,
+    "ok": 11,
+    "blocked": 0,
     "missing": 0,
     "overallStatus": "ok"
   }

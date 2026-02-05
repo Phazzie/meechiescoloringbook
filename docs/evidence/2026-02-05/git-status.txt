@@ -1,0 +1,33 @@
+## main
+ M DECISIONS.md
+ M LESSONS_LEARNED.md
+ M docs/CHECKLIST.md
+ M docs/REMAINING_WORK_PLAN.md
+ M docs/evidence/2026-02-05/assumption-alarm.json
+ M docs/evidence/2026-02-05/chamber-lock.json
+ M docs/evidence/2026-02-05/cipher-gate.json
+ M docs/evidence/2026-02-05/clan-chain.json
+ M docs/evidence/2026-02-05/clan-chain.md
+ M docs/evidence/2026-02-05/proof-tape.json
+ M docs/evidence/2026-02-05/proof-tape.md
+ M docs/evidence/2026-02-05/seam-ledger.json
+ M docs/evidence/2026-02-05/seam-ledger.md
+ M docs/evidence/2026-02-05/shaolin-lint.json
+ M docs/evidence/2026-02-05/test.txt
+ M docs/evidence/2026-02-05/verify.txt
+ M docs/seams.md
+ M fixtures/auth-context/sample.json
+ M package-lock.json
+ M package.json
+?? docs/evidence/2026-02-05/git-status.txt
+?? docs/evidence/2026-02-05/npm-build.txt
+?? docs/evidence/2026-02-05/npm-test.txt
+?? docs/evidence/2026-02-05/npm-verify.txt
+?? docs/evidence/2026-02-05/probe-browser-seams.txt
+?? docs/evidence/2026-02-05/rewind-AuthContextSeam.txt
+?? docs/evidence/2026-02-05/rewind-CreationStoreSeam.txt
+?? docs/evidence/2026-02-05/rewind-SessionSeam.txt
+?? docs/evidence/2026-02-05/rewind-auth-context-seam.txt
+?? docs/evidence/2026-02-05/rewind-creation-store-seam.txt
+?? docs/evidence/2026-02-05/rewind-session-seam.txt
+?? probes/browser-seams.probe.mjs

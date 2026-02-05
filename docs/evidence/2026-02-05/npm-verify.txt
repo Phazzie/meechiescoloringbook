@@ -1,6 +1,15 @@
-# Purpose: Store npm run verify output for evidence.
-# Why: Provide an audit trail for Seam-Driven Development verification.
-# Info flow: Command output -> evidence file -> review.
+
+> coloringbook-svelte@0.0.1 verify
+> npm run chamber:lock && npm run verify:runner && npm run shaolin:lint && npm run assumption:alarm && npm run seam:ledger && npm run clan:chain && npm run proof:tape && npm run cipher:gate
+
+
+> coloringbook-svelte@0.0.1 chamber:lock
+> node scripts/chamber-lock.mjs
+
+
+> coloringbook-svelte@0.0.1 verify:runner
+> node scripts/verify-runner.mjs
+
 
 > coloringbook-svelte@0.0.1 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
@@ -9,7 +18,6 @@ Loading svelte-check in workspace: /Users/hbpheonix/coloringbook
 Getting Svelte diagnostics...
 
 svelte-check found 0 errors and 0 warnings
-
 
 > coloringbook-svelte@0.0.1 test
 > vitest run
@@ -33,3 +41,28 @@ svelte-check found 0 errors and 0 warnings
       Tests  47 passed (47)
    Start at  00:36:38
    Duration  3.72s (transform 575ms, setup 0ms, collect 4.73s, tests 165ms, environment 3ms, prepare 1.50s)
+
+
+> coloringbook-svelte@0.0.1 shaolin:lint
+> node scripts/shaolin-lint.mjs
+
+
+> coloringbook-svelte@0.0.1 assumption:alarm
+> node scripts/assumption-alarm.mjs
+
+
+> coloringbook-svelte@0.0.1 seam:ledger
+> node scripts/seam-ledger.mjs
+
+
+> coloringbook-svelte@0.0.1 clan:chain
+> node scripts/clan-chain.mjs
+
+
+> coloringbook-svelte@0.0.1 proof:tape
+> node scripts/proof-tape.mjs
+
+
+> coloringbook-svelte@0.0.1 cipher:gate
+> node scripts/cipher-gate.mjs
+

@@ -115,6 +115,12 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Lesson: Sharing the exact alignment sentence between PromptAssemblySeam, DriftDetectionSeam, fixtures, and probes prevents semantic drift and keeps the negative prompt checks predictable.
 - Action: Added `src/lib/utils/alignment-line.ts`, reused it in the adapters, and updated fixtures/probes to use the same sentence instead of duplicated strings.
 
+## 2026-02-05
+- Date: 2026-02-05
+- Context: Browser seam probes using Playwright in a sandboxed environment.
+- Lesson: Local loopback servers can be blocked by the sandbox even without external network access.
+- Action: Run `node probes/browser-seams.probe.mjs` with escalated permissions when needed and capture the probe output as evidence.
+
 ## Template
 - Date:
 - Context:

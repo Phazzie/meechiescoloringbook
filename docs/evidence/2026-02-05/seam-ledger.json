@@ -1,12 +1,12 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-02-05T01:59:35.243Z",
+  "generatedAt": "2026-02-05T05:36:42.864Z",
   "seams": [
     {
       "seam": "AuthContextSeam",
       "owner": "hbpheonix",
-      "lastProbe": "TBD",
-      "status": "blocked",
+      "lastProbe": "2026-02-05",
+      "status": "ok",
       "checks": [
         {
           "kind": "contract",
@@ -15,8 +15,8 @@
         },
         {
           "kind": "probe",
-          "status": "blocked",
-          "path": "TBD (blocked)"
+          "status": "ok",
+          "path": "probes/browser-seams.probe.mjs"
         },
         {
           "kind": "fixtures",
@@ -43,8 +43,8 @@
     {
       "seam": "CreationStoreSeam",
       "owner": "hbpheonix",
-      "lastProbe": "TBD",
-      "status": "blocked",
+      "lastProbe": "2026-02-05",
+      "status": "ok",
       "checks": [
         {
           "kind": "contract",
@@ -53,8 +53,8 @@
         },
         {
           "kind": "probe",
-          "status": "blocked",
-          "path": "TBD (blocked)"
+          "status": "ok",
+          "path": "probes/browser-seams.probe.mjs"
         },
         {
           "kind": "fixtures",
@@ -347,8 +347,8 @@
     {
       "seam": "SessionSeam",
       "owner": "hbpheonix",
-      "lastProbe": "TBD",
-      "status": "blocked",
+      "lastProbe": "2026-02-05",
+      "status": "ok",
       "checks": [
         {
           "kind": "contract",
@@ -357,8 +357,8 @@
         },
         {
           "kind": "probe",
-          "status": "blocked",
-          "path": "TBD (blocked)"
+          "status": "ok",
+          "path": "probes/browser-seams.probe.mjs"
         },
         {
           "kind": "fixtures",
@@ -422,9 +422,9 @@
     }
   ],
   "summary": {
-    "ok": 3,
+    "ok": 6,
     "missing": 0,
-    "blocked": 3,
+    "blocked": 0,
     "na": 5,
     "overallStatus": "ok"
   }

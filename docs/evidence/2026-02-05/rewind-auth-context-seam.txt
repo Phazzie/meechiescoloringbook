@@ -1,0 +1,14 @@
+
+> coloringbook-svelte@0.0.1 rewind
+> node scripts/rewind.mjs --seam AuthContextSeam
+
+
+ RUN  v3.2.4 /Users/hbpheonix/coloringbook
+
+ ✓ tests/contract/auth-context.test.ts (4 tests) 5ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  00:33:17
+   Duration  2.36s (transform 250ms, setup 0ms, collect 320ms, tests 5ms, environment 0ms, prepare 390ms)
+

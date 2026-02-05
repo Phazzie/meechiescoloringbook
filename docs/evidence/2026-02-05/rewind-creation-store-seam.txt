@@ -1,0 +1,14 @@
+
+> coloringbook-svelte@0.0.1 rewind
+> node scripts/rewind.mjs --seam CreationStoreSeam
+
+
+ RUN  v3.2.4 /Users/hbpheonix/coloringbook
+
+ ✓ tests/contract/creation-store.test.ts (3 tests) 7ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  00:33:24
+   Duration  555ms (transform 212ms, setup 0ms, collect 256ms, tests 7ms, environment 0ms, prepare 79ms)
+

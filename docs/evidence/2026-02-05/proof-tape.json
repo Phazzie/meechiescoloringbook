@@ -1,62 +1,179 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-02-05T01:59:35.985Z",
+  "generatedAt": "2026-02-05T05:36:43.474Z",
   "evidenceDir": "docs/evidence/2026-02-05",
   "files": [
     {
       "name": "assumption-alarm.json",
       "path": "docs/evidence/2026-02-05/assumption-alarm.json",
-      "sizeBytes": 1555,
-      "modifiedAt": "2026-02-05T01:59:34.554Z",
+      "sizeBytes": 1575,
+      "modifiedAt": "2026-02-05T05:36:42.570Z",
       "commands": []
     },
     {
       "name": "chamber-lock.json",
       "path": "docs/evidence/2026-02-05/chamber-lock.json",
-      "sizeBytes": 9743,
-      "modifiedAt": "2026-02-05T01:58:17.633Z",
+      "sizeBytes": 9765,
+      "modifiedAt": "2026-02-05T05:36:26.745Z",
+      "commands": []
+    },
+    {
+      "name": "cipher-gate.json",
+      "path": "docs/evidence/2026-02-05/cipher-gate.json",
+      "sizeBytes": 1137,
+      "modifiedAt": "2026-02-05T01:59:36.360Z",
       "commands": []
     },
     {
       "name": "clan-chain.json",
       "path": "docs/evidence/2026-02-05/clan-chain.json",
-      "sizeBytes": 1171,
-      "modifiedAt": "2026-02-05T01:59:35.655Z",
+      "sizeBytes": 1090,
+      "modifiedAt": "2026-02-05T05:36:43.158Z",
       "commands": []
     },
     {
       "name": "clan-chain.md",
       "path": "docs/evidence/2026-02-05/clan-chain.md",
-      "sizeBytes": 837,
-      "modifiedAt": "2026-02-05T01:59:35.655Z",
+      "sizeBytes": 786,
+      "modifiedAt": "2026-02-05T05:36:43.158Z",
       "commands": []
+    },
+    {
+      "name": "npm-test.txt",
+      "path": "docs/evidence/2026-02-05/npm-test.txt",
+      "sizeBytes": 915,
+      "modifiedAt": "2026-02-05T05:33:37.792Z",
+      "commands": [
+        "coloringbook-svelte@0.0.1 test",
+        "vitest run"
+      ]
+    },
+    {
+      "name": "npm-verify.txt",
+      "path": "docs/evidence/2026-02-05/npm-verify.txt",
+      "sizeBytes": 1903,
+      "modifiedAt": "2026-02-05T05:36:43.335Z",
+      "commands": [
+        "coloringbook-svelte@0.0.1 verify",
+        "npm run chamber:lock && npm run verify:runner && npm run shaolin:lint && npm run assumption:alarm && npm run seam:ledger && npm run clan:chain && npm run proof:tape && npm run cipher:gate",
+        "coloringbook-svelte@0.0.1 chamber:lock",
+        "node scripts/chamber-lock.mjs",
+        "coloringbook-svelte@0.0.1 verify:runner",
+        "node scripts/verify-runner.mjs",
+        "coloringbook-svelte@0.0.1 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "coloringbook-svelte@0.0.1 test",
+        "vitest run",
+        "coloringbook-svelte@0.0.1 shaolin:lint",
+        "node scripts/shaolin-lint.mjs",
+        "coloringbook-svelte@0.0.1 assumption:alarm",
+        "node scripts/assumption-alarm.mjs",
+        "coloringbook-svelte@0.0.1 seam:ledger",
+        "node scripts/seam-ledger.mjs",
+        "coloringbook-svelte@0.0.1 clan:chain",
+        "node scripts/clan-chain.mjs",
+        "coloringbook-svelte@0.0.1 proof:tape",
+        "node scripts/proof-tape.mjs"
+      ]
+    },
+    {
+      "name": "probe-browser-seams.txt",
+      "path": "docs/evidence/2026-02-05/probe-browser-seams.txt",
+      "sizeBytes": 92,
+      "modifiedAt": "2026-02-05T05:32:40.520Z",
+      "commands": []
+    },
+    {
+      "name": "proof-tape.json",
+      "path": "docs/evidence/2026-02-05/proof-tape.json",
+      "sizeBytes": 2160,
+      "modifiedAt": "2026-02-05T01:59:35.987Z",
+      "commands": []
+    },
+    {
+      "name": "proof-tape.md",
+      "path": "docs/evidence/2026-02-05/proof-tape.md",
+      "sizeBytes": 777,
+      "modifiedAt": "2026-02-05T01:59:35.987Z",
+      "commands": []
+    },
+    {
+      "name": "rewind-AuthContextSeam.txt",
+      "path": "docs/evidence/2026-02-05/rewind-AuthContextSeam.txt",
+      "sizeBytes": 463,
+      "modifiedAt": "2026-02-05T05:33:19.674Z",
+      "commands": []
+    },
+    {
+      "name": "rewind-CreationStoreSeam.txt",
+      "path": "docs/evidence/2026-02-05/rewind-CreationStoreSeam.txt",
+      "sizeBytes": 464,
+      "modifiedAt": "2026-02-05T05:33:24.900Z",
+      "commands": []
+    },
+    {
+      "name": "rewind-SessionSeam.txt",
+      "path": "docs/evidence/2026-02-05/rewind-SessionSeam.txt",
+      "sizeBytes": 457,
+      "modifiedAt": "2026-02-05T05:33:30.287Z",
+      "commands": []
+    },
+    {
+      "name": "rewind-auth-context-seam.txt",
+      "path": "docs/evidence/2026-02-05/rewind-auth-context-seam.txt",
+      "sizeBytes": 368,
+      "modifiedAt": "2026-02-05T05:33:19.669Z",
+      "commands": [
+        "coloringbook-svelte@0.0.1 rewind",
+        "node scripts/rewind.mjs --seam AuthContextSeam"
+      ]
+    },
+    {
+      "name": "rewind-creation-store-seam.txt",
+      "path": "docs/evidence/2026-02-05/rewind-creation-store-seam.txt",
+      "sizeBytes": 371,
+      "modifiedAt": "2026-02-05T05:33:24.898Z",
+      "commands": [
+        "coloringbook-svelte@0.0.1 rewind",
+        "node scripts/rewind.mjs --seam CreationStoreSeam"
+      ]
+    },
+    {
+      "name": "rewind-session-seam.txt",
+      "path": "docs/evidence/2026-02-05/rewind-session-seam.txt",
+      "sizeBytes": 358,
+      "modifiedAt": "2026-02-05T05:33:30.285Z",
+      "commands": [
+        "coloringbook-svelte@0.0.1 rewind",
+        "node scripts/rewind.mjs --seam SessionSeam"
+      ]
     },
     {
       "name": "seam-ledger.json",
       "path": "docs/evidence/2026-02-05/seam-ledger.json",
-      "sizeBytes": 10370,
-      "modifiedAt": "2026-02-05T01:59:35.246Z",
+      "sizeBytes": 10412,
+      "modifiedAt": "2026-02-05T05:36:42.866Z",
       "commands": []
     },
     {
       "name": "seam-ledger.md",
       "path": "docs/evidence/2026-02-05/seam-ledger.md",
       "sizeBytes": 1054,
-      "modifiedAt": "2026-02-05T01:59:35.247Z",
+      "modifiedAt": "2026-02-05T05:36:42.866Z",
       "commands": []
     },
     {
       "name": "shaolin-lint.json",
       "path": "docs/evidence/2026-02-05/shaolin-lint.json",
       "sizeBytes": 579,
-      "modifiedAt": "2026-02-05T01:59:34.173Z",
+      "modifiedAt": "2026-02-05T05:36:42.284Z",
       "commands": []
     },
     {
       "name": "test.txt",
       "path": "docs/evidence/2026-02-05/test.txt",
       "sizeBytes": 1091,
-      "modifiedAt": "2026-02-05T01:59:33.823Z",
+      "modifiedAt": "2026-02-05T05:36:41.980Z",
       "commands": [
         "coloringbook-svelte@0.0.1 test",
         "vitest run"
@@ -66,7 +183,7 @@
       "name": "verify.txt",
       "path": "docs/evidence/2026-02-05/verify.txt",
       "sizeBytes": 1332,
-      "modifiedAt": "2026-02-05T01:59:33.821Z",
+      "modifiedAt": "2026-02-05T05:36:41.976Z",
       "commands": [
         "coloringbook-svelte@0.0.1 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
