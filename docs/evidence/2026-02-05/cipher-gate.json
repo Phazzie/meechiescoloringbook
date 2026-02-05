@@ -1,0 +1,38 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-02-05T01:59:36.358Z",
+  "cipher": {
+    "date": "2026-02-01",
+    "seams": "ProviderAdapterSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-02-01/rewind-ProviderAdapterSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-01/npm-test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-01/npm-verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-01/probe-provider-adapter.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-01/probe-chat-interpretation.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-01/probe-image-generation.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Refreshed provider/chat/image probes and aligned ProviderAdapterSeam fault status handling with probe-backed fixtures.",
+    "risks": "Provider error status codes can change; fixtures and test stubs must be refreshed when probes change."
+  },
+  "latestChangeMs": 1769987327122.8296,
+  "status": "ok"
+}
