@@ -34,6 +34,10 @@ Seam-Driven Development + Wu-Tang coding keeps the work honest: integration firs
 - **Assumption Alarm**: a governance checkpoint that fires when a probe is blocked; it records the blocked seam, what we assume is true, and how we will validate it later.
 - **CLI flags**: things that start with `-` (e.g., `--seam` or `--help`). Whenever we mention a flag, we explain in plain language what it toggles so non-coders can follow the instructions.
 
+## Requirements
+- Node.js 20+
+- npm
+
 ## Local development
 
 ```sh
@@ -55,6 +59,29 @@ npm run verify
 ```
 
 This runs the Seam-Driven Development gates (chamber lock, assumption alarm, evidence capture, seam ledger, clan chain, proof tape, cipher gate) and writes evidence under `docs/evidence/YYYY-MM-DD/`.
+
+## Build
+
+```sh
+npm run build
+npm run preview
+```
+
+## Testing
+
+```sh
+npm run test
+npm run test:unit
+npm run test:integration
+npm run test:e2e
+```
+
+## Environment
+Create a local `.env` from `.env.example` when you need integration tests or live provider calls.
+
+Notes:
+- Integration tests require `FEATURE_INTEGRATION_TESTS=true` and a valid `XAI_API_KEY`.
+- The xAI image API currently ignores `size` or `quality`, so `DEFAULT_IMAGE_SIZE` is future-facing.
 
 ## Optional commands
 

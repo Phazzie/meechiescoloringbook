@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-02-10T16:51:46.242Z",
+  "cipher": {
+    "date": "2026-02-10",
+    "seams": "AppConfigSeam, PromptCompilerSeam, SafetyPolicySeam, ImageGenerationSeam, GalleryStoreSeam, TelemetrySeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-02-10/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-10/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-10/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-10/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-10/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-10/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-10/proof-tape.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-10/assumption-alarm.json",
+        "exists": true
+      }
+    ],
+    "summary": "Merged the origin/main seam scaffolding into the local workflow, added required file headers, and captured verify/test evidence; added the AI assistant guide.",
+    "risks": "Future provider changes or missing environment config could require re-probing and fixture refresh."
+  },
+  "latestChangeMs": 1770742215108.0105,
+  "status": "ok"
+}

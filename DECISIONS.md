@@ -15,6 +15,69 @@ Short, durable decisions with context and tradeoffs.
 - Consequences:
 - Revisit criteria:
 
+## 2026-02-10 - Reconcile origin/main seams and add AI guide
+- Date: 2026-02-10
+- Decision: Reconcile origin/main seam scaffolding (AppConfig, PromptCompiler, SafetyPolicy, ImageGeneration, GalleryStore, Telemetry) into the local Seam-Driven Development workflow and add an AI assistant guide.
+- Context: The remote history introduced a parallel seam scaffolding that needed to be merged with the existing seam-first workflow and governance docs.
+- Alternatives: Keep the scaffolding isolated on a separate branch or reapply changes manually instead of merging histories.
+- Consequences: The seam artifacts and tests are now aligned in one branch, and the assistant guide documents required workflow steps.
+- Revisit criteria: If seam ownership or contract paths change again after a future rebase.
+
+- Cipher Gate:
+  - Date: 2026-02-10
+  - Seams: AppConfigSeam, PromptCompilerSeam, SafetyPolicySeam, ImageGenerationSeam, GalleryStoreSeam, TelemetrySeam
+  - Evidence: docs/evidence/2026-02-10/verify.txt; docs/evidence/2026-02-10/test.txt; docs/evidence/2026-02-10/chamber-lock.json; docs/evidence/2026-02-10/shaolin-lint.json; docs/evidence/2026-02-10/seam-ledger.json; docs/evidence/2026-02-10/clan-chain.json; docs/evidence/2026-02-10/proof-tape.json; docs/evidence/2026-02-10/assumption-alarm.json
+  - Summary: Merged the origin/main seam scaffolding into the local workflow, added required file headers, and captured verify/test evidence; added the AI assistant guide.
+  - Risks: Future provider changes or missing environment config could require re-probing and fixture refresh.
+
+## 2025-01-22 - Stack choice
+- Date: 2025-01-22
+- Decision: Use SvelteKit + TypeScript, Vitest, and Playwright.
+- Context: Establish a typed web stack with unit/contract tests and browser-level smoke coverage.
+- Alternatives: Use a different frontend framework or skip end-to-end testing.
+- Consequences: SvelteKit/Vitest/Playwright are baseline dependencies.
+- Revisit criteria: If runtime/platform constraints force a framework shift.
+
+## 2025-01-22 - Seam-Driven Development architecture
+- Date: 2025-01-22
+- Decision: Implement seams for AppConfigSeam, PromptCompilerSeam, SafetyPolicySeam, ImageGenerationSeam, GalleryStoreSeam, and TelemetrySeam with mocks, fixtures, and tests.
+- Context: Seam-Driven Development isolates external dependencies and keeps core workflow deterministic.
+- Alternatives: Direct integration without seam artifacts.
+- Consequences: Every integration must ship contract + mock + test before adapters.
+- Revisit criteria: If seam boundaries or ownership change.
+
+## 2025-01-22 - Prompt enforcement strategy
+- Date: 2025-01-22
+- Decision: Prompt compiler always injects outline-only, no-color constraints plus glam style guidance.
+- Context: Enforce coloring-book constraints deterministically even before image generation.
+- Alternatives: Trust downstream models to interpret intent without explicit constraints.
+- Consequences: Prompt compiler becomes the source of truth for style constraints.
+- Revisit criteria: If the canonical prompt format changes.
+
+## 2025-01-22 - Safety policy approach
+- Date: 2025-01-22
+- Decision: Use rules-based validation in the safety seam with explicit error codes.
+- Context: Deterministic checks prevent disallowed content with user-friendly errors.
+- Alternatives: Use model-based moderation or softer validation.
+- Consequences: Safety policy must stay in sync with validation rules.
+- Revisit criteria: If policy requirements or compliance rules change.
+
+## 2025-01-22 - xAI image model configuration
+- Date: 2025-01-22
+- Decision: Default to `grok-2-image` with base URL `https://api.x.ai/v1` and endpoint path `/images/generations`; model is environment-configurable.
+- Context: These values came from xAI image generation docs at the time.
+- Alternatives: Hardcode values or use a different provider.
+- Consequences: Environment variables control provider settings; defaults may need updates.
+- Revisit criteria: If xAI model ids or endpoints change.
+
+## 2025-01-22 - Integration test gating
+- Date: 2025-01-22
+- Decision: Integration tests run only when `FEATURE_INTEGRATION_TESTS=true` and `XAI_API_KEY` is present.
+- Context: Prevent external API calls during default offline runs.
+- Alternatives: Always run integration tests or remove gating entirely.
+- Consequences: Integration coverage depends on explicit opt-in.
+- Revisit criteria: If CI should always run integration coverage.
+
 ## 2026-02-05 - Browser seam probe with Playwright
 - Date: 2026-02-05
 - Decision: Add a Playwright-based browser probe to capture localStorage-backed seams (Session/AuthContext/CreationStore).
