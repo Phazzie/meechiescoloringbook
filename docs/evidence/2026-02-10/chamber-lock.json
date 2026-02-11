@@ -1,6 +1,6 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-02-10T16:52:21.281Z",
+  "generatedAt": "2026-02-10T16:53:53.293Z",
   "seams": [
     {
       "seam": "AuthContextSeam",

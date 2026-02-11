@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-02-10T16:52:32.556Z",
+  "generatedAt": "2026-02-10T16:54:04.289Z",
   "seams": [
     {
       "seam": "AuthContextSeam",
