@@ -1,0 +1,21 @@
+
+> meechies-coloringbook@0.1.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/hbpheonix/coloringbook
+
+ ✓ tests/unit/app-config-seam.test.ts (2 tests) 7ms
+ ✓ src/lib/seams/image-generation-seam/test.ts (1 test) 11ms
+ ✓ src/lib/seams/gallery-store-seam/test.ts (1 test) 7ms
+ ✓ src/lib/seams/prompt-compiler-seam/test.ts (1 test) 8ms
+ ✓ src/lib/seams/safety-policy-seam/test.ts (4 tests) 10ms
+ ✓ tests/unit/generation-workflow.test.ts (2 tests) 8ms
+ ✓ src/lib/seams/app-config-seam/test.ts (2 tests) 6ms
+ ✓ src/lib/seams/telemetry-seam/test.ts (1 test) 5ms
+
+ Test Files  8 passed (8)
+      Tests  14 passed (14)
+   Start at  16:57:29
+   Duration  3.30s (transform 343ms, setup 0ms, collect 643ms, tests 61ms, environment 5.76s, prepare 783ms)
+

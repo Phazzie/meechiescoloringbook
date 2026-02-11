@@ -7,7 +7,7 @@ import { createAppConfigSeam } from '../../src/lib/adapters/app-config-seam';
 const baseEnv = {
   XAI_API_KEY: 'test-key',
   XAI_TEXT_MODEL: 'grok-4.1-fast-reasoning',
-  XAI_IMAGE_MODEL: 'grok-2-image',
+  XAI_IMAGE_MODEL: 'grok-imagine-image',
   XAI_BASE_URL: 'https://api.x.ai/v1',
   XAI_IMAGE_ENDPOINT_PATH: '/images/generations',
   FEATURE_INTEGRATION_TESTS: 'false',

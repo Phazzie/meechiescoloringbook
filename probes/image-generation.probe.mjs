@@ -129,7 +129,7 @@ no extra words`;
 			'Content-Type': 'application/json'
 		},
 		body: JSON.stringify({
-			model: 'grok-2-image-1212',
+			model: 'grok-imagine-image',
 			prompt,
 			n: 1,
 			response_format: 'b64_json'
@@ -184,7 +184,7 @@ no extra words`;
 				revisedPrompt,
 				modelMetadata: {
 					provider: 'xai',
-					model: 'grok-2-image-1212'
+					model: 'grok-imagine-image'
 				}
 			}
 		}

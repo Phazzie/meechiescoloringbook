@@ -1,0 +1,444 @@
+{
+  "tool": "chamber-lock",
+  "generatedAt": "2026-02-11T21:58:44.427Z",
+  "seams": [
+    {
+      "seam": "AppConfigSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "src/lib/seams/app-config-seam/contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "src/lib/seams/app-config-seam/probe.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/app-config/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/seams/app-config-seam/mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "src/lib/seams/app-config-seam/test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/app-config-seam/index.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "AuthContextSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/auth-context.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "probes/browser-seams.probe.mjs",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/auth-context/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/auth-context.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/auth-context.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/auth-context.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "CreationStoreSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/creation-store.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "probes/browser-seams.probe.mjs",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/creation-store/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/creation-store.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/creation-store.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/creation-store.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "PromptAssemblySeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/prompt-assembly.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "N/A (pure)",
+          "status": "na"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/prompt-assembly/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/prompt-assembly.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/prompt-assembly.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/prompt-assembly.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "ChatInterpretationSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/chat-interpretation.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "probes/chat-interpretation.probe.mjs",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/chat-interpretation/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/chat-interpretation.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/chat-interpretation.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/chat-interpretation.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "ImageGenerationSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/image-generation.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "probes/image-generation.probe.mjs",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/image-generation/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/image-generation.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/image-generation.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/image-generation.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "DriftDetectionSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/drift-detection.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "N/A (pure)",
+          "status": "na"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/drift-detection/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/drift-detection.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/drift-detection.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/drift-detection.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "MeechieToolSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/meechie-tool.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "N/A (pure)",
+          "status": "na"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/meechie-tool/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/meechie-tool.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/meechie-tool.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/meechie-tool.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "ProviderAdapterSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/provider-adapter.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "probes/provider-adapter.probe.mjs",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/provider-adapter/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/provider-adapter.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/provider-adapter.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/provider-adapter.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "OutputPackagingSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/output-packaging.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "N/A (pure)",
+          "status": "na"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/output-packaging/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/output-packaging.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/output-packaging.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/output-packaging.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "SessionSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/session.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "probes/browser-seams.probe.mjs",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/session/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/session.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/session.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/session.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "SpecValidationSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/spec-validation.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "N/A (pure)",
+          "status": "na"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/spec-validation/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/spec-validation.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/spec-validation.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/spec-validation.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "ok": 12,
+    "blocked": 0,
+    "missing": 0,
+    "overallStatus": "ok"
+  }
+}

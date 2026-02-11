@@ -9,7 +9,7 @@ import type { GeneratedImage } from '../../../../contracts/image-generation.cont
 import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
 import type { RequestHandler } from './$types';
 
-const IMAGE_MODEL = 'grok-2-image-1212';
+const IMAGE_MODEL = 'grok-imagine-image';
 const RESPONSE_FORMAT = 'b64_json';
 
 const REQUIRED_PHRASES = [

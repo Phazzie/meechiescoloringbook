@@ -1,0 +1,3 @@
+Image generation probe complete.
+Image count: 1
+First image base64 length: 231872

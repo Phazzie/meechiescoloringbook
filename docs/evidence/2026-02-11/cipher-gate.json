@@ -1,0 +1,62 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-02-11T21:58:57.544Z",
+  "cipher": {
+    "date": "2026-02-11",
+    "seams": "ImageGenerationSeam, ProviderAdapterSeam, AppConfigSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-02-11/npm-test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-11/npm-verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-11/probe-provider-adapter.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-11/probe-image-generation.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-11/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-11/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-11/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-11/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-11/proof-tape.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-11/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-11/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-11/test.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Probed `grok-imagine-image`, refreshed provider/image fixtures, and aligned AppConfigSeam fixtures with chamber-lock expectations.",
+    "risks": "Model availability could change; rerun probes if xAI access or defaults drift."
+  },
+  "latestChangeMs": 1770847006008.9785,
+  "status": "ok"
+}

@@ -1,0 +1,65 @@
+
+> meechies-coloringbook@0.1.0 verify
+> npm run chamber:lock && npm run verify:runner && npm run shaolin:lint && npm run assumption:alarm && npm run seam:ledger && npm run clan:chain && npm run proof:tape && npm run cipher:gate
+
+
+> meechies-coloringbook@0.1.0 chamber:lock
+> node scripts/chamber-lock.mjs
+
+
+> meechies-coloringbook@0.1.0 verify:runner
+> node scripts/verify-runner.mjs
+
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /Users/hbpheonix/coloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/hbpheonix/coloringbook
+
+ ✓ src/lib/seams/image-generation-seam/test.ts (1 test) 9ms
+ ✓ src/lib/seams/safety-policy-seam/test.ts (4 tests) 7ms
+ ✓ src/lib/seams/app-config-seam/test.ts (2 tests) 7ms
+ ✓ tests/unit/app-config-seam.test.ts (2 tests) 6ms
+ ✓ src/lib/seams/prompt-compiler-seam/test.ts (1 test) 6ms
+ ✓ src/lib/seams/gallery-store-seam/test.ts (1 test) 7ms
+ ✓ tests/unit/generation-workflow.test.ts (2 tests) 7ms
+ ✓ src/lib/seams/telemetry-seam/test.ts (1 test) 5ms
+
+ Test Files  8 passed (8)
+      Tests  14 passed (14)
+   Start at  16:58:51
+   Duration  3.88s (transform 315ms, setup 0ms, collect 916ms, tests 55ms, environment 6.24s, prepare 1.05s)
+
+
+> meechies-coloringbook@0.1.0 shaolin:lint
+> node scripts/shaolin-lint.mjs
+
+
+> meechies-coloringbook@0.1.0 assumption:alarm
+> node scripts/assumption-alarm.mjs
+
+
+> meechies-coloringbook@0.1.0 seam:ledger
+> node scripts/seam-ledger.mjs
+
+
+> meechies-coloringbook@0.1.0 clan:chain
+> node scripts/clan-chain.mjs
+
+
+> meechies-coloringbook@0.1.0 proof:tape
+> node scripts/proof-tape.mjs
+
+
+> meechies-coloringbook@0.1.0 cipher:gate
+> node scripts/cipher-gate.mjs
+

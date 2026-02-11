@@ -125,7 +125,7 @@ const run = async () => {
 		]
 	};
 	const imageInput = {
-		model: 'grok-2-image-1212',
+		model: 'grok-imagine-image',
 		prompt: 'A black-and-white coloring book page with clean outlines.',
 		n: 1,
 		responseFormat: 'b64_json'
@@ -183,7 +183,7 @@ const run = async () => {
 	};
 	const faultImageInput = {
 		...imageInput,
-		model: 'grok-2-image-1212-bad'
+		model: 'grok-imagine-image-bad'
 	};
 
 	const faultChatResponse = await fetch(`${baseUrl}/v1/chat/completions`, {

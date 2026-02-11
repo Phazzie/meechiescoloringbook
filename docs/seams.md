@@ -20,6 +20,7 @@ Info flow: Seam list -> planning -> probe/test updates.
 ## Current seams
 | Seam | Contract | Probe | Fixtures | Mock | Tests | Adapter | Owner | Last probe | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| AppConfigSeam | src/lib/seams/app-config-seam/contract.ts | src/lib/seams/app-config-seam/probe.ts | fixtures/app-config/ | src/lib/seams/app-config-seam/mock.ts | src/lib/seams/app-config-seam/test.ts | src/lib/adapters/app-config-seam/index.ts | hbpheonix | N/A | seam files live under src/lib/seams/app-config-seam |
 | AuthContextSeam | contracts/auth-context.contract.ts | probes/browser-seams.probe.mjs | fixtures/auth-context/ | src/lib/mocks/auth-context.mock.ts | tests/contract/auth-context.test.ts | src/lib/adapters/auth-context.adapter.ts | hbpheonix | 2026-02-05 | adapter/mock/tests present; probe ok; fixtures updated |
 | CreationStoreSeam | contracts/creation-store.contract.ts | probes/browser-seams.probe.mjs | fixtures/creation-store/ | src/lib/mocks/creation-store.mock.ts | tests/contract/creation-store.test.ts | src/lib/adapters/creation-store.adapter.ts | hbpheonix | 2026-02-05 | adapter/mock/tests present; probe ok; fixtures updated |
 | PromptAssemblySeam | contracts/prompt-assembly.contract.ts | N/A (pure) | fixtures/prompt-assembly/ | src/lib/mocks/prompt-assembly.mock.ts | tests/contract/prompt-assembly.test.ts | src/lib/adapters/prompt-assembly.adapter.ts | hbpheonix | N/A | adapter/mock/tests present; verify pending |

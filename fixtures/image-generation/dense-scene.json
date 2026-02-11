@@ -45,7 +45,7 @@
       "revisedPrompt": "stubbed revised prompt",
       "modelMetadata": {
         "provider": "xai",
-        "model": "grok-2-image-1212"
+        "model": "grok-imagine-image"
       }
     }
   }

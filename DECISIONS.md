@@ -15,6 +15,28 @@ Short, durable decisions with context and tradeoffs.
 - Consequences:
 - Revisit criteria:
 
+## 2026-02-11 - Switch xAI image model to grok-imagine-image
+- Date: 2026-02-11
+- Decision: Switch the default xAI image model to `grok-imagine-image`, refresh ProviderAdapterSeam/ImageGenerationSeam probes and fixtures, and move AppConfigSeam fixtures into `fixtures/app-config/` to satisfy chamber lock.
+- Context: The new model id was provided and required fresh probes; chamber lock expects seam fixtures in `fixtures/<seam>/`.
+- Alternatives: Keep `grok-2-image-1212` until account access is confirmed; keep AppConfigSeam fixtures embedded in TypeScript.
+- Consequences: Fixtures now reflect `grok-imagine-image`; AppConfigSeam fixtures are file-backed and align with seam inventory checks.
+- Revisit criteria: If xAI deprecates `grok-imagine-image` or AppConfigSeam is migrated to a different seam layout.
+
+- Cipher Gate:
+  - Date: 2026-02-11
+  - Seams: ImageGenerationSeam, ProviderAdapterSeam, AppConfigSeam
+  - Evidence: docs/evidence/2026-02-11/npm-test.txt; docs/evidence/2026-02-11/npm-verify.txt; docs/evidence/2026-02-11/probe-provider-adapter.txt; docs/evidence/2026-02-11/probe-image-generation.txt; docs/evidence/2026-02-11/chamber-lock.json; docs/evidence/2026-02-11/shaolin-lint.json; docs/evidence/2026-02-11/seam-ledger.json; docs/evidence/2026-02-11/clan-chain.json; docs/evidence/2026-02-11/proof-tape.json; docs/evidence/2026-02-11/assumption-alarm.json; docs/evidence/2026-02-11/verify.txt; docs/evidence/2026-02-11/test.txt
+  - Summary: Probed `grok-imagine-image`, refreshed provider/image fixtures, and aligned AppConfigSeam fixtures with chamber-lock expectations.
+  - Risks: Model availability could change; rerun probes if xAI access or defaults drift.
+
+- Assumption:
+  - Date: 2026-02-11
+  - Seams: ImageGenerationSeam, ProviderAdapterSeam
+  - Statement: The `grok-imagine-image` image model is available to the configured xAI API key and responds at `/v1/images/generations`.
+  - Validation: Re-run `node probes/provider-adapter.probe.mjs` and `node probes/image-generation.probe.mjs` with an API key that has access to `grok-imagine-image` and confirm fixtures show ok image output.
+  - Status: Validated (evidence: docs/evidence/2026-02-11/probe-provider-adapter.txt; docs/evidence/2026-02-11/probe-image-generation.txt).
+
 ## 2026-02-10 - Reconcile origin/main seams and add AI guide
 - Date: 2026-02-10
 - Decision: Reconcile origin/main seam scaffolding (AppConfig, PromptCompiler, SafetyPolicy, ImageGeneration, GalleryStore, Telemetry) into the local Seam-Driven Development workflow and add an AI assistant guide.

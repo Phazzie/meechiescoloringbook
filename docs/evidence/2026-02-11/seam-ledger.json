@@ -1,0 +1,469 @@
+{
+  "tool": "seam-ledger",
+  "generatedAt": "2026-02-11T21:58:56.656Z",
+  "seams": [
+    {
+      "seam": "AppConfigSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/app-config-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/app-config-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/app-config/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/app-config-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/app-config-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/app-config-seam/index.ts"
+        }
+      ]
+    },
+    {
+      "seam": "AuthContextSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "2026-02-05",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "contracts/auth-context.contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "probes/browser-seams.probe.mjs"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/auth-context/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/mocks/auth-context.mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "tests/contract/auth-context.test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/auth-context.adapter.ts"
+        }
+      ]
+    },
+    {
+      "seam": "CreationStoreSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "2026-02-05",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "contracts/creation-store.contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "probes/browser-seams.probe.mjs"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/creation-store/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/mocks/creation-store.mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "tests/contract/creation-store.test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/creation-store.adapter.ts"
+        }
+      ]
+    },
+    {
+      "seam": "PromptAssemblySeam",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "na",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "contracts/prompt-assembly.contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "na",
+          "path": "N/A (pure)"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/prompt-assembly/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/mocks/prompt-assembly.mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "tests/contract/prompt-assembly.test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/prompt-assembly.adapter.ts"
+        }
+      ]
+    },
+    {
+      "seam": "ChatInterpretationSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "2026-02-01",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "contracts/chat-interpretation.contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "probes/chat-interpretation.probe.mjs"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/chat-interpretation/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/mocks/chat-interpretation.mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "tests/contract/chat-interpretation.test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/chat-interpretation.adapter.ts"
+        }
+      ]
+    },
+    {
+      "seam": "ImageGenerationSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "2026-02-01",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "contracts/image-generation.contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "probes/image-generation.probe.mjs"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/image-generation/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/mocks/image-generation.mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "tests/contract/image-generation.test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/image-generation.adapter.ts"
+        }
+      ]
+    },
+    {
+      "seam": "DriftDetectionSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "na",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "contracts/drift-detection.contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "na",
+          "path": "N/A (pure)"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/drift-detection/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/mocks/drift-detection.mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "tests/contract/drift-detection.test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/drift-detection.adapter.ts"
+        }
+      ]
+    },
+    {
+      "seam": "MeechieToolSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "na",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "contracts/meechie-tool.contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "na",
+          "path": "N/A (pure)"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/meechie-tool/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/mocks/meechie-tool.mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "tests/contract/meechie-tool.test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/meechie-tool.adapter.ts"
+        }
+      ]
+    },
+    {
+      "seam": "ProviderAdapterSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "2026-02-01",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "contracts/provider-adapter.contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "probes/provider-adapter.probe.mjs"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/provider-adapter/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/mocks/provider-adapter.mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "tests/contract/provider-adapter.test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/provider-adapter.adapter.ts"
+        }
+      ]
+    },
+    {
+      "seam": "OutputPackagingSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "na",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "contracts/output-packaging.contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "na",
+          "path": "N/A (pure)"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/output-packaging/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/mocks/output-packaging.mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "tests/contract/output-packaging.test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/output-packaging.adapter.ts"
+        }
+      ]
+    },
+    {
+      "seam": "SessionSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "2026-02-05",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "contracts/session.contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "probes/browser-seams.probe.mjs"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/session/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/mocks/session.mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "tests/contract/session.test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/session.adapter.ts"
+        }
+      ]
+    },
+    {
+      "seam": "SpecValidationSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "na",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "contracts/spec-validation.contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "na",
+          "path": "N/A (pure)"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/spec-validation/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/mocks/spec-validation.mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "tests/contract/spec-validation.test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/spec-validation.adapter.ts"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "ok": 7,
+    "missing": 0,
+    "blocked": 0,
+    "na": 5,
+    "overallStatus": "ok"
+  }
+}

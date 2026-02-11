@@ -1,0 +1,62 @@
+{
+  "tool": "clan-chain",
+  "generatedAt": "2026-02-11T21:58:56.941Z",
+  "evidenceDir": "docs/evidence/2026-02-11",
+  "clean": [
+    {
+      "seam": "AppConfigSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "AuthContextSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "CreationStoreSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "ChatInterpretationSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "ImageGenerationSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "ProviderAdapterSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "SessionSeam",
+      "owner": "hbpheonix"
+    }
+  ],
+  "dirty": [
+    {
+      "seam": "PromptAssemblySeam",
+      "owner": "hbpheonix",
+      "status": "na"
+    },
+    {
+      "seam": "DriftDetectionSeam",
+      "owner": "hbpheonix",
+      "status": "na"
+    },
+    {
+      "seam": "MeechieToolSeam",
+      "owner": "hbpheonix",
+      "status": "na"
+    },
+    {
+      "seam": "OutputPackagingSeam",
+      "owner": "hbpheonix",
+      "status": "na"
+    },
+    {
+      "seam": "SpecValidationSeam",
+      "owner": "hbpheonix",
+      "status": "na"
+    }
+  ]
+}
