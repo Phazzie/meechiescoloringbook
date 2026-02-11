@@ -15,6 +15,21 @@ Short, durable decisions with context and tradeoffs.
 - Consequences:
 - Revisit criteria:
 
+## 2026-02-11 - Normalize xAI base URL usage and model config
+- Date: 2026-02-11
+- Decision: Normalize `XAI_BASE_URL` inside ProviderAdapterSeam to avoid double `/v1`, read `XAI_IMAGE_MODEL` in the `/api/image-generation` route, and align AppConfig seam defaults to base `https://api.x.ai` with endpoint `/v1/images/generations`.
+- Context: The sample base URL included `/v1`, causing `/v1/v1` in ProviderAdapterSeam; the image route hardcoded the model and could drift from environment config.
+- Alternatives: Keep the existing base URL and document the required format; hardcode the model permanently in the route.
+- Consequences: ProviderAdapterSeam now tolerates base URLs that include `/v1`; image-generation route follows environment configuration; fixtures reflect the normalized defaults.
+- Revisit criteria: If xAI changes the base URL pattern or the route is fully replaced by seam-based config.
+
+- Cipher Gate:
+  - Date: 2026-02-11
+  - Seams: ProviderAdapterSeam, ImageGenerationSeam, AppConfigSeam
+  - Evidence: docs/evidence/2026-02-11/npm-test.txt; docs/evidence/2026-02-11/npm-verify.txt; docs/evidence/2026-02-11/probe-provider-adapter.txt; docs/evidence/2026-02-11/probe-image-generation.txt; docs/evidence/2026-02-11/chamber-lock.json; docs/evidence/2026-02-11/shaolin-lint.json; docs/evidence/2026-02-11/seam-ledger.json; docs/evidence/2026-02-11/clan-chain.json; docs/evidence/2026-02-11/proof-tape.json; docs/evidence/2026-02-11/assumption-alarm.json; docs/evidence/2026-02-11/verify.txt; docs/evidence/2026-02-11/test.txt
+  - Summary: Normalized `XAI_BASE_URL` handling, aligned the image route to `XAI_IMAGE_MODEL`, and refreshed probes/fixtures.
+  - Risks: Misconfigured base URLs beyond `/v1` may still require manual correction.
+
 ## 2026-02-11 - Switch xAI image model to grok-imagine-image
 - Date: 2026-02-11
 - Decision: Switch the default xAI image model to `grok-imagine-image`, refresh ProviderAdapterSeam/ImageGenerationSeam probes and fixtures, and move AppConfigSeam fixtures into `fixtures/app-config/` to satisfy chamber lock.

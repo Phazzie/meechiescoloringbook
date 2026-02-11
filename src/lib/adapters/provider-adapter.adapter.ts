@@ -15,6 +15,11 @@ const DEFAULT_BASE_URL = 'https://api.x.ai';
 const CHAT_PATH = '/v1/chat/completions';
 const IMAGE_PATH = '/v1/images/generations';
 
+const normalizeBaseUrl = (baseUrl: string): string => {
+	const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+	return trimmed.endsWith('/v1') ? trimmed.slice(0, -3) : trimmed;
+};
+
 const getApiKey = (): string | null => {
 	const key = env.XAI_API_KEY;
 	return key && key.length > 0 ? key : null;
@@ -127,7 +132,7 @@ export const providerAdapter: ProviderAdapterSeam = {
 				error: buildError('PROVIDER_API_KEY_MISSING', 'XAI_API_KEY is required.')
 			};
 		}
-		const baseUrl = env.XAI_BASE_URL || DEFAULT_BASE_URL;
+		const baseUrl = normalizeBaseUrl(env.XAI_BASE_URL || DEFAULT_BASE_URL);
 		try {
 			const response = await fetch(`${baseUrl}${CHAT_PATH}`, {
 				method: 'POST',
@@ -163,7 +168,7 @@ export const providerAdapter: ProviderAdapterSeam = {
 				error: buildError('PROVIDER_API_KEY_MISSING', 'XAI_API_KEY is required.')
 			};
 		}
-		const baseUrl = env.XAI_BASE_URL || DEFAULT_BASE_URL;
+		const baseUrl = normalizeBaseUrl(env.XAI_BASE_URL || DEFAULT_BASE_URL);
 		try {
 			const response = await fetch(`${baseUrl}${IMAGE_PATH}`, {
 				method: 'POST',

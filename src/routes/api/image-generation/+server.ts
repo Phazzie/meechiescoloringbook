@@ -7,9 +7,10 @@ import { json } from '@sveltejs/kit';
 import { ImageGenerationInputSchema } from '../../../../contracts/image-generation.contract';
 import type { GeneratedImage } from '../../../../contracts/image-generation.contract';
 import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
+import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 
-const IMAGE_MODEL = 'grok-imagine-image';
+const IMAGE_MODEL = env.XAI_IMAGE_MODEL || 'grok-imagine-image';
 const RESPONSE_FORMAT = 'b64_json';
 
 const REQUIRED_PHRASES = [

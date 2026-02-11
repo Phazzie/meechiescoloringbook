@@ -1,2 +1,2 @@
-Provider probe complete. Chat content length: 32.
-Image base64 length: 754560.
+Provider probe complete. Chat content length: 2.
+Image base64 length: 983788.

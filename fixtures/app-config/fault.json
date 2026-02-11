@@ -2,8 +2,8 @@
   "xaiApiKey": "",
   "xaiTextModel": "grok-4.1-fast-reasoning",
   "xaiImageModel": "grok-imagine-image",
-  "xaiBaseUrl": "https://api.x.ai/v1",
-  "xaiImageEndpointPath": "/images/generations",
+  "xaiBaseUrl": "https://api.x.ai",
+  "xaiImageEndpointPath": "/v1/images/generations",
   "featureIntegrationTests": false,
   "maxImagesPerRequest": 0,
   "defaultImageSize": "1024x1024"
