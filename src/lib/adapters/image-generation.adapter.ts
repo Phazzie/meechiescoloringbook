@@ -23,8 +23,11 @@ const pageSizeLine = (pageSize: ImageGenerationInput['spec']['pageSize']): strin
 	pageSize === 'A4' ? 'A4 8.27x11.69 portrait.' : 'US Letter 8.5x11 portrait.';
 
 const missingRequiredPhrases = (prompt: string, pageSize: ImageGenerationInput['spec']['pageSize']) => {
-	const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)];
-	return phrases.filter((phrase) => !prompt.includes(phrase));
+	const promptLower = prompt.toLowerCase();
+	const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)].map((phrase) =>
+		phrase.toLowerCase()
+	);
+	return phrases.filter((phrase) => !promptLower.includes(phrase));
 };
 
 export const imageGenerationAdapter: ImageGenerationSeam = {

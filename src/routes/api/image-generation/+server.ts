@@ -14,7 +14,7 @@ const IMAGE_MODEL = env.XAI_IMAGE_MODEL || 'grok-imagine-image';
 const RESPONSE_FORMAT = 'b64_json';
 
 const REQUIRED_PHRASES = [
-	'black-and-white coloring book page',
+	'Black-and-white coloring book page',
 	'outline-only',
 	'easy to color',
 	'Crisp vector-like linework',
@@ -25,8 +25,11 @@ const pageSizeLine = (pageSize: string): string =>
 	pageSize === 'A4' ? 'A4 8.27x11.69 portrait.' : 'US Letter 8.5x11 portrait.';
 
 const missingRequiredPhrases = (prompt: string, pageSize: string): string[] => {
-	const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)];
-	return phrases.filter((phrase) => !prompt.includes(phrase));
+	const promptLower = prompt.toLowerCase();
+	const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)].map((phrase) =>
+		phrase.toLowerCase()
+	);
+	return phrases.filter((phrase) => !promptLower.includes(phrase));
 };
 
 export const POST: RequestHandler = async ({ request }) => {

@@ -1317,3 +1317,10 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-02-01/rewind-ProviderAdapterSeam.txt; docs/evidence/2026-02-01/npm-test.txt; docs/evidence/2026-02-01/npm-verify.txt; docs/evidence/2026-02-01/probe-provider-adapter.txt; docs/evidence/2026-02-01/probe-chat-interpretation.txt; docs/evidence/2026-02-01/probe-image-generation.txt
   - Summary: Refreshed provider/chat/image probes and aligned ProviderAdapterSeam fault status handling with probe-backed fixtures.
   - Risks: Provider error status codes can change; fixtures and test stubs must be refreshed when probes change.
+
+- Cipher Gate:
+  - Date: 2026-02-12
+  - Seams: ImageGenerationSeam
+  - Evidence: docs/evidence/2026-02-12/probe-image-generation.txt; docs/evidence/2026-02-12/npm-test.txt; docs/evidence/2026-02-12/npm-verify.txt; docs/evidence/2026-02-12/chamber-lock.json; docs/evidence/2026-02-12/shaolin-lint.json; docs/evidence/2026-02-12/assumption-alarm.json; docs/evidence/2026-02-12/seam-ledger.json; docs/evidence/2026-02-12/clan-chain.json; docs/evidence/2026-02-12/proof-tape.json
+  - Summary: Made ImageGenerationSeam prompt phrase validation case-insensitive across server and adapter, then refreshed probe-backed fixtures.
+  - Risks: If deterministic gating depends on exact casing, prompts that previously failed may now pass.

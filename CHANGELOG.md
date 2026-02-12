@@ -8,6 +8,7 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 -## Unreleased
+- Made image-generation prompt phrase checks case-insensitive to avoid false negatives when validating prompts.
 - Wired the main UI and chat builder to enforce the full seam loop (SpecValidation → PromptAssembly → ImageGeneration → DriftDetection → OutputPackaging → CreationStore), gating Generate on validation, surfacing prompt/drift debug info, and adding creation favorites/deletion plus draft persistence.
 - Added Manifest + Android-ready PNG/maskable icons for Meechie's Coloring Book PWA alongside the existing SVG asset.
 - Added server-side xAI chat/image endpoints with client adapters calling `/api/chat-interpretation` and `/api/image-generation`.

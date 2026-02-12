@@ -1,0 +1,11 @@
+## main
+ M CHANGELOG.md
+ M DECISIONS.md
+ M docs/evidence/2026-02-11/npm-test.txt
+ M docs/evidence/2026-02-11/npm-verify.txt
+ M docs/evidence/2026-02-11/probe-image-generation.txt
+ M docs/seams.md
+ M fixtures/image-generation/sample.json
+ M src/lib/adapters/image-generation.adapter.ts
+ M src/routes/api/image-generation/+server.ts
+?? docs/evidence/2026-02-12/
