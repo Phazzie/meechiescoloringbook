@@ -14,6 +14,7 @@ All notable user-visible changes for this repo.
 - Improved image-generation failure handling with clearer status codes and actionable missing-key messaging.
 - Refactored `/api/generate` orchestration into `src/lib/core/generate-pipeline.ts` so the route is a thin transport wrapper.
 - Refactored `/api/chat-interpretation` and `/api/tools` into core pipelines so both routes are now thin wrappers with centralized validation/safety behavior.
+- Retired the unused legacy generation workflow/composition path so active runtime flow is only the current endpoint-pipeline architecture.
 - Added shared prompt-template helpers in `src/lib/core/prompt-template.ts` and refactored PromptAssemblySeam/DriftDetectionSeam to use one wording source.
 - Added shared client request helpers in `src/lib/core/http-client.ts` and refactored builder + Meechie tool fetch paths to use it.
 - Refreshed MeechieVoiceSeam and fixture-backed Meechie tool copy to match the latest power-first tone pattern.

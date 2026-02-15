@@ -15,20 +15,20 @@ Short, durable decisions with context and tradeoffs.
 - Consequences:
 - Revisit criteria:
 
-## 2026-02-15 - Extract chat/tools pipelines and refresh seam inventory governance
+## 2026-02-15 - Extract chat/tools pipelines, retire ghost workflow, and refresh seam governance
 - Date: 2026-02-15
-- Decision: Extract `/api/chat-interpretation` and `/api/tools` orchestration into core pipeline modules, keep route handlers transport-thin, and update seam inventory coverage for seam modules under `src/lib/seams/`.
-- Context: Route handlers were carrying orchestration logic directly, making behavior harder to test in isolation; seam inventory was incomplete for legacy seam modules.
-- Alternatives: Keep orchestration inline in route files and leave partial seam inventory documentation.
-- Consequences: Chat and tools behavior is now centralized in testable pipeline modules; route files are thinner; seam inventory now explicitly includes PromptCompilerSeam/SafetyPolicySeam/GalleryStoreSeam/TelemetrySeam.
-- Revisit criteria: If chat/tools orchestration expands further, move pipeline dependencies into explicit composition wiring alongside generate/image pipelines.
+- Decision: Extract `/api/chat-interpretation` and `/api/tools` orchestration into core pipeline modules, keep route handlers transport-thin, remove the unused legacy workflow/composition path, and update seam inventory coverage for seam modules under `src/lib/seams/`.
+- Context: Route handlers were carrying orchestration logic directly, behavior was harder to test in isolation, and the repo retained a dead legacy workflow path (`generation-workflow.ts`) that no active route consumed.
+- Alternatives: Keep orchestration inline in route files and leave the legacy workflow/composition modules in place for hypothetical future use.
+- Consequences: Chat/tools behavior is centralized in testable pipeline modules; active runtime flow is clearer; legacy workflow dead code is removed; seam inventory explicitly covers PromptCompilerSeam/SafetyPolicySeam/GalleryStoreSeam/TelemetrySeam as contract-level modules.
+- Revisit criteria: If a future product flow needs those seam modules at runtime, reintroduce composition wiring from current route pipelines rather than restoring the retired legacy workflow.
 
 - Cipher Gate:
   - Date: 2026-02-15
-  - Seams: ChatInterpretationSeam, MeechieToolSeam, SafetyPolicySeam, ProviderAdapterSeam, SpecValidationSeam
+  - Seams: ChatInterpretationSeam, MeechieToolSeam, PromptCompilerSeam, SafetyPolicySeam, GalleryStoreSeam, TelemetrySeam, ProviderAdapterSeam, SpecValidationSeam
   - Evidence: docs/evidence/2026-02-15/test.txt; docs/evidence/2026-02-15/verify.txt; docs/evidence/2026-02-15/chamber-lock.json; docs/evidence/2026-02-15/shaolin-lint.json; docs/evidence/2026-02-15/seam-ledger.json; docs/evidence/2026-02-15/clan-chain.json; docs/evidence/2026-02-15/proof-tape.json; docs/evidence/2026-02-15/assumption-alarm.json
-  - Summary: Added `chat-interpretation` and `tools` core pipelines, converted both API routes to wrappers, added unit coverage for chat route behavior, and updated seam inventory documentation.
-  - Risks: Behavior-preserving extraction still depends on existing status-code conventions (several error responses intentionally stay HTTP 200 for contract compatibility).
+  - Summary: Added `chat-interpretation` and `tools` core pipelines, converted both API routes to wrappers, removed unused legacy workflow/composition modules, and updated seam inventory documentation.
+  - Risks: Behavior-preserving extraction still depends on existing status-code conventions (several error responses intentionally stay HTTP 200 for contract compatibility); retired legacy runtime path would need fresh composition if revived.
 
 ## 2026-02-14 - Stabilize adapter rules and reduce architecture drift
 - Date: 2026-02-14

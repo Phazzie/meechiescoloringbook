@@ -5,6 +5,32 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 -->
 # Autonomous Plan (2026-02-14)
 
+## Ghost Workflow Retirement Pass (2026-02-15)
+### Plan
+- Goal: Remove the legacy generation workflow path that is not used by the active UI or API routes.
+- Exact seams: `PromptCompilerSeam`, `SafetyPolicySeam`, `GalleryStoreSeam`, `TelemetrySeam`.
+- Exact file paths to touch:
+  - `src/lib/core/generation-workflow.ts` (delete)
+  - `src/lib/core/types.ts` (delete)
+  - `src/lib/composition/deps.mock.ts` (delete)
+  - `src/lib/composition/deps.server.ts` (delete)
+  - `tests/unit/generation-workflow.test.ts` (delete)
+  - `docs/seams.md`
+  - `docs/gemini-findings-2026-02-15.md`
+  - `docs/next-steps-plan-2026-02-14.md`
+  - `CHANGELOG.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm run check`
+  2. `npm test`
+  3. `npm run verify`
+
+### Self-critique
+1. What could be wrong: Removing legacy files might accidentally break hidden imports or historical workflows still relied on by tests/scripts.
+2. What must be proven: No active route or test references the deleted modules after retirement.
+3. Riskiest assumption: The removed workflow path is fully superseded by current pipeline routes and no runtime code calls it.
+4. Evidence to prove/disprove: `rg` reference scan shows no imports, plus green `npm run check`, `npm test`, and `npm run verify`.
+
 ## Autonomous Pass (2026-02-15)
 ### Plan
 - Goal: Complete a second structural cleanup pass by extracting route orchestration logic for chat and tools into core pipelines, then clear governance gate failures.

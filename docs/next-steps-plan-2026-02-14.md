@@ -57,7 +57,7 @@ This document now tracks both planning and Gemini-step ROI triage. Some listed h
 | 4 | Mock-reality drift in prompt phrases | Fixed | `src/lib/core/constants.ts`, `src/lib/seams/prompt-compiler-seam/mock.ts`, `src/lib/seams/prompt-compiler-seam/fixtures.ts`, `src/lib/adapters/prompt-assembly.adapter.ts`, `src/lib/adapters/drift-detection.adapter.ts` | Keep required phrases sourced from shared constants only. |
 | 5 | Hidden censorship in chat interpretation adapter | Fixed | `src/lib/adapters/chat-interpretation.adapter.ts`, `tests/contract/chat-interpretation.test.ts`, `fixtures/chat-interpretation/fault.json` | Preserve contract-based validation and avoid silent client-side blocks. |
 | 6 | Magic string sprawl across multiple files | Partial | `src/lib/core/constants.ts`, `src/lib/adapters/prompt-assembly.adapter.ts`, `src/lib/adapters/drift-detection.adapter.ts` | Move remaining repeated prompt formatting lines into a shared prompt-template module if drift appears again. |
-| 7 | Ghost workflow: `generation-workflow.ts` not on active UI path | Deferred | `src/lib/core/generation-workflow.ts` | Either remove legacy workflow with migration notes or adapt it to current `ColoringPageSpec` orchestration model. |
+| 7 | Ghost workflow: `generation-workflow.ts` not on active UI path | Fixed (2026-02-15) | Removed `src/lib/core/generation-workflow.ts`, `src/lib/core/types.ts`, `src/lib/composition/deps.mock.ts`, `src/lib/composition/deps.server.ts`, `tests/unit/generation-workflow.test.ts` | Keep runtime orchestration constrained to active route pipelines only. |
 
 ## Task list
 | # | Task | Seams | Files to touch | What will be done | Why |
