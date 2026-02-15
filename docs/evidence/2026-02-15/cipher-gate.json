@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-02-15T01:07:44.487Z",
+  "cipher": {
+    "date": "2026-02-15",
+    "seams": "ChatInterpretationSeam, MeechieToolSeam, SafetyPolicySeam, ProviderAdapterSeam, SpecValidationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-02-15/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-15/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-15/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-15/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-15/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-15/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-15/proof-tape.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-15/assumption-alarm.json",
+        "exists": true
+      }
+    ],
+    "summary": "Added `chat-interpretation` and `tools` core pipelines, converted both API routes to wrappers, added unit coverage for chat route behavior, and updated seam inventory documentation.",
+    "risks": "Behavior-preserving extraction still depends on existing status-code conventions (several error responses intentionally stay HTTP 200 for contract compatibility)."
+  },
+  "latestChangeMs": 1771116835169.9119,
+  "status": "ok"
+}

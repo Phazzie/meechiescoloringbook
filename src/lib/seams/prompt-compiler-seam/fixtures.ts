@@ -19,11 +19,15 @@ export const compiledPromptFixture: CompiledPrompt = {
     '- a glam kitten wearing a bow',
     '',
     '[Coloring-book constraints — ALWAYS present]',
-    '- black-and-white coloring book page',
-    '- outline-only line art, clean bold contours',
+    '- Black-and-white coloring book page',
+    '- outline-only',
+    '- clean bold contours',
+    '- easy to color',
+    '- Crisp vector-like linework',
     '- NO color fill, NO grayscale, NO shading, NO gradients',
     '- printable, lots of open spaces for coloring',
     '- avoid photorealism, avoid 3D render, avoid halftone, avoid crosshatching shading',
+    '- NEGATIVE PROMPT: no color, no grayscale, no shading, no gradients',
     '',
     '[Girly glam style — vary by sliders]',
     '- glam, sparkly, rhinestone-dot outlines',
@@ -47,11 +51,15 @@ export const compiledPromptFixture: CompiledPrompt = {
     captionText: 'Glam Kitty',
     stylePreset: 'mock-glam',
     enforcedConstraints: [
-      'black-and-white coloring book page',
-      'outline-only line art, clean bold contours',
+      'Black-and-white coloring book page',
+      'outline-only',
+      'clean bold contours',
+      'easy to color',
+      'Crisp vector-like linework',
       'NO color fill, NO grayscale, NO shading, NO gradients',
       'printable, lots of open spaces for coloring',
-      'avoid photorealism, avoid 3D render, avoid halftone, avoid crosshatching shading'
+      'avoid photorealism, avoid 3D render, avoid halftone, avoid crosshatching shading',
+      'NEGATIVE PROMPT: no color, no grayscale, no shading, no gradients'
     ]
   }
 };

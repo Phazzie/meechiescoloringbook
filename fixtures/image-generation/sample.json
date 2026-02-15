@@ -52,7 +52,7 @@
           "encoding": "base64"
         }
       ],
-      "revisedPrompt": "",
+      "revisedPrompt": "Black-and-white coloring book page, outline-only, easy to color, crisp vector-like linework.",
       "modelMetadata": {
         "provider": "xai",
         "model": "grok-imagine-image"

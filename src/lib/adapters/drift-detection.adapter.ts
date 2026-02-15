@@ -7,32 +7,31 @@ import type {
 	DriftDetectionSeam
 } from '../../../contracts/drift-detection.contract';
 import type { Result } from '../../../contracts/shared.contract';
+import { SYSTEM_CONSTANTS } from '$lib/core/constants';
+import {
+	NEGATIVE_PROMPT_HEADING,
+	PROMPT_FORBIDDEN_TOKENS,
+	PROMPT_REQUIRED_HEADINGS,
+	borderLine,
+	colorModeLine,
+	dedicationLine,
+	decorationLine,
+	fontStyleLine,
+	listLineForSpec,
+	negativeLinesForSpec,
+	outputLine,
+	pageSizeLine,
+	shadingLine,
+	illustrationLine,
+	textStrokeLine
+} from '$lib/core/prompt-template';
 import { formatAlignmentLine } from '$lib/utils/alignment-line';
 
-const REQUIRED_HEADINGS = [
-	'STYLE:',
-	'TEXT (exact):',
-	'TYPOGRAPHY:',
-	'LAYOUT:',
-	'DECORATIONS:',
-	'OUTPUT:',
-	'NEGATIVE PROMPT:'
-];
-
-const REQUIRED_PHRASES = [
-	'Black-and-white coloring book page',
-	'outline-only',
-	'easy to color',
-	'Crisp vector-like linework',
-	'NEGATIVE PROMPT:'
-];
-
-const FORBIDDEN_TOKENS = ['size:', 'quality:', 'style:'];
-
-const allowedHeadingSet = new Set(REQUIRED_HEADINGS);
+const REQUIRED_PHRASES = [...SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES];
+const allowedHeadingSet = new Set(PROMPT_REQUIRED_HEADINGS);
 
 const findMissingHeading = (prompt: string): string | null => {
-	for (const heading of REQUIRED_HEADINGS) {
+	for (const heading of PROMPT_REQUIRED_HEADINGS) {
 		if (!prompt.includes(heading)) {
 			return heading;
 		}
@@ -48,7 +47,7 @@ const detectExtraHeadings = (lines: string[]): string[] => {
 };
 
 const extractNegativeSectionLines = (lines: string[]): string[] => {
-	const startIndex = lines.findIndex((line) => line.trim() === 'NEGATIVE PROMPT:');
+	const startIndex = lines.findIndex((line) => line.trim() === NEGATIVE_PROMPT_HEADING);
 	if (startIndex === -1) {
 		return [];
 	}
@@ -81,108 +80,7 @@ const detectForbiddenTokens = (prompt: string): string[] => {
 		return true;
 	});
 	const lowered = sanitizedLines.join('\n').toLowerCase();
-	return FORBIDDEN_TOKENS.filter((token) => lowered.includes(token));
-};
-
-const formatListItems = (items: Array<{ number: number; label: string }>): string => {
-	const parts = items.map((item) => `${item.number}. ${item.label}`);
-	return parts.join('; ');
-};
-
-const pageSizeLine = (pageSize: DriftDetectionInput['spec']['pageSize']): string =>
-	pageSize === 'A4' ? 'A4 8.27x11.69 portrait.' : 'US Letter 8.5x11 portrait.';
-
-const listLineForSpec = (spec: DriftDetectionInput['spec']): string =>
-	spec.listMode === 'list'
-		? `List items: ${formatListItems(spec.items)} (Gutter: ${spec.listGutter}).`
-		: 'No list.';
-
-const colorModeLine = (spec: DriftDetectionInput['spec']): string => {
-	switch (spec.colorMode) {
-		case 'grayscale':
-			return 'Color: grayscale.';
-		case 'color':
-			return 'Color: color.';
-		default:
-			return 'Color: black and white only.';
-	}
-};
-
-const fontStyleLine = (spec: DriftDetectionInput['spec']): string => `Font: ${spec.fontStyle}.`;
-
-const textStrokeLine = (spec: DriftDetectionInput['spec']): string =>
-	`Stroke: ${spec.textStrokeWidth}px.`;
-
-const decorationLine = (spec: DriftDetectionInput['spec']): string => {
-	switch (spec.decorations) {
-		case 'minimal':
-			return 'Decorations: minimal outline icons.';
-		case 'dense':
-			return 'Decorations: dense outline icons.';
-		default:
-			return 'Decorations: none.';
-	}
-};
-
-const illustrationLine = (spec: DriftDetectionInput['spec']): string => {
-	switch (spec.illustrations) {
-		case 'simple':
-			return 'Illustrations: simple outlines.';
-		case 'scene':
-			return 'Illustrations: scene outlines.';
-		default:
-			return 'Illustrations: none.';
-	}
-};
-
-const shadingLine = (spec: DriftDetectionInput['spec']): string => {
-	switch (spec.shading) {
-		case 'hatch':
-			return 'Shading: hatch.';
-		case 'stippling':
-			return 'Shading: stippling.';
-		default:
-			return 'Shading: none.';
-	}
-};
-
-const borderLine = (spec: DriftDetectionInput['spec']): string => {
-	switch (spec.border) {
-		case 'decorative':
-			return `Border: decorative ${spec.borderThickness}px.`;
-		case 'none':
-			return 'Border: none.';
-		default:
-			return `Border: plain ${spec.borderThickness}px.`;
-	}
-};
-
-const outputLine = (spec: DriftDetectionInput['spec']): string => {
-	switch (spec.colorMode) {
-		case 'grayscale':
-			return 'Crisp vector-like linework. Grayscale outlines on white. Printable.';
-		case 'color':
-			return 'Crisp vector-like linework. Colored outlines on white. Printable.';
-		default:
-			return 'Crisp vector-like linework. Black outlines on white. Printable.';
-	}
-};
-
-const dedicationLine = (spec: DriftDetectionInput['spec']): string =>
-	spec.dedication ? `Add dedication: "Dedicated to ${spec.dedication}".` : '';
-
-const negativeLinesForSpec = (spec: DriftDetectionInput['spec']): string[] => {
-	const lines: string[] = [];
-	if (spec.colorMode !== 'color') {
-		lines.push('no color');
-	}
-	if (spec.colorMode === 'black_and_white_only') {
-		lines.push('no grayscale');
-	}
-	if (spec.shading === 'none') {
-		lines.push('no shading');
-	}
-	return lines.concat(['no gradients', 'no filled shapes', 'no extra words']);
+	return PROMPT_FORBIDDEN_TOKENS.filter((token) => lowered.includes(token));
 };
 
 export const driftDetectionAdapter: DriftDetectionSeam = {
@@ -257,16 +155,16 @@ export const driftDetectionAdapter: DriftDetectionSeam = {
 		}
 
 		const expectedOptionLines = [
-			colorModeLine(input.spec),
+			colorModeLine(input.spec.colorMode),
 			listLineForSpec(input.spec),
-			fontStyleLine(input.spec),
-			textStrokeLine(input.spec),
-			decorationLine(input.spec),
-			illustrationLine(input.spec),
-			shadingLine(input.spec),
-			borderLine(input.spec),
-			outputLine(input.spec),
-			...(input.spec.dedication ? [dedicationLine(input.spec)] : [])
+			fontStyleLine(input.spec.fontStyle),
+			textStrokeLine(input.spec.textStrokeWidth),
+			decorationLine(input.spec.decorations),
+			illustrationLine(input.spec.illustrations),
+			shadingLine(input.spec.shading),
+			borderLine(input.spec.border, input.spec.borderThickness),
+			outputLine(input.spec.colorMode),
+			...(input.spec.dedication ? [dedicationLine(input.spec.dedication)] : [])
 		];
 
 		for (const line of expectedOptionLines) {

@@ -9,23 +9,8 @@ import type {
 import { ChatInterpretationResultSchema } from '../../../contracts/chat-interpretation.contract';
 import type { Result } from '../../../contracts/shared.contract';
 
-const isFaultMessage = (message: string): boolean => {
-	const trimmed = message.trim();
-	return trimmed.length < 3 || trimmed.includes('??');
-};
-
 export const chatInterpretationAdapter: ChatInterpretationSeam = {
 	interpret: async (input: ChatInterpretationInput): Promise<Result<ChatInterpretationOutput>> => {
-		if (isFaultMessage(input.message)) {
-			return {
-				ok: false,
-				error: {
-					code: 'CHAT_INPUT_INVALID',
-					message: 'Chat message is too short or invalid.'
-				}
-			};
-		}
-
 		try {
 			const response = await fetch('/api/chat-interpretation', {
 				method: 'POST',

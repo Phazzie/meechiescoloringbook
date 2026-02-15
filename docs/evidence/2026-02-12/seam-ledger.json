@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-02-12T04:08:21.749Z",
+  "generatedAt": "2026-02-12T17:52:25.694Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -269,6 +269,44 @@
       ]
     },
     {
+      "seam": "MeechieVoiceSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "na",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "contracts/meechie-voice.contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "na",
+          "path": "N/A (pure)"
+        },
+        {
+          "kind": "fixtures",
+          "status": "ok",
+          "path": "fixtures/meechie-voice/"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/mocks/meechie-voice.mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "tests/contract/meechie-voice.test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/meechie-voice.adapter.ts"
+        }
+      ]
+    },
+    {
       "seam": "MeechieToolSeam",
       "owner": "hbpheonix",
       "lastProbe": "N/A",
@@ -463,7 +501,7 @@
     "ok": 7,
     "missing": 0,
     "blocked": 0,
-    "na": 5,
+    "na": 6,
     "overallStatus": "ok"
   }
 }

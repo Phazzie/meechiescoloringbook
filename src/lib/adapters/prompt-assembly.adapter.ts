@@ -7,126 +7,40 @@ import type {
 	PromptAssemblySeam
 } from '../../../contracts/prompt-assembly.contract';
 import type { Result } from '../../../contracts/shared.contract';
+import { SYSTEM_CONSTANTS } from '$lib/core/constants';
+import {
+	RESERVED_STYLE_HINT_HEADINGS,
+	PROMPT_FORBIDDEN_TOKENS,
+	borderLine,
+	colorModeLine,
+	dedicationLine,
+	decorationLine,
+	fontStyleLine,
+	formatListItems,
+	illustrationLine,
+	negativeLinesForSpec,
+	outputLine,
+	pageSizeLine,
+	shadingLine,
+	textStrokeLine
+} from '$lib/core/prompt-template';
 import { formatAlignmentLine } from '$lib/utils/alignment-line';
 
 const TEMPLATE_VERSION = 'v2';
 const MAX_PROMPT_LENGTH = 1024;
-const RESERVED_HEADINGS = [
-	'STYLE:',
-	'TEXT (EXACT):',
-	'TYPOGRAPHY:',
-	'LAYOUT:',
-	'DECORATIONS:',
-	'OUTPUT:',
-	'NEGATIVE PROMPT:'
-];
-const FORBIDDEN_TOKENS = ['size:', 'quality:', 'style:'];
+const BASE_PAGE_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[0];
+const OUTLINE_ONLY_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[1];
+const EASY_TO_COLOR_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[2];
+const NEGATIVE_PROMPT_HEADING = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[4];
 
 const includesReservedHeading = (styleHint: string): boolean => {
 	const normalized = styleHint.toUpperCase();
-	return RESERVED_HEADINGS.some((heading) => normalized.includes(heading));
+	return RESERVED_STYLE_HINT_HEADINGS.some((heading) => normalized.includes(heading));
 };
 
 const includesForbiddenToken = (styleHint: string): boolean => {
 	const lowered = styleHint.toLowerCase();
-	return FORBIDDEN_TOKENS.some((token) => lowered.includes(token));
-};
-
-const formatListItems = (items: Array<{ number: number; label: string }>): string => {
-	const parts = items.map((item) => `${item.number}. ${item.label}`);
-	return parts.join('; ');
-};
-
-const colorModeLine = (colorMode: PromptAssemblyInput['spec']['colorMode']): string => {
-	switch (colorMode) {
-		case 'grayscale':
-			return 'Color: grayscale.';
-		case 'color':
-			return 'Color: color.';
-		default:
-			return 'Color: black and white only.';
-	}
-};
-
-const pageSizeLine = (pageSize: PromptAssemblyInput['spec']['pageSize']): string =>
-	pageSize === 'A4' ? 'A4 8.27x11.69 portrait.' : 'US Letter 8.5x11 portrait.';
-
-const fontStyleLine = (fontStyle: PromptAssemblyInput['spec']['fontStyle']): string =>
-	`Font: ${fontStyle}.`;
-
-const textStrokeLine = (strokeWidth: PromptAssemblyInput['spec']['textStrokeWidth']): string =>
-	`Stroke: ${strokeWidth}px.`;
-
-const decorationLine = (decorations: PromptAssemblyInput['spec']['decorations']): string => {
-	switch (decorations) {
-		case 'minimal':
-			return 'Decorations: minimal outline icons.';
-		case 'dense':
-			return 'Decorations: dense outline icons.';
-		default:
-			return 'Decorations: none.';
-	}
-};
-
-const illustrationLine = (illustrations: PromptAssemblyInput['spec']['illustrations']): string => {
-	switch (illustrations) {
-		case 'simple':
-			return 'Illustrations: simple outlines.';
-		case 'scene':
-			return 'Illustrations: scene outlines.';
-		default:
-			return 'Illustrations: none.';
-	}
-};
-
-const shadingLine = (shading: PromptAssemblyInput['spec']['shading']): string => {
-	switch (shading) {
-		case 'hatch':
-			return 'Shading: hatch.';
-		case 'stippling':
-			return 'Shading: stippling.';
-		default:
-			return 'Shading: none.';
-	}
-};
-
-const borderLine = (border: PromptAssemblyInput['spec']['border'], thickness: number): string => {
-	switch (border) {
-		case 'decorative':
-			return `Border: decorative ${thickness}px.`;
-		case 'none':
-			return 'Border: none.';
-		default:
-			return `Border: plain ${thickness}px.`;
-	}
-};
-
-const outputLine = (colorMode: PromptAssemblyInput['spec']['colorMode']): string => {
-	switch (colorMode) {
-		case 'grayscale':
-			return 'Crisp vector-like linework. Grayscale outlines on white. Printable.';
-		case 'color':
-			return 'Crisp vector-like linework. Colored outlines on white. Printable.';
-		default:
-			return 'Crisp vector-like linework. Black outlines on white. Printable.';
-	}
-};
-
-const dedicationLine = (dedication: PromptAssemblyInput['spec']['dedication']): string =>
-	dedication ? `Add dedication: "Dedicated to ${dedication}".` : '';
-
-const negativeLinesForSpec = (spec: PromptAssemblyInput['spec']): string[] => {
-	const lines: string[] = [];
-	if (spec.colorMode !== 'color') {
-		lines.push('no color');
-	}
-	if (spec.colorMode === 'black_and_white_only') {
-		lines.push('no grayscale');
-	}
-	if (spec.shading === 'none') {
-		lines.push('no shading');
-	}
-	return lines.concat(['no gradients', 'no filled shapes', 'no extra words']);
+	return PROMPT_FORBIDDEN_TOKENS.some((token) => lowered.includes(token));
 };
 
 const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
@@ -134,8 +48,8 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 	const listItems = formatListItems(spec.items);
 	const colorLine = colorModeLine(spec.colorMode);
 	const styleLine = styleHint
-		? `Vibe: ${styleHint} outline-only, easy to color. ${colorLine}`
-		: `Vibe: clean worksheet clarity, outline-only, easy to color. ${colorLine}`;
+		? `Vibe: ${styleHint} ${OUTLINE_ONLY_PHRASE}, ${EASY_TO_COLOR_PHRASE}. ${colorLine}`
+		: `Vibe: clean worksheet clarity, ${OUTLINE_ONLY_PHRASE}, ${EASY_TO_COLOR_PHRASE}. ${colorLine}`;
 
 	const secondaryLine = spec.footerItem?.label;
 	const alignmentLine = formatAlignmentLine(spec);
@@ -166,9 +80,9 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 	].filter((line) => line.length > 0);
 
 	const prompt = [
-		'Black-and-white coloring book page for print.',
+		`${BASE_PAGE_PHRASE} for print.`,
 		'STYLE:',
-		'[Describe the vibe. Include outline-only and easy to color.]',
+		`[Describe the vibe. Include ${OUTLINE_ONLY_PHRASE} and ${EASY_TO_COLOR_PHRASE}.]`,
 		styleLine,
 		...textLines,
 		'TYPOGRAPHY:',
@@ -181,7 +95,7 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 		`${decorationLine(spec.decorations)} ${illustrationLine(spec.illustrations)} ${shadingLine(spec.shading)} ${borderLine(spec.border, spec.borderThickness)}`,
 		'OUTPUT:',
 		outputLine(spec.colorMode),
-		'NEGATIVE PROMPT:',
+		NEGATIVE_PROMPT_HEADING,
 		...negativeLinesForSpec(spec)
 	].join('\n');
 

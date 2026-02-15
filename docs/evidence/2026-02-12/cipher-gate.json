@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-02-12T04:08:22.617Z",
+  "generatedAt": "2026-02-12T17:52:26.748Z",
   "cipher": {
     "date": "2026-02-12",
     "seams": "ImageGenerationSeam",
@@ -45,6 +45,6 @@
     "summary": "Made ImageGenerationSeam prompt phrase validation case-insensitive across server and adapter, then refreshed probe-backed fixtures.",
     "risks": "If deterministic gating depends on exact casing, prompts that previously failed may now pass."
   },
-  "latestChangeMs": 1770857213195.4116,
+  "latestChangeMs": 1770918558606.8528,
   "status": "ok"
 }

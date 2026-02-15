@@ -1,0 +1,49 @@
+{
+  "tool": "assumption-alarm",
+  "generatedAt": "2026-02-15T01:07:43.171Z",
+  "blockedSeams": [],
+  "assumptions": [
+    {
+      "date": "2026-02-11",
+      "seams": "ImageGenerationSeam, ProviderAdapterSeam",
+      "statement": "The `grok-imagine-image` image model is available to the configured xAI API key and responds at `/v1/images/generations`.",
+      "validation": "Re-run `node probes/provider-adapter.probe.mjs` and `node probes/image-generation.probe.mjs` with an API key that has access to `grok-imagine-image` and confirm fixtures show ok image output.",
+      "status": "Validated (evidence: docs/evidence/2026-02-11/probe-provider-adapter.txt; docs/evidence/2026-02-11/probe-image-generation.txt).",
+      "seamList": [
+        "ImageGenerationSeam",
+        "ProviderAdapterSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-01-24",
+      "seams": "ProviderAdapterSeam, ChatInterpretationSeam, ImageGenerationSeam",
+      "statement": "DNS resolution is unavailable in the current environment, so xAI probe calls cannot complete and fixtures remain stubbed.",
+      "validation": "Restore DNS/network access and rerun `node probes/provider-adapter.probe.mjs`, `node probes/chat-interpretation.probe.mjs`, and `node probes/image-generation.probe.mjs` to refresh fixtures and evidence.",
+      "status": "closed (probes ran 2026-02-01)",
+      "seamList": [
+        "ProviderAdapterSeam",
+        "ChatInterpretationSeam",
+        "ImageGenerationSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-01-23",
+      "seams": "AuthContextSeam, CreationStoreSeam, ChatInterpretationSeam, ProviderAdapterSeam, SessionSeam",
+      "statement": "Probes are blocked in v1 due to missing credentials or environment; adapters remain stubbed and deterministic for now.",
+      "validation": "Run probes when credentials/environment are available; update fixtures and evidence accordingly.",
+      "status": "closed (browser probes ran 2026-02-05; provider probes ran 2026-02-01)",
+      "seamList": [
+        "AuthContextSeam",
+        "CreationStoreSeam",
+        "ChatInterpretationSeam",
+        "ProviderAdapterSeam",
+        "SessionSeam"
+      ],
+      "missingFields": []
+    }
+  ],
+  "missingSeamCoverage": [],
+  "invalidAssumptions": []
+}

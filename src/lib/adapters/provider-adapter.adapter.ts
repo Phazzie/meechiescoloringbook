@@ -9,7 +9,11 @@ import type {
 	ProviderImageOutput
 } from '../../../contracts/provider-adapter.contract';
 import type { Result, SeamError } from '../../../contracts/shared.contract';
-import { env } from '$env/dynamic/private';
+
+export type ProviderAdapterConfig = {
+	apiKey?: string | null;
+	baseUrl?: string | null;
+};
 
 const DEFAULT_BASE_URL = 'https://api.x.ai';
 const CHAT_PATH = '/v1/chat/completions';
@@ -20,10 +24,13 @@ const normalizeBaseUrl = (baseUrl: string): string => {
 	return trimmed.endsWith('/v1') ? trimmed.slice(0, -3) : trimmed;
 };
 
-const getApiKey = (): string | null => {
-	const key = env.XAI_API_KEY;
+const getApiKey = (config: ProviderAdapterConfig): string | null => {
+	const key = config.apiKey ?? process.env.XAI_API_KEY;
 	return key && key.length > 0 ? key : null;
 };
+
+const getBaseUrl = (config: ProviderAdapterConfig): string =>
+	normalizeBaseUrl(config.baseUrl || process.env.XAI_BASE_URL || DEFAULT_BASE_URL);
 
 const buildError = (code: string, message: string, details?: Record<string, string>): SeamError => ({
 	code,
@@ -108,12 +115,16 @@ const normalizeImageOutput = (payload: unknown): Result<ProviderImageOutput> => 
 			error: buildError('PROVIDER_EMPTY_IMAGE', 'Provider returned no images.')
 		};
 	}
-	const revisedPrompt =
+	const rawRevisedPrompt =
 		typeof data?.revised_prompt === 'string'
 			? data.revised_prompt
 			: typeof data?.revisedPrompt === 'string'
 				? data.revisedPrompt
 				: data?.data?.find((entry) => typeof entry.revised_prompt === 'string')?.revised_prompt;
+	const revisedPrompt =
+		typeof rawRevisedPrompt === 'string' && rawRevisedPrompt.trim().length > 0
+			? rawRevisedPrompt
+			: undefined;
 	return {
 		ok: true,
 		value: {
@@ -123,16 +134,16 @@ const normalizeImageOutput = (payload: unknown): Result<ProviderImageOutput> => 
 	};
 };
 
-export const providerAdapter: ProviderAdapterSeam = {
+export const createProviderAdapter = (config: ProviderAdapterConfig = {}): ProviderAdapterSeam => ({
 	createChatCompletion: async (input: ProviderChatInput): Promise<Result<ProviderChatOutput>> => {
-		const apiKey = getApiKey();
+		const apiKey = getApiKey(config);
 		if (!apiKey) {
 			return {
 				ok: false,
 				error: buildError('PROVIDER_API_KEY_MISSING', 'XAI_API_KEY is required.')
 			};
 		}
-		const baseUrl = normalizeBaseUrl(env.XAI_BASE_URL || DEFAULT_BASE_URL);
+		const baseUrl = getBaseUrl(config);
 		try {
 			const response = await fetch(`${baseUrl}${CHAT_PATH}`, {
 				method: 'POST',
@@ -161,14 +172,14 @@ export const providerAdapter: ProviderAdapterSeam = {
 		}
 	},
 	createImageGeneration: async (input: ProviderImageInput): Promise<Result<ProviderImageOutput>> => {
-		const apiKey = getApiKey();
+		const apiKey = getApiKey(config);
 		if (!apiKey) {
 			return {
 				ok: false,
 				error: buildError('PROVIDER_API_KEY_MISSING', 'XAI_API_KEY is required.')
 			};
 		}
-		const baseUrl = normalizeBaseUrl(env.XAI_BASE_URL || DEFAULT_BASE_URL);
+		const baseUrl = getBaseUrl(config);
 		try {
 			const response = await fetch(`${baseUrl}${IMAGE_PATH}`, {
 				method: 'POST',
@@ -198,4 +209,6 @@ export const providerAdapter: ProviderAdapterSeam = {
 			};
 		}
 	}
-};
+});
+
+export const providerAdapter = createProviderAdapter();

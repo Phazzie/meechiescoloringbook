@@ -1,27 +1,17 @@
-// Purpose: Handle generation requests through the server API.
-// Why: Validate input and run the seam-driven workflow server-side.
-// Info flow: HTTP request -> validation -> workflow -> JSON response.
+/*
+Purpose: Orchestrate prompt assembly, image generation, and drift checks for the main UI.
+Why: Keep generation flow server-driven behind a single endpoint.
+Info flow: UI generate request -> validation -> prompt/image/drift seams -> JSON response.
+*/
 import { json } from '@sveltejs/kit';
-import { runGenerationWorkflow } from '$lib/core/generation-workflow';
-import { makeServerDependencies } from '$lib/composition/deps.server';
-import { validatePromptCompilerInput } from '$lib/seams/prompt-compiler-seam/validators';
+import { generatePipelineDeps, runGeneratePipeline } from '$lib/core/generate-pipeline';
+import type { RequestHandler } from './$types';
 
-export const POST = async ({ request }) => {
-  try {
-    const body = await request.json();
-    const input = validatePromptCompilerInput(body);
-    const deps = makeServerDependencies();
-    const result = await runGenerationWorkflow(input, deps);
-    const history = await deps.galleryStoreSeam.listRecent(5);
-
-    return json({ result, history });
-  } catch (error) {
-    return json(
-      {
-        error: 'Invalid request payload.',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 400 }
-    );
-  }
+export const POST: RequestHandler = async ({ request, fetch }) => {
+	const body = await request.json().catch(() => null);
+	const pipelineResult = await runGeneratePipeline(body, request.headers, {
+		fetchImpl: fetch,
+		...generatePipelineDeps
+	});
+	return json(pipelineResult.body, { status: pipelineResult.status });
 };

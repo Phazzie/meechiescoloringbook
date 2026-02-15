@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-02-14T18:58:08.396Z",
+  "cipher": {
+    "date": "2026-02-14",
+    "seams": "MeechieVoiceSeam, MeechieToolSeam, PromptAssemblySeam, DriftDetectionSeam, ImageGenerationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-02-14/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-14/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-14/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-14/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-14/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-14/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-14/proof-tape.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-14/assumption-alarm.json",
+        "exists": true
+      }
+    ],
+    "summary": "Delivered a full UI overhaul, refreshed Meechie voice output/fixtures, extracted generate pipeline logic, centralized prompt template helpers, and unified client request plumbing.",
+    "risks": "Voice copy remains manual and requires fixture sync discipline; image generation still depends on external provider availability."
+  },
+  "latestChangeMs": 1771094633369.58,
+  "status": "ok"
+}

@@ -1,6 +1,6 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-02-12T04:08:09.839Z",
+  "generatedAt": "2026-02-12T17:51:56.597Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -255,6 +255,42 @@
       ]
     },
     {
+      "seam": "MeechieVoiceSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/meechie-voice.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "N/A (pure)",
+          "status": "na"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/meechie-voice/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/meechie-voice.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/meechie-voice.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/meechie-voice.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
       "seam": "MeechieToolSeam",
       "status": "ok",
       "checks": [
@@ -436,7 +472,7 @@
     }
   ],
   "summary": {
-    "ok": 12,
+    "ok": 13,
     "blocked": 0,
     "missing": 0,
     "overallStatus": "ok"

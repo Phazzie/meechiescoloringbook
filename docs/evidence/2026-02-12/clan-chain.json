@@ -1,6 +1,6 @@
 {
   "tool": "clan-chain",
-  "generatedAt": "2026-02-12T04:08:22.015Z",
+  "generatedAt": "2026-02-12T17:52:25.998Z",
   "evidenceDir": "docs/evidence/2026-02-12",
   "clean": [
     {
@@ -40,6 +40,11 @@
     },
     {
       "seam": "DriftDetectionSeam",
+      "owner": "hbpheonix",
+      "status": "na"
+    },
+    {
+      "seam": "MeechieVoiceSeam",
       "owner": "hbpheonix",
       "status": "na"
     },

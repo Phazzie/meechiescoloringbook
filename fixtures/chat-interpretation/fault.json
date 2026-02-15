@@ -1,13 +1,13 @@
 {
   "scenario": "fault",
   "input": {
-    "message": "??"
+    "message": "fail contract parse"
   },
   "output": {
     "ok": false,
     "error": {
-      "code": "CHAT_INPUT_INVALID",
-      "message": "Chat message is too short or invalid."
+      "code": "CHAT_RESPONSE_INVALID",
+      "message": "Chat interpretation response did not match contract."
     }
   }
 }

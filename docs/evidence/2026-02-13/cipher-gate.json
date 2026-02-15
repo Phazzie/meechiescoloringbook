@@ -1,0 +1,50 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-02-13T20:50:27.659Z",
+  "cipher": {
+    "date": "2026-02-12",
+    "seams": "ImageGenerationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-02-12/probe-image-generation.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-12/npm-test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-12/npm-verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-12/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-12/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-12/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-12/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-12/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-02-12/proof-tape.json",
+        "exists": true
+      }
+    ],
+    "summary": "Made ImageGenerationSeam prompt phrase validation case-insensitive across server and adapter, then refreshed probe-backed fixtures.",
+    "risks": "If deterministic gating depends on exact casing, prompts that previously failed may now pass."
+  },
+  "latestChangeMs": 1770932886824.9043,
+  "status": "ok"
+}

@@ -7,7 +7,17 @@ Info flow: Changes -> entries -> release communication.
 
 All notable user-visible changes for this repo.
 
--## Unreleased
+## Unreleased
+- Fully redesigned the builder and Meechie pages with a cleaner modern visual system, clearer hierarchy, and polished action flows on desktop/mobile.
+- Moved Meechie tools to a dedicated destination path from the main builder flow and added a focused handoff card.
+- Added a temporary UI API key panel (save/load/clear/show) and propagated `x-api-key` from client requests to generation endpoints.
+- Improved image-generation failure handling with clearer status codes and actionable missing-key messaging.
+- Refactored `/api/generate` orchestration into `src/lib/core/generate-pipeline.ts` so the route is a thin transport wrapper.
+- Refactored `/api/chat-interpretation` and `/api/tools` into core pipelines so both routes are now thin wrappers with centralized validation/safety behavior.
+- Added shared prompt-template helpers in `src/lib/core/prompt-template.ts` and refactored PromptAssemblySeam/DriftDetectionSeam to use one wording source.
+- Added shared client request helpers in `src/lib/core/http-client.ts` and refactored builder + Meechie tool fetch paths to use it.
+- Refreshed MeechieVoiceSeam and fixture-backed Meechie tool copy to match the latest power-first tone pattern.
+- Centralized Meechie voice copy in MeechieVoiceSeam and routed Meechie tools through the voice pack.
 - Made image-generation prompt phrase checks case-insensitive to avoid false negatives when validating prompts.
 - Wired the main UI and chat builder to enforce the full seam loop (SpecValidation → PromptAssembly → ImageGeneration → DriftDetection → OutputPackaging → CreationStore), gating Generate on validation, surfacing prompt/drift debug info, and adding creation favorites/deletion plus draft persistence.
 - Added Manifest + Android-ready PNG/maskable icons for Meechie's Coloring Book PWA alongside the existing SVG asset.

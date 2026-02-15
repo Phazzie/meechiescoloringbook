@@ -33,6 +33,7 @@ Follow this order, no shortcuts:
 
 ## Governance
 - **Planning enforcement:** Plan + self-critique before code changes. List files and constraints; the plan must include the exact seam names (already listed in `docs/seams.md`), exact file paths to be touched, and exact commands that will be run.
+- For autonomous deep-work requests, create or update `plan.md` with explicit specs and self-checks for each major refactor before implementation.
 - Replace "locks" with a mandatory checklist gate (see below). Each checklist entry must be verifiable by a file path, a directory path, or concrete command output (no fuzzy claims).
 - When asked for evidence, provide actual command output.
 - Always keep track of who Wu-Bob consists of (which 1-3 Wu-Tang members are combined with Robert C. Martin).
@@ -111,6 +112,7 @@ Info flow: ...
 - Provider limits and external API specifics are locked in `DECISIONS.md` (do not infer or guess).
 - Evidence lives under `docs/evidence/YYYY-MM-DD/`; keep outputs traceable to commands.
 - Prefer `rg` for search and `apply_patch` for single-file edits.
+- At the end of every assistant message, provide exactly three concise next-step options, each with a one-sentence reason for why it is the best next move.
 
 ## Automation Tools
 - `npm run verify`: runs chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, proof tape, and cipher gate; required for seam changes.

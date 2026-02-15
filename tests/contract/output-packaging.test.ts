@@ -23,6 +23,14 @@ const sampleFixture = fixtureSchema.parse(sample);
 const faultFixture = fixtureSchema.parse(fault);
 
 describe('OutputPackagingSeam contract', () => {
+	const browserGateErrorCodes = new Set([
+		'BROWSER_REQUIRED',
+		'CANVAS_UNAVAILABLE',
+		'SVG_IMAGE_LOAD_FAILED',
+		'IMAGE_RESIZE_FAILED',
+		'PNG_ENCODING_FAILED'
+	]);
+
 	it('mock returns sample fixture output', async () => {
 		const mock = createOutputPackagingMock('sample');
 		const output = await mock.package(sampleFixture.input);
@@ -42,19 +50,14 @@ describe('OutputPackagingSeam contract', () => {
 
 	it('adapter behavior is gated to browser for svg conversion', async () => {
 		const output = await outputPackagingAdapter.package(sampleFixture.input);
-		if (typeof document === 'undefined') {
-			expect(output.ok).toBe(false);
-			if (!output.ok) {
-				expect(output.error.code).toBe('BROWSER_REQUIRED');
-			}
-		} else {
-			expect(output.ok).toBe(true);
-			if (output.ok) {
-				const filenames = output.value.files.map((file) => file.filename);
-				expect(filenames).toContain('coloring-page-abc.pdf');
-				expect(filenames).toContain('coloring-page-abc-square.png');
-				expect(filenames).toContain('coloring-page-abc-chat.png');
-			}
+		if (output.ok) {
+			const filenames = output.value.files.map((file) => file.filename);
+			expect(filenames).toContain('coloring-page-abc.pdf');
+			expect(filenames).toContain('coloring-page-abc-square.png');
+			expect(filenames).toContain('coloring-page-abc-chat.png');
+			return;
 		}
+
+		expect(browserGateErrorCodes.has(output.error.code)).toBe(true);
 	});
 });

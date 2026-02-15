@@ -11,14 +11,7 @@ import {
 } from '../../contracts/provider-adapter.contract';
 import { ScenarioSchema } from '../../contracts/shared.contract';
 import { createProviderAdapterMock } from '../../src/lib/mocks/provider-adapter.mock';
-vi.mock('$env/dynamic/private', () => ({
-	env: {
-		XAI_API_KEY: 'test-key',
-		XAI_BASE_URL: 'https://api.x.ai'
-	}
-}));
-
-import { providerAdapter } from '../../src/lib/adapters/provider-adapter.adapter';
+import { createProviderAdapter } from '../../src/lib/adapters/provider-adapter.adapter';
 import sample from '../../fixtures/provider-adapter/sample.json';
 import fault from '../../fixtures/provider-adapter/fault.json';
 
@@ -79,6 +72,11 @@ const statusFromOutput = (
 	return 400;
 };
 
+let providerAdapter = createProviderAdapter({
+	apiKey: 'test-key',
+	baseUrl: 'https://api.x.ai'
+});
+
 beforeEach(() => {
 	const fetchMock = vi.fn(async (input: RequestInfo, init?: RequestInit) => {
 		const url = typeof input === 'string' ? input : input.toString();
@@ -118,6 +116,10 @@ beforeEach(() => {
 	});
 
 	vi.stubGlobal('fetch', fetchMock);
+	providerAdapter = createProviderAdapter({
+		apiKey: 'test-key',
+		baseUrl: 'https://api.x.ai'
+	});
 });
 
 afterEach(() => {

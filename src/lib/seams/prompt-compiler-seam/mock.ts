@@ -2,6 +2,7 @@
 // Why: Keep tests deterministic without live I/O.
 // Info flow: tests -> mock -> fixtures.
 import type { CompiledPrompt, PromptCompilerInput, PromptCompilerSeam } from './contract';
+import { SYSTEM_CONSTANTS } from '../../core/constants';
 
 const densityMap: Record<PromptCompilerInput['density'], string> = {
   simple: 'sparse composition with lots of open space',
@@ -22,11 +23,15 @@ const borderMap: Record<PromptCompilerInput['borderStyle'], string> = {
 };
 
 const constraints = [
-  'black-and-white coloring book page',
-  'outline-only line art, clean bold contours',
+  SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[0],
+  SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[1],
+  'clean bold contours',
+  SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[2],
+  SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[3],
   'NO color fill, NO grayscale, NO shading, NO gradients',
   'printable, lots of open spaces for coloring',
-  'avoid photorealism, avoid 3D render, avoid halftone, avoid crosshatching shading'
+  'avoid photorealism, avoid 3D render, avoid halftone, avoid crosshatching shading',
+  `${SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[4]} no color, no grayscale, no shading, no gradients`
 ];
 
 const glamElements = [

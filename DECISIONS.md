@@ -15,6 +15,66 @@ Short, durable decisions with context and tradeoffs.
 - Consequences:
 - Revisit criteria:
 
+## 2026-02-15 - Extract chat/tools pipelines and refresh seam inventory governance
+- Date: 2026-02-15
+- Decision: Extract `/api/chat-interpretation` and `/api/tools` orchestration into core pipeline modules, keep route handlers transport-thin, and update seam inventory coverage for seam modules under `src/lib/seams/`.
+- Context: Route handlers were carrying orchestration logic directly, making behavior harder to test in isolation; seam inventory was incomplete for legacy seam modules.
+- Alternatives: Keep orchestration inline in route files and leave partial seam inventory documentation.
+- Consequences: Chat and tools behavior is now centralized in testable pipeline modules; route files are thinner; seam inventory now explicitly includes PromptCompilerSeam/SafetyPolicySeam/GalleryStoreSeam/TelemetrySeam.
+- Revisit criteria: If chat/tools orchestration expands further, move pipeline dependencies into explicit composition wiring alongside generate/image pipelines.
+
+- Cipher Gate:
+  - Date: 2026-02-15
+  - Seams: ChatInterpretationSeam, MeechieToolSeam, SafetyPolicySeam, ProviderAdapterSeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-02-15/test.txt; docs/evidence/2026-02-15/verify.txt; docs/evidence/2026-02-15/chamber-lock.json; docs/evidence/2026-02-15/shaolin-lint.json; docs/evidence/2026-02-15/seam-ledger.json; docs/evidence/2026-02-15/clan-chain.json; docs/evidence/2026-02-15/proof-tape.json; docs/evidence/2026-02-15/assumption-alarm.json
+  - Summary: Added `chat-interpretation` and `tools` core pipelines, converted both API routes to wrappers, added unit coverage for chat route behavior, and updated seam inventory documentation.
+  - Risks: Behavior-preserving extraction still depends on existing status-code conventions (several error responses intentionally stay HTTP 200 for contract compatibility).
+
+## 2026-02-14 - Stabilize adapter rules and reduce architecture drift
+- Date: 2026-02-14
+- Decision: Centralize shared prompt/safety/chat constants, remove arbitrary client-side chat blocking, and decouple ProviderAdapterSeam from SvelteKit env imports by using injected/process config.
+- Context: Audit findings showed rule duplication, framework coupling in provider adapter, and brittle preflight filtering in chat interpretation.
+- Alternatives: Keep per-file literals and env imports; keep the `isFaultMessage` precheck.
+- Consequences: Shared constants now reduce drift across seams/routes; provider adapter can be instantiated in isolation; chat interpretation rejects only by contract/server validation.
+- Revisit criteria: If we introduce runtime policy/phrase configuration or split legacy/new generation pipelines.
+
+- Cipher Gate:
+  - Date: 2026-02-14
+  - Seams: ProviderAdapterSeam, ChatInterpretationSeam, PromptCompilerSeam, SafetyPolicySeam, ImageGenerationSeam
+  - Evidence: docs/evidence/2026-02-14/test.txt; docs/evidence/2026-02-14/verify.txt; docs/evidence/2026-02-14/chamber-lock.json; docs/evidence/2026-02-14/shaolin-lint.json; docs/evidence/2026-02-14/seam-ledger.json; docs/evidence/2026-02-14/clan-chain.json; docs/evidence/2026-02-14/proof-tape.json; docs/evidence/2026-02-14/assumption-alarm.json
+  - Summary: Applied high-ROI repairs: shared constants, prompt-compiler mock alignment, provider config decoupling, and chat gate cleanup.
+  - Risks: Legacy and current generation stacks still coexist; full unification remains a separate effort.
+
+## 2026-02-14 - Full UI redesign + core refactor consolidation
+- Date: 2026-02-14
+- Decision: Ship a full visual/copy redesign while extracting generate orchestration into a core pipeline, centralizing prompt line builders, and unifying client request helpers with API-key header flow.
+- Context: The UI needed a full quality reset for the intended audience, and the codebase had technical debt from route-level orchestration and duplicated prompt/fetch logic.
+- Alternatives: Keep incremental CSS tweaks only; leave orchestration in route handlers; keep duplicated prompt/fetch helpers.
+- Consequences: UI is now cleaner and more opinionated; `/api/generate` is thinner; prompt wording drift risk is reduced; API key behavior is now consistent across builder and Meechie tools.
+- Revisit criteria: If generation orchestration grows again, move pipeline dependencies into explicit composition wiring.
+
+- Cipher Gate:
+  - Date: 2026-02-14
+  - Seams: MeechieVoiceSeam, MeechieToolSeam, PromptAssemblySeam, DriftDetectionSeam, ImageGenerationSeam
+  - Evidence: docs/evidence/2026-02-14/test.txt; docs/evidence/2026-02-14/verify.txt; docs/evidence/2026-02-14/chamber-lock.json; docs/evidence/2026-02-14/shaolin-lint.json; docs/evidence/2026-02-14/seam-ledger.json; docs/evidence/2026-02-14/clan-chain.json; docs/evidence/2026-02-14/proof-tape.json; docs/evidence/2026-02-14/assumption-alarm.json
+  - Summary: Delivered a full UI overhaul, refreshed Meechie voice output/fixtures, extracted generate pipeline logic, centralized prompt template helpers, and unified client request plumbing.
+  - Risks: Voice copy remains manual and requires fixture sync discipline; image generation still depends on external provider availability.
+
+## 2026-02-12 - Add MeechieVoiceSeam voice pack
+- Date: 2026-02-12
+- Decision: Add MeechieVoiceSeam and route MeechieToolSeam through a voice pack to centralize editable copy and templates.
+- Context: Meechie tool responses were embedded directly in the tool adapter, making edits harder and mixing copy with logic.
+- Alternatives: Keep copy embedded in MeechieToolSeam or move it into ad hoc constants without a seam contract.
+- Consequences: Voice copy now lives behind a seam with fixtures and contract tests; updates require fixture sync and verification.
+- Revisit criteria: If we add multiple selectable voices or move voice packs to a user-managed store.
+
+- Cipher Gate:
+  - Date: 2026-02-12
+  - Seams: MeechieVoiceSeam, MeechieToolSeam
+  - Evidence: docs/evidence/2026-02-12/npm-test.txt; docs/evidence/2026-02-12/npm-verify.txt; docs/evidence/2026-02-12/chamber-lock.json; docs/evidence/2026-02-12/shaolin-lint.json; docs/evidence/2026-02-12/seam-ledger.json; docs/evidence/2026-02-12/clan-chain.json; docs/evidence/2026-02-12/proof-tape.json; docs/evidence/2026-02-12/assumption-alarm.json; docs/evidence/2026-02-12/verify.txt; docs/evidence/2026-02-12/test.txt
+  - Summary: Added MeechieVoiceSeam with a fixture-backed voice pack and refactored MeechieToolSeam to read from it.
+  - Risks: Voice pack edits must keep fixtures in sync to avoid contract drift.
+
 ## 2026-02-11 - Normalize xAI base URL usage and model config
 - Date: 2026-02-11
 - Decision: Normalize `XAI_BASE_URL` inside ProviderAdapterSeam to avoid double `/v1`, read `XAI_IMAGE_MODEL` in the `/api/image-generation` route, and align AppConfig seam defaults to base `https://api.x.ai` with endpoint `/v1/images/generations`.

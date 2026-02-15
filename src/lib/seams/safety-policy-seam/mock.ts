@@ -3,17 +3,9 @@
 // Info flow: tests -> mock -> fixtures.
 import type { CompiledPrompt, PromptCompilerInput } from '../prompt-compiler-seam/contract';
 import type { SafetyPolicyResult, SafetyPolicySeam } from './contract';
+import { SYSTEM_CONSTANTS } from '../../core/constants';
 
-const disallowedKeywords = [
-  'sexual',
-  'nude',
-  'explicit',
-  'minors',
-  'self-harm',
-  'suicide',
-  'extremist',
-  'illegal'
-];
+const disallowedKeywords = [...SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS, 'suicide', 'extremist'];
 
 const hasDisallowedContent = (text: string) =>
   disallowedKeywords.some((keyword) => text.toLowerCase().includes(keyword));

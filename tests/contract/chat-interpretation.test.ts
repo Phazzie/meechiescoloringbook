@@ -25,8 +25,12 @@ const faultFixture = fixtureSchema.parse(fault);
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-	fetchMock = vi.fn(async () => {
-		return new Response(JSON.stringify(sampleFixture.output), {
+	fetchMock = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+		const body = init?.body ? JSON.parse(String(init.body)) : {};
+		const message = typeof body.message === 'string' ? body.message : '';
+		const payload = message.includes('fail') ? { ok: true, value: {} } : sampleFixture.output;
+
+		return new Response(JSON.stringify(payload), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' }
 		});
@@ -59,6 +63,6 @@ describe('ChatInterpretationSeam contract', () => {
 	it('adapter returns fault fixture output', async () => {
 		const output = await chatInterpretationAdapter.interpret(faultFixture.input);
 		expect(output).toEqual(faultFixture.output);
-		expect(fetchMock).not.toHaveBeenCalled();
+		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 });
