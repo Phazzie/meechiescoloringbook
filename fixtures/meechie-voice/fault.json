@@ -1,0 +1,13 @@
+{
+  "scenario": "fault",
+  "input": {
+    "voiceId": "unknown"
+  },
+  "output": {
+    "ok": false,
+    "error": {
+      "code": "VOICE_PACK_NOT_FOUND",
+      "message": "Voice pack not found."
+    }
+  }
+}

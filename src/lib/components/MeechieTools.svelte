@@ -4,55 +4,59 @@ Why: Keep non-technical users in one place while reusing seam-backed tools.
 Info flow: User inputs -> MeechieToolSeam -> response output.
 -->
 <script lang="ts">
-	import { meechieToolAdapter } from '$lib/adapters/meechie-tool.adapter';
+	import { loadStoredApiKey, postJson } from '$lib/core/http-client';
 	import type { MeechieToolInput, MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
-	import { HoroscopeSignSchema } from '../../../contracts/meechie-tool.contract';
+	import {
+		HoroscopeSignSchema,
+		MeechieToolInputSchema,
+		MeechieToolResultSchema
+	} from '../../../contracts/meechie-tool.contract';
 
 	const tools = [
 		{
 			id: 'apology_translator',
-			label: 'The Apology Translator',
-			help: 'Decode a weak apology into what it really means.'
+			label: 'Apology Autopsy',
+			help: 'Drop the apology. Get what it really meant.'
 		},
 		{
 			id: 'red_flag_or_run',
-			label: 'Red Flag or Run',
-			help: 'Meechie decides if it is a red flag or a full run.'
+			label: 'Run Or Red Flag',
+			help: 'Quick verdict with no soft landing.'
 		},
 		{
 			id: 'wwmd',
-			label: 'What Would Meechie Do?',
-			help: 'Get the game plan for your situation.'
+			label: 'Meechie Move',
+			help: 'One move. Clear consequence.'
 		},
 		{
 			id: 'lineup',
-			label: 'The Lineup',
-			help: 'Rank a list of excuses or behaviors.'
+			label: 'Excuse Court',
+			help: 'Rank excuses from weak to embarrassing.'
 		},
 		{
 			id: 'horoscope',
-			label: "Meechie's Horoscope",
-			help: 'Daily read for each sign, Meechie style.'
+			label: 'Meechie Forecast',
+			help: 'Sign read with pressure and polish.'
 		},
 		{
 			id: 'receipts',
-			label: 'The Receipts',
-			help: 'Call out the contradiction with timestamps energy.'
+			label: 'Receipt Check',
+			help: 'Claim versus reality, line by line.'
 		},
 		{
 			id: 'caption_this',
-			label: 'Caption This',
-			help: 'Turn a moment into a caption.'
+			label: 'Caption Drop',
+			help: 'Turn the moment into a statement line.'
 		},
 		{
 			id: 'clapback',
-			label: 'The Clapback Generator',
-			help: 'Give Meechie the line, get the response.'
+			label: 'Return Fire',
+			help: 'Their line in, your line out.'
 		},
 		{
 			id: 'meechie_explains',
-			label: 'Meechie Explains It',
-			help: 'Explain a term, Meechie style.'
+			label: 'Term Breakdown',
+			help: 'Street glossary in plain language.'
 		}
 	] as const;
 
@@ -64,16 +68,16 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	let error = '';
 	let isWorking = false;
 
-	let apologyInput = "I'm sorry you feel that way";
-	let situationInput = 'He said he is not ready for a relationship but wants to keep seeing me.';
-	let dilemmaInput = "He left me on read for 3 days then texted 'hey stranger'.";
+	let apologyInput = "I'm sorry you feel that way.";
+	let situationInput = 'He said he was working late, but I saw him in the club.';
+	let dilemmaInput = 'He went silent for days, then came back like I owe him a reply.';
 	let lineupPrompt = 'Rank these excuses:';
 	let lineupItems: string[] = ['My phone died', 'I was with the guys', "I didn't see your text"];
 	let horoscopeSign: (typeof signs)[number] = signs[0];
-	let claimInput = 'I never said that';
-	let realityInput = 'Said it Tuesday, Thursday, and twice on Saturday.';
-	let momentInput = 'Post-breakup selfie looking good';
-	let clapbackInput = "She said I'm doing a lot lately";
+	let claimInput = 'I never said that.';
+	let realityInput = 'Said it Tuesday, Thursday, and in the group chat on Saturday.';
+	let momentInput = 'Diamond nails, city lights, and no explanations';
+	let clapbackInput = "She said I'm doing too much.";
 	let explainsInput = 'Situationship';
 
 	const resetState = (): void => {
@@ -125,21 +129,39 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	const handleGenerate = async (): Promise<void> => {
 		resetState();
 		isWorking = true;
-		const result = await meechieToolAdapter.respond(buildInput());
-		if (result.ok) {
-			output = result.value;
-		} else {
-			error = result.error.message;
+		const parsedInput = MeechieToolInputSchema.safeParse(buildInput());
+		if (!parsedInput.success) {
+			error = 'Please complete the required fields before generating.';
+			isWorking = false;
+			return;
 		}
-		isWorking = false;
+
+		try {
+			const { payload } = await postJson('/api/tools', parsedInput.data, loadStoredApiKey());
+			const parsedResult = MeechieToolResultSchema.safeParse(payload);
+			if (!parsedResult.success) {
+				error = 'Tool response did not match contract.';
+				return;
+			}
+
+			if (parsedResult.data.ok) {
+				output = parsedResult.data.value;
+			} else {
+				error = parsedResult.data.error.message;
+			}
+		} catch (requestError) {
+			error = requestError instanceof Error ? requestError.message : 'Tool request failed.';
+		} finally {
+			isWorking = false;
+		}
 	};
 </script>
 
 <section class="meechie">
 	<header class="hero">
 		<p class="eyebrow">Meechie Tools</p>
-		<h2>Funny, sharp, and deterministic — every time.</h2>
-		<p class="subtitle">Pick a tool, add your input, and let Meechie answer.</p>
+		<h2>Power as fact. Consequences on record.</h2>
+		<p class="subtitle">Name what happened. Meechie names the cost.</p>
 	</header>
 
 	<section class="tool-picker">
@@ -205,7 +227,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 
 	<section class="actions">
 		<button class="primary" type="button" on:click={handleGenerate} disabled={isWorking}>
-			{isWorking ? 'Working…' : 'Get Meechie Answer'}
+			{isWorking ? 'Working…' : 'Get Meechie Move'}
 		</button>
 	</section>
 
@@ -224,31 +246,53 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 <style>
 	.meechie {
 		margin-top: 48px;
+		position: relative;
 		padding: 32px;
 		border-radius: 24px;
-		background: #f6f1ea;
-		border: 1px solid #eadfce;
+		background:
+			linear-gradient(165deg, rgba(18, 26, 41, 0.94), rgba(24, 32, 52, 0.94)),
+			#0f1726;
+		border: 1px solid rgba(206, 163, 94, 0.26);
 		display: flex;
 		flex-direction: column;
 		gap: 24px;
+		box-shadow: 0 20px 36px rgba(16, 22, 35, 0.32);
+		overflow: hidden;
+	}
+
+	.meechie::after {
+		content: '';
+		position: absolute;
+		top: -40px;
+		right: -20px;
+		width: 180px;
+		aspect-ratio: 1;
+		border-radius: 50%;
+		background: radial-gradient(circle, rgba(224, 173, 96, 0.24), transparent 65%);
+		pointer-events: none;
 	}
 
 	.hero h2 {
-		font-size: 2rem;
+		font-size: clamp(1.6rem, 3vw, 2.1rem);
 		margin: 0;
 		line-height: 1.15;
+		letter-spacing: -0.02em;
+		color: #f5f7fc;
+		font-family: 'Fraunces', 'Times New Roman', serif;
 	}
 
 	.subtitle {
 		margin: 8px 0 0;
-		color: #5b4c3f;
+		color: #c4ccdc;
 	}
 
 	.eyebrow {
 		text-transform: uppercase;
-		letter-spacing: 0.2em;
-		font-size: 0.75rem;
+		letter-spacing: 0.15em;
+		font-size: 0.72rem;
 		margin: 0 0 8px;
+		font-weight: 700;
+		color: #d8b273;
 	}
 
 	.tool-picker,
@@ -258,10 +302,13 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
+		position: relative;
+		z-index: 1;
 	}
 
 	.label {
-		font-weight: 600;
+		font-weight: 700;
+		color: #e8edf7;
 	}
 
 	textarea,
@@ -269,15 +316,24 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	select {
 		padding: 10px 12px;
 		border-radius: 12px;
-		border: 1px solid #cfbba3;
+		border: 1px solid rgba(112, 131, 167, 0.34);
 		font-size: 0.95rem;
 		font-family: inherit;
-		background: #fffaf4;
-		color: inherit;
+		background: rgba(255, 255, 255, 0.92);
+		color: #1d2638;
+		transition: border-color 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	textarea:focus,
+	input:focus,
+	select:focus {
+		outline: none;
+		border-color: #d39d55;
+		box-shadow: 0 0 0 3px rgba(211, 157, 85, 0.2);
 	}
 
 	.help {
-		color: #6a5748;
+		color: #b5bfce;
 		font-size: 0.9rem;
 	}
 
@@ -285,10 +341,16 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		padding: 12px 16px;
 		border-radius: 999px;
 		border: none;
-		background: #1c1712;
-		color: #fffaf4;
-		font-weight: 600;
+		background: linear-gradient(112deg, #314f86, #dd4f92 56%, #dfaa59);
+		color: #fffaf2;
+		font-weight: 700;
 		cursor: pointer;
+		transition: transform 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	.actions .primary:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 12px 18px rgba(49, 79, 134, 0.32);
 	}
 
 	.actions .primary:disabled {
@@ -313,29 +375,60 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	}
 
 	.ghost {
-		border: 1px dashed #cfbba3;
-		background: transparent;
+		border: 1px solid rgba(141, 161, 194, 0.42);
+		background: rgba(35, 47, 71, 0.76);
 		padding: 6px 10px;
 		border-radius: 999px;
 		cursor: pointer;
 		font-size: 0.85rem;
+		color: #e6edf9;
+		transition: transform 0.2s ease;
+	}
+
+	.ghost:hover {
+		transform: translateY(-1px);
 	}
 
 	.error {
-		color: #a7352d;
-		font-weight: 600;
+		color: #7e233f;
+		font-weight: 700;
+		background: rgba(255, 214, 228, 0.86);
+		border-radius: 10px;
+		padding: 10px 12px;
+		border: 1px solid rgba(205, 86, 132, 0.42);
 	}
 
 	.output {
 		padding: 16px;
 		border-radius: 16px;
-		background: #fffaf4;
-		border: 1px solid #eadfce;
+		background: rgba(255, 255, 255, 0.95);
+		border: 1px solid rgba(103, 121, 153, 0.24);
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+	}
+
+	.output h3 {
+		margin-top: 0;
+		color: #1e2740;
+		font-family: 'Fraunces', 'Times New Roman', serif;
 	}
 
 	.output pre {
 		white-space: pre-wrap;
 		font-family: inherit;
 		margin: 0;
+		color: #3a465e;
+		line-height: 1.45;
+	}
+
+	@media (max-width: 680px) {
+		.meechie {
+			padding: 20px;
+			border-radius: 18px;
+		}
+
+		.lineup-row {
+			flex-direction: column;
+			align-items: stretch;
+		}
 	}
 </style>

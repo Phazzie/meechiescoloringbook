@@ -52,7 +52,7 @@ describe('MeechieToolSeam contract', () => {
 		});
 		expect(output.ok).toBe(true);
 		if (output.ok) {
-			expect(output.value.headline).toBe('RUN');
+			expect(output.value.headline).toBe('Run');
 		}
 	});
 });

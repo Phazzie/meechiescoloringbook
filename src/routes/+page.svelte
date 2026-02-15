@@ -8,13 +8,16 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
 	import { chatInterpretationAdapter } from '$lib/adapters/chat-interpretation.adapter';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
-	import { driftDetectionAdapter } from '$lib/adapters/drift-detection.adapter';
-	import { imageGenerationAdapter } from '$lib/adapters/image-generation.adapter';
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
-	import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly.adapter';
 	import { sessionAdapter } from '$lib/adapters/session.adapter';
 	import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
-	import MeechieTools from '$lib/components/MeechieTools.svelte';
+	import {
+		clearStoredApiKey,
+		loadStoredApiKey,
+		postJson,
+		saveStoredApiKey
+	} from '$lib/core/http-client';
+	import { GenerateResultSchema } from '../../contracts/generate.contract';
 	import type { CreationOwner, CreationRecord } from '../../contracts/creation-store.contract';
 	import type {
 		ColoringPageSpec,
@@ -52,7 +55,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	let spec: ColoringPageSpec = structuredClone(DEFAULT_SPEC);
 	let includeFooter = true;
-	let styleHint = 'glam sparkle icons';
+	let styleHint = 'diamond glam street luxe';
 	let dedicationInput = '';
 	let chatMessage = '';
 	let includeSquareExport = false;
@@ -71,11 +74,64 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	let creations: CreationRecord[] = [];
 	let owner: CreationOwner | null = null;
 	let authContext: CreationRecord['authContext'] | null = null;
+	let sessionStatus = 'Connecting session...';
 	let draftStatus = '';
+	let apiKeyInput = '';
+	let apiKeyStatus = 'No API key saved.';
+	let revealApiKey = false;
 	let isBrowser = false;
 	let draftTimer: ReturnType<typeof setTimeout> | null = null;
 	let hasValidated = false;
 	let isSpecValid = false;
+	let builderMode: 'quick' | 'full' = 'quick';
+
+	type QuickPresetId = 'minimal' | 'sparkle' | 'story_scene' | 'bold_block';
+
+	const applyQuickPreset = (preset: QuickPresetId): void => {
+		switch (preset) {
+			case 'minimal':
+				styleHint = 'clean luxe outlines with soft spacing';
+				spec = {
+					...spec,
+					decorations: 'minimal',
+					illustrations: 'none',
+					shading: 'none',
+					fontStyle: 'rounded'
+				};
+				break;
+			case 'sparkle':
+				styleHint = 'diamond gloss, glitter accents, high glam mood';
+				spec = {
+					...spec,
+					decorations: 'dense',
+					illustrations: 'simple',
+					shading: 'stippling',
+					fontStyle: 'rounded'
+				};
+				break;
+			case 'story_scene':
+				styleHint = 'street boutique backdrop with luxe skyline details';
+				spec = {
+					...spec,
+					decorations: 'minimal',
+					illustrations: 'scene',
+					shading: 'hatch',
+					fontStyle: 'hand'
+				};
+				break;
+			case 'bold_block':
+				styleHint = 'bold statement lettering and heavy icon shapes';
+				spec = {
+					...spec,
+					decorations: 'none',
+					illustrations: 'simple',
+					shading: 'none',
+					fontStyle: 'block'
+				};
+				break;
+		}
+		scheduleDraftSave();
+	};
 
 	const buildOwner = (sessionId: string): CreationOwner => ({
 		kind: 'anonymous',
@@ -162,6 +218,29 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		packagedFiles = [];
 	};
 
+	const saveApiKey = (): void => {
+		if (!isBrowser) {
+			return;
+		}
+		const trimmed = apiKeyInput.trim();
+		if (trimmed.length === 0) {
+			clearStoredApiKey();
+			apiKeyStatus = 'API key cleared.';
+			return;
+		}
+		saveStoredApiKey(trimmed);
+		apiKeyStatus = 'API key saved in this browser.';
+	};
+
+	const clearApiKey = (): void => {
+		apiKeyInput = '';
+		if (!isBrowser) {
+			return;
+		}
+		clearStoredApiKey();
+		apiKeyStatus = 'API key cleared.';
+	};
+
 	const validateSpec = async (): Promise<boolean> => {
 		const validation = await specValidationAdapter.validate({ spec });
 		validationIssues = validation.issues;
@@ -174,94 +253,83 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	const handleGenerate = async (): Promise<void> => {
 		resetOutputs();
 		isGenerating = true;
-		const isValid = await validateSpec();
-		if (!isValid) {
-			generationError = 'Fix validation issues before generating.';
-			isGenerating = false;
-			return;
-		}
+		try {
+			const isValid = await validateSpec();
+			if (!isValid) {
+				generationError = 'Fix validation issues before generating.';
+				return;
+			}
 
-		const promptResult = await promptAssemblyAdapter.assemble({
-			spec,
-			styleHint: styleHint.trim().length > 0 ? styleHint : undefined
-		});
-		if (!promptResult.ok) {
-			generationError = promptResult.error.message;
-			isGenerating = false;
-			return;
-		}
-		assembledPrompt = promptResult.value.prompt;
+			const { payload } = await postJson(
+				'/api/generate',
+				{
+					spec,
+					styleHint: styleHint.trim().length > 0 ? styleHint : undefined
+				},
+				apiKeyInput
+			);
+			const parsedGenerate = GenerateResultSchema.safeParse(payload);
+			if (!parsedGenerate.success) {
+				generationError = 'Generate response did not match contract.';
+				return;
+			}
+			if (!parsedGenerate.data.ok) {
+				generationError = parsedGenerate.data.error.message;
+				return;
+			}
 
-		const imageResult = await imageGenerationAdapter.generate({
-			spec,
-			prompt: promptResult.value.prompt,
-			variations: spec.variations,
-			outputFormat: spec.outputFormat
-		});
-		if (!imageResult.ok) {
-			generationError = imageResult.error.message;
-			isGenerating = false;
-			return;
-		}
+			assembledPrompt = parsedGenerate.data.value.prompt;
+			images = parsedGenerate.data.value.images;
+			revisedPrompt = parsedGenerate.data.value.revisedPrompt || '';
+			violations = parsedGenerate.data.value.violations;
+			recommendedFixes = parsedGenerate.data.value.recommendedFixes;
 
-		images = imageResult.value.images;
-		revisedPrompt = imageResult.value.revisedPrompt || '';
-
-		const driftResult = await driftDetectionAdapter.detect({
-			spec,
-			promptSent: promptResult.value.prompt,
-			revisedPrompt: imageResult.value.revisedPrompt
-		});
-		if (driftResult.ok) {
-			violations = driftResult.value.violations;
-			recommendedFixes = driftResult.value.recommendedFixes;
-		}
-
-		const creationId = generateCreationId();
-		const variants: Array<'print' | 'square' | 'chat'> = ['print'];
-		if (includeSquareExport) {
-			variants.push('square');
-		}
-		if (includeChatExport) {
-			variants.push('chat');
-		}
-		const packagingResult = await outputPackagingAdapter.package({
-			images,
-			outputFormat: spec.outputFormat,
-			fileBaseName: `coloring-page-${creationId}`,
-			pageSize: spec.pageSize,
-			variants
-		});
-		if (packagingResult.ok) {
-			packagedFiles = packagingResult.value.files;
-		} else {
-			generationError = packagingResult.error.message;
-		}
-
-		if (owner && authContext) {
-			const storedImages = images.map((image) => ({
-				b64: image.encoding === 'base64' ? image.data : encodeBase64(image.data)
-			}));
-			await creationStoreAdapter.saveCreation({
-				record: {
-					id: creationId,
-					createdAtISO: new Date().toISOString(),
-					intent: spec,
-					assembledPrompt: promptResult.value.prompt,
-					revisedPrompt: imageResult.value.revisedPrompt,
-					images: storedImages,
-					violations: driftResult.ok ? driftResult.value.violations : undefined,
-					fixesApplied: driftResult.ok
-						? driftResult.value.recommendedFixes.map((fix) => fix.code)
-						: undefined,
-					authContext,
-					owner
-				}
+			const creationId = generateCreationId();
+			const variants: Array<'print' | 'square' | 'chat'> = ['print'];
+			if (includeSquareExport) {
+				variants.push('square');
+			}
+			if (includeChatExport) {
+				variants.push('chat');
+			}
+			const packagingResult = await outputPackagingAdapter.package({
+				images,
+				outputFormat: spec.outputFormat,
+				fileBaseName: `coloring-page-${creationId}`,
+				pageSize: spec.pageSize,
+				variants
 			});
-			await refreshCreations();
-		}
+			if (packagingResult.ok) {
+				packagedFiles = packagingResult.value.files;
+			} else {
+				generationError = packagingResult.error.message;
+			}
 
-		isGenerating = false;
+			if (owner && authContext) {
+				const storedImages = images.map((image) => ({
+					b64: image.encoding === 'base64' ? image.data : encodeBase64(image.data)
+				}));
+				await creationStoreAdapter.saveCreation({
+					record: {
+						id: creationId,
+						createdAtISO: new Date().toISOString(),
+						intent: spec,
+						assembledPrompt: parsedGenerate.data.value.prompt,
+						revisedPrompt: parsedGenerate.data.value.revisedPrompt,
+						images: storedImages,
+						violations: parsedGenerate.data.value.violations,
+						fixesApplied: parsedGenerate.data.value.recommendedFixes.map((fix) => fix.code),
+						authContext,
+						owner
+					}
+				});
+				await refreshCreations();
+			}
+		} catch (generateError) {
+			generationError = generateError instanceof Error ? generateError.message : 'Generate request failed.';
+		} finally {
+			isGenerating = false;
+		}
 	};
 
 	const handleChatInterpretation = async (): Promise<void> => {
@@ -352,7 +420,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	const resetSpec = (): void => {
 		spec = structuredClone(DEFAULT_SPEC);
 		includeFooter = !!DEFAULT_SPEC.footerItem;
-		styleHint = 'glam sparkle icons';
+		styleHint = 'diamond glam street luxe';
 		dedicationInput = '';
 		validationIssues = [];
 		resetOutputs();
@@ -381,15 +449,23 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	onMount(async () => {
 		isBrowser = true;
+		const storedApiKey = loadStoredApiKey();
+		if (storedApiKey && storedApiKey.trim().length > 0) {
+			apiKeyInput = storedApiKey;
+			apiKeyStatus = 'API key loaded from this browser.';
+		}
 		const sessionResult = await sessionAdapter.getSession();
 		if (sessionResult.ok) {
 			owner = buildOwner(sessionResult.value.sessionId);
+			sessionStatus = 'Session connected';
 			const authResult = await authContextAdapter.getAuthContext({
 				sessionId: sessionResult.value.sessionId
 			});
 			if (authResult.ok) {
 				authContext = authResult.value;
 			}
+		} else {
+			sessionStatus = 'Session unavailable';
 		}
 
 		const draftResult = await creationStoreAdapter.getDraft({});
@@ -406,52 +482,119 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 </script>
 
 <svelte:head>
-	<title>Coloring Book Page Generator</title>
+	<title>Meechie Street Glam Coloring Studio</title>
 </svelte:head>
 
 <div class="page">
+	<div class="ambient ambient-a" aria-hidden="true"></div>
+	<div class="ambient ambient-b" aria-hidden="true"></div>
 	<header class="hero">
-		<div>
-			<p class="eyebrow">Seam-Driven Development</p>
-			<h1>Coloring Book Page Generator</h1>
+		<div class="hero-copy">
+			<p class="eyebrow">Meechie Studio</p>
+			<h1>The page they remember. The energy they cannot copy.</h1>
 			<p class="subhead">
-				Deterministic, printable coloring pages with strict layout rules, prompt transparency,
-				and drift detection.
+				State the vibe, lock the style, and print it clean. Fast when you want speed, precise when you
+				want control.
 			</p>
+			<div class="flow-steps" aria-label="Workflow progress">
+				<div class="step" class:done={isSpecValid}>
+					<span>1</span>
+					<p>Call it</p>
+				</div>
+				<div class="step" class:done={imagePreviews.length > 0}>
+					<span>2</span>
+					<p>Preview</p>
+				</div>
+				<div class="step" class:done={packagedFiles.length > 0}>
+					<span>3</span>
+					<p>Print</p>
+				</div>
+			</div>
 		</div>
 		<div class="hero-card">
-			<p class="hero-label">Status</p>
+			<p class="hero-label">Control Booth</p>
 			<div class="status-row">
 				<span class="dot" aria-hidden="true"></span>
-				<span>Anonymous session ready</span>
+				<span>{sessionStatus}</span>
 			</div>
 			<div class="status-row">
 				<span class="dot alt" aria-hidden="true"></span>
 				<span>{draftStatus || 'Draft idle'}</span>
 			</div>
-			<button class="ghost" type="button" on:click={resetSpec}>Reset spec</button>
+			<div class="status-row">
+				<span class="dot alt" aria-hidden="true"></span>
+				<span>{creations.length} looks saved on this device</span>
+			</div>
+			<div class="api-key-panel">
+				<p class="api-key-label">Temporary API key (backend in progress)</p>
+				<input
+					type={revealApiKey ? 'text' : 'password'}
+					bind:value={apiKeyInput}
+					placeholder="Paste key here"
+					autocomplete="off"
+					spellcheck="false"
+				/>
+				<div class="api-key-actions">
+					<button type="button" class="ghost tiny" on:click={saveApiKey}>Save key</button>
+					<button type="button" class="ghost tiny" on:click={clearApiKey}>Clear</button>
+					<button
+						type="button"
+						class="ghost tiny"
+						on:click={() => (revealApiKey = !revealApiKey)}
+					>
+						{revealApiKey ? 'Hide' : 'Show'}
+					</button>
+				</div>
+				<p class="api-key-status">{apiKeyStatus}</p>
+			</div>
+			<p class="mini">Easy Mode for speed. Pro Mode for exact control.</p>
+			<button class="ghost" type="button" on:click={resetSpec}>Reset style</button>
 		</div>
 	</header>
 
 	<div class="grid">
-		<section class="card">
-			<h2>Manual Builder</h2>
+		<section class="card builder">
+			<h2>Build the Look</h2>
+			<div class="builder-mode" role="group" aria-label="Builder mode">
+				<button
+					type="button"
+					class="mode-chip"
+					class:active={builderMode === 'quick'}
+					on:click={() => (builderMode = 'quick')}
+				>
+					Easy Mode
+				</button>
+				<button
+					type="button"
+					class="mode-chip"
+					class:active={builderMode === 'full'}
+					on:click={() => (builderMode = 'full')}
+				>
+					Pro Mode
+				</button>
+			</div>
+			<p class="mode-hint">
+				{builderMode === 'quick'
+					? 'Easy Mode keeps it moving: headline, vibe words, presets.'
+					: 'Pro Mode unlocks spacing, typography, border, and layout detail.'}
+			</p>
+
 			<div class="field">
-				<label for="title">Title</label>
+				<label for="title">Main headline</label>
 				<input id="title" type="text" bind:value={spec.title} on:input={scheduleDraftSave} />
 			</div>
 
 			<div class="field">
-				<label for="listMode">List mode</label>
+				<label for="listMode">Page layout</label>
 				<select id="listMode" value={spec.listMode} on:change={handleListModeChange}>
-					<option value="list">Title + list</option>
-					<option value="title_only">Title only</option>
+					<option value="list">Headline + numbered list</option>
+					<option value="title_only">Headline only</option>
 				</select>
 			</div>
 
 			{#if spec.listMode === 'list'}
 				<fieldset class="field">
-					<legend>Numbered items</legend>
+					<legend>List lines</legend>
 					<div class="items">
 						{#each spec.items as item, index}
 							<div class="item-row">
@@ -514,11 +657,11 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 					{/if}
 				</div>
 			{:else}
-				<p class="hint">Title-only mode omits list items and footer.</p>
+				<p class="hint">Headline-only mode hides list lines and footer text.</p>
 			{/if}
 
 			<div class="field">
-				<label for="dedication">Dedicated to (optional)</label>
+				<label for="dedication">Shoutout (optional)</label>
 				<input
 					id="dedication"
 					type="text"
@@ -530,160 +673,186 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 			</div>
 
 			<div class="field">
-				<label for="styleHint">Style hint</label>
+				<label for="styleHint">Vibe words</label>
 				<input
 					id="styleHint"
 					type="text"
 					bind:value={styleHint}
 					on:input={scheduleDraftSave}
-					placeholder="glam icons"
+					placeholder="glitzy, gritty, luxury, street"
 				/>
 			</div>
+			{#if builderMode === 'quick'}
+				<div class="field">
+					<p class="label">Vibe presets</p>
+					<div class="preset-row">
+						<button type="button" class="ghost preset" on:click={() => applyQuickPreset('minimal')}>
+							Soft Luxe
+						</button>
+						<button type="button" class="ghost preset" on:click={() => applyQuickPreset('sparkle')}>
+							Diamond Night
+						</button>
+						<button type="button" class="ghost preset" on:click={() => applyQuickPreset('story_scene')}>
+							City Story
+						</button>
+						<button type="button" class="ghost preset" on:click={() => applyQuickPreset('bold_block')}>
+							Boss Energy
+						</button>
+					</div>
+				</div>
+			{/if}
+
+			{#if builderMode === 'full'}
+				<div class="field-row">
+					<div class="field">
+						<label for="alignment">Alignment</label>
+						<select id="alignment" bind:value={spec.alignment} on:change={scheduleDraftSave}>
+							<option value="left">Left</option>
+							<option value="center">Center</option>
+						</select>
+					</div>
+					<div class="field">
+						<label for="numberAlignment">Number alignment</label>
+						<select id="numberAlignment" bind:value={spec.numberAlignment} on:change={scheduleDraftSave}>
+							<option value="strict">Strict</option>
+							<option value="loose">Loose</option>
+						</select>
+					</div>
+					<div class="field">
+						<label for="listGutter">List gutter</label>
+						<select
+							id="listGutter"
+							bind:value={spec.listGutter}
+							on:change={scheduleDraftSave}
+							disabled={spec.listMode === 'title_only'}
+						>
+							<option value="tight">Tight</option>
+							<option value="normal">Normal</option>
+							<option value="loose">Loose</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="field-row">
+					<div class="field">
+						<label for="whitespaceScale">Whitespace scale</label>
+						<input
+							id="whitespaceScale"
+							type="range"
+							min="0"
+							max="100"
+							bind:value={spec.whitespaceScale}
+							on:input={scheduleDraftSave}
+						/>
+						<span class="hint">{spec.whitespaceScale}</span>
+					</div>
+					<div class="field">
+						<label for="textSize">Text size</label>
+						<select id="textSize" bind:value={spec.textSize} on:change={scheduleDraftSave}>
+							<option value="small">Small</option>
+							<option value="medium">Medium</option>
+							<option value="large">Large</option>
+						</select>
+					</div>
+					<div class="field">
+						<label for="fontStyle">Font style</label>
+						<select id="fontStyle" bind:value={spec.fontStyle} on:change={scheduleDraftSave}>
+							<option value="rounded">Rounded</option>
+							<option value="block">Block</option>
+							<option value="hand">Handwritten</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="field-row">
+					<div class="field">
+						<label for="textStrokeWidth">Text stroke width</label>
+						<input
+							id="textStrokeWidth"
+							type="range"
+							min="4"
+							max="12"
+							bind:value={spec.textStrokeWidth}
+							on:input={scheduleDraftSave}
+						/>
+						<span class="hint">{spec.textStrokeWidth}px</span>
+					</div>
+					<div class="field">
+						<label for="colorMode">Color mode</label>
+						<select id="colorMode" bind:value={spec.colorMode} on:change={scheduleDraftSave}>
+							<option value="black_and_white_only">Black + white</option>
+							<option value="grayscale">Grayscale</option>
+							<option value="color">Color</option>
+						</select>
+					</div>
+					<div class="field">
+						<label for="pageSize">Page size</label>
+						<select id="pageSize" bind:value={spec.pageSize} on:change={scheduleDraftSave}>
+							<option value="US_Letter">US Letter</option>
+							<option value="A4">A4</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="field-row">
+					<div class="field">
+						<label for="decorations">Interior decorations</label>
+						<select id="decorations" bind:value={spec.decorations} on:change={scheduleDraftSave}>
+							<option value="none">None</option>
+							<option value="minimal">Minimal</option>
+							<option value="dense">Dense</option>
+						</select>
+					</div>
+					<div class="field">
+						<label for="illustrations">Illustrations</label>
+						<select id="illustrations" bind:value={spec.illustrations} on:change={scheduleDraftSave}>
+							<option value="none">None</option>
+							<option value="simple">Simple</option>
+							<option value="scene">Scene</option>
+						</select>
+					</div>
+					<div class="field">
+						<label for="shading">Shading</label>
+						<select id="shading" bind:value={spec.shading} on:change={scheduleDraftSave}>
+							<option value="none">None</option>
+							<option value="hatch">Hatch</option>
+							<option value="stippling">Stippling</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="field-row">
+					<div class="field">
+						<label for="border">Border</label>
+						<select id="border" bind:value={spec.border} on:change={scheduleDraftSave}>
+							<option value="none">None</option>
+							<option value="plain">Plain</option>
+							<option value="decorative">Decorative</option>
+						</select>
+					</div>
+					<div class="field">
+						<label for="borderThickness">Border thickness</label>
+						<input
+							id="borderThickness"
+							type="range"
+							min="2"
+							max="16"
+							bind:value={spec.borderThickness}
+							on:input={scheduleDraftSave}
+						/>
+						<span class="hint">{spec.borderThickness}px</span>
+					</div>
+				</div>
+			{:else}
+				<p class="advanced-note">
+					Pro controls are currently on defaults. Switch to <strong>Pro Mode</strong> when you want
+					deeper control.
+				</p>
+			{/if}
 
 			<div class="field-row">
 				<div class="field">
-					<label for="alignment">Alignment</label>
-					<select id="alignment" bind:value={spec.alignment} on:change={scheduleDraftSave}>
-						<option value="left">Left</option>
-						<option value="center">Center</option>
-					</select>
-				</div>
-				<div class="field">
-					<label for="numberAlignment">Number alignment</label>
-					<select id="numberAlignment" bind:value={spec.numberAlignment} on:change={scheduleDraftSave}>
-						<option value="strict">Strict</option>
-						<option value="loose">Loose</option>
-					</select>
-				</div>
-				<div class="field">
-					<label for="listGutter">List gutter</label>
-					<select
-						id="listGutter"
-						bind:value={spec.listGutter}
-						on:change={scheduleDraftSave}
-						disabled={spec.listMode === 'title_only'}
-					>
-						<option value="tight">Tight</option>
-						<option value="normal">Normal</option>
-						<option value="loose">Loose</option>
-					</select>
-				</div>
-			</div>
-
-			<div class="field-row">
-				<div class="field">
-					<label for="whitespaceScale">Whitespace scale</label>
-					<input
-						id="whitespaceScale"
-						type="range"
-						min="0"
-						max="100"
-						bind:value={spec.whitespaceScale}
-						on:input={scheduleDraftSave}
-					/>
-					<span class="hint">{spec.whitespaceScale}</span>
-				</div>
-				<div class="field">
-					<label for="textSize">Text size</label>
-					<select id="textSize" bind:value={spec.textSize} on:change={scheduleDraftSave}>
-						<option value="small">Small</option>
-						<option value="medium">Medium</option>
-						<option value="large">Large</option>
-					</select>
-				</div>
-				<div class="field">
-					<label for="fontStyle">Font style</label>
-					<select id="fontStyle" bind:value={spec.fontStyle} on:change={scheduleDraftSave}>
-						<option value="rounded">Rounded</option>
-						<option value="block">Block</option>
-						<option value="hand">Handwritten</option>
-					</select>
-				</div>
-			</div>
-
-			<div class="field-row">
-				<div class="field">
-					<label for="textStrokeWidth">Text stroke width</label>
-					<input
-						id="textStrokeWidth"
-						type="range"
-						min="4"
-						max="12"
-						bind:value={spec.textStrokeWidth}
-						on:input={scheduleDraftSave}
-					/>
-					<span class="hint">{spec.textStrokeWidth}px</span>
-				</div>
-				<div class="field">
-					<label for="colorMode">Color mode</label>
-					<select id="colorMode" bind:value={spec.colorMode} on:change={scheduleDraftSave}>
-						<option value="black_and_white_only">Black + white</option>
-						<option value="grayscale">Grayscale</option>
-						<option value="color">Color</option>
-					</select>
-				</div>
-				<div class="field">
-					<label for="pageSize">Page size</label>
-					<select id="pageSize" bind:value={spec.pageSize} on:change={scheduleDraftSave}>
-						<option value="US_Letter">US Letter</option>
-						<option value="A4">A4</option>
-					</select>
-				</div>
-			</div>
-
-			<div class="field-row">
-				<div class="field">
-					<label for="decorations">Interior decorations</label>
-					<select id="decorations" bind:value={spec.decorations} on:change={scheduleDraftSave}>
-						<option value="none">None</option>
-						<option value="minimal">Minimal</option>
-						<option value="dense">Dense</option>
-					</select>
-				</div>
-				<div class="field">
-					<label for="illustrations">Illustrations</label>
-					<select id="illustrations" bind:value={spec.illustrations} on:change={scheduleDraftSave}>
-						<option value="none">None</option>
-						<option value="simple">Simple</option>
-						<option value="scene">Scene</option>
-					</select>
-				</div>
-				<div class="field">
-					<label for="shading">Shading</label>
-					<select id="shading" bind:value={spec.shading} on:change={scheduleDraftSave}>
-						<option value="none">None</option>
-						<option value="hatch">Hatch</option>
-						<option value="stippling">Stippling</option>
-					</select>
-				</div>
-			</div>
-
-			<div class="field-row">
-				<div class="field">
-					<label for="border">Border</label>
-					<select id="border" bind:value={spec.border} on:change={scheduleDraftSave}>
-						<option value="none">None</option>
-						<option value="plain">Plain</option>
-						<option value="decorative">Decorative</option>
-					</select>
-				</div>
-				<div class="field">
-					<label for="borderThickness">Border thickness</label>
-					<input
-						id="borderThickness"
-						type="range"
-						min="2"
-						max="16"
-						bind:value={spec.borderThickness}
-						on:input={scheduleDraftSave}
-					/>
-					<span class="hint">{spec.borderThickness}px</span>
-				</div>
-			</div>
-
-			<div class="field-row">
-				<div class="field">
-					<label for="variations">Variations</label>
+					<label for="variations">How many versions</label>
 					<input
 						id="variations"
 						type="number"
@@ -694,7 +863,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 					/>
 				</div>
 				<div class="field">
-					<label for="outputFormat">Output</label>
+					<label for="outputFormat">Download type</label>
 					<select id="outputFormat" bind:value={spec.outputFormat} on:change={scheduleDraftSave}>
 						<option value="pdf">PDF</option>
 						<option value="png">PNG</option>
@@ -703,14 +872,14 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 			</div>
 
 			<div class="field">
-				<p class="label">Share exports</p>
+				<p class="label">Social add-ons</p>
 				<label class="toggle">
 					<input type="checkbox" bind:checked={includeSquareExport} />
-					<span>Square 1080x1080 (PNG)</span>
+					<span>Instagram square 1080x1080</span>
 				</label>
 				<label class="toggle">
 					<input type="checkbox" bind:checked={includeChatExport} />
-					<span>Group chat 720x720 (PNG)</span>
+					<span>Chat share 720x720</span>
 				</label>
 			</div>
 
@@ -721,14 +890,14 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 					on:click={handleGenerate}
 					disabled={!isSpecValid || isGenerating}
 				>
-					{isGenerating ? 'Generating...' : 'Generate'}
+					{isGenerating ? 'Creating...' : 'Create Pages'}
 				</button>
-				<button type="button" class="ghost" on:click={validateSpec}>Validate</button>
+				<button type="button" class="ghost" on:click={validateSpec}>Check Inputs</button>
 			</div>
 
 			{#if validationIssues.length > 0}
 				<div class="issues">
-					<h3>Validation issues</h3>
+					<h3>Fix these first</h3>
 					<ul>
 						{#each validationIssues as issue}
 							<li>
@@ -741,10 +910,10 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		</section>
 
 		<section class="card preview">
-			<h2>Output</h2>
+			<h2>Preview + Export</h2>
 			<label class="toggle">
 				<input type="checkbox" bind:checked={showSparkleOverlay} />
-				<span>Preview sparkle overlay</span>
+				<span>Add glitter preview glow</span>
 			</label>
 			{#if generationError}
 				<p class="error">{generationError}</p>
@@ -759,12 +928,12 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 					{/each}
 				</div>
 			{:else}
-				<p class="empty">Generate to preview pages.</p>
+				<p class="empty">Press Create Pages to see your results.</p>
 			{/if}
 
 			{#if packagedFiles.length > 0}
 				<div class="downloads">
-					<h3>Downloads</h3>
+					<h3>Ready to download</h3>
 					{#each packagedFiles as file}
 						<a
 							class="download"
@@ -779,68 +948,70 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		</section>
 	</div>
 
-	<section class="card">
-		<h2>Chat-Assisted Builder</h2>
+	<section class="card chat">
+		<h2>Say It Plain (Optional)</h2>
 		<div class="field">
-			<label for="chat">Describe your page</label>
+			<label for="chat">Tell Meechie what you want</label>
 			<textarea
 				id="chat"
 				rows="3"
 				bind:value={chatMessage}
 				on:input={scheduleDraftSave}
-				placeholder="Describe your intent in plain language..."
+				placeholder="Example: glam birthday theme with diamonds, heels, and bold lettering"
 			></textarea>
 		</div>
 		<button type="button" class="ghost" on:click={handleChatInterpretation}>
-			Interpret intent
+			Turn This Into Settings
 		</button>
 	</section>
 
-	<section class="card">
-		<h2>Prompt + Drift Inspection</h2>
-		<div class="field">
-			<label for="promptSent">Prompt sent</label>
-			<textarea id="promptSent" rows="8" readonly value={assembledPrompt}></textarea>
-		</div>
-		<div class="field">
-			<label for="revisedPrompt">Revised prompt (model)</label>
-			<textarea id="revisedPrompt" rows="4" readonly value={revisedPrompt}></textarea>
-		</div>
-		<div class="field">
-			<p class="label">Violations</p>
-			{#if violations.length === 0}
-				<p class="empty">No violations detected.</p>
-			{:else}
-				<ul>
-					{#each violations as violation}
-						<li class={violation.severity}>
-							<strong>{violation.code}</strong>: {violation.message}
-						</li>
-					{/each}
-				</ul>
+	<details class="card advanced-card">
+		<summary>System Trace (Advanced)</summary>
+		<div class="advanced-content">
+			<div class="field">
+				<label for="promptSent">Prompt used</label>
+				<textarea id="promptSent" rows="8" readonly value={assembledPrompt}></textarea>
+			</div>
+			<div class="field">
+				<label for="revisedPrompt">Model rewrite</label>
+				<textarea id="revisedPrompt" rows="4" readonly value={revisedPrompt}></textarea>
+			</div>
+			<div class="field">
+				<p class="label">Quality flags</p>
+				{#if violations.length === 0}
+					<p class="empty">No quality flags detected.</p>
+				{:else}
+					<ul>
+						{#each violations as violation}
+							<li class={violation.severity}>
+								<strong>{violation.code}</strong>: {violation.message}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
+			{#if recommendedFixes.length > 0}
+				<div class="field">
+					<p class="label">Recommended auto-fixes</p>
+					<ul>
+						{#each recommendedFixes as fix}
+							<li>
+								<strong>{fix.code}</strong>: {fix.message}
+							</li>
+						{/each}
+					</ul>
+				</div>
+				<button type="button" class="ghost" on:click={handleGenerate}>
+					Apply fixes + try again
+				</button>
 			{/if}
 		</div>
-		{#if recommendedFixes.length > 0}
-			<div class="field">
-				<p class="label">Recommended fixes</p>
-				<ul>
-					{#each recommendedFixes as fix}
-						<li>
-							<strong>{fix.code}</strong>: {fix.message}
-						</li>
-					{/each}
-				</ul>
-			</div>
-			<button type="button" class="ghost" on:click={handleGenerate}>
-				Apply fixes + regenerate
-			</button>
-		{/if}
-	</section>
+	</details>
 
-	<section class="card">
-		<h2>Saved Creations</h2>
+	<section class="card history">
+		<h2>Your Vault</h2>
 		{#if creations.length === 0}
-			<p class="empty">No saved creations yet.</p>
+			<p class="empty">No saved looks yet.</p>
 		{:else}
 			<div class="creations">
 				{#each creations as creation}
@@ -868,7 +1039,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 								Load
 							</button>
 							<button type="button" class="ghost" on:click={() => toggleFavorite(creation)}>
-								{creation.favorite ? 'Unfavorite' : 'Favorite'}
+								{creation.favorite ? 'Unpin' : 'Pin'}
 							</button>
 							<button type="button" class="ghost danger" on:click={() => handleDeleteCreation(creation.id)}>
 								Delete
@@ -880,110 +1051,320 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		{/if}
 	</section>
 
-	<MeechieTools />
+	<section class="card meechie-link-card">
+		<h2>Meechie Tools</h2>
+		<p class="meechie-link-copy">
+			Need a clapback, a receipt check, or a cold read on the situation? Open the dedicated Meechie
+			space.
+		</p>
+		<a class="primary meechie-link-button" href="/meechie">Go To Meechie Tools</a>
+	</section>
+
+	<div class="mobile-actions" aria-label="Quick actions">
+		<button
+			type="button"
+			class="primary mobile-primary"
+			on:click={handleGenerate}
+			disabled={!isSpecValid || isGenerating}
+		>
+			{isGenerating ? 'Creating...' : 'Create Pages'}
+		</button>
+		<button type="button" class="ghost mobile-ghost" on:click={validateSpec}>Check Inputs</button>
+	</div>
 </div>
 
 <style>
 	:global(body) {
+		--ink-900: #0d1321;
+		--ink-700: #27324a;
+		--paper-100: #f8f7f4;
+		--paper-200: #eeece8;
+		--rose-300: #f29ec4;
+		--rose-500: #dd4f92;
+		--champagne-300: #f4d19b;
+		--champagne-500: #dfaa59;
+		--emerald-300: #8cdbc9;
+		--emerald-500: #1f8977;
 		margin: 0;
-		font-family: 'Fredoka', 'Baloo 2', system-ui, sans-serif;
-		color: #1b1b1b;
-		background: radial-gradient(circle at top, #fef7ec, #f3efe7 45%, #e8e1d6);
+		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
+		color: #222a37;
+		background:
+			radial-gradient(circle at 0% 0%, rgba(221, 79, 146, 0.14), transparent 36%),
+			radial-gradient(circle at 100% 0%, rgba(223, 170, 89, 0.18), transparent 40%),
+			linear-gradient(180deg, #f8f7f4, #efede9 55%, #ece8e2);
 		min-height: 100vh;
 	}
 
 	.page {
-		max-width: 1200px;
+		position: relative;
+		max-width: 1220px;
 		margin: 0 auto;
-		padding: 3rem 2rem 4rem;
+		padding: 2.4rem 1.4rem 4rem;
+	}
+
+	.ambient {
+		position: absolute;
+		pointer-events: none;
+		filter: blur(7px);
+		z-index: 0;
+	}
+
+	.ambient-a {
+		top: 4.2rem;
+		right: -0.5rem;
+		width: clamp(180px, 26vw, 340px);
+		aspect-ratio: 1;
+		border-radius: 36% 64% 54% 46%;
+		background: linear-gradient(145deg, rgba(241, 87, 151, 0.28), rgba(255, 201, 130, 0.2));
+		animation: drift 14s ease-in-out infinite;
+	}
+
+	.ambient-b {
+		top: 20rem;
+		left: -4rem;
+		width: clamp(170px, 20vw, 300px);
+		aspect-ratio: 1;
+		border-radius: 46% 54% 44% 56%;
+		background: linear-gradient(145deg, rgba(21, 125, 132, 0.24), rgba(140, 231, 217, 0.16));
+		animation: drift 17s ease-in-out infinite reverse;
 	}
 
 	.hero {
+		position: relative;
+		z-index: 1;
 		display: flex;
-		gap: 2rem;
+		gap: 1.7rem;
 		justify-content: space-between;
-		align-items: flex-start;
-		margin-bottom: 2.5rem;
+		align-items: stretch;
+		margin-bottom: 1.8rem;
+	}
+
+	.hero-copy {
+		flex: 1;
+		padding: 1.3rem 0.1rem;
 	}
 
 	.eyebrow {
+		margin: 0 0 0.55rem;
 		text-transform: uppercase;
-		letter-spacing: 0.2em;
-		font-size: 0.7rem;
-		color: #7b6f61;
-		margin-bottom: 0.5rem;
+		letter-spacing: 0.14em;
+		font-size: 0.72rem;
+		font-weight: 700;
+		color: #7d3664;
 	}
 
 	h1 {
-		font-family: 'Baloo 2', cursive;
-		font-size: 2.6rem;
-		margin: 0 0 0.5rem;
+		margin: 0 0 0.7rem;
+		max-width: 15ch;
+		font-family: 'Fraunces', 'Times New Roman', serif;
+		font-size: clamp(2rem, 4.8vw, 3.3rem);
+		line-height: 0.98;
+		letter-spacing: -0.02em;
+		color: #131a2c;
 	}
 
 	.subhead {
-		max-width: 520px;
-		font-size: 1.05rem;
-		color: #4b443c;
+		margin: 0;
+		max-width: 560px;
+		font-size: 1.04rem;
+		line-height: 1.45;
+		color: #4f5b70;
+	}
+
+	.flow-steps {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.65rem;
+		margin-top: 1rem;
+	}
+
+	.step {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		padding: 0.34rem 0.62rem;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.56);
+		border: 1px solid rgba(101, 82, 121, 0.24);
+	}
+
+	.step span {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.2rem;
+		height: 1.2rem;
+		border-radius: 50%;
+		font-size: 0.72rem;
+		font-weight: 700;
+		background: rgba(38, 31, 53, 0.12);
+		color: #3a2b55;
+	}
+
+	.step p {
+		margin: 0;
+		font-size: 0.77rem;
+		font-weight: 700;
+		color: #4e4560;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.step.done {
+		border-color: rgba(31, 137, 119, 0.45);
+		background: rgba(140, 219, 201, 0.24);
+	}
+
+	.step.done span {
+		background: linear-gradient(130deg, var(--emerald-500), #26a28f);
+		color: #f7fffb;
+	}
+
+	.step.done p {
+		color: #1f695d;
 	}
 
 	.hero-card {
-		background: #fff8f1;
-		border: 1px solid #e6dacb;
-		padding: 1.5rem;
-		border-radius: 1rem;
-		min-width: 220px;
-		box-shadow: 0 14px 30px rgba(125, 107, 87, 0.12);
+		width: min(350px, 100%);
+		min-width: 250px;
+		padding: 1.35rem;
+		border-radius: 1.2rem;
+		background:
+			linear-gradient(165deg, rgba(255, 255, 255, 0.95), rgba(255, 244, 230, 0.94)),
+			#fff;
+		border: 1px solid rgba(97, 114, 133, 0.22);
+		box-shadow: 0 18px 34px rgba(38, 55, 84, 0.14);
 	}
 
 	.hero-label {
-		font-size: 0.8rem;
+		margin: 0 0 0.45rem;
+		font-size: 0.78rem;
+		font-weight: 700;
 		text-transform: uppercase;
-		letter-spacing: 0.12em;
-		color: #8e7c6b;
-		margin-bottom: 0.5rem;
+		letter-spacing: 0.11em;
+		color: #703257;
 	}
 
 	.status-row {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		margin-bottom: 0.4rem;
+		margin-bottom: 0.38rem;
 		font-size: 0.9rem;
+		color: #3b334f;
 	}
 
 	.dot {
 		width: 8px;
 		height: 8px;
 		border-radius: 50%;
-		background: #b36f4c;
+		background: var(--rose-500);
+		box-shadow: 0 0 0 4px rgba(221, 79, 146, 0.18);
 	}
 
 	.dot.alt {
-		background: #4c6f8b;
+		background: var(--emerald-500);
+		box-shadow: 0 0 0 4px rgba(31, 137, 119, 0.18);
+	}
+
+	.mini {
+		margin: 0.75rem 0 0.92rem;
+		font-size: 0.82rem;
+		line-height: 1.35;
+		color: #5a4c63;
+	}
+
+	.api-key-panel {
+		margin-top: 0.7rem;
+		padding: 0.72rem;
+		border-radius: 0.9rem;
+		background: rgba(255, 255, 255, 0.72);
+		border: 1px solid rgba(117, 85, 125, 0.24);
+	}
+
+	.api-key-label {
+		margin: 0 0 0.4rem;
+		font-size: 0.74rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: #5a3f5f;
+	}
+
+	.api-key-panel input {
+		width: 100%;
+	}
+
+	.api-key-actions {
+		display: flex;
+		gap: 0.4rem;
+		margin-top: 0.45rem;
+		flex-wrap: wrap;
+	}
+
+	.api-key-status {
+		margin: 0.45rem 0 0;
+		font-size: 0.76rem;
+		color: #5f526c;
 	}
 
 	.grid {
+		position: relative;
+		z-index: 1;
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-		gap: 1.5rem;
+		grid-template-columns: minmax(340px, 1.5fr) minmax(300px, 1fr);
+		gap: 1.4rem;
 		margin-bottom: 1.5rem;
 	}
 
 	.card {
-		background: #fff;
-		border: 1px solid #eadfd0;
-		border-radius: 1.25rem;
-		padding: 1.5rem;
-		box-shadow: 0 18px 45px rgba(120, 96, 72, 0.08);
+		position: relative;
+		padding: 1.45rem;
+		border-radius: 1.2rem;
+		background: rgba(255, 255, 255, 0.84);
+		border: 1px solid rgba(98, 113, 131, 0.2);
+		box-shadow: 0 14px 30px rgba(38, 55, 84, 0.11);
+		backdrop-filter: blur(4px);
+	}
+
+	.card::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: 1.2rem;
+		padding: 1px;
+		background: linear-gradient(
+			130deg,
+			rgba(221, 79, 146, 0.22),
+			rgba(223, 170, 89, 0.2),
+			rgba(31, 137, 119, 0.16)
+		);
+		mask:
+			linear-gradient(#fff 0 0) content-box,
+			linear-gradient(#fff 0 0);
+		mask-composite: exclude;
+		pointer-events: none;
+	}
+
+	.builder {
+		background:
+			linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 246, 236, 0.86)),
+			#fff;
 	}
 
 	.card.preview {
 		min-height: 520px;
+		background:
+			linear-gradient(180deg, rgba(255, 251, 246, 0.9), rgba(255, 242, 229, 0.88)),
+			#fff;
 	}
 
 	h2 {
-		margin-top: 0;
-		font-size: 1.4rem;
+		margin: 0 0 0.9rem;
+		font-family: 'Fraunces', 'Times New Roman', serif;
+		font-size: 1.42rem;
+		letter-spacing: -0.01em;
+		color: #2b2237;
 	}
 
 	.field {
@@ -999,39 +1380,95 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		margin: 0 0 1rem;
 	}
 
-	legend {
-		font-weight: 600;
-		color: #3c332b;
-		margin-bottom: 0.4rem;
-	}
-
+	legend,
+	label,
 	.label {
-		font-weight: 600;
-		color: #3c332b;
 		margin: 0;
+		font-weight: 700;
+		font-size: 0.89rem;
+		color: #453a57;
 	}
 
 	.field-row {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-		gap: 1rem;
+		gap: 0.9rem;
 		margin-bottom: 1rem;
 	}
 
-	label {
-		font-weight: 600;
-		color: #3c332b;
+	.preset-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.preset {
+		padding: 0.42rem 0.8rem;
+		font-size: 0.79rem;
+	}
+
+	.builder-mode {
+		display: inline-flex;
+		gap: 0.5rem;
+		padding: 0.22rem;
+		border-radius: 999px;
+		background: rgba(93, 65, 117, 0.13);
+		margin-bottom: 0.45rem;
+	}
+
+	.mode-chip {
+		border: none;
+		border-radius: 999px;
+		padding: 0.42rem 0.82rem;
+		font-size: 0.8rem;
+		font-weight: 700;
+		letter-spacing: 0.03em;
+		background: transparent;
+		color: #4d3e62;
+		cursor: pointer;
+	}
+
+	.mode-chip.active {
+		background: linear-gradient(120deg, #3c2f51, #6c4d85);
+		color: #fef6eb;
+		box-shadow: 0 8px 16px rgba(60, 47, 81, 0.22);
+	}
+
+	.mode-hint {
+		margin: 0 0 1rem;
+		font-size: 0.84rem;
+		color: #5f526c;
+	}
+
+	.advanced-note {
+		margin: 0 0 1rem;
+		padding: 0.75rem 0.9rem;
+		border-radius: 0.85rem;
+		font-size: 0.84rem;
+		color: #5c4d4c;
+		background: rgba(255, 225, 199, 0.42);
+		border: 1px solid rgba(212, 140, 85, 0.3);
 	}
 
 	input,
 	select,
 	textarea {
-		border-radius: 0.75rem;
-		border: 1px solid #d8c8b8;
-		padding: 0.6rem 0.7rem;
-		font-size: 0.95rem;
+		border-radius: 0.72rem;
+		border: 1px solid rgba(107, 84, 121, 0.25);
+		padding: 0.62rem 0.72rem;
+		font-size: 0.94rem;
 		font-family: inherit;
-		background: #fefcf9;
+		color: #2d2439;
+		background: rgba(255, 255, 255, 0.9);
+		transition: border-color 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	input:focus,
+	select:focus,
+	textarea:focus {
+		outline: none;
+		border-color: #b85f8d;
+		box-shadow: 0 0 0 3px rgba(184, 95, 141, 0.18);
 	}
 
 	textarea {
@@ -1053,57 +1490,74 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	.toggle {
 		display: flex;
-		gap: 0.6rem;
+		gap: 0.56rem;
 		align-items: center;
+		font-size: 0.9rem;
 		font-weight: 600;
+		color: #4d4162;
 	}
 
 	.actions {
 		display: flex;
-		gap: 0.75rem;
+		gap: 0.7rem;
 		align-items: center;
 	}
 
 	.primary {
-		background: #2f2b26;
-		color: #fefbf7;
 		border: none;
-		padding: 0.7rem 1.3rem;
 		border-radius: 999px;
+		padding: 0.68rem 1.28rem;
+		background: linear-gradient(112deg, #22345a, #dd4f92 52%, #dfaa59);
+		color: #fffaf2;
+		font-weight: 700;
+		letter-spacing: 0.02em;
+		cursor: pointer;
+		transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+	}
+
+	.primary:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 12px 24px rgba(58, 76, 114, 0.28);
+		filter: saturate(1.08);
+	}
+
+	.ghost {
+		border-radius: 999px;
+		padding: 0.52rem 0.96rem;
+		border: 1px solid rgba(117, 85, 125, 0.34);
+		background: rgba(255, 255, 255, 0.8);
+		color: #43364f;
 		font-weight: 600;
 		cursor: pointer;
 		transition: transform 0.2s ease, box-shadow 0.2s ease;
 	}
 
-	.primary:hover {
+	.ghost.tiny {
+		padding: 0.36rem 0.72rem;
+		font-size: 0.76rem;
+	}
+
+	.ghost:hover {
 		transform: translateY(-1px);
-		box-shadow: 0 12px 20px rgba(47, 43, 38, 0.2);
+		box-shadow: 0 9px 16px rgba(70, 48, 43, 0.14);
 	}
 
-	.ghost {
-		background: transparent;
-		border: 1px solid #cdb9a7;
-		color: #4b3d2f;
-		padding: 0.55rem 1rem;
-		border-radius: 999px;
-		cursor: pointer;
-	}
-
-	.ghost:disabled {
-		opacity: 0.5;
+	.ghost:disabled,
+	.primary:disabled {
+		opacity: 0.55;
 		cursor: not-allowed;
 	}
 
 	.hint {
-		font-size: 0.8rem;
-		color: #7a6a5b;
+		font-size: 0.79rem;
+		color: #6a5b78;
 	}
 
 	.issues {
-		background: #fff4e8;
-		border: 1px solid #f1d2b9;
-		padding: 1rem;
-		border-radius: 1rem;
+		padding: 0.95rem;
+		border-radius: 0.95rem;
+		background: rgba(255, 227, 216, 0.58);
+		border: 1px solid rgba(225, 126, 96, 0.42);
 	}
 
 	.issues ul {
@@ -1113,7 +1567,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	.preview-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
 		gap: 1rem;
 	}
 
@@ -1123,47 +1577,50 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	.preview-grid img {
 		width: 100%;
-		border-radius: 0.8rem;
+		border-radius: 0.82rem;
+		border: 1px solid rgba(110, 88, 124, 0.24);
 		background: #fff;
-		border: 1px solid #eadfd0;
+		box-shadow: 0 10px 24px rgba(73, 54, 57, 0.17);
 	}
 
 	.preview-grid figure.sparkle::after {
 		content: '';
 		position: absolute;
 		inset: 0;
-		border-radius: 0.8rem;
+		border-radius: 0.82rem;
 		background:
-			radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.8), transparent 30%),
-			radial-gradient(circle at 80% 30%, rgba(255, 255, 255, 0.6), transparent 35%),
-			radial-gradient(circle at 35% 75%, rgba(255, 255, 255, 0.5), transparent 40%),
-			radial-gradient(circle at 70% 80%, rgba(255, 255, 255, 0.4), transparent 45%);
-		opacity: 0.6;
+			radial-gradient(circle at 16% 20%, rgba(255, 255, 255, 0.86), transparent 30%),
+			radial-gradient(circle at 82% 28%, rgba(255, 255, 255, 0.72), transparent 34%),
+			radial-gradient(circle at 38% 76%, rgba(255, 255, 255, 0.58), transparent 40%),
+			radial-gradient(circle at 72% 78%, rgba(255, 255, 255, 0.45), transparent 44%);
+		opacity: 0.62;
 		mix-blend-mode: screen;
 		pointer-events: none;
 	}
 
 	figcaption {
-		font-size: 0.85rem;
-		color: #6f6154;
 		margin-top: 0.4rem;
 		text-align: center;
+		font-size: 0.82rem;
+		color: #62566d;
 	}
 
-	.error {
-		color: #a33b2b;
-		background: #ffe7e1;
+	p.error {
+		margin: 0 0 0.7rem;
+		color: #7e2d43;
+		background: rgba(255, 218, 231, 0.74);
+		border: 1px solid rgba(205, 86, 132, 0.34);
 		padding: 0.7rem;
 		border-radius: 0.8rem;
 	}
 
 	.empty {
-		color: #7a6a5b;
+		color: #665a74;
 		font-style: italic;
 	}
 
 	.downloads {
-		margin-top: 1rem;
+		margin-top: 0.9rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
@@ -1171,43 +1628,47 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	.download {
 		text-decoration: none;
-		color: #2f2b26;
-		background: #f6efe7;
-		padding: 0.5rem 0.8rem;
-		border-radius: 0.8rem;
-		border: 1px solid #e4d7c9;
+		font-weight: 700;
+		color: #3a2c53;
+		background: rgba(255, 247, 236, 0.95);
+		border: 1px solid rgba(206, 149, 92, 0.3);
+		padding: 0.52rem 0.78rem;
+		border-radius: 0.78rem;
 	}
 
 	.creations {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-		gap: 1rem;
+		gap: 0.9rem;
 	}
 
 	.creation {
-		border: 1px solid #eadfd0;
-		border-radius: 1rem;
-		padding: 1rem;
-		background: #fefcf9;
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		padding: 0.9rem;
+		border-radius: 0.95rem;
+		border: 1px solid rgba(119, 88, 123, 0.25);
+		background: rgba(255, 255, 255, 0.84);
 	}
 
 	.creation .title {
-		font-weight: 600;
 		margin-bottom: 0.2rem;
+		font-weight: 700;
+		color: #362b47;
 	}
 
 	.creation .meta {
 		font-size: 0.75rem;
-		color: #7c6d5f;
+		color: #70647d;
 	}
+
 	.creation-actions {
 		display: flex;
 		gap: 0.5rem;
 		flex-wrap: wrap;
 	}
+
 	.favorite-pill {
 		display: inline-flex;
 		align-items: center;
@@ -1215,20 +1676,89 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		padding: 0 0.4rem;
 		border-radius: 999px;
 		font-size: 0.65rem;
-		background: #fce3de;
-		color: #c13a36;
+		background: rgba(255, 206, 133, 0.38);
+		color: #7e4b1d;
 	}
+
 	.ghost.danger {
-		color: #a33b2b;
-		border-color: #a33b2b;
+		color: #8b324b;
+		border-color: rgba(139, 50, 75, 0.4);
 	}
 
 	.success {
-		color: #2b6f5a;
+		color: #1f8468;
+	}
+
+	li.error {
+		color: #a33b2b;
 	}
 
 	.warning {
-		color: #b36f4c;
+		color: #b16a2b;
+	}
+
+	.chat,
+	.history {
+		position: relative;
+		z-index: 1;
+	}
+
+	.meechie-link-card {
+		position: relative;
+		z-index: 1;
+		text-align: left;
+	}
+
+	.meechie-link-copy {
+		margin: 0 0 1rem;
+		color: #5f526c;
+	}
+
+	.meechie-link-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		text-decoration: none;
+	}
+
+	.advanced-card {
+		position: relative;
+		z-index: 1;
+	}
+
+	.advanced-card summary {
+		cursor: pointer;
+		list-style: none;
+		font-family: 'Fraunces', 'Times New Roman', serif;
+		font-size: 1.32rem;
+		color: #2b2237;
+	}
+
+	.advanced-card summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.advanced-card summary::after {
+		content: 'Show';
+		float: right;
+		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: #7d3664;
+	}
+
+	.advanced-card[open] summary::after {
+		content: 'Hide';
+	}
+
+	.advanced-content {
+		margin-top: 0.9rem;
+	}
+
+	.mobile-actions {
+		display: none;
 	}
 
 	@media (max-width: 900px) {
@@ -1236,12 +1766,73 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 			flex-direction: column;
 		}
 
+		h1 {
+			max-width: none;
+		}
+
 		.hero-card {
 			width: 100%;
 		}
 
+		.grid {
+			grid-template-columns: 1fr;
+		}
+
 		.item-row {
 			grid-template-columns: 1fr;
+		}
+
+		.builder .actions {
+			display: none;
+		}
+
+		.page {
+			padding-bottom: 7.5rem;
+		}
+
+		.mobile-actions {
+			position: fixed;
+			left: 0.8rem;
+			right: 0.8rem;
+			bottom: max(0.7rem, env(safe-area-inset-bottom));
+			z-index: 20;
+			display: grid;
+			grid-template-columns: 1fr auto;
+			gap: 0.52rem;
+			padding: 0.52rem;
+			border-radius: 0.95rem;
+			background: rgba(255, 248, 240, 0.94);
+			border: 1px solid rgba(112, 84, 116, 0.26);
+			backdrop-filter: blur(6px);
+			box-shadow: 0 12px 24px rgba(70, 48, 43, 0.2);
+		}
+
+		.mobile-actions .mobile-primary {
+			width: 100%;
+		}
+
+		.mobile-actions .mobile-ghost {
+			padding-inline: 0.82rem;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.page {
+			padding: 1.35rem 0.88rem 8.1rem;
+		}
+
+		.actions {
+			flex-wrap: wrap;
+		}
+	}
+
+	@keyframes drift {
+		0%,
+		100% {
+			transform: translate3d(0, 0, 0) rotate(0deg);
+		}
+		50% {
+			transform: translate3d(0, -12px, 0) rotate(5deg);
 		}
 	}
 </style>
