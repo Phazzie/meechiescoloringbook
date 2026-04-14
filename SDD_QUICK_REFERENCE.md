@@ -117,7 +117,7 @@ const faultData = await faultResponse.json();
 await writeFile('fixtures/user-profile/fault.json', JSON.stringify({
   scenario: 'fault',
   input: { userId: 'does-not-exist' },
-  output: { ok: false, error: { code: 'USER_NOT_FOUND', message: faultData.message } },
+  output: { ok: false, error: { code: 'USER_NOT_FOUND', message: `API returned ${faultResponse.status}` } },
   probedAt: new Date().toISOString().slice(0, 10),
 }, null, 2));
 
