@@ -12,6 +12,6 @@ import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json().catch(() => null);
-	const pipelineResult = await runImageGenerationPipeline(body, request.headers, imageGenerationPipelineDeps);
+	const pipelineResult = await runImageGenerationPipeline(body, imageGenerationPipelineDeps);
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };

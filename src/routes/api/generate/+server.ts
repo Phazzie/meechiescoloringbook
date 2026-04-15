@@ -9,7 +9,7 @@ import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, fetch }) => {
 	const body = await request.json().catch(() => null);
-	const pipelineResult = await runGeneratePipeline(body, request.headers, {
+	const pipelineResult = await runGeneratePipeline(body, {
 		fetchImpl: fetch,
 		...generatePipelineDeps
 	});

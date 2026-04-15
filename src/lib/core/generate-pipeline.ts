@@ -50,7 +50,6 @@ const defaultDeps = {
 
 export const runGeneratePipeline = async (
 	body: unknown,
-	requestHeaders: Headers,
 	deps: PipelineDeps
 ): Promise<PipelineResponse> => {
 	const parsedInput = GenerateRequestSchema.safeParse(body);
@@ -83,17 +82,9 @@ export const runGeneratePipeline = async (
 		};
 	}
 
-	const imageRequestHeaders: Record<string, string> = {
-		'Content-Type': 'application/json'
-	};
-	const forwardedApiKey = requestHeaders.get('x-api-key');
-	if (forwardedApiKey && forwardedApiKey.trim().length > 0) {
-		imageRequestHeaders['x-api-key'] = forwardedApiKey.trim();
-	}
-
 	const imageResponse = await deps.fetchImpl('/api/image-generation', {
 		method: 'POST',
-		headers: imageRequestHeaders,
+		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({
 			spec: parsedInput.data.spec,
 			prompt: promptResult.value.prompt,

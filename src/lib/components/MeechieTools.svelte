@@ -4,7 +4,7 @@ Why: Keep non-technical users in one place while reusing seam-backed tools.
 Info flow: User inputs -> MeechieToolSeam -> response output.
 -->
 <script lang="ts">
-	import { loadStoredApiKey, postJson } from '$lib/core/http-client';
+	import { postJson } from '$lib/core/http-client';
 	import type { MeechieToolInput, MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
 	import {
 		HoroscopeSignSchema,
@@ -137,7 +137,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		}
 
 		try {
-			const { payload } = await postJson('/api/tools', parsedInput.data, loadStoredApiKey());
+			const { payload } = await postJson('/api/tools', parsedInput.data);
 			const parsedResult = MeechieToolResultSchema.safeParse(payload);
 			if (!parsedResult.success) {
 				error = 'Tool response did not match contract.';
@@ -277,13 +277,13 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		letter-spacing: -0.02em;
 		font-style: italic;
 		font-weight: 800;
-		color: #fdf6e3;
+		color: var(--cream);
 		font-family: 'Fraunces', 'Times New Roman', serif;
 	}
 
 	.subtitle {
 		margin: 0.5rem 0 0;
-		color: #b8aacf;
+		color: var(--lavender);
 		font-size: 0.95rem;
 	}
 
@@ -293,7 +293,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		font-size: 0.72rem;
 		margin: 0 0 0.5rem;
 		font-weight: 700;
-		color: #c9a227;
+		color: var(--gold);
 	}
 
 	.tool-picker,
@@ -312,7 +312,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		font-size: 0.82rem;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
-		color: #c9a227;
+		color: var(--gold);
 	}
 
 	textarea,
@@ -324,7 +324,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		font-size: 0.95rem;
 		font-family: inherit;
 		background: rgba(7, 7, 15, 0.65);
-		color: #fdf6e3;
+		color: var(--cream);
 		transition: border-color 0.2s ease, box-shadow 0.2s ease;
 	}
 
@@ -334,20 +334,20 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	}
 
 	select option {
-		background: #1c1932;
-		color: #fdf6e3;
+		background: var(--dark-card-alt);
+		color: var(--cream);
 	}
 
 	textarea:focus,
 	input:focus,
 	select:focus {
 		outline: none;
-		border-color: #c9a227;
+		border-color: var(--gold);
 		box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.18);
 	}
 
 	.help {
-		color: #b8aacf;
+		color: var(--lavender);
 		font-size: 0.88rem;
 		margin: 0;
 	}
@@ -356,7 +356,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		padding: 0.75rem 1.4rem;
 		border-radius: 999px;
 		border: none;
-		background: linear-gradient(112deg, #e8006a, #6b21a8 52%, #c9a227);
+		background: linear-gradient(112deg, var(--fuchsia), #6b21a8 52%, var(--gold));
 		color: #fff;
 		font-weight: 800;
 		font-size: 0.95rem;
@@ -394,20 +394,20 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	}
 
 	.ghost {
-		border: 1px solid rgba(201, 162, 39, 0.35);
+		border: 1px solid var(--gold-border);
 		background: transparent;
 		padding: 0.38rem 0.72rem;
 		border-radius: 999px;
 		cursor: pointer;
 		font-size: 0.85rem;
 		font-weight: 600;
-		color: #f0c44a;
+		color: var(--gold-bright);
 		transition: transform 0.2s ease, border-color 0.2s ease;
 	}
 
 	.ghost:hover {
 		transform: translateY(-1px);
-		border-color: #c9a227;
+		border-color: var(--gold);
 	}
 
 	.error {
@@ -423,7 +423,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		padding: 1.2rem;
 		border-radius: 1rem;
 		background: rgba(7, 7, 15, 0.7);
-		border-left: 3px solid #e8006a;
+		border-left: 3px solid var(--fuchsia);
 		border-top: 1px solid rgba(201, 162, 39, 0.2);
 		border-right: 1px solid rgba(201, 162, 39, 0.2);
 		border-bottom: 1px solid rgba(201, 162, 39, 0.2);
@@ -431,7 +431,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 
 	.output h3 {
 		margin: 0 0 0.65rem;
-		color: #f0c44a;
+		color: var(--gold-bright);
 		font-family: 'Fraunces', 'Times New Roman', serif;
 		font-style: italic;
 		font-size: 1.2rem;
@@ -441,7 +441,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		white-space: pre-wrap;
 		font-family: inherit;
 		margin: 0;
-		color: #fdf6e3;
+		color: var(--cream);
 		line-height: 1.5;
 		font-size: 0.95rem;
 	}
