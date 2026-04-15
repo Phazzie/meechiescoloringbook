@@ -48,7 +48,6 @@ const errorResponse = (status: number, code: string, message: string): ImagePipe
 
 export const runImageGenerationPipeline = async (
 	body: unknown,
-	requestHeaders: Headers,
 	deps: ImagePipelineDeps
 ): Promise<ImagePipelineResponse> => {
 	const parsedInput = ImageGenerationInputSchema.safeParse(body);
@@ -66,10 +65,7 @@ export const runImageGenerationPipeline = async (
 		);
 	}
 
-	const requestApiKey = requestHeaders.get('x-api-key')?.trim() || undefined;
-	const providerAdapter = deps.createProvider({
-		apiKey: requestApiKey
-	});
+	const providerAdapter = deps.createProvider({});
 
 	const providerResult = await providerAdapter.createImageGeneration({
 		model: IMAGE_MODEL,
@@ -86,7 +82,7 @@ export const runImageGenerationPipeline = async (
 				error: {
 					...providerResult.error,
 					message: isMissingKey
-						? 'Image generation key missing. Add API key in the UI panel or set XAI_API_KEY on the server.'
+						? 'Image generation requires XAI_API_KEY to be set on the server.'
 						: providerResult.error.message
 				}
 			}

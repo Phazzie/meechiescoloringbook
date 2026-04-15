@@ -1405,3 +1405,24 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-04-15/npm-test-2026-04-15.txt
   - Summary: Applied PR #8 review feedback: color-scheme dark, CSS var consistency in MeechieTools, API key discoverability, and advanced-fields validation auto-expand. All 166 tests pass.
   - Risks: If palette variables are removed from body in future, MeechieTools will lose its colors silently.
+
+## 2026-04-15 - Move API key to server env var; remove client-side key entry
+- Date: 2026-04-15
+- Decision: Remove the user-facing API Key Settings panel and all client-side API key management. The server reads `XAI_API_KEY` from the Vercel environment variable exclusively.
+- Context: The API key was previously entered by users in the browser, stored in localStorage, and forwarded as an `x-api-key` header. This exposed the key in the browser and created unnecessary friction. Since `XAI_API_KEY` is already set as a Vercel environment variable, the server can use it directly.
+- Alternatives: Keep user-supplied keys as an override path; rejected because it adds UI complexity and a potential security surface with no benefit when the server key is already configured.
+- Consequences: `createProviderAdapter({})` is called with no config, falling back to `process.env.XAI_API_KEY`. The `x-api-key` header forwarding is removed from all pipelines. `buildJsonHeaders` and `postJson` in `http-client.ts` no longer accept or forward a key. `TEMP_API_KEY_STORAGE_KEY` and localStorage helpers are removed.
+- Revisit criteria: Only revisit if the product needs per-user API keys in the future.
+- Plan:
+  - Goal: Stop accepting client-supplied API keys and use server env var only.
+  - Seams: None (pipeline + UI change, no contract changes).
+  - Files: `src/lib/core/image-generation-pipeline.ts`, `src/lib/core/generate-pipeline.ts`, `src/routes/api/generate/+server.ts`, `src/routes/api/image-generation/+server.ts`, `src/routes/+page.svelte`, `src/lib/core/http-client.ts`, `tests/unit/api-image-generation.test.ts`, `tests/unit/http-client.test.ts`.
+  - Commands: `npm test`, `npm run verify`.
+- Self-critique: Risk is that if `XAI_API_KEY` is not set on the server, all image generation will return 401. This is the correct behavior — misconfigured env is a server ops issue, not a user issue.
+
+- Cipher Gate:
+  - Date: 2026-04-15
+  - Seams: None (pipeline + UI only)
+  - Evidence: docs/evidence/2026-04-15/npm-test-2026-04-15.txt
+  - Summary: Removed client-side API key entry; server now always uses XAI_API_KEY env var. All 155 tests pass.
+  - Risks: If XAI_API_KEY is unset on Vercel, all generation requests will return 401 with a clear error message.

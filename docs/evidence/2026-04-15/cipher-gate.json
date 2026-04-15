@@ -1,18 +1,18 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-04-15T06:24:40.203Z",
+  "generatedAt": "2026-04-15T17:34:07.884Z",
   "cipher": {
     "date": "2026-04-15",
-    "seams": "None (UI-only)",
+    "seams": "None (pipeline + UI only)",
     "evidence": [
       {
         "path": "docs/evidence/2026-04-15/npm-test-2026-04-15.txt",
         "exists": true
       }
     ],
-    "summary": "Applied PR #8 review feedback: color-scheme dark, CSS var consistency in MeechieTools, API key discoverability, and advanced-fields validation auto-expand. All 166 tests pass.",
-    "risks": "If palette variables are removed from body in future, MeechieTools will lose its colors silently."
+    "summary": "Removed client-side API key entry; server now always uses XAI_API_KEY env var. All 155 tests pass.",
+    "risks": "If XAI_API_KEY is unset on Vercel, all generation requests will return 401 with a clear error message."
   },
-  "latestChangeMs": 1776234111437.74,
+  "latestChangeMs": 1776274145975.0203,
   "status": "ok"
 }

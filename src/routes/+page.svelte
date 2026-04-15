@@ -11,12 +11,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 	import { sessionAdapter } from '$lib/adapters/session.adapter';
 	import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
-	import {
-		clearStoredApiKey,
-		loadStoredApiKey,
-		postJson,
-		saveStoredApiKey
-	} from '$lib/core/http-client';
+	import { postJson } from '$lib/core/http-client';
 	import { GenerateResultSchema } from '../../contracts/generate.contract';
 	import type { CreationOwner, CreationRecord } from '../../contracts/creation-store.contract';
 	import type {
@@ -76,11 +71,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	let authContext: CreationRecord['authContext'] | null = null;
 	let sessionStatus = 'Connecting session...';
 	let draftStatus = '';
-	let apiKeyInput = '';
-	let apiKeyStatus = 'No API key saved.';
-	let revealApiKey = false;
-	let hasSavedApiKey = false;
-	let apiSettingsOpen = true;
 	let isBrowser = false;
 	let draftTimer: ReturnType<typeof setTimeout> | null = null;
 	let hasValidated = false;
@@ -220,35 +210,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		packagedFiles = [];
 	};
 
-	const saveApiKey = (): void => {
-		if (!isBrowser) {
-			return;
-		}
-		const trimmed = apiKeyInput.trim();
-		if (trimmed.length === 0) {
-			clearStoredApiKey();
-			apiKeyStatus = 'API key cleared.';
-			hasSavedApiKey = false;
-			apiSettingsOpen = true;
-			return;
-		}
-		saveStoredApiKey(trimmed);
-		apiKeyStatus = 'API key saved in this browser.';
-		hasSavedApiKey = true;
-		apiSettingsOpen = false;
-	};
-
-	const clearApiKey = (): void => {
-		apiKeyInput = '';
-		if (!isBrowser) {
-			return;
-		}
-		clearStoredApiKey();
-		apiKeyStatus = 'API key cleared.';
-		hasSavedApiKey = false;
-		apiSettingsOpen = true;
-	};
-
 	const validateSpec = async (): Promise<boolean> => {
 		const validation = await specValidationAdapter.validate({ spec });
 		validationIssues = validation.issues;
@@ -290,14 +251,10 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 				return;
 			}
 
-			const { payload } = await postJson(
-				'/api/generate',
-				{
-					spec,
-					styleHint: styleHint.trim().length > 0 ? styleHint : undefined
-				},
-				apiKeyInput
-			);
+			const { payload } = await postJson('/api/generate', {
+				spec,
+				styleHint: styleHint.trim().length > 0 ? styleHint : undefined
+			});
 			const parsedGenerate = GenerateResultSchema.safeParse(payload);
 			if (!parsedGenerate.success) {
 				generationError = 'Generate response did not match contract.';
@@ -479,13 +436,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	onMount(async () => {
 		isBrowser = true;
-		const storedApiKey = loadStoredApiKey();
-		if (storedApiKey && storedApiKey.trim().length > 0) {
-			apiKeyInput = storedApiKey;
-			apiKeyStatus = 'API key loaded from this browser.';
-			hasSavedApiKey = true;
-			apiSettingsOpen = false;
-		}
 		const sessionResult = await sessionAdapter.getSession();
 		if (sessionResult.ok) {
 			owner = buildOwner(sessionResult.value.sessionId);
@@ -721,13 +671,8 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 				</button>
 				<button type="button" class="ghost" on:click={resetSpec}>Reset</button>
 			</div>
-			{#if !hasSavedApiKey}
-				<p class="api-key-hint">
-					An API key is required. Expand <strong>API Key Settings</strong> below to add one.
-				</p>
-			{/if}
 
-			<details class="advanced-toggle" bind:open={hasAdvancedValidationIssues}>
+		<details class="advanced-toggle" bind:open={hasAdvancedValidationIssues}>
 				<summary>More controls</summary>
 				<div class="advanced-content">
 					<div class="field-row">
@@ -1033,28 +978,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		<a class="primary meechie-link-button" href="/meechie">Go To Meechie Tools</a>
 	</section>
 
-	<details class="card api-settings" bind:open={apiSettingsOpen}>
-		<summary>API Key Settings</summary>
-		<div class="advanced-content">
-			<p class="api-key-label">Paste your API key to generate pages</p>
-			<input
-				type={revealApiKey ? 'text' : 'password'}
-				bind:value={apiKeyInput}
-				placeholder="Paste key here"
-				autocomplete="off"
-				spellcheck="false"
-			/>
-			<div class="api-key-actions">
-				<button type="button" class="ghost tiny" on:click={saveApiKey}>Save</button>
-				<button type="button" class="ghost tiny" on:click={clearApiKey}>Clear</button>
-				<button type="button" class="ghost tiny" on:click={() => (revealApiKey = !revealApiKey)}>
-					{revealApiKey ? 'Hide' : 'Show'}
-				</button>
-			</div>
-			<p class="api-key-status">{apiKeyStatus}</p>
-		</div>
-	</details>
-
 	<div class="mobile-actions" aria-label="Quick actions">
 		<button
 			type="button"
@@ -1064,9 +987,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		>
 			{isGenerating ? 'Creating...' : 'Create Pages'}
 		</button>
-		{#if !hasSavedApiKey}
-			<p class="api-key-hint">API key required — expand <strong>API Key Settings</strong> above.</p>
-		{/if}
 	</div>
 </div>
 
@@ -1632,8 +1552,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		z-index: 1;
 	}
 
-	.advanced-card summary,
-	.api-settings summary {
+	.advanced-card summary {
 		cursor: pointer;
 		list-style: none;
 		font-family: 'Fraunces', 'Times New Roman', serif;
@@ -1643,13 +1562,11 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		color: var(--cream);
 	}
 
-	.advanced-card summary::-webkit-details-marker,
-	.api-settings summary::-webkit-details-marker {
+	.advanced-card summary::-webkit-details-marker {
 		display: none;
 	}
 
-	.advanced-card summary::after,
-	.api-settings summary::after {
+	.advanced-card summary::after {
 		content: 'Show ›';
 		float: right;
 		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
@@ -1661,8 +1578,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		color: var(--gold);
 	}
 
-	.advanced-card[open] summary::after,
-	.api-settings[open] summary::after {
+	.advanced-card[open] summary::after {
 		content: 'Hide ‹';
 	}
 
@@ -1698,40 +1614,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	.advanced-toggle[open] summary::after {
 		content: '‹';
-	}
-
-	.api-settings {
-		position: relative;
-		z-index: 1;
-	}
-
-	.api-key-label {
-		margin: 0 0 0.6rem;
-		font-size: 0.8rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--gold);
-		display: block;
-	}
-
-	.api-key-actions {
-		display: flex;
-		gap: 0.4rem;
-		margin-top: 0.45rem;
-		flex-wrap: wrap;
-	}
-
-	.api-key-status {
-		margin: 0.5rem 0 0;
-		font-size: 0.76rem;
-		color: var(--lavender);
-	}
-
-	.api-key-hint {
-		margin: 0.5rem 0 0;
-		font-size: 0.8rem;
-		color: var(--lavender);
 	}
 
 	.mobile-actions {

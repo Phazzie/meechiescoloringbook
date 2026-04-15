@@ -4,7 +4,7 @@ Why: Keep non-technical users in one place while reusing seam-backed tools.
 Info flow: User inputs -> MeechieToolSeam -> response output.
 -->
 <script lang="ts">
-	import { loadStoredApiKey, postJson } from '$lib/core/http-client';
+	import { postJson } from '$lib/core/http-client';
 	import type { MeechieToolInput, MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
 	import {
 		HoroscopeSignSchema,
@@ -137,7 +137,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		}
 
 		try {
-			const { payload } = await postJson('/api/tools', parsedInput.data, loadStoredApiKey());
+			const { payload } = await postJson('/api/tools', parsedInput.data);
 			const parsedResult = MeechieToolResultSchema.safeParse(payload);
 			if (!parsedResult.success) {
 				error = 'Tool response did not match contract.';
