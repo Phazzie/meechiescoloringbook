@@ -245,18 +245,16 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 
 <style>
 	.meechie {
-		margin-top: 48px;
+		margin-top: 2rem;
 		position: relative;
-		padding: 32px;
-		border-radius: 24px;
-		background:
-			linear-gradient(165deg, rgba(18, 26, 41, 0.94), rgba(24, 32, 52, 0.94)),
-			#0f1726;
-		border: 1px solid rgba(206, 163, 94, 0.26);
+		padding: 2rem;
+		border-radius: 1.4rem;
+		background: #16142a;
+		border: 1px solid rgba(201, 162, 39, 0.35);
 		display: flex;
 		flex-direction: column;
-		gap: 24px;
-		box-shadow: 0 20px 36px rgba(16, 22, 35, 0.32);
+		gap: 1.5rem;
+		box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5);
 		overflow: hidden;
 	}
 
@@ -265,34 +263,37 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		position: absolute;
 		top: -40px;
 		right: -20px;
-		width: 180px;
+		width: 200px;
 		aspect-ratio: 1;
 		border-radius: 50%;
-		background: radial-gradient(circle, rgba(224, 173, 96, 0.24), transparent 65%);
+		background: radial-gradient(circle, rgba(232, 0, 106, 0.18), transparent 65%);
 		pointer-events: none;
 	}
 
 	.hero h2 {
 		font-size: clamp(1.6rem, 3vw, 2.1rem);
 		margin: 0;
-		line-height: 1.15;
+		line-height: 1.1;
 		letter-spacing: -0.02em;
-		color: #f5f7fc;
+		font-style: italic;
+		font-weight: 800;
+		color: var(--cream);
 		font-family: 'Fraunces', 'Times New Roman', serif;
 	}
 
 	.subtitle {
-		margin: 8px 0 0;
-		color: #c4ccdc;
+		margin: 0.5rem 0 0;
+		color: var(--lavender);
+		font-size: 0.95rem;
 	}
 
 	.eyebrow {
 		text-transform: uppercase;
-		letter-spacing: 0.15em;
+		letter-spacing: 0.18em;
 		font-size: 0.72rem;
-		margin: 0 0 8px;
+		margin: 0 0 0.5rem;
 		font-weight: 700;
-		color: #d8b273;
+		color: var(--gold);
 	}
 
 	.tool-picker,
@@ -301,72 +302,90 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	.output {
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
+		gap: 0.75rem;
 		position: relative;
 		z-index: 1;
 	}
 
 	.label {
 		font-weight: 700;
-		color: #e8edf7;
+		font-size: 0.82rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--gold);
 	}
 
 	textarea,
 	input,
 	select {
-		padding: 10px 12px;
-		border-radius: 12px;
-		border: 1px solid rgba(112, 131, 167, 0.34);
+		padding: 0.62rem 0.78rem;
+		border-radius: 0.72rem;
+		border: 1px solid rgba(201, 162, 39, 0.25);
 		font-size: 0.95rem;
 		font-family: inherit;
-		background: rgba(255, 255, 255, 0.92);
-		color: #1d2638;
+		background: rgba(7, 7, 15, 0.65);
+		color: var(--cream);
 		transition: border-color 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	textarea::placeholder,
+	input::placeholder {
+		color: rgba(184, 170, 207, 0.45);
+	}
+
+	select option {
+		background: var(--dark-card-alt);
+		color: var(--cream);
 	}
 
 	textarea:focus,
 	input:focus,
 	select:focus {
 		outline: none;
-		border-color: #d39d55;
-		box-shadow: 0 0 0 3px rgba(211, 157, 85, 0.2);
+		border-color: var(--gold);
+		box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.18);
 	}
 
 	.help {
-		color: #b5bfce;
-		font-size: 0.9rem;
+		color: var(--lavender);
+		font-size: 0.88rem;
+		margin: 0;
 	}
 
 	.actions .primary {
-		padding: 12px 16px;
+		padding: 0.75rem 1.4rem;
 		border-radius: 999px;
 		border: none;
-		background: linear-gradient(112deg, #314f86, #dd4f92 56%, #dfaa59);
-		color: #fffaf2;
-		font-weight: 700;
+		background: linear-gradient(112deg, var(--fuchsia), #6b21a8 52%, var(--gold));
+		color: #fff;
+		font-weight: 800;
+		font-size: 0.95rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
 		cursor: pointer;
-		transition: transform 0.2s ease, box-shadow 0.2s ease;
+		transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 	}
 
 	.actions .primary:hover {
-		transform: translateY(-1px);
-		box-shadow: 0 12px 18px rgba(49, 79, 134, 0.32);
+		transform: translateY(-2px);
+		box-shadow: 0 14px 28px rgba(232, 0, 106, 0.35);
+		filter: saturate(1.1) brightness(1.05);
 	}
 
 	.actions .primary:disabled {
-		opacity: 0.6;
+		opacity: 0.45;
 		cursor: not-allowed;
 	}
 
 	.lineup-items {
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
+		gap: 0.5rem;
 	}
 
 	.lineup-row {
 		display: flex;
-		gap: 8px;
+		gap: 0.5rem;
 		align-items: center;
 	}
 
@@ -375,55 +394,62 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	}
 
 	.ghost {
-		border: 1px solid rgba(141, 161, 194, 0.42);
-		background: rgba(35, 47, 71, 0.76);
-		padding: 6px 10px;
+		border: 1px solid var(--gold-border);
+		background: transparent;
+		padding: 0.38rem 0.72rem;
 		border-radius: 999px;
 		cursor: pointer;
 		font-size: 0.85rem;
-		color: #e6edf9;
-		transition: transform 0.2s ease;
+		font-weight: 600;
+		color: var(--gold-bright);
+		transition: transform 0.2s ease, border-color 0.2s ease;
 	}
 
 	.ghost:hover {
 		transform: translateY(-1px);
+		border-color: var(--gold);
 	}
 
 	.error {
-		color: #7e233f;
+		color: #ff8ab3;
 		font-weight: 700;
-		background: rgba(255, 214, 228, 0.86);
-		border-radius: 10px;
-		padding: 10px 12px;
-		border: 1px solid rgba(205, 86, 132, 0.42);
+		background: rgba(232, 0, 106, 0.12);
+		border-radius: 0.7rem;
+		padding: 0.65rem 0.85rem;
+		border: 1px solid rgba(232, 0, 106, 0.35);
 	}
 
 	.output {
-		padding: 16px;
-		border-radius: 16px;
-		background: rgba(255, 255, 255, 0.95);
-		border: 1px solid rgba(103, 121, 153, 0.24);
-		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+		padding: 1.2rem;
+		border-radius: 1rem;
+		background: rgba(7, 7, 15, 0.7);
+		border-left: 3px solid var(--fuchsia);
+		border-top: 1px solid rgba(201, 162, 39, 0.2);
+		border-right: 1px solid rgba(201, 162, 39, 0.2);
+		border-bottom: 1px solid rgba(201, 162, 39, 0.2);
 	}
 
 	.output h3 {
-		margin-top: 0;
-		color: #1e2740;
+		margin: 0 0 0.65rem;
+		color: var(--gold-bright);
 		font-family: 'Fraunces', 'Times New Roman', serif;
+		font-style: italic;
+		font-size: 1.2rem;
 	}
 
 	.output pre {
 		white-space: pre-wrap;
 		font-family: inherit;
 		margin: 0;
-		color: #3a465e;
-		line-height: 1.45;
+		color: var(--cream);
+		line-height: 1.5;
+		font-size: 0.95rem;
 	}
 
 	@media (max-width: 680px) {
 		.meechie {
-			padding: 20px;
-			border-radius: 18px;
+			padding: 1.2rem;
+			border-radius: 1rem;
 		}
 
 		.lineup-row {

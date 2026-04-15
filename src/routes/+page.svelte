@@ -79,6 +79,8 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	let apiKeyInput = '';
 	let apiKeyStatus = 'No API key saved.';
 	let revealApiKey = false;
+	let hasSavedApiKey = false;
+	let apiSettingsOpen = true;
 	let isBrowser = false;
 	let draftTimer: ReturnType<typeof setTimeout> | null = null;
 	let hasValidated = false;
@@ -226,10 +228,14 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		if (trimmed.length === 0) {
 			clearStoredApiKey();
 			apiKeyStatus = 'API key cleared.';
+			hasSavedApiKey = false;
+			apiSettingsOpen = true;
 			return;
 		}
 		saveStoredApiKey(trimmed);
 		apiKeyStatus = 'API key saved in this browser.';
+		hasSavedApiKey = true;
+		apiSettingsOpen = false;
 	};
 
 	const clearApiKey = (): void => {
@@ -239,6 +245,8 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		}
 		clearStoredApiKey();
 		apiKeyStatus = 'API key cleared.';
+		hasSavedApiKey = false;
+		apiSettingsOpen = true;
 	};
 
 	const validateSpec = async (): Promise<boolean> => {
@@ -249,6 +257,28 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	};
 
 	$: isSpecValid = hasValidated && validationIssues.length === 0;
+
+	const ADVANCED_FIELDS = new Set([
+		'alignment',
+		'numberAlignment',
+		'fontStyle',
+		'fontSize',
+		'strokeWidth',
+		'colorMode',
+		'pageSize',
+		'decorations',
+		'illustrations',
+		'shading',
+		'border',
+		'borderThickness',
+		'includeFooter',
+		'includeSquareExport',
+		'includeChatExport'
+	]);
+
+	$: hasAdvancedValidationIssues = validationIssues.some((issue) =>
+		ADVANCED_FIELDS.has(issue.field)
+	);
 
 	const handleGenerate = async (): Promise<void> => {
 		resetOutputs();
@@ -453,6 +483,8 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		if (storedApiKey && storedApiKey.trim().length > 0) {
 			apiKeyInput = storedApiKey;
 			apiKeyStatus = 'API key loaded from this browser.';
+			hasSavedApiKey = true;
+			apiSettingsOpen = false;
 		}
 		const sessionResult = await sessionAdapter.getSession();
 		if (sessionResult.ok) {
@@ -511,73 +543,30 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 				</div>
 			</div>
 		</div>
-		<div class="hero-card">
-			<p class="hero-label">Control Booth</p>
-			<div class="status-row">
-				<span class="dot" aria-hidden="true"></span>
-				<span>{sessionStatus}</span>
-			</div>
-			<div class="status-row">
-				<span class="dot alt" aria-hidden="true"></span>
-				<span>{draftStatus || 'Draft idle'}</span>
-			</div>
-			<div class="status-row">
-				<span class="dot alt" aria-hidden="true"></span>
-				<span>{creations.length} looks saved on this device</span>
-			</div>
-			<div class="api-key-panel">
-				<p class="api-key-label">Temporary API key (backend in progress)</p>
-				<input
-					type={revealApiKey ? 'text' : 'password'}
-					bind:value={apiKeyInput}
-					placeholder="Paste key here"
-					autocomplete="off"
-					spellcheck="false"
-				/>
-				<div class="api-key-actions">
-					<button type="button" class="ghost tiny" on:click={saveApiKey}>Save key</button>
-					<button type="button" class="ghost tiny" on:click={clearApiKey}>Clear</button>
-					<button
-						type="button"
-						class="ghost tiny"
-						on:click={() => (revealApiKey = !revealApiKey)}
-					>
-						{revealApiKey ? 'Hide' : 'Show'}
-					</button>
-				</div>
-				<p class="api-key-status">{apiKeyStatus}</p>
-			</div>
-			<p class="mini">Easy Mode for speed. Pro Mode for exact control.</p>
-			<button class="ghost" type="button" on:click={resetSpec}>Reset style</button>
-		</div>
 	</header>
+
+	<section class="card chat">
+		<h2>Just say it</h2>
+		<div class="field">
+			<label for="chat">Tell Meechie what you want</label>
+			<textarea
+				id="chat"
+				rows="3"
+				bind:value={chatMessage}
+				on:input={scheduleDraftSave}
+				placeholder="Example: glam birthday theme with diamonds, heels, and bold lettering"
+			></textarea>
+		</div>
+		<button type="button" class="primary" on:click={handleChatInterpretation}>
+			Make It
+		</button>
+	</section>
+
+	<p class="or-divider">— or build it yourself —</p>
 
 	<div class="grid">
 		<section class="card builder">
 			<h2>Build the Look</h2>
-			<div class="builder-mode" role="group" aria-label="Builder mode">
-				<button
-					type="button"
-					class="mode-chip"
-					class:active={builderMode === 'quick'}
-					on:click={() => (builderMode = 'quick')}
-				>
-					Easy Mode
-				</button>
-				<button
-					type="button"
-					class="mode-chip"
-					class:active={builderMode === 'full'}
-					on:click={() => (builderMode = 'full')}
-				>
-					Pro Mode
-				</button>
-			</div>
-			<p class="mode-hint">
-				{builderMode === 'quick'
-					? 'Easy Mode keeps it moving: headline, vibe words, presets.'
-					: 'Pro Mode unlocks spacing, typography, border, and layout detail.'}
-			</p>
 
 			<div class="field">
 				<label for="title">Main headline</label>
@@ -682,173 +671,23 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 					placeholder="glitzy, gritty, luxury, street"
 				/>
 			</div>
-			{#if builderMode === 'quick'}
-				<div class="field">
-					<p class="label">Vibe presets</p>
-					<div class="preset-row">
-						<button type="button" class="ghost preset" on:click={() => applyQuickPreset('minimal')}>
-							Soft Luxe
-						</button>
-						<button type="button" class="ghost preset" on:click={() => applyQuickPreset('sparkle')}>
-							Diamond Night
-						</button>
-						<button type="button" class="ghost preset" on:click={() => applyQuickPreset('story_scene')}>
-							City Story
-						</button>
-						<button type="button" class="ghost preset" on:click={() => applyQuickPreset('bold_block')}>
-							Boss Energy
-						</button>
-					</div>
+			<div class="field">
+				<p class="label">Vibe presets</p>
+				<div class="preset-row">
+					<button type="button" class="ghost preset" on:click={() => applyQuickPreset('minimal')}>
+						Soft Luxe
+					</button>
+					<button type="button" class="ghost preset" on:click={() => applyQuickPreset('sparkle')}>
+						Diamond Night
+					</button>
+					<button type="button" class="ghost preset" on:click={() => applyQuickPreset('story_scene')}>
+						City Story
+					</button>
+					<button type="button" class="ghost preset" on:click={() => applyQuickPreset('bold_block')}>
+						Boss Energy
+					</button>
 				</div>
-			{/if}
-
-			{#if builderMode === 'full'}
-				<div class="field-row">
-					<div class="field">
-						<label for="alignment">Alignment</label>
-						<select id="alignment" bind:value={spec.alignment} on:change={scheduleDraftSave}>
-							<option value="left">Left</option>
-							<option value="center">Center</option>
-						</select>
-					</div>
-					<div class="field">
-						<label for="numberAlignment">Number alignment</label>
-						<select id="numberAlignment" bind:value={spec.numberAlignment} on:change={scheduleDraftSave}>
-							<option value="strict">Strict</option>
-							<option value="loose">Loose</option>
-						</select>
-					</div>
-					<div class="field">
-						<label for="listGutter">List gutter</label>
-						<select
-							id="listGutter"
-							bind:value={spec.listGutter}
-							on:change={scheduleDraftSave}
-							disabled={spec.listMode === 'title_only'}
-						>
-							<option value="tight">Tight</option>
-							<option value="normal">Normal</option>
-							<option value="loose">Loose</option>
-						</select>
-					</div>
-				</div>
-
-				<div class="field-row">
-					<div class="field">
-						<label for="whitespaceScale">Whitespace scale</label>
-						<input
-							id="whitespaceScale"
-							type="range"
-							min="0"
-							max="100"
-							bind:value={spec.whitespaceScale}
-							on:input={scheduleDraftSave}
-						/>
-						<span class="hint">{spec.whitespaceScale}</span>
-					</div>
-					<div class="field">
-						<label for="textSize">Text size</label>
-						<select id="textSize" bind:value={spec.textSize} on:change={scheduleDraftSave}>
-							<option value="small">Small</option>
-							<option value="medium">Medium</option>
-							<option value="large">Large</option>
-						</select>
-					</div>
-					<div class="field">
-						<label for="fontStyle">Font style</label>
-						<select id="fontStyle" bind:value={spec.fontStyle} on:change={scheduleDraftSave}>
-							<option value="rounded">Rounded</option>
-							<option value="block">Block</option>
-							<option value="hand">Handwritten</option>
-						</select>
-					</div>
-				</div>
-
-				<div class="field-row">
-					<div class="field">
-						<label for="textStrokeWidth">Text stroke width</label>
-						<input
-							id="textStrokeWidth"
-							type="range"
-							min="4"
-							max="12"
-							bind:value={spec.textStrokeWidth}
-							on:input={scheduleDraftSave}
-						/>
-						<span class="hint">{spec.textStrokeWidth}px</span>
-					</div>
-					<div class="field">
-						<label for="colorMode">Color mode</label>
-						<select id="colorMode" bind:value={spec.colorMode} on:change={scheduleDraftSave}>
-							<option value="black_and_white_only">Black + white</option>
-							<option value="grayscale">Grayscale</option>
-							<option value="color">Color</option>
-						</select>
-					</div>
-					<div class="field">
-						<label for="pageSize">Page size</label>
-						<select id="pageSize" bind:value={spec.pageSize} on:change={scheduleDraftSave}>
-							<option value="US_Letter">US Letter</option>
-							<option value="A4">A4</option>
-						</select>
-					</div>
-				</div>
-
-				<div class="field-row">
-					<div class="field">
-						<label for="decorations">Interior decorations</label>
-						<select id="decorations" bind:value={spec.decorations} on:change={scheduleDraftSave}>
-							<option value="none">None</option>
-							<option value="minimal">Minimal</option>
-							<option value="dense">Dense</option>
-						</select>
-					</div>
-					<div class="field">
-						<label for="illustrations">Illustrations</label>
-						<select id="illustrations" bind:value={spec.illustrations} on:change={scheduleDraftSave}>
-							<option value="none">None</option>
-							<option value="simple">Simple</option>
-							<option value="scene">Scene</option>
-						</select>
-					</div>
-					<div class="field">
-						<label for="shading">Shading</label>
-						<select id="shading" bind:value={spec.shading} on:change={scheduleDraftSave}>
-							<option value="none">None</option>
-							<option value="hatch">Hatch</option>
-							<option value="stippling">Stippling</option>
-						</select>
-					</div>
-				</div>
-
-				<div class="field-row">
-					<div class="field">
-						<label for="border">Border</label>
-						<select id="border" bind:value={spec.border} on:change={scheduleDraftSave}>
-							<option value="none">None</option>
-							<option value="plain">Plain</option>
-							<option value="decorative">Decorative</option>
-						</select>
-					</div>
-					<div class="field">
-						<label for="borderThickness">Border thickness</label>
-						<input
-							id="borderThickness"
-							type="range"
-							min="2"
-							max="16"
-							bind:value={spec.borderThickness}
-							on:input={scheduleDraftSave}
-						/>
-						<span class="hint">{spec.borderThickness}px</span>
-					</div>
-				</div>
-			{:else}
-				<p class="advanced-note">
-					Pro controls are currently on defaults. Switch to <strong>Pro Mode</strong> when you want
-					deeper control.
-				</p>
-			{/if}
+			</div>
 
 			<div class="field-row">
 				<div class="field">
@@ -871,18 +710,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 				</div>
 			</div>
 
-			<div class="field">
-				<p class="label">Social add-ons</p>
-				<label class="toggle">
-					<input type="checkbox" bind:checked={includeSquareExport} />
-					<span>Instagram square 1080x1080</span>
-				</label>
-				<label class="toggle">
-					<input type="checkbox" bind:checked={includeChatExport} />
-					<span>Chat share 720x720</span>
-				</label>
-			</div>
-
 			<div class="actions">
 				<button
 					type="button"
@@ -892,8 +719,171 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 				>
 					{isGenerating ? 'Creating...' : 'Create Pages'}
 				</button>
-				<button type="button" class="ghost" on:click={validateSpec}>Check Inputs</button>
+				<button type="button" class="ghost" on:click={resetSpec}>Reset</button>
 			</div>
+			{#if !hasSavedApiKey}
+				<p class="api-key-hint">
+					An API key is required. Expand <strong>API Key Settings</strong> below to add one.
+				</p>
+			{/if}
+
+			<details class="advanced-toggle" bind:open={hasAdvancedValidationIssues}>
+				<summary>More controls</summary>
+				<div class="advanced-content">
+					<div class="field-row">
+						<div class="field">
+							<label for="alignment">Alignment</label>
+							<select id="alignment" bind:value={spec.alignment} on:change={scheduleDraftSave}>
+								<option value="left">Left</option>
+								<option value="center">Center</option>
+							</select>
+						</div>
+						<div class="field">
+							<label for="numberAlignment">Number alignment</label>
+							<select id="numberAlignment" bind:value={spec.numberAlignment} on:change={scheduleDraftSave}>
+								<option value="strict">Strict</option>
+								<option value="loose">Loose</option>
+							</select>
+						</div>
+						<div class="field">
+							<label for="listGutter">List gutter</label>
+							<select
+								id="listGutter"
+								bind:value={spec.listGutter}
+								on:change={scheduleDraftSave}
+								disabled={spec.listMode === 'title_only'}
+							>
+								<option value="tight">Tight</option>
+								<option value="normal">Normal</option>
+								<option value="loose">Loose</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="field-row">
+						<div class="field">
+							<label for="whitespaceScale">Whitespace scale</label>
+							<input
+								id="whitespaceScale"
+								type="range"
+								min="0"
+								max="100"
+								bind:value={spec.whitespaceScale}
+								on:input={scheduleDraftSave}
+							/>
+							<span class="hint">{spec.whitespaceScale}</span>
+						</div>
+						<div class="field">
+							<label for="textSize">Text size</label>
+							<select id="textSize" bind:value={spec.textSize} on:change={scheduleDraftSave}>
+								<option value="small">Small</option>
+								<option value="medium">Medium</option>
+								<option value="large">Large</option>
+							</select>
+						</div>
+						<div class="field">
+							<label for="fontStyle">Font style</label>
+							<select id="fontStyle" bind:value={spec.fontStyle} on:change={scheduleDraftSave}>
+								<option value="rounded">Rounded</option>
+								<option value="block">Block</option>
+								<option value="hand">Handwritten</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="field-row">
+						<div class="field">
+							<label for="textStrokeWidth">Text stroke width</label>
+							<input
+								id="textStrokeWidth"
+								type="range"
+								min="4"
+								max="12"
+								bind:value={spec.textStrokeWidth}
+								on:input={scheduleDraftSave}
+							/>
+							<span class="hint">{spec.textStrokeWidth}px</span>
+						</div>
+						<div class="field">
+							<label for="colorMode">Color mode</label>
+							<select id="colorMode" bind:value={spec.colorMode} on:change={scheduleDraftSave}>
+								<option value="black_and_white_only">Black + white</option>
+								<option value="grayscale">Grayscale</option>
+								<option value="color">Color</option>
+							</select>
+						</div>
+						<div class="field">
+							<label for="pageSize">Page size</label>
+							<select id="pageSize" bind:value={spec.pageSize} on:change={scheduleDraftSave}>
+								<option value="US_Letter">US Letter</option>
+								<option value="A4">A4</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="field-row">
+						<div class="field">
+							<label for="decorations">Interior decorations</label>
+							<select id="decorations" bind:value={spec.decorations} on:change={scheduleDraftSave}>
+								<option value="none">None</option>
+								<option value="minimal">Minimal</option>
+								<option value="dense">Dense</option>
+							</select>
+						</div>
+						<div class="field">
+							<label for="illustrations">Illustrations</label>
+							<select id="illustrations" bind:value={spec.illustrations} on:change={scheduleDraftSave}>
+								<option value="none">None</option>
+								<option value="simple">Simple</option>
+								<option value="scene">Scene</option>
+							</select>
+						</div>
+						<div class="field">
+							<label for="shading">Shading</label>
+							<select id="shading" bind:value={spec.shading} on:change={scheduleDraftSave}>
+								<option value="none">None</option>
+								<option value="hatch">Hatch</option>
+								<option value="stippling">Stippling</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="field-row">
+						<div class="field">
+							<label for="border">Border</label>
+							<select id="border" bind:value={spec.border} on:change={scheduleDraftSave}>
+								<option value="none">None</option>
+								<option value="plain">Plain</option>
+								<option value="decorative">Decorative</option>
+							</select>
+						</div>
+						<div class="field">
+							<label for="borderThickness">Border thickness</label>
+							<input
+								id="borderThickness"
+								type="range"
+								min="2"
+								max="16"
+								bind:value={spec.borderThickness}
+								on:input={scheduleDraftSave}
+							/>
+							<span class="hint">{spec.borderThickness}px</span>
+						</div>
+					</div>
+
+					<div class="field">
+						<p class="label">Social add-ons</p>
+						<label class="toggle">
+							<input type="checkbox" bind:checked={includeSquareExport} />
+							<span>Instagram square 1080x1080</span>
+						</label>
+						<label class="toggle">
+							<input type="checkbox" bind:checked={includeChatExport} />
+							<span>Chat share 720x720</span>
+						</label>
+					</div>
+				</div>
+			</details>
 
 			{#if validationIssues.length > 0}
 				<div class="issues">
@@ -947,23 +937,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 			{/if}
 		</section>
 	</div>
-
-	<section class="card chat">
-		<h2>Say It Plain (Optional)</h2>
-		<div class="field">
-			<label for="chat">Tell Meechie what you want</label>
-			<textarea
-				id="chat"
-				rows="3"
-				bind:value={chatMessage}
-				on:input={scheduleDraftSave}
-				placeholder="Example: glam birthday theme with diamonds, heels, and bold lettering"
-			></textarea>
-		</div>
-		<button type="button" class="ghost" on:click={handleChatInterpretation}>
-			Turn This Into Settings
-		</button>
-	</section>
 
 	<details class="card advanced-card">
 		<summary>System Trace (Advanced)</summary>
@@ -1060,6 +1033,28 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		<a class="primary meechie-link-button" href="/meechie">Go To Meechie Tools</a>
 	</section>
 
+	<details class="card api-settings" bind:open={apiSettingsOpen}>
+		<summary>API Key Settings</summary>
+		<div class="advanced-content">
+			<p class="api-key-label">Paste your API key to generate pages</p>
+			<input
+				type={revealApiKey ? 'text' : 'password'}
+				bind:value={apiKeyInput}
+				placeholder="Paste key here"
+				autocomplete="off"
+				spellcheck="false"
+			/>
+			<div class="api-key-actions">
+				<button type="button" class="ghost tiny" on:click={saveApiKey}>Save</button>
+				<button type="button" class="ghost tiny" on:click={clearApiKey}>Clear</button>
+				<button type="button" class="ghost tiny" on:click={() => (revealApiKey = !revealApiKey)}>
+					{revealApiKey ? 'Hide' : 'Show'}
+				</button>
+			</div>
+			<p class="api-key-status">{apiKeyStatus}</p>
+		</div>
+	</details>
+
 	<div class="mobile-actions" aria-label="Quick actions">
 		<button
 			type="button"
@@ -1069,29 +1064,35 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		>
 			{isGenerating ? 'Creating...' : 'Create Pages'}
 		</button>
-		<button type="button" class="ghost mobile-ghost" on:click={validateSpec}>Check Inputs</button>
+		{#if !hasSavedApiKey}
+			<p class="api-key-hint">API key required — expand <strong>API Key Settings</strong> above.</p>
+		{/if}
 	</div>
 </div>
 
 <style>
 	:global(body) {
-		--ink-900: #0d1321;
-		--ink-700: #27324a;
-		--paper-100: #f8f7f4;
-		--paper-200: #eeece8;
-		--rose-300: #f29ec4;
-		--rose-500: #dd4f92;
-		--champagne-300: #f4d19b;
-		--champagne-500: #dfaa59;
-		--emerald-300: #8cdbc9;
-		--emerald-500: #1f8977;
+		--fuchsia: #e8006a;
+		--fuchsia-glow: rgba(232, 0, 106, 0.22);
+		--gold: #c9a227;
+		--gold-bright: #f0c44a;
+		--gold-border: rgba(201, 162, 39, 0.35);
+		--cream: #fdf6e3;
+		--lavender: #b8aacf;
+		--dark-base: #07070f;
+		--dark-surface: #100f1c;
+		--dark-card: #16142a;
+		--dark-card-alt: #1c1932;
+		--emerald: #00c896;
+		color-scheme: dark;
 		margin: 0;
 		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
-		color: #222a37;
+		color: var(--cream);
 		background:
-			radial-gradient(circle at 0% 0%, rgba(221, 79, 146, 0.14), transparent 36%),
-			radial-gradient(circle at 100% 0%, rgba(223, 170, 89, 0.18), transparent 40%),
-			linear-gradient(180deg, #f8f7f4, #efede9 55%, #ece8e2);
+			radial-gradient(circle at 0% 0%, rgba(232, 0, 106, 0.18), transparent 38%),
+			radial-gradient(circle at 100% 0%, rgba(107, 33, 168, 0.2), transparent 42%),
+			radial-gradient(circle at 50% 100%, rgba(201, 162, 39, 0.08), transparent 50%),
+			linear-gradient(180deg, #07070f, #0d0b1a 60%, #070710);
 		min-height: 100vh;
 	}
 
@@ -1105,7 +1106,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	.ambient {
 		position: absolute;
 		pointer-events: none;
-		filter: blur(7px);
+		filter: blur(9px);
 		z-index: 0;
 	}
 
@@ -1115,7 +1116,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		width: clamp(180px, 26vw, 340px);
 		aspect-ratio: 1;
 		border-radius: 36% 64% 54% 46%;
-		background: linear-gradient(145deg, rgba(241, 87, 151, 0.28), rgba(255, 201, 130, 0.2));
+		background: linear-gradient(145deg, rgba(232, 0, 106, 0.26), rgba(107, 33, 168, 0.18));
 		animation: drift 14s ease-in-out infinite;
 	}
 
@@ -1125,67 +1126,61 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		width: clamp(170px, 20vw, 300px);
 		aspect-ratio: 1;
 		border-radius: 46% 54% 44% 56%;
-		background: linear-gradient(145deg, rgba(21, 125, 132, 0.24), rgba(140, 231, 217, 0.16));
+		background: linear-gradient(145deg, rgba(201, 162, 39, 0.2), rgba(107, 33, 168, 0.15));
 		animation: drift 17s ease-in-out infinite reverse;
 	}
 
 	.hero {
 		position: relative;
 		z-index: 1;
-		display: flex;
-		gap: 1.7rem;
-		justify-content: space-between;
-		align-items: stretch;
-		margin-bottom: 1.8rem;
-	}
-
-	.hero-copy {
-		flex: 1;
-		padding: 1.3rem 0.1rem;
+		padding: 1.6rem 0.2rem 2rem;
+		margin-bottom: 1.4rem;
 	}
 
 	.eyebrow {
 		margin: 0 0 0.55rem;
 		text-transform: uppercase;
-		letter-spacing: 0.14em;
+		letter-spacing: 0.18em;
 		font-size: 0.72rem;
 		font-weight: 700;
-		color: #7d3664;
+		color: var(--gold);
 	}
 
 	h1 {
 		margin: 0 0 0.7rem;
-		max-width: 15ch;
+		max-width: 18ch;
 		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-size: clamp(2rem, 4.8vw, 3.3rem);
-		line-height: 0.98;
-		letter-spacing: -0.02em;
-		color: #131a2c;
+		font-size: clamp(2.2rem, 5.2vw, 3.8rem);
+		font-style: italic;
+		font-weight: 800;
+		line-height: 0.95;
+		letter-spacing: -0.03em;
+		color: var(--cream);
 	}
 
 	.subhead {
 		margin: 0;
-		max-width: 560px;
-		font-size: 1.04rem;
+		max-width: 520px;
+		font-size: 1rem;
 		line-height: 1.45;
-		color: #4f5b70;
+		color: var(--lavender);
 	}
 
 	.flow-steps {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.65rem;
-		margin-top: 1rem;
+		margin-top: 1.2rem;
 	}
 
 	.step {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.45rem;
-		padding: 0.34rem 0.62rem;
+		padding: 0.34rem 0.72rem;
 		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.56);
-		border: 1px solid rgba(101, 82, 121, 0.24);
+		background: rgba(22, 20, 42, 0.7);
+		border: 1px solid var(--gold-border);
 	}
 
 	.step span {
@@ -1197,115 +1192,43 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		border-radius: 50%;
 		font-size: 0.72rem;
 		font-weight: 700;
-		background: rgba(38, 31, 53, 0.12);
-		color: #3a2b55;
+		background: rgba(201, 162, 39, 0.2);
+		color: var(--gold-bright);
 	}
 
 	.step p {
 		margin: 0;
 		font-size: 0.77rem;
 		font-weight: 700;
-		color: #4e4560;
+		color: var(--lavender);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 	}
 
 	.step.done {
-		border-color: rgba(31, 137, 119, 0.45);
-		background: rgba(140, 219, 201, 0.24);
+		border-color: rgba(0, 200, 150, 0.4);
+		background: rgba(0, 200, 150, 0.08);
 	}
 
 	.step.done span {
-		background: linear-gradient(130deg, var(--emerald-500), #26a28f);
-		color: #f7fffb;
+		background: linear-gradient(130deg, #00c896, #00a87a);
+		color: #021a12;
 	}
 
 	.step.done p {
-		color: #1f695d;
+		color: #00c896;
 	}
 
-	.hero-card {
-		width: min(350px, 100%);
-		min-width: 250px;
-		padding: 1.35rem;
-		border-radius: 1.2rem;
-		background:
-			linear-gradient(165deg, rgba(255, 255, 255, 0.95), rgba(255, 244, 230, 0.94)),
-			#fff;
-		border: 1px solid rgba(97, 114, 133, 0.22);
-		box-shadow: 0 18px 34px rgba(38, 55, 84, 0.14);
-	}
-
-	.hero-label {
-		margin: 0 0 0.45rem;
-		font-size: 0.78rem;
+	.or-divider {
+		position: relative;
+		z-index: 1;
+		text-align: center;
+		margin: 0 0 1.4rem;
+		font-size: 0.8rem;
 		font-weight: 700;
+		letter-spacing: 0.12em;
 		text-transform: uppercase;
-		letter-spacing: 0.11em;
-		color: #703257;
-	}
-
-	.status-row {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin-bottom: 0.38rem;
-		font-size: 0.9rem;
-		color: #3b334f;
-	}
-
-	.dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: var(--rose-500);
-		box-shadow: 0 0 0 4px rgba(221, 79, 146, 0.18);
-	}
-
-	.dot.alt {
-		background: var(--emerald-500);
-		box-shadow: 0 0 0 4px rgba(31, 137, 119, 0.18);
-	}
-
-	.mini {
-		margin: 0.75rem 0 0.92rem;
-		font-size: 0.82rem;
-		line-height: 1.35;
-		color: #5a4c63;
-	}
-
-	.api-key-panel {
-		margin-top: 0.7rem;
-		padding: 0.72rem;
-		border-radius: 0.9rem;
-		background: rgba(255, 255, 255, 0.72);
-		border: 1px solid rgba(117, 85, 125, 0.24);
-	}
-
-	.api-key-label {
-		margin: 0 0 0.4rem;
-		font-size: 0.74rem;
-		font-weight: 700;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: #5a3f5f;
-	}
-
-	.api-key-panel input {
-		width: 100%;
-	}
-
-	.api-key-actions {
-		display: flex;
-		gap: 0.4rem;
-		margin-top: 0.45rem;
-		flex-wrap: wrap;
-	}
-
-	.api-key-status {
-		margin: 0.45rem 0 0;
-		font-size: 0.76rem;
-		color: #5f526c;
+		color: rgba(184, 170, 207, 0.5);
 	}
 
 	.grid {
@@ -1321,10 +1244,9 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		position: relative;
 		padding: 1.45rem;
 		border-radius: 1.2rem;
-		background: rgba(255, 255, 255, 0.84);
-		border: 1px solid rgba(98, 113, 131, 0.2);
-		box-shadow: 0 14px 30px rgba(38, 55, 84, 0.11);
-		backdrop-filter: blur(4px);
+		background: var(--dark-card);
+		border: 1px solid var(--gold-border);
+		box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
 	}
 
 	.card::before {
@@ -1335,9 +1257,9 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		padding: 1px;
 		background: linear-gradient(
 			130deg,
-			rgba(221, 79, 146, 0.22),
-			rgba(223, 170, 89, 0.2),
-			rgba(31, 137, 119, 0.16)
+			rgba(232, 0, 106, 0.3),
+			rgba(201, 162, 39, 0.25),
+			rgba(107, 33, 168, 0.2)
 		);
 		mask:
 			linear-gradient(#fff 0 0) content-box,
@@ -1347,24 +1269,29 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	}
 
 	.builder {
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 246, 236, 0.86)),
-			#fff;
+		background: var(--dark-card);
 	}
 
 	.card.preview {
 		min-height: 520px;
-		background:
-			linear-gradient(180deg, rgba(255, 251, 246, 0.9), rgba(255, 242, 229, 0.88)),
-			#fff;
+		background: var(--dark-card-alt);
+	}
+
+	.chat {
+		position: relative;
+		z-index: 1;
+		margin-bottom: 0.5rem;
+		background: linear-gradient(160deg, rgba(232, 0, 106, 0.08), rgba(22, 20, 42, 0.95));
 	}
 
 	h2 {
 		margin: 0 0 0.9rem;
 		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-size: 1.42rem;
+		font-size: 1.5rem;
+		font-style: italic;
+		font-weight: 800;
 		letter-spacing: -0.01em;
-		color: #2b2237;
+		color: var(--cream);
 	}
 
 	.field {
@@ -1385,8 +1312,10 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	.label {
 		margin: 0;
 		font-weight: 700;
-		font-size: 0.89rem;
-		color: #453a57;
+		font-size: 0.82rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--gold);
 	}
 
 	.field-row {
@@ -1403,63 +1332,20 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	}
 
 	.preset {
-		padding: 0.42rem 0.8rem;
+		padding: 0.42rem 0.85rem;
 		font-size: 0.79rem;
-	}
-
-	.builder-mode {
-		display: inline-flex;
-		gap: 0.5rem;
-		padding: 0.22rem;
-		border-radius: 999px;
-		background: rgba(93, 65, 117, 0.13);
-		margin-bottom: 0.45rem;
-	}
-
-	.mode-chip {
-		border: none;
-		border-radius: 999px;
-		padding: 0.42rem 0.82rem;
-		font-size: 0.8rem;
-		font-weight: 700;
-		letter-spacing: 0.03em;
-		background: transparent;
-		color: #4d3e62;
-		cursor: pointer;
-	}
-
-	.mode-chip.active {
-		background: linear-gradient(120deg, #3c2f51, #6c4d85);
-		color: #fef6eb;
-		box-shadow: 0 8px 16px rgba(60, 47, 81, 0.22);
-	}
-
-	.mode-hint {
-		margin: 0 0 1rem;
-		font-size: 0.84rem;
-		color: #5f526c;
-	}
-
-	.advanced-note {
-		margin: 0 0 1rem;
-		padding: 0.75rem 0.9rem;
-		border-radius: 0.85rem;
-		font-size: 0.84rem;
-		color: #5c4d4c;
-		background: rgba(255, 225, 199, 0.42);
-		border: 1px solid rgba(212, 140, 85, 0.3);
 	}
 
 	input,
 	select,
 	textarea {
 		border-radius: 0.72rem;
-		border: 1px solid rgba(107, 84, 121, 0.25);
+		border: 1px solid rgba(201, 162, 39, 0.25);
 		padding: 0.62rem 0.72rem;
 		font-size: 0.94rem;
 		font-family: inherit;
-		color: #2d2439;
-		background: rgba(255, 255, 255, 0.9);
+		color: var(--cream);
+		background: rgba(7, 7, 15, 0.7);
 		transition: border-color 0.2s ease, box-shadow 0.2s ease;
 	}
 
@@ -1467,8 +1353,18 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	select:focus,
 	textarea:focus {
 		outline: none;
-		border-color: #b85f8d;
-		box-shadow: 0 0 0 3px rgba(184, 95, 141, 0.18);
+		border-color: var(--gold);
+		box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.18);
+	}
+
+	input::placeholder,
+	textarea::placeholder {
+		color: rgba(184, 170, 207, 0.45);
+	}
+
+	select option {
+		background: #1c1932;
+		color: var(--cream);
 	}
 
 	textarea {
@@ -1494,42 +1390,47 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		align-items: center;
 		font-size: 0.9rem;
 		font-weight: 600;
-		color: #4d4162;
+		color: var(--lavender);
+		text-transform: none;
+		letter-spacing: normal;
 	}
 
 	.actions {
 		display: flex;
 		gap: 0.7rem;
 		align-items: center;
+		margin-bottom: 1rem;
 	}
 
 	.primary {
 		border: none;
 		border-radius: 999px;
-		padding: 0.68rem 1.28rem;
-		background: linear-gradient(112deg, #22345a, #dd4f92 52%, #dfaa59);
-		color: #fffaf2;
-		font-weight: 700;
-		letter-spacing: 0.02em;
+		padding: 0.72rem 1.4rem;
+		background: linear-gradient(112deg, #e8006a, #6b21a8 52%, #c9a227);
+		color: #fff;
+		font-weight: 800;
+		font-size: 0.95rem;
+		letter-spacing: 0.04em;
 		cursor: pointer;
 		transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+		text-transform: uppercase;
 	}
 
 	.primary:hover {
-		transform: translateY(-1px);
-		box-shadow: 0 12px 24px rgba(58, 76, 114, 0.28);
-		filter: saturate(1.08);
+		transform: translateY(-2px);
+		box-shadow: 0 14px 28px rgba(232, 0, 106, 0.35);
+		filter: saturate(1.1) brightness(1.05);
 	}
 
 	.ghost {
 		border-radius: 999px;
 		padding: 0.52rem 0.96rem;
-		border: 1px solid rgba(117, 85, 125, 0.34);
-		background: rgba(255, 255, 255, 0.8);
-		color: #43364f;
+		border: 1px solid var(--gold-border);
+		background: transparent;
+		color: var(--gold-bright);
 		font-weight: 600;
 		cursor: pointer;
-		transition: transform 0.2s ease, box-shadow 0.2s ease;
+		transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 	}
 
 	.ghost.tiny {
@@ -1539,25 +1440,26 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	.ghost:hover {
 		transform: translateY(-1px);
-		box-shadow: 0 9px 16px rgba(70, 48, 43, 0.14);
+		border-color: var(--gold);
+		box-shadow: 0 6px 16px rgba(201, 162, 39, 0.18);
 	}
 
 	.ghost:disabled,
 	.primary:disabled {
-		opacity: 0.55;
+		opacity: 0.45;
 		cursor: not-allowed;
 	}
 
 	.hint {
 		font-size: 0.79rem;
-		color: #6a5b78;
+		color: var(--lavender);
 	}
 
 	.issues {
 		padding: 0.95rem;
 		border-radius: 0.95rem;
-		background: rgba(255, 227, 216, 0.58);
-		border: 1px solid rgba(225, 126, 96, 0.42);
+		background: rgba(232, 0, 106, 0.1);
+		border: 1px solid rgba(232, 0, 106, 0.35);
 	}
 
 	.issues ul {
@@ -1578,9 +1480,9 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	.preview-grid img {
 		width: 100%;
 		border-radius: 0.82rem;
-		border: 1px solid rgba(110, 88, 124, 0.24);
-		background: #fff;
-		box-shadow: 0 10px 24px rgba(73, 54, 57, 0.17);
+		border: 1px solid var(--gold-border);
+		background: #1c1932;
+		box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
 	}
 
 	.preview-grid figure.sparkle::after {
@@ -1589,11 +1491,11 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		inset: 0;
 		border-radius: 0.82rem;
 		background:
-			radial-gradient(circle at 16% 20%, rgba(255, 255, 255, 0.86), transparent 30%),
-			radial-gradient(circle at 82% 28%, rgba(255, 255, 255, 0.72), transparent 34%),
-			radial-gradient(circle at 38% 76%, rgba(255, 255, 255, 0.58), transparent 40%),
-			radial-gradient(circle at 72% 78%, rgba(255, 255, 255, 0.45), transparent 44%);
-		opacity: 0.62;
+			radial-gradient(circle at 16% 20%, rgba(240, 196, 74, 0.5), transparent 30%),
+			radial-gradient(circle at 82% 28%, rgba(232, 0, 106, 0.4), transparent 34%),
+			radial-gradient(circle at 38% 76%, rgba(107, 33, 168, 0.35), transparent 40%),
+			radial-gradient(circle at 72% 78%, rgba(240, 196, 74, 0.3), transparent 44%);
+		opacity: 0.7;
 		mix-blend-mode: screen;
 		pointer-events: none;
 	}
@@ -1602,20 +1504,20 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		margin-top: 0.4rem;
 		text-align: center;
 		font-size: 0.82rem;
-		color: #62566d;
+		color: var(--lavender);
 	}
 
 	p.error {
 		margin: 0 0 0.7rem;
-		color: #7e2d43;
-		background: rgba(255, 218, 231, 0.74);
-		border: 1px solid rgba(205, 86, 132, 0.34);
+		color: #ff8ab3;
+		background: rgba(232, 0, 106, 0.12);
+		border: 1px solid rgba(232, 0, 106, 0.35);
 		padding: 0.7rem;
 		border-radius: 0.8rem;
 	}
 
 	.empty {
-		color: #665a74;
+		color: var(--lavender);
 		font-style: italic;
 	}
 
@@ -1629,11 +1531,21 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	.download {
 		text-decoration: none;
 		font-weight: 700;
-		color: #3a2c53;
-		background: rgba(255, 247, 236, 0.95);
-		border: 1px solid rgba(206, 149, 92, 0.3);
+		color: var(--gold-bright);
+		background: rgba(201, 162, 39, 0.1);
+		border: 1px solid var(--gold-border);
 		padding: 0.52rem 0.78rem;
 		border-radius: 0.78rem;
+		transition: background 0.2s ease;
+	}
+
+	.download:hover {
+		background: rgba(201, 162, 39, 0.18);
+	}
+
+	.history {
+		position: relative;
+		z-index: 1;
 	}
 
 	.creations {
@@ -1648,19 +1560,19 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		align-items: center;
 		padding: 0.9rem;
 		border-radius: 0.95rem;
-		border: 1px solid rgba(119, 88, 123, 0.25);
-		background: rgba(255, 255, 255, 0.84);
+		border: 1px solid var(--gold-border);
+		background: rgba(7, 7, 15, 0.6);
 	}
 
 	.creation .title {
 		margin-bottom: 0.2rem;
 		font-weight: 700;
-		color: #362b47;
+		color: var(--cream);
 	}
 
 	.creation .meta {
 		font-size: 0.75rem;
-		color: #70647d;
+		color: var(--lavender);
 	}
 
 	.creation-actions {
@@ -1676,31 +1588,25 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		padding: 0 0.4rem;
 		border-radius: 999px;
 		font-size: 0.65rem;
-		background: rgba(255, 206, 133, 0.38);
-		color: #7e4b1d;
+		background: rgba(201, 162, 39, 0.2);
+		color: var(--gold-bright);
 	}
 
 	.ghost.danger {
-		color: #8b324b;
-		border-color: rgba(139, 50, 75, 0.4);
+		color: #ff6b8a;
+		border-color: rgba(232, 0, 106, 0.4);
 	}
 
 	.success {
-		color: #1f8468;
+		color: var(--emerald);
 	}
 
 	li.error {
-		color: #a33b2b;
+		color: #ff6b8a;
 	}
 
 	.warning {
-		color: #b16a2b;
-	}
-
-	.chat,
-	.history {
-		position: relative;
-		z-index: 1;
+		color: var(--gold-bright);
 	}
 
 	.meechie-link-card {
@@ -1711,7 +1617,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	.meechie-link-copy {
 		margin: 0 0 1rem;
-		color: #5f526c;
+		color: var(--lavender);
 	}
 
 	.meechie-link-button {
@@ -1726,35 +1632,106 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		z-index: 1;
 	}
 
-	.advanced-card summary {
+	.advanced-card summary,
+	.api-settings summary {
 		cursor: pointer;
 		list-style: none;
 		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-size: 1.32rem;
-		color: #2b2237;
+		font-style: italic;
+		font-size: 1.3rem;
+		font-weight: 700;
+		color: var(--cream);
 	}
 
-	.advanced-card summary::-webkit-details-marker {
+	.advanced-card summary::-webkit-details-marker,
+	.api-settings summary::-webkit-details-marker {
 		display: none;
 	}
 
-	.advanced-card summary::after {
-		content: 'Show';
+	.advanced-card summary::after,
+	.api-settings summary::after {
+		content: 'Show ›';
 		float: right;
 		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
 		font-size: 0.75rem;
 		font-weight: 700;
+		font-style: normal;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
-		color: #7d3664;
+		color: var(--gold);
 	}
 
-	.advanced-card[open] summary::after {
-		content: 'Hide';
+	.advanced-card[open] summary::after,
+	.api-settings[open] summary::after {
+		content: 'Hide ‹';
 	}
 
 	.advanced-content {
 		margin-top: 0.9rem;
+	}
+
+	.advanced-toggle {
+		margin-top: 0.5rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid rgba(201, 162, 39, 0.15);
+	}
+
+	.advanced-toggle summary {
+		cursor: pointer;
+		list-style: none;
+		font-size: 0.8rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--gold);
+		padding: 0.4rem 0;
+	}
+
+	.advanced-toggle summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.advanced-toggle summary::after {
+		content: '›';
+		margin-left: 0.4rem;
+	}
+
+	.advanced-toggle[open] summary::after {
+		content: '‹';
+	}
+
+	.api-settings {
+		position: relative;
+		z-index: 1;
+	}
+
+	.api-key-label {
+		margin: 0 0 0.6rem;
+		font-size: 0.8rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--gold);
+		display: block;
+	}
+
+	.api-key-actions {
+		display: flex;
+		gap: 0.4rem;
+		margin-top: 0.45rem;
+		flex-wrap: wrap;
+	}
+
+	.api-key-status {
+		margin: 0.5rem 0 0;
+		font-size: 0.76rem;
+		color: var(--lavender);
+	}
+
+	.api-key-hint {
+		margin: 0.5rem 0 0;
+		font-size: 0.8rem;
+		color: var(--lavender);
 	}
 
 	.mobile-actions {
@@ -1762,16 +1739,8 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	}
 
 	@media (max-width: 900px) {
-		.hero {
-			flex-direction: column;
-		}
-
 		h1 {
 			max-width: none;
-		}
-
-		.hero-card {
-			width: 100%;
 		}
 
 		.grid {
@@ -1787,7 +1756,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		}
 
 		.page {
-			padding-bottom: 7.5rem;
+			padding-bottom: 6rem;
 		}
 
 		.mobile-actions {
@@ -1796,29 +1765,23 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 			right: 0.8rem;
 			bottom: max(0.7rem, env(safe-area-inset-bottom));
 			z-index: 20;
-			display: grid;
-			grid-template-columns: 1fr auto;
-			gap: 0.52rem;
+			display: flex;
 			padding: 0.52rem;
 			border-radius: 0.95rem;
-			background: rgba(255, 248, 240, 0.94);
-			border: 1px solid rgba(112, 84, 116, 0.26);
-			backdrop-filter: blur(6px);
-			box-shadow: 0 12px 24px rgba(70, 48, 43, 0.2);
+			background: rgba(7, 7, 15, 0.92);
+			border: 1px solid var(--gold-border);
+			backdrop-filter: blur(8px);
+			box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
 		}
 
 		.mobile-actions .mobile-primary {
 			width: 100%;
 		}
-
-		.mobile-actions .mobile-ghost {
-			padding-inline: 0.82rem;
-		}
 	}
 
 	@media (max-width: 640px) {
 		.page {
-			padding: 1.35rem 0.88rem 8.1rem;
+			padding: 1.35rem 0.88rem 7rem;
 		}
 
 		.actions {
