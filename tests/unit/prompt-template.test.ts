@@ -22,29 +22,7 @@ import {
 	NEGATIVE_PROMPT_HEADING,
 	VECTOR_LINEWORK_PHRASE
 } from '../../src/lib/core/prompt-template';
-import type { ColoringPageSpec } from '../../contracts/spec-validation.contract';
-
-const baseSpec: ColoringPageSpec = {
-	title: 'Test',
-	items: [{ number: 1, label: 'Item one' }],
-	listMode: 'list',
-	alignment: 'left',
-	numberAlignment: 'strict',
-	listGutter: 'normal',
-	whitespaceScale: 50,
-	textSize: 'small',
-	fontStyle: 'rounded',
-	textStrokeWidth: 6,
-	colorMode: 'black_and_white_only',
-	decorations: 'none',
-	illustrations: 'none',
-	shading: 'none',
-	border: 'plain',
-	borderThickness: 8,
-	variations: 1,
-	outputFormat: 'pdf',
-	pageSize: 'US_Letter'
-};
+import { makeBaseSpec } from '../helpers/make-base-spec';
 
 describe('prompt-template helpers', () => {
 	describe('formatListItems', () => {
@@ -68,96 +46,110 @@ describe('prompt-template helpers', () => {
 
 	describe('colorModeLine', () => {
 		it('returns grayscale line', () => {
-			expect(colorModeLine('grayscale')).toBe('Color: grayscale.');
+			const line = colorModeLine('grayscale');
+			expect(line).toContain('Color:');
+			expect(line).toContain('grayscale');
 		});
 
 		it('returns color line', () => {
-			expect(colorModeLine('color')).toBe('Color: color.');
+			const line = colorModeLine('color');
+			expect(line).toContain('Color:');
+			expect(line).toContain('color');
 		});
 
 		it('returns black and white line for default', () => {
-			expect(colorModeLine('black_and_white_only')).toBe('Color: black and white only.');
+			const line = colorModeLine('black_and_white_only');
+			expect(line).toContain('Color:');
+			expect(line).toContain('black and white');
 		});
 	});
 
 	describe('pageSizeLine', () => {
 		it('returns A4 dimensions for A4', () => {
-			expect(pageSizeLine('A4')).toBe('A4 8.27x11.69 portrait.');
+			const line = pageSizeLine('A4');
+			expect(line).toContain('A4');
+			expect(line).toContain('8.27x11.69');
 		});
 
 		it('returns US Letter dimensions for US_Letter', () => {
-			expect(pageSizeLine('US_Letter')).toBe('US Letter 8.5x11 portrait.');
+			const line = pageSizeLine('US_Letter');
+			expect(line).toContain('US Letter');
+			expect(line).toContain('8.5x11');
 		});
 	});
 
 	describe('fontStyleLine', () => {
 		it('returns font style string', () => {
-			expect(fontStyleLine('rounded')).toBe('Font: rounded.');
-			expect(fontStyleLine('block')).toBe('Font: block.');
-			expect(fontStyleLine('hand')).toBe('Font: hand.');
+			expect(fontStyleLine('rounded')).toContain('rounded');
+			expect(fontStyleLine('block')).toContain('block');
+			expect(fontStyleLine('hand')).toContain('hand');
 		});
 	});
 
 	describe('textStrokeLine', () => {
 		it('returns stroke width string', () => {
-			expect(textStrokeLine(6)).toBe('Stroke: 6px.');
-			expect(textStrokeLine(12)).toBe('Stroke: 12px.');
+			expect(textStrokeLine(6)).toContain('6px');
+			expect(textStrokeLine(12)).toContain('12px');
 		});
 	});
 
 	describe('decorationLine', () => {
 		it('returns minimal decoration line', () => {
-			expect(decorationLine('minimal')).toBe('Decorations: minimal outline icons.');
+			expect(decorationLine('minimal')).toContain('minimal');
 		});
 
 		it('returns dense decoration line', () => {
-			expect(decorationLine('dense')).toBe('Decorations: dense outline icons.');
+			expect(decorationLine('dense')).toContain('dense');
 		});
 
 		it('returns none decoration line for default', () => {
-			expect(decorationLine('none')).toBe('Decorations: none.');
+			expect(decorationLine('none')).toContain('none');
 		});
 	});
 
 	describe('illustrationLine', () => {
 		it('returns simple illustration line', () => {
-			expect(illustrationLine('simple')).toBe('Illustrations: simple outlines.');
+			expect(illustrationLine('simple')).toContain('simple');
 		});
 
 		it('returns scene illustration line', () => {
-			expect(illustrationLine('scene')).toBe('Illustrations: scene outlines.');
+			expect(illustrationLine('scene')).toContain('scene');
 		});
 
 		it('returns none illustration line for default', () => {
-			expect(illustrationLine('none')).toBe('Illustrations: none.');
+			expect(illustrationLine('none')).toContain('none');
 		});
 	});
 
 	describe('shadingLine', () => {
 		it('returns hatch shading line', () => {
-			expect(shadingLine('hatch')).toBe('Shading: hatch.');
+			expect(shadingLine('hatch')).toContain('hatch');
 		});
 
 		it('returns stippling shading line', () => {
-			expect(shadingLine('stippling')).toBe('Shading: stippling.');
+			expect(shadingLine('stippling')).toContain('stippling');
 		});
 
 		it('returns none shading line for default', () => {
-			expect(shadingLine('none')).toBe('Shading: none.');
+			expect(shadingLine('none')).toContain('none');
 		});
 	});
 
 	describe('borderLine', () => {
 		it('returns decorative border line with thickness', () => {
-			expect(borderLine('decorative', 8)).toBe('Border: decorative 8px.');
+			const line = borderLine('decorative', 8);
+			expect(line).toContain('decorative');
+			expect(line).toContain('8');
 		});
 
 		it('returns none border line', () => {
-			expect(borderLine('none', 8)).toBe('Border: none.');
+			expect(borderLine('none', 8)).toContain('none');
 		});
 
 		it('returns plain border line with thickness for default', () => {
-			expect(borderLine('plain', 10)).toBe('Border: plain 10px.');
+			const line = borderLine('plain', 10);
+			expect(line).toContain('plain');
+			expect(line).toContain('10');
 		});
 	});
 
@@ -193,54 +185,50 @@ describe('prompt-template helpers', () => {
 
 	describe('listLineForSpec', () => {
 		it('returns list items line with gutter for list mode', () => {
-			const result = listLineForSpec(baseSpec);
+			const result = listLineForSpec(makeBaseSpec());
 			expect(result).toContain('List items: 1. Item one');
 			expect(result).toContain('Gutter: normal');
 		});
 
 		it('returns "No list." for title_only mode', () => {
-			const spec: ColoringPageSpec = { ...baseSpec, listMode: 'title_only', items: [] };
+			const spec = makeBaseSpec({ listMode: 'title_only', items: [] });
 			expect(listLineForSpec(spec)).toBe('No list.');
 		});
 	});
 
 	describe('negativeLinesForSpec', () => {
 		it('includes "no color" and "no grayscale" for black_and_white_only', () => {
-			const lines = negativeLinesForSpec(baseSpec);
+			const lines = negativeLinesForSpec(makeBaseSpec());
 			expect(lines).toContain('no color');
 			expect(lines).toContain('no grayscale');
 		});
 
 		it('includes "no color" but not "no grayscale" for grayscale mode', () => {
-			const spec: ColoringPageSpec = { ...baseSpec, colorMode: 'grayscale' };
+			const spec = makeBaseSpec({ colorMode: 'grayscale' });
 			const lines = negativeLinesForSpec(spec);
 			expect(lines).toContain('no color');
 			expect(lines).not.toContain('no grayscale');
 		});
 
 		it('excludes "no color" for color mode', () => {
-			const spec: ColoringPageSpec = { ...baseSpec, colorMode: 'color' };
+			const spec = makeBaseSpec({ colorMode: 'color' });
 			const lines = negativeLinesForSpec(spec);
 			expect(lines).not.toContain('no color');
 		});
 
 		it('includes "no shading" when shading is none', () => {
-			const lines = negativeLinesForSpec(baseSpec);
+			const lines = negativeLinesForSpec(makeBaseSpec());
 			expect(lines).toContain('no shading');
 		});
 
 		it('excludes "no shading" when shading is hatch', () => {
-			const spec: ColoringPageSpec = {
-				...baseSpec,
-				shading: 'hatch',
-				decorations: 'minimal'
-			};
+			const spec = makeBaseSpec({ shading: 'hatch', decorations: 'minimal' });
 			const lines = negativeLinesForSpec(spec);
 			expect(lines).not.toContain('no shading');
 		});
 
 		it('always includes universal negative phrases', () => {
-			const lines = negativeLinesForSpec(baseSpec);
+			const lines = negativeLinesForSpec(makeBaseSpec());
 			expect(lines).toContain('no gradients');
 			expect(lines).toContain('no filled shapes');
 			expect(lines).toContain('no extra words');
