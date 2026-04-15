@@ -39,7 +39,7 @@ Steps 1–5 can be completed and tested with no real I/O. The adapter (Step 6) i
 | **Seam** | A boundary between your core logic and an external system (API, database, filesystem, browser storage, third-party service). |
 | **Contract** | A schema that defines the seam's interface — inputs, outputs, constraints, and error modes. The single source of truth. |
 | **Probe** | A script that runs against the real external system and captures its actual behavior as JSON. |
-| **Fixture** | A deterministic JSON snapshot of real behavior, used by mocks and tests. For I/O seams, fixtures always come from the probe — never hand-written or invented. For pure seams (no external system to probe), fixtures may be hand-crafted but must still conform to the contract schema. |
+| **Fixture** | A deterministic JSON snapshot of real behavior, used by mocks and tests. For I/O seams, fixtures always come from the probe — never hand-written or invented.<br>For pure seams (no external system to probe), fixtures may be hand-crafted but must still conform to the contract schema. |
 | **Mock** | A fixture-backed implementation with zero custom logic. Loads fixtures by scenario, returns them exactly. |
 | **Adapter** | The real implementation that performs I/O and validates its output against the contract. |
 
@@ -155,7 +155,10 @@ console.log('Fixtures written.');
 - Record the probe date. Fixtures go stale; you need to know when they were captured.
 - Probe both the happy path and at least one failure path.
 - For pure seams, skip this step entirely and mark the probe as N/A.
-- **Secrets and PII:** Never write API keys, passwords, session tokens, or personally identifiable information into fixture files. Before committing a fixture, redact any sensitive values (e.g., replace real email addresses with `user@example.com`, replace real user IDs with opaque strings). Add fixture directories to your secrets-scanning rules so CI can catch accidental leaks.
+
+#### Security: Handling Secrets and PII
+
+Never write API keys, passwords, session tokens, or personally identifiable information into fixture files. Before committing a fixture, redact any sensitive values (e.g., replace real email addresses with `user@example.com`, replace real user IDs with opaque strings). Add fixture directories to your secrets-scanning rules so CI can catch accidental leaks.
 
 ---
 
