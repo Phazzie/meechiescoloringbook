@@ -1421,3 +1421,22 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-04-15/test.txt; docs/evidence/2026-04-15/verify.txt; docs/evidence/2026-04-15/chamber-lock.json; docs/evidence/2026-04-15/shaolin-lint.json; docs/evidence/2026-04-15/assumption-alarm.json; docs/evidence/2026-04-15/seam-ledger.json; docs/evidence/2026-04-15/clan-chain.json; docs/evidence/2026-04-15/proof-tape.json
   - Summary: Replaced adapter-auto with adapter-vercel@6.3.3; svelte-check and all 65 tests remain green; no seam contracts changed.
   - Risks: Build output is now Vercel-specific; CI must run on Node.js 20+ to match Vercel's runtime.
+
+## 2026-04-15 - Deployment-readiness pass: lint, audit, unused dep removal, tests
+- Date: 2026-04-15
+- Decision: Perform a full deployment-readiness pass to eliminate technical debt that would block a clean Vercel deploy.
+- Context: After adapter-vercel was wired in, four items remained: (1) ESLint config had no browser/node globals, causing 1501 false-positive errors; (2) thirteen transitive devDependency vulnerabilities were auto-fixable; (3) `@sveltejs/adapter-auto` was still listed as a devDependency despite being unused; (4) `tests/e2e/` was empty and `playwright.config.ts` had no `webServer` entry; (5) `src/lib/core/http-client.ts` had zero unit tests.
+- Alternatives: Defer until a specific production deploy fails; add a blanket ESLint `/* eslint-disable */` comment instead of fixing globals.
+- Consequences: Lint is now clean, build artifacts are excluded from ESLint, all auto-fixable vulnerabilities are resolved, the E2E suite has a smoke test with auto-start server config, and http-client helpers are covered by 13 new unit tests. Test count rises from 65 to 78.
+- Residual technical debt (recorded as open assumptions):
+  1. Four low-severity vulnerabilities in `cookie` (via `@sveltejs/kit`) cannot be fixed without `npm audit fix --force`, which would downgrade `@sveltejs/kit` to `0.0.30` — a nonsensical breaking change. Fix will come from upstream `@sveltejs/kit` when they upgrade their `cookie` dep.
+  2. Provider probes (`ChatInterpretationSeam`, `ImageGenerationSeam`, `ProviderAdapterSeam`) are blocked pending `XAI_API_KEY`; fixtures last validated 2026-02-12.
+  3. Vercel environment variables (`XAI_API_KEY` etc.) must be configured in the Vercel dashboard before any generation call works in production.
+- Revisit criteria: After `@sveltejs/kit` ships a `cookie` ≥0.7.0 update, run `npm audit fix` again. After `XAI_API_KEY` is available, run probes to refresh fixtures.
+
+- Cipher Gate:
+  - Date: 2026-04-15
+  - Seams: ProviderAdapterSeam, ChatInterpretationSeam, ImageGenerationSeam
+  - Evidence: docs/evidence/2026-04-15/test.txt; docs/evidence/2026-04-15/verify.txt; docs/evidence/2026-04-15/chamber-lock.json; docs/evidence/2026-04-15/shaolin-lint.json; docs/evidence/2026-04-15/assumption-alarm.json; docs/evidence/2026-04-15/seam-ledger.json; docs/evidence/2026-04-15/clan-chain.json; docs/evidence/2026-04-15/proof-tape.json
+  - Summary: ESLint fixed (globals added, build artifacts ignored, probe lint error resolved); npm audit fix applied (13 vulns resolved, 4 low remain upstream); adapter-auto removed; E2E smoke test added with webServer config; http-client unit tests added (78 total passing); svelte-check 0 errors.
+  - Risks: 4 low-severity cookie CVEs remain until upstream kit update; probes are stale pending XAI_API_KEY; E2E tests require Playwright browsers installed in CI.

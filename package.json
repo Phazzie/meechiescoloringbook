@@ -35,7 +35,6 @@
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.58.1",
-		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/adapter-vercel": "^6.3.3",
 		"@sveltejs/kit": "^2.49.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",

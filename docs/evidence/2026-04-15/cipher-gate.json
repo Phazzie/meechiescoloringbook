@@ -1,9 +1,9 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-04-15T02:07:22.633Z",
+  "generatedAt": "2026-04-15T02:43:51.026Z",
   "cipher": {
     "date": "2026-04-15",
-    "seams": "ProviderAdapterSeam",
+    "seams": "ProviderAdapterSeam, ChatInterpretationSeam, ImageGenerationSeam",
     "evidence": [
       {
         "path": "docs/evidence/2026-04-15/test.txt",
@@ -38,9 +38,9 @@
         "exists": true
       }
     ],
-    "summary": "Replaced adapter-auto with adapter-vercel@6.3.3; svelte-check and all 65 tests remain green; no seam contracts changed.",
-    "risks": "Build output is now Vercel-specific; CI must run on Node.js 20+ to match Vercel's runtime."
+    "summary": "ESLint fixed (globals added, build artifacts ignored, probe lint error resolved); npm audit fix applied (13 vulns resolved, 4 low remain upstream); adapter-auto removed; E2E smoke test added with webServer config; http-client unit tests added (78 total passing); svelte-check 0 errors.",
+    "risks": "4 low-severity cookie CVEs remain until upstream kit update; probes are stale pending XAI_API_KEY; E2E tests require Playwright browsers installed in CI."
   },
-  "latestChangeMs": 1776218769207.5117,
+  "latestChangeMs": 1776220653740.0537,
   "status": "ok"
 }
