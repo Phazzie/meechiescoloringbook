@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-04-15T01:09:19.100Z",
+  "cipher": {
+    "date": "2026-04-15",
+    "seams": "PromptCompilerSeam, SafetyPolicySeam, GalleryStoreSeam, TelemetrySeam, ChatInterpretationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-04-15/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-15/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-15/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-15/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-15/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-15/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-15/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-15/proof-tape.json",
+        "exists": true
+      }
+    ],
+    "summary": "Removed four legacy seams with no active runtime callers, fixed chat interpretation to show loading state and inline errors, updated API key label, and restored governance compliance by adding a current Cipher Gate entry.",
+    "risks": "If provider fixtures drift from actual xAI responses (last validated 2026-02-12), contract tests may pass against stale data; run probes once XAI_API_KEY is available."
+  },
+  "latestChangeMs": 1776215266211.7432,
+  "status": "ok"
+}

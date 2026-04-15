@@ -71,6 +71,8 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	let packagedFiles: PackagedFile[] = [];
 	let generationError = '';
 	let isGenerating = false;
+	let isChatInterpreting = false;
+	let chatError = '';
 	let creations: CreationRecord[] = [];
 	let owner: CreationOwner | null = null;
 	let authContext: CreationRecord['authContext'] | null = null;
@@ -333,15 +335,23 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	};
 
 	const handleChatInterpretation = async (): Promise<void> => {
-		const result = await chatInterpretationAdapter.interpret({ message: chatMessage });
-		if (result.ok) {
-			spec = result.value.spec;
-			includeFooter = spec.listMode !== 'title_only' && !!spec.footerItem;
-			dedicationInput = spec.dedication ?? '';
-			await validateSpec();
-			scheduleDraftSave();
-		} else {
-			generationError = result.error.message;
+		chatError = '';
+		isChatInterpreting = true;
+		try {
+			const result = await chatInterpretationAdapter.interpret({ message: chatMessage });
+			if (result.ok) {
+				spec = result.value.spec;
+				includeFooter = spec.listMode !== 'title_only' && !!spec.footerItem;
+				dedicationInput = spec.dedication ?? '';
+				await validateSpec();
+				scheduleDraftSave();
+			} else {
+				chatError = result.error.message;
+			}
+		} catch (err) {
+			chatError = err instanceof Error ? err.message : 'Interpretation request failed.';
+		} finally {
+			isChatInterpreting = false;
 		}
 	};
 
@@ -526,7 +536,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 				<span>{creations.length} looks saved on this device</span>
 			</div>
 			<div class="api-key-panel">
-				<p class="api-key-label">Temporary API key (backend in progress)</p>
+				<p class="api-key-label">Your xAI API key (stored only in this browser)</p>
 				<input
 					type={revealApiKey ? 'text' : 'password'}
 					bind:value={apiKeyInput}
@@ -960,9 +970,17 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 				placeholder="Example: glam birthday theme with diamonds, heels, and bold lettering"
 			></textarea>
 		</div>
-		<button type="button" class="ghost" on:click={handleChatInterpretation}>
-			Turn This Into Settings
+		<button
+			type="button"
+			class="ghost"
+			on:click={handleChatInterpretation}
+			disabled={isChatInterpreting || chatMessage.trim().length === 0}
+		>
+			{isChatInterpreting ? 'Interpreting...' : 'Turn This Into Settings'}
 		</button>
+		{#if chatError}
+			<p class="chat-error" role="alert">{chatError}</p>
+		{/if}
 	</section>
 
 	<details class="card advanced-card">
@@ -1703,6 +1721,11 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		z-index: 1;
 	}
 
+	.chat-error {
+		margin-top: 0.5rem;
+		font-size: 0.85rem;
+		color: #ff6b6b;
+	}
 	.meechie-link-card {
 		position: relative;
 		z-index: 1;

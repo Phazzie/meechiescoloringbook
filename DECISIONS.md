@@ -1384,3 +1384,25 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-02-12/probe-image-generation.txt; docs/evidence/2026-02-12/npm-test.txt; docs/evidence/2026-02-12/npm-verify.txt; docs/evidence/2026-02-12/chamber-lock.json; docs/evidence/2026-02-12/shaolin-lint.json; docs/evidence/2026-02-12/assumption-alarm.json; docs/evidence/2026-02-12/seam-ledger.json; docs/evidence/2026-02-12/clan-chain.json; docs/evidence/2026-02-12/proof-tape.json
   - Summary: Made ImageGenerationSeam prompt phrase validation case-insensitive across server and adapter, then refreshed probe-backed fixtures.
   - Risks: If deterministic gating depends on exact casing, prompts that previously failed may now pass.
+
+## 2026-04-15 - Retire legacy seams, fix chat UX, restore governance compliance
+- Date: 2026-04-15
+- Decision: Remove the four legacy seam directories (PromptCompilerSeam, SafetyPolicySeam, GalleryStoreSeam, TelemetrySeam) from src/lib/seams/, remove their rows from docs/seams.md, and add a chat interpretation loading/error state with error displayed adjacent to the button.
+- Context: Audit on 2026-04-14 identified these four seams as dead code with zero active callers outside their own directories. Their contract-level tests were the only evidence of their existence, testing hollow mocks that are no longer connected to any runtime path. The chat interpretation handler also lacked a loading state, leaving users with no feedback while the xAI call runs.
+- Alternatives: Keep legacy seams as "retained for coverage" (chosen previously); add a note to each seam test that it is orphaned.
+- Consequences: Test count drops from 72 to 65. The seam ledger no longer shows four false-dirty seams. The chat button now disables while interpreting and shows errors inline. The API key label no longer says "backend in progress."
+- Revisit criteria: If any of the four retired seam contracts need to be revived for a new feature, re-introduce them following the full Seam-Driven Development workflow from contract step.
+
+- Assumption:
+  - Date: 2026-04-15
+  - Seams: ImageGenerationSeam, ChatInterpretationSeam, ProviderAdapterSeam
+  - Statement: XAI_API_KEY is not available in the current execution environment, so provider probes (image-generation.probe.mjs, chat-interpretation.probe.mjs, provider-adapter.probe.mjs) cannot run and fixtures last refreshed 2026-02-12 remain in use.
+  - Validation: Run `set -a; source .env; set +a` then `node probes/provider-adapter.probe.mjs`, `node probes/chat-interpretation.probe.mjs`, and `node probes/image-generation.probe.mjs` once XAI_API_KEY is available; update fixtures and run `npm run verify` to close this assumption.
+  - Status: open
+
+- Cipher Gate:
+  - Date: 2026-04-15
+  - Seams: PromptCompilerSeam, SafetyPolicySeam, GalleryStoreSeam, TelemetrySeam, ChatInterpretationSeam
+  - Evidence: docs/evidence/2026-04-15/test.txt; docs/evidence/2026-04-15/verify.txt; docs/evidence/2026-04-15/chamber-lock.json; docs/evidence/2026-04-15/shaolin-lint.json; docs/evidence/2026-04-15/assumption-alarm.json; docs/evidence/2026-04-15/seam-ledger.json; docs/evidence/2026-04-15/clan-chain.json; docs/evidence/2026-04-15/proof-tape.json
+  - Summary: Removed four legacy seams with no active runtime callers, fixed chat interpretation to show loading state and inline errors, updated API key label, and restored governance compliance by adding a current Cipher Gate entry.
+  - Risks: If provider fixtures drift from actual xAI responses (last validated 2026-02-12), contract tests may pass against stale data; run probes once XAI_API_KEY is available.
