@@ -1,10 +1,34 @@
+<!--
+Purpose: Quick reference guide for Seam-Driven Development methodology.
+Why: Provide a single source of truth for the workflow, rules, and governance patterns used across this codebase.
+Info flow: Core concepts and workflow steps -> governance practices -> checklists -> AI agent guidance.
+-->
+
 # Seam-Driven Development: A General-Purpose Guide
 
-## What is SDD?
+## What is Seam-Driven Development?
 
 Seam-Driven Development is an engineering method that isolates side effects behind explicit boundaries — called **seams** — so behavior can be proven with real-world evidence before integration. Every seam gets a contract, a probe, fixtures, a mock, and an adapter, in that order.
 
-The core problem it solves: developers (and AI agents) **assume** how external systems behave instead of **measuring** it. This causes silent integration failures, undocumented shortcuts, and conflicts discovered too late. SDD replaces assumptions with proof.
+The core problem it solves: developers (and AI agents) **assume** how external systems behave instead of **measuring** it. This causes silent integration failures, undocumented shortcuts, and conflicts discovered too late. Seam-Driven Development replaces assumptions with proof.
+
+---
+
+## Six-Step Workflow at a Glance
+
+The workflow is strictly sequential. Each step produces an artifact that the next step consumes.
+
+```
+Step 1: Contract   →  contracts/<seam>.contract.ts      (schema + types + error codes)
+Step 2: Probe      →  probes/<seam>.probe.mjs            (runs against real system)
+Step 3: Fixtures   →  fixtures/<seam>/sample.json        (happy-path snapshot)
+                      fixtures/<seam>/fault.json          (failure-path snapshot)
+Step 4: Mock       →  src/lib/mocks/<seam>.mock.ts       (loads fixtures, zero logic)
+Step 5: Tests      →  tests/contract/<seam>.test.ts      (runs against mock + adapter)
+Step 6: Adapter    →  src/lib/adapters/<seam>.adapter.ts (real I/O, validates output)
+```
+
+Steps 1–5 can be completed and tested with no real I/O. The adapter (Step 6) is written last, after the contract is proven correct through the mock.
 
 ---
 
@@ -15,7 +39,7 @@ The core problem it solves: developers (and AI agents) **assume** how external s
 | **Seam** | A boundary between your core logic and an external system (API, database, filesystem, browser storage, third-party service). |
 | **Contract** | A schema that defines the seam's interface — inputs, outputs, constraints, and error modes. The single source of truth. |
 | **Probe** | A script that runs against the real external system and captures its actual behavior as JSON. |
-| **Fixture** | A deterministic JSON snapshot of real behavior, used by mocks and tests. Never hand-written or invented. |
+| **Fixture** | A deterministic JSON snapshot of real behavior, used by mocks and tests. For I/O seams, fixtures always come from the probe — never hand-written or invented. For pure seams (no external system to probe), fixtures may be hand-crafted but must still conform to the contract schema. |
 | **Mock** | A fixture-backed implementation with zero custom logic. Loads fixtures by scenario, returns them exactly. |
 | **Adapter** | The real implementation that performs I/O and validates its output against the contract. |
 
@@ -44,31 +68,25 @@ Define the seam's interface as a schema. Zod is recommended because it produces 
 ```typescript
 // contracts/user-profile.contract.ts
 import { z } from 'zod';
+import { resultSchema, type Result } from './shared.contract';
 
 export const UserProfileInputSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().min(1),
 });
 
 export const UserProfileOutputSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   email: z.string().email(),
   displayName: z.string().min(1).max(100),
   createdAt: z.string().datetime(),
 });
 
-export const UserProfileErrorSchema = z.object({
-  code: z.enum(['USER_NOT_FOUND', 'SERVICE_UNAVAILABLE', 'INPUT_INVALID']),
-  message: z.string(),
-});
-
-// Result envelope — use this pattern across all seams
-export const UserProfileResultSchema = z.discriminatedUnion('ok', [
-  z.object({ ok: z.literal(true), value: UserProfileOutputSchema }),
-  z.object({ ok: z.literal(false), error: UserProfileErrorSchema }),
-]);
+// Use the shared resultSchema helper — keeps result + error shapes consistent across all seams.
+// SeamErrorSchema (from shared.contract.ts) covers the error branch automatically.
+export const UserProfileResultSchema = resultSchema(UserProfileOutputSchema);
 
 export type UserProfileInput = z.infer<typeof UserProfileInputSchema>;
-export type UserProfileResult = z.infer<typeof UserProfileResultSchema>;
+export type UserProfileResult = Result<z.infer<typeof UserProfileOutputSchema>>;
 
 // The seam interface
 export type UserProfileSeam = {
@@ -117,7 +135,14 @@ const faultData = await faultResponse.json();
 await writeFile('fixtures/user-profile/fault.json', JSON.stringify({
   scenario: 'fault',
   input: { userId: 'does-not-exist' },
-  output: { ok: false, error: { code: 'USER_NOT_FOUND', message: `API returned ${faultResponse.status}` } },
+  output: {
+    ok: false,
+    error: {
+      code: 'USER_NOT_FOUND',
+      message: `API returned ${faultResponse.status}`,
+      details: faultData,
+    },
+  },
   probedAt: new Date().toISOString().slice(0, 10),
 }, null, 2));
 
@@ -130,6 +155,7 @@ console.log('Fixtures written.');
 - Record the probe date. Fixtures go stale; you need to know when they were captured.
 - Probe both the happy path and at least one failure path.
 - For pure seams, skip this step entirely and mark the probe as N/A.
+- **Secrets and PII:** Never write API keys, passwords, session tokens, or personally identifiable information into fixture files. Before committing a fixture, redact any sensitive values (e.g., replace real email addresses with `user@example.com`, replace real user IDs with opaque strings). Add fixture directories to your secrets-scanning rules so CI can catch accidental leaks.
 
 ---
 
@@ -137,10 +163,10 @@ console.log('Fixtures written.');
 
 Store the probe output as deterministic snapshots.
 
-```
+```text
 fixtures/user-profile/
 ├── sample.json    # Happy path: valid input → valid output
-└── fault.json     # Failure path: bad input → structured error
+└── fault.json     # Failure path: missing resource → structured error
 ```
 
 **Fixture schema:**
@@ -177,14 +203,14 @@ A fixture-backed implementation with **zero custom logic**.
 
 ```typescript
 // mocks/user-profile.mock.ts
-import type { UserProfileSeam } from '../contracts/user-profile.contract';
+import type { UserProfileSeam, UserProfileInput } from '../contracts/user-profile.contract';
 import sampleFixture from '../../fixtures/user-profile/sample.json';
 import faultFixture from '../../fixtures/user-profile/fault.json';
 
 type Scenario = 'sample' | 'fault';
 
 export const createUserProfileMock = (scenario: Scenario): UserProfileSeam => ({
-  getProfile: async () => {
+  getProfile: async (input: UserProfileInput) => {
     const fixture = scenario === 'fault' ? faultFixture : sampleFixture;
     return fixture.output;
   },
@@ -205,10 +231,15 @@ Write tests that prove the fixtures work with both the mock and the adapter.
 
 ```typescript
 // tests/contract/user-profile.test.ts
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createUserProfileMock } from '../../mocks/user-profile.mock';
 import { userProfileAdapter } from '../../adapters/user-profile.adapter';
 import sampleFixture from '../../fixtures/user-profile/sample.json';
 import faultFixture from '../../fixtures/user-profile/fault.json';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('UserProfile contract', () => {
   // Mock tests — run first, no I/O
@@ -221,8 +252,7 @@ describe('UserProfile contract', () => {
   it('mock returns fault fixture on failure', async () => {
     const mock = createUserProfileMock('fault');
     const result = await mock.getProfile(faultFixture.input);
-    expect(result.ok).toBe(false);
-    expect(result.error.code).toBe('USER_NOT_FOUND');
+    expect(result).toEqual(faultFixture.output);
   });
 
   // Adapter tests — stub the I/O, verify contract conformance
@@ -245,7 +275,7 @@ describe('UserProfile contract', () => {
     }));
 
     const result = await userProfileAdapter.getProfile(faultFixture.input);
-    expect(result.ok).toBe(false);
+    expect(result).toEqual(faultFixture.output);
   });
 });
 ```
@@ -262,6 +292,13 @@ The real implementation. This is the only component that performs actual I/O.
 // adapters/user-profile.adapter.ts
 import { UserProfileResultSchema } from '../contracts/user-profile.contract';
 import type { UserProfileSeam, UserProfileInput } from '../contracts/user-profile.contract';
+
+const BASE_URL = process.env.USER_API_BASE_URL;
+const API_KEY = process.env.USER_API_KEY;
+
+if (!BASE_URL || !API_KEY) {
+  throw new Error('USER_API_BASE_URL and USER_API_KEY environment variables are required');
+}
 
 export const userProfileAdapter: UserProfileSeam = {
   getProfile: async (input: UserProfileInput) => {
@@ -305,7 +342,7 @@ export const userProfileAdapter: UserProfileSeam = {
 
 ## Governance
 
-SDD's value collapses without enforcement. The methodology must be checked mechanically, not just documented.
+Seam-Driven Development's value collapses without enforcement. The methodology must be checked mechanically, not just documented.
 
 ### Seam Registry
 
@@ -346,7 +383,7 @@ For teams using AI agents, the decision log is especially valuable. It forces th
 
 ## Principles
 
-These are the rules that make SDD work. Breaking them undermines the entire system.
+These are the rules that make Seam-Driven Development work. Breaking them undermines the entire system.
 
 1. **Reality First** — If a seam touches the real world, you must probe it and capture fixtures. No exceptions.
 2. **Determinism** — Mocks load fixtures. They never invent data, generate random values, or contain conditional logic.
@@ -386,7 +423,7 @@ These are the rules that make SDD work. Breaking them undermines the entire syst
 
 ## For AI Agents
 
-AI agents are especially prone to the failures SDD prevents: assuming behavior, optimizing for visible progress over correctness, and drifting from instructions. If you're an AI agent working in an SDD codebase, follow these rules:
+AI agents are especially prone to the failures Seam-Driven Development prevents: assuming behavior, optimizing for visible progress over correctness, and drifting from instructions. If you're an AI agent working in a Seam-Driven Development codebase, follow these rules:
 
 1. **Identify the seam.** Before writing code, ask: does this touch an external system? If yes, it's a seam and the full workflow applies.
 2. **Check the registry.** Does this seam already exist? If so, read its contract before making changes. If not, register it.
@@ -399,7 +436,7 @@ AI agents are especially prone to the failures SDD prevents: assuming behavior, 
 
 ---
 
-## What SDD Prevents
+## What Seam-Driven Development Prevents
 
 - Assumptions treated as facts
 - Silent integration failures discovered in production
@@ -408,7 +445,7 @@ AI agents are especially prone to the failures SDD prevents: assuming behavior, 
 - Undocumented shortcuts accumulating as tech debt
 - Multiple contributors (human or AI) making conflicting changes
 
-## What SDD Enables
+## What Seam-Driven Development Enables
 
 - Provable, testable boundaries between your code and the outside world
 - Multiple developers or AI agents working on the same codebase safely
