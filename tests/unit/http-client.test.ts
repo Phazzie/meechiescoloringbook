@@ -1,7 +1,7 @@
 // Purpose: Unit tests for http-client browser helpers.
 // Why: Ensure API-key storage and JSON header construction are correct.
 // Info flow: Function calls -> localStorage / header map -> assertions.
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
 	TEMP_API_KEY_STORAGE_KEY,
 	loadStoredApiKey,
@@ -79,6 +79,10 @@ describe('http-client', () => {
 	});
 
 	describe('postJson', () => {
+		afterEach(() => {
+			vi.unstubAllGlobals();
+		});
+
 		it('sends POST request with JSON body and returns parsed response', async () => {
 			const mockPayload = { ok: true, value: 'test' };
 			const mockResponse = {
@@ -103,8 +107,6 @@ describe('http-client', () => {
 			const sentHeaders = fetchCall[1]?.headers as Record<string, string>;
 			expect(sentHeaders['Content-Type']).toBe('application/json');
 			expect(sentHeaders['x-api-key']).toBe('api-key');
-
-			vi.unstubAllGlobals();
 		});
 
 		it('returns null payload when response JSON parsing fails', async () => {
@@ -121,8 +123,6 @@ describe('http-client', () => {
 			const result = await postJson('/api/test', {});
 			expect(result.response).toBe(mockResponse);
 			expect(result.payload).toBeNull();
-
-			vi.unstubAllGlobals();
 		});
 
 		it('sends request without x-api-key when not provided', async () => {
@@ -141,8 +141,6 @@ describe('http-client', () => {
 			const fetchCall = vi.mocked(fetch).mock.calls[0];
 			const sentHeaders = fetchCall[1]?.headers as Record<string, string>;
 			expect(sentHeaders['x-api-key']).toBeUndefined();
-
-			vi.unstubAllGlobals();
 		});
 	});
 });
