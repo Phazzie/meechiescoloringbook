@@ -1,9 +1,9 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-04-15T01:09:19.100Z",
+  "generatedAt": "2026-04-15T02:07:22.633Z",
   "cipher": {
     "date": "2026-04-15",
-    "seams": "PromptCompilerSeam, SafetyPolicySeam, GalleryStoreSeam, TelemetrySeam, ChatInterpretationSeam",
+    "seams": "ProviderAdapterSeam",
     "evidence": [
       {
         "path": "docs/evidence/2026-04-15/test.txt",
@@ -38,9 +38,9 @@
         "exists": true
       }
     ],
-    "summary": "Removed four legacy seams with no active runtime callers, fixed chat interpretation to show loading state and inline errors, updated API key label, and restored governance compliance by adding a current Cipher Gate entry.",
-    "risks": "If provider fixtures drift from actual xAI responses (last validated 2026-02-12), contract tests may pass against stale data; run probes once XAI_API_KEY is available."
+    "summary": "Replaced adapter-auto with adapter-vercel@6.3.3; svelte-check and all 65 tests remain green; no seam contracts changed.",
+    "risks": "Build output is now Vercel-specific; CI must run on Node.js 20+ to match Vercel's runtime."
   },
-  "latestChangeMs": 1776215266211.7432,
+  "latestChangeMs": 1776218769207.5117,
   "status": "ok"
 }

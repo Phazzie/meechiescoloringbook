@@ -1406,3 +1406,18 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-04-15/test.txt; docs/evidence/2026-04-15/verify.txt; docs/evidence/2026-04-15/chamber-lock.json; docs/evidence/2026-04-15/shaolin-lint.json; docs/evidence/2026-04-15/assumption-alarm.json; docs/evidence/2026-04-15/seam-ledger.json; docs/evidence/2026-04-15/clan-chain.json; docs/evidence/2026-04-15/proof-tape.json
   - Summary: Removed four legacy seams with no active runtime callers, fixed chat interpretation to show loading state and inline errors, updated API key label, and restored governance compliance by adding a current Cipher Gate entry.
   - Risks: If provider fixtures drift from actual xAI responses (last validated 2026-02-12), contract tests may pass against stale data; run probes once XAI_API_KEY is available.
+
+## 2026-04-15 - Switch deployment adapter from adapter-auto to adapter-vercel
+- Date: 2026-04-15
+- Decision: Replace `@sveltejs/adapter-auto` with `@sveltejs/adapter-vercel@6.3.3` in `svelte.config.js`.
+- Context: `adapter-auto` cannot detect a production environment and emits a warning on every build. The app's API routes use `$env/dynamic/private` for the xAI API key, which is Vercel's recommended pattern for secrets. Switching to `adapter-vercel` locks the build output to Vercel's expected format (Edge Functions or Node.js serverless functions) and removes the "could not detect production environment" warning.
+- Alternatives: `adapter-node` (correct for a VPS/Docker deploy, wrong for Vercel); keep `adapter-auto` with a `VERCEL=1` env variable workaround.
+- Consequences: Build output now targets Vercel only. Moving to a different host in the future requires swapping the adapter again. No behavior change to routes, seams, or contracts.
+- Revisit criteria: If the project moves to a non-Vercel host, swap to `adapter-node` or the appropriate platform adapter.
+
+- Cipher Gate:
+  - Date: 2026-04-15
+  - Seams: ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-04-15/test.txt; docs/evidence/2026-04-15/verify.txt; docs/evidence/2026-04-15/chamber-lock.json; docs/evidence/2026-04-15/shaolin-lint.json; docs/evidence/2026-04-15/assumption-alarm.json; docs/evidence/2026-04-15/seam-ledger.json; docs/evidence/2026-04-15/clan-chain.json; docs/evidence/2026-04-15/proof-tape.json
+  - Summary: Replaced adapter-auto with adapter-vercel@6.3.3; svelte-check and all 65 tests remain green; no seam contracts changed.
+  - Risks: Build output is now Vercel-specific; CI must run on Node.js 20+ to match Vercel's runtime.
