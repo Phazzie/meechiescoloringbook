@@ -122,4 +122,22 @@ Info flow: Layout renders children -> pages render within layout.
 			padding: 0.32rem 0.7rem;
 		}
 	}
+
+	/* Palette CSS custom properties — defined here so every route (including /meechie)
+	   has access to them, regardless of which page component is mounted. */
+	:global(body) {
+		--fuchsia: #e8006a;
+		--fuchsia-glow: rgba(232, 0, 106, 0.22);
+		--gold: #c9a227;
+		--gold-bright: #f0c44a;
+		--gold-border: rgba(201, 162, 39, 0.35);
+		--cream: #fdf6e3;
+		--lavender: #b8aacf;
+		--dark-base: #07070f;
+		--dark-surface: #100f1c;
+		--dark-card: #16142a;
+		--dark-card-alt: #1c1932;
+		--emerald: #00c896;
+		color-scheme: dark;
+	}
 </style>

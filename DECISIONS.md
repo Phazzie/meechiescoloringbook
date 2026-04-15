@@ -1387,24 +1387,24 @@ Short, durable decisions with context and tradeoffs.
 
 ## 2026-04-15 - UI redesign follow-up: review feedback fixes
 - Date: 2026-04-15
-- Decision: Address review feedback from PR #8 (dark theme redesign): add `color-scheme: dark`, replace hardcoded colors in MeechieTools with CSS custom properties, auto-expand API Key Settings when no key is saved, auto-expand More controls when validation issues target advanced fields.
-- Context: PR #8 introduced a full dark-theme redesign. Code review (Gemini + Sourcery) flagged missing `color-scheme: dark`, hardcoded color literals in MeechieTools, and UX gaps where collapsed `<details>` sections hid important information from new users.
-- Alternatives: Leave hardcoded colors as-is (would cause theme drift on future palette changes), leave API key section always collapsed (risks confusing new users who don't know they need a key).
-- Consequences: Native browser controls now render dark, MeechieTools theme is derived from shared CSS vars, new users see an inline hint pointing to API Key Settings when no key exists, and validation errors for advanced fields automatically expand that section.
+- Decision: Address review feedback from PR #8 (dark theme redesign): add `color-scheme: dark`, replace hardcoded colors in MeechieTools with CSS custom properties, auto-expand More controls when validation issues target advanced fields.
+- Context: PR #8 introduced a full dark-theme redesign. Code review (Gemini + Sourcery) flagged missing `color-scheme: dark`, hardcoded color literals in MeechieTools, and UX gaps where collapsed `<details>` sections hid important information from users. Note: the API key UI section was removed in this same PR (see entry below), so API key discoverability changes do not apply here.
+- Alternatives: Leave hardcoded colors as-is (would cause theme drift on future palette changes), leave advanced section always collapsed (risks users missing validation errors in hidden fields).
+- Consequences: Native browser controls now render dark, MeechieTools theme is derived from shared CSS vars, and validation errors for advanced fields automatically expand that section. Palette CSS variables moved to `+layout.svelte` so all routes have them without relying on `+page.svelte` being mounted.
 - Revisit criteria: Revisit if the color palette changes or if new advanced fields are added to the builder.
 - Plan:
-  - Goal: Apply review feedback from PR #8 without touching any seam contracts, adapters, or tests.
-  - Seams: None (UI-only change).
-  - Files: `src/routes/+page.svelte`, `src/lib/components/MeechieTools.svelte`, `DECISIONS.md`, `docs/evidence/2026-04-15/npm-test-2026-04-15.txt`.
-  - Commands: `npm test`.
-- Self-critique: Risk is that `bind:open` on `<details>` for validation errors may conflict with manual user expansion; Svelte's two-way bind should handle this correctly as the `open` attribute is only forced true (never forced closed) by the reactive statement.
+  - Goal: Apply review feedback from PR #8.
+  - Seams: None (UI + tests change, no contract changes).
+  - Files: `src/routes/+page.svelte`, `src/routes/+layout.svelte`, `src/lib/components/MeechieTools.svelte`, `contracts/spec-validation.contract.ts`, `DECISIONS.md`.
+  - Commands: `npm test`, `npm run verify`.
+- Self-critique: Moving `:global(body)` palette vars to layout means they are always loaded; any future page-level override must still use `:global()` to avoid specificity issues.
 
 - Cipher Gate:
   - Date: 2026-04-15
-  - Seams: None (UI-only)
-  - Evidence: docs/evidence/2026-04-15/npm-test-2026-04-15.txt
-  - Summary: Applied PR #8 review feedback: color-scheme dark, CSS var consistency in MeechieTools, API key discoverability, and advanced-fields validation auto-expand. All 166 tests pass.
-  - Risks: If palette variables are removed from body in future, MeechieTools will lose its colors silently.
+  - Seams: None (UI only)
+  - Evidence: docs/evidence/2026-04-15/test.txt; docs/evidence/2026-04-15/verify.txt
+  - Summary: Applied PR #8 review feedback: color-scheme dark, CSS var consistency in MeechieTools (vars moved to layout), advanced-fields validation auto-expand with ADVANCED_SPEC_FIELDS exported from contract. 155 tests pass (1 skipped).
+  - Risks: If palette variables are renamed in layout in future, MeechieTools will lose its colors silently.
 
 ## 2026-04-15 - Move API key to server env var; remove client-side key entry
 - Date: 2026-04-15

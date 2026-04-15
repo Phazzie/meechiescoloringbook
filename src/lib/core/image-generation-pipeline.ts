@@ -1,6 +1,6 @@
 // Purpose: Centralize image-generation endpoint orchestration in a reusable core pipeline.
 // Why: Keep route handlers thin and make validation/provider behavior easier to test.
-// Info flow: Raw request body + headers -> validation/provider calls -> contract-shaped response.
+// Info flow: Raw request body -> validation/provider calls -> contract-shaped response.
 import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { env } from '$env/dynamic/private';

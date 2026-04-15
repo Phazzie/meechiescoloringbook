@@ -980,19 +980,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 <style>
 	:global(body) {
-		--fuchsia: #e8006a;
-		--fuchsia-glow: rgba(232, 0, 106, 0.22);
-		--gold: #c9a227;
-		--gold-bright: #f0c44a;
-		--gold-border: rgba(201, 162, 39, 0.35);
-		--cream: #fdf6e3;
-		--lavender: #b8aacf;
-		--dark-base: #07070f;
-		--dark-surface: #100f1c;
-		--dark-card: #16142a;
-		--dark-card-alt: #1c1932;
-		--emerald: #00c896;
-		color-scheme: dark;
 		margin: 0;
 		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
 		color: var(--cream);

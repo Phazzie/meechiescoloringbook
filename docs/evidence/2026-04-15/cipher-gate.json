@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-04-15T17:40:03.726Z",
+  "generatedAt": "2026-04-15T17:47:18.881Z",
   "cipher": {
     "date": "2026-04-15",
     "seams": "None (pipeline + UI only)",
@@ -13,6 +13,6 @@
     "summary": "Removed client-side API key entry; server now always uses XAI_API_KEY env var. All 155 tests pass.",
     "risks": "If XAI_API_KEY is unset on Vercel, all generation requests will return 401 with a clear error message."
   },
-  "latestChangeMs": 1776274753873.5835,
+  "latestChangeMs": 1776275151444.0388,
   "status": "ok"
 }
