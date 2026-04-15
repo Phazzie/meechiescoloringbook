@@ -79,6 +79,8 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	let apiKeyInput = '';
 	let apiKeyStatus = 'No API key saved.';
 	let revealApiKey = false;
+	let hasSavedApiKey = false;
+	let apiSettingsOpen = true;
 	let isBrowser = false;
 	let draftTimer: ReturnType<typeof setTimeout> | null = null;
 	let hasValidated = false;
@@ -226,10 +228,14 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		if (trimmed.length === 0) {
 			clearStoredApiKey();
 			apiKeyStatus = 'API key cleared.';
+			hasSavedApiKey = false;
+			apiSettingsOpen = true;
 			return;
 		}
 		saveStoredApiKey(trimmed);
 		apiKeyStatus = 'API key saved in this browser.';
+		hasSavedApiKey = true;
+		apiSettingsOpen = false;
 	};
 
 	const clearApiKey = (): void => {
@@ -239,6 +245,8 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		}
 		clearStoredApiKey();
 		apiKeyStatus = 'API key cleared.';
+		hasSavedApiKey = false;
+		apiSettingsOpen = true;
 	};
 
 	const validateSpec = async (): Promise<boolean> => {
@@ -249,6 +257,28 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	};
 
 	$: isSpecValid = hasValidated && validationIssues.length === 0;
+
+	const ADVANCED_FIELDS = new Set([
+		'alignment',
+		'numberAlignment',
+		'fontStyle',
+		'fontSize',
+		'strokeWidth',
+		'colorMode',
+		'pageSize',
+		'decorations',
+		'illustrations',
+		'shading',
+		'border',
+		'borderThickness',
+		'includeFooter',
+		'includeSquareExport',
+		'includeChatExport'
+	]);
+
+	$: hasAdvancedValidationIssues = validationIssues.some((issue) =>
+		ADVANCED_FIELDS.has(issue.field)
+	);
 
 	const handleGenerate = async (): Promise<void> => {
 		resetOutputs();
@@ -453,6 +483,8 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		if (storedApiKey && storedApiKey.trim().length > 0) {
 			apiKeyInput = storedApiKey;
 			apiKeyStatus = 'API key loaded from this browser.';
+			hasSavedApiKey = true;
+			apiSettingsOpen = false;
 		}
 		const sessionResult = await sessionAdapter.getSession();
 		if (sessionResult.ok) {
@@ -689,8 +721,13 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 				</button>
 				<button type="button" class="ghost" on:click={resetSpec}>Reset</button>
 			</div>
+			{#if !hasSavedApiKey}
+				<p class="api-key-hint">
+					An API key is required. Expand <strong>API Key Settings</strong> below to add one.
+				</p>
+			{/if}
 
-			<details class="advanced-toggle">
+			<details class="advanced-toggle" bind:open={hasAdvancedValidationIssues}>
 				<summary>More controls</summary>
 				<div class="advanced-content">
 					<div class="field-row">
@@ -996,7 +1033,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		<a class="primary meechie-link-button" href="/meechie">Go To Meechie Tools</a>
 	</section>
 
-	<details class="card api-settings">
+	<details class="card api-settings" bind:open={apiSettingsOpen}>
 		<summary>API Key Settings</summary>
 		<div class="advanced-content">
 			<p class="api-key-label">Paste your API key to generate pages</p>
@@ -1027,6 +1064,9 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		>
 			{isGenerating ? 'Creating...' : 'Create Pages'}
 		</button>
+		{#if !hasSavedApiKey}
+			<p class="api-key-hint">API key required — expand <strong>API Key Settings</strong> above.</p>
+		{/if}
 	</div>
 </div>
 
@@ -1044,6 +1084,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		--dark-card: #16142a;
 		--dark-card-alt: #1c1932;
 		--emerald: #00c896;
+		color-scheme: dark;
 		margin: 0;
 		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
 		color: var(--cream);
@@ -1684,6 +1725,12 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	.api-key-status {
 		margin: 0.5rem 0 0;
 		font-size: 0.76rem;
+		color: var(--lavender);
+	}
+
+	.api-key-hint {
+		margin: 0.5rem 0 0;
+		font-size: 0.8rem;
 		color: var(--lavender);
 	}
 

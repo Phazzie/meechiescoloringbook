@@ -1384,3 +1384,24 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-02-12/probe-image-generation.txt; docs/evidence/2026-02-12/npm-test.txt; docs/evidence/2026-02-12/npm-verify.txt; docs/evidence/2026-02-12/chamber-lock.json; docs/evidence/2026-02-12/shaolin-lint.json; docs/evidence/2026-02-12/assumption-alarm.json; docs/evidence/2026-02-12/seam-ledger.json; docs/evidence/2026-02-12/clan-chain.json; docs/evidence/2026-02-12/proof-tape.json
   - Summary: Made ImageGenerationSeam prompt phrase validation case-insensitive across server and adapter, then refreshed probe-backed fixtures.
   - Risks: If deterministic gating depends on exact casing, prompts that previously failed may now pass.
+
+## 2026-04-15 - UI redesign follow-up: review feedback fixes
+- Date: 2026-04-15
+- Decision: Address review feedback from PR #8 (dark theme redesign): add `color-scheme: dark`, replace hardcoded colors in MeechieTools with CSS custom properties, auto-expand API Key Settings when no key is saved, auto-expand More controls when validation issues target advanced fields.
+- Context: PR #8 introduced a full dark-theme redesign. Code review (Gemini + Sourcery) flagged missing `color-scheme: dark`, hardcoded color literals in MeechieTools, and UX gaps where collapsed `<details>` sections hid important information from new users.
+- Alternatives: Leave hardcoded colors as-is (would cause theme drift on future palette changes), leave API key section always collapsed (risks confusing new users who don't know they need a key).
+- Consequences: Native browser controls now render dark, MeechieTools theme is derived from shared CSS vars, new users see an inline hint pointing to API Key Settings when no key exists, and validation errors for advanced fields automatically expand that section.
+- Revisit criteria: Revisit if the color palette changes or if new advanced fields are added to the builder.
+- Plan:
+  - Goal: Apply review feedback from PR #8 without touching any seam contracts, adapters, or tests.
+  - Seams: None (UI-only change).
+  - Files: `src/routes/+page.svelte`, `src/lib/components/MeechieTools.svelte`, `DECISIONS.md`, `docs/evidence/2026-04-15/npm-test-2026-04-15.txt`.
+  - Commands: `npm test`.
+- Self-critique: Risk is that `bind:open` on `<details>` for validation errors may conflict with manual user expansion; Svelte's two-way bind should handle this correctly as the `open` attribute is only forced true (never forced closed) by the reactive statement.
+
+- Cipher Gate:
+  - Date: 2026-04-15
+  - Seams: None (UI-only)
+  - Evidence: docs/evidence/2026-04-15/npm-test-2026-04-15.txt
+  - Summary: Applied PR #8 review feedback: color-scheme dark, CSS var consistency in MeechieTools, API key discoverability, and advanced-fields validation auto-expand. All 166 tests pass.
+  - Risks: If palette variables are removed from body in future, MeechieTools will lose its colors silently.

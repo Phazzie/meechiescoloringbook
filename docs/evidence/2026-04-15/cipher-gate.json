@@ -1,0 +1,18 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-04-15T06:24:40.203Z",
+  "cipher": {
+    "date": "2026-04-15",
+    "seams": "None (UI-only)",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-04-15/npm-test-2026-04-15.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Applied PR #8 review feedback: color-scheme dark, CSS var consistency in MeechieTools, API key discoverability, and advanced-fields validation auto-expand. All 166 tests pass.",
+    "risks": "If palette variables are removed from body in future, MeechieTools will lose its colors silently."
+  },
+  "latestChangeMs": 1776234111437.74,
+  "status": "ok"
+}
