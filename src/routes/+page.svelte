@@ -14,6 +14,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	import { postJson } from '$lib/core/http-client';
 	import { GenerateResultSchema } from '../../contracts/generate.contract';
 	import type { CreationOwner, CreationRecord } from '../../contracts/creation-store.contract';
+	import { ADVANCED_SPEC_FIELDS } from '../../contracts/spec-validation.contract';
 	import type {
 		ColoringPageSpec,
 		SpecValidationOutput
@@ -219,27 +220,14 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	$: isSpecValid = hasValidated && validationIssues.length === 0;
 
-	const ADVANCED_FIELDS = new Set([
-		'alignment',
-		'numberAlignment',
-		'fontStyle',
-		'fontSize',
-		'strokeWidth',
-		'colorMode',
-		'pageSize',
-		'decorations',
-		'illustrations',
-		'shading',
-		'border',
-		'borderThickness',
-		'includeFooter',
-		'includeSquareExport',
-		'includeChatExport'
-	]);
-
 	$: hasAdvancedValidationIssues = validationIssues.some((issue) =>
-		ADVANCED_FIELDS.has(issue.field)
+		ADVANCED_SPEC_FIELDS.has(issue.field)
 	);
+
+	let advancedOpen = false;
+	$: if (hasAdvancedValidationIssues) {
+		advancedOpen = true;
+	}
 
 	const handleGenerate = async (): Promise<void> => {
 		resetOutputs();
@@ -672,7 +660,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 				<button type="button" class="ghost" on:click={resetSpec}>Reset</button>
 			</div>
 
-		<details class="advanced-toggle" bind:open={hasAdvancedValidationIssues}>
+		<details class="advanced-toggle" bind:open={advancedOpen}>
 				<summary>More controls</summary>
 				<div class="advanced-content">
 					<div class="field-row">

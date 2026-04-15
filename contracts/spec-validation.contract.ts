@@ -130,6 +130,27 @@ export const RawColoringPageSpecSchema = z.object({
 
 export type ColoringPageSpec = z.infer<typeof ColoringPageSpecSchema>;
 
+/**
+ * Spec fields rendered inside the collapsible "More controls" section.
+ * Centralised here so the UI auto-expand logic never drifts from actual field names.
+ */
+export const ADVANCED_SPEC_FIELDS: ReadonlySet<string> = new Set([
+	'alignment',
+	'numberAlignment',
+	'listGutter',
+	'whitespaceScale',
+	'textSize',
+	'fontStyle',
+	'textStrokeWidth',
+	'colorMode',
+	'pageSize',
+	'decorations',
+	'illustrations',
+	'shading',
+	'border',
+	'borderThickness'
+] satisfies ReadonlyArray<keyof ColoringPageSpec>);
+
 export const SpecValidationInputSchema = z.object({
 	spec: RawColoringPageSpecSchema
 });
