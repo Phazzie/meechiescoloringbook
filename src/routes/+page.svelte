@@ -346,7 +346,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 				await validateSpec();
 				scheduleDraftSave();
 			} else {
-				chatError = result.error.message;
+				chatError = result.error.message || 'Interpretation failed.';
 			}
 		} catch (err) {
 			chatError = err instanceof Error ? err.message : 'Interpretation request failed.';
