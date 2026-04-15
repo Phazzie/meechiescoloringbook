@@ -6,13 +6,10 @@ import { driftDetectionAdapter } from '../../src/lib/adapters/drift-detection.ad
 import { SYSTEM_CONSTANTS } from '../../src/lib/core/constants';
 import {
 	PROMPT_REQUIRED_HEADINGS,
-	PROMPT_FORBIDDEN_TOKENS,
 	borderLine,
 	colorModeLine,
-	dedicationLine,
 	decorationLine,
 	fontStyleLine,
-	formatListItems,
 	illustrationLine,
 	negativeLinesForSpec,
 	outputLine,

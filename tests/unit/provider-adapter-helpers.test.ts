@@ -1,7 +1,7 @@
 // Purpose: Unit tests for provider-adapter internal helper functions.
 // Why: Ensure URL normalization, error building, and output normalization behave correctly.
 // Info flow: Helper inputs -> function logic -> verified outputs.
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createProviderAdapter } from '../../src/lib/adapters/provider-adapter.adapter';
 
 const jsonResponse = (payload: unknown, status = 200): Response =>
