@@ -85,7 +85,7 @@ describe('provider-adapter helpers', () => {
 
 	describe('missing API key', () => {
 		it('returns PROVIDER_API_KEY_MISSING for chat when no key provided', async () => {
-			const adapter = createProviderAdapter({ apiKey: null });
+			const adapter = createProviderAdapter({ apiKey: '' });
 			const result = await adapter.createChatCompletion({
 				model: 'test',
 				messages: [{ role: 'user', content: 'hi' }]

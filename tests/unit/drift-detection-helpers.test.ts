@@ -82,16 +82,16 @@ describe('drift-detection adapter edge cases', () => {
 	});
 
 	describe('revisedPrompt preference', () => {
-		it('uses revisedPrompt when non-empty', async () => {
+		it('uses revisedPrompt when non-empty instead of invalid promptSent', async () => {
 			const validPrompt = buildValidPrompt(baseSpec);
 			const result = await driftDetectionAdapter.detect({
 				spec: baseSpec,
 				promptSent: 'invalid prompt',
 				revisedPrompt: validPrompt
 			});
-			// If revisedPrompt is used, it may or may not fail depending on content
-			// But it should not use promptSent which would definitely fail
-			expect(result).toBeDefined();
+			// revisedPrompt is valid so detection should succeed rather than
+			// failing on the invalid promptSent
+			expect(result.ok).toBe(true);
 		});
 
 		it('falls back to promptSent when revisedPrompt is empty', async () => {
@@ -101,7 +101,8 @@ describe('drift-detection adapter edge cases', () => {
 				promptSent: validPrompt,
 				revisedPrompt: ''
 			});
-			expect(result).toBeDefined();
+			// promptSent is valid so detection should succeed
+			expect(result.ok).toBe(true);
 		});
 	});
 
@@ -141,9 +142,24 @@ describe('drift-detection adapter edge cases', () => {
 
 		it('does not flag STYLE: heading as forbidden', async () => {
 			// The STYLE: heading appears in standard prompts and the sanitization
-			// filters lines that are exactly "style:" (heading) and "font style:" lines
+			// should not treat that heading as a forbidden token.
 			const validPrompt = buildValidPrompt(baseSpec);
-			expect(validPrompt).toBeDefined();
+			expect(validPrompt.toLowerCase()).toContain('style:');
+
+			const result = await driftDetectionAdapter.detect({
+				spec: baseSpec,
+				promptSent: validPrompt
+			});
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				const styleTokenViolations = result.value.violations.filter(
+					(v) =>
+						v.code === 'FORBIDDEN_TOKEN' &&
+						JSON.stringify(v).toLowerCase().includes('style:')
+				);
+				expect(styleTokenViolations).toHaveLength(0);
+			}
 		});
 	});
 
@@ -213,7 +229,7 @@ describe('drift-detection adapter edge cases', () => {
 			});
 			if (result.ok) {
 				const dedicationViolations = result.value.violations.filter(
-					(v) => v.code === 'MISSING_OPTION_LINE' && v.message.includes('Dedicat')
+					(v) => v.code === 'MISSING_OPTION_LINE' && v.message.toLowerCase().includes('dedicat')
 				);
 				expect(dedicationViolations.length).toBeGreaterThan(0);
 			}

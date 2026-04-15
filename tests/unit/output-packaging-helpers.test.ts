@@ -144,7 +144,7 @@ describe('output-packaging adapter edge cases', () => {
 	});
 
 	describe('SVG conversion', () => {
-		it('SVG conversion requires browser for square variant', async () => {
+		it('SVG conversion fails deterministically in non-browser environment', async () => {
 			const result = await outputPackagingAdapter.package({
 				images: [
 					{
@@ -158,7 +158,8 @@ describe('output-packaging adapter edge cases', () => {
 				fileBaseName: 'svg-test',
 				variants: ['print']
 			});
-			// In non-browser (jsdom) environment, SVG conversion may fail with browser gate errors
+			// jsdom does not support canvas, so SVG-to-PNG conversion always fails
+			expect(result.ok).toBe(false);
 			if (!result.ok) {
 				expect(['BROWSER_REQUIRED', 'CANVAS_UNAVAILABLE', 'SVG_IMAGE_LOAD_FAILED', 'PNG_ENCODING_FAILED']).toContain(
 					result.error.code
