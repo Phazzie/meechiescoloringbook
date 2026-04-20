@@ -257,3 +257,144 @@ npm run proof:tape      # Plain-English evidence summary
 6. **Verify:** Run `npm run verify` — all checks must pass.
 
 **Never skip steps. Never invent data. Never assume behavior.**
+
+---
+
+## Mandatory Planning Step
+
+Before writing any code, produce a **Plan + Self-Critique** covering:
+
+- **Goal**: Exact seam names being touched (from `docs/seams.md`)
+- **Files**: Exact file paths to be created or modified
+- **Commands**: Exact commands that will be run
+- **Risk**: Riskiest assumption in your plan
+- **Proof**: What evidence you will capture to validate it
+
+Do not start coding until you can answer all five. This is how you prove you understand the change before you make it.
+
+---
+
+## Non-Negotiable Adapter Rules
+
+These are hard rules, not guidelines. Breaking any of them invalidates the seam.
+
+| Rule | Detail |
+|------|--------|
+| No direct `fs` imports | Use `JailedFs` only — never `import fs` or `import { promises } from 'fs'` |
+| No sync I/O | Every `*Sync` call is banned in adapters |
+| No `process.cwd()` in core logic | Inject paths — never resolve them inside domain code |
+| No third-party libs off-seam | Libraries may only be used behind seam adapters |
+| No invented data in mocks | Mocks load fixtures only — zero custom logic |
+
+---
+
+## Two Failure Modes SDD Guards Against
+
+**1. Integration Hell**
+Seams look fine in isolation but fail when stitched together. Caused by untested boundaries, mismatched schemas, or silent format changes. SDD fixes this by requiring contract + fixture + contract test *before* the adapter exists.
+
+**2. AI Non-Compliance**
+AI agents skip steps, do I/O off-seam, loosen specs to make tests pass, or invent fixture data. SDD fixes this with mechanical verification (`npm run verify`) that fails loudly when any artifact is missing, stale, or mismatched.
+
+---
+
+## Lessons Learned in Practice
+
+These are real mistakes this codebase encountered and solved.
+
+### Validation Seams Must Accept Raw Input
+
+**Problem:** A strict Zod schema on input blocks fault fixtures — invalid data can't even enter the seam to be tested.
+
+**Solution:** Use a *raw/permissive* schema for input, then validate against the *strict* schema inside the adapter. The seam accepts anything; the adapter decides what's valid.
+
+```typescript
+// Two-stage validation pattern
+const rawSpec = RawSpecSchema.parse(input);     // permissive — lets fault fixtures in
+const validSpec = StrictSpecSchema.parse(rawSpec); // strict — this is where faults are caught
+```
+
+---
+
+### Prompt Template Changes Break Fixtures Silently
+
+**Problem:** Changing a prompt template without updating fixtures and drift checks causes contract tests to pass but produces wrong real-world output.
+
+**Solution:** Any time a prompt template changes, update fixtures and drift checks in the *same commit*. Keep an exact alignment sentence shared across `PromptAssemblySeam`, `DriftDetectionSeam`, fixtures, and probes — extract it into a shared utility.
+
+---
+
+### Forbidden Token Detection Trips on Internal Lines
+
+**Problem:** Drift detection scanning for forbidden tokens (e.g., "color", "fill") can match lines inside the prompt template itself, not just the model output.
+
+**Solution:** Sanitize the scan — skip lines that are part of the prompt template or known-allowed strings before running drift detection.
+
+---
+
+### Provider Limits Are a Hard Contract
+
+**Problem:** A canonical prompt that exceeds the provider's character limit (e.g., xAI's 1024-char limit) silently fails or gets truncated, breaking everything downstream.
+
+**Solution:** Add a prompt-length guard inside `PromptAssemblySeam`. The canonical (full) prompt is your proof; the compressed provider prompt is a derivative that must stay within limits. If limits change, update the fixture and re-run the probe.
+
+---
+
+### DNS/Network Failures Look Like Missing Credentials
+
+**Problem:** A probe that fails with a network error is indistinguishable from one that fails due to wrong API keys. Treating them the same leads to wrong assumptions recorded.
+
+**Solution:** Capture the exact error output under `docs/evidence/`. Record what was tried and what the actual failure was.
+
+---
+
+### Browser Seams Need a Real Browser to Probe
+
+**Problem:** `localStorage`-backed seams (Session, AuthContext, CreationStore) cannot be probed from Node.js — the browser storage APIs simply don't exist there.
+
+**Solution:** Use Playwright to probe browser seams. Run `node probes/browser-seams.probe.mjs` with escalated permissions when needed and capture output as evidence.
+
+---
+
+### Integration Tests Must Be Gated
+
+**Problem:** Integration tests that call real external APIs run silently during offline development, fail intermittently, or rack up API costs.
+
+**Solution:** Gate all integration tests behind environment flags:
+```bash
+FEATURE_INTEGRATION_TESTS=true XAI_API_KEY=... npm test
+```
+Tests skip gracefully when the flags are absent.
+
+---
+
+## Blocked Probe Protocol
+
+When a probe cannot run (no credentials, network blocked, sandbox restriction):
+
+1. **Stop** — do not guess or invent fixture data
+2. **Declare BLOCKED** in your work log
+3. **Record an `Assumption` entry in `DECISIONS.md`** with:
+   - `Date`, `Seams`, `Statement` (what you assumed), `Validation` (how it will be proved), `Status`
+4. **Run `npm run assumption:alarm`** to document the gate
+5. **Capture the failing probe output** under `docs/evidence/YYYY-MM-DD/` so the block is explicit and traceable
+
+A blocked probe with a recorded assumption is fine. A blocked probe with invented fixture data is not.
+
+---
+
+## Evidence Storage Convention
+
+All evidence lives under `docs/evidence/YYYY-MM-DD/`. When you run `npm run verify`, it generates:
+
+| File | What It Contains |
+|------|-----------------|
+| `chamber-lock.json` | Artifact presence gate — all seam files exist |
+| `shaolin-lint.json` | Fixture freshness — probes ≤ 7 days old |
+| `seam-ledger.json` / `.md` | Coverage summary — all seams tracked |
+| `clan-chain.md` | Clean vs. dirty seam status |
+| `proof-tape.md` | Plain-English summary of evidence |
+| `assumption-alarm.json` | Blocked probe tracking |
+| `npm-test.txt` / `npm-verify.txt` | Raw command outputs |
+
+Evidence is not optional. A change without evidence is unverified.
