@@ -34,7 +34,8 @@ describe('provider-adapter helpers', () => {
 				messages: [{ role: 'user', content: 'hi' }]
 			});
 
-			const calledUrl = fetchMock.mock.calls[0][0] as string;
+			expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
+			const calledUrl = fetchMock.mock.calls[0]?.[0] as string;
 			expect(calledUrl).toBe('https://api.x.ai/v1/chat/completions');
 		});
 
@@ -56,7 +57,8 @@ describe('provider-adapter helpers', () => {
 				messages: [{ role: 'user', content: 'hi' }]
 			});
 
-			const calledUrl = fetchMock.mock.calls[0][0] as string;
+			expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
+			const calledUrl = fetchMock.mock.calls[0]?.[0] as string;
 			expect(calledUrl).toBe('https://api.x.ai/v1/chat/completions');
 		});
 
@@ -78,7 +80,8 @@ describe('provider-adapter helpers', () => {
 				messages: [{ role: 'user', content: 'hi' }]
 			});
 
-			const calledUrl = fetchMock.mock.calls[0][0] as string;
+			expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
+			const calledUrl = fetchMock.mock.calls[0]?.[0] as string;
 			expect(calledUrl).toBe('https://api.x.ai/v1/chat/completions');
 		});
 	});
