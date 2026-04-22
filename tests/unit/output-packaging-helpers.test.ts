@@ -26,7 +26,9 @@ describe('output-packaging adapter edge cases', () => {
 			const result = await outputPackagingAdapter.package({
 				images: [
 					{
+						id: 'image-0',
 						format: 'png',
+						mimeType: 'image/png',
 						data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
 						encoding: 'base64'
 					}
@@ -50,7 +52,9 @@ describe('output-packaging adapter edge cases', () => {
 			const result = await outputPackagingAdapter.package({
 				images: [
 					{
+						id: 'image-0',
 						format: 'png',
+						mimeType: 'image/png',
 						data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
 						encoding: 'base64'
 					}
@@ -73,7 +77,9 @@ describe('output-packaging adapter edge cases', () => {
 			const result = await outputPackagingAdapter.package({
 				images: [
 					{
+						id: 'image-0',
 						format: 'png',
+						mimeType: 'image/png',
 						data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
 						encoding: 'base64'
 					}
@@ -96,12 +102,16 @@ describe('output-packaging adapter edge cases', () => {
 			const result = await outputPackagingAdapter.package({
 				images: [
 					{
+						id: 'image-0',
 						format: 'png',
+						mimeType: 'image/png',
 						data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
 						encoding: 'base64'
 					},
 					{
+						id: 'image-1',
 						format: 'png',
+						mimeType: 'image/png',
 						data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
 						encoding: 'base64'
 					}
@@ -125,7 +135,9 @@ describe('output-packaging adapter edge cases', () => {
 			const result = await outputPackagingAdapter.package({
 				images: [
 					{
+						id: 'image-0',
 						format: 'png',
+						mimeType: 'image/png',
 						data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
 						encoding: 'base64'
 					}
@@ -148,7 +160,9 @@ describe('output-packaging adapter edge cases', () => {
 			const result = await outputPackagingAdapter.package({
 				images: [
 					{
+						id: 'image-0',
 						format: 'svg',
+						mimeType: 'image/svg+xml',
 						data: '<svg width="100" height="100"><rect width="100" height="100" fill="white"/></svg>',
 						encoding: 'utf8'
 					}
@@ -173,7 +187,9 @@ describe('output-packaging adapter edge cases', () => {
 			const result = await outputPackagingAdapter.package({
 				images: [
 					{
+						id: 'image-0',
 						format: 'jpeg' as 'png',
+						mimeType: 'image/jpeg',
 						data: 'some-data',
 						encoding: 'base64'
 					}
@@ -195,7 +211,9 @@ describe('output-packaging adapter edge cases', () => {
 			const result = await outputPackagingAdapter.package({
 				images: [
 					{
+						id: 'image-0',
 						format: 'png',
+						mimeType: 'image/png',
 						data: 'some-data',
 						encoding: 'utf8' as 'base64'
 					}
