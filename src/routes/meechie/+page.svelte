@@ -15,7 +15,7 @@ Info flow: Route -> MeechieTools component -> MeechieToolSeam.
 	<header class="hero">
 		<p class="eyebrow">Meechie Voice Lab</p>
 		<h1>If she said it, she meant it.</h1>
-		<p>Sharp tools for apologies, clapbacks, receipts, and decisions.</p>
+		<p class="sub">Sharp tools for apologies, clapbacks, receipts, and decisions.</p>
 	</header>
 	<MeechieTools />
 </div>
@@ -28,29 +28,34 @@ Info flow: Route -> MeechieTools component -> MeechieToolSeam.
 	}
 
 	.hero {
-		margin-bottom: 1rem;
+		margin-bottom: 1.2rem;
+		padding: 1.2rem 0.2rem;
 	}
 
 	.eyebrow {
-		margin: 0 0 0.45rem;
+		margin: 0 0 0.55rem;
 		text-transform: uppercase;
-		letter-spacing: 0.14em;
+		letter-spacing: 0.18em;
 		font-size: 0.72rem;
 		font-weight: 700;
-		color: #7a4f1f;
+		color: #c9a227;
 	}
 
 	h1 {
 		margin: 0 0 0.5rem;
 		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-size: clamp(1.8rem, 4vw, 2.8rem);
-		line-height: 1;
-		color: #152035;
+		font-size: clamp(2rem, 4.5vw, 3.2rem);
+		font-style: italic;
+		font-weight: 800;
+		line-height: 0.95;
+		letter-spacing: -0.03em;
+		color: #fdf6e3;
 	}
 
-	p {
+	.sub {
 		margin: 0;
-		color: #4d5b71;
+		font-size: 1rem;
+		color: #b8aacf;
 	}
 
 	@media (max-width: 680px) {

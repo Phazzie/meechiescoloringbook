@@ -1384,3 +1384,45 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-02-12/probe-image-generation.txt; docs/evidence/2026-02-12/npm-test.txt; docs/evidence/2026-02-12/npm-verify.txt; docs/evidence/2026-02-12/chamber-lock.json; docs/evidence/2026-02-12/shaolin-lint.json; docs/evidence/2026-02-12/assumption-alarm.json; docs/evidence/2026-02-12/seam-ledger.json; docs/evidence/2026-02-12/clan-chain.json; docs/evidence/2026-02-12/proof-tape.json
   - Summary: Made ImageGenerationSeam prompt phrase validation case-insensitive across server and adapter, then refreshed probe-backed fixtures.
   - Risks: If deterministic gating depends on exact casing, prompts that previously failed may now pass.
+
+## 2026-04-15 - UI redesign follow-up: review feedback fixes
+- Date: 2026-04-15
+- Decision: Address review feedback from PR #8 (dark theme redesign): add `color-scheme: dark`, replace hardcoded colors in MeechieTools with CSS custom properties, auto-expand More controls when validation issues target advanced fields.
+- Context: PR #8 introduced a full dark-theme redesign. Code review (Gemini + Sourcery) flagged missing `color-scheme: dark`, hardcoded color literals in MeechieTools, and UX gaps where collapsed `<details>` sections hid important information from users. Note: the API key UI section was removed in this same PR (see entry below), so API key discoverability changes do not apply here.
+- Alternatives: Leave hardcoded colors as-is (would cause theme drift on future palette changes), leave advanced section always collapsed (risks users missing validation errors in hidden fields).
+- Consequences: Native browser controls now render dark, MeechieTools theme is derived from shared CSS vars, and validation errors for advanced fields automatically expand that section. Palette CSS variables moved to `+layout.svelte` so all routes have them without relying on `+page.svelte` being mounted.
+- Revisit criteria: Revisit if the color palette changes or if new advanced fields are added to the builder.
+- Plan:
+  - Goal: Apply review feedback from PR #8.
+  - Seams: None (UI + tests change, no contract changes).
+  - Files: `src/routes/+page.svelte`, `src/routes/+layout.svelte`, `src/lib/components/MeechieTools.svelte`, `contracts/spec-validation.contract.ts`, `DECISIONS.md`.
+  - Commands: `npm test`, `npm run verify`.
+- Self-critique: Moving `:global(body)` palette vars to layout means they are always loaded; any future page-level override must still use `:global()` to avoid specificity issues.
+
+- Cipher Gate:
+  - Date: 2026-04-15
+  - Seams: None (UI only)
+  - Evidence: docs/evidence/2026-04-15/test.txt; docs/evidence/2026-04-15/verify.txt
+  - Summary: Applied PR #8 review feedback: color-scheme dark, CSS var consistency in MeechieTools (vars moved to layout), advanced-fields validation auto-expand with ADVANCED_SPEC_FIELDS exported from contract. 155 tests pass (1 skipped).
+  - Risks: If palette variables are renamed in layout in future, MeechieTools will lose its colors silently.
+
+## 2026-04-15 - Move API key to server env var; remove client-side key entry
+- Date: 2026-04-15
+- Decision: Remove the user-facing API Key Settings panel and all client-side API key management. The server reads `XAI_API_KEY` from the Vercel environment variable exclusively.
+- Context: The API key was previously entered by users in the browser, stored in localStorage, and forwarded as an `x-api-key` header. This exposed the key in the browser and created unnecessary friction. Since `XAI_API_KEY` is already set as a Vercel environment variable, the server can use it directly.
+- Alternatives: Keep user-supplied keys as an override path; rejected because it adds UI complexity and a potential security surface with no benefit when the server key is already configured.
+- Consequences: `createProviderAdapter({})` is called with no config, falling back to `process.env.XAI_API_KEY`. The `x-api-key` header forwarding is removed from all pipelines. `buildJsonHeaders` and `postJson` in `http-client.ts` no longer accept or forward a key. `TEMP_API_KEY_STORAGE_KEY` and localStorage helpers are removed.
+- Revisit criteria: Only revisit if the product needs per-user API keys in the future.
+- Plan:
+  - Goal: Stop accepting client-supplied API keys and use server env var only.
+  - Seams: None (pipeline + UI change, no contract changes).
+  - Files: `src/lib/core/image-generation-pipeline.ts`, `src/lib/core/generate-pipeline.ts`, `src/routes/api/generate/+server.ts`, `src/routes/api/image-generation/+server.ts`, `src/routes/+page.svelte`, `src/lib/core/http-client.ts`, `tests/unit/api-image-generation.test.ts`, `tests/unit/http-client.test.ts`.
+  - Commands: `npm test`, `npm run verify`.
+- Self-critique: Risk is that if `XAI_API_KEY` is not set on the server, all image generation will return 401. This is the correct behavior — misconfigured env is a server ops issue, not a user issue.
+
+- Cipher Gate:
+  - Date: 2026-04-15
+  - Seams: None (pipeline + UI only)
+  - Evidence: docs/evidence/2026-04-15/npm-test-2026-04-15.txt
+  - Summary: Removed client-side API key entry; server now always uses XAI_API_KEY env var. All 155 tests pass.
+  - Risks: If XAI_API_KEY is unset on Vercel, all generation requests will return 401 with a clear error message.

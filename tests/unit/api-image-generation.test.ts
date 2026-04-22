@@ -1,5 +1,5 @@
-// Purpose: Verify /api/image-generation input validation and API-key forwarding behavior.
-// Why: Ensure local API-key workflow surfaces actionable errors while backend work is in progress.
+// Purpose: Verify /api/image-generation input validation and server-side API key behavior.
+// Why: Ensure the pipeline uses the server env var and surfaces actionable errors.
 // Info flow: Request payload + headers -> endpoint -> contract-shaped result.
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -96,10 +96,10 @@ describe('/api/image-generation', () => {
 		expect(response.status).toBe(401);
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('PROVIDER_API_KEY_MISSING');
-		expect(payload.error.message).toContain('Add API key in the UI panel');
+		expect(payload.error.message).toContain('XAI_API_KEY to be set on the server');
 	});
 
-	it('forwards x-api-key header into provider adapter config', async () => {
+	it('uses server env var regardless of request headers', async () => {
 		mockCreateProviderAdapter.mockReturnValue({
 			createChatCompletion: vi.fn(),
 			createImageGeneration: vi.fn(async () => ({
@@ -119,11 +119,11 @@ describe('/api/image-generation', () => {
 					variations: 1,
 					outputFormat: 'pdf'
 				},
-				{ 'x-api-key': 'test-key-123' }
+				{ 'x-api-key': 'ignored-client-key' }
 			)
 		);
 
 		expect(response.status).toBe(200);
-		expect(mockCreateProviderAdapter).toHaveBeenCalledWith({ apiKey: 'test-key-123' });
+		expect(mockCreateProviderAdapter).toHaveBeenCalledWith({});
 	});
 });

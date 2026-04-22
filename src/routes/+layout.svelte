@@ -26,8 +26,7 @@ Info flow: Layout renders children -> pages render within layout.
 <header class="site-nav">
 	<div class="nav-inner">
 		<a class="brand" href="/">
-			<span class="badge">Meechie</span>
-			<span>Studio Console</span>
+			<span class="badge">Meechie's</span>
 		</a>
 		<nav class="links">
 			<a href="/">Create</a>
@@ -44,11 +43,11 @@ Info flow: Layout renders children -> pages render within layout.
 		top: 0;
 		z-index: 10;
 		padding: 14px 20px;
-		border-bottom: 1px solid rgba(255, 201, 115, 0.3);
+		border-bottom: 1px solid rgba(201, 162, 39, 0.35);
 		background:
-			linear-gradient(90deg, rgba(19, 18, 21, 0.94), rgba(27, 21, 30, 0.93)),
-			radial-gradient(circle at 10% 0%, rgba(255, 86, 143, 0.2), transparent 45%);
-		backdrop-filter: blur(6px);
+			linear-gradient(90deg, rgba(7, 7, 15, 0.97), rgba(14, 10, 24, 0.96)),
+			radial-gradient(circle at 10% 0%, rgba(232, 0, 106, 0.18), transparent 45%);
+		backdrop-filter: blur(8px);
 		font-family: 'Barlow Condensed', 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
 	}
 
@@ -66,10 +65,10 @@ Info flow: Layout renders children -> pages render within layout.
 		align-items: center;
 		gap: 0.7rem;
 		font-weight: 700;
-		letter-spacing: 0.05em;
+		letter-spacing: 0.08em;
 		font-size: 0.95rem;
 		text-decoration: none;
-		color: #fffbf2;
+		color: #fdf6e3;
 		text-transform: uppercase;
 	}
 
@@ -77,14 +76,15 @@ Info flow: Layout renders children -> pages render within layout.
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		padding: 0.35rem 0.65rem;
-		font-size: 0.72rem;
+		padding: 0.38rem 0.9rem;
+		font-size: 0.85rem;
+		font-weight: 800;
 		text-transform: uppercase;
-		letter-spacing: 0.1em;
+		letter-spacing: 0.12em;
 		border-radius: 999px;
-		color: #2b1c13;
-		background: linear-gradient(120deg, #ffd57b, #ff8ab3);
-		box-shadow: 0 6px 14px rgba(255, 138, 179, 0.3);
+		color: #0d0a14;
+		background: linear-gradient(120deg, #c9a227, #f0c44a, #c9a227);
+		box-shadow: 0 4px 18px rgba(201, 162, 39, 0.4);
 	}
 
 	.links {
@@ -94,22 +94,22 @@ Info flow: Layout renders children -> pages render within layout.
 	}
 
 	.links a {
-		color: #f8e6cf;
+		color: #fdf6e3;
 		text-decoration: none;
 		font-weight: 700;
 		font-size: 0.84rem;
-		padding: 0.45rem 0.85rem;
+		padding: 0.45rem 0.9rem;
 		border-radius: 999px;
 		border: 1px solid transparent;
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+		letter-spacing: 0.08em;
+		transition: border-color 0.2s ease, background-color 0.2s ease;
 	}
 
 	.links a:hover {
-		border-color: rgba(255, 205, 128, 0.5);
-		background: rgba(255, 205, 128, 0.12);
-		color: #fff4df;
+		border-color: rgba(201, 162, 39, 0.55);
+		background: rgba(201, 162, 39, 0.1);
+		color: #f0c44a;
 	}
 
 	@media (max-width: 720px) {
@@ -117,12 +117,27 @@ Info flow: Layout renders children -> pages render within layout.
 			padding: 12px 14px;
 		}
 
-		.brand {
-			font-size: 0.8rem;
-		}
-
 		.badge {
-			padding-inline: 0.5rem;
+			font-size: 0.78rem;
+			padding: 0.32rem 0.7rem;
 		}
+	}
+
+	/* Palette CSS custom properties — defined here so every route (including /meechie)
+	   has access to them, regardless of which page component is mounted. */
+	:global(body) {
+		--fuchsia: #e8006a;
+		--fuchsia-glow: rgba(232, 0, 106, 0.22);
+		--gold: #c9a227;
+		--gold-bright: #f0c44a;
+		--gold-border: rgba(201, 162, 39, 0.35);
+		--cream: #fdf6e3;
+		--lavender: #b8aacf;
+		--dark-base: #07070f;
+		--dark-surface: #100f1c;
+		--dark-card: #16142a;
+		--dark-card-alt: #1c1932;
+		--emerald: #00c896;
+		color-scheme: dark;
 	}
 </style>
