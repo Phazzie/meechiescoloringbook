@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-04-23T06:23:35.476Z",
+  "generatedAt": "2026-04-23T07:50:41.635Z",
   "cipher": {
     "date": "2026-04-23",
     "seams": "ChatInterpretationSeam, ProviderAdapterSeam, SpecValidationSeam",
@@ -41,6 +41,6 @@
     "summary": "Replaced the hand-rolled JSON scanner with parser-based object validation and expanded chat edge-case tests for non-object payload rejection.",
     "risks": "Strict JSON-only enforcement can still reject provider responses that prepend prose despite prompt instructions."
   },
-  "latestChangeMs": 1776888431724.958,
+  "latestChangeMs": 1776888435196.3127,
   "status": "ok"
 }

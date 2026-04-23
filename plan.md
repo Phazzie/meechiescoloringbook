@@ -5,6 +5,25 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 -->
 # Autonomous Plan (2026-02-14)
 
+## Conflict Resolution Pass for Helper Tests (2026-04-23)
+### Plan
+- Goal: Resolve PR merge conflicts by minimizing divergence in helper test files that were unintentionally pulled into the seam-change branch.
+- Exact seams: `ChatInterpretationSeam` (primary), with conflict-only file alignment in helper tests.
+- Exact file paths to touch:
+  - `tests/unit/output-packaging-helpers.test.ts`
+  - `tests/unit/provider-adapter-helpers.test.ts`
+  - `plan.md`
+- Exact commands to run:
+  1. `npm test -- tests/unit/output-packaging-helpers.test.ts tests/unit/provider-adapter-helpers.test.ts`
+  2. `npm test`
+  3. `npm run verify`
+
+### Self-critique
+1. What could be wrong: Reverting conflict-heavy helper tests might reintroduce strict-check failures that were masked by prior edits.
+2. What must be proven: Both helper test files compile and pass without conflict markers and without breaking verify.
+3. Riskiest assumption: Upstream/base branch versions of the helper tests already satisfy current type checks.
+4. Evidence to prove/disprove: Passing targeted helper tests and green verify evidence on 2026-04-23.
+
 ## Chat JSON Parser Simplification Pass (2026-04-23)
 ### Plan
 - Goal: Replace the hand-rolled JSON boundary scanner with a simpler parser-based single-object validator while preserving JSON-only behavior.
