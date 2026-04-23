@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-04-22T20:21:20.519Z",
+  "cipher": {
+    "date": "2026-04-22",
+    "seams": "ChatInterpretationSeam, ProviderAdapterSeam, SpecValidationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-04-22/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-22/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-22/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-22/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-22/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-22/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-22/proof-tape.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-22/assumption-alarm.json",
+        "exists": true
+      }
+    ],
+    "summary": "Replaced loose brace slicing with strict single-object boundary parsing, added edge-case tests for braces-in-text and multi-object payloads, and aligned chat pipeline tests to JSON-only provider output.",
+    "risks": "Some providers may still emit non-JSON wrappers despite prompt instructions, increasing rejection rate until upstream behavior is fully aligned."
+  },
+  "latestChangeMs": 1776888413978.825,
+  "status": "ok"
+}

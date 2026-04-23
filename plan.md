@@ -5,6 +5,26 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 -->
 # Autonomous Plan (2026-02-14)
 
+## Chat JSON Boundary Hardening Pass (2026-04-22)
+### Plan
+- Goal: Enforce deterministic JSON-only chat payload parsing by accepting exactly one top-level JSON object and rejecting any non-whitespace text outside that boundary.
+- Exact seams: `ChatInterpretationSeam`, `ProviderAdapterSeam`, `SpecValidationSeam`.
+- Exact file paths to touch:
+  - `src/lib/core/chat-interpretation-pipeline.ts`
+  - `tests/unit/pipeline-edge-cases.test.ts`
+  - `DECISIONS.md`
+  - `plan.md`
+- Exact commands to run:
+  1. `npm test -- tests/unit/pipeline-edge-cases.test.ts`
+  2. `npm test`
+  3. `npm run verify`
+
+### Self-critique
+1. What could be wrong: A strict boundary parser can incorrectly reject valid JSON if brace-matching fails around escaped quotes or nested objects.
+2. What must be proven: Valid JSON object payloads still pass, while braces-in-text and multi-object payloads fail with deterministic `CHAT_RESPONSE_INVALID`.
+3. Riskiest assumption: Provider chat content for successful cases is already JSON-only and does not rely on explanatory prefix/suffix text.
+4. Evidence to prove/disprove: New unit tests in `tests/unit/pipeline-edge-cases.test.ts` plus green `npm test` and `npm run verify` outputs.
+
 ## Ghost Workflow Retirement Pass (2026-02-15)
 ### Plan
 - Goal: Remove the legacy generation workflow path that is not used by the active UI or API routes.

@@ -35,7 +35,8 @@ describe('provider-adapter helpers', () => {
 			});
 
 			expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
-			const calledUrl = fetchMock.mock.calls[0]?.[0] as string;
+			const firstCall = fetchMock.mock.calls.at(0) as unknown[] | undefined;
+			const calledUrl = String(firstCall?.at(0) ?? '');
 			expect(calledUrl).toBe('https://api.x.ai/v1/chat/completions');
 		});
 
@@ -58,7 +59,8 @@ describe('provider-adapter helpers', () => {
 			});
 
 			expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
-			const calledUrl = fetchMock.mock.calls[0]?.[0] as string;
+			const firstCall = fetchMock.mock.calls.at(0) as unknown[] | undefined;
+			const calledUrl = String(firstCall?.at(0) ?? '');
 			expect(calledUrl).toBe('https://api.x.ai/v1/chat/completions');
 		});
 
@@ -81,7 +83,8 @@ describe('provider-adapter helpers', () => {
 			});
 
 			expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
-			const calledUrl = fetchMock.mock.calls[0]?.[0] as string;
+			const firstCall = fetchMock.mock.calls.at(0) as unknown[] | undefined;
+			const calledUrl = String(firstCall?.at(0) ?? '');
 			expect(calledUrl).toBe('https://api.x.ai/v1/chat/completions');
 		});
 	});

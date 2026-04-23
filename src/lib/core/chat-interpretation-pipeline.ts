@@ -28,13 +28,60 @@ type ChatPipelineDeps = {
 	validateSpec: typeof specValidationAdapter.validate;
 };
 
-const extractJson = (content: string): string | null => {
-	const start = content.indexOf('{');
-	const end = content.lastIndexOf('}');
-	if (start === -1 || end === -1 || end <= start) {
+const extractSingleJsonObject = (content: string): string | null => {
+	const trimmed = content.trim();
+	if (!trimmed.startsWith('{')) {
 		return null;
 	}
-	return content.slice(start, end + 1);
+
+	let depth = 0;
+	let inString = false;
+	let escaped = false;
+
+	for (let index = 0; index < trimmed.length; index += 1) {
+		const char = trimmed[index];
+
+		if (inString) {
+			if (escaped) {
+				escaped = false;
+				continue;
+			}
+			if (char === '\\') {
+				escaped = true;
+				continue;
+			}
+			if (char === '"') {
+				inString = false;
+			}
+			continue;
+		}
+
+		if (char === '"') {
+			inString = true;
+			continue;
+		}
+
+		if (char === '{') {
+			depth += 1;
+			continue;
+		}
+
+		if (char === '}') {
+			depth -= 1;
+			if (depth < 0) {
+				return null;
+			}
+			if (depth === 0) {
+				const trailing = trimmed.slice(index + 1).trim();
+				if (trailing.length > 0) {
+					return null;
+				}
+				return trimmed.slice(0, index + 1);
+			}
+		}
+	}
+
+	return null;
 };
 
 const buildError = (
@@ -79,7 +126,7 @@ export const runChatInterpretationPipeline = async (
 		};
 	}
 
-	const extracted = extractJson(chatResult.value.content);
+	const extracted = extractSingleJsonObject(chatResult.value.content);
 	if (!extracted) {
 		return buildError('CHAT_RESPONSE_INVALID', 'Chat response did not include JSON.');
 	}
