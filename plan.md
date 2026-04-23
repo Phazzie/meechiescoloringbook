@@ -5,6 +5,26 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 -->
 # Autonomous Plan (2026-02-14)
 
+## Chat JSON Parser Simplification Pass (2026-04-23)
+### Plan
+- Goal: Replace the hand-rolled JSON boundary scanner with a simpler parser-based single-object validator while preserving JSON-only behavior.
+- Exact seams: `ChatInterpretationSeam`, `ProviderAdapterSeam`, `SpecValidationSeam`.
+- Exact file paths to touch:
+  - `src/lib/core/chat-interpretation-pipeline.ts`
+  - `tests/unit/pipeline-edge-cases.test.ts`
+  - `DECISIONS.md`
+  - `plan.md`
+- Exact commands to run:
+  1. `npm test -- tests/unit/pipeline-edge-cases.test.ts`
+  2. `npm test`
+  3. `npm run verify`
+
+### Self-critique
+1. What could be wrong: Parser simplification could accidentally accept non-object JSON payloads or regress strict no-extra-text behavior.
+2. What must be proven: Non-object and wrapped text payloads still fail, and clean single-object payloads still pass.
+3. Riskiest assumption: `JSON.parse(trimmed)` alone is sufficient for deterministic single-object enforcement in this seam.
+4. Evidence to prove/disprove: Updated unit tests plus green `npm test` and `npm run verify` evidence output.
+
 ## Chat JSON Boundary Hardening Pass (2026-04-22)
 ### Plan
 - Goal: Enforce deterministic JSON-only chat payload parsing by accepting exactly one top-level JSON object and rejecting any non-whitespace text outside that boundary.

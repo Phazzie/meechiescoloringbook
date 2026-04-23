@@ -1,0 +1,78 @@
+{
+  "tool": "proof-tape",
+  "generatedAt": "2026-04-23T06:23:35.042Z",
+  "evidenceDir": "docs/evidence/2026-04-23",
+  "files": [
+    {
+      "name": "assumption-alarm.json",
+      "path": "docs/evidence/2026-04-23/assumption-alarm.json",
+      "sizeBytes": 2297,
+      "modifiedAt": "2026-04-23T06:23:33.814Z",
+      "commands": []
+    },
+    {
+      "name": "chamber-lock.json",
+      "path": "docs/evidence/2026-04-23/chamber-lock.json",
+      "sizeBytes": 15215,
+      "modifiedAt": "2026-04-23T06:22:17.176Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.json",
+      "path": "docs/evidence/2026-04-23/clan-chain.json",
+      "sizeBytes": 1640,
+      "modifiedAt": "2026-04-23T06:23:34.626Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.md",
+      "path": "docs/evidence/2026-04-23/clan-chain.md",
+      "sizeBytes": 1070,
+      "modifiedAt": "2026-04-23T06:23:34.626Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.json",
+      "path": "docs/evidence/2026-04-23/seam-ledger.json",
+      "sizeBytes": 16187,
+      "modifiedAt": "2026-04-23T06:23:34.218Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.md",
+      "path": "docs/evidence/2026-04-23/seam-ledger.md",
+      "sizeBytes": 1416,
+      "modifiedAt": "2026-04-23T06:23:34.222Z",
+      "commands": []
+    },
+    {
+      "name": "shaolin-lint.json",
+      "path": "docs/evidence/2026-04-23/shaolin-lint.json",
+      "sizeBytes": 582,
+      "modifiedAt": "2026-04-23T06:23:33.410Z",
+      "commands": []
+    },
+    {
+      "name": "test.txt",
+      "path": "docs/evidence/2026-04-23/test.txt",
+      "sizeBytes": 3275,
+      "modifiedAt": "2026-04-23T06:23:32.994Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run"
+      ]
+    },
+    {
+      "name": "verify.txt",
+      "path": "docs/evidence/2026-04-23/verify.txt",
+      "sizeBytes": 3619,
+      "modifiedAt": "2026-04-23T06:23:32.994Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run"
+      ]
+    }
+  ]
+}
