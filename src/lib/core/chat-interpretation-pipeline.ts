@@ -34,54 +34,15 @@ const extractSingleJsonObject = (content: string): string | null => {
 		return null;
 	}
 
-	let depth = 0;
-	let inString = false;
-	let escaped = false;
-
-	for (let index = 0; index < trimmed.length; index += 1) {
-		const char = trimmed[index];
-
-		if (inString) {
-			if (escaped) {
-				escaped = false;
-				continue;
-			}
-			if (char === '\\') {
-				escaped = true;
-				continue;
-			}
-			if (char === '"') {
-				inString = false;
-			}
-			continue;
+	try {
+		const parsed = JSON.parse(trimmed);
+		if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+			return trimmed;
 		}
-
-		if (char === '"') {
-			inString = true;
-			continue;
-		}
-
-		if (char === '{') {
-			depth += 1;
-			continue;
-		}
-
-		if (char === '}') {
-			depth -= 1;
-			if (depth < 0) {
-				return null;
-			}
-			if (depth === 0) {
-				const trailing = trimmed.slice(index + 1).trim();
-				if (trailing.length > 0) {
-					return null;
-				}
-				return trimmed.slice(0, index + 1);
-			}
-		}
+		return null;
+	} catch {
+		return null;
 	}
-
-	return null;
 };
 
 const buildError = (

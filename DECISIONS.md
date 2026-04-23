@@ -15,6 +15,21 @@ Short, durable decisions with context and tradeoffs.
 - Consequences:
 - Revisit criteria:
 
+## 2026-04-23 - Delegate chat JSON grammar validation to JSON.parse
+- Date: 2026-04-23
+- Decision: Replace the custom brace scanner in chat interpretation with a parser-based check that trims content, parses once with `JSON.parse`, and accepts only top-level JSON objects.
+- Context: Review feedback called out maintenance risk and potential grammar edge-case drift in the hand-rolled scanner implementation.
+- Alternatives: Keep the custom scanner and continue maintaining escape/string/depth logic in application code.
+- Consequences: JSON grammar validation now relies on the native parser while preserving deterministic rejection of non-object and extra-text payloads.
+- Revisit criteria: If we ever need partial extraction from mixed prose+JSON outputs, reintroduce an explicit extractor with contract updates and new fixtures.
+
+- Cipher Gate:
+  - Date: 2026-04-23
+  - Seams: ChatInterpretationSeam, ProviderAdapterSeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-04-23/test.txt; docs/evidence/2026-04-23/verify.txt; docs/evidence/2026-04-23/chamber-lock.json; docs/evidence/2026-04-23/shaolin-lint.json; docs/evidence/2026-04-23/seam-ledger.json; docs/evidence/2026-04-23/clan-chain.json; docs/evidence/2026-04-23/proof-tape.json; docs/evidence/2026-04-23/assumption-alarm.json
+  - Summary: Replaced the hand-rolled JSON scanner with parser-based object validation and expanded chat edge-case tests for non-object payload rejection.
+  - Risks: Strict JSON-only enforcement can still reject provider responses that prepend prose despite prompt instructions.
+
 ## 2026-04-22 - Enforce strict single-object JSON parsing for chat interpretation
 - Date: 2026-04-22
 - Decision: Harden chat interpretation parsing to accept exactly one top-level JSON object and reject any extra non-whitespace text before or after the object boundary.

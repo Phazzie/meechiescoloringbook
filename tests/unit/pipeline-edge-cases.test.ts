@@ -147,6 +147,26 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		}
 	});
 
+	it('returns error when response is valid JSON but not an object', async () => {
+		const result = await runChatInterpretationPipeline(
+			{ message: 'Make me a cool page' },
+			{
+				createChatCompletion: vi.fn().mockResolvedValue({
+					ok: true,
+					value: {
+						model: 'grok',
+						content: JSON.stringify(['not', 'an', 'object'])
+					}
+				}),
+				validateSpec: vi.fn()
+			}
+		);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('CHAT_RESPONSE_INVALID');
+		}
+	});
+
 	it('returns error when JSON does not match spec schema', async () => {
 		const result = await runChatInterpretationPipeline(
 			{ message: 'Make me a cool page' },
