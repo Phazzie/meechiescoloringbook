@@ -34,8 +34,9 @@ describe('provider-adapter helpers', () => {
 				messages: [{ role: 'user', content: 'hi' }]
 			});
 
-			expect(fetchMock).toHaveBeenCalled();
-			const calledUrl = (fetchMock.mock.calls[0] as any)[0];
+			expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
+			const firstCall = fetchMock.mock.calls.at(0) as unknown[] | undefined;
+			const calledUrl = String(firstCall?.at(0) ?? '');
 			expect(calledUrl).toBe('https://api.x.ai/v1/chat/completions');
 		});
 
@@ -57,8 +58,9 @@ describe('provider-adapter helpers', () => {
 				messages: [{ role: 'user', content: 'hi' }]
 			});
 
-			expect(fetchMock).toHaveBeenCalled();
-			const calledUrl = (fetchMock.mock.calls[0] as any)[0];
+			expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
+			const firstCall = fetchMock.mock.calls.at(0) as unknown[] | undefined;
+			const calledUrl = String(firstCall?.at(0) ?? '');
 			expect(calledUrl).toBe('https://api.x.ai/v1/chat/completions');
 		});
 
@@ -80,8 +82,9 @@ describe('provider-adapter helpers', () => {
 				messages: [{ role: 'user', content: 'hi' }]
 			});
 
-			expect(fetchMock).toHaveBeenCalled();
-			const calledUrl = (fetchMock.mock.calls[0] as any)[0];
+			expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
+			const firstCall = fetchMock.mock.calls.at(0) as unknown[] | undefined;
+			const calledUrl = String(firstCall?.at(0) ?? '');
 			expect(calledUrl).toBe('https://api.x.ai/v1/chat/completions');
 		});
 	});

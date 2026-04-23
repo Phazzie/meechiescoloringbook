@@ -60,7 +60,7 @@ describe('/api/chat-interpretation', () => {
 			ok: true,
 			value: {
 				model: 'grok-4-1-fast-reasoning',
-				content: `Here is the spec:\n${JSON.stringify(validSpec)}`
+				content: JSON.stringify(validSpec)
 			}
 		});
 

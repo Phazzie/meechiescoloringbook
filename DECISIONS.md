@@ -15,6 +15,21 @@ Short, durable decisions with context and tradeoffs.
 - Consequences:
 - Revisit criteria:
 
+## 2026-04-22 - Enforce strict single-object JSON parsing for chat interpretation
+- Date: 2026-04-22
+- Decision: Harden chat interpretation parsing to accept exactly one top-level JSON object and reject any extra non-whitespace text before or after the object boundary.
+- Context: The prior extraction strategy accepted the first `{` through last `}` substring, which could silently accept narrative wrappers or ambiguous multi-object responses.
+- Alternatives: Keep permissive extraction and rely only on stronger prompt wording that requests JSON-only responses.
+- Consequences: Chat responses are now deterministically rejected when providers prepend prose, include brace snippets in text, or emit multiple objects; tests were updated to lock this behavior.
+- Revisit criteria: If provider behavior requires tolerant parsing for reliability, revisit with an explicit contract change and fixture-backed seam evidence.
+
+- Cipher Gate:
+  - Date: 2026-04-22
+  - Seams: ChatInterpretationSeam, ProviderAdapterSeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-04-22/test.txt; docs/evidence/2026-04-22/verify.txt; docs/evidence/2026-04-22/chamber-lock.json; docs/evidence/2026-04-22/shaolin-lint.json; docs/evidence/2026-04-22/seam-ledger.json; docs/evidence/2026-04-22/clan-chain.json; docs/evidence/2026-04-22/proof-tape.json; docs/evidence/2026-04-22/assumption-alarm.json
+  - Summary: Replaced loose brace slicing with strict single-object boundary parsing, added edge-case tests for braces-in-text and multi-object payloads, and aligned chat pipeline tests to JSON-only provider output.
+  - Risks: Some providers may still emit non-JSON wrappers despite prompt instructions, increasing rejection rate until upstream behavior is fully aligned.
+
 ## 2026-02-15 - Extract chat/tools pipelines, retire ghost workflow, and refresh seam governance
 - Date: 2026-02-15
 - Decision: Extract `/api/chat-interpretation` and `/api/tools` orchestration into core pipeline modules, keep route handlers transport-thin, remove the unused legacy workflow/composition path, and update seam inventory coverage for seam modules under `src/lib/seams/`.

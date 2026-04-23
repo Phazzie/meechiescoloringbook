@@ -189,7 +189,7 @@ describe('output-packaging adapter edge cases', () => {
 					{
 						id: 'image-0',
 						format: 'jpeg' as 'png',
-						mimeType: 'image/jpeg',
+						mimeType: 'image/jpeg' as 'image/png',
 						data: 'some-data',
 						encoding: 'base64'
 					}
