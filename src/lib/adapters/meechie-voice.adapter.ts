@@ -140,7 +140,81 @@ const meechieVoicePack: MeechieVoicePack = {
 					'Ghosting is disappearance without accountability. Keep that door locked.'
 			},
 			fallbackTemplate: '{term} means they want premium access on a free trial.'
-		}
+		},
+		excuseRatings: [
+			{
+				keywords: ['phone died', 'phone was dead', 'battery died', 'phone battery'],
+				rating: 2,
+				commentary: 'Phones die. Your character did not have to go with it.'
+			},
+			{
+				keywords: ['was asleep', 'fell asleep', 'i was sleeping', 'asleep'],
+				rating: 2,
+				commentary: 'Sleep is valid. Your location being live at 2am is not.'
+			},
+			{
+				keywords: ['with the guys', 'with my boys', 'with my friends', 'with friends'],
+				rating: 4,
+				commentary: "The guys said they ain't seen you. Somebody lying and it ain't the guys."
+			},
+			{
+				keywords: ['working late', 'at work', 'work thing', 'was working', 'working'],
+				rating: 3,
+				commentary: 'Busy doing what though. Be specific. I have time.'
+			},
+			{
+				keywords: ["didn't see", "didn't notice", "missed your text", 'never saw'],
+				rating: 3,
+				commentary: 'Three bars, full Wi-Fi, and you missed it. Noted.'
+			},
+			{
+				keywords: ['needed space', 'needed to think', 'need space', 'needed time'],
+				rating: 2,
+				commentary: 'Space is fine. Radio silence for three days is a decision.'
+			},
+			{
+				keywords: ['forgot', 'slipped my mind', 'completely forgot'],
+				rating: 3,
+				commentary: "Things that matter don't forget to happen."
+			},
+			{
+				keywords: ['traffic', 'was driving', 'on the road', 'car trouble'],
+				rating: 3,
+				commentary: 'Maps said twenty minutes. You took four hours. Interesting route.'
+			},
+			{
+				keywords: ['family emergency', 'family thing', 'my mom', 'my dad', 'my sister', 'my brother'],
+				rating: 5,
+				commentary: 'Family emergency is acceptable. Not saying a word about it for days is not.'
+			},
+			{
+				keywords: ['not ready', 'not in a good place', 'going through something'],
+				rating: 2,
+				commentary: "Not ready is not an excuse. It's a warning. I hear it."
+			}
+		],
+		randomSayings: [
+			'You fumbled ME? In THIS economy?',
+			"Should've fucked the landlord, not the dopeman.",
+			"If you don't want me to come in, don't open the door. Not even a little bit. Because if you open the door, I'm coming in.",
+			'He can leave. I am still gonna be pretty tomorrow.',
+			"I'm not crying over you. I'm crying because I wasted mascara on you.",
+			"You picked HER? That's not my loss, that's your vision problem.",
+			'Try me again and watch me be real pretty at your family reunion.',
+			"One more lie and I'm showing up to Easter looking SAVED.",
+			'Your phone died but your location was live at her apartment. Interesting.',
+			"I will out-dress your mama at HER birthday party. Don't test me.",
+			"As long as I am up, they still living in my shadow.",
+			"He said no commitment but still wants access. That's a free trial, not a relationship.",
+			"I'm not mad. I'm observing that you fumbled something irreplaceable.",
+			"You don't have to like me. I already like me enough for both of us.",
+			"The disrespect was bold. I respect the confidence. Not the choice.",
+			"I don't chase. I close the door and let the draft do the work.",
+			"He got a whole situation and still had time to text me at 1am. Make it make sense.",
+			"My standards didn't go up. Your options just got smaller.",
+			"I said what I said and I meant what I didn't say too.",
+			"The audacity arrived before you did."
+		]
 	}
 };
 
