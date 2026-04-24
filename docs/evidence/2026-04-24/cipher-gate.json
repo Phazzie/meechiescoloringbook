@@ -1,0 +1,54 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-04-24T02:41:19.443Z",
+  "cipher": {
+    "date": "2026-04-24",
+    "seams": "SessionSeam, CreationStoreSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-04-24/rewind-SessionSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-24/rewind-CreationStoreSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-24/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-24/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-24/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-24/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-24/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-24/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-24/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-24/proof-tape.json",
+        "exists": true
+      }
+    ],
+    "summary": "Fixed demo-blocking localStorage failures in test setup, repaired Windows evidence capture for seam rewind and full verification, and pinned the Vercel runtime to Node 22.",
+    "risks": "Future database/auth work should replace this with contract-backed database fixtures instead of expanding browser storage behavior. Local production build output still depends on Windows symlink support for adapter-vercel."
+  },
+  "latestChangeMs": 1776997829511.5854,
+  "status": "ok"
+}

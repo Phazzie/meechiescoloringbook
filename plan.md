@@ -5,6 +5,31 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 -->
 # Autonomous Plan (2026-02-14)
 
+## Demo Storage Test Blocker (2026-04-24)
+### Plan
+- Goal: Restore deterministic browser storage behavior in Vitest so the local demo can be verified without changing production storage behavior.
+- Exact seams: `SessionSeam`, `CreationStoreSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `vite.config.ts`
+  - `tests/setup/local-storage.ts`
+  - `scripts/rewind.mjs`
+  - `scripts/verify-runner.mjs`
+  - `svelte.config.js`
+- Exact commands to run:
+  1. `npm run check`
+  2. `npm test`
+  3. `npm run verify`
+  4. `npm run rewind -- --seam SessionSeam`
+  5. `npm run rewind -- --seam CreationStoreSeam`
+  6. `npm run build`
+
+### Self-critique
+1. What could be wrong: The failing tests may reveal a real adapter compatibility issue instead of only a Vitest environment issue.
+2. What must be proven: `localStorage` supports `getItem`, `setItem`, `removeItem`, and `clear` during unit and contract tests while production browser behavior remains unchanged.
+3. Riskiest assumption: A deterministic test storage shim is sufficient for the demo blocker and Windows command spawning does not hide real test failures behind blank evidence.
+4. Evidence to prove/disprove: Green `tests/unit/session-auth-helpers.test.ts`, `tests/unit/creation-store-helpers.test.ts`, `tests/contract/session.test.ts`, plus green `npm run check`, `npm test`, `npm run verify`, and seam-specific rewind commands with populated evidence output.
+
 ## Ghost Workflow Retirement Pass (2026-02-15)
 ### Plan
 - Goal: Remove the legacy generation workflow path that is not used by the active UI or API routes.
