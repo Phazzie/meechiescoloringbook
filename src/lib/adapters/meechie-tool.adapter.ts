@@ -88,6 +88,22 @@ const explainsResponse = (pack: MeechieVoicePack, term: string): string => {
 		applyTemplate(pack.responses.explains.fallbackTemplate, { term: normalize(term) });
 };
 
+const rateExcuse = (
+	pack: MeechieVoicePack,
+	excuse: string
+): { rating: number; commentary: string } => {
+	const normalized = toKey(excuse);
+	const match = pack.responses.excuseRatings.find((r) =>
+		r.keywords.some((keyword) => normalized.includes(keyword))
+	);
+	return match ?? { rating: 3, commentary: 'Standard excuse. Lacks creativity. Lacks credibility.' };
+};
+
+const randomSaying = (pack: MeechieVoicePack): string => {
+	const sayings = pack.responses.randomSayings;
+	return sayings[Math.floor(Math.random() * sayings.length)];
+};
+
 const horoscopeHeadline = (pack: MeechieVoicePack, sign: string): string =>
 	applyTemplate(pack.responses.headlines.horoscopeTemplate, { sign });
 
@@ -194,6 +210,29 @@ export const meechieToolAdapter: MeechieToolSeam = {
 						response: explainsResponse(pack, input.term)
 					}
 				};
+			case 'rate_excuse': {
+				const { rating, commentary } = rateExcuse(pack, input.excuse);
+				return {
+					ok: true,
+					value: {
+						toolId: input.toolId,
+						headline: `${rating}/10`,
+						response: commentary,
+						rating
+					}
+				};
+			}
+			case 'random_meechie': {
+				const saying = randomSaying(pack);
+				return {
+					ok: true,
+					value: {
+						toolId: input.toolId,
+						headline: saying,
+						response: saying
+					}
+				};
+			}
 			default:
 				return {
 					ok: false,

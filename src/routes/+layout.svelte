@@ -29,8 +29,10 @@ Info flow: Layout renders children -> pages render within layout.
 			<span class="badge">Meechie's</span>
 		</a>
 		<nav class="links">
-			<a href="/">Create</a>
-			<a href="/meechie">Talk To Meechie</a>
+			<a href="/who-fucked-up">Who Fucked Up?</a>
+			<a href="/rate-his-excuse">Rate His Excuse</a>
+			<a href="/random">Random</a>
+			<a href="/meechie">Meechie's Tools</a>
 		</nav>
 	</div>
 </header>
