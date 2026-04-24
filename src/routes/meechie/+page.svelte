@@ -8,14 +8,14 @@ Info flow: Route -> MeechieTools component -> MeechieToolSeam.
 </script>
 
 <svelte:head>
-	<title>Talk To Meechie</title>
+	<title>Meechie's Tools — Meechie's Coloring Book</title>
 </svelte:head>
 
 <div class="meechie-page">
 	<header class="hero">
-		<p class="eyebrow">Meechie Voice Lab</p>
-		<h1>If she said it, she meant it.</h1>
-		<p class="sub">Sharp tools for apologies, clapbacks, receipts, and decisions.</p>
+		<p class="eyebrow">Meechie's Full Toolkit</p>
+		<h1>She already knows what it means.</h1>
+		<p class="sub">Apology autopsies. Clapbacks. Receipt checks. Verdicts with no soft landing.</p>
 	</header>
 	<MeechieTools />
 </div>

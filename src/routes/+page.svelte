@@ -452,59 +452,72 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 </script>
 
 <svelte:head>
-	<title>Meechie Street Glam Coloring Studio</title>
+	<title>Meechie's Coloring Book</title>
 </svelte:head>
 
 <div class="page">
 	<div class="ambient ambient-a" aria-hidden="true"></div>
 	<div class="ambient ambient-b" aria-hidden="true"></div>
+
 	<header class="hero">
 		<div class="hero-copy">
-			<p class="eyebrow">Meechie Studio</p>
-			<h1>The page they remember. The energy they cannot copy.</h1>
-			<p class="subhead">
-				State the vibe, lock the style, and print it clean. Fast when you want speed, precise when you
-				want control.
-			</p>
-			<div class="flow-steps" aria-label="Workflow progress">
-				<div class="step" class:done={isSpecValid}>
-					<span>1</span>
-					<p>Call it</p>
-				</div>
-				<div class="step" class:done={imagePreviews.length > 0}>
-					<span>2</span>
-					<p>Preview</p>
-				</div>
-				<div class="step" class:done={packagedFiles.length > 0}>
-					<span>3</span>
-					<p>Print</p>
-				</div>
-			</div>
+			<p class="crown">♛</p>
+			<h1>Meechie's Coloring Book</h1>
+			<p class="subhead">She don't give advice. She states facts. Pick your truth.</p>
 		</div>
 	</header>
 
+	<section class="modes" aria-label="Choose a mode">
+		<a href="/who-fucked-up" class="mode-card mode-wfu">
+			<span class="mode-icon" aria-hidden="true">👁</span>
+			<div class="mode-body">
+				<h2>Who Fucked Up?</h2>
+				<p>Describe what happened. Meechie tells you exactly what it means.</p>
+			</div>
+			<span class="mode-arrow">→</span>
+		</a>
+		<a href="/rate-his-excuse" class="mode-card mode-rhe">
+			<span class="mode-icon" aria-hidden="true">⚖</span>
+			<div class="mode-body">
+				<h2>Rate His Excuse</h2>
+				<p>Drop the excuse. Meechie scores it. Court is in session.</p>
+			</div>
+			<span class="mode-arrow">→</span>
+		</a>
+		<a href="/random" class="mode-card mode-random">
+			<span class="mode-icon" aria-hidden="true">✦</span>
+			<div class="mode-body">
+				<h2>Random Meechie</h2>
+				<p>One tap. One truth. No context required.</p>
+			</div>
+			<span class="mode-arrow">→</span>
+		</a>
+	</section>
+
+	<p class="or-divider">— or build a custom page —</p>
+
 	<section class="card chat">
-		<h2>Just say it</h2>
+		<h2>Describe what you want</h2>
 		<div class="field">
-			<label for="chat">Tell Meechie what you want</label>
+			<label for="chat">Say it in plain language</label>
 			<textarea
 				id="chat"
 				rows="3"
 				bind:value={chatMessage}
 				on:input={scheduleDraftSave}
-				placeholder="Example: glam birthday theme with diamonds, heels, and bold lettering"
+				placeholder="Example: diamond glam theme with bold lettering and crown decorations"
 			></textarea>
 		</div>
 		<button type="button" class="primary" on:click={handleChatInterpretation}>
-			Make It
+			Generate My Coloring Page
 		</button>
 	</section>
 
-	<p class="or-divider">— or build it yourself —</p>
+	<p class="or-divider">— specify every detail —</p>
 
 	<div class="grid">
 		<section class="card builder">
-			<h2>Build the Look</h2>
+			<h2>Custom Page Builder</h2>
 
 			<div class="field">
 				<label for="title">Main headline</label>
@@ -655,7 +668,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 					on:click={handleGenerate}
 					disabled={!isSpecValid || isGenerating}
 				>
-					{isGenerating ? 'Creating...' : 'Create Pages'}
+					{isGenerating ? 'Creating...' : 'Generate My Coloring Page'}
 				</button>
 				<button type="button" class="ghost" on:click={resetSpec}>Reset</button>
 			</div>
@@ -958,12 +971,11 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	</section>
 
 	<section class="card meechie-link-card">
-		<h2>Meechie Tools</h2>
+		<h2>Meechie's Full Toolkit</h2>
 		<p class="meechie-link-copy">
-			Need a clapback, a receipt check, or a cold read on the situation? Open the dedicated Meechie
-			space.
+			Apology autopsies. Receipt checks. Clapbacks. Everything Meechie reads, rated and delivered.
 		</p>
-		<a class="primary meechie-link-button" href="/meechie">Go To Meechie Tools</a>
+		<a class="primary meechie-link-button" href="/meechie">Enter Meechie's Space</a>
 	</section>
 
 	<div class="mobile-actions" aria-label="Quick actions">
@@ -973,7 +985,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 			on:click={handleGenerate}
 			disabled={!isSpecValid || isGenerating}
 		>
-			{isGenerating ? 'Creating...' : 'Create Pages'}
+			{isGenerating ? 'Creating...' : 'Generate My Coloring Page'}
 		</button>
 	</div>
 </div>
@@ -1028,90 +1040,132 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	.hero {
 		position: relative;
 		z-index: 1;
-		padding: 1.6rem 0.2rem 2rem;
-		margin-bottom: 1.4rem;
+		padding: 3rem 0.2rem 2.4rem;
+		margin-bottom: 0.8rem;
+		text-align: center;
 	}
 
-	.eyebrow {
-		margin: 0 0 0.55rem;
-		text-transform: uppercase;
-		letter-spacing: 0.18em;
-		font-size: 0.72rem;
-		font-weight: 700;
-		color: var(--gold);
+	.crown {
+		margin: 0 0 0.6rem;
+		font-size: 2.2rem;
+		line-height: 1;
+		filter: drop-shadow(0 0 12px rgba(201, 162, 39, 0.6));
 	}
 
 	h1 {
 		margin: 0 0 0.7rem;
-		max-width: 18ch;
 		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-size: clamp(2.2rem, 5.2vw, 3.8rem);
+		font-size: clamp(2.4rem, 6vw, 4.2rem);
 		font-style: italic;
 		font-weight: 800;
-		line-height: 0.95;
-		letter-spacing: -0.03em;
+		line-height: 0.92;
+		letter-spacing: -0.02em;
 		color: var(--cream);
+		text-shadow: 0 0 40px rgba(201, 162, 39, 0.25);
 	}
 
 	.subhead {
-		margin: 0;
-		max-width: 520px;
+		margin: 0 auto;
+		max-width: 380px;
 		font-size: 1rem;
 		line-height: 1.45;
 		color: var(--lavender);
 	}
 
-	.flow-steps {
+	/* Mode cards */
+	.modes {
+		position: relative;
+		z-index: 1;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+		gap: 1rem;
+		margin-bottom: 2rem;
+	}
+
+	.mode-card {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.65rem;
-		margin-top: 1.2rem;
-	}
-
-	.step {
-		display: inline-flex;
 		align-items: center;
-		gap: 0.45rem;
-		padding: 0.34rem 0.72rem;
-		border-radius: 999px;
-		background: rgba(22, 20, 42, 0.7);
+		gap: 1rem;
+		padding: 1.4rem 1.3rem;
+		border-radius: 1.2rem;
+		text-decoration: none;
 		border: 1px solid var(--gold-border);
+		background: var(--dark-card);
+		transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 	}
 
-	.step span {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.2rem;
-		height: 1.2rem;
-		border-radius: 50%;
-		font-size: 0.72rem;
-		font-weight: 700;
-		background: rgba(201, 162, 39, 0.2);
-		color: var(--gold-bright);
+	.mode-card:hover {
+		transform: translateY(-3px);
+		box-shadow: 0 18px 42px rgba(0, 0, 0, 0.5);
 	}
 
-	.step p {
+	.mode-wfu {
+		border-color: rgba(232, 0, 106, 0.4);
+		background: linear-gradient(145deg, rgba(232, 0, 106, 0.1), var(--dark-card));
+	}
+
+	.mode-wfu:hover {
+		border-color: rgba(232, 0, 106, 0.7);
+		box-shadow: 0 18px 42px rgba(232, 0, 106, 0.2);
+	}
+
+	.mode-rhe {
+		border-color: rgba(201, 162, 39, 0.4);
+		background: linear-gradient(145deg, rgba(201, 162, 39, 0.08), var(--dark-card));
+	}
+
+	.mode-rhe:hover {
+		border-color: rgba(201, 162, 39, 0.7);
+		box-shadow: 0 18px 42px rgba(201, 162, 39, 0.2);
+	}
+
+	.mode-random {
+		border-color: rgba(184, 170, 207, 0.4);
+		background: linear-gradient(145deg, rgba(107, 33, 168, 0.1), var(--dark-card));
+	}
+
+	.mode-random:hover {
+		border-color: rgba(184, 170, 207, 0.7);
+		box-shadow: 0 18px 42px rgba(107, 33, 168, 0.2);
+	}
+
+	.mode-icon {
+		font-size: 1.8rem;
+		flex-shrink: 0;
+		width: 2.6rem;
+		text-align: center;
+	}
+
+	.mode-body {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.mode-body h2 {
+		margin: 0 0 0.28rem;
+		font-size: 1.15rem;
+		font-style: normal;
+		letter-spacing: 0.01em;
+		color: var(--cream);
+	}
+
+	.mode-body p {
 		margin: 0;
-		font-size: 0.77rem;
-		font-weight: 700;
+		font-size: 0.83rem;
+		line-height: 1.4;
 		color: var(--lavender);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
 	}
 
-	.step.done {
-		border-color: rgba(0, 200, 150, 0.4);
-		background: rgba(0, 200, 150, 0.08);
+	.mode-arrow {
+		font-size: 1.1rem;
+		color: var(--gold-bright);
+		flex-shrink: 0;
+		transition: transform 0.18s ease;
 	}
 
-	.step.done span {
-		background: linear-gradient(130deg, #00c896, #00a87a);
-		color: #021a12;
-	}
-
-	.step.done p {
-		color: #00c896;
+	.mode-card:hover .mode-arrow {
+		transform: translateX(4px);
 	}
 
 	.or-divider {
