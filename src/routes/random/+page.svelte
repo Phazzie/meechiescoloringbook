@@ -164,7 +164,7 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 	{:else if result}
 		<header class="saying-hero">
 			<p class="eyebrow">Meechie Says</p>
-			<blockquote class="saying">{result.headline}</blockquote>
+			<blockquote class="saying">{result.response}</blockquote>
 			<div class="saying-actions">
 				<button type="button" class="ghost-btn" on:click={another}>
 					Another one
@@ -242,8 +242,7 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		min-height: 100vh;
 		background:
 			radial-gradient(circle at 50% 0%, rgba(107, 33, 168, 0.22), transparent 48%),
-			radial-gradient(circle at 10% 80%, rgba(232, 0, 106, 0.14), transparent 45%),
-			linear-gradient(180deg, #07070f, #0d0b1a 60%, #070710);
+			radial-gradient(circle at 10% 80%, rgba(232, 0, 106, 0.14), transparent 45%);
 	}
 
 	.ambient {

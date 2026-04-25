@@ -63,7 +63,7 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		packagedFiles = [];
 
 		try {
-			const saying = verdict.headline;
+			const saying = `${verdict.headline} — ${verdict.response}`;
 			const { payload } = await postJson('/api/generate', {
 				spec: {
 					title: saying,
@@ -258,8 +258,7 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		min-height: 100vh;
 		background:
 			radial-gradient(circle at 0% 0%, rgba(232, 0, 106, 0.2), transparent 40%),
-			radial-gradient(circle at 100% 60%, rgba(107, 33, 168, 0.18), transparent 45%),
-			linear-gradient(180deg, #07070f, #0d0b1a 60%, #070710);
+			radial-gradient(circle at 100% 60%, rgba(107, 33, 168, 0.18), transparent 45%);
 	}
 
 	.ambient {

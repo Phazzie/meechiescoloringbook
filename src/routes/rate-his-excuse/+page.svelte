@@ -274,8 +274,7 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		min-height: 100vh;
 		background:
 			radial-gradient(circle at 100% 0%, rgba(201, 162, 39, 0.16), transparent 42%),
-			radial-gradient(circle at 0% 80%, rgba(107, 33, 168, 0.18), transparent 45%),
-			linear-gradient(180deg, #07070f, #0d0b1a 60%, #070710);
+			radial-gradient(circle at 0% 80%, rgba(107, 33, 168, 0.18), transparent 45%);
 	}
 
 	.ambient {
