@@ -108,7 +108,7 @@ export const MeechieToolOutputSchema = z.object({
 	toolId: MeechieToolIdSchema,
 	headline: NonEmptyStringSchema,
 	response: NonEmptyStringSchema,
-	rating: z.number().min(1).max(10).optional()
+	rating: z.number().int().min(1).max(10).optional()
 });
 
 export const MeechieToolResultSchema = resultSchema(MeechieToolOutputSchema);
