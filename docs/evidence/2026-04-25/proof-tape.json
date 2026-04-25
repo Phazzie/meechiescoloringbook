@@ -1,0 +1,92 @@
+{
+  "tool": "proof-tape",
+  "generatedAt": "2026-04-25T01:23:17.782Z",
+  "evidenceDir": "docs/evidence/2026-04-25",
+  "files": [
+    {
+      "name": "assumption-alarm.json",
+      "path": "docs/evidence/2026-04-25/assumption-alarm.json",
+      "sizeBytes": 2297,
+      "modifiedAt": "2026-04-25T01:23:16.537Z",
+      "commands": []
+    },
+    {
+      "name": "chamber-lock.json",
+      "path": "docs/evidence/2026-04-25/chamber-lock.json",
+      "sizeBytes": 15215,
+      "modifiedAt": "2026-04-25T01:22:45.266Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.json",
+      "path": "docs/evidence/2026-04-25/clan-chain.json",
+      "sizeBytes": 1640,
+      "modifiedAt": "2026-04-25T01:23:17.364Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.md",
+      "path": "docs/evidence/2026-04-25/clan-chain.md",
+      "sizeBytes": 1070,
+      "modifiedAt": "2026-04-25T01:23:17.364Z",
+      "commands": []
+    },
+    {
+      "name": "proof-tape.json",
+      "path": "docs/evidence/2026-04-25/proof-tape.json",
+      "sizeBytes": 2559,
+      "modifiedAt": "2026-04-25T01:22:37.549Z",
+      "commands": []
+    },
+    {
+      "name": "proof-tape.md",
+      "path": "docs/evidence/2026-04-25/proof-tape.md",
+      "sizeBytes": 844,
+      "modifiedAt": "2026-04-25T01:22:37.549Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.json",
+      "path": "docs/evidence/2026-04-25/seam-ledger.json",
+      "sizeBytes": 16187,
+      "modifiedAt": "2026-04-25T01:23:16.960Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.md",
+      "path": "docs/evidence/2026-04-25/seam-ledger.md",
+      "sizeBytes": 1416,
+      "modifiedAt": "2026-04-25T01:23:16.961Z",
+      "commands": []
+    },
+    {
+      "name": "shaolin-lint.json",
+      "path": "docs/evidence/2026-04-25/shaolin-lint.json",
+      "sizeBytes": 581,
+      "modifiedAt": "2026-04-25T01:23:16.138Z",
+      "commands": []
+    },
+    {
+      "name": "test.txt",
+      "path": "docs/evidence/2026-04-25/test.txt",
+      "sizeBytes": 3172,
+      "modifiedAt": "2026-04-25T01:23:15.678Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run"
+      ]
+    },
+    {
+      "name": "verify.txt",
+      "path": "docs/evidence/2026-04-25/verify.txt",
+      "sizeBytes": 3417,
+      "modifiedAt": "2026-04-25T01:23:15.677Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run"
+      ]
+    }
+  ]
+}
