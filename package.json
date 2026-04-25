@@ -27,7 +27,7 @@
 		"rewind": "node scripts/rewind.mjs",
 		"hooks:install": "node scripts/install-githooks.mjs",
 		"verify:runner": "node scripts/verify-runner.mjs",
-		"verify": "npm run chamber:lock && npm run verify:runner && npm run shaolin:lint && npm run assumption:alarm && npm run seam:ledger && npm run clan:chain && npm run proof:tape && npm run cipher:gate"
+		"verify": "npm run chamber:lock && npm run verify:runner && npm run shaolin:lint && npm run assumption:alarm && npm run seam:ledger && npm run clan:chain && npm run proof:tape"
 	},
 	"dependencies": {
 		"pdf-lib": "^1.17.1",

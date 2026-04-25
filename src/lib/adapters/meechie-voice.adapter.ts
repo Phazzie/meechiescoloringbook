@@ -158,7 +158,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				commentary: "The guys said they ain't seen you. Somebody lying and it ain't the guys."
 			},
 			{
-				keywords: ['working late', 'at work', 'work thing', 'was working', 'working'],
+				keywords: ['working late', 'at work', 'work thing', 'was working'],
 				rating: 3,
 				commentary: 'Busy doing what though. Be specific. I have time.'
 			},
@@ -193,6 +193,11 @@ const meechieVoicePack: MeechieVoicePack = {
 				commentary: "Not ready is not an excuse. It's a warning. I hear it."
 			}
 		],
+		excuseRatingFallback: {
+			keywords: [],
+			rating: 3,
+			commentary: 'Standard excuse. Lacks creativity. Lacks credibility.'
+		},
 		randomSayings: [
 			'You fumbled ME? In THIS economy?',
 			"Should've fucked the landlord, not the dopeman.",
