@@ -10,13 +10,13 @@ Each folder here contains the core artifacts for a seam (contract, mock, tests, 
 | File | Workflow step | Role |
 |------|--------------|------|
 | `contract.ts` | Step 1 | Types, Zod schema, explicit failure modes |
-| `fixtures.ts` | Step 3 | In-module sample + fault data (no JSON files needed) |
-| `mock.ts` | Step 4 | Loads fixtures by scenario; zero invented data |
+| `fixtures.ts` | Step 3 | Sample + fault data — defined in-module or backed by co-located JSON files |
+| `mock.ts` | Step 4 | Loads fixture scenarios from `fixtures.ts` (and any co-located JSON assets); zero invented data |
 | `probe.ts` | Step 2 | Captures real external behavior; run manually to refresh |
 | `test.ts` | Step 5 | Contract tests — mock first, fault fixture must fail |
 | `validators.ts` | — | Zod validators exported for adapter and test reuse |
 
-Adapter lives at `src/lib/adapters/<seam-name>/index.ts` (real I/O only, async, JailedFs).
+Some seams are pure or dependency-injected and have no separate adapter. When an adapter exists, it lives at `src/lib/adapters/<seam-name>/index.ts`; it may be sync or async depending on the contract.
 
 ## Current seams
 

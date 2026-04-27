@@ -16,8 +16,8 @@ npm run dev                              # start dev server
 npm run build                           # production build
 npm run check                           # svelte-check + TypeScript
 npm run lint                            # eslint
-npm run test                            # all unit tests (vitest)
-npm run test:integration                # integration tests (needs .env with FEATURE_INTEGRATION_TESTS=true + XAI_API_KEY)
+npm run test                            # all tests (vitest; integration tests may be env-gated)
+npm run test:integration                # integration tests (set FEATURE_INTEGRATION_TESTS=true and populate .env from .env.example, including XAI_* / AppConfig vars)
 npm run test:e2e                        # playwright
 npm run verify                          # required for any seam change
 npm run rewind -- --seam <SeamName>     # single-seam contract verification (PascalCase name)
@@ -32,7 +32,7 @@ SvelteKit 2 app (Svelte 5, TypeScript) deployed via `@sveltejs/adapter-vercel`. 
 ```
 src/routes/api/<endpoint>/+server.ts
   → src/lib/core/<feature>-pipeline.ts    (pure orchestration, no direct I/O)
-  → adapter (real I/O, async only, JailedFs)
+  → adapter (real I/O behind a seam; may be sync or async depending on the contract)
 ```
 
 **Two seam layouts coexist** (see `docs/seams.md` for the registry):
@@ -78,7 +78,7 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `tools-pipeline.ts` | Meechie tool dispatch |
 | `prompt-template.ts` | Canonical and compressed prompt assembly |
 | `constants.ts` | App-wide constants |
-| `http-client.ts` | Fetch wrapper (injected, never imported directly in core) |
+| `http-client.ts` | Shared fetch helper for JSON POST requests (used by routes and UI components) |
 
 ### src/routes/
 
