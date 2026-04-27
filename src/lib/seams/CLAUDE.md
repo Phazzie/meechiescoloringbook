@@ -1,7 +1,8 @@
 <!--
 Purpose: Explain the self-contained seam folder structure used by all new seams.
 Why: Co-locating all seam artifacts reduces navigation cost and drift risk.
-Info flow: contract.ts -> probe.ts -> fixtures.ts -> mock.ts -> test.ts -> validators.ts -> adapter
+Info flow: contract.ts -> probe.ts -> fixtures.ts -> mock.ts -> test.ts -> adapter
+           (validators.ts is shared glue — not a sequential step; consumed by contract, tests, and adapter)
 -->
 # Seam folder structure
 
