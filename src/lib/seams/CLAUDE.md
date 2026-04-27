@@ -1,11 +1,11 @@
 <!--
 Purpose: Explain the self-contained seam folder structure used by all new seams.
 Why: Co-locating all seam artifacts reduces navigation cost and drift risk.
-Info flow: contract.ts -> fixtures.ts -> mock.ts -> probe.ts -> test.ts -> validators.ts -> adapter
+Info flow: contract.ts -> probe.ts -> fixtures.ts -> mock.ts -> test.ts -> validators.ts -> adapter
 -->
 # Seam folder structure
 
-Each folder here is a fully self-contained seam. The Seam-Driven Development workflow (from `AGENTS.md`) maps to these files:
+Each folder here contains the core artifacts for a seam (contract, mock, tests, fixtures). The adapter lives separately at `src/lib/adapters/<seam-name>/index.ts`. The Seam-Driven Development workflow (from `AGENTS.md`) maps to these files:
 
 | File | Workflow step | Role |
 |------|--------------|------|
