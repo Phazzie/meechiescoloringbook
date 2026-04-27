@@ -39,8 +39,8 @@ src/routes/api/<endpoint>/+server.ts
 
 | Layout | Contract | Mock | Adapter | Tests | Fixtures |
 |--------|----------|------|---------|-------|----------|
-| Legacy (flat) | `contracts/<seam>.contract.ts` | `src/lib/mocks/<seam>.mock.ts` | `src/lib/adapters/<seam>.adapter.ts` | `tests/contract/<seam>.test.ts` | `fixtures/<seam>/` |
-| New (self-contained) | `src/lib/seams/<name>/contract.ts` | `src/lib/seams/<name>/mock.ts` | `src/lib/adapters/<name>/index.ts` | `src/lib/seams/<name>/test.ts` | `src/lib/seams/<name>/fixtures.ts` |
+| Legacy (flat) | `contracts/<seam-name>.contract.ts` | `src/lib/mocks/<seam-name>.mock.ts` | `src/lib/adapters/<seam-name>.adapter.ts` | `tests/contract/<seam-name>.test.ts` | `fixtures/<seam-name>/` |
+| New (self-contained) | `src/lib/seams/<seam-name>/contract.ts` | `src/lib/seams/<seam-name>/mock.ts` | `src/lib/adapters/<seam-name>/index.ts` | `src/lib/seams/<seam-name>/test.ts` | `src/lib/seams/<seam-name>/fixtures.ts` |
 
 New seams use the self-contained layout. Do not add flat-layout seams. See `src/lib/seams/CLAUDE.md` for the folder anatomy.
 

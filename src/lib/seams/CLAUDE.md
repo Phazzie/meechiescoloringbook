@@ -20,6 +20,8 @@ Some seams are pure or dependency-injected and have no separate adapter. When an
 
 ## Current seams
 
+> **Non-authoritative snapshot** — for paths, probe status, and owner, see `docs/seams.md`.
+
 | Folder | What it covers |
 |--------|----------------|
 | `app-config-seam/` | Reads env-var-based app configuration at runtime |
@@ -28,5 +30,3 @@ Some seams are pure or dependency-injected and have no separate adapter. When an
 | `gallery-store-seam/` | Saved generations, favorites, drafts |
 | `telemetry-seam/` | Telemetry event contract (pure) |
 | `image-generation-seam/` | xAI image provider calls |
-
-For probe status and last-probed dates, see `docs/seams.md`.
