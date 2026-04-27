@@ -1,0 +1,8 @@
+# Purpose: Store npm test output for evidence.
+# Why: Provide an audit trail for Seam-Driven Development contract tests.
+# Info flow: Command output -> evidence file -> review.
+
+> meechies-coloringbook@0.1.0 test
+> vitest run
+
+sh: 1: vitest: not found
