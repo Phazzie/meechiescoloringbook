@@ -71,6 +71,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	let packagedFiles: PackagedFile[] = [];
 	let generationError = '';
 	let isGenerating = false;
+	let isChatInterpreting = false;
 	let creations: CreationRecord[] = [];
 	let owner: CreationOwner | null = null;
 	let authContext: CreationRecord['authContext'] | null = null;
@@ -83,11 +84,12 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	let draftTimer: ReturnType<typeof setTimeout> | null = null;
 	let hasValidated = false;
 	let isSpecValid = false;
-	let builderMode: 'quick' | 'full' = 'quick';
+	let selectedPreset: QuickPresetId | null = null;
 
 	type QuickPresetId = 'minimal' | 'sparkle' | 'story_scene' | 'bold_block';
 
 	const applyQuickPreset = (preset: QuickPresetId): void => {
+		selectedPreset = preset;
 		switch (preset) {
 			case 'minimal':
 				styleHint = 'clean luxe outlines with soft spacing';
@@ -249,6 +251,53 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	};
 
 	$: isSpecValid = hasValidated && validationIssues.length === 0;
+	$: hasApiKey = apiKeyInput.trim().length > 0;
+
+	const saveDebugTrace = (): void => {
+		if (!isBrowser) {
+			return;
+		}
+		try {
+			localStorage.setItem(
+				'meechie-debug-trace',
+				JSON.stringify({ assembledPrompt, revisedPrompt, violations, recommendedFixes })
+			);
+		} catch {
+			// best-effort
+		}
+	};
+
+	const handleSocialExport = async (): Promise<void> => {
+		if (images.length === 0) {
+			return;
+		}
+		isGenerating = true;
+		generationError = '';
+		try {
+			const creationId = generateCreationId();
+			const variants: Array<'print' | 'square' | 'chat'> = ['print'];
+			if (includeSquareExport) {
+				variants.push('square');
+			}
+			if (includeChatExport) {
+				variants.push('chat');
+			}
+			const packagingResult = await outputPackagingAdapter.package({
+				images,
+				outputFormat: spec.outputFormat,
+				fileBaseName: `coloring-page-${creationId}`,
+				pageSize: spec.pageSize,
+				variants
+			});
+			if (packagingResult.ok) {
+				packagedFiles = packagingResult.value.files;
+			} else {
+				generationError = packagingResult.error.message;
+			}
+		} finally {
+			isGenerating = false;
+		}
+	};
 
 	const handleGenerate = async (): Promise<void> => {
 		resetOutputs();
@@ -256,7 +305,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		try {
 			const isValid = await validateSpec();
 			if (!isValid) {
-				generationError = 'Fix validation issues before generating.';
+				generationError = 'Fix the issues above before generating.';
 				return;
 			}
 
@@ -283,15 +332,10 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 			revisedPrompt = parsedGenerate.data.value.revisedPrompt || '';
 			violations = parsedGenerate.data.value.violations;
 			recommendedFixes = parsedGenerate.data.value.recommendedFixes;
+			saveDebugTrace();
 
 			const creationId = generateCreationId();
 			const variants: Array<'print' | 'square' | 'chat'> = ['print'];
-			if (includeSquareExport) {
-				variants.push('square');
-			}
-			if (includeChatExport) {
-				variants.push('chat');
-			}
 			const packagingResult = await outputPackagingAdapter.package({
 				images,
 				outputFormat: spec.outputFormat,
@@ -326,22 +370,28 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 				await refreshCreations();
 			}
 		} catch (generateError) {
-			generationError = generateError instanceof Error ? generateError.message : 'Generate request failed.';
+			generationError = generateError instanceof Error ? generateError.message : 'Something blocked the drop — try again or change the vibe.';
 		} finally {
 			isGenerating = false;
 		}
 	};
 
 	const handleChatInterpretation = async (): Promise<void> => {
-		const result = await chatInterpretationAdapter.interpret({ message: chatMessage });
-		if (result.ok) {
-			spec = result.value.spec;
-			includeFooter = spec.listMode !== 'title_only' && !!spec.footerItem;
-			dedicationInput = spec.dedication ?? '';
-			await validateSpec();
-			scheduleDraftSave();
-		} else {
-			generationError = result.error.message;
+		isChatInterpreting = true;
+		generationError = '';
+		try {
+			const result = await chatInterpretationAdapter.interpret({ message: chatMessage });
+			if (result.ok) {
+				spec = result.value.spec;
+				includeFooter = spec.listMode !== 'title_only' && !!spec.footerItem;
+				dedicationInput = spec.dedication ?? '';
+				await validateSpec();
+				scheduleDraftSave();
+			} else {
+				generationError = result.error.message;
+			}
+		} finally {
+			isChatInterpreting = false;
 		}
 	};
 
@@ -422,6 +472,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		includeFooter = !!DEFAULT_SPEC.footerItem;
 		styleHint = 'diamond glam street luxe';
 		dedicationInput = '';
+		selectedPreset = null;
 		validationIssues = [];
 		resetOutputs();
 		scheduleDraftSave();
@@ -513,40 +564,120 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		</div>
 	</header>
 
-	<section class="card chat">
-		<h2>Just say it</h2>
-		<div class="field">
-			<label for="chat">Tell Meechie what you want</label>
-			<textarea
-				id="chat"
-				rows="3"
-				bind:value={chatMessage}
-				on:input={scheduleDraftSave}
-				placeholder="Example: glam birthday theme with diamonds, heels, and bold lettering"
-			></textarea>
+	<!-- API key gate: full card on first visit, compressed status bar once saved -->
+	{#if hasApiKey}
+		<div class="api-status-bar">
+			<span class="api-ok">✓ Key saved</span>
+			<button type="button" class="ghost tiny" on:click={clearApiKey}>Change</button>
 		</div>
-		<button type="button" class="primary" on:click={handleChatInterpretation}>
-			Make It
-		</button>
-	</section>
+	{:else}
+		<section class="card api-gate">
+			<h2>One-time setup</h2>
+			<p class="api-gate-copy">Paste your key below to get started. Stays in this browser only.</p>
+			<div class="api-key-row">
+				<div class="api-key-field-wrap">
+					<input
+						type={revealApiKey ? 'text' : 'password'}
+						bind:value={apiKeyInput}
+						placeholder="Paste key here"
+						autocomplete="off"
+						spellcheck="false"
+						class="api-key-input"
+					/>
+					<button
+						type="button"
+						class="eye-toggle"
+						aria-label={revealApiKey ? 'Hide key' : 'Show key'}
+						on:click={() => (revealApiKey = !revealApiKey)}
+					>
+						{revealApiKey ? '🙈' : '👁'}
+					</button>
+				</div>
+				<button type="button" class="primary" on:click={saveApiKey}>Lock it in</button>
+			</div>
+		</section>
+	{/if}
 
-	<p class="or-divider">— or build it yourself —</p>
+	<!-- Everything below is dimmed until a key is saved -->
+	<div class="content-gate" class:locked={!hasApiKey}>
+		{#if !hasApiKey}
+			<p class="locked-notice" aria-live="polite">Add your key above to unlock.</p>
+		{/if}
 
-	<div class="grid">
+		<!-- Meechie Tools spotlight — before the builder -->
+		<section class="card meechie-spotlight">
+			<div class="spotlight-header">
+				<p class="eyebrow">Meechie Tools</p>
+				<h2>Sharp tools for sharp situations.</h2>
+			</div>
+			<div class="spotlight-pills">
+				<span class="tool-pill">Return Fire</span>
+				<span class="tool-pill">Apology Autopsy</span>
+				<span class="tool-pill">Receipt Check</span>
+			</div>
+			<p class="spotlight-copy">Clapbacks, cold reads, and decisions. All in one place.</p>
+			<a class="primary meechie-spotlight-btn" href="/meechie">Open Meechie Tools</a>
+		</section>
+
+		<!-- Chat card -->
+		<section class="card chat">
+			<h2>Tell Meechie</h2>
+			<p class="section-sub">Say the vibe. She handles the rest.</p>
+			<div class="field">
+				<label for="chat">What do you want on your page?</label>
+				<textarea
+					id="chat"
+					rows="3"
+					bind:value={chatMessage}
+					on:input={scheduleDraftSave}
+					placeholder="Example: glam birthday theme with diamonds, heels, and bold lettering"
+				></textarea>
+			</div>
+			<button
+				type="button"
+				class="primary"
+				on:click={handleChatInterpretation}
+				disabled={isChatInterpreting}
+			>
+				{isChatInterpreting ? 'Reading the room…' : 'Make My Page'}
+			</button>
+		</section>
+
+		<!-- Builder section — full width, no grid -->
 		<section class="card builder">
-			<h2>Build the Look</h2>
+			<h2>Build It Yourself</h2>
+			<p class="section-sub">Dial in exactly what you want.</p>
 
 			<div class="field">
 				<label for="title">Main headline</label>
-				<input id="title" type="text" bind:value={spec.title} on:input={scheduleDraftSave} />
+				<input
+					id="title"
+					type="text"
+					bind:value={spec.title}
+					on:input={scheduleDraftSave}
+					class:field-error={validationIssues.some((i) => i.field === 'title')}
+				/>
+				{#each validationIssues.filter((i) => i.field === 'title') as issue}
+					<p class="field-error-msg">{issue.message}</p>
+				{/each}
 			</div>
 
 			<div class="field">
-				<label for="listMode">Page layout</label>
-				<select id="listMode" value={spec.listMode} on:change={handleListModeChange}>
-					<option value="list">Headline + numbered list</option>
-					<option value="title_only">Headline only</option>
-				</select>
+				<p class="label">Page layout</p>
+				<div class="chip-group">
+					<button
+						type="button"
+						class="chip"
+						class:active={spec.listMode === 'list'}
+						on:click={() => setListMode('list')}
+					>Headline + list</button>
+					<button
+						type="button"
+						class="chip"
+						class:active={spec.listMode === 'title_only'}
+						on:click={() => setListMode('title_only')}
+					>Headline only</button>
+				</div>
 			</div>
 
 			{#if spec.listMode === 'list'}
@@ -568,25 +699,25 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 									bind:value={item.label}
 									on:input={scheduleDraftSave}
 									placeholder="Label"
+									class:field-error={validationIssues.some((i) => i.field === 'items')}
 								/>
 								<button
 									type="button"
-									class="ghost"
+									class="ghost icon-btn"
 									disabled={spec.items.length <= 1}
 									on:click={() => removeItem(index)}
-								>
-									Remove
-								</button>
+								>✕</button>
 							</div>
+						{/each}
+						{#each validationIssues.filter((i) => i.field === 'items') as issue}
+							<p class="field-error-msg">{issue.message.replace(/^items:\s*/i, '')}</p>
 						{/each}
 						<button
 							type="button"
 							class="ghost"
 							disabled={spec.items.length >= 20}
 							on:click={addItem}
-						>
-							Add item
-						</button>
+						>+ Add line</button>
 					</div>
 				</fieldset>
 
@@ -614,7 +745,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 					{/if}
 				</div>
 			{:else}
-				<p class="hint">Headline-only mode hides list lines and footer text.</p>
+				<p class="hint">Headline-only mode — list lines and footer are hidden.</p>
 			{/if}
 
 			<div class="field">
@@ -639,42 +770,76 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 					placeholder="glitzy, gritty, luxury, street"
 				/>
 			</div>
+
 			<div class="field">
 				<p class="label">Vibe presets</p>
 				<div class="preset-row">
-					<button type="button" class="ghost preset" on:click={() => applyQuickPreset('minimal')}>
-						Soft Luxe
-					</button>
-					<button type="button" class="ghost preset" on:click={() => applyQuickPreset('sparkle')}>
-						Diamond Night
-					</button>
-					<button type="button" class="ghost preset" on:click={() => applyQuickPreset('story_scene')}>
-						City Story
-					</button>
-					<button type="button" class="ghost preset" on:click={() => applyQuickPreset('bold_block')}>
-						Boss Energy
-					</button>
+					<button
+						type="button"
+						class="ghost preset"
+						class:active={selectedPreset === 'minimal'}
+						on:click={() => applyQuickPreset('minimal')}
+					>Soft Luxe</button>
+					<button
+						type="button"
+						class="ghost preset"
+						class:active={selectedPreset === 'sparkle'}
+						on:click={() => applyQuickPreset('sparkle')}
+					>Diamond Night</button>
+					<button
+						type="button"
+						class="ghost preset"
+						class:active={selectedPreset === 'story_scene'}
+						on:click={() => applyQuickPreset('story_scene')}
+					>City Story</button>
+					<button
+						type="button"
+						class="ghost preset"
+						class:active={selectedPreset === 'bold_block'}
+						on:click={() => applyQuickPreset('bold_block')}
+					>Boss Energy</button>
 				</div>
 			</div>
 
 			<div class="field-row">
 				<div class="field">
-					<label for="variations">How many versions</label>
-					<input
-						id="variations"
-						type="number"
-						min="1"
-						max="4"
-						bind:value={spec.variations}
-						on:input={scheduleDraftSave}
-					/>
+					<p class="label">How many versions</p>
+					<div class="chip-group">
+						{#each [1, 2, 3, 4] as n}
+							<button
+								type="button"
+								class="chip"
+								class:active={spec.variations === n}
+								on:click={() => {
+									spec = { ...spec, variations: n };
+									scheduleDraftSave();
+								}}
+							>{n}</button>
+						{/each}
+					</div>
 				</div>
 				<div class="field">
-					<label for="outputFormat">Download type</label>
-					<select id="outputFormat" bind:value={spec.outputFormat} on:change={scheduleDraftSave}>
-						<option value="pdf">PDF</option>
-						<option value="png">PNG</option>
-					</select>
+					<p class="label">Download type</p>
+					<div class="chip-group">
+						<button
+							type="button"
+							class="chip"
+							class:active={spec.outputFormat === 'pdf'}
+							on:click={() => {
+								spec = { ...spec, outputFormat: 'pdf' };
+								scheduleDraftSave();
+							}}
+						>PDF</button>
+						<button
+							type="button"
+							class="chip"
+							class:active={spec.outputFormat === 'png'}
+							on:click={() => {
+								spec = { ...spec, outputFormat: 'png' };
+								scheduleDraftSave();
+							}}
+						>PNG</button>
+					</div>
 				</div>
 			</div>
 
@@ -685,347 +850,253 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 					on:click={handleGenerate}
 					disabled={!isSpecValid || isGenerating}
 				>
-					{isGenerating ? 'Creating...' : 'Create Pages'}
+					{isGenerating ? 'Creating…' : 'Create Pages'}
 				</button>
 				<button type="button" class="ghost" on:click={resetSpec}>Reset</button>
 			</div>
 
-			<details class="advanced-toggle">
-				<summary>More controls</summary>
-				<div class="advanced-content">
-					<div class="field-row">
-						<div class="field">
-							<label for="alignment">Alignment</label>
-							<select id="alignment" bind:value={spec.alignment} on:change={scheduleDraftSave}>
-								<option value="left">Left</option>
-								<option value="center">Center</option>
-							</select>
+			{#if selectedPreset}
+				<details class="advanced-toggle">
+					<summary>Fine-tune this look</summary>
+					<div class="advanced-content">
+						<div class="field-row">
+							<div class="field">
+								<p class="label">Font style</p>
+								<div class="chip-group">
+									<button
+										type="button"
+										class="chip"
+										class:active={spec.fontStyle === 'rounded'}
+										on:click={() => {
+											spec = { ...spec, fontStyle: 'rounded' };
+											scheduleDraftSave();
+										}}
+									>Soft</button>
+									<button
+										type="button"
+										class="chip"
+										class:active={spec.fontStyle === 'block'}
+										on:click={() => {
+											spec = { ...spec, fontStyle: 'block' };
+											scheduleDraftSave();
+										}}
+									>Sharp</button>
+									<button
+										type="button"
+										class="chip"
+										class:active={spec.fontStyle === 'hand'}
+										on:click={() => {
+											spec = { ...spec, fontStyle: 'hand' };
+											scheduleDraftSave();
+										}}
+									>Handmade</button>
+								</div>
+							</div>
+							<div class="field">
+								<p class="label">Color mode</p>
+								<div class="chip-group">
+									<button
+										type="button"
+										class="chip"
+										class:active={spec.colorMode === 'black_and_white_only'}
+										on:click={() => {
+											spec = { ...spec, colorMode: 'black_and_white_only' };
+											scheduleDraftSave();
+										}}
+									>B+W</button>
+									<button
+										type="button"
+										class="chip"
+										class:active={spec.colorMode === 'grayscale'}
+										on:click={() => {
+											spec = { ...spec, colorMode: 'grayscale' };
+											scheduleDraftSave();
+										}}
+									>Gray</button>
+									<button
+										type="button"
+										class="chip"
+										class:active={spec.colorMode === 'color'}
+										on:click={() => {
+											spec = { ...spec, colorMode: 'color' };
+											scheduleDraftSave();
+										}}
+									>Color</button>
+								</div>
+							</div>
 						</div>
-						<div class="field">
-							<label for="numberAlignment">Number alignment</label>
-							<select id="numberAlignment" bind:value={spec.numberAlignment} on:change={scheduleDraftSave}>
-								<option value="strict">Strict</option>
-								<option value="loose">Loose</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="listGutter">List gutter</label>
-							<select
-								id="listGutter"
-								bind:value={spec.listGutter}
-								on:change={scheduleDraftSave}
-								disabled={spec.listMode === 'title_only'}
-							>
-								<option value="tight">Tight</option>
-								<option value="normal">Normal</option>
-								<option value="loose">Loose</option>
-							</select>
-						</div>
-					</div>
-
-					<div class="field-row">
-						<div class="field">
-							<label for="whitespaceScale">Whitespace scale</label>
-							<input
-								id="whitespaceScale"
-								type="range"
-								min="0"
-								max="100"
-								bind:value={spec.whitespaceScale}
-								on:input={scheduleDraftSave}
-							/>
-							<span class="hint">{spec.whitespaceScale}</span>
-						</div>
-						<div class="field">
-							<label for="textSize">Text size</label>
-							<select id="textSize" bind:value={spec.textSize} on:change={scheduleDraftSave}>
-								<option value="small">Small</option>
-								<option value="medium">Medium</option>
-								<option value="large">Large</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="fontStyle">Font style</label>
-							<select id="fontStyle" bind:value={spec.fontStyle} on:change={scheduleDraftSave}>
-								<option value="rounded">Rounded</option>
-								<option value="block">Block</option>
-								<option value="hand">Handwritten</option>
-							</select>
-						</div>
-					</div>
-
-					<div class="field-row">
-						<div class="field">
-							<label for="textStrokeWidth">Text stroke width</label>
-							<input
-								id="textStrokeWidth"
-								type="range"
-								min="4"
-								max="12"
-								bind:value={spec.textStrokeWidth}
-								on:input={scheduleDraftSave}
-							/>
-							<span class="hint">{spec.textStrokeWidth}px</span>
-						</div>
-						<div class="field">
-							<label for="colorMode">Color mode</label>
-							<select id="colorMode" bind:value={spec.colorMode} on:change={scheduleDraftSave}>
-								<option value="black_and_white_only">Black + white</option>
-								<option value="grayscale">Grayscale</option>
-								<option value="color">Color</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="pageSize">Page size</label>
-							<select id="pageSize" bind:value={spec.pageSize} on:change={scheduleDraftSave}>
-								<option value="US_Letter">US Letter</option>
-								<option value="A4">A4</option>
-							</select>
+						<div class="field-row">
+							<div class="field">
+								<label for="decorations">Interior decorations</label>
+								<select id="decorations" bind:value={spec.decorations} on:change={scheduleDraftSave}>
+									<option value="none">None</option>
+									<option value="minimal">Some</option>
+									<option value="dense">A lot</option>
+								</select>
+							</div>
+							<div class="field">
+								<label for="illustrations">Illustrations</label>
+								<select id="illustrations" bind:value={spec.illustrations} on:change={scheduleDraftSave}>
+									<option value="none">None</option>
+									<option value="simple">Simple</option>
+									<option value="scene">Full scene</option>
+								</select>
+							</div>
 						</div>
 					</div>
+				</details>
+			{/if}
 
-					<div class="field-row">
-						<div class="field">
-							<label for="decorations">Interior decorations</label>
-							<select id="decorations" bind:value={spec.decorations} on:change={scheduleDraftSave}>
-								<option value="none">None</option>
-								<option value="minimal">Minimal</option>
-								<option value="dense">Dense</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="illustrations">Illustrations</label>
-							<select id="illustrations" bind:value={spec.illustrations} on:change={scheduleDraftSave}>
-								<option value="none">None</option>
-								<option value="simple">Simple</option>
-								<option value="scene">Scene</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="shading">Shading</label>
-							<select id="shading" bind:value={spec.shading} on:change={scheduleDraftSave}>
-								<option value="none">None</option>
-								<option value="hatch">Hatch</option>
-								<option value="stippling">Stippling</option>
-							</select>
-						</div>
-					</div>
-
-					<div class="field-row">
-						<div class="field">
-							<label for="border">Border</label>
-							<select id="border" bind:value={spec.border} on:change={scheduleDraftSave}>
-								<option value="none">None</option>
-								<option value="plain">Plain</option>
-								<option value="decorative">Decorative</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="borderThickness">Border thickness</label>
-							<input
-								id="borderThickness"
-								type="range"
-								min="2"
-								max="16"
-								bind:value={spec.borderThickness}
-								on:input={scheduleDraftSave}
-							/>
-							<span class="hint">{spec.borderThickness}px</span>
-						</div>
-					</div>
-
-					<div class="field">
-						<p class="label">Social add-ons</p>
-						<label class="toggle">
-							<input type="checkbox" bind:checked={includeSquareExport} />
-							<span>Instagram square 1080x1080</span>
-						</label>
-						<label class="toggle">
-							<input type="checkbox" bind:checked={includeChatExport} />
-							<span>Chat share 720x720</span>
-						</label>
-					</div>
-				</div>
-			</details>
-
-			{#if validationIssues.length > 0}
+			{#if validationIssues.some((i) => i.field !== 'title' && i.field !== 'items')}
 				<div class="issues">
-					<h3>Fix these first</h3>
-					<ul>
-						{#each validationIssues as issue}
-							<li>
-								<strong>{issue.field}</strong>: {issue.message}
-							</li>
-						{/each}
-					</ul>
+					{#each validationIssues.filter((i) => i.field !== 'title' && i.field !== 'items') as issue}
+						<p class="field-error-msg">{issue.message}</p>
+					{/each}
 				</div>
 			{/if}
 		</section>
 
-		<section class="card preview">
-			<h2>Preview + Export</h2>
-			<label class="toggle">
-				<input type="checkbox" bind:checked={showSparkleOverlay} />
-				<span>Add glitter preview glow</span>
-			</label>
-			{#if generationError}
-				<p class="error">{generationError}</p>
-			{/if}
-			{#if imagePreviews.length > 0}
-				<div class="preview-grid">
-					{#each imagePreviews as preview, index}
-						<figure class:sparkle={showSparkleOverlay}>
-							<img src={preview} alt={`Generated page ${index + 1}`} />
-							<figcaption>Variation {index + 1}</figcaption>
-						</figure>
-					{/each}
-				</div>
-			{:else}
-				<p class="empty">Press Create Pages to see your results.</p>
-			{/if}
+		<!-- Reveal panel: shimmer while generating, results once done, error if failed -->
+		{#if isGenerating || imagePreviews.length > 0 || generationError}
+			<section class="card reveal-panel" class:reveal-enter={imagePreviews.length > 0}>
+				{#if isGenerating && imagePreviews.length === 0}
+					<div class="shimmer-wrap" aria-label="Generating your look…">
+						<div class="shimmer-img"></div>
+						<div class="shimmer-line"></div>
+						<div class="shimmer-line shimmer-line-short"></div>
+					</div>
+				{:else if generationError && imagePreviews.length === 0}
+					<p class="error">{generationError}</p>
+					{#if recommendedFixes.length > 0}
+						<button type="button" class="ghost" on:click={handleGenerate}>
+							Try again with fixes
+						</button>
+					{/if}
+				{:else}
+					<h2>Here's your look.</h2>
+					{#if generationError}
+						<p class="error">{generationError}</p>
+					{/if}
+					<div class="preview-grid">
+						{#each imagePreviews as preview, index}
+							<figure>
+								<div class="img-wrap">
+									<img src={preview} alt={`Generated page ${index + 1}`} />
+									<button
+										type="button"
+										class="sparkle-btn"
+										class:active={showSparkleOverlay}
+										on:click={() => (showSparkleOverlay = !showSparkleOverlay)}
+										aria-label="Toggle glitter glow"
+										title="Toggle glitter glow"
+									>✦</button>
+									{#if showSparkleOverlay}
+										<div class="sparkle-overlay" aria-hidden="true"></div>
+									{/if}
+								</div>
+								{#if imagePreviews.length > 1}
+									<figcaption>Version {index + 1}</figcaption>
+								{/if}
+							</figure>
+						{/each}
+					</div>
 
-			{#if packagedFiles.length > 0}
-				<div class="downloads">
-					<h3>Ready to download</h3>
-					{#each packagedFiles as file}
-						<a
-							class="download"
-							href={`data:${file.mimeType};base64,${file.dataBase64}`}
-							download={file.filename}
-						>
-							{file.filename}
-						</a>
+					{#if packagedFiles.length > 0}
+						<div class="downloads">
+							<p class="downloads-label">Your look is ready.</p>
+							{#each packagedFiles as file, index}
+								<a
+									class="primary download-btn"
+									href={`data:${file.mimeType};base64,${file.dataBase64}`}
+									download={file.filename}
+								>
+									{packagedFiles.length === 1
+										? 'Download your page'
+										: `Download version ${index + 1}`}
+								</a>
+							{/each}
+							<div class="social-chips">
+								<button
+									type="button"
+									class="chip"
+									class:active={includeSquareExport}
+									on:click={() => (includeSquareExport = !includeSquareExport)}
+								>Square for IG</button>
+								<button
+									type="button"
+									class="chip"
+									class:active={includeChatExport}
+									on:click={() => (includeChatExport = !includeChatExport)}
+								>Share size</button>
+							</div>
+							{#if includeSquareExport || includeChatExport}
+								<button type="button" class="ghost" on:click={handleSocialExport}>
+									Get these too
+								</button>
+							{/if}
+						</div>
+					{/if}
+				{/if}
+			</section>
+		{/if}
+
+		<!-- Saved Looks -->
+		<section class="card history">
+			<h2>Saved Looks</h2>
+			{#if creations.length === 0}
+				<p class="empty">Nothing saved yet — your first look will live here.</p>
+			{:else}
+				<div class="creations">
+					{#each creations as creation}
+						<div class="creation">
+							<div>
+								<p class="title">
+									{creation.intent.title}
+									{#if creation.favorite}
+										<span class="favorite-pill">★ featured</span>
+									{/if}
+								</p>
+								<p class="meta">{creation.createdAtISO}</p>
+							</div>
+							<div class="creation-actions">
+								<button
+									type="button"
+									class="ghost"
+									on:click={() => {
+										spec = creation.intent;
+										includeFooter = !!spec.footerItem;
+										dedicationInput = spec.dedication ?? '';
+										scheduleDraftSave();
+									}}
+								>Use this</button>
+								<button
+									type="button"
+									class="ghost icon-btn"
+									title={creation.favorite ? 'Unpin' : 'Pin'}
+									on:click={() => toggleFavorite(creation)}
+								>{creation.favorite ? '★' : '☆'}</button>
+								<button
+									type="button"
+									class="ghost icon-btn danger"
+									title="Delete"
+									on:click={() => handleDeleteCreation(creation.id)}
+								>✕</button>
+							</div>
+						</div>
 					{/each}
 				</div>
 			{/if}
 		</section>
 	</div>
 
-	<details class="card advanced-card">
-		<summary>System Trace (Advanced)</summary>
-		<div class="advanced-content">
-			<div class="field">
-				<label for="promptSent">Prompt used</label>
-				<textarea id="promptSent" rows="8" readonly value={assembledPrompt}></textarea>
-			</div>
-			<div class="field">
-				<label for="revisedPrompt">Model rewrite</label>
-				<textarea id="revisedPrompt" rows="4" readonly value={revisedPrompt}></textarea>
-			</div>
-			<div class="field">
-				<p class="label">Quality flags</p>
-				{#if violations.length === 0}
-					<p class="empty">No quality flags detected.</p>
-				{:else}
-					<ul>
-						{#each violations as violation}
-							<li class={violation.severity}>
-								<strong>{violation.code}</strong>: {violation.message}
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			</div>
-			{#if recommendedFixes.length > 0}
-				<div class="field">
-					<p class="label">Recommended auto-fixes</p>
-					<ul>
-						{#each recommendedFixes as fix}
-							<li>
-								<strong>{fix.code}</strong>: {fix.message}
-							</li>
-						{/each}
-					</ul>
-				</div>
-				<button type="button" class="ghost" on:click={handleGenerate}>
-					Apply fixes + try again
-				</button>
-			{/if}
-		</div>
-	</details>
-
-	<section class="card history">
-		<h2>Your Vault</h2>
-		{#if creations.length === 0}
-			<p class="empty">No saved looks yet.</p>
-		{:else}
-			<div class="creations">
-				{#each creations as creation}
-					<div class="creation">
-						<div>
-							<p class="title">
-								{creation.intent.title}
-								{#if creation.favorite}
-									<span class="favorite-pill">★ featured</span>
-								{/if}
-							</p>
-							<p class="meta">{creation.createdAtISO}</p>
-						</div>
-						<div class="creation-actions">
-							<button
-								type="button"
-								class="ghost"
-								on:click={() => {
-									spec = creation.intent;
-									includeFooter = !!spec.footerItem;
-									dedicationInput = spec.dedication ?? '';
-									scheduleDraftSave();
-								}}
-							>
-								Load
-							</button>
-							<button type="button" class="ghost" on:click={() => toggleFavorite(creation)}>
-								{creation.favorite ? 'Unpin' : 'Pin'}
-							</button>
-							<button type="button" class="ghost danger" on:click={() => handleDeleteCreation(creation.id)}>
-								Delete
-							</button>
-						</div>
-					</div>
-				{/each}
-			</div>
-		{/if}
-	</section>
-
-	<section class="card meechie-link-card">
-		<h2>Meechie Tools</h2>
-		<p class="meechie-link-copy">
-			Need a clapback, a receipt check, or a cold read on the situation? Open the dedicated Meechie
-			space.
-		</p>
-		<a class="primary meechie-link-button" href="/meechie">Go To Meechie Tools</a>
-	</section>
-
-	<details class="card api-settings">
-		<summary>API Key Settings</summary>
-		<div class="advanced-content">
-			<p class="api-key-label">Paste your API key to generate pages</p>
-			<input
-				type={revealApiKey ? 'text' : 'password'}
-				bind:value={apiKeyInput}
-				placeholder="Paste key here"
-				autocomplete="off"
-				spellcheck="false"
-			/>
-			<div class="api-key-actions">
-				<button type="button" class="ghost tiny" on:click={saveApiKey}>Save</button>
-				<button type="button" class="ghost tiny" on:click={clearApiKey}>Clear</button>
-				<button type="button" class="ghost tiny" on:click={() => (revealApiKey = !revealApiKey)}>
-					{revealApiKey ? 'Hide' : 'Show'}
-				</button>
-			</div>
-			<p class="api-key-status">{apiKeyStatus}</p>
-		</div>
-	</details>
-
 	<div class="mobile-actions" aria-label="Quick actions">
 		<button
 			type="button"
 			class="primary mobile-primary"
 			on:click={handleGenerate}
-			disabled={!isSpecValid || isGenerating}
+			disabled={!isSpecValid || isGenerating || !hasApiKey}
 		>
-			{isGenerating ? 'Creating...' : 'Create Pages'}
+			{isGenerating ? 'Creating…' : 'Create Pages'}
 		</button>
 	</div>
 </div>
@@ -1178,25 +1249,363 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		color: #00c896;
 	}
 
-	.or-divider {
+	.content-gate {
 		position: relative;
 		z-index: 1;
-		text-align: center;
-		margin: 0 0 1.4rem;
-		font-size: 0.8rem;
-		font-weight: 700;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-		color: rgba(184, 170, 207, 0.5);
+		display: flex;
+		flex-direction: column;
+		gap: 1.4rem;
 	}
 
-	.grid {
+	.content-gate.locked {
+		pointer-events: none;
+		opacity: 0.45;
+		filter: blur(0.5px);
+	}
+
+	.locked-notice {
+		text-align: center;
+		font-size: 0.85rem;
+		font-weight: 700;
+		color: var(--gold);
+		letter-spacing: 0.06em;
+		padding: 0.6rem;
+		pointer-events: none;
+	}
+
+	/* API gate */
+	.api-gate {
 		position: relative;
-		z-index: 1;
-		display: grid;
-		grid-template-columns: minmax(340px, 1.5fr) minmax(300px, 1fr);
-		gap: 1.4rem;
-		margin-bottom: 1.5rem;
+		z-index: 2;
+		margin-bottom: 1rem;
+		background: linear-gradient(160deg, rgba(201, 162, 39, 0.07), rgba(22, 20, 42, 0.96));
+	}
+
+	.api-gate-copy {
+		margin: 0 0 1rem;
+		font-size: 0.94rem;
+		color: var(--lavender);
+	}
+
+	.api-key-row {
+		display: flex;
+		gap: 0.75rem;
+		align-items: stretch;
+		flex-wrap: wrap;
+	}
+
+	.api-key-field-wrap {
+		position: relative;
+		flex: 1;
+		min-width: 180px;
+	}
+
+	.api-key-input {
+		width: 100%;
+		padding-right: 2.8rem;
+		box-sizing: border-box;
+	}
+
+	.eye-toggle {
+		position: absolute;
+		right: 0.55rem;
+		top: 50%;
+		transform: translateY(-50%);
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 1rem;
+		padding: 0.25rem;
+		color: var(--lavender);
+		line-height: 1;
+	}
+
+	.api-status-bar {
+		position: relative;
+		z-index: 2;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.6rem 1rem;
+		border-radius: 999px;
+		background: rgba(0, 200, 150, 0.07);
+		border: 1px solid rgba(0, 200, 150, 0.28);
+		margin-bottom: 1rem;
+		width: fit-content;
+	}
+
+	.api-ok {
+		font-size: 0.82rem;
+		font-weight: 700;
+		color: #00c896;
+		letter-spacing: 0.04em;
+	}
+
+	/* Meechie spotlight */
+	.meechie-spotlight {
+		background: linear-gradient(160deg, rgba(107, 33, 168, 0.1), rgba(22, 20, 42, 0.96));
+	}
+
+	.spotlight-header {
+		margin-bottom: 0.75rem;
+	}
+
+	.spotlight-pills {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.tool-pill {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.32rem 0.82rem;
+		border-radius: 999px;
+		border: 1px solid rgba(107, 33, 168, 0.45);
+		background: rgba(107, 33, 168, 0.14);
+		font-size: 0.79rem;
+		font-weight: 700;
+		color: #c4b5fd;
+		letter-spacing: 0.04em;
+	}
+
+	.spotlight-copy {
+		margin: 0 0 1rem;
+		font-size: 0.94rem;
+		color: var(--lavender);
+	}
+
+	.meechie-spotlight-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		text-decoration: none;
+	}
+
+	/* Chat card */
+	.chat {
+		background: linear-gradient(160deg, rgba(232, 0, 106, 0.08), rgba(22, 20, 42, 0.95));
+	}
+
+	.section-sub {
+		margin: -0.4rem 0 0.9rem;
+		font-size: 0.94rem;
+		color: var(--lavender);
+	}
+
+	/* Builder */
+	.builder {
+		background: var(--dark-card);
+	}
+
+	/* Chip selectors */
+	.chip-group {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.45rem;
+	}
+
+	.chip {
+		padding: 0.38rem 0.88rem;
+		border-radius: 999px;
+		border: 1px solid var(--gold-border);
+		background: transparent;
+		color: var(--lavender);
+		font-size: 0.82rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+		font-family: inherit;
+	}
+
+	.chip:hover {
+		border-color: var(--gold);
+		color: var(--gold-bright);
+	}
+
+	.chip.active {
+		border-color: var(--gold);
+		background: rgba(201, 162, 39, 0.16);
+		color: var(--gold-bright);
+	}
+
+	/* Active preset highlight */
+	.ghost.preset.active {
+		border-color: var(--gold);
+		background: rgba(201, 162, 39, 0.14);
+		color: var(--gold-bright);
+	}
+
+	/* Inline field errors */
+	.field-error {
+		border-color: rgba(232, 0, 106, 0.65) !important;
+		box-shadow: 0 0 0 2px rgba(232, 0, 106, 0.1);
+	}
+
+	.field-error-msg {
+		margin: 0;
+		font-size: 0.78rem;
+		color: #ff8ab3;
+	}
+
+	/* Reveal panel */
+	.reveal-panel {
+		background: var(--dark-card-alt);
+	}
+
+	@keyframes reveal {
+		from {
+			opacity: 0;
+			transform: scale(0.97) translateY(8px);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1) translateY(0);
+		}
+	}
+
+	.reveal-enter {
+		animation: reveal 200ms ease-out forwards;
+	}
+
+	/* Shimmer */
+	.shimmer-wrap {
+		display: flex;
+		flex-direction: column;
+		gap: 0.7rem;
+		padding: 0.5rem 0;
+	}
+
+	.shimmer-img {
+		height: 260px;
+		border-radius: 0.82rem;
+		background: linear-gradient(
+			90deg,
+			rgba(255, 255, 255, 0.04) 25%,
+			rgba(255, 255, 255, 0.09) 50%,
+			rgba(255, 255, 255, 0.04) 75%
+		);
+		background-size: 200% 100%;
+		animation: shimmer 1.4s ease-in-out infinite;
+	}
+
+	.shimmer-line {
+		height: 0.85rem;
+		border-radius: 999px;
+		background: linear-gradient(
+			90deg,
+			rgba(255, 255, 255, 0.04) 25%,
+			rgba(255, 255, 255, 0.09) 50%,
+			rgba(255, 255, 255, 0.04) 75%
+		);
+		background-size: 200% 100%;
+		animation: shimmer 1.4s ease-in-out infinite;
+	}
+
+	.shimmer-line-short {
+		width: 60%;
+	}
+
+	@keyframes shimmer {
+		0% {
+			background-position: 200% 0;
+		}
+		100% {
+			background-position: -200% 0;
+		}
+	}
+
+	/* Image wrap with sparkle overlay */
+	.img-wrap {
+		position: relative;
+	}
+
+	.preview-grid img {
+		width: 100%;
+		border-radius: 0.82rem;
+		border: 1px solid var(--gold-border);
+		background: #1c1932;
+		box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+		display: block;
+	}
+
+	.sparkle-btn {
+		position: absolute;
+		top: 0.55rem;
+		right: 0.55rem;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 50%;
+		border: 1px solid rgba(240, 196, 74, 0.4);
+		background: rgba(7, 7, 15, 0.7);
+		color: rgba(240, 196, 74, 0.7);
+		font-size: 0.9rem;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: background 0.18s ease, color 0.18s ease;
+		backdrop-filter: blur(4px);
+	}
+
+	.sparkle-btn.active {
+		background: rgba(240, 196, 74, 0.2);
+		color: var(--gold-bright);
+		border-color: var(--gold);
+	}
+
+	.sparkle-overlay {
+		position: absolute;
+		inset: 0;
+		border-radius: 0.82rem;
+		background:
+			radial-gradient(circle at 16% 20%, rgba(240, 196, 74, 0.5), transparent 30%),
+			radial-gradient(circle at 82% 28%, rgba(232, 0, 106, 0.4), transparent 34%),
+			radial-gradient(circle at 38% 76%, rgba(107, 33, 168, 0.35), transparent 40%),
+			radial-gradient(circle at 72% 78%, rgba(240, 196, 74, 0.3), transparent 44%);
+		opacity: 0.7;
+		mix-blend-mode: screen;
+		pointer-events: none;
+	}
+
+	/* Downloads */
+	.downloads {
+		margin-top: 1.1rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.65rem;
+	}
+
+	.downloads-label {
+		margin: 0 0 0.2rem;
+		font-family: 'Fraunces', 'Times New Roman', serif;
+		font-style: italic;
+		font-size: 1.1rem;
+		font-weight: 700;
+		color: var(--cream);
+	}
+
+	.download-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		text-decoration: none;
+		width: 100%;
+		box-sizing: border-box;
+	}
+
+	.social-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-top: 0.3rem;
+	}
+
+	/* Icon-only buttons */
+	.icon-btn {
+		padding: 0.38rem 0.6rem;
+		font-size: 0.88rem;
 	}
 
 	.card {
@@ -1229,18 +1638,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	.builder {
 		background: var(--dark-card);
-	}
-
-	.card.preview {
-		min-height: 520px;
-		background: var(--dark-card-alt);
-	}
-
-	.chat {
-		position: relative;
-		z-index: 1;
-		margin-bottom: 0.5rem;
-		background: linear-gradient(160deg, rgba(232, 0, 106, 0.08), rgba(22, 20, 42, 0.95));
 	}
 
 	h2 {
@@ -1421,11 +1818,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		border: 1px solid rgba(232, 0, 106, 0.35);
 	}
 
-	.issues ul {
-		margin: 0.5rem 0 0;
-		padding-left: 1.2rem;
-	}
-
 	.preview-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -1434,29 +1826,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 
 	.preview-grid figure {
 		position: relative;
-	}
-
-	.preview-grid img {
-		width: 100%;
-		border-radius: 0.82rem;
-		border: 1px solid var(--gold-border);
-		background: #1c1932;
-		box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
-	}
-
-	.preview-grid figure.sparkle::after {
-		content: '';
-		position: absolute;
-		inset: 0;
-		border-radius: 0.82rem;
-		background:
-			radial-gradient(circle at 16% 20%, rgba(240, 196, 74, 0.5), transparent 30%),
-			radial-gradient(circle at 82% 28%, rgba(232, 0, 106, 0.4), transparent 34%),
-			radial-gradient(circle at 38% 76%, rgba(107, 33, 168, 0.35), transparent 40%),
-			radial-gradient(circle at 72% 78%, rgba(240, 196, 74, 0.3), transparent 44%);
-		opacity: 0.7;
-		mix-blend-mode: screen;
-		pointer-events: none;
 	}
 
 	figcaption {
@@ -1478,28 +1847,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	.empty {
 		color: var(--lavender);
 		font-style: italic;
-	}
-
-	.downloads {
-		margin-top: 0.9rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.download {
-		text-decoration: none;
-		font-weight: 700;
-		color: var(--gold-bright);
-		background: rgba(201, 162, 39, 0.1);
-		border: 1px solid var(--gold-border);
-		padding: 0.52rem 0.78rem;
-		border-radius: 0.78rem;
-		transition: background 0.2s ease;
-	}
-
-	.download:hover {
-		background: rgba(201, 162, 39, 0.18);
 	}
 
 	.history {
@@ -1556,75 +1903,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		border-color: rgba(232, 0, 106, 0.4);
 	}
 
-	.success {
-		color: var(--emerald);
-	}
-
-	li.error {
-		color: #ff6b8a;
-	}
-
-	.warning {
-		color: var(--gold-bright);
-	}
-
-	.meechie-link-card {
-		position: relative;
-		z-index: 1;
-		text-align: left;
-	}
-
-	.meechie-link-copy {
-		margin: 0 0 1rem;
-		color: var(--lavender);
-	}
-
-	.meechie-link-button {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		text-decoration: none;
-	}
-
-	.advanced-card {
-		position: relative;
-		z-index: 1;
-	}
-
-	.advanced-card summary,
-	.api-settings summary {
-		cursor: pointer;
-		list-style: none;
-		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-style: italic;
-		font-size: 1.3rem;
-		font-weight: 700;
-		color: var(--cream);
-	}
-
-	.advanced-card summary::-webkit-details-marker,
-	.api-settings summary::-webkit-details-marker {
-		display: none;
-	}
-
-	.advanced-card summary::after,
-	.api-settings summary::after {
-		content: 'Show ›';
-		float: right;
-		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
-		font-size: 0.75rem;
-		font-weight: 700;
-		font-style: normal;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--gold);
-	}
-
-	.advanced-card[open] summary::after,
-	.api-settings[open] summary::after {
-		content: 'Hide ‹';
-	}
-
 	.advanced-content {
 		margin-top: 0.9rem;
 	}
@@ -1659,34 +1937,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		content: '‹';
 	}
 
-	.api-settings {
-		position: relative;
-		z-index: 1;
-	}
-
-	.api-key-label {
-		margin: 0 0 0.6rem;
-		font-size: 0.8rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--gold);
-		display: block;
-	}
-
-	.api-key-actions {
-		display: flex;
-		gap: 0.4rem;
-		margin-top: 0.45rem;
-		flex-wrap: wrap;
-	}
-
-	.api-key-status {
-		margin: 0.5rem 0 0;
-		font-size: 0.76rem;
-		color: var(--lavender);
-	}
-
 	.mobile-actions {
 		display: none;
 	}
@@ -1694,10 +1944,6 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	@media (max-width: 900px) {
 		h1 {
 			max-width: none;
-		}
-
-		.grid {
-			grid-template-columns: 1fr;
 		}
 
 		.item-row {

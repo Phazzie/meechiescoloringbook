@@ -165,13 +165,22 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	</header>
 
 	<section class="tool-picker">
-		<label class="label" for="tool-select">Tool</label>
-		<select id="tool-select" bind:value={selectedTool} on:change={resetState}>
+		<div class="tool-grid">
 			{#each tools as tool}
-				<option value={tool.id}>{tool.label}</option>
+				<button
+					type="button"
+					class="tool-card"
+					class:active={selectedTool === tool.id}
+					on:click={() => {
+						selectedTool = tool.id;
+						resetState();
+					}}
+				>
+					<span class="tool-card-name">{tool.label}</span>
+					<span class="tool-card-help">{tool.help}</span>
+				</button>
 			{/each}
-		</select>
-		<p class="help">{tools.find((tool) => tool.id === selectedTool)?.help}</p>
+		</div>
 	</section>
 
 	<section class="form">
@@ -346,12 +355,6 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.18);
 	}
 
-	.help {
-		color: #b8aacf;
-		font-size: 0.88rem;
-		margin: 0;
-	}
-
 	.actions .primary {
 		padding: 0.75rem 1.4rem;
 		border-radius: 999px;
@@ -456,5 +459,53 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 			flex-direction: column;
 			align-items: stretch;
 		}
+
+		.tool-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	/* Tool card grid */
+	.tool-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 0.65rem;
+	}
+
+	.tool-card {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+		padding: 0.85rem 0.9rem;
+		border-radius: 0.9rem;
+		border: 1px solid rgba(201, 162, 39, 0.28);
+		background: rgba(7, 7, 15, 0.55);
+		cursor: pointer;
+		text-align: left;
+		transition: border-color 0.18s ease, background 0.18s ease;
+		font-family: inherit;
+	}
+
+	.tool-card:hover {
+		border-color: rgba(201, 162, 39, 0.6);
+		background: rgba(201, 162, 39, 0.07);
+	}
+
+	.tool-card.active {
+		border-color: #c9a227;
+		background: rgba(201, 162, 39, 0.13);
+	}
+
+	.tool-card-name {
+		font-weight: 700;
+		font-size: 0.85rem;
+		color: #fdf6e3;
+		letter-spacing: 0.01em;
+	}
+
+	.tool-card-help {
+		font-size: 0.76rem;
+		color: #b8aacf;
+		line-height: 1.35;
 	}
 </style>
