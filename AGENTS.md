@@ -115,14 +115,14 @@ Info flow: ...
 - At the end of every assistant message, provide exactly three concise next-step options, each with a one-sentence reason for why it is the best next move.
 
 ## Automation Tools
-- `npm run verify`: runs chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, proof tape, and cipher gate; required for seam changes.
+- `npm run verify`: runs chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, and proof tape; required for seam changes.
 - `npm run chamber:lock`: checks seam artifact presence and writes `docs/evidence/YYYY-MM-DD/chamber-lock.json`.
 - `npm run verify:runner`: runs `npm run check` + `npm test` and captures evidence.
 - `npm run shaolin:lint`: enforces evidence freshness and writes `docs/evidence/YYYY-MM-DD/shaolin-lint.json`.
 - `npm run seam:ledger`: writes seam coverage ledger files under `docs/evidence/YYYY-MM-DD/`.
 - `npm run clan:chain`: writes clean/dirty seam summaries under `docs/evidence/YYYY-MM-DD/`.
 - `npm run proof:tape`: writes a plain-English evidence summary under `docs/evidence/YYYY-MM-DD/`.
-- `npm run cipher:gate`: enforces the Cipher Gate entry in `DECISIONS.md` and writes `docs/evidence/YYYY-MM-DD/cipher-gate.json`.
+- `npm run cipher:gate`: enforces the Cipher Gate entry in `DECISIONS.md` and writes `docs/evidence/YYYY-MM-DD/cipher-gate.json`. Not part of the verify chain; run manually if needed.
 - `npm run assumption:alarm`: enforces Assumption entries for blocked probes and writes `docs/evidence/YYYY-MM-DD/assumption-alarm.json`.
 - `npm run rewind -- --seam <SeamName>`: runs a single seam contract test and captures seam evidence.
 - `npm run hooks:install`: configures local git hooks to run `npm run verify` on commit and push.

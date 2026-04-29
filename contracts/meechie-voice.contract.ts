@@ -76,6 +76,18 @@ const ExplainsSchema = z.object({
 	fallbackTemplate: NonEmptyStringSchema
 });
 
+const ExcuseRatingSchema = z.object({
+	keywords: z.array(NonEmptyStringSchema).min(1),
+	rating: z.number().int().min(1).max(10),
+	commentary: NonEmptyStringSchema
+});
+
+const ExcuseRatingFallbackSchema = z.object({
+	keywords: z.array(z.string()),
+	rating: z.number().int().min(1).max(10),
+	commentary: NonEmptyStringSchema
+});
+
 const MeechieVoiceResponsesSchema = z.object({
 	headlines: HeadlineSchema,
 	apologyTranslator: ApologyTranslatorSchema,
@@ -86,7 +98,10 @@ const MeechieVoiceResponsesSchema = z.object({
 	receipts: TemplateSchema,
 	caption: TemplateSchema,
 	clapback: TemplateSchema,
-	explains: ExplainsSchema
+	explains: ExplainsSchema,
+	excuseRatings: z.array(ExcuseRatingSchema).min(1),
+	excuseRatingFallback: ExcuseRatingFallbackSchema,
+	randomSayings: z.array(NonEmptyStringSchema).min(1)
 });
 
 export const MeechieVoicePackSchema = z.object({

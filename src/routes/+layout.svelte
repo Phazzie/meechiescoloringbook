@@ -29,8 +29,10 @@ Info flow: Layout renders children -> pages render within layout.
 			<span class="badge">Meechie's</span>
 		</a>
 		<nav class="links">
-			<a href="/">Create</a>
-			<a href="/meechie">Talk To Meechie</a>
+			<a href="/who-fucked-up">Who Fucked Up?</a>
+			<a href="/rate-his-excuse">Rate His Excuse</a>
+			<a href="/random">Random Meechie</a>
+			<a href="/meechie">Meechie's Tools</a>
 		</nav>
 	</div>
 </header>
@@ -123,9 +125,13 @@ Info flow: Layout renders children -> pages render within layout.
 		}
 	}
 
-	/* Palette CSS custom properties — defined here so every route (including /meechie)
-	   has access to them, regardless of which page component is mounted. */
+	/* Base reset and palette — centralized so mode pages don't fight over :global(body). */
 	:global(body) {
+		margin: 0;
+		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
+		color: var(--cream);
+		background: linear-gradient(180deg, #07070f, #0d0b1a 60%, #070710);
+		min-height: 100vh;
 		--fuchsia: #e8006a;
 		--fuchsia-glow: rgba(232, 0, 106, 0.22);
 		--gold: #c9a227;

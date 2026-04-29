@@ -14,7 +14,9 @@ export const MeechieToolIdSchema = z.enum([
 	'receipts',
 	'caption_this',
 	'clapback',
-	'meechie_explains'
+	'meechie_explains',
+	'rate_excuse',
+	'random_meechie'
 ]);
 
 const ApologyInputSchema = z.object({
@@ -79,6 +81,15 @@ const ExplainsInputSchema = z.object({
 	term: NonEmptyStringSchema
 });
 
+const RateExcuseInputSchema = z.object({
+	toolId: z.literal('rate_excuse'),
+	excuse: NonEmptyStringSchema
+});
+
+const RandomMeechieInputSchema = z.object({
+	toolId: z.literal('random_meechie')
+});
+
 export const MeechieToolInputSchema = z.discriminatedUnion('toolId', [
 	ApologyInputSchema,
 	RedFlagInputSchema,
@@ -88,13 +99,16 @@ export const MeechieToolInputSchema = z.discriminatedUnion('toolId', [
 	ReceiptsInputSchema,
 	CaptionInputSchema,
 	ClapbackInputSchema,
-	ExplainsInputSchema
+	ExplainsInputSchema,
+	RateExcuseInputSchema,
+	RandomMeechieInputSchema
 ]);
 
 export const MeechieToolOutputSchema = z.object({
 	toolId: MeechieToolIdSchema,
 	headline: NonEmptyStringSchema,
-	response: NonEmptyStringSchema
+	response: NonEmptyStringSchema,
+	rating: z.number().int().min(1).max(10).optional()
 });
 
 export const MeechieToolResultSchema = resultSchema(MeechieToolOutputSchema);

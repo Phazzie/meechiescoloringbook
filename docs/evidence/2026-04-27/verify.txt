@@ -1,0 +1,14 @@
+# Purpose: Store npm run verify output for evidence.
+# Why: Provide an audit trail for Seam-Driven Development verification.
+# Info flow: Command output -> evidence file -> review.
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+sh: 1: svelte-kit: not found
+
+
+> meechies-coloringbook@0.1.0 test
+> vitest run
+
+sh: 1: vitest: not found
