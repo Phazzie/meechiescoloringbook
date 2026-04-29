@@ -1,5 +1,6 @@
 <!--
 Purpose: "Who Fucked Up?" mode — user describes situation, Meechie states what it really means.
+Why: Let users get an instant Meechie read on any situation without building a spec manually.
 Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> generate coloring page.
 -->
 <script lang="ts">
@@ -30,18 +31,22 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		imagePreviews = [];
 		packagedFiles = [];
 
-		const { payload } = await postJson('/api/tools', {
-			toolId: 'red_flag_or_run',
-			situation: situation.trim()
-		});
-
-		const parsed = MeechieToolResultSchema.safeParse(payload);
-		if (!parsed.success || !parsed.data.ok) {
-			error = parsed.success && !parsed.data.ok ? parsed.data.error.message : 'Something went wrong.';
-		} else {
-			verdict = parsed.data.value;
+		try {
+			const { payload } = await postJson('/api/tools', {
+				toolId: 'red_flag_or_run',
+				situation: situation.trim()
+			});
+			const parsed = MeechieToolResultSchema.safeParse(payload);
+			if (!parsed.success || !parsed.data.ok) {
+				error = parsed.success && !parsed.data.ok ? parsed.data.error.message : 'Something went wrong.';
+			} else {
+				verdict = parsed.data.value;
+			}
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Network error. Try again.';
+		} finally {
+			isWorking = false;
 		}
-		isWorking = false;
 	};
 
 	const handleKeydown = (e: KeyboardEvent): void => {
@@ -57,64 +62,71 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		imagePreviews = [];
 		packagedFiles = [];
 
-		const saying = verdict.headline;
-		const { payload } = await postJson('/api/generate', {
-			spec: {
-				title: saying,
-				listMode: 'title_only',
-				items: [],
-				dedication: dedicatedTo.trim() || undefined,
-				alignment: 'center',
-				numberAlignment: 'strict',
-				listGutter: 'normal',
-				whitespaceScale: 35,
-				textSize: 'large',
-				fontStyle: 'block',
-				textStrokeWidth: 9,
-				colorMode: 'black_and_white_only',
-				decorations: 'dense',
-				illustrations: 'simple',
-				shading: 'none',
-				border: 'decorative',
-				borderThickness: 10,
-				variations: 1,
+		try {
+			const saying = `${verdict.headline} — ${verdict.response}`;
+			const { payload } = await postJson('/api/generate', {
+				spec: {
+					title: saying,
+					listMode: 'title_only',
+					items: [],
+					dedication: dedicatedTo.trim() || undefined,
+					alignment: 'center',
+					numberAlignment: 'strict',
+					listGutter: 'normal',
+					whitespaceScale: 35,
+					textSize: 'large',
+					fontStyle: 'block',
+					textStrokeWidth: 9,
+					colorMode: 'black_and_white_only',
+					decorations: 'dense',
+					illustrations: 'simple',
+					shading: 'none',
+					border: 'decorative',
+					borderThickness: 10,
+					variations: 1,
+					outputFormat: 'pdf',
+					pageSize: 'US_Letter'
+				},
+				styleHint: 'crown, diamonds, roses with thorns, bold statement coloring page'
+			});
+
+			const parsed = GenerateResultSchema.safeParse(payload);
+			if (!parsed.success || !parsed.data.ok) {
+				generateError =
+					parsed.success && !parsed.data.ok ? parsed.data.error.message : 'Page generation failed.';
+				return;
+			}
+
+			const images = parsed.data.value.images;
+			imagePreviews = images
+				.map((img: GeneratedImage): string | null => {
+					if (img.format === 'svg' && img.encoding === 'utf8') {
+						return `data:image/svg+xml;utf8,${encodeURIComponent(img.data)}`;
+					}
+					if (img.encoding === 'base64') {
+						return `data:image/${img.format};base64,${img.data}`;
+					}
+					return null;
+				})
+				.filter((u): u is string => u !== null);
+
+			const packResult = await outputPackagingAdapter.package({
+				images,
 				outputFormat: 'pdf',
-				pageSize: 'US_Letter'
-			},
-			styleHint: 'crown, diamonds, roses with thorns, bold statement coloring page'
-		});
-
-		const parsed = GenerateResultSchema.safeParse(payload);
-		if (!parsed.success || !parsed.data.ok) {
-			generateError =
-				parsed.success && !parsed.data.ok ? parsed.data.error.message : 'Page generation failed.';
+				fileBaseName: `meechie-who-fucked-up-${Date.now()}`,
+				pageSize: 'US_Letter',
+				variants: ['print', 'square']
+			});
+			if (packResult.ok) {
+				packagedFiles = packResult.value.files;
+			} else {
+				generateError = packResult.error.message;
+			}
+		} catch (e) {
+			generateError = e instanceof Error ? e.message : 'Network error. Try again.';
+		} finally {
 			isGenerating = false;
-			return;
 		}
-
-		const images = parsed.data.value.images;
-		imagePreviews = images.map((img: GeneratedImage) => {
-			if (img.format === 'svg' && img.encoding === 'utf8') {
-				return `data:image/svg+xml;utf8,${encodeURIComponent(img.data)}`;
-			}
-			if (img.encoding === 'base64') {
-				return `data:image/${img.format};base64,${img.data}`;
-			}
-			return '';
-		});
-
-		const packResult = await outputPackagingAdapter.package({
-			images,
-			outputFormat: 'pdf',
-			fileBaseName: `meechie-who-fucked-up-${Date.now()}`,
-			pageSize: 'US_Letter',
-			variants: ['print', 'square']
-		});
-		if (packResult.ok) {
-			packagedFiles = packResult.value.files;
-		}
-
-		isGenerating = false;
 	};
 
 	const reset = (): void => {
@@ -164,7 +176,7 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 				on:click={handleSubmit}
 				disabled={isWorking || !situation.trim()}
 			>
-				{isWorking ? 'She's reading it...' : 'She's listening. Go.'}
+				{isWorking ? "She's reading it..." : "She's listening. Go."}
 			</button>
 		</section>
 
@@ -238,22 +250,15 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 </div>
 
 <style>
-	:global(body) {
-		margin: 0;
-		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
-		color: var(--cream);
-		background:
-			radial-gradient(circle at 0% 0%, rgba(232, 0, 106, 0.2), transparent 40%),
-			radial-gradient(circle at 100% 60%, rgba(107, 33, 168, 0.18), transparent 45%),
-			linear-gradient(180deg, #07070f, #0d0b1a 60%, #070710);
-		min-height: 100vh;
-	}
-
 	.page {
 		position: relative;
 		max-width: 680px;
 		margin: 0 auto;
 		padding: 2.5rem 1.4rem 5rem;
+		min-height: 100vh;
+		background:
+			radial-gradient(circle at 0% 0%, rgba(232, 0, 106, 0.2), transparent 40%),
+			radial-gradient(circle at 100% 60%, rgba(107, 33, 168, 0.18), transparent 45%);
 	}
 
 	.ambient {

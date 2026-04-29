@@ -96,7 +96,7 @@ const rateExcuse = (
 	const match = pack.responses.excuseRatings.find((r) =>
 		r.keywords.some((keyword) => normalized.includes(keyword))
 	);
-	return match ?? { rating: 3, commentary: 'Standard excuse. Lacks creativity. Lacks credibility.' };
+	return match ?? pack.responses.excuseRatingFallback;
 };
 
 const randomSaying = (pack: MeechieVoicePack): string => {
@@ -228,7 +228,7 @@ export const meechieToolAdapter: MeechieToolSeam = {
 					ok: true,
 					value: {
 						toolId: input.toolId,
-						headline: saying,
+						headline: 'Random Meechie',
 						response: saying
 					}
 				};

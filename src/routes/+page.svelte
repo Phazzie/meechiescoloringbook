@@ -864,7 +864,7 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 					{/each}
 				</div>
 			{:else}
-				<p class="empty">Press Create Pages to see your results.</p>
+				<p class="empty">Press Generate My Coloring Page to see your results.</p>
 			{/if}
 
 			{#if packagedFiles.length > 0}

@@ -17,12 +17,19 @@ const ensureEvidenceDir = async (dateFolder) => {
 };
 
 const runCommand = (command, args) => {
-	const result = spawnSync(command, args, {
+	const commandLine = [command, ...args].join(' ');
+	const result = spawnSync(commandLine, {
 		cwd: ROOT,
-		encoding: 'utf8'
+		encoding: 'utf8',
+		shell: true
 	});
 	const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
 	process.stdout.write(output);
+	if (result.error) {
+		const errorOutput = `Command failed to start: ${result.error.message}\n`;
+		process.stderr.write(errorOutput);
+		return { output: `${output}${errorOutput}`, status: 1 };
+	}
 	return { output, status: result.status ?? 1 };
 };
 

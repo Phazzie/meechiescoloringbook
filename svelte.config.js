@@ -7,7 +7,8 @@ import adapter from '@sveltejs/adapter-vercel';
 const config = {
 	kit: {
 		adapter: adapter({
-			precompress: true
+			precompress: true,
+			runtime: 'nodejs22.x'
 		})
 	}
 };
