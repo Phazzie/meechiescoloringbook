@@ -15,6 +15,36 @@ Short, durable decisions with context and tradeoffs.
 - Consequences:
 - Revisit criteria:
 
+## 2026-04-23 - Delegate chat JSON grammar validation to JSON.parse
+- Date: 2026-04-23
+- Decision: Replace the custom brace scanner in chat interpretation with a parser-based check that trims content, parses once with `JSON.parse`, and accepts only top-level JSON objects.
+- Context: Review feedback called out maintenance risk and potential grammar edge-case drift in the hand-rolled scanner implementation.
+- Alternatives: Keep the custom scanner and continue maintaining escape/string/depth logic in application code.
+- Consequences: JSON grammar validation now relies on the native parser while preserving deterministic rejection of non-object and extra-text payloads.
+- Revisit criteria: If we ever need partial extraction from mixed prose+JSON outputs, reintroduce an explicit extractor with contract updates and new fixtures.
+
+- Cipher Gate:
+  - Date: 2026-04-23
+  - Seams: ChatInterpretationSeam, ProviderAdapterSeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-04-23/test.txt; docs/evidence/2026-04-23/verify.txt; docs/evidence/2026-04-23/chamber-lock.json; docs/evidence/2026-04-23/shaolin-lint.json; docs/evidence/2026-04-23/seam-ledger.json; docs/evidence/2026-04-23/clan-chain.json; docs/evidence/2026-04-23/proof-tape.json; docs/evidence/2026-04-23/assumption-alarm.json
+  - Summary: Replaced the hand-rolled JSON scanner with parser-based object validation and expanded chat edge-case tests for non-object payload rejection.
+  - Risks: Strict JSON-only enforcement can still reject provider responses that prepend prose despite prompt instructions.
+
+## 2026-04-22 - Enforce strict single-object JSON parsing for chat interpretation
+- Date: 2026-04-22
+- Decision: Harden chat interpretation parsing to accept exactly one top-level JSON object and reject any extra non-whitespace text before or after the object boundary.
+- Context: The prior extraction strategy accepted the first `{` through last `}` substring, which could silently accept narrative wrappers or ambiguous multi-object responses.
+- Alternatives: Keep permissive extraction and rely only on stronger prompt wording that requests JSON-only responses.
+- Consequences: Chat responses are now deterministically rejected when providers prepend prose, include brace snippets in text, or emit multiple objects; tests were updated to lock this behavior.
+- Revisit criteria: If provider behavior requires tolerant parsing for reliability, revisit with an explicit contract change and fixture-backed seam evidence.
+
+- Cipher Gate:
+  - Date: 2026-04-22
+  - Seams: ChatInterpretationSeam, ProviderAdapterSeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-04-22/test.txt; docs/evidence/2026-04-22/verify.txt; docs/evidence/2026-04-22/chamber-lock.json; docs/evidence/2026-04-22/shaolin-lint.json; docs/evidence/2026-04-22/seam-ledger.json; docs/evidence/2026-04-22/clan-chain.json; docs/evidence/2026-04-22/proof-tape.json; docs/evidence/2026-04-22/assumption-alarm.json
+  - Summary: Replaced loose brace slicing with strict single-object boundary parsing, added edge-case tests for braces-in-text and multi-object payloads, and aligned chat pipeline tests to JSON-only provider output.
+  - Risks: Some providers may still emit non-JSON wrappers despite prompt instructions, increasing rejection rate until upstream behavior is fully aligned.
+
 ## 2026-02-15 - Extract chat/tools pipelines, retire ghost workflow, and refresh seam governance
 - Date: 2026-02-15
 - Decision: Extract `/api/chat-interpretation` and `/api/tools` orchestration into core pipeline modules, keep route handlers transport-thin, remove the unused legacy workflow/composition path, and update seam inventory coverage for seam modules under `src/lib/seams/`.
@@ -1426,3 +1456,24 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-04-15/npm-test-2026-04-15.txt
   - Summary: Removed client-side API key entry; server now always uses XAI_API_KEY env var. All 155 tests pass.
   - Risks: If XAI_API_KEY is unset on Vercel, all generation requests will return 401 with a clear error message.
+
+## 2026-04-24 - Demo storage test environment fix
+- Date: 2026-04-24
+- Decision: Use a deterministic Vitest localStorage shim, make verification command wrappers capture output correctly on Windows, and pin the Vercel serverless runtime to Node 22.
+- Context: The local demo gate was blocked because Node exposed a partial localStorage global during tests, causing SessionSeam and CreationStoreSeam tests to fail even though the production browser adapters still target real localStorage. The seam-scoped rewind wrapper also produced blank evidence on Windows because it spawned `npx` in a non-portable way, and verify-runner could not reliably spawn `npm`. A production build under local Node v25 also required an explicit Vercel runtime.
+- Alternatives: Change production adapters to inject storage; rejected for the demo blocker because it would widen behavior change beyond the failing test environment. Use shell-based `npx`; rejected after it worked but emitted a Node warning about shell argument handling. Switch local Node versions; deferred because pinning the Vercel runtime is explicit and matches supported deployment runtime.
+- Consequences: Vitest now loads `tests/setup/local-storage.ts` before tests, giving adapter tests stable `getItem`, `setItem`, `removeItem`, and `clear` behavior. `scripts/rewind.mjs` runs the local Vitest CLI through Node, `scripts/verify-runner.mjs` captures fixed `npm run check` and `npm test` output, and `svelte.config.js` declares `nodejs22.x` for Vercel serverless output.
+- Revisit criteria: Revisit when storage is moved behind a database-backed adapter or when Vitest/jsdom behavior changes enough that the shim is no longer needed.
+- Plan:
+  - Goal: Restore deterministic browser storage behavior in tests and reliable evidence capture on Windows.
+  - Seams: SessionSeam, CreationStoreSeam.
+  - Files: `plan.md`, `vite.config.ts`, `tests/setup/local-storage.ts`, `scripts/rewind.mjs`, `scripts/verify-runner.mjs`, `svelte.config.js`, `DECISIONS.md`.
+  - Commands: `npm run check`, `npm test`, `npm run rewind -- --seam SessionSeam`, `npm run rewind -- --seam CreationStoreSeam`, `npm run verify`, `npm run build`.
+- Self-critique: The risk is that a test shim could hide browser storage quirks; we contain that by only changing Vitest setup and leaving production adapters unchanged. Local `npm run build` still requires Windows symlink permission for adapter-vercel output.
+
+- Cipher Gate:
+  - Date: 2026-04-24
+  - Seams: SessionSeam, CreationStoreSeam
+  - Evidence: docs/evidence/2026-04-24/rewind-SessionSeam.txt; docs/evidence/2026-04-24/rewind-CreationStoreSeam.txt; docs/evidence/2026-04-24/test.txt; docs/evidence/2026-04-24/verify.txt; docs/evidence/2026-04-24/chamber-lock.json; docs/evidence/2026-04-24/shaolin-lint.json; docs/evidence/2026-04-24/assumption-alarm.json; docs/evidence/2026-04-24/seam-ledger.json; docs/evidence/2026-04-24/clan-chain.json; docs/evidence/2026-04-24/proof-tape.json
+  - Summary: Fixed demo-blocking localStorage failures in test setup, repaired Windows evidence capture for seam rewind and full verification, and pinned the Vercel runtime to Node 22.
+  - Risks: Future database/auth work should replace this with contract-backed database fixtures instead of expanding browser storage behavior. Local production build output still depends on Windows symlink support for adapter-vercel.

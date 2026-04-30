@@ -85,12 +85,16 @@ const run = async () => {
 		process.exit(1);
 	}
 
-	const result = spawnSync('npx', ['vitest', 'run', seam.tests], {
+	const vitestCli = path.join(ROOT, 'node_modules', 'vitest', 'vitest.mjs');
+	const result = spawnSync(process.execPath, [vitestCli, 'run', seam.tests], {
 		cwd: ROOT,
 		encoding: 'utf8'
 	});
 	const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
 	process.stdout.write(output);
+	if (result.error) {
+		process.stderr.write(`Rewind command failed to start: ${result.error.message}\n`);
+	}
 
 	const evidenceDir = await ensureEvidenceDir(toDateFolder(new Date()));
 	const evidencePath = path.join(
@@ -105,7 +109,7 @@ const run = async () => {
 	].join('\n');
 	await fs.writeFile(evidencePath, `${header}\n${output}`, 'utf8');
 
-	process.exit(result.status ?? 1);
+	process.exit(result.error ? 1 : (result.status ?? 1));
 };
 
 run().catch((error) => {

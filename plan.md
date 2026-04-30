@@ -5,6 +5,90 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 -->
 # Autonomous Plan (2026-02-14)
 
+## Conflict Resolution Pass for Helper Tests (2026-04-23)
+### Plan
+- Goal: Resolve PR merge conflicts by minimizing divergence in helper test files that were unintentionally pulled into the seam-change branch.
+- Exact seams: `ChatInterpretationSeam` (primary), with conflict-only file alignment in helper tests.
+- Exact file paths to touch:
+  - `tests/unit/output-packaging-helpers.test.ts`
+  - `tests/unit/provider-adapter-helpers.test.ts`
+  - `plan.md`
+- Exact commands to run:
+  1. `npm test -- tests/unit/output-packaging-helpers.test.ts tests/unit/provider-adapter-helpers.test.ts`
+  2. `npm test`
+  3. `npm run verify`
+
+### Self-critique
+1. What could be wrong: Reverting conflict-heavy helper tests might reintroduce strict-check failures that were masked by prior edits.
+2. What must be proven: Both helper test files compile and pass without conflict markers and without breaking verify.
+3. Riskiest assumption: Upstream/base branch versions of the helper tests already satisfy current type checks.
+4. Evidence to prove/disprove: Passing targeted helper tests and green verify evidence on 2026-04-23.
+
+## Chat JSON Parser Simplification Pass (2026-04-23)
+### Plan
+- Goal: Replace the hand-rolled JSON boundary scanner with a simpler parser-based single-object validator while preserving JSON-only behavior.
+- Exact seams: `ChatInterpretationSeam`, `ProviderAdapterSeam`, `SpecValidationSeam`.
+- Exact file paths to touch:
+  - `src/lib/core/chat-interpretation-pipeline.ts`
+  - `tests/unit/pipeline-edge-cases.test.ts`
+  - `DECISIONS.md`
+  - `plan.md`
+- Exact commands to run:
+  1. `npm test -- tests/unit/pipeline-edge-cases.test.ts`
+  2. `npm test`
+  3. `npm run verify`
+
+### Self-critique
+1. What could be wrong: Parser simplification could accidentally accept non-object JSON payloads or regress strict no-extra-text behavior.
+2. What must be proven: Non-object and wrapped text payloads still fail, and clean single-object payloads still pass.
+3. Riskiest assumption: `JSON.parse(trimmed)` alone is sufficient for deterministic single-object enforcement in this seam.
+4. Evidence to prove/disprove: Updated unit tests plus green `npm test` and `npm run verify` evidence output.
+
+## Chat JSON Boundary Hardening Pass (2026-04-22)
+### Plan
+- Goal: Enforce deterministic JSON-only chat payload parsing by accepting exactly one top-level JSON object and rejecting any non-whitespace text outside that boundary.
+- Exact seams: `ChatInterpretationSeam`, `ProviderAdapterSeam`, `SpecValidationSeam`.
+- Exact file paths to touch:
+  - `src/lib/core/chat-interpretation-pipeline.ts`
+  - `tests/unit/pipeline-edge-cases.test.ts`
+  - `DECISIONS.md`
+  - `plan.md`
+- Exact commands to run:
+  1. `npm test -- tests/unit/pipeline-edge-cases.test.ts`
+  2. `npm test`
+  3. `npm run verify`
+
+### Self-critique
+1. What could be wrong: A strict boundary parser can incorrectly reject valid JSON if brace-matching fails around escaped quotes or nested objects.
+2. What must be proven: Valid JSON object payloads still pass, while braces-in-text and multi-object payloads fail with deterministic `CHAT_RESPONSE_INVALID`.
+3. Riskiest assumption: Provider chat content for successful cases is already JSON-only and does not rely on explanatory prefix/suffix text.
+4. Evidence to prove/disprove: New unit tests in `tests/unit/pipeline-edge-cases.test.ts` plus green `npm test` and `npm run verify` outputs.
+
+## Demo Storage Test Blocker (2026-04-24)
+### Plan
+- Goal: Restore deterministic browser storage behavior in Vitest so the local demo can be verified without changing production storage behavior.
+- Exact seams: `SessionSeam`, `CreationStoreSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `vite.config.ts`
+  - `tests/setup/local-storage.ts`
+  - `scripts/rewind.mjs`
+  - `scripts/verify-runner.mjs`
+  - `svelte.config.js`
+- Exact commands to run:
+  1. `npm run check`
+  2. `npm test`
+  3. `npm run verify`
+  4. `npm run rewind -- --seam SessionSeam`
+  5. `npm run rewind -- --seam CreationStoreSeam`
+  6. `npm run build`
+
+### Self-critique
+1. What could be wrong: The failing tests may reveal a real adapter compatibility issue instead of only a Vitest environment issue.
+2. What must be proven: `localStorage` supports `getItem`, `setItem`, `removeItem`, and `clear` during unit and contract tests while production browser behavior remains unchanged.
+3. Riskiest assumption: A deterministic test storage shim is sufficient for the demo blocker and Windows command spawning does not hide real test failures behind blank evidence.
+4. Evidence to prove/disprove: Green `tests/unit/session-auth-helpers.test.ts`, `tests/unit/creation-store-helpers.test.ts`, `tests/contract/session.test.ts`, plus green `npm run check`, `npm test`, `npm run verify`, and seam-specific rewind commands with populated evidence output.
+
 ## Ghost Workflow Retirement Pass (2026-02-15)
 ### Plan
 - Goal: Remove the legacy generation workflow path that is not used by the active UI or API routes.

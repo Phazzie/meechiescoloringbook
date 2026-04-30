@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-04-23T07:50:41.635Z",
+  "cipher": {
+    "date": "2026-04-23",
+    "seams": "ChatInterpretationSeam, ProviderAdapterSeam, SpecValidationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-04-23/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-23/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-23/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-23/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-23/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-23/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-23/proof-tape.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-04-23/assumption-alarm.json",
+        "exists": true
+      }
+    ],
+    "summary": "Replaced the hand-rolled JSON scanner with parser-based object validation and expanded chat edge-case tests for non-object payload rejection.",
+    "risks": "Strict JSON-only enforcement can still reject provider responses that prepend prose despite prompt instructions."
+  },
+  "latestChangeMs": 1776888435196.3127,
+  "status": "ok"
+}

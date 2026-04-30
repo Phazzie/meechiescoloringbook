@@ -28,13 +28,21 @@ type ChatPipelineDeps = {
 	validateSpec: typeof specValidationAdapter.validate;
 };
 
-const extractJson = (content: string): string | null => {
-	const start = content.indexOf('{');
-	const end = content.lastIndexOf('}');
-	if (start === -1 || end === -1 || end <= start) {
+const extractSingleJsonObject = (content: string): string | null => {
+	const trimmed = content.trim();
+	if (!trimmed.startsWith('{')) {
 		return null;
 	}
-	return content.slice(start, end + 1);
+
+	try {
+		const parsed = JSON.parse(trimmed);
+		if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+			return trimmed;
+		}
+		return null;
+	} catch {
+		return null;
+	}
 };
 
 const buildError = (
@@ -79,7 +87,7 @@ export const runChatInterpretationPipeline = async (
 		};
 	}
 
-	const extracted = extractJson(chatResult.value.content);
+	const extracted = extractSingleJsonObject(chatResult.value.content);
 	if (!extracted) {
 		return buildError('CHAT_RESPONSE_INVALID', 'Chat response did not include JSON.');
 	}

@@ -1,0 +1,67 @@
+# Purpose: Store npm run verify output for evidence.
+# Why: Provide an audit trail for Seam-Driven Development verification.
+# Info flow: Command output -> evidence file -> review.
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: c:\Users\ieatc\Meechiescoloringbook
+Getting Svelte diagnostics...
+
+[32msvelte-check found 0 errors and 0 warnings
+[39m
+
+> meechies-coloringbook@0.1.0 test
+> vitest run
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/Meechiescoloringbook[39m
+
+ [32m✓[39m tests/unit/creation-store-helpers.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 221[2mms[22m[39m
+ [32m✓[39m tests/unit/pipeline-edge-cases.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m tests/unit/output-packaging-helpers.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 100[2mms[22m[39m
+ [32m✓[39m tests/unit/provider-adapter-helpers.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m tests/unit/api-generate.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 69[2mms[22m[39m
+ [32m✓[39m tests/unit/api-tools.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m tests/unit/api-image-generation.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [32m✓[39m tests/unit/shared-contract.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32m✓[39m tests/unit/api-chat-interpretation.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m tests/contract/provider-adapter.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m tests/unit/image-generation-pipeline.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m tests/contract/output-packaging.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-tool-adapter.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m tests/contract/image-generation.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m tests/unit/prompt-template.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m tests/unit/drift-detection-helpers.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m tests/contract/chat-interpretation.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m tests/unit/session-auth-helpers.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m tests/unit/constants.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/lib/seams/image-generation-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m tests/contract/spec-validation.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/lib/seams/safety-policy-seam/test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m tests/contract/prompt-assembly.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/lib/seams/gallery-store-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m tests/unit/app-config-seam.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/lib/seams/app-config-seam/test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m tests/contract/drift-detection.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/lib/seams/prompt-compiler-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m tests/contract/creation-store.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m tests/unit/http-client.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m tests/contract/auth-context.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m tests/contract/meechie-voice.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m tests/contract/meechie-tool.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m tests/unit/alignment-line.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m tests/contract/session.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/lib/seams/telemetry-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 12[2mms[22m[39m
+ [2m[90m↓[39m[22m tests/integration/image-generation-seam.test.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m
+
+[2m Test Files [22m [1m[32m36 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (37)[39m
+[2m      Tests [22m [1m[32m271 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (272)[39m
+[2m   Start at [22m 22:40:16
+[2m   Duration [22m 57.16s[2m (transform 2.90s, setup 2.34s, collect 8.09s, tests 1.30s, environment 121.31s, prepare 14.35s)[22m
+
+[90mstderr[2m | tests/unit/output-packaging-helpers.test.ts[2m > [22m[2moutput-packaging adapter edge cases[2m > [22m[2mSVG conversion[2m > [22m[2mSVG conversion fails deterministically in non-browser environment
+[22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+[90mstderr[2m | tests/contract/output-packaging.test.ts[2m > [22m[2mOutputPackagingSeam contract[2m > [22m[2madapter behavior is gated to browser for svg conversion
+[22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
