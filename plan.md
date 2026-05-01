@@ -209,3 +209,24 @@ Deliver a brand-new modern/sleek/polished UI with strong visual identity, refres
 - UI is visually coherent and clearly improved from prior pass.
 - Refactors reduce duplication and isolate orchestration logic.
 - `npm run check`, `npm test`, and `npm run verify` all pass.
+
+## Meechie Tool Response Generator Tightening (2026-05-01)
+### Plan
+- Goal: Improve deterministic response generation for selected Meechie tools with sharper evidence-based wording and structured consequence framing while keeping logic in adapter/core modules.
+- Exact seams: `MeechieToolSeam` and `MeechieVoiceSeam`.
+- Exact file paths to touch:
+  - `src/lib/adapters/meechie-tool.adapter.ts`
+  - `tests/unit/meechie-tool-adapter.responses.test.ts`
+  - `DECISIONS.md`
+  - `plan.md`
+- Exact commands to run:
+  1. `npm test -- tests/unit/meechie-tool-adapter.responses.test.ts`
+  2. `npm test -- tests/contract/meechie-tool.test.ts`
+  3. `npm test`
+  4. `npm run verify`
+
+### Self-critique
+1. What could be wrong: Added pattern rules may over-match and produce incorrect category commentary for ambiguous user text.
+2. What must be proven: New outputs are deterministic for identical inputs and include social-role/object/place/consequence framing for caption/clapback/receipts plus fault/consequence framing for wwmd and red_flag_or_run.
+3. Riskiest assumption: Existing voice-pack templates can be reused as deterministic fallback without contract changes.
+4. Evidence to prove/disprove: Passing targeted unit tests, existing contract tests, full `npm test`, and `npm run verify` output captured on 2026-05-01.
