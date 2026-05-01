@@ -5,6 +5,25 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 -->
 # Autonomous Plan (2026-02-14)
 
+## Mode Router Consolidation Pass (2026-05-01)
+### Plan
+- Goal: Expose eight named Meechie modes from the home page using a single generic mode route that posts to `/api/tools` to avoid per-page duplication.
+- Exact seams: `MeechieToolSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/routes/+page.svelte`
+  - `src/lib/components/MeechieModePage.svelte`
+  - `src/routes/m/[mode]/+page.svelte`
+- Exact commands to run:
+  1. `npm run check`
+  2. `npm test`
+
+### Self-critique
+1. What could be wrong: Route-param mapping could mismatch a supported tool input and cause runtime validation failures.
+2. What must be proven: Each requested mode renders and submits a valid `MeechieToolInput` through `/api/tools` from the shared generic route.
+3. Riskiest assumption: A single-mode component can cover different field requirements without reintroducing duplicated route logic.
+4. Evidence to prove/disprove: Passing `npm run check` and `npm test`, plus direct code mapping of each slug to a valid tool payload.
+
 ## Conflict Resolution Pass for Helper Tests (2026-04-23)
 ### Plan
 - Goal: Resolve PR merge conflicts by minimizing divergence in helper test files that were unintentionally pulled into the seam-change branch.
