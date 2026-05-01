@@ -1,0 +1,25 @@
+{
+  "tool": "shaolin-lint",
+  "generatedAt": "2026-05-01T00:35:20.739Z",
+  "latestChangeMs": 1777595567356.2,
+  "evidence": [
+    {
+      "name": "verify",
+      "status": "ok",
+      "path": "/workspace/meechiescoloringbook/docs/evidence/2026-05-01/verify.txt",
+      "mtimeMs": 1777595720322.1458
+    },
+    {
+      "name": "test",
+      "status": "ok",
+      "path": "/workspace/meechiescoloringbook/docs/evidence/2026-05-01/test.txt",
+      "mtimeMs": 1777595720322.1458
+    }
+  ],
+  "summary": {
+    "ok": 2,
+    "missing": 0,
+    "stale": 0,
+    "overallStatus": "ok"
+  }
+}

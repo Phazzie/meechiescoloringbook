@@ -209,3 +209,24 @@ Deliver a brand-new modern/sleek/polished UI with strong visual identity, refres
 - UI is visually coherent and clearly improved from prior pass.
 - Refactors reduce duplication and isolate orchestration logic.
 - `npm run check`, `npm test`, and `npm run verify` all pass.
+
+## Meechie Quote Typing Contract Pass (2026-05-01)
+### Plan
+- Goal: Replace freeform `randomSayings` strings with deterministic typed quote records in the Meechie voice contract and update dependent adapter/fixture usage.
+- Exact seams: `MeechieVoiceSeam`, `MeechieToolSeam`.
+- Exact file paths to touch:
+  - `contracts/meechie-voice.contract.ts`
+  - `src/lib/adapters/meechie-voice.adapter.ts`
+  - `src/lib/adapters/meechie-tool.adapter.ts`
+  - `fixtures/meechie-voice/sample.json`
+  - `plan.md`
+- Exact commands to run:
+  1. `npm test -- tests/contract/meechie-voice.test.ts tests/contract/meechie-tool.test.ts`
+  2. `npm test`
+  3. `npm run verify`
+
+### Self-critique
+1. What could be wrong: New enums may not align with existing voice data and could fail strict schema parsing.
+2. What must be proven: Contract parsing passes for fixtures/adapters and tool output still returns randomized quote text.
+3. Riskiest assumption: `MeechieToolSeam` only needs the quote `text` field at runtime and can safely ignore metadata for response text generation.
+4. Evidence to prove/disprove: Passing meechie contract tests, full `npm test`, and `npm run verify` outputs on 2026-05-01.
