@@ -9,6 +9,7 @@ import type {
 import type { MeechieVoicePack } from '../../../contracts/meechie-voice.contract';
 import type { Result } from '../../../contracts/shared.contract';
 import { meechieVoiceAdapter } from './meechie-voice.adapter';
+import { selectBestMeechieQuote } from '$lib/core/meechie-quote-scoring';
 
 const normalize = (value: string): string => value.trim().replace(/\s+/g, ' ');
 
@@ -99,10 +100,8 @@ const rateExcuse = (
 	return match ?? pack.responses.excuseRatingFallback;
 };
 
-const randomSaying = (pack: MeechieVoicePack): string => {
-	const sayings = pack.responses.randomSayings;
-	return sayings[Math.floor(Math.random() * sayings.length)];
-};
+const curatedSaying = (pack: MeechieVoicePack) =>
+	selectBestMeechieQuote(pack.responses.randomSayings);
 
 const horoscopeHeadline = (pack: MeechieVoicePack, sign: string): string =>
 	applyTemplate(pack.responses.headlines.horoscopeTemplate, { sign });
@@ -223,13 +222,14 @@ export const meechieToolAdapter: MeechieToolSeam = {
 				};
 			}
 			case 'random_meechie': {
-				const saying = randomSaying(pack);
+				const scored = curatedSaying(pack);
 				return {
 					ok: true,
 					value: {
 						toolId: input.toolId,
 						headline: 'Random Meechie',
-						response: saying
+						response: scored.quote,
+						quoteScore: scored
 					}
 				};
 			}

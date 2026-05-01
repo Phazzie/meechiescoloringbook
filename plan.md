@@ -5,6 +5,29 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 -->
 # Autonomous Plan (2026-02-14)
 
+
+## Meechie Quote Scoring Determinism Pass (2026-05-01)
+### Plan
+- Goal: Add a pure deterministic quote scoring core module and integrate it into quote curation output with machine-readable scoring details.
+- Exact seams: `MeechieToolSeam`, `MeechieVoiceSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/meechie-quote-scoring.ts`
+  - `contracts/meechie-tool.contract.ts`
+  - `src/lib/adapters/meechie-tool.adapter.ts`
+  - `tests/unit/meechie-quote-scoring.test.ts`
+  - `tests/unit/meechie-tool-adapter.test.ts`
+- Exact commands to run:
+  1. `npm test -- tests/unit/meechie-quote-scoring.test.ts tests/unit/meechie-tool-adapter.test.ts`
+  2. `npm test`
+  3. `npm run verify`
+
+### Self-critique
+1. What could be wrong: Scoring rules may over-penalize voice-pack sayings and unexpectedly downgrade all curated options.
+2. What must be proven: Subscores remain exactly 10 dimensions totaling 100 max, penalties are explicit, and random tool responses include exact machine-readable reasons.
+3. Riskiest assumption: Deterministic top-score curation is acceptable replacement behavior for prior random selection semantics.
+4. Evidence to prove/disprove: Passing targeted unit tests, full `npm test`, and `npm run verify` outputs captured on 2026-05-01.
+
 ## Conflict Resolution Pass for Helper Tests (2026-04-23)
 ### Plan
 - Goal: Resolve PR merge conflicts by minimizing divergence in helper test files that were unintentionally pulled into the seam-change branch.
