@@ -38,11 +38,15 @@ Prepare a governance-compliant, execution-ready plan that maps future work to ex
 
 ## Exact Tests to Add/Update
 - No test file changes in this pass (docs/planning-only change).
-- Seam-scoped updates that follow from this plan must add/update tests in exact seam paths listed in `docs/seams.md` (for example, `tests/contract/<seam>.test.ts` for contract seams and seam-local tests under `src/lib/seams/*/test.ts` where applicable).
+- Seam-scoped updates that follow from this plan must add/update tests in exact seam paths listed in `docs/seams.md`.
+  - Legacy contract tests use kebab-case filenames, not PascalCase seam names.
+    - Pattern: `tests/contract/<seam-kebab>.test.ts`
+    - Concrete examples (existing): `tests/contract/auth-context.test.ts`, `tests/contract/image-generation.test.ts`.
+  - New self-contained seam tests live under `src/lib/seams/<seam-kebab>/test.ts`.
 
 ## Exact Command List
 1. `npm run check`
-2. `npm run test`
+2. `npm test`
 3. `npm run verify`
 4. Optional seam rewind command pattern:
    - `npm run rewind -- --seam <SeamName>`
@@ -52,48 +56,54 @@ Prepare a governance-compliant, execution-ready plan that maps future work to ex
 - **Risk:** A plan can appear complete but still be invalid if seam names, test targets, or evidence paths drift from `docs/seams.md`.
 - **Assumption:** Existing seam inventory in `docs/seams.md` is the authoritative source of seam names and mapped test paths.
 - **What must be proven:**
+- **What must be proven:**
   1. Seam names used during implementation exactly match `docs/seams.md` PascalCase names.
   2. Any seam change includes contract-first verification evidence.
-  3. `npm run check`, `npm run test`, and `npm run verify` outputs are captured and green.
+  3. `npm run check`, `npm test`, and `npm run verify` outputs are captured and green.
 - **Proof evidence expected:**
-  - `docs/evidence/YYYY-MM-DD/npm-run-check.txt`
-  - `docs/evidence/YYYY-MM-DD/npm-run-test.txt`
-  - `docs/evidence/YYYY-MM-DD/npm-run-verify.txt`
+  - Canonical evidence file names are defined in `docs/evidence/README.md`.
+  - `docs/evidence/YYYY-MM-DD/verify.txt` (output of `npm run verify`)
+  - `docs/evidence/YYYY-MM-DD/test.txt` (output of `npm test`)
   - Optional seam rewind outputs such as `docs/evidence/YYYY-MM-DD/rewind-<seam>.txt`.
 
-## Phased Implementation Order (Nine Phases)
-### Phase 1 - Orientation + Governance Read
+## Phased Implementation Order (Maps to `docs/CHECKLIST.md` Phase 0–9)
+This plan follows the repo checklist’s phase numbering (Phase 0 through Phase 9). The steps below are a narrative version of the same gates.
+
+### Phase 0 - Orientation + Governance Read
 - Confirm instructions in `AGENTS.md`, `DECISIONS.md`, `docs/seams.md`, and `docs/CHECKLIST.md`.
 - Confirm Wu-Bob roster: GZA, U-God, Method Man (+ Robert C. Martin lens).
 
-### Phase 2 - Seam Inventory Lock
+### Phase 1 - Seam Inventory Lock
 - Copy exact seam names from `docs/seams.md` into the working plan/task context.
 - Reject any seam naming that does not exactly match the inventory.
 
-### Phase 3 - File Scope Lock
+### Phase 2 - File Scope Lock
 - Declare exact inspect files and exact modify files before edits.
 - Keep scope minimal; if scope expands, update this plan first.
 
-### Phase 4 - Contract/Test Mapping
+### Phase 3 - Contract/Test Mapping
 - Map each targeted seam to exact contract path, mock path, adapter path, and test path from `docs/seams.md`.
 - Define precise tests to add/update before code edits.
 
-### Phase 5 - Probe/Fixture Strategy
+### Phase 4 - Probe/Fixture Strategy
 - For world-touching seams, define required probes and fixture refresh paths.
 - If blocked, record an Assumption entry in `DECISIONS.md` and run `npm run assumption:alarm`.
 
-### Phase 6 - Implementation
+### Phase 5 - Implementation
 - Execute changes seam-by-seam in contract-first order.
 - Keep changes deterministic and aligned with fixture-backed mocks.
 
-### Phase 7 - Seam Verification
+### Phase 6 - Seam Verification
 - Run optional focused rewinds per changed seam using `npm run rewind -- --seam <SeamName>`.
 - Ensure red/green proof expectations are satisfied for modified seam contracts.
 
-### Phase 8 - Full Verification
+### Phase 7 - Full Verification
 - Run `npm run check`, `npm run test`, and `npm run verify`.
 - Store outputs under `docs/evidence/YYYY-MM-DD/`.
 
-### Phase 9 - Documentation + Final Status
+### Phase 8 - Documentation + Final Status
 - Update `DECISIONS.md` (Cipher Gate and/or Assumption entries as required), plus other governance docs when applicable.
+- Capture final repository status and prepare commit/PR summary tied to evidence paths.
+
+### Phase 9 - Final Status
 - Capture final repository status and prepare commit/PR summary tied to evidence paths.
