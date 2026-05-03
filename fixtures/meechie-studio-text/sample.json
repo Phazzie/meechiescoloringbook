@@ -1,0 +1,36 @@
+{
+	"scenario": "sample",
+	"input": {
+		"actionId": "generate",
+		"modeId": "who-fucked-up",
+		"modeLabel": "Who Fucked Up?",
+		"themeLabel": "Pretty & Petty",
+		"evidence": "He said his phone died, then posted from the party.",
+		"dedication": "For Tasha",
+		"voice": {
+			"intensity": "receipts_out",
+			"rawness": "mild",
+			"thirdPerson": "sometimes"
+		}
+	},
+	"output": {
+		"ok": true,
+		"value": {
+			"verdict": "The phone did not die. The effort did.",
+			"quote": "A dead phone with a live story is still a confession.",
+			"pageTitle": "THE PHONE HAD SERVICE",
+			"pageItems": [
+				{ "number": 1, "label": "CHECK THE TIMESTAMP" },
+				{ "number": 2, "label": "BELIEVE THE POST" },
+				{ "number": 3, "label": "COLOR THE RECEIPTS" }
+			],
+			"rating": 8,
+			"qualityState": "ready",
+			"revisionNote": "Generated from evidence.",
+			"modelMetadata": {
+				"provider": "fixture",
+				"model": "meechie-studio-text-fixture"
+			}
+		}
+	}
+}

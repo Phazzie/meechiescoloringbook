@@ -53,7 +53,7 @@ const run = async () => {
 	].join('\n');
 
 	const checkResult = runCommand('npm', ['run', 'check']);
-	const testResult = runCommand('npm', ['test']);
+	const testResult = runCommand('npm', ['test', '--', '--pool=forks', '--maxWorkers=1']);
 
 	const verifyOutput = `${checkResult.output}\n${testResult.output}`.trim();
 	await fs.writeFile(verifyPath, `${verifyHeader}\n${verifyOutput}\n`, 'utf8');
