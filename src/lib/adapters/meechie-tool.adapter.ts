@@ -100,8 +100,8 @@ const rateExcuse = (
 };
 
 const randomSaying = (pack: MeechieVoicePack): string => {
-	const sayings = pack.responses.randomSayings;
-	return sayings[Math.floor(Math.random() * sayings.length)];
+	const quotes = pack.responses.quotes;
+	return quotes[Math.floor(Math.random() * quotes.length)].text;
 };
 
 const horoscopeHeadline = (pack: MeechieVoicePack, sign: string): string =>
