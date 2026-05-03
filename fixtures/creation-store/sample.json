@@ -40,6 +40,22 @@
           "borderThickness": 8
         },
         "assembledPrompt": "Create a black-and-white coloring book page for print.",
+        "studioText": {
+          "verdict": "Meechie says growth won.",
+          "quote": "Color the proof before they revise the story.",
+          "pageTitle": "COLOR THE PROOF",
+          "pageItems": [
+            {
+              "number": 1,
+              "label": "CHECK THE CLOCK"
+            },
+            {
+              "number": 2,
+              "label": "READ THE POST"
+            }
+          ],
+          "qualityState": "ready"
+        },
         "revisedPrompt": "deterministic-svg renderer (no revision)",
         "images": [
           {
@@ -112,7 +128,23 @@
           "textStrokeWidth": 6,
           "borderThickness": 8
         },
-        "chatMessage": "Make a checklist about growth"
+        "chatMessage": "Make a checklist about growth",
+        "studioText": {
+          "verdict": "Meechie says growth won.",
+          "quote": "Color the proof before they revise the story.",
+          "pageTitle": "COLOR THE PROOF",
+          "pageItems": [
+            {
+              "number": 1,
+              "label": "CHECK THE CLOCK"
+            },
+            {
+              "number": 2,
+              "label": "READ THE POST"
+            }
+          ],
+          "qualityState": "ready"
+        }
       }
     },
     "getDraft": {},
@@ -159,6 +191,22 @@
           "borderThickness": 8
         },
         "assembledPrompt": "Create a black-and-white coloring book page for print.",
+        "studioText": {
+          "verdict": "Meechie says growth won.",
+          "quote": "Color the proof before they revise the story.",
+          "pageTitle": "COLOR THE PROOF",
+          "pageItems": [
+            {
+              "number": 1,
+              "label": "CHECK THE CLOCK"
+            },
+            {
+              "number": 2,
+              "label": "READ THE POST"
+            }
+          ],
+          "qualityState": "ready"
+        },
         "revisedPrompt": "deterministic-svg renderer (no revision)",
         "images": [
           {
@@ -223,6 +271,22 @@
             "borderThickness": 8
           },
           "assembledPrompt": "Create a black-and-white coloring book page for print.",
+          "studioText": {
+            "verdict": "Meechie says growth won.",
+            "quote": "Color the proof before they revise the story.",
+            "pageTitle": "COLOR THE PROOF",
+            "pageItems": [
+              {
+                "number": 1,
+                "label": "CHECK THE CLOCK"
+              },
+              {
+                "number": 2,
+                "label": "READ THE POST"
+              }
+            ],
+            "qualityState": "ready"
+          },
           "revisedPrompt": "deterministic-svg renderer (no revision)",
           "images": [
             {
@@ -352,7 +416,23 @@
           "textStrokeWidth": 6,
           "borderThickness": 8
         },
-        "chatMessage": "Make a checklist about growth"
+        "chatMessage": "Make a checklist about growth",
+        "studioText": {
+          "verdict": "Meechie says growth won.",
+          "quote": "Color the proof before they revise the story.",
+          "pageTitle": "COLOR THE PROOF",
+          "pageItems": [
+            {
+              "number": 1,
+              "label": "CHECK THE CLOCK"
+            },
+            {
+              "number": 2,
+              "label": "READ THE POST"
+            }
+          ],
+          "qualityState": "ready"
+        }
       }
     },
     "getDraft": {
@@ -393,7 +473,23 @@
           "textStrokeWidth": 6,
           "borderThickness": 8
         },
-        "chatMessage": "Make a checklist about growth"
+        "chatMessage": "Make a checklist about growth",
+        "studioText": {
+          "verdict": "Meechie says growth won.",
+          "quote": "Color the proof before they revise the story.",
+          "pageTitle": "COLOR THE PROOF",
+          "pageItems": [
+            {
+              "number": 1,
+              "label": "CHECK THE CLOCK"
+            },
+            {
+              "number": 2,
+              "label": "READ THE POST"
+            }
+          ],
+          "qualityState": "ready"
+        }
       }
     },
     "clearDraft": {

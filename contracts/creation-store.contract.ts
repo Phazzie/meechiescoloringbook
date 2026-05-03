@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { AuthContextSchema } from './auth-context.contract';
 import { ColoringPageSpecSchema } from './spec-validation.contract';
+import { MeechieStudioTextOutputSchema } from './meechie-studio-text.contract';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 import type { Result } from './shared.contract';
 import { ViolationSchema } from './drift-detection.contract';
@@ -33,6 +34,7 @@ export const CreationRecordSchema = z.object({
 	createdAtISO: NonEmptyStringSchema,
 	intent: ColoringPageSpecSchema,
 	assembledPrompt: NonEmptyStringSchema,
+	studioText: MeechieStudioTextOutputSchema.optional(),
 	revisedPrompt: NonEmptyStringSchema.optional(),
 	images: z.array(CreationImageSchema).optional(),
 	favorite: z.boolean().optional(),
@@ -45,7 +47,8 @@ export const CreationRecordSchema = z.object({
 export const DraftRecordSchema = z.object({
 	updatedAtISO: NonEmptyStringSchema,
 	intent: ColoringPageSpecSchema,
-	chatMessage: NonEmptyStringSchema.optional()
+	chatMessage: NonEmptyStringSchema.optional(),
+	studioText: MeechieStudioTextOutputSchema.optional()
 });
 
 export const SaveCreationInputSchema = z.object({

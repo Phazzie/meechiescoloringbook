@@ -1,62 +1,64 @@
 <!--
-Purpose: Main UI for the coloring book page generator.
-Why: Provide manual and chat-assisted builders with evidence panels.
-Info flow: User inputs -> seams -> rendered previews + downloads.
+Purpose: Main Meechie coloring-page studio.
+Why: Generate AI-backed Meechie wording and printable coloring pages with cost-aware controls.
+Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/store seams.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
-	import { chatInterpretationAdapter } from '$lib/adapters/chat-interpretation.adapter';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 	import { sessionAdapter } from '$lib/adapters/session.adapter';
 	import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+	import {
+		DEFAULT_REVISION_BUDGET,
+		DEFAULT_STUDIO_TEXT_OUTPUT,
+		buildColoringPageSpecFromMeechieText,
+		buildStudioTextFromCreationRecord,
+		buildStudioTextFromDraftRecord,
+		canRunStudioAction,
+		consumeStudioActionBudget,
+		getStudioAction,
+		studioModes,
+		studioThemes,
+		type StudioActionId
+	} from '$lib/core/meechie-studio';
 	import { postJson } from '$lib/core/http-client';
 	import { GenerateResultSchema } from '../../contracts/generate.contract';
+	import {
+		MeechieStudioTextResultSchema,
+		type MeechieStudioTextOutput,
+		type MeechieStudioVoiceSettings
+	} from '../../contracts/meechie-studio-text.contract';
 	import type { CreationOwner, CreationRecord } from '../../contracts/creation-store.contract';
-	import { ADVANCED_SPEC_FIELDS } from '../../contracts/spec-validation.contract';
-	import type {
-		ColoringPageSpec,
-		SpecValidationOutput
-	} from '../../contracts/spec-validation.contract';
 	import type { DriftDetectionOutput, Violation } from '../../contracts/drift-detection.contract';
 	import type { GeneratedImage } from '../../contracts/image-generation.contract';
 	import type { PackagedFile } from '../../contracts/output-packaging.contract';
+	import type { ColoringPageSpec, SpecValidationOutput } from '../../contracts/spec-validation.contract';
 
-	const DEFAULT_SPEC: ColoringPageSpec = {
-		title: 'Dream Big',
-		items: [
-			{ number: 1, label: 'Shine' },
-			{ number: 2, label: 'Grow' }
-		],
-		footerItem: { number: 97, label: 'YOU' },
-		listMode: 'list',
-		alignment: 'left',
-		numberAlignment: 'strict',
-		listGutter: 'normal',
-		whitespaceScale: 50,
-		textSize: 'small',
-		fontStyle: 'rounded',
-		textStrokeWidth: 6,
-		colorMode: 'black_and_white_only',
-		decorations: 'minimal',
-		illustrations: 'none',
-		shading: 'none',
-		border: 'decorative',
-		borderThickness: 8,
-		variations: 1,
-		outputFormat: 'pdf',
-		pageSize: 'US_Letter'
+	type PageSize = ColoringPageSpec['pageSize'];
+	type BorderChoice = ColoringPageSpec['border'];
+
+	let activeModeId = studioModes[0].id;
+	let selectedThemeId = studioThemes[0].id;
+	let evidence = '';
+	let dedication = '';
+	let voice: MeechieStudioVoiceSettings = {
+		intensity: 'receipts_out',
+		rawness: 'mild',
+		thirdPerson: 'sometimes'
 	};
-
-	let spec: ColoringPageSpec = structuredClone(DEFAULT_SPEC);
-	let includeFooter = true;
-	let styleHint = 'diamond glam street luxe';
-	let dedicationInput = '';
-	let chatMessage = '';
-	let includeSquareExport = false;
-	let includeChatExport = false;
-	let showSparkleOverlay = false;
+	let pageSize: PageSize = 'US_Letter';
+	let border: BorderChoice = 'decorative';
+	let glitter = false;
+	let revisionBudget = DEFAULT_REVISION_BUDGET;
+	let textOutput: MeechieStudioTextOutput | null = null;
+	let textError = '';
+	let generationError = '';
+	let isTextWorking = false;
+	let isGenerating = false;
+	let copyStatus = '';
+	let vaultStatus = '';
 	let validationIssues: SpecValidationOutput['issues'] = [];
 	let assembledPrompt = '';
 	let revisedPrompt = '';
@@ -65,66 +67,29 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	let images: GeneratedImage[] = [];
 	let imagePreviews: string[] = [];
 	let packagedFiles: PackagedFile[] = [];
-	let generationError = '';
-	let isGenerating = false;
 	let creations: CreationRecord[] = [];
 	let owner: CreationOwner | null = null;
 	let authContext: CreationRecord['authContext'] | null = null;
-	let sessionStatus = 'Connecting session...';
-	let draftStatus = '';
 	let isBrowser = false;
 	let draftTimer: ReturnType<typeof setTimeout> | null = null;
-	let hasValidated = false;
-	let isSpecValid = false;
-	let builderMode: 'quick' | 'full' = 'quick';
+	let canGenerateText = true;
+	let canRegenerateText = false;
+	let canMakePrettier = false;
+	let canMakeMeaner = false;
+	let canMakeMoreSpecific = false;
 
-	type QuickPresetId = 'minimal' | 'sparkle' | 'story_scene' | 'bold_block';
+	const activeMode = () => studioModes.find((mode) => mode.id === activeModeId) ?? studioModes[0];
+	const activeTheme = () =>
+		studioThemes.find((theme) => theme.id === selectedThemeId) ?? studioThemes[0];
 
-	const applyQuickPreset = (preset: QuickPresetId): void => {
-		switch (preset) {
-			case 'minimal':
-				styleHint = 'clean luxe outlines with soft spacing';
-				spec = {
-					...spec,
-					decorations: 'minimal',
-					illustrations: 'none',
-					shading: 'none',
-					fontStyle: 'rounded'
-				};
-				break;
-			case 'sparkle':
-				styleHint = 'diamond gloss, glitter accents, high glam mood';
-				spec = {
-					...spec,
-					decorations: 'dense',
-					illustrations: 'simple',
-					shading: 'stippling',
-					fontStyle: 'rounded'
-				};
-				break;
-			case 'story_scene':
-				styleHint = 'street boutique backdrop with luxe skyline details';
-				spec = {
-					...spec,
-					decorations: 'minimal',
-					illustrations: 'scene',
-					shading: 'hatch',
-					fontStyle: 'hand'
-				};
-				break;
-			case 'bold_block':
-				styleHint = 'bold statement lettering and heavy icon shapes';
-				spec = {
-					...spec,
-					decorations: 'none',
-					illustrations: 'simple',
-					shading: 'none',
-					fontStyle: 'block'
-				};
-				break;
-		}
-		scheduleDraftSave();
-	};
+	let spec: ColoringPageSpec = buildColoringPageSpecFromMeechieText({
+		output: DEFAULT_STUDIO_TEXT_OUTPUT,
+		pageSize,
+		border,
+		styleHint: activeTheme().styleHint
+	});
+
+	$: previewOutput = textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT;
 
 	const buildOwner = (sessionId: string): CreationOwner => ({
 		kind: 'anonymous',
@@ -139,13 +104,17 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	};
 
 	const encodeBase64 = (value: string): string => {
-		const encoder = new TextEncoder();
-		const bytes = encoder.encode(value);
+		const bytes = new TextEncoder().encode(value);
 		let binary = '';
 		for (const byte of bytes) {
 			binary += String.fromCharCode(byte);
 		}
 		return btoa(binary);
+	};
+
+	const currentStyleHint = (): string => {
+		const glitterText = glitter ? ' removable glitter overlay accents' : '';
+		return `${activeTheme().styleHint}; ${voice.intensity}; ${voice.rawness}; ${voice.thirdPerson}${glitterText}`;
 	};
 
 	const scheduleDraftSave = (): void => {
@@ -157,23 +126,199 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		}
 		draftTimer = setTimeout(() => {
 			void saveDraft();
-			void validateSpec();
 		}, 300);
 	};
 
 	const saveDraft = async (): Promise<void> => {
-		if (!isBrowser) {
-			return;
-		}
-		draftStatus = 'Saving draft...';
-		const result = await creationStoreAdapter.saveDraft({
+		await creationStoreAdapter.saveDraft({
 			draft: {
 				updatedAtISO: new Date().toISOString(),
 				intent: spec,
-				chatMessage: chatMessage.trim().length > 0 ? chatMessage : undefined
+				chatMessage: evidence.trim().length > 0 ? evidence : undefined,
+				studioText: textOutput ?? undefined
 			}
 		});
-		draftStatus = result.ok ? 'Draft saved.' : 'Draft save failed.';
+	};
+
+	const validateSpec = async (): Promise<boolean> => {
+		const validation = await specValidationAdapter.validate({ spec });
+		validationIssues = validation.issues;
+		return validation.ok;
+	};
+
+	const applyTextToSpec = async (output: MeechieStudioTextOutput): Promise<void> => {
+		spec = buildColoringPageSpecFromMeechieText({
+			output,
+			pageSize,
+			border,
+			styleHint: currentStyleHint(),
+			dedication: dedication.trim().length > 0 ? dedication : undefined
+		});
+		await validateSpec();
+		scheduleDraftSave();
+	};
+
+	const resetGeneratedPage = (): void => {
+		generationError = '';
+		assembledPrompt = '';
+		revisedPrompt = '';
+		violations = [];
+		recommendedFixes = [];
+		images = [];
+		packagedFiles = [];
+	};
+
+	const canRunAction = (actionId: StudioActionId): boolean =>
+		canRunStudioAction(actionId, { remainingBudget: revisionBudget, isRunning: isTextWorking });
+
+	const currentTextPayload = () =>
+		textOutput
+			? {
+					verdict: textOutput.verdict,
+					quote: textOutput.quote,
+					pageTitle: textOutput.pageTitle,
+					pageItems: textOutput.pageItems.map((item) => item.label),
+					rating: textOutput.rating
+				}
+			: undefined;
+
+	const runTextAction = async (actionId: StudioActionId): Promise<void> => {
+		const action = getStudioAction(actionId);
+		if (!action.aiAction || !canRunAction(actionId)) {
+			return;
+		}
+		textError = '';
+		copyStatus = '';
+		vaultStatus = '';
+		isTextWorking = true;
+		try {
+			const trimmedEvidence = evidence.trim();
+			const safeEvidence =
+				trimmedEvidence.length > 0 || activeMode().toolId === 'random_meechie'
+					? trimmedEvidence || 'Random Meechie line request.'
+					: '';
+			if (!safeEvidence) {
+				textError = 'Meechie needs a few facts before she can call it.';
+				return;
+			}
+
+			const { payload } = await postJson('/api/meechie-studio-text', {
+				actionId: action.aiAction,
+				modeId: activeMode().id,
+				modeLabel: activeMode().label,
+				themeLabel: activeTheme().label,
+				evidence: safeEvidence,
+				dedication: dedication.trim().length > 0 ? dedication.trim() : undefined,
+				voice,
+				currentText: currentTextPayload()
+			});
+			const parsed = MeechieStudioTextResultSchema.safeParse(payload);
+			if (!parsed.success) {
+				textError = 'Meechie sent back a line the studio could not read.';
+				return;
+			}
+			if (!parsed.data.ok) {
+				textError = parsed.data.error.message;
+				return;
+			}
+			textOutput = parsed.data.value;
+			revisionBudget = consumeStudioActionBudget(revisionBudget, actionId);
+			resetGeneratedPage();
+			await applyTextToSpec(parsed.data.value);
+		} catch (error) {
+			textError = error instanceof Error ? error.message : 'Meechie could not reach the AI text service.';
+		} finally {
+			isTextWorking = false;
+		}
+	};
+
+	const handleGeneratePage = async (): Promise<void> => {
+		if (!textOutput) {
+			generationError = 'Generate Meechie words before creating the page.';
+			return;
+		}
+		resetGeneratedPage();
+		isGenerating = true;
+		try {
+			await applyTextToSpec(textOutput);
+			const valid = await validateSpec();
+			if (!valid) {
+				generationError = 'Fix the page settings before generating.';
+				return;
+			}
+			const { payload } = await postJson('/api/generate', {
+				spec,
+				styleHint: currentStyleHint()
+			});
+			const parsed = GenerateResultSchema.safeParse(payload);
+			if (!parsed.success) {
+				generationError = 'Generate response did not match contract.';
+				return;
+			}
+			if (!parsed.data.ok) {
+				generationError = parsed.data.error.message;
+				return;
+			}
+			assembledPrompt = parsed.data.value.prompt;
+			images = parsed.data.value.images;
+			revisedPrompt = parsed.data.value.revisedPrompt || '';
+			violations = parsed.data.value.violations;
+			recommendedFixes = parsed.data.value.recommendedFixes;
+
+			const creationId = generateCreationId();
+			const packagingResult = await outputPackagingAdapter.package({
+				images,
+				outputFormat: 'pdf',
+				fileBaseName: `meechie-coloring-page-${creationId}`,
+				pageSize: spec.pageSize,
+				variants: ['print']
+			});
+			if (packagingResult.ok) {
+				packagedFiles = packagingResult.value.files;
+			} else {
+				generationError = packagingResult.error.message;
+			}
+		} catch (error) {
+			generationError = error instanceof Error ? error.message : 'Coloring page generation failed.';
+		} finally {
+			isGenerating = false;
+		}
+	};
+
+	const copyQuote = async (): Promise<void> => {
+		if (!textOutput || !isBrowser) {
+			return;
+		}
+		await navigator.clipboard.writeText(textOutput.quote);
+		copyStatus = 'Quote copied.';
+	};
+
+	const saveToVault = async (): Promise<void> => {
+		if (!owner || !textOutput) {
+			vaultStatus = 'Session is still connecting. Try again in a moment.';
+			return;
+		}
+		const creationId = generateCreationId();
+		const storedImages = images.map((image) => ({
+			b64: image.encoding === 'base64' ? image.data : encodeBase64(image.data)
+		}));
+		const result = await creationStoreAdapter.saveCreation({
+			record: {
+				id: creationId,
+				createdAtISO: new Date().toISOString(),
+				intent: spec,
+				assembledPrompt: assembledPrompt || textOutput.quote,
+				studioText: textOutput,
+				revisedPrompt,
+				images: storedImages.length > 0 ? storedImages : undefined,
+				violations,
+				fixesApplied: recommendedFixes.map((fix) => fix.code),
+				authContext: authContext ?? undefined,
+				owner
+			}
+		});
+		vaultStatus = result.ok ? 'Saved to the quote vault.' : result.error.message;
+		await refreshCreations();
 	};
 
 	const refreshCreations = async (): Promise<void> => {
@@ -186,7 +331,18 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		}
 	};
 
-	const handleDeleteCreation = async (id: string): Promise<void> => {
+	const loadCreation = async (creation: CreationRecord): Promise<void> => {
+		const restoredText = buildStudioTextFromCreationRecord(creation);
+		spec = creation.intent;
+		evidence = creation.studioText?.quote ?? creation.assembledPrompt;
+		dedication = creation.intent.dedication ?? '';
+		pageSize = creation.intent.pageSize;
+		border = creation.intent.border;
+		textOutput = restoredText;
+		await validateSpec();
+	};
+
+	const deleteCreation = async (id: string): Promise<void> => {
 		const result = await creationStoreAdapter.deleteCreation({ id });
 		if (result.ok) {
 			await refreshCreations();
@@ -194,223 +350,36 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 	};
 
 	const toggleFavorite = async (creation: CreationRecord): Promise<void> => {
-		const updated = { ...creation, favorite: !creation.favorite };
-		const result = await creationStoreAdapter.saveCreation({ record: updated });
+		const result = await creationStoreAdapter.saveCreation({
+			record: { ...creation, favorite: !creation.favorite }
+		});
 		if (result.ok) {
 			await refreshCreations();
 		}
 	};
 
-	const resetOutputs = (): void => {
-		generationError = '';
-		assembledPrompt = '';
-		revisedPrompt = '';
-		violations = [];
-		recommendedFixes = [];
-		images = [];
-		packagedFiles = [];
-	};
-
-	const validateSpec = async (): Promise<boolean> => {
-		const validation = await specValidationAdapter.validate({ spec });
-		validationIssues = validation.issues;
-		hasValidated = true;
-		return validation.ok;
-	};
-
-	$: isSpecValid = hasValidated && validationIssues.length === 0;
-
-	$: hasAdvancedValidationIssues = validationIssues.some((issue) =>
-		ADVANCED_SPEC_FIELDS.has(issue.field)
-	);
-
-	let advancedOpen = false;
-	$: if (hasAdvancedValidationIssues) {
-		advancedOpen = true;
-	}
-
-	const handleGenerate = async (): Promise<void> => {
-		resetOutputs();
-		isGenerating = true;
-		try {
-			const isValid = await validateSpec();
-			if (!isValid) {
-				generationError = 'Fix validation issues before generating.';
-				return;
-			}
-
-			const { payload } = await postJson('/api/generate', {
-				spec,
-				styleHint: styleHint.trim().length > 0 ? styleHint : undefined
-			});
-			const parsedGenerate = GenerateResultSchema.safeParse(payload);
-			if (!parsedGenerate.success) {
-				generationError = 'Generate response did not match contract.';
-				return;
-			}
-			if (!parsedGenerate.data.ok) {
-				generationError = parsedGenerate.data.error.message;
-				return;
-			}
-
-			assembledPrompt = parsedGenerate.data.value.prompt;
-			images = parsedGenerate.data.value.images;
-			revisedPrompt = parsedGenerate.data.value.revisedPrompt || '';
-			violations = parsedGenerate.data.value.violations;
-			recommendedFixes = parsedGenerate.data.value.recommendedFixes;
-
-			const creationId = generateCreationId();
-			const variants: Array<'print' | 'square' | 'chat'> = ['print'];
-			if (includeSquareExport) {
-				variants.push('square');
-			}
-			if (includeChatExport) {
-				variants.push('chat');
-			}
-			const packagingResult = await outputPackagingAdapter.package({
-				images,
-				outputFormat: spec.outputFormat,
-				fileBaseName: `coloring-page-${creationId}`,
-				pageSize: spec.pageSize,
-				variants
-			});
-			if (packagingResult.ok) {
-				packagedFiles = packagingResult.value.files;
-			} else {
-				generationError = packagingResult.error.message;
-			}
-
-			if (owner && authContext) {
-				const storedImages = images.map((image) => ({
-					b64: image.encoding === 'base64' ? image.data : encodeBase64(image.data)
-				}));
-				await creationStoreAdapter.saveCreation({
-					record: {
-						id: creationId,
-						createdAtISO: new Date().toISOString(),
-						intent: spec,
-						assembledPrompt: parsedGenerate.data.value.prompt,
-						revisedPrompt: parsedGenerate.data.value.revisedPrompt,
-						images: storedImages,
-						violations: parsedGenerate.data.value.violations,
-						fixesApplied: parsedGenerate.data.value.recommendedFixes.map((fix) => fix.code),
-						authContext,
-						owner
-					}
-				});
-				await refreshCreations();
-			}
-		} catch (generateError) {
-			generationError = generateError instanceof Error ? generateError.message : 'Generate request failed.';
-		} finally {
-			isGenerating = false;
-		}
-	};
-
-	const handleChatInterpretation = async (): Promise<void> => {
-		const result = await chatInterpretationAdapter.interpret({ message: chatMessage });
-		if (result.ok) {
-			spec = result.value.spec;
-			includeFooter = spec.listMode !== 'title_only' && !!spec.footerItem;
-			dedicationInput = spec.dedication ?? '';
-			await validateSpec();
-			scheduleDraftSave();
-		} else {
-			generationError = result.error.message;
-		}
-	};
-
-	const addItem = (): void => {
-		if (spec.listMode === 'title_only') {
-			spec = {
-				...spec,
-				listMode: 'list',
-				items: [{ number: 1, label: '' }]
-			};
-		}
-		if (spec.items.length >= 20) {
-			return;
-		}
-		const nextNumber = spec.items.length + 1;
-		spec = {
-			...spec,
-			items: [...spec.items, { number: nextNumber, label: '' }]
-		};
-		scheduleDraftSave();
-	};
-
-	const removeItem = (index: number): void => {
-		if (spec.listMode === 'title_only') {
-			return;
-		}
-		if (spec.items.length <= 1) {
-			return;
-		}
-		spec = {
-			...spec,
-			items: spec.items.filter((_, itemIndex) => itemIndex !== index)
-		};
-		scheduleDraftSave();
-	};
-
-	const toggleFooter = (): void => {
-		if (spec.listMode === 'title_only') {
-			return;
-		}
-		includeFooter = !includeFooter;
-		spec = {
-			...spec,
-			footerItem: includeFooter ? { number: 97, label: 'YOU' } : undefined
-		};
-		scheduleDraftSave();
-	};
-
-	const setListMode = (mode: ColoringPageSpec['listMode']): void => {
-		if (mode === 'title_only') {
-			includeFooter = false;
-			spec = {
-				...spec,
-				listMode: 'title_only',
-				items: [],
-				footerItem: undefined
-			};
-		} else {
-			spec = {
-				...spec,
-				listMode: 'list',
-				items: spec.items.length > 0 ? spec.items : [{ number: 1, label: '' }]
-			};
-		}
-		scheduleDraftSave();
-	};
-
-	const handleListModeChange = (event: Event): void => {
-		const target = event.currentTarget;
-		if (!(target instanceof HTMLSelectElement)) {
-			return;
-		}
-		setListMode(target.value as ColoringPageSpec['listMode']);
-	};
-
-	const resetSpec = (): void => {
-		spec = structuredClone(DEFAULT_SPEC);
-		includeFooter = !!DEFAULT_SPEC.footerItem;
-		styleHint = 'diamond glam street luxe';
-		dedicationInput = '';
-		validationIssues = [];
-		resetOutputs();
-		scheduleDraftSave();
-	};
-
-	const setDedication = (value: string): void => {
-		dedicationInput = value;
-		const trimmed = value.trim();
-		spec = {
-			...spec,
-			dedication: trimmed.length > 0 ? value : undefined
-		};
-		scheduleDraftSave();
-	};
+	$: canGenerateText = canRunStudioAction('generate_text', {
+		remainingBudget: revisionBudget,
+		isRunning: isTextWorking
+	});
+	$: canRegenerateText =
+		!!textOutput &&
+		canRunStudioAction('regenerate', { remainingBudget: revisionBudget, isRunning: isTextWorking });
+	$: canMakePrettier =
+		!!textOutput &&
+		canRunStudioAction('make_prettier', {
+			remainingBudget: revisionBudget,
+			isRunning: isTextWorking
+		});
+	$: canMakeMeaner =
+		!!textOutput &&
+		canRunStudioAction('make_meaner', { remainingBudget: revisionBudget, isRunning: isTextWorking });
+	$: canMakeMoreSpecific =
+		!!textOutput &&
+		canRunStudioAction('make_more_specific', {
+			remainingBudget: revisionBudget,
+			isRunning: isTextWorking
+		});
 
 	$: imagePreviews = images.map((image) => {
 		if (image.format === 'svg' && image.encoding === 'utf8') {
@@ -427,1286 +396,784 @@ Info flow: User inputs -> seams -> rendered previews + downloads.
 		const sessionResult = await sessionAdapter.getSession();
 		if (sessionResult.ok) {
 			owner = buildOwner(sessionResult.value.sessionId);
-			sessionStatus = 'Session connected';
 			const authResult = await authContextAdapter.getAuthContext({
 				sessionId: sessionResult.value.sessionId
 			});
 			if (authResult.ok) {
 				authContext = authResult.value;
 			}
-		} else {
-			sessionStatus = 'Session unavailable';
 		}
-
-		const draftResult = await creationStoreAdapter.getDraft({});
-		if (draftResult.ok && draftResult.value) {
-			spec = draftResult.value.intent;
-			includeFooter = spec.listMode !== 'title_only' && !!spec.footerItem;
-			chatMessage = draftResult.value.chatMessage || '';
-			dedicationInput = spec.dedication ?? '';
+		const draft = await creationStoreAdapter.getDraft({});
+		if (draft.ok && draft.value) {
+			spec = draft.value.intent;
+			evidence = draft.value.chatMessage || '';
+			dedication = draft.value.intent.dedication ?? '';
+			pageSize = draft.value.intent.pageSize;
+			border = draft.value.intent.border;
+			if (draft.value.studioText || draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle) {
+				textOutput = buildStudioTextFromDraftRecord(draft.value);
+			}
 		}
-
 		await validateSpec();
 		await refreshCreations();
 	});
 </script>
 
 <svelte:head>
-	<title>Meechie's Coloring Book</title>
+	<title>Meechies Coloring Book Studio</title>
 </svelte:head>
 
-<div class="page">
-	<div class="ambient ambient-a" aria-hidden="true"></div>
-	<div class="ambient ambient-b" aria-hidden="true"></div>
-
-	<header class="hero">
+<main class="studio">
+	<section class="hero" style={`background-image: linear-gradient(90deg, rgba(7, 7, 15, 0.94), rgba(7, 7, 15, 0.62)), url('/meechie/meechie-banner.png');`}>
 		<div class="hero-copy">
-			<p class="crown">♛</p>
-			<h1>Meechie's Coloring Book</h1>
-			<p class="subhead">She don't give advice. She states facts. Pick your truth.</p>
+			<p class="eyebrow">Meechies Coloring Book Generator</p>
+			<h1>Meechies Coloring Book</h1>
+			<p>
+				Tell Meechie what happened, get the verdict and quote, then turn it into a printable
+				coloring page.
+			</p>
+			<button type="button" class="primary" on:click={() => runTextAction('generate_text')} disabled={!canGenerateText}>
+				{isTextWorking ? 'Reading...' : activeMode().cta}
+			</button>
 		</div>
-	</header>
-
-	<section class="modes" aria-label="Choose a mode">
-		<a href="/who-fucked-up" class="mode-card mode-wfu">
-			<span class="mode-icon" aria-hidden="true">👁</span>
-			<div class="mode-body">
-				<h2>Who Fucked Up?</h2>
-				<p>Describe what happened. Meechie tells you exactly what it means.</p>
-			</div>
-			<span class="mode-arrow">→</span>
-		</a>
-		<a href="/rate-his-excuse" class="mode-card mode-rhe">
-			<span class="mode-icon" aria-hidden="true">⚖</span>
-			<div class="mode-body">
-				<h2>Rate His Excuse</h2>
-				<p>Drop the excuse. Meechie scores it. Court is in session.</p>
-			</div>
-			<span class="mode-arrow">→</span>
-		</a>
-		<a href="/random" class="mode-card mode-random">
-			<span class="mode-icon" aria-hidden="true">✦</span>
-			<div class="mode-body">
-				<h2>Random Meechie</h2>
-				<p>One tap. One truth. No context required.</p>
-			</div>
-			<span class="mode-arrow">→</span>
-		</a>
 	</section>
 
-	<p class="or-divider">— or build a custom page —</p>
+	<section class="mode-strip" aria-label="Choose a Meechie mode">
+		{#each studioModes as mode}
+			<button
+				type="button"
+				class="mode-card"
+				class:active={activeModeId === mode.id}
+				style={`--mode-color: ${mode.themeColor}; --mode-image: url('${mode.image}')`}
+				on:click={() => {
+					activeModeId = mode.id;
+					textError = '';
+					resetGeneratedPage();
+					scheduleDraftSave();
+				}}
+			>
+				<span class="mode-icon">{mode.icon}</span>
+				<span class="mode-label">{mode.label}</span>
+				<span class="mode-help">{mode.help}</span>
+			</button>
+		{/each}
+	</section>
 
-	<section class="card chat">
-		<h2>Describe what you want</h2>
-		<div class="field">
-			<label for="chat">Say it in plain language</label>
+	<section class="workbench">
+		<div class="input-panel">
+			<div class="panel-head">
+				<p class="eyebrow">Evidence</p>
+				<h2>{activeMode().label}</h2>
+				<p>{activeMode().help}</p>
+			</div>
+
+			<label for="evidence">What happened?</label>
 			<textarea
-				id="chat"
-				rows="3"
-				bind:value={chatMessage}
+				id="evidence"
+				rows="8"
+				bind:value={evidence}
 				on:input={scheduleDraftSave}
-				placeholder="Example: diamond glam theme with bold lettering and crown decorations"
+				placeholder={activeMode().placeholder}
 			></textarea>
-		</div>
-		<button type="button" class="primary" on:click={handleChatInterpretation}>
-			Generate My Coloring Page
-		</button>
-	</section>
 
-	<p class="or-divider">— specify every detail —</p>
+			<label for="dedication">Shoutout</label>
+			<input
+				id="dedication"
+				bind:value={dedication}
+				on:input={scheduleDraftSave}
+				maxlength="60"
+				placeholder="Optional dedication"
+			/>
 
-	<div class="grid">
-		<section class="card builder">
-			<h2>Custom Page Builder</h2>
-
-			<div class="field">
-				<label for="title">Main headline</label>
-				<input id="title" type="text" bind:value={spec.title} on:input={scheduleDraftSave} />
+			<div class="budget">
+				<span>{revisionBudget} AI text actions left</span>
+				{#if revisionBudget === 0}
+					<p>You used the wording changes for this page. Export, copy, theme, and vault still work.</p>
+				{/if}
 			</div>
 
-			<div class="field">
-				<label for="listMode">Page layout</label>
-				<select id="listMode" value={spec.listMode} on:change={handleListModeChange}>
-					<option value="list">Headline + numbered list</option>
-					<option value="title_only">Headline only</option>
-				</select>
-			</div>
-
-			{#if spec.listMode === 'list'}
-				<fieldset class="field">
-					<legend>List lines</legend>
-					<div class="items">
-						{#each spec.items as item, index}
-							<div class="item-row">
-								<input
-									type="number"
-									min="1"
-									max="999"
-									bind:value={item.number}
-									on:input={scheduleDraftSave}
-								/>
-								<input
-									type="text"
-									maxlength="40"
-									bind:value={item.label}
-									on:input={scheduleDraftSave}
-									placeholder="Label"
-								/>
-								<button
-									type="button"
-									class="ghost"
-									disabled={spec.items.length <= 1}
-									on:click={() => removeItem(index)}
-								>
-									Remove
-								</button>
-							</div>
-						{/each}
-						<button
-							type="button"
-							class="ghost"
-							disabled={spec.items.length >= 20}
-							on:click={addItem}
-						>
-							Add item
-						</button>
-					</div>
-				</fieldset>
-
-				<div class="field">
-					<label class="toggle">
-						<input type="checkbox" bind:checked={includeFooter} on:change={toggleFooter} />
-						<span>Include footer item</span>
-					</label>
-					{#if includeFooter && spec.footerItem}
-						<div class="item-row">
-							<input
-								type="number"
-								min="1"
-								max="999"
-								bind:value={spec.footerItem.number}
-								on:input={scheduleDraftSave}
-							/>
-							<input
-								type="text"
-								maxlength="40"
-								bind:value={spec.footerItem.label}
-								on:input={scheduleDraftSave}
-							/>
-						</div>
-					{/if}
-				</div>
-			{:else}
-				<p class="hint">Headline-only mode hides list lines and footer text.</p>
-			{/if}
-
-			<div class="field">
-				<label for="dedication">Shoutout (optional)</label>
-				<input
-					id="dedication"
-					type="text"
-					maxlength="60"
-					value={dedicationInput}
-					on:input={(event) => setDedication((event.target as HTMLInputElement).value)}
-					placeholder="Dedicated to..."
-				/>
-			</div>
-
-			<div class="field">
-				<label for="styleHint">Vibe words</label>
-				<input
-					id="styleHint"
-					type="text"
-					bind:value={styleHint}
-					on:input={scheduleDraftSave}
-					placeholder="glitzy, gritty, luxury, street"
-				/>
-			</div>
-			<div class="field">
-				<p class="label">Vibe presets</p>
-				<div class="preset-row">
-					<button type="button" class="ghost preset" on:click={() => applyQuickPreset('minimal')}>
-						Soft Luxe
-					</button>
-					<button type="button" class="ghost preset" on:click={() => applyQuickPreset('sparkle')}>
-						Diamond Night
-					</button>
-					<button type="button" class="ghost preset" on:click={() => applyQuickPreset('story_scene')}>
-						City Story
-					</button>
-					<button type="button" class="ghost preset" on:click={() => applyQuickPreset('bold_block')}>
-						Boss Energy
-					</button>
-				</div>
-			</div>
-
-			<div class="field-row">
-				<div class="field">
-					<label for="variations">How many versions</label>
-					<input
-						id="variations"
-						type="number"
-						min="1"
-						max="4"
-						bind:value={spec.variations}
-						on:input={scheduleDraftSave}
-					/>
-				</div>
-				<div class="field">
-					<label for="outputFormat">Download type</label>
-					<select id="outputFormat" bind:value={spec.outputFormat} on:change={scheduleDraftSave}>
-						<option value="pdf">PDF</option>
-						<option value="png">PNG</option>
-					</select>
-				</div>
-			</div>
-
-			<div class="actions">
-				<button
-					type="button"
-					class="primary"
-					on:click={handleGenerate}
-					disabled={!isSpecValid || isGenerating}
-				>
-					{isGenerating ? 'Creating...' : 'Generate My Coloring Page'}
+			<div class="ai-actions">
+				<button type="button" class="primary" on:click={() => runTextAction('generate_text')} disabled={!canGenerateText}>
+					{isTextWorking ? 'Reading...' : getStudioAction('generate_text').label}
 				</button>
-				<button type="button" class="ghost" on:click={resetSpec}>Reset</button>
+				<button type="button" on:click={() => runTextAction('regenerate')} disabled={!canRegenerateText}>
+					{getStudioAction('regenerate').label}
+				</button>
+				<button type="button" on:click={() => runTextAction('make_prettier')} disabled={!canMakePrettier}>
+					{getStudioAction('make_prettier').label}
+				</button>
+				<button type="button" on:click={() => runTextAction('make_meaner')} disabled={!canMakeMeaner}>
+					{getStudioAction('make_meaner').label}
+				</button>
+				<button type="button" on:click={() => runTextAction('make_more_specific')} disabled={!canMakeMoreSpecific}>
+					{getStudioAction('make_more_specific').label}
+				</button>
 			</div>
 
-		<details class="advanced-toggle" bind:open={advancedOpen}>
-				<summary>More controls</summary>
-				<div class="advanced-content">
-					<div class="field-row">
-						<div class="field">
-							<label for="alignment">Alignment</label>
-							<select id="alignment" bind:value={spec.alignment} on:change={scheduleDraftSave}>
-								<option value="left">Left</option>
-								<option value="center">Center</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="numberAlignment">Number alignment</label>
-							<select id="numberAlignment" bind:value={spec.numberAlignment} on:change={scheduleDraftSave}>
-								<option value="strict">Strict</option>
-								<option value="loose">Loose</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="listGutter">List gutter</label>
-							<select
-								id="listGutter"
-								bind:value={spec.listGutter}
-								on:change={scheduleDraftSave}
-								disabled={spec.listMode === 'title_only'}
-							>
-								<option value="tight">Tight</option>
-								<option value="normal">Normal</option>
-								<option value="loose">Loose</option>
-							</select>
-						</div>
-					</div>
-
-					<div class="field-row">
-						<div class="field">
-							<label for="whitespaceScale">Whitespace scale</label>
-							<input
-								id="whitespaceScale"
-								type="range"
-								min="0"
-								max="100"
-								bind:value={spec.whitespaceScale}
-								on:input={scheduleDraftSave}
-							/>
-							<span class="hint">{spec.whitespaceScale}</span>
-						</div>
-						<div class="field">
-							<label for="textSize">Text size</label>
-							<select id="textSize" bind:value={spec.textSize} on:change={scheduleDraftSave}>
-								<option value="small">Small</option>
-								<option value="medium">Medium</option>
-								<option value="large">Large</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="fontStyle">Font style</label>
-							<select id="fontStyle" bind:value={spec.fontStyle} on:change={scheduleDraftSave}>
-								<option value="rounded">Rounded</option>
-								<option value="block">Block</option>
-								<option value="hand">Handwritten</option>
-							</select>
-						</div>
-					</div>
-
-					<div class="field-row">
-						<div class="field">
-							<label for="textStrokeWidth">Text stroke width</label>
-							<input
-								id="textStrokeWidth"
-								type="range"
-								min="4"
-								max="12"
-								bind:value={spec.textStrokeWidth}
-								on:input={scheduleDraftSave}
-							/>
-							<span class="hint">{spec.textStrokeWidth}px</span>
-						</div>
-						<div class="field">
-							<label for="colorMode">Color mode</label>
-							<select id="colorMode" bind:value={spec.colorMode} on:change={scheduleDraftSave}>
-								<option value="black_and_white_only">Black + white</option>
-								<option value="grayscale">Grayscale</option>
-								<option value="color">Color</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="pageSize">Page size</label>
-							<select id="pageSize" bind:value={spec.pageSize} on:change={scheduleDraftSave}>
-								<option value="US_Letter">US Letter</option>
-								<option value="A4">A4</option>
-							</select>
-						</div>
-					</div>
-
-					<div class="field-row">
-						<div class="field">
-							<label for="decorations">Interior decorations</label>
-							<select id="decorations" bind:value={spec.decorations} on:change={scheduleDraftSave}>
-								<option value="none">None</option>
-								<option value="minimal">Minimal</option>
-								<option value="dense">Dense</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="illustrations">Illustrations</label>
-							<select id="illustrations" bind:value={spec.illustrations} on:change={scheduleDraftSave}>
-								<option value="none">None</option>
-								<option value="simple">Simple</option>
-								<option value="scene">Scene</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="shading">Shading</label>
-							<select id="shading" bind:value={spec.shading} on:change={scheduleDraftSave}>
-								<option value="none">None</option>
-								<option value="hatch">Hatch</option>
-								<option value="stippling">Stippling</option>
-							</select>
-						</div>
-					</div>
-
-					<div class="field-row">
-						<div class="field">
-							<label for="border">Border</label>
-							<select id="border" bind:value={spec.border} on:change={scheduleDraftSave}>
-								<option value="none">None</option>
-								<option value="plain">Plain</option>
-								<option value="decorative">Decorative</option>
-							</select>
-						</div>
-						<div class="field">
-							<label for="borderThickness">Border thickness</label>
-							<input
-								id="borderThickness"
-								type="range"
-								min="2"
-								max="16"
-								bind:value={spec.borderThickness}
-								on:input={scheduleDraftSave}
-							/>
-							<span class="hint">{spec.borderThickness}px</span>
-						</div>
-					</div>
-
-					<div class="field">
-						<p class="label">Social add-ons</p>
-						<label class="toggle">
-							<input type="checkbox" bind:checked={includeSquareExport} />
-							<span>Instagram square 1080x1080</span>
-						</label>
-						<label class="toggle">
-							<input type="checkbox" bind:checked={includeChatExport} />
-							<span>Chat share 720x720</span>
-						</label>
-					</div>
-				</div>
-			</details>
-
-			{#if validationIssues.length > 0}
-				<div class="issues">
-					<h3>Fix these first</h3>
-					<ul>
-						{#each validationIssues as issue}
-							<li>
-								<strong>{issue.field}</strong>: {issue.message}
-							</li>
-						{/each}
-					</ul>
-				</div>
+			{#if textError}
+				<p class="error">{textError}</p>
 			{/if}
-		</section>
+		</div>
 
-		<section class="card preview">
-			<h2>Preview + Export</h2>
-			<label class="toggle">
-				<input type="checkbox" bind:checked={showSparkleOverlay} />
-				<span>Add glitter preview glow</span>
-			</label>
+		<section class="preview-panel" aria-label="Meechie coloring-page preview">
+			<div class="preview-head">
+				<div>
+					<p class="eyebrow">Preview</p>
+					<h2>{previewOutput.pageTitle}</h2>
+				</div>
+				<img src={activeTheme().image} alt="" />
+			</div>
+
+			<div class="paper" class:glitter>
+				{#if imagePreviews.length > 0}
+					<img class="generated-image" src={imagePreviews[0]} alt="Generated Meechie coloring page" />
+				{:else}
+					<div class="paper-empty">
+						<p class="paper-title">{previewOutput.pageTitle}</p>
+						<ol>
+							{#each previewOutput.pageItems as item}
+								<li>{item.label}</li>
+							{/each}
+						</ol>
+						<p class="paper-quote">"{previewOutput.quote}"</p>
+					</div>
+				{/if}
+			</div>
+
 			{#if generationError}
 				<p class="error">{generationError}</p>
 			{/if}
-			{#if imagePreviews.length > 0}
-				<div class="preview-grid">
-					{#each imagePreviews as preview, index}
-						<figure class:sparkle={showSparkleOverlay}>
-							<img src={preview} alt={`Generated page ${index + 1}`} />
-							<figcaption>Variation {index + 1}</figcaption>
-						</figure>
-					{/each}
-				</div>
-			{:else}
-				<p class="empty">Press Generate My Coloring Page to see your results.</p>
-			{/if}
 
-			{#if packagedFiles.length > 0}
-				<div class="downloads">
-					<h3>Ready to download</h3>
+			<div class="preview-actions">
+				<button type="button" class="primary" on:click={handleGeneratePage} disabled={!textOutput || isGenerating}>
+					{isGenerating ? 'Creating...' : 'Create Coloring Page'}
+				</button>
+				{#if packagedFiles.length > 0}
 					{#each packagedFiles as file}
-						<a
-							class="download"
-							href={`data:${file.mimeType};base64,${file.dataBase64}`}
-							download={file.filename}
-						>
-							{file.filename}
+						<a class="button-link" href={`data:${file.mimeType};base64,${file.dataBase64}`} download={file.filename}>
+							{getStudioAction('download_pdf').label}
 						</a>
 					{/each}
-				</div>
+				{:else}
+					<button type="button" disabled>{getStudioAction('download_pdf').label}</button>
+				{/if}
+				{#if imagePreviews[0]}
+					<a class="button-link" href={imagePreviews[0]} download="meechie-coloring-page.png">
+						{getStudioAction('export_png').label}
+					</a>
+				{:else}
+					<button type="button" disabled>{getStudioAction('export_png').label}</button>
+				{/if}
+				<button type="button" on:click={copyQuote} disabled={!textOutput}>{getStudioAction('copy_quote').label}</button>
+				<button type="button" on:click={saveToVault} disabled={!textOutput}>{getStudioAction('save_to_vault').label}</button>
+			</div>
+
+			{#if copyStatus || vaultStatus}
+				<p class="status">{copyStatus || vaultStatus}</p>
 			{/if}
 		</section>
-	</div>
 
-	<details class="card advanced-card">
-		<summary>System Trace (Advanced)</summary>
-		<div class="advanced-content">
-			<div class="field">
-				<label for="promptSent">Prompt used</label>
-				<textarea id="promptSent" rows="8" readonly value={assembledPrompt}></textarea>
+		<details class="settings-panel">
+			<summary>
+				<span>
+					<span class="eyebrow">Settings</span>
+					<strong>Page Controls</strong>
+				</span>
+				<span aria-hidden="true">Open</span>
+			</summary>
+
+			<div class="settings-content">
+				<div class="theme-grid" aria-label="Theme options">
+					{#each studioThemes as theme}
+						<button
+							type="button"
+							class="theme-chip"
+							class:active={selectedThemeId === theme.id}
+							on:click={() => {
+								selectedThemeId = theme.id;
+								if (textOutput) {
+									void applyTextToSpec(textOutput);
+								}
+							}}
+						>
+							<span>{theme.icon}</span>
+							{theme.label}
+						</button>
+					{/each}
+				</div>
+
+				<label for="intensity">Intensity</label>
+				<select id="intensity" bind:value={voice.intensity}>
+					<option value="receipts_out">Receipts Out</option>
+					<option value="church_lady">Church Lady</option>
+					<option value="no_mercy">No Mercy</option>
+				</select>
+
+				<label for="rawness">Rawness</label>
+				<select id="rawness" bind:value={voice.rawness}>
+					<option value="mild">Mild</option>
+					<option value="medium">Medium</option>
+					<option value="raw">Raw</option>
+				</select>
+
+				<label for="thirdPerson">Third Person</label>
+				<select id="thirdPerson" bind:value={voice.thirdPerson}>
+					<option value="sometimes">Sometimes</option>
+					<option value="always">Always</option>
+					<option value="never">Never</option>
+				</select>
+
+				<label for="pageSize">Page Size</label>
+				<select
+					id="pageSize"
+					bind:value={pageSize}
+					on:change={() => textOutput && applyTextToSpec(textOutput)}
+				>
+					<option value="US_Letter">US Letter</option>
+					<option value="A4">A4</option>
+				</select>
+
+				<label for="border">Border</label>
+				<select
+					id="border"
+					bind:value={border}
+					on:change={() => textOutput && applyTextToSpec(textOutput)}
+				>
+					<option value="decorative">Decorative</option>
+					<option value="plain">Plain</option>
+					<option value="none">None</option>
+				</select>
+
+				<label class="toggle">
+					<input type="checkbox" bind:checked={glitter} />
+					<span>Add glitter overlay</span>
+				</label>
 			</div>
-			<div class="field">
-				<label for="revisedPrompt">Model rewrite</label>
-				<textarea id="revisedPrompt" rows="4" readonly value={revisedPrompt}></textarea>
-			</div>
-			<div class="field">
-				<p class="label">Quality flags</p>
-				{#if violations.length === 0}
-					<p class="empty">No quality flags detected.</p>
+		</details>
+	</section>
+
+	<section class="verdict-row">
+		<article class="verdict-card">
+			<p class="eyebrow">Verdict</p>
+			<h2>{textOutput?.verdict ?? 'No verdict yet.'}</h2>
+			<p>{textOutput?.quote ?? 'Meechie will put the quote here after the AI text action runs.'}</p>
+			{#if textOutput?.rating}
+				<span class="rating">{textOutput.rating}/10</span>
+			{/if}
+		</article>
+		<article class="vault-card">
+			<p class="eyebrow">Quote Vault</p>
+			<h2>Saved Pages</h2>
+			{#if creations.length === 0}
+				<p>No saved pages yet.</p>
+			{:else}
+				<div class="vault-list">
+					{#each creations.slice(0, 4) as creation}
+						<div class="vault-item">
+							<button type="button" on:click={() => loadCreation(creation)}>{creation.intent.title}</button>
+							<div>
+								<button type="button" on:click={() => toggleFavorite(creation)}>
+									{creation.favorite ? 'Unpin' : 'Pin'}
+								</button>
+								<button type="button" on:click={() => deleteCreation(creation.id)}>Delete</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</article>
+	</section>
+
+	<details class="diagnostics">
+		<summary>System Trace</summary>
+		<div class="diagnostics-grid">
+			<label>
+				Prompt
+				<textarea rows="6" readonly value={assembledPrompt}></textarea>
+			</label>
+			<label>
+				Model Rewrite
+				<textarea rows="6" readonly value={revisedPrompt}></textarea>
+			</label>
+			<div>
+				<p class="eyebrow">Quality</p>
+				{#if validationIssues.length === 0 && violations.length === 0}
+					<p>No quality flags.</p>
 				{:else}
 					<ul>
+						{#each validationIssues as issue}
+							<li>{issue.field}: {issue.message}</li>
+						{/each}
 						{#each violations as violation}
-							<li class={violation.severity}>
-								<strong>{violation.code}</strong>: {violation.message}
-							</li>
+							<li>{violation.code}: {violation.message}</li>
 						{/each}
 					</ul>
 				{/if}
 			</div>
-			{#if recommendedFixes.length > 0}
-				<div class="field">
-					<p class="label">Recommended auto-fixes</p>
-					<ul>
-						{#each recommendedFixes as fix}
-							<li>
-								<strong>{fix.code}</strong>: {fix.message}
-							</li>
-						{/each}
-					</ul>
-				</div>
-				<button type="button" class="ghost" on:click={handleGenerate}>
-					Apply fixes + try again
-				</button>
-			{/if}
 		</div>
 	</details>
-
-	<section class="card history">
-		<h2>Your Vault</h2>
-		{#if creations.length === 0}
-			<p class="empty">No saved looks yet.</p>
-		{:else}
-			<div class="creations">
-				{#each creations as creation}
-					<div class="creation">
-						<div>
-							<p class="title">
-								{creation.intent.title}
-								{#if creation.favorite}
-									<span class="favorite-pill">★ featured</span>
-								{/if}
-							</p>
-							<p class="meta">{creation.createdAtISO}</p>
-						</div>
-						<div class="creation-actions">
-							<button
-								type="button"
-								class="ghost"
-								on:click={() => {
-									spec = creation.intent;
-									includeFooter = !!spec.footerItem;
-									dedicationInput = spec.dedication ?? '';
-									scheduleDraftSave();
-								}}
-							>
-								Load
-							</button>
-							<button type="button" class="ghost" on:click={() => toggleFavorite(creation)}>
-								{creation.favorite ? 'Unpin' : 'Pin'}
-							</button>
-							<button type="button" class="ghost danger" on:click={() => handleDeleteCreation(creation.id)}>
-								Delete
-							</button>
-						</div>
-					</div>
-				{/each}
-			</div>
-		{/if}
-	</section>
-
-	<section class="card meechie-link-card">
-		<h2>Meechie's Full Toolkit</h2>
-		<p class="meechie-link-copy">
-			Apology autopsies. Receipt checks. Clapbacks. Everything Meechie reads, rated and delivered.
-		</p>
-		<a class="primary meechie-link-button" href="/meechie">Enter Meechie's Space</a>
-	</section>
-
-	<div class="mobile-actions" aria-label="Quick actions">
-		<button
-			type="button"
-			class="primary mobile-primary"
-			on:click={handleGenerate}
-			disabled={!isSpecValid || isGenerating}
-		>
-			{isGenerating ? 'Creating...' : 'Generate My Coloring Page'}
-		</button>
-	</div>
-</div>
+</main>
 
 <style>
-	:global(body) {
-		margin: 0;
-		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
-		color: var(--cream);
-		background:
-			radial-gradient(circle at 0% 0%, rgba(232, 0, 106, 0.18), transparent 38%),
-			radial-gradient(circle at 100% 0%, rgba(107, 33, 168, 0.2), transparent 42%),
-			radial-gradient(circle at 50% 100%, rgba(201, 162, 39, 0.08), transparent 50%),
-			linear-gradient(180deg, #07070f, #0d0b1a 60%, #070710);
-		min-height: 100vh;
-	}
-
-	.page {
-		position: relative;
-		max-width: 1220px;
+	.studio {
+		max-width: 1240px;
 		margin: 0 auto;
-		padding: 2.4rem 1.4rem 4rem;
-	}
-
-	.ambient {
-		position: absolute;
-		pointer-events: none;
-		filter: blur(9px);
-		z-index: 0;
-	}
-
-	.ambient-a {
-		top: 4.2rem;
-		right: -0.5rem;
-		width: clamp(180px, 26vw, 340px);
-		aspect-ratio: 1;
-		border-radius: 36% 64% 54% 46%;
-		background: linear-gradient(145deg, rgba(232, 0, 106, 0.26), rgba(107, 33, 168, 0.18));
-		animation: drift 14s ease-in-out infinite;
-	}
-
-	.ambient-b {
-		top: 20rem;
-		left: -4rem;
-		width: clamp(170px, 20vw, 300px);
-		aspect-ratio: 1;
-		border-radius: 46% 54% 44% 56%;
-		background: linear-gradient(145deg, rgba(201, 162, 39, 0.2), rgba(107, 33, 168, 0.15));
-		animation: drift 17s ease-in-out infinite reverse;
+		padding: 1.4rem;
+		color: var(--cream);
 	}
 
 	.hero {
-		position: relative;
-		z-index: 1;
-		padding: 3rem 0.2rem 2.4rem;
-		margin-bottom: 0.8rem;
-		text-align: center;
-	}
-
-	.crown {
-		margin: 0 0 0.6rem;
-		font-size: 2.2rem;
-		line-height: 1;
-		filter: drop-shadow(0 0 12px rgba(201, 162, 39, 0.6));
-	}
-
-	h1 {
-		margin: 0 0 0.7rem;
-		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-size: clamp(2.4rem, 6vw, 4.2rem);
-		font-style: italic;
-		font-weight: 800;
-		line-height: 0.92;
-		letter-spacing: -0.02em;
-		color: var(--cream);
-		text-shadow: 0 0 40px rgba(201, 162, 39, 0.25);
-	}
-
-	.subhead {
-		margin: 0 auto;
-		max-width: 380px;
-		font-size: 1rem;
-		line-height: 1.45;
-		color: var(--lavender);
-	}
-
-	/* Mode cards */
-	.modes {
-		position: relative;
-		z-index: 1;
+		width: 100vw;
+		min-height: clamp(420px, 46vw, 560px);
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-		gap: 1rem;
-		margin-bottom: 2rem;
+		grid-template-columns: minmax(0, 0.44fr) minmax(0, 0.56fr);
+		align-items: flex-end;
+		box-sizing: border-box;
+		margin-left: calc(50% - 50vw);
+		margin-right: calc(50% - 50vw);
+		padding: clamp(1.4rem, 4vw, 3rem) max(1.4rem, calc((100vw - 1240px) / 2 + 1.4rem));
+		border-top: 1px solid rgba(201, 162, 39, 0.32);
+		border-bottom: 1px solid rgba(201, 162, 39, 0.32);
+		background-position:
+			center,
+			right center;
+		background-size:
+			cover,
+			cover;
+		box-shadow: 0 24px 56px rgba(0, 0, 0, 0.48);
 	}
 
-	.mode-card {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		padding: 1.4rem 1.3rem;
-		border-radius: 1.2rem;
-		text-decoration: none;
-		border: 1px solid var(--gold-border);
-		background: var(--dark-card);
-		transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+	.hero-copy {
+		max-width: 600px;
+		grid-column: 1;
 	}
 
-	.mode-card:hover {
-		transform: translateY(-3px);
-		box-shadow: 0 18px 42px rgba(0, 0, 0, 0.5);
-	}
-
-	.mode-wfu {
-		border-color: rgba(232, 0, 106, 0.4);
-		background: linear-gradient(145deg, rgba(232, 0, 106, 0.1), var(--dark-card));
-	}
-
-	.mode-wfu:hover {
-		border-color: rgba(232, 0, 106, 0.7);
-		box-shadow: 0 18px 42px rgba(232, 0, 106, 0.2);
-	}
-
-	.mode-rhe {
-		border-color: rgba(201, 162, 39, 0.4);
-		background: linear-gradient(145deg, rgba(201, 162, 39, 0.08), var(--dark-card));
-	}
-
-	.mode-rhe:hover {
-		border-color: rgba(201, 162, 39, 0.7);
-		box-shadow: 0 18px 42px rgba(201, 162, 39, 0.2);
-	}
-
-	.mode-random {
-		border-color: rgba(184, 170, 207, 0.4);
-		background: linear-gradient(145deg, rgba(107, 33, 168, 0.1), var(--dark-card));
-	}
-
-	.mode-random:hover {
-		border-color: rgba(184, 170, 207, 0.7);
-		box-shadow: 0 18px 42px rgba(107, 33, 168, 0.2);
-	}
-
-	.mode-icon {
-		font-size: 1.8rem;
-		flex-shrink: 0;
-		width: 2.6rem;
-		text-align: center;
-	}
-
-	.mode-body {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.mode-body h2 {
-		margin: 0 0 0.28rem;
-		font-size: 1.15rem;
-		font-style: normal;
-		letter-spacing: 0.01em;
-		color: var(--cream);
-	}
-
-	.mode-body p {
-		margin: 0;
-		font-size: 0.83rem;
-		line-height: 1.4;
-		color: var(--lavender);
-	}
-
-	.mode-arrow {
-		font-size: 1.1rem;
-		color: var(--gold-bright);
-		flex-shrink: 0;
-		transition: transform 0.18s ease;
-	}
-
-	.mode-card:hover .mode-arrow {
-		transform: translateX(4px);
-	}
-
-	.or-divider {
-		position: relative;
-		z-index: 1;
-		text-align: center;
-		margin: 0 0 1.4rem;
-		font-size: 0.8rem;
-		font-weight: 700;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-		color: rgba(184, 170, 207, 0.5);
-	}
-
-	.grid {
-		position: relative;
-		z-index: 1;
-		display: grid;
-		grid-template-columns: minmax(340px, 1.5fr) minmax(300px, 1fr);
-		gap: 1.4rem;
-		margin-bottom: 1.5rem;
-	}
-
-	.card {
-		position: relative;
-		padding: 1.45rem;
-		border-radius: 1.2rem;
-		background: var(--dark-card);
-		border: 1px solid var(--gold-border);
-		box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
-	}
-
-	.card::before {
-		content: '';
-		position: absolute;
-		inset: 0;
-		border-radius: 1.2rem;
-		padding: 1px;
-		background: linear-gradient(
-			130deg,
-			rgba(232, 0, 106, 0.3),
-			rgba(201, 162, 39, 0.25),
-			rgba(107, 33, 168, 0.2)
-		);
-		mask:
-			linear-gradient(#fff 0 0) content-box,
-			linear-gradient(#fff 0 0);
-		mask-composite: exclude;
-		pointer-events: none;
-	}
-
-	.builder {
-		background: var(--dark-card);
-	}
-
-	.card.preview {
-		min-height: 520px;
-		background: var(--dark-card-alt);
-	}
-
-	.chat {
-		position: relative;
-		z-index: 1;
-		margin-bottom: 0.5rem;
-		background: linear-gradient(160deg, rgba(232, 0, 106, 0.08), rgba(22, 20, 42, 0.95));
-	}
-
-	h2 {
-		margin: 0 0 0.9rem;
-		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-size: 1.5rem;
-		font-style: italic;
-		font-weight: 800;
-		letter-spacing: -0.01em;
-		color: var(--cream);
-	}
-
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-		margin-bottom: 1rem;
-	}
-
-	fieldset.field {
-		border: none;
-		padding: 0;
-		margin: 0 0 1rem;
-	}
-
-	legend,
+	.eyebrow,
 	label,
-	.label {
-		margin: 0;
+	.mode-label,
+	.theme-chip,
+	button,
+	.button-link {
+		font-family: var(--font-label);
 		font-weight: 700;
-		font-size: 0.82rem;
 		text-transform: uppercase;
-		letter-spacing: 0.08em;
+		letter-spacing: 0.12em;
+	}
+
+	.eyebrow {
+		margin: 0 0 0.5rem;
+		font-size: 0.75rem;
 		color: var(--gold);
 	}
 
-	.field-row {
+	h1,
+	h2 {
+		font-family: var(--font-display);
+		font-style: italic;
+		font-weight: 800;
+		line-height: 0.98;
+		color: var(--cream);
+	}
+
+	h1 {
+		margin: 0 0 0.8rem;
+		font-size: clamp(3rem, 8vw, 6.5rem);
+	}
+
+	h2 {
+		margin: 0 0 0.7rem;
+		font-size: clamp(1.4rem, 3vw, 2rem);
+	}
+
+	p {
+		line-height: 1.55;
+		color: var(--lavender);
+	}
+
+	.mode-strip {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-		gap: 0.9rem;
+		grid-template-columns: repeat(8, minmax(124px, 1fr));
+		gap: 0.65rem;
+		margin: 1rem 0;
+	}
+
+	.mode-card {
+		min-height: 158px;
+		padding: 0.8rem;
+		border: 1px solid rgba(201, 162, 39, 0.22);
+		border-radius: 8px;
+		color: var(--cream);
+		background:
+			linear-gradient(180deg, rgba(7, 7, 15, 0.42), rgba(7, 7, 15, 0.92)),
+			var(--mode-image);
+		background-size: cover;
+		background-position: center;
+		cursor: pointer;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		justify-content: flex-end;
+		gap: 0.4rem;
+		text-align: left;
+	}
+
+	.mode-card.active,
+	.mode-card:focus-visible {
+		outline: 2px solid var(--mode-color);
+		outline-offset: 2px;
+	}
+
+	.mode-icon {
+		width: 28px;
+		height: 28px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 6px;
+		background: var(--mode-color);
+		color: #07070f;
+		font-weight: 900;
+	}
+
+	.mode-help {
+		font-size: 0.74rem;
+		line-height: 1.3;
+		color: rgba(253, 246, 227, 0.74);
+		text-transform: none;
+		letter-spacing: 0;
+	}
+
+	.workbench {
+		display: grid;
+		grid-template-columns: minmax(280px, 0.82fr) minmax(360px, 1.2fr) minmax(260px, 0.78fr);
+		gap: 1rem;
+		align-items: start;
+	}
+
+	.input-panel,
+	.preview-panel,
+	.settings-panel,
+	.verdict-card,
+	.vault-card,
+	.diagnostics {
+		border: 1px solid rgba(201, 162, 39, 0.24);
+		border-radius: 8px;
+		background: rgba(22, 20, 42, 0.92);
+		padding: 1rem;
+	}
+
+	.settings-panel summary {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		cursor: pointer;
+		list-style: none;
+		color: var(--gold-bright);
+	}
+
+	.settings-panel summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.settings-panel summary strong {
+		display: block;
+		margin-top: 0.15rem;
+		font-family: var(--font-display);
+		font-size: 1.25rem;
+		font-style: italic;
+		color: var(--cream);
+		text-transform: none;
+		letter-spacing: 0;
+	}
+
+	.settings-panel[open] summary {
+		margin-bottom: 1rem;
+		padding-bottom: 0.85rem;
+		border-bottom: 1px solid rgba(201, 162, 39, 0.16);
+	}
+
+	.panel-head {
 		margin-bottom: 1rem;
 	}
 
-	.preset-row {
+	textarea,
+	input,
+	select {
+		width: 100%;
+		margin: 0.35rem 0 0.9rem;
+		padding: 0.72rem 0.78rem;
+		border-radius: 6px;
+		border: 1px solid rgba(201, 162, 39, 0.24);
+		background: rgba(7, 7, 15, 0.78);
+		color: var(--cream);
+		font: inherit;
+	}
+
+	textarea:focus,
+	input:focus,
+	select:focus {
+		outline: 2px solid rgba(240, 196, 74, 0.48);
+		outline-offset: 1px;
+	}
+
+	.budget {
+		margin: 0.2rem 0 0.9rem;
+		padding: 0.7rem;
+		border-radius: 6px;
+		background: rgba(201, 162, 39, 0.09);
+		color: var(--gold-bright);
+		font-weight: 700;
+	}
+
+	.budget p {
+		margin: 0.3rem 0 0;
+		font-size: 0.84rem;
+	}
+
+	.ai-actions,
+	.preview-actions {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
 	}
 
-	.preset {
-		padding: 0.42rem 0.85rem;
-		font-size: 0.79rem;
+	button,
+	.button-link {
+		min-height: 40px;
+		padding: 0.58rem 0.82rem;
+		border: 1px solid rgba(201, 162, 39, 0.32);
+		border-radius: 6px;
+		background: rgba(7, 7, 15, 0.58);
+		color: var(--gold-bright);
+		text-decoration: none;
+		cursor: pointer;
+		font-size: 0.78rem;
 	}
 
-	input,
-	select,
-	textarea {
-		border-radius: 0.72rem;
-		border: 1px solid rgba(201, 162, 39, 0.25);
-		padding: 0.62rem 0.72rem;
-		font-size: 0.94rem;
-		font-family: inherit;
-		color: var(--cream);
-		background: rgba(7, 7, 15, 0.7);
-		transition: border-color 0.2s ease, box-shadow 0.2s ease;
-	}
-
-	input:focus,
-	select:focus,
-	textarea:focus {
-		outline: none;
-		border-color: var(--gold);
-		box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.18);
-	}
-
-	input::placeholder,
-	textarea::placeholder {
-		color: rgba(184, 170, 207, 0.45);
-	}
-
-	select option {
-		background: #1c1932;
-		color: var(--cream);
-	}
-
-	textarea {
-		resize: vertical;
-	}
-
-	.items {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
-
-	.item-row {
-		display: grid;
-		grid-template-columns: 80px 1fr auto;
-		gap: 0.6rem;
-		align-items: center;
-	}
-
-	.toggle {
-		display: flex;
-		gap: 0.56rem;
-		align-items: center;
-		font-size: 0.9rem;
-		font-weight: 600;
-		color: var(--lavender);
-		text-transform: none;
-		letter-spacing: normal;
-	}
-
-	.actions {
-		display: flex;
-		gap: 0.7rem;
-		align-items: center;
-		margin-bottom: 1rem;
+	button:disabled {
+		opacity: 0.42;
+		cursor: not-allowed;
 	}
 
 	.primary {
 		border: none;
-		border-radius: 999px;
-		padding: 0.72rem 1.4rem;
-		background: linear-gradient(112deg, #e8006a, #6b21a8 52%, #c9a227);
+		background: linear-gradient(112deg, #e8006a, #8b16c2 52%, #c9a227);
 		color: #fff;
-		font-weight: 800;
-		font-size: 0.95rem;
-		letter-spacing: 0.04em;
-		cursor: pointer;
-		transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
-		text-transform: uppercase;
 	}
 
-	.primary:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 14px 28px rgba(232, 0, 106, 0.35);
-		filter: saturate(1.1) brightness(1.05);
-	}
-
-	.ghost {
-		border-radius: 999px;
-		padding: 0.52rem 0.96rem;
-		border: 1px solid var(--gold-border);
-		background: transparent;
-		color: var(--gold-bright);
-		font-weight: 600;
-		cursor: pointer;
-		transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-	}
-
-	.ghost.tiny {
-		padding: 0.36rem 0.72rem;
-		font-size: 0.76rem;
-	}
-
-	.ghost:hover {
-		transform: translateY(-1px);
-		border-color: var(--gold);
-		box-shadow: 0 6px 16px rgba(201, 162, 39, 0.18);
-	}
-
-	.ghost:disabled,
-	.primary:disabled {
-		opacity: 0.45;
-		cursor: not-allowed;
-	}
-
-	.hint {
-		font-size: 0.79rem;
-		color: var(--lavender);
-	}
-
-	.issues {
-		padding: 0.95rem;
-		border-radius: 0.95rem;
-		background: rgba(232, 0, 106, 0.1);
-		border: 1px solid rgba(232, 0, 106, 0.35);
-	}
-
-	.issues ul {
-		margin: 0.5rem 0 0;
-		padding-left: 1.2rem;
-	}
-
-	.preview-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+	.preview-head {
+		display: flex;
+		justify-content: space-between;
 		gap: 1rem;
+		align-items: flex-start;
 	}
 
-	.preview-grid figure {
+	.preview-head img {
+		width: 88px;
+		aspect-ratio: 1;
+		object-fit: cover;
+		border-radius: 8px;
+		border: 1px solid rgba(201, 162, 39, 0.28);
+	}
+
+	.paper {
+		margin: 1rem 0;
+		aspect-ratio: 8.5 / 11;
+		min-height: 420px;
+		border-radius: 8px;
+		background: #faf7ee;
+		color: #111;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1.25rem;
+		overflow: hidden;
 		position: relative;
 	}
 
-	.preview-grid img {
-		width: 100%;
-		border-radius: 0.82rem;
-		border: 1px solid var(--gold-border);
-		background: #1c1932;
-		box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
-	}
-
-	.preview-grid figure.sparkle::after {
+	.paper.glitter::after {
 		content: '';
 		position: absolute;
 		inset: 0;
-		border-radius: 0.82rem;
 		background:
-			radial-gradient(circle at 16% 20%, rgba(240, 196, 74, 0.5), transparent 30%),
-			radial-gradient(circle at 82% 28%, rgba(232, 0, 106, 0.4), transparent 34%),
-			radial-gradient(circle at 38% 76%, rgba(107, 33, 168, 0.35), transparent 40%),
-			radial-gradient(circle at 72% 78%, rgba(240, 196, 74, 0.3), transparent 44%);
-		opacity: 0.7;
-		mix-blend-mode: screen;
+			radial-gradient(circle at 20% 18%, rgba(201, 162, 39, 0.28), transparent 18%),
+			radial-gradient(circle at 82% 34%, rgba(232, 0, 106, 0.18), transparent 16%),
+			radial-gradient(circle at 42% 78%, rgba(139, 22, 194, 0.16), transparent 18%);
 		pointer-events: none;
 	}
 
-	figcaption {
-		margin-top: 0.4rem;
+	.generated-image {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+	}
+
+	.paper-empty {
+		width: 82%;
 		text-align: center;
-		font-size: 0.82rem;
-		color: var(--lavender);
+		border: 3px solid #111;
+		padding: 1rem;
 	}
 
-	p.error {
-		margin: 0 0 0.7rem;
-		color: #ff8ab3;
-		background: rgba(232, 0, 106, 0.12);
-		border: 1px solid rgba(232, 0, 106, 0.35);
-		padding: 0.7rem;
-		border-radius: 0.8rem;
+	.paper-title {
+		margin: 0 0 1rem;
+		font-family: var(--font-label);
+		font-size: clamp(1.5rem, 4vw, 2.4rem);
+		font-weight: 800;
+		color: #111;
+		text-transform: uppercase;
 	}
 
-	.empty {
-		color: var(--lavender);
-		font-style: italic;
+	.paper-empty ol {
+		margin: 0 auto 1rem;
+		text-align: left;
+		max-width: 320px;
+		font-weight: 800;
 	}
 
-	.downloads {
-		margin-top: 0.9rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.download {
-		text-decoration: none;
+	.paper-quote {
+		margin: 0;
+		color: #111;
 		font-weight: 700;
-		color: var(--gold-bright);
-		background: rgba(201, 162, 39, 0.1);
-		border: 1px solid var(--gold-border);
-		padding: 0.52rem 0.78rem;
-		border-radius: 0.78rem;
-		transition: background 0.2s ease;
 	}
 
-	.download:hover {
-		background: rgba(201, 162, 39, 0.18);
-	}
-
-	.history {
-		position: relative;
-		z-index: 1;
-	}
-
-	.creations {
+	.theme-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-		gap: 0.9rem;
+		grid-template-columns: 1fr;
+		gap: 0.45rem;
+		margin-bottom: 1rem;
 	}
 
-	.creation {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 0.9rem;
-		border-radius: 0.95rem;
-		border: 1px solid var(--gold-border);
-		background: rgba(7, 7, 15, 0.6);
+	.settings-content {
+		display: block;
 	}
 
-	.creation .title {
-		margin-bottom: 0.2rem;
-		font-weight: 700;
-		color: var(--cream);
-	}
-
-	.creation .meta {
-		font-size: 0.75rem;
-		color: var(--lavender);
-	}
-
-	.creation-actions {
-		display: flex;
-		gap: 0.5rem;
-		flex-wrap: wrap;
-	}
-
-	.favorite-pill {
-		display: inline-flex;
-		align-items: center;
-		margin-left: 0.4rem;
-		padding: 0 0.4rem;
-		border-radius: 999px;
-		font-size: 0.65rem;
-		background: rgba(201, 162, 39, 0.2);
-		color: var(--gold-bright);
-	}
-
-	.ghost.danger {
-		color: #ff6b8a;
-		border-color: rgba(232, 0, 106, 0.4);
-	}
-
-	.success {
-		color: var(--emerald);
-	}
-
-	li.error {
-		color: #ff6b8a;
-	}
-
-	.warning {
-		color: var(--gold-bright);
-	}
-
-	.meechie-link-card {
-		position: relative;
-		z-index: 1;
+	.theme-chip {
+		justify-content: flex-start;
 		text-align: left;
 	}
 
-	.meechie-link-copy {
-		margin: 0 0 1rem;
-		color: var(--lavender);
-	}
-
-	.meechie-link-button {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		text-decoration: none;
-	}
-
-	.advanced-card {
-		position: relative;
-		z-index: 1;
-	}
-
-	.advanced-card summary {
-		cursor: pointer;
-		list-style: none;
-		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-style: italic;
-		font-size: 1.3rem;
-		font-weight: 700;
+	.theme-chip.active {
+		background: rgba(201, 162, 39, 0.18);
 		color: var(--cream);
 	}
 
-	.advanced-card summary::-webkit-details-marker {
-		display: none;
+	.toggle {
+		display: flex;
+		gap: 0.55rem;
+		align-items: center;
+		color: var(--lavender);
 	}
 
-	.advanced-card summary::after {
-		content: 'Show ›';
-		float: right;
-		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
-		font-size: 0.75rem;
+	.toggle input {
+		width: auto;
+		margin: 0;
+	}
+
+	.verdict-row {
+		display: grid;
+		grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
+		gap: 1rem;
+		margin: 1rem 0;
+	}
+
+	.rating {
+		display: inline-flex;
+		padding: 0.28rem 0.5rem;
+		border-radius: 6px;
+		background: rgba(232, 0, 106, 0.18);
+		color: #ff8ab3;
+		font-weight: 800;
+	}
+
+	.vault-list {
+		display: grid;
+		gap: 0.5rem;
+	}
+
+	.vault-item {
+		display: flex;
+		justify-content: space-between;
+		gap: 0.6rem;
+		border-top: 1px solid rgba(201, 162, 39, 0.14);
+		padding-top: 0.5rem;
+	}
+
+	.error {
+		margin: 0.7rem 0 0;
+		color: #ff8ab3;
+	}
+
+	.status {
+		color: var(--emerald);
 		font-weight: 700;
-		font-style: normal;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--gold);
 	}
 
-	.advanced-card[open] summary::after {
-		content: 'Hide ‹';
+	.diagnostics {
+		margin-top: 1rem;
 	}
 
-	.advanced-content {
-		margin-top: 0.9rem;
-	}
-
-	.advanced-toggle {
-		margin-top: 0.5rem;
-		padding-top: 0.75rem;
-		border-top: 1px solid rgba(201, 162, 39, 0.15);
-	}
-
-	.advanced-toggle summary {
+	.diagnostics summary {
 		cursor: pointer;
-		list-style: none;
-		font-size: 0.8rem;
-		font-weight: 700;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--gold);
-		padding: 0.4rem 0;
+		color: var(--gold-bright);
+		font-weight: 800;
 	}
 
-	.advanced-toggle summary::-webkit-details-marker {
-		display: none;
+	.diagnostics-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 1rem;
+		margin-top: 1rem;
 	}
 
-	.advanced-toggle summary::after {
-		content: '›';
-		margin-left: 0.4rem;
-	}
-
-	.advanced-toggle[open] summary::after {
-		content: '‹';
-	}
-
-	.mobile-actions {
-		display: none;
-	}
-
-	@media (max-width: 900px) {
-		h1 {
-			max-width: none;
+	@media (max-width: 1100px) {
+		.mode-strip {
+			grid-template-columns: repeat(4, 1fr);
 		}
 
-		.grid {
+		.workbench {
 			grid-template-columns: 1fr;
 		}
 
-		.item-row {
+		.settings-panel[open] .settings-content {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.7rem 1rem;
+		}
+
+		.theme-grid,
+		.toggle {
+			grid-column: 1 / -1;
+		}
+	}
+
+	@media (max-width: 700px) {
+		.studio {
+			padding: 0.9rem;
+		}
+
+		.hero {
+			min-height: 400px;
+			grid-template-columns: minmax(0, 0.68fr) minmax(0, 0.32fr);
+			padding-block: 1.2rem;
+			background-position:
+				center,
+				68% center;
+		}
+
+		.mode-strip {
+			grid-template-columns: repeat(2, 1fr);
+		}
+
+		.verdict-row,
+		.diagnostics-grid,
+		.settings-panel[open] .settings-content {
 			grid-template-columns: 1fr;
 		}
 
-		.builder .actions {
-			display: none;
-		}
-
-		.page {
-			padding-bottom: 6rem;
-		}
-
-		.mobile-actions {
-			position: fixed;
-			left: 0.8rem;
-			right: 0.8rem;
-			bottom: max(0.7rem, env(safe-area-inset-bottom));
-			z-index: 20;
-			display: flex;
-			padding: 0.52rem;
-			border-radius: 0.95rem;
-			background: rgba(7, 7, 15, 0.92);
-			border: 1px solid var(--gold-border);
-			backdrop-filter: blur(8px);
-			box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
-		}
-
-		.mobile-actions .mobile-primary {
-			width: 100%;
-		}
-	}
-
-	@media (max-width: 640px) {
-		.page {
-			padding: 1.35rem 0.88rem 7rem;
-		}
-
-		.actions {
-			flex-wrap: wrap;
-		}
-	}
-
-	@keyframes drift {
-		0%,
-		100% {
-			transform: translate3d(0, 0, 0) rotate(0deg);
-		}
-		50% {
-			transform: translate3d(0, -12px, 0) rotate(5deg);
+		.paper {
+			min-height: 360px;
 		}
 	}
 </style>

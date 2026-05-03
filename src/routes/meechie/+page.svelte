@@ -13,38 +13,45 @@ Info flow: Route -> MeechieTools component -> MeechieToolSeam.
 
 <div class="meechie-page">
 	<header class="hero">
-		<p class="eyebrow">Meechie's Full Toolkit</p>
-		<h1>She already knows what it means.</h1>
+		<p class="eyebrow">
+			<span aria-hidden="true">♛</span>
+			Meechie's Full Toolkit
+		</p>
+		<h1>Power as fact.<br />Consequences on record.</h1>
 		<p class="sub">Apology autopsies. Clapbacks. Receipt checks. Verdicts with no soft landing.</p>
+		<div class="hero-rule" aria-hidden="true"></div>
 	</header>
 	<MeechieTools />
 </div>
 
 <style>
 	.meechie-page {
-		max-width: 1180px;
+		max-width: 920px;
 		margin: 0 auto;
-		padding: 2rem 1.2rem 3.5rem;
+		padding: 3rem 1.4rem 4rem;
 	}
 
 	.hero {
-		margin-bottom: 1.2rem;
-		padding: 1.2rem 0.2rem;
+		margin-bottom: 2.5rem;
 	}
 
 	.eyebrow {
-		margin: 0 0 0.55rem;
+		margin: 0 0 1rem;
+		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
 		text-transform: uppercase;
-		letter-spacing: 0.18em;
-		font-size: 0.72rem;
+		letter-spacing: 0.22em;
+		font-size: 0.75rem;
 		font-weight: 700;
 		color: #c9a227;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	h1 {
-		margin: 0 0 0.5rem;
-		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-size: clamp(2rem, 4.5vw, 3.2rem);
+		margin: 0 0 0.85rem;
+		font-family: var(--font-display, 'Fraunces', 'Times New Roman', serif);
+		font-size: clamp(2.2rem, 5vw, 3.6rem);
 		font-style: italic;
 		font-weight: 800;
 		line-height: 0.95;
@@ -53,14 +60,23 @@ Info flow: Route -> MeechieTools component -> MeechieToolSeam.
 	}
 
 	.sub {
-		margin: 0;
+		margin: 0 0 1.5rem;
 		font-size: 1rem;
+		line-height: 1.55;
 		color: #b8aacf;
+		max-width: 480px;
+	}
+
+	.hero-rule {
+		width: 48px;
+		height: 3px;
+		background: linear-gradient(90deg, #e8006a, #c9a227);
+		border-radius: 2px;
 	}
 
 	@media (max-width: 680px) {
 		.meechie-page {
-			padding: 1.2rem 0.85rem 2.6rem;
+			padding: 2rem 1rem 3rem;
 		}
 	}
 </style>

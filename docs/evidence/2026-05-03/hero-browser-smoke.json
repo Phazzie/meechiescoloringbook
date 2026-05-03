@@ -1,0 +1,52 @@
+{
+  "url": "http://127.0.0.1:5173",
+  "results": [
+    {
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "errors": [],
+      "title": "Meechies Coloring Book",
+      "heroLeft": 0,
+      "heroWidth": 1440,
+      "viewportWidth": 1440,
+      "documentWidth": 1440,
+      "noHorizontalOverflow": true,
+      "heroFullBleed": true,
+      "backgroundImage": "linear-gradient(90deg, rgba(7, 7, 15, 0.94), rgba(7, 7, 15, 0.62)), url(\"http://127.0.0.1:5173/meechie/meechie-banner.png\")",
+      "backgroundPosition": "50% 50%, 100% 50%",
+      "settingsOpen": false,
+      "quoteVisible": true,
+      "defaultTitleVisible": true
+    },
+    {
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 900
+      },
+      "errors": [
+        "Failed to load resource: net::ERR_INSUFFICIENT_RESOURCES",
+        "Failed to load resource: net::ERR_INSUFFICIENT_RESOURCES",
+        "Failed to fetch dynamically imported module: http://127.0.0.1:5173/@fs/C:/Users/ieatc/Meechiescoloringbook/node_modules/@sveltejs/kit/src/runtime/client/entry.js"
+      ],
+      "title": "Meechies Coloring Book",
+      "heroLeft": 0,
+      "heroWidth": 390,
+      "viewportWidth": 390,
+      "documentWidth": 390,
+      "noHorizontalOverflow": true,
+      "heroFullBleed": true,
+      "backgroundImage": "linear-gradient(90deg, rgba(7, 7, 15, 0.94), rgba(7, 7, 15, 0.62)), url(\"http://127.0.0.1:5173/meechie/meechie-banner.png\")",
+      "backgroundPosition": "50% 50%, 68% 50%",
+      "settingsOpen": false,
+      "quoteVisible": true,
+      "defaultTitleVisible": true
+    }
+  ],
+  "failed": [
+    "mobile: console errors Failed to load resource: net::ERR_INSUFFICIENT_RESOURCES | Failed to load resource: net::ERR_INSUFFICIENT_RESOURCES | Failed to fetch dynamically imported module: http://127.0.0.1:5173/@fs/C:/Users/ieatc/Meechiescoloringbook/node_modules/@sveltejs/kit/src/runtime/client/entry.js"
+  ]
+}
