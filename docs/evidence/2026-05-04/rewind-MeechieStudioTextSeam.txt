@@ -1,0 +1,13 @@
+# Purpose: Store seam-scoped contract test output for evidence.
+# Why: Provide a focused proof trail for the specified seam.
+# Info flow: vitest output -> evidence file -> review.
+
+
+ RUN  v3.2.4 /app
+
+ ✓ tests/contract/meechie-studio-text.test.ts (3 tests) 7ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  10:08:14
+   Duration  1.39s (transform 184ms, setup 43ms, collect 220ms, tests 7ms, environment 787ms, prepare 92ms)

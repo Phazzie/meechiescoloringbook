@@ -57,6 +57,16 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 			id: 'meechie_explains',
 			label: 'Term Breakdown',
 			help: 'Street glossary in plain language.'
+		},
+		{
+			id: 'rate_excuse',
+			label: 'Rate Excuse',
+			help: 'Rate an excuse out of 10.'
+		},
+		{
+			id: 'random_meechie',
+			label: 'Random Meechie',
+			help: 'Get a random saying.'
 		}
 	] as const;
 
@@ -79,6 +89,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	let momentInput = 'Diamond nails, city lights, and no explanations';
 	let clapbackInput = "She said I'm doing too much.";
 	let explainsInput = 'Situationship';
+	let excuseInput = 'My alarm did not go off.';
 
 	const resetState = (): void => {
 		error = '';
@@ -121,8 +132,14 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 				return { toolId: selectedTool, moment: momentInput };
 			case 'clapback':
 				return { toolId: selectedTool, comment: clapbackInput };
-			default:
+			case 'meechie_explains':
 				return { toolId: selectedTool, term: explainsInput };
+			case 'rate_excuse':
+				return { toolId: selectedTool, excuse: excuseInput };
+			case 'random_meechie':
+				return { toolId: selectedTool };
+			default:
+				return { toolId: 'meechie_explains', term: explainsInput } as any;
 		}
 	};
 
@@ -222,9 +239,14 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		{:else if selectedTool === 'clapback'}
 			<label class="label" for="comment">What they said</label>
 			<textarea id="comment" bind:value={clapbackInput} rows="2"></textarea>
-		{:else}
+		{:else if selectedTool === 'meechie_explains'}
 			<label class="label" for="term">Term</label>
 			<input id="term" bind:value={explainsInput} />
+		{:else if selectedTool === 'rate_excuse'}
+			<label class="label" for="excuse">Excuse</label>
+			<input id="excuse" bind:value={excuseInput} />
+		{:else if selectedTool === 'random_meechie'}
+			<p class="help">No input needed. Just press the button.</p>
 		{/if}
 	</section>
 

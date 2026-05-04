@@ -129,8 +129,12 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}, 300);
 	};
 
+	let isSavingDraft = false;
 	const saveDraft = async (): Promise<void> => {
-		await creationStoreAdapter.saveDraft({
+		if (isSavingDraft) return;
+		isSavingDraft = true;
+		try {
+			await creationStoreAdapter.saveDraft({
 			draft: {
 				updatedAtISO: new Date().toISOString(),
 				intent: spec,
@@ -138,6 +142,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				studioText: textOutput ?? undefined
 			}
 		});
+		} finally {
+			isSavingDraft = false;
+		}
 	};
 
 	const validateSpec = async (): Promise<boolean> => {
@@ -293,16 +300,21 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		copyStatus = 'Quote copied.';
 	};
 
+	let isSaving = false;
 	const saveToVault = async (): Promise<void> => {
+		if (isSaving) return;
 		if (!owner || !textOutput) {
 			vaultStatus = 'Session is still connecting. Try again in a moment.';
 			return;
 		}
+		isSaving = true;
+		vaultStatus = 'Saving...';
 		const creationId = generateCreationId();
 		const storedImages = images.map((image) => ({
 			b64: image.encoding === 'base64' ? image.data : encodeBase64(image.data)
 		}));
-		const result = await creationStoreAdapter.saveCreation({
+		try {
+			const result = await creationStoreAdapter.saveCreation({
 			record: {
 				id: creationId,
 				createdAtISO: new Date().toISOString(),
@@ -319,6 +331,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		});
 		vaultStatus = result.ok ? 'Saved to the quote vault.' : result.error.message;
 		await refreshCreations();
+		} finally {
+			isSaving = false;
+		}
 	};
 
 	const refreshCreations = async (): Promise<void> => {
@@ -565,7 +580,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					<button type="button" disabled>{getStudioAction('export_png').label}</button>
 				{/if}
 				<button type="button" on:click={copyQuote} disabled={!textOutput}>{getStudioAction('copy_quote').label}</button>
-				<button type="button" on:click={saveToVault} disabled={!textOutput}>{getStudioAction('save_to_vault').label}</button>
+				<button type="button" on:click={saveToVault} disabled={!textOutput || isSaving}>{getStudioAction('save_to_vault').label}</button>
 			</div>
 
 			{#if copyStatus || vaultStatus}

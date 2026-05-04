@@ -1,7 +1,7 @@
 {
   "tool": "clan-chain",
-  "generatedAt": "2026-05-04T07:23:13.545Z",
-  "evidenceDir": "docs\\evidence\\2026-05-04",
+  "generatedAt": "2026-05-04T18:00:02.189Z",
+  "evidenceDir": "docs/evidence/2026-05-04",
   "clean": [
     {
       "seam": "AppConfigSeam",
