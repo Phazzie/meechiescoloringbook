@@ -5,8 +5,8 @@ Info flow: seam ledger -> chain summary -> review.
 -->
 # Clan Chain
 
-Generated at: 2026-05-04T07:23:13.545Z
-Evidence folder: docs\evidence\2026-05-04
+Generated at: 2026-05-04T10:20:09.670Z
+Evidence folder: docs/evidence/2026-05-04
 
 Clean seams:
 - AppConfigSeam (owner: hbpheonix)

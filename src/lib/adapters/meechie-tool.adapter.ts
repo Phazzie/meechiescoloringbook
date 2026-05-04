@@ -99,9 +99,13 @@ const rateExcuse = (
 	return match ?? pack.responses.excuseRatingFallback;
 };
 
+let sayingIndex = 0;
 const randomSaying = (pack: MeechieVoicePack): string => {
 	const sayings = pack.responses.randomSayings;
-	return sayings[Math.floor(Math.random() * sayings.length)];
+	// Use deterministic rotation instead of Math.random
+	const saying = sayings[sayingIndex % sayings.length];
+	sayingIndex++;
+	return saying;
 };
 
 const horoscopeHeadline = (pack: MeechieVoicePack, sign: string): string =>

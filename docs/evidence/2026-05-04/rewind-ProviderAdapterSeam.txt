@@ -1,0 +1,13 @@
+# Purpose: Store seam-scoped contract test output for evidence.
+# Why: Provide a focused proof trail for the specified seam.
+# Info flow: vitest output -> evidence file -> review.
+
+
+ RUN  v3.2.4 /app
+
+ ✓ tests/contract/provider-adapter.test.ts (4 tests) 27ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  10:15:12
+   Duration  1.60s (transform 200ms, setup 48ms, collect 236ms, tests 27ms, environment 873ms, prepare 113ms)
