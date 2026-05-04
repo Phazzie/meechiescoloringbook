@@ -1,97 +1,97 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-05-04T10:20:09.919Z",
+  "generatedAt": "2026-05-04T18:00:02.422Z",
   "evidenceDir": "docs/evidence/2026-05-04",
   "files": [
     {
       "name": "assumption-alarm.json",
       "path": "docs/evidence/2026-05-04/assumption-alarm.json",
       "sizeBytes": 2297,
-      "modifiedAt": "2026-05-04T10:20:09.172Z",
+      "modifiedAt": "2026-05-04T18:00:01.728Z",
       "commands": []
     },
     {
       "name": "chamber-lock.json",
       "path": "docs/evidence/2026-05-04/chamber-lock.json",
       "sizeBytes": 16122,
-      "modifiedAt": "2026-05-04T10:19:06.948Z",
+      "modifiedAt": "2026-05-04T17:58:58.124Z",
       "commands": []
     },
     {
       "name": "clan-chain.json",
       "path": "docs/evidence/2026-05-04/clan-chain.json",
       "sizeBytes": 1497,
-      "modifiedAt": "2026-05-04T10:20:09.668Z",
+      "modifiedAt": "2026-05-04T18:00:02.184Z",
       "commands": []
     },
     {
       "name": "clan-chain.md",
       "path": "docs/evidence/2026-05-04/clan-chain.md",
       "sizeBytes": 993,
-      "modifiedAt": "2026-05-04T10:20:09.668Z",
+      "modifiedAt": "2026-05-04T18:00:02.188Z",
       "commands": []
     },
     {
       "name": "proof-tape.json",
       "path": "docs/evidence/2026-05-04/proof-tape.json",
-      "sizeBytes": 3291,
-      "modifiedAt": "2026-05-04T10:18:00.816Z",
+      "sizeBytes": 3292,
+      "modifiedAt": "2026-05-04T10:22:17.632Z",
       "commands": []
     },
     {
       "name": "proof-tape.md",
       "path": "docs/evidence/2026-05-04/proof-tape.md",
-      "sizeBytes": 1032,
-      "modifiedAt": "2026-05-04T10:18:00.816Z",
+      "sizeBytes": 1033,
+      "modifiedAt": "2026-05-04T10:22:17.632Z",
       "commands": []
     },
     {
       "name": "rewind-MeechieStudioTextSeam.txt",
       "path": "docs/evidence/2026-05-04/rewind-MeechieStudioTextSeam.txt",
       "sizeBytes": 447,
-      "modifiedAt": "2026-05-04T10:08:16.276Z",
+      "modifiedAt": "2026-05-04T10:22:17.632Z",
       "commands": []
     },
     {
       "name": "rewind-MeechieToolSeam.txt",
       "path": "docs/evidence/2026-05-04/rewind-MeechieToolSeam.txt",
       "sizeBytes": 443,
-      "modifiedAt": "2026-05-04T10:10:12.368Z",
+      "modifiedAt": "2026-05-04T10:22:17.632Z",
       "commands": []
     },
     {
       "name": "rewind-ProviderAdapterSeam.txt",
       "path": "docs/evidence/2026-05-04/rewind-ProviderAdapterSeam.txt",
       "sizeBytes": 447,
-      "modifiedAt": "2026-05-04T10:15:14.672Z",
+      "modifiedAt": "2026-05-04T10:22:17.632Z",
       "commands": []
     },
     {
       "name": "seam-ledger.json",
       "path": "docs/evidence/2026-05-04/seam-ledger.json",
       "sizeBytes": 17135,
-      "modifiedAt": "2026-05-04T10:20:09.428Z",
+      "modifiedAt": "2026-05-04T18:00:01.964Z",
       "commands": []
     },
     {
       "name": "seam-ledger.md",
       "path": "docs/evidence/2026-05-04/seam-ledger.md",
       "sizeBytes": 1518,
-      "modifiedAt": "2026-05-04T10:20:09.428Z",
+      "modifiedAt": "2026-05-04T18:00:01.968Z",
       "commands": []
     },
     {
       "name": "shaolin-lint.json",
       "path": "docs/evidence/2026-05-04/shaolin-lint.json",
       "sizeBytes": 519,
-      "modifiedAt": "2026-05-04T10:20:08.920Z",
+      "modifiedAt": "2026-05-04T18:00:01.500Z",
       "commands": []
     },
     {
       "name": "test.txt",
       "path": "docs/evidence/2026-05-04/test.txt",
-      "sizeBytes": 3542,
-      "modifiedAt": "2026-05-04T10:20:08.632Z",
+      "sizeBytes": 3547,
+      "modifiedAt": "2026-05-04T18:00:01.248Z",
       "commands": [
         "meechies-coloringbook@0.1.0 test",
         "vitest run --pool=forks --maxWorkers=1"
@@ -100,8 +100,8 @@
     {
       "name": "verify.txt",
       "path": "docs/evidence/2026-05-04/verify.txt",
-      "sizeBytes": 3801,
-      "modifiedAt": "2026-05-04T10:20:08.632Z",
+      "sizeBytes": 3806,
+      "modifiedAt": "2026-05-04T18:00:01.248Z",
       "commands": [
         "meechies-coloringbook@0.1.0 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
