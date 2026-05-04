@@ -51,7 +51,9 @@ describe('SYSTEM_CONSTANTS', () => {
 
 		it('contains known safety keywords', () => {
 			const keywords = SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS;
+			expect(keywords).toContain('sexual');
 			expect(keywords).toContain('nude');
+			expect(keywords).toContain('explicit');
 			expect(keywords).toContain('minors');
 			expect(keywords).toContain('self-harm');
 		});
