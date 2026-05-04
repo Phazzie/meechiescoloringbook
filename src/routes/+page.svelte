@@ -438,6 +438,17 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		</div>
 	</section>
 
+	<section class="modes" aria-label="Choose a mode">
+		<a href="/m/who-fucked-up" class="mode-card mode-wfu"><span class="mode-icon" aria-hidden="true">👁</span><div class="mode-body"><h2>Who Fucked Up</h2><p>Describe what happened. Meechie tells you exactly what it means.</p></div><span class="mode-arrow">→</span></a>
+		<a href="/m/rate-his-excuse" class="mode-card mode-rhe"><span class="mode-icon" aria-hidden="true">⚖</span><div class="mode-body"><h2>Rate His Excuse</h2><p>Drop the excuse. Meechie scores it. Court is in session.</p></div><span class="mode-arrow">→</span></a>
+		<a href="/m/apology-translator" class="mode-card mode-random"><span class="mode-icon" aria-hidden="true">📝</span><div class="mode-body"><h2>Apology Translator</h2><p>Paste it in. Get the real translation back.</p></div><span class="mode-arrow">→</span></a>
+		<a href="/m/random" class="mode-card mode-random"><span class="mode-icon" aria-hidden="true">✦</span><div class="mode-body"><h2>Random Meechie</h2><p>One tap. One truth. No context required.</p></div><span class="mode-arrow">→</span></a>
+		<a href="/m/caption-this" class="mode-card mode-wfu"><span class="mode-icon" aria-hidden="true">📸</span><div class="mode-body"><h2>Caption This</h2><p>Describe the moment. Get a statement caption.</p></div><span class="mode-arrow">→</span></a>
+		<a href="/m/receipts" class="mode-card mode-rhe"><span class="mode-icon" aria-hidden="true">🧾</span><div class="mode-body"><h2>Receipts</h2><p>Claim versus reality with line-by-line pressure.</p></div><span class="mode-arrow">→</span></a>
+		<a href="/m/clapback" class="mode-card mode-random"><span class="mode-icon" aria-hidden="true">💥</span><div class="mode-body"><h2>Clapback</h2><p>Bring their line. Leave with yours.</p></div><span class="mode-arrow">→</span></a>
+		<a href="/m/what-would-meechie-do" class="mode-card mode-wfu"><span class="mode-icon" aria-hidden="true">🧠</span><div class="mode-body"><h2>What Would Meechie Do?</h2><p>Give the dilemma and get Meechie's move.</p></div><span class="mode-arrow">→</span></a>
+	</section>
+
 	<section class="mode-strip" aria-label="Choose a Meechie mode">
 		{#each studioModes as mode}
 			<button

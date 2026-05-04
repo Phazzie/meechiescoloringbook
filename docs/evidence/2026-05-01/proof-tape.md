@@ -5,8 +5,8 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-05-02T00:54:36.247Z
-Evidence folder: docs/evidence/2026-05-02
+Generated at: 2026-05-01T00:35:08.125Z
+Evidence folder: docs/evidence/2026-05-01
 
 Files included:
 - assumption-alarm.json (2297 bytes)
@@ -15,9 +15,9 @@ Files included:
 - clan-chain.md (1070 bytes)
 - seam-ledger.json (16187 bytes)
 - seam-ledger.md (1416 bytes)
-- shaolin-lint.json (639 bytes)
-- test.txt (5564 bytes)
+- shaolin-lint.json (579 bytes)
+- test.txt (3336 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run
-- verify.txt (5847 bytes)
+- verify.txt (3680 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run
 

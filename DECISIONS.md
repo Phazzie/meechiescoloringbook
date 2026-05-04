@@ -1499,23 +1499,23 @@ Short, durable decisions with context and tradeoffs.
   - Summary: Fixed demo-blocking localStorage failures in test setup, repaired Windows evidence capture for seam rewind and full verification, and pinned the Vercel runtime to Node 22.
   - Risks: Future database/auth work should replace this with contract-backed database fixtures instead of expanding browser storage behavior. Local production build output still depends on Windows symlink support for adapter-vercel.
 
-## 2026-05-03 - Preserve Meechie studio text across drafts and vault reload
-- Date: 2026-05-03
-- Decision: Store an optional Meechie studio text snapshot on CreationStoreSeam draft and creation records, and normalize AI-generated page labels before building ColoringPageSpec values.
-- Context: Review found that refreshes dropped generated Meechie words, vault reloads could display the image-generation prompt as the quote, and valid MeechieStudioTextSeam output could still violate SpecValidationSeam label limits.
-- Alternatives: Add only page-level fallbacks without changing CreationStoreSeam; rejected because new vault/draft records need a durable quote/title/items snapshot. Make `studioText` required; rejected because existing localStorage records would fail schema parsing.
-- Consequences: New records keep `assembledPrompt` for image diagnostics and `studioText` for user-facing Meechie copy. Existing draft/creation records still parse, with best-effort text rebuilt from the saved coloring-page spec.
-- Revisit criteria: Revisit when durable server storage replaces browser storage, or when CreationStoreSeam gains a separate evidence field.
+## 2026-05-01 - Meechie tool response framing hardening
+- Date: 2026-05-01
+- Decision: Strengthen deterministic response generators in `MeechieToolSeam` with explicit evidence-pattern commentary, weak-apology translation logic, social-role/object/place/consequence formatting, and fault/consequence framing.
+- Context: Tool outputs were deterministic but too generic in several branches (`rate_excuse`, fallback apology, caption/clapback/receipts, wwmd/red_flag_or_run).
+- Alternatives: Move wording logic into UI components; rejected because seam behavior must remain testable in adapter/core modules.
+- Consequences: The adapter now performs deterministic classification and response shaping directly, and unit tests lock the new output structure.
+- Revisit criteria: Revisit when voice-pack contract adds structured fields for social role/place/consequence so formatting can be fully data-driven.
 - Plan:
-  - Goal: Fix review regressions for draft rehydration, vault quote preservation, and invalid AI labels.
-  - Seams: CreationStoreSeam, MeechieStudioTextSeam, SpecValidationSeam.
-  - Files: `contracts/creation-store.contract.ts`, `fixtures/creation-store/sample.json`, `tests/contract/creation-store.test.ts`, `src/lib/core/meechie-studio.ts`, `tests/unit/meechie-studio.test.ts`, `src/routes/+page.svelte`, `scripts/verify-runner.mjs`, `docs/seams.md`, `DECISIONS.md`.
-  - Commands: `$env:NODE_OPTIONS="--max-old-space-size=8192"; npm.cmd test -- tests/unit/meechie-studio.test.ts tests/contract/creation-store.test.ts --pool=forks --maxWorkers=1`, `$env:NODE_OPTIONS="--max-old-space-size=8192"; npm.cmd run check`, `$env:NODE_OPTIONS="--max-old-space-size=8192"; npm.cmd test`, `$env:NODE_OPTIONS="--max-old-space-size=8192"; npm.cmd run verify`, `npm.cmd run cipher:gate`.
-- Self-critique: Optional `studioText` keeps old records readable but cannot recover the exact quote from old vault entries that only stored a long image prompt. The durable fix starts with new saves; old records use the coloring-page title/items as fallback.
+  - Goal: Improve selected tool responses while preserving deterministic behavior.
+  - Seams: MeechieToolSeam, MeechieVoiceSeam.
+  - Files: `src/lib/adapters/meechie-tool.adapter.ts`, `tests/unit/meechie-tool-adapter.responses.test.ts`, `DECISIONS.md`, `plan.md`.
+  - Commands: `npm test -- tests/unit/meechie-tool-adapter.responses.test.ts`, `npm test -- tests/contract/meechie-tool.test.ts`, `npm test`, `npm run verify`.
+- Self-critique: Pattern matching may overfit ambiguous text; tests focus on representative phrasing and deterministic presence of structure markers.
 
 - Cipher Gate:
-  - Date: 2026-05-03
-  - Seams: CreationStoreSeam, MeechieStudioTextSeam, SpecValidationSeam
-  - Evidence: docs/evidence/2026-05-03/targeted-review-regressions.txt; docs/evidence/2026-05-03/check.txt; docs/evidence/2026-05-03/test.txt; docs/evidence/2026-05-03/verify.txt
-  - Summary: Added optional `studioText` snapshots for draft/vault reloads, kept image prompts separate from Meechie quotes, normalized generated labels before spec validation, and constrained verify-runner's Vitest worker count to avoid Windows native worker OOM during evidence capture.
-  - Risks: Legacy vault entries that already stored only image prompts cannot recover the original quote; they remain readable with best-effort fallback.
+  - Date: 2026-05-01
+  - Seams: MeechieToolSeam, MeechieVoiceSeam
+  - Evidence: docs/evidence/2026-05-01/ (generated by `npm run verify`) plus targeted test command output in terminal session.
+  - Summary: Tightened tool-response framing and deterministic commentary logic in adapter layer, then validated with targeted tests, full test suite, and verify.
+  - Risks: Additional keyword heuristics may need refinement if false-positive phrase matching appears in future fixture updates.

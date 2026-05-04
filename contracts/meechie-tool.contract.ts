@@ -104,11 +104,36 @@ export const MeechieToolInputSchema = z.discriminatedUnion('toolId', [
 	RandomMeechieInputSchema
 ]);
 
+const MeechieQuoteSubscoreSchema = z.object({
+	key: NonEmptyStringSchema,
+	max: z.number().int().min(1),
+	score: z.number().int().min(0),
+	reason: NonEmptyStringSchema
+});
+
+const MeechieQuotePenaltySchema = z.object({
+	key: NonEmptyStringSchema,
+	points: z.number().int().min(1),
+	reason: NonEmptyStringSchema
+});
+
+const MeechieQuoteScoreDetailsSchema = z.object({
+	quote: NonEmptyStringSchema,
+	totalBeforePenalties: z.number().int().min(0).max(100),
+	totalPenalty: z.number().int().min(0),
+	totalScore: z.number().int().min(0).max(100),
+	band: z.enum(['Approved', 'Revise', 'Rewrite', 'Reject']),
+	subscores: z.array(MeechieQuoteSubscoreSchema).length(10),
+	penalties: z.array(MeechieQuotePenaltySchema),
+	reasons: z.array(NonEmptyStringSchema)
+});
+
 export const MeechieToolOutputSchema = z.object({
 	toolId: MeechieToolIdSchema,
 	headline: NonEmptyStringSchema,
 	response: NonEmptyStringSchema,
-	rating: z.number().int().min(1).max(10).optional()
+	rating: z.number().int().min(1).max(10).optional(),
+	quoteScore: MeechieQuoteScoreDetailsSchema.optional()
 });
 
 export const MeechieToolResultSchema = resultSchema(MeechieToolOutputSchema);

@@ -1,6 +1,6 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-05-02T00:54:13.418Z",
+  "generatedAt": "2026-05-04T08:49:44.027Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -471,6 +471,42 @@
       ]
     },
     {
+      "seam": "MeechieStudioTextSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "contracts/meechie-studio-text.contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "N/A (pure provider composition)",
+          "status": "na"
+        },
+        {
+          "kind": "fixtures",
+          "path": "fixtures/meechie-studio-text/",
+          "status": "ok"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/mocks/meechie-studio-text.mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "tests/contract/meechie-studio-text.test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/meechie-studio-text.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
       "seam": "ProviderAdapterSeam",
       "status": "ok",
       "checks": [
@@ -616,7 +652,7 @@
     }
   ],
   "summary": {
-    "ok": 17,
+    "ok": 18,
     "blocked": 0,
     "missing": 0,
     "overallStatus": "ok"

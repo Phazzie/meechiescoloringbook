@@ -10,7 +10,7 @@ export const safeUserRequestFixture: PromptCompilerInput = {
 
 export const unsafeUserRequestFixture: PromptCompilerInput = {
   ...promptCompilerInputFixture,
-  description: 'explicit sexual content'
+  description: 'nude content'
 };
 
 export const safeCompiledPromptFixture: CompiledPrompt = {

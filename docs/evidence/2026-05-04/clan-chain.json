@@ -1,7 +1,7 @@
 {
   "tool": "clan-chain",
-  "generatedAt": "2026-05-02T00:54:36.094Z",
-  "evidenceDir": "docs/evidence/2026-05-02",
+  "generatedAt": "2026-05-04T08:51:26.463Z",
+  "evidenceDir": "docs/evidence/2026-05-04",
   "clean": [
     {
       "seam": "AppConfigSeam",
@@ -70,6 +70,11 @@
     },
     {
       "seam": "MeechieToolSeam",
+      "owner": "hbpheonix",
+      "status": "na"
+    },
+    {
+      "seam": "MeechieStudioTextSeam",
       "owner": "hbpheonix",
       "status": "na"
     },

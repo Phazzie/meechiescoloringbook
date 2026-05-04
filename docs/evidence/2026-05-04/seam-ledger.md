@@ -5,7 +5,7 @@ Info flow: seam checks -> ledger table -> review.
 -->
 # Seam Ledger
 
-Generated at: 2026-05-02T00:54:35.942Z
+Generated at: 2026-05-04T08:51:26.067Z
 
 | Seam | Status | Contract | Probe | Fixtures | Mock | Tests | Adapter |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -22,6 +22,7 @@ Generated at: 2026-05-02T00:54:35.942Z
  DriftDetectionSeam | — | ✅ | — | ✅ | ✅ | ✅ | ✅ 
  MeechieVoiceSeam | — | ✅ | — | ✅ | ✅ | ✅ | ✅ 
  MeechieToolSeam | — | ✅ | — | ✅ | ✅ | ✅ | ✅ 
+ MeechieStudioTextSeam | — | ✅ | — | ✅ | ✅ | ✅ | ✅ 
  ProviderAdapterSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ 
  OutputPackagingSeam | — | ✅ | — | ✅ | ✅ | ✅ | ✅ 
  SessionSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ 

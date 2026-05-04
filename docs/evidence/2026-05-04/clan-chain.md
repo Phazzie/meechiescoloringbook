@@ -5,8 +5,8 @@ Info flow: seam ledger -> chain summary -> review.
 -->
 # Clan Chain
 
-Generated at: 2026-05-02T00:54:36.094Z
-Evidence folder: docs/evidence/2026-05-02
+Generated at: 2026-05-04T08:51:26.463Z
+Evidence folder: docs/evidence/2026-05-04
 
 Clean seams:
 - AppConfigSeam (owner: hbpheonix)
@@ -26,6 +26,7 @@ Dirty seams:
 - DriftDetectionSeam (owner: hbpheonix, status: na)
 - MeechieVoiceSeam (owner: hbpheonix, status: na)
 - MeechieToolSeam (owner: hbpheonix, status: na)
+- MeechieStudioTextSeam (owner: hbpheonix, status: na)
 - OutputPackagingSeam (owner: hbpheonix, status: na)
 - SpecValidationSeam (owner: hbpheonix, status: na)
 

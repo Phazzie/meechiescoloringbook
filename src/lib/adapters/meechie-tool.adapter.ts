@@ -9,6 +9,7 @@ import type {
 import type { MeechieVoicePack } from '../../../contracts/meechie-voice.contract';
 import type { Result } from '../../../contracts/shared.contract';
 import { meechieVoiceAdapter } from './meechie-voice.adapter';
+import { selectBestMeechieQuote } from '$lib/core/meechie-quote-scoring';
 
 const normalize = (value: string): string => value.trim().replace(/\s+/g, ' ');
 
@@ -39,12 +40,21 @@ const classifyRedFlag = (
 	const { runKeywords, flagKeywords, runResponse, flagResponse, defaultResponse } =
 		pack.responses.redFlagOrRun;
 	if (runKeywords.some((keyword) => normalized.includes(keyword))) {
-		return runResponse;
+		return {
+			headline: runResponse.headline,
+			response: `Fault: them. Consequence: they lose access immediately. ${runResponse.response}`
+		};
 	}
 	if (flagKeywords.some((keyword) => normalized.includes(keyword))) {
-		return flagResponse;
+		return {
+			headline: flagResponse.headline,
+			response: `Fault: them. Consequence: probation until evidence improves. ${flagResponse.response}`
+		};
 	}
-	return defaultResponse;
+	return {
+		headline: defaultResponse.headline,
+		response: `Fault: unknown until facts arrive. Consequence: no upgrade without proof. ${defaultResponse.response}`
+	};
 };
 
 type WwmdTrigger = MeechieVoicePack['responses']['wwmd']['triggers'][number];
@@ -59,27 +69,64 @@ const matchesTrigger = (normalized: string, trigger: WwmdTrigger): boolean => {
 	return true;
 };
 
+const evidencePattern = (text: string): string => {
+	const normalized = toKey(text);
+	if (/(?:screenshot|receipts|proof|timestamp)/.test(normalized)) return 'timestamp and screenshot trail';
+	if (/(?:location|live|map|pin)/.test(normalized)) return 'location trail';
+	if (/(?:left on read|seen|delivered)/.test(normalized)) return 'read-receipt trail';
+	return 'story has no verifiable trail';
+};
+
+const whoFault = (text: string): string => {
+	const normalized = toKey(text);
+	if (/(?:i was|i did|my bad|i forgot)/.test(normalized)) return 'you';
+	if (/(?:he |she |they |him |her )/.test(normalized)) return 'them';
+	return 'both sides';
+};
+
 const wwmdResponse = (pack: MeechieVoicePack, dilemma: string): string => {
 	const normalized = toKey(dilemma);
 	const match = pack.responses.wwmd.triggers.find((trigger) => matchesTrigger(normalized, trigger));
-	return match ? match.response : pack.responses.wwmd.fallback;
+	if (match) {
+		return `Fault: ${whoFault(dilemma)}. Consequence: protect access, not feelings. Move: ${match.response}`;
+	}
+	return `Fault: ${whoFault(dilemma)}. Consequence: no boundary means repeated behavior. Move: ${pack.responses.wwmd.fallback}`;
 };
 
-const captionResponse = (pack: MeechieVoicePack, moment: string): string =>
-	applyTemplate(pack.responses.caption.template, { moment: normalize(moment) });
+const structuredSocialFrame = (subject: string, detail: string, consequence: string): string =>
+	`Role: ${subject}. Object: ${detail}. Place: timeline and real life. Consequence: ${consequence}.`;
 
-const clapbackResponse = (pack: MeechieVoicePack, comment: string): string =>
-	applyTemplate(pack.responses.clapback.template, { comment: normalize(comment) });
+const captionResponse = (pack: MeechieVoicePack, moment: string): string => {
+	const cleanMoment = normalize(moment);
+	const base = applyTemplate(pack.responses.caption.template, { moment: cleanMoment });
+	return `${base} ${structuredSocialFrame('main character', cleanMoment, 'watchers get commentary, not access')}`;
+};
 
-const receiptsResponse = (pack: MeechieVoicePack, claim: string, reality: string): string =>
-	applyTemplate(pack.responses.receipts.template, {
-		claim: normalize(claim),
-		reality: normalize(reality)
+const clapbackResponse = (pack: MeechieVoicePack, comment: string): string => {
+	const cleanComment = normalize(comment);
+	const base = applyTemplate(pack.responses.clapback.template, { comment: cleanComment });
+	return `${base} ${structuredSocialFrame('critic', cleanComment, 'cheap shots lose priority seating')}`;
+};
+
+const receiptsResponse = (pack: MeechieVoicePack, claim: string, reality: string): string => {
+	const cleanClaim = normalize(claim);
+	const cleanReality = normalize(reality);
+	const base = applyTemplate(pack.responses.receipts.template, {
+		claim: cleanClaim,
+		reality: cleanReality
 	});
+	return `${base} ${structuredSocialFrame('speaker vs facts', `${cleanClaim} / ${cleanReality}`, 'evidence wins and access gets adjusted')}`;
+};
 
 const apologyResponse = (pack: MeechieVoicePack, apology: string): string => {
 	const key = toKey(apology);
-	return pack.responses.apologyTranslator.exactMap[key] ?? pack.responses.apologyTranslator.fallback;
+	const mapped = pack.responses.apologyTranslator.exactMap[key];
+	if (mapped) return mapped;
+	const weakStructure = /sorry you feel|if i hurt|mistakes were made|didn't mean/.test(key);
+	if (weakStructure) {
+		return 'Translation: you centered optics, not impact. Meechie logic: name the act, name the harm, offer repair, and accept the consequence window.';
+	}
+	return `${pack.responses.apologyTranslator.fallback} Meechie logic: apology must include action, repayment, and timeline.`;
 };
 
 const explainsResponse = (pack: MeechieVoicePack, term: string): string => {
@@ -96,13 +143,20 @@ const rateExcuse = (
 	const match = pack.responses.excuseRatings.find((r) =>
 		r.keywords.some((keyword) => normalized.includes(keyword))
 	);
-	return match ?? pack.responses.excuseRatingFallback;
+	if (!match) {
+		return {
+			...pack.responses.excuseRatingFallback,
+			commentary: `${pack.responses.excuseRatingFallback.commentary} Evidence pattern: ${evidencePattern(excuse)}.`
+		};
+	}
+	return {
+		...match,
+		commentary: `${match.commentary} Evidence pattern: ${evidencePattern(excuse)}.`
+	};
 };
 
-const randomSaying = (pack: MeechieVoicePack): string => {
-	const sayings = pack.responses.randomSayings;
-	return sayings[Math.floor(Math.random() * sayings.length)];
-};
+const curatedSaying = (pack: MeechieVoicePack) =>
+	selectBestMeechieQuote(pack.responses.quotes.map((quote) => quote.text));
 
 const horoscopeHeadline = (pack: MeechieVoicePack, sign: string): string =>
 	applyTemplate(pack.responses.headlines.horoscopeTemplate, { sign });
@@ -223,13 +277,14 @@ export const meechieToolAdapter: MeechieToolSeam = {
 				};
 			}
 			case 'random_meechie': {
-				const saying = randomSaying(pack);
+				const scored = curatedSaying(pack);
 				return {
 					ok: true,
 					value: {
 						toolId: input.toolId,
 						headline: 'Random Meechie',
-						response: saying
+						response: scored.quote,
+						quoteScore: scored
 					}
 				};
 			}
