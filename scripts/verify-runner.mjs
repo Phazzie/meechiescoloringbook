@@ -5,6 +5,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
+import { sanitizeEvidenceOutput } from './evidence-reporting.mjs';
 
 const ROOT = process.cwd();
 
@@ -16,12 +17,20 @@ const ensureEvidenceDir = async (dateFolder) => {
 	return evidenceDir;
 };
 
+/**
+ * @param {string} command
+ * @param {string[]} args
+ * @returns {{ output: string; status: number }}
+ */
 const runCommand = (command, args) => {
 	const commandLine = [command, ...args].join(' ');
-	const result = spawnSync(commandLine, {
+	const executable = process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : command;
+	const executableArgs =
+		process.platform === 'win32' ? ['/d', '/s', '/c', commandLine] : args;
+	const result = spawnSync(executable, executableArgs, {
 		cwd: ROOT,
 		encoding: 'utf8',
-		shell: true
+		shell: false
 	});
 	const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
 	process.stdout.write(output);
@@ -55,9 +64,21 @@ const run = async () => {
 	const checkResult = runCommand('npm', ['run', 'check']);
 	const testResult = runCommand('npm', ['test', '--', '--pool=forks', '--maxWorkers=1']);
 
-	const verifyOutput = `${checkResult.output}\n${testResult.output}`.trim();
-	await fs.writeFile(verifyPath, `${verifyHeader}\n${verifyOutput}\n`, 'utf8');
-	await fs.writeFile(testPath, `${testHeader}\n${testResult.output.trim()}\n`, 'utf8');
+	const verifyOutput = [
+		'$ npm run verify',
+		'',
+		'$ npm run check',
+		checkResult.output,
+		'$ npm test -- --pool=forks --maxWorkers=1',
+		testResult.output
+	].join('\n');
+	const sanitizedVerifyOutput = sanitizeEvidenceOutput(ROOT, verifyOutput).trim();
+	const sanitizedTestOutput = sanitizeEvidenceOutput(
+		ROOT,
+		`$ npm test -- --pool=forks --maxWorkers=1\n${testResult.output}`
+	).trim();
+	await fs.writeFile(verifyPath, `${verifyHeader}\n${sanitizedVerifyOutput}\n`, 'utf8');
+	await fs.writeFile(testPath, `${testHeader}\n${sanitizedTestOutput}\n`, 'utf8');
 
 	if (checkResult.status !== 0 || testResult.status !== 0) {
 		process.exit(1);
