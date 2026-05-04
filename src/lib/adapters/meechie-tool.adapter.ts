@@ -80,7 +80,7 @@ const evidencePattern = (text: string): string => {
 const whoFault = (text: string): string => {
 	const normalized = toKey(text);
 	if (/(?:i was|i did|my bad|i forgot)/.test(normalized)) return 'you';
-	if (/(?:he |she |they |him |her )/.test(normalized)) return 'them';
+	if (/\b(?:he|she|they|him|her)\b/.test(normalized)) return 'them';
 	return 'both sides';
 };
 
@@ -156,7 +156,9 @@ const rateExcuse = (
 };
 
 const curatedSaying = (pack: MeechieVoicePack) =>
-	selectBestMeechieQuote(pack.responses.quotes.map((quote) => quote.text));
+	selectBestMeechieQuote(
+		pack.responses.quotes.filter((q) => q.coloringPageReady).map((q) => q.text)
+	);
 
 const horoscopeHeadline = (pack: MeechieVoicePack, sign: string): string =>
 	applyTemplate(pack.responses.headlines.horoscopeTemplate, { sign });

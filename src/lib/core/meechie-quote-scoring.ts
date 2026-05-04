@@ -46,12 +46,13 @@ export type MeechieQuoteScoreDetails = {
 const bannedPhrases = ['live laugh love', 'good vibes only', 'know your worth'];
 const genericEmpowermentPhrases = ['you got this', 'be yourself', 'stay strong', 'keep going'];
 const concreteRoleWords = ['landlord', 'mama', 'phone', 'location', 'club', 'apartment', 'birthday', 'easter'];
-const consequenceWords = ['or', 'unless', 'watch', 'then', 'consequence', 'lose', 'locked'];
+const consequenceWords = ['unless', 'watch', 'then', 'consequence', 'lose', 'locked'];
 const therapyVagueWords = ['healing', 'journey', 'energy', 'alignment', 'growth'];
 
 const normalize = (value: string): string => value.trim().toLowerCase();
 
-const hasAny = (text: string, words: string[]): boolean => words.some((w) => text.includes(w));
+const hasAny = (text: string, words: string[]): boolean =>
+	words.some((w) => new RegExp(`\\b${w}\\b`).test(text));
 
 const withBound = (score: number, max: number): number => Math.max(0, Math.min(max, score));
 
