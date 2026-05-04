@@ -80,7 +80,7 @@ const evidencePattern = (text: string): string => {
 const whoFault = (text: string): string => {
 	const normalized = toKey(text);
 	if (/(?:i was|i did|my bad|i forgot)/.test(normalized)) return 'you';
-	if (/\b(he|she|they|him|her)\b/.test(normalized)) return 'them';
+	if (/\b(?:he|she|they|him|her)\b/.test(normalized)) return 'them';
 	return 'both sides';
 };
 
