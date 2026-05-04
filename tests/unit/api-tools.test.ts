@@ -24,7 +24,7 @@ describe('/api/tools', () => {
 		const response = await POST(
 			buildEvent({
 				toolId: 'apology_translator',
-				apology: 'This is explicit content.'
+				apology: 'This is nude content.'
 			})
 		);
 		const payload = await response.json();

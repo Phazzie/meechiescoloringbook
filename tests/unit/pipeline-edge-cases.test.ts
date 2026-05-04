@@ -250,7 +250,7 @@ describe('tools-pipeline edge cases', () => {
 		const result = await runToolsPipeline(
 			{
 				toolId: 'apology_translator',
-				apology: 'sexual and nude content'
+				apology: 'nude and minors content'
 			},
 			{ respond: vi.fn() }
 		);
@@ -258,8 +258,8 @@ describe('tools-pipeline edge cases', () => {
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
 			expect(result.body.error.code).toBe('DISALLOWED_CONTENT');
-			expect(result.body.error.details?.keywords).toContain('sexual');
 			expect(result.body.error.details?.keywords).toContain('nude');
+			expect(result.body.error.details?.keywords).toContain('minors');
 		}
 	});
 
