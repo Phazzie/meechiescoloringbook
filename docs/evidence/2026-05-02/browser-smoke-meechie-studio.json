@@ -1,0 +1,35 @@
+{
+  "results": [
+    {
+      "viewport": "desktop",
+      "heroText": true,
+      "modeCount": 8,
+      "previewVisible": true,
+      "disabledWhileRunning": true,
+      "budgetBefore": "3 AI text actions left",
+      "budgetAfterAi": "2 AI text actions left",
+      "budgetAfterLocal": "2 AI text actions left"
+    },
+    {
+      "viewport": "tablet",
+      "heroText": true,
+      "modeCount": 8,
+      "previewVisible": true,
+      "disabledWhileRunning": true,
+      "budgetBefore": "3 AI text actions left",
+      "budgetAfterAi": "2 AI text actions left",
+      "budgetAfterLocal": "2 AI text actions left"
+    },
+    {
+      "viewport": "mobile",
+      "heroText": true,
+      "modeCount": 8,
+      "previewVisible": true,
+      "disabledWhileRunning": true,
+      "budgetBefore": "3 AI text actions left",
+      "budgetAfterAi": "2 AI text actions left",
+      "budgetAfterLocal": "2 AI text actions left"
+    }
+  ],
+  "errors": []
+}

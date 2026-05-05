@@ -4,12 +4,14 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
-	CreationRecordResultSchema,
 	CreationListResultSchema,
+	CreationRecordResultSchema,
+	CreationRecordSchema,
 	DeleteResultSchema,
 	DraftDeleteResultSchema,
-	DraftSaveResultSchema,
+	DraftRecordSchema,
 	DraftResultSchema,
+	DraftSaveResultSchema,
 	SaveCreationInputSchema,
 	ListCreationsInputSchema,
 	GetCreationInputSchema,
@@ -50,6 +52,32 @@ const sampleFixture = fixtureSchema.parse(sample);
 const faultFixture = fixtureSchema.parse(fault);
 
 describe('CreationStoreSeam contract', () => {
+	it('accepts optional Meechie studio text snapshots on creations and drafts', () => {
+		const studioText = {
+			verdict: 'Meechie ruled on it.',
+			quote: 'The quote survives the prompt.',
+			pageTitle: 'QUOTE SURVIVES',
+			pageItems: [
+				{ number: 1, label: 'SAVE THE LINE' },
+				{ number: 2, label: 'LOAD THE LINE' }
+			],
+			qualityState: 'ready'
+		};
+
+		expect(
+			CreationRecordSchema.parse({
+				...sampleFixture.input.saveCreation.record,
+				studioText
+			}).studioText
+		).toEqual(studioText);
+		expect(
+			DraftRecordSchema.parse({
+				...sampleFixture.input.saveDraft.draft,
+				studioText
+			}).studioText
+		).toEqual(studioText);
+	});
+
 	it('mock returns sample fixture outputs', async () => {
 		const mock = createCreationStoreMock('sample');
 		expect(await mock.saveCreation(sampleFixture.input.saveCreation)).toEqual(

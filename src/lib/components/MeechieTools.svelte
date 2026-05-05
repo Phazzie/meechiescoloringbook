@@ -158,19 +158,22 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 </script>
 
 <section class="meechie">
-	<header class="hero">
-		<p class="eyebrow">Meechie Tools</p>
-		<h2>Power as fact. Consequences on record.</h2>
-		<p class="subtitle">Name what happened. Meechie names the cost.</p>
-	</header>
-
-	<section class="tool-picker">
-		<label class="label" for="tool-select">Tool</label>
-		<select id="tool-select" bind:value={selectedTool} on:change={resetState}>
+	<section class="tool-picker" aria-label="Select a tool">
+		<p class="label">Choose your tool</p>
+		<div class="tool-tabs" role="tablist">
 			{#each tools as tool}
-				<option value={tool.id}>{tool.label}</option>
+				<button
+					role="tab"
+					type="button"
+					class="tool-tab"
+					class:active={selectedTool === tool.id}
+					aria-selected={selectedTool === tool.id}
+					on:click={() => { selectedTool = tool.id; resetState(); }}
+				>
+					{tool.label}
+				</button>
 			{/each}
-		</select>
+		</div>
 		<p class="help">{tools.find((tool) => tool.id === selectedTool)?.help}</p>
 	</section>
 
@@ -227,7 +230,14 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 
 	<section class="actions">
 		<button class="primary" type="button" on:click={handleGenerate} disabled={isWorking}>
-			{isWorking ? 'Working…' : 'Get Meechie Move'}
+			{#if isWorking}
+				<span class="working-inner">
+					<span class="working-dot" aria-hidden="true"></span>
+					Reading the situation…
+				</span>
+			{:else}
+				Get Meechie's Take
+			{/if}
 		</button>
 	</section>
 
@@ -237,66 +247,83 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 
 	{#if output}
 		<section class="output">
+			<div class="verdict-badge" aria-hidden="true">
+				<span class="verdict-label">Verdict</span>
+				<span class="verdict-crown">♛</span>
+			</div>
 			<h3>{output.headline}</h3>
-			<pre>{output.response}</pre>
+			<p class="verdict-body">{output.response}</p>
 		</section>
 	{/if}
 </section>
 
 <style>
 	.meechie {
-		margin-top: 2rem;
 		position: relative;
-		padding: 2rem;
-		border-radius: 1.4rem;
-		background: #16142a;
-		border: 1px solid rgba(201, 162, 39, 0.35);
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
-		box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5);
+		gap: 1.8rem;
+		padding: 2.2rem;
+		border-radius: 1rem;
+		background: var(--dark-card, #16142a);
+		border: 1px solid rgba(201, 162, 39, 0.28);
+		box-shadow: 0 24px 56px rgba(0, 0, 0, 0.55);
 		overflow: hidden;
 	}
 
-	.meechie::after {
+	.meechie::before {
 		content: '';
 		position: absolute;
-		top: -40px;
-		right: -20px;
-		width: 200px;
+		top: -60px;
+		right: -40px;
+		width: 260px;
 		aspect-ratio: 1;
 		border-radius: 50%;
-		background: radial-gradient(circle, rgba(232, 0, 106, 0.18), transparent 65%);
+		background: radial-gradient(circle, rgba(232, 0, 106, 0.14), transparent 65%);
 		pointer-events: none;
 	}
 
-	.hero h2 {
-		font-size: clamp(1.6rem, 3vw, 2.1rem);
-		margin: 0;
-		line-height: 1.1;
-		letter-spacing: -0.02em;
-		font-style: italic;
-		font-weight: 800;
-		color: var(--cream);
-		font-family: 'Fraunces', 'Times New Roman', serif;
+	/* Tool tabs */
+	.tool-picker {
+		display: flex;
+		flex-direction: column;
+		gap: 0.85rem;
+		position: relative;
+		z-index: 1;
 	}
 
-	.subtitle {
-		margin: 0.5rem 0 0;
-		color: var(--lavender);
-		font-size: 0.95rem;
+	.tool-tabs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.45rem;
 	}
 
-	.eyebrow {
-		text-transform: uppercase;
-		letter-spacing: 0.18em;
-		font-size: 0.72rem;
-		margin: 0 0 0.5rem;
+	.tool-tab {
+		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
+		font-size: 0.82rem;
 		font-weight: 700;
-		color: var(--gold);
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		padding: 0.4rem 0.9rem;
+		border-radius: 4px;
+		border: 1px solid rgba(201, 162, 39, 0.25);
+		background: transparent;
+		color: rgba(253, 246, 227, 0.55);
+		cursor: pointer;
+		transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 	}
 
-	.tool-picker,
+	.tool-tab:hover {
+		color: var(--cream, #fdf6e3);
+		border-color: rgba(201, 162, 39, 0.5);
+	}
+
+	.tool-tab.active {
+		background: rgba(232, 0, 106, 0.15);
+		border-color: rgba(232, 0, 106, 0.6);
+		color: var(--cream, #fdf6e3);
+	}
+
 	.form,
 	.actions,
 	.output {
@@ -308,59 +335,65 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	}
 
 	.label {
+		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
 		font-weight: 700;
-		font-size: 0.82rem;
+		font-size: 0.78rem;
 		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		color: var(--gold);
+		letter-spacing: 0.14em;
+		color: var(--gold, #c9a227);
+		margin: 0;
 	}
 
 	textarea,
 	input,
 	select {
-		padding: 0.62rem 0.78rem;
-		border-radius: 0.72rem;
-		border: 1px solid rgba(201, 162, 39, 0.25);
+		padding: 0.65rem 0.8rem;
+		border-radius: 4px;
+		border: 1px solid rgba(201, 162, 39, 0.22);
 		font-size: 0.95rem;
 		font-family: inherit;
 		background: rgba(7, 7, 15, 0.65);
-		color: var(--cream);
-		transition: border-color 0.2s ease, box-shadow 0.2s ease;
+		color: var(--cream, #fdf6e3);
+		transition: border-color 0.18s ease, box-shadow 0.18s ease;
 	}
 
 	textarea::placeholder,
 	input::placeholder {
-		color: rgba(184, 170, 207, 0.45);
+		color: rgba(184, 170, 207, 0.4);
 	}
 
 	select option {
-		background: var(--dark-card-alt);
-		color: var(--cream);
+		background: #1c1932;
+		color: #fdf6e3;
 	}
 
 	textarea:focus,
 	input:focus,
 	select:focus {
 		outline: none;
-		border-color: var(--gold);
-		box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.18);
+		border-color: var(--gold, #c9a227);
+		box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15);
 	}
 
 	.help {
-		color: var(--lavender);
-		font-size: 0.88rem;
+		color: var(--lavender, #b8aacf);
+		font-size: 0.87rem;
 		margin: 0;
+		font-style: italic;
 	}
 
+	/* Primary action */
 	.actions .primary {
-		padding: 0.75rem 1.4rem;
-		border-radius: 999px;
+		align-self: flex-start;
+		padding: 0.78rem 1.6rem;
+		border-radius: 4px;
 		border: none;
-		background: linear-gradient(112deg, var(--fuchsia), #6b21a8 52%, var(--gold));
+		background: linear-gradient(112deg, var(--fuchsia, #e8006a), #8b16c2 52%, var(--gold, #c9a227));
 		color: #fff;
+		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
 		font-weight: 800;
-		font-size: 0.95rem;
-		letter-spacing: 0.04em;
+		font-size: 1rem;
+		letter-spacing: 0.1em;
 		text-transform: uppercase;
 		cursor: pointer;
 		transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
@@ -368,15 +401,36 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 
 	.actions .primary:hover {
 		transform: translateY(-2px);
-		box-shadow: 0 14px 28px rgba(232, 0, 106, 0.35);
-		filter: saturate(1.1) brightness(1.05);
+		box-shadow: 0 12px 32px rgba(232, 0, 106, 0.38);
+		filter: saturate(1.1) brightness(1.06);
 	}
 
 	.actions .primary:disabled {
-		opacity: 0.45;
+		opacity: 0.5;
 		cursor: not-allowed;
+		transform: none;
 	}
 
+	.working-inner {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.6rem;
+	}
+
+	.working-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #fff;
+		animation: pulse-dot 1.1s ease-in-out infinite;
+	}
+
+	@keyframes pulse-dot {
+		0%, 100% { opacity: 1; transform: scale(1); }
+		50% { opacity: 0.4; transform: scale(0.7); }
+	}
+
+	/* Lineup */
 	.lineup-items {
 		display: flex;
 		flex-direction: column;
@@ -394,62 +448,103 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	}
 
 	.ghost {
-		border: 1px solid var(--gold-border);
+		border: 1px solid rgba(201, 162, 39, 0.3);
 		background: transparent;
-		padding: 0.38rem 0.72rem;
-		border-radius: 999px;
+		padding: 0.38rem 0.75rem;
+		border-radius: 4px;
 		cursor: pointer;
-		font-size: 0.85rem;
-		font-weight: 600;
-		color: var(--gold-bright);
-		transition: transform 0.2s ease, border-color 0.2s ease;
+		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
+		font-size: 0.82rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--gold-bright, #f0c44a);
+		transition: border-color 0.15s ease, background 0.15s ease;
 	}
 
 	.ghost:hover {
-		transform: translateY(-1px);
-		border-color: var(--gold);
+		border-color: rgba(201, 162, 39, 0.6);
+		background: rgba(201, 162, 39, 0.07);
 	}
 
 	.error {
 		color: #ff8ab3;
-		font-weight: 700;
-		background: rgba(232, 0, 106, 0.12);
-		border-radius: 0.7rem;
-		padding: 0.65rem 0.85rem;
-		border: 1px solid rgba(232, 0, 106, 0.35);
+		font-weight: 600;
+		background: rgba(232, 0, 106, 0.1);
+		border-radius: 4px;
+		padding: 0.7rem 0.9rem;
+		border: 1px solid rgba(232, 0, 106, 0.3);
+		font-size: 0.9rem;
 	}
 
+	/* Verdict output */
 	.output {
-		padding: 1.2rem;
-		border-radius: 1rem;
-		background: rgba(7, 7, 15, 0.7);
-		border-left: 3px solid var(--fuchsia);
-		border-top: 1px solid rgba(201, 162, 39, 0.2);
-		border-right: 1px solid rgba(201, 162, 39, 0.2);
-		border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+		padding: 1.6rem;
+		border-radius: 6px;
+		background: rgba(7, 7, 15, 0.75);
+		border: 1px solid rgba(201, 162, 39, 0.22);
+		border-top: 3px solid var(--fuchsia, #e8006a);
+		animation: verdict-in 0.35s ease;
+	}
+
+	@keyframes verdict-in {
+		from { opacity: 0; transform: translateY(8px); }
+		to { opacity: 1; transform: translateY(0); }
+	}
+
+	.verdict-badge {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 0.9rem;
+	}
+
+	.verdict-label {
+		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.22em;
+		text-transform: uppercase;
+		color: var(--fuchsia, #e8006a);
+	}
+
+	.verdict-crown {
+		font-size: 0.85rem;
+		color: var(--gold, #c9a227);
+		filter: drop-shadow(0 0 6px rgba(201, 162, 39, 0.5));
 	}
 
 	.output h3 {
-		margin: 0 0 0.65rem;
-		color: var(--gold-bright);
-		font-family: 'Fraunces', 'Times New Roman', serif;
+		margin: 0 0 0.9rem;
+		color: var(--cream, #fdf6e3);
+		font-family: var(--font-display, 'Fraunces', 'Times New Roman', serif);
 		font-style: italic;
-		font-size: 1.2rem;
+		font-size: clamp(1.25rem, 3vw, 1.65rem);
+		font-weight: 800;
+		line-height: 1.1;
+		letter-spacing: -0.01em;
 	}
 
-	.output pre {
-		white-space: pre-wrap;
-		font-family: inherit;
+	.verdict-body {
 		margin: 0;
-		color: var(--cream);
-		line-height: 1.5;
-		font-size: 0.95rem;
+		color: rgba(253, 246, 227, 0.85);
+		line-height: 1.65;
+		font-size: 0.97rem;
+		white-space: pre-wrap;
 	}
 
 	@media (max-width: 680px) {
 		.meechie {
-			padding: 1.2rem;
-			border-radius: 1rem;
+			padding: 1.4rem 1.1rem;
+		}
+
+		.tool-tabs {
+			gap: 0.35rem;
+		}
+
+		.tool-tab {
+			font-size: 0.76rem;
+			padding: 0.38rem 0.72rem;
 		}
 
 		.lineup-row {

@@ -1,0 +1,18 @@
+{
+  "data": {
+    "title": "Meechies Coloring Book",
+    "heroLeft": 0,
+    "heroWidth": 390,
+    "viewportWidth": 390,
+    "documentWidth": 390,
+    "noHorizontalOverflow": true,
+    "heroFullBleed": true,
+    "backgroundImage": "linear-gradient(90deg, rgba(7, 7, 15, 0.94), rgba(7, 7, 15, 0.62)), url(\"http://127.0.0.1:5173/meechie/meechie-banner.png\")",
+    "backgroundPosition": "50% 50%, 68% 50%",
+    "settingsOpen": false,
+    "quoteVisible": true,
+    "defaultTitleVisible": true
+  },
+  "pageErrors": [],
+  "failed": []
+}

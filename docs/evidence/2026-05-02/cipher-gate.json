@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-05-02T22:57:38.632Z",
+  "cipher": {
+    "date": "2026-05-02",
+    "seams": "MeechieStudioTextSeam, ProviderAdapterSeam, SpecValidationSeam, ImageGenerationSeam, OutputPackagingSeam, CreationStoreSeam, SessionSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-05-02/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-02/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-02/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-02/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-02/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-02/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-02/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-02/proof-tape.json",
+        "exists": true
+      }
+    ],
+    "summary": "Added AI-backed studio text seam, fixture-backed tests, cost/budget metadata, selected Meechie static assets, and a redesigned studio UI that keeps local actions outside the AI text budget.",
+    "risks": "Real text generation depends on `XAI_API_KEY` and strict JSON-only model output; browser visual polish still needs screenshot review on target devices."
+  },
+  "latestChangeMs": 1777754302178.3691,
+  "status": "ok"
+}

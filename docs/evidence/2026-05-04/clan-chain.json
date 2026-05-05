@@ -1,0 +1,80 @@
+{
+  "tool": "clan-chain",
+  "generatedAt": "2026-05-04T07:23:13.545Z",
+  "evidenceDir": "docs\\evidence\\2026-05-04",
+  "clean": [
+    {
+      "seam": "AppConfigSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "PromptCompilerSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "SafetyPolicySeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "GalleryStoreSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "TelemetrySeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "AuthContextSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "CreationStoreSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "PromptAssemblySeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "ChatInterpretationSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "ImageGenerationSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "DriftDetectionSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "MeechieVoiceSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "MeechieToolSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "MeechieStudioTextSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "ProviderAdapterSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "OutputPackagingSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "SessionSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "SpecValidationSeam",
+      "owner": "hbpheonix"
+    }
+  ],
+  "dirty": []
+}

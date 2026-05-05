@@ -1,0 +1,30 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-05-03T06:52:43.601Z",
+  "cipher": {
+    "date": "2026-05-03",
+    "seams": "CreationStoreSeam, MeechieStudioTextSeam, SpecValidationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-05-03/targeted-review-regressions.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-03/check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-03/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-03/verify.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Added optional `studioText` snapshots for draft/vault reloads, kept image prompts separate from Meechie quotes, normalized generated labels before spec validation, and constrained verify-runner's Vitest worker count to avoid Windows native worker OOM during evidence capture.",
+    "risks": "Legacy vault entries that already stored only image prompts cannot recover the original quote; they remain readable with best-effort fallback."
+  },
+  "latestChangeMs": 1777790937249.0088,
+  "status": "ok"
+}

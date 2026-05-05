@@ -4,6 +4,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { toRepoRelativePath } from './evidence-reporting.mjs';
 
 const ROOT = process.cwd();
 const EVIDENCE_ROOT = path.join(ROOT, 'docs', 'evidence');
@@ -103,14 +104,14 @@ const run = async () => {
 			return {
 				name: item.name,
 				status: 'stale',
-				path: item.record.path,
+				path: toRepoRelativePath(ROOT, item.record.path),
 				mtimeMs: item.record.mtimeMs
 			};
 		}
 		return {
 			name: item.name,
 			status: 'ok',
-			path: item.record.path,
+			path: toRepoRelativePath(ROOT, item.record.path),
 			mtimeMs: item.record.mtimeMs
 		};
 	});

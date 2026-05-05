@@ -21,18 +21,22 @@ Info flow: Layout renders children -> pages render within layout.
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+	<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Fraunces:ital,opsz,wght@0,9..144,700;1,9..144,700;1,9..144,800&display=swap" rel="stylesheet" />
 </svelte:head>
 
 <header class="site-nav">
 	<div class="nav-inner">
 		<a class="brand" href="/">
 			<span class="badge">Meechie's</span>
+			<span class="brand-sub">Coloring Book</span>
 		</a>
 		<nav class="links">
 			<a href="/who-fucked-up">Who Fucked Up?</a>
 			<a href="/rate-his-excuse">Rate His Excuse</a>
-			<a href="/random">Random Meechie</a>
-			<a href="/meechie">Meechie's Tools</a>
+			<a href="/random">Random</a>
+			<a href="/meechie" class="link-tools">Meechie's Tools</a>
 		</nav>
 	</div>
 </header>
@@ -44,88 +48,116 @@ Info flow: Layout renders children -> pages render within layout.
 		position: sticky;
 		top: 0;
 		z-index: 10;
-		padding: 14px 20px;
-		border-bottom: 1px solid rgba(201, 162, 39, 0.35);
+		padding: 0 20px;
+		border-bottom: 1px solid rgba(201, 162, 39, 0.25);
 		background:
-			linear-gradient(90deg, rgba(7, 7, 15, 0.97), rgba(14, 10, 24, 0.96)),
-			radial-gradient(circle at 10% 0%, rgba(232, 0, 106, 0.18), transparent 45%);
-		backdrop-filter: blur(8px);
-		font-family: 'Barlow Condensed', 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
+			linear-gradient(90deg, rgba(7, 7, 15, 0.98), rgba(14, 10, 24, 0.97)),
+			radial-gradient(circle at 5% 0%, rgba(232, 0, 106, 0.15), transparent 50%);
+		backdrop-filter: blur(12px);
+		font-family: 'Barlow Condensed', 'Avenir Next Condensed', 'Avenir Next', 'Segoe UI', sans-serif;
 	}
 
 	.nav-inner {
-		max-width: 1200px;
+		max-width: 1240px;
 		margin: 0 auto;
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
 		gap: 1rem;
+		height: 56px;
 	}
 
 	.brand {
 		display: inline-flex;
-		align-items: center;
-		gap: 0.7rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		font-size: 0.95rem;
+		align-items: baseline;
+		gap: 0.55rem;
 		text-decoration: none;
-		color: #fdf6e3;
-		text-transform: uppercase;
+		flex-shrink: 0;
 	}
 
 	.badge {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		padding: 0.38rem 0.9rem;
-		font-size: 0.85rem;
+		padding: 0.3rem 0.85rem;
+		font-size: 0.92rem;
 		font-weight: 800;
 		text-transform: uppercase;
-		letter-spacing: 0.12em;
-		border-radius: 999px;
+		letter-spacing: 0.14em;
+		border-radius: 4px;
 		color: #0d0a14;
-		background: linear-gradient(120deg, #c9a227, #f0c44a, #c9a227);
-		box-shadow: 0 4px 18px rgba(201, 162, 39, 0.4);
+		background: linear-gradient(120deg, #c9a227, #f0c44a 50%, #c9a227);
+		box-shadow: 0 2px 14px rgba(201, 162, 39, 0.45);
+	}
+
+	.brand-sub {
+		font-size: 0.78rem;
+		font-weight: 600;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: rgba(253, 246, 227, 0.45);
 	}
 
 	.links {
 		display: flex;
-		gap: 10px;
-		flex-wrap: wrap;
+		gap: 2px;
+		flex-wrap: nowrap;
+		align-items: center;
 	}
 
 	.links a {
-		color: #fdf6e3;
+		color: rgba(253, 246, 227, 0.72);
 		text-decoration: none;
 		font-weight: 700;
-		font-size: 0.84rem;
-		padding: 0.45rem 0.9rem;
-		border-radius: 999px;
+		font-size: 0.88rem;
+		padding: 0.42rem 0.82rem;
+		border-radius: 4px;
 		border: 1px solid transparent;
 		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		transition: border-color 0.2s ease, background-color 0.2s ease;
+		letter-spacing: 0.1em;
+		transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+		white-space: nowrap;
 	}
 
 	.links a:hover {
-		border-color: rgba(201, 162, 39, 0.55);
-		background: rgba(201, 162, 39, 0.1);
 		color: #f0c44a;
+		background: rgba(201, 162, 39, 0.08);
+		border-color: rgba(201, 162, 39, 0.3);
+	}
+
+	.links a.link-tools {
+		color: #f0c44a;
+		border-color: rgba(201, 162, 39, 0.4);
+		background: rgba(201, 162, 39, 0.07);
+	}
+
+	.links a.link-tools:hover {
+		background: rgba(201, 162, 39, 0.15);
+		border-color: rgba(201, 162, 39, 0.6);
 	}
 
 	@media (max-width: 720px) {
 		.site-nav {
-			padding: 12px 14px;
+			padding: 0 14px;
 		}
 
-		.badge {
+		.brand-sub {
+			display: none;
+		}
+
+		.links a {
 			font-size: 0.78rem;
-			padding: 0.32rem 0.7rem;
+			padding: 0.38rem 0.6rem;
 		}
 	}
 
-	/* Base reset and palette — centralized so mode pages don't fight over :global(body). */
+	@media (max-width: 500px) {
+		.links a:not(.link-tools) {
+			display: none;
+		}
+	}
+
+	/* Base reset and palette */
 	:global(body) {
 		margin: 0;
 		font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
@@ -144,6 +176,14 @@ Info flow: Layout renders children -> pages render within layout.
 		--dark-card: #16142a;
 		--dark-card-alt: #1c1932;
 		--emerald: #00c896;
+		--font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+		--font-label: 'Barlow Condensed', 'Avenir Next Condensed', 'Avenir Next', sans-serif;
 		color-scheme: dark;
+	}
+
+	:global(*),
+	:global(*::before),
+	:global(*::after) {
+		box-sizing: border-box;
 	}
 </style>

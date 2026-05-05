@@ -1,0 +1,28 @@
+{
+	"scenario": "fault",
+	"input": {
+		"actionId": "make_more_specific",
+		"modeId": "receipts",
+		"modeLabel": "Receipt Check",
+		"themeLabel": "Receipts",
+		"evidence": "Something happened.",
+		"voice": {
+			"intensity": "receipts_out",
+			"rawness": "mild",
+			"thirdPerson": "sometimes"
+		},
+		"currentText": {
+			"verdict": "Not enough on the table.",
+			"quote": "Meechie needs receipts, not fog.",
+			"pageTitle": "BRING RECEIPTS",
+			"pageItems": ["NAME THE DATE", "NAME THE CLAIM"]
+		}
+	},
+	"output": {
+		"ok": false,
+		"error": {
+			"code": "MEECHIE_STUDIO_TEXT_PROVIDER_INVALID",
+			"message": "Provider text response did not match contract."
+		}
+	}
+}

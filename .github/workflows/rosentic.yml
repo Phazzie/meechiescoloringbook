@@ -1,7 +1,16 @@
+#
+# Purpose: Runs Rosentic semantic conflict detection for pull requests.
+# Why: Catch cross-branch conflicts before they reach main.
+# Info flow: Pull request event -> checkout history -> Rosentic action -> PR comments/checks.
+#
 name: Rosentic Scan
 on:
   pull_request:
     branches: [main]
+
+concurrency:
+  group: rosentic-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   rosentic:

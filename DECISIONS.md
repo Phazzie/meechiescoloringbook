@@ -7,6 +7,27 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-05-02 - Meechie studio AI text seam and redesign
+- Date: 2026-05-02
+- Decision: Add `MeechieStudioTextSeam` for AI-backed verdict, quote, and coloring-page text actions, then redesign the home page around the Meechie studio flow with cost metadata and a default three-action AI text budget.
+- Context: The prior deterministic Meechie tools could not represent regenerate, make prettier, make meaner, and make more specific without overloading unrelated tool IDs; the product needed real AI wording while keeping local export, copy, theme, page-size, border, glitter, and vault controls outside the text budget.
+- Alternatives: Reuse `MeechieToolSeam` templates for all wording actions or add ad hoc client-only prompts; both would either keep creative output hard-coded or bypass Seam-Driven Development evidence.
+- Consequences: Studio wording now flows through `ProviderAdapterSeam` behind a dedicated contract, tests use injected provider fixtures, and the home page has explicit `free`/`unclassified` control metadata for future pricing gates.
+- Revisit criteria: Revisit if pricing rules are finalized, if text actions need per-user limits, or if provider output should tolerate non-JSON wrappers.
+- Plan:
+  - Goal: Build a branded Meechie coloring-page studio with AI text actions, eight modes, local exports, and budget guardrails.
+  - Seams: MeechieStudioTextSeam, ProviderAdapterSeam, SpecValidationSeam, ImageGenerationSeam, OutputPackagingSeam, CreationStoreSeam, SessionSeam.
+  - Files: `contracts/meechie-studio-text.contract.ts`, `fixtures/meechie-studio-text/`, `src/lib/mocks/meechie-studio-text.mock.ts`, `src/lib/adapters/meechie-studio-text.adapter.ts`, `src/lib/core/meechie-studio.ts`, `src/lib/core/meechie-studio-text-pipeline.ts`, `src/routes/api/meechie-studio-text/+server.ts`, `src/routes/+page.svelte`, `docs/seams.md`, `DECISIONS.md`, `tests/contract/meechie-studio-text.test.ts`, `tests/unit/meechie-studio.test.ts`, `tests/unit/meechie-studio-text-pipeline.test.ts`, `static/meechie/`.
+  - Commands: `git diff --check`, `npm run check`, `npm test`, `npm run verify`, `npm run cipher:gate`.
+- Self-critique: The riskiest assumption is that strict JSON-only text responses are acceptable for provider reliability; the evidence is the pipeline contract test and the clear provider-invalid error path. The UI risk is page density; browser smoke checks should verify no preview obstruction before merge.
+
+- Cipher Gate:
+  - Date: 2026-05-02
+  - Seams: MeechieStudioTextSeam, ProviderAdapterSeam, SpecValidationSeam, ImageGenerationSeam, OutputPackagingSeam, CreationStoreSeam, SessionSeam
+  - Evidence: docs/evidence/2026-05-02/test.txt; docs/evidence/2026-05-02/verify.txt; docs/evidence/2026-05-02/chamber-lock.json; docs/evidence/2026-05-02/shaolin-lint.json; docs/evidence/2026-05-02/assumption-alarm.json; docs/evidence/2026-05-02/seam-ledger.json; docs/evidence/2026-05-02/clan-chain.json; docs/evidence/2026-05-02/proof-tape.json
+  - Summary: Added AI-backed studio text seam, fixture-backed tests, cost/budget metadata, selected Meechie static assets, and a redesigned studio UI that keeps local actions outside the AI text budget.
+  - Risks: Real text generation depends on `XAI_API_KEY` and strict JSON-only model output; browser visual polish still needs screenshot review on target devices.
+
 ## Template
 - Date:
 - Decision:
@@ -1477,3 +1498,24 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-04-24/rewind-SessionSeam.txt; docs/evidence/2026-04-24/rewind-CreationStoreSeam.txt; docs/evidence/2026-04-24/test.txt; docs/evidence/2026-04-24/verify.txt; docs/evidence/2026-04-24/chamber-lock.json; docs/evidence/2026-04-24/shaolin-lint.json; docs/evidence/2026-04-24/assumption-alarm.json; docs/evidence/2026-04-24/seam-ledger.json; docs/evidence/2026-04-24/clan-chain.json; docs/evidence/2026-04-24/proof-tape.json
   - Summary: Fixed demo-blocking localStorage failures in test setup, repaired Windows evidence capture for seam rewind and full verification, and pinned the Vercel runtime to Node 22.
   - Risks: Future database/auth work should replace this with contract-backed database fixtures instead of expanding browser storage behavior. Local production build output still depends on Windows symlink support for adapter-vercel.
+
+## 2026-05-03 - Preserve Meechie studio text across drafts and vault reload
+- Date: 2026-05-03
+- Decision: Store an optional Meechie studio text snapshot on CreationStoreSeam draft and creation records, and normalize AI-generated page labels before building ColoringPageSpec values.
+- Context: Review found that refreshes dropped generated Meechie words, vault reloads could display the image-generation prompt as the quote, and valid MeechieStudioTextSeam output could still violate SpecValidationSeam label limits.
+- Alternatives: Add only page-level fallbacks without changing CreationStoreSeam; rejected because new vault/draft records need a durable quote/title/items snapshot. Make `studioText` required; rejected because existing localStorage records would fail schema parsing.
+- Consequences: New records keep `assembledPrompt` for image diagnostics and `studioText` for user-facing Meechie copy. Existing draft/creation records still parse, with best-effort text rebuilt from the saved coloring-page spec.
+- Revisit criteria: Revisit when durable server storage replaces browser storage, or when CreationStoreSeam gains a separate evidence field.
+- Plan:
+  - Goal: Fix review regressions for draft rehydration, vault quote preservation, and invalid AI labels.
+  - Seams: CreationStoreSeam, MeechieStudioTextSeam, SpecValidationSeam.
+  - Files: `contracts/creation-store.contract.ts`, `fixtures/creation-store/sample.json`, `tests/contract/creation-store.test.ts`, `src/lib/core/meechie-studio.ts`, `tests/unit/meechie-studio.test.ts`, `src/routes/+page.svelte`, `scripts/verify-runner.mjs`, `docs/seams.md`, `DECISIONS.md`.
+  - Commands: `$env:NODE_OPTIONS="--max-old-space-size=8192"; npm.cmd test -- tests/unit/meechie-studio.test.ts tests/contract/creation-store.test.ts --pool=forks --maxWorkers=1`, `$env:NODE_OPTIONS="--max-old-space-size=8192"; npm.cmd run check`, `$env:NODE_OPTIONS="--max-old-space-size=8192"; npm.cmd test`, `$env:NODE_OPTIONS="--max-old-space-size=8192"; npm.cmd run verify`, `npm.cmd run cipher:gate`.
+- Self-critique: Optional `studioText` keeps old records readable but cannot recover the exact quote from old vault entries that only stored a long image prompt. The durable fix starts with new saves; old records use the coloring-page title/items as fallback.
+
+- Cipher Gate:
+  - Date: 2026-05-03
+  - Seams: CreationStoreSeam, MeechieStudioTextSeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-05-03/targeted-review-regressions.txt; docs/evidence/2026-05-03/check.txt; docs/evidence/2026-05-03/test.txt; docs/evidence/2026-05-03/verify.txt
+  - Summary: Added optional `studioText` snapshots for draft/vault reloads, kept image prompts separate from Meechie quotes, normalized generated labels before spec validation, and constrained verify-runner's Vitest worker count to avoid Windows native worker OOM during evidence capture.
+  - Risks: Legacy vault entries that already stored only image prompts cannot recover the original quote; they remain readable with best-effort fallback.

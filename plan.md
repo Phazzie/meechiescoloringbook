@@ -5,6 +5,39 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 -->
 # Autonomous Plan (2026-02-14)
 
+## Meechie Redesign Integration Pass (2026-05-02)
+### Plan
+- Goal: Integrate the stopped Claude Meechie UI redesign into the live Svelte app with a GitHub-trackable atomic checklist, intentional image usage, unobstructed coloring-page preview, visual mode selector, evidence-first input, contained voice controls, and existing seam-backed generation/export/vault behavior.
+- Exact seams: `MeechieToolSeam`, `SpecValidationSeam`, `ImageGenerationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`, `SessionSeam`.
+- Exact file paths to touch:
+  - `docs/superpowers/plans/2026-05-02-meechie-redesign-integration.md`
+  - `plan.md`
+  - `static/meechie/`
+  - `src/routes/+page.svelte`
+  - `src/routes/+layout.svelte`
+  - `src/lib/components/MeechieTools.svelte` only if shared tool styling must stay visually aligned
+  - `src/routes/meechie/+page.svelte` only if dedicated tool route styling must stay visually aligned
+- Exact file paths not to touch unless a separate seam-contract gate is opened:
+  - `contracts/meechie-tool.contract.ts`
+  - `fixtures/meechie-tool/`
+  - `src/lib/mocks/meechie-tool.mock.ts`
+  - `src/lib/adapters/meechie-tool.adapter.ts`
+  - `tests/contract/meechie-tool.test.ts`
+- Exact commands to run:
+  1. `npm run check`
+  2. `npm test`
+  3. `npm run verify`
+  4. `npm run rewind -- --seam CreationStoreSeam`
+  5. `npm run rewind -- --seam SessionSeam`
+  6. `npm run rewind -- --seam MeechieToolSeam` only if `MeechieToolSeam` behavior changes
+  7. Browser or Playwright checks at desktop, tablet, and mobile widths
+
+### Self-critique
+1. What could be wrong: The Claude static prototype may tempt a direct React-style port that bypasses the live Svelte seams or reintroduces a floating tweaks panel that covers the preview.
+2. What must be proven: The live app still type-checks, tests pass, verify runs, selected assets load, eight modes are reachable, voice controls do not obstruct the preview, and exports/vault behavior remain seam-backed.
+3. Riskiest assumption: Current `MeechieToolSeam` output fields are enough for a demo-quality verdict/quote flow without a contract change.
+4. Evidence to prove/disprove: Green `npm run check`, `npm test`, `npm run verify`, seam-specific rewind output for storage/session and any changed seam, plus desktop/tablet/mobile browser screenshots or equivalent visual evidence.
+
 ## Conflict Resolution Pass for Helper Tests (2026-04-23)
 ### Plan
 - Goal: Resolve PR merge conflicts by minimizing divergence in helper test files that were unintentionally pulled into the seam-change branch.
