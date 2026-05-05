@@ -4,6 +4,7 @@
 import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
+import { env } from '$env/dynamic/private';
 import {
 	ChatInterpretationInputSchema,
 	ChatInterpretationResultSchema
@@ -14,7 +15,7 @@ import {
 } from '../../../contracts/spec-validation.contract';
 import { z } from 'zod';
 
-const CHAT_MODEL = 'grok-4-1-fast-reasoning';
+const CHAT_MODEL = env.XAI_TEXT_MODEL || 'grok-4.1-fast-reasoning';
 
 type ChatInterpretationResult = z.infer<typeof ChatInterpretationResultSchema>;
 
@@ -67,7 +68,10 @@ export const runChatInterpretationPipeline = async (
 ): Promise<ChatPipelineResponse> => {
 	const parsedInput = ChatInterpretationInputSchema.safeParse(body);
 	if (!parsedInput.success) {
-		return buildError('CHAT_INPUT_INVALID', 'Chat interpretation input is invalid.');
+		return buildError(
+			'CHAT_INPUT_INVALID',
+			'Chat interpretation input is invalid.'
+		);
 	}
 
 	const chatResult = await deps.createChatCompletion({
@@ -89,19 +93,28 @@ export const runChatInterpretationPipeline = async (
 
 	const extracted = extractSingleJsonObject(chatResult.value.content);
 	if (!extracted) {
-		return buildError('CHAT_RESPONSE_INVALID', 'Chat response did not include JSON.');
+		return buildError(
+			'CHAT_RESPONSE_INVALID',
+			'Chat response did not include JSON.'
+		);
 	}
 
 	let parsedSpec: unknown = null;
 	try {
 		parsedSpec = JSON.parse(extracted);
 	} catch {
-		return buildError('CHAT_RESPONSE_INVALID', 'Chat response JSON could not be parsed.');
+		return buildError(
+			'CHAT_RESPONSE_INVALID',
+			'Chat response JSON could not be parsed.'
+		);
 	}
 
 	const rawParse = RawColoringPageSpecSchema.safeParse(parsedSpec);
 	if (!rawParse.success) {
-		return buildError('CHAT_SPEC_INVALID', 'Chat response did not match the expected spec shape.');
+		return buildError(
+			'CHAT_SPEC_INVALID',
+			'Chat response did not match the expected spec shape.'
+		);
 	}
 
 	const validation = await deps.validateSpec({ spec: rawParse.data });
@@ -130,7 +143,10 @@ export const runChatInterpretationPipeline = async (
 	};
 	const parsedResult = ChatInterpretationResultSchema.safeParse(result);
 	if (!parsedResult.success) {
-		return buildError('CHAT_OUTPUT_INVALID', 'Chat interpretation output did not match contract.');
+		return buildError(
+			'CHAT_OUTPUT_INVALID',
+			'Chat interpretation output did not match contract.'
+		);
 	}
 
 	return {

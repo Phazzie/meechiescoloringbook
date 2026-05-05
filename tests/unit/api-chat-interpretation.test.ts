@@ -59,12 +59,14 @@ describe('/api/chat-interpretation', () => {
 		vi.spyOn(providerAdapter, 'createChatCompletion').mockResolvedValue({
 			ok: true,
 			value: {
-				model: 'grok-4-1-fast-reasoning',
+				model: 'grok-4.1-fast-reasoning',
 				content: JSON.stringify(validSpec)
 			}
 		});
 
-		const response = await POST(buildEvent({ message: 'build me a clean printable page' }));
+		const response = await POST(
+			buildEvent({ message: 'build me a clean printable page' })
+		);
 		const payload = await response.json();
 
 		expect(response.status).toBe(200);
