@@ -178,9 +178,22 @@ export const runMeechieStudioTextPipeline = async (
 			model: TEXT_MODEL,
 			messages
 		});
-		if (providerResult.ok) {
-			result = parseProviderText(providerResult.value.content, providerResult.value.model);
+		if (!providerResult.ok) {
+			const missingKey = providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
+			return {
+				status: missingKey ? 401 : 502,
+				body: {
+					ok: false,
+					error: {
+						...providerResult.error,
+						message: missingKey
+							? 'AI text generation requires XAI_API_KEY to be set on the server.'
+							: providerResult.error.message
+					}
+				}
+			};
 		}
+		result = parseProviderText(providerResult.value.content, providerResult.value.model);
 	}
 
 	const parsedResult = MeechieStudioTextResultSchema.safeParse(result);
