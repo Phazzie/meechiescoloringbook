@@ -37,6 +37,17 @@ describe('Meechie Studio Text Pipeline Resilience', () => {
 		}, deps);
 
 		expect(response.status).toBe(200);
+		expect(response.body).toMatchObject({
+			ok: true,
+			verdict: 'Guilty',
+			quote: 'No way',
+			pageTitle: 'Uh oh',
+			pageItems: [{ number: 1, label: 'One' }, { number: 2, label: 'Two' }],
+			qualityState: 'ready',
+			modelMetadata: expect.objectContaining({
+				model: 'test-model'
+			})
+		});
 		expect(callCount).toBe(1);
 	});
 
