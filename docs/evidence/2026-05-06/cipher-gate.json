@@ -1,0 +1,18 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-05-06T19:11:32.178Z",
+  "cipher": {
+    "date": "2026-05-06",
+    "seams": "AppConfigSeam, ProviderAdapterSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-05-06/proof-tape.json",
+        "exists": true
+      }
+    ],
+    "summary": "Removed raw `process.env` access from `app-config-seam` and `provider-adapter` to securely manage API keys and configs. Exclusively injects configurations via `$env/dynamic/private`.",
+    "risks": "Test environments relying on implicit `process.env` loading may need explicit configurations passed in during instantiation."
+  },
+  "latestChangeMs": 1778092880916.005,
+  "status": "ok"
+}

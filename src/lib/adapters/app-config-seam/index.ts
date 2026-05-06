@@ -1,6 +1,6 @@
 // Purpose: Build the AppConfigSeam adapter from environment values.
 // Why: Centralize config parsing and validation.
-// Info flow: process.env -> validators -> seam config.
+// Info flow: env -> validators -> seam config.
 import type {
 	AppConfig,
 	AppConfigSeam
@@ -8,7 +8,8 @@ import type {
 import { validateAppConfig } from '../../seams/app-config-seam/validators';
 import { env as privateEnv } from '$env/dynamic/private';
 
-const readConfig = (env: NodeJS.ProcessEnv): AppConfig => {
+// Use Record<string, string | undefined> to accept the shape of SvelteKit's private environment
+const readConfig = (env: Record<string, string | undefined>): AppConfig => {
 	const config = {
 		xaiApiKey: env.XAI_API_KEY,
 		xaiTextModel: env.XAI_TEXT_MODEL,
@@ -24,7 +25,7 @@ const readConfig = (env: NodeJS.ProcessEnv): AppConfig => {
 };
 
 export const createAppConfigSeam = (
-	env: NodeJS.ProcessEnv = privateEnv
+	env: Record<string, string | undefined> = privateEnv
 ): AppConfigSeam => ({
 	getConfig: () => readConfig(env)
 });

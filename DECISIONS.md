@@ -1519,3 +1519,10 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-05-03/targeted-review-regressions.txt; docs/evidence/2026-05-03/check.txt; docs/evidence/2026-05-03/test.txt; docs/evidence/2026-05-03/verify.txt
   - Summary: Added optional `studioText` snapshots for draft/vault reloads, kept image prompts separate from Meechie quotes, normalized generated labels before spec validation, and constrained verify-runner's Vitest worker count to avoid Windows native worker OOM during evidence capture.
   - Risks: Legacy vault entries that already stored only image prompts cannot recover the original quote; they remain readable with best-effort fallback.
+
+- Cipher Gate:
+  - Date: 2026-05-06
+  - Seams: AppConfigSeam, ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-05-06/proof-tape.json
+  - Summary: Removed raw `process.env` access from `app-config-seam` and `provider-adapter` to securely manage API keys and configs. Exclusively injects configurations via `$env/dynamic/private`.
+  - Risks: Test environments relying on implicit `process.env` loading may need explicit configurations passed in during instantiation.

@@ -26,7 +26,7 @@ const normalizeBaseUrl = (baseUrl: string): string => {
 };
 
 const getApiKey = (config: ProviderAdapterConfig): string | null => {
-	const key = config.apiKey ?? env.XAI_API_KEY ?? process.env.XAI_API_KEY;
+	const key = config.apiKey ?? env.XAI_API_KEY;
 	return key && key.length > 0 ? key : null;
 };
 
@@ -34,7 +34,6 @@ const getBaseUrl = (config: ProviderAdapterConfig): string =>
 	normalizeBaseUrl(
 		config.baseUrl ||
 			env.XAI_BASE_URL ||
-			process.env.XAI_BASE_URL ||
 			DEFAULT_BASE_URL
 	);
 
