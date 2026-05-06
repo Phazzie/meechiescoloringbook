@@ -69,7 +69,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		{
 			id: 'random_meechie',
 			label: 'Random Meechie',
-			help: 'Get a Meechie saying with no setup.'
+			help: 'Get a random saying.'
 		}
 	] as const;
 
@@ -158,9 +158,11 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 				return { toolId: selectedTool, excuse: excuseInput };
 			case 'random_meechie':
 				return { toolId: selectedTool };
+			default: {
+				const _exhaustive: never = selectedTool;
+				throw new Error(`Unhandled tool selection: ${_exhaustive}`);
+			}
 		}
-		const _exhaustive: never = selectedTool;
-		throw new Error(`Unsupported Meechie tool: ${_exhaustive}`);
 	};
 
 	const handleGenerate = async (): Promise<void> => {

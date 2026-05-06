@@ -286,3 +286,16 @@ describe('meechie-tool adapter', () => {
 		});
 	});
 });
+
+
+	describe('random_meechie', () => {
+		it('returns curated saying with machine-readable quote score details', async () => {
+			const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.quoteScore).toBeDefined();
+				expect(result.value.quoteScore?.subscores).toHaveLength(10);
+				expect(result.value.quoteScore?.reasons.length).toBeGreaterThan(0);
+			}
+		});
+	});

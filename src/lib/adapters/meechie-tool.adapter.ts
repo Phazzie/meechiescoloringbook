@@ -1,7 +1,6 @@
-// Purpose: Adapter for MeechieToolSeam.
-// Why: Provide consistent Meechie responses and AI-backed random sayings behind one seam.
-// Info flow: Tool input -> voice pack/provider -> response template or generated saying -> output payload.
-import { env } from '$env/dynamic/private';
+// Purpose: Deterministic adapter for MeechieToolSeam.
+// Why: Provide consistent Meechie responses without external dependencies.
+// Info flow: Tool input -> voice pack -> response template -> output payload.
 import type {
 	MeechieToolInput,
 	MeechieToolOutput,
@@ -9,35 +8,24 @@ import type {
 } from '../../../contracts/meechie-tool.contract';
 import type { MeechieVoicePack } from '../../../contracts/meechie-voice.contract';
 import type { Result } from '../../../contracts/shared.contract';
-import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.contract';
-import { createProviderAdapter } from './provider-adapter.adapter';
 import { meechieVoiceAdapter } from './meechie-voice.adapter';
-
-const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
+import { selectBestMeechieQuote } from '$lib/core/meechie-quote-scoring';
 
 const normalize = (value: string): string => value.trim().replace(/\s+/g, ' ');
 
 const toKey = (value: string): string => normalize(value).toLowerCase();
 
-const applyTemplate = (
-	template: string,
-	values: Record<string, string>
-): string =>
+const applyTemplate = (template: string, values: Record<string, string>): string =>
 	Object.entries(values).reduce(
 		(current, [key, value]) => current.split(`{${key}}`).join(value),
 		template
 	);
 
-const buildLineup = (
-	pack: MeechieVoicePack,
-	prompt: string,
-	items: string[]
-): string => {
+const buildLineup = (pack: MeechieVoicePack, prompt: string, items: string[]): string => {
 	const comments = pack.responses.lineup.comments;
 	const lines = items.map((item, index) => {
 		const place = index + 1;
-		const suffix =
-			place === 1 ? 'st' : place === 2 ? 'nd' : place === 3 ? 'rd' : 'th';
+		const suffix = place === 1 ? 'st' : place === 2 ? 'nd' : place === 3 ? 'rd' : 'th';
 		const comment = comments[index] ?? comments[comments.length - 1];
 		return `${place}${suffix} place: "${normalize(item)}" — ${comment}`;
 	});
@@ -49,13 +37,8 @@ const classifyRedFlag = (
 	situation: string
 ): { headline: string; response: string } => {
 	const normalized = toKey(situation);
-	const {
-		runKeywords,
-		flagKeywords,
-		runResponse,
-		flagResponse,
-		defaultResponse
-	} = pack.responses.redFlagOrRun;
+	const { runKeywords, flagKeywords, runResponse, flagResponse, defaultResponse } =
+		pack.responses.redFlagOrRun;
 	if (runKeywords.some((keyword) => normalized.includes(keyword))) {
 		return {
 			headline: runResponse.headline,
@@ -77,16 +60,10 @@ const classifyRedFlag = (
 type WwmdTrigger = MeechieVoicePack['responses']['wwmd']['triggers'][number];
 
 const matchesTrigger = (normalized: string, trigger: WwmdTrigger): boolean => {
-	if (
-		trigger.includesAll &&
-		!trigger.includesAll.every((keyword) => normalized.includes(keyword))
-	) {
+	if (trigger.includesAll && !trigger.includesAll.every((keyword) => normalized.includes(keyword))) {
 		return false;
 	}
-	if (
-		trigger.includesAny &&
-		!trigger.includesAny.some((keyword) => normalized.includes(keyword))
-	) {
+	if (trigger.includesAny && !trigger.includesAny.some((keyword) => normalized.includes(keyword))) {
 		return false;
 	}
 	return true;
@@ -94,11 +71,9 @@ const matchesTrigger = (normalized: string, trigger: WwmdTrigger): boolean => {
 
 const evidencePattern = (text: string): string => {
 	const normalized = toKey(text);
-	if (/\b(?:left on read|on read|seen|delivered)\b/.test(normalized))
-		return 'read-receipt trail';
-	if (/\b(?:screenshot|receipts|proof|timestamp)\b/.test(normalized))
-		return 'timestamp and screenshot trail';
-	if (/\b(?:location|live|map|pin)\b/.test(normalized)) return 'location trail';
+	if (/(?:screenshot|receipts|proof|timestamp)/.test(normalized)) return 'timestamp and screenshot trail';
+	if (/(?:location|live|map|pin)/.test(normalized)) return 'location trail';
+	if (/(?:left on read|seen|delivered)/.test(normalized)) return 'read-receipt trail';
 	return 'story has no verifiable trail';
 };
 
@@ -111,44 +86,29 @@ const whoFault = (text: string): string => {
 
 const wwmdResponse = (pack: MeechieVoicePack, dilemma: string): string => {
 	const normalized = toKey(dilemma);
-	const match = pack.responses.wwmd.triggers.find((trigger) =>
-		matchesTrigger(normalized, trigger)
-	);
-	const fault = whoFault(dilemma);
+	const match = pack.responses.wwmd.triggers.find((trigger) => matchesTrigger(normalized, trigger));
 	if (match) {
-		return `Fault: ${fault}. Consequence: protect access, not feelings. Move: ${match.response}`;
+		return `Fault: ${whoFault(dilemma)}. Consequence: protect access, not feelings. Move: ${match.response}`;
 	}
-	return `Fault: ${fault}. Consequence: no boundary means repeated behavior. Move: ${pack.responses.wwmd.fallback}`;
+	return `Fault: ${whoFault(dilemma)}. Consequence: no boundary means repeated behavior. Move: ${pack.responses.wwmd.fallback}`;
 };
 
-const structuredSocialFrame = (
-	subject: string,
-	detail: string,
-	consequence: string
-): string =>
+const structuredSocialFrame = (subject: string, detail: string, consequence: string): string =>
 	`Role: ${subject}. Object: ${detail}. Place: timeline and real life. Consequence: ${consequence}.`;
 
 const captionResponse = (pack: MeechieVoicePack, moment: string): string => {
 	const cleanMoment = normalize(moment);
-	const base = applyTemplate(pack.responses.caption.template, {
-		moment: cleanMoment
-	});
+	const base = applyTemplate(pack.responses.caption.template, { moment: cleanMoment });
 	return `${base} ${structuredSocialFrame('main character', cleanMoment, 'watchers get commentary, not access')}`;
 };
 
 const clapbackResponse = (pack: MeechieVoicePack, comment: string): string => {
 	const cleanComment = normalize(comment);
-	const base = applyTemplate(pack.responses.clapback.template, {
-		comment: cleanComment
-	});
+	const base = applyTemplate(pack.responses.clapback.template, { comment: cleanComment });
 	return `${base} ${structuredSocialFrame('critic', cleanComment, 'cheap shots lose priority seating')}`;
 };
 
-const receiptsResponse = (
-	pack: MeechieVoicePack,
-	claim: string,
-	reality: string
-): string => {
+const receiptsResponse = (pack: MeechieVoicePack, claim: string, reality: string): string => {
 	const cleanClaim = normalize(claim);
 	const cleanReality = normalize(reality);
 	const base = applyTemplate(pack.responses.receipts.template, {
@@ -162,8 +122,7 @@ const apologyResponse = (pack: MeechieVoicePack, apology: string): string => {
 	const key = toKey(apology);
 	const mapped = pack.responses.apologyTranslator.exactMap[key];
 	if (mapped) return mapped;
-	const weakStructure =
-		/sorry you feel|if i hurt|mistakes were made|didn't mean/.test(key);
+	const weakStructure = /sorry you feel|if i hurt|mistakes were made|didn't mean/.test(key);
 	if (weakStructure) {
 		return 'Translation: you centered optics, not impact. Meechie logic: name the act, name the harm, offer repair, and accept the consequence window.';
 	}
@@ -172,12 +131,8 @@ const apologyResponse = (pack: MeechieVoicePack, apology: string): string => {
 
 const explainsResponse = (pack: MeechieVoicePack, term: string): string => {
 	const key = toKey(term);
-	return (
-		pack.responses.explains.map[key] ??
-		applyTemplate(pack.responses.explains.fallbackTemplate, {
-			term: normalize(term)
-		})
-	);
+	return pack.responses.explains.map[key] ??
+		applyTemplate(pack.responses.explains.fallbackTemplate, { term: normalize(term) });
 };
 
 const rateExcuse = (
@@ -195,79 +150,20 @@ const rateExcuse = (
 	};
 };
 
-const cleanGeneratedSaying = (content: string): string => {
-	const firstRawLine =
-		content
-			.split(/\r?\n+/)
-			.map((line) => line.trim())
-			.find((line) => line.length > 0) ?? content;
-	const firstLine = normalize(firstRawLine)
-		.replace(/^["'“”]+|["'“”]+$/g, '')
-		.trim();
-	return firstLine.length > 220
-		? `${firstLine.slice(0, 217).trim()}...`
-		: firstLine;
-};
-
-const generateRandomSaying = async (
-	pack: MeechieVoicePack,
-	provider: ProviderAdapterSeam
-): Promise<Result<string>> => {
-	const examples = pack.responses.randomSayings
-		.slice(0, 8)
-		.map((saying) => `- ${saying}`)
-		.join('\n');
-	const providerResult = await provider.createChatCompletion({
-		model: TEXT_MODEL,
-		messages: [
-			{
-				role: 'system',
-				content:
-					'Generate one original Meechie coloring-book saying. Return one sharp line only: no JSON, no markdown, no explanation. Keep it printable, specific, funny, and under 24 words.'
-			},
-			{
-				role: 'user',
-				content: `Use these as voice examples without copying them:\n${examples}`
-			}
-		]
-	});
-	if (!providerResult.ok) {
-		return providerResult;
-	}
-	const saying = cleanGeneratedSaying(providerResult.value.content);
-	if (!saying) {
-		return {
-			ok: false,
-			error: {
-				code: 'MEECHIE_RANDOM_EMPTY',
-				message: 'AI generated an empty Meechie saying.'
-			}
-		};
-	}
-	return {
-		ok: true,
-		value: saying
-	};
+const curatedSaying = (pack: MeechieVoicePack) => {
+	const candidates = pack.responses.quotes
+		.filter((q) => q.coloringPageReady && q.defaultMode)
+		.map((q) => q.text);
+	const pool = candidates.length > 0 ? candidates : pack.responses.quotes.map((q) => q.text);
+	return selectBestMeechieQuote(pool);
 };
 
 const horoscopeHeadline = (pack: MeechieVoicePack, sign: string): string =>
 	applyTemplate(pack.responses.headlines.horoscopeTemplate, { sign });
 
-export type MeechieToolAdapterDeps = {
-	getVoicePack: typeof meechieVoiceAdapter.getVoicePack;
-	createProvider: typeof createProviderAdapter;
-};
-
-export const createMeechieToolAdapter = (
-	deps: MeechieToolAdapterDeps = {
-		getVoicePack: (input) => meechieVoiceAdapter.getVoicePack(input),
-		createProvider: createProviderAdapter
-	}
-): MeechieToolSeam => ({
-	respond: async (
-		input: MeechieToolInput
-	): Promise<Result<MeechieToolOutput>> => {
-		const voiceResult = await deps.getVoicePack({ voiceId: 'meechie' });
+export const meechieToolAdapter: MeechieToolSeam = {
+	respond: async (input: MeechieToolInput): Promise<Result<MeechieToolOutput>> => {
+		const voiceResult = await meechieVoiceAdapter.getVoicePack({ voiceId: 'meechie' });
 		if (!voiceResult.ok) {
 			return voiceResult;
 		}
@@ -329,8 +225,7 @@ export const createMeechieToolAdapter = (
 						toolId: input.toolId,
 						headline: horoscopeHeadline(pack, input.sign),
 						response:
-							pack.responses.horoscope.map[input.sign] ??
-							pack.responses.horoscope.fallback
+							pack.responses.horoscope.map[input.sign] ?? pack.responses.horoscope.fallback
 					}
 				};
 			case 'receipts':
@@ -382,19 +277,14 @@ export const createMeechieToolAdapter = (
 				};
 			}
 			case 'random_meechie': {
-				const saying = await generateRandomSaying(
-					pack,
-					deps.createProvider({})
-				);
-				if (!saying.ok) {
-					return saying;
-				}
+				const scored = curatedSaying(pack);
 				return {
 					ok: true,
 					value: {
 						toolId: input.toolId,
 						headline: 'Random Meechie',
-						response: saying.value
+						response: scored.quote,
+						quoteScore: scored
 					}
 				};
 			}
@@ -408,6 +298,4 @@ export const createMeechieToolAdapter = (
 				};
 		}
 	}
-});
-
-export const meechieToolAdapter = createMeechieToolAdapter();
+};
