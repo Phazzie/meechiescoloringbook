@@ -6,8 +6,11 @@ Info flow: Mode config + user inputs -> MeechieToolInputSchema -> /api/tools -> 
 <script lang="ts">
 	import { postJson } from '$lib/core/http-client';
 	import type { MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
-	import { MeechieToolInputSchema, MeechieToolResultSchema } from '../../../contracts/meechie-tool.contract';
-	import type { ModeFieldId, ModeConfig } from './meechie-mode-config';
+	import {
+		MeechieToolInputSchema,
+		MeechieToolResultSchema
+	} from '../../../contracts/meechie-tool.contract';
+	import type { ModeConfig, ModeFieldId } from './meechie-mode-config';
 
 	export let config: ModeConfig;
 
@@ -50,7 +53,10 @@ Info flow: Mode config + user inputs -> MeechieToolInputSchema -> /api/tools -> 
 				error = parsedResult.data.error.message;
 			}
 		} catch (requestError) {
-			error = requestError instanceof Error ? requestError.message : 'Tool request failed.';
+			error =
+				requestError instanceof Error
+					? requestError.message
+					: 'Tool request failed.';
 		} finally {
 			isWorking = false;
 		}
@@ -66,7 +72,8 @@ Info flow: Mode config + user inputs -> MeechieToolInputSchema -> /api/tools -> 
 	<section class="form">
 		{#if config.fieldLabels.situation}
 			<label for="situation">{config.fieldLabels.situation}</label>
-			<textarea id="situation" bind:value={fields.situation} rows="3"></textarea>
+			<textarea id="situation" bind:value={fields.situation} rows="3"
+			></textarea>
 		{/if}
 		{#if config.fieldLabels.excuse}
 			<label for="excuse">{config.fieldLabels.excuse}</label>
@@ -99,7 +106,7 @@ Info flow: Mode config + user inputs -> MeechieToolInputSchema -> /api/tools -> 
 	</section>
 
 	<button type="button" on:click={handleGenerate} disabled={isWorking}>
-		{isWorking ? 'Working…' : config.button}
+		{isWorking ? 'Working...' : config.button}
 	</button>
 
 	{#if error}

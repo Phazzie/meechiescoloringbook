@@ -90,8 +90,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	let canMakeMeaner = false;
 	let canMakeMoreSpecific = false;
 
-	$: activeMode =
-		studioModes.find((mode) => mode.id === activeModeId) ?? studioModes[0];
+	const getActiveMode = (modeId: string) =>
+		studioModes.find((mode) => mode.id === modeId) ?? studioModes[0];
+
+	$: activeMode = getActiveMode(activeModeId);
 	$: activeTheme =
 		studioThemes.find((theme) => theme.id === selectedThemeId) ??
 		studioThemes[0];
@@ -229,9 +231,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		vaultStatus = '';
 		isTextWorking = true;
 		try {
+			const selectedMode = getActiveMode(activeModeId);
 			const trimmedEvidence = evidence.trim();
 			const safeEvidence =
-				trimmedEvidence.length > 0 || activeMode.toolId === 'random_meechie'
+				trimmedEvidence.length > 0 || selectedMode.toolId === 'random_meechie'
 					? trimmedEvidence || 'Random Meechie line request.'
 					: '';
 			if (!safeEvidence) {
@@ -241,8 +244,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 			const { payload } = await postJson('/api/meechie-studio-text', {
 				actionId: action.aiAction,
-				modeId: activeMode.id,
-				modeLabel: activeMode.label,
+				modeId: selectedMode.id,
+				modeLabel: selectedMode.label,
 				themeLabel: activeTheme.label,
 				evidence: safeEvidence,
 				dedication:
@@ -513,73 +516,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		</div>
 	</section>
 
-	<section class="modes" aria-label="Choose a mode">
-		<a href="/m/who-fucked-up" class="mode-card mode-wfu"
-			><span class="mode-icon" aria-hidden="true">👁</span>
-			<div class="mode-body">
-				<h2>Who Fucked Up</h2>
-				<p>Describe what happened. Meechie tells you exactly what it means.</p>
-			</div>
-			<span class="mode-arrow">→</span></a
-		>
-		<a href="/m/rate-his-excuse" class="mode-card mode-rhe"
-			><span class="mode-icon" aria-hidden="true">⚖</span>
-			<div class="mode-body">
-				<h2>Rate His Excuse</h2>
-				<p>Drop the excuse. Meechie scores it. Court is in session.</p>
-			</div>
-			<span class="mode-arrow">→</span></a
-		>
-		<a href="/m/apology-translator" class="mode-card mode-random"
-			><span class="mode-icon" aria-hidden="true">📝</span>
-			<div class="mode-body">
-				<h2>Apology Translator</h2>
-				<p>Paste it in. Get the real translation back.</p>
-			</div>
-			<span class="mode-arrow">→</span></a
-		>
-		<a href="/m/random" class="mode-card mode-random"
-			><span class="mode-icon" aria-hidden="true">✦</span>
-			<div class="mode-body">
-				<h2>Random Meechie</h2>
-				<p>One tap. One truth. No context required.</p>
-			</div>
-			<span class="mode-arrow">→</span></a
-		>
-		<a href="/m/caption-this" class="mode-card mode-wfu"
-			><span class="mode-icon" aria-hidden="true">📸</span>
-			<div class="mode-body">
-				<h2>Caption This</h2>
-				<p>Describe the moment. Get a statement caption.</p>
-			</div>
-			<span class="mode-arrow">→</span></a
-		>
-		<a href="/m/receipts" class="mode-card mode-rhe"
-			><span class="mode-icon" aria-hidden="true">🧾</span>
-			<div class="mode-body">
-				<h2>Receipts</h2>
-				<p>Claim versus reality with line-by-line pressure.</p>
-			</div>
-			<span class="mode-arrow">→</span></a
-		>
-		<a href="/m/clapback" class="mode-card mode-random"
-			><span class="mode-icon" aria-hidden="true">💥</span>
-			<div class="mode-body">
-				<h2>Clapback</h2>
-				<p>Bring their line. Leave with yours.</p>
-			</div>
-			<span class="mode-arrow">→</span></a
-		>
-		<a href="/m/what-would-meechie-do" class="mode-card mode-wfu"
-			><span class="mode-icon" aria-hidden="true">🧠</span>
-			<div class="mode-body">
-				<h2>What Would Meechie Do?</h2>
-				<p>Give the dilemma and get Meechie's move.</p>
-			</div>
-			<span class="mode-arrow">→</span></a
-		>
-	</section>
-
 	<section class="mode-strip" aria-label="Choose a Meechie mode">
 		{#each studioModes as mode}
 			<button
@@ -602,12 +538,20 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		{/each}
 	</section>
 
+	<nav class="focused-mode-links" aria-label="Open a focused Meechie mode">
+		{#each studioModes as mode}
+			<a href={`/m/${mode.id}`}>{mode.shortLabel}</a>
+		{/each}
+	</nav>
+
 	<section class="workbench">
 		<div class="input-panel">
 			<div class="panel-head">
 				<p class="eyebrow">Evidence</p>
-				<h2 data-testid="home-active-mode-heading">{activeMode.label}</h2>
-				<p>{activeMode.help}</p>
+				<h2 data-testid="home-active-mode-heading">
+					{getActiveMode(activeModeId).label}
+				</h2>
+				<p>{getActiveMode(activeModeId).help}</p>
 			</div>
 
 			<label for="evidence">What happened?</label>
@@ -617,7 +561,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				rows="8"
 				bind:value={evidence}
 				on:input={scheduleDraftSave}
-				placeholder={activeMode.placeholder}
+				placeholder={getActiveMode(activeModeId).placeholder}
 			></textarea>
 
 			<label for="dedication">Shoutout</label>
@@ -1065,6 +1009,31 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		color: rgba(253, 246, 227, 0.74);
 		text-transform: none;
 		letter-spacing: 0;
+	}
+
+	.focused-mode-links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin: -0.25rem 0 1rem;
+	}
+
+	.focused-mode-links a {
+		border: 1px solid rgba(201, 162, 39, 0.28);
+		border-radius: 8px;
+		color: var(--gold-bright);
+		background: rgba(7, 7, 15, 0.52);
+		padding: 0.45rem 0.7rem;
+		font-size: 0.76rem;
+		font-weight: 900;
+		text-transform: uppercase;
+		text-decoration: none;
+	}
+
+	.focused-mode-links a:focus-visible,
+	.focused-mode-links a:hover {
+		border-color: var(--gold-bright);
+		background: rgba(201, 162, 39, 0.16);
 	}
 
 	.workbench {

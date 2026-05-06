@@ -5,7 +5,10 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 -->
 <script lang="ts">
 	import { postJson } from '$lib/core/http-client';
-	import type { MeechieToolInput, MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
+	import type {
+		MeechieToolInput,
+		MeechieToolOutput
+	} from '../../../contracts/meechie-tool.contract';
 	import {
 		HoroscopeSignSchema,
 		MeechieToolInputSchema,
@@ -79,13 +82,20 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	let isWorking = false;
 
 	let apologyInput = "I'm sorry you feel that way.";
-	let situationInput = 'He said he was working late, but I saw him in the club.';
-	let dilemmaInput = 'He went silent for days, then came back like I owe him a reply.';
+	let situationInput =
+		'He said he was working late, but I saw him in the club.';
+	let dilemmaInput =
+		'He went silent for days, then came back like I owe him a reply.';
 	let lineupPrompt = 'Rank these excuses:';
-	let lineupItems: string[] = ['My phone died', 'I was with the guys', "I didn't see your text"];
+	let lineupItems: string[] = [
+		'My phone died',
+		'I was with the guys',
+		"I didn't see your text"
+	];
 	let horoscopeSign: (typeof signs)[number] = signs[0];
 	let claimInput = 'I never said that.';
-	let realityInput = 'Said it Tuesday, Thursday, and in the group chat on Saturday.';
+	let realityInput =
+		'Said it Tuesday, Thursday, and in the group chat on Saturday.';
 	let momentInput = 'Diamond nails, city lights, and no explanations';
 	let clapbackInput = "She said I'm doing too much.";
 	let explainsInput = 'Situationship';
@@ -111,7 +121,9 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	};
 
 	const updateLineupItem = (index: number, value: string): void => {
-		lineupItems = lineupItems.map((item, idx) => (idx === index ? value : item));
+		lineupItems = lineupItems.map((item, idx) =>
+			idx === index ? value : item
+		);
 	};
 
 	const buildInput = (): MeechieToolInput => {
@@ -123,11 +135,19 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 			case 'wwmd':
 				return { toolId: selectedTool, dilemma: dilemmaInput };
 			case 'lineup':
-				return { toolId: selectedTool, prompt: lineupPrompt, items: lineupItems };
+				return {
+					toolId: selectedTool,
+					prompt: lineupPrompt,
+					items: lineupItems
+				};
 			case 'horoscope':
 				return { toolId: selectedTool, sign: horoscopeSign };
 			case 'receipts':
-				return { toolId: selectedTool, claim: claimInput, reality: realityInput };
+				return {
+					toolId: selectedTool,
+					claim: claimInput,
+					reality: realityInput
+				};
 			case 'caption_this':
 				return { toolId: selectedTool, moment: momentInput };
 			case 'clapback':
@@ -169,7 +189,10 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 				error = parsedResult.data.error.message;
 			}
 		} catch (requestError) {
-			error = requestError instanceof Error ? requestError.message : 'Tool request failed.';
+			error =
+				requestError instanceof Error
+					? requestError.message
+					: 'Tool request failed.';
 		} finally {
 			isWorking = false;
 		}
@@ -188,7 +211,10 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 					class:active={selectedTool === tool.id}
 					data-testid={`meechie-tool-${tool.id}`}
 					aria-selected={selectedTool === tool.id}
-					on:click={() => { selectedTool = tool.id; resetState(); }}
+					on:click={() => {
+						selectedTool = tool.id;
+						resetState();
+					}}
 				>
 					{tool.label}
 				</button>
@@ -215,7 +241,11 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 					<div class="lineup-row">
 						<input
 							value={item}
-							on:input={(event) => updateLineupItem(index, (event.target as HTMLInputElement).value)}
+							on:input={(event) =>
+								updateLineupItem(
+									index,
+									(event.target as HTMLInputElement).value
+								)}
 						/>
 						<button
 							class="ghost"
@@ -320,7 +350,11 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		width: 260px;
 		aspect-ratio: 1;
 		border-radius: 50%;
-		background: radial-gradient(circle, rgba(232, 0, 106, 0.14), transparent 65%);
+		background: radial-gradient(
+			circle,
+			rgba(232, 0, 106, 0.14),
+			transparent 65%
+		);
 		pointer-events: none;
 	}
 
@@ -351,7 +385,10 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		background: transparent;
 		color: rgba(253, 246, 227, 0.55);
 		cursor: pointer;
-		transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+		transition:
+			color 0.15s ease,
+			border-color 0.15s ease,
+			background 0.15s ease;
 	}
 
 	.tool-tab:hover {
@@ -395,7 +432,9 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		font-family: inherit;
 		background: rgba(7, 7, 15, 0.65);
 		color: var(--cream, #fdf6e3);
-		transition: border-color 0.18s ease, box-shadow 0.18s ease;
+		transition:
+			border-color 0.18s ease,
+			box-shadow 0.18s ease;
 	}
 
 	textarea::placeholder,
@@ -429,7 +468,12 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		padding: 0.78rem 1.6rem;
 		border-radius: 4px;
 		border: none;
-		background: linear-gradient(112deg, var(--fuchsia, #e8006a), #8b16c2 52%, var(--gold, #c9a227));
+		background: linear-gradient(
+			112deg,
+			var(--fuchsia, #e8006a),
+			#8b16c2 52%,
+			var(--gold, #c9a227)
+		);
 		color: #fff;
 		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
 		font-weight: 800;
@@ -437,7 +481,10 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		letter-spacing: 0.1em;
 		text-transform: uppercase;
 		cursor: pointer;
-		transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+		transition:
+			transform 0.2s ease,
+			box-shadow 0.2s ease,
+			filter 0.2s ease;
 	}
 
 	.actions .primary:hover {
@@ -467,8 +514,15 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	}
 
 	@keyframes pulse-dot {
-		0%, 100% { opacity: 1; transform: scale(1); }
-		50% { opacity: 0.4; transform: scale(0.7); }
+		0%,
+		100% {
+			opacity: 1;
+			transform: scale(1);
+		}
+		50% {
+			opacity: 0.4;
+			transform: scale(0.7);
+		}
 	}
 
 	/* Lineup */
@@ -500,7 +554,9 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--gold-bright, #f0c44a);
-		transition: border-color 0.15s ease, background 0.15s ease;
+		transition:
+			border-color 0.15s ease,
+			background 0.15s ease;
 	}
 
 	.ghost:hover {
@@ -529,8 +585,14 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	}
 
 	@keyframes verdict-in {
-		from { opacity: 0; transform: translateY(8px); }
-		to { opacity: 1; transform: translateY(0); }
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	.verdict-badge {
