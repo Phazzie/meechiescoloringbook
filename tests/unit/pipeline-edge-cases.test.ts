@@ -383,6 +383,29 @@ describe('generate-pipeline edge cases', () => {
 		}
 	});
 
+	it('returns error when image generation JSON parsing fails', async () => {
+		const result = await runGeneratePipeline(
+			{ spec: validSpec },
+			{
+				...baseDeps,
+				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
+				assemblePrompt: vi.fn().mockResolvedValue({
+					ok: true,
+					value: { prompt: 'test prompt', templateVersion: 'v2' }
+				}),
+				fetchImpl: vi.fn().mockResolvedValue({
+					status: 200,
+					json: vi.fn().mockRejectedValue(new Error('JSON parse error'))
+				} as unknown as Response)
+			}
+		);
+		expect(result.status).toBe(502);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('IMAGE_RESPONSE_INVALID');
+		}
+	});
+
 	it('returns error when image generation returns failure result', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
