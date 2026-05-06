@@ -69,7 +69,11 @@ export type MeechieStudioTextPipelineDeps = {
 	createProvider: typeof createProviderAdapter;
 };
 
-const buildError = (status: number, code: string, message: string): PipelineResponse => ({
+const buildError = (
+	status: number,
+	code: string,
+	message: string
+): PipelineResponse => ({
 	status,
 	body: {
 		ok: false,
@@ -127,23 +131,76 @@ const buildMessages = (input: z.infer<typeof MeechieStudioTextInputSchema>) => [
 	}
 ];
 
-const extractJson = (text: string): unknown => {
+const parseJsonCandidate = (candidate: string): unknown | null => {
 	try {
-		return JSON.parse(text);
+		return JSON.parse(candidate);
 	} catch {
-		const match = text.match(/\{[\s\S]*\}/);
-		if (match) {
-			try {
-				return JSON.parse(match[0]);
-			} catch {
-				return null;
-			}
-		}
 		return null;
 	}
 };
 
-const parseProviderText = (content: string, model: string): MeechieStudioTextResult => {
+const extractJson = (text: string): unknown => {
+	const direct = parseJsonCandidate(text);
+	if (direct) {
+		return direct;
+	}
+
+	const fencePattern = /```(?:json)?\s*([\s\S]*?)```/gi;
+	let fenceMatch: RegExpExecArray | null;
+	while ((fenceMatch = fencePattern.exec(text))) {
+		const fenced = parseJsonCandidate(fenceMatch[1].trim());
+		if (fenced) {
+			return fenced;
+		}
+	}
+
+	for (
+		let start = text.indexOf('{');
+		start !== -1;
+		start = text.indexOf('{', start + 1)
+	) {
+		let depth = 0;
+		let inString = false;
+		let escaped = false;
+		for (let index = start; index < text.length; index++) {
+			const char = text[index];
+			if (escaped) {
+				escaped = false;
+				continue;
+			}
+			if (char === '\\') {
+				escaped = inString;
+				continue;
+			}
+			if (char === '"') {
+				inString = !inString;
+				continue;
+			}
+			if (inString) {
+				continue;
+			}
+			if (char === '{') {
+				depth++;
+			} else if (char === '}') {
+				depth--;
+				if (depth === 0) {
+					const balanced = parseJsonCandidate(text.slice(start, index + 1));
+					if (balanced) {
+						return balanced;
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	return null;
+};
+
+const parseProviderText = (
+	content: string,
+	model: string
+): MeechieStudioTextResult => {
 	const parsed = extractJson(content);
 	if (!parsed) {
 		return {
@@ -183,12 +240,20 @@ export const runMeechieStudioTextPipeline = async (
 ): Promise<PipelineResponse> => {
 	const parsedInput = MeechieStudioTextInputSchema.safeParse(body);
 	if (!parsedInput.success) {
-		return buildError(400, 'MEECHIE_STUDIO_TEXT_INPUT_INVALID', 'Meechie studio text input is invalid.');
+		return buildError(
+			400,
+			'MEECHIE_STUDIO_TEXT_INPUT_INVALID',
+			'Meechie studio text input is invalid.'
+		);
 	}
 
 	const disallowedKeywords = findDisallowedKeywords(parsedInput.data);
 	if (disallowedKeywords.length > 0) {
-		return buildError(400, 'DISALLOWED_CONTENT', 'Meechie studio text input contains disallowed content.');
+		return buildError(
+			400,
+			'DISALLOWED_CONTENT',
+			'Meechie studio text input contains disallowed content.'
+		);
 	}
 
 	const provider: ProviderAdapterSeam = deps.createProvider({});
@@ -215,7 +280,10 @@ export const runMeechieStudioTextPipeline = async (
 		};
 	}
 
-	let result = parseProviderText(providerResult.value.content, providerResult.value.model);
+	let result = parseProviderText(
+		providerResult.value.content,
+		providerResult.value.model
+	);
 
 	if (!result.ok) {
 		// Bounded retry (max 1 retry)
@@ -225,7 +293,8 @@ export const runMeechieStudioTextPipeline = async (
 			responseFormat: STUDIO_TEXT_RESPONSE_FORMAT
 		});
 		if (!providerResult.ok) {
-			const missingKey = providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
+			const missingKey =
+				providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
 			return {
 				status: missingKey ? 401 : 502,
 				body: {
@@ -239,7 +308,10 @@ export const runMeechieStudioTextPipeline = async (
 				}
 			};
 		}
-		result = parseProviderText(providerResult.value.content, providerResult.value.model);
+		result = parseProviderText(
+			providerResult.value.content,
+			providerResult.value.model
+		);
 	}
 	if (!result.ok) {
 		console.warn(
@@ -253,7 +325,11 @@ export const runMeechieStudioTextPipeline = async (
 
 	const parsedResult = MeechieStudioTextResultSchema.safeParse(result);
 	if (!parsedResult.success) {
-		return buildError(500, 'MEECHIE_STUDIO_TEXT_OUTPUT_INVALID', 'Meechie studio text output did not match contract.');
+		return buildError(
+			500,
+			'MEECHIE_STUDIO_TEXT_OUTPUT_INVALID',
+			'Meechie studio text output did not match contract.'
+		);
 	}
 
 	return {

@@ -118,6 +118,58 @@ Hope that helps!`
 		expect(callCount).toBe(1); // parsed on first try
 	});
 
+	it('extracts balanced JSON when prose contains extra braces', async () => {
+		let callCount = 0;
+		const deps: MeechieStudioTextPipelineDeps = {
+			createProvider: () => ({
+				createChatCompletion: async () => {
+					callCount++;
+					return {
+						ok: true,
+						value: {
+							model: 'test-model',
+							content: `Debug {not json} before payload.
+{
+	"verdict": "Guilty",
+	"quote": "No way {still quoted}",
+	"pageTitle": "Uh oh",
+	"pageItems": [{"number": 1, "label": "One"}, {"number": 2, "label": "Two"}],
+	"qualityState": "ready"
+}
+Trailing {also not json}.`
+						}
+					};
+				},
+				createImageGeneration: async () => {
+					throw new Error('not implemented');
+				}
+			})
+		};
+
+		const response = await runMeechieStudioTextPipeline(
+			{
+				actionId: 'generate',
+				modeId: 'test',
+				modeLabel: 'Test Mode',
+				themeLabel: 'Test Theme',
+				evidence: 'test evidence',
+				voice: {
+					intensity: 'receipts_out',
+					rawness: 'mild',
+					thirdPerson: 'sometimes'
+				}
+			},
+			deps
+		);
+
+		expect(response.status).toBe(200);
+		expect(response.body.ok).toBe(true);
+		if (response.body.ok) {
+			expect(response.body.value.quote).toBe('No way {still quoted}');
+		}
+		expect(callCount).toBe(1);
+	});
+
 	it('retries once if JSON is malformed and fails gracefully', async () => {
 		let callCount = 0;
 		const deps: MeechieStudioTextPipelineDeps = {
@@ -155,6 +207,12 @@ Hope that helps!`
 		);
 
 		expect(response.status).toBe(502);
+		expect(response.body).toMatchObject({
+			ok: false,
+			error: {
+				code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID'
+			}
+		});
 		expect(callCount).toBe(2); // Retried once
 	});
 });
