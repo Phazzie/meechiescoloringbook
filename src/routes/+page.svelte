@@ -89,6 +89,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	let canMakePrettier = false;
 	let canMakeMeaner = false;
 	let canMakeMoreSpecific = false;
+	let activeMode = studioModes[0];
+	let activeTheme = studioThemes[0];
 
 	const getActiveMode = (modeId: string) =>
 		studioModes.find((mode) => mode.id === modeId) ?? studioModes[0];
