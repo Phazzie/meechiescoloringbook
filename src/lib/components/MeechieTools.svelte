@@ -138,8 +138,10 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 				return { toolId: selectedTool, excuse: excuseInput };
 			case 'random_meechie':
 				return { toolId: selectedTool };
-			default:
-				return { toolId: 'meechie_explains', term: explainsInput } as any;
+			default: {
+				const _exhaustive: never = selectedTool;
+				throw new Error(`Unhandled tool selection: ${_exhaustive}`);
+			}
 		}
 	};
 
