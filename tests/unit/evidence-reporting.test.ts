@@ -33,6 +33,24 @@ describe('evidence reporting helpers', () => {
 		);
 	});
 
+	test('does not sanitize repo root text inside relative test paths', () => {
+		const output = [
+			'RUN v3.2.4 /app',
+			'✓ src/lib/seams/app-config-seam/test.ts',
+			'✓ tests/unit/app-config-seam.test.ts',
+			'✓ /app/src/lib/seams/app-config-seam/test.ts'
+		].join('\n');
+
+		expect(sanitizeEvidenceOutput('/app', output)).toBe(
+			[
+				'RUN v3.2.4 <REPO_ROOT>',
+				'✓ src/lib/seams/app-config-seam/test.ts',
+				'✓ tests/unit/app-config-seam.test.ts',
+				'✓ <REPO_ROOT>/src/lib/seams/app-config-seam/test.ts'
+			].join('\n')
+		);
+	});
+
 	test('rolls up N/A artifact checks as an ok seam when nothing is missing or blocked', () => {
 		expect(toSeamRollupStatus(['ok', 'na', 'ok'])).toBe('ok');
 		expect(toSeamRollupStatus(['na'])).toBe('ok');
