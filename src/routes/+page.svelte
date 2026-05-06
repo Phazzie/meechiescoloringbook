@@ -92,8 +92,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	let activeMode = studioModes[0];
 	let activeTheme = studioThemes[0];
 
-	$: activeMode =
-		studioModes.find((mode) => mode.id === activeModeId) ?? studioModes[0];
+	const getActiveMode = (modeId: string) =>
+		studioModes.find((mode) => mode.id === modeId) ?? studioModes[0];
+
+	$: activeMode = getActiveMode(activeModeId);
 	$: activeTheme =
 		studioThemes.find((theme) => theme.id === selectedThemeId) ??
 		studioThemes[0];
@@ -231,9 +233,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		vaultStatus = '';
 		isTextWorking = true;
 		try {
+			const selectedMode = getActiveMode(activeModeId);
 			const trimmedEvidence = evidence.trim();
 			const safeEvidence =
-				trimmedEvidence.length > 0 || activeMode.toolId === 'random_meechie'
+				trimmedEvidence.length > 0 || selectedMode.toolId === 'random_meechie'
 					? trimmedEvidence || 'Random Meechie line request.'
 					: '';
 			if (!safeEvidence) {
@@ -243,8 +246,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 			const { payload } = await postJson('/api/meechie-studio-text', {
 				actionId: action.aiAction,
-				modeId: activeMode.id,
-				modeLabel: activeMode.label,
+				modeId: selectedMode.id,
+				modeLabel: selectedMode.label,
 				themeLabel: activeTheme.label,
 				evidence: safeEvidence,
 				dedication:
@@ -537,12 +540,20 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		{/each}
 	</section>
 
+	<nav class="focused-mode-links" aria-label="Open a focused Meechie mode">
+		{#each studioModes as mode}
+			<a href={`/m/${mode.id}`}>{mode.shortLabel}</a>
+		{/each}
+	</nav>
+
 	<section class="workbench">
 		<div class="input-panel">
 			<div class="panel-head">
 				<p class="eyebrow">Evidence</p>
-				<h2 data-testid="home-active-mode-heading">{activeMode.label}</h2>
-				<p>{activeMode.help}</p>
+				<h2 data-testid="home-active-mode-heading">
+					{getActiveMode(activeModeId).label}
+				</h2>
+				<p>{getActiveMode(activeModeId).help}</p>
 			</div>
 
 			<label for="evidence">What happened?</label>
@@ -552,7 +563,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				rows="8"
 				bind:value={evidence}
 				on:input={scheduleDraftSave}
-				placeholder={activeMode.placeholder}
+				placeholder={getActiveMode(activeModeId).placeholder}
 			></textarea>
 
 			<label for="dedication">Shoutout</label>
@@ -1000,6 +1011,31 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		color: rgba(253, 246, 227, 0.74);
 		text-transform: none;
 		letter-spacing: 0;
+	}
+
+	.focused-mode-links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin: -0.25rem 0 1rem;
+	}
+
+	.focused-mode-links a {
+		border: 1px solid rgba(201, 162, 39, 0.28);
+		border-radius: 8px;
+		color: var(--gold-bright);
+		background: rgba(7, 7, 15, 0.52);
+		padding: 0.45rem 0.7rem;
+		font-size: 0.76rem;
+		font-weight: 900;
+		text-transform: uppercase;
+		text-decoration: none;
+	}
+
+	.focused-mode-links a:focus-visible,
+	.focused-mode-links a:hover {
+		border-color: var(--gold-bright);
+		background: rgba(201, 162, 39, 0.16);
 	}
 
 	.workbench {

@@ -159,6 +159,8 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 			case 'random_meechie':
 				return { toolId: selectedTool };
 		}
+		const _exhaustive: never = selectedTool;
+		throw new Error(`Unsupported Meechie tool: ${_exhaustive}`);
 	};
 
 	const handleGenerate = async (): Promise<void> => {
