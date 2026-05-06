@@ -2,6 +2,9 @@
 // Why: Ensure URL normalization, error building, and output normalization behave correctly.
 // Info flow: Helper inputs -> function logic -> verified outputs.
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('$env/dynamic/private', () => ({ env: {} }));
+
 import { createProviderAdapter } from '../../src/lib/adapters/provider-adapter.adapter';
 
 const jsonResponse = (payload: unknown, status = 200): Response =>

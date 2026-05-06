@@ -33,7 +33,7 @@ export const sanitizeEvidenceOutput = (root, output) => {
 	const slashRoot = root.split(/[\\/]+/).join('/');
 	const backslashRoot = root.split(/[\\/]+/).join('\\');
 	const rootPattern = [slashRoot, backslashRoot].map(escapeRegExp).join('|');
-	const localRootPattern = new RegExp(rootPattern, 'gi');
+	const localRootPattern = new RegExp(`(?:${rootPattern})(?=$|[\\\\/\\s])`, 'gi');
 
 	return output.replace(localRootPattern, '<REPO_ROOT>');
 };
