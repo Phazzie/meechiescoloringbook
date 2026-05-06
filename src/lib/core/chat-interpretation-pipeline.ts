@@ -29,7 +29,7 @@ type ChatPipelineDeps = {
 	validateSpec: typeof specValidationAdapter.validate;
 };
 
-const extractSingleJsonObject = (content: string): string | null => {
+const extractSingleJsonObject = (content: string): unknown | null => {
 	const trimmed = content.trim();
 	if (!trimmed.startsWith('{')) {
 		return null;
@@ -38,7 +38,7 @@ const extractSingleJsonObject = (content: string): string | null => {
 	try {
 		const parsed = JSON.parse(trimmed);
 		if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-			return trimmed;
+			return parsed;
 		}
 		return null;
 	} catch {
@@ -91,21 +91,11 @@ export const runChatInterpretationPipeline = async (
 		};
 	}
 
-	const extracted = extractSingleJsonObject(chatResult.value.content);
-	if (!extracted) {
+	const parsedSpec = extractSingleJsonObject(chatResult.value.content);
+	if (!parsedSpec) {
 		return buildError(
 			'CHAT_RESPONSE_INVALID',
 			'Chat response did not include JSON.'
-		);
-	}
-
-	let parsedSpec: unknown = null;
-	try {
-		parsedSpec = JSON.parse(extracted);
-	} catch {
-		return buildError(
-			'CHAT_RESPONSE_INVALID',
-			'Chat response JSON could not be parsed.'
 		);
 	}
 
