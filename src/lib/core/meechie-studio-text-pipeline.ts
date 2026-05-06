@@ -25,11 +25,7 @@ export type MeechieStudioTextPipelineDeps = {
 	createProvider: typeof createProviderAdapter;
 };
 
-const buildError = (
-	status: number,
-	code: string,
-	message: string
-): PipelineResponse => ({
+const buildError = (status: number, code: string, message: string): PipelineResponse => ({
 	status,
 	body: {
 		ok: false,
@@ -39,27 +35,6 @@ const buildError = (
 		}
 	}
 });
-
-const buildProviderError = (
-	providerResult: Extract<
-		Awaited<ReturnType<ProviderAdapterSeam['createChatCompletion']>>,
-		{ ok: false }
-	>
-): PipelineResponse => {
-	const missingKey = providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
-	return {
-		status: missingKey ? 401 : 502,
-		body: {
-			ok: false,
-			error: {
-				...providerResult.error,
-				message: missingKey
-					? 'AI text generation requires XAI_API_KEY to be set on the server.'
-					: providerResult.error.message
-			}
-		}
-	};
-};
 
 const findDisallowedKeywords = (input: unknown): string[] => {
 	const text = JSON.stringify(input).toLowerCase();
@@ -108,99 +83,23 @@ const buildMessages = (input: z.infer<typeof MeechieStudioTextInputSchema>) => [
 	}
 ];
 
-const hasRequiredStudioTextKeys = (value: unknown): boolean => {
-	const candidate = value as Record<string, unknown>;
-	return (
-		typeof candidate === 'object' &&
-		candidate !== null &&
-		typeof candidate.verdict === 'string' &&
-		typeof candidate.quote === 'string' &&
-		typeof candidate.pageTitle === 'string' &&
-		Array.isArray(candidate.pageItems)
-	);
-};
-
-const parseStudioTextCandidate = (candidate: string): unknown | null => {
+const extractJson = (text: string): unknown => {
 	try {
-		const parsed = JSON.parse(candidate);
-		return hasRequiredStudioTextKeys(parsed) ? parsed : null;
+		return JSON.parse(text);
 	} catch {
+		const match = text.match(/\{[\s\S]*\}/);
+		if (match) {
+			try {
+				return JSON.parse(match[0]);
+			} catch {
+				return null;
+			}
+		}
 		return null;
 	}
 };
 
-const extractBalancedJsonObjects = (text: string): string[] => {
-	const candidates: string[] = [];
-	let depth = 0;
-	let start = -1;
-	let inString = false;
-	let escaped = false;
-
-	for (let i = 0; i < text.length; i += 1) {
-		const char = text[i];
-		if (inString) {
-			if (escaped) {
-				escaped = false;
-			} else if (char === '\\') {
-				escaped = true;
-			} else if (char === '"') {
-				inString = false;
-			}
-			continue;
-		}
-		if (char === '"') {
-			inString = true;
-			continue;
-		}
-		if (char === '{') {
-			if (depth === 0) {
-				start = i;
-			}
-			depth += 1;
-			continue;
-		}
-		if (char === '}' && depth > 0) {
-			depth -= 1;
-			if (depth === 0 && start >= 0) {
-				candidates.push(text.slice(start, i + 1));
-				start = -1;
-			}
-		}
-	}
-
-	return candidates;
-};
-
-const extractJson = (text: string): unknown => {
-	const direct = parseStudioTextCandidate(text);
-	if (direct) {
-		return direct;
-	}
-
-	const fencedBlocks = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)].map(
-		(match) => match[1]
-	);
-	for (const block of fencedBlocks) {
-		const parsed = parseStudioTextCandidate(block.trim());
-		if (parsed) {
-			return parsed;
-		}
-	}
-
-	for (const candidate of extractBalancedJsonObjects(text)) {
-		const parsed = parseStudioTextCandidate(candidate);
-		if (parsed) {
-			return parsed;
-		}
-	}
-
-	return null;
-};
-
-const parseProviderText = (
-	content: string,
-	model: string
-): MeechieStudioTextResult => {
+const parseProviderText = (content: string, model: string): MeechieStudioTextResult => {
 	const parsed = extractJson(content);
 	if (!parsed) {
 		return {
@@ -240,20 +139,12 @@ export const runMeechieStudioTextPipeline = async (
 ): Promise<PipelineResponse> => {
 	const parsedInput = MeechieStudioTextInputSchema.safeParse(body);
 	if (!parsedInput.success) {
-		return buildError(
-			400,
-			'MEECHIE_STUDIO_TEXT_INPUT_INVALID',
-			'Meechie studio text input is invalid.'
-		);
+		return buildError(400, 'MEECHIE_STUDIO_TEXT_INPUT_INVALID', 'Meechie studio text input is invalid.');
 	}
 
 	const disallowedKeywords = findDisallowedKeywords(parsedInput.data);
 	if (disallowedKeywords.length > 0) {
-		return buildError(
-			400,
-			'DISALLOWED_CONTENT',
-			'Meechie studio text input contains disallowed content.'
-		);
+		return buildError(400, 'DISALLOWED_CONTENT', 'Meechie studio text input contains disallowed content.');
 	}
 
 	const provider: ProviderAdapterSeam = deps.createProvider({});
@@ -262,35 +153,39 @@ export const runMeechieStudioTextPipeline = async (
 		model: TEXT_MODEL,
 		messages
 	});
+
 	if (!providerResult.ok) {
-		return buildProviderError(providerResult);
+		const missingKey = providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
+		return {
+			status: missingKey ? 401 : 502,
+			body: {
+				ok: false,
+				error: {
+					...providerResult.error,
+					message: missingKey
+						? 'AI text generation requires XAI_API_KEY to be set on the server.'
+						: providerResult.error.message
+				}
+			}
+		};
 	}
 
-	let result = parseProviderText(
-		providerResult.value.content,
-		providerResult.value.model
-	);
+	let result = parseProviderText(providerResult.value.content, providerResult.value.model);
+
 	if (!result.ok) {
+		// Bounded retry (max 1 retry)
 		providerResult = await provider.createChatCompletion({
 			model: TEXT_MODEL,
 			messages
 		});
-		if (!providerResult.ok) {
-			return buildProviderError(providerResult);
+		if (providerResult.ok) {
+			result = parseProviderText(providerResult.value.content, providerResult.value.model);
 		}
-		result = parseProviderText(
-			providerResult.value.content,
-			providerResult.value.model
-		);
 	}
 
 	const parsedResult = MeechieStudioTextResultSchema.safeParse(result);
 	if (!parsedResult.success) {
-		return buildError(
-			500,
-			'MEECHIE_STUDIO_TEXT_OUTPUT_INVALID',
-			'Meechie studio text output did not match contract.'
-		);
+		return buildError(500, 'MEECHIE_STUDIO_TEXT_OUTPUT_INVALID', 'Meechie studio text output did not match contract.');
 	}
 
 	return {

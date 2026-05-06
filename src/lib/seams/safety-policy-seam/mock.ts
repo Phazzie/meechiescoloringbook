@@ -43,7 +43,7 @@ export const createMockSafetyPolicySeam = (): SafetyPolicySeam => ({
         error: {
           code: 'DISALLOWED_CONTENT',
           message: 'Request contains disallowed content.',
-          details: ['Remove sexual, self-harm, extremist, or illegal content.']
+          details: ['Remove nude, self-harm, extremist, or other disallowed content.']
         }
       };
     }
