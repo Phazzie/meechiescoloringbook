@@ -2,6 +2,10 @@
 // Why: Keep provider boundary deterministic without real network calls.
 // Info flow: Fixtures -> mock/adapter -> assertions.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+	XAIChatResponseSchema,
+	XAIImageResponseSchema
+} from '../../src/lib/adapters/provider-adapter.adapter';
 import { z } from 'zod';
 import {
 	ProviderChatInputSchema,
@@ -155,5 +159,289 @@ describe('ProviderAdapterSeam contract', () => {
 		const imageOutput = await providerAdapter.createImageGeneration(faultFixture.input.image);
 		expect(chatOutput).toEqual(faultFixture.output.chat);
 		expect(imageOutput).toEqual(faultFixture.output.image);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Raw response schema validation — tests that the Zod schemas at the seam
+// boundary accept well-formed payloads and reject structurally invalid ones.
+// These are unit tests of the schemas themselves; the adapter integration
+// tests above cover the full request path.
+// ---------------------------------------------------------------------------
+
+describe('XAIChatResponseSchema', () => {
+	it('accepts a well-formed chat response', () => {
+		const result = XAIChatResponseSchema.safeParse({
+			model: 'grok-4',
+			choices: [{ message: { content: 'hello' } }]
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it('accepts a response using the legacy text field', () => {
+		const result = XAIChatResponseSchema.safeParse({
+			model: 'grok-4',
+			choices: [{ text: 'hello' }]
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it('accepts a response with missing model (uses fallback downstream)', () => {
+		const result = XAIChatResponseSchema.safeParse({
+			choices: [{ message: { content: 'hello' } }]
+		});
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.model).toBeUndefined();
+	});
+
+	it('accepts a response with null choices (maps to PROVIDER_EMPTY_CHAT)', () => {
+		const result = XAIChatResponseSchema.safeParse({ model: 'grok-4', choices: null });
+		expect(result.success).toBe(true);
+	});
+
+	it('accepts a response with an empty choices array', () => {
+		const result = XAIChatResponseSchema.safeParse({ model: 'grok-4', choices: [] });
+		expect(result.success).toBe(true);
+	});
+
+	it('accepts a response with null message content', () => {
+		const result = XAIChatResponseSchema.safeParse({
+			choices: [{ message: { content: null } }]
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it('passes through unknown top-level fields', () => {
+		const result = XAIChatResponseSchema.safeParse({
+			model: 'grok-4',
+			choices: [{ message: { content: 'hi' } }],
+			usage: { prompt_tokens: 10 }
+		});
+		expect(result.success).toBe(true);
+		if (result.success) expect((result.data as { usage?: unknown }).usage).toBeDefined();
+	});
+
+	it('rejects a non-object payload (null)', () => {
+		expect(XAIChatResponseSchema.safeParse(null).success).toBe(false);
+	});
+
+	it('rejects a non-object payload (string)', () => {
+		expect(XAIChatResponseSchema.safeParse('bad').success).toBe(false);
+	});
+
+	it('rejects a non-object payload (array)', () => {
+		expect(XAIChatResponseSchema.safeParse([]).success).toBe(false);
+	});
+
+	it('rejects when choices is not an array', () => {
+		expect(
+			XAIChatResponseSchema.safeParse({ choices: 'not-an-array' }).success
+		).toBe(false);
+	});
+});
+
+describe('XAIImageResponseSchema', () => {
+	it('accepts a well-formed image response with url', () => {
+		const result = XAIImageResponseSchema.safeParse({
+			data: [{ url: 'https://example.com/img.png' }],
+			revised_prompt: 'a cat'
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it('accepts a response with b64_json images', () => {
+		const result = XAIImageResponseSchema.safeParse({
+			data: [{ b64_json: 'base64data' }]
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it('accepts a response with camelCase revisedPrompt', () => {
+		const result = XAIImageResponseSchema.safeParse({
+			data: [{ url: 'https://example.com/img.png' }],
+			revisedPrompt: 'a dog'
+		});
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.revisedPrompt).toBe('a dog');
+	});
+
+	it('accepts a response with null data (maps to PROVIDER_EMPTY_IMAGE)', () => {
+		const result = XAIImageResponseSchema.safeParse({ data: null });
+		expect(result.success).toBe(true);
+	});
+
+	it('accepts a response with an empty data array', () => {
+		const result = XAIImageResponseSchema.safeParse({ data: [] });
+		expect(result.success).toBe(true);
+	});
+
+	it('accepts data entries with no url or b64_json (filtered out downstream)', () => {
+		const result = XAIImageResponseSchema.safeParse({
+			data: [{ other: 'field' }]
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it('passes through unknown top-level fields', () => {
+		const result = XAIImageResponseSchema.safeParse({
+			data: [{ url: 'https://example.com/img.png' }],
+			created: 1234567890
+		});
+		expect(result.success).toBe(true);
+		if (result.success) expect((result.data as { created?: unknown }).created).toBeDefined();
+	});
+
+	it('rejects a non-object payload (null)', () => {
+		expect(XAIImageResponseSchema.safeParse(null).success).toBe(false);
+	});
+
+	it('rejects a non-object payload (string)', () => {
+		expect(XAIImageResponseSchema.safeParse('bad').success).toBe(false);
+	});
+
+	it('rejects when data is not an array', () => {
+		expect(
+			XAIImageResponseSchema.safeParse({ data: 'not-an-array' }).success
+		).toBe(false);
+	});
+});
+
+describe('ProviderAdapterSeam normalization — malformed raw responses', () => {
+	const jsonResponse = (payload: unknown, status = 200): Response =>
+		new Response(JSON.stringify(payload), {
+			status,
+			headers: { 'Content-Type': 'application/json' }
+		});
+
+	let adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+
+	beforeEach(() => {
+		adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+	});
+
+	it('chat: returns PROVIDER_INVALID_RESPONSE when payload is a bare string', async () => {
+		vi.stubGlobal('fetch', async () => jsonResponse('"unexpected string"'));
+		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.error.code).toBe('PROVIDER_INVALID_RESPONSE');
+		vi.unstubAllGlobals();
+	});
+
+	it('chat: returns PROVIDER_INVALID_RESPONSE when payload is an array', async () => {
+		vi.stubGlobal('fetch', async () => jsonResponse([]));
+		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.error.code).toBe('PROVIDER_INVALID_RESPONSE');
+		vi.unstubAllGlobals();
+	});
+
+	it('chat: returns PROVIDER_EMPTY_CHAT when choices is empty', async () => {
+		vi.stubGlobal('fetch', async () => jsonResponse({ model: 'grok-4', choices: [] }));
+		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.error.code).toBe('PROVIDER_EMPTY_CHAT');
+		vi.unstubAllGlobals();
+	});
+
+	it('chat: returns PROVIDER_EMPTY_CHAT when message content is null', async () => {
+		vi.stubGlobal(
+			'fetch',
+			async () => jsonResponse({ model: 'grok-4', choices: [{ message: { content: null } }] })
+		);
+		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.error.code).toBe('PROVIDER_EMPTY_CHAT');
+		vi.unstubAllGlobals();
+	});
+
+	it('chat: returns PROVIDER_EMPTY_CHAT when message content is empty string', async () => {
+		vi.stubGlobal(
+			'fetch',
+			async () => jsonResponse({ model: 'grok-4', choices: [{ message: { content: '' } }] })
+		);
+		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.error.code).toBe('PROVIDER_EMPTY_CHAT');
+		vi.unstubAllGlobals();
+	});
+
+	it('chat: uses fallback model when model field is absent', async () => {
+		vi.stubGlobal(
+			'fetch',
+			async () => jsonResponse({ choices: [{ message: { content: 'hello' } }] })
+		);
+		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
+		expect(result.ok).toBe(true);
+		if (result.ok) expect(result.value.model).toBe(sampleFixture.input.chat.model);
+		vi.unstubAllGlobals();
+	});
+
+	it('chat: accepts legacy text field when message is absent', async () => {
+		vi.stubGlobal(
+			'fetch',
+			async () => jsonResponse({ model: 'grok-4', choices: [{ text: 'legacy content' }] })
+		);
+		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
+		expect(result.ok).toBe(true);
+		if (result.ok) expect(result.value.content).toBe('legacy content');
+		vi.unstubAllGlobals();
+	});
+
+	it('image: returns PROVIDER_INVALID_RESPONSE when payload is a bare string', async () => {
+		vi.stubGlobal('fetch', async () => jsonResponse('"unexpected"'));
+		const result = await adapter.createImageGeneration(sampleFixture.input.image);
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.error.code).toBe('PROVIDER_INVALID_RESPONSE');
+		vi.unstubAllGlobals();
+	});
+
+	it('image: returns PROVIDER_EMPTY_IMAGE when data is an empty array', async () => {
+		vi.stubGlobal('fetch', async () => jsonResponse({ data: [] }));
+		const result = await adapter.createImageGeneration(sampleFixture.input.image);
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.error.code).toBe('PROVIDER_EMPTY_IMAGE');
+		vi.unstubAllGlobals();
+	});
+
+	it('image: returns PROVIDER_EMPTY_IMAGE when data entries lack url and b64_json', async () => {
+		vi.stubGlobal('fetch', async () => jsonResponse({ data: [{ other: 'field' }] }));
+		const result = await adapter.createImageGeneration(sampleFixture.input.image);
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.error.code).toBe('PROVIDER_EMPTY_IMAGE');
+		vi.unstubAllGlobals();
+	});
+
+	it('image: returns PROVIDER_EMPTY_IMAGE when data is null', async () => {
+		vi.stubGlobal('fetch', async () => jsonResponse({ data: null }));
+		const result = await adapter.createImageGeneration(sampleFixture.input.image);
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.error.code).toBe('PROVIDER_EMPTY_IMAGE');
+		vi.unstubAllGlobals();
+	});
+
+	it('image: omits revisedPrompt when absent from response', async () => {
+		vi.stubGlobal(
+			'fetch',
+			async () => jsonResponse({ data: [{ url: 'https://example.com/img.png' }] })
+		);
+		const result = await adapter.createImageGeneration(sampleFixture.input.image);
+		expect(result.ok).toBe(true);
+		if (result.ok) expect(result.value.revisedPrompt).toBeUndefined();
+		vi.unstubAllGlobals();
+	});
+
+	it('image: reads revisedPrompt from camelCase field', async () => {
+		vi.stubGlobal(
+			'fetch',
+			async () =>
+				jsonResponse({
+					data: [{ url: 'https://example.com/img.png' }],
+					revisedPrompt: 'a cat in a hat'
+				})
+		);
+		const result = await adapter.createImageGeneration(sampleFixture.input.image);
+		expect(result.ok).toBe(true);
+		if (result.ok) expect(result.value.revisedPrompt).toBe('a cat in a hat');
+		vi.unstubAllGlobals();
 	});
 });
