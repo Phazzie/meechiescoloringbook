@@ -43,13 +43,13 @@
       "outputFormat": "pdf",
       "pageSize": "US_Letter"
     },
-    "styleHint": "clean worksheet"
+    "styleHint": "STYLE: clean worksheet"
   },
   "output": {
     "ok": false,
     "error": {
-      "code": "PROMPT_TOO_LONG",
-      "message": "Prompt exceeds provider length limit (1024)."
+      "code": "STYLE_HINT_CONTAINS_RESERVED_HEADING",
+      "message": "Style hint contains a reserved prompt heading."
     }
   }
 }
