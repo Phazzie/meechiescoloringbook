@@ -1,7 +1,10 @@
 // Purpose: Adapter implementation for CreationStoreSeam.
 // Why: Persist creations and drafts in browser storage without hidden I/O.
 // Info flow: Records -> localStorage -> retrieval by owner/id.
-import { CreationRecordSchema, DraftRecordSchema } from '../../../contracts/creation-store.contract';
+import {
+	CreationRecordSchema,
+	DraftRecordSchema
+} from '../../../contracts/creation-store.contract';
 import type {
 	CreationRecord,
 	CreationStoreSeam,
@@ -97,7 +100,10 @@ const loadRecords = (): Result<CreationRecord[]> => {
 const saveRecords = (records: CreationRecord[]): Result<boolean> =>
 	writeJson(CREATIONS_KEY, records);
 
-const ownerMatches = (record: CreationRecord, owner: CreationRecord['owner']): boolean => {
+const ownerMatches = (
+	record: CreationRecord,
+	owner: CreationRecord['owner']
+): boolean => {
 	if (record.owner.kind === 'anonymous' && owner.kind === 'anonymous') {
 		return record.owner.sessionId === owner.sessionId;
 	}
@@ -107,7 +113,10 @@ const ownerMatches = (record: CreationRecord, owner: CreationRecord['owner']): b
 	return false;
 };
 
-const upsertRecord = (records: CreationRecord[], record: CreationRecord): CreationRecord[] => {
+const upsertRecord = (
+	records: CreationRecord[],
+	record: CreationRecord
+): CreationRecord[] => {
 	const filtered = records.filter((existing) => existing.id !== record.id);
 	const next = [record, ...filtered];
 	return next.slice(0, MAX_CREATIONS);
@@ -135,16 +144,26 @@ export const creationStoreAdapter: CreationStoreSeam = {
 		if (typeof localStorage === 'undefined') {
 			return browserGuard('Creation store requires a browser environment.');
 		}
+		const parsedRecord = CreationRecordSchema.safeParse(input.record);
+		if (!parsedRecord.success) {
+			return {
+				ok: false,
+				error: {
+					code: 'CREATION_SCHEMA_MISMATCH',
+					message: 'Creation record failed schema validation.'
+				}
+			};
+		}
 		const existing = loadRecords();
 		if (!existing.ok) {
 			return existing;
 		}
-		const updated = upsertRecord(existing.value, input.record);
+		const updated = upsertRecord(existing.value, parsedRecord.data);
 		const stored = saveRecords(updated);
 		if (!stored.ok) {
 			return stored;
 		}
-		return { ok: true, value: input.record };
+		return { ok: true, value: parsedRecord.data };
 	},
 	listCreations: async (input) => {
 		if (typeof localStorage === 'undefined') {
@@ -154,7 +173,9 @@ export const creationStoreAdapter: CreationStoreSeam = {
 		if (!existing.ok) {
 			return existing;
 		}
-		const filtered = existing.value.filter((record) => ownerMatches(record, input.owner));
+		const filtered = existing.value.filter((record) =>
+			ownerMatches(record, input.owner)
+		);
 		return { ok: true, value: filtered };
 	},
 	getCreation: async (input) => {
@@ -165,7 +186,8 @@ export const creationStoreAdapter: CreationStoreSeam = {
 		if (!existing.ok) {
 			return existing;
 		}
-		const found = existing.value.find((record) => record.id === input.id) || null;
+		const found =
+			existing.value.find((record) => record.id === input.id) || null;
 		return { ok: true, value: found };
 	},
 	deleteCreation: async (input) => {

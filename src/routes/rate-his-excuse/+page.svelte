@@ -11,6 +11,7 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 	import { MeechieToolResultSchema } from '../../../contracts/meechie-tool.contract';
 	import { GenerateResultSchema } from '../../../contracts/generate.contract';
+	import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 
 	let excuse = '';
 	let result: MeechieToolOutput | null = null;
@@ -38,7 +39,10 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 			});
 			const parsed = MeechieToolResultSchema.safeParse(payload);
 			if (!parsed.success || !parsed.data.ok) {
-				error = parsed.success && !parsed.data.ok ? parsed.data.error.message : 'Something went wrong.';
+				error =
+					parsed.success && !parsed.data.ok
+						? parsed.data.error.message
+						: 'Something went wrong.';
 			} else {
 				result = parsed.data.value;
 			}
@@ -63,7 +67,10 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		packagedFiles = [];
 
 		try {
-			const saying = `${result.headline} — ${result.response}`;
+			const saying = compactColoringPageTitle([
+				result.headline,
+				result.response
+			]);
 			const { payload } = await postJson('/api/generate', {
 				spec: {
 					title: saying,
@@ -87,13 +94,16 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 					outputFormat: 'pdf',
 					pageSize: 'US_Letter'
 				},
-				styleHint: 'gavel, scales, diamonds, verdict stamp, bold statement coloring page'
+				styleHint:
+					'gavel, scales, diamonds, verdict stamp, bold statement coloring page'
 			});
 
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success || !parsed.data.ok) {
 				generateError =
-					parsed.success && !parsed.data.ok ? parsed.data.error.message : 'Page generation failed.';
+					parsed.success && !parsed.data.ok
+						? parsed.data.error.message
+						: 'Page generation failed.';
 				return;
 			}
 
@@ -123,7 +133,8 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				generateError = packResult.error.message;
 			}
 		} catch (e) {
-			generateError = e instanceof Error ? e.message : 'Network error. Try again.';
+			generateError =
+				e instanceof Error ? e.message : 'Network error. Try again.';
 		} finally {
 			isGenerating = false;
 		}
@@ -161,13 +172,18 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		<header class="hero">
 			<p class="eyebrow">Mode Two</p>
 			<h1>Rate His Excuse</h1>
-			<p class="subhead">Drop the excuse. Meechie scores it. No soft landing.</p>
+			<p class="subhead">
+				Drop the excuse. Meechie scores it. No soft landing.
+			</p>
 		</header>
 
 		<section class="input-card">
-			<label for="excuse" class="input-label">What excuse did he give you?</label>
+			<label for="excuse" class="input-label"
+				>What excuse did he give you?</label
+			>
 			<textarea
 				id="excuse"
+				data-testid="rate-excuse-input"
 				bind:value={excuse}
 				on:keydown={handleKeydown}
 				rows="4"
@@ -177,39 +193,52 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 			<p class="key-hint">Ctrl + Enter to submit</p>
 
 			{#if error}
-				<p class="error">{error}</p>
+				<p class="error" data-testid="rate-error">{error}</p>
 			{/if}
 
 			<button
 				type="button"
 				class="cta"
+				data-testid="rate-submit"
 				on:click={handleSubmit}
 				disabled={isWorking || !excuse.trim()}
 			>
 				{isWorking ? 'Court is reviewing...' : 'Let Meechie Hear It'}
 			</button>
 		</section>
-
 	{:else}
 		<header class="verdict-hero">
 			<p class="eyebrow">Meechie's Ruling</p>
 			<p class="excuse-echo">"{excuse}"</p>
 
 			<div class="score-display">
-				<span class="score-number" style="color: {ratingColor}">{result.headline}</span>
+				<span class="score-number" style="color: {ratingColor}"
+					>{result.headline}</span
+				>
 				<span class="score-label">out of 10</span>
 			</div>
 
-			<p class="verdict-commentary">{result.response}</p>
-			<button type="button" class="ghost-btn" on:click={reset}>← Different excuse</button>
+			<p class="verdict-commentary" data-testid="rate-result">
+				{result.response}
+			</p>
+			<button
+				type="button"
+				class="ghost-btn"
+				data-testid="rate-reset"
+				on:click={reset}>← Different excuse</button
+			>
 		</header>
 
 		<section class="page-section">
 			<h2>Generate the Coloring Page</h2>
-			<p class="section-sub">The ruling becomes the page. Print it. Dedicate it.</p>
+			<p class="section-sub">
+				The ruling becomes the page. Print it. Dedicate it.
+			</p>
 
 			<div class="field">
-				<label for="dedicated" class="field-label">Dedicated to (optional)</label>
+				<label for="dedicated" class="field-label"
+					>Dedicated to (optional)</label
+				>
 				<input
 					id="dedicated"
 					type="text"
@@ -225,12 +254,13 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 			</label>
 
 			{#if generateError}
-				<p class="error">{generateError}</p>
+				<p class="error" data-testid="rate-generate-error">{generateError}</p>
 			{/if}
 
 			<button
 				type="button"
 				class="cta"
+				data-testid="rate-generate-page"
 				on:click={handleGenerate}
 				disabled={isGenerating}
 			>
@@ -273,8 +303,16 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		padding: 2.5rem 1.4rem 5rem;
 		min-height: 100vh;
 		background:
-			radial-gradient(circle at 100% 0%, rgba(201, 162, 39, 0.16), transparent 42%),
-			radial-gradient(circle at 0% 80%, rgba(107, 33, 168, 0.18), transparent 45%);
+			radial-gradient(
+				circle at 100% 0%,
+				rgba(201, 162, 39, 0.16),
+				transparent 42%
+			),
+			radial-gradient(
+				circle at 0% 80%,
+				rgba(107, 33, 168, 0.18),
+				transparent 45%
+			);
 	}
 
 	.ambient {
@@ -290,7 +328,11 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		width: clamp(160px, 24vw, 300px);
 		aspect-ratio: 1;
 		border-radius: 46% 54% 54% 46%;
-		background: linear-gradient(145deg, rgba(201, 162, 39, 0.22), rgba(107, 33, 168, 0.14));
+		background: linear-gradient(
+			145deg,
+			rgba(201, 162, 39, 0.22),
+			rgba(107, 33, 168, 0.14)
+		);
 	}
 
 	.hero {
@@ -354,7 +396,9 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		color: var(--cream);
 		background: rgba(7, 7, 15, 0.7);
 		resize: vertical;
-		transition: border-color 0.2s ease, box-shadow 0.2s ease;
+		transition:
+			border-color 0.2s ease,
+			box-shadow 0.2s ease;
 	}
 
 	textarea:focus {
@@ -386,7 +430,10 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
 		cursor: pointer;
-		transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+		transition:
+			transform 0.2s ease,
+			box-shadow 0.2s ease,
+			filter 0.2s ease;
 	}
 
 	.cta:hover:not(:disabled) {
@@ -566,8 +613,16 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		position: absolute;
 		inset: 0;
 		background:
-			radial-gradient(ellipse at 20% 20%, rgba(240, 196, 74, 0.25), transparent 55%),
-			radial-gradient(ellipse at 80% 80%, rgba(232, 0, 106, 0.18), transparent 50%);
+			radial-gradient(
+				ellipse at 20% 20%,
+				rgba(240, 196, 74, 0.25),
+				transparent 55%
+			),
+			radial-gradient(
+				ellipse at 80% 80%,
+				rgba(232, 0, 106, 0.18),
+				transparent 50%
+			);
 		pointer-events: none;
 	}
 
@@ -598,7 +653,9 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		text-decoration: none;
 		font-size: 0.88rem;
 		font-weight: 600;
-		transition: border-color 0.2s ease, background-color 0.2s ease;
+		transition:
+			border-color 0.2s ease,
+			background-color 0.2s ease;
 	}
 
 	.download-link:hover {

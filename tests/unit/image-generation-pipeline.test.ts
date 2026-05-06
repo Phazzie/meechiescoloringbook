@@ -107,7 +107,10 @@ describe('image-generation-pipeline edge cases', () => {
 					createChatCompletion: vi.fn(),
 					createImageGeneration: vi.fn().mockResolvedValue({
 						ok: false,
-						error: { code: 'PROVIDER_HTTP_ERROR', message: 'Service unavailable' }
+						error: {
+							code: 'PROVIDER_HTTP_ERROR',
+							message: 'Service unavailable'
+						}
 					})
 				})
 			}
@@ -172,6 +175,36 @@ describe('image-generation-pipeline edge cases', () => {
 			expect(result.body.value.images[0].format).toBe('png');
 			expect(result.body.value.images[0].encoding).toBe('base64');
 			expect(result.body.value.revisedPrompt).toBe('revised prompt');
+		}
+	});
+
+	it('marks provider JPEG base64 as jpg for downstream packaging', async () => {
+		const result = await runImageGenerationPipeline(
+			{
+				spec: validSpec,
+				prompt: validPrompt,
+				variations: 1,
+				outputFormat: 'pdf'
+			},
+			{
+				createProvider: vi.fn().mockReturnValue({
+					createChatCompletion: vi.fn(),
+					createImageGeneration: vi.fn().mockResolvedValue({
+						ok: true,
+						value: {
+							images: [{ b64_json: '/9j/jpeg-data' }],
+							revisedPrompt: undefined
+						}
+					})
+				})
+			}
+		);
+
+		expect(result.status).toBe(200);
+		expect(result.body.ok).toBe(true);
+		if (result.body.ok) {
+			expect(result.body.value.images[0].format).toBe('jpg');
+			expect(result.body.value.images[0].mimeType).toBe('image/jpeg');
 		}
 	});
 

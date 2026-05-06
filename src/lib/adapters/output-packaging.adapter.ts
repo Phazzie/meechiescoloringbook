@@ -109,7 +109,9 @@ const svgToPngBase64 = async (svg: string): Promise<Result<string>> => {
 	return base64Result;
 };
 
-const imageToPngBase64 = async (image: OutputPackagingInput['images'][number]): Promise<Result<string>> => {
+const imageToPngBase64 = async (
+	image: OutputPackagingInput['images'][number]
+): Promise<Result<string>> => {
 	if (image.format === 'png') {
 		if (image.encoding !== 'base64') {
 			return {
@@ -121,6 +123,23 @@ const imageToPngBase64 = async (image: OutputPackagingInput['images'][number]): 
 			};
 		}
 		return { ok: true, value: image.data };
+	}
+
+	if (image.format === 'jpg') {
+		if (image.encoding !== 'base64') {
+			return {
+				ok: false,
+				error: {
+					code: 'JPG_ENCODING_UNSUPPORTED',
+					message: 'JPG data must be base64 encoded.'
+				}
+			};
+		}
+		return drawImageToCanvas(
+			`data:image/jpeg;base64,${image.data}`,
+			2550,
+			3300
+		);
 	}
 
 	if (image.format === 'svg') {
@@ -140,10 +159,16 @@ const toImageDataUrl = async (
 	image: OutputPackagingInput['images'][number]
 ): Promise<Result<string>> => {
 	if (image.format === 'svg') {
-		return { ok: true, value: `data:image/svg+xml;utf8,${encodeURIComponent(image.data)}` };
+		return {
+			ok: true,
+			value: `data:image/svg+xml;utf8,${encodeURIComponent(image.data)}`
+		};
 	}
 	if (image.format === 'png' && image.encoding === 'base64') {
 		return { ok: true, value: `data:image/png;base64,${image.data}` };
+	}
+	if (image.format === 'jpg' && image.encoding === 'base64') {
+		return { ok: true, value: `data:image/jpeg;base64,${image.data}` };
 	}
 	return {
 		ok: false,
@@ -154,7 +179,11 @@ const toImageDataUrl = async (
 	};
 };
 
-const drawImageToCanvas = async (dataUrl: string, width: number, height: number): Promise<Result<string>> => {
+const drawImageToCanvas = async (
+	dataUrl: string,
+	width: number,
+	height: number
+): Promise<Result<string>> => {
 	if (typeof document === 'undefined' || typeof Image === 'undefined') {
 		return {
 			ok: false,
@@ -229,14 +258,21 @@ const imageToPngBase64Sized = async (
 	return drawImageToCanvas(dataUrlResult.value, size, size);
 };
 
-const buildFilename = (base: string, index: number, total: number, suffix: string): string => {
+const buildFilename = (
+	base: string,
+	index: number,
+	total: number,
+	suffix: string
+): string => {
 	const indexSuffix = total > 1 ? `-${index + 1}` : '';
 	const variantSuffix = suffix.length > 0 ? `-${suffix}` : '';
 	return `${base}${indexSuffix}${variantSuffix}`;
 };
 
 export const outputPackagingAdapter: OutputPackagingSeam = {
-	package: async (input: OutputPackagingInput): Promise<Result<OutputPackagingOutput>> => {
+	package: async (
+		input: OutputPackagingInput
+	): Promise<Result<OutputPackagingOutput>> => {
 		if (input.images.length === 0) {
 			return {
 				ok: false,
@@ -247,7 +283,8 @@ export const outputPackagingAdapter: OutputPackagingSeam = {
 			};
 		}
 
-		const variants = input.variants && input.variants.length > 0 ? input.variants : ['print'];
+		const variants =
+			input.variants && input.variants.length > 0 ? input.variants : ['print'];
 		const files: OutputPackagingOutput['files'] = [];
 
 		for (let index = 0; index < input.images.length; index += 1) {
@@ -266,21 +303,25 @@ export const outputPackagingAdapter: OutputPackagingSeam = {
 					});
 				} else {
 					const pageSize = PAGE_SIZES[input.pageSize];
-					const pngResult = await imageToPngBase64(image);
-					if (!pngResult.ok) {
-						return pngResult;
-					}
-					const pngBytes = fromBase64(pngResult.value);
 					const pdfDoc = await PDFDocument.create();
 					const page = pdfDoc.addPage([pageSize.width, pageSize.height]);
-					const pngImage = await pdfDoc.embedPng(pngBytes);
+					let embeddedImage;
+					if (image.format === 'jpg' && image.encoding === 'base64') {
+						embeddedImage = await pdfDoc.embedJpg(fromBase64(image.data));
+					} else {
+						const pngResult = await imageToPngBase64(image);
+						if (!pngResult.ok) {
+							return pngResult;
+						}
+						embeddedImage = await pdfDoc.embedPng(fromBase64(pngResult.value));
+					}
 					const scale = Math.min(
-						pageSize.width / pngImage.width,
-						pageSize.height / pngImage.height
+						pageSize.width / embeddedImage.width,
+						pageSize.height / embeddedImage.height
 					);
-					const width = pngImage.width * scale;
-					const height = pngImage.height * scale;
-					page.drawImage(pngImage, {
+					const width = embeddedImage.width * scale;
+					const height = embeddedImage.height * scale;
+					page.drawImage(embeddedImage, {
 						x: (pageSize.width - width) / 2,
 						y: (pageSize.height - height) / 2,
 						width,

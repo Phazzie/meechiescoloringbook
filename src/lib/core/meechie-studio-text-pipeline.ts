@@ -12,7 +12,51 @@ import {
 import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.contract';
 import { z } from 'zod';
 
-const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4.1-fast-reasoning';
+const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
+
+const STUDIO_TEXT_RESPONSE_FORMAT = {
+	type: 'json_schema',
+	json_schema: {
+		name: 'meechie_studio_text',
+		strict: true,
+		schema: {
+			type: 'object',
+			additionalProperties: false,
+			properties: {
+				verdict: { type: 'string' },
+				quote: { type: 'string' },
+				pageTitle: { type: 'string' },
+				pageItems: {
+					type: 'array',
+					items: {
+						type: 'object',
+						additionalProperties: false,
+						properties: {
+							number: { type: 'integer' },
+							label: { type: 'string' }
+						},
+						required: ['number', 'label']
+					}
+				},
+				rating: { type: 'integer' },
+				qualityState: {
+					type: 'string',
+					enum: ['ready', 'needs_more_evidence', 'blocked']
+				},
+				revisionNote: { type: 'string' }
+			},
+			required: [
+				'verdict',
+				'quote',
+				'pageTitle',
+				'pageItems',
+				'rating',
+				'qualityState',
+				'revisionNote'
+			]
+		}
+	}
+};
 
 type MeechieStudioTextResult = z.infer<typeof MeechieStudioTextResultSchema>;
 
@@ -151,7 +195,8 @@ export const runMeechieStudioTextPipeline = async (
 	const messages = buildMessages(parsedInput.data);
 	let providerResult = await provider.createChatCompletion({
 		model: TEXT_MODEL,
-		messages
+		messages,
+		responseFormat: STUDIO_TEXT_RESPONSE_FORMAT
 	});
 
 	if (!providerResult.ok) {
@@ -176,7 +221,8 @@ export const runMeechieStudioTextPipeline = async (
 		// Bounded retry (max 1 retry)
 		providerResult = await provider.createChatCompletion({
 			model: TEXT_MODEL,
-			messages
+			messages,
+			responseFormat: STUDIO_TEXT_RESPONSE_FORMAT
 		});
 		if (!providerResult.ok) {
 			const missingKey = providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
@@ -194,6 +240,15 @@ export const runMeechieStudioTextPipeline = async (
 			};
 		}
 		result = parseProviderText(providerResult.value.content, providerResult.value.model);
+	}
+	if (!result.ok) {
+		console.warn(
+			'Meechie studio text pipeline failed to extract valid JSON from model output after retry',
+			{
+				model: providerResult.value.model,
+				contentPreview: providerResult.value.content.slice(0, 500)
+			}
+		);
 	}
 
 	const parsedResult = MeechieStudioTextResultSchema.safeParse(result);

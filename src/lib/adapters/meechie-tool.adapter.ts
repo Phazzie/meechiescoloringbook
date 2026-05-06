@@ -143,15 +143,10 @@ const rateExcuse = (
 	const match = pack.responses.excuseRatings.find((r) =>
 		r.keywords.some((keyword) => normalized.includes(keyword))
 	);
-	if (!match) {
-		return {
-			...pack.responses.excuseRatingFallback,
-			commentary: `${pack.responses.excuseRatingFallback.commentary} Evidence pattern: ${evidencePattern(excuse)}.`
-		};
-	}
+	const base = match ?? pack.responses.excuseRatingFallback;
 	return {
-		...match,
-		commentary: `${match.commentary} Evidence pattern: ${evidencePattern(excuse)}.`
+		...base,
+		commentary: `${base.commentary} Evidence pattern: ${evidencePattern(excuse)}.`
 	};
 };
 

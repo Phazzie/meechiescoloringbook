@@ -14,7 +14,7 @@ describe('Meechie Tools Parity', () => {
 		}
 	});
 
-    it('ensures payload generation exists for all tools', () => {
+	it('ensures payload generation exists for all tools', () => {
 		const svelteFile = readFileSync(resolve(__dirname, '../../src/lib/components/MeechieTools.svelte'), 'utf-8');
 		const contractTools = MeechieToolIdSchema.options;
 

@@ -186,6 +186,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 					type="button"
 					class="tool-tab"
 					class:active={selectedTool === tool.id}
+					data-testid={`meechie-tool-${tool.id}`}
 					aria-selected={selectedTool === tool.id}
 					on:click={() => { selectedTool = tool.id; resetState(); }}
 				>
@@ -216,12 +217,22 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 							value={item}
 							on:input={(event) => updateLineupItem(index, (event.target as HTMLInputElement).value)}
 						/>
-						<button class="ghost" type="button" on:click={() => removeLineupItem(index)}>
+						<button
+							class="ghost"
+							type="button"
+							data-testid="meechie-lineup-remove"
+							on:click={() => removeLineupItem(index)}
+						>
 							Remove
 						</button>
 					</div>
 				{/each}
-				<button class="ghost" type="button" on:click={addLineupItem}>Add item</button>
+				<button
+					class="ghost"
+					type="button"
+					data-testid="meechie-lineup-add"
+					on:click={addLineupItem}>Add item</button
+				>
 			</div>
 		{:else if selectedTool === 'horoscope'}
 			<label class="label" for="sign">Sign</label>
@@ -253,7 +264,13 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	</section>
 
 	<section class="actions">
-		<button class="primary" type="button" on:click={handleGenerate} disabled={isWorking}>
+		<button
+			class="primary"
+			type="button"
+			data-testid="meechie-tool-generate"
+			on:click={handleGenerate}
+			disabled={isWorking}
+		>
 			{#if isWorking}
 				<span class="working-inner">
 					<span class="working-dot" aria-hidden="true"></span>
@@ -266,11 +283,11 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	</section>
 
 	{#if error}
-		<p class="error">{error}</p>
+		<p class="error" data-testid="meechie-tool-error">{error}</p>
 	{/if}
 
 	{#if output}
-		<section class="output">
+		<section class="output" data-testid="meechie-tool-output">
 			<div class="verdict-badge" aria-hidden="true">
 				<span class="verdict-label">Verdict</span>
 				<span class="verdict-crown">♛</span>

@@ -11,6 +11,7 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 	import { MeechieToolResultSchema } from '../../../contracts/meechie-tool.contract';
 	import { GenerateResultSchema } from '../../../contracts/generate.contract';
+	import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 
 	let situation = '';
 	let verdict: MeechieToolOutput | null = null;
@@ -38,7 +39,10 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 			});
 			const parsed = MeechieToolResultSchema.safeParse(payload);
 			if (!parsed.success || !parsed.data.ok) {
-				error = parsed.success && !parsed.data.ok ? parsed.data.error.message : 'Something went wrong.';
+				error =
+					parsed.success && !parsed.data.ok
+						? parsed.data.error.message
+						: 'Something went wrong.';
 			} else {
 				verdict = parsed.data.value;
 			}
@@ -63,7 +67,10 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		packagedFiles = [];
 
 		try {
-			const saying = `${verdict.headline} — ${verdict.response}`;
+			const saying = compactColoringPageTitle([
+				verdict.headline,
+				verdict.response
+			]);
 			const { payload } = await postJson('/api/generate', {
 				spec: {
 					title: saying,
@@ -87,13 +94,16 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 					outputFormat: 'pdf',
 					pageSize: 'US_Letter'
 				},
-				styleHint: 'crown, diamonds, roses with thorns, bold statement coloring page'
+				styleHint:
+					'crown, diamonds, roses with thorns, bold statement coloring page'
 			});
 
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success || !parsed.data.ok) {
 				generateError =
-					parsed.success && !parsed.data.ok ? parsed.data.error.message : 'Page generation failed.';
+					parsed.success && !parsed.data.ok
+						? parsed.data.error.message
+						: 'Page generation failed.';
 				return;
 			}
 
@@ -123,7 +133,8 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 				generateError = packResult.error.message;
 			}
 		} catch (e) {
-			generateError = e instanceof Error ? e.message : 'Network error. Try again.';
+			generateError =
+				e instanceof Error ? e.message : 'Network error. Try again.';
 		} finally {
 			isGenerating = false;
 		}
@@ -151,13 +162,16 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		<header class="hero">
 			<p class="eyebrow">Mode One</p>
 			<h1>Who Fucked Up?</h1>
-			<p class="subhead">Tell Meechie what happened. She'll tell you what it really means.</p>
+			<p class="subhead">
+				Tell Meechie what happened. She'll tell you what it really means.
+			</p>
 		</header>
 
 		<section class="input-card">
 			<label for="situation" class="input-label">What did they do?</label>
 			<textarea
 				id="situation"
+				data-testid="who-situation-input"
 				bind:value={situation}
 				on:keydown={handleKeydown}
 				rows="5"
@@ -167,33 +181,44 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 			<p class="key-hint">Ctrl + Enter to submit</p>
 
 			{#if error}
-				<p class="error">{error}</p>
+				<p class="error" data-testid="who-error">{error}</p>
 			{/if}
 
 			<button
 				type="button"
 				class="cta"
+				data-testid="who-submit"
 				on:click={handleSubmit}
 				disabled={isWorking || !situation.trim()}
 			>
 				{isWorking ? "She's reading it..." : "She's listening. Go."}
 			</button>
 		</section>
-
 	{:else}
 		<header class="verdict-hero">
 			<p class="eyebrow">Meechie's Observation</p>
 			<div class="verdict-badge">{verdict.headline}</div>
-			<p class="verdict-response">{verdict.response}</p>
-			<button type="button" class="ghost-btn" on:click={reset}>← Different situation</button>
+			<p class="verdict-response" data-testid="who-result">
+				{verdict.response}
+			</p>
+			<button
+				type="button"
+				class="ghost-btn"
+				data-testid="who-reset"
+				on:click={reset}>← Different situation</button
+			>
 		</header>
 
 		<section class="page-section">
 			<h2>Generate the Coloring Page</h2>
-			<p class="section-sub">The verdict becomes the page. Print it. Color it. Dedicate it.</p>
+			<p class="section-sub">
+				The verdict becomes the page. Print it. Color it. Dedicate it.
+			</p>
 
 			<div class="field">
-				<label for="dedicated" class="field-label">Dedicated to (optional)</label>
+				<label for="dedicated" class="field-label"
+					>Dedicated to (optional)</label
+				>
 				<input
 					id="dedicated"
 					type="text"
@@ -209,12 +234,13 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 			</label>
 
 			{#if generateError}
-				<p class="error">{generateError}</p>
+				<p class="error" data-testid="who-generate-error">{generateError}</p>
 			{/if}
 
 			<button
 				type="button"
 				class="cta"
+				data-testid="who-generate-page"
 				on:click={handleGenerate}
 				disabled={isGenerating}
 			>
@@ -258,7 +284,11 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		min-height: 100vh;
 		background:
 			radial-gradient(circle at 0% 0%, rgba(232, 0, 106, 0.2), transparent 40%),
-			radial-gradient(circle at 100% 60%, rgba(107, 33, 168, 0.18), transparent 45%);
+			radial-gradient(
+				circle at 100% 60%,
+				rgba(107, 33, 168, 0.18),
+				transparent 45%
+			);
 	}
 
 	.ambient {
@@ -274,7 +304,11 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		width: clamp(160px, 24vw, 300px);
 		aspect-ratio: 1;
 		border-radius: 46% 54% 54% 46%;
-		background: linear-gradient(145deg, rgba(232, 0, 106, 0.28), rgba(107, 33, 168, 0.15));
+		background: linear-gradient(
+			145deg,
+			rgba(232, 0, 106, 0.28),
+			rgba(107, 33, 168, 0.15)
+		);
 	}
 
 	.hero {
@@ -338,7 +372,9 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		color: var(--cream);
 		background: rgba(7, 7, 15, 0.7);
 		resize: vertical;
-		transition: border-color 0.2s ease, box-shadow 0.2s ease;
+		transition:
+			border-color 0.2s ease,
+			box-shadow 0.2s ease;
 	}
 
 	textarea:focus {
@@ -370,7 +406,10 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
 		cursor: pointer;
-		transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+		transition:
+			transform 0.2s ease,
+			box-shadow 0.2s ease,
+			filter 0.2s ease;
 	}
 
 	.cta:hover:not(:disabled) {
@@ -531,8 +570,16 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		position: absolute;
 		inset: 0;
 		background:
-			radial-gradient(ellipse at 20% 20%, rgba(240, 196, 74, 0.25), transparent 55%),
-			radial-gradient(ellipse at 80% 80%, rgba(232, 0, 106, 0.18), transparent 50%);
+			radial-gradient(
+				ellipse at 20% 20%,
+				rgba(240, 196, 74, 0.25),
+				transparent 55%
+			),
+			radial-gradient(
+				ellipse at 80% 80%,
+				rgba(232, 0, 106, 0.18),
+				transparent 50%
+			);
 		pointer-events: none;
 	}
 
@@ -563,7 +610,9 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		text-decoration: none;
 		font-size: 0.88rem;
 		font-weight: 600;
-		transition: border-color 0.2s ease, background-color 0.2s ease;
+		transition:
+			border-color 0.2s ease,
+			background-color 0.2s ease;
 	}
 
 	.download-link:hover {
