@@ -70,6 +70,7 @@ Info flow: URL mode slug -> mode config -> MeechieModePage -> /api/tools respons
 		}
 	};
 
+	let config: ModeConfig = randomConfig;
 	$: config = modeConfigs[data.mode] ?? randomConfig;
 </script>
 
