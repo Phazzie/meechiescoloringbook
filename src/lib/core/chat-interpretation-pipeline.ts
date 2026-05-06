@@ -15,7 +15,7 @@ import {
 } from '../../../contracts/spec-validation.contract';
 import { z } from 'zod';
 
-const CHAT_MODEL = env.XAI_TEXT_MODEL || 'grok-4.1-fast-reasoning';
+const CHAT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
 
 type ChatInterpretationResult = z.infer<typeof ChatInterpretationResultSchema>;
 

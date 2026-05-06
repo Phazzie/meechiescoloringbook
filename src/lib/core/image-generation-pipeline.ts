@@ -15,6 +15,13 @@ const IMAGE_MODEL = env.XAI_IMAGE_MODEL || 'grok-imagine-image';
 const RESPONSE_FORMAT = 'b64_json';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
+const imageFormatFromBase64 = (
+	data: string
+): Pick<GeneratedImage, 'format' | 'mimeType'> =>
+	data.startsWith('/9j/')
+		? { format: 'jpg', mimeType: 'image/jpeg' }
+		: { format: 'png', mimeType: 'image/png' };
+
 type ImageGenerationResult = z.infer<typeof ImageGenerationResultSchema>;
 
 type ImagePipelineResponse = {
@@ -31,11 +38,17 @@ const pageSizeLine = (pageSize: string): string =>
 
 const missingRequiredPhrases = (prompt: string, pageSize: string): string[] => {
 	const promptLower = prompt.toLowerCase();
-	const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)].map((phrase) => phrase.toLowerCase());
+	const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)].map((phrase) =>
+		phrase.toLowerCase()
+	);
 	return phrases.filter((phrase) => !promptLower.includes(phrase));
 };
 
-const errorResponse = (status: number, code: string, message: string): ImagePipelineResponse => ({
+const errorResponse = (
+	status: number,
+	code: string,
+	message: string
+): ImagePipelineResponse => ({
 	status,
 	body: {
 		ok: false,
@@ -52,7 +65,11 @@ export const runImageGenerationPipeline = async (
 ): Promise<ImagePipelineResponse> => {
 	const parsedInput = ImageGenerationInputSchema.safeParse(body);
 	if (!parsedInput.success) {
-		return errorResponse(400, 'IMAGE_INPUT_INVALID', 'Image generation input is invalid.');
+		return errorResponse(
+			400,
+			'IMAGE_INPUT_INVALID',
+			'Image generation input is invalid.'
+		);
 	}
 
 	const { prompt, variations, spec } = parsedInput.data;
@@ -74,7 +91,8 @@ export const runImageGenerationPipeline = async (
 		responseFormat: RESPONSE_FORMAT
 	});
 	if (!providerResult.ok) {
-		const isMissingKey = providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
+		const isMissingKey =
+			providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
 		return {
 			status: isMissingKey ? 401 : 502,
 			body: {
@@ -94,17 +112,21 @@ export const runImageGenerationPipeline = async (
 		if (!image.b64_json) {
 			continue;
 		}
+		const format = imageFormatFromBase64(image.b64_json);
 		images.push({
 			id: `image-${index + 1}`,
-			format: 'png',
-			mimeType: 'image/png',
+			...format,
 			data: image.b64_json,
 			encoding: 'base64'
 		});
 	}
 
 	if (images.length === 0) {
-		return errorResponse(502, 'PROVIDER_EMPTY_IMAGE', 'Provider returned no images.');
+		return errorResponse(
+			502,
+			'PROVIDER_EMPTY_IMAGE',
+			'Provider returned no images.'
+		);
 	}
 
 	const result: ImageGenerationResult = {
@@ -121,7 +143,11 @@ export const runImageGenerationPipeline = async (
 
 	const parsedResult = ImageGenerationResultSchema.safeParse(result);
 	if (!parsedResult.success) {
-		return errorResponse(500, 'IMAGE_OUTPUT_INVALID', 'Image generation response did not match contract.');
+		return errorResponse(
+			500,
+			'IMAGE_OUTPUT_INVALID',
+			'Image generation response did not match contract.'
+		);
 	}
 
 	return {

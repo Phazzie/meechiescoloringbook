@@ -16,13 +16,13 @@ const source = readFileSync(
 describe('Meechie tools UI parity', () => {
 	it('lists every contract tool in the picker', () => {
 		for (const tool of MeechieToolIdSchema.options) {
-			expect(source).toMatch(new RegExp(`id: '${tool}'`));
+			expect(source).toContain(`id: '${tool}'`);
 		}
 	});
 
 	it('builds request payloads for every contract tool', () => {
 		for (const tool of MeechieToolIdSchema.options) {
-			expect(source).toMatch(new RegExp(`case '${tool}':`));
+			expect(source).toContain(`case '${tool}':`);
 		}
 	});
 });

@@ -127,7 +127,10 @@ describe('provider-adapter helpers', () => {
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createChatCompletion({
 				model: 'test-model',
 				messages: [{ role: 'user', content: 'hi' }]
@@ -147,7 +150,10 @@ describe('provider-adapter helpers', () => {
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createChatCompletion({
 				model: 'test-model',
 				messages: [{ role: 'user', content: 'hi' }]
@@ -167,7 +173,10 @@ describe('provider-adapter helpers', () => {
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createChatCompletion({
 				model: 'test-model',
 				messages: [{ role: 'user', content: 'hi' }]
@@ -186,7 +195,10 @@ describe('provider-adapter helpers', () => {
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createChatCompletion({
 				model: 'my-fallback-model',
 				messages: [{ role: 'user', content: 'hi' }]
@@ -195,6 +207,40 @@ describe('provider-adapter helpers', () => {
 			if (result.ok) {
 				expect(result.value.model).toBe('my-fallback-model');
 			}
+		});
+
+		it('passes response_format through for structured chat output', async () => {
+			const fetchMock = vi.fn(async () =>
+				jsonResponse({
+					model: 'test-model',
+					choices: [{ message: { content: '{"ok":true}' } }]
+				})
+			);
+			vi.stubGlobal('fetch', fetchMock);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+			await adapter.createChatCompletion({
+				model: 'test-model',
+				messages: [{ role: 'user', content: 'hi' }],
+				responseFormat: {
+					type: 'json_schema',
+					json_schema: {
+						name: 'test_schema',
+						schema: { type: 'object' }
+					}
+				}
+			});
+
+			const firstCall = fetchMock.mock.calls.at(0) as unknown[] | undefined;
+			const init = firstCall?.at(1) as RequestInit | undefined;
+			const body = JSON.parse(String(init?.body));
+			expect(body.response_format).toMatchObject({
+				type: 'json_schema',
+				json_schema: { name: 'test_schema' }
+			});
 		});
 	});
 
@@ -207,7 +253,10 @@ describe('provider-adapter helpers', () => {
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createImageGeneration({
 				model: 'test',
 				prompt: 'test',
@@ -228,7 +277,10 @@ describe('provider-adapter helpers', () => {
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createImageGeneration({
 				model: 'test',
 				prompt: 'test',
@@ -250,7 +302,10 @@ describe('provider-adapter helpers', () => {
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createImageGeneration({
 				model: 'test',
 				prompt: 'test',
@@ -272,7 +327,10 @@ describe('provider-adapter helpers', () => {
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createImageGeneration({
 				model: 'test',
 				prompt: 'test',
@@ -288,12 +346,20 @@ describe('provider-adapter helpers', () => {
 		it('extracts revised_prompt from data entry when top-level is missing', async () => {
 			const fetchMock = vi.fn(async () =>
 				jsonResponse({
-					data: [{ url: 'https://example.com/image.png', revised_prompt: 'entry-level revised' }]
+					data: [
+						{
+							url: 'https://example.com/image.png',
+							revised_prompt: 'entry-level revised'
+						}
+					]
 				})
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createImageGeneration({
 				model: 'test',
 				prompt: 'test',
@@ -314,7 +380,10 @@ describe('provider-adapter helpers', () => {
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createImageGeneration({
 				model: 'test',
 				prompt: 'test',
@@ -330,15 +399,19 @@ describe('provider-adapter helpers', () => {
 
 	describe('buildHttpError edge cases', () => {
 		it('extracts error message from error.message field', async () => {
-			const fetchMock = vi.fn(async () =>
-				new Response(
-					JSON.stringify({ error: { message: 'Custom API error' } }),
-					{ status: 429, statusText: 'Too Many Requests' }
-				)
+			const fetchMock = vi.fn(
+				async () =>
+					new Response(
+						JSON.stringify({ error: { message: 'Custom API error' } }),
+						{ status: 429, statusText: 'Too Many Requests' }
+					)
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createChatCompletion({
 				model: 'test',
 				messages: [{ role: 'user', content: 'hi' }]
@@ -352,15 +425,19 @@ describe('provider-adapter helpers', () => {
 		});
 
 		it('uses statusText when response body has no message', async () => {
-			const fetchMock = vi.fn(async () =>
-				new Response(
-					JSON.stringify({}),
-					{ status: 500, statusText: 'Internal Server Error' }
-				)
+			const fetchMock = vi.fn(
+				async () =>
+					new Response(JSON.stringify({}), {
+						status: 500,
+						statusText: 'Internal Server Error'
+					})
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createChatCompletion({
 				model: 'test',
 				messages: [{ role: 'user', content: 'hi' }]
@@ -372,12 +449,15 @@ describe('provider-adapter helpers', () => {
 		});
 
 		it('generates fallback message when body and statusText are empty', async () => {
-			const fetchMock = vi.fn(async () =>
-				new Response('', { status: 503, statusText: '' })
+			const fetchMock = vi.fn(
+				async () => new Response('', { status: 503, statusText: '' })
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createChatCompletion({
 				model: 'test',
 				messages: [{ role: 'user', content: 'hi' }]
@@ -389,15 +469,19 @@ describe('provider-adapter helpers', () => {
 		});
 
 		it('extracts top-level message field as fallback', async () => {
-			const fetchMock = vi.fn(async () =>
-				new Response(
-					JSON.stringify({ message: 'Top-level error message' }),
-					{ status: 403, statusText: 'Forbidden' }
-				)
+			const fetchMock = vi.fn(
+				async () =>
+					new Response(JSON.stringify({ message: 'Top-level error message' }), {
+						status: 403,
+						statusText: 'Forbidden'
+					})
 			);
 			vi.stubGlobal('fetch', fetchMock);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createChatCompletion({
 				model: 'test',
 				messages: [{ role: 'user', content: 'hi' }]
@@ -411,9 +495,15 @@ describe('provider-adapter helpers', () => {
 
 	describe('network error handling', () => {
 		it('returns PROVIDER_NETWORK_ERROR for chat when fetch throws', async () => {
-			vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network timeout')));
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockRejectedValue(new Error('Network timeout'))
+			);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createChatCompletion({
 				model: 'test',
 				messages: [{ role: 'user', content: 'hi' }]
@@ -426,9 +516,15 @@ describe('provider-adapter helpers', () => {
 		});
 
 		it('returns PROVIDER_NETWORK_ERROR for image when fetch throws', async () => {
-			vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('DNS lookup failed')));
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockRejectedValue(new Error('DNS lookup failed'))
+			);
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createImageGeneration({
 				model: 'test',
 				prompt: 'test',
@@ -445,7 +541,10 @@ describe('provider-adapter helpers', () => {
 		it('returns generic message when non-Error is thrown', async () => {
 			vi.stubGlobal('fetch', vi.fn().mockRejectedValue('string error'));
 
-			const adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
 			const result = await adapter.createChatCompletion({
 				model: 'test',
 				messages: [{ role: 'user', content: 'hi' }]

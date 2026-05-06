@@ -9,6 +9,7 @@ import type {
 	ProviderImageOutput
 } from '../../../contracts/provider-adapter.contract';
 import type { Result, SeamError } from '../../../contracts/shared.contract';
+import { env } from '$env/dynamic/private';
 
 export type ProviderAdapterConfig = {
 	apiKey?: string | null;
@@ -25,14 +26,23 @@ const normalizeBaseUrl = (baseUrl: string): string => {
 };
 
 const getApiKey = (config: ProviderAdapterConfig): string | null => {
-	const key = config.apiKey ?? process.env.XAI_API_KEY;
+	const key = config.apiKey ?? env.XAI_API_KEY ?? process.env.XAI_API_KEY;
 	return key && key.length > 0 ? key : null;
 };
 
 const getBaseUrl = (config: ProviderAdapterConfig): string =>
-	normalizeBaseUrl(config.baseUrl || process.env.XAI_BASE_URL || DEFAULT_BASE_URL);
+	normalizeBaseUrl(
+		config.baseUrl ||
+			env.XAI_BASE_URL ||
+			process.env.XAI_BASE_URL ||
+			DEFAULT_BASE_URL
+	);
 
-const buildError = (code: string, message: string, details?: Record<string, string>): SeamError => ({
+const buildError = (
+	code: string,
+	message: string,
+	details?: Record<string, string>
+): SeamError => ({
 	code,
 	message,
 	details
@@ -50,16 +60,21 @@ const readJson = async (response: Response): Promise<unknown | null> => {
 	}
 };
 
-const buildHttpError = (response: Response, payload: unknown): Result<never> => {
+const buildHttpError = (
+	response: Response,
+	payload: unknown
+): Result<never> => {
 	const rawMessage =
-		typeof (payload as { error?: { message?: string } })?.error?.message === 'string'
+		typeof (payload as { error?: { message?: string } })?.error?.message ===
+		'string'
 			? (payload as { error?: { message?: string } })?.error?.message
 			: typeof (payload as { message?: string })?.message === 'string'
 				? (payload as { message?: string })?.message
 				: response.statusText;
-	const message = rawMessage && rawMessage.length > 0
-		? rawMessage
-		: `Request failed with status ${response.status}`;
+	const message =
+		rawMessage && rawMessage.length > 0
+			? rawMessage
+			: `Request failed with status ${response.status}`;
 	return {
 		ok: false,
 		error: buildError('PROVIDER_HTTP_ERROR', message, {
@@ -77,13 +92,14 @@ const normalizeChatOutput = (
 		choices?: Array<{ message?: { content?: string }; text?: string }>;
 	};
 	const content =
-		data?.choices?.[0]?.message?.content ||
-		data?.choices?.[0]?.text ||
-		'';
+		data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || '';
 	if (!content || content.trim().length === 0) {
 		return {
 			ok: false,
-			error: buildError('PROVIDER_EMPTY_CHAT', 'Provider returned empty chat content.')
+			error: buildError(
+				'PROVIDER_EMPTY_CHAT',
+				'Provider returned empty chat content.'
+			)
 		};
 	}
 	return {
@@ -95,7 +111,9 @@ const normalizeChatOutput = (
 	};
 };
 
-const normalizeImageOutput = (payload: unknown): Result<ProviderImageOutput> => {
+const normalizeImageOutput = (
+	payload: unknown
+): Result<ProviderImageOutput> => {
 	const data = payload as {
 		data?: Array<{ url?: string; b64_json?: string; revised_prompt?: string }>;
 		revised_prompt?: string;
@@ -105,7 +123,8 @@ const normalizeImageOutput = (payload: unknown): Result<ProviderImageOutput> => 
 		? data.data
 				.map((entry) => ({
 					url: typeof entry.url === 'string' ? entry.url : undefined,
-					b64_json: typeof entry.b64_json === 'string' ? entry.b64_json : undefined
+					b64_json:
+						typeof entry.b64_json === 'string' ? entry.b64_json : undefined
 				}))
 				.filter((entry) => entry.url || entry.b64_json)
 		: [];
@@ -120,7 +139,8 @@ const normalizeImageOutput = (payload: unknown): Result<ProviderImageOutput> => 
 			? data.revised_prompt
 			: typeof data?.revisedPrompt === 'string'
 				? data.revisedPrompt
-				: data?.data?.find((entry) => typeof entry.revised_prompt === 'string')?.revised_prompt;
+				: data?.data?.find((entry) => typeof entry.revised_prompt === 'string')
+						?.revised_prompt;
 	const revisedPrompt =
 		typeof rawRevisedPrompt === 'string' && rawRevisedPrompt.trim().length > 0
 			? rawRevisedPrompt
@@ -134,13 +154,20 @@ const normalizeImageOutput = (payload: unknown): Result<ProviderImageOutput> => 
 	};
 };
 
-export const createProviderAdapter = (config: ProviderAdapterConfig = {}): ProviderAdapterSeam => ({
-	createChatCompletion: async (input: ProviderChatInput): Promise<Result<ProviderChatOutput>> => {
+export const createProviderAdapter = (
+	config: ProviderAdapterConfig = {}
+): ProviderAdapterSeam => ({
+	createChatCompletion: async (
+		input: ProviderChatInput
+	): Promise<Result<ProviderChatOutput>> => {
 		const apiKey = getApiKey(config);
 		if (!apiKey) {
 			return {
 				ok: false,
-				error: buildError('PROVIDER_API_KEY_MISSING', 'XAI_API_KEY is required.')
+				error: buildError(
+					'PROVIDER_API_KEY_MISSING',
+					'XAI_API_KEY is required.'
+				)
 			};
 		}
 		const baseUrl = getBaseUrl(config);
@@ -153,7 +180,10 @@ export const createProviderAdapter = (config: ProviderAdapterConfig = {}): Provi
 				},
 				body: JSON.stringify({
 					model: input.model,
-					messages: input.messages
+					messages: input.messages,
+					...(input.responseFormat
+						? { response_format: input.responseFormat }
+						: {})
 				})
 			});
 			const payload = await readJson(response);
@@ -171,12 +201,17 @@ export const createProviderAdapter = (config: ProviderAdapterConfig = {}): Provi
 			};
 		}
 	},
-	createImageGeneration: async (input: ProviderImageInput): Promise<Result<ProviderImageOutput>> => {
+	createImageGeneration: async (
+		input: ProviderImageInput
+	): Promise<Result<ProviderImageOutput>> => {
 		const apiKey = getApiKey(config);
 		if (!apiKey) {
 			return {
 				ok: false,
-				error: buildError('PROVIDER_API_KEY_MISSING', 'XAI_API_KEY is required.')
+				error: buildError(
+					'PROVIDER_API_KEY_MISSING',
+					'XAI_API_KEY is required.'
+				)
 			};
 		}
 		const baseUrl = getBaseUrl(config);

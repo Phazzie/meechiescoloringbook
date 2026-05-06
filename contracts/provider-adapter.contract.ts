@@ -12,7 +12,8 @@ export const ProviderChatMessageSchema = z.object({
 
 export const ProviderChatInputSchema = z.object({
 	model: NonEmptyStringSchema,
-	messages: z.array(ProviderChatMessageSchema)
+	messages: z.array(ProviderChatMessageSchema),
+	responseFormat: z.record(z.unknown()).optional()
 });
 
 export const ProviderChatOutputSchema = z.object({
@@ -42,7 +43,9 @@ export const ProviderImageOutputSchema = z.object({
 });
 
 export const ProviderChatResultSchema = resultSchema(ProviderChatOutputSchema);
-export const ProviderImageResultSchema = resultSchema(ProviderImageOutputSchema);
+export const ProviderImageResultSchema = resultSchema(
+	ProviderImageOutputSchema
+);
 
 export type ProviderChatInput = z.infer<typeof ProviderChatInputSchema>;
 export type ProviderChatOutput = z.infer<typeof ProviderChatOutputSchema>;
@@ -50,6 +53,10 @@ export type ProviderImageInput = z.infer<typeof ProviderImageInputSchema>;
 export type ProviderImageOutput = z.infer<typeof ProviderImageOutputSchema>;
 
 export type ProviderAdapterSeam = {
-	createChatCompletion(input: ProviderChatInput): Promise<Result<ProviderChatOutput>>;
-	createImageGeneration(input: ProviderImageInput): Promise<Result<ProviderImageOutput>>;
+	createChatCompletion(
+		input: ProviderChatInput
+	): Promise<Result<ProviderChatOutput>>;
+	createImageGeneration(
+		input: ProviderImageInput
+	): Promise<Result<ProviderImageOutput>>;
 };

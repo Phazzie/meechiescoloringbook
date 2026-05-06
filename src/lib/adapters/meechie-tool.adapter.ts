@@ -13,7 +13,7 @@ import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.co
 import { createProviderAdapter } from './provider-adapter.adapter';
 import { meechieVoiceAdapter } from './meechie-voice.adapter';
 
-const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4.1-fast-reasoning';
+const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
 
 const normalize = (value: string): string => value.trim().replace(/\s+/g, ' ');
 
@@ -196,9 +196,13 @@ const rateExcuse = (
 };
 
 const cleanGeneratedSaying = (content: string): string => {
-	const firstLine = normalize(content)
+	const firstRawLine =
+		content
+			.split(/\r?\n+/)
+			.map((line) => line.trim())
+			.find((line) => line.length > 0) ?? content;
+	const firstLine = normalize(firstRawLine)
 		.replace(/^["'“”]+|["'“”]+$/g, '')
-		.split(/\n+/)[0]
 		.trim();
 	return firstLine.length > 220
 		? `${firstLine.slice(0, 217).trim()}...`

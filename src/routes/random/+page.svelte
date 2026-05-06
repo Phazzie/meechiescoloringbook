@@ -11,6 +11,7 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 	import { MeechieToolResultSchema } from '../../../contracts/meechie-tool.contract';
 	import { GenerateResultSchema } from '../../../contracts/generate.contract';
+	import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 
 	let result: MeechieToolOutput | null = null;
 	let isWorking = false;
@@ -35,7 +36,10 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 			});
 			const parsed = MeechieToolResultSchema.safeParse(payload);
 			if (!parsed.success || !parsed.data.ok) {
-				error = parsed.success && !parsed.data.ok ? parsed.data.error.message : 'Something went wrong.';
+				error =
+					parsed.success && !parsed.data.ok
+						? parsed.data.error.message
+						: 'Something went wrong.';
 			} else {
 				result = parsed.data.value;
 			}
@@ -56,7 +60,7 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		try {
 			const { payload } = await postJson('/api/generate', {
 				spec: {
-					title: result.response,
+					title: compactColoringPageTitle([result.response]),
 					listMode: 'title_only',
 					items: [],
 					dedication: dedicatedTo.trim() || undefined,
@@ -77,13 +81,16 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 					outputFormat: 'pdf',
 					pageSize: 'US_Letter'
 				},
-				styleHint: 'crown, sparkles, diamonds, roses, bold statement coloring page for women'
+				styleHint:
+					'crown, sparkles, diamonds, roses, bold statement coloring page for women'
 			});
 
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success || !parsed.data.ok) {
 				generateError =
-					parsed.success && !parsed.data.ok ? parsed.data.error.message : 'Page generation failed.';
+					parsed.success && !parsed.data.ok
+						? parsed.data.error.message
+						: 'Page generation failed.';
 				return;
 			}
 
@@ -113,7 +120,8 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 				generateError = packResult.error.message;
 			}
 		} catch (e) {
-			generateError = e instanceof Error ? e.message : 'Network error. Try again.';
+			generateError =
+				e instanceof Error ? e.message : 'Network error. Try again.';
 		} finally {
 			isGenerating = false;
 		}
@@ -147,26 +155,37 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 
 		<div class="tap-zone">
 			{#if error}
-				<p class="error">{error}</p>
+				<p class="error" data-testid="random-error">{error}</p>
 			{/if}
-			<button type="button" class="tap-cta" on:click={handleTap} aria-label="Get a Meechie saying">
+			<button
+				type="button"
+				class="tap-cta"
+				data-testid="random-tap"
+				on:click={handleTap}
+				aria-label="Get a Meechie saying"
+			>
 				Tap For Truth
 			</button>
 			<p class="tap-hint">No explanation needed. She already knows.</p>
 		</div>
-
 	{:else if isWorking}
 		<div class="loading-zone" aria-live="polite" aria-busy="true">
 			<p class="loading-crown" aria-hidden="true">♛</p>
 			<p class="loading-text">She's deciding what you need to hear...</p>
 		</div>
-
 	{:else if result}
 		<header class="saying-hero">
 			<p class="eyebrow">Meechie Says</p>
-			<blockquote class="saying">{result.response}</blockquote>
+			<blockquote class="saying" data-testid="random-result">
+				{result.response}
+			</blockquote>
 			<div class="saying-actions">
-				<button type="button" class="ghost-btn" on:click={another}>
+				<button
+					type="button"
+					class="ghost-btn"
+					data-testid="random-another"
+					on:click={another}
+				>
 					Another one
 				</button>
 			</div>
@@ -174,10 +193,14 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 
 		<section class="page-section">
 			<h2>Generate the Coloring Page</h2>
-			<p class="section-sub">Print it. Color it. Send it to whoever needs to see it.</p>
+			<p class="section-sub">
+				Print it. Color it. Send it to whoever needs to see it.
+			</p>
 
 			<div class="field">
-				<label for="dedicated" class="field-label">Dedicated to (optional)</label>
+				<label for="dedicated" class="field-label"
+					>Dedicated to (optional)</label
+				>
 				<input
 					id="dedicated"
 					type="text"
@@ -193,12 +216,13 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 			</label>
 
 			{#if generateError}
-				<p class="error">{generateError}</p>
+				<p class="error" data-testid="random-generate-error">{generateError}</p>
 			{/if}
 
 			<button
 				type="button"
 				class="cta"
+				data-testid="random-generate-page"
 				on:click={handleGenerate}
 				disabled={isGenerating}
 			>
@@ -241,8 +265,16 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		padding: 2.5rem 1.4rem 5rem;
 		min-height: 100vh;
 		background:
-			radial-gradient(circle at 50% 0%, rgba(107, 33, 168, 0.22), transparent 48%),
-			radial-gradient(circle at 10% 80%, rgba(232, 0, 106, 0.14), transparent 45%);
+			radial-gradient(
+				circle at 50% 0%,
+				rgba(107, 33, 168, 0.22),
+				transparent 48%
+			),
+			radial-gradient(
+				circle at 10% 80%,
+				rgba(232, 0, 106, 0.14),
+				transparent 45%
+			);
 	}
 
 	.ambient {
@@ -258,7 +290,11 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		width: clamp(140px, 20vw, 260px);
 		aspect-ratio: 1;
 		border-radius: 46% 54% 54% 46%;
-		background: linear-gradient(145deg, rgba(107, 33, 168, 0.28), rgba(232, 0, 106, 0.14));
+		background: linear-gradient(
+			145deg,
+			rgba(107, 33, 168, 0.28),
+			rgba(232, 0, 106, 0.14)
+		);
 	}
 
 	.ambient-b {
@@ -267,7 +303,11 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		width: clamp(120px, 18vw, 230px);
 		aspect-ratio: 1;
 		border-radius: 54% 46% 44% 56%;
-		background: linear-gradient(145deg, rgba(201, 162, 39, 0.2), rgba(107, 33, 168, 0.12));
+		background: linear-gradient(
+			145deg,
+			rgba(201, 162, 39, 0.2),
+			rgba(107, 33, 168, 0.12)
+		);
 	}
 
 	.hero {
@@ -325,7 +365,10 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 		cursor: pointer;
-		transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+		transition:
+			transform 0.2s ease,
+			box-shadow 0.2s ease,
+			filter 0.2s ease;
 		box-shadow: 0 10px 32px rgba(107, 33, 168, 0.4);
 	}
 
@@ -362,8 +405,13 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 	}
 
 	@keyframes pulse {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.45; }
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.45;
+		}
 	}
 
 	.loading-text {
@@ -504,7 +552,10 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
 		cursor: pointer;
-		transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+		transition:
+			transform 0.2s ease,
+			box-shadow 0.2s ease,
+			filter 0.2s ease;
 	}
 
 	.cta:hover:not(:disabled) {
@@ -555,8 +606,16 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		position: absolute;
 		inset: 0;
 		background:
-			radial-gradient(ellipse at 20% 20%, rgba(240, 196, 74, 0.25), transparent 55%),
-			radial-gradient(ellipse at 80% 80%, rgba(107, 33, 168, 0.2), transparent 50%);
+			radial-gradient(
+				ellipse at 20% 20%,
+				rgba(240, 196, 74, 0.25),
+				transparent 55%
+			),
+			radial-gradient(
+				ellipse at 80% 80%,
+				rgba(107, 33, 168, 0.2),
+				transparent 50%
+			);
 		pointer-events: none;
 	}
 
@@ -587,7 +646,9 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		text-decoration: none;
 		font-size: 0.88rem;
 		font-weight: 600;
-		transition: border-color 0.2s ease, background-color 0.2s ease;
+		transition:
+			border-color 0.2s ease,
+			background-color 0.2s ease;
 	}
 
 	.download-link:hover {

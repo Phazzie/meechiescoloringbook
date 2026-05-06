@@ -20,6 +20,7 @@ Thumbs.db
 # Env
 .env
 .env.*
+.env.local
 !.env.example
 !.env.test
 
@@ -29,3 +30,7 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Test output
+test-results
+playwright-report

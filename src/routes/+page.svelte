@@ -83,15 +83,18 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	let draftTimer: ReturnType<typeof setTimeout> | null = null;
 	let isSavingDraft = false;
 	let isSaving = false;
+	let isDraftSavePending = false;
 	let canGenerateText = true;
 	let canRegenerateText = false;
 	let canMakePrettier = false;
 	let canMakeMeaner = false;
 	let canMakeMoreSpecific = false;
+	let activeMode = studioModes[0];
+	let activeTheme = studioThemes[0];
 
-	const activeMode = () =>
+	$: activeMode =
 		studioModes.find((mode) => mode.id === activeModeId) ?? studioModes[0];
-	const activeTheme = () =>
+	$: activeTheme =
 		studioThemes.find((theme) => theme.id === selectedThemeId) ??
 		studioThemes[0];
 
@@ -99,7 +102,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		output: DEFAULT_STUDIO_TEXT_OUTPUT,
 		pageSize,
 		border,
-		styleHint: activeTheme().styleHint
+		styleHint: activeTheme.styleHint
 	});
 
 	$: previewOutput = textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT;
@@ -130,7 +133,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 	const currentStyleHint = (): string => {
 		const glitterText = glitter ? ' removable glitter overlay accents' : '';
-		return `${activeTheme().styleHint}; ${voice.intensity}; ${voice.rawness}; ${voice.thirdPerson}${glitterText}`;
+		return `${activeTheme.styleHint}; ${voice.intensity}; ${voice.rawness}; ${voice.thirdPerson}${glitterText}`;
 	};
 
 	const scheduleDraftSave = (): void => {
@@ -146,7 +149,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	};
 
 	const saveDraft = async (): Promise<void> => {
-		if (isSavingDraft) return;
+		if (isSavingDraft) {
+			isDraftSavePending = true;
+			return;
+		}
 		isSavingDraft = true;
 		try {
 			await creationStoreAdapter.saveDraft({
@@ -161,6 +167,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			console.warn('Draft save failed', error);
 		} finally {
 			isSavingDraft = false;
+			if (isDraftSavePending) {
+				isDraftSavePending = false;
+				void saveDraft();
+			}
 		}
 	};
 
@@ -223,7 +233,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		try {
 			const trimmedEvidence = evidence.trim();
 			const safeEvidence =
-				trimmedEvidence.length > 0 || activeMode().toolId === 'random_meechie'
+				trimmedEvidence.length > 0 || activeMode.toolId === 'random_meechie'
 					? trimmedEvidence || 'Random Meechie line request.'
 					: '';
 			if (!safeEvidence) {
@@ -233,9 +243,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 			const { payload } = await postJson('/api/meechie-studio-text', {
 				actionId: action.aiAction,
-				modeId: activeMode().id,
-				modeLabel: activeMode().label,
-				themeLabel: activeTheme().label,
+				modeId: activeMode.id,
+				modeLabel: activeMode.label,
+				themeLabel: activeTheme.label,
 				evidence: safeEvidence,
 				dedication:
 					dedication.trim().length > 0 ? dedication.trim() : undefined,
@@ -325,8 +335,12 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		if (!textOutput || !isBrowser) {
 			return;
 		}
-		await navigator.clipboard.writeText(textOutput.quote);
-		copyStatus = 'Quote copied.';
+		try {
+			await navigator.clipboard.writeText(textOutput.quote);
+			copyStatus = 'Quote copied.';
+		} catch {
+			copyStatus = 'Copy unavailable in this browser.';
+		}
 	};
 
 	const saveToVault = async (): Promise<void> => {
@@ -349,7 +363,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					intent: spec,
 					assembledPrompt: assembledPrompt || textOutput.quote,
 					studioText: textOutput,
-					revisedPrompt,
+					revisedPrompt: revisedPrompt || undefined,
 					images: storedImages.length > 0 ? storedImages : undefined,
 					violations,
 					fixesApplied: recommendedFixes.map((fix) => fix.code),
@@ -492,10 +506,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			<button
 				type="button"
 				class="primary"
+				data-testid="home-hero-generate"
 				on:click={() => runTextAction('generate_text')}
 				disabled={!canGenerateText}
 			>
-				{isTextWorking ? 'Reading...' : activeMode().cta}
+				{isTextWorking ? 'Reading...' : activeMode.cta}
 			</button>
 		</div>
 	</section>
@@ -506,6 +521,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				type="button"
 				class="mode-card"
 				class:active={activeModeId === mode.id}
+				data-testid={`home-mode-${mode.id}`}
 				style={`--mode-color: ${mode.themeColor}; --mode-image: url('${mode.image}')`}
 				on:click={() => {
 					activeModeId = mode.id;
@@ -525,17 +541,18 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		<div class="input-panel">
 			<div class="panel-head">
 				<p class="eyebrow">Evidence</p>
-				<h2>{activeMode().label}</h2>
-				<p>{activeMode().help}</p>
+				<h2 data-testid="home-active-mode-heading">{activeMode.label}</h2>
+				<p>{activeMode.help}</p>
 			</div>
 
 			<label for="evidence">What happened?</label>
 			<textarea
 				id="evidence"
+				data-testid="home-evidence"
 				rows="8"
 				bind:value={evidence}
 				on:input={scheduleDraftSave}
-				placeholder={activeMode().placeholder}
+				placeholder={activeMode.placeholder}
 			></textarea>
 
 			<label for="dedication">Shoutout</label>
@@ -561,6 +578,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				<button
 					type="button"
 					class="primary"
+					data-testid="home-generate-verdict"
 					on:click={() => runTextAction('generate_text')}
 					disabled={!canGenerateText}
 				>
@@ -599,7 +617,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			</div>
 
 			{#if textError}
-				<p class="error">{textError}</p>
+				<p class="error" data-testid="home-text-error">{textError}</p>
 			{/if}
 		</div>
 
@@ -609,13 +627,14 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					<p class="eyebrow">Preview</p>
 					<h2>{previewOutput.pageTitle}</h2>
 				</div>
-				<img src={activeTheme().image} alt="" />
+				<img src={activeTheme.image} alt="" />
 			</div>
 
 			<div class="paper" class:glitter>
 				{#if imagePreviews.length > 0}
 					<img
 						class="generated-image"
+						data-testid="home-generated-image"
 						src={imagePreviews[0]}
 						alt="Generated Meechie coloring page"
 					/>
@@ -633,13 +652,16 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			</div>
 
 			{#if generationError}
-				<p class="error">{generationError}</p>
+				<p class="error" data-testid="home-generation-error">
+					{generationError}
+				</p>
 			{/if}
 
 			<div class="preview-actions">
 				<button
 					type="button"
 					class="primary"
+					data-testid="home-create-page"
 					on:click={handleGeneratePage}
 					disabled={!textOutput || isGenerating}
 				>
@@ -673,11 +695,15 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 						>{getStudioAction('export_png').label}</button
 					>
 				{/if}
-				<button type="button" on:click={copyQuote} disabled={!textOutput}
-					>{getStudioAction('copy_quote').label}</button
+				<button
+					type="button"
+					data-testid="home-copy-quote"
+					on:click={copyQuote}
+					disabled={!textOutput}>{getStudioAction('copy_quote').label}</button
 				>
 				<button
 					type="button"
+					data-testid="home-save-vault"
 					on:click={saveToVault}
 					disabled={!textOutput || isSaving}
 					>{getStudioAction('save_to_vault').label}</button
@@ -685,7 +711,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			</div>
 
 			{#if copyStatus || vaultStatus}
-				<p class="status">{copyStatus || vaultStatus}</p>
+				<p class="status" data-testid="home-status">
+					{copyStatus || vaultStatus}
+				</p>
 			{/if}
 		</section>
 
@@ -772,7 +800,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		<article class="verdict-card">
 			<p class="eyebrow">Verdict</p>
 			<h2>{textOutput?.verdict ?? 'No verdict yet.'}</h2>
-			<p>
+			<p data-testid="home-verdict-quote">
 				{textOutput?.quote ??
 					'Meechie will put the quote here after the AI text action runs.'}
 			</p>
@@ -784,20 +812,28 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			<p class="eyebrow">Quote Vault</p>
 			<h2>Saved Pages</h2>
 			{#if creations.length === 0}
-				<p>No saved pages yet.</p>
+				<p data-testid="home-vault-empty">No saved pages yet.</p>
 			{:else}
 				<div class="vault-list">
 					{#each creations.slice(0, 4) as creation}
 						<div class="vault-item">
-							<button type="button" on:click={() => loadCreation(creation)}
+							<button
+								type="button"
+								data-testid="home-vault-load"
+								on:click={() => loadCreation(creation)}
 								>{creation.intent.title}</button
 							>
 							<div>
-								<button type="button" on:click={() => toggleFavorite(creation)}>
+								<button
+									type="button"
+									data-testid="home-vault-pin"
+									on:click={() => toggleFavorite(creation)}
+								>
 									{creation.favorite ? 'Unpin' : 'Pin'}
 								</button>
 								<button
 									type="button"
+									data-testid="home-vault-delete"
 									on:click={() => deleteCreation(creation.id)}>Delete</button
 								>
 							</div>

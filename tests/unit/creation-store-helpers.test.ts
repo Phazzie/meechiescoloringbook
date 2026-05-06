@@ -71,6 +71,21 @@ describe('creation-store adapter', () => {
 			}
 		});
 
+		it('rejects invalid creation records before storing them', async () => {
+			const saveResult = await creationStoreAdapter.saveCreation({
+				record: { ...validRecord, revisedPrompt: '' }
+			});
+			expect(saveResult.ok).toBe(false);
+
+			const listResult = await creationStoreAdapter.listCreations({
+				owner: validRecord.owner
+			});
+			expect(listResult.ok).toBe(true);
+			if (listResult.ok) {
+				expect(listResult.value).toHaveLength(0);
+			}
+		});
+
 		it('returns null for nonexistent creation', async () => {
 			const result = await creationStoreAdapter.getCreation({
 				id: 'nonexistent-id'
