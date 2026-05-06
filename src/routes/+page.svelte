@@ -30,11 +30,20 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		type MeechieStudioTextOutput,
 		type MeechieStudioVoiceSettings
 	} from '../../contracts/meechie-studio-text.contract';
-	import type { CreationOwner, CreationRecord } from '../../contracts/creation-store.contract';
-	import type { DriftDetectionOutput, Violation } from '../../contracts/drift-detection.contract';
+	import type {
+		CreationOwner,
+		CreationRecord
+	} from '../../contracts/creation-store.contract';
+	import type {
+		DriftDetectionOutput,
+		Violation
+	} from '../../contracts/drift-detection.contract';
 	import type { GeneratedImage } from '../../contracts/image-generation.contract';
 	import type { PackagedFile } from '../../contracts/output-packaging.contract';
-	import type { ColoringPageSpec, SpecValidationOutput } from '../../contracts/spec-validation.contract';
+	import type {
+		ColoringPageSpec,
+		SpecValidationOutput
+	} from '../../contracts/spec-validation.contract';
 
 	type PageSize = ColoringPageSpec['pageSize'];
 	type BorderChoice = ColoringPageSpec['border'];
@@ -102,7 +111,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	});
 
 	const generateCreationId = (): string => {
-		if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+		if (
+			typeof crypto !== 'undefined' &&
+			typeof crypto.randomUUID === 'function'
+		) {
 			return crypto.randomUUID();
 		}
 		return `creation-${Date.now()}`;
@@ -134,7 +146,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}, 300);
 	};
 
-	let isSavingDraft = false;
 	const saveDraft = async (): Promise<void> => {
 		if (isSavingDraft) {
 			isDraftSavePending = true;
@@ -150,6 +161,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					studioText: textOutput ?? undefined
 				}
 			});
+		} catch (error) {
+			console.warn('Draft save failed', error);
 		} finally {
 			isSavingDraft = false;
 			if (isDraftSavePending) {
@@ -165,7 +178,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		return validation.ok;
 	};
 
-	const applyTextToSpec = async (output: MeechieStudioTextOutput): Promise<void> => {
+	const applyTextToSpec = async (
+		output: MeechieStudioTextOutput
+	): Promise<void> => {
 		spec = buildColoringPageSpecFromMeechieText({
 			output,
 			pageSize,
@@ -188,7 +203,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	};
 
 	const canRunAction = (actionId: StudioActionId): boolean =>
-		canRunStudioAction(actionId, { remainingBudget: revisionBudget, isRunning: isTextWorking });
+		canRunStudioAction(actionId, {
+			remainingBudget: revisionBudget,
+			isRunning: isTextWorking
+		});
 
 	const currentTextPayload = () =>
 		textOutput
@@ -227,7 +245,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				modeLabel: activeMode.label,
 				themeLabel: activeTheme.label,
 				evidence: safeEvidence,
-				dedication: dedication.trim().length > 0 ? dedication.trim() : undefined,
+				dedication:
+					dedication.trim().length > 0 ? dedication.trim() : undefined,
 				voice,
 				currentText: currentTextPayload()
 			});
@@ -245,7 +264,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			resetGeneratedPage();
 			await applyTextToSpec(parsed.data.value);
 		} catch (error) {
-			textError = error instanceof Error ? error.message : 'Meechie could not reach the AI text service.';
+			textError =
+				error instanceof Error
+					? error.message
+					: 'Meechie could not reach the AI text service.';
 		} finally {
 			isTextWorking = false;
 		}
@@ -298,7 +320,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				generationError = packagingResult.error.message;
 			}
 		} catch (error) {
-			generationError = error instanceof Error ? error.message : 'Coloring page generation failed.';
+			generationError =
+				error instanceof Error
+					? error.message
+					: 'Coloring page generation failed.';
 		} finally {
 			isGenerating = false;
 		}
@@ -316,7 +341,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 	};
 
-	let isSaving = false;
 	const saveToVault = async (): Promise<void> => {
 		if (isSaving) return;
 		if (!owner || !textOutput) {
@@ -345,7 +369,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					owner
 				}
 			});
-			vaultStatus = result.ok ? 'Saved to the quote vault.' : result.error.message;
+			vaultStatus = result.ok
+				? 'Saved to the quote vault.'
+				: result.error.message;
 			await refreshCreations();
 		} finally {
 			isSaving = false;
@@ -395,7 +421,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	});
 	$: canRegenerateText =
 		!!textOutput &&
-		canRunStudioAction('regenerate', { remainingBudget: revisionBudget, isRunning: isTextWorking });
+		canRunStudioAction('regenerate', {
+			remainingBudget: revisionBudget,
+			isRunning: isTextWorking
+		});
 	$: canMakePrettier =
 		!!textOutput &&
 		canRunStudioAction('make_prettier', {
@@ -404,7 +433,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		});
 	$: canMakeMeaner =
 		!!textOutput &&
-		canRunStudioAction('make_meaner', { remainingBudget: revisionBudget, isRunning: isTextWorking });
+		canRunStudioAction('make_meaner', {
+			remainingBudget: revisionBudget,
+			isRunning: isTextWorking
+		});
 	$: canMakeMoreSpecific =
 		!!textOutput &&
 		canRunStudioAction('make_more_specific', {
@@ -441,7 +473,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			dedication = draft.value.intent.dedication ?? '';
 			pageSize = draft.value.intent.pageSize;
 			border = draft.value.intent.border;
-			if (draft.value.studioText || draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle) {
+			if (
+				draft.value.studioText ||
+				draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+			) {
 				textOutput = buildStudioTextFromDraftRecord(draft.value);
 			}
 		}
@@ -455,13 +490,16 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 </svelte:head>
 
 <main class="studio">
-	<section class="hero" style={`background-image: linear-gradient(90deg, rgba(7, 7, 15, 0.94), rgba(7, 7, 15, 0.62)), url('/meechie/meechie-banner.png');`}>
+	<section
+		class="hero"
+		style={`background-image: linear-gradient(90deg, rgba(7, 7, 15, 0.94), rgba(7, 7, 15, 0.62)), url('/meechie/meechie-banner.png');`}
+	>
 		<div class="hero-copy">
 			<p class="eyebrow">Meechies Coloring Book Generator</p>
 			<h1>Meechies Coloring Book</h1>
 			<p>
-				Tell Meechie what happened, get the verdict and quote, then turn it into a printable
-				coloring page.
+				Tell Meechie what happened, get the verdict and quote, then turn it into
+				a printable coloring page.
 			</p>
 			<button
 				type="button"
@@ -476,14 +514,70 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	</section>
 
 	<section class="modes" aria-label="Choose a mode">
-		<a href="/m/who-fucked-up" class="mode-card mode-wfu"><span class="mode-icon" aria-hidden="true">👁</span><div class="mode-body"><h2>Who Fucked Up</h2><p>Describe what happened. Meechie tells you exactly what it means.</p></div><span class="mode-arrow">→</span></a>
-		<a href="/m/rate-his-excuse" class="mode-card mode-rhe"><span class="mode-icon" aria-hidden="true">⚖</span><div class="mode-body"><h2>Rate His Excuse</h2><p>Drop the excuse. Meechie scores it. Court is in session.</p></div><span class="mode-arrow">→</span></a>
-		<a href="/m/apology-translator" class="mode-card mode-random"><span class="mode-icon" aria-hidden="true">📝</span><div class="mode-body"><h2>Apology Translator</h2><p>Paste it in. Get the real translation back.</p></div><span class="mode-arrow">→</span></a>
-		<a href="/m/random" class="mode-card mode-random"><span class="mode-icon" aria-hidden="true">✦</span><div class="mode-body"><h2>Random Meechie</h2><p>One tap. One truth. No context required.</p></div><span class="mode-arrow">→</span></a>
-		<a href="/m/caption-this" class="mode-card mode-wfu"><span class="mode-icon" aria-hidden="true">📸</span><div class="mode-body"><h2>Caption This</h2><p>Describe the moment. Get a statement caption.</p></div><span class="mode-arrow">→</span></a>
-		<a href="/m/receipts" class="mode-card mode-rhe"><span class="mode-icon" aria-hidden="true">🧾</span><div class="mode-body"><h2>Receipts</h2><p>Claim versus reality with line-by-line pressure.</p></div><span class="mode-arrow">→</span></a>
-		<a href="/m/clapback" class="mode-card mode-random"><span class="mode-icon" aria-hidden="true">💥</span><div class="mode-body"><h2>Clapback</h2><p>Bring their line. Leave with yours.</p></div><span class="mode-arrow">→</span></a>
-		<a href="/m/what-would-meechie-do" class="mode-card mode-wfu"><span class="mode-icon" aria-hidden="true">🧠</span><div class="mode-body"><h2>What Would Meechie Do?</h2><p>Give the dilemma and get Meechie's move.</p></div><span class="mode-arrow">→</span></a>
+		<a href="/m/who-fucked-up" class="mode-card mode-wfu"
+			><span class="mode-icon" aria-hidden="true">👁</span>
+			<div class="mode-body">
+				<h2>Who Fucked Up</h2>
+				<p>Describe what happened. Meechie tells you exactly what it means.</p>
+			</div>
+			<span class="mode-arrow">→</span></a
+		>
+		<a href="/m/rate-his-excuse" class="mode-card mode-rhe"
+			><span class="mode-icon" aria-hidden="true">⚖</span>
+			<div class="mode-body">
+				<h2>Rate His Excuse</h2>
+				<p>Drop the excuse. Meechie scores it. Court is in session.</p>
+			</div>
+			<span class="mode-arrow">→</span></a
+		>
+		<a href="/m/apology-translator" class="mode-card mode-random"
+			><span class="mode-icon" aria-hidden="true">📝</span>
+			<div class="mode-body">
+				<h2>Apology Translator</h2>
+				<p>Paste it in. Get the real translation back.</p>
+			</div>
+			<span class="mode-arrow">→</span></a
+		>
+		<a href="/m/random" class="mode-card mode-random"
+			><span class="mode-icon" aria-hidden="true">✦</span>
+			<div class="mode-body">
+				<h2>Random Meechie</h2>
+				<p>One tap. One truth. No context required.</p>
+			</div>
+			<span class="mode-arrow">→</span></a
+		>
+		<a href="/m/caption-this" class="mode-card mode-wfu"
+			><span class="mode-icon" aria-hidden="true">📸</span>
+			<div class="mode-body">
+				<h2>Caption This</h2>
+				<p>Describe the moment. Get a statement caption.</p>
+			</div>
+			<span class="mode-arrow">→</span></a
+		>
+		<a href="/m/receipts" class="mode-card mode-rhe"
+			><span class="mode-icon" aria-hidden="true">🧾</span>
+			<div class="mode-body">
+				<h2>Receipts</h2>
+				<p>Claim versus reality with line-by-line pressure.</p>
+			</div>
+			<span class="mode-arrow">→</span></a
+		>
+		<a href="/m/clapback" class="mode-card mode-random"
+			><span class="mode-icon" aria-hidden="true">💥</span>
+			<div class="mode-body">
+				<h2>Clapback</h2>
+				<p>Bring their line. Leave with yours.</p>
+			</div>
+			<span class="mode-arrow">→</span></a
+		>
+		<a href="/m/what-would-meechie-do" class="mode-card mode-wfu"
+			><span class="mode-icon" aria-hidden="true">🧠</span>
+			<div class="mode-body">
+				<h2>What Would Meechie Do?</h2>
+				<p>Give the dilemma and get Meechie's move.</p>
+			</div>
+			<span class="mode-arrow">→</span></a
+		>
 	</section>
 
 	<section class="mode-strip" aria-label="Choose a Meechie mode">
@@ -538,7 +632,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			<div class="budget">
 				<span>{revisionBudget} AI text actions left</span>
 				{#if revisionBudget === 0}
-					<p>You used the wording changes for this page. Export, copy, theme, and vault still work.</p>
+					<p>
+						You used the wording changes for this page. Export, copy, theme, and
+						vault still work.
+					</p>
 				{/if}
 			</div>
 
@@ -554,16 +651,32 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 						? 'Reading...'
 						: getStudioAction('generate_text').label}
 				</button>
-				<button type="button" on:click={() => runTextAction('regenerate')} disabled={!canRegenerateText}>
+				<button
+					type="button"
+					on:click={() => runTextAction('regenerate')}
+					disabled={!canRegenerateText}
+				>
 					{getStudioAction('regenerate').label}
 				</button>
-				<button type="button" on:click={() => runTextAction('make_prettier')} disabled={!canMakePrettier}>
+				<button
+					type="button"
+					on:click={() => runTextAction('make_prettier')}
+					disabled={!canMakePrettier}
+				>
 					{getStudioAction('make_prettier').label}
 				</button>
-				<button type="button" on:click={() => runTextAction('make_meaner')} disabled={!canMakeMeaner}>
+				<button
+					type="button"
+					on:click={() => runTextAction('make_meaner')}
+					disabled={!canMakeMeaner}
+				>
 					{getStudioAction('make_meaner').label}
 				</button>
-				<button type="button" on:click={() => runTextAction('make_more_specific')} disabled={!canMakeMoreSpecific}>
+				<button
+					type="button"
+					on:click={() => runTextAction('make_more_specific')}
+					disabled={!canMakeMoreSpecific}
+				>
 					{getStudioAction('make_more_specific').label}
 				</button>
 			</div>
@@ -621,19 +734,31 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				</button>
 				{#if packagedFiles.length > 0}
 					{#each packagedFiles as file}
-						<a class="button-link" href={`data:${file.mimeType};base64,${file.dataBase64}`} download={file.filename}>
+						<a
+							class="button-link"
+							href={`data:${file.mimeType};base64,${file.dataBase64}`}
+							download={file.filename}
+						>
 							{getStudioAction('download_pdf').label}
 						</a>
 					{/each}
 				{:else}
-					<button type="button" disabled>{getStudioAction('download_pdf').label}</button>
+					<button type="button" disabled
+						>{getStudioAction('download_pdf').label}</button
+					>
 				{/if}
 				{#if imagePreviews[0]}
-					<a class="button-link" href={imagePreviews[0]} download="meechie-coloring-page.png">
+					<a
+						class="button-link"
+						href={imagePreviews[0]}
+						download="meechie-coloring-page.png"
+					>
 						{getStudioAction('export_png').label}
 					</a>
 				{:else}
-					<button type="button" disabled>{getStudioAction('export_png').label}</button>
+					<button type="button" disabled
+						>{getStudioAction('export_png').label}</button
+					>
 				{/if}
 				<button
 					type="button"
@@ -740,14 +865,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		<article class="verdict-card">
 			<p class="eyebrow">Verdict</p>
 			<h2>{textOutput?.verdict ?? 'No verdict yet.'}</h2>
-<<<<<<< HEAD
-			<p>{textOutput?.quote ?? 'Meechie will put the quote here after the AI text action runs.'}</p>
-=======
 			<p data-testid="home-verdict-quote">
 				{textOutput?.quote ??
 					'Meechie will put the quote here after the AI text action runs.'}
 			</p>
->>>>>>> origin/main
 			{#if textOutput?.rating}
 				<span class="rating">{textOutput.rating}/10</span>
 			{/if}
@@ -761,16 +882,12 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				<div class="vault-list">
 					{#each creations.slice(0, 4) as creation}
 						<div class="vault-item">
-<<<<<<< HEAD
-							<button type="button" on:click={() => loadCreation(creation)}>{creation.intent.title}</button>
-=======
 							<button
 								type="button"
 								data-testid="home-vault-load"
 								on:click={() => loadCreation(creation)}
 								>{creation.intent.title}</button
 							>
->>>>>>> origin/main
 							<div>
 								<button
 									type="button"
@@ -779,15 +896,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 								>
 									{creation.favorite ? 'Unpin' : 'Pin'}
 								</button>
-<<<<<<< HEAD
-								<button type="button" on:click={() => deleteCreation(creation.id)}>Delete</button>
-=======
 								<button
 									type="button"
 									data-testid="home-vault-delete"
 									on:click={() => deleteCreation(creation.id)}>Delete</button
 								>
->>>>>>> origin/main
 							</div>
 						</div>
 					{/each}
@@ -843,15 +956,14 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		box-sizing: border-box;
 		margin-left: calc(50% - 50vw);
 		margin-right: calc(50% - 50vw);
-		padding: clamp(1.4rem, 4vw, 3rem) max(1.4rem, calc((100vw - 1240px) / 2 + 1.4rem));
+		padding: clamp(1.4rem, 4vw, 3rem)
+			max(1.4rem, calc((100vw - 1240px) / 2 + 1.4rem));
 		border-top: 1px solid rgba(201, 162, 39, 0.32);
 		border-bottom: 1px solid rgba(201, 162, 39, 0.32);
 		background-position:
 			center,
 			right center;
-		background-size:
-			cover,
-			cover;
+		background-size: cover, cover;
 		box-shadow: 0 24px 56px rgba(0, 0, 0, 0.48);
 	}
 
@@ -957,7 +1069,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 	.workbench {
 		display: grid;
-		grid-template-columns: minmax(280px, 0.82fr) minmax(360px, 1.2fr) minmax(260px, 0.78fr);
+		grid-template-columns: minmax(280px, 0.82fr) minmax(360px, 1.2fr) minmax(
+				260px,
+				0.78fr
+			);
 		gap: 1rem;
 		align-items: start;
 	}
@@ -1109,9 +1224,21 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		position: absolute;
 		inset: 0;
 		background:
-			radial-gradient(circle at 20% 18%, rgba(201, 162, 39, 0.28), transparent 18%),
-			radial-gradient(circle at 82% 34%, rgba(232, 0, 106, 0.18), transparent 16%),
-			radial-gradient(circle at 42% 78%, rgba(139, 22, 194, 0.16), transparent 18%);
+			radial-gradient(
+				circle at 20% 18%,
+				rgba(201, 162, 39, 0.28),
+				transparent 18%
+			),
+			radial-gradient(
+				circle at 82% 34%,
+				rgba(232, 0, 106, 0.18),
+				transparent 16%
+			),
+			radial-gradient(
+				circle at 42% 78%,
+				rgba(139, 22, 194, 0.16),
+				transparent 18%
+			);
 		pointer-events: none;
 	}
 

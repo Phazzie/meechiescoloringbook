@@ -17,37 +17,54 @@ describe('Meechie Studio Text Pipeline Resilience', () => {
 								verdict: 'Guilty',
 								quote: 'No way',
 								pageTitle: 'Uh oh',
-								pageItems: [{ number: 1, label: 'One' }, { number: 2, label: 'Two' }],
+								pageItems: [
+									{ number: 1, label: 'One' },
+									{ number: 2, label: 'Two' }
+								],
 								qualityState: 'ready'
 							})
 						}
 					};
 				},
-				createImageGeneration: async () => { throw new Error('not implemented'); }
+				createImageGeneration: async () => {
+					throw new Error('not implemented');
+				}
 			})
 		};
 
-		const response = await runMeechieStudioTextPipeline({
-			actionId: 'generate',
-			modeId: 'test',
-			modeLabel: 'Test Mode',
-			themeLabel: 'Test Theme',
-			evidence: 'test evidence',
-			voice: { intensity: 'receipts_out', rawness: 'mild', thirdPerson: 'sometimes' }
-		}, deps);
+		const response = await runMeechieStudioTextPipeline(
+			{
+				actionId: 'generate',
+				modeId: 'test',
+				modeLabel: 'Test Mode',
+				themeLabel: 'Test Theme',
+				evidence: 'test evidence',
+				voice: {
+					intensity: 'receipts_out',
+					rawness: 'mild',
+					thirdPerson: 'sometimes'
+				}
+			},
+			deps
+		);
 
 		expect(response.status).toBe(200);
-		expect(response.body).toMatchObject({
-			ok: true,
-			verdict: 'Guilty',
-			quote: 'No way',
-			pageTitle: 'Uh oh',
-			pageItems: [{ number: 1, label: 'One' }, { number: 2, label: 'Two' }],
-			qualityState: 'ready',
-			modelMetadata: expect.objectContaining({
-				model: 'test-model'
-			})
-		});
+		expect(response.body.ok).toBe(true);
+		if (response.body.ok) {
+			expect(response.body.value).toMatchObject({
+				verdict: 'Guilty',
+				quote: 'No way',
+				pageTitle: 'Uh oh',
+				pageItems: [
+					{ number: 1, label: 'One' },
+					{ number: 2, label: 'Two' }
+				],
+				qualityState: 'ready',
+				modelMetadata: expect.objectContaining({
+					model: 'test-model'
+				})
+			});
+		}
 		expect(callCount).toBe(1);
 	});
 
@@ -75,18 +92,27 @@ Hope that helps!`
 						}
 					};
 				},
-				createImageGeneration: async () => { throw new Error('not implemented'); }
+				createImageGeneration: async () => {
+					throw new Error('not implemented');
+				}
 			})
 		};
 
-		const response = await runMeechieStudioTextPipeline({
-			actionId: 'generate',
-			modeId: 'test',
-			modeLabel: 'Test Mode',
-			themeLabel: 'Test Theme',
-			evidence: 'test evidence',
-			voice: { intensity: 'receipts_out', rawness: 'mild', thirdPerson: 'sometimes' }
-		}, deps);
+		const response = await runMeechieStudioTextPipeline(
+			{
+				actionId: 'generate',
+				modeId: 'test',
+				modeLabel: 'Test Mode',
+				themeLabel: 'Test Theme',
+				evidence: 'test evidence',
+				voice: {
+					intensity: 'receipts_out',
+					rawness: 'mild',
+					thirdPerson: 'sometimes'
+				}
+			},
+			deps
+		);
 
 		expect(response.status).toBe(200);
 		expect(callCount).toBe(1); // parsed on first try
@@ -106,18 +132,27 @@ Hope that helps!`
 						}
 					};
 				},
-				createImageGeneration: async () => { throw new Error('not implemented'); }
+				createImageGeneration: async () => {
+					throw new Error('not implemented');
+				}
 			})
 		};
 
-		const response = await runMeechieStudioTextPipeline({
-			actionId: 'generate',
-			modeId: 'test',
-			modeLabel: 'Test Mode',
-			themeLabel: 'Test Theme',
-			evidence: 'test evidence',
-			voice: { intensity: 'receipts_out', rawness: 'mild', thirdPerson: 'sometimes' }
-		}, deps);
+		const response = await runMeechieStudioTextPipeline(
+			{
+				actionId: 'generate',
+				modeId: 'test',
+				modeLabel: 'Test Mode',
+				themeLabel: 'Test Theme',
+				evidence: 'test evidence',
+				voice: {
+					intensity: 'receipts_out',
+					rawness: 'mild',
+					thirdPerson: 'sometimes'
+				}
+			},
+			deps
+		);
 
 		expect(response.status).toBe(502);
 		expect(callCount).toBe(2); // Retried once
