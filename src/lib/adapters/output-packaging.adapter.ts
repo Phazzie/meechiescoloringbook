@@ -37,9 +37,11 @@ const fromBase64 = (base64: string): Uint8Array => {
 const parseSvgSize = (svg: string): { width: number; height: number } => {
 	const widthMatch = svg.match(/width="(\d+(?:\.\d+)?)"/);
 	const heightMatch = svg.match(/height="(\d+(?:\.\d+)?)"/);
+	const width = widthMatch ? Number(widthMatch[1]) : 2550;
+	const height = heightMatch ? Number(heightMatch[1]) : 3300;
 	return {
-		width: widthMatch ? Number(widthMatch[1]) : 2550,
-		height: heightMatch ? Number(heightMatch[1]) : 3300
+		width: Number.isNaN(width) ? 2550 : width,
+		height: Number.isNaN(height) ? 3300 : height
 	};
 };
 
