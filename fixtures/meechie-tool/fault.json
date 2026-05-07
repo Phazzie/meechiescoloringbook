@@ -1,15 +1,13 @@
 {
   "scenario": "fault",
   "input": {
-    "toolId": "lineup",
-    "prompt": "Rank these excuses:",
-    "items": ["My phone died"]
+    "toolId": "random_meechie"
   },
   "output": {
     "ok": false,
     "error": {
-      "code": "LINEUP_TOO_SHORT",
-      "message": "Lineup requires at least two items to rank." 
+      "code": "PROVIDER_API_KEY_MISSING",
+      "message": "AI tools require XAI_API_KEY to be set on the server."
     }
   }
 }

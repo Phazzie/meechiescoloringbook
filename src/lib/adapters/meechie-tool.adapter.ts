@@ -1,301 +1,330 @@
-// Purpose: Deterministic adapter for MeechieToolSeam.
-// Why: Provide consistent Meechie responses without external dependencies.
-// Info flow: Tool input -> voice pack -> response template -> output payload.
+// Purpose: AI-backed adapter for MeechieToolSeam.
+// Why: Replace deterministic keyword matching and templates with genuine Meechie responses.
+// Info flow: Tool input -> Meechie system prompt -> AI provider -> structured output.
 import type {
 	MeechieToolInput,
 	MeechieToolOutput,
 	MeechieToolSeam
 } from '../../../contracts/meechie-tool.contract';
-import type { MeechieVoicePack } from '../../../contracts/meechie-voice.contract';
 import type { Result } from '../../../contracts/shared.contract';
-import { meechieVoiceAdapter } from './meechie-voice.adapter';
-import { selectBestMeechieQuote } from '$lib/core/meechie-quote-scoring';
+import { createProviderAdapter } from './provider-adapter.adapter';
+import { env } from '$env/dynamic/private';
 
-const normalize = (value: string): string => value.trim().replace(/\s+/g, ' ');
+const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
 
-const toKey = (value: string): string => normalize(value).toLowerCase();
+const MEECHIE_SYSTEM_PROMPT = `You are Meechie.
 
-const applyTemplate = (template: string, values: Record<string, string>): string =>
-	Object.entries(values).reduce(
-		(current, [key, value]) => current.split(`{${key}}`).join(value),
-		template
-	);
+WHO YOU ARE:
+Glam, dangerous, funny, petty, and weirdly surgical. You are confident because the mirror already testified and your granny already closed the case. You do not beg to be chosen. You watch people choose wrong and make the consequences pretty. You notice doors left cracked, screenshots half-shown, deleted messages, family weaknesses, bad excuses, ugly lies, and women trying to wear your face without your power.
 
-const buildLineup = (pack: MeechieVoicePack, prompt: string, items: string[]): string => {
-	const comments = pack.responses.lineup.comments;
-	const lines = items.map((item, index) => {
-		const place = index + 1;
-		const suffix = place === 1 ? 'st' : place === 2 ? 'nd' : place === 3 ? 'rd' : 'th';
-		const comment = comments[index] ?? comments[comments.length - 1];
-		return `${place}${suffix} place: "${normalize(item)}" — ${comment}`;
-	});
-	return `${normalize(prompt)}\n${lines.join('\n')}`;
+YOUR WORLD: family reunions, Easter, grandma's pew, mama's kitchen, cousin's baby shower, birthday parties, bathroom mirrors, deleted messages, lies with bad outfits, cheekbones, lashes, edges, phones, receipts, men who thought you were bluffing.
+
+You are funniest when you sound calm. Scariest when you sound like you already decided what holiday you are going to ruin. You are the prize, the problem, the verdict, and sometimes the punishment.
+
+WHO YOU ARE NOT:
+Not a wellness influencer. Not generic bad-bitch caption energy. Not a therapy chatbot. Not soft-girl Pinterest. Not corporate empowerment with lip gloss. Not trying to sound healed. Not explaining your worth. You give social consequences with lashes on.
+
+NEVER SAY THESE — they are banned:
+"protect your peace", "know your worth", "healing", "choosing myself", "main character energy", "boss babe", "stay unbothered", "your loss", "raise your vibration", "manifest better love", "soft girl era", "boundaries are beautiful", "communicate your needs", "you deserve", "let go of what no longer serves", "choose peace over drama", "I am enough", "good vibes only", "never let anyone dim your light", "fix your crown", "energy doesn't lie", "love yourself first", "I'm choosing me", "protecting my aura", "high standards low tolerance"
+
+CANON LINES — study this energy, do not copy verbatim:
+"You should've fucked the landlord, not the dopeman."
+"Don't open the door, not even a little bit. Because if you open the door, I'm coming through."
+"That's cute. Do it again and see what's cuter."
+"One more lie and I'm showing up to Easter looking SAVED."
+"Try me again and watch me be real pretty at your family reunion."
+"I will out-dress your mama at HER birthday party. Don't test me."
+"He said he needed space, so I gave him the whole parking lot and looked pretty walking across it."
+"He wanted humble. I came with cheekbones and documentation."
+"I don't need revenge. I got cheekbones, timing, and his auntie still liking my pictures. But I'm still getting revenge."
+"That excuse came in wearing slides and no socks. I'm not accepting it at the door."
+"One more excuse and I'm in your mama's kitchen asking where she keeps the good plates."
+"I'm one lie away from knowing which uncle drinks too much at cookouts."
+"Keep playing and I'm bringing a Bundt cake to your grandma's church picnic."
+"One more deleted message and I'm at the family reunion acting like I know the potato salad recipe."
+"She posted a subliminal. I posted a picture. Mine had better lighting and less begging."
+"I'm not the other woman. I'm the woman other women start checking his phone about."
+"He said he forgot. I believe him. He forgot I was me."
+"Hating me won't change what happened in your bathroom mirror."
+"Keep acting single and I'll be real pretty beside your mama's Christmas tree."
+"Put some foundation on that fiction."
+"Keep playing and your brother gonna be calling me by my first name."
+"I'm one text away from friending your whole family looking like a blessing."
+"As long as I'm alive, you bitches always have somewhere to live, right here back in my shadow."
+
+RULES:
+- 1 to 3 sentences maximum — no essays
+- State power as fact, not aspiration
+- Name consequences specifically (which holiday, which family member, which room)
+- Surgical and calm — not loud and generic
+- Never soften the consequence
+- Never ask for understanding
+- Return exactly one JSON object matching the required schema — no prose, no markdown fences`;
+
+const STANDARD_RESPONSE_FORMAT = {
+	type: 'json_schema',
+	json_schema: {
+		name: 'meechie_tool_response',
+		strict: true,
+		schema: {
+			type: 'object',
+			additionalProperties: false,
+			properties: {
+				headline: { type: 'string' },
+				response: { type: 'string' }
+			},
+			required: ['headline', 'response']
+		}
+	}
 };
 
-const classifyRedFlag = (
-	pack: MeechieVoicePack,
-	situation: string
-): { headline: string; response: string } => {
-	const normalized = toKey(situation);
-	const { runKeywords, flagKeywords, runResponse, flagResponse, defaultResponse } =
-		pack.responses.redFlagOrRun;
-	if (runKeywords.some((keyword) => normalized.includes(keyword))) {
-		return {
-			headline: runResponse.headline,
-			response: `Fault: them. Consequence: they lose access immediately. ${runResponse.response}`
+const RATE_EXCUSE_RESPONSE_FORMAT = {
+	type: 'json_schema',
+	json_schema: {
+		name: 'meechie_rate_excuse_response',
+		strict: true,
+		schema: {
+			type: 'object',
+			additionalProperties: false,
+			properties: {
+				headline: { type: 'string' },
+				response: { type: 'string' },
+				rating: { type: 'integer' }
+			},
+			required: ['headline', 'response', 'rating']
+		}
+	}
+};
+
+type UserMessage = {
+	content: string;
+	responseFormat: Record<string, unknown>;
+};
+
+const buildUserMessage = (input: MeechieToolInput): UserMessage => {
+	switch (input.toolId) {
+		case 'red_flag_or_run':
+			return {
+				content: [
+					'Tool: Red Flag or Run',
+					`Situation: ${input.situation}`,
+					'',
+					'Give a verdict. Is this RUN or RED FLAG?',
+					'headline: the verdict — 2 to 4 words (e.g. "Run." or "Red Flag.")',
+					'response: 1 to 3 sentences. Name the fault, state the consequence, call the access decision. Use "Fault:" and "Consequence:" as prefixes.'
+				].join('\n'),
+				responseFormat: STANDARD_RESPONSE_FORMAT
+			};
+
+		case 'wwmd':
+			return {
+				content: [
+					'Tool: What Would Meechie Do',
+					`Dilemma: ${input.dilemma}`,
+					'',
+					'What would Meechie do?',
+					'headline: 2 to 4 words (e.g. "Meechie Move")',
+					'response: 1 to 3 sentences. Use "Fault:" "Consequence:" "Move:" as prefixes. The Move must be specific, not generic.'
+				].join('\n'),
+				responseFormat: STANDARD_RESPONSE_FORMAT
+			};
+
+		case 'apology_translator':
+			return {
+				content: [
+					'Tool: Apology Translator',
+					`Apology: ${input.apology}`,
+					'',
+					'Translate what this apology actually means in plain Meechie.',
+					'headline: 3 to 5 words (e.g. "What That Really Meant")',
+					'response: Start with "Translation:" and give 1 sentence of what they were really doing. Then "Meechie logic:" and 1 sentence on what an actual apology requires from them specifically.'
+				].join('\n'),
+				responseFormat: STANDARD_RESPONSE_FORMAT
+			};
+
+		case 'rate_excuse':
+			return {
+				content: [
+					'Tool: Rate This Excuse',
+					`Excuse: ${input.excuse}`,
+					'',
+					'Rate this excuse 1 to 10. 1 means insulting everyone in the room. 10 means barely credible.',
+					'headline: the score as "N/10"',
+					'response: 1 to 2 sentences of Meechie commentary. Be specific to this exact excuse — what detail gives it away, what contradicts it, what it cost the person saying it.',
+					'rating: integer from 1 to 10'
+				].join('\n'),
+				responseFormat: RATE_EXCUSE_RESPONSE_FORMAT
+			};
+
+		case 'caption_this':
+			return {
+				content: [
+					'Tool: Caption This',
+					`Moment: ${input.moment}`,
+					'',
+					'Write a Meechie caption for this moment.',
+					'headline: 2 to 4 words (e.g. "Caption Locked")',
+					'response: One sentence. Specific to this moment. Glamorous and a little dangerous. Not generic.'
+				].join('\n'),
+				responseFormat: STANDARD_RESPONSE_FORMAT
+			};
+
+		case 'clapback':
+			return {
+				content: [
+					'Tool: Clapback',
+					`Comment or criticism: ${input.comment}`,
+					'',
+					'Write a Meechie clapback to this.',
+					'headline: 2 to 4 words (e.g. "Return Fire")',
+					'response: One sentence. Surgical. Reference something specific about the comment — the cheap seats they are watching from, the audacity of the choice, or what this person just lost access to.'
+				].join('\n'),
+				responseFormat: STANDARD_RESPONSE_FORMAT
+			};
+
+		case 'receipts':
+			return {
+				content: [
+					'Tool: Receipts',
+					`What was claimed: ${input.claim}`,
+					`What actually happened: ${input.reality}`,
+					'',
+					'Present the receipts.',
+					'headline: 2 to 4 words (e.g. "Paper Trail")',
+					'response: 1 to 2 sentences. Name the contradiction directly and specifically. State the consequence for the record.'
+				].join('\n'),
+				responseFormat: STANDARD_RESPONSE_FORMAT
+			};
+
+		case 'meechie_explains':
+			return {
+				content: [
+					'Tool: Meechie Explains',
+					`Term: ${input.term}`,
+					'',
+					'Explain this term in Meechie voice.',
+					'headline: 2 to 4 words (e.g. "Street Glossary")',
+					'response: One sentence definition. References contracts, access tiers, premium pricing, or specific social consequences. Not generic empowerment language.'
+				].join('\n'),
+				responseFormat: STANDARD_RESPONSE_FORMAT
+			};
+
+		case 'random_meechie':
+			return {
+				content: [
+					'Tool: Random Meechie',
+					'Generate a fresh Meechie line. Do not copy canon lines verbatim.',
+					'Match the energy: specific, glam, dangerous, and calm.',
+					'It should feel like it belongs in the canon — a holiday, a family member, a consequence, a specific thing they did wrong.',
+					'headline: "Random Meechie"',
+					'response: One to two sentences. Make it quotable.'
+				].join('\n'),
+				responseFormat: STANDARD_RESPONSE_FORMAT
+			};
+
+		case 'lineup': {
+			const ordinal = (n: number) =>
+				n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
+			const itemList = input.items.map((item, i) => `${ordinal(i + 1)}: ${item}`).join('\n');
+			return {
+				content: [
+					'Tool: Lineup',
+					`Prompt: ${input.prompt}`,
+					`Items:\n${itemList}`,
+					'',
+					'Rank these items from best to worst in Meechie voice.',
+					'headline: 2 to 4 words (e.g. "Ranked and Ruled")',
+					'response: A numbered list. Each line: "Nth place: \\"item\\" — one Meechie sentence specific to why this item ranked here." Do not use generic filler — every comment should land on the specific item.'
+				].join('\n'),
+				responseFormat: STANDARD_RESPONSE_FORMAT
+			};
+		}
+
+		case 'horoscope':
+			return {
+				content: [
+					'Tool: Meechie Horoscope',
+					`Sign: ${input.sign}`,
+					'',
+					`Give a Meechie horoscope for ${input.sign}.`,
+					`headline: "Meechie Forecast — ${input.sign}"`,
+					`response: One sentence. Reference something true about ${input.sign}'s energy — their reputation, their pattern, their tell. End with an access boundary, a consequence, or a specific move they need to make.`
+				].join('\n'),
+				responseFormat: STANDARD_RESPONSE_FORMAT
+			};
+	}
+};
+
+const parseResponse = (
+	content: string
+): { headline: string; response: string; rating?: number } | null => {
+	try {
+		const parsed = JSON.parse(content) as Record<string, unknown>;
+		if (typeof parsed.headline !== 'string' || typeof parsed.response !== 'string') {
+			return null;
+		}
+		const result: { headline: string; response: string; rating?: number } = {
+			headline: parsed.headline,
+			response: parsed.response
 		};
+		if (typeof parsed.rating === 'number') {
+			result.rating = Math.max(1, Math.min(10, Math.round(parsed.rating)));
+		}
+		return result;
+	} catch {
+		return null;
 	}
-	if (flagKeywords.some((keyword) => normalized.includes(keyword))) {
-		return {
-			headline: flagResponse.headline,
-			response: `Fault: them. Consequence: probation until evidence improves. ${flagResponse.response}`
-		};
-	}
-	return {
-		headline: defaultResponse.headline,
-		response: `Fault: unknown until facts arrive. Consequence: no upgrade without proof. ${defaultResponse.response}`
-	};
 };
-
-type WwmdTrigger = MeechieVoicePack['responses']['wwmd']['triggers'][number];
-
-const matchesTrigger = (normalized: string, trigger: WwmdTrigger): boolean => {
-	if (trigger.includesAll && !trigger.includesAll.every((keyword) => normalized.includes(keyword))) {
-		return false;
-	}
-	if (trigger.includesAny && !trigger.includesAny.some((keyword) => normalized.includes(keyword))) {
-		return false;
-	}
-	return true;
-};
-
-const evidencePattern = (text: string): string => {
-	const normalized = toKey(text);
-	if (/(?:screenshot|receipts|proof|timestamp)/.test(normalized)) return 'timestamp and screenshot trail';
-	if (/(?:location|live|map|pin)/.test(normalized)) return 'location trail';
-	if (/(?:left on read|seen|delivered)/.test(normalized)) return 'read-receipt trail';
-	return 'story has no verifiable trail';
-};
-
-const whoFault = (text: string): string => {
-	const normalized = toKey(text);
-	if (/(?:i was|i did|my bad|i forgot)/.test(normalized)) return 'you';
-	if (/\b(?:he|she|they|him|her)\b/.test(normalized)) return 'them';
-	return 'both sides';
-};
-
-const wwmdResponse = (pack: MeechieVoicePack, dilemma: string): string => {
-	const normalized = toKey(dilemma);
-	const match = pack.responses.wwmd.triggers.find((trigger) => matchesTrigger(normalized, trigger));
-	if (match) {
-		return `Fault: ${whoFault(dilemma)}. Consequence: protect access, not feelings. Move: ${match.response}`;
-	}
-	return `Fault: ${whoFault(dilemma)}. Consequence: no boundary means repeated behavior. Move: ${pack.responses.wwmd.fallback}`;
-};
-
-const structuredSocialFrame = (subject: string, detail: string, consequence: string): string =>
-	`Role: ${subject}. Object: ${detail}. Place: timeline and real life. Consequence: ${consequence}.`;
-
-const captionResponse = (pack: MeechieVoicePack, moment: string): string => {
-	const cleanMoment = normalize(moment);
-	const base = applyTemplate(pack.responses.caption.template, { moment: cleanMoment });
-	return `${base} ${structuredSocialFrame('main character', cleanMoment, 'watchers get commentary, not access')}`;
-};
-
-const clapbackResponse = (pack: MeechieVoicePack, comment: string): string => {
-	const cleanComment = normalize(comment);
-	const base = applyTemplate(pack.responses.clapback.template, { comment: cleanComment });
-	return `${base} ${structuredSocialFrame('critic', cleanComment, 'cheap shots lose priority seating')}`;
-};
-
-const receiptsResponse = (pack: MeechieVoicePack, claim: string, reality: string): string => {
-	const cleanClaim = normalize(claim);
-	const cleanReality = normalize(reality);
-	const base = applyTemplate(pack.responses.receipts.template, {
-		claim: cleanClaim,
-		reality: cleanReality
-	});
-	return `${base} ${structuredSocialFrame('speaker vs facts', `${cleanClaim} / ${cleanReality}`, 'evidence wins and access gets adjusted')}`;
-};
-
-const apologyResponse = (pack: MeechieVoicePack, apology: string): string => {
-	const key = toKey(apology);
-	const mapped = pack.responses.apologyTranslator.exactMap[key];
-	if (mapped) return mapped;
-	const weakStructure = /sorry you feel|if i hurt|mistakes were made|didn't mean/.test(key);
-	if (weakStructure) {
-		return 'Translation: you centered optics, not impact. Meechie logic: name the act, name the harm, offer repair, and accept the consequence window.';
-	}
-	return `${pack.responses.apologyTranslator.fallback} Meechie logic: apology must include action, repayment, and timeline.`;
-};
-
-const explainsResponse = (pack: MeechieVoicePack, term: string): string => {
-	const key = toKey(term);
-	return pack.responses.explains.map[key] ??
-		applyTemplate(pack.responses.explains.fallbackTemplate, { term: normalize(term) });
-};
-
-const rateExcuse = (
-	pack: MeechieVoicePack,
-	excuse: string
-): { rating: number; commentary: string } => {
-	const normalized = toKey(excuse);
-	const match = pack.responses.excuseRatings.find((r) =>
-		r.keywords.some((keyword) => normalized.includes(keyword))
-	);
-	const base = match ?? pack.responses.excuseRatingFallback;
-	return {
-		...base,
-		commentary: `${base.commentary} Evidence pattern: ${evidencePattern(excuse)}.`
-	};
-};
-
-const curatedSaying = (pack: MeechieVoicePack) => {
-	const candidates = pack.responses.quotes
-		.filter((q) => q.coloringPageReady && q.defaultMode)
-		.map((q) => q.text);
-	const pool = candidates.length > 0 ? candidates : pack.responses.quotes.map((q) => q.text);
-	return selectBestMeechieQuote(pool);
-};
-
-const horoscopeHeadline = (pack: MeechieVoicePack, sign: string): string =>
-	applyTemplate(pack.responses.headlines.horoscopeTemplate, { sign });
 
 export const meechieToolAdapter: MeechieToolSeam = {
 	respond: async (input: MeechieToolInput): Promise<Result<MeechieToolOutput>> => {
-		const voiceResult = await meechieVoiceAdapter.getVoicePack({ voiceId: 'meechie' });
-		if (!voiceResult.ok) {
-			return voiceResult;
-		}
+		const { content, responseFormat } = buildUserMessage(input);
 
-		const pack = voiceResult.value;
+		const provider = createProviderAdapter({});
+		const providerResult = await provider.createChatCompletion({
+			model: TEXT_MODEL,
+			messages: [
+				{ role: 'system', content: MEECHIE_SYSTEM_PROMPT },
+				{ role: 'user', content }
+			],
+			responseFormat
+		});
 
-		switch (input.toolId) {
-			case 'apology_translator':
-				return {
-					ok: true,
-					value: {
-						toolId: input.toolId,
-						headline: pack.responses.headlines.apologyTranslator,
-						response: apologyResponse(pack, input.apology)
-					}
-				};
-			case 'red_flag_or_run': {
-				const verdict = classifyRedFlag(pack, input.situation);
-				return {
-					ok: true,
-					value: {
-						toolId: input.toolId,
-						headline: verdict.headline,
-						response: verdict.response
-					}
-				};
-			}
-			case 'wwmd':
-				return {
-					ok: true,
-					value: {
-						toolId: input.toolId,
-						headline: pack.responses.headlines.wwmd,
-						response: wwmdResponse(pack, input.dilemma)
-					}
-				};
-			case 'lineup':
-				if (input.items.length < pack.responses.lineup.minItems) {
-					return {
-						ok: false,
-						error: {
-							code: 'LINEUP_TOO_SHORT',
-							message: pack.responses.lineup.tooShortMessage
-						}
-					};
+		if (!providerResult.ok) {
+			return {
+				ok: false,
+				error: {
+					code:
+						providerResult.error.code === 'PROVIDER_API_KEY_MISSING'
+							? 'PROVIDER_API_KEY_MISSING'
+							: 'MEECHIE_TOOL_PROVIDER_ERROR',
+					message:
+						providerResult.error.code === 'PROVIDER_API_KEY_MISSING'
+							? 'AI tools require XAI_API_KEY to be set on the server.'
+							: providerResult.error.message
 				}
-				return {
-					ok: true,
-					value: {
-						toolId: input.toolId,
-						headline: pack.responses.headlines.lineup,
-						response: buildLineup(pack, input.prompt, input.items)
-					}
-				};
-			case 'horoscope':
-				return {
-					ok: true,
-					value: {
-						toolId: input.toolId,
-						headline: horoscopeHeadline(pack, input.sign),
-						response:
-							pack.responses.horoscope.map[input.sign] ?? pack.responses.horoscope.fallback
-					}
-				};
-			case 'receipts':
-				return {
-					ok: true,
-					value: {
-						toolId: input.toolId,
-						headline: pack.responses.headlines.receipts,
-						response: receiptsResponse(pack, input.claim, input.reality)
-					}
-				};
-			case 'caption_this':
-				return {
-					ok: true,
-					value: {
-						toolId: input.toolId,
-						headline: pack.responses.headlines.caption,
-						response: captionResponse(pack, input.moment)
-					}
-				};
-			case 'clapback':
-				return {
-					ok: true,
-					value: {
-						toolId: input.toolId,
-						headline: pack.responses.headlines.clapback,
-						response: clapbackResponse(pack, input.comment)
-					}
-				};
-			case 'meechie_explains':
-				return {
-					ok: true,
-					value: {
-						toolId: input.toolId,
-						headline: pack.responses.headlines.explains,
-						response: explainsResponse(pack, input.term)
-					}
-				};
-			case 'rate_excuse': {
-				const { rating, commentary } = rateExcuse(pack, input.excuse);
-				return {
-					ok: true,
-					value: {
-						toolId: input.toolId,
-						headline: `${rating}/10`,
-						response: commentary,
-						rating
-					}
-				};
-			}
-			case 'random_meechie': {
-				const scored = curatedSaying(pack);
-				return {
-					ok: true,
-					value: {
-						toolId: input.toolId,
-						headline: 'Random Meechie',
-						response: scored.quote,
-						quoteScore: scored
-					}
-				};
-			}
-			default:
-				return {
-					ok: false,
-					error: {
-						code: 'UNKNOWN_TOOL',
-						message: 'Tool not supported.'
-					}
-				};
+			};
 		}
+
+		const parsed = parseResponse(providerResult.value.content);
+		if (!parsed) {
+			return {
+				ok: false,
+				error: {
+					code: 'MEECHIE_TOOL_PROVIDER_INVALID',
+					message: 'AI tool response did not match expected format.'
+				}
+			};
+		}
+
+		return {
+			ok: true,
+			value: {
+				toolId: input.toolId,
+				headline: parsed.headline,
+				response: parsed.response,
+				...(parsed.rating !== undefined ? { rating: parsed.rating } : {})
+			}
+		};
 	}
 };

@@ -1,12 +1,37 @@
-// Purpose: Unit tests for meechie-tool adapter covering all tool types and edge cases.
-// Why: Ensure each Meechie tool produces deterministic, contract-valid output.
-// Info flow: Tool inputs -> adapter -> verified outputs for all 9 tool types.
-import { describe, expect, it } from 'vitest';
-import { meechieToolAdapter } from '../../src/lib/adapters/meechie-tool.adapter';
+// Purpose: Unit tests for meechie-tool adapter covering all tool types.
+// Why: Ensure every tool correctly routes to the AI provider and returns a contract-valid output.
+// Info flow: Tool inputs -> mocked AI provider -> verified outputs for all 11 tool types.
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+
+const mockCreateChatCompletion = vi.fn();
+
+vi.mock('../../src/lib/adapters/provider-adapter.adapter', () => ({
+	createProviderAdapter: () => ({
+		createChatCompletion: mockCreateChatCompletion,
+		createImageGeneration: vi.fn()
+	})
+}));
+
+const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool.adapter');
+
+const providerOk = (headline: string, response: string, extra?: Record<string, unknown>) => ({
+	ok: true as const,
+	value: {
+		model: 'test-model',
+		content: JSON.stringify({ headline, response, ...extra })
+	}
+});
+
+beforeEach(() => {
+	mockCreateChatCompletion.mockReset();
+});
 
 describe('meechie-tool adapter', () => {
 	describe('apology_translator', () => {
-		it('translates known apology with exact match', async () => {
+		it('returns ok with correct toolId', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('What That Really Meant', 'Translation: you were managing optics. Meechie logic: name the act and the harm.')
+			);
 			const result = await meechieToolAdapter.respond({
 				toolId: 'apology_translator',
 				apology: "I'm sorry you feel that way"
@@ -15,174 +40,143 @@ describe('meechie-tool adapter', () => {
 			if (result.ok) {
 				expect(result.value.toolId).toBe('apology_translator');
 				expect(result.value.headline).toBe('What That Really Meant');
-				expect(result.value.response).toContain('not sorry');
+				expect(result.value.response).toBeTruthy();
 			}
 		});
 
-		it('translates second known apology', async () => {
-			const result = await meechieToolAdapter.respond({
-				toolId: 'apology_translator',
-				apology: "It won't happen again"
-			});
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.response).toContain('happen again');
-			}
-		});
-
-		it('returns fallback for unknown apology', async () => {
-			const result = await meechieToolAdapter.respond({
+		it('passes the apology text in the user message', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('What That Really Meant', 'Translation: noted.')
+			);
+			await meechieToolAdapter.respond({
 				toolId: 'apology_translator',
 				apology: 'My bad for everything'
 			});
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.response).toContain('paperwork');
-			}
+			const call = mockCreateChatCompletion.mock.calls[0][0];
+			expect(call.messages[1].content).toContain('My bad for everything');
 		});
 	});
 
 	describe('red_flag_or_run', () => {
-		it('classifies run scenario correctly', async () => {
+		it('returns ok with correct toolId', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Run.', 'Fault: them. Consequence: access revoked immediately.')
+			);
 			const result = await meechieToolAdapter.respond({
 				toolId: 'red_flag_or_run',
 				situation: 'He is not looking for anything serious right now'
 			});
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.headline).toBe('Run');
+				expect(result.value.toolId).toBe('red_flag_or_run');
+				expect(result.value.headline).toBeTruthy();
+				expect(result.value.response).toBeTruthy();
 			}
 		});
 
-		it('classifies flag scenario with ex keyword', async () => {
-			const result = await meechieToolAdapter.respond({
+		it('passes the situation text in the user message', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Red Flag.', 'Fault: them. Consequence: probation.')
+			);
+			await meechieToolAdapter.respond({
 				toolId: 'red_flag_or_run',
 				situation: 'He still has photos of his ex everywhere'
 			});
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.headline).toBe('Red flag');
-				expect(result.value.response).toContain('ex');
-			}
-		});
-
-		it('returns default response for ambiguous situation', async () => {
-			const result = await meechieToolAdapter.respond({
-				toolId: 'red_flag_or_run',
-				situation: 'He is always busy with meetings'
-			});
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.headline).toBe('Red flag');
-				expect(result.value.response).toContain('names');
-			}
+			const call = mockCreateChatCompletion.mock.calls[0][0];
+			expect(call.messages[1].content).toContain('He still has photos of his ex everywhere');
 		});
 	});
 
 	describe('wwmd', () => {
-		it('matches trigger with includesAny keyword', async () => {
+		it('returns ok with correct toolId', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Meechie Move', 'Fault: them. Consequence: silence returned. Move: upgrade your plans.')
+			);
 			const result = await meechieToolAdapter.respond({
 				toolId: 'wwmd',
 				dilemma: 'He sent me a hey stranger text'
 			});
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.headline).toBe('Meechie Move');
-				expect(result.value.response).toContain('resurfaced');
+				expect(result.value.toolId).toBe('wwmd');
+				expect(result.value.response).toBeTruthy();
 			}
 		});
 
-		it('matches trigger with includesAll keywords', async () => {
-			const result = await meechieToolAdapter.respond({
-				toolId: 'wwmd',
-				dilemma: 'He said he was working late but I saw him at the club'
-			});
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.response).toContain('work');
-			}
-		});
-
-		it('returns fallback for unmatched dilemma', async () => {
-			const result = await meechieToolAdapter.respond({
+		it('passes the dilemma text in the user message', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Meechie Move', 'Fault: them. Consequence: noted.')
+			);
+			await meechieToolAdapter.respond({
 				toolId: 'wwmd',
 				dilemma: 'Should I move to a new city for a fresh start?'
 			});
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.response).toContain('boundary');
-			}
+			const call = mockCreateChatCompletion.mock.calls[0][0];
+			expect(call.messages[1].content).toContain('Should I move to a new city');
 		});
 	});
 
 	describe('lineup', () => {
-		it('ranks items with ordinal suffixes', async () => {
+		it('returns ok and includes ordinal labels in the user message', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Ranked and Ruled', '1st place: "Traffic" — creative at least. 2nd place: "Phone died" — classic.')
+			);
 			const result = await meechieToolAdapter.respond({
 				toolId: 'lineup',
 				prompt: 'Rate these excuses',
-				items: ['Traffic', 'Phone died', 'Overslept']
+				items: ['Traffic', 'Phone died']
 			});
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.headline).toBe('Ranked and Ruled');
-				expect(result.value.response).toContain('1st place');
-				expect(result.value.response).toContain('2nd place');
-				expect(result.value.response).toContain('3rd place');
+				expect(result.value.toolId).toBe('lineup');
 			}
+			const call = mockCreateChatCompletion.mock.calls[0][0];
+			expect(call.messages[1].content).toContain('Lineup');
+			expect(call.messages[1].content).toContain('1st');
+			expect(call.messages[1].content).toContain('2nd');
 		});
 
-		it('uses th suffix for 4th+ items', async () => {
-			const result = await meechieToolAdapter.respond({
+		it('includes 4th ordinal for four items', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Ranked and Ruled', '1st place: "A". 2nd place: "B". 3rd place: "C". 4th place: "D".')
+			);
+			await meechieToolAdapter.respond({
 				toolId: 'lineup',
 				prompt: 'Rank these',
 				items: ['A', 'B', 'C', 'D']
 			});
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.response).toContain('4th place');
-			}
-		});
-
-		it('returns error for lineup with fewer than minimum items', async () => {
-			const result = await meechieToolAdapter.respond({
-				toolId: 'lineup',
-				prompt: 'Rate this excuse',
-				items: ['Traffic']
-			});
-			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error.code).toBe('LINEUP_TOO_SHORT');
-			}
+			const call = mockCreateChatCompletion.mock.calls[0][0];
+			expect(call.messages[1].content).toContain('4th');
 		});
 	});
 
 	describe('horoscope', () => {
-		it('returns horoscope for known sign', async () => {
-			const result = await meechieToolAdapter.respond({
-				toolId: 'horoscope',
-				sign: 'Leo'
-			});
+		it('returns ok with sign in the user message', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Meechie Forecast — Leo', 'You are the headline. Stop auditioning for side roles.')
+			);
+			const result = await meechieToolAdapter.respond({ toolId: 'horoscope', sign: 'Leo' });
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.headline).toContain('Leo');
-				expect(result.value.response).toContain('headline');
+				expect(result.value.toolId).toBe('horoscope');
 			}
+			const call = mockCreateChatCompletion.mock.calls[0][0];
+			expect(call.messages[1].content).toContain('Leo');
 		});
 
-		it('returns horoscope for each zodiac sign', async () => {
+		it('passes each zodiac sign to the provider', async () => {
 			const signs = [
 				'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
 				'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
 			] as const;
 			for (const sign of signs) {
-				const result = await meechieToolAdapter.respond({
-					toolId: 'horoscope',
-					sign
-				});
+				mockCreateChatCompletion.mockResolvedValue(
+					providerOk(`Meechie Forecast — ${sign}`, `${sign} energy noted. Act accordingly.`)
+				);
+				const result = await meechieToolAdapter.respond({ toolId: 'horoscope', sign });
 				expect(result.ok).toBe(true);
 				if (result.ok) {
 					expect(result.value.toolId).toBe('horoscope');
-					expect(result.value.headline).toContain(sign);
 					expect(result.value.response.length).toBeGreaterThan(0);
 				}
 			}
@@ -190,7 +184,10 @@ describe('meechie-tool adapter', () => {
 	});
 
 	describe('receipts', () => {
-		it('interpolates claim and reality into template', async () => {
+		it('returns ok and passes both claim and reality to provider', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Paper Trail', 'He said work. Location said the mall. The receipt is submitted.')
+			);
 			const result = await meechieToolAdapter.respond({
 				toolId: 'receipts',
 				claim: 'He said he was at work',
@@ -198,104 +195,190 @@ describe('meechie-tool adapter', () => {
 			});
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.headline).toBe('Paper Trail');
-				expect(result.value.response).toContain('He said he was at work');
-				expect(result.value.response).toContain('His location showed the mall');
-				expect(result.value.response).toContain('Court is in session');
+				expect(result.value.toolId).toBe('receipts');
 			}
+			const call = mockCreateChatCompletion.mock.calls[0][0];
+			expect(call.messages[1].content).toContain('He said he was at work');
+			expect(call.messages[1].content).toContain('His location showed the mall');
 		});
 	});
 
 	describe('caption_this', () => {
-		it('interpolates moment into template', async () => {
+		it('returns ok and passes the moment to provider', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Caption Locked', 'Walking out of that meeting looking like the verdict.')
+			);
 			const result = await meechieToolAdapter.respond({
 				toolId: 'caption_this',
 				moment: 'Walking out of that meeting like a boss'
 			});
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.headline).toBe('Caption Locked');
-				expect(result.value.response).toContain('Walking out of that meeting like a boss');
-				expect(result.value.response).toContain('pretty, paid');
+				expect(result.value.toolId).toBe('caption_this');
 			}
+			const call = mockCreateChatCompletion.mock.calls[0][0];
+			expect(call.messages[1].content).toContain('Walking out of that meeting like a boss');
 		});
 	});
 
 	describe('clapback', () => {
-		it('interpolates comment into template', async () => {
+		it('returns ok and passes the comment to provider', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Return Fire', 'Keep watching from the cheap seats.')
+			);
 			const result = await meechieToolAdapter.respond({
 				toolId: 'clapback',
 				comment: 'You think you are better than everyone'
 			});
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.headline).toBe('Return Fire');
-				expect(result.value.response).toContain('You think you are better than everyone');
-				expect(result.value.response).toContain('cheap seats');
+				expect(result.value.toolId).toBe('clapback');
 			}
+			const call = mockCreateChatCompletion.mock.calls[0][0];
+			expect(call.messages[1].content).toContain('You think you are better than everyone');
 		});
 	});
 
 	describe('meechie_explains', () => {
-		it('returns known term definition', async () => {
+		it('returns ok and passes the term to provider', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Street Glossary', 'A situationship is him renting access with no contract and no deposit.')
+			);
 			const result = await meechieToolAdapter.respond({
 				toolId: 'meechie_explains',
 				term: 'situationship'
 			});
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.headline).toBe('Street Glossary');
-				expect(result.value.response).toContain('renting access');
+				expect(result.value.toolId).toBe('meechie_explains');
 			}
+			const call = mockCreateChatCompletion.mock.calls[0][0];
+			expect(call.messages[1].content).toContain('situationship');
 		});
 
-		it('returns known definition for gaslighting', async () => {
-			const result = await meechieToolAdapter.respond({
-				toolId: 'meechie_explains',
-				term: 'gaslighting'
-			});
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.response).toContain('lies');
-			}
-		});
-
-		it('returns fallback for unknown term', async () => {
+		it('passes unknown terms to the provider too', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Street Glossary', 'Benching is low-tier contract access — texts when convenient.')
+			);
 			const result = await meechieToolAdapter.respond({
 				toolId: 'meechie_explains',
 				term: 'benching'
 			});
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.response).toContain('benching');
-				expect(result.value.response).toContain('free trial');
+				expect(result.value.toolId).toBe('meechie_explains');
+				expect(result.value.response.length).toBeGreaterThan(0);
 			}
 		});
 	});
 
-	describe('whitespace normalization', () => {
-		it('normalizes extra whitespace in apology input', async () => {
+	describe('rate_excuse', () => {
+		it('returns ok with a numeric rating', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('2/10', 'Phones die. Your character did not have to go with it.', { rating: 2 })
+			);
 			const result = await meechieToolAdapter.respond({
-				toolId: 'apology_translator',
-				apology: "  I'm   sorry  you   feel   that   way  "
+				toolId: 'rate_excuse',
+				excuse: 'My phone died and I left you on read.'
 			});
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.response).toContain('not sorry');
+				expect(result.value.toolId).toBe('rate_excuse');
+				expect(result.value.rating).toBe(2);
+			}
+		});
+
+		it('clamps rating to 1–10 range', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('15/10', 'Ridiculous.', { rating: 15 })
+			);
+			const result = await meechieToolAdapter.respond({
+				toolId: 'rate_excuse',
+				excuse: 'Best excuse ever'
+			});
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.rating).toBe(10);
+			}
+		});
+	});
+
+	describe('random_meechie', () => {
+		it('returns ok with a fresh AI-generated response', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Random Meechie', 'Keep playing and your cousin is getting a Bundt cake and a front row seat.')
+			);
+			const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.toolId).toBe('random_meechie');
+				expect(result.value.response.length).toBeGreaterThan(0);
+				expect(result.value.quoteScore).toBeUndefined();
+			}
+		});
+	});
+
+	describe('system prompt', () => {
+		it('always sends a Meechie system prompt as the first message', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Random Meechie', 'He forgot I was me.')
+			);
+			await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+			const call = mockCreateChatCompletion.mock.calls[0][0];
+			expect(call.messages[0].role).toBe('system');
+			expect(call.messages[0].content).toContain('You are Meechie');
+			expect(call.messages[0].content).toContain('CANON LINES');
+			expect(call.messages[0].content).toContain('NEVER SAY THESE');
+		});
+	});
+
+	describe('error handling', () => {
+		it('returns PROVIDER_API_KEY_MISSING when key is absent', async () => {
+			mockCreateChatCompletion.mockResolvedValue({
+				ok: false,
+				error: { code: 'PROVIDER_API_KEY_MISSING', message: 'XAI_API_KEY is required.' }
+			});
+			const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('PROVIDER_API_KEY_MISSING');
+			}
+		});
+
+		it('returns MEECHIE_TOOL_PROVIDER_ERROR on non-key provider failure', async () => {
+			mockCreateChatCompletion.mockResolvedValue({
+				ok: false,
+				error: { code: 'PROVIDER_HTTP_ERROR', message: 'Bad gateway.' }
+			});
+			const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('MEECHIE_TOOL_PROVIDER_ERROR');
+			}
+		});
+
+		it('returns MEECHIE_TOOL_PROVIDER_INVALID on unparseable response', async () => {
+			mockCreateChatCompletion.mockResolvedValue({
+				ok: true,
+				value: { model: 'test-model', content: 'not json at all' }
+			});
+			const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('MEECHIE_TOOL_PROVIDER_INVALID');
+			}
+		});
+
+		it('returns MEECHIE_TOOL_PROVIDER_INVALID when response is missing required fields', async () => {
+			mockCreateChatCompletion.mockResolvedValue({
+				ok: true,
+				value: { model: 'test-model', content: JSON.stringify({ headline: 'Only a headline' }) }
+			});
+			const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('MEECHIE_TOOL_PROVIDER_INVALID');
 			}
 		});
 	});
 });
-
-
-	describe('random_meechie', () => {
-		it('returns curated saying with machine-readable quote score details', async () => {
-			const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.quoteScore).toBeDefined();
-				expect(result.value.quoteScore?.subscores).toHaveLength(10);
-				expect(result.value.quoteScore?.reasons.length).toBeGreaterThan(0);
-			}
-		});
-	});

@@ -10,26 +10,42 @@ import type { Result } from '../../../contracts/shared.contract';
 
 const meechieVoicePack: MeechieVoicePack = {
 	voiceId: 'meechie',
-	version: 'v1',
+	version: 'v2',
 	tone: {
 		summary:
-			'Power stated as fact. Consequences documented. Specific names, places, and costs with glam pressure.',
+			'Glam, dangerous, funny, petty, and weirdly surgical. Power stated as fact. Consequences named specifically — holidays, family members, locations. Meechie does not beg to be chosen. She watches people choose wrong and makes the consequences pretty. She is the prize, the problem, the verdict, and sometimes the punishment. Funniest when she sounds calm. Scariest when she sounds like she already decided what holiday she is going to ruin.',
 		dos: [
-			'State power first, not feelings first.',
-			'Name the person, place, and cost when possible.',
-			'Escalate with specific detail, not vague warnings.',
-			'Keep lines sharp, short, and memorable.'
+			'State power as fact, not aspiration.',
+			'Name the person, place, and cost — family reunions, Easter, mama\'s kitchen, the cousin\'s baby shower.',
+			'Be surgical and calm. One to three sentences. Never loud and generic.',
+			'Escalate with specific detail: which uncle, which holiday, which birthday party.',
+			'Let the consequence speak. Do not explain the consequence.',
+			'Be funniest when you sound the most unbothered.'
 		],
 		donts: [
-			'Do not ask for understanding.',
+			'Do not say: protect your peace, know your worth, healing, choosing myself, main character energy, boss babe, stay unbothered, your loss, raise your vibration, manifest better love, soft girl era, boundaries are beautiful, communicate your needs, you deserve, let go of what no longer serves, good vibes only, I am enough, love yourself first, I\'m choosing me, protecting my aura, high standards low tolerance.',
 			'Do not give generic motivational advice.',
 			'Do not soften the consequence.',
-			'Do not speak in third person distance.'
+			'Do not ask for understanding.',
+			'Do not explain your worth.',
+			'Do not sound like a wellness influencer, therapy chatbot, or corporate empowerment with lip gloss.',
+			'Do not speak in vague third-person distance.'
 		],
 		samples: [
-			'He can leave. I am still gonna be pretty tomorrow.',
 			'You fumbled ME? In THIS economy?',
-			'As long as I am up, they still living in my shadow.'
+			'He can leave. I am still gonna be pretty tomorrow.',
+			'One more lie and I\'m showing up to Easter looking SAVED.',
+			'Try me again and watch me be real pretty at your family reunion.',
+			'I will out-dress your mama at HER birthday party. Don\'t test me.',
+			'He said he needed space, so I gave him the whole parking lot and looked pretty walking across it.',
+			'He wanted humble. I came with cheekbones and documentation.',
+			'That excuse came in wearing slides and no socks. I\'m not accepting it at the door.',
+			'I don\'t need revenge. I got cheekbones, timing, and his auntie still liking my pictures. But I\'m still getting revenge.',
+			'One more excuse and I\'m in your mama\'s kitchen asking where she keeps the good plates.',
+			'I\'m one lie away from knowing which uncle drinks too much at cookouts.',
+			'Keep playing and I\'m bringing a Bundt cake to your grandma\'s church picnic.',
+			'Put some foundation on that fiction.',
+			'If a bitch ain\'t got no edges, she ain\'t got no sense.'
 		]
 	},
 	responses: {
@@ -417,6 +433,215 @@ const meechieVoicePack: MeechieVoicePack = {
 				defaultMode: true,
 				coloringPageReady: true,
 				notes: 'Meechie seed quote',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: 'He said he needed space, so I gave him the whole parking lot and looked pretty walking across it.',
+				category: 'raw_anchor',
+				rawness: 'clean',
+				thirdPersonUsage: 'sometimes',
+				modeFit: ['random_meechie', 'wwmd'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: 'He wanted humble. I came with cheekbones and documentation.',
+				category: 'approved_keeper',
+				rawness: 'clean',
+				thirdPersonUsage: 'sometimes',
+				modeFit: ['random_meechie'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: "I don't need revenge. I got cheekbones, timing, and his auntie still liking my pictures. But I'm still getting revenge.",
+				category: 'raw_anchor',
+				rawness: 'clean',
+				thirdPersonUsage: 'sometimes',
+				modeFit: ['random_meechie'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: "That excuse came in wearing slides and no socks. I'm not accepting it at the door.",
+				category: 'approved_keeper',
+				rawness: 'clean',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie', 'rate_excuse'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['boundaries']
+			},
+			{
+				text: "One more excuse and I'm in your mama's kitchen asking where she keeps the good plates.",
+				category: 'raw_anchor',
+				rawness: 'clean',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie', 'rate_excuse'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['boundaries', 'glam']
+			},
+			{
+				text: "I'm one lie away from knowing which uncle drinks too much at cookouts.",
+				category: 'approved_keeper',
+				rawness: 'clean',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['boundaries', 'glam']
+			},
+			{
+				text: "Keep playing and I'm bringing a Bundt cake to your grandma's church picnic.",
+				category: 'raw_anchor',
+				rawness: 'clean',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['boundaries', 'glam']
+			},
+			{
+				text: "One more deleted message and I'm at the family reunion acting like I know the potato salad recipe.",
+				category: 'approved_keeper',
+				rawness: 'clean',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['boundaries', 'glam']
+			},
+			{
+				text: "Keep acting single and I'll be real pretty beside your mama's Christmas tree.",
+				category: 'raw_anchor',
+				rawness: 'clean',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['boundaries', 'glam']
+			},
+			{
+				text: "One more secret and I'm helping your sister zip her wedding dress.",
+				category: 'approved_keeper',
+				rawness: 'clean',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['boundaries', 'glam']
+			},
+			{
+				text: "Try me again and I'm wearing lashes to your cousin's baby shower like I got named on the invitation.",
+				category: 'raw_anchor',
+				rawness: 'clean',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: "She posted a subliminal. I posted a picture. Mine had better lighting and less begging.",
+				category: 'approved_keeper',
+				rawness: 'clean',
+				thirdPersonUsage: 'sometimes',
+				modeFit: ['random_meechie', 'clapback'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: "I'm not the other woman. I'm the woman other women start checking his phone about.",
+				category: 'raw_anchor',
+				rawness: 'clean',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: "He said he forgot. I believe him. He forgot I was me.",
+				category: 'approved_keeper',
+				rawness: 'clean',
+				thirdPersonUsage: 'sometimes',
+				modeFit: ['random_meechie'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: "Hating me won't change what happened in your bathroom mirror.",
+				category: 'raw_anchor',
+				rawness: 'clean',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie', 'clapback'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: "Keep playing and your brother gonna be calling me by my first name.",
+				category: 'approved_keeper',
+				rawness: 'clean',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: "I'm one text away from friending your whole family looking like a blessing.",
+				category: 'raw_anchor',
+				rawness: 'clean',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: true,
+				coloringPageReady: true,
+				notes: 'Meechie canon line',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: "If a bitch ain't got no edges, she ain't got no sense.",
+				category: 'raw_anchor',
+				rawness: 'raw',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: false,
+				coloringPageReady: false,
+				notes: 'Meechie canon line — explicit',
+				visualMotifs: ['glam']
+			},
+			{
+				text: "All I need to be a hoe is an area of control.",
+				category: 'raw_anchor',
+				rawness: 'raw',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: false,
+				coloringPageReady: false,
+				notes: 'Meechie canon line — explicit',
 				visualMotifs: ['glam', 'boundaries']
 			},
 		]
