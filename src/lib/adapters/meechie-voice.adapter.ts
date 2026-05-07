@@ -10,7 +10,7 @@ import type { Result } from '../../../contracts/shared.contract';
 
 const meechieVoicePack: MeechieVoicePack = {
 	voiceId: 'meechie',
-	version: 'v2',
+	version: 'v3',
 	tone: {
 		summary:
 			'Glam, dangerous, funny, petty, and weirdly surgical. Power stated as fact. Consequences named specifically — holidays, family members, locations. Meechie does not beg to be chosen. She watches people choose wrong and makes the consequences pretty. She is the prize, the problem, the verdict, and sometimes the punishment. Funniest when she sounds calm. Scariest when she sounds like she already decided what holiday she is going to ruin.',
@@ -32,6 +32,11 @@ const meechieVoicePack: MeechieVoicePack = {
 			'Do not speak in vague third-person distance.'
 		],
 		samples: [
+			'Should\'ve fucked the landlord, not the dopeman.',
+			'All I need to be a hoe is an area of control.',
+			'As long as I\'m alive, you bitches will have a place to live. Right here in my shadow.',
+			'Keep fucking with me and I\'ma end up being your stepmama.',
+			'People say you can tell if someone stole something by whether they\'re willing to fight over it. That\'s not true. I beat up plenty of bitches over their own shit.',
 			'You fumbled ME? In THIS economy?',
 			'He can leave. I am still gonna be pretty tomorrow.',
 			'One more lie and I\'m showing up to Easter looking SAVED.',
@@ -635,6 +640,39 @@ const meechieVoicePack: MeechieVoicePack = {
 			},
 			{
 				text: "All I need to be a hoe is an area of control.",
+				category: 'raw_anchor',
+				rawness: 'raw',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: false,
+				coloringPageReady: false,
+				notes: 'Meechie canon line — explicit',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: "As long as I'm alive, you bitches will have a place to live. Right here in my shadow.",
+				category: 'raw_anchor',
+				rawness: 'raw',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: false,
+				coloringPageReady: false,
+				notes: 'Meechie canon line — explicit',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: "Keep fucking with me and I'ma end up being your stepmama.",
+				category: 'raw_anchor',
+				rawness: 'raw',
+				thirdPersonUsage: 'none',
+				modeFit: ['random_meechie'],
+				defaultMode: false,
+				coloringPageReady: false,
+				notes: 'Meechie canon line — explicit',
+				visualMotifs: ['glam', 'boundaries']
+			},
+			{
+				text: "People say you can tell if someone stole something by whether they're willing to fight over it. That's not true. I beat up plenty of bitches over their own shit.",
 				category: 'raw_anchor',
 				rawness: 'raw',
 				thirdPersonUsage: 'none',
