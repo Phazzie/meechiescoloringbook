@@ -288,7 +288,7 @@ describe('meechie-tool adapter', () => {
 			}
 		});
 
-		it('clamps rating to 1–10 range', async () => {
+		it('clamps rating to 1–10 range and derives headline from clamped value', async () => {
 			mockCreateChatCompletion.mockResolvedValue(
 				providerOk('15/10', 'Ridiculous.', { rating: 15 })
 			);
@@ -299,6 +299,22 @@ describe('meechie-tool adapter', () => {
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value.rating).toBe(10);
+				expect(result.value.headline).toBe('10/10');
+			}
+		});
+
+		it('returns MEECHIE_TOOL_PROVIDER_INVALID when rating is missing for rate_excuse', async () => {
+			mockCreateChatCompletion.mockResolvedValue({
+				ok: true,
+				value: { model: 'test-model', content: JSON.stringify({ headline: '?/10', response: 'No rating.' }) }
+			});
+			const result = await meechieToolAdapter.respond({
+				toolId: 'rate_excuse',
+				excuse: 'Some excuse'
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('MEECHIE_TOOL_PROVIDER_INVALID');
 			}
 		});
 	});
@@ -328,7 +344,7 @@ describe('meechie-tool adapter', () => {
 			expect(call.messages[0].role).toBe('system');
 			expect(call.messages[0].content).toContain('You are Meechie');
 			expect(call.messages[0].content).toContain('CANON LINES');
-			expect(call.messages[0].content).toContain('NEVER SAY THESE');
+			expect(call.messages[0].content).toContain('WHO YOU ARE NOT');
 		});
 	});
 
@@ -373,6 +389,18 @@ describe('meechie-tool adapter', () => {
 			mockCreateChatCompletion.mockResolvedValue({
 				ok: true,
 				value: { model: 'test-model', content: JSON.stringify({ headline: 'Only a headline' }) }
+			});
+			const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('MEECHIE_TOOL_PROVIDER_INVALID');
+			}
+		});
+
+		it('returns MEECHIE_TOOL_PROVIDER_INVALID when headline or response is empty string', async () => {
+			mockCreateChatCompletion.mockResolvedValue({
+				ok: true,
+				value: { model: 'test-model', content: JSON.stringify({ headline: '', response: 'Something.' }) }
 			});
 			const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
 			expect(result.ok).toBe(false);

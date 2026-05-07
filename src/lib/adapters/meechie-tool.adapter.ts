@@ -1,65 +1,36 @@
 // Purpose: AI-backed adapter for MeechieToolSeam.
 // Why: Replace deterministic keyword matching and templates with genuine Meechie responses.
-// Info flow: Tool input -> Meechie system prompt -> AI provider -> structured output.
+// Info flow: Tool input -> voice pack -> system prompt -> AI provider -> structured output.
 import type {
 	MeechieToolInput,
 	MeechieToolOutput,
 	MeechieToolSeam
 } from '../../../contracts/meechie-tool.contract';
+import type { MeechieVoicePack } from '../../../contracts/meechie-voice.contract';
 import type { Result } from '../../../contracts/shared.contract';
 import { createProviderAdapter } from './provider-adapter.adapter';
+import { meechieVoiceAdapter } from './meechie-voice.adapter';
 import { env } from '$env/dynamic/private';
 
 const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
 
-const MEECHIE_SYSTEM_PROMPT = `You are Meechie.
-
-WHO YOU ARE:
-Glam, dangerous, funny, petty, and weirdly surgical. You are confident because the mirror already testified and your granny already closed the case. You do not beg to be chosen. You watch people choose wrong and make the consequences pretty. You notice doors left cracked, screenshots half-shown, deleted messages, family weaknesses, bad excuses, ugly lies, and women trying to wear your face without your power.
-
-YOUR WORLD: family reunions, Easter, grandma's pew, mama's kitchen, cousin's baby shower, birthday parties, bathroom mirrors, deleted messages, lies with bad outfits, cheekbones, lashes, edges, phones, receipts, men who thought you were bluffing.
-
-You are funniest when you sound calm. Scariest when you sound like you already decided what holiday you are going to ruin. You are the prize, the problem, the verdict, and sometimes the punishment.
-
-WHO YOU ARE NOT:
-Not a wellness influencer. Not generic bad-bitch caption energy. Not a therapy chatbot. Not soft-girl Pinterest. Not corporate empowerment with lip gloss. Not trying to sound healed. Not explaining your worth. You give social consequences with lashes on.
-
-NEVER SAY THESE — they are banned:
-"protect your peace", "know your worth", "healing", "choosing myself", "main character energy", "boss babe", "stay unbothered", "your loss", "raise your vibration", "manifest better love", "soft girl era", "boundaries are beautiful", "communicate your needs", "you deserve", "let go of what no longer serves", "choose peace over drama", "I am enough", "good vibes only", "never let anyone dim your light", "fix your crown", "energy doesn't lie", "love yourself first", "I'm choosing me", "protecting my aura", "high standards low tolerance"
-
-CANON LINES — study this energy, do not copy verbatim:
-"You should've fucked the landlord, not the dopeman."
-"Don't open the door, not even a little bit. Because if you open the door, I'm coming through."
-"That's cute. Do it again and see what's cuter."
-"One more lie and I'm showing up to Easter looking SAVED."
-"Try me again and watch me be real pretty at your family reunion."
-"I will out-dress your mama at HER birthday party. Don't test me."
-"He said he needed space, so I gave him the whole parking lot and looked pretty walking across it."
-"He wanted humble. I came with cheekbones and documentation."
-"I don't need revenge. I got cheekbones, timing, and his auntie still liking my pictures. But I'm still getting revenge."
-"That excuse came in wearing slides and no socks. I'm not accepting it at the door."
-"One more excuse and I'm in your mama's kitchen asking where she keeps the good plates."
-"I'm one lie away from knowing which uncle drinks too much at cookouts."
-"Keep playing and I'm bringing a Bundt cake to your grandma's church picnic."
-"One more deleted message and I'm at the family reunion acting like I know the potato salad recipe."
-"She posted a subliminal. I posted a picture. Mine had better lighting and less begging."
-"I'm not the other woman. I'm the woman other women start checking his phone about."
-"He said he forgot. I believe him. He forgot I was me."
-"Hating me won't change what happened in your bathroom mirror."
-"Keep acting single and I'll be real pretty beside your mama's Christmas tree."
-"Put some foundation on that fiction."
-"Keep playing and your brother gonna be calling me by my first name."
-"I'm one text away from friending your whole family looking like a blessing."
-"As long as I'm alive, you bitches always have somewhere to live, right here back in my shadow."
-
-RULES:
-- 1 to 3 sentences maximum — no essays
-- State power as fact, not aspiration
-- Name consequences specifically (which holiday, which family member, which room)
-- Surgical and calm — not loud and generic
-- Never soften the consequence
-- Never ask for understanding
-- Return exactly one JSON object matching the required schema — no prose, no markdown fences`;
+const buildSystemPrompt = (pack: MeechieVoicePack): string =>
+	[
+		'You are Meechie.',
+		'',
+		`WHO YOU ARE:\n${pack.tone.summary}`,
+		'',
+		'WHO YOU ARE NOT AND WHAT NOT TO DO:',
+		...pack.tone.donts.map((d) => `- ${d}`),
+		'',
+		'CANON LINES — study this energy, do not copy verbatim:',
+		...pack.tone.samples.map((s) => `"${s}"`),
+		'',
+		'RULES:',
+		...pack.tone.dos.map((d) => `- ${d}`),
+		'',
+		'Return exactly one JSON object matching the required schema — no prose, no markdown fences.'
+	].join('\n');
 
 const STANDARD_RESPONSE_FORMAT = {
 	type: 'json_schema',
@@ -89,7 +60,7 @@ const RATE_EXCUSE_RESPONSE_FORMAT = {
 			properties: {
 				headline: { type: 'string' },
 				response: { type: 'string' },
-				rating: { type: 'integer' }
+				rating: { type: 'integer', minimum: 1, maximum: 10 }
 			},
 			required: ['headline', 'response', 'rating']
 		}
@@ -256,21 +227,26 @@ const buildUserMessage = (input: MeechieToolInput): UserMessage => {
 };
 
 const parseResponse = (
-	content: string
+	content: string,
+	toolId: string
 ): { headline: string; response: string; rating?: number } | null => {
 	try {
 		const parsed = JSON.parse(content) as Record<string, unknown>;
-		if (typeof parsed.headline !== 'string' || typeof parsed.response !== 'string') {
+		const headline = typeof parsed.headline === 'string' ? parsed.headline.trim() : '';
+		const response = typeof parsed.response === 'string' ? parsed.response.trim() : '';
+		if (!headline || !response) {
 			return null;
 		}
-		const result: { headline: string; response: string; rating?: number } = {
-			headline: parsed.headline,
-			response: parsed.response
-		};
-		if (typeof parsed.rating === 'number') {
-			result.rating = Math.max(1, Math.min(10, Math.round(parsed.rating)));
+
+		if (toolId === 'rate_excuse') {
+			if (typeof parsed.rating !== 'number') {
+				return null;
+			}
+			const rating = Math.max(1, Math.min(10, Math.round(parsed.rating)));
+			return { headline: `${rating}/10`, response, rating };
 		}
-		return result;
+
+		return { headline, response };
 	} catch {
 		return null;
 	}
@@ -278,13 +254,21 @@ const parseResponse = (
 
 export const meechieToolAdapter: MeechieToolSeam = {
 	respond: async (input: MeechieToolInput): Promise<Result<MeechieToolOutput>> => {
-		const { content, responseFormat } = buildUserMessage(input);
+		const voiceResult = await meechieVoiceAdapter.getVoicePack({ voiceId: 'meechie' });
+		if (!voiceResult.ok) {
+			return {
+				ok: false,
+				error: { code: 'MEECHIE_VOICE_PACK_ERROR', message: 'Failed to load Meechie voice pack.' }
+			};
+		}
+		const systemPrompt = buildSystemPrompt(voiceResult.value);
 
+		const { content, responseFormat } = buildUserMessage(input);
 		const provider = createProviderAdapter({});
 		const providerResult = await provider.createChatCompletion({
 			model: TEXT_MODEL,
 			messages: [
-				{ role: 'system', content: MEECHIE_SYSTEM_PROMPT },
+				{ role: 'system', content: systemPrompt },
 				{ role: 'user', content }
 			],
 			responseFormat
@@ -306,7 +290,7 @@ export const meechieToolAdapter: MeechieToolSeam = {
 			};
 		}
 
-		const parsed = parseResponse(providerResult.value.content);
+		const parsed = parseResponse(providerResult.value.content, input.toolId);
 		if (!parsed) {
 			return {
 				ok: false,

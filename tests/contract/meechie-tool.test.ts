@@ -50,7 +50,8 @@ describe('MeechieToolSeam contract', () => {
 	});
 
 	it('adapter returns sample fixture output when provider returns matching content', async () => {
-		if (!sampleFixture.output.ok) return;
+		expect(sampleFixture.output.ok).toBe(true);
+		if (!sampleFixture.output.ok) throw new Error('sample fixture must be ok');
 		const { headline, response } = sampleFixture.output.value;
 		mockCreateChatCompletion.mockResolvedValue({
 			ok: true,
