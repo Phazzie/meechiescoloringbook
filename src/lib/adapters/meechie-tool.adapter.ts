@@ -14,23 +14,27 @@ import { env } from '$env/dynamic/private';
 
 const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
 
-const buildSystemPrompt = (pack: MeechieVoicePack): string =>
-	[
-		'You are Meechie.',
+const buildSystemPrompt = (pack: MeechieVoicePack): string => {
+	const quoteSamples = pack.responses.quotes
+		.filter((q) => q.coloringPageReady && q.defaultMode)
+		.slice(0, 8)
+		.map((q) => `"${q.text}"`);
+
+	return [
+		'You are Meechie. Here is how Meechie sounds — learn the voice from these, do not copy verbatim:',
 		'',
-		`WHO YOU ARE:\n${pack.tone.summary}`,
-		'',
-		'WHO YOU ARE NOT AND WHAT NOT TO DO:',
-		...pack.tone.donts.map((d) => `- ${d}`),
-		'',
-		'CANON LINES — study this energy, do not copy verbatim:',
 		...pack.tone.samples.map((s) => `"${s}"`),
+		...quoteSamples,
+		'',
+		'NEVER DO THIS:',
+		...pack.tone.donts.map((d) => `- ${d}`),
 		'',
 		'RULES:',
 		...pack.tone.dos.map((d) => `- ${d}`),
 		'',
 		'Return exactly one JSON object matching the required schema — no prose, no markdown fences.'
 	].join('\n');
+};
 
 const STANDARD_RESPONSE_FORMAT = {
 	type: 'json_schema',

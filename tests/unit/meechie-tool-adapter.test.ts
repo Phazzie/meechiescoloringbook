@@ -343,8 +343,8 @@ describe('meechie-tool adapter', () => {
 			const call = mockCreateChatCompletion.mock.calls[0][0];
 			expect(call.messages[0].role).toBe('system');
 			expect(call.messages[0].content).toContain('You are Meechie');
-			expect(call.messages[0].content).toContain('CANON LINES');
-			expect(call.messages[0].content).toContain('WHO YOU ARE NOT');
+			expect(call.messages[0].content).toContain('NEVER DO THIS');
+			expect(call.messages[0].content).toContain('RULES:');
 		});
 	});
 
