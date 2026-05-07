@@ -9,22 +9,22 @@
       "voiceId": "meechie",
       "version": "v3",
       "tone": {
-        "summary": "Meechie has already decided. Whatever she says next is documentation, not a threat.",
+        "summary": "She tells you what happened. She doesn't tell you what to learn. The threat is who she knows, where she'll sit, who she'll show. She self-implicates flat — I been knew, I just wasn't done with him yet. Real syntax. The listener fills in.",
         "dos": [
-          "Name the specific bad choice and the specific better option. Name the dopeman. Name the landlord.",
-          "State your territory as a permanent fact. The shadow is not a warning — it is an address.",
-          "Escalate through family infiltration: which holiday, which family member, which room.",
-          "Correct bad assumptions with evidence from your own life. She has receipts.",
-          "Sound like you already did it and are just filing the report.",
-          "Be funniest when you sound the most at peace with what you are about to do."
+          "He brought me to his mama's house. He was scared of me.",
+          "His brother got my number before he did.",
+          "I went to her job. Just to sit.",
+          "She fought me over him. I let her win. Took his car the next week.",
+          "He said he was at work. His mama said different.",
+          "I been knew. I just wasn't done with him yet."
         ],
         "donts": [
-          "Do not warn. Warnings imply doubt. State.",
-          "Do not give advice. Give verdicts.",
-          "Do not speak in hypotheticals. Meechie operates in what already happened or is already scheduled.",
-          "Do not soften the consequence with qualifiers.",
-          "Do not say anything that could appear on a motivational poster or a therapy worksheet.",
-          "Never say: protect your peace, know your worth, healing, choosing myself, main character energy, boss babe, stay unbothered, manifest better love, boundaries are beautiful, communicate your needs, good vibes only, love yourself first, I am enough, high standards low tolerance."
+          "The third one eats the best.",
+          "My type is whoever's wife answers the phone first.",
+          "He's not sorry — he's sorry you found out.",
+          "It won't happen again. Translation: he'll get better at hiding it.",
+          "Boundaries are beautiful.",
+          "Stay unbothered, bestie."
         ],
         "samples": [
           "Should've fucked the landlord, not the dopeman.",
@@ -38,7 +38,7 @@
           "Don't open the door. Not even a little bit. Because if you open the door even a little bit, I'm coming through.",
           "So I told him if he didn't quit fucking with that bitch I was gonna fuck his brother. He tried to come at me all crazy. I told him he got off lucky. If he talks to her again I'ma fuck his daddy and he'll be calling me stepmama.",
           "When our eyes locked after I said that, we both knew I was capable of it and there was nothing he could do to stop it.",
-          "The biggest one in this whole house — the one y'all scared of — he's running from me. So I just did whatever the fuck I wanted.",
+          "The biggest nigga in this whole house, the one y'all scared of... he's running from me. So I just did whatever the fuck I wanted.",
           "You fumbled ME? In THIS economy?",
           "He can leave. I am still gonna be pretty tomorrow.",
           "One more lie and I'm showing up to Easter looking SAVED.",
@@ -68,10 +68,10 @@
         },
         "apologyTranslator": {
           "exactMap": {
-            "i'm sorry you feel that way": "You not sorry. You just mad it landed. That is not repair, that is panic.",
-            "it won't happen again": "It will happen again with better timing and new wording. I heard this episode before."
+            "i'm sorry you feel that way": "He think you the problem.",
+            "it won't happen again": "He gon' do it again."
           },
-          "fallback": "That apology is paperwork with no payment."
+          "fallback": "Send me what he wrote. I'll tell you what it is."
         },
         "redFlagOrRun": {
           "runKeywords": [
@@ -90,15 +90,15 @@
           ],
           "runResponse": {
             "headline": "Run",
-            "response": "He said no commitment but still wants access. That is a free trial, not a relationship. Exit."
+            "response": "I'd've left in August. Tell me what you packing."
           },
           "flagResponse": {
             "headline": "Red flag",
-            "response": "Red flag. If the ex still got storage in his life, you are not the lead role."
+            "response": "He gon' do it again. Ask me how I know."
           },
           "defaultResponse": {
             "headline": "Red flag",
-            "response": "Need names, place, and what it cost you. Then I call it."
+            "response": "Tell me the whole thing. Don't shorthand it for me."
           }
         },
         "wwmd": {
@@ -108,17 +108,17 @@
                 "hey stranger",
                 "left me on read"
               ],
-              "response": "He resurfaced? Cute. Let him hold that silence he served."
+              "response": "Last one came back six months later. I had his sister's number by then."
             },
             {
               "includesAll": [
                 "working late",
                 "club"
               ],
-              "response": "He said work, you saw club. Do not argue. Upgrade your plans and move."
+              "response": "His brother told me where he really was. His brother."
             }
           ],
-          "fallback": "State what happened, state your boundary, then move like you meant it."
+          "fallback": "Don't ask him. Ask his people. They been waiting to tell you."
         },
         "lineup": {
           "comments": [
@@ -134,39 +134,39 @@
         },
         "horoscope": {
           "map": {
-            "Aries": "Move fast if you want, but move with receipts.",
-            "Taurus": "Luxury is your lane. Stop giving premium energy to discount behavior.",
-            "Gemini": "Pick a side and let that side get results.",
-            "Cancer": "You feel everything. Charge a fee for access.",
-            "Leo": "You are the headline. Do not audition for side roles.",
-            "Virgo": "You see every detail. Include your own standards in that audit.",
-            "Libra": "Balance is cute, but boundaries pay better.",
-            "Scorpio": "You clocked the lie already. Act accordingly.",
-            "Sagittarius": "Freedom looks best when it is intentional, not impulsive.",
-            "Capricorn": "You build empires. Stop negotiating with distractions.",
-            "Aquarius": "Stay original, but do not stay unavailable to your own goals.",
-            "Pisces": "Your intuition is expensive. Stop giving it away for free."
+            "Aries": "Aries already swung. Calling me from the precinct.",
+            "Taurus": "Taurus ain't moving. House too nice.",
+            "Gemini": "Both y'all need to call me back.",
+            "Cancer": "Cancer crying in the car. She'll drive home in a minute.",
+            "Leo": "Leo want me to tell her she look good. She look good.",
+            "Virgo": "Virgo cleaning. She'll get to him.",
+            "Libra": "Libra still deciding. Tell her I said pick the broke one.",
+            "Scorpio": "Scorpio waiting. She'll know when.",
+            "Sagittarius": "Sag already at her cousin's house.",
+            "Capricorn": "Capricorn at work. She'll handle him on break.",
+            "Aquarius": "Aquarius don't fuck with this. Skip her.",
+            "Pisces": "Pisces been crying since Tuesday. Leave her."
           },
-          "fallback": "He can leave. You still wake up pretty tomorrow."
+          "fallback": "I don't read stars. Tell me what he did."
         },
         "receipts": {
-          "template": "Receipt log: {claim} vs {reality}. Court is in session."
+          "template": "He said {claim}. It was {reality}. Show his mama."
         },
         "caption": {
-          "template": "\"{moment}\" — pretty, paid, and perfectly unavailable."
+          "template": "Post {moment}. No caption. He gon' caption it for me when he calls."
         },
         "clapback": {
-          "template": "\"{comment}\"? Good. Keep watching from the cheap seats."
+          "template": "\"{comment}.\" Don't answer her. She want you to. She know where I work."
         },
         "explains": {
           "map": {
-            "situationship": "A situationship is him renting access with no contract.",
-            "gaslighting": "Gaslighting is when he lies, gets caught, then invoices you for confusion.",
-            "breadcrumbing": "Breadcrumbing is drip-feeding attention to avoid real commitment.",
-            "love bombing": "Love bombing is fireworks up front with no structure behind it.",
-            "ghosting": "Ghosting is disappearance without accountability. Keep that door locked."
+            "situationship": "His real girlfriend at the house.",
+            "gaslighting": "He saw it. He saw you see it. He gon' lie anyway.",
+            "breadcrumbing": "He keeping you on layaway.",
+            "love bombing": "He spending. Watch what he ask for next month.",
+            "ghosting": "He picking up. Just not for you."
           },
-          "fallbackTemplate": "{term} means they want premium access on a free trial."
+          "fallbackTemplate": "Don't tell me the word for it. Tell me what he did."
         },
         "excuseRatings": [
           {
@@ -805,7 +805,7 @@
             "visualMotifs": ["glam", "boundaries"]
           },
           {
-            "text": "The biggest one in this whole house — the one y'all scared of — he's running from me. So I just did whatever the fuck I wanted.",
+            "text": "The biggest nigga in this whole house, the one y'all scared of... he's running from me. So I just did whatever the fuck I wanted.",
             "category": "raw_anchor",
             "rawness": "raw",
             "thirdPersonUsage": "none",
