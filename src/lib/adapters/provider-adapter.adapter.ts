@@ -42,8 +42,8 @@ export const XAIImageResponseSchema = z
 	.object({
 		// nullable so { data: null } maps to PROVIDER_EMPTY_IMAGE rather than PROVIDER_INVALID_RESPONSE
 		data: z.array(XAIImageEntrySchema).nullable().optional(),
-		revised_prompt: z.string().optional(),
-		revisedPrompt: z.string().optional()
+		revised_prompt: z.string().nullish(),
+		revisedPrompt: z.string().nullish()
 	})
 	.passthrough();
 
