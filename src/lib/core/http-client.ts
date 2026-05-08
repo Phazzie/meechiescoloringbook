@@ -15,9 +15,9 @@ export const postJson = async (
 		headers: buildJsonHeaders(),
 		body: JSON.stringify(body)
 	});
-	if (!response.ok) {
-		throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-	}
 	const payload = await response.json().catch(() => null);
+	if (!response.ok) {
+		throw new Error((payload as any)?.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+	}
 	return { response, payload };
 };
