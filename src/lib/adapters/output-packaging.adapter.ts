@@ -16,6 +16,7 @@ const PAGE_SIZES = {
 
 const SHARE_SQUARE = 1080;
 const SHARE_CHAT = 720;
+const MAX_SVG_DIMENSION = 5000;
 
 const toBase64 = (bytes: Uint8Array): string => {
 	let binary = '';
@@ -34,14 +35,23 @@ const fromBase64 = (base64: string): Uint8Array => {
 	return bytes;
 };
 
+const parseSvgDimension = (value: string | undefined, fallback: number): number => {
+	if (!value) {
+		return fallback;
+	}
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed) || parsed <= 0 || parsed > MAX_SVG_DIMENSION) {
+		return fallback;
+	}
+	return parsed;
+};
+
 const parseSvgSize = (svg: string): { width: number; height: number } => {
 	const widthMatch = svg.match(/width="(\d+(?:\.\d+)?)"/);
 	const heightMatch = svg.match(/height="(\d+(?:\.\d+)?)"/);
-	const width = widthMatch ? Number(widthMatch[1]) : 2550;
-	const height = heightMatch ? Number(heightMatch[1]) : 3300;
 	return {
-		width: Number.isNaN(width) ? 2550 : width,
-		height: Number.isNaN(height) ? 3300 : height
+		width: parseSvgDimension(widthMatch?.[1], 2550),
+		height: parseSvgDimension(heightMatch?.[1], 3300)
 	};
 };
 

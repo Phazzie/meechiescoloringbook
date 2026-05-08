@@ -6,6 +6,42 @@ export const buildJsonHeaders = (): Record<string, string> => ({
 	'Content-Type': 'application/json'
 });
 
+const getErrorMessageFromPayload = (payload: unknown): string | null => {
+	if (!payload || typeof payload !== 'object') {
+		return null;
+	}
+
+	const error = (payload as { error?: unknown }).error;
+	if (error && typeof error === 'object') {
+		const errorMessage = (error as { message?: unknown }).message;
+		if (typeof errorMessage === 'string' && errorMessage.trim().length > 0) {
+			return errorMessage;
+		}
+	}
+
+	const message = (payload as { message?: unknown }).message;
+	if (typeof message === 'string' && message.trim().length > 0) {
+		return message;
+	}
+
+	return null;
+};
+
+export class HttpResponseError extends Error {
+	readonly response: Response;
+	readonly payload: unknown;
+
+	constructor(response: Response, payload: unknown) {
+		super(
+			getErrorMessageFromPayload(payload) ??
+				`HTTP ${response.status}: ${response.statusText || 'Unknown error'}`
+		);
+		this.name = 'HttpResponseError';
+		this.response = response;
+		this.payload = payload;
+	}
+}
+
 export const postJson = async (
 	url: string,
 	body: unknown
@@ -16,8 +52,12 @@ export const postJson = async (
 		body: JSON.stringify(body)
 	});
 	const payload = await response.json().catch(() => null);
-	if (!response.ok) {
-		throw new Error((payload as any)?.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+	const isOk =
+		typeof response.ok === 'boolean'
+			? response.ok
+			: response.status >= 200 && response.status < 300;
+	if (!isOk) {
+		throw new HttpResponseError(response, payload);
 	}
 	return { response, payload };
 };

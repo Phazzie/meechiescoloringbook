@@ -4,6 +4,7 @@
 import { describe, expect, it, afterEach, vi } from 'vitest';
 import {
 	buildJsonHeaders,
+	HttpResponseError,
 	postJson
 } from '../../src/lib/core/http-client';
 
@@ -24,6 +25,7 @@ describe('http-client', () => {
 			const mockPayload = { ok: true, value: 'test' };
 			const mockResponse = {
 				json: () => Promise.resolve(mockPayload),
+				ok: true,
 				status: 200
 			} as unknown as Response;
 
@@ -48,6 +50,7 @@ describe('http-client', () => {
 		it('returns null payload when response JSON parsing fails', async () => {
 			const mockResponse = {
 				json: () => Promise.reject(new Error('bad json')),
+				ok: true,
 				status: 500
 			} as unknown as Response;
 
@@ -59,6 +62,37 @@ describe('http-client', () => {
 			const result = await postJson('/api/test', {});
 			expect(result.response).toBe(mockResponse);
 			expect(result.payload).toBeNull();
+		});
+
+		it('throws HttpResponseError with parsed payload details on non-2xx responses', async () => {
+			const mockPayload = {
+				ok: false,
+				error: { message: 'Pipeline failed for this request.' }
+			};
+			const mockResponse = {
+				json: () => Promise.resolve(mockPayload),
+				ok: false,
+				status: 502,
+				statusText: 'Bad Gateway'
+			} as unknown as Response;
+
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockResolvedValue(mockResponse)
+			);
+
+			let thrown: unknown;
+			try {
+				await postJson('/api/test', {});
+			} catch (error) {
+				thrown = error;
+			}
+
+			expect(thrown).toBeInstanceOf(HttpResponseError);
+			const httpError = thrown as HttpResponseError;
+			expect(httpError.response).toBe(mockResponse);
+			expect(httpError.payload).toEqual(mockPayload);
+			expect(httpError.message).toBe('Pipeline failed for this request.');
 		});
 	});
 });
