@@ -1526,3 +1526,10 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-05-06/proof-tape.json
   - Summary: Removed raw `process.env` access from `app-config-seam` and `provider-adapter` to securely manage API keys and configs. Exclusively injects configurations via `$env/dynamic/private`.
   - Risks: Test environments relying on implicit `process.env` loading may need explicit configurations passed in during instantiation.
+
+- Cipher Gate:
+  - Date: 2026-05-08
+  - Seams: ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-05-08/test.txt; docs/evidence/2026-05-08/verify.txt; docs/evidence/2026-05-08/chamber-lock.json; docs/evidence/2026-05-08/shaolin-lint.json; docs/evidence/2026-05-08/assumption-alarm.json; docs/evidence/2026-05-08/seam-ledger.json; docs/evidence/2026-05-08/clan-chain.json; docs/evidence/2026-05-08/proof-tape.json; docs/evidence/2026-05-08/cipher-gate.json
+  - Summary: Restored legacy `text` fallback when `message.content` is blank during ProviderAdapterSeam chat normalization and removed redundant contract test helpers/cleanup while keeping boundary Zod validation.
+  - Risks: If the provider returns both `message.content` and legacy `text` with conflicting data, we now prefer the first non-blank field, which could differ from upstream provider expectations.

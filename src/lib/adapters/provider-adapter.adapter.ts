@@ -130,7 +130,14 @@ const normalizeChatOutput = (
 	}
 	const data = parsed.data;
 	const choice = data.choices?.[0];
-	const content = choice?.message?.content ?? choice?.text ?? '';
+	const messageContent = choice?.message?.content;
+	const legacyText = choice?.text;
+	const content =
+		typeof messageContent === 'string' && messageContent.trim().length > 0
+			? messageContent
+			: typeof legacyText === 'string' && legacyText.trim().length > 0
+				? legacyText
+				: '';
 	if (!content || content.trim().length === 0) {
 		return {
 			ok: false,

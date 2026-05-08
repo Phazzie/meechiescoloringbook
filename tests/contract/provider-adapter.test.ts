@@ -307,12 +307,6 @@ describe('XAIImageResponseSchema', () => {
 });
 
 describe('ProviderAdapterSeam normalization — malformed raw responses', () => {
-	const jsonResponse = (payload: unknown, status = 200): Response =>
-		new Response(JSON.stringify(payload), {
-			status,
-			headers: { 'Content-Type': 'application/json' }
-		});
-
 	let adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
 
 	beforeEach(() => {
@@ -324,7 +318,6 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.error.code).toBe('PROVIDER_INVALID_RESPONSE');
-		vi.unstubAllGlobals();
 	});
 
 	it('chat: returns PROVIDER_INVALID_RESPONSE when payload is an array', async () => {
@@ -332,7 +325,6 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.error.code).toBe('PROVIDER_INVALID_RESPONSE');
-		vi.unstubAllGlobals();
 	});
 
 	it('chat: returns PROVIDER_EMPTY_CHAT when choices is empty', async () => {
@@ -340,7 +332,6 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.error.code).toBe('PROVIDER_EMPTY_CHAT');
-		vi.unstubAllGlobals();
 	});
 
 	it('chat: returns PROVIDER_EMPTY_CHAT when message content is null', async () => {
@@ -351,7 +342,6 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.error.code).toBe('PROVIDER_EMPTY_CHAT');
-		vi.unstubAllGlobals();
 	});
 
 	it('chat: returns PROVIDER_EMPTY_CHAT when message content is empty string', async () => {
@@ -362,7 +352,20 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.error.code).toBe('PROVIDER_EMPTY_CHAT');
-		vi.unstubAllGlobals();
+	});
+
+	it('chat: falls back to legacy text when message content is blank', async () => {
+		vi.stubGlobal(
+			'fetch',
+			async () =>
+				jsonResponse({
+					model: 'grok-4',
+					choices: [{ message: { content: '   ' }, text: 'legacy content' }]
+				})
+		);
+		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
+		expect(result.ok).toBe(true);
+		if (result.ok) expect(result.value.content).toBe('legacy content');
 	});
 
 	it('chat: uses fallback model when model field is absent', async () => {
@@ -373,7 +376,6 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
 		expect(result.ok).toBe(true);
 		if (result.ok) expect(result.value.model).toBe(sampleFixture.input.chat.model);
-		vi.unstubAllGlobals();
 	});
 
 	it('chat: accepts legacy text field when message is absent', async () => {
@@ -384,7 +386,6 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
 		expect(result.ok).toBe(true);
 		if (result.ok) expect(result.value.content).toBe('legacy content');
-		vi.unstubAllGlobals();
 	});
 
 	it('image: returns PROVIDER_INVALID_RESPONSE when payload is a bare string', async () => {
@@ -392,7 +393,6 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createImageGeneration(sampleFixture.input.image);
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.error.code).toBe('PROVIDER_INVALID_RESPONSE');
-		vi.unstubAllGlobals();
 	});
 
 	it('image: returns PROVIDER_EMPTY_IMAGE when data is an empty array', async () => {
@@ -400,7 +400,6 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createImageGeneration(sampleFixture.input.image);
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.error.code).toBe('PROVIDER_EMPTY_IMAGE');
-		vi.unstubAllGlobals();
 	});
 
 	it('image: returns PROVIDER_EMPTY_IMAGE when data entries lack url and b64_json', async () => {
@@ -408,7 +407,6 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createImageGeneration(sampleFixture.input.image);
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.error.code).toBe('PROVIDER_EMPTY_IMAGE');
-		vi.unstubAllGlobals();
 	});
 
 	it('image: returns PROVIDER_EMPTY_IMAGE when data is null', async () => {
@@ -416,7 +414,6 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createImageGeneration(sampleFixture.input.image);
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.error.code).toBe('PROVIDER_EMPTY_IMAGE');
-		vi.unstubAllGlobals();
 	});
 
 	it('image: omits revisedPrompt when absent from response', async () => {
@@ -427,7 +424,6 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createImageGeneration(sampleFixture.input.image);
 		expect(result.ok).toBe(true);
 		if (result.ok) expect(result.value.revisedPrompt).toBeUndefined();
-		vi.unstubAllGlobals();
 	});
 
 	it('image: reads revisedPrompt from camelCase field', async () => {
@@ -442,6 +438,5 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		const result = await adapter.createImageGeneration(sampleFixture.input.image);
 		expect(result.ok).toBe(true);
 		if (result.ok) expect(result.value.revisedPrompt).toBe('a cat in a hat');
-		vi.unstubAllGlobals();
 	});
 });
