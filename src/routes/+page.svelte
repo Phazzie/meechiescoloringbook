@@ -134,7 +134,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}, 300);
 	};
 
-	let isSavingDraft = false;
 	const saveDraft = async (): Promise<void> => {
 		if (isSavingDraft) {
 			isDraftSavePending = true;
@@ -316,7 +315,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 	};
 
-	let isSaving = false;
 	const saveToVault = async (): Promise<void> => {
 		if (isSaving) return;
 		if (!owner || !textOutput) {
@@ -740,14 +738,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		<article class="verdict-card">
 			<p class="eyebrow">Verdict</p>
 			<h2>{textOutput?.verdict ?? 'No verdict yet.'}</h2>
-<<<<<<< HEAD
-			<p>{textOutput?.quote ?? 'Meechie will put the quote here after the AI text action runs.'}</p>
-=======
 			<p data-testid="home-verdict-quote">
 				{textOutput?.quote ??
 					'Meechie will put the quote here after the AI text action runs.'}
 			</p>
->>>>>>> origin/main
 			{#if textOutput?.rating}
 				<span class="rating">{textOutput.rating}/10</span>
 			{/if}
@@ -761,16 +755,12 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				<div class="vault-list">
 					{#each creations.slice(0, 4) as creation}
 						<div class="vault-item">
-<<<<<<< HEAD
-							<button type="button" on:click={() => loadCreation(creation)}>{creation.intent.title}</button>
-=======
 							<button
 								type="button"
 								data-testid="home-vault-load"
 								on:click={() => loadCreation(creation)}
 								>{creation.intent.title}</button
 							>
->>>>>>> origin/main
 							<div>
 								<button
 									type="button"
@@ -779,15 +769,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 								>
 									{creation.favorite ? 'Unpin' : 'Pin'}
 								</button>
-<<<<<<< HEAD
-								<button type="button" on:click={() => deleteCreation(creation.id)}>Delete</button>
-=======
 								<button
 									type="button"
 									data-testid="home-vault-delete"
 									on:click={() => deleteCreation(creation.id)}>Delete</button
 								>
->>>>>>> origin/main
 							</div>
 						</div>
 					{/each}

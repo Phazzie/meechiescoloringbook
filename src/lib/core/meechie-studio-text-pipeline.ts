@@ -131,12 +131,27 @@ const extractJson = (text: string): unknown => {
 	try {
 		return JSON.parse(text);
 	} catch {
-		const match = text.match(/\{[\s\S]*\}/);
-		if (match) {
+		const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+		if (fenced) {
 			try {
-				return JSON.parse(match[0]);
-			} catch {
-				return null;
+				return JSON.parse(fenced[1].trim());
+			} catch {}
+		}
+		const start = text.indexOf('{');
+		if (start !== -1) {
+			let depth = 0;
+			for (let i = start; i < text.length; i++) {
+				if (text[i] === '{') depth++;
+				else if (text[i] === '}') {
+					depth--;
+					if (depth === 0) {
+						try {
+							return JSON.parse(text.slice(start, i + 1));
+						} catch {
+							break;
+						}
+					}
+				}
 			}
 		}
 		return null;
