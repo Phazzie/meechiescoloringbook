@@ -24,7 +24,7 @@ const XAIChatChoiceSchema = z
 
 export const XAIChatResponseSchema = z
 	.object({
-		model: z.string().optional(),
+		model: z.string().nullish(),
 		// nullable so { choices: null } maps to PROVIDER_EMPTY_CHAT rather than PROVIDER_INVALID_RESPONSE
 		choices: z.array(XAIChatChoiceSchema).nullable().optional()
 	})
