@@ -789,7 +789,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				<select
 					id="pageSize"
 					bind:value={pageSize}
-					onchange={() => textOutput && applyTextToSpec(textOutput)}
+					onchange={(e) => {
+						pageSize = (e.currentTarget as HTMLSelectElement).value as PageSize;
+						if (textOutput) void applyTextToSpec(textOutput);
+					}}
 				>
 					<option value="US_Letter">US Letter</option>
 					<option value="A4">A4</option>
@@ -799,7 +802,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				<select
 					id="border"
 					bind:value={border}
-					onchange={() => textOutput && applyTextToSpec(textOutput)}
+					onchange={(e) => {
+						border = (e.currentTarget as HTMLSelectElement).value as BorderChoice;
+						if (textOutput) void applyTextToSpec(textOutput);
+					}}
 				>
 					<option value="decorative">Decorative</option>
 					<option value="plain">Plain</option>
