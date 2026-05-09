@@ -11,17 +11,18 @@ export default [
   ...svelte.configs['flat/recommended'],
   prettier,
   {
+    files: ['**/*.{js,mjs,cjs}'],
     languageOptions: {
       globals: {
-        ...globals.browser
+        ...globals.node
       }
     }
   },
   {
-    files: ['probes/**/*.mjs', 'scripts/**/*.mjs'],
+    files: ['**/*.svelte'],
     languageOptions: {
       globals: {
-        ...globals.node
+        ...globals.browser
       }
     }
   },
