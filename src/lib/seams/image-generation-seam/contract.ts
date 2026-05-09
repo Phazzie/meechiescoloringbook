@@ -1,30 +1,27 @@
-// Purpose: Define ImageGenerationSeam contract types.
-// Why: Keep seam interfaces explicit and shared across implementations.
-// Info flow: contract types -> adapters/mocks/tests.
-export type ImageFormat = 'url' | 'b64_json';
+// Purpose: Define ImageGenerationSeam contract types and schemas.
+// Why: Keep the self-contained seam aligned with the active Result-based image-generation contract.
+// Info flow: contract schemas/types -> validators/mock/test/adapter.
+import {
+	ImageGenerationInputSchema,
+	GeneratedImageSchema,
+	ImageGenerationOutputSchema,
+	ImageGenerationResultSchema,
+	type ImageGenerationInput,
+	type GeneratedImage as ContractGeneratedImage,
+	type ImageGenerationOutput as ContractImageGenerationOutput
+} from '../../../../contracts/image-generation.contract';
+import type { Result } from '../../../../contracts/shared.contract';
 
-export type ImageGenerationRequest = {
-  prompt: string;
-  negativePrompt: string;
-  n: number;
-  size: string;
-  format: ImageFormat;
-  seed?: number;
-  userTag?: string;
-};
+export const imageGenerationRequestSchema = ImageGenerationInputSchema;
+export const generatedImageSchema = GeneratedImageSchema;
+export const imageGenerationOutputSchema = ImageGenerationOutputSchema;
+export const imageGenerationResultSchema = ImageGenerationResultSchema;
 
-export type GeneratedImage = {
-  id: string;
-  url?: string;
-  b64?: string;
-};
-
-export type ImageGenerationResult = {
-  images: GeneratedImage[];
-  rawModelInfo: Record<string, unknown>;
-  timingMs: number;
-};
+export type ImageGenerationRequest = ImageGenerationInput;
+export type GeneratedImage = ContractGeneratedImage;
+export type ImageGenerationOutput = ContractImageGenerationOutput;
+export type ImageGenerationResult = Result<ImageGenerationOutput>;
 
 export type ImageGenerationSeam = {
-  generate: (request: ImageGenerationRequest) => Promise<ImageGenerationResult>;
+generate: (request: ImageGenerationRequest) => Promise<ImageGenerationResult>;
 };

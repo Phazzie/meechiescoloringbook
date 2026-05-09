@@ -28,6 +28,21 @@ Short, durable decisions with context and tradeoffs.
   - Summary: Added AI-backed studio text seam, fixture-backed tests, cost/budget metadata, selected Meechie static assets, and a redesigned studio UI that keeps local actions outside the AI text budget.
   - Risks: Real text generation depends on `XAI_API_KEY` and strict JSON-only model output; browser visual polish still needs screenshot review on target devices.
 
+## 2026-05-09 - Consolidate ImageGenerationSeam runtime onto self-contained seam adapter
+- Date: 2026-05-09
+- Decision: Keep the legacy image-generation contract as compatibility source-of-truth while migrating the active `/api/image-generation` pipeline to the self-contained `src/lib/seams/image-generation-seam` + `src/lib/adapters/image-generation-seam/index.ts` path with `Result<>` semantics.
+- Context: The repository had a dual ImageGenerationSeam layout where the new seam folder existed but the runtime pipeline still bypassed it and called provider logic directly.
+- Alternatives: Delete legacy image-generation artifacts immediately or keep pipeline wiring in core code and defer seam integration.
+- Consequences: The self-contained seam now owns runtime image-generation orchestration and status mapping while legacy contract fixtures/tests remain available for compatibility during broader seam migration.
+- Revisit criteria: Revisit when the remaining flat-layout seams are migrated so legacy image-generation adapter/mock paths can be retired.
+
+- Cipher Gate:
+  - Date: 2026-05-09
+  - Seams: ImageGenerationSeam, ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-05-09/test.txt; docs/evidence/2026-05-09/verify.txt; docs/evidence/2026-05-09/chamber-lock.json; docs/evidence/2026-05-09/shaolin-lint.json; docs/evidence/2026-05-09/assumption-alarm.json; docs/evidence/2026-05-09/seam-ledger.json; docs/evidence/2026-05-09/clan-chain.json; docs/evidence/2026-05-09/proof-tape.json
+  - Summary: Updated self-contained image-generation seam contract/mocks/tests to Result-based fixtures and wired the active image-generation pipeline to the seam adapter.
+  - Risks: Legacy flat-layout image-generation artifacts still coexist and require follow-on cleanup during full seam migration.
+
 ## Template
 - Date:
 - Decision:

@@ -6,6 +6,40 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 # Autonomous Plan (2026-02-14)
 
+## ImageGenerationSeam Consolidation Pass (2026-05-09)
+
+### Plan
+
+- Goal: Resolve the ImageGenerationSeam dual-layout mismatch by making the self-contained seam contract `Result<>`-based, aligning fixtures/mocks/tests, and wiring the seam into the active image-generation pipeline.
+- Exact seams: `ImageGenerationSeam`, `ProviderAdapterSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `runninglistofdifficultfixes.md`
+  - `src/lib/seams/image-generation-seam/contract.ts`
+  - `src/lib/seams/image-generation-seam/validators.ts`
+  - `src/lib/seams/image-generation-seam/fixtures.ts`
+  - `src/lib/seams/image-generation-seam/mock.ts`
+  - `src/lib/seams/image-generation-seam/test.ts`
+  - `src/lib/seams/image-generation-seam/probe.ts`
+  - `src/lib/adapters/image-generation-seam/index.ts`
+  - `src/lib/core/image-generation-pipeline.ts`
+  - `tests/unit/image-generation-pipeline.test.ts`
+  - `tests/unit/api-image-generation.test.ts`
+  - `tests/integration/image-generation-seam.test.ts`
+- Exact commands to run:
+  1. `npm run lint`
+  2. `npm run build`
+  3. `npm test`
+  4. `npm test -- tests/unit/image-generation-pipeline.test.ts tests/unit/api-image-generation.test.ts src/lib/seams/image-generation-seam/test.ts tests/integration/image-generation-seam.test.ts`
+  5. `npm run verify`
+
+### Self-critique
+
+1. What could be wrong: The seam migration could accidentally alter endpoint status-code behavior and break existing route-level contract expectations.
+2. What must be proven: The self-contained seam now returns `Result<>` with fixture-backed sample/fault scenarios and the active `/api/image-generation` pipeline uses that seam without regression.
+3. Riskiest assumption: Provider outputs currently normalized by `ProviderAdapterSeam` can be mapped into the image-generation contract shape without losing required metadata fields.
+4. Evidence to prove/disprove: Passing targeted seam/pipeline tests plus green `npm test`, `npm run build`, and `npm run verify` outputs after integration.
+
 ## Mode Router Consolidation Pass (2026-05-01)
 
 ### Plan

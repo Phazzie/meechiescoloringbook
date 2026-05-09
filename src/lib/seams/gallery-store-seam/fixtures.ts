@@ -12,7 +12,10 @@ export const galleryRecordFixture: GalleryRecord = {
   images: [
     {
       id: 'mock-1',
-      url: 'data:image/svg+xml;utf8,%3Csvg%3Emock%3C/svg%3E'
+      format: 'png',
+      mimeType: 'image/png',
+      data: 'bW9jay1pbWFnZQ==',
+      encoding: 'base64'
     }
   ]
 };
