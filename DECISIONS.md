@@ -7,6 +7,14 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-05-09 - Svelte 5 runes migration of +page.svelte
+- Date: 2026-05-09
+- Decision: Migrate `src/routes/+page.svelte` from Svelte 4 legacy reactive syntax (`$:`, `on:event`) to Svelte 5 runes (`$state`, `$derived`, `onclick`). This is a zero-seam, zero-behavior-change refactoring.
+- Context: The project targets Svelte 5 (`^5.53.0`) and the layout already uses runes (`$props`, `{@render}`). The main page remained on legacy `$:` reactive declarations. In runes mode, `$:` is forbidden; mixing it with `$state` is a compile error. Migrating now prevents subtle ordering issues with legacy reactivity and removes all deprecation risk.
+- Alternatives: Leave in legacy mode (Svelte 5 supports it indefinitely but accumulates divergence) or wrap individual declarations in `$effect` (less idiomatic for derived values).
+- Consequences: All 9 `$:` reactive declarations replaced by `$derived`; 26 mutable state variables wrapped in `$state`; 18 `on:event` directives updated to Svelte 5 `onevent` syntax. No runtime behavior change. `svelte-check` now shows 0 warnings on this file.
+- Revisit criteria: If future Svelte versions change runes semantics, re-evaluate deep binding behavior for the `voice` object.
+
 ## 2026-05-02 - Meechie studio AI text seam and redesign
 - Date: 2026-05-02
 - Decision: Add `MeechieStudioTextSeam` for AI-backed verdict, quote, and coloring-page text actions, then redesign the home page around the Meechie studio flow with cost metadata and a default three-action AI text budget.
