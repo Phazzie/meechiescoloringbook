@@ -98,7 +98,7 @@ const actionInstruction = (actionId: string): string => {
 		case 'make_prettier':
 			return 'Make the wording more polished, glamorous, and printable without weakening the verdict.';
 		case 'make_meaner':
-			return 'Make the wording sharper and more direct while avoiding threats, slurs, or dehumanizing language.';
+			return 'Make the wording rawer, harder, and more direct. Use street language, profanity, and unfiltered Meechie attitude. Do not soften the message.';
 		case 'make_more_specific':
 			return 'Use more of the supplied evidence and avoid generic advice.';
 		default:
