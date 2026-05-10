@@ -6,14 +6,25 @@ import type {
   ImageGenerationResult,
   ImageGenerationSeam
 } from './contract';
+import type { Result } from '../../../contracts/shared.contract';
+import { imageGenerationFaultFixture } from './fixtures';
 
 const buildSvg = (label: string) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="100%" height="100%" fill="white"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="24" fill="black">${label}</text></svg>`;
+  `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text y="50">${label}</text></svg>`;
 
 const toDataUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
-export const createMockImageGenerationSeam = (): ImageGenerationSeam => ({
-  generate: async (request: ImageGenerationRequest): Promise<ImageGenerationResult> => {
+export const createMockImageGenerationSeam = (
+  scenario: 'sample' | 'fault' = 'sample'
+): ImageGenerationSeam => ({
+  generate: async (request: ImageGenerationRequest): Promise<Result<ImageGenerationResult, typeof imageGenerationFaultFixture>> => {
+    if (scenario === 'fault') {
+      return {
+        ok: false,
+        error: imageGenerationFaultFixture
+      };
+    }
+
     const start = Date.now();
     const images = Array.from({ length: request.n }, (_, index) => {
       const label = `Mock Image ${index + 1}`;
@@ -26,9 +37,12 @@ export const createMockImageGenerationSeam = (): ImageGenerationSeam => ({
     });
 
     return {
-      images,
-      rawModelInfo: { provider: 'mock', request },
-      timingMs: Date.now() - start
+      ok: true,
+      value: {
+        images,
+        rawModelInfo: { provider: 'mock', request },
+        timingMs: Date.now() - start
+      }
     };
   }
 });
