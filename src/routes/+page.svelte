@@ -4,7 +4,7 @@ Why: Generate AI-backed Meechie wording and printable coloring pages with cost-a
 Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/store seams.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
@@ -65,6 +65,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	let textOutput = $state<MeechieStudioTextOutput | null>(null);
 	let textError = $state('');
 	let generationError = $state('');
+	let draftSaveError = $state('');
 	let isTextWorking = $state(false);
 	let isGenerating = $state(false);
 	let copyStatus = $state('');
@@ -156,6 +157,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			return;
 		}
 		isSavingDraft = true;
+		draftSaveError = '';
 		try {
 			await creationStoreAdapter.saveDraft({
 				draft: {
@@ -165,8 +167,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					studioText: textOutput ?? undefined
 				}
 			});
+			draftSaveError = '';
 		} catch (error) {
-			console.warn('Draft save failed', error);
+			draftSaveError = error instanceof Error ? error.message : 'Draft save failed';
 		} finally {
 			isSavingDraft = false;
 			if (isDraftSavePending) {
@@ -466,6 +469,12 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		})
 	);
 
+	onDestroy(() => {
+		if (draftTimer) {
+			globalThis.clearTimeout(draftTimer);
+		}
+	});
+
 	onMount(async () => {
 		isBrowser = true;
 		const sessionResult = await sessionAdapter.getSession();
@@ -634,6 +643,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				</button>
 			</div>
 
+			{#if draftSaveError}
+				<p class="error" data-testid="home-draft-save-error">Draft not saved: {draftSaveError}</p>
+			{/if}
 			{#if textError}
 				<p class="error" data-testid="home-text-error">{textError}</p>
 			{/if}
@@ -789,8 +801,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				<select
 					id="pageSize"
 					bind:value={pageSize}
-					onchange={(e) => {
+					onchange={async (e) => {
 						pageSize = (e.currentTarget as HTMLSelectElement).value as PageSize;
+						await tick();
 						if (textOutput) void applyTextToSpec(textOutput);
 					}}
 				>
@@ -802,8 +815,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				<select
 					id="border"
 					bind:value={border}
-					onchange={(e) => {
+					onchange={async (e) => {
 						border = (e.currentTarget as HTMLSelectElement).value as BorderChoice;
+						await tick();
 						if (textOutput) void applyTextToSpec(textOutput);
 					}}
 				>
