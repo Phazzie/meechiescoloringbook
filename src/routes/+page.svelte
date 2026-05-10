@@ -465,7 +465,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 	});
 
-	onMount(async () => {
+		onMount(async () => {
 		isBrowser = true;
 		const sessionResult = await sessionAdapter.getSession();
 		if (sessionResult.ok) {
