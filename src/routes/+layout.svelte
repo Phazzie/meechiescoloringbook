@@ -10,6 +10,10 @@ Info flow: Layout renders children -> pages render within layout.
 
 	let { children } = $props();
 
+	let mobileMenuOpen = $state(false);
+	function toggleMenu() { mobileMenuOpen = !mobileMenuOpen; }
+	function closeMenu() { mobileMenuOpen = false; }
+
 	onMount(() => {
 		if (!dev && 'serviceWorker' in navigator) {
 			navigator.serviceWorker.register('/service-worker.js').catch(() => {
@@ -19,11 +23,12 @@ Info flow: Layout renders children -> pages render within layout.
 	});
 </script>
 
+
 <svelte:head>
 	<link rel="icon" href={favicon} />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-	<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Fraunces:ital,opsz,wght@0,9..144,700;1,9..144,700;1,9..144,800&display=swap" rel="stylesheet" />
+	<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&vamily=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Fraunces:ital,opsz,wght@0,9..144,700;1,9..144,700;1,9..144,800&display=swap" rel="stylesheet" />
 </svelte:head>
 
 <header class="site-nav">
@@ -33,12 +38,30 @@ Info flow: Layout renders children -> pages render within layout.
 			<span class="brand-sub">Coloring Book</span>
 		</a>
 		<nav class="links">
-			<a href="/who-fucked-up">Who Fucked Up?</a>
-			<a href="/rate-his-excuse">Rate His Excuse</a>
-			<a href="/random">Random</a>
-			<a href="/meechie" class="link-tools">Meechie's Tools</a>
+			<a href="/who-fucked-up" onclick={closeMenu}>Who Fucked Up?</a>
+			<a href="/rate-his-excuse" onclick={closeMenu}>Rate His Excuse</a>
+			<a href="/random" onclick={closeMenu}>Random</a>
+			<a href="/meechie" class="link-tools" onclick={closeMenu}>Meechie's Tools</a>
 		</nav>
+		<button
+			class="hamburger"
+			aria-label="Toggle navigation menu"
+			aria-expanded={mobileMenuOpen}
+			onclick={toggleMenu}
+		>
+			<span class="bar"></span>
+			<span class="bar"></span>
+			<span class="bar"></span>
+		</button>
 	</div>
+	{#if mobileMenuOpen}
+		<nav class="mobile-menu">
+			<a href="/who-fucked-up" onclick={closeMenu}>Who Fucked Up?</a>
+			<a href="/rate-his-excuse" onclick={closeMenu}>Rate His Excuse</a>
+			<a href="/random" onclick={closeMenu}>Random</a>
+			<a href="/meechie" class="link-tools" onclick={closeMenu}>Meechie's Tools</a>
+		</nav>
+	{/if}
 </header>
 
 {@render children()}
@@ -136,6 +159,73 @@ Info flow: Layout renders children -> pages render within layout.
 		border-color: rgba(201, 162, 39, 0.6);
 	}
 
+	/* Hamburger button — hidden on wide viewports */
+	.hamburger {
+		display: none;
+		flex-direction: column;
+		justify-content: center;
+		gap: 5px;
+		width: 36px;
+		height: 36px;
+		padding: 6px;
+		background: transparent;
+		border: 1px solid rgba(201, 162, 39, 0.3);
+		border-radius: 4px;
+		cursor: pointer;
+		flex-shrink: 0;
+	}
+
+	.hamburger:hover {
+		background: rgba(201, 162, 39, 0.08);
+		border-color: rgba(201, 162, 39, 0.6);
+	}
+
+	.bar {
+		display: block;
+		width: 100%;
+		height: 2px;
+		background: #f0c44a;
+		border-radius: 2px;
+	}
+
+	/* Mobile dropdown menu */
+	.mobile-menu {
+		display: none;
+		flex-direction: column;
+		padding: 8px 0 12px;
+		border-top: 1px solid rgba(201, 162, 39, 0.15);
+	}
+
+	.mobile-menu a {
+		color: rgba(253, 246, 227, 0.72);
+		text-decoration: none;
+		font-weight: 700;
+		font-size: 0.88rem;
+		padding: 0.65rem 4px;
+		border-radius: 4px;
+		border: 1px solid transparent;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+	}
+
+	.mobile-menu a:hover {
+		color: #f0c44a;
+		background: rgba(201, 162, 39, 0.08);
+		border-color: rgba(201, 162, 39, 0.3);
+	}
+
+	.mobile-menu a.link-tools {
+		color: #f0c44a;
+		border-color: rgba(201, 162, 39, 0.4);
+		background: rgba(201, 162, 39, 0.07);
+	}
+
+	.mobile-menu a.link-tools:hover {
+		background: rgba(201, 162, 39, 0.15);
+		border-color: rgba(201, 162, 39, 0.6);
+	}
+
 	@media (max-width: 720px) {
 		.site-nav {
 			padding: 0 14px;
@@ -151,9 +241,18 @@ Info flow: Layout renders children -> pages render within layout.
 		}
 	}
 
-	@media (max-width: 500px) {
-		.links a:not(.link-tools) {
+	@media (max-width: 640px) {
+		/* Hide the inline nav, show hamburger */
+		.links {
 			display: none;
+		}
+
+		.hamburger {
+			display: flex;
+		}
+
+		.mobile-menu {
+			display: flex;
 		}
 	}
 
