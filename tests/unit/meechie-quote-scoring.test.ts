@@ -28,4 +28,10 @@ describe('meechie quote scoring', () => {
 		expect(selected.quote).toBe('Your phone died but your location was live at her apartment. Interesting.');
 		expect(selected.band).toMatch(/Approved|Revise|Rewrite|Reject/);
 	});
+
+	it('throws when called with an empty array', () => {
+		expect(() => selectBestMeechieQuote([])).toThrow(
+			'selectBestMeechieQuote requires at least one quote'
+		);
+	});
 });
