@@ -12,7 +12,7 @@ describe('ImageGenerationSeam integration', () => {
   const runTest = featureEnabled && hasApiKey;
 
   if (runTest) {
-    it('generates an image via xAI', async () => {
+    it('generates an image via xAI and returns a Result', async () => {
       const configSeam = createAppConfigSeam();
       const imageSeam = createImageGenerationSeam(configSeam);
       const result = await imageSeam.generate({
@@ -23,7 +23,10 @@ describe('ImageGenerationSeam integration', () => {
         format: 'url'
       });
 
-      expect(result.images.length).toBeGreaterThan(0);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.images.length).toBeGreaterThan(0);
+      expect(result.value.timingMs).toBeGreaterThan(0);
     });
   } else {
     it.skip('is skipped when integration flag or API key is missing', () => {

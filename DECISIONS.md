@@ -7,6 +7,21 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-05-10 - Fix ImageGenerationSeam dual-system mismatch
+- Date: 2026-05-10
+- Decision: Add `Result<>` return type to `ImageGenerationSeam`, wire adapter into pipeline, and fix broken import path, null safety on `payload.data`, and separate validation vs config error codes.
+- Context: The seam contract used a broken relative import path (`../../../contracts/shared.contract` instead of `../../../../contracts/shared.contract`), causing CI failures. The adapter also lacked null safety on `payload.data` and reused `IMAGE_VALIDATION_ERROR` for both request and config failures.
+- Alternatives: Leave the seam disconnected and continue calling the provider adapter directly; this bypasses seam boundaries and prevents proper test interception.
+- Consequences: `ImageGenerationSeam` now returns `Result<>` on all code paths, config errors use the distinct `IMAGE_CONFIG_ERROR` code, and `vi.mock` paths in tests use `$lib/` alias for correct interception.
+- Revisit criteria: Revisit if xAI config keys are split into a narrower image-provider config seam.
+
+- Cipher Gate:
+    Date: 2026-05-10
+    Seams: ImageGenerationSeam
+    Evidence: pending — verify pipeline requires XAI_API_KEY not available in this environment
+    Summary: Added Result<> type to ImageGenerationSeam, wired into pipeline. Fixed broken import path, null safety on payload.data, separated validation vs config error codes.
+    Risks: Cannot produce live probe evidence without XAI_API_KEY.
+
 ## 2026-05-09 - Svelte 5 runes migration of +page.svelte
 - Date: 2026-05-09
 - Decision: Migrate `src/routes/+page.svelte` from Svelte 4 legacy reactive syntax (`$:`, `on:event`) to Svelte 5 runes (`$state`, `$derived`, `onclick`). This is a zero-seam, zero-behavior-change refactoring.

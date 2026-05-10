@@ -10,3 +10,9 @@ export const imageGenerationRequestFixture: ImageGenerationRequest = {
   size: '512x512',
   format: 'url'
 };
+
+export const imageGenerationFaultFixture = {
+  code: 'IMAGE_HTTP_ERROR',
+  message: 'xAI returned 429 Too Many Requests',
+  details: { status: '429' }
+} as const;

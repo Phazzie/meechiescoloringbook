@@ -1,161 +1,157 @@
 // Purpose: Centralize image-generation endpoint orchestration in a reusable core pipeline.
 // Why: Keep route handlers thin and make validation/provider behavior easier to test.
-// Info flow: Raw request body -> validation/provider calls -> contract-shaped response.
-import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
+// Info flow: Raw request body -> validation -> ImageGenerationSeam -> contract-shaped response.
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
-import { env } from '$env/dynamic/private';
 import { z } from 'zod';
 import {
-	ImageGenerationInputSchema,
-	ImageGenerationResultSchema,
-	type GeneratedImage
+  ImageGenerationInputSchema,
+  ImageGenerationResultSchema,
+  type GeneratedImage
 } from '../../../contracts/image-generation.contract';
+import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contract';
 
-const IMAGE_MODEL = env.XAI_IMAGE_MODEL || 'grok-imagine-image';
-const RESPONSE_FORMAT = 'b64_json';
+const RESPONSE_FORMAT = 'b64_json' as const;
+const DEFAULT_IMAGE_SIZE = '1024x1024';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
 const imageFormatFromBase64 = (
-	data: string
+  data: string
 ): Pick<GeneratedImage, 'format' | 'mimeType'> =>
-	data.startsWith('/9j/')
-		? { format: 'jpg', mimeType: 'image/jpeg' }
-		: { format: 'png', mimeType: 'image/png' };
+  data.startsWith('/9j/')
+    ? { format: 'jpg', mimeType: 'image/jpeg' }
+    : { format: 'png', mimeType: 'image/png' };
 
 type ImageGenerationResult = z.infer<typeof ImageGenerationResultSchema>;
 
 type ImagePipelineResponse = {
-	status: number;
-	body: ImageGenerationResult;
+  status: number;
+  body: ImageGenerationResult;
 };
 
-type ImagePipelineDeps = {
-	createProvider: typeof createProviderAdapter;
+export type ImagePipelineDeps = {
+  imageGenerationSeam: ImageGenerationSeam;
 };
 
 const pageSizeLine = (pageSize: string): string =>
-	pageSize === 'A4' ? 'A4 8.27x11.69 portrait.' : 'US Letter 8.5x11 portrait.';
+  pageSize === 'A4' ? 'A4 8.27x11.69 portrait.' : 'US Letter 8.5x11 portrait.';
 
 const missingRequiredPhrases = (prompt: string, pageSize: string): string[] => {
-	const promptLower = prompt.toLowerCase();
-	const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)].map((phrase) =>
-		phrase.toLowerCase()
-	);
-	return phrases.filter((phrase) => !promptLower.includes(phrase));
+  const promptLower = prompt.toLowerCase();
+  const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)].map((phrase) =>
+    phrase.toLowerCase()
+  );
+  return phrases.filter((phrase) => !promptLower.includes(phrase));
 };
 
 const errorResponse = (
-	status: number,
-	code: string,
-	message: string
+  status: number,
+  code: string,
+  message: string
 ): ImagePipelineResponse => ({
-	status,
-	body: {
-		ok: false,
-		error: {
-			code,
-			message
-		}
-	}
+  status,
+  body: {
+    ok: false,
+    error: {
+      code,
+      message
+    }
+  }
 });
 
 export const runImageGenerationPipeline = async (
-	body: unknown,
-	deps: ImagePipelineDeps
+  body: unknown,
+  deps: ImagePipelineDeps
 ): Promise<ImagePipelineResponse> => {
-	const parsedInput = ImageGenerationInputSchema.safeParse(body);
-	if (!parsedInput.success) {
-		return errorResponse(
-			400,
-			'IMAGE_INPUT_INVALID',
-			'Image generation input is invalid.'
-		);
-	}
+  const parsedInput = ImageGenerationInputSchema.safeParse(body);
+  if (!parsedInput.success) {
+    return errorResponse(
+      400,
+      'IMAGE_INPUT_INVALID',
+      'Image generation input is invalid.'
+    );
+  }
 
-	const { prompt, variations, spec } = parsedInput.data;
-	const missing = missingRequiredPhrases(prompt, spec.pageSize);
-	if (missing.length > 0) {
-		return errorResponse(
-			400,
-			'PROMPT_MISSING_REQUIRED_PHRASES',
-			'Prompt missing required phrases for deterministic generation.'
-		);
-	}
+  const { prompt, variations, spec } = parsedInput.data;
+  const missing = missingRequiredPhrases(prompt, spec.pageSize);
+  if (missing.length > 0) {
+    return errorResponse(
+      400,
+      'PROMPT_MISSING_REQUIRED_PHRASES',
+      'Prompt missing required phrases for deterministic generation.'
+    );
+  }
 
-	const providerAdapter = deps.createProvider({});
+  const seamResult = await deps.imageGenerationSeam.generate({
+    prompt,
+    n: variations,
+    size: DEFAULT_IMAGE_SIZE,
+    format: RESPONSE_FORMAT
+  });
 
-	const providerResult = await providerAdapter.createImageGeneration({
-		model: IMAGE_MODEL,
-		prompt,
-		n: variations,
-		responseFormat: RESPONSE_FORMAT
-	});
-	if (!providerResult.ok) {
-		const isMissingKey =
-			providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
-		return {
-			status: isMissingKey ? 401 : 502,
-			body: {
-				ok: false,
-				error: {
-					...providerResult.error,
-					message: isMissingKey
-						? 'Image generation requires XAI_API_KEY to be set on the server.'
-						: providerResult.error.message
-				}
-			}
-		};
-	}
+  if (!seamResult.ok) {
+    const isConfigError = seamResult.error.code === 'IMAGE_VALIDATION_ERROR';
+    return {
+      status: isConfigError ? 503 : 502,
+      body: {
+        ok: false,
+        error: seamResult.error
+      }
+    };
+  }
 
-	const images: GeneratedImage[] = [];
-	for (const [index, image] of providerResult.value.images.entries()) {
-		if (!image.b64_json) {
-			continue;
-		}
-		const format = imageFormatFromBase64(image.b64_json);
-		images.push({
-			id: `image-${index + 1}`,
-			...format,
-			data: image.b64_json,
-			encoding: 'base64'
-		});
-	}
+  const images: GeneratedImage[] = [];
+  for (const [index, image] of seamResult.value.images.entries()) {
+    if (!image.b64) {
+      continue;
+    }
+    const format = imageFormatFromBase64(image.b64);
+    images.push({
+      id: `image-${index + 1}`,
+      ...format,
+      data: image.b64,
+      encoding: 'base64'
+    });
+  }
 
-	if (images.length === 0) {
-		return errorResponse(
-			502,
-			'PROVIDER_EMPTY_IMAGE',
-			'Provider returned no images.'
-		);
-	}
+  if (images.length === 0) {
+    return errorResponse(
+      502,
+      'PROVIDER_EMPTY_IMAGE',
+      'Provider returned no images.'
+    );
+  }
 
-	const result: ImageGenerationResult = {
-		ok: true,
-		value: {
-			images,
-			revisedPrompt: providerResult.value.revisedPrompt,
-			modelMetadata: {
-				provider: 'xai',
-				model: IMAGE_MODEL
-			}
-		}
-	};
+  const revisedPrompt =
+    typeof seamResult.value.rawModelInfo.revisedPrompt === 'string'
+      ? seamResult.value.rawModelInfo.revisedPrompt
+      : undefined;
 
-	const parsedResult = ImageGenerationResultSchema.safeParse(result);
-	if (!parsedResult.success) {
-		return errorResponse(
-			500,
-			'IMAGE_OUTPUT_INVALID',
-			'Image generation response did not match contract.'
-		);
-	}
+  const result: ImageGenerationResult = {
+    ok: true,
+    value: {
+      images,
+      revisedPrompt,
+      modelMetadata: {
+        provider: 'xai',
+        model:
+          typeof seamResult.value.rawModelInfo.model === 'string'
+            ? seamResult.value.rawModelInfo.model
+            : 'unknown'
+      }
+    }
+  };
 
-	return {
-		status: 200,
-		body: parsedResult.data
-	};
-};
+  const parsedResult = ImageGenerationResultSchema.safeParse(result);
+  if (!parsedResult.success) {
+    return errorResponse(
+      500,
+      'IMAGE_OUTPUT_INVALID',
+      'Image generation response did not match contract.'
+    );
+  }
 
-export const imageGenerationPipelineDeps: ImagePipelineDeps = {
-	createProvider: createProviderAdapter
+  return {
+    status: 200,
+    body: parsedResult.data
+  };
 };
