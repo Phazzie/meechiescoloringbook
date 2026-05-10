@@ -17,8 +17,8 @@ import { z } from 'zod';
 // we only care about extracting the fields we use; extras are irrelevant.
 const XAIChatChoiceSchema = z
 	.object({
-		message: z.object({ content: z.string().nullish() }).passthrough().optional(),
-		text: z.string().optional()
+		message: z.object({ content: z.string().nullish() }).passthrough().nullish(),
+		text: z.string().nullish()
 	})
 	.passthrough();
 
@@ -32,9 +32,9 @@ export const XAIChatResponseSchema = z
 
 const XAIImageEntrySchema = z
 	.object({
-		url: z.string().optional(),
-		b64_json: z.string().optional(),
-		revised_prompt: z.string().optional()
+		url: z.string().nullish(),
+		b64_json: z.string().nullish(),
+		revised_prompt: z.string().nullish()
 	})
 	.passthrough();
 
@@ -150,7 +150,7 @@ const normalizeChatOutput = (
 	return {
 		ok: true,
 		value: {
-			model: data.model ?? fallbackModel,
+			model: typeof data.model === 'string' && data.model.trim().length > 0 ? data.model : fallbackModel,
 			content: content.trim()
 		}
 	};
@@ -186,7 +186,8 @@ const normalizeImageOutput = (
 		data.revised_prompt ??
 		data.revisedPrompt ??
 		data.data?.find((entry) => typeof entry.revised_prompt === 'string')?.revised_prompt;
-	const revisedPrompt =
+
+const revisedPrompt =
 		typeof rawRevisedPrompt === 'string' && rawRevisedPrompt.trim().length > 0
 			? rawRevisedPrompt
 			: undefined;
