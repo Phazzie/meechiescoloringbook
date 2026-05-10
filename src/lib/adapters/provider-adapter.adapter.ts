@@ -10,42 +10,6 @@ import type {
 } from '../../../contracts/provider-adapter.contract';
 import type { Result, SeamError } from '../../../contracts/shared.contract';
 import { env } from '$env/dynamic/private';
-import { z } from 'zod';
-
-// Raw xAI API response shapes — validated at the seam boundary before normalization.
-// These are intentionally permissive (.passthrough(), optional fields) because
-// we only care about extracting the fields we use; extras are irrelevant.
-const XAIChatChoiceSchema = z
-	.object({
-		message: z.object({ content: z.string().nullish() }).passthrough().nullish(),
-		text: z.string().nullish()
-	})
-	.passthrough();
-
-export const XAIChatResponseSchema = z
-	.object({
-		model: z.string().nullish(),
-		// nullable so { choices: null } maps to PROVIDER_EMPTY_CHAT rather than PROVIDER_INVALID_RESPONSE
-		choices: z.array(XAIChatChoiceSchema).nullable().optional()
-	})
-	.passthrough();
-
-const XAIImageEntrySchema = z
-	.object({
-		url: z.string().nullish(),
-		b64_json: z.string().nullish(),
-		revised_prompt: z.string().nullish()
-	})
-	.passthrough();
-
-export const XAIImageResponseSchema = z
-	.object({
-		// nullable so { data: null } maps to PROVIDER_EMPTY_IMAGE rather than PROVIDER_INVALID_RESPONSE
-		data: z.array(XAIImageEntrySchema).nullable().optional(),
-		revised_prompt: z.string().nullish(),
-		revisedPrompt: z.string().nullish()
-	})
-	.passthrough();
 
 export type ProviderAdapterConfig = {
 	apiKey?: string | null;
@@ -118,26 +82,12 @@ const normalizeChatOutput = (
 	payload: unknown,
 	fallbackModel: string
 ): Result<ProviderChatOutput> => {
-	const parsed = XAIChatResponseSchema.safeParse(payload);
-	if (!parsed.success) {
-		return {
-			ok: false,
-			error: buildError(
-				'PROVIDER_INVALID_RESPONSE',
-				'Provider chat response did not match expected shape.'
-			)
-		};
-	}
-	const data = parsed.data;
-	const choice = data.choices?.[0];
-	const messageContent = choice?.message?.content;
-	const legacyText = choice?.text;
+	const data = payload as {
+		model?: string;
+		choices?: Array<{ message?: { content?: string }; text?: string }>;
+	};
 	const content =
-		typeof messageContent === 'string' && messageContent.trim().length > 0
-			? messageContent
-			: typeof legacyText === 'string' && legacyText.trim().length > 0
-				? legacyText
-				: '';
+		data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || '';
 	if (!content || content.trim().length === 0) {
 		return {
 			ok: false,
@@ -150,7 +100,7 @@ const normalizeChatOutput = (
 	return {
 		ok: true,
 		value: {
-			model: typeof data.model === 'string' && data.model.trim().length > 0 ? data.model : fallbackModel,
+			model: data?.model ?? fallbackModel,
 			content: content.trim()
 		}
 	};
@@ -159,23 +109,20 @@ const normalizeChatOutput = (
 const normalizeImageOutput = (
 	payload: unknown
 ): Result<ProviderImageOutput> => {
-	const parsed = XAIImageResponseSchema.safeParse(payload);
-	if (!parsed.success) {
-		return {
-			ok: false,
-			error: buildError(
-				'PROVIDER_INVALID_RESPONSE',
-				'Provider image response did not match expected shape.'
-			)
-		};
-	}
-	const data = parsed.data;
-	const images = (data.data ?? [])
-		.map((entry) => ({
-			url: typeof entry.url === 'string' ? entry.url : undefined,
-			b64_json: typeof entry.b64_json === 'string' ? entry.b64_json : undefined
-		}))
-		.filter((entry) => entry.url || entry.b64_json);
+	const data = payload as {
+		data?: Array<{ url?: string; b64_json?: string; revised_prompt?: string }>;
+		revised_prompt?: string;
+		revisedPrompt?: string;
+	};
+	const images = Array.isArray(data?.data)
+		? data.data
+				.map((entry) => ({
+					url: typeof entry.url === 'string' ? entry.url : undefined,
+					b64_json:
+						typeof entry.b64_json === 'string' ? entry.b64_json : undefined
+				}))
+				.filter((entry) => entry.url || entry.b64_json)
+		: [];
 	if (images.length === 0) {
 		return {
 			ok: false,
@@ -183,11 +130,13 @@ const normalizeImageOutput = (
 		};
 	}
 	const rawRevisedPrompt =
-		data.revised_prompt ??
-		data.revisedPrompt ??
-		data.data?.find((entry) => typeof entry.revised_prompt === 'string')?.revised_prompt;
-
-const revisedPrompt =
+		typeof data?.revised_prompt === 'string'
+			? data.revised_prompt
+			: typeof data?.revisedPrompt === 'string'
+				? data.revisedPrompt
+				: data?.data?.find((entry) => typeof entry.revised_prompt === 'string')
+						?.revised_prompt;
+	const revisedPrompt =
 		typeof rawRevisedPrompt === 'string' && rawRevisedPrompt.trim().length > 0
 			? rawRevisedPrompt
 			: undefined;

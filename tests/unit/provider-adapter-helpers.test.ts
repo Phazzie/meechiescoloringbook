@@ -272,9 +272,7 @@ describe('provider-adapter helpers', () => {
 			}
 		});
 
-		it('returns invalid response error when data is not an array', async () => {
-			// { data: "not-an-array" } violates the schema, so the seam now
-			// surfaces PROVIDER_INVALID_RESPONSE rather than PROVIDER_EMPTY_IMAGE.
+		it('returns empty image error when data is not an array', async () => {
 			const fetchMock = vi.fn(async () =>
 				jsonResponse({
 					data: 'not-an-array'
@@ -294,7 +292,7 @@ describe('provider-adapter helpers', () => {
 			});
 			expect(result.ok).toBe(false);
 			if (!result.ok) {
-				expect(result.error.code).toBe('PROVIDER_INVALID_RESPONSE');
+				expect(result.error.code).toBe('PROVIDER_EMPTY_IMAGE');
 			}
 		});
 

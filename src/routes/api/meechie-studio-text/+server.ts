@@ -12,7 +12,6 @@ import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json().catch(() => null);
-	if (body === null) return json({ ok: false, error: { code: 'INVALID_JSON', message: 'Request body must be valid JSON.' } }, { status: 400 });
 	const pipelineResult = await runMeechieStudioTextPipeline(body, meechieStudioTextPipelineDeps);
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };

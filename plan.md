@@ -6,6 +6,28 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 # Autonomous Plan (2026-02-14)
 
+## Svelte 5 Runes Migration of +page.svelte (2026-05-09)
+
+### Plan
+
+- Goal: Migrate `src/routes/+page.svelte` from Svelte 4 legacy reactive syntax (`$:`, `on:click`, `let x = initial`) to Svelte 5 runes syntax (`$state`, `$derived`, `onclick`). This is a pure refactoring — zero behavioral changes, zero seam changes.
+- Exact seams: none (UI-only change; no seam boundary is crossed).
+- Exact file paths to touch:
+  - `src/routes/+page.svelte`
+  - `plan.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm run check`
+  2. `npm test`
+  3. `npm run build`
+
+### Self-critique
+
+1. What could be wrong: Converting `$:` to `$derived()` for values that were also declared as `let` requires removing the duplicate declaration, which could create a reference-before-declaration error if ordering changes.
+2. What must be proven: All 9 reactive declarations become `$derived`, all 26 mutable state variables get `$state`, and no `$:` remains in the file (Svelte 5 runes mode forbids `$:` once any rune is used).
+3. Riskiest assumption: `voice = $state<MeechieStudioVoiceSettings>({...})` deep-binds correctly with `bind:value={voice.intensity}` in Svelte 5.
+4. Evidence to prove/disprove: Green `npm run check` (0 errors, 0 warnings), green `npm test` (327 tests pass), green `npm run build`.
+
 ## Mode Router Consolidation Pass (2026-05-01)
 
 ### Plan

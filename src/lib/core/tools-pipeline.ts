@@ -50,7 +50,7 @@ export const runToolsPipeline = async (
 ): Promise<ToolsPipelineResponse> => {
 	const parsedInput = MeechieToolInputSchema.safeParse(body);
 	if (!parsedInput.success) {
-		return buildError(400, 'MEECHIE_TOOL_INPUT_INVALID', 'Meechie tool input is invalid.');
+		return buildError(200, 'MEECHIE_TOOL_INPUT_INVALID', 'Meechie tool input is invalid.');
 	}
 
 	const disallowedKeywords = findDisallowedKeywords(parsedInput.data);

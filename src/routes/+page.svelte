@@ -4,7 +4,7 @@ Why: Generate AI-backed Meechie wording and printable coloring pages with cost-a
 Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/store seams.
 -->
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
@@ -48,67 +48,67 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	type PageSize = ColoringPageSpec['pageSize'];
 	type BorderChoice = ColoringPageSpec['border'];
 
-	let activeModeId = studioModes[0].id;
-	let selectedThemeId = studioThemes[0].id;
-	let evidence = '';
-	let dedication = '';
-	let voice: MeechieStudioVoiceSettings = {
+	// --- Reactive state (template-bound) ---
+	let activeModeId = $state(studioModes[0].id);
+	let selectedThemeId = $state(studioThemes[0].id);
+	let evidence = $state('');
+	let dedication = $state('');
+	let voice = $state<MeechieStudioVoiceSettings>({
 		intensity: 'receipts_out',
 		rawness: 'mild',
 		thirdPerson: 'sometimes'
-	};
-	let pageSize: PageSize = 'US_Letter';
-	let border: BorderChoice = 'decorative';
-	let glitter = false;
-	let revisionBudget = DEFAULT_REVISION_BUDGET;
-	let textOutput: MeechieStudioTextOutput | null = null;
-	let textError = '';
-	let generationError = '';
-	let isTextWorking = false;
-	let isGenerating = false;
-	let copyStatus = '';
-	let vaultStatus = '';
-	let validationIssues: SpecValidationOutput['issues'] = [];
-	let assembledPrompt = '';
-	let revisedPrompt = '';
-	let violations: Violation[] = [];
-	let recommendedFixes: DriftDetectionOutput['recommendedFixes'] = [];
-	let images: GeneratedImage[] = [];
-	let imagePreviews: string[] = [];
-	let packagedFiles: PackagedFile[] = [];
-	let creations: CreationRecord[] = [];
+	});
+	let pageSize = $state<PageSize>('US_Letter');
+	let border = $state<BorderChoice>('decorative');
+	let glitter = $state(false);
+	let revisionBudget = $state(DEFAULT_REVISION_BUDGET);
+	let textOutput = $state<MeechieStudioTextOutput | null>(null);
+	let textError = $state('');
+	let generationError = $state('');
+	let draftSaveError = $state('');
+	let isTextWorking = $state(false);
+	let isGenerating = $state(false);
+	let copyStatus = $state('');
+	let vaultStatus = $state('');
+	let validationIssues = $state<SpecValidationOutput['issues']>([]);
+	let assembledPrompt = $state('');
+	let revisedPrompt = $state('');
+	let violations = $state<Violation[]>([]);
+	let recommendedFixes = $state<DriftDetectionOutput['recommendedFixes']>([]);
+	let images = $state<GeneratedImage[]>([]);
+	let packagedFiles = $state<PackagedFile[]>([]);
+	let creations = $state<CreationRecord[]>([]);
+	let isSaving = $state(false);
+
+	// --- Non-reactive implementation details ---
 	let owner: CreationOwner | null = null;
 	let authContext: CreationRecord['authContext'] | null = null;
 	let isBrowser = false;
 	let draftTimer: ReturnType<typeof setTimeout> | null = null;
 	let isSavingDraft = false;
-	let isSaving = false;
 	let isDraftSavePending = false;
-	let draftSaveError = '';
-	let canGenerateText = true;
-	let canRegenerateText = false;
-	let canMakePrettier = false;
-	let canMakeMeaner = false;
-	let canMakeMoreSpecific = false;
-	let activeMode = studioModes[0];
-	let activeTheme = studioThemes[0];
 
 	const getActiveMode = (modeId: string) =>
 		studioModes.find((mode) => mode.id === modeId) ?? studioModes[0];
 
-	$: activeMode = getActiveMode(activeModeId);
-	$: activeTheme =
-		studioThemes.find((theme) => theme.id === selectedThemeId) ??
-		studioThemes[0];
+	// --- Derived state ---
+	let activeMode = $derived(getActiveMode(activeModeId));
+	let activeTheme = $derived(
+		studioThemes.find((theme) => theme.id === selectedThemeId) ?? studioThemes[0]
+	);
 
-	let spec: ColoringPageSpec = buildColoringPageSpecFromMeechieText({
-		output: DEFAULT_STUDIO_TEXT_OUTPUT,
-		pageSize,
-		border,
-		styleHint: activeTheme.styleHint
-	});
+	// spec is initialized from literal initial values to avoid capturing $state references.
+	// It is updated explicitly via applyTextToSpec() whenever page settings change.
+	let spec = $state<ColoringPageSpec>(
+		buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: studioThemes[0].styleHint
+		})
+	);
 
-	$: previewOutput = textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT;
+	let previewOutput = $derived(textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT);
 
 	const buildOwner = (sessionId: string): CreationOwner => ({
 		kind: 'anonymous',
@@ -423,44 +423,51 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 	};
 
-	$: canGenerateText = canRunStudioAction('generate_text', {
-		remainingBudget: revisionBudget,
-		isRunning: isTextWorking
-	});
-	$: canRegenerateText =
-		!!textOutput &&
-		canRunStudioAction('regenerate', {
+	let canGenerateText = $derived(
+		canRunStudioAction('generate_text', {
 			remainingBudget: revisionBudget,
 			isRunning: isTextWorking
-		});
-	$: canMakePrettier =
+		})
+	);
+	let canRegenerateText = $derived(
 		!!textOutput &&
-		canRunStudioAction('make_prettier', {
-			remainingBudget: revisionBudget,
-			isRunning: isTextWorking
-		});
-	$: canMakeMeaner =
+			canRunStudioAction('regenerate', {
+				remainingBudget: revisionBudget,
+				isRunning: isTextWorking
+			})
+	);
+	let canMakePrettier = $derived(
 		!!textOutput &&
-		canRunStudioAction('make_meaner', {
-			remainingBudget: revisionBudget,
-			isRunning: isTextWorking
-		});
-	$: canMakeMoreSpecific =
+			canRunStudioAction('make_prettier', {
+				remainingBudget: revisionBudget,
+				isRunning: isTextWorking
+			})
+	);
+	let canMakeMeaner = $derived(
 		!!textOutput &&
-		canRunStudioAction('make_more_specific', {
-			remainingBudget: revisionBudget,
-			isRunning: isTextWorking
-		});
-
-	$: imagePreviews = images.map((image) => {
-		if (image.format === 'svg' && image.encoding === 'utf8') {
-			return `data:image/svg+xml;utf8,${encodeURIComponent(image.data)}`;
-		}
-		if (image.encoding === 'base64') {
-			return `data:image/${image.format};base64,${image.data}`;
-		}
-		return '';
-	});
+			canRunStudioAction('make_meaner', {
+				remainingBudget: revisionBudget,
+				isRunning: isTextWorking
+			})
+	);
+	let canMakeMoreSpecific = $derived(
+		!!textOutput &&
+			canRunStudioAction('make_more_specific', {
+				remainingBudget: revisionBudget,
+				isRunning: isTextWorking
+			})
+	);
+	let imagePreviews = $derived(
+		images.map((image) => {
+			if (image.format === 'svg' && image.encoding === 'utf8') {
+				return `data:image/svg+xml;utf8,${encodeURIComponent(image.data)}`;
+			}
+			if (image.encoding === 'base64') {
+				return `data:image/${image.format};base64,${image.data}`;
+			}
+			return '';
+		})
+	);
 
 	onDestroy(() => {
 		if (draftTimer) {
@@ -519,7 +526,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				type="button"
 				class="primary"
 				data-testid="home-hero-generate"
-				on:click={() => runTextAction('generate_text')}
+				onclick={() => runTextAction('generate_text')}
 				disabled={!canGenerateText}
 			>
 				{isTextWorking ? 'Reading...' : activeMode.cta}
@@ -535,7 +542,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				class:active={activeModeId === mode.id}
 				data-testid={`home-mode-${mode.id}`}
 				style={`--mode-color: ${mode.themeColor}; --mode-image: url('${mode.image}')`}
-				on:click={() => {
+				onclick={() => {
 					activeModeId = mode.id;
 					textError = '';
 					resetGeneratedPage();
@@ -571,7 +578,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				data-testid="home-evidence"
 				rows="8"
 				bind:value={evidence}
-				on:input={scheduleDraftSave}
+				oninput={scheduleDraftSave}
 				placeholder={getActiveMode(activeModeId).placeholder}
 			></textarea>
 
@@ -579,7 +586,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			<input
 				id="dedication"
 				bind:value={dedication}
-				on:input={scheduleDraftSave}
+				oninput={scheduleDraftSave}
 				maxlength="60"
 				placeholder="Optional dedication"
 			/>
@@ -599,7 +606,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					type="button"
 					class="primary"
 					data-testid="home-generate-verdict"
-					on:click={() => runTextAction('generate_text')}
+					onclick={() => runTextAction('generate_text')}
 					disabled={!canGenerateText}
 				>
 					{isTextWorking
@@ -608,28 +615,28 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				</button>
 				<button
 					type="button"
-					on:click={() => runTextAction('regenerate')}
+					onclick={() => runTextAction('regenerate')}
 					disabled={!canRegenerateText}
 				>
 					{getStudioAction('regenerate').label}
 				</button>
 				<button
 					type="button"
-					on:click={() => runTextAction('make_prettier')}
+					onclick={() => runTextAction('make_prettier')}
 					disabled={!canMakePrettier}
 				>
 					{getStudioAction('make_prettier').label}
 				</button>
 				<button
 					type="button"
-					on:click={() => runTextAction('make_meaner')}
+					onclick={() => runTextAction('make_meaner')}
 					disabled={!canMakeMeaner}
 				>
 					{getStudioAction('make_meaner').label}
 				</button>
 				<button
 					type="button"
-					on:click={() => runTextAction('make_more_specific')}
+					onclick={() => runTextAction('make_more_specific')}
 					disabled={!canMakeMoreSpecific}
 				>
 					{getStudioAction('make_more_specific').label}
@@ -685,7 +692,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					type="button"
 					class="primary"
 					data-testid="home-create-page"
-					on:click={handleGeneratePage}
+					onclick={handleGeneratePage}
 					disabled={!textOutput || isGenerating}
 				>
 					{isGenerating ? 'Creating...' : 'Create Coloring Page'}
@@ -721,13 +728,13 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				<button
 					type="button"
 					data-testid="home-copy-quote"
-					on:click={copyQuote}
+					onclick={copyQuote}
 					disabled={!textOutput}>{getStudioAction('copy_quote').label}</button
 				>
 				<button
 					type="button"
 					data-testid="home-save-vault"
-					on:click={saveToVault}
+					onclick={saveToVault}
 					disabled={!textOutput || isSaving}
 					>{getStudioAction('save_to_vault').label}</button
 				>
@@ -756,7 +763,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 							type="button"
 							class="theme-chip"
 							class:active={selectedThemeId === theme.id}
-							on:click={() => {
+							onclick={() => {
 								selectedThemeId = theme.id;
 								if (textOutput) {
 									void applyTextToSpec(textOutput);
@@ -794,7 +801,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				<select
 					id="pageSize"
 					bind:value={pageSize}
-					on:change={() => textOutput && applyTextToSpec(textOutput)}
+					onchange={async (e) => {
+						pageSize = (e.currentTarget as HTMLSelectElement).value as PageSize;
+						await tick();
+						if (textOutput) void applyTextToSpec(textOutput);
+					}}
 				>
 					<option value="US_Letter">US Letter</option>
 					<option value="A4">A4</option>
@@ -804,7 +815,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				<select
 					id="border"
 					bind:value={border}
-					on:change={() => textOutput && applyTextToSpec(textOutput)}
+					onchange={async (e) => {
+						border = (e.currentTarget as HTMLSelectElement).value as BorderChoice;
+						await tick();
+						if (textOutput) void applyTextToSpec(textOutput);
+					}}
 				>
 					<option value="decorative">Decorative</option>
 					<option value="plain">Plain</option>
@@ -843,21 +858,21 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 							<button
 								type="button"
 								data-testid="home-vault-load"
-								on:click={() => loadCreation(creation)}
+								onclick={() => loadCreation(creation)}
 								>{creation.intent.title}</button
 							>
 							<div>
 								<button
 									type="button"
 									data-testid="home-vault-pin"
-									on:click={() => toggleFavorite(creation)}
+									onclick={() => toggleFavorite(creation)}
 								>
 									{creation.favorite ? 'Unpin' : 'Pin'}
 								</button>
 								<button
 									type="button"
 									data-testid="home-vault-delete"
-									on:click={() => deleteCreation(creation.id)}>Delete</button
+									onclick={() => deleteCreation(creation.id)}>Delete</button
 								>
 							</div>
 						</div>

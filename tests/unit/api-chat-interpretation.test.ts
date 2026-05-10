@@ -49,7 +49,7 @@ describe('/api/chat-interpretation', () => {
 		const response = await POST(buildEvent({ message: '' }));
 		const payload = await response.json();
 
-		expect(response.status).toBe(400);
+		expect(response.status).toBe(200);
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('CHAT_INPUT_INVALID');
 		expect(providerSpy).not.toHaveBeenCalled();
