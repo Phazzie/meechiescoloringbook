@@ -280,16 +280,29 @@ export const runMeechieStudioTextPipeline = async (
 		};
 	}
 
-	let result = parseProviderText(
-		providerResult.value.content,
-		providerResult.value.model
-	);
+	// Capture the first attempt's raw response so it can be echoed back on retry.
+	const lastRawResponse = providerResult.value.content;
+	let result = parseProviderText(lastRawResponse, providerResult.value.model);
 
 	if (!result.ok) {
-		// Bounded retry (max 1 retry)
+		// Bounded retry (max 1 retry): send a different prompt that explains the
+		// failure so the model has new information to act on instead of repeating
+		// the same malformed output.
+		const retryMessages = [
+			...messages,
+			{
+				role: 'assistant' as const,
+				content: lastRawResponse,
+			},
+			{
+				role: 'user' as const,
+				content:
+					'Your previous response could not be parsed as valid JSON. Please respond with ONLY valid JSON matching the required schema, no markdown, no explanation, no code fences.',
+			},
+		];
 		providerResult = await provider.createChatCompletion({
 			model: TEXT_MODEL,
-			messages,
+			messages: retryMessages,
 			responseFormat: STUDIO_TEXT_RESPONSE_FORMAT
 		});
 		if (!providerResult.ok) {
