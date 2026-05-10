@@ -1534,3 +1534,10 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-05-06/proof-tape.json
   - Summary: Removed raw `process.env` access from `app-config-seam` and `provider-adapter` to securely manage API keys and configs. Exclusively injects configurations via `$env/dynamic/private`.
   - Risks: Test environments relying on implicit `process.env` loading may need explicit configurations passed in during instantiation.
+
+- Cipher Gate:
+    Date: 2026-05-10
+    Seams: ProviderAdapterSeam
+    Evidence: pending — verify pipeline requires XAI_API_KEY not available in this environment
+    Summary: Added Zod validation (XAIChatResponseSchema, XAIImageResponseSchema) at xAI provider boundary. Returns PROVIDER_INVALID_RESPONSE for structurally invalid payloads. Applied .nullish() to optional fields to handle null returns from API.
+    Risks: Cannot produce live probe evidence without XAI_API_KEY.
