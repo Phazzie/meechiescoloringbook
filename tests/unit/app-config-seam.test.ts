@@ -58,4 +58,9 @@ describe('AppConfigSeam adapter', () => {
 		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '11' });
 		expect(() => seam.getConfig()).toThrow();
 	});
+
+	it('throws when MAX_IMAGES_PER_REQUEST is 0 (below minimum)', () => {
+		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '0' });
+		expect(() => seam.getConfig()).toThrow();
+	});
 });
