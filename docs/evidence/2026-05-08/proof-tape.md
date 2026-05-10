@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-05-08T02:20:49.371Z
+Generated at: 2026-05-08T02:23:41.660Z
 Evidence folder: docs/evidence/2026-05-08
 
 Files included:
@@ -16,8 +16,8 @@ Files included:
 - seam-ledger.json (17135 bytes)
 - seam-ledger.md (1518 bytes)
 - shaolin-lint.json (519 bytes)
-- test.txt (6936 bytes)
+- test.txt (4010 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify.txt (7205 bytes)
+- verify.txt (4269 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 
