@@ -2,31 +2,43 @@
 // Why: Ensure xAI-backed image generation returns contract-compliant results.
 // Info flow: Fixtures -> mock/adapter -> assertions.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { z } from 'zod';
-import {
-	ImageGenerationInputSchema,
-	ImageGenerationResultSchema
-} from '../../contracts/image-generation.contract';
-import { ScenarioSchema } from '../../contracts/shared.contract';
 import { createImageGenerationMock } from '../../src/lib/mocks/image-generation.mock';
-import { imageGenerationAdapter } from '../../src/lib/adapters/image-generation.adapter';
-import sample from '../../fixtures/image-generation/sample.json';
-import fault from '../../fixtures/image-generation/fault.json';
+import { createImageGenerationSeam } from '../../src/lib/adapters/image-generation-seam';
+import type { AppConfigSeam } from '../../src/lib/seams/app-config-seam/contract';
+import {
+	imageGenerationRequestFixture,
+	imageGenerationFaultFixture
+} from '../../src/lib/seams/image-generation-seam/fixtures';
 
-const fixtureSchema = z.object({
-	scenario: ScenarioSchema,
-	input: ImageGenerationInputSchema,
-	output: ImageGenerationResultSchema
-});
+const mockConfigSeam: AppConfigSeam = {
+	getConfig: () => ({
+		xaiApiKey: 'test-key',
+		xaiTextModel: 'grok-4-1-fast-reasoning',
+		xaiImageModel: 'grok-imaging-image',
+		xaiBaseUrl: 'https://api.x.ai/v1',
+		xaiImageEndpointPath: '/images/generations',
+		featureIntegrationTests: false,
+		maxImagesPerRequest: 4,
+		defaultImageSize: '1024x1024'
+	})
+};
 
-const sampleFixture = fixtureSchema.parse(sample);
-const faultFixture = fixtureSchema.parse(fault);
+// xAI wire format — the shape the xAI /v1/images/generations endpoint returns.
+const xaiSampleResponse = {
+	data: [
+		{
+			url: 'https://example.com/image.png',
+			b64_json: null,
+			revised_prompt: 'a test image'
+		}
+	]
+};
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
 	fetchMock = vi.fn(async () => {
-		return new Response(JSON.stringify(sampleFixture.output), {
+		return new Response(JSON.stringify(xaiSampleResponse), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' }
 		});
@@ -41,24 +53,38 @@ afterEach(() => {
 describe('ImageGenerationSeam contract', () => {
 	it('mock returns sample fixture output', async () => {
 		const mock = createImageGenerationMock('sample');
-		const output = await mock.generate(sampleFixture.input);
-		expect(output).toEqual(sampleFixture.output);
+		const output = await mock.generate(imageGenerationRequestFixture);
+		expect(output.ok).toBe(true);
 	});
 
 	it('mock returns fault fixture output', async () => {
 		const mock = createImageGenerationMock('fault');
-		const output = await mock.generate(faultFixture.input);
-		expect(output).toEqual(faultFixture.output);
+		const output = await mock.generate(imageGenerationRequestFixture);
+		expect(output.ok).toBe(false);
+		if (!output.ok) {
+			expect(output.error.code).toBe(imageGenerationFaultFixture.code);
+		}
 	});
 
-	it('adapter returns sample fixture output', async () => {
-		const output = await imageGenerationAdapter.generate(sampleFixture.input);
-		expect(output).toEqual(sampleFixture.output);
+	it('adapter returns ok result with images from xAI response', async () => {
+		const seam = createImageGenerationSeam(mockConfigSeam);
+		const output = await seam.generate(imageGenerationRequestFixture);
+		expect(output.ok).toBe(true);
+		if (output.ok) {
+			expect(output.value.images).toHaveLength(1);
+			expect(output.value.images[0].url).toBe('https://example.com/image.png');
+		}
+		expect(fetchMock).toHaveBeenCalledOnce();
 	});
 
-	it('adapter returns error for invalid prompt', async () => {
-		const output = await imageGenerationAdapter.generate(faultFixture.input);
-		expect(output).toEqual(faultFixture.output);
+	it('adapter returns error for invalid prompt (validation)', async () => {
+		const seam = createImageGenerationSeam(mockConfigSeam);
+		// Empty prompt triggers IMAGE_VALIDATION_ERROR before fetch is called.
+		const output = await seam.generate({ ...imageGenerationRequestFixture, prompt: '' });
+		expect(output.ok).toBe(false);
+		if (!output.ok) {
+			expect(output.error.code).toBe('IMAGE_VALIDATION_ERROR');
+		}
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });
