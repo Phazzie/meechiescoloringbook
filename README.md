@@ -1,92 +1,171 @@
 <!--
-Purpose: Explain the project, its governance model, and how to run it locally.
-Why: Keep Seam-Driven Development and Wu-Tang coding intent visible to non-coders.
-Info flow: Philosophy -> workflow -> commands -> evidence.
+Purpose: Explain the project, its tech stack, and how to run it locally.
+Why: Keep Seam-Driven Development conventions and dev setup visible to contributors.
+Info flow: Intro -> features -> stack -> setup -> env vars -> scripts -> architecture -> testing -> deployment.
 -->
-# Coloring Book Page Generator
 
-This app generates printable coloring pages with strict layout and constraint rules. It is built with **Seam-Driven Development** to prevent integration drift and to keep the core logic deterministic and testable.
+# Meechie's Coloring Book 🎨
 
-## Why Seam-Driven Development + Wu-Tang coding
-Many teams get to “100% loud” in the UI — buttons, colors, swagger — but stop right before the app actually works everywhere. AI will happily fill in the rest with shortcuts, hidden assumptions, and unexpected side effects, and suddenly you get a pretty prototype that fails when a real person touches it. That gap is the 70% problem we’re trying to eliminate.
+Meechie's Coloring Book is an AI-powered web app that generates custom coloring book pages just for kids and families. Using xAI (Grok) under the hood, it creates unique line-art illustrations and Meechie-voiced stories that you can print, color, and keep forever. Whether you want a unicorn dancing in the rain or a robot baking cookies, Meechie makes it happen!
 
-Seam-Driven Development pulls integration to the front of the line. Before any feature ships, we map out every seam (trust boundary, adapter, adapter, provider) and build the contract, mock, and adapter for it. That way, the interfaces are proven before we rely on them, and when we finally stitch the UI, we already know the seams line up. It keeps the work deterministic and auditable even when AI is being “helpful.”
+Live app: **https://meechiescoloringbook.vercel.app**
 
-Wu-Tang coding is the mindset we add on top. Wu-Bob is Uncle Bob plus a rotating trio of Wu-Tang brains (GZA, U-God, and Method Man right now). The Wu-Tang energy forces synthesis — the AI can’t just pattern-match code it wrote before; it has to blend Uncle Bob’s discipline with Wu-Wisdom’s flavor. That makes the output sharper because it has to satisfy more constraints: clean code, precise behavior, and a strong creative voice. It also gives non-coders a shared shorthand (RZA for vision, GZA for precision, etc.) so they can steer the process without rewriting logic.
+---
 
-This repo fights the two big failure modes we keep seeing:
-- **Integration hell**: the seams don’t actually match, so the app breaks as soon as you try to use it.
-- **AI non-compliance**: skipped steps, helper modules doing I/O off-seam, or loose specs that can’t be proven.
+## ✨ Features
 
-Seam-Driven Development + Wu-Tang coding keeps the work honest: integration first, contracts enforced, and meaningfully reviewed by the Wu-Bob fusion.
+- AI-powered coloring book image generation via xAI (Grok)
+- Custom text and story generation with Meechie's unique voice
+- PDF export of coloring pages — print and color right away
+- Deployed on Vercel at https://meechiescoloringbook.vercel.app
+- Android-friendly PWA with manifest and offline-safe assets
 
-## What this app lets you do
-- Build a Meechie-style coloring page by entering titles, numbered list items, and optional footer text, then generate a fully locked prompt that a model can’t wander from.
-- Talk to the chat panel (a mocked/meechie assistant) to translate feelings into the same structured spec, keeping everything traceable.
-- See the assembled and revised prompts plus drift violations in a debug panel so you know exactly why something failed.
-- Save generations, favorites, drafts, and exports (PDFs and printable images) through seam-protected storage so nothing bypasses the contract.
-- Install the app as an Android-friendly PWA with manifest, icons, and offline-safe assets because the art needs to travel.
+---
 
-## Terminology
-- **Deterministic**: same inputs lead to the same outputs. Nothing magically depends on hidden randomness or “AI intuition.”
-- **Canonical prompt**: the carefully crafted, multi-line prompt we log for evidence so every constraint is visible and testable.
-- **Deterministic compressed provider prompt**: the trimmed version of the canonical prompt that keeps all required constraints but fits inside provider limits (like the 1024-character cap). Think of it as the short-form script we feed the model after we prove the long-form version is correct.
-- **Assumption Alarm**: a governance checkpoint that fires when a probe is blocked; it records the blocked seam, what we assume is true, and how we will validate it later.
-- **CLI flags**: things that start with `-` (e.g., `--seam` or `--help`). Whenever we mention a flag, we explain in plain language what it toggles so non-coders can follow the instructions.
+## 🛠 Tech Stack
 
-## Requirements
-- Node.js 20+
-- npm
+| Layer | Technology |
+|-------|------------|
+| **Framework** | SvelteKit 2 with Svelte 5 runes |
+| **AI** | xAI (Grok) for text and image generation |
+| **Testing** | Vitest 3 (unit/integration) + Playwright (E2E) |
+| **Deployment** | Vercel with `@sveltejs/adapter-vercel` (Node 22) |
+| **Validation** | Zod schema validation at all seam boundaries |
+| **Architecture** | Seam-Driven Development (SDD) |
+| **PDF** | pdf-lib for coloring page export |
 
-## Local development
+---
 
-```sh
+## 🚀 Getting Started
+
+**Prerequisites:** Node.js 22+, npm, xAI API key
+
+**Setup:**
+
+```bash
+git clone https://github.com/Phazzie/meechiescoloringbook.git
+cd meechiescoloringbook
 npm install
+cp .env.example .env
+# Fill in your API keys in .env
 npm run dev
 ```
 
-## Git hooks (recommended)
+The app will be available at `http://localhost:5173`.
 
-```sh
+**Install git hooks (recommended):**
+
+```bash
 npm run hooks:install
 ```
+
 Run this once after cloning to enable local pre-commit and pre-push verification.
 
-## Verification (required for seam changes)
+---
 
-```sh
-npm run verify
+## 🔐 Environment Variables
+
+Copy `.env.example` to `.env` and fill in your values.
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `XAI_API_KEY` | Yes | — | Your xAI API key for Grok access |
+| `XAI_TEXT_MODEL` | No | `grok-4-1-fast-reasoning` | Grok model used for text/story generation |
+| `XAI_IMAGE_MODEL` | No | `grok-imagine-image` | Grok model used for coloring page image generation |
+| `XAI_BASE_URL` | No | `https://api.x.ai` | xAI API base URL |
+| `XAI_IMAGE_ENDPOINT_PATH` | No | `/v1/images/generations` | API path for image generation requests |
+| `FEATURE_INTEGRATION_TESTS` | No | `false` | Set to `true` to enable live API integration tests |
+| `MAX_IMAGES_PER_REQUEST` | No | `4` | Maximum coloring pages generated per request |
+| `DEFAULT_IMAGE_SIZE` | No | `1024x1024` | Default image resolution (future-facing; xAI may ignore this) |
+
+> **Note:** Integration tests require both `FEATURE_INTEGRATION_TESTS=true` and a valid `XAI_API_KEY`.
+
+---
+
+## 📦 Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview production build |
+| `npm run test` | Run unit tests (Vitest) |
+| `npm run test:e2e` | Run Playwright E2E tests |
+| `npm run test:integration` | Run integration tests against real APIs (requires `FEATURE_INTEGRATION_TESTS=true`) |
+| `npm run lint` | Run ESLint |
+| `npm run format` | Format files with Prettier |
+| `npm run format:check` | Check formatting (CI) |
+| `npm run check` | SvelteKit type check |
+| `npm run verify` | Full verify pipeline (chamber lock + lint + type check + tests + seam ledger + proof tape) |
+| `npm run hooks:install` | Install local git pre-commit/pre-push hooks |
+
+---
+
+## 🏗 Architecture
+
+This project uses **Seam-Driven Development (SDD)** — every external integration point is isolated behind a "seam" with a defined contract, deterministic mock, and real adapter. This prevents integration drift and keeps core logic testable without live API calls.
+
+Each seam consists of:
+- `contract.ts` — TypeScript types and Zod schemas
+- `fixtures.ts` — static test data captured from real API responses
+- `mock.ts` — deterministic test doubles (load fixtures by scenario, no invented data)
+- `adapter.ts` — real implementation behind the seam
+
+**Key directories:**
+
+```
+src/
+  routes/         SvelteKit pages and API routes
+  lib/
+    core/         Business logic pipelines (no I/O)
+    seams/        Seam contracts, mocks, and fixtures
+    adapters/     Real seam implementations
+contracts/        Shared cross-seam types
+fixtures/         Captured API response fixtures
+tests/            Unit, contract, and integration tests
+scripts/          SDD automation tools (verify, chamber-lock, etc.)
+docs/
+  seams.md        Inventory of all seams and their owners
+  evidence/       Dated evidence output from verify runs
 ```
 
-This runs the Seam-Driven Development gates (chamber lock, assumption alarm, evidence capture, seam ledger, clan chain, proof tape, cipher gate) and writes evidence under `docs/evidence/YYYY-MM-DD/`.
+See [AGENTS.md](./AGENTS.md) for the full Seam-Driven Development workflow and governance rules.
 
-## Build
+---
 
-```sh
-npm run build
-npm run preview
+## 🧪 Testing
+
+```bash
+npm run test          # Unit tests (Vitest)
+npm run test:e2e      # E2E tests (Playwright)
+npm run test:integration  # Integration tests (requires FEATURE_INTEGRATION_TESTS=true)
 ```
 
-## Testing
+Integration tests against real APIs are gated behind `FEATURE_INTEGRATION_TESTS=true` in `.env`. All other tests use deterministic mocks backed by captured fixtures and run without any API keys.
 
-```sh
-npm run test
-npm run test:unit
-npm run test:integration
-npm run test:e2e
-```
+---
 
-## Environment
-Create a local `.env` from `.env.example` when you need integration tests or live provider calls.
+## 🚢 Deployment
 
-Notes:
-- Integration tests require `FEATURE_INTEGRATION_TESTS=true` and a valid `XAI_API_KEY`.
-- The xAI image API currently ignores `size` or `quality`, so `DEFAULT_IMAGE_SIZE` is future-facing.
+Automatic Vercel deployment triggers on every push to `main`.
 
-## Optional commands
+**Production:** https://meechiescoloringbook.vercel.app
 
-```sh
-npm test
-npm run check
-npm run rewind -- --seam DriftDetectionSeam
+The app uses `@sveltejs/adapter-vercel` targeting Node 22. No manual deploy steps are needed — merge to `main` and Vercel handles the rest.
+
+---
+
+## 🤝 Contributing
+
+Follow the [SDD conventions in AGENTS.md](./AGENTS.md). Before submitting a PR:
+
+1. Run `npm run verify` — must pass with no errors
+2. Any seam change requires a Cipher Gate entry in `DECISIONS.md`
+3. Every new file needs a Purpose/Why/Info flow header comment
+4. Fixtures must be fresh (≤ 7 days) or a waiver recorded in `DECISIONS.md`
+
+For seam-scoped verification without running the full pipeline:
+
+```bash
+npm run rewind -- --seam <SeamName>
 ```
