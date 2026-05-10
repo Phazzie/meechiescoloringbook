@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-05-08T02:24:32.569Z",
+  "cipher": {
+    "date": "2026-05-08",
+    "seams": "ProviderAdapterSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-05-08/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-08/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-08/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-08/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-08/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-08/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-08/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-08/proof-tape.json",
+        "exists": true
+      }
+    ],
+    "summary": "Restored legacy `text` fallback when `message.content` is blank during ProviderAdapterSeam chat normalization and removed redundant contract test helpers/cleanup while keeping boundary Zod validation.",
+    "risks": "If the provider returns both `message.content` and legacy `text` with conflicting data, we now prefer the first non-blank field, which could differ from upstream provider expectations."
+  },
+  "latestChangeMs": 1778206954293.1187,
+  "status": "ok"
+}
