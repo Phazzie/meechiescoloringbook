@@ -1,3 +1,4 @@
+<!-- Purpose: Aggregate and triage all unaddressed review comments from pull requests opened in the last 3 days. Why: Provides a single reference for the team to understand outstanding feedback and prioritize follow-up work. Info flow: Collected from GitHub PR review comments → categorized by priority and theme → used to guide next development actions. -->
 # Unaddressed Review Comments Collection
 **Date Collected:** 2026-05-09  
 **Period:** Last 3 days (2026-05-06 to 2026-05-09)
@@ -11,10 +12,12 @@ This document aggregates all unaddressed review comments from pull requests open
 | PR | Title | Comment Count | Status |
 |----|----|---|---|
 | #51 | Migrate +page.svelte to Svelte 5 runes | 1 | Open |
-| #50 | Four quick wins: better error surfacing and runtime safety | 4 | Open |
+| #50 | Four quick wins: better error surfacing and runtime safety | 5 (4 distinct*) | Open |
 | #49 | Add difficult-fixes running list and consolidate ImageGeneration seam runtime | 0 | Draft |
 
 **Total Unaddressed Comments: 5**
+
+_*Comment 1 and Comment 3 address the same underlying issue from different reviewers._
 
 ---
 
@@ -69,7 +72,7 @@ When one autosave throws and a later queued save succeeds, `draftSaveError` rema
 **Issue:**
 When the provider returns invalid text after the retry, this now writes the entire model output to server logs. That output is derived from user evidence/current text and can be large or sensitive, so replacing the bounded preview can leak user submissions and bloat production logs; keep a capped/redacted preview or log a trace identifier instead.
 
-**Status:** Outdated (may be affected by subsequent commits)
+**Status:** Needs verification (subsequent commits may have addressed this)
 
 ---
 
@@ -133,20 +136,20 @@ export const appConfigFaultFixture: AppConfig = appConfigSchema.parse(faultFixtu
 
 ### Comment Themes
 
-1. **State Management Issues (2 comments):** Both P2—draft save error state not being cleared; rebuild specs timing in binding order
-2. **Code Quality & Duplication (1 comment):** JSON validation duplicated across 5 files
-3. **Security & Logging (1 comment):** Provider failure logs leaking user data
+1. **State Management Issues (3 comments):** P2—draft save error state not being cleared (Comments 1 and 3, same root cause); rebuild specs timing in binding order
+2. **Security & Logging (1 comment):** P2—Provider failure logs leaking user data
+3. **Code Quality & Duplication (1 comment):** JSON validation duplicated across 5 files
 4. **Type Safety (1 comment):** appConfigFaultFixture using unsafe cast
 
 ### Prioritization
 
 | Priority | Count | Comments |
 |----------|-------|----------|
-| P2 (High) | 2 | Rebuild specs, clear draft save errors |
-| Medium | 3 | Log bounding, validation duplication, fixture casting |
+| P2 (High) | 3 | Rebuild specs (PR #51 Comment 1), clear draft save errors (PR #50 Comment 1), keep provider failure logs bounded (PR #50 Comment 2) |
+| Medium | 3 | Log bounding verification, validation duplication, fixture casting |
 
 ### Ownership
 
 - **PR #51 (Svelte migration):** Phazzie
-- **PR #50 (Error handling):** Phazzie
+- **PR #50 (Error Handling):** Phazzie
 - **PR #49 (Difficult fixes):** Copilot (draft)
