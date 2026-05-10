@@ -51,7 +51,7 @@ describe('http-client', () => {
 			const mockResponse = {
 				json: () => Promise.reject(new Error('bad json')),
 				ok: true,
-				status: 500
+				status: 200
 			} as unknown as Response;
 
 			vi.stubGlobal(

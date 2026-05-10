@@ -461,7 +461,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 	onDestroy(() => {
 		if (draftTimer) {
-			clearTimeout(draftTimer);
+			globalThis.clearTimeout(draftTimer);
 		}
 	});
 
