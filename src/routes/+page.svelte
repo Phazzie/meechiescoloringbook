@@ -108,7 +108,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		})
 	);
 
-	let previewOutput = $derived(textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT);
+	let previewOutput = $derived(textOutput);
 
 	const buildOwner = (sessionId: string): CreationOwner => ({
 		kind: 'anonymous',
@@ -655,7 +655,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			<div class="preview-head">
 				<div>
 					<p class="eyebrow">Preview</p>
-					<h2>{previewOutput.pageTitle}</h2>
+					<h2>{previewOutput ? previewOutput.pageTitle : 'Your coloring page'}</h2>
 				</div>
 				<img src={activeTheme.image} alt="" />
 			</div>
@@ -668,7 +668,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 						src={imagePreviews[0]}
 						alt="Generated Meechie coloring page"
 					/>
-				{:else}
+				{:else if previewOutput}
 					<div class="paper-empty">
 						<p class="paper-title">{previewOutput.pageTitle}</p>
 						<ol>
@@ -677,6 +677,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 							{/each}
 						</ol>
 						<p class="paper-quote">"{previewOutput.quote}"</p>
+					</div>
+				{:else}
+					<div class="paper-empty paper-idle" data-testid="home-preview-idle">
+						<p class="paper-idle-message">Generate your verdict to see the coloring page preview here.</p>
 					</div>
 				{/if}
 			</div>
