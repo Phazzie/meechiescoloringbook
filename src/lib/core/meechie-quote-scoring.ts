@@ -93,8 +93,15 @@ export const scoreMeechieQuote = (quote: string): MeechieQuoteScoreDetails => {
 	return { quote, totalBeforePenalties, totalPenalty, totalScore, band, subscores, penalties, reasons: [...subscores.map((s) => `${s.key}: ${s.reason}`), ...penalties.map((p) => `${p.key}: ${p.reason}`)] };
 };
 
-export const selectBestMeechieQuote = (quotes: string[]): MeechieQuoteScoreDetails => {
+export const selectBestMeechieQuote = (
+	quotes: string[]
+): MeechieQuoteScoreDetails => {
+	if (quotes.length === 0) {
+		throw new Error('No quotes provided');
+	}
 	const scored = quotes.map((quote) => scoreMeechieQuote(quote));
-	scored.sort((a, b) => b.totalScore - a.totalScore || a.quote.localeCompare(b.quote));
+	scored.sort(
+		(a, b) => b.totalScore - a.totalScore || a.quote.localeCompare(b.quote)
+	);
 	return scored[0];
 };

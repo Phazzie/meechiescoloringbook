@@ -5,6 +5,7 @@ Info flow: Build assets -> cache -> fetch handler.
 */
 /// <reference lib="webworker" />
 import { build, files, version } from '$service-worker';
+// TODO: Route through approved seam adapter per SDD conventions
 
 const CACHE = `cb-cache-${version}`;
 const ASSETS = [...build, ...files];
