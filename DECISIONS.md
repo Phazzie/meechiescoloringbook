@@ -1528,8 +1528,8 @@ Short, durable decisions with context and tradeoffs.
   - Risks: Test environments relying on implicit `process.env` loading may need explicit configurations passed in during instantiation.
 
 - Cipher Gate:
-  - Date: 2026-05-08
-  - Seams: ProviderAdapterSeam
-  - Evidence: docs/evidence/2026-05-08/test.txt; docs/evidence/2026-05-08/verify.txt; docs/evidence/2026-05-08/chamber-lock.json; docs/evidence/2026-05-08/shaolin-lint.json; docs/evidence/2026-05-08/assumption-alarm.json; docs/evidence/2026-05-08/seam-ledger.json; docs/evidence/2026-05-08/clan-chain.json; docs/evidence/2026-05-08/proof-tape.json; docs/evidence/2026-05-08/cipher-gate.json
-  - Summary: Restored legacy `text` fallback when `message.content` is blank during ProviderAdapterSeam chat normalization and removed redundant contract test helpers/cleanup while keeping boundary Zod validation.
-  - Risks: If the provider returns both `message.content` and legacy `text` with conflicting data, we now prefer the first non-blank field, which could differ from upstream provider expectations.
+    Date: 2026-05-10
+    Seams: ProviderAdapterSeam
+    Evidence: pending — verify pipeline requires XAI_API_KEY not available in this environment
+    Summary: Added Zod validation (XAIChatResponseSchema, XAIImageResponseSchema) at xAI provider boundary. Returns PROVIDER_INVALID_RESPONSE for structurally invalid payloads. Applied .nullish() to optional fields to handle null returns from API.
+    Risks: Cannot produce live probe evidence without XAI_API_KEY.

@@ -313,6 +313,7 @@ describe('ProviderAdapterSeam normalization — malformed raw responses', () => 
 		adapter = createProviderAdapter({ apiKey: 'test-key', baseUrl: 'https://api.x.ai' });
 	});
 
+	// Note: no createProviderAdapterMock counterpart exists here. The formal mock operates above the HTTP layer and cannot simulate parse-level failures. Inline vi.stubGlobal stubs serve as the mock boundary for these tests.
 	it('chat: returns PROVIDER_INVALID_RESPONSE when payload is a bare string', async () => {
 		vi.stubGlobal('fetch', async () => jsonResponse('"unexpected string"'));
 		const result = await adapter.createChatCompletion(sampleFixture.input.chat);
