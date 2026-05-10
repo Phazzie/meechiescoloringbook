@@ -680,7 +680,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					</div>
 				{:else}
 					<div class="paper-empty paper-idle" data-testid="home-preview-idle">
-						<p class="paper-idle-message">Generate your verdict to see the coloring page preview here.</p>
+						<img src="/meechie/demo-coloring-page.png" alt="Example Meechie coloring page" style="width: 100%; border-radius: 8px;" />
+						<p class="demo-caption">✨ Example page — generate yours above</p>
 					</div>
 				{/if}
 			</div>
@@ -1255,6 +1256,13 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		text-align: center;
 		border: 3px solid #111;
 		padding: 1rem;
+	}
+
+	.demo-caption {
+		font-size: 0.75rem;
+		opacity: 0.6;
+		text-align: center;
+		margin-top: 0.5rem;
 	}
 
 	.paper-title {
