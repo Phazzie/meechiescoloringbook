@@ -5,13 +5,26 @@ import js from '@eslint/js';
 import svelte from 'eslint-plugin-svelte';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
+import typescriptParser from '@typescript-eslint/parser';
 
 export default [
+  {
+    ignores: ['.svelte-kit/**', '.vercel/**', 'docs/evidence/**']
+  },
   js.configs.recommended,
   ...svelte.configs['flat/recommended'],
   prettier,
   {
-    files: ['**/*.{js,mjs,cjs}'],
+    rules: {
+      'no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_'
+      }]
+    }
+  },
+  {
+    files: ['probes/**/*.mjs'],
     languageOptions: {
       globals: {
         ...globals.node
@@ -19,7 +32,7 @@ export default [
     }
   },
   {
-    files: ['**/*.svelte'],
+    files: ['**/*.svelte', '**/*.js', '**/*.ts'],
     languageOptions: {
       globals: {
         ...globals.browser
@@ -27,10 +40,16 @@ export default [
     }
   },
   {
+    files: ['**/*.ts'],
+    languageOptions: {
+      parser: typescriptParser,
+    },
+  },
+  {
     files: ['**/*.svelte'],
     languageOptions: {
       parserOptions: {
-        parser: (await import('@typescript-eslint/parser')).default
+        parser: typescriptParser
       }
     }
   }
