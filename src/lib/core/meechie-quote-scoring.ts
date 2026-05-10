@@ -94,6 +94,9 @@ export const scoreMeechieQuote = (quote: string): MeechieQuoteScoreDetails => {
 };
 
 export const selectBestMeechieQuote = (quotes: string[]): MeechieQuoteScoreDetails => {
+	if (quotes.length === 0) {
+		throw new Error('selectBestMeechieQuote requires at least one quote');
+	}
 	const scored = quotes.map((quote) => scoreMeechieQuote(quote));
 	scored.sort((a, b) => b.totalScore - a.totalScore || a.quote.localeCompare(b.quote));
 	return scored[0];
