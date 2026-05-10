@@ -145,7 +145,7 @@ const extractJson = (text: string): unknown => {
 		return direct;
 	}
 
-	const fencePattern = /```(?:json)?\s*([\s\S]*?)```/gi;
+	const fencePattern = /```(?json)?\s*([\s\S]*?)```/gi;
 	let fenceMatch: RegExpExecArray | null;
 	while ((fenceMatch = fencePattern.exec(text))) {
 		const fenced = parseJsonCandidate(fenceMatch[1].trim());
@@ -157,7 +157,7 @@ const extractJson = (text: string): unknown => {
 	for (
 		let start = text.indexOf('{');
 		start !== -1;
-		start = text.indexOf('{', start + 1)
+		start = text.indexOf('{'), start + 1)
 	) {
 		let depth = 0;
 		let inString = false;
@@ -250,7 +250,7 @@ export const runMeechieStudioTextPipeline = async (
 	const disallowedKeywords = findDisallowedKeywords(parsedInput.data);
 	if (disallowedKeywords.length > 0) {
 		return buildError(
-			400,
+		'400,
 			'DISALLOWED_CONTENT',
 			'Meechie studio text input contains disallowed content.'
 		);
@@ -313,6 +313,18 @@ export const runMeechieStudioTextPipeline = async (
 			providerResult.value.model
 		);
 	}
+	if (!result.ok) {
+		const raw = providerResult.value.content;
+		console.error(
+			'Meechie studio text pipeline failed to extract valid JSON from model output after retry',
+			{
+				model: providerResult.value.model,
+				contentLength: raw.length,
+				content: raw.slice(0, 500) + (raw.length > 500 ? '...[truncated]' : '')
+			}
+		);
+	}
+
 	const parsedResult = MeechieStudioTextResultSchema.safeParse(result);
 	if (!parsedResult.success) {
 		return buildError(

@@ -84,6 +84,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	let isSavingDraft = false;
 	let isSaving = false;
 	let isDraftSavePending = false;
+	let draftSaveError = '';
 	let canGenerateText = true;
 	let canRegenerateText = false;
 	let canMakePrettier = false;
@@ -156,6 +157,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			return;
 		}
 		isSavingDraft = true;
+		draftSaveError = '';
 		try {
 			await creationStoreAdapter.saveDraft({
 				draft: {
@@ -165,8 +167,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					studioText: textOutput ?? undefined
 				}
 			});
+			draftSaveError = '';
 		} catch (error) {
-			console.warn('Draft save failed', error);
+			draftSaveError = error instanceof Error ? error.message : 'Draft save failed';
 		} finally {
 			isSavingDraft = false;
 			if (isDraftSavePending) {
@@ -465,7 +468,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 	});
 
-		onMount(async () => {
+	onMount(async () => {
 		isBrowser = true;
 		const sessionResult = await sessionAdapter.getSession();
 		if (sessionResult.ok) {
@@ -633,6 +636,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				</button>
 			</div>
 
+			{#if draftSaveError}
+				<p class="error" data-testid="home-draft-save-error">Draft not saved: {draftSaveError}</p>
+			{/if}
 			{#if textError}
 				<p class="error" data-testid="home-text-error">{textError}</p>
 			{/if}
