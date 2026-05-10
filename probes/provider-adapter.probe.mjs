@@ -49,7 +49,8 @@ const readJson = async (response) => {
 	}
 	try {
 		return { ok: true, value: JSON.parse(text), raw: text };
-	} catch {
+	} catch (e) {
+		console.error('readJson: failed to parse response body', e);
 		return { ok: false, value: null, raw: text };
 	}
 };
@@ -113,139 +114,132 @@ const writeFixture = async (name, value) => {
 };
 
 const run = async () => {
-	await loadEnvFile();
-	const apiKey = requireEnv('XAI_API_KEY');
-	const baseUrl = process.env.XAI_BASE_URL || 'https://api.x.ai';
+    await loadEnvFile();
+    const apiKey = requireEnv('XAI_API_KEY');
+    const baseUrl = process.env.XAI_BASE_URL || 'https://api.x.ai';
 
-	const chatInput = {
-		model: 'grok-4-1-fast-reasoning',
-		messages: [
-			{ role: 'system', content: 'Reply with the word OK.' },
-			{ role: 'user', content: 'Hello' }
-		]
-	};
-	const imageInput = {
-		model: 'grok-imagine-image',
-		prompt: 'A black-and-white coloring book page with clean outlines.',
-		n: 1,
-		responseFormat: 'b64_json'
-	};
+    const chatInput = {
+        model: 'grok-4-1-fast-reasoning',
+        messages: [
+            { role: 'system', content: 'Reply with the word OK.' },
+            { role: 'user', content: 'Hello' }
+        ]
+    };
+    const imageInput = {
+        model: 'grok-imagine-image',
+        prompt: 'A black-and-white coloring book page with clean outlines.',
+        n: 1,
+        responseFormat: 'b64_json'
+    };
 
-	const chatResponse = await fetch(`${baseUrl}/v1/chat/completions`, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${apiKey}`,
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({
-			model: chatInput.model,
-			messages: chatInput.messages
-		})
-	});
-	const chatPayload = await readJson(chatResponse);
-	const chatOutput = chatResponse.ok
-		? normalizeChatOutput(chatPayload.value, chatInput.model)
-		: buildError(chatResponse, chatPayload.value);
-
-	const imageResponse = await fetch(`${baseUrl}/v1/images/generations`, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${apiKey}`,
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({
-			model: imageInput.model,
-			prompt: imageInput.prompt,
-			n: imageInput.n,
-			response_format: imageInput.responseFormat
-		})
-	});
-	const imagePayload = await readJson(imageResponse);
-	const imageOutput = imageResponse.ok
-		? normalizeImageOutput(imagePayload.value)
-		: buildError(imageResponse, imagePayload.value);
-
-	await writeFixture('sample.json', {
-		scenario: 'sample',
-		input: {
-			chat: chatInput,
-			image: imageInput
-		},
-		output: {
-			chat: chatOutput,
-			image: imageOutput
-		}
-	});
-
-	const faultChatInput = {
-		...chatInput,
-		model: 'grok-4-1-fast-reasoning-bad'
-	};
-	const faultImageInput = {
-		...imageInput,
-		model: 'grok-imagine-image-bad'
-	};
-
-	const faultChatResponse = await fetch(`${baseUrl}/v1/chat/completions`, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${apiKey}`,
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({
-			model: faultChatInput.model,
-			messages: faultChatInput.messages
-		})
-	});
-	const faultChatPayload = await readJson(faultChatResponse);
-	const faultChatOutput = faultChatResponse.ok
-		? normalizeChatOutput(faultChatPayload.value, faultChatInput.model)
-		: buildError(faultChatResponse, faultChatPayload.value);
-
-	const faultImageResponse = await fetch(`${baseUrl}/v1/images/generations`, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${apiKey}`,
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({
-			model: faultImageInput.model,
-			prompt: faultImageInput.prompt,
-			n: faultImageInput.n,
-			response_format: faultImageInput.responseFormat
-		})
-	});
-	const faultImagePayload = await readJson(faultImageResponse);
-	const faultImageOutput = faultImageResponse.ok
-		? normalizeImageOutput(faultImagePayload.value)
-		: buildError(faultImageResponse, faultImagePayload.value);
-
-	await writeFixture('fault.json', {
-		scenario: 'fault',
-		input: {
-			chat: faultChatInput,
-			image: faultImageInput
-		},
-		output: {
-			chat: faultChatOutput,
-			image: faultImageOutput
-		}
-	});
-
-	const sampleContentLength =
-		chatOutput.ok && typeof chatOutput.value.content === 'string'
-			? chatOutput.value.content.length
-			: 0;
-	const imageLength =
-		imageOutput.ok && imageOutput.value.images[0]?.b64_json
-			? imageOutput.value.images[0].b64_json.length
-			: 0;
-	console.log(`Provider probe complete. Chat content length: ${sampleContentLength}.`);
-	console.log(`Image base64 length: ${imageLength}.`);
+    const chatResponse = await fetch(`${baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: chatInput.model,
+            messages: chatInput.messages
+        })
+    });
+    const chatPayload = await readJson(chatResponse);
+    const chatOutput = chatResponse.ok
+        ? normalizeChatOutput(chatPayload.value, chatInput.model)
+        : buildError(chatResponse, chatPayload.value);
+    const imageResponse = await fetch(`${baseUrl}/v1/images/generations`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: imageInput.model,
+            prompt: imageInput.prompt,
+            n: imageInput.n,
+            response_format: imageInput.responseFormat
+        })
+    });
+    const imagePayload = await readJson(imageResponse);
+    const imageOutput = imageResponse.ok
+        ? normalizeImageOutput(imagePayload.value)
+        : buildError(imageResponse, imagePayload.value);
+    await writeFixture('sample.json', {
+        scenario: 'sample',
+        input: {
+            chat: chatInput,
+            image: imageInput
+        },
+        output: {
+            chat: chatOutput,
+            image: imageOutput
+        }
+    });
+    const faultChatInput = {
+        ...chatInput,
+        model: 'grok-4-1-fast-reasoning-bad'
+    };
+    const faultImageInput = {
+        ...imageInput,
+        model: 'grok-imagine-image-bad'
+    };
+    const faultChatResponse = await fetch(`${baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: faultChatInput.model,
+            messages: faultChatInput.messages
+        })
+    });
+    const faultChatPayload = await readJson(faultChatResponse);
+    const faultChatOutput = faultChatResponse.ok
+        ? normalizeChatOutput(faultChatPayload.value, faultChatInput.model)
+        : buildError(faultChatResponse, faultChatPayload.value);
+    const faultImageResponse = await fetch(`${baseUrl}/v1/images/generations`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: faultImageInput.model,
+            prompt: faultImageInput.prompt,
+            n: faultImageInput.n,
+            response_format: faultImageInput.responseFormat
+        })
+    });
+    const faultImagePayload = await readJson(faultImageResponse);
+    const faultImageOutput = faultImageResponse.ok
+        ? normalizeImageOutput(faultImagePayload.value)
+        : buildError(faultImageResponse, faultImagePayload.value);
+    await writeFixture('fault.json', {
+        scenario: 'fault',
+        input: {
+            chat: faultChatInput,
+            image: faultImageInput
+        },
+        output: {
+            chat: faultChatOutput,
+            image: faultImageOutput
+        }
+    });
+    const sampleContentLength =
+        chatOutput.ok && typeof chatOutput.value.content === 'string'
+            ? chatOutput.value.content.length
+            : 0;
+    const imageLength =
+        imageOutput.ok && imageOutput.value.images[0]?.b64_json
+            ? imageOutput.value.images[0].b64_json.length
+            : 0;
+    console.log(`Provider probe complete. Chat content length: ${sampleContentLength}.`);
+    console.log(`Image base64 length: ${imageLength}.`);
 };
 
 run().catch((error) => {
 	console.error('Provider probe failed.');
-	console.error(error?.message || error);
+console.error(error?.message || error);
 	process.exit(1);
 });
