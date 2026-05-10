@@ -4,7 +4,7 @@ Why: Generate AI-backed Meechie wording and printable coloring pages with cost-a
 Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/store seams.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
@@ -459,7 +459,13 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		return '';
 	});
 
-	onMount(async () => {
+	onDestroy(() => {
+		if (draftTimer) {
+			globalThis.clearTimeout(draftTimer);
+		}
+	});
+
+		onMount(async () => {
 		isBrowser = true;
 		const sessionResult = await sessionAdapter.getSession();
 		if (sessionResult.ok) {
