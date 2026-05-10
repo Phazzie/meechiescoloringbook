@@ -1,3 +1,6 @@
+// Purpose: Verify parity between Meechie tool definitions and their implementations.
+// Why: Prevents tool definitions from drifting out of sync with available tools.
+// Info flow: Tool registry -> parity assertions -> test pass/fail.
 import { describe, expect, it } from 'vitest';
 import { MeechieToolIdSchema } from '../../contracts/meechie-tool.contract';
 import { readFileSync } from 'fs';
