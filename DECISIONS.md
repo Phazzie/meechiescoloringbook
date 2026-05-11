@@ -7,6 +7,40 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-05-11 — Wig Try-On Feature: Seam-Driven Development Architecture
+
+**Context**: Add a wig try-on feature integrated into the coloring book experience. Users browse a static affiliate wig catalog, upload a selfie, and receive an AI-illustrated portrait showing themselves wearing the selected wig. The portrait style matches the coloring-book aesthetic.
+
+**Decision**: Build two new seams following Seam-Driven Development conventions — WigCatalogSeam (reads static data, no I/O) and WigTryOnSeam (calls Gemini 2.0 Flash image generation API). One new API route `/api/wig-try-on` orchestrated by `wig-try-on-pipeline.ts`. UI integrated into `+page.svelte` as a new "Style Your Look" section below the workbench.
+
+**Rationale**:
+- WigCatalogSeam is pure (static JSON import) — no external I/O, instant, testable
+- WigTryOnSeam uses Gemini 2.0 Flash (`gemini-2.0-flash-preview-image-generation`) because: (a) existing `GEMINI_API_KEY` in env, (b) model accepts multi-image input (selfie + product photo) and generates illustrated output, (c) ~$0.04–0.06/call competitive with alternatives, (d) illustrated style pairs naturally with the downstream Grok coloring-page step
+- Affiliate-first monetization: catalog links to Beautyforever, Wigsbuy, Luvmehair with UTM tracking. Zero inventory, zero fulfillment, live immediately
+- `geminiApiKey` added to `AppConfigSeam` with `z.string().default('')` (not `min(1)`) so existing deployments without `GEMINI_API_KEY` set do not fail at startup — the error surfaces at runtime as `WIG_TRY_ON_CONFIG_ERROR`
+- Try-on is optional — if user does not select a wig, the generate flow is unchanged. If a wig is selected, its name/style is appended to `currentStyleHint()` to influence the coloring-page prompt
+
+**Files added**:
+- `src/lib/data/wigs.json` — static catalog (8 wigs, 3 affiliate programs)
+- `src/lib/seams/wig-catalog-seam/` — contract / fixtures / mock / probe / test / validators
+- `src/lib/seams/wig-try-on-seam/` — contract / fixtures / mock / probe / test / validators
+- `src/lib/adapters/wig-catalog-seam/index.ts` — reads wigs.json, per-request instantiation
+- `src/lib/adapters/wig-try-on-seam/index.ts` — Gemini multi-image API, per-request instantiation
+- `src/lib/core/wig-try-on-pipeline.ts` — orchestrates catalog lookup + image fetch + Gemini call
+- `src/routes/api/wig-try-on/+server.ts` — thin handler, injects seams per request
+- `src/lib/components/WigCarousel.svelte` — horizontal scrollable wig picker with affiliate links
+- `src/lib/components/SelfieUpload.svelte` — file input with base64 conversion and preview
+- `contracts/wig-try-on.contract.ts` — API request/response schema
+
+**Files modified**:
+- `src/lib/seams/app-config-seam/contract.ts` — added `geminiApiKey: string`, `geminiBaseUrl: string`
+- `src/lib/seams/app-config-seam/validators.ts` — added schema fields with safe defaults
+- `src/lib/adapters/app-config-seam/index.ts` — reads `GEMINI_API_KEY` and `GEMINI_BASE_URL` from env
+- `src/routes/+page.svelte` — added wig try-on section, state, `handleWigTryOn()`, wig-influenced `currentStyleHint()`
+
+**Environment variable required**: `GEMINI_API_KEY` — add to Vercel project settings and `.env.example`
+
+
 ## 2026-05-10 - Fix ImageGenerationSeam dual-system mismatch
 - Date: 2026-05-10
 - Decision: Add `Result<>` return type to `ImageGenerationSeam`, wire adapter into pipeline, and fix broken import path, null safety on `payload.data`, and separate validation vs config error codes.
