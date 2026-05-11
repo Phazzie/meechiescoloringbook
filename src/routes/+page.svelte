@@ -1,7 +1,8 @@
 <!--
-Purpose: Main Meechie coloring-page studio.
-Why: Generate AI-backed Meechie wording and printable coloring pages with cost-aware controls.
+Purpose: Main Meechie coloring-page studio with wig try-on.
+Why: Generate AI-backed Meechie wording, printable coloring pages, and wig try-on portraits.
 Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/store seams.
+           Wig selection + selfie -> /api/wig-try-on -> Gemini portrait -> coloring page.
 -->
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
@@ -25,6 +26,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	} from '$lib/core/meechie-studio';
 	import { postJson } from '$lib/core/http-client';
 	import { GenerateResultSchema } from '../../contracts/generate.contract';
+	import { WigTryOnResultSchema } from '../../contracts/wig-try-on.contract';
 	import {
 		MeechieStudioTextResultSchema,
 		type MeechieStudioTextOutput,
@@ -44,6 +46,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		ColoringPageSpec,
 		SpecValidationOutput
 	} from '../../contracts/spec-validation.contract';
+	import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
+	import WigCarousel from '$lib/components/WigCarousel.svelte';
+	import SelfieUpload from '$lib/components/SelfieUpload.svelte';
 
 	type PageSize = ColoringPageSpec['pageSize'];
 	type BorderChoice = ColoringPageSpec['border'];
@@ -79,6 +84,15 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	let packagedFiles = $state<PackagedFile[]>([]);
 	let creations = $state<CreationRecord[]>([]);
 	let isSaving = $state(false);
+
+	// --- Wig try-on state ---
+	let selectedWigId = $state<string | null>(null);
+	let selectedWig = $state<Wig | null>(null);
+	let selfieBase64 = $state('');
+	let selfieMimeType = $state<'image/jpeg' | 'image/png' | 'image/webp'>('image/jpeg');
+	let isTryingOn = $state(false);
+	let tryOnPortraitUrl = $state('');
+	let tryOnError = $state('');
 
 	// --- Non-reactive implementation details ---
 	let owner: CreationOwner | null = null;
@@ -136,7 +150,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 	const currentStyleHint = (): string => {
 		const glitterText = glitter ? ' removable glitter overlay accents' : '';
-		return `${activeTheme.styleHint}; ${voice.intensity}; ${voice.rawness}; ${voice.thirdPerson}${glitterText}`;
+		const wigText = selectedWig
+			? ` featuring ${selectedWig.name} (${selectedWig.style})`
+			: '';
+		return `${activeTheme.styleHint}; ${voice.intensity}; ${voice.rawness}; ${voice.thirdPerson}${glitterText}${wigText}`;
 	};
 
 	const scheduleDraftSave = (): void => {
@@ -337,6 +354,38 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 	};
 
+	const handleWigTryOn = async (): Promise<void> => {
+		if (!selectedWigId || !selfieBase64) {
+			tryOnError = 'Select a wig and upload your selfie first.';
+			return;
+		}
+		tryOnError = '';
+		tryOnPortraitUrl = '';
+		isTryingOn = true;
+		try {
+			const { payload } = await postJson('/api/wig-try-on', {
+				selfieBase64,
+				selfieMimeType,
+				wigId: selectedWigId
+			});
+			const parsed = WigTryOnResultSchema.safeParse(payload);
+			if (!parsed.success) {
+				tryOnError = 'Try-on response did not match contract.';
+				return;
+			}
+			if (!parsed.data.ok) {
+				tryOnError = parsed.data.error.message;
+				return;
+			}
+			tryOnPortraitUrl = `data:${parsed.data.value.portraitMimeType};base64,${parsed.data.value.portraitBase64}`;
+		} catch (error) {
+			tryOnError =
+				error instanceof Error ? error.message : 'Wig try-on failed.';
+		} finally {
+			isTryingOn = false;
+		}
+	};
+
 	const copyQuote = async (): Promise<void> => {
 		if (!textOutput || !isBrowser) {
 			return;
@@ -468,6 +517,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			return '';
 		})
 	);
+
+	let canTryOn = $derived(!!selectedWigId && !!selfieBase64 && !isTryingOn);
 
 	onDestroy(() => {
 		if (draftTimer) {
@@ -837,6 +888,90 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				</label>
 			</div>
 		</details>
+	</section>
+
+	<!-- Wig Try-On Studio -->
+	<section class="wig-studio" aria-label="Wig try-on studio">
+		<div class="wig-studio-head">
+			<p class="eyebrow">Style Your Look</p>
+			<h2>Wig Try-On</h2>
+			<p>Pick a wig, upload your selfie, and let Meechie's AI show you serving.</p>
+		</div>
+
+		<WigCarousel
+			{selectedWigId}
+			onSelect={(wig) => {
+				selectedWigId = wig.id;
+				selectedWig = wig;
+				tryOnPortraitUrl = '';
+				tryOnError = '';
+			}}
+		/>
+
+		{#if selectedWig}
+			<div class="try-on-row">
+				<div class="try-on-controls">
+					<p class="eyebrow">Step 2 — Your Photo</p>
+					<SelfieUpload
+						onUpload={(base64, mimeType) => {
+							selfieBase64 = base64;
+							selfieMimeType = mimeType;
+							tryOnPortraitUrl = '';
+							tryOnError = '';
+						}}
+					/>
+					<button
+						type="button"
+						class="primary try-on-btn"
+						data-testid="home-try-on"
+						onclick={handleWigTryOn}
+						disabled={!canTryOn}
+					>
+						{isTryingOn ? 'AI is styling...' : `Try On — ${selectedWig.name}`}
+					</button>
+					{#if tryOnError}
+						<p class="error" data-testid="home-try-on-error">{tryOnError}</p>
+					{/if}
+					<a
+						href={selectedWig.affiliateUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="button-link affiliate-link"
+					>
+						Shop {selectedWig.name} — ${selectedWig.priceUsd.toFixed(2)} ↗
+					</a>
+				</div>
+
+				{#if tryOnPortraitUrl}
+					<div class="try-on-result">
+						<p class="eyebrow">Your Try-On Portrait</p>
+						<img
+							src={tryOnPortraitUrl}
+							alt={`AI illustration of you wearing ${selectedWig.name}`}
+							class="try-on-portrait"
+							data-testid="home-try-on-portrait"
+						/>
+						<div class="try-on-result-actions">
+							<a
+								class="button-link"
+								href={tryOnPortraitUrl}
+								download={`meechie-try-on-${selectedWig.id}.png`}
+							>
+								Save Portrait
+							</a>
+							<button
+								type="button"
+								class="primary"
+								onclick={handleGeneratePage}
+								disabled={!textOutput || isGenerating}
+							>
+								{isGenerating ? 'Creating...' : 'Make It a Coloring Page'}
+							</button>
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</section>
 
 	<section class="verdict-row">
@@ -1320,6 +1455,76 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		margin: 0;
 	}
 
+	/* Wig Try-On Studio */
+	.wig-studio {
+		margin: 1.5rem 0;
+		padding: 1.25rem;
+		border: 1px solid rgba(255, 20, 147, 0.28);
+		border-radius: 8px;
+		background: rgba(22, 20, 42, 0.92);
+	}
+
+	.wig-studio-head {
+		margin-bottom: 1rem;
+	}
+
+	.wig-studio-head h2 {
+		background: linear-gradient(90deg, #ff1493, #8b16c2);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
+	}
+
+	.try-on-row {
+		display: grid;
+		grid-template-columns: 280px 1fr;
+		gap: 1.5rem;
+		margin-top: 1.25rem;
+		align-items: start;
+	}
+
+	.try-on-controls {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.try-on-btn {
+		width: 100%;
+	}
+
+	.affiliate-link {
+		display: block;
+		text-align: center;
+		border-color: rgba(255, 20, 147, 0.4);
+		color: #ff1493;
+	}
+
+	.affiliate-link:hover {
+		background: rgba(255, 20, 147, 0.1);
+	}
+
+	.try-on-result {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.try-on-portrait {
+		width: 100%;
+		max-width: 420px;
+		border-radius: 8px;
+		border: 2px solid rgba(255, 20, 147, 0.3);
+		box-shadow: 0 8px 32px rgba(255, 20, 147, 0.2);
+	}
+
+	.try-on-result-actions {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	/* Verdict + Vault */
 	.verdict-row {
 		display: grid;
 		grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
@@ -1394,6 +1599,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		.theme-grid,
 		.toggle {
 			grid-column: 1 / -1;
+		}
+
+		.try-on-row {
+			grid-template-columns: 1fr;
 		}
 	}
 
