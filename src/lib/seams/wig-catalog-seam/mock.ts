@@ -1,18 +1,17 @@
 // Purpose: Mock WigCatalogSeam behavior using fixtures.
 // Why: Keep tests deterministic without filesystem reads.
 // Info flow: tests -> mock -> fixtures.
-import type { Wig, WigCatalogSeam } from './contract';
+import type { Wig, WigCatalogError, WigCatalogSeam } from './contract';
 import type { Result } from '../../../../contracts/shared.contract';
 import {
   sampleWigCatalogFixture,
-  wigCatalogLoadFailedFixture,
-  wigNotFoundFixture
+  wigCatalogLoadFailedFixture
 } from './fixtures';
 
 export const createMockWigCatalogSeam = (
   scenario: 'sample' | 'empty' | 'load_failed' = 'sample'
 ): WigCatalogSeam => ({
-  listWigs: async (): Promise<Result<Wig[], typeof wigCatalogLoadFailedFixture>> => {
+  listWigs: async (): Promise<Result<Wig[], WigCatalogError>> => {
     if (scenario === 'load_failed') {
       return { ok: false, error: wigCatalogLoadFailedFixture };
     }
@@ -22,7 +21,7 @@ export const createMockWigCatalogSeam = (
     return { ok: true, value: sampleWigCatalogFixture };
   },
 
-  getWigById: async (id: string): Promise<Result<Wig, typeof wigNotFoundFixture>> => {
+  getWigById: async (id: string): Promise<Result<Wig, WigCatalogError>> => {
     if (scenario === 'load_failed') {
       return { ok: false, error: wigCatalogLoadFailedFixture };
     }

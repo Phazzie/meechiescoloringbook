@@ -4,7 +4,8 @@
 import type {
 	WigTryOnRequest,
 	WigTryOnResult,
-	WigTryOnSeam
+	WigTryOnSeam,
+	WigTryOnError
 } from '../../seams/wig-try-on-seam/contract';
 import type { Result } from '../../../../contracts/shared.contract';
 import { validateWigTryOnRequest } from '../../seams/wig-try-on-seam/validators';
@@ -32,23 +33,24 @@ type GeminiResponse = {
 };
 
 const errorResult = (
-	code: string,
-	message: string,
-	details?: Record<string, string>
-): Result<WigTryOnResult, { code: string; message: string; details?: Record<string, string> }> => ({
+	error: WigTryOnError
+): Result<WigTryOnResult, WigTryOnError> => ({
 	ok: false,
-	error: { code, message, ...(details ? { details } : {}) }
+	error
 });
 
 export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => ({
 	tryOn: async (
 		request: WigTryOnRequest
-	): Promise<Result<WigTryOnResult, { code: string; message: string; details?: Record<string, string> }>> => {
+	): Promise<Result<WigTryOnResult, WigTryOnError>> => {
 		let validated: WigTryOnRequest;
 		try {
 			validated = validateWigTryOnRequest(request);
 		} catch {
-			return errorResult('WIG_TRY_ON_VALIDATION_ERROR', 'Wig try-on request failed validation.');
+			return errorResult({
+				code: 'WIG_TRY_ON_VALIDATION_ERROR',
+				message: 'Wig try-on request failed validation.'
+			});
 		}
 
 		let apiKey: string;
@@ -56,17 +58,17 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 			const config = configSeam.getConfig();
 			apiKey = config.geminiApiKey;
 		} catch {
-			return errorResult(
-				'WIG_TRY_ON_CONFIG_ERROR',
-				'Gemini configuration is invalid. Ensure GEMINI_API_KEY is set.'
-			);
+			return errorResult({
+				code: 'WIG_TRY_ON_CONFIG_ERROR',
+				message: 'Gemini configuration is invalid. Ensure GEMINI_API_KEY is set.'
+			});
 		}
 
 		if (!apiKey) {
-			return errorResult(
-				'WIG_TRY_ON_CONFIG_ERROR',
-				'GEMINI_API_KEY is not configured. The wig try-on feature requires a Gemini API key.'
-			);
+			return errorResult({
+				code: 'WIG_TRY_ON_CONFIG_ERROR',
+				message: 'GEMINI_API_KEY is not configured. The wig try-on feature requires a Gemini API key.'
+			});
 		}
 
 		const model = 'gemini-2.5-flash-image';
@@ -107,26 +109,29 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 				body: JSON.stringify(requestBody)
 			});
 		} catch (error) {
-			return errorResult(
-				'WIG_TRY_ON_NETWORK_ERROR',
-				error instanceof Error ? error.message : 'Gemini API network request failed.'
-			);
+			return errorResult({
+				code: 'WIG_TRY_ON_NETWORK_ERROR',
+				message: error instanceof Error ? error.message : 'Gemini API network request failed.'
+			});
 		}
 
 		if (!response.ok) {
 			const text = await response.text().catch(() => '');
-			return errorResult(
-				'WIG_TRY_ON_HTTP_ERROR',
-				`Gemini API returned ${response.status}${text ? `: ${text.slice(0, 200)}` : ''}`,
-				{ status: String(response.status) }
-			);
+			return errorResult({
+				code: 'WIG_TRY_ON_HTTP_ERROR',
+				message: `Gemini API returned ${response.status}${text ? `: ${text.slice(0, 200)}` : ''}`,
+				details: { status: String(response.status) }
+			});
 		}
 
 		let geminiResponse: GeminiResponse;
 		try {
 			geminiResponse = (await response.json()) as GeminiResponse;
 		} catch {
-			return errorResult('WIG_TRY_ON_PARSE_ERROR', 'Failed to parse Gemini API response.');
+			return errorResult({
+				code: 'WIG_TRY_ON_PARSE_ERROR',
+				message: 'Failed to parse Gemini API response.'
+			});
 		}
 
 		const parts = geminiResponse.candidates?.[0]?.content?.parts ?? [];
@@ -136,10 +141,10 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 		);
 
 		if (!imagePart) {
-			return errorResult(
-				'WIG_TRY_ON_EMPTY_RESPONSE',
-				'Gemini returned no image in the response.'
-			);
+			return errorResult({
+				code: 'WIG_TRY_ON_EMPTY_RESPONSE',
+				message: 'Gemini returned no image in the response.'
+			});
 		}
 
 		return {
