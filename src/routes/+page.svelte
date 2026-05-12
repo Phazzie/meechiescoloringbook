@@ -589,14 +589,14 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	</section>
 
 	<section class="mode-strip" aria-label="Choose a Meechie mode">
-		{#each weeklyModes as mode}
+		{#each weeklyModes as mode, i}
 			<button
 				type="button"
 				class="mode-card"
 				class:active={activeModeId === mode.id}
 				class:featured={mode.id === monthlyModeId}
 				data-testid={`home-mode-${mode.id}`}
-				style={`--mode-color: ${mode.themeColor}; --mode-image: url('${mode.image}')`}
+				style={`--mode-color: ${mode.themeColor}; --mode-image: url('${mode.image}'); --card-index: ${i}`}
 				onclick={() => {
 					activeModeId = mode.id;
 					textError = '';
@@ -1134,9 +1134,20 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		color: var(--lavender);
 	}
 
+	@keyframes mode-card-in {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
 	.mode-strip {
 		display: grid;
-		grid-template-columns: repeat(8, minmax(124px, 1fr));
+		grid-template-columns: repeat(3, 1fr);
 		gap: 0.65rem;
 		margin: 1rem 0;
 	}
@@ -1159,6 +1170,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		justify-content: flex-end;
 		gap: 0.4rem;
 		text-align: left;
+		animation: mode-card-in 0.38s ease both;
+		animation-delay: calc(var(--card-index, 0) * 90ms);
 	}
 
 	.mode-card.active,
@@ -1608,10 +1621,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	}
 
 	@media (max-width: 1100px) {
-		.mode-strip {
-			grid-template-columns: repeat(4, 1fr);
-		}
-
 		.workbench {
 			grid-template-columns: 1fr;
 		}
@@ -1647,7 +1656,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 
 		.mode-strip {
-			grid-template-columns: repeat(2, 1fr);
+			grid-template-columns: repeat(3, 1fr);
+		}
+
+		.mode-card {
+			min-height: 130px;
 		}
 
 		.verdict-row,
@@ -1658,6 +1671,39 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 		.paper {
 			min-height: 360px;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.hero {
+			grid-template-columns: 1fr;
+			background-image: linear-gradient(rgba(7, 7, 15, 0.82), rgba(7, 7, 15, 0.82)),
+				url('/meechie/meechie-banner.png') !important;
+			background-position: center !important;
+			min-height: 260px;
+		}
+
+		.mode-strip {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+
+		.mode-card {
+			min-height: 110px;
+			padding: 0.6rem;
+		}
+
+		.mode-icon {
+			width: 22px;
+			height: 22px;
+			font-size: 0.7rem;
+		}
+
+		.mode-help {
+			display: none;
+		}
+
+		.try-on-row {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>
