@@ -1,1 +1,154 @@
-Ly8gUHVycG9zZTogSW1wbGVtZW50IFdpZ1RyeU9uU2VhbSB3aXRoIGxpdmUgR2VtaW5pIDIuNSBGbGFzaCBJbWFnZSBBUEkgY2FsbHMuCi8vIFdoeTogSXNvbGF0ZSBHZW1pbmkgQVBJIEkvTyBiZWhpbmQgdGhlIHNlYW0gY29udHJhY3Qgc28gdGVzdHMgY2FuIHN3YXAgaW4gYSBtb2NrLgovLyBJbmZvIGZsb3c6IHZhbGlkYXRlZCBzZWxmaWUgKyB3aWcgYmFzZTY0IC0+IGdlbWluaS0yLjUtZmxhc2gtaW1hZ2UgZ2VuZXJhdGVDb250ZW50IC0+IHBvcnRyYWl0IGJhc2U2NCBSZXN1bHQuCmltcG9ydCB0eXBlIHsKCVdpZ1RyeU9uUmVxdWVzdCwKCVdpZ1RyeU9uUmVzdWx0LAoJV2lnVHJ5T25TZWFtCn0gZnJvbSAnLi4vLi4vc2VhbXMvd2lnLXRyeS1vbi1zZWFtL2NvbnRyYWN0JzsKaW1wb3J0IHR5cGUgeyBSZXN1bHQgfSBmcm9tICcuLi8uLi8uLi8uLi9jb250cmFjdHMvc2hhcmVkLmNvbnRyYWN0JzsKaW1wb3J0IHsgdmFsaWRhdGVXaWdUcnlPblJlcXVlc3QgfSBmcm9tICcuLi8uLi9zZWFtcy93aWctdHJ5LW9uLXNlYW0vdmFsaWRhdG9ycyc7CmltcG9ydCB0eXBlIHsgQXBwQ29uZmlnU2VhbSB9IGZyb20gJy4uLy4uL3NlYW1zL2FwcC1jb25maWctc2VhbS9jb250cmFjdCc7Cgpjb25zdCBXSUdfVFJZX09OX1BST01QVCA9IFsKCSdZb3UgYXJlIGFuIEFJIGFydGlzdC4gVXNpbmcgdGhlIGZpcnN0IGltYWdlIChhIHNlbGZpZSkgYW5kIHRoZSBzZWNvbmQgaW1hZ2UgKGEgd2lnIHByb2R1Y3QgcGhvdG8pLCcsCgknY3JlYXRlIGEgZ2xhbW9yb3VzIGlsbHVzdHJhdGVkIHBvcnRyYWl0IG9mIHRoZSBwZXJzb24gd2VhcmluZyB0aGF0IHdpZy4nLAoJJ1N0eWxlOiBib2xkIGNvbG9yaW5nIGJvb2sgbGluZSBhcnQg4oCUIGNsZWFuIG91dGxpbmVzLCBtaW5pbWFsIGZpbGwsIGhpZ2ggY29udHJhc3QgYmxhY2sgYW5kIHdoaXRlLCcsCgknd2l0aCB0aGUgd2lnIHJlbmRlcmVkIGluIHRoZSBzYW1lIHN0eWxlIGFzIHNob3duIGluIHRoZSBwcm9kdWN0IHBob3RvLicsCgknVGhlIGZhY2Ugc2hvdWxkIGJlIGZsYXR0ZXJpbmcgYW5kIHJlY29nbml6YWJsZS4gVGhlIHdpZyBzaG91bGQgc2l0IG5hdHVyYWxseSBvbiB0aGUgaGVhZC4nLAoJJ091dHB1dCBhIHNpbmdsZSBwb3J0cmFpdCBpbGx1c3RyYXRpb24gb25seSDigJQgbm8gYmFja2dyb3VuZCB0ZXh0IG9yIGxhYmVscy4nCl0uam9pbignICcpOwoKdHlwZSBHZW1pbmlQYXJ0ID0KCXwgeyB0ZXh0OiBzdHJpbmcgfQoJfCB7IGlubGluZV9kYXRhOiB7IG1pbWVfdHlwZTogc3RyaW5nOyBkYXRhOiBzdHJpbmcgfSB9OwoKdHlwZSBHZW1pbmlSZXNwb25zZSA9IHsKCWNhbmRpZGF0ZXM/OiBBcnJheTx7CgkJY29udGVudD86IHsKCQkJcGFydHM/OiBHZW1pbmlQYXJ0W107CgkJfTsKCX0+Owp9OwoKY29uc3QgZXJyb3JSZXN1bHQgPSAoCgljb2RlOiBzdHJpbmcsCgltZXNzYWdlOiBzdHJpbmcsCglkZXRhaWxzPzogUmVjb3JkPHN0cmluZywgc3RyaW5nPgopOiBSZXN1bHQ8V2lnVHJ5T25SZXN1bHQsIHsgY29kZTogc3RyaW5nOyBtZXNzYWdlOiBzdHJpbmc7IGRldGFpbHM/OiBSZWNvcmQ8c3RyaW5nLCBzdHJpbmc+IH0+ID0+ICh7CglvazogZmFsc2UsCgllcnJvcjogeyBjb2RlLCBtZXNzYWdlLCAuLi4oZGV0YWlscyA/IHsgZGV0YWlscyB9IDoge30pIH0KfSk7CgpleHBvcnQgY29uc3QgY3JlYXRlV2lnVHJ5T25TZWFtID0gKGNvbmZpZ1NlYW06IEFwcENvbmZpZ1NlYW0pOiBXaWdUcnlPblNlYW0gPT4gKHsKCXRyeU9uOiBhc3luYyAoCgkJcmVxdWVzdDogV2lnVHJ5T25SZXF1ZXN0CgkpOiBQcm9taXNlPFJlc3VsdDxXaWdUcnlPblJlc3VsdCwgeyBjb2RlOiBzdHJpbmc7IG1lc3NhZ2U6IHN0cmluZzsgZGV0YWlscz86IFJlY29yZDxzdHJpbmcsIHN0cmluZz4gfT4+ID0+IHsKCQlsZXQgdmFsaWRhdGVkOiBXaWdUcnlPblJlcXVlc3Q7CgkJdHJ5IHsKCQkJdmFsaWRhdGVkID0gdmFsaWRhdGVXaWdUcnlPblJlcXVlc3QocmVxdWVzdCk7CgkJfSBjYXRjaCB7CgkJCXJldHVybiBlcnJvclJlc3VsdCgnV0lHX1RSWV9PTl9WQUxJREFUSU9OX0VSUk9SJywgJ1dpZyB0cnktb24gcmVxdWVzdCBmYWlsZWQgdmFsaWRhdGlvbi4nKTsKCQl9CgoJCWxldCBhcGlLZXk6IHN0cmluZzsKCQl0cnkgewoJCQljb25zdCBjb25maWcgPSBjb25maWdTZWFtLmdldENvbmZpZygpOwoJCQlhcGlLZXkgPSBjb25maWcuZ2VtaW5pQXBpS2V5OwoJCX0gY2F0Y2ggewoJCQlyZXR1cm4gZXJyb3JSZXN1bHQoCgkJCQknV0lHX1RSWV9PTl9DT05GSUdfRVJST1InLAoJCQkJJ0dlbWluaSBjb25maWd1cmF0aW9uIGlzIGludmFsaWQuIEVuc3VyZSBHRU1JTklfQVBJX0tFWSBpcyBzZXQuJwoJCQkpOwoJCX0KCgkJaWYgKCFhcGlLZXkpIHsKCQkJcmV0dXJuIGVycm9yUmVzdWx0KAoJCQkJJ1dJR19UUllfT05fQ09ORklHX0VSUk9SJywKCQkJCSdHRU1JTklfQVBJX0tFWSBpcyBub3QgY29uZmlndXJlZC4gVGhlIHdpZyB0cnktb24gZmVhdHVyZSByZXF1aXJlcyBhIEdlbWluaSBBUEkga2V5LicKCQkJKTsKCQl9CgoJCWNvbnN0IG1vZGVsID0gJ2dlbWluaS0yLjUtZmxhc2gtaW1hZ2UnOwoJCWNvbnN0IGVuZHBvaW50ID0gYGh0dHBzOi8vZ2VuZXJhdGl2ZWxhbmd1YWdlLmdvb2dsZWFwaXMuY29tL3YxYmV0YS9tb2RlbHMvJHttb2RlbH06Z2VuZXJhdGVDb250ZW50P2tleT0ke2FwaUtleX1gOwoKCQljb25zdCByZXF1ZXN0Qm9keSA9IHsKCQkJY29udGVudHM6IFsKCQkJCXsKCQkJCQlyb2xlOiAndXNlcicsCgkJCQkJcGFydHM6IFsKCQkJCQkJeyB0ZXh0OiBXSUdfVFJZX09OX1BST01QVCB9LAoJCQkJCQl7CgkJCQkJCQlpbmxpbmVfZGF0YTogewoJCQkJCQkJCW1pbWVfdHlwZTogdmFsaWRhdGVkLnNlbGZpZU1pbWVUeXBlLAoJCQkJCQkJCWRhdGE6IHZhbGlkYXRlZC5zZWxmaWVCYXNlNjQKCQkJCQkJCX0KCQkJCQkJfSwKCQkJCQkJewoJCQkJCQkJaW5saW5lX2RhdGE6IHsKCQkJCQkJCQltaW1lX3R5cGU6IHZhbGlkYXRlZC53aWdJbWFnZU1pbWVUeXBlLAoJCQkJCQkJCWRhdGE6IHZhbGlkYXRlZC53aWdJbWFnZUJhc2U2NAoJCQkJCQkJfQoJCQkJCQl9CgkJCQkJXQoJCQkJfQoJCQldLAoJCQlnZW5lcmF0aW9uQ29uZmlnOiB7CgkJCQlyZXNwb25zZU1vZGFsaXRpZXM6IFsnSU1BR0UnLCAnVEVYVCddCgkJCX0KCQl9OwoKCQljb25zdCBzdGFydCA9IERhdGUubm93KCk7CgkJbGV0IHJlc3BvbnNlOiBSZXNwb25zZTsKCQl0cnkgewoJCQlyZXNwb25zZSA9IGF3YWl0IGZldGNoKGVuZHBvaW50LCB7CgkJCQltZXRob2Q6ICdQT1NUJywKCQkJCWhlYWRlcnM6IHsgJ0NvbnRlbnQtVHlwZSc6ICdhcHBsaWNhdGlvbi9qc29uJyB9LAoJCQkJYm9keTogSlNPTi5zdHJpbmdpZnkocmVxdWVzdEJvZHkpCgkJCX0pOwoJCX0gY2F0Y2ggKGVycm9yKSB7CgkJCXJldHVybiBlcnJvclJlc3VsdCgKCQkJCSdXSUdfVFJZX09OX05FVFdPUktfRVJST1InLAoJCQkJZXJyb3IgaW5zdGFuY2VvZiBFcnJvciA/IGVycm9yLm1lc3NhZ2UgOiAnR2VtaW5pIEFQSSBuZXR3b3JrIHJlcXVlc3QgZmFpbGVkLicKCQkJKTsKCQl9CgoJCWlmICghcmVzcG9uc2Uub2spIHsKCQkJY29uc3QgdGV4dCA9IGF3YWl0IHJlc3BvbnNlLnRleHQoKS5jYXRjaCgoKSA9PiAnJyk7CgkJCXJldHVybiBlcnJvclJlc3VsdCgKCQkJCSdXSUdfVFJZX09OX0hUVFBfRVJST1InLAoJCQkJYEdlbWluaSBBUEkgcmV0dXJuZWQgJHtyZXNwb25zZS5zdGF0dXN9JHt0ZXh0ID8gYDogJHt0ZXh0LnNsaWNlKDAsIDIwMCl9YCA6ICcnfWAsCgkJCQl7IHN0YXR1czogU3RyaW5nKHJlc3BvbnNlLnN0YXR1cykgfQoJCQkpOwoJCX0KCgkJbGV0IGdlbWluaVJlc3BvbnNlOiBHZW1pbmlSZXNwb25zZTsKCQl0cnkgewoJCQlnZW1pbmlSZXNwb25zZSA9IChhd2FpdCByZXNwb25zZS5qc29uKCkpIGFzIEdlbWluaVJlc3BvbnNlOwoJCX0gY2F0Y2ggewoJCQlyZXR1cm4gZXJyb3JSZXN1bHQoJ1dJR19UUllfT05fUEFSU0VfRVJST1InLCAnRmFpbGVkIHRvIHBhcnNlIEdlbWluaSBBUEkgcmVzcG9uc2UuJyk7CgkJfQoKCQljb25zdCBwYXJ0cyA9IGdlbWluaVJlc3BvbnNlLmNhbmRpZGF0ZXM/LlswXT8uY29udGVudD8ucGFydHMgPz8gW107CgkJY29uc3QgaW1hZ2VQYXJ0ID0gcGFydHMuZmluZCgKCQkJKHApOiBwIGlzIHsgaW5saW5lX2RhdGE6IHsgbWltZV90eXBlOiBzdHJpbmc7IGRhdGE6IHN0cmluZyB9IH0gPT4KCQkJCSdpbmxpbmVfZGF0YScgaW4gcCAmJiB0eXBlb2YgcC5pbmxpbmVfZGF0YT8uZGF0YSA9PT0gJ3N0cmluZycKCQkpOwoKCQlpZiAoIWltYWdlUGFydCkgewoJCQlyZXR1cm4gZXJyb3JSZXN1bHQoCgkJCQknV0lHX1RSWV9PTl9FTVBUWV9SRVNQT05TRScsCgkJCQknR2VtaW5pIHJldHVybmVkIG5vIGltYWdlIGluIHRoZSByZXNwb25zZS4nCgkJCSk7CgkJfQoKCQlyZXR1cm4gewoJCQlvazogdHJ1ZSwKCQkJdmFsdWU6IHsKCQkJCXBvcnRyYWl0QmFzZTY0OiBpbWFnZVBhcnQuaW5saW5lX2RhdGEuZGF0YSwKCQkJCXBvcnRyYWl0TWltZVR5cGU6IGltYWdlUGFydC5pbmxpbmVfZGF0YS5taW1lX3R5cGUsCgkJCQl0aW1pbmdNczogRGF0ZS5ub3coKSAtIHN0YXJ0CgkJCX0KCQl9OwoJfQp9KTsK
+// Purpose: Implement WigTryOnSeam with live Gemini 2.5 Flash Image API calls.
+// Why: Isolate Gemini API I/O behind the seam contract so tests can swap in a mock.
+// Info flow: validated selfie + wig base64 -> gemini-2.5-flash-image generateContent -> portrait base64 Result.
+import type {
+	WigTryOnRequest,
+	WigTryOnResult,
+	WigTryOnSeam
+} from '../../seams/wig-try-on-seam/contract';
+import type { Result } from '../../../../contracts/shared.contract';
+import { validateWigTryOnRequest } from '../../seams/wig-try-on-seam/validators';
+import type { AppConfigSeam } from '../../seams/app-config-seam/contract';
+
+const WIG_TRY_ON_PROMPT = [
+	'You are an AI artist. Using the first image (a selfie) and the second image (a wig product photo),',
+	'create a glamorous illustrated portrait of the person wearing that wig.',
+	'Style: bold coloring book line art — clean outlines, minimal fill, high contrast black and white,',
+	'with the wig rendered in the same style as shown in the product photo.',
+	'The face should be flattering and recognizable. The wig should sit naturally on the head.',
+	'Output a single portrait illustration only — no background text or labels.'
+].join(' ');
+
+type GeminiPart =
+	| { text: string }
+	| { inline_data: { mime_type: string; data: string } };
+
+type GeminiResponse = {
+	candidates?: Array<{
+		content?: {
+			parts?: GeminiPart[];
+		};
+	}>;
+};
+
+const errorResult = (
+	code: string,
+	message: string,
+	details?: Record<string, string>
+): Result<WigTryOnResult, { code: string; message: string; details?: Record<string, string> }> => ({
+	ok: false,
+	error: { code, message, ...(details ? { details } : {}) }
+});
+
+export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => ({
+	tryOn: async (
+		request: WigTryOnRequest
+	): Promise<Result<WigTryOnResult, { code: string; message: string; details?: Record<string, string> }>> => {
+		let validated: WigTryOnRequest;
+		try {
+			validated = validateWigTryOnRequest(request);
+		} catch {
+			return errorResult('WIG_TRY_ON_VALIDATION_ERROR', 'Wig try-on request failed validation.');
+		}
+
+		let apiKey: string;
+		try {
+			const config = configSeam.getConfig();
+			apiKey = config.geminiApiKey;
+		} catch {
+			return errorResult(
+				'WIG_TRY_ON_CONFIG_ERROR',
+				'Gemini configuration is invalid. Ensure GEMINI_API_KEY is set.'
+			);
+		}
+
+		if (!apiKey) {
+			return errorResult(
+				'WIG_TRY_ON_CONFIG_ERROR',
+				'GEMINI_API_KEY is not configured. The wig try-on feature requires a Gemini API key.'
+			);
+		}
+
+		const model = 'gemini-2.5-flash-image';
+		const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+		const requestBody = {
+			contents: [
+				{
+					role: 'user',
+					parts: [
+						{ text: WIG_TRY_ON_PROMPT },
+						{
+							inline_data: {
+								mime_type: validated.selfieMimeType,
+								data: validated.selfieBase64
+							}
+						},
+						{
+							inline_data: {
+								mime_type: validated.wigImageMimeType,
+								data: validated.wigImageBase64
+							}
+						}
+					]
+				}
+			],
+			generationConfig: {
+				responseModalities: ['IMAGE', 'TEXT']
+			}
+		};
+
+		const start = Date.now();
+		let response: Response;
+		try {
+			response = await fetch(endpoint, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(requestBody)
+			});
+		} catch (error) {
+			return errorResult(
+				'WIG_TRY_ON_NETWORK_ERROR',
+				error instanceof Error ? error.message : 'Gemini API network request failed.'
+			);
+		}
+
+		if (!response.ok) {
+			const text = await response.text().catch(() => '');
+			return errorResult(
+				'WIG_TRY_ON_HTTP_ERROR',
+				`Gemini API returned ${response.status}${text ? `: ${text.slice(0, 200)}` : ''}`,
+				{ status: String(response.status) }
+			);
+		}
+
+		let geminiResponse: GeminiResponse;
+		try {
+			geminiResponse = (await response.json()) as GeminiResponse;
+		} catch {
+			return errorResult('WIG_TRY_ON_PARSE_ERROR', 'Failed to parse Gemini API response.');
+		}
+
+		const parts = geminiResponse.candidates?.[0]?.content?.parts ?? [];
+		const imagePart = parts.find(
+			(p): p is { inline_data: { mime_type: string; data: string } } =>
+				'inline_data' in p && typeof p.inline_data?.data === 'string'
+		);
+
+		if (!imagePart) {
+			return errorResult(
+				'WIG_TRY_ON_EMPTY_RESPONSE',
+				'Gemini returned no image in the response.'
+			);
+		}
+
+		return {
+			ok: true,
+			value: {
+				portraitBase64: imagePart.inline_data.data,
+				portraitMimeType: imagePart.inline_data.mime_type,
+				timingMs: Date.now() - start
+			}
+		};
+	}
+});
