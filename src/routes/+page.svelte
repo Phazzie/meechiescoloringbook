@@ -20,7 +20,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		canRunStudioAction,
 		consumeStudioActionBudget,
 		getStudioAction,
-		studioModes,
+		getMonthlyMode,
+		getWeeklyModes,
 		studioThemes,
 		type StudioActionId
 	} from '$lib/core/meechie-studio';
@@ -54,7 +55,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	type BorderChoice = ColoringPageSpec['border'];
 
 	// --- Reactive state (template-bound) ---
-	let activeModeId = $state(studioModes[0].id);
+	const weeklyModes = getWeeklyModes();
+	const monthlyModeId = getMonthlyMode().id;
+	let activeModeId = $state(weeklyModes[0].id);
 	let selectedThemeId = $state(studioThemes[0].id);
 	let evidence = $state('');
 	let dedication = $state('');
@@ -103,7 +106,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	let isDraftSavePending = false;
 
 	const getActiveMode = (modeId: string) =>
-		studioModes.find((mode) => mode.id === modeId) ?? studioModes[0];
+		weeklyModes.find((mode) => mode.id === modeId) ?? weeklyModes[0];
 
 	// --- Derived state ---
 	let activeMode = $derived(getActiveMode(activeModeId));
@@ -586,13 +589,14 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	</section>
 
 	<section class="mode-strip" aria-label="Choose a Meechie mode">
-		{#each studioModes as mode}
+		{#each weeklyModes as mode, i}
 			<button
 				type="button"
 				class="mode-card"
 				class:active={activeModeId === mode.id}
+				class:featured={mode.id === monthlyModeId}
 				data-testid={`home-mode-${mode.id}`}
-				style={`--mode-color: ${mode.themeColor}; --mode-image: url('${mode.image}')`}
+				style={`--mode-color: ${mode.themeColor}; --mode-image: url('${mode.image}'); --card-index: ${i}`}
 				onclick={() => {
 					activeModeId = mode.id;
 					textError = '';
@@ -600,6 +604,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					scheduleDraftSave();
 				}}
 			>
+				{#if mode.id === monthlyModeId}
+					<span class="mode-featured-badge">This Month</span>
+				{/if}
 				<span class="mode-icon">{mode.icon}</span>
 				<span class="mode-label">{mode.label}</span>
 				<span class="mode-help">{mode.help}</span>
@@ -608,7 +615,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	</section>
 
 	<nav class="focused-mode-links" aria-label="Open a focused Meechie mode">
-		{#each studioModes as mode}
+		{#each weeklyModes as mode}
 			<a href={`/m/${mode.id}`}>{mode.shortLabel}</a>
 		{/each}
 	</nav>
@@ -893,11 +900,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	<!-- Wig Try-On Studio -->
 	<section class="wig-studio" aria-label="Wig try-on studio">
 		<div class="wig-studio-head">
-			<img
-				src="/meechie/meechie-wig-banner.png"
-				alt="Meechie's Wig Studio — Meechie standing beside a chrome wig rack"
-				class="wig-studio-banner"
-			/>
 			<p class="eyebrow">Style Your Look</p>
 			<h2>Wig Try-On</h2>
 			<p>Pick a wig. Upload your photo. See what you look like walking in.</p>
@@ -1132,9 +1134,20 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		color: var(--lavender);
 	}
 
+	@keyframes mode-card-in {
+		from {
+			opacity: 0;
+			transform: translateY(10px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
 	.mode-strip {
 		display: grid;
-		grid-template-columns: repeat(8, minmax(124px, 1fr));
+		grid-template-columns: repeat(3, 1fr);
 		gap: 0.65rem;
 		margin: 1rem 0;
 	}
@@ -1157,12 +1170,33 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		justify-content: flex-end;
 		gap: 0.4rem;
 		text-align: left;
+		animation: mode-card-in 0.38s ease both;
+		animation-delay: calc(var(--card-index, 0) * 90ms);
 	}
 
 	.mode-card.active,
 	.mode-card:focus-visible {
 		outline: 2px solid var(--mode-color);
 		outline-offset: 2px;
+	}
+
+	.mode-card.featured {
+		position: relative;
+	}
+
+	.mode-featured-badge {
+		position: absolute;
+		top: 0.55rem;
+		right: 0.55rem;
+		font-size: 0.6rem;
+		font-weight: 900;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		background: var(--mode-color);
+		color: #07070f;
+		padding: 0.15rem 0.45rem;
+		border-radius: 4px;
+		line-height: 1.4;
 	}
 
 	.mode-icon {
@@ -1473,16 +1507,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		margin-bottom: 1rem;
 	}
 
-	.wig-studio-banner {
-		width: 100%;
-		height: 240px;
-		object-fit: cover;
-		object-position: center 20%;
-		border-radius: 6px;
-		margin-bottom: 1rem;
-		display: block;
-	}
-
 	.wig-studio-head h2 {
 		background: linear-gradient(90deg, #ff1493, #8b16c2);
 		-webkit-background-clip: text;
@@ -1597,10 +1621,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	}
 
 	@media (max-width: 1100px) {
-		.mode-strip {
-			grid-template-columns: repeat(4, 1fr);
-		}
-
 		.workbench {
 			grid-template-columns: 1fr;
 		}
@@ -1636,7 +1656,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 
 		.mode-strip {
-			grid-template-columns: repeat(2, 1fr);
+			grid-template-columns: repeat(3, 1fr);
+		}
+
+		.mode-card {
+			min-height: 130px;
 		}
 
 		.verdict-row,
@@ -1647,6 +1671,39 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 		.paper {
 			min-height: 360px;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.hero {
+			grid-template-columns: 1fr;
+			background-image: linear-gradient(rgba(7, 7, 15, 0.82), rgba(7, 7, 15, 0.82)),
+				url('/meechie/meechie-banner.png') !important;
+			background-position: center !important;
+			min-height: 260px;
+		}
+
+		.mode-strip {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+
+		.mode-card {
+			min-height: 110px;
+			padding: 0.6rem;
+		}
+
+		.mode-icon {
+			width: 22px;
+			height: 22px;
+			font-size: 0.7rem;
+		}
+
+		.mode-help {
+			display: none;
+		}
+
+		.try-on-row {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>

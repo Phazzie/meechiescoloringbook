@@ -204,6 +204,28 @@ export const studioModes: StudioMode[] = [
 	}
 ];
 
+// --- Mode rotation helpers ---
+// Why: Show 3 modes at a time so the strip isn't overwhelming.
+//      1 mode rotates monthly (changes on the 1st), 2 rotate weekly.
+//      All 8 modes get equal exposure over time.
+
+const getMonthKey = (): number =>
+	new Date().getFullYear() * 12 + new Date().getMonth();
+
+const getWeekNumber = (): number =>
+	Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+
+export const getMonthlyMode = (): StudioMode =>
+	studioModes[getMonthKey() % studioModes.length];
+
+export const getWeeklyModes = (): StudioMode[] => {
+	const monthly = getMonthlyMode();
+	const pool = studioModes.filter((m) => m.id !== monthly.id);
+	const offset = (getWeekNumber() * 2) % pool.length;
+	const weekly = [pool[offset % pool.length], pool[(offset + 1) % pool.length]];
+	return [monthly, ...weekly];
+};
+
 export type StudioTheme = {
 	id: string;
 	label: string;

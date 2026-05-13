@@ -10,6 +10,13 @@
 	// Cast the imported JSON to Wig[] — validators run at adapter layer, not here.
 	const wigs = wigData as unknown as Wig[];
 
+	const getBrand = (affiliateUrl: string): string => {
+		if (affiliateUrl.includes('beautyforever')) return 'Beautyforever';
+		if (affiliateUrl.includes('wigsbuy')) return 'Wigsbuy';
+		if (affiliateUrl.includes('luvmehair')) return 'Luvmehair';
+		return '';
+	};
+
 	let {
 		selectedWigId = null,
 		onSelect
@@ -31,6 +38,9 @@
 			>
 				<img src={wig.imageUrl} alt={wig.name} class="wig-img" loading="lazy" />
 				<div class="wig-info">
+					{#if getBrand(wig.affiliateUrl)}
+						<span class="wig-brand">{getBrand(wig.affiliateUrl)}</span>
+					{/if}
 					<p class="wig-name">{wig.name}</p>
 					<p class="wig-meta">{wig.style}</p>
 					<p class="wig-price">${wig.priceUsd.toFixed(2)}</p>
@@ -70,18 +80,21 @@
 		background: rgba(22, 20, 42, 0.92);
 		overflow: hidden;
 		transition:
-			border-color 0.15s,
-			box-shadow 0.15s;
+			border-color 0.18s,
+			box-shadow 0.18s,
+			transform 0.18s;
 		position: relative;
 	}
 
 	.wig-card:hover {
-		border-color: rgba(255, 20, 147, 0.5);
+		border-color: rgba(255, 20, 147, 0.65);
+		transform: translateY(-3px);
+		box-shadow: 0 6px 20px rgba(255, 20, 147, 0.2);
 	}
 
 	.wig-card.selected {
 		border-color: #ff1493;
-		box-shadow: 0 0 14px rgba(255, 20, 147, 0.35);
+		box-shadow: 0 0 18px rgba(255, 20, 147, 0.45);
 	}
 
 	.wig-card-btn {
@@ -105,6 +118,20 @@
 
 	.wig-info {
 		padding: 0.6rem 0.6rem 0.4rem;
+	}
+
+	.wig-brand {
+		display: inline-block;
+		font-size: 0.58rem;
+		font-weight: 800;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: rgba(255, 20, 147, 0.85);
+		background: rgba(255, 20, 147, 0.08);
+		border: 1px solid rgba(255, 20, 147, 0.22);
+		border-radius: 3px;
+		padding: 0.1rem 0.35rem;
+		margin-bottom: 0.3rem;
 	}
 
 	.wig-name {
