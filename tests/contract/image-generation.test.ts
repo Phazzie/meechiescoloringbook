@@ -2,7 +2,7 @@
 // Why: Ensure xAI-backed image generation returns contract-compliant results.
 // Info flow: Fixtures -> mock/adapter -> assertions.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createImageGenerationMock } from '../../src/lib/mocks/image-generation.mock';
+import { createMockImageGenerationSeam as createImageGenerationMock } from '../../src/lib/seams/image-generation-seam/mock';
 import { createImageGenerationSeam } from '../../src/lib/adapters/image-generation-seam';
 import type { AppConfigSeam } from '../../src/lib/seams/app-config-seam/contract';
 import {
