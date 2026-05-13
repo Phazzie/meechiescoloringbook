@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meechie's Coloring Book — She's Been Through It, Too</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Bebas+Neue&family=Abril+Fatface&family=Outfit:wght@300;400;500;600;700&family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --hot-pink: #FF1493;
+      --magenta: #8B008B;
+      --gold: #FFD700;
+      --gold-dark: #B8860B;
+      --black: #0A0A0A;
+      --wine: #6B0F1A;
+      --cream: #FDF6E3;
+      --teal: #00CED1;
+      --font-script: 'Pacifico', cursive;
+      --font-headline: 'Bebas Neue', sans-serif;
+      --font-emphasis: 'Abril Fatface', serif;
+      --font-body: 'Outfit', sans-serif;
+      --font-handwriting: 'Caveat', cursive;
+      --neon-glow-pink: 0 0 7px #fff, 0 0 10px #fff, 0 0 21px #fff, 0 0 42px var(--hot-pink), 0 0 82px var(--hot-pink);
+      --neon-glow-gold: 0 0 7px #fff, 0 0 10px #fff, 0 0 21px #fff, 0 0 42px var(--gold), 0 0 82px var(--gold);
+      --section-pad-x: clamp(1.5rem, 5vw, 4rem);
+    }
+
+    @keyframes neon-flicker {
+      0%,19%,21%,23%,25%,54%,56%,100% { text-shadow: var(--neon-glow-pink); opacity: 1; }
+      20%,24%,55% { text-shadow: none; opacity: 0.85; }
+    }
+    @keyframes gold-shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    @keyframes button-pulse {
+      0%,100% { box-shadow: 0 0 20px var(--hot-pink), 0 0 40px var(--hot-pink); }
+      50% { box-shadow: 0 0 30px var(--hot-pink), 0 0 60px var(--hot-pink), 0 0 80px var(--hot-pink); }
+    }
+    @keyframes sparkle-float {
+      0% { opacity:0; transform:translateY(0) scale(0) rotate(0deg); }
+      50% { opacity:1; transform:translateY(-20px) scale(1) rotate(180deg); }
+      100% { opacity:0; transform:translateY(-40px) scale(0) rotate(360deg); }
+    }
+    @keyframes gold-border-pulse {
+      0%,100% { border-color: var(--gold); box-shadow: 0 0 8px var(--gold); }
+      50% { border-color: #fff8b0; box-shadow: 0 0 20px var(--gold), 0 0 40px rgba(255,215,0,0.4); }
+    }
+    @keyframes fade-in-up {
+      from { opacity:0; transform:translateY(24px); }
+      to { opacity:1; transform:translateY(0); }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font-body); background: var(--black); color: var(--cream); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+    img { display: block; max-width: 100%; }
+    button { cursor: pointer; font-family: var(--font-body); }
+    a { text-decoration: none; color: inherit; }
+
+    /* ── NAV ── */
+    .site-nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.75rem var(--section-pad-x);
+      background: rgba(10,10,10,0.93);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,20,147,0.3);
+    }
+    .nav-wordmark {
+      font-family: var(--font-script); font-size: clamp(1.2rem,3vw,1.6rem);
+      color: var(--hot-pink); animation: neon-flicker 8s infinite; white-space: nowrap;
+    }
+    .nav-links { display: flex; list-style: none; gap: 0.25rem; margin-left: auto; }
+    .nav-links a {
+      font-size: 0.8rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+      color: rgba(253,246,227,0.75); padding: 0.4rem 0.85rem; border-radius: 2rem;
+      transition: color 0.2s, background 0.2s;
+    }
+    .nav-links a:hover { color: var(--hot-pink); background: rgba(255,20,147,0.1); }
+    .nav-wig {
+      background: linear-gradient(135deg,rgba(255,215,0,0.12),rgba(184,134,11,0.08));
+      border: 1px solid rgba(255,215,0,0.35); color: var(--gold) !important;
+    }
+    .nav-wig:hover { background: linear-gradient(135deg,rgba(255,215,0,0.22),rgba(184,134,11,0.15)) !important; box-shadow: 0 0 12px rgba(255,215,0,0.25); }
+    .nav-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid var(--gold); overflow: hidden; flex-shrink: 0;
+      box-shadow: 0 0 10px rgba(255,215,0,0.35);
+    }
+    .nav-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .nav-hamburger {
+      display: none; flex-direction: column; gap: 5px;
+      background: none; border: none; padding: 0.5rem; margin-left: auto;
+    }
+    .nav-hamburger span { display: block; width: 22px; height: 2px; background: var(--cream); border-radius: 2px; transition: transform 0.3s, opacity 0.3s; }
+    .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-hamburger.open span:nth-child(2) { opacity: 0; }
+    .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+    .nav-mobile-menu {
+      display: none; position: fixed; inset: 0;
+      background: rgba(10,10,10,0.97); z-index: 99;
+      flex-direction: column; align-items: center; justify-content: center; gap: 2rem;
+    }
+    .nav-mobile-menu.open { display: flex; }
+    .nav-mobile-menu a { font-family: var(--font-headline); font-size: 2.5rem; color: var(--cream); letter-spacing: 0.1em; transition: color 0.2s; }
+    .nav-mobile-menu a:hover { color: var(--hot-pink); }
+
+    /* ── HERO ── */
+    .hero-banner { position: relative; width: 100%; overflow: hidden; }
+    .hero-banner img { width: 100%; height: 600px; object-fit: cover; object-position: center top; }
+    .hero-banner::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(to bottom, transparent 35%, rgba(10,10,10,0.55) 70%, var(--black) 100%);
+    }
+    .hero-tagline {
+      position: absolute; bottom: 3rem; left: 50%; transform: translateX(-50%);
+      z-index: 2; text-align: center; width: 90%; max-width: 900px;
+    }
+    .hero-tagline h1 {
+      font-family: var(--font-headline); font-size: clamp(2.5rem,7vw,5rem);
+      letter-spacing: 0.12em; color: var(--cream); text-transform: uppercase; line-height: 1;
+    }
+    .hero-tagline h1 .accent-pink { color: var(--hot-pink); text-shadow: var(--neon-glow-pink); }
+    .hero-tagline p { font-family: var(--font-handwriting); font-size: clamp(1rem,3vw,1.4rem); color: rgba(253,246,227,0.82); margin-top: 0.5rem; }
+
+    /* ── INPUT ZONE ── */
+    .input-zone { background: var(--black); padding: 4rem var(--section-pad-x); }
+    .input-zone-inner { max-width: 760px; margin: 0 auto; }
+    .input-zone h2 { font-family: var(--font-emphasis); font-size: clamp(2rem,5vw,3rem); color: var(--cream); margin-bottom: 0.4rem; line-height: 1.15; }
+    .input-zone h2 .neon-pink { color: var(--hot-pink); text-shadow: var(--neon-glow-pink); animation: neon-flicker 12s infinite 3s; }
+    .input-subhead { font-family: var(--font-handwriting); font-size: 1.1rem; color: rgba(253,246,227,0.6); margin-bottom: 2rem; }
+
+    .tool-selector { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+    .tool-btn {
+      font-size: 0.78rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+      padding: 0.55rem 1.1rem; border-radius: 2rem;
+      border: 1.5px solid rgba(255,20,147,0.35); background: rgba(255,20,147,0.07);
+      color: rgba(253,246,227,0.65); transition: all 0.18s; white-space: nowrap;
+    }
+    .tool-btn:hover { border-color: var(--hot-pink); color: var(--cream); background: rgba(255,20,147,0.15); }
+    .tool-btn.active { background: var(--hot-pink); border-color: var(--hot-pink); color: var(--black); font-weight: 700; box-shadow: 0 0 16px rgba(255,20,147,0.5); }
+
+    .drama-textarea {
+      width: 100%; min-height: 160px;
+      background: rgba(255,255,255,0.04); border: 1.5px solid rgba(255,20,147,0.28);
+      border-radius: 12px; padding: 1rem 1.25rem;
+      font-family: var(--font-body); font-size: 0.95rem; color: var(--cream);
+      resize: vertical; line-height: 1.65; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .drama-textarea::placeholder { color: rgba(253,246,227,0.32); }
+    .drama-textarea:focus { outline: none; border-color: var(--hot-pink); box-shadow: 0 0 0 3px rgba(255,20,147,0.14); }
+
+    .shoutout-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.75rem; }
+    .shoutout-label { font-family: var(--font-handwriting); font-size: 0.9rem; color: rgba(253,246,227,0.45); white-space: nowrap; flex-shrink: 0; }
+    .shoutout-input { flex: 1; background: transparent; border: none; border-bottom: 1px solid rgba(255,20,147,0.22); padding: 0.3rem 0.5rem; font-family: var(--font-body); font-size: 0.88rem; color: var(--cream); }
+    .shoutout-input::placeholder { color: rgba(253,246,227,0.28); }
+    .shoutout-input:focus { outline: none; border-bottom-color: var(--hot-pink); }
+
+    .customize-details { margin-top: 1.25rem; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; }
+    .customize-details summary {
+      padding: 0.75rem 1rem; font-size: 0.8rem; font-weight: 500; letter-spacing: 0.06em;
+      text-transform: uppercase; color: rgba(253,246,227,0.48); cursor: pointer;
+      user-select: none; list-style: none; display: flex; align-items: center; gap: 0.5rem;
+    }
+    .customize-details summary::-webkit-details-marker { display: none; }
+    .customize-details summary::before { content: '▸'; transition: transform 0.2s; }
+    .customize-details[open] summary::before { transform: rotate(90deg); }
+    .customize-panel { padding: 1.25rem 1rem 1rem; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); }
+    .customize-group-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(253,246,227,0.38); margin-bottom: 0.6rem; }
+
+    .voice-chips { display: grid; grid-template-columns: repeat(4,1fr); gap: 0.4rem; margin-bottom: 1.25rem; }
+    .voice-chip {
+      font-size: 0.7rem; font-weight: 600; padding: 0.45rem 0.4rem;
+      border-radius: 6px; border: 1px solid rgba(255,20,147,0.22);
+      background: rgba(255,20,147,0.04); color: rgba(253,246,227,0.6);
+      text-align: center; transition: all 0.15s; letter-spacing: 0.02em;
+    }
+    .voice-chip:hover { border-color: var(--hot-pink); color: var(--cream); background: rgba(255,20,147,0.1); }
+    .voice-chip.active { background: rgba(255,20,147,0.18); border-color: var(--hot-pink); color: var(--hot-pink); box-shadow: 0 0 8px rgba(255,20,147,0.28); }
+
+    .intensity-group { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
+    .intensity-btn {
+      flex: 1; font-size: 0.78rem; font-weight: 600; padding: 0.55rem 0.5rem;
+      border-radius: 8px; border: 1.5px solid rgba(255,20,147,0.22);
+      background: rgba(255,20,147,0.04); color: rgba(253,246,227,0.58); transition: all 0.15s;
+    }
+    .intensity-btn:hover { border-color: var(--hot-pink); color: var(--cream); }
+    .intensity-btn.active { border-color: var(--hot-pink); background: rgba(255,20,147,0.18); color: var(--cream); }
+
+    .glitter-row { display: flex; align-items: center; justify-content: space-between; }
+    .glitter-label { font-size: 0.82rem; color: rgba(253,246,227,0.58); }
+    .toggle-switch { position: relative; width: 44px; height: 24px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.1); border-radius: 24px; transition: 0.3s; border: 1px solid rgba(255,255,255,0.12); }
+    .toggle-slider::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 50%; transform: translateY(-50%); background: var(--cream); border-radius: 50%; transition: 0.3s; }
+    .toggle-switch input:checked + .toggle-slider { background: var(--hot-pink); box-shadow: 0 0 8px rgba(255,20,147,0.45); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateY(-50%) translateX(20px); }
+
+    .cta-primary {
+      display: block; width: 100%; margin-top: 1.5rem; padding: 1.1rem 2rem;
+      font-family: var(--font-headline); font-size: clamp(1.2rem,3vw,1.6rem); letter-spacing: 0.15em;
+      color: var(--black); background: var(--hot-pink); border: none; border-radius: 10px;
+      animation: button-pulse 3s ease-in-out infinite; transition: transform 0.15s;
+    }
+    .cta-primary:hover { transform: translateY(-2px); }
+    .cta-primary:active { transform: translateY(0); }
+    .actions-remaining { display: block; text-align: center; font-size: 0.76rem; color: rgba(253,246,227,0.32); margin-top: 0.75rem; letter-spacing: 0.04em; }
+    .actions-remaining a { color: var(--hot-pink); }
+
+    /* ── RESULT SECTION ── */
+    .result-section { background: linear-gradient(135deg, var(--wine) 0%, #3D0A12 55%, #1A0A2E 100%); padding: 3.5rem var(--section-pad-x); }
+    .section-label { text-align: center; font-family: var(--font-handwriting); font-size: 1rem; color: rgba(253,246,227,0.5); margin-bottom: 2rem; letter-spacing: 0.08em; }
+    .result-card {
+      max-width: 900px; margin: 0 auto; background: var(--cream); border-radius: 16px; overflow: hidden;
+      display: grid; grid-template-columns: 1fr 1fr;
+      box-shadow: 0 0 60px rgba(107,15,26,0.7), 0 0 0 1px rgba(255,215,0,0.18);
+      animation: fade-in-up 0.6s ease-out both;
+    }
+    .result-coloring-col { background: #f0ebe0; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+    .result-coloring-col img { max-height: 380px; width: auto; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
+    .result-verdict-col { padding: 2rem 1.75rem; display: flex; flex-direction: column; gap: 1rem; color: var(--black); }
+    .case-number { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em; color: rgba(10,10,10,0.42); text-transform: uppercase; }
+    .verdict-badge { display: inline-block; background: var(--wine); color: var(--gold); font-family: var(--font-headline); font-size: 1.4rem; letter-spacing: 0.15em; padding: 0.4rem 1rem; border-radius: 4px; text-transform: uppercase; border: 1px solid rgba(255,215,0,0.38); align-self: flex-start; }
+    .coloring-page-title { font-family: var(--font-emphasis); font-size: 1.2rem; color: var(--wine); line-height: 1.3; }
+    .meechie-quote-text { font-family: var(--font-handwriting); font-size: 1.05rem; color: rgba(10,10,10,0.78); border-left: 3px solid var(--hot-pink); padding-left: 0.75rem; line-height: 1.55; }
+    .fillables { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; }
+    .fillables li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: rgba(10,10,10,0.62); }
+    .fillables li::before { content: '☐'; font-size: 1rem; color: var(--hot-pink); flex-shrink: 0; }
+    .result-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: auto; }
+    .result-actions button { font-size: 0.76rem; font-weight: 600; padding: 0.45rem 0.8rem; border-radius: 6px; border: 1.5px solid rgba(10,10,10,0.14); background: transparent; color: rgba(10,10,10,0.68); transition: all 0.15s; }
+    .result-actions button:hover { background: rgba(10,10,10,0.06); border-color: rgba(10,10,10,0.28); }
+    .result-actions .btn-save { background: var(--wine); border-color: var(--wine); color: var(--gold); }
+    .result-actions .btn-save:hover { background: #8B0F22; }
+
+    /* ── WIG STUDIO ── */
+    .wig-studio { background: var(--black); padding-bottom: 4rem; }
+    .wig-header-wrap { position: relative; height: 320px; overflow: hidden; margin-bottom: 2.5rem; }
+    .wig-header-img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; filter: brightness(0.32) saturate(0.5); }
+    .wig-header-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; text-align: center; padding: 2rem; }
+    .wig-ribbon {
+      font-family: var(--font-headline); font-size: clamp(2.5rem,6vw,4rem); letter-spacing: 0.2em;
+      background: linear-gradient(90deg, var(--gold-dark) 0%, var(--gold) 25%, #fff8b0 50%, var(--gold) 75%, var(--gold-dark) 100%);
+      background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; animation: gold-shimmer 4s linear infinite;
+    }
+    .wig-header-overlay p { font-family: var(--font-handwriting); font-size: 1.1rem; color: rgba(253,246,227,0.8); max-width: 480px; }
+
+    .wig-carousel-wrap { padding: 0 var(--section-pad-x); }
+    .wig-carousel {
+      display: flex; gap: 1rem; overflow-x: auto; scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch; padding-bottom: 1rem;
+      scrollbar-width: thin; scrollbar-color: rgba(255,20,147,0.4) transparent;
+    }
+    .wig-carousel::-webkit-scrollbar { height: 4px; }
+    .wig-carousel::-webkit-scrollbar-track { background: transparent; }
+    .wig-carousel::-webkit-scrollbar-thumb { background: rgba(255,20,147,0.4); border-radius: 2px; }
+    .wig-card {
+      flex-shrink: 0; width: 200px; border-radius: 12px;
+      border: 2px solid rgba(255,20,147,0.18); background: rgba(255,255,255,0.03);
+      overflow: hidden; scroll-snap-align: start; cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    }
+    .wig-card:hover { border-color: rgba(255,20,147,0.5); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .wig-card.selected { border-color: var(--gold); animation: gold-border-pulse 2.5s ease-in-out infinite; }
+    .wig-card-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; }
+    .wig-card-info { padding: 0.75rem; }
+    .wig-card-name { font-size: 0.78rem; font-weight: 700; color: var(--cream); margin-bottom: 0.2rem; line-height: 1.3; }
+    .wig-card-brand { font-size: 0.66rem; color: rgba(253,246,227,0.42); text-transform: uppercase; letter-spacing: 0.06em; }
+    .wig-card-price { font-family: var(--font-emphasis); font-size: 0.95rem; color: var(--gold); margin-top: 0.3rem; }
+
+    .wig-action-zone { padding: 2rem var(--section-pad-x) 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 900px; margin: 0 auto; }
+    .selfie-upload-zone { border: 2px dashed rgba(255,20,147,0.32); border-radius: 12px; padding: 2.5rem 1.5rem; text-align: center; transition: border-color 0.2s, background 0.2s; cursor: pointer; }
+    .selfie-upload-zone:hover { border-color: var(--hot-pink); background: rgba(255,20,147,0.04); }
+    .selfie-upload-zone input[type="file"] { display: none; }
+    .upload-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .selfie-upload-zone p { font-size: 0.85rem; color: rgba(253,246,227,0.48); line-height: 1.55; }
+    .selfie-upload-zone p strong { color: var(--hot-pink); }
+
+    .wig-try-panel { display: flex; flex-direction: column; justify-content: center; gap: 1rem; }
+    .selected-wig-display { padding: 1rem 1.25rem; background: rgba(255,215,0,0.06); border: 1px solid rgba(255,215,0,0.18); border-radius: 10px; }
+    .selected-wig-label { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(253,246,227,0.38); margin-bottom: 0.3rem; }
+    .selected-wig-name { font-family: var(--font-emphasis); font-size: 1.3rem; color: var(--gold); }
+    .btn-try-wig {
+      padding: 1rem 2rem;
+      background: linear-gradient(90deg, var(--gold-dark) 0%, var(--gold) 40%, #fff8b0 60%, var(--gold) 80%, var(--gold-dark) 100%);
+      background-size: 200% auto; animation: gold-shimmer 3s linear infinite;
+      border: none; border-radius: 8px; font-family: var(--font-headline); font-size: 1.3rem;
+      letter-spacing: 0.15em; color: var(--black); transition: transform 0.15s, box-shadow 0.2s;
+    }
+    .btn-try-wig:hover { transform: translateY(-2px); box-shadow: 0 0 20px rgba(255,215,0,0.38); }
+    .try-disclaimer { font-size: 0.73rem; color: rgba(253,246,227,0.3); text-align: center; }
+
+    /* ── FOOTER ── */
+    .site-footer { background: rgba(0,0,0,0.55); border-top: 1px solid rgba(255,20,147,0.14); padding: 2rem var(--section-pad-x); text-align: center; }
+    .footer-wordmark { font-family: var(--font-script); font-size: 1.5rem; color: var(--hot-pink); margin-bottom: 0.5rem; }
+    .site-footer p { font-size: 0.76rem; color: rgba(253,246,227,0.32); letter-spacing: 0.1em; text-transform: uppercase; }
+
+    /* ── RESPONSIVE 960px ── */
+    @media (max-width: 960px) {
+      .nav-links { display: none; }
+      .nav-hamburger { display: flex; }
+      .nav-avatar { margin-left: auto; }
+      .hero-banner img { height: 460px; }
+      .result-card { grid-template-columns: 1fr; }
+      .result-coloring-col img { max-height: 260px; }
+      .wig-action-zone { grid-template-columns: 1fr; }
+    }
+    /* ── RESPONSIVE 640px ── */
+    @media (max-width: 640px) {
+      :root { --section-pad-x: 1.25rem; }
+      .hero-banner img { height: 300px; }
+      .hero-tagline { bottom: 1.5rem; }
+      .hero-tagline h1 { font-size: 2rem; }
+      .tool-selector { display: grid; grid-template-columns: 1fr 1fr; }
+      .tool-btn { text-align: center; font-size: 0.7rem; padding: 0.55rem 0.6rem; }
+      .voice-chips { grid-template-columns: repeat(2,1fr); }
+      .intensity-group { flex-direction: column; }
+      .result-card { border-radius: 10px; }
+      .wig-card { width: 160px; }
+      .wig-header-wrap { height: 240px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- STICKY NAV -->
+  <nav class="site-nav">
+    <a href="#" class="nav-wordmark">Meechie's</a>
+    <ul class="nav-links">
+      <li><a href="#drama">Enter Your Drama</a></li>
+      <li><a href="#wig-studio" class="nav-wig">✨ Wig Try-On</a></li>
+      <li><a href="#saved">Saved Pages</a></li>
+    </ul>
+    <div class="nav-avatar">
+      <img src="https://raw.githubusercontent.com/Phazzie/meechiescoloringbook/main/static/meechie/meechie-chosen.png" alt="Meechie">
+    </div>
+    <button class="nav-hamburger" id="navHamburger" aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+  <div class="nav-mobile-menu" id="navMobileMenu">
+    <a href="#drama" onclick="closeMenu()">Enter Your Drama</a>
+    <a href="#wig-studio" onclick="closeMenu()">✨ Wig Try-On</a>
+    <a href="#saved" onclick="closeMenu()">Saved Pages</a>
+  </div>
+
+  <!-- HERO BANNER -->
+  <section class="hero-banner">
+    <img src="https://raw.githubusercontent.com/Phazzie/meechiescoloringbook/main/static/meechie/meechie-banner.png" alt="Meechie — She's Seen Worse" loading="eager">
+    <div class="hero-tagline">
+      <h1>She's Been Through It, <span class="accent-pink">Too.</span></h1>
+      <p>Tell her what happened. She'll handle it.</p>
+    </div>
+  </section>
+
+  <!-- INPUT ZONE -->
+  <section class="input-zone" id="drama">
+    <div class="input-zone-inner">
+      <h2>Tell Meechie <span class="neon-pink">what happened.</span></h2>
+      <p class="input-subhead">She's seen worse. She'll have something to say about it.</p>
+
+      <div class="tool-selector" role="group" aria-label="Choose what Meechie does">
+        <button class="tool-btn active" onclick="selectTool(this,'who-fucked-up')">Who Fucked Up?</button>
+        <button class="tool-btn" onclick="selectTool(this,'pull-receipts')">Pull Up the Receipts</button>
+        <button class="tool-btn" onclick="selectTool(this,'clapback')">Clapback Time</button>
+        <button class="tool-btn" onclick="selectTool(this,'meechie-decides')">Meechie Decides</button>
+      </div>
+
+      <textarea class="drama-textarea" id="dramaInput"
+        placeholder="Paste the receipts. Tell Meechie what happened. She's listening. She is not surprised. She is, however, ready to read."
+        aria-label="Tell Meechie what happened"></textarea>
+
+      <div class="shoutout-row">
+        <span class="shoutout-label">✨ Shout out to:</span>
+        <input type="text" class="shoutout-input" placeholder="e.g. my cousin Trina, who knew and said NOTHING" aria-label="Optional shoutout">
+      </div>
+
+      <details class="customize-details">
+        <summary>Customize ⚙</summary>
+        <div class="customize-panel">
+          <div class="customize-group-label">Meechie's Voice</div>
+          <div class="voice-chips" role="group" aria-label="Voice mode">
+            <button class="voice-chip active" onclick="selectVoice(this)">Sassy Sister</button>
+            <button class="voice-chip" onclick="selectVoice(this)">Church Lady</button>
+            <button class="voice-chip" onclick="selectVoice(this)">Corporate Meechie</button>
+            <button class="voice-chip" onclick="selectVoice(this)">Hood Oracle</button>
+            <button class="voice-chip" onclick="selectVoice(this)">Soft Life</button>
+            <button class="voice-chip" onclick="selectVoice(this)">No Filter</button>
+            <button class="voice-chip" onclick="selectVoice(this)">Therapy Session</button>
+            <button class="voice-chip" onclick="selectVoice(this)">Main Character</button>
+          </div>
+
+          <div class="customize-group-label">Intensity Level</div>
+          <div class="intensity-group" role="group" aria-label="Intensity">
+            <button class="intensity-btn" onclick="selectIntensity(this)">🧾 Receipts Out</button>
+            <button class="intensity-btn active" onclick="selectIntensity(this)">⛪ Church Lady</button>
+            <button class="intensity-btn" onclick="selectIntensity(this)">🚫 No Mercy</button>
+          </div>
+
+          <div class="glitter-row">
+            <span class="glitter-label">✨ Add glitter effects to the page</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="glitterToggle" onchange="toggleGlitter(this)" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </details>
+
+      <button class="cta-primary" onclick="handleSubmit()">GET THE VERDICT ⚡</button>
+      <span class="actions-remaining">3 AI actions left today · <a href="#">Unlock unlimited</a></span>
+    </div>
+  </section>
+
+  <!-- EXAMPLE RESULT -->
+  <section class="result-section">
+    <p class="section-label">← Here's what you get →</p>
+    <div class="result-card">
+      <div class="result-coloring-col">
+        <img src="https://raw.githubusercontent.com/Phazzie/meechiescoloringbook/main/static/meechie/demo-coloring-page.png" alt="Example coloring page — He Said He Was Working Late" loading="lazy">
+      </div>
+      <div class="result-verdict-col">
+        <span class="case-number">Case #MCB-2024-047</span>
+        <div class="verdict-badge">Guilty as Sin</div>
+        <p class="coloring-page-title">"He Said He Was Working Late"</p>
+        <p class="meechie-quote-text">"Oh, he <em>knew</em>. He just thought you wouldn't find out. He was wrong about that. He's wrong about a lot of things."</p>
+        <ul class="fillables">
+          <li>Color Meechie's side-eye accordingly</li>
+          <li>Shade in his guilty little face</li>
+          <li>Fill his excuses with the right color</li>
+          <li>Add sparkle to your righteous anger</li>
+          <li>Write his apology in the margins</li>
+        </ul>
+        <div class="result-actions">
+          <button class="btn-save">💾 Save Page</button>
+          <button>📥 Download PDF</button>
+          <button>🔄 Regenerate</button>
+          <button>💄 Make Meaner</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WIG STUDIO -->
+  <section class="wig-studio" id="wig-studio">
+    <div class="wig-header-wrap">
+      <img class="wig-header-img"
+        src="https://raw.githubusercontent.com/Phazzie/meechiescoloringbook/main/static/meechie/meechie-banner.png"
+        alt="" aria-hidden="true" loading="lazy">
+      <div class="wig-header-overlay">
+        <div class="wig-ribbon">✦ Wig Try-On ✦</div>
+        <p>Pick a wig. Upload a selfie. Meechie's magic does the rest.</p>
+      </div>
+    </div>
+
+    <div class="wig-carousel-wrap">
+      <div class="wig-carousel" id="wigCarousel" role="listbox" aria-label="Choose a wig">
+
+        <div class="wig-card selected" role="option" aria-selected="true" onclick="selectWig(this,'Sleek Straight Goddess')">
+          <img class="wig-card-img" src="https://hyperagent.com/api/files/usergenerated/threads/cmp3fiswx0aqy07adbsjz6xi5/images/174bb96d-f1e2-47a5-a537-8870961fd3b7.png" alt="Sleek Straight Goddess wig" loading="lazy">
+          <div class="wig-card-info">
+            <div class="wig-card-name">Sleek Straight Goddess</div>
+            <div class="wig-card-brand">Bobbi Boss</div>
+            <div class="wig-card-price">$149</div>
+          </div>
+        </div>
+
+        <div class="wig-card" role="option" aria-selected="false" onclick="selectWig(this,'Big Body Wave Queen')">
+          <img class="wig-card-img" src="https://hyperagent.com/api/files/usergenerated/threads/cmp3fiswx0aqy07adbsjz6xi5/images/ac510e27-7e79-4a7c-b31b-230770025f55.png" alt="Big Body Wave Queen wig" loading="lazy">
+          <div class="wig-card-info">
+            <div class="wig-card-name">Big Body Wave Queen</div>
+            <div class="wig-card-brand">OUTRE</div>
+            <div class="wig-card-price">$179</div>
+          </div>
+        </div>
+
+        <div class="wig-card" role="option" aria-selected="false" onclick="selectWig(this,'Honey Blonde Bombshell')">
+          <img class="wig-card-img" src="https://hyperagent.com/api/files/usergenerated/threads/cmp3fiswx0aqy07adbsjz6xi5/images/f9ef90a9-59b6-40c7-a706-0db1ae06da15.png" alt="Honey Blonde Bombshell wig" loading="lazy">
+          <div class="wig-card-info">
+            <div class="wig-card-name">Honey Blonde Bombshell</div>
+            <div class="wig-card-brand">Sensationnel</div>
+            <div class="wig-card-price">$129</div>
+          </div>
+        </div>
+
+        <div class="wig-card" role="option" aria-selected="false" onclick="selectWig(this,'Burgundy Royale')">
+          <img class="wig-card-img" src="https://hyperagent.com/api/files/usergenerated/threads/cmp3fiswx0aqy07adbsjz6xi5/images/92589c89-3f98-4eb1-9bcc-120f2512a748.png" alt="Burgundy Royale wig" loading="lazy">
+          <div class="wig-card-info">
+            <div class="wig-card-name">Burgundy Royale</div>
+            <div class="wig-card-brand">FreeTress</div>
+            <div class="wig-card-price">$139</div>
+          </div>
+        </div>
+
+        <div class="wig-card" role="option" aria-selected="false" onclick="selectWig(this,'Short Cut Boss')">
+          <img class="wig-card-img" src="https://hyperagent.com/api/files/usergenerated/threads/cmp3fiswx0aqy07adbsjz6xi5/images/e212a9bf-3587-441c-85d4-344fae35373c.png" alt="Short Cut Boss wig" loading="lazy">
+          <div class="wig-card-info">
+            <div class="wig-card-name">Short Cut Boss</div>
+            <div class="wig-card-brand">Zury Sis</div>
+            <div class="wig-card-price">$99</div>
+          </div>
+        </div>
+
+        <div class="wig-card" role="option" aria-selected="false" onclick="selectWig(this,'Ombre Sunset Curls')">
+          <img class="wig-card-img" src="https://hyperagent.com/api/files/usergenerated/threads/cmp3fiswx0aqy07adbsjz6xi5/images/4d054063-8bda-40a2-8d2d-a6e49fdde7c6.png" alt="Ombre Sunset Curls wig" loading="lazy">
+          <div class="wig-card-info">
+            <div class="wig-card-name">Ombre Sunset Curls</div>
+            <div class="wig-card-brand">Shake-N-Go</div>
+            <div class="wig-card-price">$159</div>
+          </div>
+        </div>
+
+        <div class="wig-card" role="option" aria-selected="false" onclick="selectWig(this,'Silver Fox')">
+          <img class="wig-card-img" src="https://hyperagent.com/api/files/usergenerated/threads/cmp3fiswx0aqy07adbsjz6xi5/images/6d9f6682-8dec-4155-89d6-9f31f4aeebe8.png" alt="Silver Fox wig" loading="lazy">
+          <div class="wig-card-info">
+            <div class="wig-card-name">Silver Fox</div>
+            <div class="wig-card-brand">It's A Wig</div>
+            <div class="wig-card-price">$119</div>
+          </div>
+        </div>
+
+        <div class="wig-card" role="option" aria-selected="false" onclick="selectWig(this,'Kinky Coily Naturalista')">
+          <img class="wig-card-img" src="https://hyperagent.com/api/files/usergenerated/threads/cmp3fiswx0aqy07adbsjz6xi5/images/aa0e0e44-a85f-43d8-a1c5-d81f3ba742b4.png" alt="Kinky Coily Naturalista wig" loading="lazy">
+          <div class="wig-card-info">
+            <div class="wig-card-name">Kinky Coily Naturalista</div>
+            <div class="wig-card-brand">Janet Collection</div>
+            <div class="wig-card-price">$169</div>
+          </div>
+        </div>
+
+      </div><!-- /wig-carousel -->
+    </div>
+
+    <div class="wig-action-zone">
+      <label class="selfie-upload-zone" id="selfieZone" for="selfieInput">
+        <input type="file" id="selfieInput" accept="image/*" onchange="handleSelfie(event)">
+        <div class="upload-icon">📸</div>
+        <p><strong>Drop your selfie here</strong><br>or tap to upload<br><span style="font-size:0.75rem;opacity:0.65">JPG, PNG, WEBP · Max 10MB</span></p>
+      </label>
+
+      <div class="wig-try-panel">
+        <div class="selected-wig-display">
+          <div class="selected-wig-label">Selected Wig</div>
+          <div class="selected-wig-name" id="selectedWigName">Sleek Straight Goddess</div>
+        </div>
+        <button class="btn-try-wig" onclick="handleTryOn()">TRY THIS WIG ✨</button>
+        <p class="try-disclaimer">Results are AI-generated for fun. Actual wig color and fit may vary.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="footer-wordmark">Meechie's Coloring Book</div>
+    <p>Beauty · Confidence · Standards · Receipts</p>
+  </footer>
+
+  <script>
+    var _selfieReady = false;
+
+    const toolPlaceholders = {
+      'who-fucked-up': "Tell Meechie exactly what he did. Don't leave a single thing out.",
+      'pull-receipts': "Paste the texts, the emails, the screenshots. Every last one.",
+      'clapback': "What did they say to you? Meechie's got the perfect response.",
+      'meechie-decides': "Describe the situation. Let Meechie tell you exactly what to do next."
+    };
+
+    function selectTool(btn, id) {
+      document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('dramaInput').placeholder = toolPlaceholders[id] || '';
+    }
+
+    function selectVoice(btn) {
+      document.querySelectorAll('.voice-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function selectIntensity(btn) {
+      document.querySelectorAll('.intensity-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function toggleGlitter(cb) {
+      document.body.classList.toggle('glitter-on', cb.checked);
+    }
+
+    function selectWig(card, name) {
+      document.querySelectorAll('.wig-card').forEach(c => {
+        c.classList.remove('selected');
+        c.setAttribute('aria-selected', 'false');
+      });
+      card.classList.add('selected');
+      card.setAttribute('aria-selected', 'true');
+      document.getElementById('selectedWigName').textContent = name;
+    }
+
+    function handleSelfie(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        _selfieReady = true;
+        var zone = document.getElementById('selfieZone');
+        zone.innerHTML = '<img src="' + ev.target.result + '" alt="Your selfie" style="max-height:200px;border-radius:8px;object-fit:cover;width:100%">'
+          + '<p style="margin-top:0.75rem;font-size:0.78rem;color:rgba(253,246,227,0.5)">✓ Photo loaded · '
+          + '<button onclick="resetSelfie(event)" style="background:none;border:none;color:var(--hot-pink);cursor:pointer;font-size:inherit;padding:0;text-decoration:underline">Change</button></p>';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function resetSelfie(e) {
+      e.stopPropagation();
+      _selfieReady = false;
+      var zone = document.getElementById('selfieZone');
+      zone.innerHTML = '<input type="file" id="selfieInput" accept="image/*" onchange="handleSelfie(event)">'
+        + '<div class="upload-icon">📸</div>'
+        + '<p><strong>Drop your selfie here</strong><br>or tap to upload<br>'
+        + '<span style="font-size:0.75rem;opacity:0.65">JPG, PNG, WEBP · Max 10MB</span></p>';
+    }
+
+    function handleSubmit() {
+      var text = document.getElementById('dramaInput').value.trim();
+      if (!text) {
+        var ta = document.getElementById('dramaInput');
+        ta.focus();
+        ta.style.borderColor = 'var(--hot-pink)';
+        ta.style.boxShadow = '0 0 0 3px rgba(255,20,147,0.3)';
+        setTimeout(function() { ta.style.borderColor = ''; ta.style.boxShadow = ''; }, 2000);
+        return;
+      }
+      // Wire to actual API in SvelteKit implementation
+      console.log('Submit:', text);
+    }
+
+    function handleTryOn() {
+      if (!_selfieReady) {
+        alert("Upload a selfie first! Meechie needs to see your face.");
+        return;
+      }
+      var name = document.getElementById('selectedWigName').textContent;
+      console.log('Try on:', name);
+    }
+
+    function toggleMenu() {
+      var btn = document.getElementById('navHamburger');
+      var menu = document.getElementById('navMobileMenu');
+      var open = menu.classList.toggle('open');
+      btn.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', String(open));
+      document.body.style.overflow = open ? 'hidden' : '';
+    }
+
+    function closeMenu() {
+      document.getElementById('navMobileMenu').classList.remove('open');
+      document.getElementById('navHamburger').classList.remove('open');
+      document.getElementById('navHamburger').setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+    }
+
+    document.getElementById('navHamburger').addEventListener('click', toggleMenu);
+    document.getElementById('navMobileMenu').addEventListener('click', function(e) {
+      if (e.target === this) closeMenu();
+    });
+  </script>
+</body>
+</html>
