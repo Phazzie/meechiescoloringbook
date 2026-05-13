@@ -1,6 +1,14 @@
 // Purpose: Centralize image-generation endpoint orchestration in a reusable core pipeline.
 // Why: Keep route handlers thin and make validation/provider behavior easier to test.
 // Info flow: Raw request body -> validation -> ImageGenerationSeam -> contract-shaped response.
+//
+// Two-layer import rationale:
+//   contracts/image-generation.contract — HTTP API wire types (GeneratedImage with data/format/mimeType,
+//     ImageGenerationInputSchema, ImageGenerationResultSchema). These define what flows over the wire
+//     between generate-pipeline and this route, and what pages consume as output.
+//   src/lib/seams/image-generation-seam/contract — provider seam interface (ImageGenerationSeam with
+//     prompt/n/size/format, returning raw url/b64). This pipeline bridges the two layers by converting
+//     raw provider images into application-layer GeneratedImage values.
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { z } from 'zod';
 import {
