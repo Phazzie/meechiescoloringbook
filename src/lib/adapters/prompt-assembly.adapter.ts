@@ -9,6 +9,7 @@ import type {
 import type { Result } from '../../../contracts/shared.contract';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import {
+	NEGATIVE_PROMPT_HEADING,
 	RESERVED_STYLE_HINT_HEADINGS,
 	PROMPT_FORBIDDEN_TOKENS,
 	borderLine,
@@ -31,7 +32,6 @@ const MAX_PROMPT_LENGTH = 8000;
 const BASE_PAGE_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[0];
 const OUTLINE_ONLY_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[1];
 const EASY_TO_COLOR_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[2];
-const NEGATIVE_PROMPT_HEADING = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[4];
 
 const includesReservedHeading = (styleHint: string): boolean => {
 	const normalized = styleHint.toUpperCase();

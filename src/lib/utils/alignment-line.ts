@@ -6,7 +6,7 @@ import type { ColoringPageSpec } from '../../../contracts/spec-validation.contra
 const SPACING_CLAUSE = 'treat blank space as intentional; do not fill empty space.';
 
 export const formatAlignmentLine = (spec: ColoringPageSpec): string => {
-	const spacing = `${SPACING_CLAUSE}`;
+	const spacing = SPACING_CLAUSE;
 
 	if (spec.listMode === 'title_only') {
 		return spec.alignment === 'center'
