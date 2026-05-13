@@ -248,7 +248,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 	const runTextAction = async (actionId: StudioActionId): Promise<void> => {
 		const action = getStudioAction(actionId);
-		if (!action.aiAction || !canRunAction(actionId)) {
+		if (!action.aiAction) {
+			textError = 'This action is not available. Try Generate Verdict instead.';
+			return;
+		}
+		if (!canRunAction(actionId)) {
 			return;
 		}
 		textError = '';
