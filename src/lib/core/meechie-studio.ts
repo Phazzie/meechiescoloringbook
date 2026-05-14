@@ -312,6 +312,8 @@ export const getStudioTextAction = (
 	id: StudioTextActionId
 ): StudioActionMetadata & { aiAction: MeechieStudioTextAction } => {
 	const action = getStudioAction(id);
+	// Runtime guard remains intentional for defensive checks when metadata changes
+	// without corresponding type updates (or when this function is consumed from JS).
 	if (!action.aiAction) {
 		throw new Error(`Studio action is missing aiAction metadata: ${id}`);
 	}

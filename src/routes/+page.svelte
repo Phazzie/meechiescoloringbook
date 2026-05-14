@@ -252,7 +252,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		let action: ReturnType<typeof getStudioTextAction>;
 		try {
 			action = getStudioTextAction(actionId);
-		} catch {
+		} catch (error) {
+			console.error('Invalid studio text action metadata', { actionId, error });
 			textError = 'This action is not available. Try Generate Verdict instead.';
 			return;
 		}
