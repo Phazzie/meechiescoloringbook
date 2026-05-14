@@ -3,11 +3,12 @@
 // Info flow: validated request -> fetch -> Result.
 import type {
   GeneratedImage,
+  ImageGenerationError,
   ImageGenerationRequest,
   ImageGenerationResult,
   ImageGenerationSeam
 } from '../../seams/image-generation-seam/contract';
-import type { Result } from '../../../contracts/shared.contract';
+import type { Result } from '../../../../contracts/shared.contract';
 import { validateImageGenerationRequest } from '../../seams/image-generation-seam/validators';
 import type { AppConfigSeam } from '../../seams/app-config-seam/contract';
 
@@ -30,22 +31,18 @@ const buildPrompt = (request: ImageGenerationRequest) =>
     ? `${request.prompt}\n\nNegative prompt: ${request.negativePrompt}`
     : request.prompt;
 
-const errorResult = (
-  code: string,
-  message: string,
-  details?: Record<string, string>
-): Result<ImageGenerationResult, { code: string; message: string; details?: Record<string, string> }> => ({
+const errorResult = (error: ImageGenerationError): Result<ImageGenerationResult, ImageGenerationError> => ({
   ok: false,
-  error: { code, message, ...(details ? { details } : {}) }
+  error
 });
 
 export const createImageGenerationSeam = (configSeam: AppConfigSeam): ImageGenerationSeam => ({
-  generate: async (request): Promise<Result<ImageGenerationResult, { code: string; message: string; details?: Record<string, string> }>> => {
+  generate: async (request): Promise<Result<ImageGenerationResult, ImageGenerationError>> => {
     let validated: ImageGenerationRequest;
     try {
       validated = validateImageGenerationRequest(request);
     } catch {
-      return errorResult('IMAGE_VALIDATION_ERROR', 'Image generation request failed validation.');
+      return errorResult({ code: 'IMAGE_VALIDATION_ERROR', message: 'Image generation request failed validation.' });
     }
 
     let config: ReturnType<typeof configSeam.getConfig>;
@@ -53,10 +50,10 @@ export const createImageGenerationSeam = (configSeam: AppConfigSeam): ImageGener
       config = configSeam.getConfig();
     } catch {
       // IMAGE_CONFIG_ERROR: config/env validation failure (distinct from request validation).
-      return errorResult(
-        'IMAGE_CONFIG_ERROR',
-        'Image generation configuration is invalid. Ensure XAI_API_KEY and related environment variables are set.'
-      );
+      return errorResult({
+        code: 'IMAGE_CONFIG_ERROR',
+        message: 'Image generation configuration is invalid. Ensure XAI_API_KEY and related environment variables are set.'
+      });
     }
 
     const url = buildUrl(config.xaiBaseUrl, config.xaiImageEndpointPath);
@@ -78,16 +75,18 @@ export const createImageGenerationSeam = (configSeam: AppConfigSeam): ImageGener
         })
       });
     } catch (error) {
-      return errorResult(
-        'IMAGE_NETWORK_ERROR',
-        error instanceof Error ? error.message : 'Image generation network request failed.'
-      );
+      return errorResult({
+        code: 'IMAGE_NETWORK_ERROR',
+        message: error instanceof Error ? error.message : 'Image generation network request failed.'
+      });
     }
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      return errorResult('IMAGE_HTTP_ERROR', `xAI image generation failed: ${response.status}${text ? ` ${text}` : ''}`, {
-        status: String(response.status)
+      return errorResult({
+        code: 'IMAGE_HTTP_ERROR',
+        message: `xAI image generation failed: ${response.status}${text ? ` ${text}` : ''}`,
+        details: { status: String(response.status) }
       });
     }
 
@@ -95,7 +94,7 @@ export const createImageGenerationSeam = (configSeam: AppConfigSeam): ImageGener
     try {
       payload = (await response.json()) as XaiImageResponse;
     } catch {
-      return errorResult('IMAGE_NETWORK_ERROR', 'Failed to parse xAI image generation response.');
+      return errorResult({ code: 'IMAGE_NETWORK_ERROR', message: 'Failed to parse xAI image generation response.' });
     }
 
     // Null safety: handle cases where payload.data is null or missing.
@@ -106,7 +105,7 @@ export const createImageGenerationSeam = (configSeam: AppConfigSeam): ImageGener
     }));
 
     if (images.length === 0) {
-      return errorResult('IMAGE_EMPTY_RESPONSE', 'xAI returned no images.');
+      return errorResult({ code: 'IMAGE_EMPTY_RESPONSE', message: 'xAI returned no images.' });
     }
 
     return {
