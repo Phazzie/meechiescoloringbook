@@ -253,7 +253,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		try {
 			action = getStudioTextAction(actionId);
 		} catch {
-			textError = 'This text action is unavailable. Try Generate Verdict again.';
+			textError = 'This action is not available. Try Generate Verdict instead.';
 			return;
 		}
 		if (!canRunAction(actionId)) {
