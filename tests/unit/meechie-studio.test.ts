@@ -47,7 +47,7 @@ describe('Meechie studio controls', () => {
 	it('throws when text action metadata is requested for a non-AI action id', () => {
 		const invalidActionId = 'copy_quote' as never;
 		expect(() => getStudioTextAction(invalidActionId)).toThrow(
-			'Studio action is missing aiAction metadata'
+			'Studio action is missing aiAction metadata: copy_quote'
 		);
 	});
 
