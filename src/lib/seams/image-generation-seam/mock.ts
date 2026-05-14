@@ -4,9 +4,10 @@
 import type {
   ImageGenerationRequest,
   ImageGenerationResult,
-  ImageGenerationSeam
+  ImageGenerationSeam,
+  ImageGenerationError
 } from './contract';
-import type { Result } from '../../../contracts/shared.contract';
+import type { Result } from '../../../../contracts/shared.contract';
 import { imageGenerationFaultFixture } from './fixtures';
 
 const buildSvg = (label: string) =>
@@ -17,7 +18,7 @@ const toDataUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent
 export const createMockImageGenerationSeam = (
   scenario: 'sample' | 'fault' = 'sample'
 ): ImageGenerationSeam => ({
-  generate: async (request: ImageGenerationRequest): Promise<Result<ImageGenerationResult, typeof imageGenerationFaultFixture>> => {
+  generate: async (request: ImageGenerationRequest): Promise<Result<ImageGenerationResult, ImageGenerationError>> => {
     if (scenario === 'fault') {
       return {
         ok: false,
