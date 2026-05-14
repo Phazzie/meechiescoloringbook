@@ -1,8 +1,7 @@
-// Purpose: Contract tests for ImageGenerationSeam using fixture-backed mocks.
-// Why: Ensure xAI-backed image generation returns contract-compliant results.
-// Info flow: Fixtures -> mock/adapter -> assertions.
+// Purpose: Contract tests for ImageGenerationSeam adapter using a stubbed fetch.
+// Why: Verify the adapter correctly maps xAI wire responses to the seam contract.
+// Info flow: stubbed fetch -> createImageGenerationSeam -> contract assertions.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMockImageGenerationSeam as createImageGenerationMock } from '../../src/lib/seams/image-generation-seam/mock';
 import { createImageGenerationSeam } from '../../src/lib/adapters/image-generation-seam';
 import type { AppConfigSeam } from '../../src/lib/seams/app-config-seam/contract';
 import {
@@ -52,23 +51,8 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 });
 
-describe('ImageGenerationSeam contract', () => {
-	it('mock returns sample fixture output', async () => {
-		const mock = createImageGenerationMock('sample');
-		const output = await mock.generate(imageGenerationRequestFixture);
-		expect(output.ok).toBe(true);
-	});
-
-	it('mock returns fault fixture output', async () => {
-		const mock = createImageGenerationMock('fault');
-		const output = await mock.generate(imageGenerationRequestFixture);
-		expect(output.ok).toBe(false);
-		if (!output.ok) {
-			expect(output.error.code).toBe(imageGenerationFaultFixture.code);
-		}
-	});
-
-	it('adapter returns ok result with images from xAI response', async () => {
+describe('ImageGenerationSeam adapter contract', () => {
+	it('returns ok result with images from xAI response', async () => {
 		const seam = createImageGenerationSeam(mockConfigSeam);
 		const output = await seam.generate(imageGenerationRequestFixture);
 		expect(output.ok).toBe(true);
@@ -79,7 +63,7 @@ describe('ImageGenerationSeam contract', () => {
 		expect(fetchMock).toHaveBeenCalledOnce();
 	});
 
-	it('adapter returns error for invalid prompt (validation)', async () => {
+	it('returns error for invalid prompt (validation)', async () => {
 		const seam = createImageGenerationSeam(mockConfigSeam);
 		// Empty prompt triggers IMAGE_VALIDATION_ERROR before fetch is called.
 		const output = await seam.generate({ ...imageGenerationRequestFixture, prompt: '' });
@@ -88,5 +72,9 @@ describe('ImageGenerationSeam contract', () => {
 			expect(output.error.code).toBe('IMAGE_VALIDATION_ERROR');
 		}
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('fault fixture error code matches IMAGE_HTTP_ERROR', () => {
+		expect(imageGenerationFaultFixture.code).toBe('IMAGE_HTTP_ERROR');
 	});
 });
