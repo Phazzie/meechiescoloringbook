@@ -7,7 +7,7 @@ import type {
   ImageGenerationResult,
   ImageGenerationSeam
 } from '../../seams/image-generation-seam/contract';
-import type { Result } from '../../../contracts/shared.contract';
+import type { Result } from '../../../../contracts/shared.contract';
 import { validateImageGenerationRequest } from '../../seams/image-generation-seam/validators';
 import type { AppConfigSeam } from '../../seams/app-config-seam/contract';
 

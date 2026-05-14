@@ -15,13 +15,13 @@ export const SeamErrorSchema = z.object({
 });
 export type SeamError = z.infer<typeof SeamErrorSchema>;
 
-export const resultSchema = <T extends z.ZodTypeAny, E extends z.ZodTypeAny = z.ZodTypeAny>(
+export const resultSchema = <T extends z.ZodTypeAny, E extends z.ZodTypeAny = typeof SeamErrorSchema>(
 	valueSchema: T,
-	errorSchema?: E
+	errorSchema: E = SeamErrorSchema as unknown as E
 ) =>
 	z.discriminatedUnion('ok', [
 		z.object({ ok: z.literal(true), value: valueSchema }),
-		z.object({ ok: z.literal(false), error: errorSchema ?? SeamErrorSchema }),
+		z.object({ ok: z.literal(false), error: errorSchema }),
 	]);
 
 export type Result<T, E = SeamError> = { ok: true; value: T } | { ok: false; error: E };
