@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { runImageGenerationPipeline } from '../../src/lib/core/image-generation-pipeline';
 import type { ImagePipelineDeps } from '../../src/lib/core/image-generation-pipeline';
 
+type GenerateResult = Awaited<ReturnType<ImagePipelineDeps['imageGenerationSeam']['generate']>>;
+
 const validSpec = {
   title: 'Dream Big',
   items: [
@@ -40,7 +42,7 @@ const validPrompt = [
 ].join(' ');
 
 const makeDeps = (
-  generateImpl: () => Promise<ReturnType<ImagePipelineDeps['imageGenerationSeam']['generate']>>
+  generateImpl: () => Promise<GenerateResult>
 ): ImagePipelineDeps => ({
   imageGenerationSeam: {
     generate: vi.fn(generateImpl) as ImagePipelineDeps['imageGenerationSeam']['generate']
