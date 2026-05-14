@@ -2,7 +2,7 @@
 // Why: Ensure xAI-backed image generation returns contract-compliant results.
 // Info flow: Fixtures -> mock/adapter -> assertions.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createImageGenerationMock } from '../../src/lib/mocks/image-generation.mock';
+import { createMockImageGenerationSeam } from '../../src/lib/seams/image-generation-seam/mock';
 import { createImageGenerationSeam } from '../../src/lib/adapters/image-generation-seam';
 import type { AppConfigSeam } from '../../src/lib/seams/app-config-seam/contract';
 import {
@@ -19,7 +19,9 @@ const mockConfigSeam: AppConfigSeam = {
 		xaiImageEndpointPath: '/images/generations',
 		featureIntegrationTests: false,
 		maxImagesPerRequest: 4,
-		defaultImageSize: '1024x1024'
+		defaultImageSize: '1024x1024',
+		geminiApiKey: 'test-gemini-key',
+		geminiBaseUrl: 'https://generativelanguage.googleapis.com'
 	})
 };
 
@@ -52,13 +54,13 @@ afterEach(() => {
 
 describe('ImageGenerationSeam contract', () => {
 	it('mock returns sample fixture output', async () => {
-		const mock = createImageGenerationMock('sample');
+		const mock = createMockImageGenerationSeam('sample');
 		const output = await mock.generate(imageGenerationRequestFixture);
 		expect(output.ok).toBe(true);
 	});
 
 	it('mock returns fault fixture output', async () => {
-		const mock = createImageGenerationMock('fault');
+		const mock = createMockImageGenerationSeam('fault');
 		const output = await mock.generate(imageGenerationRequestFixture);
 		expect(output.ok).toBe(false);
 		if (!output.ok) {
