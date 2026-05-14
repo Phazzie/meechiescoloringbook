@@ -20,10 +20,12 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		canRunStudioAction,
 		consumeStudioActionBudget,
 		getStudioAction,
+		getStudioTextAction,
 		getMonthlyMode,
 		getWeeklyModes,
 		studioThemes,
-		type StudioActionId
+		type StudioActionId,
+		type StudioTextActionId
 	} from '$lib/core/meechie-studio';
 	import { postJson } from '$lib/core/http-client';
 	import { GenerateResultSchema } from '../../contracts/generate.contract';
@@ -246,10 +248,12 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				}
 			: undefined;
 
-	const runTextAction = async (actionId: StudioActionId): Promise<void> => {
-		const action = getStudioAction(actionId);
-		if (!action.aiAction) {
-			textError = 'This action is not available. Try Generate Verdict instead.';
+	const runTextAction = async (actionId: StudioTextActionId): Promise<void> => {
+		let action: ReturnType<typeof getStudioTextAction>;
+		try {
+			action = getStudioTextAction(actionId);
+		} catch {
+			textError = 'This text action is unavailable. Try Generate Verdict again.';
 			return;
 		}
 		if (!canRunAction(actionId)) {

@@ -46,6 +46,13 @@ export type StudioActionMetadata = {
 	aiAction?: MeechieStudioTextAction;
 };
 
+export type StudioTextActionId =
+	| 'generate_text'
+	| 'regenerate'
+	| 'make_prettier'
+	| 'make_meaner'
+	| 'make_more_specific';
+
 export const studioActions: StudioActionMetadata[] = [
 	{
 		id: 'generate_text',
@@ -299,6 +306,16 @@ export const getStudioAction = (id: StudioActionId): StudioActionMetadata => {
 		throw new Error(`Unknown studio action: ${id}`);
 	}
 	return action;
+};
+
+export const getStudioTextAction = (
+	id: StudioTextActionId
+): StudioActionMetadata & { aiAction: MeechieStudioTextAction } => {
+	const action = getStudioAction(id);
+	if (!action.aiAction) {
+		throw new Error(`Studio action is missing aiAction metadata: ${id}`);
+	}
+	return action as StudioActionMetadata & { aiAction: MeechieStudioTextAction };
 };
 
 export const consumeStudioActionBudget = (remainingBudget: number, actionId: StudioActionId): number => {
