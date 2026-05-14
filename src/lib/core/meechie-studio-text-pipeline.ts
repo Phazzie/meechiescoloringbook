@@ -3,7 +3,7 @@
 // Info flow: Request body -> ProviderAdapterSeam -> structured studio text result.
 import { env } from '$env/dynamic/private';
 import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
-import { SYSTEM_CONSTANTS } from '$lib/core/constants';
+import { DEFAULT_TEXT_MODEL, SYSTEM_CONSTANTS } from '$lib/core/constants';
 import {
 	MeechieStudioTextInputSchema,
 	MeechieStudioTextOutputSchema,
@@ -12,7 +12,7 @@ import {
 import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.contract';
 import { z } from 'zod';
 
-const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
+const TEXT_MODEL = env.XAI_TEXT_MODEL || DEFAULT_TEXT_MODEL;
 
 const STUDIO_TEXT_RESPONSE_FORMAT = {
 	type: 'json_schema',
@@ -368,16 +368,6 @@ export const runMeechieStudioTextPipeline = async (
 			providerResult.value.model
 		);
 	}
-	if (!result.ok) {
-		console.warn(
-			'Meechie studio text pipeline failed to extract valid JSON from model output after retry',
-			{
-				model: providerResult.value.model,
-				contentPreview: providerResult.value.content.slice(0, 500)
-			}
-		);
-	}
-
 	const parsedResult = MeechieStudioTextResultSchema.safeParse(result);
 	if (!parsedResult.success) {
 		return buildError(

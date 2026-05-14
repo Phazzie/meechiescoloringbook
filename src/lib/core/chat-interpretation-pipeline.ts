@@ -3,7 +3,7 @@
 // Info flow: Raw request body -> provider completion -> JSON extraction + validation -> contract response.
 import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
-import { SYSTEM_CONSTANTS } from '$lib/core/constants';
+import { DEFAULT_TEXT_MODEL, SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { env } from '$env/dynamic/private';
 import {
 	ChatInterpretationInputSchema,
@@ -15,7 +15,7 @@ import {
 } from '../../../contracts/spec-validation.contract';
 import { z } from 'zod';
 
-const CHAT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
+const CHAT_MODEL = env.XAI_TEXT_MODEL || DEFAULT_TEXT_MODEL;
 
 type ChatInterpretationResult = z.infer<typeof ChatInterpretationResultSchema>;
 

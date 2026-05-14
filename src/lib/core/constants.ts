@@ -1,6 +1,8 @@
 // Purpose: Provide shared cross-seam constants for deterministic behavior.
 // Why: Prevent phrase/rule drift between adapters, routes, seams, and tests.
 // Info flow: Constants -> adapters/routes/mocks -> runtime validation and generation.
+export const DEFAULT_TEXT_MODEL = 'grok-4-1-fast-reasoning';
+
 export const SYSTEM_CONSTANTS = {
 	REQUIRED_PROMPT_PHRASES: [
 		'Black-and-white coloring book page',

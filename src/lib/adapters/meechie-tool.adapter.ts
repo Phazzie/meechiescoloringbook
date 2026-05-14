@@ -11,8 +11,9 @@ import type { Result } from '../../../contracts/shared.contract';
 import { createProviderAdapter } from './provider-adapter.adapter';
 import { meechieVoiceAdapter } from './meechie-voice.adapter';
 import { env } from '$env/dynamic/private';
+import { DEFAULT_TEXT_MODEL } from '$lib/core/constants';
 
-const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
+const TEXT_MODEL = env.XAI_TEXT_MODEL || DEFAULT_TEXT_MODEL;
 
 const buildSystemPrompt = (pack: MeechieVoicePack): string => {
 	const quoteSamples = pack.responses.quotes

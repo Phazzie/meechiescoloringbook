@@ -4,9 +4,9 @@
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { z } from 'zod';
 import {
-  ImageGenerationInputSchema,
-  ImageGenerationResultSchema,
-  type GeneratedImage
+	ImageGenerationInputSchema,
+	ImageGenerationResultSchema,
+	type GeneratedImage
 } from '../../../contracts/image-generation.contract';
 import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contract';
 
@@ -15,143 +15,143 @@ const DEFAULT_IMAGE_SIZE = '1024x1024';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
 const imageFormatFromBase64 = (
-  data: string
+	data: string
 ): Pick<GeneratedImage, 'format' | 'mimeType'> =>
-  data.startsWith('/9j/')
-    ? { format: 'jpg', mimeType: 'image/jpeg' }
-    : { format: 'png', mimeType: 'image/png' };
+	data.startsWith('/9j/')
+		? { format: 'jpg', mimeType: 'image/jpeg' }
+		: { format: 'png', mimeType: 'image/png' };
 
 type ImageGenerationResult = z.infer<typeof ImageGenerationResultSchema>;
 
 type ImagePipelineResponse = {
-  status: number;
-  body: ImageGenerationResult;
+	status: number;
+	body: ImageGenerationResult;
 };
 
 export type ImagePipelineDeps = {
-  imageGenerationSeam: ImageGenerationSeam;
+	imageGenerationSeam: ImageGenerationSeam;
 };
 
 const pageSizeLine = (pageSize: string): string =>
-  pageSize === 'A4' ? 'A4 8.27x11.69 portrait.' : 'US Letter 8.5x11 portrait.';
+	pageSize === 'A4' ? 'A4 8.27x11.69 portrait.' : 'US Letter 8.5x11 portrait.';
 
 const missingRequiredPhrases = (prompt: string, pageSize: string): string[] => {
-  const promptLower = prompt.toLowerCase();
-  const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)].map((phrase) =>
-    phrase.toLowerCase()
-  );
-  return phrases.filter((phrase) => !promptLower.includes(phrase));
+	const promptLower = prompt.toLowerCase();
+	const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)].map((phrase) =>
+		phrase.toLowerCase()
+	);
+	return phrases.filter((phrase) => !promptLower.includes(phrase));
 };
 
-const errorResponse = (
-  status: number,
-  code: string,
-  message: string
+const buildError = (
+	status: number,
+	code: string,
+	message: string
 ): ImagePipelineResponse => ({
-  status,
-  body: {
-    ok: false,
-    error: {
-      code,
-      message
-    }
-  }
+	status,
+	body: {
+		ok: false,
+		error: {
+			code,
+			message
+		}
+	}
 });
 
 export const runImageGenerationPipeline = async (
-  body: unknown,
-  deps: ImagePipelineDeps
+	body: unknown,
+	deps: ImagePipelineDeps
 ): Promise<ImagePipelineResponse> => {
-  const parsedInput = ImageGenerationInputSchema.safeParse(body);
-  if (!parsedInput.success) {
-    return errorResponse(
-      400,
-      'IMAGE_INPUT_INVALID',
-      'Image generation input is invalid.'
-    );
-  }
+	const parsedInput = ImageGenerationInputSchema.safeParse(body);
+	if (!parsedInput.success) {
+		return buildError(
+			400,
+			'IMAGE_INPUT_INVALID',
+			'Image generation input is invalid.'
+		);
+	}
 
-  const { prompt, variations, spec } = parsedInput.data;
-  const missing = missingRequiredPhrases(prompt, spec.pageSize);
-  if (missing.length > 0) {
-    return errorResponse(
-      400,
-      'PROMPT_MISSING_REQUIRED_PHRASES',
-      'Prompt missing required phrases for deterministic generation.'
-    );
-  }
+	const { prompt, variations, spec } = parsedInput.data;
+	const missing = missingRequiredPhrases(prompt, spec.pageSize);
+	if (missing.length > 0) {
+		return buildError(
+			400,
+			'PROMPT_MISSING_REQUIRED_PHRASES',
+			'Prompt missing required phrases for deterministic generation.'
+		);
+	}
 
-  const seamResult = await deps.imageGenerationSeam.generate({
-    prompt,
-    n: variations,
-    size: DEFAULT_IMAGE_SIZE,
-    format: RESPONSE_FORMAT
-  });
+	const seamResult = await deps.imageGenerationSeam.generate({
+		prompt,
+		n: variations,
+		size: DEFAULT_IMAGE_SIZE,
+		format: RESPONSE_FORMAT
+	});
 
-  if (!seamResult.ok) {
-    const isConfigError = seamResult.error.code === 'IMAGE_VALIDATION_ERROR';
-    return {
-      status: isConfigError ? 503 : 502,
-      body: {
-        ok: false,
-        error: seamResult.error
-      }
-    };
-  }
+	if (!seamResult.ok) {
+		const isConfigError = seamResult.error.code === 'IMAGE_VALIDATION_ERROR';
+		return {
+			status: isConfigError ? 503 : 502,
+			body: {
+				ok: false,
+				error: seamResult.error
+			}
+		};
+	}
 
-  const images: GeneratedImage[] = [];
-  for (const [index, image] of seamResult.value.images.entries()) {
-    if (!image.b64) {
-      continue;
-    }
-    const format = imageFormatFromBase64(image.b64);
-    images.push({
-      id: `image-${index + 1}`,
-      ...format,
-      data: image.b64,
-      encoding: 'base64'
-    });
-  }
+	const images: GeneratedImage[] = [];
+	for (const [index, image] of seamResult.value.images.entries()) {
+		if (!image.b64) {
+			continue;
+		}
+		const format = imageFormatFromBase64(image.b64);
+		images.push({
+			id: `image-${index + 1}`,
+			...format,
+			data: image.b64,
+			encoding: 'base64'
+		});
+	}
 
-  if (images.length === 0) {
-    return errorResponse(
-      502,
-      'PROVIDER_EMPTY_IMAGE',
-      'Provider returned no images.'
-    );
-  }
+	if (images.length === 0) {
+		return buildError(
+			502,
+			'PROVIDER_EMPTY_IMAGE',
+			'Provider returned no images.'
+		);
+	}
 
-  const revisedPrompt =
-    typeof seamResult.value.rawModelInfo.revisedPrompt === 'string'
-      ? seamResult.value.rawModelInfo.revisedPrompt
-      : undefined;
+	const revisedPrompt =
+		typeof seamResult.value.rawModelInfo.revisedPrompt === 'string'
+			? seamResult.value.rawModelInfo.revisedPrompt
+			: undefined;
 
-  const result: ImageGenerationResult = {
-    ok: true,
-    value: {
-      images,
-      revisedPrompt,
-      modelMetadata: {
-        provider: 'xai',
-        model:
-          typeof seamResult.value.rawModelInfo.model === 'string'
-            ? seamResult.value.rawModelInfo.model
-            : 'unknown'
-      }
-    }
-  };
+	const result: ImageGenerationResult = {
+		ok: true,
+		value: {
+			images,
+			revisedPrompt,
+			modelMetadata: {
+				provider: 'xai',
+				model:
+					typeof seamResult.value.rawModelInfo.model === 'string'
+						? seamResult.value.rawModelInfo.model
+						: 'unknown'
+			}
+		}
+	};
 
-  const parsedResult = ImageGenerationResultSchema.safeParse(result);
-  if (!parsedResult.success) {
-    return errorResponse(
-      500,
-      'IMAGE_OUTPUT_INVALID',
-      'Image generation response did not match contract.'
-    );
-  }
+	const parsedResult = ImageGenerationResultSchema.safeParse(result);
+	if (!parsedResult.success) {
+		return buildError(
+			500,
+			'IMAGE_OUTPUT_INVALID',
+			'Image generation response did not match contract.'
+		);
+	}
 
-  return {
-    status: 200,
-    body: parsedResult.data
-  };
+	return {
+		status: 200,
+		body: parsedResult.data
+	};
 };
