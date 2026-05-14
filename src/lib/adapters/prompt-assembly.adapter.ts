@@ -7,9 +7,11 @@ import type {
 	PromptAssemblySeam
 } from '../../../contracts/prompt-assembly.contract';
 import type { Result } from '../../../contracts/shared.contract';
-import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import {
+	BASE_PAGE_PHRASE,
+	EASY_TO_COLOR_PHRASE,
 	NEGATIVE_PROMPT_HEADING,
+	OUTLINE_ONLY_PHRASE,
 	RESERVED_STYLE_HINT_HEADINGS,
 	PROMPT_FORBIDDEN_TOKENS,
 	borderLine,
@@ -29,9 +31,6 @@ import { formatAlignmentLine } from '$lib/utils/alignment-line';
 
 const TEMPLATE_VERSION = 'v2';
 const MAX_PROMPT_LENGTH = 8000;
-const BASE_PAGE_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[0];
-const OUTLINE_ONLY_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[1];
-const EASY_TO_COLOR_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[2];
 
 const includesReservedHeading = (styleHint: string): boolean => {
 	const normalized = styleHint.toUpperCase();

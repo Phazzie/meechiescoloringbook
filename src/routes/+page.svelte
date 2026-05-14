@@ -5,7 +5,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
            Wig selection + selfie -> /api/wig-try-on -> Gemini portrait -> coloring page.
 -->
 <script lang="ts">
-	import { onMount, onDestroy, tick } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
@@ -159,6 +159,22 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		return `${activeTheme.styleHint}; ${voice.intensity}; ${voice.rawness}; ${voice.thirdPerson}${glitterText}${wigText}`;
 	};
 
+	const formatUsd = (value: number): string =>
+		new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+
+	const resetTryOnResultState = (): void => {
+		tryOnPortraitUrl = '';
+		tryOnError = '';
+	};
+
+	const resetTryOnStateOnNewWig = (): void => {
+		resetTryOnResultState();
+	};
+
+	const resetTryOnStateOnNewSelfie = (): void => {
+		resetTryOnResultState();
+	};
+
 	const scheduleDraftSave = (): void => {
 		if (!isBrowser) {
 			return;
@@ -217,6 +233,43 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		});
 		await validateSpec();
 		scheduleDraftSave();
+	};
+
+	const syncSpecFromCurrentText = async (): Promise<void> => {
+		await applyTextToSpec(textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT);
+	};
+
+	const parseTryOnPortraitImage = (): GeneratedImage | null => {
+		if (!tryOnPortraitUrl.startsWith('data:')) {
+			return null;
+		}
+		const marker = ';base64,';
+		const markerIndex = tryOnPortraitUrl.indexOf(marker);
+		if (markerIndex === -1) {
+			return null;
+		}
+		const mimeType = tryOnPortraitUrl.slice(5, markerIndex);
+		const data = tryOnPortraitUrl.slice(markerIndex + marker.length);
+		if (data.length === 0) {
+			return null;
+		}
+		let format: GeneratedImage['format'];
+		if (mimeType === 'image/png') {
+			format = 'png';
+		} else if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
+			format = 'jpg';
+		} else if (mimeType === 'image/svg+xml') {
+			format = 'svg';
+		} else {
+			return null;
+		}
+		return {
+			id: `try-on-${generateCreationId()}`,
+			format,
+			mimeType,
+			data,
+			encoding: 'base64'
+		};
 	};
 
 	const resetGeneratedPage = (): void => {
@@ -313,9 +366,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		resetGeneratedPage();
 		isGenerating = true;
 		try {
-			await applyTextToSpec(textOutput);
-			const valid = await validateSpec();
-			if (!valid) {
+			const output = textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT;
+			await applyTextToSpec(output);
+			if (validationIssues.length > 0) {
 				generationError = 'Fix the page settings before generating.';
 				return;
 			}
@@ -356,6 +409,41 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				error instanceof Error
 					? error.message
 					: 'Coloring page generation failed.';
+		} finally {
+			isGenerating = false;
+		}
+	};
+
+	const handleGenerateTryOnPage = async (): Promise<void> => {
+		if (!tryOnPortraitUrl) {
+			generationError = 'Create a try-on portrait first.';
+			return;
+		}
+		resetGeneratedPage();
+		isGenerating = true;
+		try {
+			const portraitImage = parseTryOnPortraitImage();
+			if (!portraitImage) {
+				generationError = 'Try-on portrait format is not supported for coloring-page export.';
+				return;
+			}
+			images = [portraitImage];
+			const creationId = generateCreationId();
+			const packagingResult = await outputPackagingAdapter.package({
+				images,
+				outputFormat: 'pdf',
+				fileBaseName: `meechie-coloring-page-${creationId}`,
+				pageSize: spec.pageSize,
+				variants: ['print']
+			});
+			if (packagingResult.ok) {
+				packagedFiles = packagingResult.value.files;
+			} else {
+				generationError = packagingResult.error.message;
+			}
+		} catch (error) {
+			generationError =
+				error instanceof Error ? error.message : 'Coloring page generation failed.';
 		} finally {
 			isGenerating = false;
 		}
@@ -461,6 +549,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		border = creation.intent.border;
 		textOutput = restoredText;
 		await validateSpec();
+		scheduleDraftSave();
 	};
 
 	const deleteCreation = async (id: string): Promise<void> => {
@@ -535,7 +624,10 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 	onMount(async () => {
 		isBrowser = true;
-		const sessionResult = await sessionAdapter.getSession();
+		const [sessionResult, draft] = await Promise.all([
+			sessionAdapter.getSession(),
+			creationStoreAdapter.getDraft({})
+		]);
 		if (sessionResult.ok) {
 			owner = buildOwner(sessionResult.value.sessionId);
 			const authResult = await authContextAdapter.getAuthContext({
@@ -545,7 +637,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				authContext = authResult.value;
 			}
 		}
-		const draft = await creationStoreAdapter.getDraft({});
 		if (draft.ok && draft.value) {
 			spec = draft.value.intent;
 			evidence = draft.value.chatMessage || '';
@@ -648,7 +739,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			<input
 				id="dedication"
 				bind:value={dedication}
-				oninput={scheduleDraftSave}
+				oninput={() => void syncSpecFromCurrentText()}
 				maxlength="60"
 				placeholder="Optional dedication"
 			/>
@@ -832,9 +923,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 							class:active={selectedThemeId === theme.id}
 							onclick={() => {
 								selectedThemeId = theme.id;
-								if (textOutput) {
-									void applyTextToSpec(textOutput);
-								}
+								void syncSpecFromCurrentText();
 							}}
 						>
 							<span>{theme.icon}</span>
@@ -844,21 +933,21 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				</div>
 
 				<label for="intensity">Intensity</label>
-				<select id="intensity" bind:value={voice.intensity}>
+				<select id="intensity" bind:value={voice.intensity} onchange={() => void syncSpecFromCurrentText()}>
 					<option value="receipts_out">Receipts Out</option>
 					<option value="church_lady">Church Lady</option>
 					<option value="no_mercy">No Mercy</option>
 				</select>
 
 				<label for="rawness">Rawness</label>
-				<select id="rawness" bind:value={voice.rawness}>
+				<select id="rawness" bind:value={voice.rawness} onchange={() => void syncSpecFromCurrentText()}>
 					<option value="mild">Mild</option>
 					<option value="medium">Medium</option>
 					<option value="raw">Raw</option>
 				</select>
 
 				<label for="thirdPerson">Third Person</label>
-				<select id="thirdPerson" bind:value={voice.thirdPerson}>
+				<select id="thirdPerson" bind:value={voice.thirdPerson} onchange={() => void syncSpecFromCurrentText()}>
 					<option value="sometimes">Sometimes</option>
 					<option value="always">Always</option>
 					<option value="never">Never</option>
@@ -870,8 +959,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					bind:value={pageSize}
 					onchange={async (e) => {
 						pageSize = (e.currentTarget as HTMLSelectElement).value as PageSize;
-						await tick();
-						if (textOutput) void applyTextToSpec(textOutput);
+						await syncSpecFromCurrentText();
 					}}
 				>
 					<option value="US_Letter">US Letter</option>
@@ -884,8 +972,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 					bind:value={border}
 					onchange={async (e) => {
 						border = (e.currentTarget as HTMLSelectElement).value as BorderChoice;
-						await tick();
-						if (textOutput) void applyTextToSpec(textOutput);
+						await syncSpecFromCurrentText();
 					}}
 				>
 					<option value="decorative">Decorative</option>
@@ -894,7 +981,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				</select>
 
 				<label class="toggle">
-					<input type="checkbox" bind:checked={glitter} />
+					<input type="checkbox" bind:checked={glitter} onchange={() => void syncSpecFromCurrentText()} />
 					<span>Add glitter overlay</span>
 				</label>
 			</div>
@@ -914,8 +1001,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			onSelect={(wig) => {
 				selectedWigId = wig.id;
 				selectedWig = wig;
-				tryOnPortraitUrl = '';
-				tryOnError = '';
+				resetTryOnStateOnNewWig();
+				void syncSpecFromCurrentText();
 			}}
 		/>
 
@@ -927,8 +1014,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 						onUpload={(base64, mimeType) => {
 							selfieBase64 = base64;
 							selfieMimeType = mimeType;
-							tryOnPortraitUrl = '';
-							tryOnError = '';
+							resetTryOnStateOnNewSelfie();
 						}}
 					/>
 					<button
@@ -949,7 +1035,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 						rel="noopener noreferrer"
 						class="button-link affiliate-link"
 					>
-						Shop {selectedWig.name} — ${selectedWig.priceUsd.toFixed(2)} ↗
+						Shop {selectedWig.name} — {formatUsd(selectedWig.priceUsd)} ↗
 					</a>
 				</div>
 
@@ -973,8 +1059,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 							<button
 								type="button"
 								class="primary"
-								onclick={handleGeneratePage}
-								disabled={!textOutput || isGenerating}
+								onclick={handleGenerateTryOnPage}
+								disabled={!tryOnPortraitUrl || isGenerating}
 							>
 								{isGenerating ? 'Creating...' : 'Make It a Coloring Page'}
 							</button>

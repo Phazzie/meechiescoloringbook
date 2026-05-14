@@ -74,7 +74,16 @@ describe('ImageGenerationSeam adapter contract', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
-	it('fault fixture error code matches IMAGE_HTTP_ERROR', () => {
-		expect(imageGenerationFaultFixture.code).toBe('IMAGE_HTTP_ERROR');
+	it('returns IMAGE_HTTP_ERROR when fetch fails', async () => {
+		fetchMock.mockResolvedValue(
+			new Response('Server Error', { status: 500 })
+		);
+		const seam = createImageGenerationSeam(mockConfigSeam);
+		const output = await seam.generate(imageGenerationRequestFixture);
+		expect(output.ok).toBe(false);
+		if (!output.ok) {
+			expect(output.error.code).toBe(imageGenerationFaultFixture.code);
+		}
+		expect(fetchMock).toHaveBeenCalledOnce();
 	});
 });
