@@ -30,4 +30,4 @@ Some seams are pure or dependency-injected and have no separate adapter. When an
 | `safety-policy-seam/` | Content guardrail enforcement (pure, no external I/O) |
 | `gallery-store-seam/` | Saved generations, favorites, drafts |
 | `telemetry-seam/` | Telemetry event contract (pure) |
-| `image-generation-seam/` | xAI image provider calls |
+| `image-generation-seam/` | xAI image provider calls (XaiImageProviderSeam) |

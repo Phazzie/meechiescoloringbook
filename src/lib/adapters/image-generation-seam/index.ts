@@ -3,9 +3,10 @@
 // Info flow: validated request -> fetch -> Result.
 import type {
   GeneratedImage,
+  ImageGenerationError,
   ImageGenerationRequest,
   ImageGenerationResult,
-  ImageGenerationSeam
+  XaiImageProviderSeam
 } from '../../seams/image-generation-seam/contract';
 import type { Result } from '../../../contracts/shared.contract';
 import { validateImageGenerationRequest } from '../../seams/image-generation-seam/validators';
@@ -31,16 +32,16 @@ const buildPrompt = (request: ImageGenerationRequest) =>
     : request.prompt;
 
 const errorResult = (
-  code: string,
+  code: ImageGenerationError['code'],
   message: string,
   details?: Record<string, string>
-): Result<ImageGenerationResult, { code: string; message: string; details?: Record<string, string> }> => ({
+): Result<ImageGenerationResult, ImageGenerationError> => ({
   ok: false,
-  error: { code, message, ...(details ? { details } : {}) }
+  error: { code, message, ...(details ? { details } : {}) } as ImageGenerationError
 });
 
-export const createImageGenerationSeam = (configSeam: AppConfigSeam): ImageGenerationSeam => ({
-  generate: async (request): Promise<Result<ImageGenerationResult, { code: string; message: string; details?: Record<string, string> }>> => {
+export const createImageGenerationSeam = (configSeam: AppConfigSeam): XaiImageProviderSeam => ({
+  generate: async (request): Promise<Result<ImageGenerationResult, ImageGenerationError>> => {
     let validated: ImageGenerationRequest;
     try {
       validated = validateImageGenerationRequest(request);

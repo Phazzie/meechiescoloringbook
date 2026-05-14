@@ -8,7 +8,7 @@ import {
   ImageGenerationResultSchema,
   type GeneratedImage
 } from '../../../contracts/image-generation.contract';
-import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contract';
+import type { XaiImageProviderSeam } from '$lib/seams/image-generation-seam/contract';
 
 const RESPONSE_FORMAT = 'b64_json' as const;
 const DEFAULT_IMAGE_SIZE = '1024x1024';
@@ -29,7 +29,7 @@ type ImagePipelineResponse = {
 };
 
 export type ImagePipelineDeps = {
-  imageGenerationSeam: ImageGenerationSeam;
+  imageGenerationSeam: XaiImageProviderSeam;
 };
 
 const pageSizeLine = (pageSize: string): string =>
@@ -89,7 +89,7 @@ export const runImageGenerationPipeline = async (
   });
 
   if (!seamResult.ok) {
-    const isConfigError = seamResult.error.code === 'IMAGE_VALIDATION_ERROR';
+    const isConfigError = seamResult.error.code === 'IMAGE_CONFIG_ERROR';
     return {
       status: isConfigError ? 503 : 502,
       body: {

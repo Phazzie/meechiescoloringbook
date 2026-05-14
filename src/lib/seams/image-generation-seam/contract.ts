@@ -36,6 +36,6 @@ export type ImageGenerationError =
   | { code: 'IMAGE_NETWORK_ERROR'; message: string }
   | { code: 'IMAGE_EMPTY_RESPONSE'; message: string };
 
-export type ImageGenerationSeam = {
+export type XaiImageProviderSeam = {
   generate: (request: ImageGenerationRequest) => Promise<Result<ImageGenerationResult, ImageGenerationError>>;
 };

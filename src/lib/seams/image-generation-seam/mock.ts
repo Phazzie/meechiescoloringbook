@@ -2,9 +2,10 @@
 // Why: Keep tests deterministic without live I/O.
 // Info flow: tests -> mock -> fixtures.
 import type {
+  ImageGenerationError,
   ImageGenerationRequest,
   ImageGenerationResult,
-  ImageGenerationSeam
+  XaiImageProviderSeam
 } from './contract';
 import type { Result } from '../../../contracts/shared.contract';
 import { imageGenerationFaultFixture } from './fixtures';
@@ -16,8 +17,8 @@ const toDataUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent
 
 export const createMockImageGenerationSeam = (
   scenario: 'sample' | 'fault' = 'sample'
-): ImageGenerationSeam => ({
-  generate: async (request: ImageGenerationRequest): Promise<Result<ImageGenerationResult, typeof imageGenerationFaultFixture>> => {
+): XaiImageProviderSeam => ({
+  generate: async (request: ImageGenerationRequest): Promise<Result<ImageGenerationResult, ImageGenerationError>> => {
     if (scenario === 'fault') {
       return {
         ok: false,
