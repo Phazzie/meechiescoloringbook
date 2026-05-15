@@ -1,0 +1,503 @@
+# Purpose: Store npm run verify output for evidence.
+# Why: Provide an audit trail for Seam-Driven Development verification.
+# Info flow: Command output -> evidence file -> review.
+
+$ npm run verify
+
+$ npm run check
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: <REPO_ROOT>
+Getting Svelte diagnostics...
+
+<REPO_ROOT>/src/lib/adapters/chat-interpretation.adapter.ts:33:4
+Error: Type '{ value: { spec: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | ... 1 more ... | "normal"; ... 14 more ...; dedication?: string | undefined; }; }; ok: true; } | { ...; }' is not assignable to type 'Result<{ spec: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | "tight" | "normal"; ... 14 more ...; dedication?: string | undefined; }; }>'.
+  Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ spec: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | "tight" | "normal"; ... 14 more ...; dedication?: string | undefined; }; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+      Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+			}
+			return parsed.data;
+		} catch (error) {
+
+<REPO_ROOT>/src/lib/adapters/image-generation.adapter.ts:60:4
+Error: Type '{ value: { images: { id: string; format: "png" | "svg" | "jpg"; mimeType: string; data: string; encoding: "base64" | "utf8"; }[]; modelMetadata?: { provider: string; model: string; } | undefined; revisedPrompt?: string | undefined; }; ok: true; } | { ...; }' is not assignable to type 'Result<{ images: { id: string; format: "png" | "svg" | "jpg"; mimeType: string; data: string; encoding: "base64" | "utf8"; }[]; modelMetadata?: { provider: string; model: string; } | undefined; revisedPrompt?: string | undefined; }>'.
+  Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ images: { id: string; format: "png" | "svg" | "jpg"; mimeType: string; data: string; encoding: "base64" | "utf8"; }[]; modelMetadata?: { provider: string; model: string; } | undefined; revisedPrompt?: string | undefined; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+      Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+			}
+			return parsed.data;
+		} catch (error) {
+
+<REPO_ROOT>/src/lib/adapters/meechie-studio-text.adapter.ts:21:3
+Error: Type '{ value: { verdict: string; quote: string; pageTitle: string; pageItems: { number: number; label: string; }[]; qualityState: "ready" | "needs_more_evidence" | "blocked"; rating?: number | undefined; revisionNote?: string | undefined; modelMetadata?: { ...; } | undefined; }; ok: true; } | { ...; }' is not assignable to type 'Result<{ verdict: string; quote: string; pageTitle: string; pageItems: { number: number; label: string; }[]; qualityState: "ready" | "needs_more_evidence" | "blocked"; rating?: number | undefined; revisionNote?: string | undefined; modelMetadata?: { ...; } | undefined; }>'.
+  Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ verdict: string; quote: string; pageTitle: string; pageItems: { number: number; label: string; }[]; qualityState: "ready" | "needs_more_evidence" | "blocked"; rating?: number | undefined; revisionNote?: string | undefined; modelMetadata?: { ...; } | undefined; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+      Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+		const response = await runMeechieStudioTextPipeline(input, deps);
+		return response.body;
+	}
+
+<REPO_ROOT>/src/lib/adapters/image-generation-seam/index.ts:10:29
+Error: Cannot find module '../../../contracts/shared.contract' or its corresponding type declarations. 
+} from '../../seams/image-generation-seam/contract';
+import type { Result } from '../../../contracts/shared.contract';
+import { validateImageGenerationRequest } from '../../seams/image-generation-seam/validators';
+
+<REPO_ROOT>/src/lib/mocks/auth-context.mock.ts:25:30
+Error: Type 'Promise<{ value: { kind: "anonymous" | "authenticated"; capabilities: string[]; rateLimitTier: string; userId?: string | undefined; }; ok: true; } | { ok: false; error?: any; }>' is not assignable to type 'Promise<Result<{ kind: "anonymous" | "authenticated"; capabilities: string[]; rateLimitTier: string; userId?: string | undefined; }>>'.
+  Type '{ value: { kind: "anonymous" | "authenticated"; capabilities: string[]; rateLimitTier: string; userId?: string | undefined; }; ok: true; } | { ok: false; error?: any; }' is not assignable to type 'Result<{ kind: "anonymous" | "authenticated"; capabilities: string[]; rateLimitTier: string; userId?: string | undefined; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ kind: "anonymous" | "authenticated"; capabilities: string[]; rateLimitTier: string; userId?: string | undefined; }>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+export const createAuthContextMock = (scenario: Scenario): AuthContextSeam => ({
+	getAuthContext: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+});
+
+<REPO_ROOT>/src/lib/mocks/chat-interpretation.mock.ts:25:25
+Error: Type 'Promise<{ value: { spec: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | ... 1 more ... | "normal"; ... 14 more ...; dedication?: string | undefined; }; }; ok: true; } | { ...; }>' is not assignable to type 'Promise<Result<{ spec: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | "tight" | "normal"; ... 14 more ...; dedication?: string | undefined; }; }>>'.
+  Type '{ value: { spec: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | ... 1 more ... | "normal"; ... 14 more ...; dedication?: string | undefined; }; }; ok: true; } | { ...; }' is not assignable to type 'Result<{ spec: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | "tight" | "normal"; ... 14 more ...; dedication?: string | undefined; }; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ spec: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | "tight" | "normal"; ... 14 more ...; dedication?: string | undefined; }; }>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+export const createChatInterpretationMock = (scenario: Scenario): ChatInterpretationSeam => ({
+	interpret: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+});
+
+<REPO_ROOT>/src/lib/mocks/creation-store.mock.ts:54:29
+Error: Type 'Promise<{ value: { id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | ...' is not assignable to type 'Promise<Result<{ id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | un...'.
+  Type '{ value: { id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | undefine...' is not assignable to type 'Result<{ id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | undefined;...'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | undefined;...'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+	return {
+		saveCreation: async () => fixture.output.saveCreation,
+		listCreations: async () => fixture.output.listCreations,
+
+<REPO_ROOT>/src/lib/mocks/creation-store.mock.ts:55:30
+Error: Type 'Promise<{ value: { id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | ...' is not assignable to type 'Promise<Result<{ id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | un...'.
+  Type '{ value: { id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | undefine...' is not assignable to type 'Result<{ id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | undefined;...'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | undefined;...'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+		saveCreation: async () => fixture.output.saveCreation,
+		listCreations: async () => fixture.output.listCreations,
+		getCreation: async () => fixture.output.getCreation,
+
+<REPO_ROOT>/src/lib/mocks/creation-store.mock.ts:56:28
+Error: Type 'Promise<{ value: { id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | ...' is not assignable to type 'Promise<Result<{ id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | un...'.
+  Type '{ value: { id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | undefine...' is not assignable to type 'Result<{ id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | undefined;...'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ id: string; createdAtISO: string; intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; ... 8 more ...; authContext?: { ...; } | undefined;...'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+		listCreations: async () => fixture.output.listCreations,
+		getCreation: async () => fixture.output.getCreation,
+		deleteCreation: async () => fixture.output.deleteCreation,
+
+<REPO_ROOT>/src/lib/mocks/creation-store.mock.ts:57:31
+Error: Type 'Promise<{ value: boolean; ok: true; } | { ok: false; error?: any; }>' is not assignable to type 'Promise<Result<boolean>>'.
+  Type '{ value: boolean; ok: true; } | { ok: false; error?: any; }' is not assignable to type 'Result<boolean>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<boolean>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+		getCreation: async () => fixture.output.getCreation,
+		deleteCreation: async () => fixture.output.deleteCreation,
+		saveDraft: async () => fixture.output.saveDraft,
+
+<REPO_ROOT>/src/lib/mocks/creation-store.mock.ts:58:26
+Error: Type 'Promise<{ value: { intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | ... 1 more ... | "normal"; ... 14 more ...; dedication?: string | undefined; }; updatedAtISO: string; stud...' is not assignable to type 'Promise<Result<{ intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | ... 1 more ... | "normal"; ... 14 more ...; dedication?: string | undefined; }; updatedAtISO: string; studio...'.
+  Type '{ value: { intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | ... 1 more ... | "normal"; ... 14 more ...; dedication?: string | undefined; }; updatedAtISO: string; studioText?:...' is not assignable to type 'Result<{ intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | "tight" | "normal"; ... 14 more ...; dedication?: string | undefined; }; updatedAtISO: string; studioText?: { ...; }...'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | "tight" | "normal"; ... 14 more ...; dedication?: string | undefined; }; updatedAtISO: string; studioText?: { ...; }...'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+		deleteCreation: async () => fixture.output.deleteCreation,
+		saveDraft: async () => fixture.output.saveDraft,
+		getDraft: async () => fixture.output.getDraft,
+
+<REPO_ROOT>/src/lib/mocks/creation-store.mock.ts:59:25
+Error: Type 'Promise<{ value: { intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | ... 1 more ... | "normal"; ... 14 more ...; dedication?: string | undefined; }; updatedAtISO: string; stud...' is not assignable to type 'Promise<Result<{ intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | ... 1 more ... | "normal"; ... 14 more ...; dedication?: string | undefined; }; updatedAtISO: string; studio...'.
+  Type '{ value: { intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | ... 1 more ... | "normal"; ... 14 more ...; dedication?: string | undefined; }; updatedAtISO: string; studioText?:...' is not assignable to type 'Result<{ intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | ... 1 more ... | "normal"; ... 14 more ...; dedication?: string | undefined; }; updatedAtISO: string; studioText?: {...'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ intent: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; listGutter: "loose" | ... 1 more ... | "normal"; ... 14 more ...; dedication?: string | undefined; }; updatedAtISO: string; studioText?: {...'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+		saveDraft: async () => fixture.output.saveDraft,
+		getDraft: async () => fixture.output.getDraft,
+		clearDraft: async () => fixture.output.clearDraft
+
+<REPO_ROOT>/src/lib/mocks/creation-store.mock.ts:60:27
+Error: Type 'Promise<{ value: boolean; ok: true; } | { ok: false; error?: any; }>' is not assignable to type 'Promise<Result<boolean>>'.
+  Type '{ value: boolean; ok: true; } | { ok: false; error?: any; }' is not assignable to type 'Result<boolean>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<boolean>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+		getDraft: async () => fixture.output.getDraft,
+		clearDraft: async () => fixture.output.clearDraft
+	};
+
+<REPO_ROOT>/src/lib/mocks/drift-detection.mock.ts:25:22
+Error: Type 'Promise<{ value: { violations: { code: string; message: string; severity: "error" | "warning"; }[]; confidenceScore: number; recommendedFixes: { code: string; message: string; }[]; }; ok: true; } | { ok: false; error?: any; }>' is not assignable to type 'Promise<Result<{ violations: { code: string; message: string; severity: "error" | "warning"; }[]; confidenceScore: number; recommendedFixes: { code: string; message: string; }[]; }>>'.
+  Type '{ value: { violations: { code: string; message: string; severity: "error" | "warning"; }[]; confidenceScore: number; recommendedFixes: { code: string; message: string; }[]; }; ok: true; } | { ok: false; error?: any; }' is not assignable to type 'Result<{ violations: { code: string; message: string; severity: "error" | "warning"; }[]; confidenceScore: number; recommendedFixes: { code: string; message: string; }[]; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ violations: { code: string; message: string; severity: "error" | "warning"; }[]; confidenceScore: number; recommendedFixes: { code: string; message: string; }[]; }>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+export const createDriftDetectionMock = (scenario: Scenario): DriftDetectionSeam => ({
+	detect: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+});
+
+<REPO_ROOT>/src/lib/mocks/image-generation.mock.ts:25:24
+Error: Type 'Promise<{ value: { images: { id: string; format: "png" | "svg" | "jpg"; mimeType: string; data: string; encoding: "base64" | "utf8"; }[]; modelMetadata?: { provider: string; model: string; } | undefined; revisedPrompt?: string | undefined; }; ok: true; } | { ...; }>' is not assignable to type 'Promise<Result<{ images: { id: string; format: "png" | "svg" | "jpg"; mimeType: string; data: string; encoding: "base64" | "utf8"; }[]; modelMetadata?: { provider: string; model: string; } | undefined; revisedPrompt?: string | undefined; }>>'.
+  Type '{ value: { images: { id: string; format: "png" | "svg" | "jpg"; mimeType: string; data: string; encoding: "base64" | "utf8"; }[]; modelMetadata?: { provider: string; model: string; } | undefined; revisedPrompt?: string | undefined; }; ok: true; } | { ...; }' is not assignable to type 'Result<{ images: { id: string; format: "png" | "svg" | "jpg"; mimeType: string; data: string; encoding: "base64" | "utf8"; }[]; modelMetadata?: { provider: string; model: string; } | undefined; revisedPrompt?: string | undefined; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ images: { id: string; format: "png" | "svg" | "jpg"; mimeType: string; data: string; encoding: "base64" | "utf8"; }[]; modelMetadata?: { provider: string; model: string; } | undefined; revisedPrompt?: string | undefined; }>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+export const createImageGenerationMock = (scenario: Scenario): ImageGenerationSeam => ({
+	generate: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+});
+
+<REPO_ROOT>/src/lib/mocks/meechie-studio-text.mock.ts:24:23
+Error: Type 'Promise<{ value: { verdict: string; quote: string; pageTitle: string; pageItems: { number: number; label: string; }[]; qualityState: "ready" | "needs_more_evidence" | "blocked"; rating?: number | undefined; revisionNote?: string | undefined; modelMetadata?: { ...; } | undefined; }; ok: true; } | { ...; }>' is not assignable to type 'Promise<Result<{ verdict: string; quote: string; pageTitle: string; pageItems: { number: number; label: string; }[]; qualityState: "ready" | "needs_more_evidence" | "blocked"; rating?: number | undefined; revisionNote?: string | undefined; modelMetadata?: { ...; } | undefined; }>>'.
+  Type '{ value: { verdict: string; quote: string; pageTitle: string; pageItems: { number: number; label: string; }[]; qualityState: "ready" | "needs_more_evidence" | "blocked"; rating?: number | undefined; revisionNote?: string | undefined; modelMetadata?: { ...; } | undefined; }; ok: true; } | { ...; }' is not assignable to type 'Result<{ verdict: string; quote: string; pageTitle: string; pageItems: { number: number; label: string; }[]; qualityState: "ready" | "needs_more_evidence" | "blocked"; rating?: number | undefined; revisionNote?: string | undefined; modelMetadata?: { ...; } | undefined; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ verdict: string; quote: string; pageTitle: string; pageItems: { number: number; label: string; }[]; qualityState: "ready" | "needs_more_evidence" | "blocked"; rating?: number | undefined; revisionNote?: string | undefined; modelMetadata?: { ...; } | undefined; }>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+export const createMeechieStudioTextMock = (scenario: Scenario): MeechieStudioTextSeam => ({
+	respond: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+});
+
+<REPO_ROOT>/src/lib/mocks/meechie-tool.mock.ts:25:23
+Error: Type 'Promise<{ value: { toolId: "apology_translator" | "red_flag_or_run" | "wwmd" | "lineup" | "horoscope" | "receipts" | "caption_this" | "clapback" | "meechie_explains" | "rate_excuse" | "random_meechie"; headline: string; response: string; rating?: number | undefined; quoteScore?: { ...; } | undefined; }; ok: true; } ...' is not assignable to type 'Promise<Result<{ toolId: "apology_translator" | "red_flag_or_run" | "wwmd" | "lineup" | "horoscope" | "receipts" | "caption_this" | "clapback" | "meechie_explains" | "rate_excuse" | "random_meechie"; headline: string; response: string; rating?: number | undefined; quoteScore?: { ...; } | undefined; }>>'.
+  Type '{ value: { toolId: "apology_translator" | "red_flag_or_run" | "wwmd" | "lineup" | "horoscope" | "receipts" | "caption_this" | "clapback" | "meechie_explains" | "rate_excuse" | "random_meechie"; headline: string; response: string; rating?: number | undefined; quoteScore?: { ...; } | undefined; }; ok: true; } | { ...; }' is not assignable to type 'Result<{ toolId: "apology_translator" | "red_flag_or_run" | "wwmd" | "lineup" | "horoscope" | "receipts" | "caption_this" | "clapback" | "meechie_explains" | "rate_excuse" | "random_meechie"; headline: string; response: string; rating?: number | undefined; quoteScore?: { ...; } | undefined; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ toolId: "apology_translator" | "red_flag_or_run" | "wwmd" | "lineup" | "horoscope" | "receipts" | "caption_this" | "clapback" | "meechie_explains" | "rate_excuse" | "random_meechie"; headline: string; response: string; rating?: number | undefined; quoteScore?: { ...; } | undefined; }>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+export const createMeechieToolMock = (scenario: Scenario): MeechieToolSeam => ({
+	respond: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+});
+
+<REPO_ROOT>/src/lib/mocks/meechie-voice.mock.ts:25:28
+Error: Type 'Promise<{ value: { voiceId: string; version: string; tone: { summary: string; dos: string[]; donts: string[]; samples: string[]; }; responses: { wwmd: { fallback: string; triggers: { response: string; includesAny?: string[] | undefined; includesAll?: string[] | undefined; }[]; }; ... 11 more ...; quotes: { ...; }[];...' is not assignable to type 'Promise<Result<{ voiceId: string; version: string; tone: { summary: string; dos: string[]; donts: string[]; samples: string[]; }; responses: { wwmd: { fallback: string; triggers: { response: string; includesAny?: string[] | undefined; includesAll?: string[] | undefined; }[]; }; ... 11 more ...; quotes: { ...; }[]; }...'.
+  Type '{ value: { voiceId: string; version: string; tone: { summary: string; dos: string[]; donts: string[]; samples: string[]; }; responses: { wwmd: { fallback: string; triggers: { response: string; includesAny?: string[] | undefined; includesAll?: string[] | undefined; }[]; }; ... 11 more ...; quotes: { ...; }[]; }; }; o...' is not assignable to type 'Result<{ voiceId: string; version: string; tone: { summary: string; dos: string[]; donts: string[]; samples: string[]; }; responses: { wwmd: { fallback: string; triggers: { response: string; includesAny?: string[] | undefined; includesAll?: string[] | undefined; }[]; }; ... 11 more ...; quotes: { ...; }[]; }; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ voiceId: string; version: string; tone: { summary: string; dos: string[]; donts: string[]; samples: string[]; }; responses: { wwmd: { fallback: string; triggers: { response: string; includesAny?: string[] | undefined; includesAll?: string[] | undefined; }[]; }; ... 11 more ...; quotes: { ...; }[]; }; }>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+export const createMeechieVoiceMock = (scenario: Scenario): MeechieVoiceSeam => ({
+	getVoicePack: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+});
+
+<REPO_ROOT>/src/lib/mocks/output-packaging.mock.ts:25:23
+Error: Type 'Promise<{ value: { files: { mimeType: string; filename: string; dataBase64: string; }[]; }; ok: true; } | { ok: false; error?: any; }>' is not assignable to type 'Promise<Result<{ files: { mimeType: string; filename: string; dataBase64: string; }[]; }>>'.
+  Type '{ value: { files: { mimeType: string; filename: string; dataBase64: string; }[]; }; ok: true; } | { ok: false; error?: any; }' is not assignable to type 'Result<{ files: { mimeType: string; filename: string; dataBase64: string; }[]; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ files: { mimeType: string; filename: string; dataBase64: string; }[]; }>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+export const createOutputPackagingMock = (scenario: Scenario): OutputPackagingSeam => ({
+	package: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+});
+
+<REPO_ROOT>/src/lib/mocks/prompt-assembly.mock.ts:25:24
+Error: Type 'Promise<{ value: { prompt: string; templateVersion: string; }; ok: true; } | { ok: false; error?: any; }>' is not assignable to type 'Promise<Result<{ prompt: string; templateVersion: string; }>>'.
+  Type '{ value: { prompt: string; templateVersion: string; }; ok: true; } | { ok: false; error?: any; }' is not assignable to type 'Result<{ prompt: string; templateVersion: string; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ prompt: string; templateVersion: string; }>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+export const createPromptAssemblyMock = (scenario: Scenario): PromptAssemblySeam => ({
+	assemble: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+});
+
+<REPO_ROOT>/src/lib/mocks/provider-adapter.mock.ts:34:3
+Error: Type 'Promise<{ value: { model: string; content: string; }; ok: true; } | { ok: false; error?: any; }>' is not assignable to type 'Promise<Result<{ model: string; content: string; }>>'.
+  Type '{ value: { model: string; content: string; }; ok: true; } | { ok: false; error?: any; }' is not assignable to type 'Result<{ model: string; content: string; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ model: string; content: string; }>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+	createChatCompletion: async () =>
+		scenario === 'fault' ? faultFixture.output.chat : sampleFixture.output.chat,
+	createImageGeneration: async () =>
+
+<REPO_ROOT>/src/lib/mocks/provider-adapter.mock.ts:36:3
+Error: Type 'Promise<{ value: { images: { url?: string | undefined; b64_json?: string | undefined; }[]; revisedPrompt?: string | undefined; }; ok: true; } | { ok: false; error?: any; }>' is not assignable to type 'Promise<Result<{ images: { url?: string | undefined; b64_json?: string | undefined; }[]; revisedPrompt?: string | undefined; }>>'.
+  Type '{ value: { images: { url?: string | undefined; b64_json?: string | undefined; }[]; revisedPrompt?: string | undefined; }; ok: true; } | { ok: false; error?: any; }' is not assignable to type 'Result<{ images: { url?: string | undefined; b64_json?: string | undefined; }[]; revisedPrompt?: string | undefined; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ images: { url?: string | undefined; b64_json?: string | undefined; }[]; revisedPrompt?: string | undefined; }>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+	createImageGeneration: async () =>
+		scenario === 'fault' ? faultFixture.output.image : sampleFixture.output.image
+});
+
+<REPO_ROOT>/src/lib/mocks/session.mock.ts:22:26
+Error: Type 'Promise<{ value: { sessionId: string; }; ok: true; } | { ok: false; error?: any; }>' is not assignable to type 'Promise<Result<{ sessionId: string; }>>'.
+  Type '{ value: { sessionId: string; }; ok: true; } | { ok: false; error?: any; }' is not assignable to type 'Result<{ sessionId: string; }>'.
+    Type '{ ok: false; error?: any; }' is not assignable to type 'Result<{ sessionId: string; }>'.
+      Type '{ ok: false; error?: any; }' is not assignable to type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'.
+        Property 'error' is optional in type '{ ok: false; error?: any; }' but required in type '{ ok: false; error: { code: string; message: string; details?: Record<string, string> | undefined; }; }'. 
+export const createSessionMock = (scenario: Scenario): SessionSeam => ({
+	getSession: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+});
+
+<REPO_ROOT>/src/lib/seams/image-generation-seam/mock.ts:9:29
+Error: Cannot find module '../../../contracts/shared.contract' or its corresponding type declarations. 
+} from './contract';
+import type { Result } from '../../../contracts/shared.contract';
+import { imageGenerationFaultFixture } from './fixtures';
+
+<REPO_ROOT>/tests/contract/image-generation.test.ts:14:19
+Error: Type '{ xaiApiKey: string; xaiTextModel: string; xaiImageModel: string; xaiBaseUrl: string; xaiImageEndpointPath: string; featureIntegrationTests: false; maxImagesPerRequest: number; defaultImageSize: string; }' is missing the following properties from type 'AppConfig': geminiApiKey, geminiBaseUrl 
+const mockConfigSeam: AppConfigSeam = {
+	getConfig: () => ({
+		xaiApiKey: 'test-key',
+		xaiTextModel: 'grok-4-1-fast-reasoning',
+		xaiImageModel: 'grok-imaging-image',
+		xaiBaseUrl: 'https://api.x.ai/v1',
+		xaiImageEndpointPath: '/images/generations',
+		featureIntegrationTests: false,
+		maxImagesPerRequest: 4,
+		defaultImageSize: '1024x1024'
+	})
+};
+
+<REPO_ROOT>/tests/contract/image-generation.test.ts:56:38
+Error: Argument of type 'ImageGenerationRequest' is not assignable to parameter of type '{ variations: number; outputFormat: "png" | "pdf"; spec: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; prompt: string; }'.
+  Type 'ImageGenerationRequest' is missing the following properties from type '{ variations: number; outputFormat: "png" | "pdf"; spec: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; prompt: string; }': variations, outputFormat, spec 
+		const mock = createImageGenerationMock('sample');
+		const output = await mock.generate(imageGenerationRequestFixture);
+		expect(output.ok).toBe(true);
+
+<REPO_ROOT>/tests/contract/image-generation.test.ts:62:38
+Error: Argument of type 'ImageGenerationRequest' is not assignable to parameter of type '{ variations: number; outputFormat: "png" | "pdf"; spec: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; prompt: string; }'.
+  Type 'ImageGenerationRequest' is missing the following properties from type '{ variations: number; outputFormat: "png" | "pdf"; spec: { title: string; items: { number: number; label: string; }[]; listMode: "list" | "title_only"; alignment: "left" | "center"; numberAlignment: "strict" | "loose"; ... 15 more ...; dedication?: string | undefined; }; prompt: string; }': variations, outputFormat, spec 
+		const mock = createImageGenerationMock('fault');
+		const output = await mock.generate(imageGenerationRequestFixture);
+		expect(output.ok).toBe(false);
+
+<REPO_ROOT>/tests/unit/api-image-generation.test.ts:77:7
+Error: Type 'Mock<() => Promise<{ ok: false; error: { code: string; message: string; }; }>>' is not assignable to type '(request: ImageGenerationRequest) => Promise<Result<ImageGenerationResult, ImageGenerationError>>'.
+  Type 'Promise<{ ok: false; error: { code: string; message: string; }; }>' is not assignable to type 'Promise<Result<ImageGenerationResult, ImageGenerationError>>'.
+    Type '{ ok: false; error: { code: string; message: string; }; }' is not assignable to type 'Result<ImageGenerationResult, ImageGenerationError>'.
+      Type '{ ok: false; error: { code: string; message: string; }; }' is not assignable to type '{ ok: false; error: ImageGenerationError; }'.
+        Types of property 'error' are incompatible.
+          Type '{ code: string; message: string; }' is not assignable to type 'ImageGenerationError'.
+            Type '{ code: string; message: string; }' is not assignable to type '{ code: "IMAGE_EMPTY_RESPONSE"; message: string; }'.
+              Types of property 'code' are incompatible.
+                Type 'string' is not assignable to type '"IMAGE_EMPTY_RESPONSE"'. 
+    mockCreateSeam.mockReturnValue({
+      generate: vi.fn(async () => ({
+        ok: false as const,
+
+<REPO_ROOT>/tests/unit/image-generation-pipeline.test.ts:46:15
+Error: Conversion of type 'Mock<() => Promise<Promise<Result<ImageGenerationResult, ImageGenerationError>>>>' to type '(request: ImageGenerationRequest) => Promise<Result<ImageGenerationResult, ImageGenerationError>>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Promise<Promise<Result<ImageGenerationResult, ImageGenerationError>>>' is not comparable to type 'Promise<Result<ImageGenerationResult, ImageGenerationError>>'.
+    Type 'Promise<Result<ImageGenerationResult, ImageGenerationError>>' is not comparable to type 'Result<ImageGenerationResult, ImageGenerationError>'. 
+  imageGenerationSeam: {
+    generate: vi.fn(generateImpl) as ImagePipelineDeps['imageGenerationSeam']['generate']
+  }
+
+<REPO_ROOT>/tests/unit/image-generation-pipeline.test.ts:54:28
+Error: Type 'Promise<{ ok: true; value: { images: never[]; rawModelInfo: {}; timingMs: number; }; }>' is not assignable to type 'Promise<Promise<Result<ImageGenerationResult, ImageGenerationError>>>'.
+  Type '{ ok: true; value: { images: never[]; rawModelInfo: {}; timingMs: number; }; }' is missing the following properties from type 'Promise<Result<ImageGenerationResult, ImageGenerationError>>': then, catch, finally, [Symbol.toStringTag] 
+      { spec: {} },
+      makeDeps(async () => ({ ok: true, value: { images: [], rawModelInfo: {}, timingMs: 0 } }))
+    );
+
+<REPO_ROOT>/tests/unit/image-generation-pipeline.test.ts:71:28
+Error: Type 'Promise<{ ok: true; value: { images: never[]; rawModelInfo: {}; timingMs: number; }; }>' is not assignable to type 'Promise<Promise<Result<ImageGenerationResult, ImageGenerationError>>>'.
+  Type '{ ok: true; value: { images: never[]; rawModelInfo: {}; timingMs: number; }; }' is missing the following properties from type 'Promise<Result<ImageGenerationResult, ImageGenerationError>>': then, catch, finally, [Symbol.toStringTag] 
+      },
+      makeDeps(async () => ({ ok: true, value: { images: [], rawModelInfo: {}, timingMs: 0 } }))
+    );
+
+<REPO_ROOT>/tests/unit/image-generation-pipeline.test.ts:88:28
+Error: Type 'Promise<{ ok: false; error: { code: "IMAGE_NETWORK_ERROR"; message: string; }; }>' is not assignable to type 'Promise<Promise<Result<ImageGenerationResult, ImageGenerationError>>>'.
+  Type '{ ok: false; error: { code: "IMAGE_NETWORK_ERROR"; message: string; }; }' is missing the following properties from type 'Promise<Result<ImageGenerationResult, ImageGenerationError>>': then, catch, finally, [Symbol.toStringTag] 
+      },
+      makeDeps(async () => ({
+        ok: false,
+        error: { code: 'IMAGE_NETWORK_ERROR', message: 'Connection refused' }
+      }))
+    );
+
+<REPO_ROOT>/tests/unit/image-generation-pipeline.test.ts:105:28
+Error: Type 'Promise<{ ok: false; error: { code: "IMAGE_HTTP_ERROR"; message: string; details: { status: string; }; }; }>' is not assignable to type 'Promise<Promise<Result<ImageGenerationResult, ImageGenerationError>>>'.
+  Type '{ ok: false; error: { code: "IMAGE_HTTP_ERROR"; message: string; details: { status: string; }; }; }' is missing the following properties from type 'Promise<Result<ImageGenerationResult, ImageGenerationError>>': then, catch, finally, [Symbol.toStringTag] 
+      },
+      makeDeps(async () => ({
+        ok: false,
+        error: {
+          code: 'IMAGE_HTTP_ERROR',
+          message: 'xAI returned 502',
+          details: { status: '502' }
+        }
+      }))
+    );
+
+<REPO_ROOT>/tests/unit/image-generation-pipeline.test.ts:126:28
+Error: Type 'Promise<{ ok: true; value: { images: { id: string; url: string; }[]; rawModelInfo: {}; timingMs: number; }; }>' is not assignable to type 'Promise<Promise<Result<ImageGenerationResult, ImageGenerationError>>>'.
+  Type '{ ok: true; value: { images: { id: string; url: string; }[]; rawModelInfo: {}; timingMs: number; }; }' is missing the following properties from type 'Promise<Result<ImageGenerationResult, ImageGenerationError>>': then, catch, finally, [Symbol.toStringTag] 
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', url: 'https://example.com/img.png' }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+<REPO_ROOT>/tests/unit/image-generation-pipeline.test.ts:150:28
+Error: Type 'Promise<{ ok: true; value: { images: { id: string; b64: string; }[]; rawModelInfo: { revisedPrompt: string; }; timingMs: number; }; }>' is not assignable to type 'Promise<Promise<Result<ImageGenerationResult, ImageGenerationError>>>'.
+  Type '{ ok: true; value: { images: { id: string; b64: string; }[]; rawModelInfo: { revisedPrompt: string; }; timingMs: number; }; }' is missing the following properties from type 'Promise<Result<ImageGenerationResult, ImageGenerationError>>': then, catch, finally, [Symbol.toStringTag] 
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: 'abc123' }],
+          rawModelInfo: { revisedPrompt: 'revised prompt' },
+          timingMs: 100
+        }
+      }))
+    );
+
+<REPO_ROOT>/tests/unit/image-generation-pipeline.test.ts:177:28
+Error: Type 'Promise<{ ok: true; value: { images: { id: string; b64: string; }[]; rawModelInfo: {}; timingMs: number; }; }>' is not assignable to type 'Promise<Promise<Result<ImageGenerationResult, ImageGenerationError>>>'.
+  Type '{ ok: true; value: { images: { id: string; b64: string; }[]; rawModelInfo: {}; timingMs: number; }; }' is missing the following properties from type 'Promise<Result<ImageGenerationResult, ImageGenerationError>>': then, catch, finally, [Symbol.toStringTag] 
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: '/9j/jpeg-data' }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+<REPO_ROOT>/tests/unit/image-generation-pipeline.test.ts:203:28
+Error: Type 'Promise<{ ok: true; value: { images: ({ id: string; url: string; b64?: undefined; } | { id: string; b64: string; url?: undefined; })[]; rawModelInfo: {}; timingMs: number; }; }>' is not assignable to type 'Promise<Promise<Result<ImageGenerationResult, ImageGenerationError>>>'.
+  Type '{ ok: true; value: { images: ({ id: string; url: string; b64?: undefined; } | { id: string; b64: string; url?: undefined; })[]; rawModelInfo: {}; timingMs: number; }; }' is missing the following properties from type 'Promise<Result<ImageGenerationResult, ImageGenerationError>>': then, catch, finally, [Symbol.toStringTag] 
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [
+            { id: 'xai-1', url: 'https://only-url.png' },
+            { id: 'xai-2', b64: 'valid-base64' }
+          ],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+<REPO_ROOT>/tests/unit/image-generation-pipeline.test.ts:242:28
+Error: Type 'Promise<{ ok: true; value: { images: { id: string; b64: string; }[]; rawModelInfo: {}; timingMs: number; }; }>' is not assignable to type 'Promise<Promise<Result<ImageGenerationResult, ImageGenerationError>>>'.
+  Type '{ ok: true; value: { images: { id: string; b64: string; }[]; rawModelInfo: {}; timingMs: number; }; }' is missing the following properties from type 'Promise<Result<ImageGenerationResult, ImageGenerationError>>': then, catch, finally, [Symbol.toStringTag] 
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: 'data' }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+====================================
+svelte-check found 38 errors and 0 warnings in 20 files
+
+$ npm test -- --pool=forks --maxWorkers=1
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v3.2.4 <REPO_ROOT>
+
+ ❯ tests/contract/image-generation.test.ts (4 tests | 1 failed) 16ms
+   ✓ ImageGenerationSeam contract > mock returns sample fixture output 2ms
+   × ImageGenerationSeam contract > mock returns fault fixture output 7ms
+     → expected 'PROMPT_MISSING_REQUIRED_PHRASES' to be 'IMAGE_HTTP_ERROR' // Object.is equality
+   ✓ ImageGenerationSeam contract > adapter returns ok result with images from xAI response 5ms
+   ✓ ImageGenerationSeam contract > adapter returns error for invalid prompt (validation) 1ms
+ ✓ tests/unit/creation-store-helpers.test.ts (17 tests) 66ms
+ ✓ tests/unit/output-packaging-helpers.test.ts (9 tests) 29ms
+ ✓ tests/unit/pipeline-edge-cases.test.ts (21 tests) 22ms
+ ✓ tests/unit/provider-adapter-helpers.test.ts (23 tests) 20ms
+ ✓ tests/unit/api-chat-interpretation.test.ts (2 tests) 14ms
+ ✓ tests/unit/api-generate.test.ts (2 tests) 20ms
+ ✓ tests/unit/api-image-generation.test.ts (3 tests) 16ms
+ ✓ tests/contract/provider-adapter.test.ts (4 tests) 15ms
+ ✓ tests/unit/meechie-tool-adapter.test.ts (25 tests) 13ms
+ ✓ tests/unit/api-tools.test.ts (2 tests) 14ms
+ ✓ tests/unit/shared-contract.test.ts (21 tests) 14ms
+ ✓ tests/unit/image-generation-pipeline.test.ts (9 tests) 12ms
+ ✓ src/lib/seams/wig-catalog-seam/test.ts (6 tests) 12ms
+ ✓ tests/unit/meechie-studio-text-pipeline.test.ts (5 tests) 10ms
+ ✓ tests/unit/prompt-template.test.ts (38 tests) 11ms
+ ✓ tests/contract/output-packaging.test.ts (4 tests) 10ms
+ ✓ tests/unit/meechie-studio.test.ts (9 tests) 8ms
+ ✓ tests/unit/meechie-tool-adapter.responses.test.ts (14 tests) 9ms
+ ✓ tests/contract/chat-interpretation.test.ts (4 tests) 11ms
+ ✓ tests/unit/drift-detection-helpers.test.ts (12 tests) 10ms
+ ✓ tests/unit/image-generation-validators.test.ts (9 tests) 9ms
+ ✓ src/lib/seams/image-generation-seam/test.ts (3 tests) 9ms
+ ✓ src/lib/seams/cache-seam/test.ts (9 tests) 8ms
+ ✓ tests/unit/app-config-seam.test.ts (8 tests) 8ms
+ ✓ tests/unit/session-auth-helpers.test.ts (10 tests) 7ms
+ ✓ tests/unit/constants.test.ts (15 tests) 7ms
+ ✓ src/lib/seams/safety-policy-seam/test.ts (4 tests) 7ms
+ ✓ tests/contract/meechie-voice.test.ts (4 tests) 7ms
+ ✓ tests/unit/meechie-quote-scoring.test.ts (3 tests) 6ms
+ ✓ tests/contract/spec-validation.test.ts (6 tests) 6ms
+ ✓ src/lib/seams/wig-try-on-seam/test.ts (4 tests) 6ms
+ ✓ src/lib/seams/gallery-store-seam/test.ts (1 test) 6ms
+ ✓ src/lib/seams/prompt-compiler-seam/test.ts (1 test) 6ms
+ ✓ tests/contract/meechie-tool.test.ts (5 tests) 5ms
+ ✓ tests/contract/drift-detection.test.ts (5 tests) 5ms
+ ✓ tests/contract/creation-store.test.ts (4 tests) 6ms
+ ✓ tests/unit/evidence-reporting.test.ts (6 tests) 5ms
+ ✓ tests/unit/http-client.test.ts (3 tests) 6ms
+ ✓ tests/contract/meechie-studio-text.test.ts (3 tests) 5ms
+ ✓ src/lib/seams/app-config-seam/test.ts (2 tests) 5ms
+ ✓ tests/unit/alignment-line.test.ts (6 tests) 4ms
+ ✓ tests/contract/prompt-assembly.test.ts (5 tests) 5ms
+ ✓ tests/unit/coloring-page-title.test.ts (4 tests) 4ms
+ ✓ tests/contract/session.test.ts (3 tests) 4ms
+ ✓ tests/contract/auth-context.test.ts (4 tests) 4ms
+ ✓ src/lib/seams/telemetry-seam/test.ts (1 test) 6ms
+ ✓ tests/unit/meechie-tools-parity.test.ts (2 tests) 3ms
+ ↓ tests/integration/image-generation-seam.test.ts (1 test | 1 skipped)
+
+ Test Files  1 failed | 47 passed | 1 skipped (49)
+      Tests  1 failed | 363 passed | 1 skipped (365)
+   Start at  12:18:14
+   Duration  39.32s (transform 960ms, setup 265ms, collect 2.16s, tests 510ms, environment 23.91s, prepare 3.01s)
+
+stderr | tests/unit/output-packaging-helpers.test.ts > output-packaging adapter edge cases > SVG conversion > SVG conversion fails deterministically in non-browser environment
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+stderr | tests/unit/meechie-studio-text-pipeline.test.ts > Meechie Studio Text Pipeline Resilience > retries once if JSON is malformed and fails gracefully
+Meechie studio text pipeline failed to extract valid JSON from model output after retry { model: [32m'test-model'[39m, contentPreview: [32m'Not JSON at all'[39m }
+
+stderr | tests/contract/output-packaging.test.ts > OutputPackagingSeam contract > adapter behavior is gated to browser for svg conversion
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contract/image-generation.test.ts > ImageGenerationSeam contract > mock returns fault fixture output
+AssertionError: expected 'PROMPT_MISSING_REQUIRED_PHRASES' to be 'IMAGE_HTTP_ERROR' // Object.is equality
+
+Expected: [32m"IMAGE_HTTP_ERROR"[39m
+Received: [31m"PROMPT_MISSING_REQUIRED_PHRASES"[39m
+
+ ❯ tests/contract/image-generation.test.ts:65:30
+     63|   expect(output.ok).toBe(false);
+     64|   if (!output.ok) {
+     65|    expect(output.error.code).toBe(imageGenerationFaultFixture.code);
+       |                              ^
+     66|   }
+     67|  });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
