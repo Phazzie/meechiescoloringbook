@@ -126,3 +126,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context:
 - Lesson:
 - Action:
+
+## 2026-05-14
+- Date: 2026-05-14
+- Context: Repairing review feedback across multiple open PRs.
+- Lesson: Review comments that span UI state, seam tests, and provider configuration need a PR-by-PR ledger so already-fixed branch feedback is not confused with still-actionable defects.
+- Action: Keep follow-up PR bodies sorted both by source PR and by related problem, with explicit fixed/not-fixed status and paste-ready prompts for remaining work.
