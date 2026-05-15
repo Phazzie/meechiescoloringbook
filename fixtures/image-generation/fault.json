@@ -34,8 +34,9 @@
   "output": {
     "ok": false,
     "error": {
-      "code": "PROMPT_MISSING_REQUIRED_PHRASES",
-      "message": "Prompt missing required phrases for deterministic generation."
+      "code": "IMAGE_HTTP_ERROR",
+      "message": "xAI returned 429 Too Many Requests",
+      "details": { "status": "429" }
     }
   }
 }
