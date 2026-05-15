@@ -2,12 +2,14 @@
 // Why: Keep route handlers thin and make validation/provider behavior easier to test.
 // Info flow: Raw request body -> validation -> ImageGenerationSeam -> contract-shaped response.
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
+import { pageSizeLine } from '$lib/core/prompt-template';
 import { z } from 'zod';
 import {
   ImageGenerationInputSchema,
   ImageGenerationResultSchema,
   type GeneratedImage
 } from '../../../contracts/image-generation.contract';
+import type { PageSize } from '../../../contracts/spec-validation.contract';
 import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contract';
 
 const RESPONSE_FORMAT = 'b64_json' as const;
@@ -32,10 +34,7 @@ export type ImagePipelineDeps = {
   imageGenerationSeam: ImageGenerationSeam;
 };
 
-const pageSizeLine = (pageSize: string): string =>
-  pageSize === 'A4' ? 'A4 8.27x11.69 portrait.' : 'US Letter 8.5x11 portrait.';
-
-const missingRequiredPhrases = (prompt: string, pageSize: string): string[] => {
+const missingRequiredPhrases = (prompt: string, pageSize: PageSize): string[] => {
   const promptLower = prompt.toLowerCase();
   const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)].map((phrase) =>
     phrase.toLowerCase()

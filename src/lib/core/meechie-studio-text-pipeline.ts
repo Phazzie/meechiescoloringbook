@@ -368,16 +368,6 @@ export const runMeechieStudioTextPipeline = async (
 			providerResult.value.model
 		);
 	}
-	if (!result.ok) {
-		console.warn(
-			'Meechie studio text pipeline failed to extract valid JSON from model output after retry',
-			{
-				model: providerResult.value.model,
-				contentPreview: providerResult.value.content.slice(0, 500)
-			}
-		);
-	}
-
 	const parsedResult = MeechieStudioTextResultSchema.safeParse(result);
 	if (!parsedResult.success) {
 		return buildError(
