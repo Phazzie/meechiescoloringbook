@@ -7,6 +7,25 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
+
+- Cipher Gate:
+  - Date: 2026-05-15
+  - Seams: CacheSeam
+  - Evidence: src/lib/seams/cache-seam/test.ts (9 contract tests), src/lib/adapters/cache-seam/index.ts
+  - Summary: Replaced direct `caches.*` calls in `src/service-worker.ts` with a new `CacheSeam` (contract + mock + validators + fixtures + probe + tests + adapter). The service worker now imports `createCacheSeam()` from the adapter and calls `primeCache`, `evictStaleCaches`, and `matchRequest`. Functional behavior is unchanged; only the I/O boundary is now behind a contract. Probe is manual (browser DevTools) because the Web Cache API cannot be exercised in Node.js CI.
+  - Risks: Service worker build with relative import (`./lib/adapters/cache-seam/index`) must be validated by `npm run build`. If Vite's SW bundler cannot resolve the import, the fallback is to inline the adapter logic back into service-worker.ts (a known escape hatch documented in probe.ts).
+
+**Context**: `src/service-worker.ts` directly called `caches.open()`, `caches.keys()`, `caches.delete()`, and `caches.match()` in violation of the SDD mandate that all I/O must flow through approved seam adapters. The TODO comment was the only acknowledgement.
+
+**Decision**: Introduce `CacheSeam` as a self-contained seam under `src/lib/seams/cache-seam/`. The contract exposes three operations matching the three service worker lifecycle events: `primeCache` (install), `evictStaleCaches` (activate), `matchRequest` (fetch). The adapter wraps the Web Cache API with `Result<>` error handling. The mock uses an in-memory Map for deterministic unit tests.
+
+**Rationale**: The Web Cache API is a stable browser platform API with no Node.js equivalent. The seam provides a contract boundary for future testing (e.g., Playwright PWA tests) without changing observable behavior. Using `Result<>` makes cache failures explicit rather than silently swallowed.
+
+**Files added**: `src/lib/seams/cache-seam/{contract,fixtures,validators,mock,probe,test}.ts`, `src/lib/adapters/cache-seam/index.ts`
+
+**Files modified**: `src/service-worker.ts` (import + use seam), `docs/seams.md` (registry entry)
+
 ## 2026-05-11 — Wig Try-On Feature: Seam-Driven Development Architecture
 
 **Context**: Add a wig try-on feature integrated into the coloring book experience. Users browse a static affiliate wig catalog, upload a selfie, and receive an AI-illustrated portrait showing themselves wearing the selected wig. The portrait style matches the coloring-book aesthetic.

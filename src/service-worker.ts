@@ -1,31 +1,22 @@
 /*
-Purpose: Provide offline-capable caching for PWA installation.
-Why: Enable installability and basic offline navigation.
-Info flow: Build assets -> cache -> fetch handler.
+Purpose: Provide offline-capable caching for PWA installation via CacheSeam.
+Why: Route all Web Cache API access through an approved seam adapter so the caching strategy is contract-tested and swappable.
+Info flow: Build assets -> CacheSeam.primeCache (install) -> CacheSeam.matchRequest (fetch) -> CacheSeam.evictStaleCaches (activate).
 */
 /// <reference lib="webworker" />
 import { build, files, version } from '$service-worker';
-// TODO: Route through approved seam adapter per SDD conventions
+import { createCacheSeam } from './lib/adapters/cache-seam/index';
 
 const CACHE = `cb-cache-${version}`;
 const ASSETS = [...build, ...files];
+const cacheSeam = createCacheSeam();
 
 self.addEventListener('install', (event) => {
-	event.waitUntil(
-		caches.open(CACHE).then((cache) => cache.addAll(ASSETS))
-	);
+	event.waitUntil(cacheSeam.primeCache(CACHE, ASSETS));
 });
 
 self.addEventListener('activate', (event) => {
-	event.waitUntil(
-		caches.keys().then((keys) =>
-			Promise.all(
-				keys
-					.filter((key) => key !== CACHE)
-					.map((key) => caches.delete(key))
-			)
-		)
-	);
+	event.waitUntil(cacheSeam.evictStaleCaches(CACHE));
 });
 
 self.addEventListener('fetch', (event) => {
@@ -34,6 +25,9 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	event.respondWith(
-		caches.match(event.request).then((cached) => cached || fetch(event.request))
+		cacheSeam.matchRequest(event.request).then((result) => {
+			if (result.ok && result.value !== null) return result.value;
+			return fetch(event.request);
+		})
 	);
 });
