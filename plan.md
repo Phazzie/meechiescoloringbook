@@ -6,6 +6,29 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 # Autonomous Plan (2026-02-14)
 
+## Post-Merge Demo Hardening: Missing-Key Console Noise (2026-05-16)
+
+### Plan
+
+- Goal: Keep the local no-credential demo path visibly graceful and remove avoidable browser console errors caused by missing `XAI_API_KEY`.
+- Exact seams: `MeechieStudioTextSeam`, `ProviderAdapterSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/meechie-studio-text-pipeline.ts`
+  - `tests/unit/meechie-studio-text-pipeline.test.ts`
+- Exact commands to run:
+  1. `npm test -- tests/unit/meechie-studio-text-pipeline.test.ts`
+  2. `npm run check`
+  3. `npm test -- --pool=forks --maxWorkers=1`
+  4. `npm run verify`
+
+### Self-critique
+
+1. What could be wrong: A missing local API key might be intentionally treated as unauthorized by callers outside the browser UI.
+2. What must be proven: Missing `XAI_API_KEY` still returns a structured `ok: false` error, but does so with a browser-quiet status while non-configuration provider errors keep their failure status.
+3. Riskiest assumption: The local demo UX should prioritize clean browser diagnostics over HTTP 401 semantics for absent server configuration.
+4. Evidence to prove/disprove: A focused unit test that fails before the status mapping change, then green focused tests plus green `npm run check` and full Vitest.
+
 ## PR #65 Review Blocker Follow-up (2026-05-16)
 
 ### Plan
