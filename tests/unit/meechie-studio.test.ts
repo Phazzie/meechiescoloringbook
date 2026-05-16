@@ -11,6 +11,7 @@ import {
 	canRunStudioAction,
 	consumeStudioActionBudget,
 	getStudioAction,
+	getStudioTextAction,
 	studioModes
 } from '../../src/lib/core/meechie-studio';
 
@@ -38,8 +39,16 @@ describe('Meechie studio controls', () => {
 	it('keeps AI text action metadata separate from local controls', () => {
 		expect(getStudioAction('generate_text').costClass).toBe('unclassified');
 		expect(getStudioAction('generate_text').countsAgainstRevisionBudget).toBe(true);
+		expect(getStudioTextAction('generate_text').aiAction).toBe('generate');
 		expect(getStudioAction('copy_quote').costClass).toBe('free');
 		expect(getStudioAction('copy_quote').countsAgainstRevisionBudget).toBe(false);
+	});
+
+	it('throws when text action metadata is requested for a non-AI action id', () => {
+		const invalidActionId = 'copy_quote' as never;
+		expect(() => getStudioTextAction(invalidActionId)).toThrow(
+			'Studio action is missing aiAction metadata: copy_quote'
+		);
 	});
 
 	it('only consumes revision budget for AI text actions', () => {

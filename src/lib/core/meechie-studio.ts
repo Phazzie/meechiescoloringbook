@@ -23,30 +23,15 @@ export const DEFAULT_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 
 export type CostClass = 'free' | 'paid' | 'unclassified';
 
-export type StudioActionId =
-	| 'generate_text'
-	| 'regenerate'
-	| 'make_prettier'
-	| 'make_meaner'
-	| 'make_more_specific'
-	| 'download_pdf'
-	| 'export_png'
-	| 'copy_quote'
-	| 'save_to_vault'
-	| 'change_theme'
-	| 'change_page_size'
-	| 'change_border'
-	| 'add_glitter';
-
-export type StudioActionMetadata = {
-	id: StudioActionId;
+type StudioActionDefinition = {
+	id: string;
 	label: string;
 	costClass: CostClass;
 	countsAgainstRevisionBudget: boolean;
 	aiAction?: MeechieStudioTextAction;
 };
 
-export const studioActions: StudioActionMetadata[] = [
+export const studioActions = [
 	{
 		id: 'generate_text',
 		label: 'Generate Verdict',
@@ -90,7 +75,25 @@ export const studioActions: StudioActionMetadata[] = [
 	{ id: 'change_page_size', label: 'Page Size', costClass: 'free', countsAgainstRevisionBudget: false },
 	{ id: 'change_border', label: 'Border', costClass: 'free', countsAgainstRevisionBudget: false },
 	{ id: 'add_glitter', label: 'Add Glitter', costClass: 'free', countsAgainstRevisionBudget: false }
-];
+] as const satisfies readonly StudioActionDefinition[];
+
+export type StudioActionMetadata = (typeof studioActions)[number];
+export type StudioActionId = StudioActionMetadata['id'];
+export type StudioTextActionMetadata = Extract<
+	StudioActionMetadata,
+	{ readonly aiAction: MeechieStudioTextAction }
+>;
+export type StudioTextActionId = StudioTextActionMetadata['id'];
+
+const isStudioTextAction = (action: StudioActionMetadata): action is StudioTextActionMetadata =>
+	'aiAction' in action;
+
+export class MissingStudioTextActionMetadataError extends Error {
+	constructor(id: string) {
+		super(`Studio action is missing aiAction metadata: ${id}`);
+		this.name = 'MissingStudioTextActionMetadataError';
+	}
+}
 
 export type StudioMode = {
 	id: string;
@@ -297,6 +300,15 @@ export const getStudioAction = (id: StudioActionId): StudioActionMetadata => {
 	const action = studioActions.find((item) => item.id === id);
 	if (!action) {
 		throw new Error(`Unknown studio action: ${id}`);
+	}
+	return action;
+};
+
+export const getStudioTextAction = (id: StudioTextActionId): StudioTextActionMetadata => {
+	const action = getStudioAction(id);
+	// Runtime guard remains intentional for JS consumers and future metadata drift.
+	if (!isStudioTextAction(action)) {
+		throw new MissingStudioTextActionMetadataError(id);
 	}
 	return action;
 };
