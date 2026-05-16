@@ -1594,7 +1594,7 @@ Short, durable decisions with context and tradeoffs.
 - Cipher Gate:
   - Date: 2026-05-14
   - Seams: ImageGenerationSeam
-  - Evidence: docs/evidence/2026-05-14/rewind-ImageGenerationSeam.txt; docs/evidence/2026-05-14/verify.txt; docs/evidence/2026-05-14/proof-tape.md
+  - Evidence: docs/evidence/2026-05-14/rewind-ImageGenerationSeam.txt; docs/evidence/2026-05-14/test.txt; docs/evidence/2026-05-14/verify.txt; docs/evidence/2026-05-14/proof-tape.md
   - Summary: Added an adapter-level HTTP failure assertion for ImageGenerationSeam while preserving mock-first contract coverage, repaired shared result-schema typing so parsed failures keep required error objects, and addressed open PR review feedback for studio draft/spec synchronization, try-on portrait packaging, locale-aware USD formatting, empty revised-prompt fallback preservation, and shared text-model fallback selection.
   - Risks: ImageGenerationSeam fixtures are older than seven days; this pass does not refresh live xAI fixtures because no live provider credentials were supplied, so the waiver below preserves deterministic fixture use until a credentialed probe can refresh them.
 
@@ -1604,3 +1604,10 @@ Short, durable decisions with context and tradeoffs.
   - Statement: Existing ImageGenerationSeam sample/fault fixtures remain representative for review-comment repairs even though they are older than seven days.
   - Validation: Run `npm run rewind -- --seam ImageGenerationSeam`, `npm run verify`, and schedule a credentialed `probes/image-generation.probe.mjs` refresh when XAI_API_KEY is available.
   - Status: Waived for this review-comment repair because live xAI credentials are not present in the non-interactive environment.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: MeechieStudioTextSeam, MeechieToolSeam, ChatInterpretationSeam, ImageGenerationSeam, OutputPackagingSeam, CreationStoreSeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Addressed PR #65 review blockers by trimming configured text-model IDs, restoring evidence autosave, persisting dedication changes into draft specs, aborting try-on export after spec-sync failures, clearing stale try-on export artifacts, and removing the Svelte `HTMLSelectElement` lint issue.
+  - Risks: UI handler behavior is validated by Svelte compile checks and full test gates, but no browser click-through was run in this pass.

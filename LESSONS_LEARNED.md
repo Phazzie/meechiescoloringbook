@@ -127,8 +127,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Lesson:
 - Action:
 
+
 ## 2026-05-14
 - Date: 2026-05-14
 - Context: Repairing review feedback across multiple open PRs.
 - Lesson: Review comments that span UI state, seam tests, and provider configuration need a PR-by-PR ledger so already-fixed branch feedback is not confused with still-actionable defects.
 - Action: Keep follow-up PR bodies sorted both by source PR and by related problem, with explicit fixed/not-fixed status and paste-ready prompts for remaining work.
+
+## 2026-05-16
+- Date: 2026-05-16
+- Context: Finishing PR #65 review blockers after bot checks failed on the prior head.
+- Lesson: Bound UI values still need explicit persistence when the saved draft reads from `spec`, and shared provider configuration should normalize whitespace before request construction.
+- Action: Keep small pure helpers covered with focused unit tests and run `npm run verify` before pushing review-followup commits.

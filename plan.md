@@ -6,6 +6,33 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 # Autonomous Plan (2026-02-14)
 
+## PR #65 Review Blocker Follow-up (2026-05-16)
+
+### Plan
+
+- Goal: Address the remaining PR #65 review blockers, push the fixed head branch, and merge only after verification and GitHub checks support it.
+- Exact seams: `MeechieStudioTextSeam`, `MeechieToolSeam`, `ChatInterpretationSeam`, `ImageGenerationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`, `SpecValidationSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `LESSONS_LEARNED.md`
+  - `src/lib/core/text-model.ts`
+  - `src/routes/+page.svelte`
+  - `tests/unit/text-model.test.ts`
+- Exact commands to run:
+  1. `npm test -- tests/unit/text-model.test.ts`
+  2. `npm run check`
+  3. `npm test -- --pool=forks --maxWorkers=1`
+  4. `npm run verify`
+  5. `git push`
+
+### Self-critique
+
+1. What could be wrong: The remaining review comments mix true behavior bugs with bot-only lint findings, so over-fixing could change more UI behavior than needed.
+2. What must be proven: Text model fallback trims configured values, evidence edits still autosave, failed spec sync stops try-on export, try-on reset clears stale exports, dedication edits persist into the saved spec, and the PR branch passes the repo gates.
+3. Riskiest assumption: Fixing UI event handlers in place is enough without extracting a new route state module.
+4. Evidence to prove/disprove: Focused unit test output for text-model selection, green `npm run check`, green `npm test -- --pool=forks --maxWorkers=1`, green `npm run verify`, and refreshed GitHub check status after push.
+
 ## Svelte 5 Runes Migration of +page.svelte (2026-05-09)
 
 ### Plan

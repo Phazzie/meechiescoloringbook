@@ -168,6 +168,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		return `${activeTheme.styleHint}; ${voice.intensity}; ${voice.rawness}; ${voice.thirdPerson}${glitterText}${wigText}`;
 	};
 
+	const currentDedication = (): string | undefined => {
+		const trimmedDedication = dedication.trim();
+		return trimmedDedication.length > 0 ? trimmedDedication : undefined;
+	};
+
 	const scheduleDraftSave = (): void => {
 		if (!isBrowser) {
 			return;
@@ -223,7 +228,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			pageSize,
 			border,
 			styleHint: currentStyleHint(),
-			dedication: dedication.trim().length > 0 ? dedication : undefined
+			dedication: currentDedication()
 		});
 		await validateSpec();
 		scheduleDraftSave();
@@ -237,6 +242,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				error instanceof Error
 					? error.message
 					: 'Page settings could not be saved.';
+			throw error;
 		}
 	};
 
@@ -253,6 +259,17 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	const resetTryOnResultState = (): void => {
 		tryOnPortraitUrl = '';
 		tryOnError = '';
+		generationError = '';
+		images = [];
+		packagedFiles = [];
+	};
+
+	const handleDedicationInput = (event: Event): void => {
+		const target = event.currentTarget as EventTarget & { value: string };
+		dedication = target.value;
+		spec = { ...spec, dedication: currentDedication() };
+		void validateSpec();
+		void saveDraft();
 	};
 
 	const selectWigForTryOn = async (wig: Wig): Promise<void> => {
@@ -338,8 +355,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				modeLabel: selectedMode.label,
 				themeLabel: activeTheme.label,
 				evidence: safeEvidence,
-				dedication:
-					dedication.trim().length > 0 ? dedication.trim() : undefined,
+				dedication: currentDedication(),
 				voice,
 				currentText: currentTextPayload()
 			});
@@ -746,7 +762,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				data-testid="home-evidence"
 				rows="8"
 				bind:value={evidence}
-				oninput={syncSpecFromCurrentText}
+				oninput={scheduleDraftSave}
 				placeholder={getActiveMode(activeModeId).placeholder}
 			></textarea>
 
@@ -754,7 +770,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			<input
 				id="dedication"
 				bind:value={dedication}
-				oninput={scheduleDraftSave}
+				oninput={handleDedicationInput}
 				maxlength="60"
 				placeholder="Optional dedication"
 			/>
@@ -992,10 +1008,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				<select
 					id="pageSize"
 					bind:value={pageSize}
-					onchange={async (e) => {
-						pageSize = (e.currentTarget as HTMLSelectElement).value as PageSize;
-						await syncSpecFromCurrentText();
-					}}
+					onchange={syncSpecFromCurrentText}
 				>
 					<option value="US_Letter">US Letter</option>
 					<option value="A4">A4</option>
@@ -1005,11 +1018,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				<select
 					id="border"
 					bind:value={border}
-					onchange={async (e) => {
-						border = (e.currentTarget as HTMLSelectElement)
-							.value as BorderChoice;
-						await syncSpecFromCurrentText();
-					}}
+					onchange={syncSpecFromCurrentText}
 				>
 					<option value="decorative">Decorative</option>
 					<option value="plain">Plain</option>
