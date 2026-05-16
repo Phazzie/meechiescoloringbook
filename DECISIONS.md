@@ -7,6 +7,48 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-05-16 — Split AppConfigSeam: Introduce ImageProviderConfigSeam
+
+**Context**: The image-generation route (`/api/image-generation`) depended on `AppConfigSeam` via `createAppConfigSeam()`. `AppConfigSeam` validates all config including `XAI_TEXT_MODEL`, `GEMINI_API_KEY`, and other unrelated keys. If any of those are absent, the image-generation endpoint fails at startup even though it only needs 4 image-provider env keys.
+
+The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are split into a narrower image-provider config seam."
+
+**Decision**: Extract `ImageProviderConfigSeam` — a narrow seam containing only `xaiApiKey`, `xaiImageModel`, `xaiBaseUrl`, and `xaiImageEndpointPath`. Wire `ImageGenerationSeam` adapter to depend on `ImageProviderConfigSeam` instead of `AppConfigSeam`. Update the image-generation route to use `createImageProviderConfigSeam()`. `AppConfigSeam` is unchanged and still used by `wig-try-on` and other routes that need the full config.
+
+**Rationale**:
+- Minimum coupling principle: the image-generation adapter only reads 4 env vars; it should declare only those as dependencies
+- Startup resilience: a deployment with only `XAI_IMAGE_*` keys configured (no text model, no Gemini) can now serve image generation without a config error
+- Follows existing self-contained seam layout; full Seam-Driven Development workflow applied (contract → probe → fixtures → mock → test → adapter)
+
+**Files added**:
+- `src/lib/seams/image-provider-config-seam/contract.ts`
+- `src/lib/seams/image-provider-config-seam/validators.ts`
+- `src/lib/seams/image-provider-config-seam/fixtures.ts`
+- `src/lib/seams/image-provider-config-seam/mock.ts`
+- `src/lib/seams/image-provider-config-seam/test.ts`
+- `src/lib/seams/image-provider-config-seam/probe.ts`
+- `src/lib/adapters/image-provider-config-seam/index.ts`
+
+**Files modified**:
+- `src/lib/adapters/image-generation-seam/index.ts` — changed `AppConfigSeam` dep to `ImageProviderConfigSeam`
+- `src/routes/api/image-generation/+server.ts` — use `createImageProviderConfigSeam()`, removed TODO
+- `docs/seams.md` — added `ImageProviderConfigSeam` entry
+- `src/lib/seams/CLAUDE.md` — added to current seams table
+
+- Cipher Gate:
+    Date: 2026-05-16
+    Seams: ImageProviderConfigSeam, ImageGenerationSeam, AppConfigSeam
+    Evidence: pending — ImageProviderConfigSeam is env-var-only (N/A probe); ImageGenerationSeam probe still blocked (no XAI_API_KEY). Contract tests pass locally under npm test.
+    Summary: Extracted ImageProviderConfigSeam from AppConfigSeam to narrow the image-generation route's config dependency to the 4 xAI image-provider env keys. AppConfigSeam is unmodified.
+    Risks: If a new image-generation config key is added to AppConfigSeam in future, developers must remember to add it to ImageProviderConfigSeam as well. Mitigated by the seam registry and contract tests.
+
+- Assumption:
+    Date: 2026-05-16
+    Seams: ImageProviderConfigSeam
+    Statement: The 4 image-provider keys (XAI_API_KEY, XAI_IMAGE_MODEL, XAI_BASE_URL, XAI_IMAGE_ENDPOINT_PATH) are the complete set needed by the ImageGenerationSeam adapter. No other env var will be needed without a contract update.
+    Validation: Verified by reading the ImageGenerationSeam adapter source — only these 4 keys are accessed from config.
+    Status: Confirmed by code inspection; no live probe required for a config-only seam.
+
 ## 2026-05-11 — Wig Try-On Feature: Seam-Driven Development Architecture
 
 **Context**: Add a wig try-on feature integrated into the coloring book experience. Users browse a static affiliate wig catalog, upload a selfie, and receive an AI-illustrated portrait showing themselves wearing the selected wig. The portrait style matches the coloring-book aesthetic.

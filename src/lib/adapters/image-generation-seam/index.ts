@@ -10,7 +10,7 @@ import type {
 } from '../../seams/image-generation-seam/contract';
 import type { Result } from '../../../../contracts/shared.contract';
 import { validateImageGenerationRequest } from '../../seams/image-generation-seam/validators';
-import type { AppConfigSeam } from '../../seams/app-config-seam/contract';
+import type { ImageProviderConfigSeam } from '../../seams/image-provider-config-seam/contract';
 
 type XaiImageResponse = {
   data: Array<{
@@ -40,7 +40,7 @@ const errorResult = (
   error: { code, message, ...(details ? { details } : {}) } as ImageGenerationError
 });
 
-export const createImageGenerationSeam = (configSeam: AppConfigSeam): ImageGenerationSeam => ({
+export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): ImageGenerationSeam => ({
   generate: async (request): Promise<Result<ImageGenerationResult, ImageGenerationError>> => {
     let validated: ImageGenerationRequest;
     try {
