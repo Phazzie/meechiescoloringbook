@@ -3,13 +3,14 @@
 // Info flow: validated request -> fetch -> Result.
 import type {
   GeneratedImage,
+  ImageGenerationError,
   ImageGenerationRequest,
   ImageGenerationResult,
   ImageGenerationSeam
 } from '../../seams/image-generation-seam/contract';
-import type { Result } from '../../../contracts/shared.contract';
+import type { Result } from '../../../../contracts/shared.contract';
 import { validateImageGenerationRequest } from '../../seams/image-generation-seam/validators';
-import type { AppConfigSeam } from '../../seams/app-config-seam/contract';
+import type { ImageProviderConfig, ImageProviderConfigSeam } from '../../seams/image-provider-config-seam/contract';
 
 type XaiImageResponse = {
   data: Array<{
@@ -31,16 +32,16 @@ const buildPrompt = (request: ImageGenerationRequest) =>
     : request.prompt;
 
 const errorResult = (
-  code: string,
+  code: ImageGenerationError['code'],
   message: string,
   details?: Record<string, string>
-): Result<ImageGenerationResult, { code: string; message: string; details?: Record<string, string> }> => ({
+): Result<ImageGenerationResult, ImageGenerationError> => ({
   ok: false,
-  error: { code, message, ...(details ? { details } : {}) }
+  error: { code, message, ...(details ? { details } : {}) } as ImageGenerationError
 });
 
-export const createImageGenerationSeam = (configSeam: AppConfigSeam): ImageGenerationSeam => ({
-  generate: async (request): Promise<Result<ImageGenerationResult, { code: string; message: string; details?: Record<string, string> }>> => {
+export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): ImageGenerationSeam => ({
+  generate: async (request): Promise<Result<ImageGenerationResult, ImageGenerationError>> => {
     let validated: ImageGenerationRequest;
     try {
       validated = validateImageGenerationRequest(request);
@@ -48,7 +49,7 @@ export const createImageGenerationSeam = (configSeam: AppConfigSeam): ImageGener
       return errorResult('IMAGE_VALIDATION_ERROR', 'Image generation request failed validation.');
     }
 
-    let config: ReturnType<typeof configSeam.getConfig>;
+    let config: ImageProviderConfig;
     try {
       config = configSeam.getConfig();
     } catch {

@@ -10,9 +10,10 @@ import type { MeechieVoicePack } from '../../../contracts/meechie-voice.contract
 import type { Result } from '../../../contracts/shared.contract';
 import { createProviderAdapter } from './provider-adapter.adapter';
 import { meechieVoiceAdapter } from './meechie-voice.adapter';
+import { selectTextModel } from '$lib/core/text-model';
 import { env } from '$env/dynamic/private';
 
-const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
+const TEXT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
 
 const buildSystemPrompt = (pack: MeechieVoicePack): string => {
 	const quoteSamples = pack.responses.quotes
@@ -200,7 +201,9 @@ const buildUserMessage = (input: MeechieToolInput): UserMessage => {
 		case 'lineup': {
 			const ordinal = (n: number) =>
 				n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
-			const itemList = input.items.map((item, i) => `${ordinal(i + 1)}: ${item}`).join('\n');
+			const itemList = input.items
+				.map((item, i) => `${ordinal(i + 1)}: ${item}`)
+				.join('\n');
 			return {
 				content: [
 					'Tool: Lineup',
@@ -227,6 +230,11 @@ const buildUserMessage = (input: MeechieToolInput): UserMessage => {
 				].join('\n'),
 				responseFormat: STANDARD_RESPONSE_FORMAT
 			};
+
+		default: {
+			const _exhaustive: never = input;
+			throw new Error(`Unknown toolId: ${(_exhaustive as MeechieToolInput).toolId}`);
+		}
 	}
 };
 
@@ -236,8 +244,10 @@ const parseResponse = (
 ): { headline: string; response: string; rating?: number } | null => {
 	try {
 		const parsed = JSON.parse(content) as Record<string, unknown>;
-		const headline = typeof parsed.headline === 'string' ? parsed.headline.trim() : '';
-		const response = typeof parsed.response === 'string' ? parsed.response.trim() : '';
+		const headline =
+			typeof parsed.headline === 'string' ? parsed.headline.trim() : '';
+		const response =
+			typeof parsed.response === 'string' ? parsed.response.trim() : '';
 		if (!headline || !response) {
 			return null;
 		}
@@ -257,12 +267,19 @@ const parseResponse = (
 };
 
 export const meechieToolAdapter: MeechieToolSeam = {
-	respond: async (input: MeechieToolInput): Promise<Result<MeechieToolOutput>> => {
-		const voiceResult = await meechieVoiceAdapter.getVoicePack({ voiceId: 'meechie' });
+	respond: async (
+		input: MeechieToolInput
+	): Promise<Result<MeechieToolOutput>> => {
+		const voiceResult = await meechieVoiceAdapter.getVoicePack({
+			voiceId: 'meechie'
+		});
 		if (!voiceResult.ok) {
 			return {
 				ok: false,
-				error: { code: 'MEECHIE_VOICE_PACK_ERROR', message: 'Failed to load Meechie voice pack.' }
+				error: {
+					code: 'MEECHIE_VOICE_PACK_ERROR',
+					message: 'Failed to load Meechie voice pack.'
+				}
 			};
 		}
 		const systemPrompt = buildSystemPrompt(voiceResult.value);

@@ -2,7 +2,7 @@
 // Why: Ensure xAI-backed image generation returns contract-compliant results.
 // Info flow: Fixtures -> mock/adapter -> assertions.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createImageGenerationMock } from '../../src/lib/mocks/image-generation.mock';
+import { createMockImageGenerationSeam } from '../../src/lib/seams/image-generation-seam/mock';
 import { createImageGenerationSeam } from '../../src/lib/adapters/image-generation-seam';
 import type { AppConfigSeam } from '../../src/lib/seams/app-config-seam/contract';
 import {
@@ -19,7 +19,9 @@ const mockConfigSeam: AppConfigSeam = {
 		xaiImageEndpointPath: '/images/generations',
 		featureIntegrationTests: false,
 		maxImagesPerRequest: 4,
-		defaultImageSize: '1024x1024'
+		defaultImageSize: '1024x1024',
+		geminiApiKey: 'test-gemini-key',
+		geminiBaseUrl: 'https://generativelanguage.googleapis.com'
 	})
 };
 
@@ -52,18 +54,38 @@ afterEach(() => {
 
 describe('ImageGenerationSeam contract', () => {
 	it('mock returns sample fixture output', async () => {
-		const mock = createImageGenerationMock('sample');
+		const mock = createMockImageGenerationSeam('sample');
 		const output = await mock.generate(imageGenerationRequestFixture);
 		expect(output.ok).toBe(true);
 	});
 
 	it('mock returns fault fixture output', async () => {
-		const mock = createImageGenerationMock('fault');
+		const mock = createMockImageGenerationSeam('fault');
 		const output = await mock.generate(imageGenerationRequestFixture);
 		expect(output.ok).toBe(false);
 		if (!output.ok) {
 			expect(output.error.code).toBe(imageGenerationFaultFixture.code);
 		}
+	});
+
+	it('adapter returns IMAGE_HTTP_ERROR when xAI responds with an HTTP failure', async () => {
+		fetchMock.mockResolvedValueOnce(
+			new Response('rate limited', {
+				status: 429,
+				statusText: 'Too Many Requests'
+			})
+		);
+		const seam = createImageGenerationSeam(mockConfigSeam);
+		const output = await seam.generate(imageGenerationRequestFixture);
+
+		expect(output.ok).toBe(false);
+		if (!output.ok) {
+			expect(output.error.code).toBe('IMAGE_HTTP_ERROR');
+			if (output.error.code === 'IMAGE_HTTP_ERROR') {
+				expect(output.error.details?.status).toBe('429');
+			}
+		}
+		expect(fetchMock).toHaveBeenCalledOnce();
 	});
 
 	it('adapter returns ok result with images from xAI response', async () => {
@@ -80,7 +102,10 @@ describe('ImageGenerationSeam contract', () => {
 	it('adapter returns error for invalid prompt (validation)', async () => {
 		const seam = createImageGenerationSeam(mockConfigSeam);
 		// Empty prompt triggers IMAGE_VALIDATION_ERROR before fetch is called.
-		const output = await seam.generate({ ...imageGenerationRequestFixture, prompt: '' });
+		const output = await seam.generate({
+			...imageGenerationRequestFixture,
+			prompt: ''
+		});
 		expect(output.ok).toBe(false);
 		if (!output.ok) {
 			expect(output.error.code).toBe('IMAGE_VALIDATION_ERROR');

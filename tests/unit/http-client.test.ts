@@ -45,7 +45,7 @@ describe('http-client', () => {
 			expect(sentHeaders['Content-Type']).toBe('application/json');
 		});
 
-		it('returns null payload when response JSON parsing fails', async () => {
+		it('throws when response JSON parsing fails', async () => {
 			const mockResponse = {
 				json: () => Promise.reject(new Error('bad json')),
 				status: 500
@@ -56,9 +56,9 @@ describe('http-client', () => {
 				vi.fn().mockResolvedValue(mockResponse)
 			);
 
-			const result = await postJson('/api/test', {});
-			expect(result.response).toBe(mockResponse);
-			expect(result.payload).toBeNull();
+			await expect(postJson('/api/test', {})).rejects.toThrow(
+				'postJson: failed to parse JSON response'
+			);
 		});
 	});
 });

@@ -40,7 +40,7 @@ const validPrompt = [
 ].join(' ');
 
 const makeDeps = (
-  generateImpl: () => Promise<ReturnType<ImagePipelineDeps['imageGenerationSeam']['generate']>>
+  generateImpl: ImagePipelineDeps['imageGenerationSeam']['generate']
 ): ImagePipelineDeps => ({
   imageGenerationSeam: {
     generate: vi.fn(generateImpl) as ImagePipelineDeps['imageGenerationSeam']['generate']

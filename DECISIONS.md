@@ -7,6 +7,66 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
+
+- Cipher Gate:
+  - Date: 2026-05-15
+  - Seams: CacheSeam
+  - Evidence: src/lib/seams/cache-seam/test.ts (9 contract tests), src/lib/adapters/cache-seam/index.ts
+  - Summary: Replaced direct `caches.*` calls in `src/service-worker.ts` with a new `CacheSeam` (contract + mock + validators + fixtures + probe + tests + adapter). The service worker now imports `createCacheSeam()` from the adapter and calls `primeCache`, `evictStaleCaches`, and `matchRequest`. Functional behavior is unchanged; only the I/O boundary is now behind a contract. Probe is manual (browser DevTools) because the Web Cache API cannot be exercised in Node.js CI.
+  - Risks: Service worker build with relative import (`./lib/adapters/cache-seam/index`) must be validated by `npm run build`. If Vite's SW bundler cannot resolve the import, the fallback is to inline the adapter logic back into service-worker.ts (a known escape hatch documented in probe.ts).
+
+**Context**: `src/service-worker.ts` directly called `caches.open()`, `caches.keys()`, `caches.delete()`, and `caches.match()` in violation of the SDD mandate that all I/O must flow through approved seam adapters. The TODO comment was the only acknowledgement.
+
+**Decision**: Introduce `CacheSeam` as a self-contained seam under `src/lib/seams/cache-seam/`. The contract exposes three operations matching the three service worker lifecycle events: `primeCache` (install), `evictStaleCaches` (activate), `matchRequest` (fetch). The adapter wraps the Web Cache API with `Result<>` error handling. The mock uses an in-memory Map for deterministic unit tests.
+
+**Rationale**: The Web Cache API is a stable browser platform API with no Node.js equivalent. The seam provides a contract boundary for future testing (e.g., Playwright PWA tests) without changing observable behavior. Using `Result<>` makes cache failures explicit rather than silently swallowed.
+
+**Files added**: `src/lib/seams/cache-seam/{contract,fixtures,validators,mock,probe,test}.ts`, `src/lib/adapters/cache-seam/index.ts`
+
+**Files modified**: `src/service-worker.ts` (import + use seam), `docs/seams.md` (registry entry)
+## 2026-05-16 — Split AppConfigSeam: Introduce ImageProviderConfigSeam
+
+**Context**: The image-generation route (`/api/image-generation`) depended on `AppConfigSeam` via `createAppConfigSeam()`. `AppConfigSeam` validates all config including `XAI_TEXT_MODEL`, `GEMINI_API_KEY`, and other unrelated keys. If any of those are absent, the image-generation endpoint fails at startup even though it only needs 4 image-provider env keys.
+
+The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are split into a narrower image-provider config seam."
+
+**Decision**: Extract `ImageProviderConfigSeam` — a narrow seam containing only `xaiApiKey`, `xaiImageModel`, `xaiBaseUrl`, and `xaiImageEndpointPath`. Wire `ImageGenerationSeam` adapter to depend on `ImageProviderConfigSeam` instead of `AppConfigSeam`. Update the image-generation route to use `createImageProviderConfigSeam()`. `AppConfigSeam` is unchanged and still used by `wig-try-on` and other routes that need the full config.
+
+**Rationale**:
+- Minimum coupling principle: the image-generation adapter only reads 4 env vars; it should declare only those as dependencies
+- Startup resilience: a deployment with only `XAI_IMAGE_*` keys configured (no text model, no Gemini) can now serve image generation without a config error
+- Follows existing self-contained seam layout; full Seam-Driven Development workflow applied (contract → probe → fixtures → mock → test → adapter)
+
+**Files added**:
+- `src/lib/seams/image-provider-config-seam/contract.ts`
+- `src/lib/seams/image-provider-config-seam/validators.ts`
+- `src/lib/seams/image-provider-config-seam/fixtures.ts`
+- `src/lib/seams/image-provider-config-seam/mock.ts`
+- `src/lib/seams/image-provider-config-seam/test.ts`
+- `src/lib/seams/image-provider-config-seam/probe.ts`
+- `src/lib/adapters/image-provider-config-seam/index.ts`
+
+**Files modified**:
+- `src/lib/adapters/image-generation-seam/index.ts` — changed `AppConfigSeam` dep to `ImageProviderConfigSeam`
+- `src/routes/api/image-generation/+server.ts` — use `createImageProviderConfigSeam()`, removed TODO
+- `docs/seams.md` — added `ImageProviderConfigSeam` entry
+- `src/lib/seams/CLAUDE.md` — added to current seams table
+
+- Cipher Gate:
+    Date: 2026-05-16
+    Seams: ImageProviderConfigSeam, ImageGenerationSeam, AppConfigSeam
+    Evidence: pending — ImageProviderConfigSeam is env-var-only (N/A probe); ImageGenerationSeam probe still blocked (no XAI_API_KEY). Contract tests pass locally under npm test.
+    Summary: Extracted ImageProviderConfigSeam from AppConfigSeam to narrow the image-generation route's config dependency to the 4 xAI image-provider env keys. AppConfigSeam is unmodified.
+    Risks: If a new image-generation config key is added to AppConfigSeam in future, developers must remember to add it to ImageProviderConfigSeam as well. Mitigated by the seam registry and contract tests.
+
+- Assumption (historical note):
+    Date: 2026-05-16
+    Seams: ImageProviderConfigSeam
+    Statement: The 4 image-provider keys (XAI_API_KEY, XAI_IMAGE_MODEL, XAI_BASE_URL, XAI_IMAGE_ENDPOINT_PATH) are the complete set needed by the ImageGenerationSeam adapter. No other env var will be needed without a contract update.
+    Validation: Verified by reading the ImageGenerationSeam adapter source — only these 4 keys are accessed from config.
+    Status: Confirmed by code inspection; no live probe required for a config-only seam.
+
 ## 2026-05-11 — Wig Try-On Feature: Seam-Driven Development Architecture
 
 **Context**: Add a wig try-on feature integrated into the coloring book experience. Users browse a static affiliate wig catalog, upload a selfie, and receive an AI-illustrated portrait showing themselves wearing the selected wig. The portrait style matches the coloring-book aesthetic.
@@ -1590,3 +1650,73 @@ Short, durable decisions with context and tradeoffs.
     Evidence: pending — verify pipeline requires XAI_API_KEY not available in this environment
     Summary: Added Zod validation (XAIChatResponseSchema, XAIImageResponseSchema) at xAI provider boundary. Returns PROVIDER_INVALID_RESPONSE for structurally invalid payloads. Applied .nullish() to optional fields to handle null returns from API.
     Risks: Cannot produce live probe evidence without XAI_API_KEY.
+
+- Cipher Gate:
+  - Date: 2026-05-14
+  - Seams: ImageGenerationSeam
+  - Evidence: docs/evidence/2026-05-14/rewind-ImageGenerationSeam.txt; docs/evidence/2026-05-14/test.txt; docs/evidence/2026-05-14/verify.txt; docs/evidence/2026-05-14/proof-tape.md
+  - Summary: Added an adapter-level HTTP failure assertion for ImageGenerationSeam while preserving mock-first contract coverage, repaired shared result-schema typing so parsed failures keep required error objects, and addressed open PR review feedback for studio draft/spec synchronization, try-on portrait packaging, locale-aware USD formatting, empty revised-prompt fallback preservation, and shared text-model fallback selection.
+  - Risks: ImageGenerationSeam fixtures are older than seven days; this pass does not refresh live xAI fixtures because no live provider credentials were supplied, so the waiver below preserves deterministic fixture use until a credentialed probe can refresh them.
+
+- Assumption:
+  - Date: 2026-05-14
+  - Seams: ImageGenerationSeam
+  - Statement: Existing ImageGenerationSeam sample/fault fixtures remain representative for review-comment repairs even though they are older than seven days.
+  - Validation: Run `npm run rewind -- --seam ImageGenerationSeam`, `npm run verify`, and schedule a credentialed `probes/image-generation.probe.mjs` refresh when XAI_API_KEY is available.
+  - Status: Waived for this review-comment repair because live xAI credentials are not present in the non-interactive environment.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: MeechieStudioTextSeam, MeechieToolSeam, ChatInterpretationSeam, ImageGenerationSeam, OutputPackagingSeam, CreationStoreSeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Addressed PR #65 review blockers by trimming configured text-model IDs, restoring evidence autosave, persisting dedication changes into draft specs, aborting try-on export after spec-sync failures, clearing stale try-on export artifacts, and removing the Svelte `HTMLSelectElement` lint issue.
+  - Risks: UI handler behavior is validated by Svelte compile checks and full test gates, but no browser click-through was run in this pass.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: MeechieStudioTextSeam, ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Changed the missing `XAI_API_KEY` studio-text path to return a structured `ok: false` response with HTTP 200 so local demos keep the visible error message without browser console resource errors.
+  - Risks: Consumers that depended on HTTP 401 for absent local configuration now need to read the structured error body; real non-configuration provider failures still return error status codes.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: ChatInterpretationSeam, ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Addressed PR #69 review blockers by preserving provider error details in chat interpretation failures and removing direct `console.warn` process logging from the shared JSON request helper.
+  - Risks: Client callers now receive a thrown parse error for unreadable JSON responses instead of a null payload, relying on their existing request error handlers.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: DriftDetectionSeam
+  - Evidence: docs/evidence/2026-05-16/rewind-DriftDetectionSeam.txt; docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Restored drift detection fallback so an empty or whitespace-only revised prompt uses the original prompt sent for validation.
+  - Risks: If a future provider needs empty revised prompts to be treated as authoritative output, it should add an explicit contract field instead of overloading an empty string.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: ImageProviderConfigSeam, ImageGenerationSeam, AppConfigSeam
+  - Evidence: docs/evidence/2026-05-16/rewind-ImageGenerationSeam.txt; docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Addressed PR #70 review blockers by keeping image generation on the new narrow image-provider config seam, applying README-documented defaults for optional image env values, rejecting malformed base URLs at the config boundary, and deriving the config type from the validation schema.
+  - Risks: Blank optional image env values remain invalid rather than defaulted, so deployments should unset optional keys when they want documented defaults.
+
+- Assumption:
+  - Date: 2026-05-16
+  - Seams: ImageProviderConfigSeam
+  - Statement: ImageProviderConfigSeam is a config-only seam, so its probe is represented by deterministic adapter tests rather than live network I/O.
+  - Validation: Run `npm.cmd test -- src/lib/seams/image-provider-config-seam/test.ts --pool=forks --maxWorkers=1`, `npm.cmd run verify`, and refresh this assumption if the seam starts reading live provider state.
+  - Status: Active for PR #70 because the seam reads environment values only and has no live provider call to probe.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: MeechieStudioTextSeam, ProviderAdapterSeam, ImageGenerationSeam, SpecValidationSeam, MeechieToolSeam
+  - Evidence: docs/evidence/2026-05-16/rewind-ImageGenerationSeam.txt; docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Addressed PR #67 review blockers by keeping studio-text parse diagnostics inside the structured seam error instead of direct logging, aligning the image-generation fault fixture prompt with required prompt phrases, exporting the shared PageSize type, deduplicating the page-size prompt check, and keeping MeechieToolSeam exhaustiveness explicit.
+  - Risks: Studio text failures now expose a short provider-content preview to callers for debugging; callers should treat it as diagnostic text, not user-facing copy.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: CacheSeam
+  - Evidence: docs/evidence/2026-05-16/rewind-CacheSeam.txt; docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Addressed PR #66 review blockers by making service-worker install and activation reject when CacheSeam returns an error, validating cache names and URL lists before Web Cache API calls without bundling Zod into the service worker, preserving distinct open/addAll error codes, surfacing failed stale-cache deletion keys, logging cache-match fallback warnings, and marking CacheSeam's browser probe as a manual 2026-05-15 check.
+  - Risks: CacheSeam still relies on manual browser probing for real Cache Storage behavior; Node tests use stubbed Cache Storage to prove adapter control flow.
