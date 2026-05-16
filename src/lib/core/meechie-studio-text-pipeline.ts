@@ -4,6 +4,7 @@
 import { env } from '$env/dynamic/private';
 import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
+import { selectTextModel } from '$lib/core/text-model';
 import {
 	MeechieStudioTextInputSchema,
 	MeechieStudioTextOutputSchema,
@@ -12,7 +13,7 @@ import {
 import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.contract';
 import { z } from 'zod';
 
-const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
+const TEXT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
 
 const STUDIO_TEXT_RESPONSE_FORMAT = {
 	type: 'json_schema',
@@ -115,6 +116,21 @@ type PipelineResponse = {
 export type MeechieStudioTextPipelineDeps = {
 	createProvider: typeof createProviderAdapter;
 };
+
+const invalidProviderTextResult = (
+	content: string,
+	model: string
+): MeechieStudioTextResult => ({
+	ok: false,
+	error: {
+		code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID',
+		message: 'Provider text response did not match contract.',
+		details: {
+			model,
+			contentPreview: content.slice(0, 500)
+		}
+	}
+});
 
 const buildError = (
 	status: number,
@@ -245,13 +261,7 @@ const parseProviderText = (
 ): MeechieStudioTextResult => {
 	const parsed = extractJson(content);
 	if (!parsed) {
-		return {
-			ok: false,
-			error: {
-				code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID',
-				message: 'Provider text response did not match contract.'
-			}
-		};
+		return invalidProviderTextResult(content, model);
 	}
 
 	const output = MeechieStudioTextOutputSchema.safeParse({
@@ -262,13 +272,7 @@ const parseProviderText = (
 		}
 	});
 	if (!output.success) {
-		return {
-			ok: false,
-			error: {
-				code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID',
-				message: 'Provider text response did not match contract.'
-			}
-		};
+		return invalidProviderTextResult(content, model);
 	}
 	return {
 		ok: true,
@@ -309,7 +313,7 @@ export const runMeechieStudioTextPipeline = async (
 	if (!providerResult.ok) {
 		const missingKey = providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
 		return {
-			status: missingKey ? 401 : 502,
+			status: missingKey && env.NODE_ENV !== 'production' ? 200 : 502,
 			body: {
 				ok: false,
 				error: {
@@ -334,13 +338,13 @@ export const runMeechieStudioTextPipeline = async (
 			...messages,
 			{
 				role: 'assistant' as const,
-				content: lastRawResponse,
+				content: lastRawResponse
 			},
 			{
 				role: 'user' as const,
 				content:
-					'Your previous response could not be parsed as valid JSON. Please respond with ONLY valid JSON matching the required schema, no markdown, no explanation, no code fences.',
-			},
+					'Your previous response could not be parsed as valid JSON. Please respond with ONLY valid JSON matching the required schema, no markdown, no explanation, no code fences.'
+			}
 		];
 		providerResult = await provider.createChatCompletion({
 			model: TEXT_MODEL,
@@ -351,7 +355,7 @@ export const runMeechieStudioTextPipeline = async (
 			const missingKey =
 				providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
 			return {
-				status: missingKey ? 401 : 502,
+				status: missingKey && env.NODE_ENV !== 'production' ? 200 : 502,
 				body: {
 					ok: false,
 					error: {

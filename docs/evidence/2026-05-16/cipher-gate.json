@@ -1,0 +1,30 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-05-16T14:02:13.208Z",
+  "cipher": {
+    "date": "2026-05-16",
+    "seams": "MeechieStudioTextSeam, ProviderAdapterSeam, ImageGenerationSeam, SpecValidationSeam, MeechieToolSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-05-16/rewind-ImageGenerationSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-16/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-16/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-16/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Addressed PR #67 review blockers by keeping studio-text parse diagnostics inside the structured seam error instead of direct logging, aligning the image-generation fault fixture prompt with required prompt phrases, exporting the shared PageSize type, deduplicating the page-size prompt check, and keeping MeechieToolSeam exhaustiveness explicit.",
+    "risks": "Studio text failures now expose a short provider-content preview to callers for debugging; callers should treat it as diagnostic text, not user-facing copy."
+  },
+  "latestChangeMs": 1778939873833.6506,
+  "status": "ok"
+}
