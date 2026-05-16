@@ -2,6 +2,7 @@
 // Why: Enforce mock adherence to the seam contract; red proof that fault fixture fails validation.
 // Info flow: tests -> mock -> contract assertions.
 import { describe, expect, it } from 'vitest';
+import { createImageProviderConfigSeam } from '../../adapters/image-provider-config-seam';
 import { imageProviderConfigFixture, imageProviderConfigFaultFixture } from './fixtures';
 import { createMockImageProviderConfigSeam } from './mock';
 import { validateImageProviderConfig } from './validators';
@@ -24,11 +25,29 @@ describe('ImageProviderConfigSeam mock contract', () => {
   it('config contains only image-provider keys and no text-model fields', () => {
     const seam = createMockImageProviderConfigSeam('sample');
     const config = seam.getConfig();
-    expect(Object.keys(config)).toEqual(
-      expect.arrayContaining(['xaiApiKey', 'xaiImageModel', 'xaiBaseUrl', 'xaiImageEndpointPath'])
+    expect(Object.keys(config).sort()).toEqual(
+      ['xaiApiKey', 'xaiImageModel', 'xaiBaseUrl', 'xaiImageEndpointPath'].sort()
     );
     expect(config).not.toHaveProperty('xaiTextModel');
     expect(config).not.toHaveProperty('geminiApiKey');
     expect(config).not.toHaveProperty('featureIntegrationTests');
+  });
+
+  it('uses documented defaults when optional image env values are absent', () => {
+    const seam = createImageProviderConfigSeam({ XAI_API_KEY: 'test-key' });
+    expect(seam.getConfig()).toEqual({
+      xaiApiKey: 'test-key',
+      xaiImageModel: 'grok-imagine-image',
+      xaiBaseUrl: 'https://api.x.ai',
+      xaiImageEndpointPath: '/v1/images/generations'
+    });
+  });
+
+  it('rejects malformed base URLs as config errors', () => {
+    const seam = createImageProviderConfigSeam({
+      XAI_API_KEY: 'test-key',
+      XAI_BASE_URL: 'api.x.ai'
+    });
+    expect(() => seam.getConfig()).toThrow();
   });
 });

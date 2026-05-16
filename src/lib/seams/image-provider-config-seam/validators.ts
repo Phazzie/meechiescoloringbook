@@ -4,11 +4,13 @@
 import { z } from 'zod';
 
 export const imageProviderConfigSchema = z.object({
-  xaiApiKey: z.string().min(1),
-  xaiImageModel: z.string().min(1),
-  xaiBaseUrl: z.string().min(1),
-  xaiImageEndpointPath: z.string().min(1)
+	xaiApiKey: z.string().min(1),
+	xaiImageModel: z.string().min(1),
+	xaiBaseUrl: z.string().url(),
+	xaiImageEndpointPath: z.string().min(1)
 });
 
+export type ImageProviderConfig = z.infer<typeof imageProviderConfigSchema>;
+
 export const validateImageProviderConfig = (config: unknown) =>
-  imageProviderConfigSchema.parse(config);
+	imageProviderConfigSchema.parse(config);

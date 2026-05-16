@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-05-16T09:19:28.294Z",
+  "generatedAt": "2026-05-16T13:48:04.726Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -37,6 +37,44 @@
           "kind": "adapter",
           "status": "ok",
           "path": "src/lib/adapters/app-config-seam/index.ts"
+        }
+      ]
+    },
+    {
+      "seam": "ImageProviderConfigSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/image-provider-config-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/image-provider-config-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "na",
+          "path": "N/A (fixture module: src/lib/seams/image-provider-config-seam/fixtures.ts)"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/image-provider-config-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/image-provider-config-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/image-provider-config-seam/index.ts"
         }
       ]
     },
@@ -802,7 +840,7 @@
     }
   ],
   "summary": {
-    "ok": 21,
+    "ok": 22,
     "missing": 0,
     "blocked": 0,
     "overallStatus": "ok"

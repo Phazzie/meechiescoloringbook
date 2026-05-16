@@ -42,7 +42,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
     Summary: Extracted ImageProviderConfigSeam from AppConfigSeam to narrow the image-generation route's config dependency to the 4 xAI image-provider env keys. AppConfigSeam is unmodified.
     Risks: If a new image-generation config key is added to AppConfigSeam in future, developers must remember to add it to ImageProviderConfigSeam as well. Mitigated by the seam registry and contract tests.
 
-- Assumption:
+- Assumption (historical note):
     Date: 2026-05-16
     Seams: ImageProviderConfigSeam
     Statement: The 4 image-provider keys (XAI_API_KEY, XAI_IMAGE_MODEL, XAI_BASE_URL, XAI_IMAGE_ENDPOINT_PATH) are the complete set needed by the ImageGenerationSeam adapter. No other env var will be needed without a contract update.
@@ -1660,3 +1660,31 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Evidence: docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
   - Summary: Changed the missing `XAI_API_KEY` studio-text path to return a structured `ok: false` response with HTTP 200 so local demos keep the visible error message without browser console resource errors.
   - Risks: Consumers that depended on HTTP 401 for absent local configuration now need to read the structured error body; real non-configuration provider failures still return error status codes.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: ChatInterpretationSeam, ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Addressed PR #69 review blockers by preserving provider error details in chat interpretation failures and removing direct `console.warn` process logging from the shared JSON request helper.
+  - Risks: Client callers now receive a thrown parse error for unreadable JSON responses instead of a null payload, relying on their existing request error handlers.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: DriftDetectionSeam
+  - Evidence: docs/evidence/2026-05-16/rewind-DriftDetectionSeam.txt; docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Restored drift detection fallback so an empty or whitespace-only revised prompt uses the original prompt sent for validation.
+  - Risks: If a future provider needs empty revised prompts to be treated as authoritative output, it should add an explicit contract field instead of overloading an empty string.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: ImageProviderConfigSeam, ImageGenerationSeam, AppConfigSeam
+  - Evidence: docs/evidence/2026-05-16/rewind-ImageGenerationSeam.txt; docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Addressed PR #70 review blockers by keeping image generation on the new narrow image-provider config seam, applying README-documented defaults for optional image env values, rejecting malformed base URLs at the config boundary, and deriving the config type from the validation schema.
+  - Risks: Blank optional image env values remain invalid rather than defaulted, so deployments should unset optional keys when they want documented defaults.
+
+- Assumption:
+  - Date: 2026-05-16
+  - Seams: ImageProviderConfigSeam
+  - Statement: ImageProviderConfigSeam is a config-only seam, so its probe is represented by deterministic adapter tests rather than live network I/O.
+  - Validation: Run `npm.cmd test -- src/lib/seams/image-provider-config-seam/test.ts --pool=forks --maxWorkers=1`, `npm.cmd run verify`, and refresh this assumption if the seam starts reading live provider state.
+  - Status: Active for PR #70 because the seam reads environment values only and has no live provider call to probe.

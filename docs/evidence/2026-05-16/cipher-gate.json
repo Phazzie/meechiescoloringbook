@@ -1,10 +1,14 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-05-16T09:20:20.302Z",
+  "generatedAt": "2026-05-16T13:48:18.799Z",
   "cipher": {
     "date": "2026-05-16",
-    "seams": "MeechieStudioTextSeam, ProviderAdapterSeam",
+    "seams": "ImageProviderConfigSeam, ImageGenerationSeam, AppConfigSeam",
     "evidence": [
+      {
+        "path": "docs/evidence/2026-05-16/rewind-ImageGenerationSeam.txt",
+        "exists": true
+      },
       {
         "path": "docs/evidence/2026-05-16/test.txt",
         "exists": true
@@ -18,9 +22,9 @@
         "exists": true
       }
     ],
-    "summary": "Changed the missing `XAI_API_KEY` studio-text path to return a structured `ok: false` response with HTTP 200 so local demos keep the visible error message without browser console resource errors.",
-    "risks": "Consumers that depended on HTTP 401 for absent local configuration now need to read the structured error body; real non-configuration provider failures still return error status codes."
+    "summary": "Addressed PR #70 review blockers by keeping image generation on the new narrow image-provider config seam, applying README-documented defaults for optional image env values, rejecting malformed base URLs at the config boundary, and deriving the config type from the validation schema.",
+    "risks": "Blank optional image env values remain invalid rather than defaulted, so deployments should unset optional keys when they want documented defaults."
   },
-  "latestChangeMs": 1778922039829.7393,
+  "latestChangeMs": 1778938610146.0642,
   "status": "ok"
 }

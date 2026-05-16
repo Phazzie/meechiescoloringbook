@@ -1,6 +1,6 @@
 {
   "tool": "assumption-alarm",
-  "generatedAt": "2026-05-16T09:19:27.211Z",
+  "generatedAt": "2026-05-16T13:48:03.659Z",
   "blockedSeams": [],
   "assumptions": [
     {
@@ -51,6 +51,17 @@
       "status": "Waived for this review-comment repair because live xAI credentials are not present in the non-interactive environment.",
       "seamList": [
         "ImageGenerationSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-05-16",
+      "seams": "ImageProviderConfigSeam",
+      "statement": "ImageProviderConfigSeam is a config-only seam, so its probe is represented by deterministic adapter tests rather than live network I/O.",
+      "validation": "Run `npm.cmd test -- src/lib/seams/image-provider-config-seam/test.ts --pool=forks --maxWorkers=1`, `npm.cmd run verify`, and refresh this assumption if the seam starts reading live provider state.",
+      "status": "Active for PR #70 because the seam reads environment values only and has no live provider call to probe.",
+      "seamList": [
+        "ImageProviderConfigSeam"
       ],
       "missingFields": []
     }

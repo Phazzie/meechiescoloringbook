@@ -10,9 +10,9 @@ import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-conf
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
-  const body = await request.json().catch(() => null);
-  const pipelineResult = await runImageGenerationPipeline(body, {
-    imageGenerationSeam: createImageGenerationSeam(createImageProviderConfigSeam())
-  });
-  return json(pipelineResult.body, { status: pipelineResult.status });
+	const body = await request.json().catch(() => null);
+	const pipelineResult = await runImageGenerationPipeline(body, {
+		imageGenerationSeam: createImageGenerationSeam(createImageProviderConfigSeam())
+	});
+	return json(pipelineResult.body, { status: pipelineResult.status });
 };
