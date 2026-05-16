@@ -230,6 +230,11 @@ const buildUserMessage = (input: MeechieToolInput): UserMessage => {
 				].join('\n'),
 				responseFormat: STANDARD_RESPONSE_FORMAT
 			};
+
+		default: {
+			const _exhaustive: never = input;
+			throw new Error(`Unknown toolId: ${(_exhaustive as MeechieToolInput).toolId}`);
+		}
 	}
 };
 

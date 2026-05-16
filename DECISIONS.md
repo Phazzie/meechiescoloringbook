@@ -1688,3 +1688,10 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Statement: ImageProviderConfigSeam is a config-only seam, so its probe is represented by deterministic adapter tests rather than live network I/O.
   - Validation: Run `npm.cmd test -- src/lib/seams/image-provider-config-seam/test.ts --pool=forks --maxWorkers=1`, `npm.cmd run verify`, and refresh this assumption if the seam starts reading live provider state.
   - Status: Active for PR #70 because the seam reads environment values only and has no live provider call to probe.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: MeechieStudioTextSeam, ProviderAdapterSeam, ImageGenerationSeam, SpecValidationSeam, MeechieToolSeam
+  - Evidence: docs/evidence/2026-05-16/rewind-ImageGenerationSeam.txt; docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Addressed PR #67 review blockers by keeping studio-text parse diagnostics inside the structured seam error instead of direct logging, aligning the image-generation fault fixture prompt with required prompt phrases, exporting the shared PageSize type, deduplicating the page-size prompt check, and keeping MeechieToolSeam exhaustiveness explicit.
+  - Risks: Studio text failures now expose a short provider-content preview to callers for debugging; callers should treat it as diagnostic text, not user-facing copy.

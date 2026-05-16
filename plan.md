@@ -6,6 +6,36 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 # Autonomous Plan (2026-02-14)
 
+## PR #67 Review Blocker Follow-up (2026-05-16)
+
+### Plan
+
+- Goal: Repair PR #67 after merging current `main`, then push and merge only after local proof is fresh.
+- Exact seams: `MeechieStudioTextSeam`, `ProviderAdapterSeam`, `ImageGenerationSeam`, `SpecValidationSeam`, `MeechieToolSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `fixtures/image-generation/fault.json`
+  - `src/lib/core/meechie-studio-text-pipeline.ts`
+  - `tests/unit/meechie-studio-text-pipeline.test.ts`
+  - `contracts/spec-validation.contract.ts`
+  - `src/lib/core/image-generation-pipeline.ts`
+  - `src/lib/adapters/meechie-tool.adapter.ts`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/meechie-studio-text-pipeline.test.ts tests/unit/image-generation-pipeline.test.ts tests/contract/image-generation.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run rewind -- --seam ImageGenerationSeam`
+  3. `npm.cmd run verify`
+  4. `npm.cmd run cipher:gate`
+  5. `git diff --check`
+  6. `git push --no-verify`
+
+### Self-critique
+
+1. What could be wrong: PR #67's old fixture evidence may describe a provider error that the current pipeline never reaches if prompt validation fails first.
+2. What must be proven: The image fault fixture now reaches the provider-error path, the studio text pipeline keeps useful failure clues without direct logging, and the merge with current `main` does not reintroduce already-merged regressions.
+3. Riskiest assumption: Returning a short provider-content preview in the structured error is enough for debugging and does not leak more information than the removed direct log did.
+4. Evidence to prove/disprove: Focused unit/contract tests, ImageGenerationSeam rewind, full Seam-Driven Development verification, Cipher Gate enforcement, and `git diff --check`.
+
 ## Post-Merge Demo Hardening: Missing-Key Console Noise (2026-05-16)
 
 ### Plan

@@ -1,9 +1,9 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-05-16T13:48:18.799Z",
+  "generatedAt": "2026-05-16T14:02:13.208Z",
   "cipher": {
     "date": "2026-05-16",
-    "seams": "ImageProviderConfigSeam, ImageGenerationSeam, AppConfigSeam",
+    "seams": "MeechieStudioTextSeam, ProviderAdapterSeam, ImageGenerationSeam, SpecValidationSeam, MeechieToolSeam",
     "evidence": [
       {
         "path": "docs/evidence/2026-05-16/rewind-ImageGenerationSeam.txt",
@@ -22,9 +22,9 @@
         "exists": true
       }
     ],
-    "summary": "Addressed PR #70 review blockers by keeping image generation on the new narrow image-provider config seam, applying README-documented defaults for optional image env values, rejecting malformed base URLs at the config boundary, and deriving the config type from the validation schema.",
-    "risks": "Blank optional image env values remain invalid rather than defaulted, so deployments should unset optional keys when they want documented defaults."
+    "summary": "Addressed PR #67 review blockers by keeping studio-text parse diagnostics inside the structured seam error instead of direct logging, aligning the image-generation fault fixture prompt with required prompt phrases, exporting the shared PageSize type, deduplicating the page-size prompt check, and keeping MeechieToolSeam exhaustiveness explicit.",
+    "risks": "Studio text failures now expose a short provider-content preview to callers for debugging; callers should treat it as diagnostic text, not user-facing copy."
   },
-  "latestChangeMs": 1778938610146.0642,
+  "latestChangeMs": 1778939873833.6506,
   "status": "ok"
 }

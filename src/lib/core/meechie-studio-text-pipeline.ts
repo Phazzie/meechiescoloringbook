@@ -117,6 +117,21 @@ export type MeechieStudioTextPipelineDeps = {
 	createProvider: typeof createProviderAdapter;
 };
 
+const invalidProviderTextResult = (
+	content: string,
+	model: string
+): MeechieStudioTextResult => ({
+	ok: false,
+	error: {
+		code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID',
+		message: 'Provider text response did not match contract.',
+		details: {
+			model,
+			contentPreview: content.slice(0, 500)
+		}
+	}
+});
+
 const buildError = (
 	status: number,
 	code: string,
@@ -246,13 +261,7 @@ const parseProviderText = (
 ): MeechieStudioTextResult => {
 	const parsed = extractJson(content);
 	if (!parsed) {
-		return {
-			ok: false,
-			error: {
-				code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID',
-				message: 'Provider text response did not match contract.'
-			}
-		};
+		return invalidProviderTextResult(content, model);
 	}
 
 	const output = MeechieStudioTextOutputSchema.safeParse({
@@ -263,13 +272,7 @@ const parseProviderText = (
 		}
 	});
 	if (!output.success) {
-		return {
-			ok: false,
-			error: {
-				code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID',
-				message: 'Provider text response did not match contract.'
-			}
-		};
+		return invalidProviderTextResult(content, model);
 	}
 	return {
 		ok: true,
@@ -369,16 +372,6 @@ export const runMeechieStudioTextPipeline = async (
 			providerResult.value.model
 		);
 	}
-	if (!result.ok) {
-		console.warn(
-			'Meechie studio text pipeline failed to extract valid JSON from model output after retry',
-			{
-				model: providerResult.value.model,
-				contentPreview: providerResult.value.content.slice(0, 500)
-			}
-		);
-	}
-
 	const parsedResult = MeechieStudioTextResultSchema.safeParse(result);
 	if (!parsedResult.success) {
 		return buildError(

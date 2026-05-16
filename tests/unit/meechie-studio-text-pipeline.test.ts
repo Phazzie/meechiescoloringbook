@@ -263,7 +263,11 @@ Trailing {also not json}.`
 		expect(response.body).toMatchObject({
 			ok: false,
 			error: {
-				code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID'
+				code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID',
+				details: {
+					model: 'test-model',
+					contentPreview: 'Not JSON at all'
+				}
 			}
 		});
 		expect(callCount).toBe(2); // Retried once
