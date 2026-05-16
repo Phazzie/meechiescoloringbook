@@ -1,6 +1,6 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-05-16T13:27:18.023Z",
+  "generatedAt": "2026-05-16T13:44:32.126Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -34,6 +34,42 @@
         {
           "kind": "adapter",
           "path": "src/lib/adapters/app-config-seam/index.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "ImageProviderConfigSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "src/lib/seams/image-provider-config-seam/contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "src/lib/seams/image-provider-config-seam/probe.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "N/A (fixture module: src/lib/seams/image-provider-config-seam/fixtures.ts)",
+          "status": "na"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/seams/image-provider-config-seam/mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "src/lib/seams/image-provider-config-seam/test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/image-provider-config-seam/index.ts",
           "status": "ok"
         }
       ]
@@ -760,7 +796,7 @@
     }
   ],
   "summary": {
-    "ok": 21,
+    "ok": 22,
     "blocked": 0,
     "missing": 0,
     "overallStatus": "ok"

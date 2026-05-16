@@ -1,12 +1,12 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-05-16T13:31:58.388Z",
+  "generatedAt": "2026-05-16T13:48:18.799Z",
   "cipher": {
     "date": "2026-05-16",
-    "seams": "DriftDetectionSeam",
+    "seams": "ImageProviderConfigSeam, ImageGenerationSeam, AppConfigSeam",
     "evidence": [
       {
-        "path": "docs/evidence/2026-05-16/rewind-DriftDetectionSeam.txt",
+        "path": "docs/evidence/2026-05-16/rewind-ImageGenerationSeam.txt",
         "exists": true
       },
       {
@@ -22,9 +22,9 @@
         "exists": true
       }
     ],
-    "summary": "Restored drift detection fallback so an empty or whitespace-only revised prompt uses the original prompt sent for validation.",
-    "risks": "If a future provider needs empty revised prompts to be treated as authoritative output, it should add an explicit contract field instead of overloading an empty string."
+    "summary": "Addressed PR #70 review blockers by keeping image generation on the new narrow image-provider config seam, applying README-documented defaults for optional image env values, rejecting malformed base URLs at the config boundary, and deriving the config type from the validation schema.",
+    "risks": "Blank optional image env values remain invalid rather than defaulted, so deployments should unset optional keys when they want documented defaults."
   },
-  "latestChangeMs": 1778937960243.2637,
+  "latestChangeMs": 1778938610146.0642,
   "status": "ok"
 }

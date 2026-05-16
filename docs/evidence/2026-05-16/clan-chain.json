@@ -1,10 +1,14 @@
 {
   "tool": "clan-chain",
-  "generatedAt": "2026-05-16T13:31:39.897Z",
+  "generatedAt": "2026-05-16T13:48:05.728Z",
   "evidenceDir": "docs\\evidence\\2026-05-16",
   "clean": [
     {
       "seam": "AppConfigSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "ImageProviderConfigSeam",
       "owner": "hbpheonix"
     },
     {

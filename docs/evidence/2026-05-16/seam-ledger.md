@@ -5,11 +5,12 @@ Info flow: seam checks -> ledger table -> review.
 -->
 # Seam Ledger
 
-Generated at: 2026-05-16T13:31:38.480Z
+Generated at: 2026-05-16T13:48:04.726Z
 
 | Seam | Status | Contract | Probe | Fixtures | Mock | Tests | Adapter |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | AppConfigSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| ImageProviderConfigSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | PromptCompilerSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | — |
 | SafetyPolicySeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | — |
 | GalleryStoreSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | — |
