@@ -3,22 +3,40 @@
 // Info flow: CacheSeam calls -> Web Cache API (available in browser and service worker context) -> Result<>.
 import type { CacheError, CacheSeam } from '../../seams/cache-seam/contract';
 import type { Result } from '../../../../contracts/shared.contract';
+import {
+  validateCacheName,
+  validateCacheUrlList
+} from '../../seams/cache-seam/validators';
+
+const errorMessage = (err: unknown, fallback: string): string =>
+  err instanceof Error ? err.message : fallback;
 
 export const createCacheSeam = (): CacheSeam => ({
   primeCache: async (cacheName, urls): Promise<Result<undefined, CacheError>> => {
+    let cache: Cache;
     try {
-      const cache = await caches.open(cacheName);
+      validateCacheName(cacheName);
+      cache = await caches.open(cacheName);
+    } catch (err) {
+      return {
+        ok: false,
+        error: {
+          code: 'CACHE_OPEN_FAILED',
+          message: errorMessage(err, 'Failed to open cache.')
+        }
+      };
+    }
+
+    try {
+      validateCacheUrlList(urls);
       await cache.addAll(urls);
       return { ok: true, value: undefined };
     } catch (err) {
-      if (err instanceof Error && (err.name === 'QuotaExceededError' || err.name === 'AbortError')) {
-        return { ok: false, error: { code: 'CACHE_OPEN_FAILED', message: err.message } };
-      }
       return {
         ok: false,
         error: {
           code: 'CACHE_ADD_ALL_FAILED',
-          message: err instanceof Error ? err.message : 'Failed to pre-cache one or more assets.'
+          message: errorMessage(err, 'Failed to pre-cache one or more assets.')
         }
       };
     }
@@ -26,16 +44,29 @@ export const createCacheSeam = (): CacheSeam => ({
 
   evictStaleCaches: async (currentCacheName): Promise<Result<string[], CacheError>> => {
     try {
+      validateCacheName(currentCacheName);
       const keys = await caches.keys();
       const stale = keys.filter((k) => k !== currentCacheName);
-      await Promise.all(stale.map((k) => caches.delete(k)));
+      const results = await Promise.allSettled(stale.map((k) => caches.delete(k)));
+      const failedKeys = results.flatMap((result, index) =>
+        result.status === 'rejected' ? [stale[index]] : []
+      );
+      if (failedKeys.length > 0) {
+        return {
+          ok: false,
+          error: {
+            code: 'CACHE_EVICT_FAILED',
+            message: `Failed to evict stale caches: ${failedKeys.join(', ')}`
+          }
+        };
+      }
       return { ok: true, value: stale };
     } catch (err) {
       return {
         ok: false,
         error: {
           code: 'CACHE_EVICT_FAILED',
-          message: err instanceof Error ? err.message : 'Failed to evict stale caches.'
+          message: errorMessage(err, 'Failed to evict stale caches.')
         }
       };
     }
@@ -50,7 +81,7 @@ export const createCacheSeam = (): CacheSeam => ({
         ok: false,
         error: {
           code: 'CACHE_MATCH_FAILED',
-          message: err instanceof Error ? err.message : 'Cache match operation failed.'
+          message: errorMessage(err, 'Cache match operation failed.')
         }
       };
     }

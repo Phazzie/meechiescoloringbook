@@ -5,17 +5,36 @@ import type { CacheError, CacheSeam } from './contract';
 import type { Result } from '../../../../contracts/shared.contract';
 import {
   cacheOpenFailedFixture,
+  cacheAddAllFailedFixture,
   cacheEvictFailedFixture,
   cacheMatchFailedFixture
 } from './fixtures';
+import { validateCacheName, validateCacheUrlList } from './validators';
 
-export const createMockCacheSeam = (scenario: 'sample' | 'fault' = 'sample'): CacheSeam => {
+type CacheScenario = 'sample' | 'fault' | 'addAllFault';
+
+const validationError = (code: CacheError['code'], err: unknown): CacheError => ({
+  code,
+  message: err instanceof Error ? err.message : 'Cache input validation failed.'
+});
+
+export const createMockCacheSeam = (scenario: CacheScenario = 'sample'): CacheSeam => {
   const store = new Map<string, Response>();
 
   return {
     primeCache: async (cacheName, urls): Promise<Result<undefined, CacheError>> => {
+      try {
+        validateCacheName(cacheName);
+      } catch (err) {
+        return { ok: false, error: validationError('CACHE_OPEN_FAILED', err) };
+      }
+      try {
+        validateCacheUrlList(urls);
+      } catch (err) {
+        return { ok: false, error: validationError('CACHE_ADD_ALL_FAILED', err) };
+      }
       if (scenario === 'fault') return { ok: false, error: cacheOpenFailedFixture };
-      void cacheName;
+      if (scenario === 'addAllFault') return { ok: false, error: cacheAddAllFailedFixture };
       for (const url of urls) {
         store.set(url, new Response(null, { status: 200 }));
       }
@@ -23,8 +42,12 @@ export const createMockCacheSeam = (scenario: 'sample' | 'fault' = 'sample'): Ca
     },
 
     evictStaleCaches: async (currentCacheName): Promise<Result<string[], CacheError>> => {
+      try {
+        validateCacheName(currentCacheName);
+      } catch (err) {
+        return { ok: false, error: validationError('CACHE_EVICT_FAILED', err) };
+      }
       if (scenario === 'fault') return { ok: false, error: cacheEvictFailedFixture };
-      void currentCacheName;
       // Mock maintains a single in-memory store — no stale caches to evict.
       return { ok: true, value: [] };
     },

@@ -129,6 +129,7 @@ export const RawColoringPageSpecSchema = z.object({
 });
 
 export type ColoringPageSpec = z.infer<typeof ColoringPageSpecSchema>;
+export type PageSize = z.infer<typeof PageSizeSchema>;
 
 /**
  * Spec fields rendered inside the collapsible "More controls" section.

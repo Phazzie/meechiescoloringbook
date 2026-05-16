@@ -1,15 +1,22 @@
 // Purpose: Contract tests for CacheSeam.
 // Why: Enforce mock adherence to the seam contract and prove fault fixtures fail before adapter work.
 // Info flow: tests -> mock -> contract assertions.
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createCacheSeam } from '../../adapters/cache-seam';
 import {
   sampleCacheName,
   sampleCachedUrls,
   cacheOpenFailedFixture,
+  cacheAddAllFailedFixture,
   cacheEvictFailedFixture,
   cacheMatchFailedFixture
 } from './fixtures';
 import { createMockCacheSeam } from './mock';
+import { validateCacheName, validateCacheUrlList } from './validators';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('CacheSeam mock contract', () => {
   it('primeCache succeeds and stores urls in sample scenario', async () => {
@@ -26,6 +33,15 @@ describe('CacheSeam mock contract', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe(cacheOpenFailedFixture.code);
+  });
+
+  it('primeCache addAll fault fixture returns CACHE_ADD_ALL_FAILED', async () => {
+    const seam = createMockCacheSeam('addAllFault');
+    const result = await seam.primeCache(sampleCacheName, sampleCachedUrls);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe(cacheAddAllFailedFixture.code);
   });
 
   it('matchRequest returns a Response for a primed url', async () => {
@@ -99,5 +115,70 @@ describe('CacheSeam mock contract', () => {
     if (!result1.ok || !result2.ok) return;
     expect(result1.value).toBeInstanceOf(Response);
     expect(result2.value).toBeNull();
+  });
+
+  it('validators reject empty cache names and empty url lists', () => {
+    expect(() => validateCacheName('')).toThrow();
+    expect(() => validateCacheName(42)).toThrow();
+    expect(() => validateCacheUrlList([])).toThrow();
+    expect(() => validateCacheUrlList([''])).toThrow();
+  });
+
+  it('adapter rejects an invalid cache name before opening Cache Storage', async () => {
+    const open = vi.fn();
+    vi.stubGlobal('caches', {
+      open,
+      keys: vi.fn(),
+      delete: vi.fn(),
+      match: vi.fn()
+    });
+
+    const seam = createCacheSeam();
+    const result = await seam.primeCache('', sampleCachedUrls);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('CACHE_OPEN_FAILED');
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('adapter reports addAll failures after a successful cache open', async () => {
+    const addAll = vi.fn(async () => {
+      throw new DOMException('pre-cache aborted', 'AbortError');
+    });
+    vi.stubGlobal('caches', {
+      open: vi.fn(async () => ({ addAll })),
+      keys: vi.fn(),
+      delete: vi.fn(),
+      match: vi.fn()
+    });
+
+    const seam = createCacheSeam();
+    const result = await seam.primeCache(sampleCacheName, sampleCachedUrls);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('CACHE_ADD_ALL_FAILED');
+    expect(addAll).toHaveBeenCalledWith(sampleCachedUrls);
+  });
+
+  it('adapter reports which stale cache deletions failed', async () => {
+    vi.stubGlobal('caches', {
+      open: vi.fn(),
+      keys: vi.fn(async () => [sampleCacheName, 'old-a', 'old-b']),
+      delete: vi.fn(async (key: string) => {
+        if (key === 'old-b') throw new Error('delete failed');
+        return true;
+      }),
+      match: vi.fn()
+    });
+
+    const seam = createCacheSeam();
+    const result = await seam.evictStaleCaches(sampleCacheName);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('CACHE_EVICT_FAILED');
+    expect(result.error.message).toContain('old-b');
   });
 });

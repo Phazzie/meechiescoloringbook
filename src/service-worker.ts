@@ -12,11 +12,23 @@ const ASSETS = [...build, ...files];
 const cacheSeam = createCacheSeam();
 
 self.addEventListener('install', (event) => {
-	event.waitUntil(cacheSeam.primeCache(CACHE, ASSETS));
+	event.waitUntil(
+		cacheSeam.primeCache(CACHE, ASSETS).then((result) => {
+			if (!result.ok) {
+				throw new Error(`Cache install failed: ${result.error.message}`);
+			}
+		})
+	);
 });
 
 self.addEventListener('activate', (event) => {
-	event.waitUntil(cacheSeam.evictStaleCaches(CACHE));
+	event.waitUntil(
+		cacheSeam.evictStaleCaches(CACHE).then((result) => {
+			if (!result.ok) {
+				throw new Error(`Cache activation failed: ${result.error.message}`);
+			}
+		})
+	);
 });
 
 self.addEventListener('fetch', (event) => {
@@ -27,6 +39,9 @@ self.addEventListener('fetch', (event) => {
 	event.respondWith(
 		cacheSeam.matchRequest(event.request).then((result) => {
 			if (result.ok && result.value !== null) return result.value;
+			if (!result.ok) {
+				console.warn('Cache match failed; falling back to network.', result.error);
+			}
 			return fetch(event.request);
 		})
 	);

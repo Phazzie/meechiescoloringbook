@@ -1,0 +1,30 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-05-16T16:03:40.960Z",
+  "cipher": {
+    "date": "2026-05-16",
+    "seams": "CacheSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-05-16/rewind-CacheSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-16/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-16/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-16/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Addressed PR #66 review blockers by making service-worker install and activation reject when CacheSeam returns an error, validating cache names and URL lists before Web Cache API calls without bundling Zod into the service worker, preserving distinct open/addAll error codes, surfacing failed stale-cache deletion keys, logging cache-match fallback warnings, and marking CacheSeam's browser probe as a manual 2026-05-15 check.",
+    "risks": "CacheSeam still relies on manual browser probing for real Cache Storage behavior; Node tests use stubbed Cache Storage to prove adapter control flow."
+  },
+  "latestChangeMs": 1778946017359.7576,
+  "status": "ok"
+}
