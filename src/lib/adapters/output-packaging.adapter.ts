@@ -218,8 +218,8 @@ const drawImageToCanvas = async (
 			context.fillStyle = '#ffffff';
 			context.fillRect(0, 0, width, height);
 			context.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
-			const dataUrl = canvas.toDataURL('image/png');
-			const base64 = dataUrl.split(',')[1] || '';
+			const pngDataUrl = canvas.toDataURL('image/png');
+			const base64 = pngDataUrl.split(',')[1] || '';
 			if (base64.length === 0) {
 				resolve({
 					ok: false,

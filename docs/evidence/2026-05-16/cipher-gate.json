@@ -1,0 +1,30 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-05-16T17:50:11.329Z",
+  "cipher": {
+    "date": "2026-05-16",
+    "seams": "ImageGenerationSeam, XaiImageProviderSeam, ImageProviderConfigSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-05-16/rewind-ImageGenerationSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-16/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-16/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-16/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Repaired PR #62 by preserving `npm run rewind -- --seam ImageGenerationSeam` through a registry compatibility alias while keeping the provider seam type named `XaiImageProviderSeam`, retaining the narrow image-provider config seam, and expanding provider adapter coverage for HTTP and empty-response failures.",
+    "risks": "`ImageGenerationSeam` and `XaiImageProviderSeam` now point at the same self-contained provider seam files; future seam inventory edits must preserve the compatibility alias or update every workflow document that calls the older seam name."
+  },
+  "latestChangeMs": 1778948637776.806,
+  "status": "ok"
+}

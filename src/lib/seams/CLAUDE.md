@@ -30,4 +30,5 @@ Some seams are pure or dependency-injected and have no separate adapter. When an
 | `safety-policy-seam/` | Content guardrail enforcement (pure, no external I/O) |
 | `gallery-store-seam/` | Saved generations, favorites, drafts |
 | `telemetry-seam/` | Telemetry event contract (pure) |
-| `image-generation-seam/` | xAI image provider calls (XaiImageProviderSeam) |
+| `image-generation-seam/` | xAI image provider calls |
+| `image-provider-config-seam/` | Narrow config: only xAI image-provider env keys (decouples image generation from text-model and Gemini vars) |

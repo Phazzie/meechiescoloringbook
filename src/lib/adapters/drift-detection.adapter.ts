@@ -85,7 +85,10 @@ const detectForbiddenTokens = (prompt: string): string[] => {
 
 export const driftDetectionAdapter: DriftDetectionSeam = {
 	detect: async (input: DriftDetectionInput): Promise<Result<DriftDetectionOutput>> => {
-		const prompt = input.revisedPrompt && input.revisedPrompt.length > 0 ? input.revisedPrompt : input.promptSent;
+		const prompt =
+			input.revisedPrompt && input.revisedPrompt.trim().length > 0
+				? input.revisedPrompt
+				: input.promptSent;
 		const missingHeading = findMissingHeading(prompt);
 		if (missingHeading) {
 			return {

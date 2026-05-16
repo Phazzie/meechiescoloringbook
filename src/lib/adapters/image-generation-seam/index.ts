@@ -8,9 +8,9 @@ import type {
   ImageGenerationResult,
   XaiImageProviderSeam
 } from '../../seams/image-generation-seam/contract';
-import type { Result } from '../../../contracts/shared.contract';
+import type { Result } from '../../../../contracts/shared.contract';
 import { validateImageGenerationRequest } from '../../seams/image-generation-seam/validators';
-import type { AppConfigSeam } from '../../seams/app-config-seam/contract';
+import type { ImageProviderConfig, ImageProviderConfigSeam } from '../../seams/image-provider-config-seam/contract';
 
 type XaiImageResponse = {
   data: Array<{
@@ -40,7 +40,7 @@ const errorResult = (
   error: { code, message, ...(details ? { details } : {}) } as ImageGenerationError
 });
 
-export const createImageGenerationSeam = (configSeam: AppConfigSeam): XaiImageProviderSeam => ({
+export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): XaiImageProviderSeam => ({
   generate: async (request): Promise<Result<ImageGenerationResult, ImageGenerationError>> => {
     let validated: ImageGenerationRequest;
     try {
@@ -49,7 +49,7 @@ export const createImageGenerationSeam = (configSeam: AppConfigSeam): XaiImagePr
       return errorResult('IMAGE_VALIDATION_ERROR', 'Image generation request failed validation.');
     }
 
-    let config: ReturnType<typeof configSeam.getConfig>;
+    let config: ImageProviderConfig;
     try {
       config = configSeam.getConfig();
     } catch {

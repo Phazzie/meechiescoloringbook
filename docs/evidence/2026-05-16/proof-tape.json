@@ -1,0 +1,127 @@
+{
+  "tool": "proof-tape",
+  "generatedAt": "2026-05-16T17:49:53.077Z",
+  "evidenceDir": "docs\\evidence\\2026-05-16",
+  "files": [
+    {
+      "name": "assumption-alarm.json",
+      "path": "docs\\evidence\\2026-05-16\\assumption-alarm.json",
+      "sizeBytes": 3636,
+      "modifiedAt": "2026-05-16T17:49:00.617Z",
+      "commands": []
+    },
+    {
+      "name": "chamber-lock.json",
+      "path": "docs\\evidence\\2026-05-16\\chamber-lock.json",
+      "sizeBytes": 20905,
+      "modifiedAt": "2026-05-16T17:48:56.659Z",
+      "commands": []
+    },
+    {
+      "name": "cipher-gate.json",
+      "path": "docs\\evidence\\2026-05-16\\cipher-gate.json",
+      "sizeBytes": 1257,
+      "modifiedAt": "2026-05-16T16:20:23.785Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.json",
+      "path": "docs\\evidence\\2026-05-16\\clan-chain.json",
+      "sizeBytes": 1867,
+      "modifiedAt": "2026-05-16T17:49:50.547Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.md",
+      "path": "docs\\evidence\\2026-05-16\\clan-chain.md",
+      "sizeBytes": 1181,
+      "modifiedAt": "2026-05-16T17:49:50.553Z",
+      "commands": []
+    },
+    {
+      "name": "proof-tape.json",
+      "path": "docs\\evidence\\2026-05-16\\proof-tape.json",
+      "sizeBytes": 3885,
+      "modifiedAt": "2026-05-16T16:20:23.798Z",
+      "commands": []
+    },
+    {
+      "name": "proof-tape.md",
+      "path": "docs\\evidence\\2026-05-16\\proof-tape.md",
+      "sizeBytes": 1135,
+      "modifiedAt": "2026-05-16T16:20:23.802Z",
+      "commands": []
+    },
+    {
+      "name": "rewind-CacheSeam.txt",
+      "path": "docs\\evidence\\2026-05-16\\rewind-CacheSeam.txt",
+      "sizeBytes": 708,
+      "modifiedAt": "2026-05-16T16:20:23.802Z",
+      "commands": []
+    },
+    {
+      "name": "rewind-ChatInterpretationSeam.txt",
+      "path": "docs\\evidence\\2026-05-16\\rewind-ChatInterpretationSeam.txt",
+      "sizeBytes": 715,
+      "modifiedAt": "2026-05-16T16:20:23.808Z",
+      "commands": []
+    },
+    {
+      "name": "rewind-DriftDetectionSeam.txt",
+      "path": "docs\\evidence\\2026-05-16\\rewind-DriftDetectionSeam.txt",
+      "sizeBytes": 711,
+      "modifiedAt": "2026-05-16T16:20:23.812Z",
+      "commands": []
+    },
+    {
+      "name": "rewind-ImageGenerationSeam.txt",
+      "path": "docs\\evidence\\2026-05-16\\rewind-ImageGenerationSeam.txt",
+      "sizeBytes": 699,
+      "modifiedAt": "2026-05-16T16:25:40.524Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.json",
+      "path": "docs\\evidence\\2026-05-16\\seam-ledger.json",
+      "sizeBytes": 22227,
+      "modifiedAt": "2026-05-16T17:49:03.172Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.md",
+      "path": "docs\\evidence\\2026-05-16\\seam-ledger.md",
+      "sizeBytes": 1831,
+      "modifiedAt": "2026-05-16T17:49:03.180Z",
+      "commands": []
+    },
+    {
+      "name": "shaolin-lint.json",
+      "path": "docs\\evidence\\2026-05-16\\shaolin-lint.json",
+      "sizeBytes": 519,
+      "modifiedAt": "2026-05-16T17:48:59.459Z",
+      "commands": []
+    },
+    {
+      "name": "test.txt",
+      "path": "docs\\evidence\\2026-05-16\\test.txt",
+      "sizeBytes": 7291,
+      "modifiedAt": "2026-05-16T17:48:42.726Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ]
+    },
+    {
+      "name": "verify.txt",
+      "path": "docs\\evidence\\2026-05-16\\verify.txt",
+      "sizeBytes": 7560,
+      "modifiedAt": "2026-05-16T17:48:42.724Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ]
+    }
+  ]
+}

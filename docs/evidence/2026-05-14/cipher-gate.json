@@ -1,0 +1,26 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-05-14T22:47:20.569Z",
+  "cipher": {
+    "date": "2026-05-14",
+    "seams": "ImageGenerationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-05-14/rewind-ImageGenerationSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-14/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-05-14/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Added an adapter-level HTTP failure assertion for ImageGenerationSeam while preserving mock-first contract coverage, repaired shared result-schema typing so parsed failures keep required error objects, and addressed open PR review feedback for studio draft/spec synchronization, try-on portrait packaging, locale-aware USD formatting, empty revised-prompt fallback preservation, and shared text-model fallback selection.",
+    "risks": "ImageGenerationSeam fixtures are older than seven days; this pass does not refresh live xAI fixtures because no live provider credentials were supplied, so the waiver below preserves deterministic fixture use until a credentialed probe can refresh them."
+  },
+  "latestChangeMs": 1778798637866.6904,
+  "status": "ok"
+}

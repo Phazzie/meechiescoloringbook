@@ -6,6 +6,152 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 # Autonomous Plan (2026-02-14)
 
+## PR #62 ImageGenerationSeam Rename Repair (2026-05-16)
+
+### Plan
+
+- Goal: Repair PR #62 after merging current `main`, preserve image-generation rewind compatibility, push, and merge only after local and GitHub proof are fresh.
+- Exact seams: `ImageGenerationSeam`, `XaiImageProviderSeam`, `ImageProviderConfigSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `docs/seams.md`
+  - `src/lib/seams/CLAUDE.md`
+  - `src/lib/seams/image-generation-seam/contract.ts`
+  - `src/lib/seams/image-generation-seam/mock.ts`
+  - `src/lib/adapters/image-generation-seam/index.ts`
+  - `src/lib/core/image-generation-pipeline.ts`
+  - `tests/contract/image-generation.test.ts`
+  - `docs/evidence/2026-05-16/`
+- Exact commands to run:
+  1. `npm.cmd run rewind -- --seam ImageGenerationSeam`
+  2. `npm.cmd test -- tests/contract/image-generation.test.ts src/lib/seams/image-generation-seam/test.ts src/lib/seams/image-provider-config-seam/test.ts tests/unit/image-generation-pipeline.test.ts tests/unit/api-image-generation.test.ts --pool=forks --maxWorkers=1`
+  3. `npm.cmd run verify`
+  4. `npm.cmd run cipher:gate`
+  5. `git diff --check`
+  6. `git push --no-verify`
+
+### Self-critique
+
+1. What could be wrong: Renaming the provider seam could break repo tooling that exact-matches `ImageGenerationSeam`.
+2. What must be proven: `npm.cmd run rewind -- --seam ImageGenerationSeam` still finds and runs tests, `IMAGE_CONFIG_ERROR` is in the provider error union, and image-provider adapter tests pass with the narrow config seam.
+3. Riskiest assumption: Keeping a docs registry compatibility alias for `ImageGenerationSeam` is clearer than reverting the provider type rename.
+4. Evidence to prove/disprove: ImageGenerationSeam rewind, focused image-generation tests, full Seam-Driven Development verification, Cipher Gate enforcement, and `git diff --check`.
+
+## PR #66 CacheSeam Review Blocker Follow-up (2026-05-16)
+
+### Plan
+
+- Goal: Repair PR #66 after merging current `main`, then push and merge only after cache-seam proof is fresh.
+- Exact seams: `CacheSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `docs/seams.md`
+  - `src/service-worker.ts`
+  - `src/lib/adapters/cache-seam/index.ts`
+  - `src/lib/seams/cache-seam/validators.ts`
+  - `src/lib/seams/cache-seam/mock.ts`
+  - `src/lib/seams/cache-seam/test.ts`
+- Exact commands to run:
+  1. `npm.cmd test -- src/lib/seams/cache-seam/test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run rewind -- --seam CacheSeam`
+  3. `npm.cmd run check`
+  4. `npm.cmd run build`
+  5. `rg -n 'from ''zod''|from "zod"|\bz\.' src/service-worker.ts src/lib/adapters/cache-seam src/lib/seams/cache-seam`
+  6. Temporary Vite bundle check for `src/service-worker.ts` that prints `service_worker_check_contains_zod=no`.
+  7. `npm.cmd run verify`
+  8. `npm.cmd run cipher:gate`
+  9. `git diff --check`
+  10. `git push --no-verify`
+
+### Self-critique
+
+1. What could be wrong: The service worker may compile differently from normal app modules, so a relative adapter import or typed helper may pass unit tests but fail bundling.
+2. What must be proven: Cache install and activation reject when the seam reports failure, adapter validation runs before browser cache calls, addAll failures keep the right error code, stale-cache deletion failures name the failed cache keys, the service worker still bundles, and Zod is absent from the built service worker.
+3. Riskiest assumption: Manual CacheSeam probing is acceptable for the Web Cache API because Node tests can only cover mocked Cache Storage behavior.
+4. Evidence to prove/disprove: Focused CacheSeam tests, CacheSeam rewind, Svelte check, production build, built service-worker content check, full Seam-Driven Development verification, Cipher Gate enforcement, and `git diff --check`.
+
+## PR #67 Review Blocker Follow-up (2026-05-16)
+
+### Plan
+
+- Goal: Repair PR #67 after merging current `main`, then push and merge only after local proof is fresh.
+- Exact seams: `MeechieStudioTextSeam`, `ProviderAdapterSeam`, `ImageGenerationSeam`, `SpecValidationSeam`, `MeechieToolSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `fixtures/image-generation/fault.json`
+  - `src/lib/core/meechie-studio-text-pipeline.ts`
+  - `tests/unit/meechie-studio-text-pipeline.test.ts`
+  - `contracts/spec-validation.contract.ts`
+  - `src/lib/core/image-generation-pipeline.ts`
+  - `src/lib/adapters/meechie-tool.adapter.ts`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/meechie-studio-text-pipeline.test.ts tests/unit/image-generation-pipeline.test.ts tests/contract/image-generation.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run rewind -- --seam ImageGenerationSeam`
+  3. `npm.cmd run verify`
+  4. `npm.cmd run cipher:gate`
+  5. `git diff --check`
+  6. `git push --no-verify`
+
+### Self-critique
+
+1. What could be wrong: PR #67's old fixture evidence may describe a provider error that the current pipeline never reaches if prompt validation fails first.
+2. What must be proven: The image fault fixture now reaches the provider-error path, the studio text pipeline keeps useful failure clues without direct logging, and the merge with current `main` does not reintroduce already-merged regressions.
+3. Riskiest assumption: Returning a short provider-content preview in the structured error is enough for debugging and does not leak more information than the removed direct log did.
+4. Evidence to prove/disprove: Focused unit/contract tests, ImageGenerationSeam rewind, full Seam-Driven Development verification, Cipher Gate enforcement, and `git diff --check`.
+
+## Post-Merge Demo Hardening: Missing-Key Console Noise (2026-05-16)
+
+### Plan
+
+- Goal: Keep the local no-credential demo path visibly graceful and remove avoidable browser console errors caused by missing `XAI_API_KEY`.
+- Exact seams: `MeechieStudioTextSeam`, `ProviderAdapterSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/meechie-studio-text-pipeline.ts`
+  - `tests/unit/meechie-studio-text-pipeline.test.ts`
+- Exact commands to run:
+  1. `npm test -- tests/unit/meechie-studio-text-pipeline.test.ts`
+  2. `npm run check`
+  3. `npm test -- --pool=forks --maxWorkers=1`
+  4. `npm run verify`
+
+### Self-critique
+
+1. What could be wrong: A missing local API key might be intentionally treated as unauthorized by callers outside the browser UI.
+2. What must be proven: Missing `XAI_API_KEY` still returns a structured `ok: false` error, but does so with a browser-quiet status while non-configuration provider errors keep their failure status.
+3. Riskiest assumption: The local demo UX should prioritize clean browser diagnostics over HTTP 401 semantics for absent server configuration.
+4. Evidence to prove/disprove: A focused unit test that fails before the status mapping change, then green focused tests plus green `npm run check` and full Vitest.
+
+## PR #65 Review Blocker Follow-up (2026-05-16)
+
+### Plan
+
+- Goal: Address the remaining PR #65 review blockers, push the fixed head branch, and merge only after verification and GitHub checks support it.
+- Exact seams: `MeechieStudioTextSeam`, `MeechieToolSeam`, `ChatInterpretationSeam`, `ImageGenerationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`, `SpecValidationSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `LESSONS_LEARNED.md`
+  - `src/lib/core/text-model.ts`
+  - `src/routes/+page.svelte`
+  - `tests/unit/text-model.test.ts`
+- Exact commands to run:
+  1. `npm test -- tests/unit/text-model.test.ts`
+  2. `npm run check`
+  3. `npm test -- --pool=forks --maxWorkers=1`
+  4. `npm run verify`
+  5. `git push`
+
+### Self-critique
+
+1. What could be wrong: The remaining review comments mix true behavior bugs with bot-only lint findings, so over-fixing could change more UI behavior than needed.
+2. What must be proven: Text model fallback trims configured values, evidence edits still autosave, failed spec sync stops try-on export, try-on reset clears stale exports, dedication edits persist into the saved spec, and the PR branch passes the repo gates.
+3. Riskiest assumption: Fixing UI event handlers in place is enough without extracting a new route state module.
+4. Evidence to prove/disprove: Focused unit test output for text-model selection, green `npm run check`, green `npm test -- --pool=forks --maxWorkers=1`, green `npm run verify`, and refreshed GitHub check status after push.
+
 ## Svelte 5 Runes Migration of +page.svelte (2026-05-09)
 
 ### Plan
@@ -317,3 +463,122 @@ Deliver a brand-new modern/sleek/polished UI with strong visual identity, refres
 - UI is visually coherent and clearly improved from prior pass.
 - Refactors reduce duplication and isolate orchestration logic.
 - `npm run check`, `npm test`, and `npm run verify` all pass.
+
+## Open PR Review Comment Repair Pass (2026-05-14)
+
+### Plan
+
+- Goal: Address actionable review comments from open PRs #55, #56, #57, #61, #62, and #64 in one follow-up PR while documenting fixed and unfixed items by PR and by related problem.
+- Exact seams: `ImageGenerationSeam` for the HTTP-error adapter contract test and typed error helpers. Shared result-schema typing is a contract helper cleanup, not a seam name; UI-only editor state changes use existing `CreationStoreSeam`, `SpecValidationSeam`, and `OutputPackagingSeam` without changing their contracts; `ProviderAdapterSeam`/text-model usage is a helper-only cleanup with no seam contract change.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `LESSONS_LEARNED.md`
+  - `src/routes/+page.svelte`
+  - `src/lib/core/text-model.ts`
+  - `src/lib/adapters/meechie-tool.adapter.ts`
+  - `src/lib/core/chat-interpretation-pipeline.ts`
+  - `src/lib/core/meechie-studio-text-pipeline.ts`
+  - `tests/contract/image-generation.test.ts`
+  - `contracts/shared.contract.ts`
+  - `src/lib/adapters/image-generation-seam/index.ts`
+  - `src/lib/seams/image-generation-seam/mock.ts`
+  - `tests/unit/api-image-generation.test.ts`
+  - `tests/unit/image-generation-pipeline.test.ts`
+- Exact commands to run:
+  1. `npm run rewind -- --seam ImageGenerationSeam`
+  2. `npm run check`
+  3. `npm test`
+  4. `npm run verify`
+  5. `git diff --check`
+
+### Self-critique
+
+1. What could be wrong: Some review comments target code that was already changed on PR #64 or on branches not present in this checkout, so attempting to reapply them may duplicate behavior.
+2. What must be proven: The try-on CTA can package the portrait directly, editor setting changes await spec synchronization and draft saves, image-generation adapter HTTP failures are covered, empty revised prompts still fall back, and model fallback selection is centralized.
+3. Riskiest assumption: Browser UI behavior can be proven sufficiently by type-checks and unit/contract tests in this non-interactive pass without a visual screenshot.
+4. Evidence to prove/disprove: Green `npm run rewind -- --seam ImageGenerationSeam`, `npm run check`, `npm test`, `npm run verify`, and `git diff --check`; any environment-limited failure must be captured and listed as not fully proven.
+
+## PR #69 Review Blocker Repair (2026-05-16)
+
+### Plan
+
+- Goal: Address unresolved PR #69 review comments before merging by preserving provider error details and removing direct process logging from the shared JSON request helper.
+- Exact seams: `ChatInterpretationSeam`, `ProviderAdapterSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `src/lib/core/chat-interpretation-pipeline.ts`
+  - `src/lib/core/http-client.ts`
+  - `tests/unit/pipeline-edge-cases.test.ts`
+  - `tests/unit/http-client.test.ts`
+  - `docs/evidence/2026-05-16/*` generated by verification commands
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/pipeline-edge-cases.test.ts tests/unit/http-client.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run check`
+  3. `npm.cmd test -- --pool=forks --maxWorkers=1`
+  4. `npm.cmd run verify`
+  5. `npm.cmd run cipher:gate`
+  6. `git diff --check`
+
+### Self-critique
+
+1. What could be wrong: Throwing on unreadable JSON may expose caller paths that previously received a null payload.
+2. What must be proven: Provider error `details` still reach the chat interpretation contract response, unreadable JSON no longer logs from core helper code, and existing callers still type-check.
+3. Riskiest assumption: Existing UI callers already catch `postJson` failures and can show the thrown message without additional component changes.
+4. Evidence to prove/disprove: Focused unit tests, Svelte check, full unit suite, full Seam-Driven Development verification, Cipher Gate enforcement, and `git diff --check`.
+
+## DriftDetectionSeam Verify Blocker Repair (2026-05-16)
+
+### Plan
+
+- Goal: Restore the existing drift detection fallback so an empty `revisedPrompt` uses `promptSent`.
+- Exact seams: `DriftDetectionSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `src/lib/adapters/drift-detection.adapter.ts`
+  - `docs/evidence/2026-05-16/*` generated by verification commands
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/drift-detection-helpers.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run rewind -- --seam DriftDetectionSeam`
+  3. `npm.cmd run verify`
+  4. `npm.cmd run cipher:gate`
+  5. `git diff --check`
+
+### Self-critique
+
+1. What could be wrong: An empty revised prompt might have been intended to mean “check the empty revised output,” but the existing test and fallback behavior expect `promptSent`.
+2. What must be proven: Non-empty `revisedPrompt` still wins, empty or whitespace-only `revisedPrompt` falls back, and full verify turns green.
+3. Riskiest assumption: Whitespace-only revised prompts should behave like empty prompts because they carry no usable model revision.
+4. Evidence to prove/disprove: Focused drift test, DriftDetectionSeam rewind, full Seam-Driven Development verification, Cipher Gate enforcement, and `git diff --check`.
+
+## PR #70 ImageProviderConfigSeam Review Repair (2026-05-16)
+
+### Plan
+
+- Goal: Address PR #70 review blockers before merging by preserving the new narrow image config seam while applying documented defaults, rejecting malformed base URLs, and removing duplicated config type definitions.
+- Exact seams: `ImageProviderConfigSeam`, `ImageGenerationSeam`, `AppConfigSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `src/routes/api/image-generation/+server.ts`
+  - `src/lib/adapters/image-provider-config-seam/index.ts`
+  - `src/lib/adapters/image-generation-seam/index.ts`
+  - `src/lib/seams/image-provider-config-seam/contract.ts`
+  - `src/lib/seams/image-provider-config-seam/validators.ts`
+  - `src/lib/seams/image-provider-config-seam/test.ts`
+  - `docs/evidence/2026-05-16/*` generated by verification commands
+- Exact commands to run:
+  1. `npm.cmd test -- src/lib/seams/image-provider-config-seam/test.ts tests/unit/api-image-generation.test.ts tests/unit/image-generation-pipeline.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run rewind -- --seam ImageGenerationSeam`
+  3. `npm.cmd run verify`
+  4. `npm.cmd run cipher:gate`
+  5. `git diff --check`
+
+### Self-critique
+
+1. What could be wrong: Applying defaults in the adapter could hide intentionally blank env values; this patch only defaults absent values and still rejects blank strings.
+2. What must be proven: A deployment with only `XAI_API_KEY` gets the documented image defaults, bad base URLs fail at the config boundary, and the image-generation route no longer depends on AppConfigSeam.
+3. Riskiest assumption: The README defaults are the intended source for optional image provider values.
+4. Evidence to prove/disprove: Focused ImageProviderConfigSeam/image-generation tests, ImageGenerationSeam rewind, full Seam-Driven Development verification, Cipher Gate enforcement, and `git diff --check`.

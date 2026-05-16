@@ -15,13 +15,20 @@ export const SeamErrorSchema = z.object({
 });
 export type SeamError = z.infer<typeof SeamErrorSchema>;
 
-export const resultSchema = <T extends z.ZodTypeAny, E extends z.ZodTypeAny = z.ZodTypeAny>(
+export const resultSchema = <
+	T extends z.ZodTypeAny,
+	E extends z.ZodTypeAny = typeof SeamErrorSchema
+>(
 	valueSchema: T,
 	errorSchema?: E
-) =>
-	z.discriminatedUnion('ok', [
+): z.ZodType<Result<z.infer<T>, z.infer<E>>> => {
+	const normalizedErrorSchema = errorSchema ?? (SeamErrorSchema as unknown as E);
+	return z.discriminatedUnion('ok', [
 		z.object({ ok: z.literal(true), value: valueSchema }),
-		z.object({ ok: z.literal(false), error: errorSchema ?? SeamErrorSchema }),
-	]);
+		z.object({ ok: z.literal(false), error: normalizedErrorSchema })
+	]) as unknown as z.ZodType<Result<z.infer<T>, z.infer<E>>>;
+};
 
-export type Result<T, E = SeamError> = { ok: true; value: T } | { ok: false; error: E };
+export type Result<T, E = SeamError> =
+	| { ok: true; value: T }
+	| { ok: false; error: E };
