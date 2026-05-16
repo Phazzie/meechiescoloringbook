@@ -10,66 +10,66 @@ $ npm test -- --pool=forks --maxWorkers=1
 
 [1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/.codex/worktrees/meechiescoloringbook-pr65[39m
 
- [32m✓[39m tests/unit/creation-store-helpers.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 181[2mms[22m[39m
- [32m✓[39m tests/unit/output-packaging-helpers.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 94[2mms[22m[39m
- [32m✓[39m tests/unit/pipeline-edge-cases.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 65[2mms[22m[39m
- [32m✓[39m tests/unit/api-generate.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 56[2mms[22m[39m
- [32m✓[39m tests/unit/provider-adapter-helpers.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 51[2mms[22m[39m
- [32m✓[39m tests/unit/meechie-tool-adapter.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 35[2mms[22m[39m
- [32m✓[39m tests/unit/api-chat-interpretation.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 39[2mms[22m[39m
- [32m✓[39m tests/unit/api-image-generation.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 45[2mms[22m[39m
- [32m✓[39m src/lib/seams/wig-catalog-seam/test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 36[2mms[22m[39m
- [32m✓[39m tests/contract/provider-adapter.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 36[2mms[22m[39m
- [32m✓[39m tests/contract/image-generation.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 36[2mms[22m[39m
- [32m✓[39m tests/unit/api-tools.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m tests/unit/creation-store-helpers.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 271[2mms[22m[39m
+ [32m✓[39m tests/unit/output-packaging-helpers.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 97[2mms[22m[39m
+ [32m✓[39m tests/unit/pipeline-edge-cases.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m tests/unit/api-generate.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m tests/unit/provider-adapter-helpers.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32m✓[39m tests/unit/api-chat-interpretation.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m tests/unit/api-image-generation.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m src/lib/seams/wig-catalog-seam/test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m tests/contract/provider-adapter.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m tests/unit/api-tools.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m tests/contract/image-generation.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-tool-adapter.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m tests/unit/prompt-template.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m tests/contract/chat-interpretation.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m tests/unit/shared-contract.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 72[2mms[22m[39m
  [32m✓[39m tests/unit/image-generation-pipeline.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 34[2mms[22m[39m
- [32m✓[39m tests/unit/shared-contract.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 32[2mms[22m[39m
- [32m✓[39m tests/contract/output-packaging.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 25[2mms[22m[39m
- [32m✓[39m tests/unit/meechie-studio-text-pipeline.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 34[2mms[22m[39m
- [32m✓[39m tests/unit/prompt-template.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 28[2mms[22m[39m
- [32m✓[39m tests/contract/chat-interpretation.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 27[2mms[22m[39m
- [32m✓[39m tests/unit/meechie-studio.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 22[2mms[22m[39m
- [32m✓[39m tests/unit/meechie-tool-adapter.responses.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 24[2mms[22m[39m
- [32m✓[39m src/lib/seams/image-generation-seam/test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 24[2mms[22m[39m
- [32m✓[39m tests/unit/image-generation-validators.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 19[2mms[22m[39m
- [32m✓[39m tests/unit/drift-detection-helpers.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 21[2mms[22m[39m
- [32m✓[39m tests/contract/meechie-voice.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 19[2mms[22m[39m
- [32m✓[39m tests/unit/app-config-seam.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 19[2mms[22m[39m
- [32m✓[39m tests/unit/session-auth-helpers.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 24[2mms[22m[39m
- [32m✓[39m tests/unit/constants.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 17[2mms[22m[39m
- [32m✓[39m tests/contract/spec-validation.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 17[2mms[22m[39m
- [32m✓[39m tests/unit/meechie-quote-scoring.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 16[2mms[22m[39m
- [32m✓[39m src/lib/seams/safety-policy-seam/test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 17[2mms[22m[39m
- [32m✓[39m src/lib/seams/wig-try-on-seam/test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 16[2mms[22m[39m
- [32m✓[39m tests/contract/creation-store.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 17[2mms[22m[39m
- [32m✓[39m src/lib/seams/gallery-store-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 17[2mms[22m[39m
- [32m✓[39m tests/unit/meechie-tools-parity.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-studio-text-pipeline.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-tool-adapter.responses.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m tests/contract/output-packaging.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m tests/unit/session-auth-helpers.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 85[2mms[22m[39m
+ [32m✓[39m src/lib/seams/image-generation-seam/test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m tests/contract/drift-detection.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/lib/seams/safety-policy-seam/test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m tests/unit/drift-detection-helpers.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-studio.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m tests/unit/image-generation-validators.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-tools-parity.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m tests/unit/app-config-seam.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+ [32m✓[39m tests/unit/constants.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m tests/contract/meechie-voice.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m tests/contract/spec-validation.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 20[2mms[22m[39m
  [32m✓[39m tests/contract/meechie-studio-text.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 14[2mms[22m[39m
- [32m✓[39m tests/contract/meechie-tool.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
- [32m✓[39m tests/contract/prompt-assembly.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 11[2mms[22m[39m
- [32m✓[39m tests/unit/http-client.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 14[2mms[22m[39m
- [32m✓[39m tests/contract/drift-detection.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 13[2mms[22m[39m
- [32m✓[39m src/lib/seams/prompt-compiler-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 15[2mms[22m[39m
- [32m✓[39m src/lib/seams/app-config-seam/test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 14[2mms[22m[39m
- [32m✓[39m tests/unit/evidence-reporting.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 11[2mms[22m[39m
- [32m✓[39m tests/unit/coloring-page-title.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
- [32m✓[39m src/lib/seams/telemetry-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 11[2mms[22m[39m
- [32m✓[39m tests/contract/auth-context.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-quote-scoring.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m tests/unit/http-client.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m tests/contract/creation-store.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/lib/seams/gallery-store-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/lib/seams/wig-try-on-seam/test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/lib/seams/telemetry-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/lib/seams/app-config-seam/test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 135[2mms[22m[39m
+ [32m✓[39m tests/contract/meechie-tool.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/lib/seams/prompt-compiler-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m tests/contract/prompt-assembly.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m tests/unit/evidence-reporting.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 12[2mms[22m[39m
  [32m✓[39m tests/unit/alignment-line.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 11[2mms[22m[39m
- [32m✓[39m tests/contract/session.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 12[2mms[22m[39m
- [32m✓[39m tests/unit/text-model.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m tests/unit/coloring-page-title.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m tests/contract/session.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m tests/contract/auth-context.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m tests/unit/text-model.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 8[2mms[22m[39m
  [2m[90m↓[39m[22m tests/integration/image-generation-seam.test.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m
 
 [2m Test Files [22m [1m[32m48 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (49)[39m
-[2m      Tests [22m [1m[32m360 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (361)[39m
-[2m   Start at [22m 05:16:18
-[2m   Duration [22m 185.99s[2m (transform 2.56s, setup 1.18s, collect 7.49s, tests 1.36s, environment 136.71s, prepare 15.25s)[22m
+[2m      Tests [22m [1m[32m361 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (362)[39m
+[2m   Start at [22m 09:27:43
+[2m   Duration [22m 227.15s[2m (transform 6.07s, setup 1.39s, collect 11.88s, tests 1.79s, environment 167.41s, prepare 18.63s)[22m
 
 [90mstderr[2m | tests/unit/output-packaging-helpers.test.ts[2m > [22m[2moutput-packaging adapter edge cases[2m > [22m[2mSVG conversion[2m > [22m[2mSVG conversion fails deterministically in non-browser environment
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 
-[90mstderr[2m | tests/contract/output-packaging.test.ts[2m > [22m[2mOutputPackagingSeam contract[2m > [22m[2madapter behavior is gated to browser for svg conversion
-[22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
-
 [90mstderr[2m | tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22m[2mMeechie Studio Text Pipeline Resilience[2m > [22m[2mretries once if JSON is malformed and fails gracefully
 [22m[39mMeechie studio text pipeline failed to extract valid JSON from model output after retry { model: [32m'test-model'[39m, contentPreview: [32m'Not JSON at all'[39m }
+
+[90mstderr[2m | tests/contract/output-packaging.test.ts[2m > [22m[2mOutputPackagingSeam contract[2m > [22m[2madapter behavior is gated to browser for svg conversion
+[22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

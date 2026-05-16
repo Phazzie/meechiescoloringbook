@@ -56,7 +56,11 @@ describe('chat-interpretation-pipeline edge cases', () => {
 			{
 				createChatCompletion: vi.fn().mockResolvedValue({
 					ok: false,
-					error: { code: 'PROVIDER_HTTP_ERROR', message: 'Service down' }
+					error: {
+						code: 'PROVIDER_HTTP_ERROR',
+						message: 'Service down',
+						details: { status: '429' }
+					}
 				}),
 				validateSpec: vi.fn()
 			}
@@ -64,6 +68,7 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
 			expect(result.body.error.code).toBe('PROVIDER_HTTP_ERROR');
+			expect(result.body.error.details?.status).toBe('429');
 		}
 	});
 
