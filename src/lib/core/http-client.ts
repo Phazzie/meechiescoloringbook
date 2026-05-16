@@ -15,6 +15,9 @@ export const postJson = async (
 		headers: buildJsonHeaders(),
 		body: JSON.stringify(body)
 	});
-	const payload = await response.json().catch(() => null);
+	const payload = await response.json().catch((e: unknown) => {
+		console.warn('postJson: failed to parse JSON response', e);
+		return null;
+	});
 	return { response, payload };
 };
