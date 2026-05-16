@@ -310,7 +310,7 @@ export const runMeechieStudioTextPipeline = async (
 	if (!providerResult.ok) {
 		const missingKey = providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
 		return {
-			status: missingKey ? 401 : 502,
+			status: missingKey && env.NODE_ENV !== 'production' ? 200 : 502,
 			body: {
 				ok: false,
 				error: {
@@ -352,7 +352,7 @@ export const runMeechieStudioTextPipeline = async (
 			const missingKey =
 				providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
 			return {
-				status: missingKey ? 401 : 502,
+				status: missingKey && env.NODE_ENV !== 'production' ? 200 : 502,
 				body: {
 					ok: false,
 					error: {

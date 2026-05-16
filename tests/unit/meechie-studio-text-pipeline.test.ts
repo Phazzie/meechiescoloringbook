@@ -73,6 +73,54 @@ describe('Meechie Studio Text Pipeline Resilience', () => {
 		expect(callCount).toBe(1);
 	});
 
+	it('returns a browser-quiet structured error when the API key is missing', async () => {
+		let callCount = 0;
+		const deps: MeechieStudioTextPipelineDeps = {
+			createProvider: () => ({
+				createChatCompletion: async () => {
+					callCount++;
+					return {
+						ok: false,
+						error: {
+							code: 'PROVIDER_API_KEY_MISSING',
+							message: 'XAI_API_KEY is required.'
+						}
+					};
+				},
+				createImageGeneration: async () => {
+					throw new Error('not implemented');
+				}
+			})
+		};
+
+		const response = await runMeechieStudioTextPipeline(
+			{
+				actionId: 'generate',
+				modeId: 'test',
+				modeLabel: 'Test Mode',
+				themeLabel: 'Test Theme',
+				evidence: 'test evidence',
+				voice: {
+					intensity: 'receipts_out',
+					rawness: 'mild',
+					thirdPerson: 'sometimes'
+				}
+			},
+			deps
+		);
+
+		expect(response.status).toBe(200);
+		expect(response.body).toMatchObject({
+			ok: false,
+			error: {
+				code: 'PROVIDER_API_KEY_MISSING',
+				message:
+					'AI text generation requires XAI_API_KEY to be set on the server.'
+			}
+		});
+		expect(callCount).toBe(1);
+	});
+
 	it('extracts JSON from markdown fences and prose', async () => {
 		let callCount = 0;
 		const deps: MeechieStudioTextPipelineDeps = {

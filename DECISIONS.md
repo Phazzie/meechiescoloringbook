@@ -1611,3 +1611,10 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
   - Summary: Addressed PR #65 review blockers by trimming configured text-model IDs, restoring evidence autosave, persisting dedication changes into draft specs, aborting try-on export after spec-sync failures, clearing stale try-on export artifacts, and removing the Svelte `HTMLSelectElement` lint issue.
   - Risks: UI handler behavior is validated by Svelte compile checks and full test gates, but no browser click-through was run in this pass.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: MeechieStudioTextSeam, ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Changed the missing `XAI_API_KEY` studio-text path to return a structured `ok: false` response with HTTP 200 so local demos keep the visible error message without browser console resource errors.
+  - Risks: Consumers that depended on HTTP 401 for absent local configuration now need to read the structured error body; real non-configuration provider failures still return error status codes.
