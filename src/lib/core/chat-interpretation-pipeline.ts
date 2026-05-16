@@ -81,7 +81,7 @@ export const runChatInterpretationPipeline = async (
 		]
 	});
 	if (!chatResult.ok) {
-		return buildError(502, chatResult.error.code, chatResult.error.message);
+		return buildError(502, chatResult.error.code, chatResult.error.message, chatResult.error.details);
 	}
 
 	const extracted = extractSingleJsonObject(chatResult.value.content);

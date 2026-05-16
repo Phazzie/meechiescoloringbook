@@ -1,10 +1,14 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-05-16T09:20:20.302Z",
+  "generatedAt": "2026-05-16T13:31:58.388Z",
   "cipher": {
     "date": "2026-05-16",
-    "seams": "MeechieStudioTextSeam, ProviderAdapterSeam",
+    "seams": "DriftDetectionSeam",
     "evidence": [
+      {
+        "path": "docs/evidence/2026-05-16/rewind-DriftDetectionSeam.txt",
+        "exists": true
+      },
       {
         "path": "docs/evidence/2026-05-16/test.txt",
         "exists": true
@@ -18,9 +22,9 @@
         "exists": true
       }
     ],
-    "summary": "Changed the missing `XAI_API_KEY` studio-text path to return a structured `ok: false` response with HTTP 200 so local demos keep the visible error message without browser console resource errors.",
-    "risks": "Consumers that depended on HTTP 401 for absent local configuration now need to read the structured error body; real non-configuration provider failures still return error status codes."
+    "summary": "Restored drift detection fallback so an empty or whitespace-only revised prompt uses the original prompt sent for validation.",
+    "risks": "If a future provider needs empty revised prompts to be treated as authoritative output, it should add an explicit contract field instead of overloading an empty string."
   },
-  "latestChangeMs": 1778922039829.7393,
+  "latestChangeMs": 1778937960243.2637,
   "status": "ok"
 }

@@ -104,6 +104,16 @@ describe('drift-detection adapter edge cases', () => {
 			// promptSent is valid so detection should succeed
 			expect(result.ok).toBe(true);
 		});
+
+		it('falls back to promptSent when revisedPrompt is whitespace only', async () => {
+			const validPrompt = buildValidPrompt(baseSpec);
+			const result = await driftDetectionAdapter.detect({
+				spec: baseSpec,
+				promptSent: validPrompt,
+				revisedPrompt: '   '
+			});
+			expect(result.ok).toBe(true);
+		});
 	});
 
 	describe('extra headings detection', () => {
