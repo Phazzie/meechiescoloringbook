@@ -6,7 +6,7 @@ import type {
   ImageGenerationResult,
   ImageGenerationSeam
 } from './contract';
-import type { Result } from '../../../contracts/shared.contract';
+import type { Result } from '../../../../contracts/shared.contract';
 import { imageGenerationFaultFixture } from './fixtures';
 
 const buildSvg = (label: string) =>

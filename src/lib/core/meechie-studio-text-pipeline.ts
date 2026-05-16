@@ -4,6 +4,7 @@
 import { env } from '$env/dynamic/private';
 import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
+import { selectTextModel } from '$lib/core/text-model';
 import {
 	MeechieStudioTextInputSchema,
 	MeechieStudioTextOutputSchema,
@@ -12,7 +13,7 @@ import {
 import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.contract';
 import { z } from 'zod';
 
-const TEXT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
+const TEXT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
 
 const STUDIO_TEXT_RESPONSE_FORMAT = {
 	type: 'json_schema',
@@ -334,13 +335,13 @@ export const runMeechieStudioTextPipeline = async (
 			...messages,
 			{
 				role: 'assistant' as const,
-				content: lastRawResponse,
+				content: lastRawResponse
 			},
 			{
 				role: 'user' as const,
 				content:
-					'Your previous response could not be parsed as valid JSON. Please respond with ONLY valid JSON matching the required schema, no markdown, no explanation, no code fences.',
-			},
+					'Your previous response could not be parsed as valid JSON. Please respond with ONLY valid JSON matching the required schema, no markdown, no explanation, no code fences.'
+			}
 		];
 		providerResult = await provider.createChatCompletion({
 			model: TEXT_MODEL,

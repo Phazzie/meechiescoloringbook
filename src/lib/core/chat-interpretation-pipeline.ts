@@ -4,6 +4,7 @@
 import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
+import { selectTextModel } from '$lib/core/text-model';
 import { env } from '$env/dynamic/private';
 import {
 	ChatInterpretationInputSchema,
@@ -15,7 +16,7 @@ import {
 } from '../../../contracts/spec-validation.contract';
 import { z } from 'zod';
 
-const CHAT_MODEL = env.XAI_TEXT_MODEL || 'grok-4-1-fast-reasoning';
+const CHAT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
 
 type ChatInterpretationResult = z.infer<typeof ChatInterpretationResultSchema>;
 

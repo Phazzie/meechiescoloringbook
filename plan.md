@@ -6,6 +6,33 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 # Autonomous Plan (2026-02-14)
 
+## PR #65 Review Blocker Follow-up (2026-05-16)
+
+### Plan
+
+- Goal: Address the remaining PR #65 review blockers, push the fixed head branch, and merge only after verification and GitHub checks support it.
+- Exact seams: `MeechieStudioTextSeam`, `MeechieToolSeam`, `ChatInterpretationSeam`, `ImageGenerationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`, `SpecValidationSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `LESSONS_LEARNED.md`
+  - `src/lib/core/text-model.ts`
+  - `src/routes/+page.svelte`
+  - `tests/unit/text-model.test.ts`
+- Exact commands to run:
+  1. `npm test -- tests/unit/text-model.test.ts`
+  2. `npm run check`
+  3. `npm test -- --pool=forks --maxWorkers=1`
+  4. `npm run verify`
+  5. `git push`
+
+### Self-critique
+
+1. What could be wrong: The remaining review comments mix true behavior bugs with bot-only lint findings, so over-fixing could change more UI behavior than needed.
+2. What must be proven: Text model fallback trims configured values, evidence edits still autosave, failed spec sync stops try-on export, try-on reset clears stale exports, dedication edits persist into the saved spec, and the PR branch passes the repo gates.
+3. Riskiest assumption: Fixing UI event handlers in place is enough without extracting a new route state module.
+4. Evidence to prove/disprove: Focused unit test output for text-model selection, green `npm run check`, green `npm test -- --pool=forks --maxWorkers=1`, green `npm run verify`, and refreshed GitHub check status after push.
+
 ## Svelte 5 Runes Migration of +page.svelte (2026-05-09)
 
 ### Plan
@@ -317,3 +344,38 @@ Deliver a brand-new modern/sleek/polished UI with strong visual identity, refres
 - UI is visually coherent and clearly improved from prior pass.
 - Refactors reduce duplication and isolate orchestration logic.
 - `npm run check`, `npm test`, and `npm run verify` all pass.
+
+## Open PR Review Comment Repair Pass (2026-05-14)
+
+### Plan
+
+- Goal: Address actionable review comments from open PRs #55, #56, #57, #61, #62, and #64 in one follow-up PR while documenting fixed and unfixed items by PR and by related problem.
+- Exact seams: `ImageGenerationSeam` for the HTTP-error adapter contract test and typed error helpers. Shared result-schema typing is a contract helper cleanup, not a seam name; UI-only editor state changes use existing `CreationStoreSeam`, `SpecValidationSeam`, and `OutputPackagingSeam` without changing their contracts; `ProviderAdapterSeam`/text-model usage is a helper-only cleanup with no seam contract change.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `LESSONS_LEARNED.md`
+  - `src/routes/+page.svelte`
+  - `src/lib/core/text-model.ts`
+  - `src/lib/adapters/meechie-tool.adapter.ts`
+  - `src/lib/core/chat-interpretation-pipeline.ts`
+  - `src/lib/core/meechie-studio-text-pipeline.ts`
+  - `tests/contract/image-generation.test.ts`
+  - `contracts/shared.contract.ts`
+  - `src/lib/adapters/image-generation-seam/index.ts`
+  - `src/lib/seams/image-generation-seam/mock.ts`
+  - `tests/unit/api-image-generation.test.ts`
+  - `tests/unit/image-generation-pipeline.test.ts`
+- Exact commands to run:
+  1. `npm run rewind -- --seam ImageGenerationSeam`
+  2. `npm run check`
+  3. `npm test`
+  4. `npm run verify`
+  5. `git diff --check`
+
+### Self-critique
+
+1. What could be wrong: Some review comments target code that was already changed on PR #64 or on branches not present in this checkout, so attempting to reapply them may duplicate behavior.
+2. What must be proven: The try-on CTA can package the portrait directly, editor setting changes await spec synchronization and draft saves, image-generation adapter HTTP failures are covered, empty revised prompts still fall back, and model fallback selection is centralized.
+3. Riskiest assumption: Browser UI behavior can be proven sufficiently by type-checks and unit/contract tests in this non-interactive pass without a visual screenshot.
+4. Evidence to prove/disprove: Green `npm run rewind -- --seam ImageGenerationSeam`, `npm run check`, `npm test`, `npm run verify`, and `git diff --check`; any environment-limited failure must be captured and listed as not fully proven.

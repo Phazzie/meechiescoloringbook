@@ -77,7 +77,7 @@ describe('/api/image-generation', () => {
       generate: vi.fn(async () => ({
         ok: false as const,
         error: {
-          code: 'IMAGE_NETWORK_ERROR',
+          code: 'IMAGE_NETWORK_ERROR' as const,
           message: 'Connection refused'
         }
       }))
