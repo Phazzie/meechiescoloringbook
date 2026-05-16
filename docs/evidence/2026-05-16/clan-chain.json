@@ -1,6 +1,6 @@
 {
   "tool": "clan-chain",
-  "generatedAt": "2026-05-16T14:02:01.301Z",
+  "generatedAt": "2026-05-16T16:03:30.395Z",
   "evidenceDir": "docs\\evidence\\2026-05-16",
   "clean": [
     {
@@ -89,6 +89,10 @@
     },
     {
       "seam": "WigTryOnSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "CacheSeam",
       "owner": "hbpheonix"
     }
   ],

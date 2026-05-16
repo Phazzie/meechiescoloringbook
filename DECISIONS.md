@@ -7,6 +7,24 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
+
+- Cipher Gate:
+  - Date: 2026-05-15
+  - Seams: CacheSeam
+  - Evidence: src/lib/seams/cache-seam/test.ts (9 contract tests), src/lib/adapters/cache-seam/index.ts
+  - Summary: Replaced direct `caches.*` calls in `src/service-worker.ts` with a new `CacheSeam` (contract + mock + validators + fixtures + probe + tests + adapter). The service worker now imports `createCacheSeam()` from the adapter and calls `primeCache`, `evictStaleCaches`, and `matchRequest`. Functional behavior is unchanged; only the I/O boundary is now behind a contract. Probe is manual (browser DevTools) because the Web Cache API cannot be exercised in Node.js CI.
+  - Risks: Service worker build with relative import (`./lib/adapters/cache-seam/index`) must be validated by `npm run build`. If Vite's SW bundler cannot resolve the import, the fallback is to inline the adapter logic back into service-worker.ts (a known escape hatch documented in probe.ts).
+
+**Context**: `src/service-worker.ts` directly called `caches.open()`, `caches.keys()`, `caches.delete()`, and `caches.match()` in violation of the SDD mandate that all I/O must flow through approved seam adapters. The TODO comment was the only acknowledgement.
+
+**Decision**: Introduce `CacheSeam` as a self-contained seam under `src/lib/seams/cache-seam/`. The contract exposes three operations matching the three service worker lifecycle events: `primeCache` (install), `evictStaleCaches` (activate), `matchRequest` (fetch). The adapter wraps the Web Cache API with `Result<>` error handling. The mock uses an in-memory Map for deterministic unit tests.
+
+**Rationale**: The Web Cache API is a stable browser platform API with no Node.js equivalent. The seam provides a contract boundary for future testing (e.g., Playwright PWA tests) without changing observable behavior. Using `Result<>` makes cache failures explicit rather than silently swallowed.
+
+**Files added**: `src/lib/seams/cache-seam/{contract,fixtures,validators,mock,probe,test}.ts`, `src/lib/adapters/cache-seam/index.ts`
+
+**Files modified**: `src/service-worker.ts` (import + use seam), `docs/seams.md` (registry entry)
 ## 2026-05-16 — Split AppConfigSeam: Introduce ImageProviderConfigSeam
 
 **Context**: The image-generation route (`/api/image-generation`) depended on `AppConfigSeam` via `createAppConfigSeam()`. `AppConfigSeam` validates all config including `XAI_TEXT_MODEL`, `GEMINI_API_KEY`, and other unrelated keys. If any of those are absent, the image-generation endpoint fails at startup even though it only needs 4 image-provider env keys.
@@ -1695,3 +1713,10 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Evidence: docs/evidence/2026-05-16/rewind-ImageGenerationSeam.txt; docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
   - Summary: Addressed PR #67 review blockers by keeping studio-text parse diagnostics inside the structured seam error instead of direct logging, aligning the image-generation fault fixture prompt with required prompt phrases, exporting the shared PageSize type, deduplicating the page-size prompt check, and keeping MeechieToolSeam exhaustiveness explicit.
   - Risks: Studio text failures now expose a short provider-content preview to callers for debugging; callers should treat it as diagnostic text, not user-facing copy.
+
+- Cipher Gate:
+  - Date: 2026-05-16
+  - Seams: CacheSeam
+  - Evidence: docs/evidence/2026-05-16/rewind-CacheSeam.txt; docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
+  - Summary: Addressed PR #66 review blockers by making service-worker install and activation reject when CacheSeam returns an error, validating cache names and URL lists before Web Cache API calls without bundling Zod into the service worker, preserving distinct open/addAll error codes, surfacing failed stale-cache deletion keys, logging cache-match fallback warnings, and marking CacheSeam's browser probe as a manual 2026-05-15 check.
+  - Risks: CacheSeam still relies on manual browser probing for real Cache Storage behavior; Node tests use stubbed Cache Storage to prove adapter control flow.

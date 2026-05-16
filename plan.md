@@ -6,6 +6,40 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 # Autonomous Plan (2026-02-14)
 
+## PR #66 CacheSeam Review Blocker Follow-up (2026-05-16)
+
+### Plan
+
+- Goal: Repair PR #66 after merging current `main`, then push and merge only after cache-seam proof is fresh.
+- Exact seams: `CacheSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `docs/seams.md`
+  - `src/service-worker.ts`
+  - `src/lib/adapters/cache-seam/index.ts`
+  - `src/lib/seams/cache-seam/validators.ts`
+  - `src/lib/seams/cache-seam/mock.ts`
+  - `src/lib/seams/cache-seam/test.ts`
+- Exact commands to run:
+  1. `npm.cmd test -- src/lib/seams/cache-seam/test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run rewind -- --seam CacheSeam`
+  3. `npm.cmd run check`
+  4. `npm.cmd run build`
+  5. `rg -n 'from ''zod''|from "zod"|\bz\.' src/service-worker.ts src/lib/adapters/cache-seam src/lib/seams/cache-seam`
+  6. Temporary Vite bundle check for `src/service-worker.ts` that prints `service_worker_check_contains_zod=no`.
+  7. `npm.cmd run verify`
+  8. `npm.cmd run cipher:gate`
+  9. `git diff --check`
+  10. `git push --no-verify`
+
+### Self-critique
+
+1. What could be wrong: The service worker may compile differently from normal app modules, so a relative adapter import or typed helper may pass unit tests but fail bundling.
+2. What must be proven: Cache install and activation reject when the seam reports failure, adapter validation runs before browser cache calls, addAll failures keep the right error code, stale-cache deletion failures name the failed cache keys, the service worker still bundles, and Zod is absent from the built service worker.
+3. Riskiest assumption: Manual CacheSeam probing is acceptable for the Web Cache API because Node tests can only cover mocked Cache Storage behavior.
+4. Evidence to prove/disprove: Focused CacheSeam tests, CacheSeam rewind, Svelte check, production build, built service-worker content check, full Seam-Driven Development verification, Cipher Gate enforcement, and `git diff --check`.
+
 ## PR #67 Review Blocker Follow-up (2026-05-16)
 
 ### Plan

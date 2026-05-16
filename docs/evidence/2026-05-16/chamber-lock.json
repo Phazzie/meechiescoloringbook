@@ -1,6 +1,6 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-05-16T13:58:56.732Z",
+  "generatedAt": "2026-05-16T16:00:24.689Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -793,10 +793,46 @@
           "status": "ok"
         }
       ]
+    },
+    {
+      "seam": "CacheSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "src/lib/seams/cache-seam/contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "src/lib/seams/cache-seam/probe.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "N/A (fixture module: src/lib/seams/cache-seam/fixtures.ts)",
+          "status": "na"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/seams/cache-seam/mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "src/lib/seams/cache-seam/test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/cache-seam/index.ts",
+          "status": "ok"
+        }
+      ]
     }
   ],
   "summary": {
-    "ok": 22,
+    "ok": 23,
     "blocked": 0,
     "missing": 0,
     "overallStatus": "ok"
