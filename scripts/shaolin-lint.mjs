@@ -73,8 +73,7 @@ const run = async () => {
 	const watchPaths = [
 		'contracts',
 		'fixtures',
-		'src/lib/mocks',
-		'tests/contract',
+		'src/lib/seams',
 		'src/lib/adapters',
 		'docs/seams.md',
 		'AGENTS.md',
