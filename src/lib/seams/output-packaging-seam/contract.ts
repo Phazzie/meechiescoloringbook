@@ -5,18 +5,10 @@ import { z } from 'zod';
 import { OutputFormatSchema, PageSizeSchema } from '../spec-validation-seam/contract';
 import { NonEmptyStringSchema, resultSchema } from '../../../../contracts/shared.contract';
 import type { Result } from '../../../../contracts/shared.contract';
-
-// Inlined from legacy contracts/image-generation.contract.ts
-// (the wire-format GeneratedImage type with format/mimeType/data/encoding)
-export const ImageDataEncodingSchema = z.enum(['utf8', 'base64']);
-
-export const GeneratedImageSchema = z.object({
-	id: NonEmptyStringSchema,
-	format: z.enum(['svg', 'png', 'jpg']),
-	mimeType: NonEmptyStringSchema,
-	data: NonEmptyStringSchema,
-	encoding: ImageDataEncodingSchema
-});
+import {
+	GeneratedImageSchema,
+	ImageDataEncodingSchema
+} from '../../../../contracts/image-generation.contract';
 
 export const OutputVariantSchema = z.enum(['print', 'square', 'chat']);
 
