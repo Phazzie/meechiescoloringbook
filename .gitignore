@@ -34,3 +34,6 @@ vite.config.ts.timestamp-*
 # Test output
 test-results
 playwright-report
+
+# Claude Code internal
+.claude/
