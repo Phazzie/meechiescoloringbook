@@ -2,8 +2,8 @@
 // Why: Ensure session ID generation, storage, and auth context validation work correctly.
 // Info flow: Adapter calls -> localStorage/crypto -> verified outputs.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { sessionAdapter } from '../../src/lib/adapters/session.adapter';
-import { authContextAdapter } from '../../src/lib/adapters/auth-context.adapter';
+import { sessionAdapter } from '../../src/lib/adapters/session-seam';
+import { authContextAdapter } from '../../src/lib/adapters/auth-context-seam';
 
 describe('session adapter', () => {
 	beforeEach(() => {

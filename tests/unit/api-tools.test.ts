@@ -3,7 +3,7 @@
 // Info flow: Request payload -> endpoint -> safety + adapter result.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '../../src/routes/api/tools/+server';
-import { meechieToolAdapter } from '../../src/lib/adapters/meechie-tool.adapter';
+import { meechieToolAdapter } from '../../src/lib/adapters/meechie-tool-seam';
 
 const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 	({

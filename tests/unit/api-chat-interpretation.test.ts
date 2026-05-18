@@ -3,7 +3,7 @@
 // Info flow: Request payload -> endpoint -> chat pipeline -> JSON response.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '../../src/routes/api/chat-interpretation/+server';
-import { providerAdapter } from '../../src/lib/adapters/provider-adapter.adapter';
+import { providerAdapter } from '../../src/lib/adapters/provider-adapter-seam';
 
 const validSpec = {
 	title: 'Dream Big',

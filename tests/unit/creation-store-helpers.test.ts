@@ -2,7 +2,7 @@
 // Why: Ensure localStorage operations, record parsing, and owner matching work correctly.
 // Info flow: Storage operations -> adapter methods -> verified results.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
+import { creationStoreAdapter } from '../../src/lib/adapters/creation-store-seam';
 
 const validIntent = {
 	title: 'Test',

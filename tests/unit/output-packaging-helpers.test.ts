@@ -2,7 +2,7 @@
 // Why: Ensure base64 conversion, SVG parsing, filename building, and format handling work correctly.
 // Info flow: Helper inputs -> function logic -> verified outputs.
 import { describe, expect, it } from 'vitest';
-import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging.adapter';
+import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging-seam';
 
 describe('output-packaging adapter edge cases', () => {
 	describe('empty images list', () => {

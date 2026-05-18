@@ -1,0 +1,67 @@
+// Purpose: Contract tests for ChatInterpretationSeam using fixture-backed mocks.
+// Why: Ensure chat intent mapping remains deterministic.
+// Info flow: Fixtures -> mock/adapter -> assertions.
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
+import {
+	ChatInterpretationInputSchema,
+	ChatInterpretationResultSchema
+} from './contract';
+import { ScenarioSchema } from '../../../../contracts/shared.contract';
+import { createChatInterpretationMock } from './mock';
+import { chatInterpretationAdapter } from '../../adapters/chat-interpretation-seam';
+import { chatInterpretationSampleFixture, chatInterpretationFaultFixture } from './fixtures';
+
+const fixtureSchema = z.object({
+	scenario: ScenarioSchema,
+	input: ChatInterpretationInputSchema,
+	output: ChatInterpretationResultSchema
+});
+
+const sampleFixture = fixtureSchema.parse(chatInterpretationSampleFixture);
+const faultFixture = fixtureSchema.parse(chatInterpretationFaultFixture);
+
+let fetchMock: ReturnType<typeof vi.fn>;
+
+beforeEach(() => {
+	fetchMock = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+		const body = init?.body ? JSON.parse(String(init.body)) : {};
+		const message = typeof body.message === 'string' ? body.message : '';
+		const payload = message.includes('fail') ? { ok: true, value: {} } : sampleFixture.output;
+
+		return new Response(JSON.stringify(payload), {
+			status: 200,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	});
+	vi.stubGlobal('fetch', fetchMock);
+});
+
+afterEach(() => {
+	vi.unstubAllGlobals();
+});
+
+describe('ChatInterpretationSeam contract', () => {
+	it('mock returns sample fixture output', async () => {
+		const mock = createChatInterpretationMock('sample');
+		const output = await mock.interpret(sampleFixture.input);
+		expect(output).toEqual(sampleFixture.output);
+	});
+
+	it('mock returns fault fixture output', async () => {
+		const mock = createChatInterpretationMock('fault');
+		const output = await mock.interpret(faultFixture.input);
+		expect(output).toEqual(faultFixture.output);
+	});
+
+	it('adapter returns sample fixture output', async () => {
+		const output = await chatInterpretationAdapter.interpret(sampleFixture.input);
+		expect(output).toEqual(sampleFixture.output);
+	});
+
+	it('adapter returns fault fixture output', async () => {
+		const output = await chatInterpretationAdapter.interpret(faultFixture.input);
+		expect(output).toEqual(faultFixture.output);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+});

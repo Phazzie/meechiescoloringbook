@@ -6,11 +6,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
-	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
-	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
-	import { sessionAdapter } from '$lib/adapters/session.adapter';
-	import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+	import { authContextAdapter } from '$lib/adapters/auth-context-seam';
+	import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
+	import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
+	import { sessionAdapter } from '$lib/adapters/session-seam';
+	import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 	import {
 		DEFAULT_REVISION_BUDGET,
 		DEFAULT_STUDIO_TEXT_OUTPUT,
@@ -34,21 +34,21 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		MeechieStudioTextResultSchema,
 		type MeechieStudioTextOutput,
 		type MeechieStudioVoiceSettings
-	} from '../../contracts/meechie-studio-text.contract';
+	} from '$lib/seams/meechie-studio-text-seam/contract';
 	import type {
 		CreationOwner,
 		CreationRecord
-	} from '../../contracts/creation-store.contract';
+	} from '$lib/seams/creation-store-seam/contract';
 	import type {
 		DriftDetectionOutput,
 		Violation
-	} from '../../contracts/drift-detection.contract';
+	} from '$lib/seams/drift-detection-seam/contract';
 	import type { GeneratedImage } from '../../contracts/image-generation.contract';
-	import type { PackagedFile } from '../../contracts/output-packaging.contract';
+	import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
 	import type {
 		ColoringPageSpec,
 		SpecValidationOutput
-	} from '../../contracts/spec-validation.contract';
+	} from '$lib/seams/spec-validation-seam/contract';
 	import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 	import WigCarousel from '$lib/components/WigCarousel.svelte';
 	import SelfieUpload from '$lib/components/SelfieUpload.svelte';

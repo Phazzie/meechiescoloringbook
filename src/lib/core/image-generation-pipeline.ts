@@ -9,7 +9,7 @@ import {
   ImageGenerationResultSchema,
   type GeneratedImage
 } from '../../../contracts/image-generation.contract';
-import type { PageSize } from '../../../contracts/spec-validation.contract';
+import type { PageSize } from '$lib/seams/spec-validation-seam/contract';
 import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contract';
 
 const RESPONSE_FORMAT = 'b64_json' as const;

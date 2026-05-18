@@ -8,12 +8,12 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	import type {
 		MeechieToolInput,
 		MeechieToolOutput
-	} from '../../../contracts/meechie-tool.contract';
+	} from '$lib/seams/meechie-tool-seam/contract';
 	import {
 		HoroscopeSignSchema,
 		MeechieToolInputSchema,
 		MeechieToolResultSchema
-	} from '../../../contracts/meechie-tool.contract';
+	} from '$lib/seams/meechie-tool-seam/contract';
 
 	const tools = [
 		{

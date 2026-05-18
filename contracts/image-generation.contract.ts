@@ -5,7 +5,7 @@ import { z } from 'zod';
 import {
 	ColoringPageSpecSchema,
 	OutputFormatSchema
-} from './spec-validation.contract';
+} from '../src/lib/seams/spec-validation-seam/contract';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 import type { Result } from './shared.contract';
 

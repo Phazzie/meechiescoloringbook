@@ -5,14 +5,14 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const mockCreateChatCompletion = vi.fn();
 
-vi.mock('../../src/lib/adapters/provider-adapter.adapter', () => ({
+vi.mock('../../src/lib/adapters/provider-adapter-seam', () => ({
 	createProviderAdapter: () => ({
 		createChatCompletion: mockCreateChatCompletion,
 		createImageGeneration: vi.fn()
 	})
 }));
 
-const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool.adapter');
+const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool-seam');
 
 const providerOk = (headline: string, response: string, extra?: Record<string, unknown>) => ({
 	ok: true as const,

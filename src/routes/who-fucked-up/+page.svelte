@@ -5,11 +5,11 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 -->
 <script lang="ts">
 	import { postJson } from '$lib/core/http-client';
-	import type { MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
+	import type { MeechieToolOutput } from '$lib/seams/meechie-tool-seam/contract';
 	import type { GeneratedImage } from '../../../contracts/image-generation.contract';
-	import type { PackagedFile } from '../../../contracts/output-packaging.contract';
-	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
-	import { MeechieToolResultSchema } from '../../../contracts/meechie-tool.contract';
+	import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
+	import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
+	import { MeechieToolResultSchema } from '$lib/seams/meechie-tool-seam/contract';
 	import { GenerateResultSchema } from '../../../contracts/generate.contract';
 	import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 

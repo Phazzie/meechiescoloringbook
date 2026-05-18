@@ -2,15 +2,15 @@
 // Why: Keep provider calls, JSON parsing, and contract validation testable.
 // Info flow: Request body -> ProviderAdapterSeam -> structured studio text result.
 import { env } from '$env/dynamic/private';
-import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
+import { createProviderAdapter } from '$lib/adapters/provider-adapter-seam';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { selectTextModel } from '$lib/core/text-model';
 import {
 	MeechieStudioTextInputSchema,
 	MeechieStudioTextOutputSchema,
 	MeechieStudioTextResultSchema
-} from '../../../contracts/meechie-studio-text.contract';
-import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.contract';
+} from '$lib/seams/meechie-studio-text-seam/contract';
+import type { ProviderAdapterSeam } from '$lib/seams/provider-adapter-seam/contract';
 import { z } from 'zod';
 
 const TEXT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);

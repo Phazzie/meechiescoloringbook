@@ -2,7 +2,7 @@
 // Why: Keep prompt wording deterministic and prevent copy drift across seams.
 // Info flow: Spec/style inputs -> canonical line builders -> adapters/tests.
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
-import type { ColoringPageSpec } from '../../../contracts/spec-validation.contract';
+import type { ColoringPageSpec } from '$lib/seams/spec-validation-seam/contract';
 
 export const NEGATIVE_PROMPT_HEADING = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[4];
 export const VECTOR_LINEWORK_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[3];

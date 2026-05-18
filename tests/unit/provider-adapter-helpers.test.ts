@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
 
-import { createProviderAdapter } from '../../src/lib/adapters/provider-adapter.adapter';
+import { createProviderAdapter } from '../../src/lib/adapters/provider-adapter-seam';
 
 const jsonResponse = (payload: unknown, status = 200): Response =>
 	new Response(JSON.stringify(payload), {

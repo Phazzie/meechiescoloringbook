@@ -1,10 +1,10 @@
 // Purpose: Centralize Meechie studio modes, control metadata, and spec mapping.
 // Why: Keep UI pricing/budget labels and page text generation deterministic.
 // Info flow: Metadata + AI text output -> UI controls -> ColoringPageSpec.
-import { MAX_LABEL_LENGTH, type ColoringPageSpec } from '../../../contracts/spec-validation.contract';
-import type { CreationRecord, DraftRecord } from '../../../contracts/creation-store.contract';
-import type { MeechieStudioTextAction, MeechieStudioTextOutput } from '../../../contracts/meechie-studio-text.contract';
-import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract';
+import { MAX_LABEL_LENGTH, type ColoringPageSpec } from '$lib/seams/spec-validation-seam/contract';
+import type { CreationRecord, DraftRecord } from '$lib/seams/creation-store-seam/contract';
+import type { MeechieStudioTextAction, MeechieStudioTextOutput } from '$lib/seams/meechie-studio-text-seam/contract';
+import type { MeechieToolInput } from '$lib/seams/meechie-tool-seam/contract';
 
 export const DEFAULT_REVISION_BUDGET = 3;
 

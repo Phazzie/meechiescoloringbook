@@ -1,7 +1,7 @@
 // Purpose: Shared test factory for a valid ColoringPageSpec baseline.
 // Why: Avoid duplicating the same baseSpec object in multiple test files.
 // Info flow: Imported by unit tests -> spread/override for test variants.
-import type { ColoringPageSpec } from '../../contracts/spec-validation.contract';
+import type { ColoringPageSpec } from '../../src/lib/seams/spec-validation-seam/contract';
 
 export function makeBaseSpec(overrides: Partial<ColoringPageSpec> = {}): ColoringPageSpec {
 	return {
