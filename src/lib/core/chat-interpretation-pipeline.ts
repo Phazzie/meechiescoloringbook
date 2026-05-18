@@ -103,11 +103,10 @@ export const runChatInterpretationPipeline = async (
 
 	const validation = await deps.validateSpec({ spec: rawParse.data });
 	if (!validation.ok) {
-		const firstIssue = validation.issues[0];
 		return buildError(
 			422,
 			'CHAT_SPEC_INVALID',
-			firstIssue ? firstIssue.message : 'Chat spec failed validation.',
+			validation.issues[0]?.message ?? 'Chat spec failed validation.',
 			{ issueCount: String(validation.issues.length) }
 		);
 	}

@@ -59,11 +59,10 @@ export const runGeneratePipeline = async (
 
 	const validation = await deps.validateSpec({ spec: parsedInput.data.spec });
 	if (!validation.ok) {
-		const issue = validation.issues[0];
 		return buildError(
 			400,
 			'SPEC_INVALID',
-			issue ? issue.message : 'Spec validation failed.',
+			validation.issues[0]?.message ?? 'Spec validation failed.',
 			{ issueCount: String(validation.issues.length) }
 		);
 	}
