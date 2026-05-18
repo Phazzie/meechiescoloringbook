@@ -77,6 +77,40 @@ describe('image-generation-pipeline edge cases', () => {
     }
   });
 
+  it('returns 503 when seam returns IMAGE_CONFIG_ERROR', async () => {
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: false,
+        error: { code: 'IMAGE_CONFIG_ERROR', message: 'Missing API key' }
+      }))
+    );
+    expect(result.status).toBe(503);
+    expect(result.body.ok).toBe(false);
+  });
+
+  it('returns 400 when seam returns IMAGE_VALIDATION_ERROR', async () => {
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: false,
+        error: { code: 'IMAGE_VALIDATION_ERROR', message: 'Request failed validation' }
+      }))
+    );
+    expect(result.status).toBe(400);
+    expect(result.body.ok).toBe(false);
+  });
+
   it('returns 502 when seam returns a network error', async () => {
     const result = await runImageGenerationPipeline(
       {

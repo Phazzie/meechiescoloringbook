@@ -12,10 +12,11 @@ export const postJson = async (url: string, body: unknown): Promise<{ payload: u
 		headers: buildJsonHeaders(),
 		body: JSON.stringify(body)
 	});
-	if (!response.ok) {
-		throw new Error(`postJson: HTTP ${response.status} ${response.statusText}`);
-	}
 	const payload = await response.json().catch(() => {
+		// JSON parse failed — if status is also bad, surface the HTTP error.
+		if (!response.ok) {
+			throw new Error(`postJson: HTTP ${response.status} ${response.statusText}`);
+		}
 		throw new Error('postJson: failed to parse JSON response');
 	});
 	return { payload };
