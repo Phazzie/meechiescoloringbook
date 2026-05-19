@@ -67,6 +67,23 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
     Validation: Verified by reading the ImageGenerationSeam adapter source — only these 4 keys are accessed from config.
     Status: Confirmed by code inspection; no live probe required for a config-only seam.
 
+## 2026-05-19 — generate-pipeline: Structured 502 on Image Service Network Failure
+
+**Context**: `runGeneratePipeline` called `deps.fetchImpl('/api/image-generation', ...)` without a try/catch. A network-level failure (DNS, timeout, connection refused) would propagate as an unhandled exception and reach SvelteKit's raw error boundary, returning a non-contract-shaped 500 rather than the structured `{ok: false, error: {...}}` body the UI expects.
+
+**Decision**: Wrap the `deps.fetchImpl` call in try/catch. On rejection, log the error server-side and return `buildError(502, 'IMAGE_SERVICE_UNAVAILABLE', ...)` — a structured error body that satisfies the `GenerateResultSchema` contract. Also removed the dead `|| 502` fallback on `imageResponse.status` (unreachable since `Response.status` is always a number on a successful call).
+
+**Rationale**: The UI parses the generate response with `GenerateResultSchema.safeParse`; an unstructured 500 HTML body would cause the parse to fail with a generic "did not match contract" message. Returning a proper `ok: false` error body allows the UI to surface the real message (`error.message`) to the user.
+
+**Files modified**: `src/lib/core/generate-pipeline.ts`, `tests/unit/api-generate.test.ts`
+
+- Cipher Gate:
+  - Date: 2026-05-19
+  - Seams: GeneratePipeline (fetchImpl boundary)
+  - Evidence: tests/unit/api-generate.test.ts (3 tests, including new rejection-path case); docs/evidence/2026-05-19/test.txt
+  - Summary: Added try/catch around internal image-generation fetch in runGeneratePipeline. Network failures now return IMAGE_SERVICE_UNAVAILABLE 502 with a contract-shaped error body instead of an unhandled exception.
+  - Risks: The new IMAGE_SERVICE_UNAVAILABLE error code is not part of the ImageGenerationResultSchema error enum — callers that switch on error codes would hit an unrecognized code. Mitigated: current UI only reads error.message, not error.code.
+
 ## 2026-05-11 — Wig Try-On Feature: Seam-Driven Development Architecture
 
 **Context**: Add a wig try-on feature integrated into the coloring book experience. Users browse a static affiliate wig catalog, upload a selfie, and receive an AI-illustrated portrait showing themselves wearing the selected wig. The portrait style matches the coloring-book aesthetic.
