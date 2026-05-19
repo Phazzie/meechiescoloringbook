@@ -94,7 +94,8 @@ export const runGeneratePipeline = async (
 				outputFormat: parsedInput.data.spec.outputFormat
 			})
 		});
-	} catch {
+	} catch (err) {
+		console.error('[generate-pipeline] image generation fetch failed', err);
 		return buildError(502, 'IMAGE_SERVICE_UNAVAILABLE', 'Image generation service is unavailable.');
 	}
 	const imagePayload = await imageResponse.json().catch(() => null);

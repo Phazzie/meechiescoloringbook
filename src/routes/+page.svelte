@@ -331,6 +331,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		try {
 			action = getStudioTextAction(actionId);
 		} catch {
+			console.error('Studio text action lookup failed');
 			textError = 'This action is not available. Try Generate Verdict instead.';
 			return;
 		}
