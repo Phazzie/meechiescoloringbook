@@ -54,6 +54,20 @@ describe('/api/generate', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
+	it('returns structured 502 when image service fetch rejects', async () => {
+		const fetchMock = vi.fn(async () => {
+			throw new Error('connect ECONNREFUSED');
+		});
+		const response = await POST(
+			buildEvent({ spec: validSpec, styleHint: 'glam' }, fetchMock)
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(502);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('IMAGE_SERVICE_UNAVAILABLE');
+	});
+
 	it('returns orchestrated generation output for valid requests', async () => {
 		const fetchMock = vi.fn(async () =>
 			new Response(
