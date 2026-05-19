@@ -79,7 +79,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 
 - Cipher Gate:
   - Date: 2026-05-19
-  - Seams: GeneratePipeline (fetchImpl boundary)
+  - Seams: ImageGenerationSeam
   - Evidence: tests/unit/api-generate.test.ts (3 tests, including new rejection-path case); docs/evidence/2026-05-19/test.txt
   - Summary: Added try/catch around internal image-generation fetch in runGeneratePipeline. Network failures now return IMAGE_SERVICE_UNAVAILABLE 502 with a contract-shaped error body instead of an unhandled exception.
   - Risks: The new IMAGE_SERVICE_UNAVAILABLE error code is not part of the ImageGenerationResultSchema error enum — callers that switch on error codes would hit an unrecognized code. Mitigated: current UI only reads error.message, not error.code.
