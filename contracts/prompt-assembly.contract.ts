@@ -1,26 +1,16 @@
-// Purpose: Define the PromptAssemblySeam contract.
-// Why: Convert a spec into a locked, deterministic prompt.
-// Info flow: Spec -> prompt text -> downstream seams.
-import { z } from 'zod';
-import { ColoringPageSpecSchema } from './spec-validation.contract';
-import { NonEmptyStringSchema, resultSchema } from './shared.contract';
-import type { Result } from './shared.contract';
+// MIGRATED: canonical location is src/lib/seams/prompt-assembly-seam/.
+// This file re-exports from the new self-contained layout for backward compatibility.
+// Update imports to use the new location directly.
+export {
+	PromptAssemblyInputSchema,
+	PromptAssemblyOutputSchema,
+	PromptAssemblyResultSchema,
+	validatePromptAssemblyInput,
+	validatePromptAssemblyResult
+} from '../src/lib/seams/prompt-assembly-seam/validators';
 
-export const PromptAssemblyInputSchema = z.object({
-	spec: ColoringPageSpecSchema,
-	styleHint: NonEmptyStringSchema.optional()
-});
-
-export const PromptAssemblyOutputSchema = z.object({
-	prompt: NonEmptyStringSchema,
-	templateVersion: NonEmptyStringSchema
-});
-
-export const PromptAssemblyResultSchema = resultSchema(PromptAssemblyOutputSchema);
-
-export type PromptAssemblyInput = z.infer<typeof PromptAssemblyInputSchema>;
-export type PromptAssemblyOutput = z.infer<typeof PromptAssemblyOutputSchema>;
-
-export type PromptAssemblySeam = {
-	assemble(input: PromptAssemblyInput): Promise<Result<PromptAssemblyOutput>>;
-};
+export type {
+	PromptAssemblyInput,
+	PromptAssemblyOutput,
+	PromptAssemblySeam
+} from '../src/lib/seams/prompt-assembly-seam/contract';
