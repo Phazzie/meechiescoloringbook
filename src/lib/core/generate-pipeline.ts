@@ -82,16 +82,21 @@ export const runGeneratePipeline = async (
 		};
 	}
 
-	const imageResponse = await deps.fetchImpl('/api/image-generation', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			spec: parsedInput.data.spec,
-			prompt: promptResult.value.prompt,
-			variations: parsedInput.data.spec.variations,
-			outputFormat: parsedInput.data.spec.outputFormat
-		})
-	});
+	let imageResponse: Response;
+	try {
+		imageResponse = await deps.fetchImpl('/api/image-generation', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				spec: parsedInput.data.spec,
+				prompt: promptResult.value.prompt,
+				variations: parsedInput.data.spec.variations,
+				outputFormat: parsedInput.data.spec.outputFormat
+			})
+		});
+	} catch {
+		return buildError(502, 'IMAGE_SERVICE_UNAVAILABLE', 'Image generation service is unavailable.');
+	}
 	const imagePayload = await imageResponse.json().catch(() => null);
 	const parsedImageResult = ImageGenerationResultSchema.safeParse(imagePayload);
 	if (!parsedImageResult.success) {
@@ -103,7 +108,7 @@ export const runGeneratePipeline = async (
 	}
 	if (!parsedImageResult.data.ok) {
 		return {
-			status: imageResponse.status || 502,
+			status: imageResponse.status,
 			body: parsedImageResult.data
 		};
 	}
