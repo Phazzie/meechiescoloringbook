@@ -1,3 +1,4 @@
-// Probe for ChatInterpretationSeam — run manually to capture live behavior
-// See docs/seams.md for probe status.
+// Purpose: Manual probe scaffold for ChatInterpretationSeam.
+// Why: Capture and document live seam behavior outside automated tests.
+// Info flow: Manual probe run -> observed behavior -> docs/seams.md status updates.
 export {};

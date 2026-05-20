@@ -14,6 +14,6 @@ All legacy flat-layout seam contracts have been migrated to `src/lib/seams/<name
 | `image-generation.contract.ts` | `/api/image-generation` wire format (GeneratedImage with format/mimeType/data/encoding); kept separate from `image-generation-seam/contract.ts` which uses a different internal type |
 | `wig-try-on.contract.ts` | `/api/wig-try-on` request/response wire format |
 
-**Do not add new seam contracts here.** New seams go under `src/lib/seams/<seam-name>/` using the self-contained layout — see `src/lib/seams/CLAUDE.md`.
+**Do not add new seam contracts here.** New seams go under `src/lib/seams/<seam-name>-seam/` using the self-contained layout — see `src/lib/seams/CLAUDE.md`.
 
 See `docs/seams.md` for the full seam registry with probe status and owners.
