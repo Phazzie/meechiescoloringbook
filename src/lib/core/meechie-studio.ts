@@ -7,6 +7,7 @@ import type { MeechieStudioTextAction, MeechieStudioTextOutput } from '../../../
 import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract';
 
 export const DEFAULT_REVISION_BUDGET = 3;
+// 97 places the footer visually after all numbered list items (which stay in 1–20 range).
 const FOOTER_ITEM_NUMBER = 97;
 
 export const DEFAULT_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
@@ -335,7 +336,7 @@ export const canRunStudioAction = (
 	return true;
 };
 
-const defaultPageItemLabel = (): string => DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0]?.label ?? 'UNTITLED';
+const defaultPageItemLabel = (): string => DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label;
 
 const normalizeSpecLabel = (value: string, fallback: string): string => {
 	const normalized = value
