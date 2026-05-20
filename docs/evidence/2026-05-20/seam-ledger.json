@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-05-20T12:26:39.604Z",
+  "generatedAt": "2026-05-20T12:31:17.712Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -411,7 +411,7 @@
         {
           "kind": "tests",
           "status": "ok",
-          "path": "tests/contract/image-generation.test.ts"
+          "path": "src/lib/seams/image-generation-seam/test.ts"
         },
         {
           "kind": "adapter",

@@ -28,8 +28,9 @@ Short, durable decisions with context and tradeoffs.
 - Cipher Gate:
   - Date: 2026-05-20
   - Seams: ImageGenerationSeam, ImageProviderConfigSeam
-  - Evidence: tests/contract/image-generation.test.ts (5 contract tests); src/lib/seams/image-generation-seam/test.ts (3 contract tests)
+  - Evidence: tests/contract/image-generation.test.ts; src/lib/seams/image-generation-seam/test.ts
   - Summary: Flat-layout duplicate retired; error-code bug fixed; test dep corrected.
+  - Risks: contracts/image-generation.contract.ts still defines HTTP API schemas used by pipeline and four UI routes; if those schemas drift from the new seam types, the pipeline bridge will silently misshape responses.
 
 ## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
 

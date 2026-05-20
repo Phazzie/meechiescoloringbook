@@ -1,6 +1,6 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-05-20T12:25:53.761Z",
+  "generatedAt": "2026-05-20T12:30:31.876Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -388,7 +388,7 @@
         },
         {
           "kind": "tests",
-          "path": "tests/contract/image-generation.test.ts",
+          "path": "src/lib/seams/image-generation-seam/test.ts",
           "status": "ok"
         },
         {

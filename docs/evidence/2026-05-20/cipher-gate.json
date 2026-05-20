@@ -1,0 +1,22 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-05-20T12:30:22.370Z",
+  "cipher": {
+    "date": "2026-05-20",
+    "seams": "ImageGenerationSeam, ImageProviderConfigSeam",
+    "evidence": [
+      {
+        "path": "tests/contract/image-generation.test.ts",
+        "exists": true
+      },
+      {
+        "path": "src/lib/seams/image-generation-seam/test.ts",
+        "exists": true
+      }
+    ],
+    "summary": "Flat-layout duplicate retired; error-code bug fixed; test dep corrected.",
+    "risks": "contracts/image-generation.contract.ts still defines HTTP API schemas used by pipeline and four UI routes; if those schemas drift from the new seam types, the pipeline bridge will silently misshape responses."
+  },
+  "latestChangeMs": 1779279356585.213,
+  "status": "ok"
+}
