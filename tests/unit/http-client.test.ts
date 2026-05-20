@@ -60,5 +60,21 @@ describe('http-client', () => {
 				'postJson: failed to parse JSON response'
 			);
 		});
+
+		it('includes URL and status code in JSON-parse error message', async () => {
+			const mockResponse = {
+				json: () => Promise.reject(new Error('bad json')),
+				status: 503
+			} as unknown as Response;
+
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockResolvedValue(mockResponse)
+			);
+
+			await expect(postJson('/api/generate', {})).rejects.toThrow(
+				'postJson: failed to parse JSON response (url /api/generate, status 503)'
+			);
+		});
 	});
 });

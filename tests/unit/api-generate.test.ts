@@ -66,6 +66,41 @@ describe('/api/generate', () => {
 		expect(response.status).toBe(502);
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('IMAGE_SERVICE_UNAVAILABLE');
+		expect(payload.error.message).toBe('Image generation service is unavailable.');
+	});
+
+	it('propagates non-ok status from image service', async () => {
+		const fetchMock = vi.fn(async () =>
+			new Response(
+				JSON.stringify({ ok: false, error: { code: 'PROVIDER_ERROR', message: 'Provider failed.' } }),
+				{ status: 422, headers: { 'Content-Type': 'application/json' } }
+			)
+		);
+		const response = await POST(
+			buildEvent({ spec: validSpec, styleHint: 'glam' }, fetchMock)
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(422);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('PROVIDER_ERROR');
+	});
+
+	it('returns IMAGE_RESPONSE_INVALID when image service returns non-JSON', async () => {
+		const fetchMock = vi.fn(async () =>
+			new Response('<html>Bad Gateway</html>', {
+				status: 502,
+				headers: { 'Content-Type': 'text/html' }
+			})
+		);
+		const response = await POST(
+			buildEvent({ spec: validSpec, styleHint: 'glam' }, fetchMock)
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(502);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('IMAGE_RESPONSE_INVALID');
 	});
 
 	it('returns orchestrated generation output for valid requests', async () => {
