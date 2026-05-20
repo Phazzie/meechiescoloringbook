@@ -26,10 +26,10 @@ Short, durable decisions with context and tradeoffs.
 - `docs/seams.md` — merged two `ImageGenerationSeam` rows into one canonical entry
 
 - Cipher Gate:
-    Date: 2026-05-20
-    Seams: ImageGenerationSeam, ImageProviderConfigSeam
-    Evidence: tests/contract/image-generation.test.ts (5 contract tests); src/lib/seams/image-generation-seam/test.ts (3 contract tests)
-    Summary: Flat-layout duplicate retired; error-code bug fixed; test dep corrected.
+  - Date: 2026-05-20
+  - Seams: ImageGenerationSeam, ImageProviderConfigSeam
+  - Evidence: tests/contract/image-generation.test.ts (5 contract tests); src/lib/seams/image-generation-seam/test.ts (3 contract tests)
+  - Summary: Flat-layout duplicate retired; error-code bug fixed; test dep corrected.
 
 ## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
 

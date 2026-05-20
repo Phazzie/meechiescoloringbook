@@ -8,7 +8,7 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
-- Fixed image-generation endpoint returning 502 Bad Gateway instead of 503 Service Unavailable when the server's xAI API key or image-provider config is missing or invalid.
+- Fixed image-generation endpoint returning 502 Bad Gateway instead of 503 Service Unavailable when the server's image-provider environment config is missing or misconfigured at startup (e.g., `XAI_API_KEY` absent from the environment). Note: a key that is present but rejected by xAI (401) still returns 502, as that is an upstream HTTP failure, not a config error.
 - Fully redesigned the builder and Meechie pages with a cleaner modern visual system, clearer hierarchy, and polished action flows on desktop/mobile.
 - Moved Meechie tools to a dedicated destination path from the main builder flow and added a focused handoff card.
 - Added a temporary UI API key panel (save/load/clear/show) and propagated `x-api-key` from client requests to generation endpoints.
