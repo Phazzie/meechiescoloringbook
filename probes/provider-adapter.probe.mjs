@@ -49,7 +49,7 @@ const readJson = async (response) => {
 	}
 	try {
 		return { ok: true, value: JSON.parse(text), raw: text };
-	} catch (error) {
+	} catch {
 		return { ok: false, value: null, raw: text };
 	}
 };
@@ -97,7 +97,8 @@ const normalizeImageOutput = (payload) => {
 	const revisedPrompt =
 		payload?.revised_prompt ||
 		payload?.revisedPrompt ||
-		data.find((entry) => typeof entry?.revised_prompt === 'string')?.revised_prompt;
+		data.find((entry) => typeof entry?.revised_prompt === 'string')
+			?.revised_prompt;
 	return {
 		ok: true,
 		value: {
@@ -240,7 +241,9 @@ const run = async () => {
 		imageOutput.ok && imageOutput.value.images[0]?.b64_json
 			? imageOutput.value.images[0].b64_json.length
 			: 0;
-	console.log(`Provider probe complete. Chat content length: ${sampleContentLength}.`);
+	console.log(
+		`Provider probe complete. Chat content length: ${sampleContentLength}.`
+	);
 	console.log(`Image base64 length: ${imageLength}.`);
 };
 

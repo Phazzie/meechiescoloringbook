@@ -1,0 +1,6 @@
+docs/evidence/
+.svelte-kit/
+.vercel/
+build/
+dist/
+coverage/

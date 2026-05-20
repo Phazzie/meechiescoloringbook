@@ -109,14 +109,17 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	let isSavingDraft = false;
 	let isDraftSavePending = false;
 
+	const weeklyModesMap = Object.fromEntries(weeklyModes.map((m) => [m.id, m]));
 	const getActiveMode = (modeId: string) =>
-		weeklyModes.find((mode) => mode.id === modeId) ?? weeklyModes[0];
+		weeklyModesMap[modeId] ?? weeklyModes[0];
 
 	// --- Derived state ---
 	let activeMode = $derived(getActiveMode(activeModeId));
+	const studioThemesMap = Object.fromEntries(
+		studioThemes.map((t) => [t.id, t])
+	);
 	let activeTheme = $derived(
-		studioThemes.find((theme) => theme.id === selectedThemeId) ??
-			studioThemes[0]
+		studioThemesMap[selectedThemeId] ?? studioThemes[0]
 	);
 
 	// spec is initialized from literal initial values to avoid capturing $state references.
@@ -331,9 +334,12 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		try {
 			action = getStudioTextAction(actionId);
 		} catch (error) {
-			console.error(`Failed to get studio text action metadata for actionId: ${actionId}`, {
-				error
-			});
+			console.error(
+				`Failed to get studio text action metadata for actionId: ${actionId}`,
+				{
+					error
+				}
+			);
 			textError = 'This action is not available. Try Generate Verdict instead.';
 			return;
 		}
