@@ -6,7 +6,7 @@
 <script lang="ts">
 	type AllowedMime = 'image/jpeg' | 'image/png' | 'image/webp';
 
-	let { onUpload }: { onUpload: (base64: string, mimeType: AllowedMime) => void } = $props();
+	let { onUpload }: { onUpload: (_base64: string, _mimeType: AllowedMime) => void } = $props();
 
 	let previewUrl = $state('');
 	let error = $state('');
