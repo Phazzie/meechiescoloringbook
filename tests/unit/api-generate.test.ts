@@ -54,6 +54,103 @@ describe('/api/generate', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
+	it('returns structured 502 when image service fetch rejects', async () => {
+		const fetchMock = vi.fn(async () => {
+			throw new Error('connect ECONNREFUSED');
+		});
+		const response = await POST(
+			buildEvent({ spec: validSpec, styleHint: 'glam' }, fetchMock)
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(502);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('IMAGE_SERVICE_UNAVAILABLE');
+	});
+
+	it('returns structured 502 with IMAGE_SERVICE_UNAVAILABLE message when fetch rejects', async () => {
+		const fetchMock = vi.fn(async () => {
+			throw new Error('connect ECONNREFUSED');
+		});
+		const response = await POST(buildEvent({ spec: validSpec, styleHint: 'glam' }, fetchMock));
+		const payload = await response.json();
+
+		expect(response.status).toBe(502);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.message).toBe('Image generation service is unavailable.');
+	});
+
+	it('returns structured 502 when fetch rejects with a TypeError (network error)', async () => {
+		const fetchMock = vi.fn(async () => {
+			throw new TypeError('Failed to fetch');
+		});
+		const response = await POST(buildEvent({ spec: validSpec, styleHint: 'glam' }, fetchMock));
+		const payload = await response.json();
+
+		expect(response.status).toBe(502);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('IMAGE_SERVICE_UNAVAILABLE');
+		expect(payload.error.message).toBe('Image generation service is unavailable.');
+	});
+
+	it('propagates image service non-ok status directly without || 502 fallback', async () => {
+		const fetchMock = vi.fn(async () =>
+			new Response(
+				JSON.stringify({
+					ok: false,
+					error: { code: 'PROVIDER_ERROR', message: 'xAI quota exceeded' }
+				}),
+				{
+					status: 422,
+					headers: { 'Content-Type': 'application/json' }
+				}
+			)
+		);
+		const response = await POST(buildEvent({ spec: validSpec, styleHint: 'glam' }, fetchMock));
+		const payload = await response.json();
+
+		expect(response.status).toBe(422);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('PROVIDER_ERROR');
+	});
+
+	it('propagates 503 from image service directly', async () => {
+		const fetchMock = vi.fn(async () =>
+			new Response(
+				JSON.stringify({
+					ok: false,
+					error: { code: 'SERVICE_DOWN', message: 'Image service temporarily unavailable' }
+				}),
+				{
+					status: 503,
+					headers: { 'Content-Type': 'application/json' }
+				}
+			)
+		);
+		const response = await POST(buildEvent({ spec: validSpec, styleHint: 'glam' }, fetchMock));
+		const payload = await response.json();
+
+		expect(response.status).toBe(503);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('SERVICE_DOWN');
+	});
+
+	it('returns 502 IMAGE_RESPONSE_INVALID when image service returns non-JSON body', async () => {
+		const fetchMock = vi.fn(
+			async () =>
+				new Response('<html>Internal Server Error</html>', {
+					status: 500,
+					headers: { 'Content-Type': 'text/html' }
+				})
+		);
+		const response = await POST(buildEvent({ spec: validSpec, styleHint: 'glam' }, fetchMock));
+		const payload = await response.json();
+
+		expect(response.status).toBe(502);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('IMAGE_RESPONSE_INVALID');
+	});
+
 	it('returns orchestrated generation output for valid requests', async () => {
 		const fetchMock = vi.fn(async () =>
 			new Response(

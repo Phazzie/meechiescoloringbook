@@ -60,5 +60,42 @@ describe('http-client', () => {
 				'postJson: failed to parse JSON response'
 			);
 		});
+
+		it('includes the url in the JSON parse error message', async () => {
+			const mockResponse = {
+				json: () => Promise.reject(new Error('bad json')),
+				status: 200
+			} as unknown as Response;
+
+			vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
+
+			await expect(postJson('/api/specific-endpoint', {})).rejects.toThrow(
+				'url /api/specific-endpoint'
+			);
+		});
+
+		it('includes the response status in the JSON parse error message', async () => {
+			const mockResponse = {
+				json: () => Promise.reject(new Error('bad json')),
+				status: 503
+			} as unknown as Response;
+
+			vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
+
+			await expect(postJson('/api/test', {})).rejects.toThrow('status 503');
+		});
+
+		it('error message includes both url and status when JSON parsing fails', async () => {
+			const mockResponse = {
+				json: () => Promise.reject(new Error('bad json')),
+				status: 422
+			} as unknown as Response;
+
+			vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
+
+			await expect(postJson('/api/my-endpoint', {})).rejects.toThrow(
+				'postJson: failed to parse JSON response (url /api/my-endpoint, status 422)'
+			);
+		});
 	});
 });
