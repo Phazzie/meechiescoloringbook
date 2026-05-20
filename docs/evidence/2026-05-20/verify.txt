@@ -1,0 +1,86 @@
+# Purpose: Store npm run verify output for evidence.
+# Why: Provide an audit trail for Seam-Driven Development verification.
+# Info flow: Command output -> evidence file -> review.
+
+$ npm run verify
+
+$ npm run check
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: <REPO_ROOT>
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+$ npm test -- --pool=forks --maxWorkers=1
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v3.2.4 <REPO_ROOT>
+
+ ✓ tests/unit/creation-store-helpers.test.ts (17 tests) 68ms
+ ✓ tests/unit/output-packaging-helpers.test.ts (9 tests) 29ms
+ ✓ tests/unit/pipeline-edge-cases.test.ts (21 tests) 21ms
+ ✓ tests/unit/provider-adapter-helpers.test.ts (23 tests) 20ms
+ ✓ tests/unit/api-generate.test.ts (2 tests) 17ms
+ ✓ src/lib/seams/wig-catalog-seam/test.ts (6 tests) 11ms
+ ✓ tests/unit/api-image-generation.test.ts (3 tests) 14ms
+ ✓ tests/unit/api-chat-interpretation.test.ts (2 tests) 14ms
+ ✓ tests/unit/api-tools.test.ts (2 tests) 12ms
+ ✓ src/lib/seams/provider-adapter-seam/test.ts (4 tests) 15ms
+ ✓ src/lib/seams/cache-seam/test.ts (14 tests) 13ms
+ ✓ tests/contract/image-generation.test.ts (5 tests) 12ms
+ ✓ tests/unit/image-generation-pipeline.test.ts (9 tests) 11ms
+ ✓ tests/unit/shared-contract.test.ts (21 tests) 12ms
+ ✓ tests/unit/meechie-tool-adapter.test.ts (25 tests) 12ms
+ ✓ src/lib/seams/output-packaging-seam/test.ts (4 tests) 9ms
+ ✓ src/lib/seams/chat-interpretation-seam/test.ts (4 tests) 9ms
+ ✓ tests/unit/image-generation-validators.test.ts (9 tests) 8ms
+ ✓ tests/unit/meechie-studio-text-pipeline.test.ts (6 tests) 9ms
+ ✓ tests/unit/meechie-tool-adapter.responses.test.ts (14 tests) 9ms
+ ✓ tests/unit/drift-detection-helpers.test.ts (13 tests) 8ms
+ ✓ tests/unit/prompt-template.test.ts (38 tests) 11ms
+ ✓ tests/unit/http-client.test.ts (3 tests) 6ms
+ ✓ tests/unit/meechie-studio.test.ts (10 tests) 8ms
+ ✓ src/lib/seams/image-generation-seam/test.ts (3 tests) 7ms
+ ✓ tests/unit/app-config-seam.test.ts (8 tests) 7ms
+ ✓ src/lib/seams/meechie-tool-seam/test.ts (5 tests) 5ms
+ ✓ tests/unit/constants.test.ts (15 tests) 6ms
+ ✓ src/lib/seams/image-provider-config-seam/test.ts (5 tests) 8ms
+ ✓ tests/unit/meechie-quote-scoring.test.ts (3 tests) 6ms
+ ✓ src/lib/seams/meechie-voice-seam/test.ts (4 tests) 6ms
+ ✓ src/lib/seams/safety-policy-seam/test.ts (4 tests) 6ms
+ ✓ src/lib/seams/spec-validation-seam/test.ts (6 tests) 7ms
+ ✓ src/lib/seams/gallery-store-seam/test.ts (1 test) 6ms
+ ✓ src/lib/seams/creation-store-seam/test.ts (4 tests) 5ms
+ ✓ tests/unit/session-auth-helpers.test.ts (10 tests) 7ms
+ ✓ src/lib/seams/wig-try-on-seam/test.ts (4 tests) 5ms
+ ✓ src/lib/seams/prompt-compiler-seam/test.ts (1 test) 5ms
+ ✓ src/lib/seams/meechie-studio-text-seam/test.ts (3 tests) 6ms
+ ✓ src/lib/seams/drift-detection-seam/test.ts (5 tests) 5ms
+ ✓ tests/unit/coloring-page-title.test.ts (4 tests) 4ms
+ ✓ src/lib/seams/app-config-seam/test.ts (2 tests) 5ms
+ ✓ src/lib/seams/prompt-assembly-seam/test.ts (5 tests) 5ms
+ ✓ tests/unit/evidence-reporting.test.ts (6 tests) 4ms
+ ✓ src/lib/seams/session-seam/test.ts (3 tests) 4ms
+ ✓ src/lib/seams/auth-context-seam/test.ts (4 tests) 4ms
+ ✓ tests/unit/alignment-line.test.ts (6 tests) 5ms
+ ✓ src/lib/seams/telemetry-seam/test.ts (1 test) 4ms
+ ✓ tests/unit/meechie-tools-parity.test.ts (2 tests) 3ms
+ ✓ tests/unit/text-model.test.ts (3 tests) 3ms
+ ↓ tests/integration/image-generation-seam.test.ts (1 test | 1 skipped)
+
+ Test Files  50 passed | 1 skipped (51)
+      Tests  381 passed | 1 skipped (382)
+   Start at  21:27:37
+   Duration  39.00s (transform 926ms, setup 235ms, collect 2.16s, tests 498ms, environment 23.93s, prepare 3.01s)
+
+stderr | tests/unit/output-packaging-helpers.test.ts > output-packaging adapter edge cases > SVG conversion > SVG conversion fails deterministically in non-browser environment
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+stderr | src/lib/seams/output-packaging-seam/test.ts > OutputPackagingSeam contract > adapter behavior is gated to browser for svg conversion
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
