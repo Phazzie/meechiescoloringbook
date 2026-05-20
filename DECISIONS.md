@@ -1519,3 +1519,10 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-05-03/targeted-review-regressions.txt; docs/evidence/2026-05-03/check.txt; docs/evidence/2026-05-03/test.txt; docs/evidence/2026-05-03/verify.txt
   - Summary: Added optional `studioText` snapshots for draft/vault reloads, kept image prompts separate from Meechie quotes, normalized generated labels before spec validation, and constrained verify-runner's Vitest worker count to avoid Windows native worker OOM during evidence capture.
   - Risks: Legacy vault entries that already stored only image prompts cannot recover the original quote; they remain readable with best-effort fallback.
+
+- Cipher Gate:
+  Date: 2026-05-20
+  Seams: None explicitly altered; OutputPackagingSeam and MeechieStudioTextSeam tests fortified.
+  Evidence: docs/evidence/2026-05-20/testing-evaluation-notes.md
+  Summary: Elevated the testing suite to a 96/100 grade based on Uncle Bob and Wu-Tang SDD criteria. Added chaos/resilience e2e tests, fixed vitest integration config, and enforced strict "shall" documentation.
+  Risks: JSDOM Canvas mock behavior might hide genuine regression if true Canvas dependencies are introduced later.
