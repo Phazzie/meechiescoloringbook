@@ -7,6 +7,30 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-05-20 — ImageGenerationSeam: Retire Flat-Layout Duplicate and Fix Inverted Error-Code Bug
+
+**Context**: Two parallel `ImageGenerationSeam` implementations existed simultaneously. The legacy flat-layout (`contracts/image-generation.contract.ts` + `src/lib/adapters/image-generation.adapter.ts` + `src/lib/mocks/image-generation.mock.ts`) defined a client-side seam whose `generate()` accepted a full `{spec, prompt, variations, outputFormat}` payload and called the `/api/image-generation` endpoint internally. The new self-contained layout (`src/lib/seams/image-generation-seam/`) defined a server-side seam whose `generate()` accepted `{prompt, n, size, format}` and called xAI directly. The pipeline bridge (`image-generation-pipeline.ts`) was already wired to the new seam exclusively; no code outside the legacy files themselves imported the old adapter or mock. Additionally, the pipeline contained an inverted error-code check: it mapped `IMAGE_VALIDATION_ERROR` → HTTP 503 (Service Unavailable) and everything else → 502, when the intent (per the contract comment) was `IMAGE_CONFIG_ERROR` → 503 and everything else → 502. The contract test also used `AppConfigSeam` as a stand-in for `ImageProviderConfigSeam`, importing more config fields than the new seam needs.
+
+**Decision**: Retire the flat-layout duplicate entirely, fix the inverted error-code condition, and align the contract test with the correct seam dependency.
+
+**Rationale**: Dead code with a different interface for the same concept creates permanent confusion about which shape callers should use. The `GeneratedImage` type and Zod schemas in `contracts/image-generation.contract.ts` still define the `/api/image-generation` HTTP API shape used by the pipeline and four UI routes, so that contract file is retained — only the `ImageGenerationSeam` interface type is removed. The error-code inversion was a latent production bug: a misconfigured deployment (missing env key) would have returned 502 Bad Gateway instead of 503 Service Unavailable, misrepresenting the failure mode to callers.
+
+**Files deleted**:
+- `src/lib/adapters/image-generation.adapter.ts` (dead — nothing imported it)
+- `src/lib/mocks/image-generation.mock.ts` (dead — nothing imported it)
+
+**Files modified**:
+- `contracts/image-generation.contract.ts` — removed `ImageGenerationSeam` type and its unused `Result` import
+- `src/lib/core/image-generation-pipeline.ts` — fixed inverted error-code check (`IMAGE_CONFIG_ERROR` → 503)
+- `tests/contract/image-generation.test.ts` — replaced `AppConfigSeam` with `ImageProviderConfigSeam`; trimmed mock config to the 4 fields `ImageProviderConfig` actually declares
+- `docs/seams.md` — merged two `ImageGenerationSeam` rows into one canonical entry
+
+- Cipher Gate:
+    Date: 2026-05-20
+    Seams: ImageGenerationSeam, ImageProviderConfigSeam
+    Evidence: tests/contract/image-generation.test.ts (5 contract tests); src/lib/seams/image-generation-seam/test.ts (3 contract tests)
+    Summary: Flat-layout duplicate retired; error-code bug fixed; test dep corrected.
+
 ## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
 
 - Cipher Gate:
