@@ -74,6 +74,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	] as const;
 
 	const signs = HoroscopeSignSchema.options;
+	const toolsById = Object.fromEntries(tools.map((t) => [t.id, t]));
 	type ToolId = (typeof tools)[number]['id'];
 
 	let selectedTool: ToolId = tools[0].id;
@@ -220,7 +221,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 				</button>
 			{/each}
 		</div>
-		<p class="help">{tools.find((tool) => tool.id === selectedTool)?.help}</p>
+		<p class="help">{toolsById[selectedTool]?.help}</p>
 	</section>
 
 	<section class="form">

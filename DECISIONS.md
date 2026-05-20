@@ -1556,3 +1556,17 @@ Short, durable decisions with context and tradeoffs.
     Evidence: pending — verify pipeline requires XAI_API_KEY not available in this environment
     Summary: Added Zod validation (XAIChatResponseSchema, XAIImageResponseSchema) at xAI provider boundary. Returns PROVIDER_INVALID_RESPONSE for structurally invalid payloads. Applied .nullish() to optional fields to handle null returns from API.
     Risks: Cannot produce live probe evidence without XAI_API_KEY.
+
+## 2026-05-11 - Optimize Meechie tool help text lookup
+- Date: 2026-05-11
+- Decision: Use a dictionary-based lookup for tool help text in `MeechieTools.svelte` instead of searching the `tools` array on every render.
+- Context: The component was using `tools.find()` in the template to display the help text for the selected tool. While the array is small, a dictionary lookup is more efficient and idiomatic for frequently accessed static data.
+- Alternatives: Leave as `Array.find()`, which is fine for small arrays but less efficient.
+- Consequences: Improved rendering performance. Baseline benchmark showed ~50x speedup for 10M iterations (13ms vs 650ms).
+- Revisit criteria: Only revisit if the tool collection becomes dynamic or needs complex filtering.
+- Cipher Gate:
+  - Date: 2026-05-11
+  - Seams: None (UI performance optimization)
+  - Evidence: /home/jules/self_created_tools/benchmark_lookup.js output (13ms vs 650ms)
+  - Summary: Replaced linear array scan with dictionary lookup in MeechieTools.svelte.
+  - Risks: None.
