@@ -7,8 +7,12 @@ import { SYSTEM_CONSTANTS } from '../../src/lib/core/constants';
 describe('SYSTEM_CONSTANTS', () => {
 	describe('REQUIRED_PROMPT_PHRASES', () => {
 		it('is a non-empty array', () => {
-			expect(Array.isArray(SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES)).toBe(true);
-			expect(SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES.length).toBeGreaterThan(0);
+			expect(Array.isArray(SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES)).toBe(
+				true
+			);
+			expect(SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES.length).toBeGreaterThan(
+				0
+			);
 		});
 
 		it('contains the core coloring book phrase', () => {
@@ -18,11 +22,15 @@ describe('SYSTEM_CONSTANTS', () => {
 		});
 
 		it('contains the outline-only phrase', () => {
-			expect(SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES).toContain('outline-only');
+			expect(SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES).toContain(
+				'outline-only'
+			);
 		});
 
 		it('contains the easy to color phrase', () => {
-			expect(SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES).toContain('easy to color');
+			expect(SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES).toContain(
+				'easy to color'
+			);
 		});
 
 		it('contains the vector linework phrase', () => {
@@ -32,7 +40,9 @@ describe('SYSTEM_CONSTANTS', () => {
 		});
 
 		it('contains the negative prompt heading', () => {
-			expect(SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES).toContain('NEGATIVE PROMPT:');
+			expect(SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES).toContain(
+				'NEGATIVE PROMPT:'
+			);
 		});
 
 		it('every phrase is a non-empty string', () => {
@@ -79,11 +89,15 @@ describe('SYSTEM_CONSTANTS', () => {
 		});
 
 		it('defines default values', () => {
-			expect(SYSTEM_CONSTANTS.CHAT_SYSTEM_PROMPT).toContain('Default values when unspecified');
+			expect(SYSTEM_CONSTANTS.CHAT_SYSTEM_PROMPT).toContain(
+				'Default values when unspecified'
+			);
 		});
 
 		it('includes item constraints', () => {
-			expect(SYSTEM_CONSTANTS.CHAT_SYSTEM_PROMPT).toContain('items: 1-20 items');
+			expect(SYSTEM_CONSTANTS.CHAT_SYSTEM_PROMPT).toContain(
+				'items: 1-20 items'
+			);
 		});
 	});
 });

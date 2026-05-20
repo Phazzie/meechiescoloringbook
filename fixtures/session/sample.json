@@ -1,10 +1,10 @@
 {
-  "scenario": "sample",
-  "input": {},
-  "output": {
-    "ok": true,
-    "value": {
-      "sessionId": "session-123"
-    }
-  }
+	"scenario": "sample",
+	"input": {},
+	"output": {
+		"ok": true,
+		"value": {
+			"sessionId": "session-123"
+		}
+	}
 }

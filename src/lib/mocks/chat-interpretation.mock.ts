@@ -21,6 +21,9 @@ const fixtureSchema = z.object({
 const sampleFixture = fixtureSchema.parse(sample);
 const faultFixture = fixtureSchema.parse(fault);
 
-export const createChatInterpretationMock = (scenario: Scenario): ChatInterpretationSeam => ({
-	interpret: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+export const createChatInterpretationMock = (
+	scenario: Scenario
+): ChatInterpretationSeam => ({
+	interpret: async () =>
+		scenario === 'fault' ? faultFixture.output : sampleFixture.output
 });

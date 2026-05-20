@@ -3,5 +3,7 @@
 // Info flow: probe I/O -> recorded fixtures.
 import type { WigTryOnRequest, WigTryOnSeam } from './contract';
 
-export const probeWigTryOn = async (seam: WigTryOnSeam, request: WigTryOnRequest) =>
-  seam.tryOn(request);
+export const probeWigTryOn = async (
+	seam: WigTryOnSeam,
+	request: WigTryOnRequest
+) => seam.tryOn(request);

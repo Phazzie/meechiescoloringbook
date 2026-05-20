@@ -5,7 +5,7 @@ import type { ImageProviderConfigSeam } from './contract';
 import { getImageProviderConfigFixture } from './fixtures';
 
 export const createMockImageProviderConfigSeam = (
-  scenario: 'sample' | 'fault' = 'sample'
+	scenario: 'sample' | 'fault' = 'sample'
 ): ImageProviderConfigSeam => ({
-  getConfig: () => getImageProviderConfigFixture(scenario)
+	getConfig: () => getImageProviderConfigFixture(scenario)
 });

@@ -89,9 +89,9 @@ describe('CreationStoreSeam contract', () => {
 		expect(await mock.getCreation(sampleFixture.input.getCreation)).toEqual(
 			sampleFixture.output.getCreation
 		);
-		expect(await mock.deleteCreation(sampleFixture.input.deleteCreation)).toEqual(
-			sampleFixture.output.deleteCreation
-		);
+		expect(
+			await mock.deleteCreation(sampleFixture.input.deleteCreation)
+		).toEqual(sampleFixture.output.deleteCreation);
 		expect(await mock.saveDraft(sampleFixture.input.saveDraft)).toEqual(
 			sampleFixture.output.saveDraft
 		);
@@ -114,9 +114,9 @@ describe('CreationStoreSeam contract', () => {
 		expect(await mock.getCreation(faultFixture.input.getCreation)).toEqual(
 			faultFixture.output.getCreation
 		);
-		expect(await mock.deleteCreation(faultFixture.input.deleteCreation)).toEqual(
-			faultFixture.output.deleteCreation
-		);
+		expect(
+			await mock.deleteCreation(faultFixture.input.deleteCreation)
+		).toEqual(faultFixture.output.deleteCreation);
 		expect(await mock.saveDraft(faultFixture.input.saveDraft)).toEqual(
 			faultFixture.output.saveDraft
 		);
@@ -130,27 +130,33 @@ describe('CreationStoreSeam contract', () => {
 
 	it('adapter returns browser-gated errors in non-browser environments', async () => {
 		if (typeof localStorage === 'undefined') {
-			expect(await creationStoreAdapter.saveCreation(sampleFixture.input.saveCreation)).toEqual(
-				faultFixture.output.saveCreation
-			);
-			expect(await creationStoreAdapter.listCreations(sampleFixture.input.listCreations)).toEqual(
-				faultFixture.output.listCreations
-			);
-			expect(await creationStoreAdapter.getCreation(sampleFixture.input.getCreation)).toEqual(
-				faultFixture.output.getCreation
-			);
-			expect(await creationStoreAdapter.deleteCreation(sampleFixture.input.deleteCreation)).toEqual(
-				faultFixture.output.deleteCreation
-			);
-			expect(await creationStoreAdapter.saveDraft(sampleFixture.input.saveDraft)).toEqual(
-				faultFixture.output.saveDraft
-			);
-			expect(await creationStoreAdapter.getDraft(sampleFixture.input.getDraft)).toEqual(
-				faultFixture.output.getDraft
-			);
-			expect(await creationStoreAdapter.clearDraft(sampleFixture.input.clearDraft)).toEqual(
-				faultFixture.output.clearDraft
-			);
+			expect(
+				await creationStoreAdapter.saveCreation(
+					sampleFixture.input.saveCreation
+				)
+			).toEqual(faultFixture.output.saveCreation);
+			expect(
+				await creationStoreAdapter.listCreations(
+					sampleFixture.input.listCreations
+				)
+			).toEqual(faultFixture.output.listCreations);
+			expect(
+				await creationStoreAdapter.getCreation(sampleFixture.input.getCreation)
+			).toEqual(faultFixture.output.getCreation);
+			expect(
+				await creationStoreAdapter.deleteCreation(
+					sampleFixture.input.deleteCreation
+				)
+			).toEqual(faultFixture.output.deleteCreation);
+			expect(
+				await creationStoreAdapter.saveDraft(sampleFixture.input.saveDraft)
+			).toEqual(faultFixture.output.saveDraft);
+			expect(
+				await creationStoreAdapter.getDraft(sampleFixture.input.getDraft)
+			).toEqual(faultFixture.output.getDraft);
+			expect(
+				await creationStoreAdapter.clearDraft(sampleFixture.input.clearDraft)
+			).toEqual(faultFixture.output.clearDraft);
 		}
 	});
 });

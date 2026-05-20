@@ -14,9 +14,13 @@ import type {
 import type { Result } from '../../../contracts/shared.contract';
 
 export const createMeechieStudioTextAdapter = (
-	deps: MeechieStudioTextPipelineDeps = { createProvider: createProviderAdapter }
+	deps: MeechieStudioTextPipelineDeps = {
+		createProvider: createProviderAdapter
+	}
 ): MeechieStudioTextSeam => ({
-	respond: async (input: MeechieStudioTextInput): Promise<Result<MeechieStudioTextOutput>> => {
+	respond: async (
+		input: MeechieStudioTextInput
+	): Promise<Result<MeechieStudioTextOutput>> => {
 		const response = await runMeechieStudioTextPipeline(input, deps);
 		return response.body;
 	}

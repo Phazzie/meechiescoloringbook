@@ -1,7 +1,10 @@
 // Purpose: Orchestrate the wig try-on flow: catalog lookup, image fetch, Gemini call.
 // Why: Keep the route handler thin and the pipeline logic testable via injected seams.
 // Info flow: wigId + selfieBase64 -> WigCatalogSeam -> image fetch -> WigTryOnSeam -> portrait Result.
-import { WigTryOnRequestSchema, WigTryOnResultSchema } from '../../../contracts/wig-try-on.contract';
+import {
+	WigTryOnRequestSchema,
+	WigTryOnResultSchema
+} from '../../../contracts/wig-try-on.contract';
 import { z } from 'zod';
 import type { WigCatalogSeam } from '../seams/wig-catalog-seam/contract';
 import type { WigTryOnSeam } from '../seams/wig-try-on-seam/contract';
@@ -14,7 +17,10 @@ type PipelineResponse = {
 };
 
 type PipelineDeps = {
-	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+	fetchImpl: (
+		input: RequestInfo | URL,
+		init?: RequestInit
+	) => Promise<Response>;
 	wigCatalogSeam: WigCatalogSeam;
 	wigTryOnSeam: WigTryOnSeam;
 };
@@ -52,7 +58,11 @@ export const runWigTryOnPipeline = async (
 ): Promise<PipelineResponse> => {
 	const parsed = WigTryOnRequestSchema.safeParse(body);
 	if (!parsed.success) {
-		return buildError(400, 'WIG_TRY_ON_INPUT_INVALID', 'Wig try-on request is invalid.');
+		return buildError(
+			400,
+			'WIG_TRY_ON_INPUT_INVALID',
+			'Wig try-on request is invalid.'
+		);
 	}
 
 	const { selfieBase64, selfieMimeType, wigId } = parsed.data;
@@ -67,7 +77,11 @@ export const runWigTryOnPipeline = async (
 
 	const wigImage = await fetchImageAsBase64(wig.imageUrl, deps.fetchImpl);
 	if (!wigImage) {
-		return buildError(502, 'WIG_IMAGE_FETCH_FAILED', `Could not fetch wig image for ${wig.name}.`);
+		return buildError(
+			502,
+			'WIG_IMAGE_FETCH_FAILED',
+			`Could not fetch wig image for ${wig.name}.`
+		);
 	}
 
 	const safeMimeType = ALLOWED_WIG_MIME.has(wigImage.mimeType)
@@ -84,7 +98,8 @@ export const runWigTryOnPipeline = async (
 	});
 
 	if (!tryOnResult.ok) {
-		const isClientError = tryOnResult.error.code === 'WIG_TRY_ON_VALIDATION_ERROR';
+		const isClientError =
+			tryOnResult.error.code === 'WIG_TRY_ON_VALIDATION_ERROR';
 		return buildError(
 			isClientError ? 400 : 502,
 			tryOnResult.error.code,
@@ -102,7 +117,11 @@ export const runWigTryOnPipeline = async (
 
 	const validated = WigTryOnResultSchema.safeParse(result);
 	if (!validated.success) {
-		return buildError(500, 'WIG_TRY_ON_OUTPUT_INVALID', 'Wig try-on response did not match contract.');
+		return buildError(
+			500,
+			'WIG_TRY_ON_OUTPUT_INVALID',
+			'Wig try-on response did not match contract.'
+		);
 	}
 
 	return { status: 200, body: validated.data };

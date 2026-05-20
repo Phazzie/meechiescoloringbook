@@ -29,7 +29,9 @@ export const DriftDetectionOutputSchema = z.object({
 	recommendedFixes: z.array(RecommendedFixSchema)
 });
 
-export const DriftDetectionResultSchema = resultSchema(DriftDetectionOutputSchema);
+export const DriftDetectionResultSchema = resultSchema(
+	DriftDetectionOutputSchema
+);
 
 export type Violation = z.infer<typeof ViolationSchema>;
 export type DriftDetectionInput = z.infer<typeof DriftDetectionInputSchema>;

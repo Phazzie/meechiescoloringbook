@@ -24,7 +24,9 @@ describe('Meechie studio controls', () => {
 			...DEFAULT_STUDIO_TEXT_OUTPUT.pageItems.map((item) => item.label)
 		].join(' ');
 
-		expect(DEFAULT_STUDIO_TEXT_OUTPUT.quote).toBe('You fumbled ME? In THIS economy?');
+		expect(DEFAULT_STUDIO_TEXT_OUTPUT.quote).toBe(
+			'You fumbled ME? In THIS economy?'
+		);
 		expect(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle).toBe('IN THIS ECONOMY');
 		expect(previewText.toLowerCase()).not.toContain('phone');
 		expect(previewText.toLowerCase()).not.toContain('battery');
@@ -33,15 +35,21 @@ describe('Meechie studio controls', () => {
 	it('defines exactly eight visual modes', () => {
 		expect(studioModes).toHaveLength(8);
 		expect(new Set(studioModes.map((mode) => mode.id)).size).toBe(8);
-		expect(studioModes.every((mode) => mode.image.startsWith('/meechie/'))).toBe(true);
+		expect(
+			studioModes.every((mode) => mode.image.startsWith('/meechie/'))
+		).toBe(true);
 	});
 
 	it('keeps AI text action metadata separate from local controls', () => {
 		expect(getStudioAction('generate_text').costClass).toBe('unclassified');
-		expect(getStudioAction('generate_text').countsAgainstRevisionBudget).toBe(true);
+		expect(getStudioAction('generate_text').countsAgainstRevisionBudget).toBe(
+			true
+		);
 		expect(getStudioTextAction('generate_text').aiAction).toBe('generate');
 		expect(getStudioAction('copy_quote').costClass).toBe('free');
-		expect(getStudioAction('copy_quote').countsAgainstRevisionBudget).toBe(false);
+		expect(getStudioAction('copy_quote').countsAgainstRevisionBudget).toBe(
+			false
+		);
 	});
 
 	it('throws when text action metadata is requested for a non-AI action id', () => {
@@ -55,9 +63,21 @@ describe('Meechie studio controls', () => {
 		expect(DEFAULT_REVISION_BUDGET).toBe(3);
 		expect(consumeStudioActionBudget(3, 'make_prettier')).toBe(2);
 		expect(consumeStudioActionBudget(3, 'copy_quote')).toBe(3);
-		expect(canRunStudioAction('make_meaner', { remainingBudget: 0, isRunning: false })).toBe(false);
-		expect(canRunStudioAction('export_png', { remainingBudget: 0, isRunning: false })).toBe(true);
-		expect(canRunStudioAction('make_more_specific', { remainingBudget: 2, isRunning: true })).toBe(false);
+		expect(
+			canRunStudioAction('make_meaner', {
+				remainingBudget: 0,
+				isRunning: false
+			})
+		).toBe(false);
+		expect(
+			canRunStudioAction('export_png', { remainingBudget: 0, isRunning: false })
+		).toBe(true);
+		expect(
+			canRunStudioAction('make_more_specific', {
+				remainingBudget: 2,
+				isRunning: true
+			})
+		).toBe(false);
 	});
 
 	it('connects Meechie output to coloring page text', () => {
@@ -78,7 +98,10 @@ describe('Meechie studio controls', () => {
 		});
 
 		expect(spec.title).toBe('COLOR THE PROOF');
-		expect(spec.items.map((item) => item.label)).toEqual(['CHECK THE CLOCK', 'READ THE POST']);
+		expect(spec.items.map((item) => item.label)).toEqual([
+			'CHECK THE CLOCK',
+			'READ THE POST'
+		]);
 		expect(spec.footerItem?.label).toBe('COLOR THE PROOF');
 		expect(spec.pageSize).toBe('A4');
 		expect(spec.border).toBe('plain');
@@ -89,9 +112,13 @@ describe('Meechie studio controls', () => {
 			output: {
 				verdict: 'Meechie sees the whole thing.',
 				quote: 'That ampersand was doing too much.',
-				pageTitle: 'Receipt & emoji chaos that is way too long for the printable label field',
+				pageTitle:
+					'Receipt & emoji chaos that is way too long for the printable label field',
 				pageItems: [
-					{ number: 1, label: 'CALL & RESPONSE WITH GLITTER ✨ AND TOO MANY WORDS' },
+					{
+						number: 1,
+						label: 'CALL & RESPONSE WITH GLITTER ✨ AND TOO MANY WORDS'
+					},
 					{ number: 2, label: 'Keep it cute!!!' }
 				],
 				qualityState: 'ready'
@@ -156,7 +183,8 @@ describe('Meechie studio controls', () => {
 			id: 'creation-1',
 			createdAtISO: '2026-05-03T00:00:00.000Z',
 			intent,
-			assembledPrompt: 'Create a long image-generation prompt with composition details.',
+			assembledPrompt:
+				'Create a long image-generation prompt with composition details.',
 			studioText,
 			owner: { kind: 'anonymous', sessionId: 'session-123' }
 		});
@@ -197,7 +225,10 @@ describe('Meechie studio controls', () => {
 		});
 
 		expect(restored.pageTitle).toBe('LEGACY TITLE');
-		expect(restored.pageItems.map((item) => item.label)).toEqual(['LEGACY ITEM', 'SECOND ITEM']);
+		expect(restored.pageItems.map((item) => item.label)).toEqual([
+			'LEGACY ITEM',
+			'SECOND ITEM'
+		]);
 		expect(restored.quote).toBe('LEGACY TITLE');
 	});
 });

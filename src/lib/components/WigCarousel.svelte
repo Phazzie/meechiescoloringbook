@@ -26,9 +26,17 @@
 	} = $props();
 </script>
 
-<div class="wig-carousel" role="list" aria-label="Wig catalog — pick one to try on">
+<div
+	class="wig-carousel"
+	role="list"
+	aria-label="Wig catalog — pick one to try on"
+>
 	{#each wigs as wig}
-		<article class="wig-card" class:selected={selectedWigId === wig.id} role="listitem">
+		<article
+			class="wig-card"
+			class:selected={selectedWigId === wig.id}
+			role="listitem"
+		>
 			<button
 				type="button"
 				class="wig-card-btn"

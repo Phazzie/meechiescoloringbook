@@ -13,13 +13,18 @@ vi.mock('../../src/lib/adapters/provider-adapter.adapter', () => ({
 }));
 
 // Import after mock registration so the adapter picks up the mocked provider.
-const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool.adapter');
+const { meechieToolAdapter } =
+	await import('../../src/lib/adapters/meechie-tool.adapter');
 
 const okResponse = (headline: string, response: string, rating?: number) => ({
 	ok: true as const,
 	value: {
 		model: 'test-model',
-		content: JSON.stringify({ headline, response, ...(rating !== undefined ? { rating } : {}) })
+		content: JSON.stringify({
+			headline,
+			response,
+			...(rating !== undefined ? { rating } : {})
+		})
 	}
 });
 
@@ -29,18 +34,23 @@ beforeEach(() => {
 
 describe('meechieToolAdapter — AI routing', () => {
 	it('sends a Meechie system prompt for red_flag_or_run', async () => {
-		mockCreateChatCompletion.mockResolvedValue(okResponse('Run.', 'Fault: them. Consequence: access revoked.'));
+		mockCreateChatCompletion.mockResolvedValue(
+			okResponse('Run.', 'Fault: them. Consequence: access revoked.')
+		);
 
 		const result = await meechieToolAdapter.respond({
 			toolId: 'red_flag_or_run',
-			situation: 'He said he is not ready for a relationship but keeps texting me every night.'
+			situation:
+				'He said he is not ready for a relationship but keeps texting me every night.'
 		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.toolId).toBe('red_flag_or_run');
 			expect(result.value.headline).toBe('Run.');
-			expect(result.value.response).toBe('Fault: them. Consequence: access revoked.');
+			expect(result.value.response).toBe(
+				'Fault: them. Consequence: access revoked.'
+			);
 		}
 
 		const call = mockCreateChatCompletion.mock.calls[0][0];
@@ -52,10 +62,16 @@ describe('meechieToolAdapter — AI routing', () => {
 
 	it('sends a Meechie system prompt for wwmd', async () => {
 		mockCreateChatCompletion.mockResolvedValue(
-			okResponse('Meechie Move', 'Fault: them. Consequence: silence served back. Move: upgrade your weekend.')
+			okResponse(
+				'Meechie Move',
+				'Fault: them. Consequence: silence served back. Move: upgrade your weekend.'
+			)
 		);
 
-		const result = await meechieToolAdapter.respond({ toolId: 'wwmd', dilemma: 'He left me on read again' });
+		const result = await meechieToolAdapter.respond({
+			toolId: 'wwmd',
+			dilemma: 'He left me on read again'
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -71,7 +87,10 @@ describe('meechieToolAdapter — AI routing', () => {
 
 	it('sends a Meechie system prompt for apology_translator', async () => {
 		mockCreateChatCompletion.mockResolvedValue(
-			okResponse('What That Really Meant', 'Translation: you centered optics not impact. Meechie logic: name the act.')
+			okResponse(
+				'What That Really Meant',
+				'Translation: you centered optics not impact. Meechie logic: name the act.'
+			)
 		);
 
 		const result = await meechieToolAdapter.respond({
@@ -90,7 +109,13 @@ describe('meechieToolAdapter — AI routing', () => {
 	});
 
 	it('sends a Meechie system prompt for rate_excuse with a rating', async () => {
-		mockCreateChatCompletion.mockResolvedValue(okResponse('2/10', 'Phones die. Your character did not have to go with it.', 2));
+		mockCreateChatCompletion.mockResolvedValue(
+			okResponse(
+				'2/10',
+				'Phones die. Your character did not have to go with it.',
+				2
+			)
+		);
 
 		const result = await meechieToolAdapter.respond({
 			toolId: 'rate_excuse',
@@ -109,9 +134,17 @@ describe('meechieToolAdapter — AI routing', () => {
 	});
 
 	it('sends a Meechie system prompt for caption_this', async () => {
-		mockCreateChatCompletion.mockResolvedValue(okResponse('Caption Locked', 'Airport fit check — pretty, paid, and present.'));
+		mockCreateChatCompletion.mockResolvedValue(
+			okResponse(
+				'Caption Locked',
+				'Airport fit check — pretty, paid, and present.'
+			)
+		);
 
-		const result = await meechieToolAdapter.respond({ toolId: 'caption_this', moment: 'airport fit check' });
+		const result = await meechieToolAdapter.respond({
+			toolId: 'caption_this',
+			moment: 'airport fit check'
+		});
 
 		expect(result.ok).toBe(true);
 		const call = mockCreateChatCompletion.mock.calls[0][0];
@@ -120,9 +153,14 @@ describe('meechieToolAdapter — AI routing', () => {
 	});
 
 	it('sends a Meechie system prompt for clapback', async () => {
-		mockCreateChatCompletion.mockResolvedValue(okResponse('Return Fire', 'Keep watching from the cheap seats.'));
+		mockCreateChatCompletion.mockResolvedValue(
+			okResponse('Return Fire', 'Keep watching from the cheap seats.')
+		);
 
-		const result = await meechieToolAdapter.respond({ toolId: 'clapback', comment: 'she thinks she all that' });
+		const result = await meechieToolAdapter.respond({
+			toolId: 'clapback',
+			comment: 'she thinks she all that'
+		});
 
 		expect(result.ok).toBe(true);
 		const call = mockCreateChatCompletion.mock.calls[0][0];
@@ -130,7 +168,12 @@ describe('meechieToolAdapter — AI routing', () => {
 	});
 
 	it('sends a Meechie system prompt for receipts', async () => {
-		mockCreateChatCompletion.mockResolvedValue(okResponse('Paper Trail', 'He said work. Location said VIP. The receipt is submitted.'));
+		mockCreateChatCompletion.mockResolvedValue(
+			okResponse(
+				'Paper Trail',
+				'He said work. Location said VIP. The receipt is submitted.'
+			)
+		);
 
 		const result = await meechieToolAdapter.respond({
 			toolId: 'receipts',
@@ -147,10 +190,16 @@ describe('meechieToolAdapter — AI routing', () => {
 
 	it('sends a Meechie system prompt for meechie_explains', async () => {
 		mockCreateChatCompletion.mockResolvedValue(
-			okResponse('Street Glossary', 'A situationship is him renting access with no contract and no deposit.')
+			okResponse(
+				'Street Glossary',
+				'A situationship is him renting access with no contract and no deposit.'
+			)
 		);
 
-		const result = await meechieToolAdapter.respond({ toolId: 'meechie_explains', term: 'situationship' });
+		const result = await meechieToolAdapter.respond({
+			toolId: 'meechie_explains',
+			term: 'situationship'
+		});
 
 		expect(result.ok).toBe(true);
 		const call = mockCreateChatCompletion.mock.calls[0][0];
@@ -160,10 +209,15 @@ describe('meechieToolAdapter — AI routing', () => {
 
 	it('sends a Meechie system prompt for random_meechie', async () => {
 		mockCreateChatCompletion.mockResolvedValue(
-			okResponse('Random Meechie', 'Keep playing and your cousin is getting a Bundt cake and a front row seat.')
+			okResponse(
+				'Random Meechie',
+				'Keep playing and your cousin is getting a Bundt cake and a front row seat.'
+			)
 		);
 
-		const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+		const result = await meechieToolAdapter.respond({
+			toolId: 'random_meechie'
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -177,7 +231,10 @@ describe('meechieToolAdapter — AI routing', () => {
 
 	it('sends a Meechie system prompt for lineup', async () => {
 		mockCreateChatCompletion.mockResolvedValue(
-			okResponse('Ranked and Ruled', '1st place: "Him" — at least he showed up. 2nd place: "The excuse" — arrived late and underdressed.')
+			okResponse(
+				'Ranked and Ruled',
+				'1st place: "Him" — at least he showed up. 2nd place: "The excuse" — arrived late and underdressed.'
+			)
 		);
 
 		const result = await meechieToolAdapter.respond({
@@ -194,10 +251,16 @@ describe('meechieToolAdapter — AI routing', () => {
 
 	it('sends a Meechie system prompt for horoscope', async () => {
 		mockCreateChatCompletion.mockResolvedValue(
-			okResponse('Meechie Forecast — Scorpio', 'You already clocked the lie. The question is what you do with the receipt.')
+			okResponse(
+				'Meechie Forecast — Scorpio',
+				'You already clocked the lie. The question is what you do with the receipt.'
+			)
 		);
 
-		const result = await meechieToolAdapter.respond({ toolId: 'horoscope', sign: 'Scorpio' });
+		const result = await meechieToolAdapter.respond({
+			toolId: 'horoscope',
+			sign: 'Scorpio'
+		});
 
 		expect(result.ok).toBe(true);
 		const call = mockCreateChatCompletion.mock.calls[0][0];
@@ -208,10 +271,15 @@ describe('meechieToolAdapter — AI routing', () => {
 	it('returns PROVIDER_API_KEY_MISSING error when provider has no key', async () => {
 		mockCreateChatCompletion.mockResolvedValue({
 			ok: false,
-			error: { code: 'PROVIDER_API_KEY_MISSING', message: 'XAI_API_KEY is required.' }
+			error: {
+				code: 'PROVIDER_API_KEY_MISSING',
+				message: 'XAI_API_KEY is required.'
+			}
 		});
 
-		const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+		const result = await meechieToolAdapter.respond({
+			toolId: 'random_meechie'
+		});
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
@@ -225,7 +293,9 @@ describe('meechieToolAdapter — AI routing', () => {
 			error: { code: 'PROVIDER_HTTP_ERROR', message: 'Bad gateway.' }
 		});
 
-		const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+		const result = await meechieToolAdapter.respond({
+			toolId: 'random_meechie'
+		});
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
@@ -239,7 +309,9 @@ describe('meechieToolAdapter — AI routing', () => {
 			value: { model: 'test-model', content: 'not json at all' }
 		});
 
-		const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+		const result = await meechieToolAdapter.respond({
+			toolId: 'random_meechie'
+		});
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) {

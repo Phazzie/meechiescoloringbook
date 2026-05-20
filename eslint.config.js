@@ -8,9 +8,6 @@ export default [
 	...svelte.configs['flat/recommended'],
 	prettier,
 	{
-		ignores: ['.svelte-kit/**', '.vercel/**', 'build/**', 'dist/**', 'coverage/**']
-	},
-	{
 		languageOptions: {
 			globals: {
 				...globals.browser,

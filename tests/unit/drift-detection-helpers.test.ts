@@ -119,7 +119,8 @@ describe('drift-detection adapter edge cases', () => {
 	describe('extra headings detection', () => {
 		it('detects unauthorized headings as FORBIDDEN_HEADING', async () => {
 			const validPrompt = buildValidPrompt(baseSpec);
-			const promptWithExtra = validPrompt + '\nCUSTOM HEADING:\nSome content here.';
+			const promptWithExtra =
+				validPrompt + '\nCUSTOM HEADING:\nSome content here.';
 			const result = await driftDetectionAdapter.detect({
 				spec: baseSpec,
 				promptSent: promptWithExtra
@@ -224,7 +225,9 @@ describe('drift-detection adapter edge cases', () => {
 				promptSent: sparsePrompt
 			});
 			if (result.ok) {
-				expect(result.value.recommendedFixes.length).toBe(result.value.violations.length);
+				expect(result.value.recommendedFixes.length).toBe(
+					result.value.violations.length
+				);
 			}
 		});
 	});
@@ -239,7 +242,9 @@ describe('drift-detection adapter edge cases', () => {
 			});
 			if (result.ok) {
 				const dedicationViolations = result.value.violations.filter(
-					(v) => v.code === 'MISSING_OPTION_LINE' && v.message.toLowerCase().includes('dedicat')
+					(v) =>
+						v.code === 'MISSING_OPTION_LINE' &&
+						v.message.toLowerCase().includes('dedicat')
 				);
 				expect(dedicationViolations.length).toBeGreaterThan(0);
 			}

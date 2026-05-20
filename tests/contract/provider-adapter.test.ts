@@ -82,11 +82,14 @@ beforeEach(() => {
 		const url = typeof input === 'string' ? input : input.toString();
 		const body = init?.body ? JSON.parse(String(init.body)) : {};
 		const messageHasFail = Array.isArray(body.messages)
-			? body.messages.some((message: { content?: string }) =>
-					typeof message.content === 'string' && message.content.includes('fail')
+			? body.messages.some(
+					(message: { content?: string }) =>
+						typeof message.content === 'string' &&
+						message.content.includes('fail')
 				)
 			: false;
-		const promptHasFail = typeof body.prompt === 'string' && body.prompt.includes('fail');
+		const promptHasFail =
+			typeof body.prompt === 'string' && body.prompt.includes('fail');
 		const isFault =
 			(typeof body.model === 'string' && body.model.includes('bad')) ||
 			messageHasFail ||
@@ -129,8 +132,12 @@ afterEach(() => {
 describe('ProviderAdapterSeam contract', () => {
 	it('mock returns sample fixture output', async () => {
 		const mock = createProviderAdapterMock('sample');
-		const chatOutput = await mock.createChatCompletion(sampleFixture.input.chat);
-		const imageOutput = await mock.createImageGeneration(sampleFixture.input.image);
+		const chatOutput = await mock.createChatCompletion(
+			sampleFixture.input.chat
+		);
+		const imageOutput = await mock.createImageGeneration(
+			sampleFixture.input.image
+		);
 		expect(chatOutput).toEqual(sampleFixture.output.chat);
 		expect(imageOutput).toEqual(sampleFixture.output.image);
 	});
@@ -138,21 +145,31 @@ describe('ProviderAdapterSeam contract', () => {
 	it('mock returns fault fixture output', async () => {
 		const mock = createProviderAdapterMock('fault');
 		const chatOutput = await mock.createChatCompletion(faultFixture.input.chat);
-		const imageOutput = await mock.createImageGeneration(faultFixture.input.image);
+		const imageOutput = await mock.createImageGeneration(
+			faultFixture.input.image
+		);
 		expect(chatOutput).toEqual(faultFixture.output.chat);
 		expect(imageOutput).toEqual(faultFixture.output.image);
 	});
 
 	it('adapter returns sample fixture output', async () => {
-		const chatOutput = await providerAdapter.createChatCompletion(sampleFixture.input.chat);
-		const imageOutput = await providerAdapter.createImageGeneration(sampleFixture.input.image);
+		const chatOutput = await providerAdapter.createChatCompletion(
+			sampleFixture.input.chat
+		);
+		const imageOutput = await providerAdapter.createImageGeneration(
+			sampleFixture.input.image
+		);
 		expect(chatOutput).toEqual(sampleFixture.output.chat);
 		expect(imageOutput).toEqual(sampleFixture.output.image);
 	});
 
 	it('adapter returns fault fixture output', async () => {
-		const chatOutput = await providerAdapter.createChatCompletion(faultFixture.input.chat);
-		const imageOutput = await providerAdapter.createImageGeneration(faultFixture.input.image);
+		const chatOutput = await providerAdapter.createChatCompletion(
+			faultFixture.input.chat
+		);
+		const imageOutput = await providerAdapter.createImageGeneration(
+			faultFixture.input.image
+		);
 		expect(chatOutput).toEqual(faultFixture.output.chat);
 		expect(imageOutput).toEqual(faultFixture.output.image);
 	});

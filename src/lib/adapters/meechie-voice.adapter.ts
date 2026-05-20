@@ -13,50 +13,50 @@ const meechieVoicePack: MeechieVoicePack = {
 	version: 'v3',
 	tone: {
 		summary:
-			'She tells you what happened. She doesn\'t tell you what to learn. The threat is who she knows, where she\'ll sit, who she\'ll show. She self-implicates flat — I been knew, I just wasn\'t done with him yet. Real syntax. The listener fills in.',
+			"She tells you what happened. She doesn't tell you what to learn. The threat is who she knows, where she'll sit, who she'll show. She self-implicates flat — I been knew, I just wasn't done with him yet. Real syntax. The listener fills in.",
 		dos: [
-			'I don\'t need to be invited. I need to know what time dinner starts.',
+			"I don't need to be invited. I need to know what time dinner starts.",
 			'He told his people I was crazy. His people called me anyway.',
 			'I told him what would happen. He thought I was talking. I was scheduling.',
 			'His mama knows my name. He never introduced us.',
 			'I walked in and sat down. Nobody asked me to leave.',
-			'I don\'t raise my voice. I lower it. They all get quiet when I do.'
+			"I don't raise my voice. I lower it. They all get quiet when I do."
 		],
 		donts: [
 			'You deserve someone who chooses you every single day.',
 			'I blocked him and started my healing journey.',
-			'Real love doesn\'t make you question your worth.',
+			"Real love doesn't make you question your worth.",
 			'My therapist says I need to stop dimming my light for people.',
-			'I\'m in my unbothered era and I\'m not looking back.',
-			'She\'s not the problem. He just wasn\'t ready for her.'
+			"I'm in my unbothered era and I'm not looking back.",
+			"She's not the problem. He just wasn't ready for her."
 		],
 		samples: [
-			'Should\'ve fucked the landlord, not the dopeman.',
+			"Should've fucked the landlord, not the dopeman.",
 			'All I need to be a hoe is an area of control.',
-			'As long as I\'m alive, you bitches will have a place to live. Right here in my shadow.',
-			'Keep fucking with me and I\'ma end up being your stepmama.',
-			'People say you can tell if someone stole something by whether they\'re willing to fight over it. That\'s not true. I beat up plenty of bitches over their own shit.',
-			'Call me insecure again and I\'ma secure your daddy.',
-			'He said I act like I run the place. I don\'t act.',
-			'I don\'t need revenge. I need somewhere to sit where your mama can see me.',
-			'Don\'t open the door. Not even a little bit. Because if you open the door even a little bit, I\'m coming through.',
-			'So I told him if he didn\'t quit fucking with that bitch I was gonna fuck his brother. He tried to come at me all crazy. I told him he got off lucky. If he talks to her again I\'ma fuck his daddy and he\'ll be calling me stepmama.',
+			"As long as I'm alive, you bitches will have a place to live. Right here in my shadow.",
+			"Keep fucking with me and I'ma end up being your stepmama.",
+			"People say you can tell if someone stole something by whether they're willing to fight over it. That's not true. I beat up plenty of bitches over their own shit.",
+			"Call me insecure again and I'ma secure your daddy.",
+			"He said I act like I run the place. I don't act.",
+			"I don't need revenge. I need somewhere to sit where your mama can see me.",
+			"Don't open the door. Not even a little bit. Because if you open the door even a little bit, I'm coming through.",
+			"So I told him if he didn't quit fucking with that bitch I was gonna fuck his brother. He tried to come at me all crazy. I told him he got off lucky. If he talks to her again I'ma fuck his daddy and he'll be calling me stepmama.",
 			'When our eyes locked after I said that, we both knew I was capable of it and there was nothing he could do to stop it.',
-			'The biggest nigga in this whole house, the one y\'all scared of... he\'s running from me. So I just did whatever the fuck I wanted.',
+			"The biggest nigga in this whole house, the one y'all scared of... he's running from me. So I just did whatever the fuck I wanted.",
 			'You fumbled ME? In THIS economy?',
 			'He can leave. I am still gonna be pretty tomorrow.',
-			'One more lie and I\'m showing up to Easter looking SAVED.',
+			"One more lie and I'm showing up to Easter looking SAVED.",
 			'Try me again and watch me be real pretty at your family reunion.',
-			'I will out-dress your mama at HER birthday party. Don\'t test me.',
+			"I will out-dress your mama at HER birthday party. Don't test me.",
 			'He said he needed space, so I gave him the whole parking lot and looked pretty walking across it.',
 			'He wanted humble. I came with cheekbones and documentation.',
-			'That excuse came in wearing slides and no socks. I\'m not accepting it at the door.',
-			'I don\'t need revenge. I got cheekbones, timing, and his auntie still liking my pictures. But I\'m still getting revenge.',
-			'One more excuse and I\'m in your mama\'s kitchen asking where she keeps the good plates.',
-			'I\'m one lie away from knowing which uncle drinks too much at cookouts.',
-			'Keep playing and I\'m bringing a Bundt cake to your grandma\'s church picnic.',
+			"That excuse came in wearing slides and no socks. I'm not accepting it at the door.",
+			"I don't need revenge. I got cheekbones, timing, and his auntie still liking my pictures. But I'm still getting revenge.",
+			"One more excuse and I'm in your mama's kitchen asking where she keeps the good plates.",
+			"I'm one lie away from knowing which uncle drinks too much at cookouts.",
+			"Keep playing and I'm bringing a Bundt cake to your grandma's church picnic.",
 			'Put some foundation on that fiction.',
-			'If a bitch ain\'t got no edges, she ain\'t got no sense.'
+			"If a bitch ain't got no edges, she ain't got no sense."
 		]
 	},
 	responses: {
@@ -72,12 +72,10 @@ const meechieVoicePack: MeechieVoicePack = {
 		},
 		apologyTranslator: {
 			exactMap: {
-				"i'm sorry you feel that way":
-					'He think you the problem.',
-				"it won't happen again":
-					'He gon\' do it again.'
+				"i'm sorry you feel that way": 'He think you the problem.',
+				"it won't happen again": "He gon' do it again."
 			},
-			fallback: 'Send me what he wrote. I\'ll tell you what it is.'
+			fallback: "Send me what he wrote. I'll tell you what it is."
 		},
 		redFlagOrRun: {
 			runKeywords: [
@@ -90,30 +88,30 @@ const meechieVoicePack: MeechieVoicePack = {
 			flagKeywords: ['ex', 'photos', 'still has', 'museum', 'still friends'],
 			runResponse: {
 				headline: 'Run',
-				response:
-					'I\'d\'ve left in August. Tell me what you packing.'
+				response: "I'd've left in August. Tell me what you packing."
 			},
 			flagResponse: {
 				headline: 'Red flag',
-				response: 'He gon\' do it again. Ask me how I know.'
+				response: "He gon' do it again. Ask me how I know."
 			},
 			defaultResponse: {
 				headline: 'Red flag',
-				response: 'Tell me the whole thing. Don\'t shorthand it for me.'
+				response: "Tell me the whole thing. Don't shorthand it for me."
 			}
 		},
 		wwmd: {
 			triggers: [
 				{
 					includesAny: ['hey stranger', 'left me on read'],
-					response: 'Last one came back six months later. I had his sister\'s number by then.'
+					response:
+						"Last one came back six months later. I had his sister's number by then."
 				},
 				{
 					includesAll: ['working late', 'club'],
 					response: 'His brother told me where he really was. His brother.'
 				}
 			],
-			fallback: 'Don\'t ask him. Ask his people. They been waiting to tell you.'
+			fallback: "Don't ask him. Ask his people. They been waiting to tell you."
 		},
 		lineup: {
 			comments: [
@@ -130,47 +128,49 @@ const meechieVoicePack: MeechieVoicePack = {
 		horoscope: {
 			map: {
 				Aries: 'Aries already swung. Calling me from the precinct.',
-				Taurus: 'Taurus ain\'t moving. House too nice.',
-				Gemini: 'Both y\'all need to call me back.',
-				Cancer: 'Cancer crying in the car. She\'ll drive home in a minute.',
+				Taurus: "Taurus ain't moving. House too nice.",
+				Gemini: "Both y'all need to call me back.",
+				Cancer: "Cancer crying in the car. She'll drive home in a minute.",
 				Leo: 'Leo want me to tell her she look good. She look good.',
-				Virgo: 'Virgo cleaning. She\'ll get to him.',
+				Virgo: "Virgo cleaning. She'll get to him.",
 				Libra: 'Libra still deciding. Tell her I said pick the broke one.',
-				Scorpio: 'Scorpio waiting. She\'ll know when.',
-				Sagittarius: 'Sag already at her cousin\'s house.',
-				Capricorn: 'Capricorn at work. She\'ll handle him on break.',
-				Aquarius: 'Aquarius don\'t fuck with this. Skip her.',
+				Scorpio: "Scorpio waiting. She'll know when.",
+				Sagittarius: "Sag already at her cousin's house.",
+				Capricorn: "Capricorn at work. She'll handle him on break.",
+				Aquarius: "Aquarius don't fuck with this. Skip her.",
 				Pisces: 'Pisces been crying since Tuesday. Leave her.'
 			},
-			fallback: 'I don\'t read stars. Tell me what he did.'
+			fallback: "I don't read stars. Tell me what he did."
 		},
 		receipts: {
 			template: 'He said {claim}. It was {reality}. Show his mama.'
 		},
 		caption: {
-			template: 'Post {moment}. No caption. He gon\' caption it for me when he calls.'
+			template:
+				"Post {moment}. No caption. He gon' caption it for me when he calls."
 		},
 		clapback: {
-			template: '"{comment}." Don\'t answer her. She want you to. She know where I work.'
+			template:
+				'"{comment}." Don\'t answer her. She want you to. She know where I work.'
 		},
 		explains: {
 			map: {
-				situationship:
-					'His real girlfriend at the house.',
-				gaslighting:
-					'He saw it. He saw you see it. He gon\' lie anyway.',
-				breadcrumbing:
-					'He keeping you on layaway.',
-				"love bombing":
-					'He spending. Watch what he ask for next month.',
-				ghosting:
-					'He picking up. Just not for you.'
+				situationship: 'His real girlfriend at the house.',
+				gaslighting: "He saw it. He saw you see it. He gon' lie anyway.",
+				breadcrumbing: 'He keeping you on layaway.',
+				'love bombing': 'He spending. Watch what he ask for next month.',
+				ghosting: 'He picking up. Just not for you.'
 			},
-			fallbackTemplate: 'Don\'t tell me the word for it. Tell me what he did.'
+			fallbackTemplate: "Don't tell me the word for it. Tell me what he did."
 		},
 		excuseRatings: [
 			{
-				keywords: ['phone died', 'phone was dead', 'battery died', 'phone battery'],
+				keywords: [
+					'phone died',
+					'phone was dead',
+					'battery died',
+					'phone battery'
+				],
 				rating: 2,
 				commentary: 'Phones die. Your character did not have to go with it.'
 			},
@@ -180,9 +180,15 @@ const meechieVoicePack: MeechieVoicePack = {
 				commentary: 'Sleep is valid. Your location being live at 2am is not.'
 			},
 			{
-				keywords: ['with the guys', 'with my boys', 'with my friends', 'with friends'],
+				keywords: [
+					'with the guys',
+					'with my boys',
+					'with my friends',
+					'with friends'
+				],
 				rating: 4,
-				commentary: "The guys said they ain't seen you. Somebody lying and it ain't the guys."
+				commentary:
+					"The guys said they ain't seen you. Somebody lying and it ain't the guys."
 			},
 			{
 				keywords: ['working late', 'at work', 'work thing', 'was working'],
@@ -190,12 +196,22 @@ const meechieVoicePack: MeechieVoicePack = {
 				commentary: 'Busy doing what though. Be specific. I have time.'
 			},
 			{
-				keywords: ["didn't see", "didn't notice", "missed your text", 'never saw'],
+				keywords: [
+					"didn't see",
+					"didn't notice",
+					'missed your text',
+					'never saw'
+				],
 				rating: 3,
 				commentary: 'Three bars, full Wi-Fi, and you missed it. Noted.'
 			},
 			{
-				keywords: ['needed space', 'needed to think', 'need space', 'needed time'],
+				keywords: [
+					'needed space',
+					'needed to think',
+					'need space',
+					'needed time'
+				],
 				rating: 2,
 				commentary: 'Space is fine. Radio silence for three days is a decision.'
 			},
@@ -207,15 +223,28 @@ const meechieVoicePack: MeechieVoicePack = {
 			{
 				keywords: ['traffic', 'was driving', 'on the road', 'car trouble'],
 				rating: 3,
-				commentary: 'Maps said twenty minutes. You took four hours. Interesting route.'
+				commentary:
+					'Maps said twenty minutes. You took four hours. Interesting route.'
 			},
 			{
-				keywords: ['family emergency', 'family thing', 'my mom', 'my dad', 'my sister', 'my brother'],
+				keywords: [
+					'family emergency',
+					'family thing',
+					'my mom',
+					'my dad',
+					'my sister',
+					'my brother'
+				],
 				rating: 5,
-				commentary: 'Family emergency is acceptable. Not saying a word about it for days is not.'
+				commentary:
+					'Family emergency is acceptable. Not saying a word about it for days is not.'
 			},
 			{
-				keywords: ['not ready', 'not in a good place', 'going through something'],
+				keywords: [
+					'not ready',
+					'not in a good place',
+					'going through something'
+				],
 				rating: 2,
 				commentary: "Not ready is not an excuse. It's a warning. I hear it."
 			}
@@ -238,7 +267,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: 'Should\'ve fucked the landlord, not the dopeman.',
+				text: "Should've fucked the landlord, not the dopeman.",
 				category: 'approved_keeper',
 				rawness: 'raw',
 				thirdPersonUsage: 'none',
@@ -249,7 +278,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: 'If you don\'t want me to come in, don\'t open the door. Not even a little bit. Because if you open the door, I\'m coming in.',
+				text: "If you don't want me to come in, don't open the door. Not even a little bit. Because if you open the door, I'm coming in.",
 				category: 'approved_keeper',
 				rawness: 'clean',
 				thirdPersonUsage: 'sometimes',
@@ -271,7 +300,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: 'I\'m not crying over you. I\'m crying because I wasted mascara on you.',
+				text: "I'm not crying over you. I'm crying because I wasted mascara on you.",
 				category: 'approved_keeper',
 				rawness: 'clean',
 				thirdPersonUsage: 'sometimes',
@@ -282,7 +311,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: 'You picked HER? That\'s not my loss, that\'s your vision problem.',
+				text: "You picked HER? That's not my loss, that's your vision problem.",
 				category: 'approved_keeper',
 				rawness: 'clean',
 				thirdPersonUsage: 'sometimes',
@@ -304,7 +333,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: 'One more lie and I\'m showing up to Easter looking SAVED.',
+				text: "One more lie and I'm showing up to Easter looking SAVED.",
 				category: 'approved_keeper',
 				rawness: 'clean',
 				thirdPersonUsage: 'none',
@@ -326,7 +355,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: 'I will out-dress your mama at HER birthday party. Don\'t test me.',
+				text: "I will out-dress your mama at HER birthday party. Don't test me.",
 				category: 'raw_anchor',
 				rawness: 'clean',
 				thirdPersonUsage: 'sometimes',
@@ -348,7 +377,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: 'He said no commitment but still wants access. That\'s a free trial, not a relationship.',
+				text: "He said no commitment but still wants access. That's a free trial, not a relationship.",
 				category: 'approved_keeper',
 				rawness: 'clean',
 				thirdPersonUsage: 'sometimes',
@@ -359,7 +388,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: 'I\'m not mad. I\'m observing that you fumbled something irreplaceable.',
+				text: "I'm not mad. I'm observing that you fumbled something irreplaceable.",
 				category: 'raw_anchor',
 				rawness: 'clean',
 				thirdPersonUsage: 'sometimes',
@@ -370,7 +399,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: 'You don\'t have to like me. I already like me enough for both of us.',
+				text: "You don't have to like me. I already like me enough for both of us.",
 				category: 'approved_keeper',
 				rawness: 'clean',
 				thirdPersonUsage: 'none',
@@ -392,7 +421,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: 'I don\'t chase. I close the door and let the draft do the work.',
+				text: "I don't chase. I close the door and let the draft do the work.",
 				category: 'raw_anchor',
 				rawness: 'clean',
 				thirdPersonUsage: 'none',
@@ -414,7 +443,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: 'My standards didn\'t go up. Your options just got smaller.',
+				text: "My standards didn't go up. Your options just got smaller.",
 				category: 'approved_keeper',
 				rawness: 'clean',
 				thirdPersonUsage: 'none',
@@ -425,7 +454,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: 'I said what I said and I meant what I didn\'t say too.',
+				text: "I said what I said and I meant what I didn't say too.",
 				category: 'raw_anchor',
 				rawness: 'clean',
 				thirdPersonUsage: 'none',
@@ -568,7 +597,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: "She posted a subliminal. I posted a picture. Mine had better lighting and less begging.",
+				text: 'She posted a subliminal. I posted a picture. Mine had better lighting and less begging.',
 				category: 'approved_keeper',
 				rawness: 'clean',
 				thirdPersonUsage: 'sometimes',
@@ -590,7 +619,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: "He said he forgot. I believe him. He forgot I was me.",
+				text: 'He said he forgot. I believe him. He forgot I was me.',
 				category: 'approved_keeper',
 				rawness: 'clean',
 				thirdPersonUsage: 'sometimes',
@@ -612,7 +641,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: "Keep playing and your brother gonna be calling me by my first name.",
+				text: 'Keep playing and your brother gonna be calling me by my first name.',
 				category: 'approved_keeper',
 				rawness: 'clean',
 				thirdPersonUsage: 'none',
@@ -645,7 +674,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam']
 			},
 			{
-				text: "All I need to be a hoe is an area of control.",
+				text: 'All I need to be a hoe is an area of control.',
 				category: 'raw_anchor',
 				rawness: 'raw',
 				thirdPersonUsage: 'none',
@@ -733,7 +762,7 @@ const meechieVoicePack: MeechieVoicePack = {
 				visualMotifs: ['glam', 'boundaries']
 			},
 			{
-				text: "When our eyes locked after I said that, we both knew I was capable of it and there was nothing he could do to stop it.",
+				text: 'When our eyes locked after I said that, we both knew I was capable of it and there was nothing he could do to stop it.',
 				category: 'raw_anchor',
 				rawness: 'clean',
 				thirdPersonUsage: 'none',
@@ -764,13 +793,15 @@ const meechieVoicePack: MeechieVoicePack = {
 				coloringPageReady: false,
 				notes: 'Meechie canon line — explicit',
 				visualMotifs: ['glam', 'boundaries']
-			},
+			}
 		]
 	}
 };
 
 export const meechieVoiceAdapter: MeechieVoiceSeam = {
-	getVoicePack: async (input: MeechieVoiceInput): Promise<Result<MeechieVoicePack>> => {
+	getVoicePack: async (
+		input: MeechieVoiceInput
+	): Promise<Result<MeechieVoicePack>> => {
 		if (input.voiceId !== meechieVoicePack.voiceId) {
 			return {
 				ok: false,

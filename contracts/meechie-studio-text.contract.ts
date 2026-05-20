@@ -65,14 +65,28 @@ export const MeechieStudioTextOutputSchema = z.object({
 		.optional()
 });
 
-export const MeechieStudioTextResultSchema = resultSchema(MeechieStudioTextOutputSchema);
+export const MeechieStudioTextResultSchema = resultSchema(
+	MeechieStudioTextOutputSchema
+);
 
-export type MeechieStudioTextAction = z.infer<typeof MeechieStudioTextActionSchema>;
-export type MeechieStudioVoiceSettings = z.infer<typeof MeechieStudioVoiceSettingsSchema>;
-export type MeechieStudioCurrentText = z.infer<typeof MeechieStudioCurrentTextSchema>;
-export type MeechieStudioTextInput = z.infer<typeof MeechieStudioTextInputSchema>;
-export type MeechieStudioTextOutput = z.infer<typeof MeechieStudioTextOutputSchema>;
+export type MeechieStudioTextAction = z.infer<
+	typeof MeechieStudioTextActionSchema
+>;
+export type MeechieStudioVoiceSettings = z.infer<
+	typeof MeechieStudioVoiceSettingsSchema
+>;
+export type MeechieStudioCurrentText = z.infer<
+	typeof MeechieStudioCurrentTextSchema
+>;
+export type MeechieStudioTextInput = z.infer<
+	typeof MeechieStudioTextInputSchema
+>;
+export type MeechieStudioTextOutput = z.infer<
+	typeof MeechieStudioTextOutputSchema
+>;
 
 export type MeechieStudioTextSeam = {
-	respond(input: MeechieStudioTextInput): Promise<Result<MeechieStudioTextOutput>>;
+	respond(
+		input: MeechieStudioTextInput
+	): Promise<Result<MeechieStudioTextOutput>>;
 };

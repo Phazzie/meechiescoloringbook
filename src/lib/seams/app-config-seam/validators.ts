@@ -18,4 +18,5 @@ export const appConfigSchema = z.object({
 	geminiBaseUrl: z.string().default('https://generativelanguage.googleapis.com')
 });
 
-export const validateAppConfig = (config: unknown) => appConfigSchema.parse(config);
+export const validateAppConfig = (config: unknown) =>
+	appConfigSchema.parse(config);

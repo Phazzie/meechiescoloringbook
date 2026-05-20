@@ -10,7 +10,9 @@ import { ChatInterpretationResultSchema } from '../../../contracts/chat-interpre
 import type { Result } from '../../../contracts/shared.contract';
 
 export const chatInterpretationAdapter: ChatInterpretationSeam = {
-	interpret: async (input: ChatInterpretationInput): Promise<Result<ChatInterpretationOutput>> => {
+	interpret: async (
+		input: ChatInterpretationInput
+	): Promise<Result<ChatInterpretationOutput>> => {
 		try {
 			const response = await fetch('/api/chat-interpretation', {
 				method: 'POST',
@@ -36,7 +38,8 @@ export const chatInterpretationAdapter: ChatInterpretationSeam = {
 				ok: false,
 				error: {
 					code: 'CHAT_NETWORK_ERROR',
-					message: error instanceof Error ? error.message : 'Chat request failed.'
+					message:
+						error instanceof Error ? error.message : 'Chat request failed.'
 				}
 			};
 		}

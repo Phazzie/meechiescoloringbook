@@ -4,4 +4,4 @@
 import type { ImageProviderConfigSeam } from './contract';
 
 export const probeImageProviderConfigSeam = (seam: ImageProviderConfigSeam) =>
-  seam.getConfig();
+	seam.getConfig();

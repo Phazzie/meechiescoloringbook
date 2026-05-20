@@ -4,7 +4,10 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { toMarkdownTableRow, toSeamRollupStatus } from './evidence-reporting.mjs';
+import {
+	toMarkdownTableRow,
+	toSeamRollupStatus
+} from './evidence-reporting.mjs';
 
 const ROOT = process.cwd();
 const SEAMS_PATH = path.join(ROOT, 'docs', 'seams.md');
@@ -148,7 +151,9 @@ const run = async () => {
 		const checks = [];
 		checks.push(await classifyPath('contract', seam.contract));
 		checks.push(await classifyPath('probe', seam.probe));
-		checks.push(await classifyPath('fixtures', seam.fixtures, { fixtures: true }));
+		checks.push(
+			await classifyPath('fixtures', seam.fixtures, { fixtures: true })
+		);
 		checks.push(await classifyPath('mock', seam.mock));
 		checks.push(await classifyPath('tests', seam.tests));
 		checks.push(await classifyPath('adapter', seam.adapter));
@@ -190,8 +195,8 @@ const run = async () => {
 		tableLines.push(
 			toMarkdownTableRow(
 				[record.seam, toStatusEmoji(record.status)].concat(
-					['contract', 'probe', 'fixtures', 'mock', 'tests', 'adapter'].map((kind) =>
-						toStatusEmoji(byKind.get(kind)?.status ?? 'missing')
+					['contract', 'probe', 'fixtures', 'mock', 'tests', 'adapter'].map(
+						(kind) => toStatusEmoji(byKind.get(kind)?.status ?? 'missing')
 					)
 				)
 			)
@@ -210,7 +215,11 @@ const run = async () => {
 		...tableLines,
 		''
 	].join('\n');
-	await fs.writeFile(path.join(evidenceDir, 'seam-ledger.md'), `${md}\n`, 'utf8');
+	await fs.writeFile(
+		path.join(evidenceDir, 'seam-ledger.md'),
+		`${md}\n`,
+		'utf8'
+	);
 };
 
 run().catch((error) => {

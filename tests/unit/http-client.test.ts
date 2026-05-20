@@ -2,10 +2,7 @@
 // Why: Ensure JSON header construction and request helpers are correct.
 // Info flow: Function calls -> header map / fetch -> assertions.
 import { describe, expect, it, afterEach, vi } from 'vitest';
-import {
-	buildJsonHeaders,
-	postJson
-} from '../../src/lib/core/http-client';
+import { buildJsonHeaders, postJson } from '../../src/lib/core/http-client';
 
 describe('http-client', () => {
 	describe('buildJsonHeaders', () => {
@@ -27,10 +24,7 @@ describe('http-client', () => {
 				status: 200
 			} as unknown as Response;
 
-			vi.stubGlobal(
-				'fetch',
-				vi.fn().mockResolvedValue(mockResponse)
-			);
+			vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
 
 			const result = await postJson('/api/test', { input: 'data' });
 			expect(result.response).toBe(mockResponse);
@@ -51,10 +45,7 @@ describe('http-client', () => {
 				status: 500
 			} as unknown as Response;
 
-			vi.stubGlobal(
-				'fetch',
-				vi.fn().mockResolvedValue(mockResponse)
-			);
+			vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
 
 			await expect(postJson('/api/test', {})).rejects.toThrow(
 				'postJson: failed to parse JSON response'

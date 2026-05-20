@@ -3,51 +3,61 @@
 // Info flow: tests -> mock -> contract assertions.
 import { describe, expect, it } from 'vitest';
 import { createImageProviderConfigSeam } from '../../adapters/image-provider-config-seam';
-import { imageProviderConfigFixture, imageProviderConfigFaultFixture } from './fixtures';
+import {
+	imageProviderConfigFixture,
+	imageProviderConfigFaultFixture
+} from './fixtures';
 import { createMockImageProviderConfigSeam } from './mock';
 import { validateImageProviderConfig } from './validators';
 
 describe('ImageProviderConfigSeam mock contract', () => {
-  it('returns a validated config on the sample scenario', () => {
-    const seam = createMockImageProviderConfigSeam('sample');
-    const config = seam.getConfig();
-    expect(config).toEqual(imageProviderConfigFixture);
-    expect(validateImageProviderConfig(config)).toEqual(imageProviderConfigFixture);
-  });
+	it('returns a validated config on the sample scenario', () => {
+		const seam = createMockImageProviderConfigSeam('sample');
+		const config = seam.getConfig();
+		expect(config).toEqual(imageProviderConfigFixture);
+		expect(validateImageProviderConfig(config)).toEqual(
+			imageProviderConfigFixture
+		);
+	});
 
-  it('fault fixture fails validation (red proof)', () => {
-    const seam = createMockImageProviderConfigSeam('fault');
-    const config = seam.getConfig();
-    expect(config).toEqual(imageProviderConfigFaultFixture);
-    expect(() => validateImageProviderConfig(config)).toThrow();
-  });
+	it('fault fixture fails validation (red proof)', () => {
+		const seam = createMockImageProviderConfigSeam('fault');
+		const config = seam.getConfig();
+		expect(config).toEqual(imageProviderConfigFaultFixture);
+		expect(() => validateImageProviderConfig(config)).toThrow();
+	});
 
-  it('config contains only image-provider keys and no text-model fields', () => {
-    const seam = createMockImageProviderConfigSeam('sample');
-    const config = seam.getConfig();
-    expect(Object.keys(config).sort()).toEqual(
-      ['xaiApiKey', 'xaiImageModel', 'xaiBaseUrl', 'xaiImageEndpointPath'].sort()
-    );
-    expect(config).not.toHaveProperty('xaiTextModel');
-    expect(config).not.toHaveProperty('geminiApiKey');
-    expect(config).not.toHaveProperty('featureIntegrationTests');
-  });
+	it('config contains only image-provider keys and no text-model fields', () => {
+		const seam = createMockImageProviderConfigSeam('sample');
+		const config = seam.getConfig();
+		expect(Object.keys(config).sort()).toEqual(
+			[
+				'xaiApiKey',
+				'xaiImageModel',
+				'xaiBaseUrl',
+				'xaiImageEndpointPath'
+			].sort()
+		);
+		expect(config).not.toHaveProperty('xaiTextModel');
+		expect(config).not.toHaveProperty('geminiApiKey');
+		expect(config).not.toHaveProperty('featureIntegrationTests');
+	});
 
-  it('uses documented defaults when optional image env values are absent', () => {
-    const seam = createImageProviderConfigSeam({ XAI_API_KEY: 'test-key' });
-    expect(seam.getConfig()).toEqual({
-      xaiApiKey: 'test-key',
-      xaiImageModel: 'grok-imagine-image',
-      xaiBaseUrl: 'https://api.x.ai',
-      xaiImageEndpointPath: '/v1/images/generations'
-    });
-  });
+	it('uses documented defaults when optional image env values are absent', () => {
+		const seam = createImageProviderConfigSeam({ XAI_API_KEY: 'test-key' });
+		expect(seam.getConfig()).toEqual({
+			xaiApiKey: 'test-key',
+			xaiImageModel: 'grok-imagine-image',
+			xaiBaseUrl: 'https://api.x.ai',
+			xaiImageEndpointPath: '/v1/images/generations'
+		});
+	});
 
-  it('rejects malformed base URLs as config errors', () => {
-    const seam = createImageProviderConfigSeam({
-      XAI_API_KEY: 'test-key',
-      XAI_BASE_URL: 'api.x.ai'
-    });
-    expect(() => seam.getConfig()).toThrow();
-  });
+	it('rejects malformed base URLs as config errors', () => {
+		const seam = createImageProviderConfigSeam({
+			XAI_API_KEY: 'test-key',
+			XAI_BASE_URL: 'api.x.ai'
+		});
+		expect(() => seam.getConfig()).toThrow();
+	});
 });

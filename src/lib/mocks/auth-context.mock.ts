@@ -22,5 +22,6 @@ const sampleFixture = fixtureSchema.parse(sample);
 const faultFixture = fixtureSchema.parse(fault);
 
 export const createAuthContextMock = (scenario: Scenario): AuthContextSeam => ({
-	getAuthContext: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+	getAuthContext: async () =>
+		scenario === 'fault' ? faultFixture.output : sampleFixture.output
 });

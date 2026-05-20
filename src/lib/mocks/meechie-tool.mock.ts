@@ -22,5 +22,6 @@ const sampleFixture = fixtureSchema.parse(sample);
 const faultFixture = fixtureSchema.parse(fault);
 
 export const createMeechieToolMock = (scenario: Scenario): MeechieToolSeam => ({
-	respond: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+	respond: async () =>
+		scenario === 'fault' ? faultFixture.output : sampleFixture.output
 });

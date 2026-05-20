@@ -22,4 +22,4 @@ export const appConfigFixture = appConfigSchema.parse(sampleFixture);
 export const appConfigFaultFixture = faultFixture as unknown as AppConfig;
 
 export const getAppConfigFixture = (scenario: 'sample' | 'fault' = 'sample') =>
-  scenario === 'fault' ? appConfigFaultFixture : appConfigFixture;
+	scenario === 'fault' ? appConfigFaultFixture : appConfigFixture;

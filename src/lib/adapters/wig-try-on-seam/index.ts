@@ -39,7 +39,9 @@ const errorResult = (
 	error
 });
 
-export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => ({
+export const createWigTryOnSeam = (
+	configSeam: AppConfigSeam
+): WigTryOnSeam => ({
 	tryOn: async (
 		request: WigTryOnRequest
 	): Promise<Result<WigTryOnResult, WigTryOnError>> => {
@@ -60,14 +62,16 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 		} catch {
 			return errorResult({
 				code: 'WIG_TRY_ON_CONFIG_ERROR',
-				message: 'Gemini configuration is invalid. Ensure GEMINI_API_KEY is set.'
+				message:
+					'Gemini configuration is invalid. Ensure GEMINI_API_KEY is set.'
 			});
 		}
 
 		if (!apiKey) {
 			return errorResult({
 				code: 'WIG_TRY_ON_CONFIG_ERROR',
-				message: 'GEMINI_API_KEY is not configured. The wig try-on feature requires a Gemini API key.'
+				message:
+					'GEMINI_API_KEY is not configured. The wig try-on feature requires a Gemini API key.'
 			});
 		}
 
@@ -111,7 +115,10 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 		} catch (error) {
 			return errorResult({
 				code: 'WIG_TRY_ON_NETWORK_ERROR',
-				message: error instanceof Error ? error.message : 'Gemini API network request failed.'
+				message:
+					error instanceof Error
+						? error.message
+						: 'Gemini API network request failed.'
 			});
 		}
 

@@ -70,7 +70,10 @@ describe('validateImageGenerationRequest', () => {
 	});
 
 	it('accepts format b64_json as a valid enum value', () => {
-		const result = validateImageGenerationRequest({ ...validRequest, format: 'b64_json' });
+		const result = validateImageGenerationRequest({
+			...validRequest,
+			format: 'b64_json'
+		});
 		expect(result.format).toBe('b64_json');
 	});
 });

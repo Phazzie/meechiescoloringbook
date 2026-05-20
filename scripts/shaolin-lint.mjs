@@ -116,8 +116,12 @@ const run = async () => {
 		};
 	});
 
-	const missingCount = evidenceChecks.filter((check) => check.status === 'missing').length;
-	const staleCount = evidenceChecks.filter((check) => check.status === 'stale').length;
+	const missingCount = evidenceChecks.filter(
+		(check) => check.status === 'missing'
+	).length;
+	const staleCount = evidenceChecks.filter(
+		(check) => check.status === 'stale'
+	).length;
 
 	const report = {
 		tool: 'shaolin-lint',
@@ -134,7 +138,11 @@ const run = async () => {
 
 	const evidenceDir = await ensureEvidenceDir(toDateFolder(new Date()));
 	const outputPath = path.join(evidenceDir, 'shaolin-lint.json');
-	await fs.writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+	await fs.writeFile(
+		outputPath,
+		`${JSON.stringify(report, null, 2)}\n`,
+		'utf8'
+	);
 
 	if (missingCount > 0 || staleCount > 0) {
 		process.stderr.write('Shaolin Lint: evidence missing or stale.\n');

@@ -92,7 +92,11 @@ const MeechieQuoteCategorySchema = z.enum(['raw_anchor', 'approved_keeper']);
 
 const MeechieQuoteRawnessSchema = z.enum(['clean', 'mild', 'raw']);
 
-const MeechieQuoteThirdPersonUsageSchema = z.enum(['none', 'sometimes', 'forced']);
+const MeechieQuoteThirdPersonUsageSchema = z.enum([
+	'none',
+	'sometimes',
+	'forced'
+]);
 
 const MeechieQuoteModeFitSchema = z.enum([
 	'random_meechie',
@@ -151,7 +155,9 @@ export const MeechieVoiceResultSchema = resultSchema(MeechieVoicePackSchema);
 export type MeechieQuote = z.infer<typeof MeechieQuoteSchema>;
 export type MeechieQuoteCategory = z.infer<typeof MeechieQuoteCategorySchema>;
 export type MeechieQuoteRawness = z.infer<typeof MeechieQuoteRawnessSchema>;
-export type MeechieQuoteThirdPersonUsage = z.infer<typeof MeechieQuoteThirdPersonUsageSchema>;
+export type MeechieQuoteThirdPersonUsage = z.infer<
+	typeof MeechieQuoteThirdPersonUsageSchema
+>;
 export type MeechieQuoteModeFit = z.infer<typeof MeechieQuoteModeFitSchema>;
 export type MeechieVoicePack = z.infer<typeof MeechieVoicePackSchema>;
 export type MeechieVoiceInput = z.infer<typeof MeechieVoiceInputSchema>;

@@ -175,9 +175,12 @@ describe('output-packaging adapter edge cases', () => {
 			// jsdom does not support canvas, so SVG-to-PNG conversion always fails
 			expect(result.ok).toBe(false);
 			if (!result.ok) {
-				expect(['BROWSER_REQUIRED', 'CANVAS_UNAVAILABLE', 'SVG_IMAGE_LOAD_FAILED', 'PNG_ENCODING_FAILED']).toContain(
-					result.error.code
-				);
+				expect([
+					'BROWSER_REQUIRED',
+					'CANVAS_UNAVAILABLE',
+					'SVG_IMAGE_LOAD_FAILED',
+					'PNG_ENCODING_FAILED'
+				]).toContain(result.error.code);
 			}
 		});
 	});

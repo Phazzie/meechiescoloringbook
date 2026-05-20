@@ -24,15 +24,15 @@ Live app: **https://meechiescoloringbook.vercel.app**
 
 ## 🛠 Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| **Framework** | SvelteKit 2 with Svelte 5 runes |
-| **AI** | xAI (Grok) for text and image generation |
-| **Testing** | Vitest 3 (unit/integration) + Playwright (E2E) |
-| **Deployment** | Vercel with `@sveltejs/adapter-vercel` (Node 22) |
-| **Validation** | Zod schema validation at all seam boundaries |
-| **Architecture** | Seam-Driven Development (SDD) |
-| **PDF** | pdf-lib for coloring page export |
+| Layer            | Technology                                       |
+| ---------------- | ------------------------------------------------ |
+| **Framework**    | SvelteKit 2 with Svelte 5 runes                  |
+| **AI**           | xAI (Grok) for text and image generation         |
+| **Testing**      | Vitest 3 (unit/integration) + Playwright (E2E)   |
+| **Deployment**   | Vercel with `@sveltejs/adapter-vercel` (Node 22) |
+| **Validation**   | Zod schema validation at all seam boundaries     |
+| **Architecture** | Seam-Driven Development (SDD)                    |
+| **PDF**          | pdf-lib for coloring page export                 |
 
 ---
 
@@ -67,16 +67,16 @@ Run this once after cloning to enable local pre-commit and pre-push verification
 
 Copy `.env.example` to `.env` and fill in your values.
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `XAI_API_KEY` | Yes | — | Your xAI API key for Grok access |
-| `XAI_TEXT_MODEL` | No | `grok-4-1-fast-reasoning` | Grok model used for text/story generation |
-| `XAI_IMAGE_MODEL` | No | `grok-imagine-image` | Grok model used for coloring page image generation |
-| `XAI_BASE_URL` | No | `https://api.x.ai` | xAI API base URL |
-| `XAI_IMAGE_ENDPOINT_PATH` | No | `/v1/images/generations` | API path for image generation requests |
-| `FEATURE_INTEGRATION_TESTS` | No | `false` | Set to `true` to enable live API integration tests |
-| `MAX_IMAGES_PER_REQUEST` | No | `4` | Maximum coloring pages generated per request |
-| `DEFAULT_IMAGE_SIZE` | No | `1024x1024` | Default image resolution (future-facing; xAI may ignore this) |
+| Variable                    | Required | Default                   | Description                                                   |
+| --------------------------- | -------- | ------------------------- | ------------------------------------------------------------- |
+| `XAI_API_KEY`               | Yes      | —                         | Your xAI API key for Grok access                              |
+| `XAI_TEXT_MODEL`            | No       | `grok-4-1-fast-reasoning` | Grok model used for text/story generation                     |
+| `XAI_IMAGE_MODEL`           | No       | `grok-imagine-image`      | Grok model used for coloring page image generation            |
+| `XAI_BASE_URL`              | No       | `https://api.x.ai`        | xAI API base URL                                              |
+| `XAI_IMAGE_ENDPOINT_PATH`   | No       | `/v1/images/generations`  | API path for image generation requests                        |
+| `FEATURE_INTEGRATION_TESTS` | No       | `false`                   | Set to `true` to enable live API integration tests            |
+| `MAX_IMAGES_PER_REQUEST`    | No       | `4`                       | Maximum coloring pages generated per request                  |
+| `DEFAULT_IMAGE_SIZE`        | No       | `1024x1024`               | Default image resolution (future-facing; xAI may ignore this) |
 
 > **Note:** Integration tests require both `FEATURE_INTEGRATION_TESTS=true` and a valid `XAI_API_KEY`.
 
@@ -84,20 +84,20 @@ Copy `.env.example` to `.env` and fill in your values.
 
 ## 📦 Available Scripts
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build |
-| `npm run test` | Run unit tests (Vitest) |
-| `npm run test:e2e` | Run Playwright E2E tests |
-| `npm run test:integration` | Run integration tests against real APIs (requires `FEATURE_INTEGRATION_TESTS=true`) |
-| `npm run lint` | Run ESLint |
-| `npm run format` | Format files with Prettier |
-| `npm run format:check` | Check formatting (CI) |
-| `npm run check` | SvelteKit type check |
-| `npm run verify` | Full verify pipeline (chamber lock + lint + type check + tests + seam ledger + proof tape) |
-| `npm run hooks:install` | Install local git pre-commit/pre-push hooks |
+| Script                     | Description                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| `npm run dev`              | Start development server                                                                   |
+| `npm run build`            | Build for production                                                                       |
+| `npm run preview`          | Preview production build                                                                   |
+| `npm run test`             | Run unit tests (Vitest)                                                                    |
+| `npm run test:e2e`         | Run Playwright E2E tests                                                                   |
+| `npm run test:integration` | Run integration tests against real APIs (requires `FEATURE_INTEGRATION_TESTS=true`)        |
+| `npm run lint`             | Run ESLint                                                                                 |
+| `npm run format`           | Format files with Prettier                                                                 |
+| `npm run format:check`     | Check formatting (CI)                                                                      |
+| `npm run check`            | SvelteKit type check                                                                       |
+| `npm run verify`           | Full verify pipeline (chamber lock + lint + type check + tests + seam ledger + proof tape) |
+| `npm run hooks:install`    | Install local git pre-commit/pre-push hooks                                                |
 
 ---
 
@@ -106,6 +106,7 @@ Copy `.env.example` to `.env` and fill in your values.
 This project uses **Seam-Driven Development (SDD)** — every external integration point is isolated behind a "seam" with a defined contract, deterministic mock, and real adapter. This prevents integration drift and keeps core logic testable without live API calls.
 
 Each seam consists of:
+
 - `contract.ts` — TypeScript types and Zod schemas
 - `fixtures.ts` — static test data captured from real API responses
 - `mock.ts` — deterministic test doubles (load fixtures by scenario, no invented data)

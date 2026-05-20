@@ -55,32 +55,33 @@ describe('/api/generate', () => {
 	});
 
 	it('returns orchestrated generation output for valid requests', async () => {
-		const fetchMock = vi.fn(async () =>
-			new Response(
-				JSON.stringify({
-					ok: true,
-					value: {
-						images: [
-							{
-								id: 'image-1',
-								format: 'png',
-								mimeType: 'image/png',
-								data: 'abc123',
-								encoding: 'base64'
+		const fetchMock = vi.fn(
+			async () =>
+				new Response(
+					JSON.stringify({
+						ok: true,
+						value: {
+							images: [
+								{
+									id: 'image-1',
+									format: 'png',
+									mimeType: 'image/png',
+									data: 'abc123',
+									encoding: 'base64'
+								}
+							],
+							revisedPrompt: 'black and white revised prompt',
+							modelMetadata: {
+								provider: 'xai',
+								model: 'grok-imagine-image'
 							}
-						],
-						revisedPrompt: 'black and white revised prompt',
-						modelMetadata: {
-							provider: 'xai',
-							model: 'grok-imagine-image'
 						}
+					}),
+					{
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
 					}
-				}),
-				{
-					status: 200,
-					headers: { 'Content-Type': 'application/json' }
-				}
-			)
+				)
 		);
 
 		const response = await POST(
@@ -96,7 +97,9 @@ describe('/api/generate', () => {
 
 		expect(response.status).toBe(200);
 		expect(payload.ok).toBe(true);
-		expect(payload.value.prompt).toContain('Black-and-white coloring book page');
+		expect(payload.value.prompt).toContain(
+			'Black-and-white coloring book page'
+		);
 		expect(payload.value.images).toHaveLength(1);
 		expect(Array.isArray(payload.value.violations)).toBe(true);
 		expect(Array.isArray(payload.value.recommendedFixes)).toBe(true);

@@ -3,7 +3,10 @@
 // Info flow: Fixtures -> mock/adapter -> assertions.
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { AuthContextInputSchema, AuthContextResultSchema } from '../../contracts/auth-context.contract';
+import {
+	AuthContextInputSchema,
+	AuthContextResultSchema
+} from '../../contracts/auth-context.contract';
 import { ScenarioSchema } from '../../contracts/shared.contract';
 import { createAuthContextMock } from '../../src/lib/mocks/auth-context.mock';
 import { authContextAdapter } from '../../src/lib/adapters/auth-context.adapter';

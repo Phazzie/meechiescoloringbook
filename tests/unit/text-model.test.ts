@@ -5,7 +5,10 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_TEXT_MODEL, selectTextModel } from '../../src/lib/core/text-model';
+import {
+	DEFAULT_TEXT_MODEL,
+	selectTextModel
+} from '../../src/lib/core/text-model';
 
 describe('selectTextModel', () => {
 	it('returns the default model when no configured model is supplied', () => {

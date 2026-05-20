@@ -3,19 +3,23 @@ Purpose: Define Seam-Driven Development workflow, mandates, and governance for t
 Why: Prevent assumptions, scope drift, and unproven changes.
 Info flow: This file -> planning/checklists -> seam docs -> implementation/tests.
 -->
+
 # AGENTS.md
 
 This repo uses Seam-Driven Development to keep behavior measurable and deterministic. These instructions adapt the master guide for this repo.
 
 ## Wu-Bob
+
 Current Wu-Bob roster: GZA, U-God, Method Man (update when it changes).
 Why Wu-Bob exists: It forces synthesis instead of pattern matching, gives non-coders a shared vocabulary to steer AI decisions, and adds Uncle Bob as the clean-code anchor to prevent shortcuts.
 When asked for Wu-Bob’s thoughts, respond in a single combined voice that blends the current Wu-Tang roster with Uncle Bob’s clean-code lens. Do not split into separate sections; keep synthesis integrated.
 
 ## Why Seam-Driven Development Here
+
 The common failure modes are assuming behavior, skipping probes, widening scope, and claiming compliance without evidence. Seam-Driven Development prevents that by forcing reality capture, fixture-backed mocks, and contract-first tests.
 
 ## Core Principles (Keep These Intact)
+
 1. Reality first: probe real behavior for any seam that touches the world.
 2. Determinism: mocks load fixtures, not invented data.
 3. Contract first: adapters and mocks must match the contract.
@@ -23,7 +27,9 @@ The common failure modes are assuming behavior, skipping probes, widening scope,
 5. Mechanical enforcement: rely on verify/tests, not claims.
 
 ## Workflow (Liquid Loop)
+
 Follow this order, no shortcuts:
+
 1. Contract: `contracts/<seam>.contract.ts` (schema + types + failures).
 2. Probe: `probes/<seam>.probe.ts` (capture real behavior).
 3. Fixtures: `fixtures/<seam>/sample.json` and `fixtures/<seam>/fault.json`.
@@ -32,6 +38,7 @@ Follow this order, no shortcuts:
 6. Adapter: `src/lib/adapters/<seam>.adapter.ts` (real I/O via JailedFs).
 
 ## Governance
+
 - **Planning enforcement:** Plan + self-critique before code changes. List files and constraints; the plan must include the exact seam names (already listed in `docs/seams.md`), exact file paths to be touched, and exact commands that will be run.
 - For autonomous deep-work requests, create or update `plan.md` with explicit specs and self-checks for each major refactor before implementation.
 - Replace "locks" with a mandatory checklist gate (see below). Each checklist entry must be verifiable by a file path, a directory path, or concrete command output (no fuzzy claims).
@@ -45,6 +52,7 @@ Follow this order, no shortcuts:
 - When introducing jargon or flags (for example: deterministic compressed provider prompt, CLI flags that start with `-`), define them briefly in plain language near their first mention so non-coders can follow along.
 
 ## Plan + Self-Critique Template
+
 - Plan: goal, exact seam names (must already exist in `docs/seams.md`), exact file paths to be touched, exact commands to run. No vague or aspirational language.
 - Self-critique: what could be wrong, what must be proven, the riskiest assumption, and the evidence that will prove or disprove it.
 - Cipher Gate: for seam changes, record a Cipher Gate entry in `DECISIONS.md` with Date, Seams, Evidence paths, Summary, and Risks.
@@ -55,9 +63,11 @@ Follow this order, no shortcuts:
   - `- Assumption:` followed by indented fields `Date`, `Seams`, `Statement`, `Validation`, `Status`.
 
 ## File Header Requirement
+
 - Every file must start with a top-level comment describing what it does, why it does it, and how information flows.
 - Use the comment syntax of the file type.
 - Example (Markdown):
+
 ```md
 <!--
 Purpose: ...
@@ -67,16 +77,19 @@ Info flow: ...
 ```
 
 ## Seam-Driven Development Is Always Required
+
 - Default to Seam-Driven Development for all code changes. No shortcuts.
 - Any change that touches a seam (filesystem, network, process execution, OS integration, clock/time, randomness) must follow the full workflow.
 - Any change under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, or `src/lib/adapters/` must follow the full workflow.
 - Any change that alters the contract or observable behavior across a seam boundary must follow the full workflow.
 
 ## Only Exception (Must Be Explicitly Stated)
+
 - Docs/comments/formatting-only changes with zero behavioral impact. If there is any doubt, treat it as a seam change.
 - Governance-only doc changes (naming conventions, seam inventory format, enforcement rules) still require a micro Plan + Self-Critique that lists the seams (if any), files, commands, and how behavior stays unchanged.
 
 ## Non-Negotiable Mandates (Short)
+
 - Adapters must not import `fs` or `fs.promises` directly.
 - No sync I/O in adapters (`*Sync` is banned).
 - No `process.cwd()` in core logic; inject paths.
@@ -85,6 +98,7 @@ Info flow: ...
 - All filesystem/network/process I/O must flow through approved seam adapters only (no helper I/O).
 
 ## Checklist Before Saying "Done"
+
 - Plan + self-critique completed.
 - Fixtures are fresh (<= 7 days) or waiver recorded in `DECISIONS.md` with the assumption being made, the assumption documented in `LESSONS_LEARNED.md`/`DECISIONS.md`, and a stated plan for later validation.
 - Mock loads fixtures by scenario (no logic shortcuts).
@@ -94,10 +108,12 @@ Info flow: ...
 - The checklist gate has entries that can each be tied to an actual file path or command output (e.g., `docs/evidence/2026-01-27/npm-test-2026-01-27-0330.txt`).
 
 ## Anti-Laziness / Blocked
+
 - Primary failure modes: skipping steps, guessing instead of probing, declaring completion without evidence.
 - If required inputs, permissions, or probes are missing, STOP and declare “BLOCKED” with what is missing.
 
 ## Project Docs
+
 - `LESSONS_LEARNED.md`: short, dated entries capturing pitfalls and fixes.
 - `DECISIONS.md`: decision log with context, alternatives, and consequences.
 - `CHANGELOG.md`: user-visible changes only.
@@ -106,6 +122,7 @@ Info flow: ...
 - `docs/evidence/README.md`: evidence capture conventions and storage.
 
 ## AI Agent Reference Notes
+
 - Sources of truth: `AGENTS.md`, `DECISIONS.md`, `docs/seams.md`, and `contracts/`.
 - Seam names are exact PascalCase; file names are lower kebab-case.
 - Before touching a seam, confirm it exists in `docs/seams.md` and follow the full workflow.
@@ -115,6 +132,7 @@ Info flow: ...
 - At the end of every assistant message, provide exactly three concise next-step options, each with a one-sentence reason for why it is the best next move.
 
 ## Automation Tools
+
 - `npm run verify`: runs chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, and proof tape; required for seam changes.
 - `npm run chamber:lock`: checks seam artifact presence and writes `docs/evidence/YYYY-MM-DD/chamber-lock.json`.
 - `npm run verify:runner`: runs `npm run check` + `npm test` and captures evidence.
@@ -129,6 +147,7 @@ Info flow: ...
 - CI: `.github/workflows/verify.yml` runs `npm run verify` on push and pull request.
 
 ## If You Deviate Mid-Work
+
 1. Stop immediately.
 2. Restate the instruction and the law.
 3. Roll back the approach to contract/probe/fixture.
@@ -136,4 +155,5 @@ Info flow: ...
 5. Re-scope to one seam and continue.
 
 ## Reference
+
 See `SDD_MASTER_GUIDE_COPY.md` for the full workflow and rationale.

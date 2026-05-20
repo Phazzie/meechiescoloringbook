@@ -182,7 +182,11 @@ const run = async () => {
 
 	const evidenceDir = await ensureEvidenceDir(toDateFolder(new Date()));
 	const outputPath = path.join(evidenceDir, 'chamber-lock.json');
-	await fs.writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+	await fs.writeFile(
+		outputPath,
+		`${JSON.stringify(report, null, 2)}\n`,
+		'utf8'
+	);
 
 	if (missingCount > 0) {
 		process.stderr.write('Chamber Lock: missing required seam artifacts.\n');

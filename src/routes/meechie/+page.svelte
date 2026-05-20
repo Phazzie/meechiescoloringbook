@@ -18,7 +18,10 @@ Info flow: Route -> MeechieTools component -> MeechieToolSeam.
 			Meechie's Full Toolkit
 		</p>
 		<h1>Power as fact.<br />Consequences on record.</h1>
-		<p class="sub">Apology autopsies. Clapbacks. Receipt checks. Verdicts with no soft landing.</p>
+		<p class="sub">
+			Apology autopsies. Clapbacks. Receipt checks. Verdicts with no soft
+			landing.
+		</p>
 		<div class="hero-rule" aria-hidden="true"></div>
 	</header>
 	<MeechieTools />

@@ -1,9 +1,18 @@
 // Purpose: Centralize Meechie studio modes, control metadata, and spec mapping.
 // Why: Keep UI pricing/budget labels and page text generation deterministic.
 // Info flow: Metadata + AI text output -> UI controls -> ColoringPageSpec.
-import { MAX_LABEL_LENGTH, type ColoringPageSpec } from '../../../contracts/spec-validation.contract';
-import type { CreationRecord, DraftRecord } from '../../../contracts/creation-store.contract';
-import type { MeechieStudioTextAction, MeechieStudioTextOutput } from '../../../contracts/meechie-studio-text.contract';
+import {
+	MAX_LABEL_LENGTH,
+	type ColoringPageSpec
+} from '../../../contracts/spec-validation.contract';
+import type {
+	CreationRecord,
+	DraftRecord
+} from '../../../contracts/creation-store.contract';
+import type {
+	MeechieStudioTextAction,
+	MeechieStudioTextOutput
+} from '../../../contracts/meechie-studio-text.contract';
 import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract';
 
 export const DEFAULT_REVISION_BUDGET = 3;
@@ -67,14 +76,54 @@ export const studioActions = [
 		countsAgainstRevisionBudget: true,
 		aiAction: 'make_more_specific'
 	},
-	{ id: 'download_pdf', label: 'Download PDF', costClass: 'free', countsAgainstRevisionBudget: false },
-	{ id: 'export_png', label: 'Export PNG', costClass: 'free', countsAgainstRevisionBudget: false },
-	{ id: 'copy_quote', label: 'Copy Quote', costClass: 'free', countsAgainstRevisionBudget: false },
-	{ id: 'save_to_vault', label: 'Save to Vault', costClass: 'free', countsAgainstRevisionBudget: false },
-	{ id: 'change_theme', label: 'Theme', costClass: 'free', countsAgainstRevisionBudget: false },
-	{ id: 'change_page_size', label: 'Page Size', costClass: 'free', countsAgainstRevisionBudget: false },
-	{ id: 'change_border', label: 'Border', costClass: 'free', countsAgainstRevisionBudget: false },
-	{ id: 'add_glitter', label: 'Add Glitter', costClass: 'free', countsAgainstRevisionBudget: false }
+	{
+		id: 'download_pdf',
+		label: 'Download PDF',
+		costClass: 'free',
+		countsAgainstRevisionBudget: false
+	},
+	{
+		id: 'export_png',
+		label: 'Export PNG',
+		costClass: 'free',
+		countsAgainstRevisionBudget: false
+	},
+	{
+		id: 'copy_quote',
+		label: 'Copy Quote',
+		costClass: 'free',
+		countsAgainstRevisionBudget: false
+	},
+	{
+		id: 'save_to_vault',
+		label: 'Save to Vault',
+		costClass: 'free',
+		countsAgainstRevisionBudget: false
+	},
+	{
+		id: 'change_theme',
+		label: 'Theme',
+		costClass: 'free',
+		countsAgainstRevisionBudget: false
+	},
+	{
+		id: 'change_page_size',
+		label: 'Page Size',
+		costClass: 'free',
+		countsAgainstRevisionBudget: false
+	},
+	{
+		id: 'change_border',
+		label: 'Border',
+		costClass: 'free',
+		countsAgainstRevisionBudget: false
+	},
+	{
+		id: 'add_glitter',
+		label: 'Add Glitter',
+		costClass: 'free',
+		countsAgainstRevisionBudget: false
+	}
 ] as const satisfies readonly StudioActionDefinition[];
 
 export type StudioActionMetadata = (typeof studioActions)[number];
@@ -85,8 +134,9 @@ export type StudioTextActionMetadata = Extract<
 >;
 export type StudioTextActionId = StudioTextActionMetadata['id'];
 
-const isStudioTextAction = (action: StudioActionMetadata): action is StudioTextActionMetadata =>
-	'aiAction' in action;
+const isStudioTextAction = (
+	action: StudioActionMetadata
+): action is StudioTextActionMetadata => 'aiAction' in action;
 
 export class MissingStudioTextActionMetadataError extends Error {
 	constructor(id: string) {
@@ -117,7 +167,8 @@ export const studioModes: StudioMode[] = [
 		image: '/meechie/meechie-verdict-girl.png',
 		icon: '!',
 		themeColor: '#e8006a',
-		placeholder: 'He said he was working late, but the club photo says otherwise.',
+		placeholder:
+			'He said he was working late, but the club photo says otherwise.',
 		cta: 'Generate Verdict',
 		help: 'Tell Meechie what happened. She names the accountability.'
 	},
@@ -153,7 +204,8 @@ export const studioModes: StudioMode[] = [
 		image: '/meechie/meechie-receipts.png',
 		icon: '$',
 		themeColor: '#00c896',
-		placeholder: 'Claim: I never said that. Reality: the group chat says otherwise.',
+		placeholder:
+			'Claim: I never said that. Reality: the group chat says otherwise.',
 		cta: 'Check Receipts',
 		help: 'Compare the claim with the proof.'
 	},
@@ -263,7 +315,8 @@ export const studioThemes: StudioTheme[] = [
 		id: 'receipts',
 		label: 'Receipts',
 		icon: 'R',
-		styleHint: 'receipt collage, timestamp details, message screenshots as line art',
+		styleHint:
+			'receipt collage, timestamp details, message screenshots as line art',
 		image: '/meechie/meechie-receipts.png'
 	},
 	{
@@ -304,7 +357,9 @@ export const getStudioAction = (id: StudioActionId): StudioActionMetadata => {
 	return action;
 };
 
-export const getStudioTextAction = (id: StudioTextActionId): StudioTextActionMetadata => {
+export const getStudioTextAction = (
+	id: StudioTextActionId
+): StudioTextActionMetadata => {
 	const action = getStudioAction(id);
 	// Runtime guard remains intentional for JS consumers and future metadata drift.
 	if (!isStudioTextAction(action)) {
@@ -313,9 +368,14 @@ export const getStudioTextAction = (id: StudioTextActionId): StudioTextActionMet
 	return action;
 };
 
-export const consumeStudioActionBudget = (remainingBudget: number, actionId: StudioActionId): number => {
+export const consumeStudioActionBudget = (
+	remainingBudget: number,
+	actionId: StudioActionId
+): number => {
 	const action = getStudioAction(actionId);
-	return action.countsAgainstRevisionBudget ? Math.max(remainingBudget - 1, 0) : remainingBudget;
+	return action.countsAgainstRevisionBudget
+		? Math.max(remainingBudget - 1, 0)
+		: remainingBudget;
 };
 
 export const canRunStudioAction = (
@@ -352,23 +412,34 @@ const buildStudioTextFromSpec = (input: {
 	if (input.studioText) {
 		return input.studioText;
 	}
-	const pageTitle = normalizeSpecLabel(input.intent.title, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
+	const pageTitle = normalizeSpecLabel(
+		input.intent.title,
+		DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+	);
 	return {
 		verdict: pageTitle,
-		quote: input.quoteFallback?.trim() || input.intent.footerItem?.label || pageTitle,
+		quote:
+			input.quoteFallback?.trim() ||
+			input.intent.footerItem?.label ||
+			pageTitle,
 		pageTitle,
 		pageItems:
 			input.intent.items.length > 0
 				? input.intent.items.map((item) => ({
 						number: item.number,
-						label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
+						label: normalizeSpecLabel(
+							item.label,
+							DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label
+						)
 					}))
 				: DEFAULT_STUDIO_TEXT_OUTPUT.pageItems,
 		qualityState: 'ready'
 	};
 };
 
-export const buildStudioTextFromDraftRecord = (draft: DraftRecord): MeechieStudioTextOutput =>
+export const buildStudioTextFromDraftRecord = (
+	draft: DraftRecord
+): MeechieStudioTextOutput =>
 	buildStudioTextFromSpec({
 		intent: draft.intent,
 		studioText: draft.studioText
@@ -393,14 +464,23 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	styleHint: string;
 	dedication?: string;
 }): ColoringPageSpec => ({
-	title: normalizeSpecLabel(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle),
+	title: normalizeSpecLabel(
+		input.output.pageTitle,
+		DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+	),
 	items: input.output.pageItems.map((item) => ({
 		number: item.number,
-		label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
+		label: normalizeSpecLabel(
+			item.label,
+			DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label
+		)
 	})),
 	footerItem: {
 		number: 97,
-		label: normalizeSpecLabel(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle)
+		label: normalizeSpecLabel(
+			input.output.pageTitle,
+			DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+		)
 	},
 	listMode: 'list',
 	alignment: 'left',

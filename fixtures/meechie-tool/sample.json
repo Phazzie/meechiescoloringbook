@@ -1,15 +1,15 @@
 {
-  "scenario": "sample",
-  "input": {
-    "toolId": "apology_translator",
-    "apology": "I'm sorry you feel that way"
-  },
-  "output": {
-    "ok": true,
-    "value": {
-      "toolId": "apology_translator",
-      "headline": "What That Really Meant",
-      "response": "You not sorry. You just mad it landed. That is not repair, that is panic."
-    }
-  }
+	"scenario": "sample",
+	"input": {
+		"toolId": "apology_translator",
+		"apology": "I'm sorry you feel that way"
+	},
+	"output": {
+		"ok": true,
+		"value": {
+			"toolId": "apology_translator",
+			"headline": "What That Really Meant",
+			"response": "You not sorry. You just mad it landed. That is not repair, that is panic."
+		}
+	}
 }

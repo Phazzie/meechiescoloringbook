@@ -41,7 +41,9 @@ const extractCommands = (content) =>
 		.map((line) => line.trim().slice(2));
 
 const run = async () => {
-	const evidenceDir = (await getLatestEvidenceDir()) ?? (await fs.mkdir(EVIDENCE_ROOT, { recursive: true }).then(() => null));
+	const evidenceDir =
+		(await getLatestEvidenceDir()) ??
+		(await fs.mkdir(EVIDENCE_ROOT, { recursive: true }).then(() => null));
 	if (!evidenceDir) {
 		process.stderr.write('Proof Tape requires an evidence directory.\n');
 		process.exit(1);
@@ -101,7 +103,11 @@ const run = async () => {
 		}
 	}
 	lines.push('');
-	await fs.writeFile(path.join(outputDir, 'proof-tape.md'), `${lines.join('\n')}\n`, 'utf8');
+	await fs.writeFile(
+		path.join(outputDir, 'proof-tape.md'),
+		`${lines.join('\n')}\n`,
+		'utf8'
+	);
 };
 
 run().catch((error) => {

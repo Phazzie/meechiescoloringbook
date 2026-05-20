@@ -4,6 +4,8 @@
 import type { AppConfigSeam } from './contract';
 import { getAppConfigFixture } from './fixtures';
 
-export const createMockAppConfigSeam = (scenario: 'sample' | 'fault' = 'sample'): AppConfigSeam => ({
-  getConfig: () => getAppConfigFixture(scenario)
+export const createMockAppConfigSeam = (
+	scenario: 'sample' | 'fault' = 'sample'
+): AppConfigSeam => ({
+	getConfig: () => getAppConfigFixture(scenario)
 });

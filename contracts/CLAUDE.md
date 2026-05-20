@@ -3,6 +3,7 @@ Purpose: Note that contract files here belong to the legacy flat seam layout.
 Why: Prevent new seams from being added here; new seams use src/lib/seams/<name>/.
 Info flow: contracts/<seam>.contract.ts -> src/lib/mocks/ -> tests/contract/ -> src/lib/adapters/
 -->
+
 # Legacy flat-layout seams
 
 Contract files in this folder belong to the **legacy flat layout**. Each one has companions at:

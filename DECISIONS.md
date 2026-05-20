@@ -3,6 +3,7 @@ Purpose: Decision log for architecture and process choices.
 Why: Preserve rationale and prevent re-litigation.
 Info flow: Decision -> consequences -> future changes.
 -->
+
 # Decisions
 
 Short, durable decisions with context and tradeoffs.
@@ -25,6 +26,7 @@ Short, durable decisions with context and tradeoffs.
 **Files added**: `src/lib/seams/cache-seam/{contract,fixtures,validators,mock,probe,test}.ts`, `src/lib/adapters/cache-seam/index.ts`
 
 **Files modified**: `src/service-worker.ts` (import + use seam), `docs/seams.md` (registry entry)
+
 ## 2026-05-16 — Split AppConfigSeam: Introduce ImageProviderConfigSeam
 
 **Context**: The image-generation route (`/api/image-generation`) depended on `AppConfigSeam` via `createAppConfigSeam()`. `AppConfigSeam` validates all config including `XAI_TEXT_MODEL`, `GEMINI_API_KEY`, and other unrelated keys. If any of those are absent, the image-generation endpoint fails at startup even though it only needs 4 image-provider env keys.
@@ -34,11 +36,13 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 **Decision**: Extract `ImageProviderConfigSeam` — a narrow seam containing only `xaiApiKey`, `xaiImageModel`, `xaiBaseUrl`, and `xaiImageEndpointPath`. Wire `ImageGenerationSeam` adapter to depend on `ImageProviderConfigSeam` instead of `AppConfigSeam`. Update the image-generation route to use `createImageProviderConfigSeam()`. `AppConfigSeam` is unchanged and still used by `wig-try-on` and other routes that need the full config.
 
 **Rationale**:
+
 - Minimum coupling principle: the image-generation adapter only reads 4 env vars; it should declare only those as dependencies
 - Startup resilience: a deployment with only `XAI_IMAGE_*` keys configured (no text model, no Gemini) can now serve image generation without a config error
 - Follows existing self-contained seam layout; full Seam-Driven Development workflow applied (contract → probe → fixtures → mock → test → adapter)
 
 **Files added**:
+
 - `src/lib/seams/image-provider-config-seam/contract.ts`
 - `src/lib/seams/image-provider-config-seam/validators.ts`
 - `src/lib/seams/image-provider-config-seam/fixtures.ts`
@@ -48,24 +52,25 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - `src/lib/adapters/image-provider-config-seam/index.ts`
 
 **Files modified**:
+
 - `src/lib/adapters/image-generation-seam/index.ts` — changed `AppConfigSeam` dep to `ImageProviderConfigSeam`
 - `src/routes/api/image-generation/+server.ts` — use `createImageProviderConfigSeam()`, removed TODO
 - `docs/seams.md` — added `ImageProviderConfigSeam` entry
 - `src/lib/seams/CLAUDE.md` — added to current seams table
 
 - Cipher Gate:
-    Date: 2026-05-16
-    Seams: ImageProviderConfigSeam, ImageGenerationSeam, AppConfigSeam
-    Evidence: pending — ImageProviderConfigSeam is env-var-only (N/A probe); ImageGenerationSeam probe still blocked (no XAI_API_KEY). Contract tests pass locally under npm test.
-    Summary: Extracted ImageProviderConfigSeam from AppConfigSeam to narrow the image-generation route's config dependency to the 4 xAI image-provider env keys. AppConfigSeam is unmodified.
-    Risks: If a new image-generation config key is added to AppConfigSeam in future, developers must remember to add it to ImageProviderConfigSeam as well. Mitigated by the seam registry and contract tests.
+  Date: 2026-05-16
+  Seams: ImageProviderConfigSeam, ImageGenerationSeam, AppConfigSeam
+  Evidence: pending — ImageProviderConfigSeam is env-var-only (N/A probe); ImageGenerationSeam probe still blocked (no XAI_API_KEY). Contract tests pass locally under npm test.
+  Summary: Extracted ImageProviderConfigSeam from AppConfigSeam to narrow the image-generation route's config dependency to the 4 xAI image-provider env keys. AppConfigSeam is unmodified.
+  Risks: If a new image-generation config key is added to AppConfigSeam in future, developers must remember to add it to ImageProviderConfigSeam as well. Mitigated by the seam registry and contract tests.
 
 - Assumption (historical note):
-    Date: 2026-05-16
-    Seams: ImageProviderConfigSeam
-    Statement: The 4 image-provider keys (XAI_API_KEY, XAI_IMAGE_MODEL, XAI_BASE_URL, XAI_IMAGE_ENDPOINT_PATH) are the complete set needed by the ImageGenerationSeam adapter. No other env var will be needed without a contract update.
-    Validation: Verified by reading the ImageGenerationSeam adapter source — only these 4 keys are accessed from config.
-    Status: Confirmed by code inspection; no live probe required for a config-only seam.
+  Date: 2026-05-16
+  Seams: ImageProviderConfigSeam
+  Statement: The 4 image-provider keys (XAI_API_KEY, XAI_IMAGE_MODEL, XAI_BASE_URL, XAI_IMAGE_ENDPOINT_PATH) are the complete set needed by the ImageGenerationSeam adapter. No other env var will be needed without a contract update.
+  Validation: Verified by reading the ImageGenerationSeam adapter source — only these 4 keys are accessed from config.
+  Status: Confirmed by code inspection; no live probe required for a config-only seam.
 
 ## 2026-05-11 — Wig Try-On Feature: Seam-Driven Development Architecture
 
@@ -74,6 +79,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 **Decision**: Build two new seams following Seam-Driven Development conventions — WigCatalogSeam (reads static data, no I/O) and WigTryOnSeam (calls Gemini 2.0 Flash image generation API). One new API route `/api/wig-try-on` orchestrated by `wig-try-on-pipeline.ts`. UI integrated into `+page.svelte` as a new "Style Your Look" section below the workbench.
 
 **Rationale**:
+
 - WigCatalogSeam is pure (static JSON import) — no external I/O, instant, testable
 - WigTryOnSeam uses Gemini 2.0 Flash (`gemini-2.0-flash-preview-image-generation`) because: (a) existing `GEMINI_API_KEY` in env, (b) model accepts multi-image input (selfie + product photo) and generates illustrated output, (c) ~$0.04–0.06/call competitive with alternatives, (d) illustrated style pairs naturally with the downstream Grok coloring-page step
 - Affiliate-first monetization: catalog links to Beautyforever, Wigsbuy, Luvmehair with UTM tracking. Zero inventory, zero fulfillment, live immediately
@@ -81,6 +87,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Try-on is optional — if user does not select a wig, the generate flow is unchanged. If a wig is selected, its name/style is appended to `currentStyleHint()` to influence the coloring-page prompt
 
 **Files added**:
+
 - `src/lib/data/wigs.json` — static catalog (8 wigs, 3 affiliate programs)
 - `src/lib/seams/wig-catalog-seam/` — contract / fixtures / mock / probe / test / validators
 - `src/lib/seams/wig-try-on-seam/` — contract / fixtures / mock / probe / test / validators
@@ -93,6 +100,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - `contracts/wig-try-on.contract.ts` — API request/response schema
 
 **Files modified**:
+
 - `src/lib/seams/app-config-seam/contract.ts` — added `geminiApiKey: string`, `geminiBaseUrl: string`
 - `src/lib/seams/app-config-seam/validators.ts` — added schema fields with safe defaults
 - `src/lib/adapters/app-config-seam/index.ts` — reads `GEMINI_API_KEY` and `GEMINI_BASE_URL` from env
@@ -100,8 +108,8 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 
 **Environment variable required**: `GEMINI_API_KEY` — add to Vercel project settings and `.env.example`
 
-
 ## 2026-05-10 - Fix ImageGenerationSeam dual-system mismatch
+
 - Date: 2026-05-10
 - Decision: Add `Result<>` return type to `ImageGenerationSeam`, wire adapter into pipeline, and fix broken import path, null safety on `payload.data`, and separate validation vs config error codes.
 - Context: The seam contract used a broken relative import path (`../../../contracts/shared.contract` instead of `../../../../contracts/shared.contract`), causing CI failures. The adapter also lacked null safety on `payload.data` and reused `IMAGE_VALIDATION_ERROR` for both request and config failures.
@@ -110,13 +118,14 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: Revisit if xAI config keys are split into a narrower image-provider config seam.
 
 - Cipher Gate:
-    Date: 2026-05-10
-    Seams: ImageGenerationSeam
-    Evidence: pending — verify pipeline requires XAI_API_KEY not available in this environment
-    Summary: Added Result<> type to ImageGenerationSeam, wired into pipeline. Fixed broken import path, null safety on payload.data, separated validation vs config error codes.
-    Risks: Cannot produce live probe evidence without XAI_API_KEY.
+  Date: 2026-05-10
+  Seams: ImageGenerationSeam
+  Evidence: pending — verify pipeline requires XAI_API_KEY not available in this environment
+  Summary: Added Result<> type to ImageGenerationSeam, wired into pipeline. Fixed broken import path, null safety on payload.data, separated validation vs config error codes.
+  Risks: Cannot produce live probe evidence without XAI_API_KEY.
 
 ## 2026-05-09 - Svelte 5 runes migration of +page.svelte
+
 - Date: 2026-05-09
 - Decision: Migrate `src/routes/+page.svelte` from Svelte 4 legacy reactive syntax (`$:`, `on:event`) to Svelte 5 runes (`$state`, `$derived`, `onclick`). This is a zero-seam, zero-behavior-change refactoring.
 - Context: The project targets Svelte 5 (`^5.53.0`) and the layout already uses runes (`$props`, `{@render}`). The main page remained on legacy `$:` reactive declarations. In runes mode, `$:` is forbidden; mixing it with `$state` is a compile error. Migrating now prevents subtle ordering issues with legacy reactivity and removes all deprecation risk.
@@ -125,6 +134,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If future Svelte versions change runes semantics, re-evaluate deep binding behavior for the `voice` object.
 
 ## 2026-05-02 - Meechie studio AI text seam and redesign
+
 - Date: 2026-05-02
 - Decision: Add `MeechieStudioTextSeam` for AI-backed verdict, quote, and coloring-page text actions, then redesign the home page around the Meechie studio flow with cost metadata and a default three-action AI text budget.
 - Context: The prior deterministic Meechie tools could not represent regenerate, make prettier, make meaner, and make more specific without overloading unrelated tool IDs; the product needed real AI wording while keeping local export, copy, theme, page-size, border, glitter, and vault controls outside the text budget.
@@ -146,6 +156,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Real text generation depends on `XAI_API_KEY` and strict JSON-only model output; browser visual polish still needs screenshot review on target devices.
 
 ## Template
+
 - Date:
 - Decision:
 - Context:
@@ -154,6 +165,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria:
 
 ## 2026-04-23 - Delegate chat JSON grammar validation to JSON.parse
+
 - Date: 2026-04-23
 - Decision: Replace the custom brace scanner in chat interpretation with a parser-based check that trims content, parses once with `JSON.parse`, and accepts only top-level JSON objects.
 - Context: Review feedback called out maintenance risk and potential grammar edge-case drift in the hand-rolled scanner implementation.
@@ -169,6 +181,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Strict JSON-only enforcement can still reject provider responses that prepend prose despite prompt instructions.
 
 ## 2026-04-22 - Enforce strict single-object JSON parsing for chat interpretation
+
 - Date: 2026-04-22
 - Decision: Harden chat interpretation parsing to accept exactly one top-level JSON object and reject any extra non-whitespace text before or after the object boundary.
 - Context: The prior extraction strategy accepted the first `{` through last `}` substring, which could silently accept narrative wrappers or ambiguous multi-object responses.
@@ -184,6 +197,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Some providers may still emit non-JSON wrappers despite prompt instructions, increasing rejection rate until upstream behavior is fully aligned.
 
 ## 2026-02-15 - Extract chat/tools pipelines, retire ghost workflow, and refresh seam governance
+
 - Date: 2026-02-15
 - Decision: Extract `/api/chat-interpretation` and `/api/tools` orchestration into core pipeline modules, keep route handlers transport-thin, remove the unused legacy workflow/composition path, and update seam inventory coverage for seam modules under `src/lib/seams/`.
 - Context: Route handlers were carrying orchestration logic directly, behavior was harder to test in isolation, and the repo retained a dead legacy workflow path (`generation-workflow.ts`) that no active route consumed.
@@ -199,6 +213,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Behavior-preserving extraction still depends on existing status-code conventions (several error responses intentionally stay HTTP 200 for contract compatibility); retired legacy runtime path would need fresh composition if revived.
 
 ## 2026-02-14 - Stabilize adapter rules and reduce architecture drift
+
 - Date: 2026-02-14
 - Decision: Centralize shared prompt/safety/chat constants, remove arbitrary client-side chat blocking, and decouple ProviderAdapterSeam from SvelteKit env imports by using injected/process config.
 - Context: Audit findings showed rule duplication, framework coupling in provider adapter, and brittle preflight filtering in chat interpretation.
@@ -214,6 +229,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Legacy and current generation stacks still coexist; full unification remains a separate effort.
 
 ## 2026-02-14 - Full UI redesign + core refactor consolidation
+
 - Date: 2026-02-14
 - Decision: Ship a full visual/copy redesign while extracting generate orchestration into a core pipeline, centralizing prompt line builders, and unifying client request helpers with API-key header flow.
 - Context: The UI needed a full quality reset for the intended audience, and the codebase had technical debt from route-level orchestration and duplicated prompt/fetch logic.
@@ -229,6 +245,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Voice copy remains manual and requires fixture sync discipline; image generation still depends on external provider availability.
 
 ## 2026-02-12 - Add MeechieVoiceSeam voice pack
+
 - Date: 2026-02-12
 - Decision: Add MeechieVoiceSeam and route MeechieToolSeam through a voice pack to centralize editable copy and templates.
 - Context: Meechie tool responses were embedded directly in the tool adapter, making edits harder and mixing copy with logic.
@@ -244,6 +261,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Voice pack edits must keep fixtures in sync to avoid contract drift.
 
 ## 2026-02-11 - Normalize xAI base URL usage and model config
+
 - Date: 2026-02-11
 - Decision: Normalize `XAI_BASE_URL` inside ProviderAdapterSeam to avoid double `/v1`, read `XAI_IMAGE_MODEL` in the `/api/image-generation` route, and align AppConfig seam defaults to base `https://api.x.ai` with endpoint `/v1/images/generations`.
 - Context: The sample base URL included `/v1`, causing `/v1/v1` in ProviderAdapterSeam; the image route hardcoded the model and could drift from environment config.
@@ -259,6 +277,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Misconfigured base URLs beyond `/v1` may still require manual correction.
 
 ## 2026-02-11 - Switch xAI image model to grok-imagine-image
+
 - Date: 2026-02-11
 - Decision: Switch the default xAI image model to `grok-imagine-image`, refresh ProviderAdapterSeam/ImageGenerationSeam probes and fixtures, and move AppConfigSeam fixtures into `fixtures/app-config/` to satisfy chamber lock.
 - Context: The new model id was provided and required fresh probes; chamber lock expects seam fixtures in `fixtures/<seam>/`.
@@ -281,6 +300,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Status: Validated (evidence: docs/evidence/2026-02-11/probe-provider-adapter.txt; docs/evidence/2026-02-11/probe-image-generation.txt).
 
 ## 2026-02-10 - Reconcile origin/main seams and add AI guide
+
 - Date: 2026-02-10
 - Decision: Reconcile origin/main seam scaffolding (AppConfig, PromptCompiler, SafetyPolicy, ImageGeneration, GalleryStore, Telemetry) into the local Seam-Driven Development workflow and add an AI assistant guide.
 - Context: The remote history introduced a parallel seam scaffolding that needed to be merged with the existing seam-first workflow and governance docs.
@@ -296,6 +316,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Future provider changes or missing environment config could require re-probing and fixture refresh.
 
 ## 2025-01-22 - Stack choice
+
 - Date: 2025-01-22
 - Decision: Use SvelteKit + TypeScript, Vitest, and Playwright.
 - Context: Establish a typed web stack with unit/contract tests and browser-level smoke coverage.
@@ -304,6 +325,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If runtime/platform constraints force a framework shift.
 
 ## 2025-01-22 - Seam-Driven Development architecture
+
 - Date: 2025-01-22
 - Decision: Implement seams for AppConfigSeam, PromptCompilerSeam, SafetyPolicySeam, ImageGenerationSeam, GalleryStoreSeam, and TelemetrySeam with mocks, fixtures, and tests.
 - Context: Seam-Driven Development isolates external dependencies and keeps core workflow deterministic.
@@ -312,6 +334,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If seam boundaries or ownership change.
 
 ## 2025-01-22 - Prompt enforcement strategy
+
 - Date: 2025-01-22
 - Decision: Prompt compiler always injects outline-only, no-color constraints plus glam style guidance.
 - Context: Enforce coloring-book constraints deterministically even before image generation.
@@ -320,6 +343,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If the canonical prompt format changes.
 
 ## 2025-01-22 - Safety policy approach
+
 - Date: 2025-01-22
 - Decision: Use rules-based validation in the safety seam with explicit error codes.
 - Context: Deterministic checks prevent disallowed content with user-friendly errors.
@@ -328,6 +352,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If policy requirements or compliance rules change.
 
 ## 2025-01-22 - xAI image model configuration
+
 - Date: 2025-01-22
 - Decision: Default to `grok-2-image` with base URL `https://api.x.ai/v1` and endpoint path `/images/generations`; model is environment-configurable.
 - Context: These values came from xAI image generation docs at the time.
@@ -336,6 +361,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If xAI model ids or endpoints change.
 
 ## 2025-01-22 - Integration test gating
+
 - Date: 2025-01-22
 - Decision: Integration tests run only when `FEATURE_INTEGRATION_TESTS=true` and `XAI_API_KEY` is present.
 - Context: Prevent external API calls during default offline runs.
@@ -344,6 +370,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If CI should always run integration coverage.
 
 ## 2026-02-05 - Browser seam probe with Playwright
+
 - Date: 2026-02-05
 - Decision: Add a Playwright-based browser probe to capture localStorage-backed seams (Session/AuthContext/CreationStore).
 - Context: These seams depend on real browser storage APIs that are not available in Node-only probes.
@@ -359,6 +386,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Probe output depends on Playwright and localStorage keys; changes in browser storage behavior require probe updates.
 
 ## 2026-01-26 - Add AI agent reference notes to AGENTS.md
+
 - Date: 2026-01-26
 - Decision: Add a short AI agent reference notes section to `AGENTS.md` pointing to sources of truth, naming rules, and evidence locations.
 - Context: The user requested concise notes an AI coding agent can rely on without hunting through multiple files.
@@ -373,6 +401,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: The risk is duplicating guidance and letting it drift; evidence is the added section in `AGENTS.md`.
 
 ## 2026-01-26 - Align probe prompt + required-phrase checks with canonical template
+
 - Date: 2026-01-26
 - Decision: Replace the ImageGenerationSeam probe prompt with the compressed canonical prompt and align required-phrase checks to that casing.
 - Context: The probe still used the older verbose prompt (triggering a 400 length error), and required-phrase checks expected a lowercase prefix that no longer matches the canonical prompt.
@@ -400,6 +429,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Phrase checks can drift if the template changes without updating these checks.
 
 ## 2026-01-26 - Shorten canonical prompt to fit xAI 1024 limit
+
 - Date: 2026-01-26
 - Decision: Rewrite the canonical prompt template to stay under 1024 characters for typical specs and add a prompt-length guard in PromptAssemblySeam.
 - Context: xAI image generation rejects prompts longer than 1024 characters; the previous template measured 1523 characters for the sample fixture.
@@ -437,6 +467,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Long lists can still exceed 1024; generation will fail fast until inputs are reduced or a compressed provider prompt is added.
 
 ## 2026-01-26 - Update xAI image model id to grok-2-image-1212
+
 - Date: 2026-01-26
 - Decision: Replace `grok-2-image` with `grok-2-image-1212` as the default image model.
 - Context: Model inventory for the account lists `grok-2-image-1212` rather than `grok-2-image`.
@@ -467,6 +498,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Image probe remains 404 until xAI image access/endpoint is confirmed.
 
 ## 2026-01-26 - Surface image probe error body
+
 - Date: 2026-01-26
 - Decision: Log the raw error body from the xAI image endpoint during probes.
 - Context: The image probe returns 400 Bad Request without exposing details needed to fix the request.
@@ -492,6 +524,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Probe output may be verbose; image generation remains blocked until a successful probe.
 
 ## 2026-01-26 - Require plain-language definitions for jargon and flags
+
 - Date: 2026-01-26
 - Decision: Add a governance line in `AGENTS.md` requiring brief plain-language definitions when introducing jargon or flags.
 - Context: Users asked for jargon and flags to be explained directly in the workflow guidance.
@@ -513,6 +546,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: None beyond enforcement drift if definitions are skipped.
 
 ## 2026-01-25 - Seam-Driven Development plan (probe refresh + optional features) + self-critique
+
 - Date: 2026-01-25
 - Decision: Refresh xAI probe fixtures now that network access is available; add optional features (dedication line, share exports, sparkle preview overlay) via seam-safe updates.
 - Context: User requested autonomous progress and as many optional features as possible without shortcuts.
@@ -566,6 +600,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: The riskiest assumption is that share-export resizing won’t distort print-ready assets; evidence will be updated output-packaging fixtures and contract tests. Another risk is that dedication text introduces heading drift or invalid characters; evidence will be updated prompt fixtures, drift checks, and validation errors.
 
 ## 2026-01-25 - Dedication line placement
+
 - Date: 2026-01-25
 - Decision: Add dedication text as an optional layout line (no new headings) using the exact phrase `Add a small script dedication at the bottom: "Dedicated to <name>".`.
 - Context: Dedication must appear on generated pages without violating the locked heading list.
@@ -574,6 +609,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If future template changes permit new headings without breaking drift checks.
 
 ## 2026-01-25 - Share export variants
+
 - Date: 2026-01-25
 - Decision: Add OutputPackagingSeam variants for `square` (1080x1080) and `chat` (720x720) while keeping `print` outputs unchanged.
 - Context: Users need share-ready outputs without compromising print fidelity.
@@ -589,6 +625,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Share resizing quality and blocked image generation probe until xAI endpoint access is confirmed.
 
 ## 2026-01-25 - xAI probe status update (image endpoint)
+
 - Date: 2026-01-25
 - Decision: Record probe results: chat/provider probes completed; image generation probe returned 400 with a 1024-character prompt length limit.
 - Context: DNS resolution was restored on the host and probes were run with a valid API key.
@@ -597,6 +634,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: Adjust prompt assembly to stay within 1024 characters or select a provider with a higher prompt limit, then rerun probes.
 
 ## 2026-01-24 - Seam-Driven Development plan (xAI integration + PWA) + self-critique
+
 - Date: 2026-01-24
 - Decision: Proceed with Seam-Driven Development updates for ProviderAdapterSeam, ChatInterpretationSeam, and ImageGenerationSeam to integrate xAI chat/image calls, add probes/fixtures, and add PWA install assets.
 - Context: User requires xAI-backed image generation and chat, plus Android-installable PWA and removal of hidden Meechie-only route.
@@ -657,6 +695,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Status: closed (probes ran 2026-02-01)
 
 ## 2026-01-24 - xAI provider integration (chat + image)
+
 - Date: 2026-01-24
 - Decision: Use xAI endpoints via ProviderAdapterSeam, with server-side API routes for chat interpretation and image generation and client adapters calling those routes.
 - Context: The app must use xAI for chat and image generation while keeping API keys off the client.
@@ -665,6 +704,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If xAI responses cannot be parsed reliably or if server routing adds unacceptable latency.
 
 ## 2026-01-24 - PWA installability + Meechie embedding
+
 - Date: 2026-01-24
 - Decision: Add a PWA manifest/icon/service worker and embed Meechie tools on the main page while keeping the `/meechie` route as a deep link.
 - Context: The app must be installable on Android and Meechie tools must not be hidden behind a separate URL.
@@ -680,6 +720,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: xAI probes failed because DNS resolution is unavailable; fixtures remain stubbed until probes can run.
 
 ## 2026-01-22 - Seam-Driven Development plan (option expansion) + self-critique
+
 - Date: 2026-01-22
 - Decision: Expand user options across spec, prompt, drift detection, renderer, packaging, and UI with full Seam-Driven Development workflow and evidence.
 - Context: User approved adding all option buckets (alignment, list gutter, footer toggle, title-only mode, decorations/illustrations/shading, color, A4 size, typography).
@@ -740,6 +781,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: The riskiest assumption is that all new options can be expressed deterministically in the prompt and SVG renderer without violating the “blank space is intentional” rule; evidence will be updated fixtures, drift checks, and renderer contract tests. Another risk is option explosion causing mismatched defaults across seams; evidence will be consistent default values in contracts, adapters, fixtures, and UI.
 
 ## 2026-01-22 - Option sets and defaults (v1 expansion)
+
 - Date: 2026-01-22
 - Decision: Add v1 option enums and defaults: listMode (`list`/`title_only`), listGutter (`tight`/`normal`/`loose`), fontStyle (`rounded`/`block`/`hand`), textStrokeWidth (4–12, default 6), colorMode (`black_and_white_only`/`grayscale`/`color`), decorations (`none`/`minimal`/`dense`), illustrations (`none`/`simple`/`scene`), shading (`none`/`hatch`/`stippling`), border (`none`/`plain`/`decorative`), borderThickness (2–16, default 8).
 - Context: User requested all option buckets; we need explicit, testable values.
@@ -748,6 +790,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If option combinations produce unreadable layouts or prompt drift becomes hard to detect.
 
 ## 2026-01-22 - A4 dimension mapping (renderer + packaging)
+
 - Date: 2026-01-22
 - Decision: Use A4 size at 300 DPI as 2480×3508 px in SVG renderer; PDF packaging uses A4 at 595×842 pt.
 - Context: Page size is now a user option and must be deterministic in output.
@@ -756,6 +799,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If print output shows off-by-one scaling or PDF layout mismatch.
 
 ## 2026-01-22 - Deterministic decoration + shading rendering
+
 - Date: 2026-01-22
 - Decision: Decorations/illustrations render as fixed outline shapes; shading uses hatch or stippling patterns applied only to those shapes; stroke color is driven by colorMode.
 - Context: New style options must remain deterministic and testable without external dependencies.
@@ -764,6 +808,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If shapes interfere with text or require a more advanced layout engine.
 
 ## 2026-01-22 - Wu-Bob roster change (micro plan + self-critique)
+
 - Date: 2026-01-22
 - Decision: Change Wu-Bob roster to Uncle Bob + RZA + Inspectah Deck.
 - Context: User requested a roster change to emphasize clean-code discipline (Uncle Bob), system vision (RZA), and architectural inspection rigor (Inspectah Deck) during upcoming option expansion.
@@ -774,6 +819,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of overemphasizing structure at the expense of rapid iteration; evidence is the updated roster entries and referenced files.
 
 ## 2026-01-22 - Wu-Bob roster change (micro plan + self-critique)
+
 - Date: 2026-01-22
 - Decision: Change Wu-Bob roster to GZA + U-God + Method Man.
 - Context: User requested a roster change to emphasize concise precision (GZA), steady grounding (U-God), and pragmatic execution energy (Method Man).
@@ -784,6 +830,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of reducing architectural depth; evidence is the updated roster entries and referenced files.
 
 ## 2026-01-22 - Center alignment applies to all text columns
+
 - Date: 2026-01-22
 - Decision: `alignment: "center"` centers the title and list columns; number/label columns straddle the center line with fixed half-gutter spacing. Prompt alignment lines mirror this (centered vs left-aligned).
 - Context: Users must be able to align content left or center; list items are part of the content and must follow the chosen alignment.
@@ -792,6 +839,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If the centered list layout is visually unbalanced for long labels or if a future text-measurement capability is introduced.
 
 ## 2026-01-22 - Wu-Bob roster change (micro plan + self-critique)
+
 - Date: 2026-01-22
 - Decision: Change Wu-Bob roster from Raekwon + Masta Killa to GZA + Ghostface Killah.
 - Context: User requested a roster change to emphasize precision and raw clarity during review.
@@ -802,6 +850,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of over-indexing on brevity at the expense of completeness; evidence is the updated roster entries in the two files.
 
 ## 2026-01-22 - Seam-Driven Development plan (alignment + decorations consistency) + self-critique
+
 - Date: 2026-01-22
 - Decision: Align prompt assembly text with alignment settings, remove non-seam network font loading, and resolve decoration contradictions by making the prompt explicitly forbid decorations while preserving the DECORATIONS heading.
 - Context: Current prompt/template conflicts with spec constraints and introduces external network I/O in the UI.
@@ -828,6 +877,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: The riskiest assumption is that prompt text changes will not invalidate downstream drift checks; evidence will be updated fixtures and contract tests. Another risk is introducing regressions in the renderer tests while adding layout assertions; evidence will be the updated ImageGenerationSeam contract test expectations.
 
 ## 2026-01-22 - Seam-Driven Development plan (pure seams) + self-critique
+
 - Date: 2026-01-22
 - Decision: Proceed with full fixture -> mock -> contract test -> adapter workflow for SpecValidationSeam, PromptAssemblySeam, DriftDetectionSeam, ImageGenerationSeam, and OutputPackagingSeam, plus probe status corrections in `docs/seams.md`.
 - Context: Contracts exist and partial fixtures started; the next safe step is to complete the pure seams end-to-end before touching I/O seams.
@@ -864,6 +914,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
     - `src/lib/adapters/prompt-assembly.adapter.ts`
 
 ## 2026-01-22 - Seam-Driven Development tooling automation (chamber lock, shaolin lint, rewind)
+
 - Date: 2026-01-22
 - Decision: Add deterministic automation scripts (chamber lock, shaolin lint, rewind, verify runner) and wire them into `npm run verify`.
 - Context: User requested maximum automation with enforced evidence and seam artifact checks.
@@ -885,6 +936,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: The riskiest assumption is that evidence freshness based on mtimes is sufficient; if file timestamps drift, the lint could block incorrectly. Evidence is the generated JSON reports and successful `npm run verify` output captured under `docs/evidence/YYYY-MM-DD/`.
 
 ## 2026-01-23 - Seam ledger + proof tape automation (plan + self-critique)
+
 - Date: 2026-01-23
 - Decision: Add seam ledger and proof tape scripts for deterministic seam coverage reporting and non-coder evidence summaries.
 - Context: User requested more automated, human-readable proof artifacts without weakening enforcement.
@@ -904,6 +956,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: The riskiest assumption is that evidence folder selection by date is sufficient for accurate summaries; evidence will be the generated ledger and proof tape reports in `docs/evidence/YYYY-MM-DD/`.
 
 ## 2026-01-23 - Clan chain report (plan + self-critique)
+
 - Date: 2026-01-23
 - Decision: Add a clan chain report that marks seams as clean or dirty using the seam ledger output.
 - Context: User requested additional Wu-Tang-specific tooling to make seam readiness visible for non-coders.
@@ -922,6 +975,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: The riskiest assumption is that seam ledger status alone is sufficient to classify readiness; evidence will be the generated `clan-chain.json` and `clan-chain.md` reports.
 
 ## 2026-01-23 - AGENTS automation instructions (micro plan + self-critique)
+
 - Date: 2026-01-23
 - Decision: Document automated tool usage in `AGENTS.md` to prevent ambiguity about required gates.
 - Context: New automation scripts are wired into `npm run verify` and need explicit governance guidance.
@@ -938,6 +992,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of over-prescription if tooling changes; evidence is the updated `AGENTS.md` section and this decision entry.
 
 ## 2026-01-23 - AGENTS automation tools section (micro plan + self-critique)
+
 - Date: 2026-01-23
 - Decision: Add a short Automation Tools section in `AGENTS.md` listing the new scripts and their purposes.
 - Context: Users asked for clear instructions on how to use the automated gates.
@@ -952,13 +1007,14 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
     - `DECISIONS.md`
   - Commands: none.
 - Self-critique (micro): Risk of duplication with `package.json`; evidence is the updated `AGENTS.md` section.
-    - `src/lib/adapters/drift-detection.adapter.ts`
-    - `src/lib/adapters/image-generation.adapter.ts`
-    - `src/lib/adapters/output-packaging.adapter.ts`
+  - `src/lib/adapters/drift-detection.adapter.ts`
+  - `src/lib/adapters/image-generation.adapter.ts`
+  - `src/lib/adapters/output-packaging.adapter.ts`
   - Commands: `npm run check`, `npm test`, `npm run verify`.
 - Self-critique: The riskiest assumption is that the locked prompt template can incorporate list-based content without breaking drift rules; evidence will be contract tests for PromptAssemblySeam and DriftDetectionSeam plus fixture comparisons. Another risk is PDF packaging correctness from SVG input; evidence will be OutputPackagingSeam tests that validate non-empty base64 output and expected file naming.
 
 ## 2026-01-22 - Seam-Driven Development plan (stateful seams) + self-critique
+
 - Date: 2026-01-22
 - Decision: Proceed with fixture -> mock -> contract test -> adapter workflow for SessionSeam, AuthContextSeam, CreationStoreSeam, ChatInterpretationSeam, and ProviderAdapterSeam, including contract extension for draft storage in CreationStoreSeam.
 - Context: Pure seams are in place; stateful seams are required to support persistence and chat workflow without hidden I/O.
@@ -1000,6 +1056,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: The riskiest assumption is that browser-only storage behavior can be safely gated without violating flow expectations; evidence will be adapters returning explicit `BROWSER_REQUIRED` errors in Node tests. Another risk is expanding the CreationStoreSeam contract for drafts; evidence will be updated fixtures and contract tests for draft operations.
 
 ## 2026-01-21 - Initial app and seam decisions
+
 - Date: 2026-01-21
 - Decision: Build with SvelteKit (latest stable), Vite, Vitest, strict TypeScript, and svelte-check; no `any`.
 - Context: Need fast iteration with strict correctness for Seam-Driven Development.
@@ -1085,6 +1142,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If seam inventory format changes.
 
 ## 2026-01-21 - Governance-only docs update (micro plan + self-critique)
+
 - Date: 2026-01-21
 - Decision: Clarify governance rules for docs-only changes and seam inventory formatting without changing SDD philosophy.
 - Context: Required fixes to prevent ambiguity around plans, probes, and naming.
@@ -1095,6 +1153,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of misclassifying a seam as pure or blocked; evidence is the explicit notes and probe status entries in `docs/seams.md`.
 
 ## 2026-01-22 - Wu-Bob roster change (micro plan + self-critique)
+
 - Date: 2026-01-22
 - Decision: Change Wu-Bob roster to RZA + Raekwon + Inspectah Deck for spec/communication guidance.
 - Context: Need stronger narrative/translation of specs without losing architectural rigor or inspection.
@@ -1105,6 +1164,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of over-weighting narrative; mitigation is to keep enforcement language explicit.
 
 ## 2026-01-22 - xAI provider boundary decisions
+
 - Date: 2026-01-22
 - Decision: External boundary is ProviderAdapterSeam (Option B).
 - Context: Keep PromptAssemblySeam pure/deterministic while isolating network/auth/retries and enabling provider swaps.
@@ -1134,6 +1194,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: When real provider integration is requested.
 
 ## 2026-01-22 - Autonomy lock decisions
+
 - Date: 2026-01-22
 - Decision: SVG renderer targets US Letter at 300 DPI (2550x3300 px) with 0.5 in margins (150 px), content width 2250 px, border stroke 8 px inside margin, safe text box x=150 y=150 w=2250 h=3000.
 - Context: Lock deterministic layout for v1 rendering.
@@ -1149,7 +1210,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If font availability or legibility requires change.
 
 - Date: 2026-01-22
-- Decision: WhitespaceScale mapping uses base = bodyFontPx * bodyLineHeight; whitespacePx = round(base * (1.0 + (whitespaceScale / 100) * 2.0)).
+- Decision: WhitespaceScale mapping uses base = bodyFontPx _ bodyLineHeight; whitespacePx = round(base _ (1.0 + (whitespaceScale / 100) \* 2.0)).
 - Context: Deterministic spacing control.
 - Alternatives: Linear mapping without base or non-linear scaling.
 - Consequences: Spacing is directly testable.
@@ -1247,6 +1308,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Revisit criteria: If an SVG embedding library is approved later.
 
 ## 2026-01-22 - Docs-only autonomy updates (micro plan + self-critique)
+
 - Date: 2026-01-22
 - Decision: Record autonomy-lock decisions and assign seam owners with docs-only changes.
 - Context: Establish deterministic renderer, prompt rules, storage schema, and ownership before implementation.
@@ -1257,6 +1319,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of over-constraining layout; evidence is the explicit size, spacing, and prompt rules recorded here.
 
 ## 2026-01-22 - Terminology enforcement (micro plan + self-critique)
+
 - Date: 2026-01-22
 - Decision: Use the full term "Seam-Driven Development" in prose and avoid the acronym.
 - Context: Reduce ambiguity and enforce consistent language.
@@ -1267,6 +1330,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of inconsistency when referencing filenames; mitigate by keeping file paths literal.
 
 ## 2026-01-22 - Wu-Bob roster change (micro plan + self-critique)
+
 - Date: 2026-01-22
 - Decision: Change Wu-Bob roster to Raekwon + Masta Killa.
 - Context: Shift emphasis to concrete spec translation (Raekwon) and disciplined execution pace (Masta Killa).
@@ -1277,6 +1341,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of under-weighting architecture/inspection; mitigate by keeping contract checks explicit.
 
 ## 2026-01-22 - File header exception for JSON (micro plan + self-critique)
+
 - Date: 2026-01-22
 - Decision: Files that do not support comments (e.g., `package.json`) are exempt from the top-level comment requirement; no nonstandard fields will be added.
 - Context: Seam-Driven Development requires top-level comments, but JSON does not allow comments.
@@ -1287,6 +1352,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of inconsistent documentation; mitigate with clear comments in adjacent files and docs.
 
 ## 2026-01-22 - Seam-Driven Development implementation plan (contracts first)
+
 - Date: 2026-01-22
 - Decision: Execute a contract-first, linear Seam-Driven Development build with explicit seams, file paths, and commands.
 - Context: Ensure deterministic, evidence-based implementation with no shortcuts.
@@ -1306,6 +1372,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: Risk of under-specifying fixtures or skipping red-proof; mitigation is to write fault fixtures first and run contract tests before adapters.
 
 ## 2026-01-23 - Cipher Gate (required proof summary)
+
 - Date: 2026-01-23
 - Decision: Require a Cipher Gate entry that summarizes seams touched and links evidence for recent changes.
 - Context: User requested a proof-summary gate to reduce AI shortcutting and improve non-coder visibility.
@@ -1320,6 +1387,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Evidence folder selection by date could misclassify the latest run; mitigate by rerunning verify if dates drift.
 
 ## 2026-01-23 - Cipher Gate automation (plan + self-critique)
+
 - Date: 2026-01-23
 - Decision: Add a cipher gate script that enforces a proof-summary entry in `DECISIONS.md`.
 - Context: User requested a synthesis-driven gate to reduce shortcutting and highlight evidence links.
@@ -1339,6 +1407,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: The riskiest assumption is that date-based staleness checks align with real changes; evidence is the `cipher-gate.json` output in `docs/evidence/YYYY-MM-DD/`.
 
 ## 2026-01-23 - Assumption alarm automation (plan + self-critique)
+
 - Date: 2026-01-23
 - Decision: Add an assumption alarm script that enforces logged assumptions for blocked probes.
 - Context: User requested stronger visibility for unproven seams to reduce AI shortcutting.
@@ -1358,6 +1427,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: The riskiest assumption is that blocked probes always require a single umbrella assumption; evidence is the `assumption-alarm.json` report.
 
 ## 2026-01-23 - Assumption (blocked probes for v1)
+
 - Assumption:
   - Date: 2026-01-23
   - Seams: AuthContextSeam, CreationStoreSeam, ChatInterpretationSeam, ProviderAdapterSeam, SessionSeam
@@ -1366,6 +1436,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Status: closed (browser probes ran 2026-02-05; provider probes ran 2026-02-01)
 
 ## 2026-01-23 - Git hooks + CI enforcement (plan + self-critique)
+
 - Date: 2026-01-23
 - Decision: Add local git hooks and CI workflow to run `npm run verify`.
 - Context: User requested automatic enforcement without relying on manual commands.
@@ -1388,6 +1459,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: The riskiest assumption is that local hooks will be enabled consistently; evidence is the hooks install output and CI workflow definition.
 
 ## 2026-01-23 - Wu-Bob response format (micro plan + self-critique)
+
 - Date: 2026-01-23
 - Decision: Require Wu-Bob responses to include separate Wu-Tang and Uncle Bob lenses plus a synthesis.
 - Context: User requested explicit Uncle Bob commentary alongside Wu-Tang perspectives.
@@ -1404,6 +1476,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of verbosity; evidence is the updated rule in `AGENTS.md`.
 
 ## 2026-01-23 - Wu-Bob response format (combined voice) (micro plan + self-critique)
+
 - Date: 2026-01-23
 - Decision: Wu-Bob responses must be a single combined voice that blends Wu-Tang roster input with Uncle Bob’s clean-code lens.
 - Context: User requested preserving synthesis and avoiding separated sections.
@@ -1420,6 +1493,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of losing explicit separation; evidence is the updated rule in `AGENTS.md`.
 
 ## 2026-01-23 - README context update (micro plan + self-critique)
+
 - Date: 2026-01-23
 - Decision: Replace the default README with project-specific Seam-Driven Development and Wu-Tang coding context plus local commands.
 - Context: User requested that the 70% problem explanation be captured for non-coders.
@@ -1436,6 +1510,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique (micro): Risk of oversimplifying the workflow; evidence is the updated README content.
 
 ## 2026-01-23 - Meechie tools (plan + self-critique)
+
 - Date: 2026-01-23
 - Decision: Add a MeechieToolSeam with deterministic templates plus a UI page for the proposed humor tools.
 - Context: User requested ranking and implementation of multiple Meechie feature ideas while away.
@@ -1460,7 +1535,9 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
     - `DECISIONS.md`
   - Commands: `npm run verify`, `npm test`.
 - Self-critique: The riskiest assumption is that deterministic templates are sufficient to represent the comedic tone without LLM help; evidence will be contract tests, fixtures, and UI wiring.
+
 ## 2026-01-27 - Alignment phrase consistency (plan + self-critique)
+
 - Date: 2026-01-27
 - Decision: Keep the alignment sentence identical across PromptAssemblySeam and DriftDetectionSeam by introducing a shared helper so prompt generation, validation, fixtures, and probes stay in sync.
 - Context: The alignment language informs the prompt assembly template and the drift detection checks; duplication risked drift or new failure modes when the provider limit shifted or the spec changed.
@@ -1486,6 +1563,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
 - Self-critique: The riskiest assumption was that every artifact would be updated; evidence is the uniform sentence in fixtures/probes and the passing verify outputs showing no drift between prompt assembly and the drift detection scan.
 
 ## 2026-01-27 - Plan checklist + evidence refresh
+
 - Date: 2026-01-27
 - Decision: Capture the detailed remaining-work checklist and tie it to the latest `docs/evidence/2026-01-27` proof so the governance plan stays auditable.
 - Context: After editing prompt/governance docs, the checklist needed a granular rewrite that the Cipher Gate could track.
@@ -1507,6 +1585,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Must update this cipher entry whenever governance docs change again.
 
 ## 2026-01-27 - Manual/chat builder + storage + PWA enforcement
+
 - Date: 2026-01-27
 - Decision: Gate the UI around the full seam loop, persist creations/drafts under the new storage keys, and polish the PWA manifest/icons so the Meechie coloring experience stays deterministic and installable.
 - Context: To keep the product autonomous, we needed the manual + chat builders to trigger all seams without shortcuts, ensure creation storage/drafts remain deterministic, and deliver Android install metadata without introducing accidental I/O.
@@ -1554,6 +1633,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: If deterministic gating depends on exact casing, prompts that previously failed may now pass.
 
 ## 2026-04-15 - UI redesign follow-up: review feedback fixes
+
 - Date: 2026-04-15
 - Decision: Address review feedback from PR #8 (dark theme redesign): add `color-scheme: dark`, replace hardcoded colors in MeechieTools with CSS custom properties, auto-expand More controls when validation issues target advanced fields.
 - Context: PR #8 introduced a full dark-theme redesign. Code review (Gemini + Sourcery) flagged missing `color-scheme: dark`, hardcoded color literals in MeechieTools, and UX gaps where collapsed `<details>` sections hid important information from users. Note: the API key UI section was removed in this same PR (see entry below), so API key discoverability changes do not apply here.
@@ -1575,6 +1655,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: If palette variables are renamed in layout in future, MeechieTools will lose its colors silently.
 
 ## 2026-04-15 - Move API key to server env var; remove client-side key entry
+
 - Date: 2026-04-15
 - Decision: Remove the user-facing API Key Settings panel and all client-side API key management. The server reads `XAI_API_KEY` from the Vercel environment variable exclusively.
 - Context: The API key was previously entered by users in the browser, stored in localStorage, and forwarded as an `x-api-key` header. This exposed the key in the browser and created unnecessary friction. Since `XAI_API_KEY` is already set as a Vercel environment variable, the server can use it directly.
@@ -1596,6 +1677,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: If XAI_API_KEY is unset on Vercel, all generation requests will return 401 with a clear error message.
 
 ## 2026-04-24 - Demo storage test environment fix
+
 - Date: 2026-04-24
 - Decision: Use a deterministic Vitest localStorage shim, make verification command wrappers capture output correctly on Windows, and pin the Vercel serverless runtime to Node 22.
 - Context: The local demo gate was blocked because Node exposed a partial localStorage global during tests, causing SessionSeam and CreationStoreSeam tests to fail even though the production browser adapters still target real localStorage. The seam-scoped rewind wrapper also produced blank evidence on Windows because it spawned `npx` in a non-portable way, and verify-runner could not reliably spawn `npm`. A production build under local Node v25 also required an explicit Vercel runtime.
@@ -1617,6 +1699,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Future database/auth work should replace this with contract-backed database fixtures instead of expanding browser storage behavior. Local production build output still depends on Windows symlink support for adapter-vercel.
 
 ## 2026-05-03 - Preserve Meechie studio text across drafts and vault reload
+
 - Date: 2026-05-03
 - Decision: Store an optional Meechie studio text snapshot on CreationStoreSeam draft and creation records, and normalize AI-generated page labels before building ColoringPageSpec values.
 - Context: Review found that refreshes dropped generated Meechie words, vault reloads could display the image-generation prompt as the quote, and valid MeechieStudioTextSeam output could still violate SpecValidationSeam label limits.
@@ -1645,11 +1728,11 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: Test environments relying on implicit `process.env` loading may need explicit configurations passed in during instantiation.
 
 - Cipher Gate:
-    Date: 2026-05-10
-    Seams: ProviderAdapterSeam
-    Evidence: pending — verify pipeline requires XAI_API_KEY not available in this environment
-    Summary: Added Zod validation (XAIChatResponseSchema, XAIImageResponseSchema) at xAI provider boundary. Returns PROVIDER_INVALID_RESPONSE for structurally invalid payloads. Applied .nullish() to optional fields to handle null returns from API.
-    Risks: Cannot produce live probe evidence without XAI_API_KEY.
+  Date: 2026-05-10
+  Seams: ProviderAdapterSeam
+  Evidence: pending — verify pipeline requires XAI_API_KEY not available in this environment
+  Summary: Added Zod validation (XAIChatResponseSchema, XAIImageResponseSchema) at xAI provider boundary. Returns PROVIDER_INVALID_RESPONSE for structurally invalid payloads. Applied .nullish() to optional fields to handle null returns from API.
+  Risks: Cannot produce live probe evidence without XAI_API_KEY.
 
 - Cipher Gate:
   - Date: 2026-05-14

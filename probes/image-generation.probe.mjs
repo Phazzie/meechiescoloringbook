@@ -152,7 +152,8 @@ no extra words`;
 	const revisedPrompt =
 		payload?.value?.revised_prompt ||
 		payload?.value?.revisedPrompt ||
-		data.find((entry) => typeof entry?.revised_prompt === 'string')?.revised_prompt;
+		data.find((entry) => typeof entry?.revised_prompt === 'string')
+			?.revised_prompt;
 
 	const images = data
 		.map((entry, index) => {

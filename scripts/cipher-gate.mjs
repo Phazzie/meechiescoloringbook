@@ -83,7 +83,9 @@ const run = async () => {
 	const decisions = await fs.readFile(DECISIONS_PATH, 'utf8');
 	const blocks = parseCipherBlocks(decisions);
 	if (blocks.length === 0) {
-		process.stderr.write('Cipher Gate: missing Cipher Gate entry in DECISIONS.md.\n');
+		process.stderr.write(
+			'Cipher Gate: missing Cipher Gate entry in DECISIONS.md.\n'
+		);
 		process.exit(1);
 	}
 	const sorted = blocks
@@ -97,7 +99,9 @@ const run = async () => {
 	const requiredFields = ['date', 'seams', 'evidence', 'summary', 'risks'];
 	const missingFields = requiredFields.filter((field) => !latest[field]);
 	if (missingFields.length > 0) {
-		process.stderr.write(`Cipher Gate: missing fields: ${missingFields.join(', ')}.\n`);
+		process.stderr.write(
+			`Cipher Gate: missing fields: ${missingFields.join(', ')}.\n`
+		);
 		process.exit(1);
 	}
 
@@ -137,7 +141,9 @@ const run = async () => {
 	const cipherDate = new Date(`${latest.date}T23:59:59Z`).getTime();
 	const stale = latestChange > cipherDate;
 	if (stale) {
-		process.stderr.write('Cipher Gate: cipher entry is older than latest changes.\n');
+		process.stderr.write(
+			'Cipher Gate: cipher entry is older than latest changes.\n'
+		);
 		process.exit(1);
 	}
 

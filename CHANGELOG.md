@@ -3,11 +3,13 @@ Purpose: Record user-visible changes for this repo.
 Why: Provide a clear history of behavior changes and releases.
 Info flow: Changes -> entries -> release communication.
 -->
+
 # Changelog
 
 All notable user-visible changes for this repo.
 
 ## Unreleased
+
 - Fully redesigned the builder and Meechie pages with a cleaner modern visual system, clearer hierarchy, and polished action flows on desktop/mobile.
 - Moved Meechie tools to a dedicated destination path from the main builder flow and added a focused handoff card.
 - Added a temporary UI API key panel (save/load/clear/show) and propagated `x-api-key` from client requests to generation endpoints.

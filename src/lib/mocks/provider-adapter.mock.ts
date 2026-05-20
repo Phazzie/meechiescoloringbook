@@ -29,9 +29,13 @@ const fixtureSchema = z.object({
 const sampleFixture = fixtureSchema.parse(sample);
 const faultFixture = fixtureSchema.parse(fault);
 
-export const createProviderAdapterMock = (scenario: Scenario): ProviderAdapterSeam => ({
+export const createProviderAdapterMock = (
+	scenario: Scenario
+): ProviderAdapterSeam => ({
 	createChatCompletion: async () =>
 		scenario === 'fault' ? faultFixture.output.chat : sampleFixture.output.chat,
 	createImageGeneration: async () =>
-		scenario === 'fault' ? faultFixture.output.image : sampleFixture.output.image
+		scenario === 'fault'
+			? faultFixture.output.image
+			: sampleFixture.output.image
 });

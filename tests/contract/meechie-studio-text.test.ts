@@ -21,7 +21,9 @@ const fixtureSchema = z.object({
 
 const sampleFixture = fixtureSchema.parse(sample);
 const faultFixture = fixtureSchema.parse(fault);
-const sampleOutput = sampleFixture.output.ok ? sampleFixture.output.value : null;
+const sampleOutput = sampleFixture.output.ok
+	? sampleFixture.output.value
+	: null;
 
 describe('MeechieStudioTextSeam contract', () => {
 	it('mock returns sample fixture output', async () => {

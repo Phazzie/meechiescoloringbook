@@ -47,7 +47,9 @@ const detectExtraHeadings = (lines: string[]): string[] => {
 };
 
 const extractNegativeSectionLines = (lines: string[]): string[] => {
-	const startIndex = lines.findIndex((line) => line.trim() === NEGATIVE_PROMPT_HEADING);
+	const startIndex = lines.findIndex(
+		(line) => line.trim() === NEGATIVE_PROMPT_HEADING
+	);
 	if (startIndex === -1) {
 		return [];
 	}
@@ -64,8 +66,10 @@ const extractNegativeSectionLines = (lines: string[]): string[] => {
 	return sectionLines;
 };
 
-const detectMissingRequiredLines = (lines: string[], required: string[]): string[] =>
-	required.filter((line) => !lines.includes(line));
+const detectMissingRequiredLines = (
+	lines: string[],
+	required: string[]
+): string[] => required.filter((line) => !lines.includes(line));
 
 const detectForbiddenTokens = (prompt: string): string[] => {
 	const lines = prompt.split('\n');
@@ -84,7 +88,9 @@ const detectForbiddenTokens = (prompt: string): string[] => {
 };
 
 export const driftDetectionAdapter: DriftDetectionSeam = {
-	detect: async (input: DriftDetectionInput): Promise<Result<DriftDetectionOutput>> => {
+	detect: async (
+		input: DriftDetectionInput
+	): Promise<Result<DriftDetectionOutput>> => {
 		const prompt =
 			input.revisedPrompt && input.revisedPrompt.trim().length > 0
 				? input.revisedPrompt
@@ -104,7 +110,10 @@ export const driftDetectionAdapter: DriftDetectionSeam = {
 		const violations: DriftDetectionOutput['violations'] = [];
 		const recommendedFixes: DriftDetectionOutput['recommendedFixes'] = [];
 
-		const alignmentPhrase = input.spec.alignment === 'center' ? 'Center the quote.' : 'Left-align the quote.';
+		const alignmentPhrase =
+			input.spec.alignment === 'center'
+				? 'Center the quote.'
+				: 'Left-align the quote.';
 		if (!prompt.includes(alignmentPhrase)) {
 			violations.push({
 				code: 'MISSING_ALIGNMENT_PHRASE',
@@ -185,7 +194,10 @@ export const driftDetectionAdapter: DriftDetectionSeam = {
 		}
 
 		const negativeLines = extractNegativeSectionLines(lines);
-		const missingNegativeLines = detectMissingRequiredLines(negativeLines, negativeLinesForSpec(input.spec));
+		const missingNegativeLines = detectMissingRequiredLines(
+			negativeLines,
+			negativeLinesForSpec(input.spec)
+		);
 		for (const line of missingNegativeLines) {
 			violations.push({
 				code: 'MISSING_NEGATIVE_LINE',

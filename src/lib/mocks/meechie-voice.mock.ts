@@ -21,6 +21,9 @@ const fixtureSchema = z.object({
 const sampleFixture = fixtureSchema.parse(sample);
 const faultFixture = fixtureSchema.parse(fault);
 
-export const createMeechieVoiceMock = (scenario: Scenario): MeechieVoiceSeam => ({
-	getVoicePack: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+export const createMeechieVoiceMock = (
+	scenario: Scenario
+): MeechieVoiceSeam => ({
+	getVoicePack: async () =>
+		scenario === 'fault' ? faultFixture.output : sampleFixture.output
 });

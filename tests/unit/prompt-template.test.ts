@@ -27,7 +27,9 @@ import { makeBaseSpec } from '../helpers/make-base-spec';
 describe('prompt-template helpers', () => {
 	describe('formatListItems', () => {
 		it('formats a single item', () => {
-			expect(formatListItems([{ number: 1, label: 'Apples' }])).toBe('1. Apples');
+			expect(formatListItems([{ number: 1, label: 'Apples' }])).toBe(
+				'1. Apples'
+			);
 		});
 
 		it('formats multiple items separated by semicolons', () => {

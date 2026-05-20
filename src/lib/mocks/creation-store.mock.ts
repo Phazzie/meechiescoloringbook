@@ -48,7 +48,9 @@ const fixtureSchema = z.object({
 const sampleFixture = fixtureSchema.parse(sample);
 const faultFixture = fixtureSchema.parse(fault);
 
-export const createCreationStoreMock = (scenario: Scenario): CreationStoreSeam => {
+export const createCreationStoreMock = (
+	scenario: Scenario
+): CreationStoreSeam => {
 	const fixture = scenario === 'fault' ? faultFixture : sampleFixture;
 	return {
 		saveCreation: async () => fixture.output.saveCreation,

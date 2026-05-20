@@ -5,21 +5,26 @@ import { imageProviderConfigSchema } from './validators';
 import type { ImageProviderConfig } from './contract';
 
 // Parsed at module load so schema drift surfaces as a ZodError immediately.
-export const imageProviderConfigFixture: ImageProviderConfig = imageProviderConfigSchema.parse({
-  xaiApiKey: 'fixture-key',
-  xaiImageModel: 'grok-imagine-image',
-  xaiBaseUrl: 'https://api.x.ai',
-  xaiImageEndpointPath: '/v1/images/generations'
-});
+export const imageProviderConfigFixture: ImageProviderConfig =
+	imageProviderConfigSchema.parse({
+		xaiApiKey: 'fixture-key',
+		xaiImageModel: 'grok-imagine-image',
+		xaiBaseUrl: 'https://api.x.ai',
+		xaiImageEndpointPath: '/v1/images/generations'
+	});
 
 // Intentionally invalid: empty xaiApiKey triggers validation failure.
 // Not parsed at module load — doing so would throw at import time and break all consumers.
 export const imageProviderConfigFaultFixture = {
-  xaiApiKey: '',
-  xaiImageModel: 'grok-imagine-image',
-  xaiBaseUrl: 'https://api.x.ai',
-  xaiImageEndpointPath: '/v1/images/generations'
+	xaiApiKey: '',
+	xaiImageModel: 'grok-imagine-image',
+	xaiBaseUrl: 'https://api.x.ai',
+	xaiImageEndpointPath: '/v1/images/generations'
 } as unknown as ImageProviderConfig;
 
-export const getImageProviderConfigFixture = (scenario: 'sample' | 'fault' = 'sample') =>
-  scenario === 'fault' ? imageProviderConfigFaultFixture : imageProviderConfigFixture;
+export const getImageProviderConfigFixture = (
+	scenario: 'sample' | 'fault' = 'sample'
+) =>
+	scenario === 'fault'
+		? imageProviderConfigFaultFixture
+		: imageProviderConfigFixture;

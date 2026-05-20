@@ -1,13 +1,13 @@
 {
-  "scenario": "fault",
-  "input": {
-    "message": "fail contract parse"
-  },
-  "output": {
-    "ok": false,
-    "error": {
-      "code": "CHAT_RESPONSE_INVALID",
-      "message": "Chat interpretation response did not match contract."
-    }
-  }
+	"scenario": "fault",
+	"input": {
+		"message": "fail contract parse"
+	},
+	"output": {
+		"ok": false,
+		"error": {
+			"code": "CHAT_RESPONSE_INVALID",
+			"message": "Chat interpretation response did not match contract."
+		}
+	}
 }

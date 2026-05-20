@@ -13,23 +13,42 @@ import {
 
 describe('evidence reporting helpers', () => {
 	test('normalizes evidence paths to repository-relative slash paths', () => {
-		const root = path.win32.join('C:\\', 'Users', 'ieatc', 'Meechiescoloringbook');
-		const target = path.win32.join(root, 'docs', 'evidence', '2026-05-04', 'verify.txt');
+		const root = path.win32.join(
+			'C:\\',
+			'Users',
+			'ieatc',
+			'Meechiescoloringbook'
+		);
+		const target = path.win32.join(
+			root,
+			'docs',
+			'evidence',
+			'2026-05-04',
+			'verify.txt'
+		);
 
-		expect(toRepoRelativePath(root, target)).toBe('docs/evidence/2026-05-04/verify.txt');
+		expect(toRepoRelativePath(root, target)).toBe(
+			'docs/evidence/2026-05-04/verify.txt'
+		);
 	});
 
 	test('sanitizes local repository roots from captured evidence output', () => {
-		const root = path.win32.join('C:\\', 'Users', 'ieatc', 'Meechiescoloringbook');
+		const root = path.win32.join(
+			'C:\\',
+			'Users',
+			'ieatc',
+			'Meechiescoloringbook'
+		);
 		const output = [
 			`Loading svelte-check in workspace: ${root}`,
 			`RUN v3.2.4 ${root.split(/[\\/]+/).join('/')}`
 		].join('\n');
 
 		expect(sanitizeEvidenceOutput(root, output)).toBe(
-			['Loading svelte-check in workspace: <REPO_ROOT>', 'RUN v3.2.4 <REPO_ROOT>'].join(
-				'\n'
-			)
+			[
+				'Loading svelte-check in workspace: <REPO_ROOT>',
+				'RUN v3.2.4 <REPO_ROOT>'
+			].join('\n')
 		);
 	});
 

@@ -76,7 +76,9 @@ export const GetDraftInputSchema = z.object({});
 export const ClearDraftInputSchema = z.object({});
 
 export const CreationRecordResultSchema = resultSchema(CreationRecordSchema);
-export const CreationListResultSchema = resultSchema(z.array(CreationRecordSchema));
+export const CreationListResultSchema = resultSchema(
+	z.array(CreationRecordSchema)
+);
 export const DeleteResultSchema = resultSchema(z.boolean());
 export const DraftSaveResultSchema = resultSchema(DraftRecordSchema);
 export const DraftResultSchema = resultSchema(DraftRecordSchema.nullable());

@@ -108,7 +108,9 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		);
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
-			expect(['CHAT_RESPONSE_INVALID', 'CHAT_SPEC_INVALID']).toContain(result.body.error.code);
+			expect(['CHAT_RESPONSE_INVALID', 'CHAT_SPEC_INVALID']).toContain(
+				result.body.error.code
+			);
 		}
 	});
 
@@ -205,7 +207,13 @@ describe('chat-interpretation-pipeline edge cases', () => {
 				}),
 				validateSpec: vi.fn().mockResolvedValue({
 					ok: false,
-					issues: [{ code: 'SPEC_INVALID', field: 'title', message: 'Title is too long.' }]
+					issues: [
+						{
+							code: 'SPEC_INVALID',
+							field: 'title',
+							message: 'Title is too long.'
+						}
+					]
 				})
 			}
 		);
@@ -336,7 +344,13 @@ describe('generate-pipeline edge cases', () => {
 				...baseDeps,
 				validateSpec: vi.fn().mockResolvedValue({
 					ok: false,
-					issues: [{ code: 'SPEC_INVALID', field: 'title', message: 'Title too short.' }]
+					issues: [
+						{
+							code: 'SPEC_INVALID',
+							field: 'title',
+							message: 'Title too short.'
+						}
+					]
 				})
 			}
 		);
@@ -376,9 +390,9 @@ describe('generate-pipeline edge cases', () => {
 					ok: true,
 					value: { prompt: 'test prompt', templateVersion: 'v2' }
 				}),
-				fetchImpl: vi.fn().mockResolvedValue(
-					new Response('not-json', { status: 200 })
-				)
+				fetchImpl: vi
+					.fn()
+					.mockResolvedValue(new Response('not-json', { status: 200 }))
 			}
 		);
 		expect(result.status).toBe(502);

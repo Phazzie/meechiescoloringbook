@@ -6,12 +6,18 @@
 <script lang="ts">
 	type AllowedMime = 'image/jpeg' | 'image/png' | 'image/webp';
 
-	let { onUpload }: { onUpload: (base64: string, mimeType: AllowedMime) => void } = $props();
+	let {
+		onUpload
+	}: { onUpload: (base64: string, mimeType: AllowedMime) => void } = $props();
 
 	let previewUrl = $state('');
 	let error = $state('');
 
-	const ALLOWED_TYPES: AllowedMime[] = ['image/jpeg', 'image/png', 'image/webp'];
+	const ALLOWED_TYPES: AllowedMime[] = [
+		'image/jpeg',
+		'image/png',
+		'image/webp'
+	];
 	const MAX_SIZE_MB = 8;
 
 	const handleFileChange = (e: Event): void => {

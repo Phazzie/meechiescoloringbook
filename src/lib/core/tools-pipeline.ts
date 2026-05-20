@@ -50,20 +50,33 @@ export const runToolsPipeline = async (
 ): Promise<ToolsPipelineResponse> => {
 	const parsedInput = MeechieToolInputSchema.safeParse(body);
 	if (!parsedInput.success) {
-		return buildError(400, 'MEECHIE_TOOL_INPUT_INVALID', 'Meechie tool input is invalid.');
+		return buildError(
+			400,
+			'MEECHIE_TOOL_INPUT_INVALID',
+			'Meechie tool input is invalid.'
+		);
 	}
 
 	const disallowedKeywords = findDisallowedKeywords(parsedInput.data);
 	if (disallowedKeywords.length > 0) {
-		return buildError(400, 'DISALLOWED_CONTENT', 'Meechie tool input contains disallowed content.', {
-			keywords: disallowedKeywords.join(',')
-		});
+		return buildError(
+			400,
+			'DISALLOWED_CONTENT',
+			'Meechie tool input contains disallowed content.',
+			{
+				keywords: disallowedKeywords.join(',')
+			}
+		);
 	}
 
 	const result = await deps.respond(parsedInput.data);
 	const parsedResult = MeechieToolResultSchema.safeParse(result);
 	if (!parsedResult.success) {
-		return buildError(500, 'MEECHIE_TOOL_OUTPUT_INVALID', 'Meechie tool output did not match contract.');
+		return buildError(
+			500,
+			'MEECHIE_TOOL_OUTPUT_INVALID',
+			'Meechie tool output did not match contract.'
+		);
 	}
 
 	return {

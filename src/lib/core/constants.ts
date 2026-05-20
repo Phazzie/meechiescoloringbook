@@ -20,4 +20,3 @@ Rules:
 - Default values when unspecified: listMode="list", alignment="left", numberAlignment="strict", listGutter="normal", whitespaceScale=50, textSize="small", fontStyle="rounded", textStrokeWidth=6, colorMode="black_and_white_only", decorations="none", illustrations="none", shading="none", border="plain", borderThickness=8, variations=1, outputFormat="pdf", pageSize="US_Letter".
 - Output JSON only. No markdown, no prose.`
 } as const;
-

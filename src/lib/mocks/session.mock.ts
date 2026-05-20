@@ -19,5 +19,6 @@ const sampleFixture = fixtureSchema.parse(sample);
 const faultFixture = fixtureSchema.parse(fault);
 
 export const createSessionMock = (scenario: Scenario): SessionSeam => ({
-	getSession: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
+	getSession: async () =>
+		scenario === 'fault' ? faultFixture.output : sampleFixture.output
 });

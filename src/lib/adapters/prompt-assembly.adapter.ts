@@ -35,7 +35,9 @@ const EASY_TO_COLOR_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[2];
 
 const includesReservedHeading = (styleHint: string): boolean => {
 	const normalized = styleHint.toUpperCase();
-	return RESERVED_STYLE_HINT_HEADINGS.some((heading) => normalized.includes(heading));
+	return RESERVED_STYLE_HINT_HEADINGS.some((heading) =>
+		normalized.includes(heading)
+	);
 };
 
 const includesForbiddenToken = (styleHint: string): boolean => {
@@ -106,9 +108,14 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 };
 
 export const promptAssemblyAdapter: PromptAssemblySeam = {
-	assemble: async (input: PromptAssemblyInput): Promise<Result<PromptAssemblyOutput>> => {
+	assemble: async (
+		input: PromptAssemblyInput
+	): Promise<Result<PromptAssemblyOutput>> => {
 		if (input.styleHint) {
-			if (includesReservedHeading(input.styleHint) || includesForbiddenToken(input.styleHint)) {
+			if (
+				includesReservedHeading(input.styleHint) ||
+				includesForbiddenToken(input.styleHint)
+			) {
 				return {
 					ok: false,
 					error: {

@@ -28,7 +28,9 @@ beforeEach(() => {
 	fetchMock = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
 		const body = init?.body ? JSON.parse(String(init.body)) : {};
 		const message = typeof body.message === 'string' ? body.message : '';
-		const payload = message.includes('fail') ? { ok: true, value: {} } : sampleFixture.output;
+		const payload = message.includes('fail')
+			? { ok: true, value: {} }
+			: sampleFixture.output;
 
 		return new Response(JSON.stringify(payload), {
 			status: 200,
@@ -56,12 +58,16 @@ describe('ChatInterpretationSeam contract', () => {
 	});
 
 	it('adapter returns sample fixture output', async () => {
-		const output = await chatInterpretationAdapter.interpret(sampleFixture.input);
+		const output = await chatInterpretationAdapter.interpret(
+			sampleFixture.input
+		);
 		expect(output).toEqual(sampleFixture.output);
 	});
 
 	it('adapter returns fault fixture output', async () => {
-		const output = await chatInterpretationAdapter.interpret(faultFixture.input);
+		const output = await chatInterpretationAdapter.interpret(
+			faultFixture.input
+		);
 		expect(output).toEqual(faultFixture.output);
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});

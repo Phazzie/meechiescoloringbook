@@ -93,7 +93,9 @@ const run = async () => {
 	const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
 	process.stdout.write(output);
 	if (result.error) {
-		process.stderr.write(`Rewind command failed to start: ${result.error.message}\n`);
+		process.stderr.write(
+			`Rewind command failed to start: ${result.error.message}\n`
+		);
 	}
 
 	const evidenceDir = await ensureEvidenceDir(toDateFolder(new Date()));

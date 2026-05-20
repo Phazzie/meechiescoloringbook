@@ -4,29 +4,29 @@
 import { z } from 'zod';
 
 export const imageGenerationRequestSchema = z.object({
-  prompt: z.string().min(1),
-  negativePrompt: z.string().optional(),
-  n: z.number().int().min(1).max(10),
-  size: z.string().min(1),
-  format: z.enum(['url', 'b64_json']),
-  seed: z.number().int().optional(),
-  userTag: z.string().optional()
+	prompt: z.string().min(1),
+	negativePrompt: z.string().optional(),
+	n: z.number().int().min(1).max(10),
+	size: z.string().min(1),
+	format: z.enum(['url', 'b64_json']),
+	seed: z.number().int().optional(),
+	userTag: z.string().optional()
 });
 
 export const generatedImageSchema = z.object({
-  id: z.string().min(1),
-  url: z.string().url().optional(),
-  b64: z.string().optional()
+	id: z.string().min(1),
+	url: z.string().url().optional(),
+	b64: z.string().optional()
 });
 
 export const imageGenerationResultSchema = z.object({
-  images: z.array(generatedImageSchema),
-  rawModelInfo: z.record(z.unknown()),
-  timingMs: z.number()
+	images: z.array(generatedImageSchema),
+	rawModelInfo: z.record(z.unknown()),
+	timingMs: z.number()
 });
 
 export const validateImageGenerationRequest = (input: unknown) =>
-  imageGenerationRequestSchema.parse(input);
+	imageGenerationRequestSchema.parse(input);
 
 export const validateImageGenerationResult = (input: unknown) =>
-  imageGenerationResultSchema.parse(input);
+	imageGenerationResultSchema.parse(input);

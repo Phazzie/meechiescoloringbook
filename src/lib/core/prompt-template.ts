@@ -4,8 +4,10 @@
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import type { ColoringPageSpec } from '../../../contracts/spec-validation.contract';
 
-export const NEGATIVE_PROMPT_HEADING = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[4];
-export const VECTOR_LINEWORK_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[3];
+export const NEGATIVE_PROMPT_HEADING =
+	SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[4];
+export const VECTOR_LINEWORK_PHRASE =
+	SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[3];
 
 export const PROMPT_REQUIRED_HEADINGS = [
 	'STYLE:',
@@ -29,12 +31,16 @@ export const RESERVED_STYLE_HINT_HEADINGS = [
 	NEGATIVE_PROMPT_HEADING
 ];
 
-export const formatListItems = (items: Array<{ number: number; label: string }>): string => {
+export const formatListItems = (
+	items: Array<{ number: number; label: string }>
+): string => {
 	const parts = items.map((item) => `${item.number}. ${item.label}`);
 	return parts.join('; ');
 };
 
-export const colorModeLine = (colorMode: ColoringPageSpec['colorMode']): string => {
+export const colorModeLine = (
+	colorMode: ColoringPageSpec['colorMode']
+): string => {
 	switch (colorMode) {
 		case 'grayscale':
 			return 'Color: grayscale.';
@@ -48,13 +54,17 @@ export const colorModeLine = (colorMode: ColoringPageSpec['colorMode']): string 
 export const pageSizeLine = (pageSize: ColoringPageSpec['pageSize']): string =>
 	pageSize === 'A4' ? 'A4 8.27x11.69 portrait.' : 'US Letter 8.5x11 portrait.';
 
-export const fontStyleLine = (fontStyle: ColoringPageSpec['fontStyle']): string =>
-	`Font: ${fontStyle}.`;
+export const fontStyleLine = (
+	fontStyle: ColoringPageSpec['fontStyle']
+): string => `Font: ${fontStyle}.`;
 
-export const textStrokeLine = (strokeWidth: ColoringPageSpec['textStrokeWidth']): string =>
-	`Stroke: ${strokeWidth}px.`;
+export const textStrokeLine = (
+	strokeWidth: ColoringPageSpec['textStrokeWidth']
+): string => `Stroke: ${strokeWidth}px.`;
 
-export const decorationLine = (decorations: ColoringPageSpec['decorations']): string => {
+export const decorationLine = (
+	decorations: ColoringPageSpec['decorations']
+): string => {
 	switch (decorations) {
 		case 'minimal':
 			return 'Decorations: minimal outline icons.';
@@ -65,7 +75,9 @@ export const decorationLine = (decorations: ColoringPageSpec['decorations']): st
 	}
 };
 
-export const illustrationLine = (illustrations: ColoringPageSpec['illustrations']): string => {
+export const illustrationLine = (
+	illustrations: ColoringPageSpec['illustrations']
+): string => {
 	switch (illustrations) {
 		case 'simple':
 			return 'Illustrations: simple outlines.';
@@ -87,7 +99,10 @@ export const shadingLine = (shading: ColoringPageSpec['shading']): string => {
 	}
 };
 
-export const borderLine = (border: ColoringPageSpec['border'], thickness: number): string => {
+export const borderLine = (
+	border: ColoringPageSpec['border'],
+	thickness: number
+): string => {
 	switch (border) {
 		case 'decorative':
 			return `Border: decorative ${thickness}px.`;
@@ -98,7 +113,9 @@ export const borderLine = (border: ColoringPageSpec['border'], thickness: number
 	}
 };
 
-export const outputLine = (colorMode: ColoringPageSpec['colorMode']): string => {
+export const outputLine = (
+	colorMode: ColoringPageSpec['colorMode']
+): string => {
 	switch (colorMode) {
 		case 'grayscale':
 			return `${VECTOR_LINEWORK_PHRASE}. Grayscale outlines on white. Printable.`;
@@ -109,7 +126,9 @@ export const outputLine = (colorMode: ColoringPageSpec['colorMode']): string => 
 	}
 };
 
-export const dedicationLine = (dedication: ColoringPageSpec['dedication']): string =>
+export const dedicationLine = (
+	dedication: ColoringPageSpec['dedication']
+): string =>
 	dedication ? `Add dedication: "Dedicated to ${dedication}".` : '';
 
 export const listLineForSpec = (spec: ColoringPageSpec): string =>

@@ -22,7 +22,8 @@ export const resultSchema = <
 	valueSchema: T,
 	errorSchema?: E
 ): z.ZodType<Result<z.infer<T>, z.infer<E>>> => {
-	const normalizedErrorSchema = errorSchema ?? (SeamErrorSchema as unknown as E);
+	const normalizedErrorSchema =
+		errorSchema ?? (SeamErrorSchema as unknown as E);
 	return z.discriminatedUnion('ok', [
 		z.object({ ok: z.literal(true), value: valueSchema }),
 		z.object({ ok: z.literal(false), error: normalizedErrorSchema })

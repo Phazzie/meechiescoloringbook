@@ -27,7 +27,9 @@ export const OutputPackagingOutputSchema = z.object({
 	files: z.array(PackagedFileSchema)
 });
 
-export const OutputPackagingResultSchema = resultSchema(OutputPackagingOutputSchema);
+export const OutputPackagingResultSchema = resultSchema(
+	OutputPackagingOutputSchema
+);
 
 export type PackagedFile = z.infer<typeof PackagedFileSchema>;
 export type OutputPackagingInput = z.infer<typeof OutputPackagingInputSchema>;

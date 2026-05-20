@@ -16,7 +16,9 @@ export const PromptAssemblyOutputSchema = z.object({
 	templateVersion: NonEmptyStringSchema
 });
 
-export const PromptAssemblyResultSchema = resultSchema(PromptAssemblyOutputSchema);
+export const PromptAssemblyResultSchema = resultSchema(
+	PromptAssemblyOutputSchema
+);
 
 export type PromptAssemblyInput = z.infer<typeof PromptAssemblyInputSchema>;
 export type PromptAssemblyOutput = z.infer<typeof PromptAssemblyOutputSchema>;

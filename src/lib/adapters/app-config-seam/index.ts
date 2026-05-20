@@ -1,7 +1,10 @@
 // Purpose: Build the AppConfigSeam adapter from environment values.
 // Why: Centralize config parsing and validation.
 // Info flow: env -> validators -> seam config.
-import type { AppConfig, AppConfigSeam } from '../../seams/app-config-seam/contract';
+import type {
+	AppConfig,
+	AppConfigSeam
+} from '../../seams/app-config-seam/contract';
 import { validateAppConfig } from '../../seams/app-config-seam/validators';
 import { env as privateEnv } from '$env/dynamic/private';
 
@@ -17,7 +20,8 @@ const readConfig = (env: Record<string, string | undefined>): AppConfig => {
 		maxImagesPerRequest: Number(env.MAX_IMAGES_PER_REQUEST),
 		defaultImageSize: env.DEFAULT_IMAGE_SIZE,
 		geminiApiKey: env.GEMINI_API_KEY ?? '',
-		geminiBaseUrl: env.GEMINI_BASE_URL ?? 'https://generativelanguage.googleapis.com'
+		geminiBaseUrl:
+			env.GEMINI_BASE_URL ?? 'https://generativelanguage.googleapis.com'
 	};
 
 	return validateAppConfig(config);

@@ -21,7 +21,8 @@ vi.mock('../../src/lib/adapters/provider-adapter.adapter', () => ({
 	})
 }));
 
-const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool.adapter');
+const { meechieToolAdapter } =
+	await import('../../src/lib/adapters/meechie-tool.adapter');
 
 const fixtureSchema = z.object({
 	scenario: ScenarioSchema,
@@ -67,7 +68,10 @@ describe('MeechieToolSeam contract', () => {
 	it('adapter returns fault fixture output when provider signals missing key', async () => {
 		mockCreateChatCompletion.mockResolvedValue({
 			ok: false,
-			error: { code: 'PROVIDER_API_KEY_MISSING', message: 'XAI_API_KEY is required.' }
+			error: {
+				code: 'PROVIDER_API_KEY_MISSING',
+				message: 'XAI_API_KEY is required.'
+			}
 		});
 		const output = await meechieToolAdapter.respond(faultFixture.input);
 		expect(output).toEqual(faultFixture.output);
@@ -78,12 +82,16 @@ describe('MeechieToolSeam contract', () => {
 			ok: true,
 			value: {
 				model: 'test-model',
-				content: JSON.stringify({ headline: 'Run.', response: 'Fault: them. Consequence: access revoked.' })
+				content: JSON.stringify({
+					headline: 'Run.',
+					response: 'Fault: them. Consequence: access revoked.'
+				})
 			}
 		});
 		await meechieToolAdapter.respond({
 			toolId: 'red_flag_or_run',
-			situation: 'He said he is not ready for a relationship but wants to keep seeing me.'
+			situation:
+				'He said he is not ready for a relationship but wants to keep seeing me.'
 		});
 		const call = mockCreateChatCompletion.mock.calls[0][0];
 		expect(call.messages[0].role).toBe('system');

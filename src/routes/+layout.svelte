@@ -11,8 +11,12 @@ Info flow: Layout renders children -> pages render within layout.
 	let { children } = $props();
 
 	let mobileMenuOpen = $state(false);
-	function toggleMenu() { mobileMenuOpen = !mobileMenuOpen; }
-	function closeMenu() { mobileMenuOpen = false; }
+	function toggleMenu() {
+		mobileMenuOpen = !mobileMenuOpen;
+	}
+	function closeMenu() {
+		mobileMenuOpen = false;
+	}
 
 	onMount(() => {
 		if (!dev && 'serviceWorker' in navigator) {
@@ -23,12 +27,18 @@ Info flow: Layout renders children -> pages render within layout.
 	});
 </script>
 
-
 <svelte:head>
 	<link rel="icon" href={favicon} />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-	<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&vamily=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Fraunces:ital,opsz,wght@0,9..144,700;1,9..144,700;1,9..144,800&display=swap" rel="stylesheet" />
+	<link
+		rel="preconnect"
+		href="https://fonts.gstatic.com"
+		crossorigin="anonymous"
+	/>
+	<link
+		href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&vamily=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Fraunces:ital,opsz,wght@0,9..144,700;1,9..144,700;1,9..144,800&display=swap"
+		rel="stylesheet"
+	/>
 </svelte:head>
 
 <header class="site-nav">
@@ -41,7 +51,9 @@ Info flow: Layout renders children -> pages render within layout.
 			<a href="/who-fucked-up" onclick={closeMenu}>Who Fucked Up?</a>
 			<a href="/rate-his-excuse" onclick={closeMenu}>Rate His Excuse</a>
 			<a href="/random" onclick={closeMenu}>Random</a>
-			<a href="/meechie" class="link-tools" onclick={closeMenu}>Meechie's Tools</a>
+			<a href="/meechie" class="link-tools" onclick={closeMenu}
+				>Meechie's Tools</a
+			>
 		</nav>
 		<button
 			class="hamburger"
@@ -59,7 +71,9 @@ Info flow: Layout renders children -> pages render within layout.
 			<a href="/who-fucked-up" onclick={closeMenu}>Who Fucked Up?</a>
 			<a href="/rate-his-excuse" onclick={closeMenu}>Rate His Excuse</a>
 			<a href="/random" onclick={closeMenu}>Random</a>
-			<a href="/meechie" class="link-tools" onclick={closeMenu}>Meechie's Tools</a>
+			<a href="/meechie" class="link-tools" onclick={closeMenu}
+				>Meechie's Tools</a
+			>
 		</nav>
 	{/if}
 </header>
@@ -77,7 +91,9 @@ Info flow: Layout renders children -> pages render within layout.
 			linear-gradient(90deg, rgba(7, 7, 15, 0.98), rgba(14, 10, 24, 0.97)),
 			radial-gradient(circle at 5% 0%, rgba(232, 0, 106, 0.15), transparent 50%);
 		backdrop-filter: blur(12px);
-		font-family: 'Barlow Condensed', 'Avenir Next Condensed', 'Avenir Next', 'Segoe UI', sans-serif;
+		font-family:
+			'Barlow Condensed', 'Avenir Next Condensed', 'Avenir Next', 'Segoe UI',
+			sans-serif;
 	}
 
 	.nav-inner {
@@ -138,7 +154,10 @@ Info flow: Layout renders children -> pages render within layout.
 		border: 1px solid transparent;
 		text-transform: uppercase;
 		letter-spacing: 0.1em;
-		transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+		transition:
+			color 0.15s ease,
+			background-color 0.15s ease,
+			border-color 0.15s ease;
 		white-space: nowrap;
 	}
 
@@ -206,7 +225,10 @@ Info flow: Layout renders children -> pages render within layout.
 		border: 1px solid transparent;
 		text-transform: uppercase;
 		letter-spacing: 0.1em;
-		transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+		transition:
+			color 0.15s ease,
+			background-color 0.15s ease,
+			border-color 0.15s ease;
 	}
 
 	.mobile-menu a:hover {
@@ -276,7 +298,8 @@ Info flow: Layout renders children -> pages render within layout.
 		--dark-card-alt: #1c1932;
 		--emerald: #00c896;
 		--font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
-		--font-label: 'Barlow Condensed', 'Avenir Next Condensed', 'Avenir Next', sans-serif;
+		--font-label:
+			'Barlow Condensed', 'Avenir Next Condensed', 'Avenir Next', sans-serif;
 		color-scheme: dark;
 	}
 

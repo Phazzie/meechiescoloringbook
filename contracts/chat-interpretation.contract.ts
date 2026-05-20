@@ -14,11 +14,19 @@ export const ChatInterpretationOutputSchema = z.object({
 	spec: ColoringPageSpecSchema
 });
 
-export const ChatInterpretationResultSchema = resultSchema(ChatInterpretationOutputSchema);
+export const ChatInterpretationResultSchema = resultSchema(
+	ChatInterpretationOutputSchema
+);
 
-export type ChatInterpretationInput = z.infer<typeof ChatInterpretationInputSchema>;
-export type ChatInterpretationOutput = z.infer<typeof ChatInterpretationOutputSchema>;
+export type ChatInterpretationInput = z.infer<
+	typeof ChatInterpretationInputSchema
+>;
+export type ChatInterpretationOutput = z.infer<
+	typeof ChatInterpretationOutputSchema
+>;
 
 export type ChatInterpretationSeam = {
-	interpret(input: ChatInterpretationInput): Promise<Result<ChatInterpretationOutput>>;
+	interpret(
+		input: ChatInterpretationInput
+	): Promise<Result<ChatInterpretationOutput>>;
 };

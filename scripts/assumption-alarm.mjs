@@ -107,10 +107,13 @@ const run = async () => {
 		};
 	});
 
-	const missingAssumptions = blockedSeams.filter((seam) =>
-		!assumptionChecks.some((assumption) => assumption.seamList.includes(seam))
+	const missingAssumptions = blockedSeams.filter(
+		(seam) =>
+			!assumptionChecks.some((assumption) => assumption.seamList.includes(seam))
 	);
-	const invalidAssumptions = assumptionChecks.filter((assumption) => assumption.missingFields.length > 0);
+	const invalidAssumptions = assumptionChecks.filter(
+		(assumption) => assumption.missingFields.length > 0
+	);
 
 	const report = {
 		tool: 'assumption-alarm',
@@ -132,7 +135,9 @@ const run = async () => {
 	);
 
 	if (missingAssumptions.length > 0 || invalidAssumptions.length > 0) {
-		process.stderr.write('Assumption Alarm: missing or incomplete assumptions.\n');
+		process.stderr.write(
+			'Assumption Alarm: missing or incomplete assumptions.\n'
+		);
 		process.exit(1);
 	}
 };

@@ -1,4 +1,5 @@
 docs/evidence/
+docs/
 .svelte-kit/
 .vercel/
 build/

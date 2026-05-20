@@ -24,7 +24,8 @@ const ensureEvidenceDir = async (dateFolder) => {
  */
 const runCommand = (command, args) => {
 	const commandLine = [command, ...args].join(' ');
-	const executable = process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : command;
+	const executable =
+		process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : command;
 	const executableArgs =
 		process.platform === 'win32' ? ['/d', '/s', '/c', commandLine] : args;
 	const result = spawnSync(executable, executableArgs, {
@@ -62,7 +63,12 @@ const run = async () => {
 	].join('\n');
 
 	const checkResult = runCommand('npm', ['run', 'check']);
-	const testResult = runCommand('npm', ['test', '--', '--pool=forks', '--maxWorkers=1']);
+	const testResult = runCommand('npm', [
+		'test',
+		'--',
+		'--pool=forks',
+		'--maxWorkers=1'
+	]);
 
 	const verifyOutput = [
 		'$ npm run verify',
@@ -72,13 +78,24 @@ const run = async () => {
 		'$ npm test -- --pool=forks --maxWorkers=1',
 		testResult.output
 	].join('\n');
-	const sanitizedVerifyOutput = sanitizeEvidenceOutput(ROOT, verifyOutput).trim();
+	const sanitizedVerifyOutput = sanitizeEvidenceOutput(
+		ROOT,
+		verifyOutput
+	).trim();
 	const sanitizedTestOutput = sanitizeEvidenceOutput(
 		ROOT,
 		`$ npm test -- --pool=forks --maxWorkers=1\n${testResult.output}`
 	).trim();
-	await fs.writeFile(verifyPath, `${verifyHeader}\n${sanitizedVerifyOutput}\n`, 'utf8');
-	await fs.writeFile(testPath, `${testHeader}\n${sanitizedTestOutput}\n`, 'utf8');
+	await fs.writeFile(
+		verifyPath,
+		`${verifyHeader}\n${sanitizedVerifyOutput}\n`,
+		'utf8'
+	);
+	await fs.writeFile(
+		testPath,
+		`${testHeader}\n${sanitizedTestOutput}\n`,
+		'utf8'
+	);
 
 	if (checkResult.status !== 0 || testResult.status !== 0) {
 		process.exit(1);

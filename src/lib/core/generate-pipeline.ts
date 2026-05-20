@@ -19,7 +19,10 @@ type PipelineResponse = {
 };
 
 type PipelineDeps = {
-	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+	fetchImpl: (
+		input: RequestInfo | URL,
+		init?: RequestInit
+	) => Promise<Response>;
 	validateSpec: typeof specValidationAdapter.validate;
 	assemblePrompt: typeof promptAssemblyAdapter.assemble;
 	detectDrift: typeof driftDetectionAdapter.detect;
@@ -54,7 +57,11 @@ export const runGeneratePipeline = async (
 ): Promise<PipelineResponse> => {
 	const parsedInput = GenerateRequestSchema.safeParse(body);
 	if (!parsedInput.success) {
-		return buildError(400, 'GENERATE_INPUT_INVALID', 'Generate request is invalid.');
+		return buildError(
+			400,
+			'GENERATE_INPUT_INVALID',
+			'Generate request is invalid.'
+		);
 	}
 
 	const validation = await deps.validateSpec({ spec: parsedInput.data.spec });
@@ -129,7 +136,11 @@ export const runGeneratePipeline = async (
 
 	const parsedResult = GenerateResultSchema.safeParse(result);
 	if (!parsedResult.success) {
-		return buildError(500, 'GENERATE_OUTPUT_INVALID', 'Generate response did not match contract.');
+		return buildError(
+			500,
+			'GENERATE_OUTPUT_INVALID',
+			'Generate response did not match contract.'
+		);
 	}
 
 	return {

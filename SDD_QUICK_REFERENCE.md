@@ -10,14 +10,14 @@ The core problem it solves: developers (and AI agents) **assume** how external s
 
 ## Core Concepts
 
-| Term | Definition |
-|------|-----------|
-| **Seam** | A boundary between your core logic and an external system (API, database, filesystem, browser storage, third-party service). |
-| **Contract** | A schema that defines the seam's interface — inputs, outputs, constraints, and error modes. The single source of truth. |
-| **Probe** | A script that runs against the real external system and captures its actual behavior as JSON. |
-| **Fixture** | A deterministic JSON snapshot of real behavior, used by mocks and tests. Never hand-written or invented. |
-| **Mock** | A fixture-backed implementation with zero custom logic. Loads fixtures by scenario, returns them exactly. |
-| **Adapter** | The real implementation that performs I/O and validates its output against the contract. |
+| Term         | Definition                                                                                                                   |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Seam**     | A boundary between your core logic and an external system (API, database, filesystem, browser storage, third-party service). |
+| **Contract** | A schema that defines the seam's interface — inputs, outputs, constraints, and error modes. The single source of truth.      |
+| **Probe**    | A script that runs against the real external system and captures its actual behavior as JSON.                                |
+| **Fixture**  | A deterministic JSON snapshot of real behavior, used by mocks and tests. Never hand-written or invented.                     |
+| **Mock**     | A fixture-backed implementation with zero custom logic. Loads fixtures by scenario, returns them exactly.                    |
+| **Adapter**  | The real implementation that performs I/O and validates its output against the contract.                                     |
 
 ---
 
@@ -46,25 +46,25 @@ Define the seam's interface as a schema. Zod is recommended because it produces 
 import { z } from 'zod';
 
 export const UserProfileInputSchema = z.object({
-  userId: z.string().uuid(),
+	userId: z.string().uuid()
 });
 
 export const UserProfileOutputSchema = z.object({
-  id: z.string().uuid(),
-  email: z.string().email(),
-  displayName: z.string().min(1).max(100),
-  createdAt: z.string().datetime(),
+	id: z.string().uuid(),
+	email: z.string().email(),
+	displayName: z.string().min(1).max(100),
+	createdAt: z.string().datetime()
 });
 
 export const UserProfileErrorSchema = z.object({
-  code: z.enum(['USER_NOT_FOUND', 'SERVICE_UNAVAILABLE', 'INPUT_INVALID']),
-  message: z.string(),
+	code: z.enum(['USER_NOT_FOUND', 'SERVICE_UNAVAILABLE', 'INPUT_INVALID']),
+	message: z.string()
 });
 
 // Result envelope — use this pattern across all seams
 export const UserProfileResultSchema = z.discriminatedUnion('ok', [
-  z.object({ ok: z.literal(true), value: UserProfileOutputSchema }),
-  z.object({ ok: z.literal(false), error: UserProfileErrorSchema }),
+	z.object({ ok: z.literal(true), value: UserProfileOutputSchema }),
+	z.object({ ok: z.literal(false), error: UserProfileErrorSchema })
 ]);
 
 export type UserProfileInput = z.infer<typeof UserProfileInputSchema>;
@@ -72,11 +72,12 @@ export type UserProfileResult = z.infer<typeof UserProfileResultSchema>;
 
 // The seam interface
 export type UserProfileSeam = {
-  getProfile(input: UserProfileInput): Promise<UserProfileResult>;
+	getProfile(input: UserProfileInput): Promise<UserProfileResult>;
 };
 ```
 
 **Rules:**
+
 - The contract is the law. Everything else must conform to it.
 - Specify all constraints (min/max, regex, enums), not just types.
 - Define error codes explicitly — don't leave failure modes implicit.
@@ -97,34 +98,55 @@ const BASE_URL = process.env.USER_API_BASE_URL;
 
 // Happy path: fetch a known user
 const sampleResponse = await fetch(`${BASE_URL}/users/abc-123`, {
-  headers: { Authorization: `Bearer ${API_KEY}` },
+	headers: { Authorization: `Bearer ${API_KEY}` }
 });
 const sampleData = await sampleResponse.json();
 
-await writeFile('fixtures/user-profile/sample.json', JSON.stringify({
-  scenario: 'sample',
-  input: { userId: 'abc-123' },
-  output: { ok: true, value: sampleData },
-  probedAt: new Date().toISOString().slice(0, 10),
-}, null, 2));
+await writeFile(
+	'fixtures/user-profile/sample.json',
+	JSON.stringify(
+		{
+			scenario: 'sample',
+			input: { userId: 'abc-123' },
+			output: { ok: true, value: sampleData },
+			probedAt: new Date().toISOString().slice(0, 10)
+		},
+		null,
+		2
+	)
+);
 
 // Fault path: fetch a non-existent user
 const faultResponse = await fetch(`${BASE_URL}/users/does-not-exist`, {
-  headers: { Authorization: `Bearer ${API_KEY}` },
+	headers: { Authorization: `Bearer ${API_KEY}` }
 });
 const faultData = await faultResponse.json();
 
-await writeFile('fixtures/user-profile/fault.json', JSON.stringify({
-  scenario: 'fault',
-  input: { userId: 'does-not-exist' },
-  output: { ok: false, error: { code: 'USER_NOT_FOUND', message: `API returned ${faultResponse.status}` } },
-  probedAt: new Date().toISOString().slice(0, 10),
-}, null, 2));
+await writeFile(
+	'fixtures/user-profile/fault.json',
+	JSON.stringify(
+		{
+			scenario: 'fault',
+			input: { userId: 'does-not-exist' },
+			output: {
+				ok: false,
+				error: {
+					code: 'USER_NOT_FOUND',
+					message: `API returned ${faultResponse.status}`
+				}
+			},
+			probedAt: new Date().toISOString().slice(0, 10)
+		},
+		null,
+		2
+	)
+);
 
 console.log('Fixtures written.');
 ```
 
 **Rules:**
+
 - Run against the real system — real API, real database, real filesystem.
 - Capture output as JSON, not summaries or screenshots.
 - Record the probe date. Fixtures go stale; you need to know when they were captured.
@@ -144,24 +166,26 @@ fixtures/user-profile/
 ```
 
 **Fixture schema:**
+
 ```json
 {
-  "scenario": "sample",
-  "input": { "userId": "abc-123" },
-  "output": {
-    "ok": true,
-    "value": {
-      "id": "abc-123",
-      "email": "user@example.com",
-      "displayName": "Jane Doe",
-      "createdAt": "2025-06-15T10:30:00Z"
-    }
-  },
-  "probedAt": "2025-07-01"
+	"scenario": "sample",
+	"input": { "userId": "abc-123" },
+	"output": {
+		"ok": true,
+		"value": {
+			"id": "abc-123",
+			"email": "user@example.com",
+			"displayName": "Jane Doe",
+			"createdAt": "2025-06-15T10:30:00Z"
+		}
+	},
+	"probedAt": "2025-07-01"
 }
 ```
 
 **Rules:**
+
 - `sample.json`: Must represent a valid, working interaction.
 - `fault.json`: Must represent a real failure mode (not invented).
 - Both come from the probe, never hand-crafted (for I/O seams).
@@ -184,14 +208,15 @@ import faultFixture from '../../fixtures/user-profile/fault.json';
 type Scenario = 'sample' | 'fault';
 
 export const createUserProfileMock = (scenario: Scenario): UserProfileSeam => ({
-  getProfile: async () => {
-    const fixture = scenario === 'fault' ? faultFixture : sampleFixture;
-    return fixture.output;
-  },
+	getProfile: async () => {
+		const fixture = scenario === 'fault' ? faultFixture : sampleFixture;
+		return fixture.output;
+	}
 });
 ```
 
 **Rules:**
+
 - The mock is a factory function. The scenario is bound at construction, not per-call. This ensures a mock instance is locked to one behavior.
 - Load fixtures, return them. No conditional logic, no data transformation, no invention.
 - Parse fixtures against the contract schema at load time if your language supports it. This catches schema drift early.
@@ -211,46 +236,52 @@ import sampleFixture from '../../fixtures/user-profile/sample.json';
 import faultFixture from '../../fixtures/user-profile/fault.json';
 
 describe('UserProfile contract', () => {
-  // Mock tests — run first, no I/O
-  it('mock returns sample fixture on success', async () => {
-    const mock = createUserProfileMock('sample');
-    const result = await mock.getProfile(sampleFixture.input);
-    expect(result).toEqual(sampleFixture.output);
-  });
+	// Mock tests — run first, no I/O
+	it('mock returns sample fixture on success', async () => {
+		const mock = createUserProfileMock('sample');
+		const result = await mock.getProfile(sampleFixture.input);
+		expect(result).toEqual(sampleFixture.output);
+	});
 
-  it('mock returns fault fixture on failure', async () => {
-    const mock = createUserProfileMock('fault');
-    const result = await mock.getProfile(faultFixture.input);
-    expect(result.ok).toBe(false);
-    expect(result.error.code).toBe('USER_NOT_FOUND');
-  });
+	it('mock returns fault fixture on failure', async () => {
+		const mock = createUserProfileMock('fault');
+		const result = await mock.getProfile(faultFixture.input);
+		expect(result.ok).toBe(false);
+		expect(result.error.code).toBe('USER_NOT_FOUND');
+	});
 
-  // Adapter tests — stub the I/O, verify contract conformance
-  it('adapter returns contract-conformant output for sample input', async () => {
-    // Stub fetch, database client, etc.
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => sampleFixture.output.value,
-    }));
+	// Adapter tests — stub the I/O, verify contract conformance
+	it('adapter returns contract-conformant output for sample input', async () => {
+		// Stub fetch, database client, etc.
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => sampleFixture.output.value
+			})
+		);
 
-    const result = await userProfileAdapter.getProfile(sampleFixture.input);
-    expect(result).toEqual(sampleFixture.output);
-  });
+		const result = await userProfileAdapter.getProfile(sampleFixture.input);
+		expect(result).toEqual(sampleFixture.output);
+	});
 
-  it('adapter returns structured error for fault input', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 404,
-      json: async () => ({ message: 'User not found' }),
-    }));
+	it('adapter returns structured error for fault input', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue({
+				ok: false,
+				status: 404,
+				json: async () => ({ message: 'User not found' })
+			})
+		);
 
-    const result = await userProfileAdapter.getProfile(faultFixture.input);
-    expect(result.ok).toBe(false);
-  });
+		const result = await userProfileAdapter.getProfile(faultFixture.input);
+		expect(result.ok).toBe(false);
+	});
 });
 ```
 
-**The critical rule: Red Proof.** The fault fixture must produce a failure through the mock *before* you write the adapter. This proves the contract can detect bad states. If your fault fixture passes when it shouldn't, your contract has a gap.
+**The critical rule: Red Proof.** The fault fixture must produce a failure through the mock _before_ you write the adapter. This proves the contract can detect bad states. If your fault fixture passes when it shouldn't, your contract has a gap.
 
 ---
 
@@ -261,41 +292,49 @@ The real implementation. This is the only component that performs actual I/O.
 ```typescript
 // adapters/user-profile.adapter.ts
 import { UserProfileResultSchema } from '../contracts/user-profile.contract';
-import type { UserProfileSeam, UserProfileInput } from '../contracts/user-profile.contract';
+import type {
+	UserProfileSeam,
+	UserProfileInput
+} from '../contracts/user-profile.contract';
 
 export const userProfileAdapter: UserProfileSeam = {
-  getProfile: async (input: UserProfileInput) => {
-    const response = await fetch(`${BASE_URL}/users/${input.userId}`, {
-      headers: { Authorization: `Bearer ${API_KEY}` },
-    });
+	getProfile: async (input: UserProfileInput) => {
+		const response = await fetch(`${BASE_URL}/users/${input.userId}`, {
+			headers: { Authorization: `Bearer ${API_KEY}` }
+		});
 
-    if (!response.ok) {
-      return {
-        ok: false,
-        error: {
-          code: response.status === 404 ? 'USER_NOT_FOUND' : 'SERVICE_UNAVAILABLE',
-          message: `API returned ${response.status}`,
-        },
-      };
-    }
+		if (!response.ok) {
+			return {
+				ok: false,
+				error: {
+					code:
+						response.status === 404 ? 'USER_NOT_FOUND' : 'SERVICE_UNAVAILABLE',
+					message: `API returned ${response.status}`
+				}
+			};
+		}
 
-    const data = await response.json();
+		const data = await response.json();
 
-    // Validate against contract — the adapter does not trust the external system
-    const parsed = UserProfileResultSchema.safeParse({ ok: true, value: data });
-    if (!parsed.success) {
-      return {
-        ok: false,
-        error: { code: 'INPUT_INVALID', message: 'Response did not match contract schema' },
-      };
-    }
+		// Validate against contract — the adapter does not trust the external system
+		const parsed = UserProfileResultSchema.safeParse({ ok: true, value: data });
+		if (!parsed.success) {
+			return {
+				ok: false,
+				error: {
+					code: 'INPUT_INVALID',
+					message: 'Response did not match contract schema'
+				}
+			};
+		}
 
-    return parsed.data;
-  },
+		return parsed.data;
+	}
 };
 ```
 
 **Rules:**
+
 - The adapter is the only place where real I/O happens.
 - Validate all external data against the contract schema. Never trust the outside world.
 - Map external errors to your contract's error codes.
@@ -312,6 +351,7 @@ SDD's value collapses without enforcement. The methodology must be checked mecha
 Maintain an inventory of every seam in your project — a markdown table, a JSON manifest, a YAML file, whatever your team prefers. This is the source of truth for your verification tooling.
 
 Each entry should track:
+
 - Seam name
 - Whether it's pure or I/O
 - Paths to its artifacts (contract, probe, fixtures, mock, tests, adapter)
@@ -333,6 +373,7 @@ Wire these checks into a single command (`npm run verify`, `make verify`, whatev
 ### Decision Log
 
 Every change to a seam's contract should have a dated entry explaining:
+
 - What changed and why
 - Which seams are affected
 - What evidence supports the change (test output, probe results)

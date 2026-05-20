@@ -15,7 +15,11 @@ export const ListModeSchema = z.enum(['list', 'title_only']);
 export const ListGutterSchema = z.enum(['tight', 'normal', 'loose']);
 export const TextSizeSchema = z.enum(['small', 'medium', 'large']);
 export const FontStyleSchema = z.enum(['rounded', 'block', 'hand']);
-export const ColorModeSchema = z.enum(['black_and_white_only', 'grayscale', 'color']);
+export const ColorModeSchema = z.enum([
+	'black_and_white_only',
+	'grayscale',
+	'color'
+]);
 export const DecorationDensitySchema = z.enum(['none', 'minimal', 'dense']);
 export const IllustrationModeSchema = z.enum(['none', 'simple', 'scene']);
 export const ShadingModeSchema = z.enum(['none', 'hatch', 'stippling']);
@@ -47,62 +51,64 @@ export const RawColoringPageItemSchema = z.object({
 	label: z.string()
 });
 
-export const ColoringPageSpecSchema = z.object({
-	title: NonEmptyStringSchema,
-	items: z.array(ColoringPageItemSchema).max(MAX_SPEC_ITEMS),
-	footerItem: ColoringPageItemSchema.optional(),
-	dedication: DedicationSchema.optional(),
-	listMode: ListModeSchema.default('list'),
-	alignment: AlignmentSchema.default('left'),
-	numberAlignment: NumberAlignmentSchema.default('strict'),
-	listGutter: ListGutterSchema.default('normal'),
-	whitespaceScale: z.number().min(0).max(100),
-	textSize: TextSizeSchema.default('small'),
-	fontStyle: FontStyleSchema.default('rounded'),
-	textStrokeWidth: z.number().int().min(4).max(12).default(6),
-	colorMode: ColorModeSchema.default('black_and_white_only'),
-	decorations: DecorationDensitySchema.default('none'),
-	illustrations: IllustrationModeSchema.default('none'),
-	shading: ShadingModeSchema.default('none'),
-	border: BorderStyleSchema.default('plain'),
-	borderThickness: z.number().int().min(2).max(16).default(8),
-	variations: z.number().int().min(1).max(4),
-	outputFormat: OutputFormatSchema,
-	pageSize: PageSizeSchema.default('US_Letter')
-}).superRefine((spec, ctx) => {
-	if (spec.listMode === 'list' && spec.items.length === 0) {
-		ctx.addIssue({
-			code: z.ZodIssueCode.custom,
-			path: ['items'],
-			message: 'List mode requires at least one item.'
-		});
-	}
-	if (spec.listMode === 'title_only' && spec.items.length > 0) {
-		ctx.addIssue({
-			code: z.ZodIssueCode.custom,
-			path: ['items'],
-			message: 'Title-only mode does not allow list items.'
-		});
-	}
-	if (spec.listMode === 'title_only' && spec.footerItem) {
-		ctx.addIssue({
-			code: z.ZodIssueCode.custom,
-			path: ['footerItem'],
-			message: 'Title-only mode does not allow a footer item.'
-		});
-	}
-	if (
-		spec.shading !== 'none' &&
-		spec.decorations === 'none' &&
-		spec.illustrations === 'none'
-	) {
-		ctx.addIssue({
-			code: z.ZodIssueCode.custom,
-			path: ['shading'],
-			message: 'Shading requires decorations or illustrations.'
-		});
-	}
-});
+export const ColoringPageSpecSchema = z
+	.object({
+		title: NonEmptyStringSchema,
+		items: z.array(ColoringPageItemSchema).max(MAX_SPEC_ITEMS),
+		footerItem: ColoringPageItemSchema.optional(),
+		dedication: DedicationSchema.optional(),
+		listMode: ListModeSchema.default('list'),
+		alignment: AlignmentSchema.default('left'),
+		numberAlignment: NumberAlignmentSchema.default('strict'),
+		listGutter: ListGutterSchema.default('normal'),
+		whitespaceScale: z.number().min(0).max(100),
+		textSize: TextSizeSchema.default('small'),
+		fontStyle: FontStyleSchema.default('rounded'),
+		textStrokeWidth: z.number().int().min(4).max(12).default(6),
+		colorMode: ColorModeSchema.default('black_and_white_only'),
+		decorations: DecorationDensitySchema.default('none'),
+		illustrations: IllustrationModeSchema.default('none'),
+		shading: ShadingModeSchema.default('none'),
+		border: BorderStyleSchema.default('plain'),
+		borderThickness: z.number().int().min(2).max(16).default(8),
+		variations: z.number().int().min(1).max(4),
+		outputFormat: OutputFormatSchema,
+		pageSize: PageSizeSchema.default('US_Letter')
+	})
+	.superRefine((spec, ctx) => {
+		if (spec.listMode === 'list' && spec.items.length === 0) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['items'],
+				message: 'List mode requires at least one item.'
+			});
+		}
+		if (spec.listMode === 'title_only' && spec.items.length > 0) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['items'],
+				message: 'Title-only mode does not allow list items.'
+			});
+		}
+		if (spec.listMode === 'title_only' && spec.footerItem) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['footerItem'],
+				message: 'Title-only mode does not allow a footer item.'
+			});
+		}
+		if (
+			spec.shading !== 'none' &&
+			spec.decorations === 'none' &&
+			spec.illustrations === 'none'
+		) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['shading'],
+				message: 'Shading requires decorations or illustrations.'
+			});
+		}
+	});
 
 export const RawColoringPageSpecSchema = z.object({
 	title: z.string(),

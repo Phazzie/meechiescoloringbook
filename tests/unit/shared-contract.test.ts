@@ -85,15 +85,11 @@ describe('shared.contract schemas', () => {
 		});
 
 		it('rejects missing code field', () => {
-			expect(() =>
-				SeamErrorSchema.parse({ message: 'msg' })
-			).toThrow();
+			expect(() => SeamErrorSchema.parse({ message: 'msg' })).toThrow();
 		});
 
 		it('rejects missing message field', () => {
-			expect(() =>
-				SeamErrorSchema.parse({ code: 'ERR' })
-			).toThrow();
+			expect(() => SeamErrorSchema.parse({ code: 'ERR' })).toThrow();
 		});
 	});
 
@@ -117,9 +113,7 @@ describe('shared.contract schemas', () => {
 		});
 
 		it('rejects ok: true with wrong value type', () => {
-			expect(() =>
-				TestResultSchema.parse({ ok: true, value: 42 })
-			).toThrow();
+			expect(() => TestResultSchema.parse({ ok: true, value: 42 })).toThrow();
 		});
 
 		it('rejects ok: false with invalid error shape', () => {
@@ -129,9 +123,7 @@ describe('shared.contract schemas', () => {
 		});
 
 		it('rejects missing ok field', () => {
-			expect(() =>
-				TestResultSchema.parse({ value: 'test' })
-			).toThrow();
+			expect(() => TestResultSchema.parse({ value: 'test' })).toThrow();
 		});
 
 		it('works with complex value schemas', () => {

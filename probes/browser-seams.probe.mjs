@@ -108,7 +108,10 @@ const runCreationStoreProbe = async (page, input) =>
 			if (record.owner?.kind === 'anonymous' && owner.kind === 'anonymous') {
 				return record.owner.sessionId === owner.sessionId;
 			}
-			if (record.owner?.kind === 'authenticated' && owner.kind === 'authenticated') {
+			if (
+				record.owner?.kind === 'authenticated' &&
+				owner.kind === 'authenticated'
+			) {
 				return record.owner.userId === owner.userId;
 			}
 			return false;
@@ -134,20 +137,27 @@ const runCreationStoreProbe = async (page, input) =>
 
 		const getCreation = () => {
 			const records = readRecords();
-			const found = records.find((record) => record.id === probeInput.getCreation.id) || null;
+			const found =
+				records.find((record) => record.id === probeInput.getCreation.id) ||
+				null;
 			return { ok: true, value: found };
 		};
 
 		const deleteCreation = () => {
 			const records = readRecords();
 			const beforeCount = records.length;
-			const filtered = records.filter((record) => record.id !== probeInput.deleteCreation.id);
+			const filtered = records.filter(
+				(record) => record.id !== probeInput.deleteCreation.id
+			);
 			writeRecords(filtered);
 			return { ok: true, value: filtered.length < beforeCount };
 		};
 
 		const saveDraft = () => {
-			localStorage.setItem(DRAFT_KEY, JSON.stringify(probeInput.saveDraft.draft));
+			localStorage.setItem(
+				DRAFT_KEY,
+				JSON.stringify(probeInput.saveDraft.draft)
+			);
 			return { ok: true, value: probeInput.saveDraft.draft };
 		};
 

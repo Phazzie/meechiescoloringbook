@@ -99,7 +99,11 @@ const run = async () => {
 		);
 	}
 	lines.push('');
-	await fs.writeFile(path.join(outputDir, 'clan-chain.md'), `${lines.join('\n')}\n`, 'utf8');
+	await fs.writeFile(
+		path.join(outputDir, 'clan-chain.md'),
+		`${lines.join('\n')}\n`,
+		'utf8'
+	);
 };
 
 run().catch((error) => {
