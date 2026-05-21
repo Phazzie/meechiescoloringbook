@@ -63,4 +63,19 @@ describe('AppConfigSeam adapter', () => {
 		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '0' });
 		expect(() => seam.getConfig()).toThrow();
 	});
+
+	it('defaults maxImagesPerRequest to 4 when MAX_IMAGES_PER_REQUEST is absent', () => {
+		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: undefined });
+		expect(seam.getConfig().maxImagesPerRequest).toBe(4);
+	});
+
+	it('defaults maxImagesPerRequest to 4 when MAX_IMAGES_PER_REQUEST is an empty string', () => {
+		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '' });
+		expect(seam.getConfig().maxImagesPerRequest).toBe(4);
+	});
+
+	it('defaults maxImagesPerRequest to 4 when MAX_IMAGES_PER_REQUEST is non-numeric', () => {
+		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: 'abc' });
+		expect(seam.getConfig().maxImagesPerRequest).toBe(4);
+	});
 });

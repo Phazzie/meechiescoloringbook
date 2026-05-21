@@ -388,7 +388,7 @@ describe('generate-pipeline edge cases', () => {
 		}
 	});
 
-	it('returns IMAGE_HTTP_ERROR when image generation responds with a non-ok HTTP status', async () => {
+	it('passes through structured error codes from image generation service on non-ok responses', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
@@ -406,6 +406,27 @@ describe('generate-pipeline edge cases', () => {
 						}),
 						{ status: 502 }
 					)
+				)
+			}
+		);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('PROVIDER_EMPTY_IMAGE');
+		}
+	});
+
+	it('returns IMAGE_HTTP_ERROR when image generation returns a non-JSON body', async () => {
+		const result = await runGeneratePipeline(
+			{ spec: validSpec },
+			{
+				...baseDeps,
+				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
+				assemblePrompt: vi.fn().mockResolvedValue({
+					ok: true,
+					value: { prompt: 'test prompt', templateVersion: 'v2' }
+				}),
+				fetchImpl: vi.fn().mockResolvedValue(
+					new Response('<html>Service Unavailable</html>', { status: 503 })
 				)
 			}
 		);

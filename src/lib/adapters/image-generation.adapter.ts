@@ -50,8 +50,9 @@ export const imageGenerationAdapter: ImageGenerationSeam = {
 				return {
 					ok: false,
 					error: {
-						code: 'IMAGE_NETWORK_ERROR',
-						message: `Image generation returned HTTP ${response.status}.`
+						code: 'IMAGE_HTTP_ERROR',
+						message: `Image generation returned HTTP ${response.status}.`,
+						details: { status: String(response.status) }
 					}
 				};
 			}

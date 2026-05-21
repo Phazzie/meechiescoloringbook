@@ -92,14 +92,12 @@ export const runGeneratePipeline = async (
 			outputFormat: parsedInput.data.spec.outputFormat
 		})
 	});
-	if (!imageResponse.ok) {
-		return buildError(
-			502,
-			'IMAGE_HTTP_ERROR',
-			`Image generation returned HTTP ${imageResponse.status}.`
-		);
-	}
 	const imagePayload = await imageResponse.json().catch(() => null);
+	if (imagePayload === null) {
+		return imageResponse.ok
+			? buildError(502, 'IMAGE_RESPONSE_INVALID', 'Image generation response did not match contract.')
+			: buildError(502, 'IMAGE_HTTP_ERROR', `Image generation returned HTTP ${imageResponse.status}.`, { status: String(imageResponse.status) });
+	}
 	const parsedImageResult = ImageGenerationResultSchema.safeParse(imagePayload);
 	if (!parsedImageResult.success) {
 		return buildError(
@@ -110,7 +108,7 @@ export const runGeneratePipeline = async (
 	}
 	if (!parsedImageResult.data.ok) {
 		return {
-			status: 502,
+			status: imageResponse.ok ? 502 : imageResponse.status,
 			body: parsedImageResult.data
 		};
 	}

@@ -14,7 +14,7 @@ const readConfig = (env: Record<string, string | undefined>): AppConfig => {
 		xaiBaseUrl: env.XAI_BASE_URL,
 		xaiImageEndpointPath: env.XAI_IMAGE_ENDPOINT_PATH,
 		featureIntegrationTests: env.FEATURE_INTEGRATION_TESTS === 'true',
-		maxImagesPerRequest: env.MAX_IMAGES_PER_REQUEST !== undefined ? Number(env.MAX_IMAGES_PER_REQUEST) : undefined,
+		maxImagesPerRequest: (env.MAX_IMAGES_PER_REQUEST && !isNaN(Number(env.MAX_IMAGES_PER_REQUEST))) ? Number(env.MAX_IMAGES_PER_REQUEST) : undefined,
 		defaultImageSize: env.DEFAULT_IMAGE_SIZE,
 		geminiApiKey: env.GEMINI_API_KEY ?? '',
 		geminiBaseUrl: env.GEMINI_BASE_URL ?? 'https://generativelanguage.googleapis.com'
