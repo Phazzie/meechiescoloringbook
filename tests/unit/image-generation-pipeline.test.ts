@@ -251,4 +251,44 @@ describe('image-generation-pipeline edge cases', () => {
     expect(result.status).toBe(200);
     expect(result.body.ok).toBe(true);
   });
+
+  it('returns 503 when seam returns IMAGE_CONFIG_ERROR (missing env vars)', async () => {
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: false,
+        error: { code: 'IMAGE_CONFIG_ERROR', message: 'XAI_API_KEY not set' }
+      }))
+    );
+    expect(result.status).toBe(503);
+    expect(result.body.ok).toBe(false);
+    if (!result.body.ok) {
+      expect(result.body.error.code).toBe('IMAGE_CONFIG_ERROR');
+    }
+  });
+
+  it('returns 502 when seam returns IMAGE_VALIDATION_ERROR (not 503)', async () => {
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: false,
+        error: { code: 'IMAGE_VALIDATION_ERROR', message: 'Request failed validation' }
+      }))
+    );
+    expect(result.status).toBe(502);
+    expect(result.body.ok).toBe(false);
+    if (!result.body.ok) {
+      expect(result.body.error.code).toBe('IMAGE_VALIDATION_ERROR');
+    }
+  });
 });

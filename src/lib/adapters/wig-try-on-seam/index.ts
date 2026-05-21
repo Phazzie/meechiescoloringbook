@@ -10,6 +10,9 @@ import type {
 import type { Result } from '../../../../contracts/shared.contract';
 import { validateWigTryOnRequest } from '../../seams/wig-try-on-seam/validators';
 import type { AppConfigSeam } from '../../seams/app-config-seam/contract';
+import { fetchWithTimeout, isAbortError } from '$lib/core/http-resilience';
+
+const WIG_TRY_ON_TIMEOUT_MS = 120_000;
 
 const WIG_TRY_ON_PROMPT = [
 	'You are an AI artist. Using the first image (a selfie) and the second image (a wig product photo),',
@@ -103,15 +106,21 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 		const start = Date.now();
 		let response: Response;
 		try {
-			response = await fetch(endpoint, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(requestBody)
-			});
+			response = await fetchWithTimeout(
+				endpoint,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(requestBody)
+				},
+				WIG_TRY_ON_TIMEOUT_MS
+			);
 		} catch (error) {
 			return errorResult({
 				code: 'WIG_TRY_ON_NETWORK_ERROR',
-				message: error instanceof Error ? error.message : 'Gemini API network request failed.'
+				message: isAbortError(error)
+					? 'Wig try-on request timed out after 120 seconds.'
+					: error instanceof Error ? error.message : 'Gemini API network request failed.'
 			});
 		}
 

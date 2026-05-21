@@ -88,7 +88,9 @@ export const runImageGenerationPipeline = async (
   });
 
   if (!seamResult.ok) {
-    const isConfigError = seamResult.error.code === 'IMAGE_VALIDATION_ERROR';
+    // IMAGE_CONFIG_ERROR = missing/invalid server-side env vars → 503 Service Unavailable.
+    // All other seam errors (network, HTTP, validation) → 502 Bad Gateway.
+    const isConfigError = seamResult.error.code === 'IMAGE_CONFIG_ERROR';
     return {
       status: isConfigError ? 503 : 502,
       body: {

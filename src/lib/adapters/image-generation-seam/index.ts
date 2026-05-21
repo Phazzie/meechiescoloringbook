@@ -11,6 +11,9 @@ import type {
 import type { Result } from '../../../../contracts/shared.contract';
 import { validateImageGenerationRequest } from '../../seams/image-generation-seam/validators';
 import type { ImageProviderConfig, ImageProviderConfigSeam } from '../../seams/image-provider-config-seam/contract';
+import { fetchWithTimeout, isAbortError } from '$lib/core/http-resilience';
+
+const IMAGE_TIMEOUT_MS = 120_000;
 
 type XaiImageResponse = {
   data: Array<{
@@ -65,23 +68,29 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
 
     let response: Response;
     try {
-      response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${config.xaiApiKey}`,
-          'Content-Type': 'application/json'
+      response = await fetchWithTimeout(
+        url,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${config.xaiApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: config.xaiImageModel,
+            prompt: buildPrompt(validated),
+            n: validated.n,
+            response_format: validated.format
+          })
         },
-        body: JSON.stringify({
-          model: config.xaiImageModel,
-          prompt: buildPrompt(validated),
-          n: validated.n,
-          response_format: validated.format
-        })
-      });
+        IMAGE_TIMEOUT_MS
+      );
     } catch (error) {
       return errorResult(
         'IMAGE_NETWORK_ERROR',
-        error instanceof Error ? error.message : 'Image generation network request failed.'
+        isAbortError(error)
+          ? 'Image generation request timed out after 120 seconds.'
+          : error instanceof Error ? error.message : 'Image generation network request failed.'
       );
     }
 
