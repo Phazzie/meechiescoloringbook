@@ -115,6 +115,26 @@ describe('image-generation-pipeline edge cases', () => {
     expect(result.body.ok).toBe(false);
   });
 
+  it('returns 503 when seam returns an image config error', async () => {
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: false,
+        error: {
+          code: 'IMAGE_CONFIG_ERROR',
+          message: 'Missing provider key'
+        }
+      }))
+    );
+    expect(result.status).toBe(503);
+    expect(result.body.ok).toBe(false);
+  });
+
   it('returns error when seam returns images without b64', async () => {
     const result = await runImageGenerationPipeline(
       {

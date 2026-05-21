@@ -550,3 +550,30 @@ Deliver a brand-new modern/sleek/polished UI with strong visual identity, refres
 2. What must be proven: A deployment with only `XAI_API_KEY` gets the documented image defaults, bad base URLs fail at the config boundary, and the image-generation route no longer depends on AppConfigSeam.
 3. Riskiest assumption: The README defaults are the intended source for optional image provider values.
 4. Evidence to prove/disprove: Focused ImageProviderConfigSeam/image-generation tests, ImageGenerationSeam rewind, full Seam-Driven Development verification, Cipher Gate enforcement, and `git diff --check`.
+
+## Consolidation PR from Open PR Pile (2026-05-20)
+
+### Plan
+
+- Goal: Build one fresh branch from latest `main` that ports only still-valid, non-duplicative fixes from open PRs #55, #56, #60, #62, #71, #72, #73, #74, #75, #76, #77, #78 plus overlapping newer PRs.
+- Exact seams: `ImageGenerationSeam`, `ProviderAdapterSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `eslint.config.js`
+  - `src/lib/core/http-client.ts`
+  - `tests/unit/http-client.test.ts`
+  - `src/lib/core/image-generation-pipeline.ts`
+  - `tests/unit/image-generation-pipeline.test.ts`
+- Exact commands to run:
+  1. `git fetch origin --prune`
+  2. `npm run check`
+  3. `npm run test`
+  4. `npm run lint`
+  5. `npm run verify`
+
+### Self-critique
+
+1. What could be wrong: Consolidating fixes from multiple PRs can accidentally reintroduce rejected review-comment behavior (especially around `postJson` error handling and seam status mapping).
+2. What must be proven: Lint globals are scoped correctly without weakening unused checks, `postJson` still returns JSON payloads on non-2xx contract responses, non-JSON responses throw useful URL/status errors, and `IMAGE_CONFIG_ERROR` maps to HTTP 503 while validation errors remain 400.
+3. Riskiest assumption: The legacy flat-layout image-generation seam is already unused in `main`, so retirement changes from old PRs should not be ported blindly.
+4. Evidence to prove/disprove: Targeted unit tests for `http-client` and image-generation pipeline plus full `npm run check`, `npm run test`, `npm run lint`, and `npm run verify` outputs.
