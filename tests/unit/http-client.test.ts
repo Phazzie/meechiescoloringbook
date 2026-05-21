@@ -24,6 +24,7 @@ describe('http-client', () => {
 			const mockPayload = { ok: true, value: 'test' };
 			const mockResponse = {
 				json: () => Promise.resolve(mockPayload),
+				ok: true,
 				status: 200
 			} as unknown as Response;
 
@@ -45,10 +46,28 @@ describe('http-client', () => {
 			expect(sentHeaders['Content-Type']).toBe('application/json');
 		});
 
-		it('throws when response JSON parsing fails', async () => {
+		it('throws with HTTP status when response is not ok', async () => {
 			const mockResponse = {
 				json: () => Promise.reject(new Error('bad json')),
+				ok: false,
 				status: 500
+			} as unknown as Response;
+
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockResolvedValue(mockResponse)
+			);
+
+			await expect(postJson('/api/test', {})).rejects.toThrow(
+				'postJson: HTTP 500 from /api/test'
+			);
+		});
+
+		it('throws when response JSON parsing fails on an ok response', async () => {
+			const mockResponse = {
+				json: () => Promise.reject(new Error('bad json')),
+				ok: true,
+				status: 200
 			} as unknown as Response;
 
 			vi.stubGlobal(

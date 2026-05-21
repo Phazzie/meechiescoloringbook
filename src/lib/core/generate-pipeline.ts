@@ -92,6 +92,13 @@ export const runGeneratePipeline = async (
 			outputFormat: parsedInput.data.spec.outputFormat
 		})
 	});
+	if (!imageResponse.ok) {
+		return buildError(
+			502,
+			'IMAGE_HTTP_ERROR',
+			`Image generation returned HTTP ${imageResponse.status}.`
+		);
+	}
 	const imagePayload = await imageResponse.json().catch(() => null);
 	const parsedImageResult = ImageGenerationResultSchema.safeParse(imagePayload);
 	if (!parsedImageResult.success) {
@@ -103,7 +110,7 @@ export const runGeneratePipeline = async (
 	}
 	if (!parsedImageResult.data.ok) {
 		return {
-			status: imageResponse.status || 502,
+			status: 502,
 			body: parsedImageResult.data
 		};
 	}

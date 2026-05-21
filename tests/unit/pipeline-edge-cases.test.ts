@@ -388,7 +388,7 @@ describe('generate-pipeline edge cases', () => {
 		}
 	});
 
-	it('returns error when image generation returns failure result', async () => {
+	it('returns IMAGE_HTTP_ERROR when image generation responds with a non-ok HTTP status', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
@@ -411,7 +411,7 @@ describe('generate-pipeline edge cases', () => {
 		);
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
-			expect(result.body.error.code).toBe('PROVIDER_EMPTY_IMAGE');
+			expect(result.body.error.code).toBe('IMAGE_HTTP_ERROR');
 		}
 	});
 
