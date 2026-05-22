@@ -28,7 +28,7 @@ Info flow: Layout renders children -> pages render within layout.
 	<link rel="icon" href={favicon} />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-	<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&vamily=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Fraunces:ital,opsz,wght@0,9..144,700;1,9..144,700;1,9..144,800&display=swap" rel="stylesheet" />
+	<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Fraunces:ital,opsz,wght@0,9..144,700;1,9..144,700;1,9..144,800&display=swap" rel="stylesheet" />
 </svelte:head>
 
 <header class="site-nav">

@@ -356,7 +356,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				return;
 			}
 
-			const { payload } = await postJson('/api/meechie-studio-text', {
+			const payload = await postJson('/api/meechie-studio-text', {
 				actionId: action.aiAction,
 				modeId: selectedMode.id,
 				modeLabel: selectedMode.label,
@@ -402,7 +402,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				generationError = 'Fix the page settings before generating.';
 				return;
 			}
-			const { payload } = await postJson('/api/generate', {
+			const payload = await postJson('/api/generate', {
 				spec,
 				styleHint: currentStyleHint()
 			});
@@ -496,7 +496,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		tryOnPortraitUrl = '';
 		isTryingOn = true;
 		try {
-			const { payload } = await postJson('/api/wig-try-on', {
+			const payload = await postJson('/api/wig-try-on', {
 				selfieBase64,
 				selfieMimeType,
 				wigId: selectedWigId

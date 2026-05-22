@@ -33,8 +33,7 @@ describe('http-client', () => {
 			);
 
 			const result = await postJson('/api/test', { input: 'data' });
-			expect(result.response).toBe(mockResponse);
-			expect(result.payload).toEqual(mockPayload);
+			expect(result).toEqual(mockPayload);
 
 			const fetchCall = vi.mocked(fetch).mock.calls[0];
 			expect(fetchCall[0]).toBe('/api/test');

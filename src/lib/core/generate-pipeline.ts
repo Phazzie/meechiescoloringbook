@@ -103,7 +103,7 @@ export const runGeneratePipeline = async (
 	}
 	if (!parsedImageResult.data.ok) {
 		return {
-			status: imageResponse.status || 502,
+			status: imageResponse.status,
 			body: parsedImageResult.data
 		};
 	}
