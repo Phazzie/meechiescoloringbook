@@ -77,6 +77,40 @@ describe('image-generation-pipeline edge cases', () => {
     }
   });
 
+  it('returns 503 when seam returns a config error', async () => {
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: false,
+        error: { code: 'IMAGE_CONFIG_ERROR', message: 'XAI_API_KEY not set' }
+      }))
+    );
+    expect(result.status).toBe(503);
+    expect(result.body.ok).toBe(false);
+  });
+
+  it('returns 400 when seam returns a validation error', async () => {
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: false,
+        error: { code: 'IMAGE_VALIDATION_ERROR', message: 'prompt too short' }
+      }))
+    );
+    expect(result.status).toBe(400);
+    expect(result.body.ok).toBe(false);
+  });
+
   it('returns 502 when seam returns a network error', async () => {
     const result = await runImageGenerationPipeline(
       {

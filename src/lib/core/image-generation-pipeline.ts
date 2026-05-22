@@ -88,9 +88,12 @@ export const runImageGenerationPipeline = async (
   });
 
   if (!seamResult.ok) {
-    const isConfigError = seamResult.error.code === 'IMAGE_VALIDATION_ERROR';
+    const status =
+      seamResult.error.code === 'IMAGE_CONFIG_ERROR' ? 503
+      : seamResult.error.code === 'IMAGE_VALIDATION_ERROR' ? 400
+      : 502;
     return {
-      status: isConfigError ? 503 : 502,
+      status,
       body: {
         ok: false,
         error: seamResult.error
