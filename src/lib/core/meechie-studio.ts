@@ -7,6 +7,8 @@ import type { MeechieStudioTextAction, MeechieStudioTextOutput } from '../../../
 import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract';
 
 export const DEFAULT_REVISION_BUDGET = 3;
+// 97 keeps the title/footer line separated from normal numbered list items (1-20).
+const FOOTER_ITEM_NUMBER = 97;
 
 export const DEFAULT_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	verdict: 'Meechie already clocked it.',
@@ -212,8 +214,10 @@ export const studioModes: StudioMode[] = [
 //      1 mode rotates monthly (changes on the 1st), 2 rotate weekly.
 //      All 8 modes get equal exposure over time.
 
-const getMonthKey = (): number =>
-	new Date().getFullYear() * 12 + new Date().getMonth();
+const getMonthKey = (): number => {
+	const now = new Date();
+	return now.getFullYear() * 12 + now.getMonth();
+};
 
 const getWeekNumber = (): number =>
 	Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
@@ -332,6 +336,8 @@ export const canRunStudioAction = (
 	return true;
 };
 
+const defaultPageItemLabel = (): string => DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label;
+
 const normalizeSpecLabel = (value: string, fallback: string): string => {
 	const normalized = value
 		.normalize('NFKD')
@@ -361,7 +367,7 @@ const buildStudioTextFromSpec = (input: {
 			input.intent.items.length > 0
 				? input.intent.items.map((item) => ({
 						number: item.number,
-						label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
+						label: normalizeSpecLabel(item.label, defaultPageItemLabel())
 					}))
 				: DEFAULT_STUDIO_TEXT_OUTPUT.pageItems,
 		qualityState: 'ready'
@@ -396,10 +402,10 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	title: normalizeSpecLabel(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle),
 	items: input.output.pageItems.map((item) => ({
 		number: item.number,
-		label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
+		label: normalizeSpecLabel(item.label, defaultPageItemLabel())
 	})),
 	footerItem: {
-		number: 97,
+		number: FOOTER_ITEM_NUMBER,
 		label: normalizeSpecLabel(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle)
 	},
 	listMode: 'list',
