@@ -28,6 +28,7 @@
 
 <div class="wig-carousel" role="list" aria-label="Wig catalog — pick one to try on">
 	{#each wigs as wig}
+		{@const brand = getBrand(wig.affiliateUrl)}
 		<article class="wig-card" class:selected={selectedWigId === wig.id} role="listitem">
 			<button
 				type="button"
@@ -38,8 +39,8 @@
 			>
 				<img src={wig.imageUrl} alt={wig.name} class="wig-img" loading="lazy" />
 				<div class="wig-info">
-					{#if getBrand(wig.affiliateUrl)}
-						<span class="wig-brand">{getBrand(wig.affiliateUrl)}</span>
+					{#if brand}
+						<span class="wig-brand">{brand}</span>
 					{/if}
 					<p class="wig-name">{wig.name}</p>
 					<p class="wig-meta">{wig.style}</p>
