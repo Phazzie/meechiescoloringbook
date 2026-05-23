@@ -22,7 +22,7 @@ Info flow: Parent passes read-only mode data and callbacks; hero is purely prese
 		activeMode: StudioMode;
 		isTextWorking: boolean;
 		canGenerateText: boolean;
-		onRunTextAction: (actionId: StudioTextActionId) => void;
+		onRunTextAction: (actionId: StudioTextActionId) => Promise<void>;
 		onModeSelect: (modeId: string) => void;
 	} = $props();
 </script>
