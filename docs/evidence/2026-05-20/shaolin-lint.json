@@ -1,0 +1,28 @@
+{
+  "_purpose": "Shaolin lint result confirming evidence files are fresh relative to source changes.",
+  "_why": "Guards against stale evidence — fails verify if evidence is older than latest code.",
+  "_infoFlow": "shaolin-lint.mjs compares evidence mtime to git change mtime → writes this file.",
+  "tool": "shaolin-lint",
+  "generatedAt": "2026-05-20T23:23:44.529Z",
+  "latestChangeMs": 1779319351926.2727,
+  "evidence": [
+    {
+      "name": "verify",
+      "status": "ok",
+      "path": "docs/evidence/2026-05-20/verify.txt",
+      "mtimeMs": 1779319424294.2717
+    },
+    {
+      "name": "test",
+      "status": "ok",
+      "path": "docs/evidence/2026-05-20/test.txt",
+      "mtimeMs": 1779319424298.2717
+    }
+  ],
+  "summary": {
+    "ok": 2,
+    "missing": 0,
+    "stale": 0,
+    "overallStatus": "ok"
+  }
+}
