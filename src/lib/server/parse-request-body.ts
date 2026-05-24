@@ -12,13 +12,16 @@ export const parseRequestBody = async (request: Request): Promise<ParseResult> =
 	try {
 		const body = await request.json();
 		return { ok: true, body };
-	} catch {
-		return {
-			ok: false,
-			response: json(
-				{ ok: false, error: { code: 'INVALID_JSON', message: 'Request body is not valid JSON.' } },
-				{ status: 400 }
-			)
-		};
+	} catch (err) {
+		if (err instanceof SyntaxError) {
+			return {
+				ok: false,
+				response: json(
+					{ ok: false, error: { code: 'INVALID_JSON', message: 'Request body is not valid JSON.' } },
+					{ status: 400 }
+				)
+			};
+		}
+		throw err;
 	}
 };
