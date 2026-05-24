@@ -5,10 +5,12 @@ Info flow: Client tool request -> schema + safety checks -> tool adapter -> JSON
 */
 import { json } from '@sveltejs/kit';
 import { runToolsPipeline, toolsPipelineDeps } from '$lib/core/tools-pipeline';
+import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
-	const body = await request.json().catch(() => null);
-	const pipelineResult = await runToolsPipeline(body, toolsPipelineDeps);
+	const parsed = await parseRequestBody(request);
+	if (!parsed.ok) return parsed.response;
+	const pipelineResult = await runToolsPipeline(parsed.body, toolsPipelineDeps);
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };

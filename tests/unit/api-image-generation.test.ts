@@ -59,9 +59,26 @@ const buildEvent = (body: unknown) =>
     })
   }) as Parameters<typeof POST>[0];
 
+const buildRawEvent = (rawBody: string) =>
+  ({
+    request: new Request('http://localhost/api/image-generation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: rawBody
+    })
+  }) as Parameters<typeof POST>[0];
+
 describe('/api/image-generation', () => {
   beforeEach(() => {
     mockCreateSeam.mockReset();
+  });
+
+  it('rejects malformed JSON with INVALID_JSON code', async () => {
+    const response = await POST(buildRawEvent('{not: valid json}'));
+    const payload = await response.json();
+    expect(response.status).toBe(400);
+    expect(payload.ok).toBe(false);
+    expect(payload.error.code).toBe('INVALID_JSON');
   });
 
   it('rejects invalid payloads', async () => {
