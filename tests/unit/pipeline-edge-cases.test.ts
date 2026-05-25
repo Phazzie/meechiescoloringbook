@@ -388,6 +388,28 @@ describe('generate-pipeline edge cases', () => {
 		}
 	});
 
+	it('preserves upstream HTTP status when image generation returns a non-JSON error body', async () => {
+		const result = await runGeneratePipeline(
+			{ spec: validSpec },
+			{
+				...baseDeps,
+				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
+				assemblePrompt: vi.fn().mockResolvedValue({
+					ok: true,
+					value: { prompt: 'test prompt', templateVersion: 'v2' }
+				}),
+				fetchImpl: vi.fn().mockResolvedValue(
+					new Response('<html>Service Unavailable</html>', { status: 503 })
+				)
+			}
+		);
+		expect(result.status).toBe(503);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('IMAGE_HTTP_ERROR');
+		}
+	});
+
 	it('returns error when image generation returns failure result', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },

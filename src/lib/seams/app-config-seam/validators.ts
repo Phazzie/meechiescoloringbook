@@ -10,7 +10,7 @@ export const appConfigSchema = z.object({
 	xaiBaseUrl: z.string().min(1),
 	xaiImageEndpointPath: z.string().min(1),
 	featureIntegrationTests: z.boolean(),
-	maxImagesPerRequest: z.number().int().min(1).max(10),
+	maxImagesPerRequest: z.number().int().min(1).max(10).default(4),
 	defaultImageSize: z.string().min(1),
 	// geminiApiKey may be empty if the wig try-on feature is not yet configured.
 	// An empty key causes WIG_TRY_ON_CONFIG_ERROR at runtime — not a startup failure.

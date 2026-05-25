@@ -46,6 +46,16 @@ export const imageGenerationAdapter: ImageGenerationSeam = {
 				},
 				body: JSON.stringify(input)
 			});
+			if (!response.ok) {
+				return {
+					ok: false,
+					error: {
+						code: 'IMAGE_HTTP_ERROR',
+						message: `Image generation returned HTTP ${response.status}.`,
+						details: { status: String(response.status) }
+					}
+				};
+			}
 			const payload = await response.json();
 			const parsed = ImageGenerationResultSchema.safeParse(payload);
 			if (!parsed.success) {
