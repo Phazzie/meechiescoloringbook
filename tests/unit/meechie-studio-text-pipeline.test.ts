@@ -326,4 +326,154 @@ Trailing {also not json}.`
 		// Provider MUST NOT have been called
 		expect(callCount).toBe(0);
 	});
+
+	it('retries with schema hint when JSON is valid but fails schema validation', async () => {
+		let callCount = 0;
+		let lastRetryContent: string | undefined;
+		const deps: MeechieStudioTextPipelineDeps = {
+			createProvider: () => ({
+				createChatCompletion: async (input) => {
+					callCount++;
+					// Capture the retry message content on the second call
+					if (callCount === 2) {
+						const lastMsg = input.messages[input.messages.length - 1];
+						lastRetryContent = lastMsg.content;
+					}
+					return {
+						ok: true,
+						value: {
+							model: 'test-model',
+							// Valid JSON but pageItems has wrong shape (string instead of object array)
+							content: JSON.stringify({
+								verdict: 'Valid JSON',
+								quote: 'But wrong shape',
+								pageTitle: 'Schema Fail',
+								pageItems: ['not an object', 'still not an object'],
+								qualityState: 'ready'
+							})
+						}
+					};
+				},
+				createImageGeneration: async () => {
+					throw new Error('not implemented');
+				}
+			})
+		};
+
+		const response = await runMeechieStudioTextPipeline(
+			{
+				actionId: 'generate',
+				modeId: 'test',
+				modeLabel: 'Test Mode',
+				themeLabel: 'Test Theme',
+				evidence: 'test evidence',
+				voice: {
+					intensity: 'receipts_out',
+					rawness: 'mild',
+					thirdPerson: 'sometimes'
+				}
+			},
+			deps
+		);
+
+		expect(callCount).toBe(2); // retried once
+		expect(response.status).toBe(502);
+		expect(response.body).toMatchObject({
+			ok: false,
+			error: {
+				code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID',
+				details: expect.objectContaining({
+					failureKind: 'schema_error'
+				})
+			}
+		});
+		// The retry message must mention schema validation and not say "could not be parsed as valid JSON"
+		expect(lastRetryContent).toBeDefined();
+		expect(lastRetryContent).toContain('failed schema validation');
+		expect(lastRetryContent).not.toContain('could not be parsed as valid JSON');
+	});
+
+	it('returns 429 when the provider signals rate limiting', async () => {
+		const deps: MeechieStudioTextPipelineDeps = {
+			createProvider: () => ({
+				createChatCompletion: async () => ({
+					ok: false,
+					error: {
+						code: 'PROVIDER_HTTP_ERROR',
+						message: 'Too Many Requests',
+						details: { status: '429' }
+					}
+				}),
+				createImageGeneration: async () => {
+					throw new Error('not implemented');
+				}
+			})
+		};
+
+		const response = await runMeechieStudioTextPipeline(
+			{
+				actionId: 'generate',
+				modeId: 'test',
+				modeLabel: 'Test Mode',
+				themeLabel: 'Test Theme',
+				evidence: 'test evidence',
+				voice: {
+					intensity: 'receipts_out',
+					rawness: 'mild',
+					thirdPerson: 'sometimes'
+				}
+			},
+			deps
+		);
+
+		expect(response.status).toBe(429);
+		expect(response.body).toMatchObject({
+			ok: false,
+			error: {
+				code: 'PROVIDER_HTTP_ERROR',
+				message: expect.stringContaining('rate-limited')
+			}
+		});
+	});
+
+	it('returns 504 when the provider times out', async () => {
+		const deps: MeechieStudioTextPipelineDeps = {
+			createProvider: () => ({
+				createChatCompletion: async () => ({
+					ok: false,
+					error: {
+						code: 'PROVIDER_NETWORK_ERROR',
+						message: 'Chat completion request timed out.'
+					}
+				}),
+				createImageGeneration: async () => {
+					throw new Error('not implemented');
+				}
+			})
+		};
+
+		const response = await runMeechieStudioTextPipeline(
+			{
+				actionId: 'generate',
+				modeId: 'test',
+				modeLabel: 'Test Mode',
+				themeLabel: 'Test Theme',
+				evidence: 'test evidence',
+				voice: {
+					intensity: 'receipts_out',
+					rawness: 'mild',
+					thirdPerson: 'sometimes'
+				}
+			},
+			deps
+		);
+
+		expect(response.status).toBe(504);
+		expect(response.body).toMatchObject({
+			ok: false,
+			error: {
+				code: 'PROVIDER_NETWORK_ERROR'
+			}
+		});
+	});
 });

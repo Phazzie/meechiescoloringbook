@@ -117,9 +117,24 @@ export type MeechieStudioTextPipelineDeps = {
 	createProvider: typeof createProviderAdapter;
 };
 
+// Tracks whether a parse failure was a JSON syntax problem or a Zod schema mismatch.
+// Used to build a more targeted retry message so the model knows exactly what went wrong.
+type ParseFailureKind = 'json_error' | 'schema_error';
+
+type ParseOutcome =
+	| { ok: true; result: MeechieStudioTextResult }
+	| {
+			ok: false;
+			result: MeechieStudioTextResult;
+			failureKind: ParseFailureKind;
+			schemaHint?: string;
+	  };
+
 const invalidProviderTextResult = (
 	content: string,
-	model: string
+	model: string,
+	failureKind: ParseFailureKind = 'json_error',
+	schemaHint?: string
 ): MeechieStudioTextResult => ({
 	ok: false,
 	error: {
@@ -127,10 +142,37 @@ const invalidProviderTextResult = (
 		message: 'Provider text response did not match contract.',
 		details: {
 			model,
-			contentPreview: content.slice(0, 500)
+			contentPreview: content.slice(0, 500),
+			failureKind,
+			...(schemaHint ? { schemaHint } : {})
 		}
 	}
 });
+
+// Maps provider error codes and HTTP status details to pipeline-level HTTP status and user message.
+// Rate limits (429) and timeouts (NETWORK_ERROR) get distinct codes so clients can react differently.
+const classifyProviderError = (error: {
+	code: string;
+	message: string;
+	details?: Record<string, string>;
+}): { status: number; message: string } => {
+	if (error.code === 'PROVIDER_API_KEY_MISSING') {
+		return {
+			status: env.NODE_ENV !== 'production' ? 200 : 502,
+			message: 'AI text generation requires XAI_API_KEY to be set on the server.'
+		};
+	}
+	if (error.code === 'PROVIDER_HTTP_ERROR' && error.details?.status === '429') {
+		return {
+			status: 429,
+			message: 'AI text generation is rate-limited. Please try again shortly.'
+		};
+	}
+	if (error.code === 'PROVIDER_NETWORK_ERROR') {
+		return { status: 504, message: error.message };
+	}
+	return { status: 502, message: error.message };
+};
 
 const buildError = (
 	status: number,
@@ -255,13 +297,14 @@ const extractJson = (text: string): unknown => {
 	return null;
 };
 
-const parseProviderText = (
-	content: string,
-	model: string
-): MeechieStudioTextResult => {
+const parseProviderText = (content: string, model: string): ParseOutcome => {
 	const parsed = extractJson(content);
 	if (!parsed) {
-		return invalidProviderTextResult(content, model);
+		return {
+			ok: false,
+			result: invalidProviderTextResult(content, model, 'json_error'),
+			failureKind: 'json_error'
+		};
 	}
 
 	const output = MeechieStudioTextOutputSchema.safeParse({
@@ -271,13 +314,39 @@ const parseProviderText = (
 			model
 		}
 	});
+
 	if (!output.success) {
-		return invalidProviderTextResult(content, model);
+		const firstIssue = output.error.issues[0];
+		const path = firstIssue?.path?.join('.') ?? '';
+		const schemaHint = firstIssue
+			? `${path || '(root)'}: ${firstIssue.message}`
+			: 'schema validation failed';
+		return {
+			ok: false,
+			result: invalidProviderTextResult(content, model, 'schema_error', schemaHint),
+			failureKind: 'schema_error',
+			schemaHint
+		};
 	}
-	return {
-		ok: true,
-		value: output.data
-	};
+
+	return { ok: true, result: { ok: true, value: output.data } };
+};
+
+// Builds a retry message tailored to the failure kind so the model has actionable guidance.
+// For schema errors, names the specific field that failed rather than just asking for "valid JSON".
+const buildRetryMessage = (failureKind: ParseFailureKind, schemaHint?: string): string => {
+	if (failureKind === 'schema_error' && schemaHint) {
+		return [
+			`Your previous response was valid JSON but failed schema validation: ${schemaHint}.`,
+			'Respond with ONLY a JSON object with these required fields:',
+			'verdict (string), quote (string), pageTitle (string),',
+			'pageItems (array of 2-6 objects each with integer "number" and string "label"),',
+			'qualityState ("ready" | "needs_more_evidence" | "blocked").',
+			'Optional: rating (integer 1-10), revisionNote (string).',
+			'No markdown fences, no prose, no code blocks.'
+		].join(' ');
+	}
+	return 'Your previous response could not be parsed as valid JSON. Please respond with ONLY valid JSON matching the required schema, no markdown, no explanation, no code fences.';
 };
 
 export const runMeechieStudioTextPipeline = async (
@@ -311,29 +380,21 @@ export const runMeechieStudioTextPipeline = async (
 	});
 
 	if (!providerResult.ok) {
-		const missingKey = providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
+		const { status, message } = classifyProviderError(providerResult.error);
 		return {
-			status: missingKey && env.NODE_ENV !== 'production' ? 200 : 502,
-			body: {
-				ok: false,
-				error: {
-					...providerResult.error,
-					message: missingKey
-						? 'AI text generation requires XAI_API_KEY to be set on the server.'
-						: providerResult.error.message
-				}
-			}
+			status,
+			body: { ok: false, error: { ...providerResult.error, message } }
 		};
 	}
 
 	// Capture the first attempt's raw response so it can be echoed back on retry.
 	const lastRawResponse = providerResult.value.content;
-	let result = parseProviderText(lastRawResponse, providerResult.value.model);
+	let parseOutcome = parseProviderText(lastRawResponse, providerResult.value.model);
 
-	if (!result.ok) {
-		// Bounded retry (max 1 retry): send a different prompt that explains the
-		// failure so the model has new information to act on instead of repeating
-		// the same malformed output.
+	if (!parseOutcome.ok) {
+		// Bounded retry (max 1 retry): send a targeted message that names exactly what went wrong
+		// so the model has new information instead of repeating the same malformed output.
+		const retryMessage = buildRetryMessage(parseOutcome.failureKind, parseOutcome.schemaHint);
 		const retryMessages = [
 			...messages,
 			{
@@ -342,8 +403,7 @@ export const runMeechieStudioTextPipeline = async (
 			},
 			{
 				role: 'user' as const,
-				content:
-					'Your previous response could not be parsed as valid JSON. Please respond with ONLY valid JSON matching the required schema, no markdown, no explanation, no code fences.'
+				content: retryMessage
 			}
 		];
 		providerResult = await provider.createChatCompletion({
@@ -352,26 +412,19 @@ export const runMeechieStudioTextPipeline = async (
 			responseFormat: STUDIO_TEXT_RESPONSE_FORMAT
 		});
 		if (!providerResult.ok) {
-			const missingKey =
-				providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
+			const { status, message } = classifyProviderError(providerResult.error);
 			return {
-				status: missingKey && env.NODE_ENV !== 'production' ? 200 : 502,
-				body: {
-					ok: false,
-					error: {
-						...providerResult.error,
-						message: missingKey
-							? 'AI text generation requires XAI_API_KEY to be set on the server.'
-							: providerResult.error.message
-					}
-				}
+				status,
+				body: { ok: false, error: { ...providerResult.error, message } }
 			};
 		}
-		result = parseProviderText(
+		parseOutcome = parseProviderText(
 			providerResult.value.content,
 			providerResult.value.model
 		);
 	}
+
+	const result = parseOutcome.result;
 	const parsedResult = MeechieStudioTextResultSchema.safeParse(result);
 	if (!parsedResult.success) {
 		return buildError(
