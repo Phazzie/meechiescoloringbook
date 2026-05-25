@@ -89,7 +89,7 @@ export const runChatInterpretationPipeline = async (
 		return buildError(502, 'CHAT_RESPONSE_INVALID', 'Chat response did not include JSON.');
 	}
 
-	let parsedSpec: unknown = null;
+	let parsedSpec: unknown;
 	try {
 		parsedSpec = JSON.parse(extracted);
 	} catch {

@@ -39,9 +39,6 @@ self.addEventListener('fetch', (event) => {
 	event.respondWith(
 		cacheSeam.matchRequest(event.request).then((result) => {
 			if (result.ok && result.value !== null) return result.value;
-			if (!result.ok) {
-				console.warn('Cache match failed; falling back to network.', result.error);
-			}
 			return fetch(event.request);
 		})
 	);
