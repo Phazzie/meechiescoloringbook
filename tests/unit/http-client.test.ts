@@ -45,7 +45,7 @@ describe('http-client', () => {
 			expect(sentHeaders['Content-Type']).toBe('application/json');
 		});
 
-		it('throws when response JSON parsing fails', async () => {
+		it('throws when response JSON parsing fails, including status in message', async () => {
 			const mockResponse = {
 				json: () => Promise.reject(new Error('bad json')),
 				status: 500
@@ -57,7 +57,7 @@ describe('http-client', () => {
 			);
 
 			await expect(postJson('/api/test', {})).rejects.toThrow(
-				'postJson: failed to parse JSON response'
+				'postJson: failed to parse JSON response (HTTP 500)'
 			);
 		});
 	});

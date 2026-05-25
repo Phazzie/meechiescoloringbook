@@ -19,6 +19,16 @@ export const chatInterpretationAdapter: ChatInterpretationSeam = {
 				},
 				body: JSON.stringify(input)
 			});
+			if (!response.ok) {
+				return {
+					ok: false,
+					error: {
+						code: 'CHAT_HTTP_ERROR',
+						message: `Chat interpretation returned HTTP ${response.status}.`,
+						details: { status: String(response.status) }
+					}
+				};
+			}
 			const payload = await response.json();
 			const parsed = ChatInterpretationResultSchema.safeParse(payload);
 			if (!parsed.success) {

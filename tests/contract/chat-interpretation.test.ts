@@ -65,4 +65,19 @@ describe('ChatInterpretationSeam contract', () => {
 		expect(output).toEqual(faultFixture.output);
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
+
+	it('adapter surfaces HTTP error as CHAT_HTTP_ERROR result', async () => {
+		fetchMock.mockResolvedValueOnce(
+			new Response(JSON.stringify({ error: 'bad key' }), {
+				status: 401,
+				headers: { 'Content-Type': 'application/json' }
+			})
+		);
+		const output = await chatInterpretationAdapter.interpret(sampleFixture.input);
+		expect(output.ok).toBe(false);
+		if (!output.ok) {
+			expect(output.error.code).toBe('CHAT_HTTP_ERROR');
+			expect(output.error.details?.status).toBe('401');
+		}
+	});
 });
