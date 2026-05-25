@@ -264,7 +264,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		packagedFiles = [];
 	};
 
-	const handleDedicationInput = (): void => {
+	const handleDedicationInput = (event: Event): void => {
+		const target = event.currentTarget as HTMLInputElement;
+		dedication = target.value;
 		spec = { ...spec, dedication: currentDedication() };
 		void validateSpec();
 		void saveDraft();
