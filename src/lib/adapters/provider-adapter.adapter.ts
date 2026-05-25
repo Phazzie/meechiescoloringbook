@@ -10,6 +10,7 @@ import type {
 } from '../../../contracts/provider-adapter.contract';
 import type { Result, SeamError } from '../../../contracts/shared.contract';
 import { env } from '$env/dynamic/private';
+import { fetchWithTimeout, fetchWithRetry, isAbortError } from '$lib/core/http-resilience';
 
 export type ProviderAdapterConfig = {
 	apiKey?: string | null;
@@ -19,6 +20,9 @@ export type ProviderAdapterConfig = {
 const DEFAULT_BASE_URL = 'https://api.x.ai';
 const CHAT_PATH = '/v1/chat/completions';
 const IMAGE_PATH = '/v1/images/generations';
+const CHAT_TIMEOUT_MS = 60_000;
+const IMAGE_TIMEOUT_MS = 120_000;
+const RETRY_OPTIONS = { maxAttempts: 3, baseDelayMs: 1_000 } as const;
 
 const normalizeBaseUrl = (baseUrl: string): string => {
 	const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -167,7 +171,8 @@ export const createProviderAdapter = (
 		}
 		const baseUrl = getBaseUrl(config);
 		try {
-			const response = await fetch(`${baseUrl}${CHAT_PATH}`, {
+			const url = `${baseUrl}${CHAT_PATH}`;
+			const requestInit: RequestInit = {
 				method: 'POST',
 				headers: {
 					Authorization: `Bearer ${apiKey}`,
@@ -180,7 +185,11 @@ export const createProviderAdapter = (
 						? { response_format: input.responseFormat }
 						: {})
 				})
-			});
+			};
+			const response = await fetchWithRetry(
+				() => fetchWithTimeout(url, requestInit, CHAT_TIMEOUT_MS),
+				RETRY_OPTIONS
+			);
 			const payload = await readJson(response);
 			if (!response.ok) {
 				return buildHttpError(response, payload);
@@ -191,7 +200,9 @@ export const createProviderAdapter = (
 				ok: false,
 				error: buildError(
 					'PROVIDER_NETWORK_ERROR',
-					error instanceof Error ? error.message : 'Provider request failed.'
+					isAbortError(error)
+						? 'Chat completion request timed out.'
+						: error instanceof Error ? error.message : 'Provider request failed.'
 				)
 			};
 		}
@@ -211,7 +222,8 @@ export const createProviderAdapter = (
 		}
 		const baseUrl = getBaseUrl(config);
 		try {
-			const response = await fetch(`${baseUrl}${IMAGE_PATH}`, {
+			const url = `${baseUrl}${IMAGE_PATH}`;
+			const requestInit: RequestInit = {
 				method: 'POST',
 				headers: {
 					Authorization: `Bearer ${apiKey}`,
@@ -223,7 +235,11 @@ export const createProviderAdapter = (
 					n: input.n,
 					response_format: input.responseFormat
 				})
-			});
+			};
+			const response = await fetchWithRetry(
+				() => fetchWithTimeout(url, requestInit, IMAGE_TIMEOUT_MS),
+				RETRY_OPTIONS
+			);
 			const payload = await readJson(response);
 			if (!response.ok) {
 				return buildHttpError(response, payload);
@@ -234,7 +250,9 @@ export const createProviderAdapter = (
 				ok: false,
 				error: buildError(
 					'PROVIDER_NETWORK_ERROR',
-					error instanceof Error ? error.message : 'Provider request failed.'
+					isAbortError(error)
+						? 'Image generation request timed out.'
+						: error instanceof Error ? error.message : 'Provider request failed.'
 				)
 			};
 		}
