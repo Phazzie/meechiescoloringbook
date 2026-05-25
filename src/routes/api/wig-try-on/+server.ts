@@ -6,16 +6,18 @@ import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
 import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import { runWigTryOnPipeline } from '$lib/core/wig-try-on-pipeline';
+import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, fetch }) => {
-	const body = await request.json().catch(() => null);
+	const parsed = await parseRequestBody(request);
+	if (!parsed.ok) return parsed.response;
 
 	const configSeam = createAppConfigSeam();
 	const wigCatalogSeam = createWigCatalogSeam();
 	const wigTryOnSeam = createWigTryOnSeam(configSeam);
 
-	const result = await runWigTryOnPipeline(body, {
+	const result = await runWigTryOnPipeline(parsed.body, {
 		fetchImpl: fetch,
 		wigCatalogSeam,
 		wigTryOnSeam

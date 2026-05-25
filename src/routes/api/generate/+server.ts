@@ -5,11 +5,13 @@ Info flow: UI generate request -> validation -> prompt/image/drift seams -> JSON
 */
 import { json } from '@sveltejs/kit';
 import { generatePipelineDeps, runGeneratePipeline } from '$lib/core/generate-pipeline';
+import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, fetch }) => {
-	const body = await request.json().catch(() => null);
-	const pipelineResult = await runGeneratePipeline(body, {
+	const parsed = await parseRequestBody(request);
+	if (!parsed.ok) return parsed.response;
+	const pipelineResult = await runGeneratePipeline(parsed.body, {
 		fetchImpl: fetch,
 		...generatePipelineDeps
 	});

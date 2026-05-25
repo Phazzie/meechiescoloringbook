@@ -14,11 +14,31 @@ const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 		})
 	}) as Parameters<typeof POST>[0];
 
+const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
+	({
+		request: new Request('http://localhost/api/tools', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: rawBody
+		})
+	}) as Parameters<typeof POST>[0];
+
 afterEach(() => {
 	vi.restoreAllMocks();
 });
 
 describe('/api/tools', () => {
+	it('rejects malformed JSON with INVALID_JSON code', async () => {
+		const adapterSpy = vi.spyOn(meechieToolAdapter, 'respond');
+		const response = await POST(buildRawEvent('{not: valid json}'));
+		const payload = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('INVALID_JSON');
+		expect(adapterSpy).not.toHaveBeenCalled();
+	});
+
 	it('rejects disallowed content and does not invoke adapter', async () => {
 		const adapterSpy = vi.spyOn(meechieToolAdapter, 'respond');
 		const response = await POST(

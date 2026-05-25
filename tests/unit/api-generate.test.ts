@@ -42,7 +42,31 @@ const buildEvent = (
 		fetch: fetchImpl
 	}) as Parameters<typeof POST>[0];
 
+const buildRawEvent = (
+	rawBody: string,
+	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+): Parameters<typeof POST>[0] =>
+	({
+		request: new Request('http://localhost/api/generate', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: rawBody
+		}),
+		fetch: fetchImpl
+	}) as Parameters<typeof POST>[0];
+
 describe('/api/generate', () => {
+	it('rejects malformed JSON with INVALID_JSON code', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+		const response = await POST(buildRawEvent('{not: valid json}', fetchMock));
+		const payload = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('INVALID_JSON');
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it('rejects invalid payloads', async () => {
 		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
 		const response = await POST(buildEvent({ spec: {} }, fetchMock));

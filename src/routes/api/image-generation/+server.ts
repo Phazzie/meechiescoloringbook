@@ -7,11 +7,13 @@ import { json } from '@sveltejs/kit';
 import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';
 import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
+import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
-	const body = await request.json().catch(() => null);
-	const pipelineResult = await runImageGenerationPipeline(body, {
+	const parsed = await parseRequestBody(request);
+	if (!parsed.ok) return parsed.response;
+	const pipelineResult = await runImageGenerationPipeline(parsed.body, {
 		imageGenerationSeam: createImageGenerationSeam(createImageProviderConfigSeam())
 	});
 	return json(pipelineResult.body, { status: pipelineResult.status });

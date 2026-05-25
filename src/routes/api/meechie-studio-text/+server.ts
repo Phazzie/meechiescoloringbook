@@ -8,10 +8,12 @@ import {
 	meechieStudioTextPipelineDeps,
 	runMeechieStudioTextPipeline
 } from '$lib/core/meechie-studio-text-pipeline';
+import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
-	const body = await request.json().catch(() => null);
-	const pipelineResult = await runMeechieStudioTextPipeline(body, meechieStudioTextPipelineDeps);
+	const parsed = await parseRequestBody(request);
+	if (!parsed.ok) return parsed.response;
+	const pipelineResult = await runMeechieStudioTextPipeline(parsed.body, meechieStudioTextPipelineDeps);
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };
