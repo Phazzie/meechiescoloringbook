@@ -1,10 +1,15 @@
 /*
-Purpose: Probe xAI image generation for ImageGenerationSeam fixtures.
-Why: Capture real base64 image output mapped to GeneratedImage contracts.
-Info flow: Spec + prompt -> xAI image -> fixtures/image-generation/*.json.
+Purpose: Probe xAI image generation for ImageGenerationSeam.
+Why: Verify real xAI API behavior and print output in the new seam contract shape
+     (ImageGenerationResult: { images, rawModelInfo, timingMs }) so developers can
+     manually update src/lib/seams/image-generation-seam/fixtures.ts if the response
+     shape changes.
+Info flow: ImageGenerationRequest -> xAI API -> console (new contract format).
+Note: This probe no longer writes JSON fixture files; the new seam uses in-module
+      fixtures at src/lib/seams/image-generation-seam/fixtures.ts.
 */
-import fs from 'node:fs/promises';
 import path from 'node:path';
+import fs from 'node:fs/promises';
 
 const cwd = process.cwd();
 
@@ -42,194 +47,78 @@ const requireEnv = (name) => {
 	return value;
 };
 
-const readJson = async (response) => {
-	const text = await response.text();
-	if (!text) {
-		return { ok: false, value: null, raw: '' };
-	}
-	try {
-		return { ok: true, value: JSON.parse(text), raw: text };
-	} catch {
-		return { ok: false, value: null, raw: text };
-	}
-};
-
-const writeFixture = async (name, value) => {
-	const target = path.join(cwd, 'fixtures', 'image-generation', name);
-	await fs.writeFile(target, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-};
-
 const run = async () => {
 	await loadEnvFile();
 	const apiKey = requireEnv('XAI_API_KEY');
-	const baseUrl = process.env.XAI_BASE_URL || 'https://api.x.ai';
+	const baseUrl = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
+	const imageModel = process.env.XAI_IMAGE_MODEL || 'grok-2-image';
+	const imageEndpointPath = process.env.XAI_IMAGE_ENDPOINT_PATH || '/images/generations';
 
-	const spec = {
-		title: 'Dream Big',
-		items: [
-			{ number: 1, label: 'Shine' },
-			{ number: 2, label: 'Grow' }
-		],
-		footerItem: { number: 97, label: 'YOU' },
-		dedication: 'Jade',
-		listMode: 'list',
-		alignment: 'left',
-		numberAlignment: 'strict',
-		listGutter: 'normal',
-		whitespaceScale: 50,
-		textSize: 'small',
-		fontStyle: 'rounded',
-		textStrokeWidth: 6,
-		colorMode: 'black_and_white_only',
-		decorations: 'none',
-		illustrations: 'none',
-		shading: 'none',
-		border: 'plain',
-		borderThickness: 8,
-		variations: 1,
-		outputFormat: 'pdf',
-		pageSize: 'US_Letter'
+	const request = {
+		prompt: 'a glam kitten wearing a bow',
+		negativePrompt: 'color, shading, gradient',
+		n: 1,
+		size: '1024x1024',
+		format: 'url'
 	};
 
-	const prompt = `Black-and-white coloring book page for print.
-STYLE:
-[Describe the vibe. Include outline-only and easy to color.]
-Vibe: glam icons outline-only, easy to color. Color: black and white only.
-TEXT (exact):
-[Main quote EXACT — do not alter text.]
-Dream Big
-[Secondary line EXACT — omit if none.]
-YOU
-TYPOGRAPHY:
-Bold bubble letters; thick outlines.
-Glitter outline only (no shading).
-Font: rounded. Stroke: 6px.
-LAYOUT:
-US Letter 8.5x11 portrait. Left-align the quote. Line 1 headline; line 2 below.
-Keep generous whitespace; treat blank space intentional.
-List items: 1. Shine; 2. Grow (Gutter: normal).
-all numbers vertically aligned; all text left-aligned; treat blank space as intentional; do not fill empty space.
-Add dedication: "Dedicated to Jade".
-DECORATIONS:
-Decorations: none. Illustrations: none. Shading: none. Border: plain 8px.
-OUTPUT:
-Crisp vector-like linework. Black outlines on white. Printable.
-NEGATIVE PROMPT:
-no color
-no grayscale
-no shading
-no gradients
-no filled shapes
-no extra words`;
+	const url = new URL(
+		imageEndpointPath.startsWith('/') ? imageEndpointPath.slice(1) : imageEndpointPath,
+		baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+	).toString();
 
-	const response = await fetch(`${baseUrl}/v1/images/generations`, {
+	const start = Date.now();
+	const response = await fetch(url, {
 		method: 'POST',
 		headers: {
 			Authorization: `Bearer ${apiKey}`,
 			'Content-Type': 'application/json'
 		},
 		body: JSON.stringify({
-			model: 'grok-imagine-image',
-			prompt,
-			n: 1,
-			response_format: 'b64_json'
+			model: imageModel,
+			prompt: request.negativePrompt
+				? `${request.prompt}\n\nNegative prompt: ${request.negativePrompt}`
+				: request.prompt,
+			n: request.n,
+			response_format: request.format
 		})
 	});
 
-	const payload = await readJson(response);
+	const timingMs = Date.now() - start;
+
 	if (!response.ok) {
-		const raw = payload?.raw ? payload.raw.trim() : '';
-		const message =
-			raw ||
-			payload?.value?.error?.message ||
-			payload?.value?.message ||
-			response.statusText ||
-			'Image request failed.';
-		throw new Error(`${response.status} ${message}`.trim());
+		const text = await response.text().catch(() => '');
+		throw new Error(`xAI returned ${response.status}${text ? `: ${text}` : ''}`);
 	}
 
-	const data = Array.isArray(payload?.value?.data) ? payload.value.data : [];
-	const revisedPrompt =
-		payload?.value?.revised_prompt ||
-		payload?.value?.revisedPrompt ||
-		data.find((entry) => typeof entry?.revised_prompt === 'string')?.revised_prompt;
+	const payload = await response.json();
+	const data = Array.isArray(payload?.data) ? payload.data : [];
 
-	const images = data
-		.map((entry, index) => {
-			if (typeof entry?.b64_json !== 'string') {
-				return null;
-			}
-			return {
-				id: `image-${index + 1}`,
-				format: 'png',
-				mimeType: 'image/png',
-				data: entry.b64_json,
-				encoding: 'base64'
-			};
-		})
-		.filter((entry) => entry !== null);
+	const images = data.map((item, index) => ({
+		id: `xai-${index + 1}`,
+		url: item.url,
+		b64: item.b64_json
+	}));
 
-	await writeFixture('sample.json', {
-		scenario: 'sample',
-		input: {
-			spec,
-			prompt,
-			variations: 1,
-			outputFormat: 'pdf'
+	const result = {
+		images,
+		rawModelInfo: {
+			model: imageModel,
+			revisedPrompt: data[0]?.revised_prompt,
+			requestedSize: request.size,
+			responseFormat: request.format
 		},
-		output: {
-			ok: true,
-			value: {
-				images,
-				revisedPrompt,
-				modelMetadata: {
-					provider: 'xai',
-					model: 'grok-imagine-image'
-				}
-			}
-		}
-	});
-
-	await writeFixture('fault.json', {
-		scenario: 'fault',
-		input: {
-			spec: {
-				title: 'Dream Big',
-				items: [{ number: 1, label: 'Shine' }],
-				listMode: 'list',
-				alignment: 'left',
-				numberAlignment: 'strict',
-				listGutter: 'normal',
-				whitespaceScale: 50,
-				textSize: 'small',
-				fontStyle: 'rounded',
-				textStrokeWidth: 6,
-				colorMode: 'black_and_white_only',
-				decorations: 'none',
-				illustrations: 'none',
-				shading: 'none',
-				border: 'plain',
-				borderThickness: 8,
-				variations: 1,
-				outputFormat: 'pdf',
-				pageSize: 'US_Letter'
-			},
-			prompt: 'A dreamy coloring page with gradients.',
-			variations: 1,
-			outputFormat: 'pdf'
-		},
-		output: {
-			ok: false,
-			error: {
-				code: 'PROMPT_MISSING_REQUIRED_PHRASES',
-				message: 'Prompt missing required phrases for deterministic generation.'
-			}
-		}
-	});
+		timingMs
+	};
 
 	console.log('Image generation probe complete.');
 	console.log(`Image count: ${images.length}`);
-	console.log(`First image base64 length: ${images[0]?.data?.length || 0}`);
+	console.log('Result (new seam contract shape):');
+	console.log(JSON.stringify(result, null, 2));
+	console.log('');
+	console.log(
+		'If the response shape changed, update src/lib/seams/image-generation-seam/fixtures.ts manually.'
+	);
 };
 
 run().catch((error) => {
