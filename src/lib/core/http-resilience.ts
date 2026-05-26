@@ -85,8 +85,6 @@ export const fetchWithRetry = async (
 	if (maxAttempts < 1) throw new Error('fetchWithRetry: maxAttempts must be >= 1');
 	if (baseDelayMs < 0) throw new Error('fetchWithRetry: baseDelayMs must be >= 0');
 
-	let lastAbortError: unknown;
-
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 		let response: Response;
 
@@ -94,7 +92,6 @@ export const fetchWithRetry = async (
 			response = await fetcher();
 		} catch (error) {
 			if (isAbortError(error) && attempt < maxAttempts) {
-				lastAbortError = error;
 				await sleep(withJitter(baseDelayMs * Math.pow(2, attempt - 1)));
 				continue;
 			}
@@ -115,6 +112,5 @@ export const fetchWithRetry = async (
 		return response;
 	}
 
-	// We only reach here when every attempt was an AbortError.
-	throw lastAbortError ?? new Error('fetchWithRetry: exhausted all attempts');
+	throw new Error('fetchWithRetry: exhausted all attempts');
 };
