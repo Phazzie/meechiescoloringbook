@@ -31,7 +31,7 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		packagedFiles = [];
 
 		try {
-			const { payload } = await postJson('/api/tools', {
+			const payload = await postJson('/api/tools', {
 				toolId: 'random_meechie'
 			});
 			const parsed = MeechieToolResultSchema.safeParse(payload);
@@ -58,7 +58,7 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		packagedFiles = [];
 
 		try {
-			const { payload } = await postJson('/api/generate', {
+			const payload = await postJson('/api/generate', {
 				spec: {
 					title: compactColoringPageTitle([result.response]),
 					listMode: 'title_only',

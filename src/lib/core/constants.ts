@@ -2,6 +2,7 @@
 // Why: Prevent phrase/rule drift between adapters, routes, seams, and tests.
 // Info flow: Constants -> adapters/routes/mocks -> runtime validation and generation.
 export const SYSTEM_CONSTANTS = {
+	DEFAULT_IMAGE_SIZE: '1024x1024',
 	REQUIRED_PROMPT_PHRASES: [
 		'Black-and-white coloring book page',
 		'outline-only',

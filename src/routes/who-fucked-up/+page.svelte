@@ -33,7 +33,7 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		packagedFiles = [];
 
 		try {
-			const { payload } = await postJson('/api/tools', {
+			const payload = await postJson('/api/tools', {
 				toolId: 'red_flag_or_run',
 				situation: situation.trim()
 			});
@@ -71,7 +71,7 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 				verdict.headline,
 				verdict.response
 			]);
-			const { payload } = await postJson('/api/generate', {
+			const payload = await postJson('/api/generate', {
 				spec: {
 					title: saying,
 					listMode: 'title_only',
