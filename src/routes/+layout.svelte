@@ -142,7 +142,8 @@ Info flow: Layout renders children -> pages render within layout.
 		white-space: nowrap;
 	}
 
-	.links a:hover {
+	.links a:hover,
+	.links a:focus-visible {
 		color: #f0c44a;
 		background: rgba(201, 162, 39, 0.08);
 		border-color: rgba(201, 162, 39, 0.3);

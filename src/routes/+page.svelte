@@ -60,6 +60,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	type PageSize = ColoringPageSpec['pageSize'];
 	type BorderChoice = ColoringPageSpec['border'];
 
+	const DRAFT_SAVE_DEBOUNCE_MS = 300;
+
 	// --- Reactive state (template-bound) ---
 	const weeklyModes = getWeeklyModes();
 	const monthlyModeId = getMonthlyMode().id;
@@ -182,7 +184,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 		draftTimer = setTimeout(() => {
 			void saveDraft();
-		}, 300);
+		}, DRAFT_SAVE_DEBOUNCE_MS);
 	};
 
 	const saveDraft = async (): Promise<void> => {
