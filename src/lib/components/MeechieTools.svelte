@@ -176,7 +176,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		}
 
 		try {
-			const { payload } = await postJson('/api/tools', parsedInput.data);
+			const payload = await postJson('/api/tools', parsedInput.data);
 			const parsedResult = MeechieToolResultSchema.safeParse(payload);
 			if (!parsedResult.success) {
 				error = 'Tool response did not match contract.';
