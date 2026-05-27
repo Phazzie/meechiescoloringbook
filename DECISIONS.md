@@ -7,6 +7,21 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-05-27 — PromptCompilerSeam + GalleryStoreSeam: Replace Logic-Heavy Mocks With Fixture-Scenario Mocks
+
+- Cipher Gate:
+  - Date: 2026-05-27
+  - Seams: PromptCompilerSeam, GalleryStoreSeam
+  - Evidence: src/lib/seams/prompt-compiler-seam/test.ts (4 tests pass), src/lib/seams/gallery-store-seam/test.ts (4 tests pass)
+  - Summary: Both mocks had TODO comments acknowledging they used hand-coded logic or arbitrary constructor parameters instead of loading from fixture scenarios per SDD Core Principle #2 ("Determinism: mocks load fixtures, not invented data"). PromptCompilerSeam mock reimplemented the full prompt-building logic (60+ lines of maps and string assembly) which could silently diverge from constants or fixture data. GalleryStoreSeam mock accepted an arbitrary `initialRecords` parameter, bypassing fixture conventions. Refactored both mocks to be scenario-based (accept `'sample' | 'fault'` parameter or no parameter), added fault fixtures to both `fixtures.ts` files, and added validator fault tests proving validators reject malformed data.
+  - Risks: PromptCompilerSeam has no real adapter (it is a pure function); the mock now always returns fixture data regardless of input. Tests that call `seam.compile()` with non-fixture inputs will receive the fixture output — this is expected mock behavior but callers should use the real implementation if they need input-specific output.
+
+**Context**: `src/lib/seams/prompt-compiler-seam/mock.ts` and `src/lib/seams/gallery-store-seam/mock.ts` both carried `// TODO: Refactor to load from fixture scenarios per SDD conventions` comments. The PromptCompilerSeam mock contained 60+ lines reimplementing the prompt-building logic with its own copies of density/thickness/border maps, the full constraints list, and glam element arrays — all of which could drift from the real constants without any test catching it. The GalleryStoreSeam mock accepted `initialRecords: GalleryRecord[]` which allowed tests to pass arbitrary invented data instead of using canonical fixtures.
+
+**Decision**: Rewrite both mocks to the same pattern used by `AppConfigSeam` and `CacheSeam` mocks: scenario-based factory functions that return fixture data directly. Add `promptCompilerInputFaultFixture`, `compiledPromptFaultFixture`, and `galleryRecordFaultFixture` to the respective `fixtures.ts` files so validators can be proven to reject them.
+
+**Files modified**: `src/lib/seams/prompt-compiler-seam/{fixtures,mock,test}.ts`, `src/lib/seams/gallery-store-seam/{fixtures,mock,test}.ts`, `DECISIONS.md`
+
 ## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
 
 - Cipher Gate:
