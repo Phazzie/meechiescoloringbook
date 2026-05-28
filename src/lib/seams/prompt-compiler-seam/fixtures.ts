@@ -90,5 +90,3 @@ export const compiledPromptFaultFixture: unknown = {
   }
 };
 
-export const getCompiledPromptFixture = (scenario: 'sample' | 'fault' = 'sample'): CompiledPrompt =>
-  scenario === 'fault' ? (compiledPromptFaultFixture as CompiledPrompt) : compiledPromptFixture;

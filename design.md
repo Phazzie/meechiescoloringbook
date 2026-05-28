@@ -99,7 +99,7 @@ The color palette pairs bold accent colors with a dark surface for a high-contra
 - **Primary (#e8006a — fuchsia):** Hot pink that signals energy and directness. Used for primary actions, highlights, and interactive states. Maps to CSS `--fuchsia`.
 - **Secondary (#c9a227 — gold):** Rich gold for secondary actions, borders, and accent moments. Maps to CSS `--gold`.
 - **Tertiary (#f0c44a — bright gold):** Lighter gold for micro-interactions and hover states. Maps to CSS `--gold-bright`.
-- **Surface (#100f1c):** Deep near-black for card backgrounds, nav, and elevated surfaces. Maps to CSS `--dark-surface`.
+- **Surface (#100f1c):** Deep near-black for the app background, nav, and elevated panels. Maps to CSS `--dark-surface`.
 - **Neutral Light (#F5F5F5):** Off-white for page backgrounds and lighter containers.
 - **Neutral Dark (#1A1A1A):** Near-black for text and structural elements on light backgrounds.
 - **Success (#7CB342):** Soft sage green for positive feedback and completion states.
@@ -134,7 +134,8 @@ All interactive elements use rounded corners — 8px on inputs and textareas, 12
 - **Tertiary Button**: Transparent background, 1px gold-bright border, gold-bright text. Used for low-emphasis actions.
 
 ### Cards
-- White background, 24px padding, 12px rounded corners, subtle shadow (0 2px 8px).
+- White background (#FFFFFF), 24px padding, 12px rounded corners, subtle shadow (0 2px 8px).
+- Displayed on top of the dark surface background, creating contrast.
 - Used for display of generated pages, tool results, and answer containers.
 
 ### Inputs

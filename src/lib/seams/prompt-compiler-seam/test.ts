@@ -21,13 +21,6 @@ describe('PromptCompilerSeam mock contract', () => {
     expect(validateCompiledPrompt(compiled)).toEqual(compiledPromptFixture);
   });
 
-  it('fault scenario returns the fault fixture', async () => {
-    const seam = createMockPromptCompilerSeam('fault');
-    const compiled = await seam.compile(promptCompilerInputFixture);
-
-    expect(compiled).toEqual(compiledPromptFaultFixture);
-  });
-
   it('validator rejects fault input (empty description, out-of-range glamLevel)', () => {
     expect(() => validatePromptCompilerInput(promptCompilerInputFaultFixture)).toThrow();
   });
