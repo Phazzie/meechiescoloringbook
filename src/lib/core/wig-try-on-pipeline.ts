@@ -28,21 +28,31 @@ const buildError = (
 	body: { ok: false, error: { code, message } }
 });
 
+type WigFetchResult =
+	| { base64: string; mimeType: string }
+	| { timedOut: true }
+	| null;
+
 const fetchImageAsBase64 = async (
 	url: string,
 	fetchImpl: PipelineDeps['fetchImpl']
-): Promise<{ base64: string; mimeType: string } | null> => {
+): Promise<WigFetchResult> => {
 	try {
-		const res = await fetchImpl(url);
+		const res = await fetchImpl(url, { signal: AbortSignal.timeout(WIG_FETCH_TIMEOUT_MS) });
 		if (!res.ok) return null;
 		const buffer = await res.arrayBuffer();
 		const base64 = Buffer.from(buffer).toString('base64');
 		const mimeType = res.headers.get('content-type') ?? 'image/jpeg';
 		return { base64, mimeType: mimeType.split(';')[0].trim() };
-	} catch {
+	} catch (err) {
+		if (err instanceof DOMException && err.name === 'TimeoutError') {
+			return { timedOut: true };
+		}
 		return null;
 	}
 };
+
+const WIG_FETCH_TIMEOUT_MS = 10_000;
 
 const ALLOWED_WIG_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -68,6 +78,9 @@ export const runWigTryOnPipeline = async (
 	const wigImage = await fetchImageAsBase64(wig.imageUrl, deps.fetchImpl);
 	if (!wigImage) {
 		return buildError(502, 'WIG_IMAGE_FETCH_FAILED', `Could not fetch wig image for ${wig.name}.`);
+	}
+	if ('timedOut' in wigImage) {
+		return buildError(504, 'WIG_IMAGE_FETCH_TIMEOUT', `Wig image fetch timed out for ${wig.name}.`);
 	}
 
 	const safeMimeType = ALLOWED_WIG_MIME.has(wigImage.mimeType)

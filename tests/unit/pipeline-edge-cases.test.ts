@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runChatInterpretationPipeline } from '../../src/lib/core/chat-interpretation-pipeline';
 import { runToolsPipeline } from '../../src/lib/core/tools-pipeline';
 import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
+import { runWigTryOnPipeline } from '../../src/lib/core/wig-try-on-pipeline';
 
 const validSpec = {
 	title: 'Dream Big',
@@ -523,6 +524,120 @@ describe('generate-pipeline edge cases', () => {
 		if (result.body.ok) {
 			expect(result.body.value.violations).toEqual([]);
 			expect(result.body.value.recommendedFixes).toEqual([]);
+		}
+	});
+
+	it('returns 504 when the pipeline-level signal is already aborted before fetch', async () => {
+		const controller = new AbortController();
+		controller.abort(new DOMException('Cancelled by caller', 'AbortError'));
+
+		const result = await runGeneratePipeline(
+			{ spec: validSpec },
+			{
+				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
+				assemblePrompt: vi.fn().mockResolvedValue({
+					ok: true,
+					value: { prompt: 'assembled prompt', templateVersion: 'v2' }
+				}),
+				fetchImpl: vi.fn().mockRejectedValue(
+					new DOMException('Cancelled by caller', 'AbortError')
+				),
+				detectDrift: vi.fn(),
+				signal: controller.signal
+			}
+		);
+		expect(result.status).toBe(504);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('GENERATE_TIMEOUT');
+		}
+	});
+});
+
+describe('wig-try-on-pipeline edge cases', () => {
+	it('returns 504 when wig image fetch times out', async () => {
+		const timeoutError = new DOMException('Timed out', 'TimeoutError');
+		const mockFetch = vi.fn().mockRejectedValue(timeoutError);
+
+		const mockWigCatalogSeam = {
+			getWigById: vi.fn().mockResolvedValue({
+				ok: true,
+				value: {
+					id: 'wig-1',
+					name: 'Glamour Curl',
+					style: 'curly',
+					color: 'black',
+					length: 'long',
+					imageUrl: 'https://example.com/wig.jpg'
+				}
+			}),
+			listWigs: vi.fn()
+		};
+
+		const mockWigTryOnSeam = {
+			tryOn: vi.fn()
+		};
+
+		const result = await runWigTryOnPipeline(
+			{
+				selfieBase64: 'abc123',
+				selfieMimeType: 'image/jpeg',
+				wigId: 'wig-1'
+			},
+			{
+				fetchImpl: mockFetch,
+				wigCatalogSeam: mockWigCatalogSeam,
+				wigTryOnSeam: mockWigTryOnSeam
+			}
+		);
+
+		expect(result.status).toBe(504);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('WIG_IMAGE_FETCH_TIMEOUT');
+		}
+	});
+
+	it('returns 502 when wig image fetch fails with a non-timeout error', async () => {
+		const networkError = new Error('Connection refused');
+		const mockFetch = vi.fn().mockRejectedValue(networkError);
+
+		const mockWigCatalogSeam = {
+			getWigById: vi.fn().mockResolvedValue({
+				ok: true,
+				value: {
+					id: 'wig-1',
+					name: 'Glamour Curl',
+					style: 'curly',
+					color: 'black',
+					length: 'long',
+					imageUrl: 'https://example.com/wig.jpg'
+				}
+			}),
+			listWigs: vi.fn()
+		};
+
+		const mockWigTryOnSeam = {
+			tryOn: vi.fn()
+		};
+
+		const result = await runWigTryOnPipeline(
+			{
+				selfieBase64: 'abc123',
+				selfieMimeType: 'image/jpeg',
+				wigId: 'wig-1'
+			},
+			{
+				fetchImpl: mockFetch,
+				wigCatalogSeam: mockWigCatalogSeam,
+				wigTryOnSeam: mockWigTryOnSeam
+			}
+		);
+
+		expect(result.status).toBe(502);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('WIG_IMAGE_FETCH_FAILED');
 		}
 	});
 });

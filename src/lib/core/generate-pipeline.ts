@@ -18,11 +18,14 @@ type PipelineResponse = {
 	body: GenerateResult;
 };
 
+const PIPELINE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes — outer safety net for the full generation round-trip.
+
 type PipelineDeps = {
 	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 	validateSpec: typeof specValidationAdapter.validate;
 	assemblePrompt: typeof promptAssemblyAdapter.assemble;
 	detectDrift: typeof driftDetectionAdapter.detect;
+	signal?: AbortSignal;
 };
 
 const buildError = (
@@ -51,6 +54,27 @@ const defaultDeps = {
 export const runGeneratePipeline = async (
 	body: unknown,
 	deps: PipelineDeps
+): Promise<PipelineResponse> => {
+	const controller = new AbortController();
+	const timeoutId = setTimeout(
+		() => controller.abort(new DOMException('Pipeline timeout', 'TimeoutError')),
+		PIPELINE_TIMEOUT_MS
+	);
+	const signals: AbortSignal[] = [controller.signal];
+	if (deps.signal) signals.push(deps.signal);
+	const pipelineSignal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
+
+	try {
+		return await _runGeneratePipeline(body, deps, pipelineSignal);
+	} finally {
+		clearTimeout(timeoutId);
+	}
+};
+
+const _runGeneratePipeline = async (
+	body: unknown,
+	deps: PipelineDeps,
+	pipelineSignal: AbortSignal
 ): Promise<PipelineResponse> => {
 	const parsedInput = GenerateRequestSchema.safeParse(body);
 	if (!parsedInput.success) {
@@ -82,16 +106,25 @@ export const runGeneratePipeline = async (
 		};
 	}
 
-	const imageResponse = await deps.fetchImpl('/api/image-generation', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			spec: parsedInput.data.spec,
-			prompt: promptResult.value.prompt,
-			variations: parsedInput.data.spec.variations,
-			outputFormat: parsedInput.data.spec.outputFormat
-		})
-	});
+	let imageResponse: Response;
+	try {
+		imageResponse = await deps.fetchImpl('/api/image-generation', {
+			signal: pipelineSignal,
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				spec: parsedInput.data.spec,
+				prompt: promptResult.value.prompt,
+				variations: parsedInput.data.spec.variations,
+				outputFormat: parsedInput.data.spec.outputFormat
+			})
+		});
+	} catch (error) {
+		if (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+			return buildError(504, 'GENERATE_TIMEOUT', 'Generation timed out waiting for image generation.');
+		}
+		return buildError(502, 'IMAGE_FETCH_FAILED', 'Image generation request failed.');
+	}
 	const imagePayload = await imageResponse.json().catch(() => null);
 	if (imagePayload === null) {
 		return imageResponse.ok

@@ -29,11 +29,13 @@ export type ImageGenerationResult = {
 
 // IMAGE_CONFIG_ERROR: config/env validation failures (distinct from request validation).
 // IMAGE_VALIDATION_ERROR: request payload validation failures.
+// IMAGE_TIMEOUT_ERROR: xAI fetch exceeded the per-request deadline.
 export type ImageGenerationError =
   | { code: 'IMAGE_VALIDATION_ERROR'; message: string }
   | { code: 'IMAGE_CONFIG_ERROR'; message: string }
   | { code: 'IMAGE_HTTP_ERROR'; message: string; details?: Record<string, string> }
   | { code: 'IMAGE_NETWORK_ERROR'; message: string }
+  | { code: 'IMAGE_TIMEOUT_ERROR'; message: string }
   | { code: 'IMAGE_EMPTY_RESPONSE'; message: string };
 
 export type ImageGenerationSeam = {

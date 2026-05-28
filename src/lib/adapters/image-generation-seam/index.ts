@@ -20,6 +20,8 @@ type XaiImageResponse = {
   }>;
 };
 
+const XAI_FETCH_TIMEOUT_MS = 90_000;
+
 const buildUrl = (baseUrl: string, path: string) => {
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   const normalizedPath = path.startsWith('/') ? path.slice(1) : path;
@@ -66,6 +68,7 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
     let response: Response;
     try {
       response = await fetch(url, {
+        signal: AbortSignal.timeout(XAI_FETCH_TIMEOUT_MS),
         method: 'POST',
         headers: {
           Authorization: `Bearer ${config.xaiApiKey}`,
@@ -79,6 +82,12 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
         })
       });
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'TimeoutError') {
+        return errorResult(
+          'IMAGE_TIMEOUT_ERROR',
+          `xAI image generation timed out after ${XAI_FETCH_TIMEOUT_MS / 1000}s.`
+        );
+      }
       return errorResult(
         'IMAGE_NETWORK_ERROR',
         error instanceof Error ? error.message : 'Image generation network request failed.'

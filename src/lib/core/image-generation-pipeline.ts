@@ -89,8 +89,9 @@ export const runImageGenerationPipeline = async (
 
   if (!seamResult.ok) {
     const isConfigError = seamResult.error.code === 'IMAGE_CONFIG_ERROR';
+    const isTimeoutError = seamResult.error.code === 'IMAGE_TIMEOUT_ERROR';
     return {
-      status: isConfigError ? 503 : 502,
+      status: isConfigError ? 503 : isTimeoutError ? 504 : 502,
       body: {
         ok: false,
         error: seamResult.error

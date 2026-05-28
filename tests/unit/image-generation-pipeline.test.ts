@@ -220,6 +220,26 @@ describe('image-generation-pipeline edge cases', () => {
     }
   });
 
+  it('returns 504 when seam returns a timeout error', async () => {
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: false,
+        error: { code: 'IMAGE_TIMEOUT_ERROR', message: 'xAI timed out after 90s' }
+      }))
+    );
+    expect(result.status).toBe(504);
+    expect(result.body.ok).toBe(false);
+    if (!result.body.ok) {
+      expect(result.body.error.code).toBe('IMAGE_TIMEOUT_ERROR');
+    }
+  });
+
   it('validates A4 page size phrase check', async () => {
     const a4Prompt = [
       'Black-and-white coloring book page',

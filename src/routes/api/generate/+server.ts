@@ -13,6 +13,7 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 	if (!parsed.ok) return parsed.response;
 	const pipelineResult = await runGeneratePipeline(parsed.body, {
 		fetchImpl: fetch,
+		signal: request.signal,
 		...generatePipelineDeps
 	});
 	return json(pipelineResult.body, { status: pipelineResult.status });
