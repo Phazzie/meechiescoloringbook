@@ -89,14 +89,7 @@ export const runChatInterpretationPipeline = async (
 		return buildError(502, 'CHAT_RESPONSE_INVALID', 'Chat response did not include JSON.');
 	}
 
-	let parsedSpec: unknown;
-	try {
-		parsedSpec = JSON.parse(extracted);
-	} catch {
-		return buildError(502, 'CHAT_RESPONSE_INVALID', 'Chat response JSON could not be parsed.');
-	}
-
-	const rawParse = RawColoringPageSpecSchema.safeParse(parsedSpec);
+	const rawParse = RawColoringPageSpecSchema.safeParse(JSON.parse(extracted));
 	if (!rawParse.success) {
 		return buildError(502, 'CHAT_SPEC_INVALID', 'Chat response did not match the expected spec shape.');
 	}
