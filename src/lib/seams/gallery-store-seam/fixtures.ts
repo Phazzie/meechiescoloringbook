@@ -16,3 +16,13 @@ export const galleryRecordFixture: GalleryRecord = {
     }
   ]
 };
+
+// Intentionally invalid: empty id and createdAt (both violate min(1)).
+// Exported as unknown so callers cannot accidentally treat it as valid — cast only at the test site.
+export const galleryRecordFaultFixture: unknown = {
+  id: '',
+  createdAt: '',
+  request: promptCompilerInputFixture,
+  compiled: compiledPromptFixture,
+  images: []
+};
