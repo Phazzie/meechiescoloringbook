@@ -1,40 +1,45 @@
+<!--
+Purpose: Visual identity and design system specification for Meechie's Coloring Book.
+Why: Single source of truth for colors, typography, spacing, and component tokens.
+Info flow: design.md → implementation (src/routes/+layout.svelte, components, styles).
+-->
 ---
 version: alpha
 name: Meechie's Playful Canvas
 description: A warm, inviting design system for AI-powered coloring book generation
 colors:
-  primary: "#FF6B35"
-  secondary: "#004E89"
-  tertiary: "#F7931E"
-  neutral-light: "#F5F5F5"
-  neutral-dark: "#1A1A1A"
-  accent-success: "#7CB342"
-  accent-joy: "#FFEB3B"
+  primary: "#e8006a"
+  secondary: "#c9a227"
+  tertiary: "#f0c44a"
+  neutral-light: "#fdf6e3"
+  neutral-dark: "#07070f"
+  accent-success: "#00c896"
+  accent-joy: "#b8aacf"
 typography:
   h1:
-    fontFamily: system-ui, -apple-system, sans-serif
+    fontFamily: "'Fraunces', Georgia, serif"
     fontSize: 48px
     fontWeight: 700
     lineHeight: 1.2
     letterSpacing: -0.02em
   h2:
-    fontFamily: system-ui, -apple-system, sans-serif
+    fontFamily: "'Fraunces', Georgia, serif"
     fontSize: 36px
     fontWeight: 600
     lineHeight: 1.3
   body-lg:
-    fontFamily: system-ui, -apple-system, sans-serif
+    fontFamily: "'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif"
     fontSize: 18px
     fontWeight: 400
     lineHeight: 1.6
   body-md:
-    fontFamily: system-ui, -apple-system, sans-serif
+    fontFamily: "'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif"
     fontSize: 16px
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: system-ui, -apple-system, sans-serif
-    fontSize: 14px
+    fontFamily: "'Barlow Condensed', 'Avenir Next Condensed', 'Segoe UI', sans-serif"
+    fontSize: 16px
     fontWeight: 600
     lineHeight: 1.4
 rounded:
@@ -62,6 +67,12 @@ components:
     textColor: "#FFFFFF"
     rounded: "{rounded.lg}"
     padding: "12px 24px"
+  button-tertiary:
+    backgroundColor: "transparent"
+    borderColor: "{colors.secondary}"
+    textColor: "{colors.secondary}"
+    rounded: "{rounded.lg}"
+    padding: "12px 24px"
   card:
     backgroundColor: "#FFFFFF"
     rounded: "{rounded.lg}"
@@ -70,8 +81,10 @@ components:
   input:
     backgroundColor: "#F9F9F9"
     borderColor: "#E0E0E0"
+    borderWidth: "1px"
     rounded: "{rounded.md}"
     padding: "12px 16px"
+    focusBorderColor: "{colors.primary}"
 ---
 
 ## Overview
@@ -82,42 +95,42 @@ The target audience is kids and families who want custom coloring experiences. T
 
 ## Colors
 
-The color palette balances vibrant accent colors with calm, readable backgrounds.
+The color palette balances vibrant accent colors with rich, dark backgrounds.
 
-- **Primary (#FF6B35):** Warm coral-orange that signals joy and creativity. Used for primary actions and interactive highlights.
-- **Secondary (#004E89):** Deep ocean blue for secondary actions and informational content. Creates contrast while remaining calm.
-- **Tertiary (#F7931E):** Bright golden-orange for accents and micro-interactions that delight without overwhelming.
-- **Neutral Light (#F5F5F5):** Off-white background that reduces eye strain and feels paper-like (echoing the coloring book metaphor).
-- **Neutral Dark (#1A1A1A):** Near-black for text and structural elements, maintaining high readability.
-- **Success (#7CB342):** Soft sage green for positive feedback, celebrations, and completion states.
-- **Joy (#FFEB3B):** Warm yellow for highlights and moments of celebration.
+- **Primary (#e8006a):** Vibrant fuchsia-pink that signals boldness and creativity. Used for primary actions, interactive highlights, and brand identity.
+- **Secondary (#c9a227):** Rich antique gold for secondary elements, accents, and a premium feel.
+- **Tertiary (#f0c44a):** Bright gold for interactive states, hover highlights, and micro-animations.
+- **Neutral Light (#fdf6e3):** Warm cream used for text and light surfaces against dark backgrounds.
+- **Neutral Dark (#07070f):** Near-black for structural backgrounds, maintaining the dark-mode aesthetic.
+- **Success (#00c896):** Bright emerald green for positive feedback, celebrations, and completion states.
+- **Joy (#b8aacf):** Soft lavender for delightful accent moments and secondary highlights.
 
 ## Typography
 
-Type hierarchy is clear and child-friendly. Headlines feel celebratory; body text is spacious and easy to read on all devices.
+Type hierarchy is clear and expressive. Headlines use a serif display face; body text is spacious and easy to read on all devices.
 
-- **Headlines:** System fonts at bold weights for modern, accessible feel.
-- **Body:** Generous line height (1.5–1.6) for easy reading by young eyes.
-- **Labels & UI:** Slightly condensed weight and tracking for clarity in compact spaces.
+- **Headlines:** Fraunces (italic display serif) for celebratory, expressive headings.
+- **Body:** Bricolage Grotesque with generous line height (1.5–1.6) for easy reading by young eyes.
+- **Labels & UI:** Barlow Condensed for compact navigation and UI elements.
 
 ## Layout
 
-Content flows in a single-column layout on mobile with optional multi-column grids on desktop (max 1200px). The 8px spacing scale provides rhythm and breathing room. Generous padding (24px container padding) makes the interface feel open and non-cramped.
+Content flows in a single-column layout on mobile with optional multi-column grids on desktop (max 1240px). The 8px spacing scale provides rhythm and breathing room. Generous padding (24px container padding) makes the interface feel open and non-cramped.
 
 ## Elevation & Depth
 
-Depth is subtle: soft shadows (0 2px 8px) on cards and inputs create layering without darkness. Background is clean and light, with interactive elements standing out through color and shadow rather than heavy elevation.
+Depth is subtle: soft shadows (0 2px 8px) on cards and inputs create layering without harshness. Dark backgrounds provide a rich canvas; interactive elements stand out through color and glow rather than heavy elevation.
 
 ## Shapes
 
-All interactive elements use rounded corners (4px on inputs, 12px on buttons and cards) to feel approachable and less clinical. Consistency across shapes reinforces the playful aesthetic.
+All interactive elements use rounded corners (8px on inputs, 12px on buttons and cards) to feel approachable and less clinical. Consistency across shapes reinforces the playful aesthetic.
 
 ## Components
 
 ### Buttons
-- **Primary Button**: Warm coral-orange background, white text, 12px rounded corners, 12px 24px padding. Used for primary actions ("Generate," "Download").
-- **Secondary Button**: Ocean blue background, white text, same sizing as primary.
-- **Tertiary Button**: Outline style with golden-orange border and text.
+- **Primary Button**: Fuchsia-pink background, white text, 12px rounded corners, 12px 24px padding. Used for primary actions ("Generate," "Download").
+- **Secondary Button**: Antique gold background, white text, same sizing as primary.
+- **Tertiary Button**: Outline style with gold border and text.
 
 ### Cards
 - White background, 24px padding, 12px rounded corners, subtle shadow (0 2px 8px).
@@ -125,13 +138,13 @@ All interactive elements use rounded corners (4px on inputs, 12px on buttons and
 
 ### Inputs
 - Light gray background (#F9F9F9), 1px border (#E0E0E0), 8px rounded corners, 12px 16px padding.
-- Placeholder text in muted gray; focus state adds a thin border in primary color.
+- Placeholder text in muted gray; focus state adds a thin border in primary color (#e8006a).
 
 ## Do's and Don'ts
 
-- **Do** use the warm coral-orange sparingly for the most important call-to-action per screen.
+- **Do** use the fuchsia-pink sparingly for the most important call-to-action per screen.
 - **Don't** combine cold and warm colors in the same visual hierarchy level.
 - **Do** maintain generous spacing and breathing room—the interface should feel playful, not dense.
 - **Don't** use small type on mobile; text should be at least 16px for comfort.
-- **Do** celebrate moments with the joy yellow accent and success green for positive feedback.
-- **Don't** use dark backgrounds; the light, paper-like aesthetic is core to the brand.
+- **Do** celebrate moments with the lavender accent and emerald for positive feedback.
+- **Don't** rely on light backgrounds; the dark, immersive aesthetic is core to the brand.

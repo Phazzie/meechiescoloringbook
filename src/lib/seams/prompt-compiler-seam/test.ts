@@ -23,7 +23,7 @@ describe('PromptCompilerSeam mock contract', () => {
 
   it('fault scenario returns the fault fixture', async () => {
     const seam = createMockPromptCompilerSeam('fault');
-    const compiled = await seam.compile(promptCompilerInputFixture as never);
+    const compiled = await seam.compile(promptCompilerInputFixture);
 
     expect(compiled).toEqual(compiledPromptFaultFixture);
   });

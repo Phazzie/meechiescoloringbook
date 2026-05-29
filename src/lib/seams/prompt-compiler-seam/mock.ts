@@ -5,5 +5,5 @@ import type { PromptCompilerSeam } from './contract';
 import { getCompiledPromptFixture } from './fixtures';
 
 export const createMockPromptCompilerSeam = (scenario: 'sample' | 'fault' = 'sample'): PromptCompilerSeam => ({
-  compile: async () => getCompiledPromptFixture(scenario)
+  compile: async (_input) => getCompiledPromptFixture(scenario)
 });

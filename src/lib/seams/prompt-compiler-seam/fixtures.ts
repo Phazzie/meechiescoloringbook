@@ -66,18 +66,18 @@ export const compiledPromptFixture: CompiledPrompt = {
 
 // Intentionally invalid: empty description (violates min(1)) and glamLevel 6 (not a valid 1-5 literal).
 // Used to prove validatePromptCompilerInput() rejects malformed input.
-export const promptCompilerInputFaultFixture = {
+export const promptCompilerInputFaultFixture: unknown = {
   description: '',
   glamLevel: 6,
   density: 'medium',
   lineThickness: 'medium',
   borderStyle: 'none',
   addCaption: false
-} as unknown as PromptCompilerInput;
+};
 
 // Intentionally invalid: empty imagePrompt and negativePrompt (both violate min(1)).
 // Used to prove validateCompiledPrompt() rejects malformed output.
-export const compiledPromptFaultFixture = {
+export const compiledPromptFaultFixture: unknown = {
   imagePrompt: '',
   negativePrompt: '',
   metadata: {
@@ -88,7 +88,8 @@ export const compiledPromptFaultFixture = {
     stylePreset: '',
     enforcedConstraints: []
   }
-} as unknown as CompiledPrompt;
+};
 
+// Cast is intentional: the fault path contains an invalid object used for mock fault scenarios.
 export const getCompiledPromptFixture = (scenario: 'sample' | 'fault' = 'sample'): CompiledPrompt =>
-  scenario === 'fault' ? compiledPromptFaultFixture : compiledPromptFixture;
+  scenario === 'fault' ? (compiledPromptFaultFixture as CompiledPrompt) : compiledPromptFixture;

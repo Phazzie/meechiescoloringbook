@@ -1,6 +1,6 @@
-// Purpose: Mock GalleryStoreSeam behavior using in-memory state seeded from fixtures.
+// Purpose: Mock GalleryStoreSeam behavior using in-memory state.
 // Why: Keep tests deterministic without live I/O; zero invented data.
-// Info flow: tests -> mock -> fixtures.
+// Info flow: tests -> mock -> in-memory state.
 import type { GalleryRecord, GalleryStoreSeam } from './contract';
 
 export const createMockGalleryStoreSeam = (): GalleryStoreSeam => {

@@ -24,6 +24,7 @@ describe('GalleryStoreSeam mock contract', () => {
     const records = await seam.listRecent(2);
 
     expect(records).toHaveLength(2);
+    expect(records.map((r) => r.id)).toEqual(['r3', 'r2']);
   });
 
   it('records are isolated per mock instance', async () => {
