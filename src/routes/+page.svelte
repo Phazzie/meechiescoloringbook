@@ -717,7 +717,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			bind:dedication
 			{activeMode}
 			{revisionBudget}
-			{textOutput}
 			{textError}
 			{isTextWorking}
 			{draftSaveError}

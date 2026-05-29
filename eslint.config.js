@@ -4,17 +4,39 @@
 import js from '@eslint/js';
 import svelte from 'eslint-plugin-svelte';
 import prettier from 'eslint-config-prettier';
+import globals from 'globals';
 
 export default [
   js.configs.recommended,
   ...svelte.configs['flat/recommended'],
   prettier,
   {
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.es2020
+      }
+    }
+  },
+  {
+    files: ['probes/**/*.mjs', 'scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node
+      }
+    }
+  },
+  {
     files: ['**/*.svelte'],
     languageOptions: {
       parserOptions: {
         parser: (await import('@typescript-eslint/parser')).default
       }
+    },
+    rules: {
+      // TypeScript type-annotation parameter names are falsely flagged as unused vars.
+      // svelte-check (tsc) provides the real unused-variable check for Svelte files.
+      'no-unused-vars': 'off'
     }
   }
 ];
