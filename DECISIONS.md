@@ -7,6 +7,20 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-05-30 — PromptCompilerSeam + GalleryStoreSeam: Replace Logic-Heavy Mocks With Fixture-Scenario Mocks
+
+- Cipher Gate:
+  - Date: 2026-05-30
+  - Seams: PromptCompilerSeam, GalleryStoreSeam
+  - Evidence: src/lib/seams/prompt-compiler-seam/test.ts (4 tests pass), src/lib/seams/gallery-store-seam/test.ts (4 tests pass)
+  - Summary: Both mocks violated SDD Core Principle #2 ("Determinism: mocks load fixtures, not invented data"). PromptCompilerSeam mock contained 60+ lines reimplementing prompt-building logic (density/thickness/border maps, constraints list, glam elements) that could silently drift from constants. GalleryStoreSeam mock accepted an `initialRecords` parameter allowing arbitrary invented data and carried a misleading "seeded from fixtures" header comment. Replaced both with scenario-based factories (`'sample' | 'fault'`), added typed-as-`unknown` fault fixtures (so test sites know they hold invalid data), `getCompiledPromptFixture` helper that confines the cast to `CompiledPrompt` to one boundary, `structuredClone` in the mock to prevent cross-test mutation, and validator-rejection tests confirming schemas reject the fault data.
+
+**Context**: `src/lib/seams/prompt-compiler-seam/mock.ts` carried a `// TODO: Refactor to load from fixture scenarios per SDD conventions` comment and duplicated the entire prompt-building logic. `src/lib/seams/gallery-store-seam/mock.ts` had the same TODO and its misleading header said "Info flow: tests -> mock -> fixtures" despite never importing fixtures. PR reviews (#105, #109) surfaced: no ordering assertion in `listRecent` limit test; `as never` cast in fault-scenario test call; missing `_input` parameter on mock compile function; fault fixtures typed as concrete types instead of `unknown`; deep-clone omission in mock exposing fixture mutation risk.
+
+**Decision**: Rewrite both mocks to the scenario-based pattern used by `AppConfigSeam` and `CacheSeam`. Export fault fixtures as `unknown`. Confine the cast to `CompiledPrompt` inside `getCompiledPromptFixture`. Return `structuredClone` from the mock compile to isolate each call site. Add ordering assertion (`['r3', 'r2']`) to the limit test and four validator-rejection tests.
+
+**Files modified**: `src/lib/seams/prompt-compiler-seam/{fixtures,mock,test}.ts`, `src/lib/seams/gallery-store-seam/{fixtures,mock,test}.ts`, `DECISIONS.md`
+
 ## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
 
 - Cipher Gate:
