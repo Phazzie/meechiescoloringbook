@@ -4,11 +4,12 @@
 import { driftDetectionAdapter } from '$lib/adapters/drift-detection.adapter';
 import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';
+import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contract';
 import {
 	GenerateRequestSchema,
 	GenerateResultSchema
 } from '../../../contracts/generate.contract';
-import { ImageGenerationResultSchema } from '../../../contracts/image-generation.contract';
 import { z } from 'zod';
 
 type GenerateResult = z.infer<typeof GenerateResultSchema>;
@@ -19,7 +20,7 @@ type PipelineResponse = {
 };
 
 type PipelineDeps = {
-	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+	imageGenerationSeam: ImageGenerationSeam;
 	validateSpec: typeof specValidationAdapter.validate;
 	assemblePrompt: typeof promptAssemblyAdapter.assemble;
 	detectDrift: typeof driftDetectionAdapter.detect;
@@ -82,41 +83,23 @@ export const runGeneratePipeline = async (
 		};
 	}
 
-	const imageResponse = await deps.fetchImpl('/api/image-generation', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
+	const imageResult = await runImageGenerationPipeline(
+		{
 			spec: parsedInput.data.spec,
 			prompt: promptResult.value.prompt,
 			variations: parsedInput.data.spec.variations,
 			outputFormat: parsedInput.data.spec.outputFormat
-		})
-	});
-	const imagePayload = await imageResponse.json().catch(() => null);
-	if (imagePayload === null) {
-		return imageResponse.ok
-			? buildError(502, 'IMAGE_RESPONSE_INVALID', 'Image generation response did not match contract.')
-			: buildError(imageResponse.status, 'IMAGE_HTTP_ERROR', `Image generation returned HTTP ${imageResponse.status}.`, { status: String(imageResponse.status) });
-	}
-	const parsedImageResult = ImageGenerationResultSchema.safeParse(imagePayload);
-	if (!parsedImageResult.success) {
-		return buildError(
-			502,
-			'IMAGE_RESPONSE_INVALID',
-			'Image generation response did not match contract.'
-		);
-	}
-	if (!parsedImageResult.data.ok) {
-		return {
-			status: imageResponse.ok ? 502 : imageResponse.status,
-			body: parsedImageResult.data
-		};
+		},
+		{ imageGenerationSeam: deps.imageGenerationSeam }
+	);
+	if (!imageResult.body.ok) {
+		return { status: imageResult.status, body: imageResult.body };
 	}
 
 	const driftResult = await deps.detectDrift({
 		spec: parsedInput.data.spec,
 		promptSent: promptResult.value.prompt,
-		revisedPrompt: parsedImageResult.data.value.revisedPrompt
+		revisedPrompt: imageResult.body.value.revisedPrompt
 	});
 
 	const result: GenerateResult = {
@@ -124,9 +107,9 @@ export const runGeneratePipeline = async (
 		value: {
 			prompt: promptResult.value.prompt,
 			templateVersion: promptResult.value.templateVersion,
-			images: parsedImageResult.data.value.images,
-			revisedPrompt: parsedImageResult.data.value.revisedPrompt,
-			modelMetadata: parsedImageResult.data.value.modelMetadata,
+			images: imageResult.body.value.images,
+			revisedPrompt: imageResult.body.value.revisedPrompt,
+			modelMetadata: imageResult.body.value.modelMetadata,
 			violations: driftResult.ok ? driftResult.value.violations : [],
 			recommendedFixes: driftResult.ok ? driftResult.value.recommendedFixes : []
 		}

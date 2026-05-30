@@ -1,8 +1,20 @@
 // Purpose: Verify /api/generate orchestrates prompt, image, and drift flow for the UI.
 // Why: Keep the main generation path on one server endpoint with contract-checked output.
 // Info flow: Generate request -> endpoint orchestration -> contract response.
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+
+vi.mock('$lib/adapters/image-generation-seam', () => ({
+	createImageGenerationSeam: vi.fn()
+}));
+
+vi.mock('$lib/adapters/image-provider-config-seam', () => ({
+	createImageProviderConfigSeam: vi.fn()
+}));
+
+import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { POST } from '../../src/routes/api/generate/+server';
+
+const mockCreateSeam = vi.mocked(createImageGenerationSeam);
 
 const validSpec = {
 	title: 'Dream Big',
@@ -29,92 +41,64 @@ const validSpec = {
 	pageSize: 'US_Letter'
 } as const;
 
-const buildEvent = (
-	body: unknown,
-	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-): Parameters<typeof POST>[0] =>
+const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/generate', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
-		}),
-		fetch: fetchImpl
+		})
 	}) as Parameters<typeof POST>[0];
 
-const buildRawEvent = (
-	rawBody: string,
-	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-): Parameters<typeof POST>[0] =>
+const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/generate', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
-		}),
-		fetch: fetchImpl
+		})
 	}) as Parameters<typeof POST>[0];
 
 describe('/api/generate', () => {
+	beforeEach(() => {
+		mockCreateSeam.mockReset();
+	});
+
 	it('rejects malformed JSON with INVALID_JSON code', async () => {
-		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
-		const response = await POST(buildRawEvent('{not: valid json}', fetchMock));
+		const response = await POST(buildRawEvent('{not: valid json}'));
 		const payload = await response.json();
 
 		expect(response.status).toBe(400);
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('INVALID_JSON');
-		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	it('rejects invalid payloads', async () => {
-		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
-		const response = await POST(buildEvent({ spec: {} }, fetchMock));
+		const response = await POST(buildEvent({ spec: {} }));
 		const payload = await response.json();
 
 		expect(response.status).toBe(400);
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('GENERATE_INPUT_INVALID');
-		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	it('returns orchestrated generation output for valid requests', async () => {
-		const fetchMock = vi.fn(async () =>
-			new Response(
-				JSON.stringify({
-					ok: true,
-					value: {
-						images: [
-							{
-								id: 'image-1',
-								format: 'png',
-								mimeType: 'image/png',
-								data: 'abc123',
-								encoding: 'base64'
-							}
-						],
-						revisedPrompt: 'black and white revised prompt',
-						modelMetadata: {
-							provider: 'xai',
-							model: 'grok-imagine-image'
-						}
-					}
-				}),
-				{
-					status: 200,
-					headers: { 'Content-Type': 'application/json' }
+		mockCreateSeam.mockReturnValue({
+			generate: vi.fn(async () => ({
+				ok: true as const,
+				value: {
+					images: [{ id: 'xai-1', b64: 'abc123' }],
+					rawModelInfo: { model: 'grok-imagine-image', revisedPrompt: 'black and white revised prompt' },
+					timingMs: 50
 				}
-			)
-		);
+			}))
+		});
 
 		const response = await POST(
-			buildEvent(
-				{
-					spec: validSpec,
-					styleHint: 'glam sparkle icons'
-				},
-				fetchMock
-			)
+			buildEvent({
+				spec: validSpec,
+				styleHint: 'glam sparkle icons'
+			})
 		);
 		const payload = await response.json();
 
@@ -124,10 +108,6 @@ describe('/api/generate', () => {
 		expect(payload.value.images).toHaveLength(1);
 		expect(Array.isArray(payload.value.violations)).toBe(true);
 		expect(Array.isArray(payload.value.recommendedFixes)).toBe(true);
-		expect(fetchMock).toHaveBeenCalledTimes(1);
-		expect(fetchMock).toHaveBeenCalledWith(
-			'/api/image-generation',
-			expect.objectContaining({ method: 'POST' })
-		);
+		expect(mockCreateSeam).toHaveBeenCalledTimes(1);
 	});
 });

@@ -313,11 +313,26 @@ describe('tools-pipeline edge cases', () => {
 });
 
 describe('generate-pipeline edge cases', () => {
+	// Must contain all REQUIRED_PROMPT_PHRASES + US Letter page-size line.
+	const VALID_ASSEMBLED_PROMPT =
+		'Black-and-white coloring book page, outline-only, easy to color. ' +
+		'Crisp vector-like linework. NEGATIVE PROMPT: US Letter 8.5x11 portrait.';
+
+	const mockSeam = { generate: vi.fn() };
 	const baseDeps = {
-		fetchImpl: vi.fn(),
+		imageGenerationSeam: mockSeam,
 		validateSpec: vi.fn(),
 		assemblePrompt: vi.fn(),
 		detectDrift: vi.fn()
+	};
+
+	const seamSuccess = {
+		ok: true as const,
+		value: {
+			images: [{ id: 'xai-1', b64: 'abc123' }],
+			rawModelInfo: { model: 'grok-imagine-image', revisedPrompt: 'revised prompt' },
+			timingMs: 50
+		}
 	};
 
 	it('rejects invalid request body', async () => {
@@ -366,7 +381,7 @@ describe('generate-pipeline edge cases', () => {
 		}
 	});
 
-	it('returns error when image generation response is invalid', async () => {
+	it('returns error when seam reports a network failure', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
@@ -374,21 +389,24 @@ describe('generate-pipeline edge cases', () => {
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
-					value: { prompt: 'test prompt', templateVersion: 'v2' }
+					value: { prompt: VALID_ASSEMBLED_PROMPT, templateVersion: 'v2' }
 				}),
-				fetchImpl: vi.fn().mockResolvedValue(
-					new Response('not-json', { status: 200 })
-				)
+				imageGenerationSeam: {
+					generate: vi.fn().mockResolvedValue({
+						ok: false,
+						error: { code: 'IMAGE_NETWORK_ERROR', message: 'Connection refused' }
+					})
+				}
 			}
 		);
 		expect(result.status).toBe(502);
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
-			expect(result.body.error.code).toBe('IMAGE_RESPONSE_INVALID');
+			expect(result.body.error.code).toBe('IMAGE_NETWORK_ERROR');
 		}
 	});
 
-	it('preserves upstream HTTP status when image generation returns a non-JSON error body', async () => {
+	it('returns 503 when seam reports a config error', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
@@ -396,21 +414,24 @@ describe('generate-pipeline edge cases', () => {
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
-					value: { prompt: 'test prompt', templateVersion: 'v2' }
+					value: { prompt: VALID_ASSEMBLED_PROMPT, templateVersion: 'v2' }
 				}),
-				fetchImpl: vi.fn().mockResolvedValue(
-					new Response('<html>Service Unavailable</html>', { status: 503 })
-				)
+				imageGenerationSeam: {
+					generate: vi.fn().mockResolvedValue({
+						ok: false,
+						error: { code: 'IMAGE_CONFIG_ERROR', message: 'Missing XAI_API_KEY' }
+					})
+				}
 			}
 		);
 		expect(result.status).toBe(503);
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
-			expect(result.body.error.code).toBe('IMAGE_HTTP_ERROR');
+			expect(result.body.error.code).toBe('IMAGE_CONFIG_ERROR');
 		}
 	});
 
-	it('returns error when image generation returns failure result', async () => {
+	it('returns PROVIDER_EMPTY_IMAGE when seam returns images with no base64 data', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
@@ -418,17 +439,19 @@ describe('generate-pipeline edge cases', () => {
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
-					value: { prompt: 'test prompt', templateVersion: 'v2' }
+					value: { prompt: VALID_ASSEMBLED_PROMPT, templateVersion: 'v2' }
 				}),
-				fetchImpl: vi.fn().mockResolvedValue(
-					new Response(
-						JSON.stringify({
-							ok: false,
-							error: { code: 'PROVIDER_EMPTY_IMAGE', message: 'No images' }
-						}),
-						{ status: 502 }
-					)
-				)
+				imageGenerationSeam: {
+					generate: vi.fn().mockResolvedValue({
+						ok: true,
+						value: {
+							images: [{ id: 'xai-1', url: 'https://example.com/img.png' }],
+							rawModelInfo: { model: 'grok' },
+							timingMs: 50
+						}
+					})
+				},
+				detectDrift: vi.fn()
 			}
 		);
 		expect(result.body.ok).toBe(false);
@@ -441,32 +464,12 @@ describe('generate-pipeline edge cases', () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec, styleHint: 'sparkle' },
 			{
+				imageGenerationSeam: { generate: vi.fn().mockResolvedValue(seamSuccess) },
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
-					value: { prompt: 'assembled prompt', templateVersion: 'v2' }
+					value: { prompt: VALID_ASSEMBLED_PROMPT, templateVersion: 'v2' }
 				}),
-				fetchImpl: vi.fn().mockResolvedValue(
-					new Response(
-						JSON.stringify({
-							ok: true,
-							value: {
-								images: [
-									{
-										id: 'img-1',
-										format: 'png',
-										mimeType: 'image/png',
-										data: 'abc123',
-										encoding: 'base64'
-									}
-								],
-								revisedPrompt: 'revised prompt',
-								modelMetadata: { provider: 'xai', model: 'grok-imagine-image' }
-							}
-						}),
-						{ status: 200 }
-					)
-				),
 				detectDrift: vi.fn().mockResolvedValue({
 					ok: true,
 					value: { violations: [], confidenceScore: 1, recommendedFixes: [] }
@@ -476,7 +479,7 @@ describe('generate-pipeline edge cases', () => {
 		expect(result.status).toBe(200);
 		expect(result.body.ok).toBe(true);
 		if (result.body.ok) {
-			expect(result.body.value.prompt).toBe('assembled prompt');
+			expect(result.body.value.prompt).toBe(VALID_ASSEMBLED_PROMPT);
 			expect(result.body.value.images).toHaveLength(1);
 			expect(result.body.value.violations).toEqual([]);
 		}
@@ -486,32 +489,12 @@ describe('generate-pipeline edge cases', () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
+				imageGenerationSeam: { generate: vi.fn().mockResolvedValue(seamSuccess) },
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
-					value: { prompt: 'assembled prompt', templateVersion: 'v2' }
+					value: { prompt: VALID_ASSEMBLED_PROMPT, templateVersion: 'v2' }
 				}),
-				fetchImpl: vi.fn().mockResolvedValue(
-					new Response(
-						JSON.stringify({
-							ok: true,
-							value: {
-								images: [
-									{
-										id: 'img-1',
-										format: 'png',
-										mimeType: 'image/png',
-										data: 'abc123',
-										encoding: 'base64'
-									}
-								],
-								revisedPrompt: 'revised',
-								modelMetadata: { provider: 'xai', model: 'test' }
-							}
-						}),
-						{ status: 200 }
-					)
-				),
 				detectDrift: vi.fn().mockResolvedValue({
 					ok: false,
 					error: { code: 'DRIFT_ERROR', message: 'Detection failed' }
