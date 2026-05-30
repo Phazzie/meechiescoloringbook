@@ -34,10 +34,22 @@
 			const dataUrl = reader.result as string;
 			// dataUrl format: data:<mimeType>;base64,<base64data>
 			const base64 = dataUrl.split(',')[1];
+			if (!base64) {
+				error = 'Image could not be read. Please try again.';
+				return;
+			}
 			previewUrl = dataUrl;
 			onUpload(base64, file.type as AllowedMime);
 		};
+		reader.onerror = () => {
+			error = 'Failed to read file. Please try again.';
+		};
+		reader.onabort = () => {
+			error = 'File read was cancelled.';
+		};
 		reader.readAsDataURL(file);
+		// Reset value so re-selecting the same file fires onchange again
+		input.value = '';
 	};
 </script>
 
