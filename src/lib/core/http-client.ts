@@ -6,17 +6,30 @@ export const buildJsonHeaders = (): Record<string, string> => ({
 	'Content-Type': 'application/json'
 });
 
-export const postJson = async (
-	url: string,
-	body: unknown
-): Promise<{ response: Response; payload: unknown }> => {
+export const postJson = async <T = unknown>(url: string, body: unknown): Promise<T> => {
 	const response = await fetch(url, {
 		method: 'POST',
 		headers: buildJsonHeaders(),
 		body: JSON.stringify(body)
 	});
-	const payload = await response.json().catch(() => {
-		throw new Error('postJson: failed to parse JSON response');
+	if (response.status === 204) return undefined as T;
+	const payload = await response.json().catch((err: unknown) => {
+		throw new Error(
+			`postJson: failed to parse JSON response (HTTP ${response.status}): ${err instanceof Error ? err.message : String(err)}`
+		);
 	});
-	return { response, payload };
+	if (!response.ok) {
+		// Preserve structured error messages that endpoints intentionally return on non-2xx responses.
+		const errPayload = payload as Record<string, unknown>;
+		const structured =
+			errPayload != null &&
+			typeof errPayload === 'object' &&
+			typeof errPayload['error'] === 'object' &&
+			errPayload['error'] != null &&
+			typeof (errPayload['error'] as Record<string, unknown>)['message'] === 'string'
+				? (errPayload['error'] as { message: string }).message
+				: null;
+		throw new Error(structured ?? `postJson: HTTP ${response.status} ${response.statusText}`);
+	}
+	return payload as T;
 };

@@ -33,7 +33,7 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		packagedFiles = [];
 
 		try {
-			const { payload } = await postJson('/api/tools', {
+			const payload = await postJson('/api/tools', {
 				toolId: 'rate_excuse',
 				excuse: excuse.trim()
 			});
@@ -71,7 +71,7 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				result.headline,
 				result.response
 			]);
-			const { payload } = await postJson('/api/generate', {
+			const payload = await postJson('/api/generate', {
 				spec: {
 					title: saying,
 					listMode: 'title_only',
