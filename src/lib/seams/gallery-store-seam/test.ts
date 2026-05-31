@@ -2,7 +2,7 @@
 // Why: Enforce mock adherence to the seam contract.
 // Info flow: tests -> mock -> contract assertions.
 import { describe, expect, it } from 'vitest';
-import { galleryRecordFixture } from './fixtures';
+import { galleryRecordFaultFixture, galleryRecordFixture } from './fixtures';
 import { createMockGalleryStoreSeam } from './mock';
 import { validateGalleryRecord } from './validators';
 
@@ -14,5 +14,21 @@ describe('GalleryStoreSeam mock contract', () => {
 
     expect(records).toEqual([galleryRecordFixture]);
     expect(validateGalleryRecord(records[0])).toEqual(galleryRecordFixture);
+  });
+
+  it('listRecent respects limit and returns most-recent records first', async () => {
+    const seam = createMockGalleryStoreSeam();
+    await seam.save({ ...galleryRecordFixture, id: 'r1' });
+    await seam.save({ ...galleryRecordFixture, id: 'r2' });
+    await seam.save({ ...galleryRecordFixture, id: 'r3' });
+
+    const records = await seam.listRecent(2);
+
+    expect(records).toHaveLength(2);
+    expect(records.map((r) => r.id)).toEqual(['r3', 'r2']);
+  });
+
+  it('rejects invalid records via validator', () => {
+    expect(() => validateGalleryRecord(galleryRecordFaultFixture)).toThrow();
   });
 });

@@ -2,7 +2,12 @@
 // Why: Enforce mock adherence to the seam contract.
 // Info flow: tests -> mock -> contract assertions.
 import { describe, expect, it } from 'vitest';
-import { compiledPromptFixture, promptCompilerInputFixture } from './fixtures';
+import {
+  compiledPromptFaultFixture,
+  compiledPromptFixture,
+  promptCompilerInputFaultFixture,
+  promptCompilerInputFixture
+} from './fixtures';
 import { createMockPromptCompilerSeam } from './mock';
 import { validateCompiledPrompt, validatePromptCompilerInput } from './validators';
 
@@ -14,5 +19,13 @@ describe('PromptCompilerSeam mock contract', () => {
 
     expect(compiled).toEqual(compiledPromptFixture);
     expect(validateCompiledPrompt(compiled)).toEqual(compiledPromptFixture);
+  });
+
+  it('rejects invalid input via validator', () => {
+    expect(() => validatePromptCompilerInput(promptCompilerInputFaultFixture)).toThrow();
+  });
+
+  it('rejects invalid compiled prompt via validator', () => {
+    expect(() => validateCompiledPrompt(compiledPromptFaultFixture)).toThrow();
   });
 });

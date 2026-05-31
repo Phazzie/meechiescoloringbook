@@ -3,6 +3,32 @@
 // Info flow: fixtures -> mocks/tests.
 import type { CompiledPrompt, PromptCompilerInput } from './contract';
 
+// Intentionally invalid: empty description (violates min(1)), glamLevel 6 (out of 1-5 range).
+// Used to prove validatePromptCompilerInput() rejects malformed input.
+export const promptCompilerInputFaultFixture = {
+  description: '',
+  glamLevel: 6,
+  density: 'medium',
+  lineThickness: 'medium',
+  borderStyle: 'none',
+  addCaption: false
+} as unknown;
+
+// Intentionally invalid: empty imagePrompt and negativePrompt (both violate min(1)).
+// Used to prove validateCompiledPrompt() rejects malformed output.
+export const compiledPromptFaultFixture = {
+  imagePrompt: '',
+  negativePrompt: '',
+  metadata: {
+    glamLevel: 0,
+    density: 'medium',
+    lineThickness: 'medium',
+    borderStyle: 'none',
+    stylePreset: '',
+    enforcedConstraints: []
+  }
+} as unknown;
+
 export const promptCompilerInputFixture: PromptCompilerInput = {
   description: 'a glam kitten wearing a bow',
   glamLevel: 4,
