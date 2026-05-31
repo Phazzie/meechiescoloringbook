@@ -6,8 +6,8 @@ import { validateAppConfig } from '../../seams/app-config-seam/validators';
 import { env as privateEnv } from '$env/dynamic/private';
 
 const parseOptionalInt = (raw: string | undefined): number | undefined => {
-	if (!raw) return undefined;
-	const n = Number(raw);
+	if (!raw || raw.trim() === '') return undefined;
+	const n = parseInt(raw, 10);
 	return isNaN(n) ? undefined : n;
 };
 
