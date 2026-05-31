@@ -11,6 +11,7 @@ import {
 	MeechieStudioTextResultSchema
 } from '../../../contracts/meechie-studio-text.contract';
 import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.contract';
+import type { SeamError } from '../../../contracts/shared.contract';
 import { z } from 'zod';
 
 const TEXT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
@@ -146,6 +147,22 @@ const buildError = (
 		}
 	}
 });
+
+const buildProviderError = (error: SeamError): PipelineResponse => {
+	const missingKey = error.code === 'PROVIDER_API_KEY_MISSING';
+	return {
+		status: missingKey && env.NODE_ENV !== 'production' ? 200 : 502,
+		body: {
+			ok: false,
+			error: {
+				...error,
+				message: missingKey
+					? 'AI text generation requires XAI_API_KEY to be set on the server.'
+					: error.message
+			}
+		}
+	};
+};
 
 const findDisallowedKeywords = (input: unknown): string[] => {
 	const text = JSON.stringify(input).toLowerCase();
@@ -311,19 +328,7 @@ export const runMeechieStudioTextPipeline = async (
 	});
 
 	if (!providerResult.ok) {
-		const missingKey = providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
-		return {
-			status: missingKey && env.NODE_ENV !== 'production' ? 200 : 502,
-			body: {
-				ok: false,
-				error: {
-					...providerResult.error,
-					message: missingKey
-						? 'AI text generation requires XAI_API_KEY to be set on the server.'
-						: providerResult.error.message
-				}
-			}
-		};
+		return buildProviderError(providerResult.error);
 	}
 
 	// Capture the first attempt's raw response so it can be echoed back on retry.
@@ -352,20 +357,7 @@ export const runMeechieStudioTextPipeline = async (
 			responseFormat: STUDIO_TEXT_RESPONSE_FORMAT
 		});
 		if (!providerResult.ok) {
-			const missingKey =
-				providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
-			return {
-				status: missingKey && env.NODE_ENV !== 'production' ? 200 : 502,
-				body: {
-					ok: false,
-					error: {
-						...providerResult.error,
-						message: missingKey
-							? 'AI text generation requires XAI_API_KEY to be set on the server.'
-							: providerResult.error.message
-					}
-				}
-			};
+			return buildProviderError(providerResult.error);
 		}
 		result = parseProviderText(
 			providerResult.value.content,

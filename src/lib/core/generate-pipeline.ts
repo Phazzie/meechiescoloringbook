@@ -92,8 +92,10 @@ export const runGeneratePipeline = async (
 			outputFormat: parsedInput.data.spec.outputFormat
 		})
 	});
-	const imagePayload = await imageResponse.json().catch(() => null);
-	if (imagePayload === null) {
+	let imagePayload: unknown;
+	try {
+		imagePayload = await imageResponse.json();
+	} catch {
 		return imageResponse.ok
 			? buildError(502, 'IMAGE_RESPONSE_INVALID', 'Image generation response did not match contract.')
 			: buildError(imageResponse.status, 'IMAGE_HTTP_ERROR', `Image generation returned HTTP ${imageResponse.status}.`, { status: String(imageResponse.status) });

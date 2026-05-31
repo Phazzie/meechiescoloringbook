@@ -199,8 +199,16 @@ const buildUserMessage = (input: MeechieToolInput): UserMessage => {
 			};
 
 		case 'lineup': {
-			const ordinal = (n: number) =>
-				n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
+			const ordinal = (n: number): string => {
+				const mod100 = n % 100;
+				if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+				switch (n % 10) {
+					case 1: return `${n}st`;
+					case 2: return `${n}nd`;
+					case 3: return `${n}rd`;
+					default: return `${n}th`;
+				}
+			};
 			const itemList = input.items
 				.map((item, i) => `${ordinal(i + 1)}: ${item}`)
 				.join('\n');
