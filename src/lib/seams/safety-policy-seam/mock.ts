@@ -3,6 +3,7 @@
 // Info flow: tests -> mock -> fixtures.
 import type { CompiledPrompt, PromptCompilerInput } from '../prompt-compiler-seam/contract';
 import type { SafetyPolicyResult, SafetyPolicySeam } from './contract';
+import type { ColoringPageSpec } from '../../../../contracts/spec-validation.contract';
 import { SYSTEM_CONSTANTS } from '../../core/constants';
 
 const disallowedKeywords = [...SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS, 'suicide', 'extremist'];
@@ -62,5 +63,28 @@ export const createMockSafetyPolicySeam = (): SafetyPolicySeam => ({
     }
 
     return requiresOutlineOnly(compiled);
+  },
+  validateSpec: (spec: ColoringPageSpec) => {
+    const textsToCheck = [
+      spec.title,
+      ...(spec.items ?? []).map((item) => item.label),
+      ...(spec.footerItem ? [spec.footerItem.label] : []),
+      ...(spec.dedication ? [spec.dedication] : [])
+    ];
+
+    for (const text of textsToCheck) {
+      if (hasDisallowedContent(text)) {
+        return {
+          ok: false,
+          error: {
+            code: 'DISALLOWED_CONTENT',
+            message: 'Spec contains disallowed content.',
+            details: ['Remove content involving minors, self-harm, suicide, or extremist material.']
+          }
+        };
+      }
+    }
+
+    return { ok: true };
   }
 });

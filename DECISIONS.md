@@ -7,6 +7,34 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-05-31 — SafetyPolicySeam: Wire Content-Safety Gate into Generate Pipeline
+
+- Cipher Gate:
+  - Date: 2026-05-31
+  - Seams: SafetyPolicySeam
+  - Evidence: src/lib/seams/safety-policy-seam/test.ts (7 contract tests, 3 new for validateSpec), tests/unit/pipeline-edge-cases.test.ts (checkContentSafety wired), tests/unit/api-generate.test.ts (CONTENT_POLICY_VIOLATION test)
+  - Summary: Extended SafetyPolicySeam contract with `validateSpec(spec: ColoringPageSpec): SafetyPolicyResult`. Wired the seam into `generate-pipeline.ts` as the first gate after input parsing — before spec structure validation, prompt assembly, or image generation. The mock implementation (pure logic, no I/O) is the authoritative implementation for this pure seam and is injected via `defaultDeps`. Spec title, item labels, footer item label, and dedication are scanned for disallowed keywords. Updated contract tests, fixtures, and pipeline edge-case tests.
+  - Risks: SafetyPolicySeam uses `PromptCompilerInput` for its existing `validateUserRequest` method, which differs from `ColoringPageSpec`. The new `validateSpec` method bridges this by accepting `ColoringPageSpec` directly; no type coercion is required. Future spec fields (e.g., new text fields) must be explicitly added to the `validateSpec` scan list.
+
+**Context**: `SafetyPolicySeam` was a complete SDD seam artifact (contract, mock, fixtures, tests) that was never called from any pipeline or route. User-submitted coloring-page specs containing disallowed keywords (`minors`, `self-harm`, `suicide`, `extremist`) were passed to prompt assembly and xAI image generation unchecked.
+
+**Decision**: Add `validateSpec(spec: ColoringPageSpec): SafetyPolicyResult` to the seam contract. Inject it into `generate-pipeline.ts` as `checkContentSafety`. The check runs synchronously as the first action after request parsing, short-circuiting the pipeline with `CONTENT_POLICY_VIOLATION` (HTTP 400) before any costly downstream seam is called.
+
+**Rationale**:
+- Safety-first ordering: the cheapest check runs first; no I/O is wasted on unsafe input
+- The seam was already designed as pure (no external I/O); the mock IS the canonical implementation
+- Dependency-injected into `PipelineDeps` so tests can override or inspect the safety gate
+- `CONTENT_POLICY_VIOLATION` is a distinct, matchable error code for clients and monitoring
+
+**Files modified**:
+- `src/lib/seams/safety-policy-seam/contract.ts` — added `validateSpec` method
+- `src/lib/seams/safety-policy-seam/mock.ts` — implemented `validateSpec` scanning all text fields
+- `src/lib/seams/safety-policy-seam/fixtures.ts` — added `safeSpecFixture`, `unsafeSpecFixture`, `unsafeSpecItemFixture`
+- `src/lib/seams/safety-policy-seam/test.ts` — added 3 new contract tests for `validateSpec`
+- `src/lib/core/generate-pipeline.ts` — imported seam, added `checkContentSafety` to deps, called before spec validation
+- `tests/unit/pipeline-edge-cases.test.ts` — added `checkContentSafety` to `baseDeps` and inline deps
+- `tests/unit/api-generate.test.ts` — added `CONTENT_POLICY_VIOLATION` integration test
+
 ## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
 
 - Cipher Gate:

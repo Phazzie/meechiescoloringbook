@@ -315,6 +315,7 @@ describe('tools-pipeline edge cases', () => {
 describe('generate-pipeline edge cases', () => {
 	const baseDeps = {
 		fetchImpl: vi.fn(),
+		checkContentSafety: vi.fn().mockReturnValue({ ok: true }),
 		validateSpec: vi.fn(),
 		assemblePrompt: vi.fn(),
 		detectDrift: vi.fn()
@@ -441,6 +442,7 @@ describe('generate-pipeline edge cases', () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec, styleHint: 'sparkle' },
 			{
+				checkContentSafety: vi.fn().mockReturnValue({ ok: true }),
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
@@ -486,6 +488,7 @@ describe('generate-pipeline edge cases', () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
+				checkContentSafety: vi.fn().mockReturnValue({ ok: true }),
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,

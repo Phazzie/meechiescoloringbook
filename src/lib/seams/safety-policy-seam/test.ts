@@ -5,7 +5,10 @@ import { describe, expect, it } from 'vitest';
 import {
   missingConstraintCompiledPromptFixture,
   safeCompiledPromptFixture,
+  safeSpecFixture,
   safeUserRequestFixture,
+  unsafeSpecFixture,
+  unsafeSpecItemFixture,
   unsafeUserRequestFixture
 } from './fixtures';
 import { createMockSafetyPolicySeam } from './mock';
@@ -38,5 +41,30 @@ describe('SafetyPolicySeam mock contract', () => {
     const result = seam.validateCompiledPrompt(safeCompiledPromptFixture);
     expect(result).toEqual({ ok: true });
     expect(validateSafetyPolicyResult(result)).toEqual({ ok: true });
+  });
+
+  it('validateSpec accepts a spec with no disallowed keywords', () => {
+    const seam = createMockSafetyPolicySeam();
+    const result = seam.validateSpec(safeSpecFixture);
+    expect(result).toEqual({ ok: true });
+    expect(validateSafetyPolicyResult(result)).toEqual({ ok: true });
+  });
+
+  it('validateSpec rejects a spec whose title contains a disallowed keyword', () => {
+    const seam = createMockSafetyPolicySeam();
+    const result = seam.validateSpec(unsafeSpecFixture);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('DISALLOWED_CONTENT');
+    expect(validateSafetyPolicyResult(result)).toEqual(result);
+  });
+
+  it('validateSpec rejects a spec whose item label contains a disallowed keyword', () => {
+    const seam = createMockSafetyPolicySeam();
+    const result = seam.validateSpec(unsafeSpecItemFixture);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('DISALLOWED_CONTENT');
+    expect(validateSafetyPolicyResult(result)).toEqual(result);
   });
 });

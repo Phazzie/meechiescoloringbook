@@ -2,6 +2,7 @@
 // Why: Keep seam interfaces explicit and shared across implementations.
 // Info flow: contract types -> adapters/mocks/tests.
 import type { CompiledPrompt, PromptCompilerInput } from '../prompt-compiler-seam/contract';
+import type { ColoringPageSpec } from '../../../../contracts/spec-validation.contract';
 
 export type SafetyPolicyErrorCode =
   | 'DISALLOWED_CONTENT'
@@ -21,4 +22,5 @@ export type SafetyPolicyResult =
 export type SafetyPolicySeam = {
   validateUserRequest: (input: PromptCompilerInput) => SafetyPolicyResult;
   validateCompiledPrompt: (compiled: CompiledPrompt) => SafetyPolicyResult;
+  validateSpec: (spec: ColoringPageSpec) => SafetyPolicyResult;
 };

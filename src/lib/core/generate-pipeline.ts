@@ -1,14 +1,17 @@
 // Purpose: Centralize generation endpoint orchestration in a reusable core pipeline.
 // Why: Keep route handlers thin and isolate seam composition logic from transport concerns.
-// Info flow: Raw request body -> validation/seams -> contract-shaped response payload.
+// Info flow: Raw request body -> content safety check -> validation/seams -> contract-shaped response payload.
 import { driftDetectionAdapter } from '$lib/adapters/drift-detection.adapter';
 import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+import { createMockSafetyPolicySeam } from '$lib/seams/safety-policy-seam/mock';
 import {
 	GenerateRequestSchema,
 	GenerateResultSchema
 } from '../../../contracts/generate.contract';
 import { ImageGenerationResultSchema } from '../../../contracts/image-generation.contract';
+import type { ColoringPageSpec } from '../../../contracts/spec-validation.contract';
+import type { SafetyPolicyResult } from '$lib/seams/safety-policy-seam/contract';
 import { z } from 'zod';
 
 type GenerateResult = z.infer<typeof GenerateResultSchema>;
@@ -20,6 +23,7 @@ type PipelineResponse = {
 
 type PipelineDeps = {
 	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+	checkContentSafety: (spec: ColoringPageSpec) => SafetyPolicyResult;
 	validateSpec: typeof specValidationAdapter.validate;
 	assemblePrompt: typeof promptAssemblyAdapter.assemble;
 	detectDrift: typeof driftDetectionAdapter.detect;
@@ -42,7 +46,10 @@ const buildError = (
 	}
 });
 
+const _safetySeam = createMockSafetyPolicySeam();
+
 const defaultDeps = {
+	checkContentSafety: _safetySeam.validateSpec,
 	validateSpec: specValidationAdapter.validate,
 	assemblePrompt: promptAssemblyAdapter.assemble,
 	detectDrift: driftDetectionAdapter.detect
@@ -55,6 +62,11 @@ export const runGeneratePipeline = async (
 	const parsedInput = GenerateRequestSchema.safeParse(body);
 	if (!parsedInput.success) {
 		return buildError(400, 'GENERATE_INPUT_INVALID', 'Generate request is invalid.');
+	}
+
+	const safetyResult = deps.checkContentSafety(parsedInput.data.spec);
+	if (!safetyResult.ok) {
+		return buildError(400, 'CONTENT_POLICY_VIOLATION', safetyResult.error.message);
 	}
 
 	const validation = await deps.validateSpec({ spec: parsedInput.data.spec });

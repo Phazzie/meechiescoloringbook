@@ -130,4 +130,16 @@ describe('/api/generate', () => {
 			expect.objectContaining({ method: 'POST' })
 		);
 	});
+
+	it('rejects specs with disallowed content before hitting image generation', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+		const unsafeSpec = { ...validSpec, title: 'minors only' };
+		const response = await POST(buildEvent({ spec: unsafeSpec }, fetchMock));
+		const payload = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('CONTENT_POLICY_VIOLATION');
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
 });
