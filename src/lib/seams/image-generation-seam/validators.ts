@@ -13,14 +13,13 @@ export const imageGenerationRequestSchema = z.object({
   userTag: z.string().optional()
 });
 
-export const generatedImageSchema = z.object({
-  id: z.string().min(1),
-  url: z.string().url().optional(),
-  b64: z.string().optional()
-});
+export const providerImageSchema = z.union([
+  z.object({ id: z.string().min(1), url: z.string().url() }).strict(),
+  z.object({ id: z.string().min(1), b64: z.string().min(1) }).strict()
+]);
 
 export const imageGenerationResultSchema = z.object({
-  images: z.array(generatedImageSchema),
+  images: z.array(providerImageSchema),
   rawModelInfo: z.record(z.unknown()),
   timingMs: z.number()
 });
