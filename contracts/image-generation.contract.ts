@@ -1,13 +1,14 @@
-// Purpose: Define the ImageGenerationSeam contract.
-// Why: Generate deterministic images without exposing rendering internals.
-// Info flow: Spec + prompt -> generated image assets.
+// Purpose: Define the API wire format for the image-generation endpoint.
+// Why: Keep the client-facing image shape (format, mimeType, data, encoding) explicit
+//      and separate from the provider-facing image shape (url, b64) in
+//      src/lib/seams/image-generation-seam/contract.ts.
+// Info flow: image-generation-pipeline -> API response -> client routes.
 import { z } from 'zod';
 import {
 	ColoringPageSpecSchema,
 	OutputFormatSchema
 } from './spec-validation.contract';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
-import type { Result } from './shared.contract';
 
 export const ImageDataEncodingSchema = z.enum(['utf8', 'base64']);
 
@@ -44,7 +45,3 @@ export const ImageGenerationResultSchema = resultSchema(
 export type GeneratedImage = z.infer<typeof GeneratedImageSchema>;
 export type ImageGenerationInput = z.infer<typeof ImageGenerationInputSchema>;
 export type ImageGenerationOutput = z.infer<typeof ImageGenerationOutputSchema>;
-
-export type ImageGenerationSeam = {
-	generate(input: ImageGenerationInput): Promise<Result<ImageGenerationOutput>>;
-};

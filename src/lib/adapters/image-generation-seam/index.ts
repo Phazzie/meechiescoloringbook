@@ -2,7 +2,7 @@
 // Why: Isolate network I/O behind the seam contract.
 // Info flow: validated request -> fetch -> Result.
 import type {
-  GeneratedImage,
+  ProviderImage,
   ImageGenerationError,
   ImageGenerationRequest,
   ImageGenerationResult,
@@ -100,7 +100,7 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
     }
 
     // Null safety: handle cases where payload.data is null or missing.
-    const images: GeneratedImage[] = (payload.data || []).map((item, index) => ({
+    const images: ProviderImage[] = (payload.data || []).map((item, index) => ({
       id: `xai-${index + 1}`,
       url: item.url,
       b64: item.b64_json

@@ -4,24 +4,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockImageGenerationSeam } from '../../src/lib/seams/image-generation-seam/mock';
 import { createImageGenerationSeam } from '../../src/lib/adapters/image-generation-seam';
-import type { AppConfigSeam } from '../../src/lib/seams/app-config-seam/contract';
+import type { ImageProviderConfigSeam } from '../../src/lib/seams/image-provider-config-seam/contract';
 import {
 	imageGenerationRequestFixture,
 	imageGenerationFaultFixture
 } from '../../src/lib/seams/image-generation-seam/fixtures';
 
-const mockConfigSeam: AppConfigSeam = {
+const mockConfigSeam: ImageProviderConfigSeam = {
 	getConfig: () => ({
 		xaiApiKey: 'test-key',
-		xaiTextModel: 'grok-4-1-fast-reasoning',
 		xaiImageModel: 'grok-imaging-image',
 		xaiBaseUrl: 'https://api.x.ai/v1',
-		xaiImageEndpointPath: '/images/generations',
-		featureIntegrationTests: false,
-		maxImagesPerRequest: 4,
-		defaultImageSize: '1024x1024',
-		geminiApiKey: 'test-gemini-key',
-		geminiBaseUrl: 'https://generativelanguage.googleapis.com'
+		xaiImageEndpointPath: '/images/generations'
 	})
 };
 

@@ -1,6 +1,12 @@
 // Purpose: Define ImageGenerationSeam contract types.
 // Why: Keep seam interfaces explicit and shared across implementations.
 // Info flow: contract types -> adapters/mocks/tests.
+//
+// NOTE on naming: ProviderImage is the raw image token the xAI provider returns
+// (url OR b64 — exactly one is present). It is NOT the same as GeneratedImage
+// in contracts/image-generation.contract.ts, which is the fully-normalized API
+// wire format (id + format + mimeType + data + encoding) that the pipeline builds
+// before sending to the client. The pipeline is the translation boundary.
 import type { Result } from '../../../../contracts/shared.contract';
 
 export type ImageFormat = 'url' | 'b64_json';
@@ -15,14 +21,14 @@ export type ImageGenerationRequest = {
   userTag?: string;
 };
 
-export type GeneratedImage = {
+export type ProviderImage = {
   id: string;
   url?: string;
   b64?: string;
 };
 
 export type ImageGenerationResult = {
-  images: GeneratedImage[];
+  images: ProviderImage[];
   rawModelInfo: Record<string, unknown>;
   timingMs: number;
 };
