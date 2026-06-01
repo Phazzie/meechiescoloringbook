@@ -35,9 +35,9 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		canMakePrettier: boolean;
 		canMakeMeaner: boolean;
 		canMakeMoreSpecific: boolean;
-		onRunTextAction: (_actionId: StudioTextActionId) => Promise<void>;
+		onRunTextAction: (actionId: StudioTextActionId) => Promise<void>;
 		onScheduleDraftSave: () => void;
-		onDedicationInput: (_event: Event) => void;
+		onDedicationInput: (event: Event) => void;
 	} = $props();
 </script>
 

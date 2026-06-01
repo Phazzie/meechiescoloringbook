@@ -16,9 +16,9 @@ Info flow: Parent passes textOutput + creations; user load/pin/delete actions pr
 	}: {
 		textOutput: MeechieStudioTextOutput | null;
 		creations: CreationRecord[];
-		onLoadCreation: (_creation: CreationRecord) => Promise<void>;
-		onDeleteCreation: (_id: string) => Promise<void>;
-		onToggleFavorite: (_creation: CreationRecord) => Promise<void>;
+		onLoadCreation: (creation: CreationRecord) => Promise<void>;
+		onDeleteCreation: (id: string) => Promise<void>;
+		onToggleFavorite: (creation: CreationRecord) => Promise<void>;
 	} = $props();
 </script>
 

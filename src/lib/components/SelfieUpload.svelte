@@ -6,7 +6,7 @@
 <script lang="ts">
 	type AllowedMime = 'image/jpeg' | 'image/png' | 'image/webp';
 
-	let { onUpload }: { onUpload: (_base64: string, _mimeType: AllowedMime) => void } = $props();
+	let { onUpload }: { onUpload: (base64: string, mimeType: AllowedMime) => void } = $props();
 
 	let previewUrl = $state('');
 	let error = $state('');
@@ -31,11 +31,17 @@
 
 		const reader = new FileReader();
 		reader.onload = () => {
-			if (typeof reader.result !== 'string') return;
+			if (typeof reader.result !== 'string') {
+				error = 'Could not read the photo. Please try a different file.';
+				return;
+			}
 			// dataUrl format: data:<mimeType>;base64,<base64data>
 			const base64 = reader.result.split(',')[1];
 			previewUrl = reader.result;
 			onUpload(base64, file.type as AllowedMime);
+		};
+		reader.onerror = () => {
+			error = 'Could not read the photo. Please try a different file.';
 		};
 		reader.readAsDataURL(file);
 	};

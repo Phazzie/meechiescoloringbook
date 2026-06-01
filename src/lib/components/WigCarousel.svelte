@@ -22,7 +22,7 @@
 		onSelect
 	}: {
 		selectedWigId: string | null;
-		onSelect: (_wig: Wig) => void;
+		onSelect: (wig: Wig) => void;
 	} = $props();
 </script>
 
