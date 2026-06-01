@@ -99,12 +99,15 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
       return errorResult('IMAGE_NETWORK_ERROR', 'Failed to parse xAI image generation response.');
     }
 
-    // Null safety: handle cases where payload.data is null or missing.
-    const images: ProviderImage[] = (payload.data || []).map((item, index) => ({
-      id: `xai-${index + 1}`,
-      url: item.url,
-      b64: item.b64_json
-    }));
+    const images: ProviderImage[] = [];
+    for (const [index, item] of (payload.data ?? []).entries()) {
+      const id = `xai-${index + 1}`;
+      if (item.b64_json) {
+        images.push({ id, b64: item.b64_json });
+      } else if (item.url) {
+        images.push({ id, url: item.url });
+      }
+    }
 
     if (images.length === 0) {
       return errorResult('IMAGE_EMPTY_RESPONSE', 'xAI returned no images.');
@@ -116,7 +119,7 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
         images,
         rawModelInfo: {
           model: config.xaiImageModel,
-          revisedPrompt: payload.data[0]?.revised_prompt,
+          revisedPrompt: (payload.data ?? [])[0]?.revised_prompt,
           requestedSize: validated.size,
           responseFormat: validated.format
         },

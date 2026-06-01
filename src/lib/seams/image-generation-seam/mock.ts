@@ -29,11 +29,10 @@ export const createMockImageGenerationSeam = (
     const images = Array.from({ length: request.n }, (_, index) => {
       const label = `Mock Image ${index + 1}`;
       const svg = buildSvg(label);
-      return {
-        id: `mock-${index + 1}`,
-        url: request.format === 'url' ? toDataUrl(svg) : undefined,
-        b64: request.format === 'b64_json' ? Buffer.from(svg).toString('base64') : undefined
-      };
+      const id = `mock-${index + 1}`;
+      return request.format === 'b64_json'
+        ? { id, b64: Buffer.from(svg).toString('base64') }
+        : { id, url: toDataUrl(svg) };
     });
 
     return {
