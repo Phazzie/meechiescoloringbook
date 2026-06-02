@@ -189,7 +189,7 @@ const buildMessages = (input: z.infer<typeof MeechieStudioTextInputSchema>) => [
 	}
 ];
 
-const parseJsonCandidate = (candidate: string): unknown | null => {
+const parseJsonCandidate = (candidate: string): unknown => {
 	try {
 		return JSON.parse(candidate);
 	} catch {
