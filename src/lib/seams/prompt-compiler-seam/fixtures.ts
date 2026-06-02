@@ -63,3 +63,29 @@ export const compiledPromptFixture: CompiledPrompt = {
     ]
   }
 };
+
+// Intentionally invalid: empty description (violates min(1)) and glamLevel 6 (not a valid 1–5 literal).
+// Used to prove validatePromptCompilerInput() rejects malformed input.
+export const promptCompilerInputFaultFixture: unknown = {
+  description: '',
+  glamLevel: 6,
+  density: 'medium',
+  lineThickness: 'medium',
+  borderStyle: 'none',
+  addCaption: false
+};
+
+// Intentionally invalid: empty imagePrompt and negativePrompt (both violate min(1)).
+// Used to prove validateCompiledPrompt() rejects malformed output.
+export const compiledPromptFaultFixture: unknown = {
+  imagePrompt: '',
+  negativePrompt: '',
+  metadata: {
+    glamLevel: 0,
+    density: 'medium',
+    lineThickness: 'medium',
+    borderStyle: 'none',
+    stylePreset: '',
+    enforcedConstraints: []
+  }
+};
