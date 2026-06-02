@@ -233,7 +233,7 @@ const buildUserMessage = (input: MeechieToolInput): UserMessage => {
 
 		default: {
 			const _exhaustive: never = input;
-			throw new Error(`Unknown toolId: ${JSON.stringify(_exhaustive)}`);
+			throw new Error(`Unknown toolId: ${(_exhaustive as { toolId: string }).toolId}`);
 		}
 	}
 };

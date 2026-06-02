@@ -47,7 +47,7 @@ const buildError = (
 	details
 });
 
-const readJson = async (response: Response): Promise<unknown> => {
+const readJson = async (response: Response): Promise<unknown | null> => {
 	const text = await response.text();
 	if (!text) {
 		return null;
