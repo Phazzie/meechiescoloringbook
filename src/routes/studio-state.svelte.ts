@@ -22,33 +22,34 @@ import {
 	type StudioTextActionId
 } from '$lib/core/meechie-studio';
 import { postJson } from '$lib/core/http-client';
-import { GenerateResultSchema } from '../../../contracts/generate.contract';
-import { WigTryOnResultSchema } from '../../../contracts/wig-try-on.contract';
+import { GenerateResultSchema } from '../../contracts/generate.contract';
+import { WigTryOnResultSchema } from '../../contracts/wig-try-on.contract';
 import {
 	MeechieStudioTextResultSchema,
 	type MeechieStudioTextOutput,
 	type MeechieStudioVoiceSettings
-} from '../../../contracts/meechie-studio-text.contract';
-import type { CreationOwner, CreationRecord } from '../../../contracts/creation-store.contract';
-import type { DriftDetectionOutput, Violation } from '../../../contracts/drift-detection.contract';
-import type { GeneratedImage } from '../../../contracts/image-generation.contract';
-import type { PackagedFile } from '../../../contracts/output-packaging.contract';
+} from '../../contracts/meechie-studio-text.contract';
+import type { CreationOwner, CreationRecord } from '../../contracts/creation-store.contract';
+import type { DriftDetectionOutput, Violation } from '../../contracts/drift-detection.contract';
+import type { GeneratedImage } from '../../contracts/image-generation.contract';
+import type { PackagedFile } from '../../contracts/output-packaging.contract';
 import type {
 	ColoringPageSpec,
 	SpecValidationOutput
-} from '../../../contracts/spec-validation.contract';
+} from '../../contracts/spec-validation.contract';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
 type PageSize = ColoringPageSpec['pageSize'];
 type BorderChoice = ColoringPageSpec['border'];
 
-// Computed once at module load; these values don't change between renders.
-export const STUDIO_WEEKLY_MODES = getWeeklyModes();
-export const STUDIO_MONTHLY_MODE_ID = getMonthlyMode().id;
 
 export class StudioState {
+	// Computed per-instance so week/month rotation stays fresh on each page mount.
+	readonly weeklyModes = getWeeklyModes();
+	readonly monthlyModeId = getMonthlyMode().id;
+
 	// --- Reactive state (template-bound) ---
-	activeModeId = $state(STUDIO_WEEKLY_MODES[0].id);
+	activeModeId = $state(this.weeklyModes[0].id);
 	selectedThemeId = $state(studioThemes[0].id);
 	evidence = $state('');
 	dedication = $state('');
@@ -101,7 +102,7 @@ export class StudioState {
 
 	// --- Derived state ---
 	activeMode = $derived(
-		STUDIO_WEEKLY_MODES.find((m) => m.id === this.activeModeId) ?? STUDIO_WEEKLY_MODES[0]
+		this.weeklyModes.find((m) => m.id === this.activeModeId) ?? this.weeklyModes[0]
 	);
 	activeTheme = $derived(
 		studioThemes.find((t) => t.id === this.selectedThemeId) ?? studioThemes[0]
@@ -207,9 +208,9 @@ export class StudioState {
 			await creationStoreAdapter.saveDraft({
 				draft: {
 					updatedAtISO: new Date().toISOString(),
-					intent: this.spec,
+					intent: $state.snapshot(this.spec),
 					chatMessage: this.evidence.trim().length > 0 ? this.evidence : undefined,
-					studioText: this.textOutput ?? undefined
+					studioText: this.textOutput ? $state.snapshot(this.textOutput) : undefined
 				}
 			});
 			this.draftSaveError = '';
@@ -225,7 +226,7 @@ export class StudioState {
 	}
 
 	private async validateSpec(): Promise<boolean> {
-		const validation = await specValidationAdapter.validate({ spec: this.spec });
+		const validation = await specValidationAdapter.validate({ spec: $state.snapshot(this.spec) });
 		this.validationIssues = validation.issues;
 		return validation.ok;
 	}
@@ -314,9 +315,7 @@ export class StudioState {
 		}
 	};
 
-	handleDedicationInput = (event: Event): void => {
-		const target = event.currentTarget as HTMLInputElement;
-		this.dedication = target.value;
+	handleDedicationInput = (): void => {
 		this.spec = { ...this.spec, dedication: this.currentDedication() };
 		void this.validateSpec();
 		void this.saveDraft();
@@ -364,17 +363,19 @@ export class StudioState {
 		this.textError = '';
 		this.copyStatus = '';
 		this.vaultStatus = '';
+
+		const trimmedEvidence = this.evidence.trim();
+		const safeEvidence =
+			trimmedEvidence.length > 0 || this.activeMode.toolId === 'random_meechie'
+				? trimmedEvidence || 'Random Meechie line request.'
+				: '';
+		if (!safeEvidence) {
+			this.textError = 'Meechie needs a few facts before she can call it.';
+			return;
+		}
+
 		this.isTextWorking = true;
 		try {
-			const trimmedEvidence = this.evidence.trim();
-			const safeEvidence =
-				trimmedEvidence.length > 0 || this.activeMode.toolId === 'random_meechie'
-					? trimmedEvidence || 'Random Meechie line request.'
-					: '';
-			if (!safeEvidence) {
-				this.textError = 'Meechie needs a few facts before she can call it.';
-				return;
-			}
 			const payload = await postJson('/api/meechie-studio-text', {
 				actionId: action.aiAction,
 				modeId: this.activeMode.id,
@@ -382,7 +383,7 @@ export class StudioState {
 				themeLabel: this.activeTheme.label,
 				evidence: safeEvidence,
 				dedication: this.currentDedication(),
-				voice: this.voice,
+				voice: $state.snapshot(this.voice),
 				currentText: this.currentTextPayload()
 			});
 			const parsed = MeechieStudioTextResultSchema.safeParse(payload);
@@ -420,7 +421,7 @@ export class StudioState {
 				return;
 			}
 			const payload = await postJson('/api/generate', {
-				spec: this.spec,
+				spec: $state.snapshot(this.spec),
 				styleHint: this.currentStyleHint()
 			});
 			const parsed = GenerateResultSchema.safeParse(payload);
@@ -558,9 +559,9 @@ export class StudioState {
 				record: {
 					id: creationId,
 					createdAtISO: new Date().toISOString(),
-					intent: this.spec,
+					intent: $state.snapshot(this.spec),
 					assembledPrompt: this.assembledPrompt || this.textOutput.quote,
-					studioText: this.textOutput,
+					studioText: $state.snapshot(this.textOutput),
 					revisedPrompt: this.revisedPrompt || undefined,
 					images: storedImages.length > 0 ? storedImages : undefined,
 					violations: this.violations,
@@ -571,6 +572,8 @@ export class StudioState {
 			});
 			this.vaultStatus = result.ok ? 'Saved to the quote vault.' : result.error.message;
 			await this.refreshCreations();
+		} catch (error) {
+			this.vaultStatus = error instanceof Error ? error.message : 'Failed to save to vault.';
 		} finally {
 			this.isSaving = false;
 		}

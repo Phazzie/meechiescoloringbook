@@ -6,7 +6,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { StudioState, STUDIO_WEEKLY_MODES, STUDIO_MONTHLY_MODE_ID } from '$lib/core/studio-state.svelte';
+	import { StudioState } from './studio-state.svelte';
 	import StudioHero from '$lib/components/studio/StudioHero.svelte';
 	import StudioInputPanel from '$lib/components/studio/StudioInputPanel.svelte';
 	import StudioPreviewPanel from '$lib/components/studio/StudioPreviewPanel.svelte';
@@ -32,8 +32,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 <main class="studio">
 	<StudioHero
-		weeklyModes={STUDIO_WEEKLY_MODES}
-		monthlyModeId={STUDIO_MONTHLY_MODE_ID}
+		weeklyModes={studio.weeklyModes}
+		monthlyModeId={studio.monthlyModeId}
 		activeModeId={studio.activeModeId}
 		activeMode={studio.activeMode}
 		isTextWorking={studio.isTextWorking}
