@@ -19,27 +19,30 @@ export const chatInterpretationAdapter: ChatInterpretationSeam = {
 				},
 				body: JSON.stringify(input)
 			});
+			// Always parse the body first: the route sends a structured Result even on
+			// non-2xx status codes (e.g. CHAT_INPUT_INVALID on 400, provider errors on 502).
+			// Only fall back to CHAT_NETWORK_ERROR when the body is not parseable at all.
+			const payload = await response.json().catch(() => null);
+			const parsed = payload !== null ? ChatInterpretationResultSchema.safeParse(payload) : null;
+			if (parsed?.success) {
+				return parsed.data;
+			}
 			if (!response.ok) {
 				return {
 					ok: false,
 					error: {
-						code: 'CHAT_NETWORK_ERROR',
+						code: 'CHAT_HTTP_ERROR',
 						message: `Chat interpretation request failed: ${response.status} ${response.statusText}`
 					}
 				};
 			}
-			const payload = await response.json();
-			const parsed = ChatInterpretationResultSchema.safeParse(payload);
-			if (!parsed.success) {
-				return {
-					ok: false,
-					error: {
-						code: 'CHAT_RESPONSE_INVALID',
-						message: 'Chat interpretation response did not match contract.'
-					}
-				};
-			}
-			return parsed.data;
+			return {
+				ok: false,
+				error: {
+					code: 'CHAT_RESPONSE_INVALID',
+					message: 'Chat interpretation response did not match contract.'
+				}
+			};
 		} catch (error) {
 			return {
 				ok: false,

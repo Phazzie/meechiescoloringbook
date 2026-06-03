@@ -7,6 +7,7 @@ import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default [
+  { ignores: ['.svelte-kit/**', 'build/**', 'dist/**'] },
   js.configs.recommended,
   ...svelte.configs['flat/recommended'],
   prettier,
@@ -36,9 +37,6 @@ export default [
         ...globals.node,
         fetch: 'readonly'
       }
-    },
-    rules: {
-      'no-unused-vars': ['error', { caughtErrorsIgnorePattern: '^_' }]
     }
   }
 ];
