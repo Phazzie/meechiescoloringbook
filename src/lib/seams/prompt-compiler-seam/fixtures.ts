@@ -13,6 +13,33 @@ export const promptCompilerInputFixture: PromptCompilerInput = {
   captionText: 'Glam Kitty'
 };
 
+// Intentionally invalid: empty description (violates min(1)) and glamLevel 6 (out of the 1-5 literal union).
+// Used to prove validatePromptCompilerInput() rejects malformed input.
+export const promptCompilerInputFaultFixture: unknown = {
+  description: '',
+  glamLevel: 6,
+  density: 'medium',
+  lineThickness: 'medium',
+  borderStyle: 'none',
+  addCaption: false
+};
+
+// Intentionally invalid: empty imagePrompt and negativePrompt (both violate min(1)); also glamLevel: 0
+// (out of range), empty stylePreset, and empty enforcedConstraints.
+// Used to prove validateCompiledPrompt() rejects malformed output.
+export const compiledPromptFaultFixture: unknown = {
+  imagePrompt: '',
+  negativePrompt: '',
+  metadata: {
+    glamLevel: 0,
+    density: 'medium',
+    lineThickness: 'medium',
+    borderStyle: 'none',
+    stylePreset: '',
+    enforcedConstraints: []
+  }
+};
+
 export const compiledPromptFixture: CompiledPrompt = {
   imagePrompt: [
     '[Subject]',

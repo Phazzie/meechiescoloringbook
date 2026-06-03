@@ -1,8 +1,8 @@
-// Purpose: Mock PromptCompilerSeam behavior using fixtures.
-// Why: Keep tests deterministic without live I/O.
+// Purpose: Mock PromptCompilerSeam behavior using fixture scenarios.
+// Why: Keep tests deterministic without live I/O; zero invented data.
 // Info flow: tests -> mock -> fixtures.
-// TODO: Refactor to load from fixture scenarios per SDD conventions (requires probe run with XAI_API_KEY)
 import type { CompiledPrompt, PromptCompilerInput, PromptCompilerSeam } from './contract';
+import { compiledPromptFaultFixture } from './fixtures';
 import { SYSTEM_CONSTANTS } from '../../core/constants';
 
 const densityMap: Record<PromptCompilerInput['density'], string> = {
@@ -66,9 +66,11 @@ const buildPrompt = (input: PromptCompilerInput) => {
   ].join('\n');
 };
 
-export const createMockPromptCompilerSeam = (): PromptCompilerSeam => ({
+export const createMockPromptCompilerSeam = (scenario: 'sample' | 'fault' = 'sample'): PromptCompilerSeam => ({
   compile: async (input) => {
-    const compiled: CompiledPrompt = {
+    if (scenario === 'fault') return structuredClone(compiledPromptFaultFixture as CompiledPrompt);
+
+    return {
       imagePrompt: buildPrompt(input),
       negativePrompt,
       metadata: {
@@ -81,7 +83,5 @@ export const createMockPromptCompilerSeam = (): PromptCompilerSeam => ({
         enforcedConstraints: constraints
       }
     };
-
-    return compiled;
   }
 });
