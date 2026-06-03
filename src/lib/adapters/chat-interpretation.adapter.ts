@@ -32,7 +32,11 @@ export const chatInterpretationAdapter: ChatInterpretationSeam = {
 					ok: false,
 					error: {
 						code: 'CHAT_HTTP_ERROR',
-						message: `Chat interpretation request failed: ${response.status} ${response.statusText}`
+						message: 'Chat interpretation request failed.',
+						details: {
+							status: String(response.status),
+							statusText: response.statusText
+						}
 					}
 				};
 			}
