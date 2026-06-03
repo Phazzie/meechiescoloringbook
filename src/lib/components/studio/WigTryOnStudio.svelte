@@ -28,8 +28,8 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 		isTryingOn: boolean;
 		canTryOn: boolean;
 		isGenerating: boolean;
-		onWigSelect: (wig: Wig) => Promise<void>;
-		onSelfieUpload: (base64: string, mimeType: 'image/jpeg' | 'image/png' | 'image/webp') => void;
+		onWigSelect: (_wig: Wig) => Promise<void>;
+		onSelfieUpload: (_base64: string, _mimeType: 'image/jpeg' | 'image/png' | 'image/webp') => void;
 		onWigTryOn: () => Promise<void>;
 		onGenerateTryOnPage: () => Promise<void>;
 	} = $props();

@@ -49,7 +49,7 @@ const readJson = async (response) => {
 	}
 	try {
 		return { ok: true, value: JSON.parse(text), raw: text };
-	} catch (error) {
+	} catch (_error) {
 		return { ok: false, value: null, raw: text };
 	}
 };

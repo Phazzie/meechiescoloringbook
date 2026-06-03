@@ -5,14 +5,12 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 -->
 <script lang="ts">
 	import { getStudioAction, type StudioTextActionId, type StudioMode } from '$lib/core/meechie-studio';
-	import type { MeechieStudioTextOutput } from '../../../../contracts/meechie-studio-text.contract';
 
 	let {
 		evidence = $bindable(),
 		dedication = $bindable(),
 		activeMode,
 		revisionBudget,
-		textOutput,
 		textError,
 		isTextWorking,
 		draftSaveError,
@@ -29,7 +27,6 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		dedication: string;
 		activeMode: StudioMode;
 		revisionBudget: number;
-		textOutput: MeechieStudioTextOutput | null;
 		textError: string;
 		isTextWorking: boolean;
 		draftSaveError: string;
@@ -38,9 +35,9 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		canMakePrettier: boolean;
 		canMakeMeaner: boolean;
 		canMakeMoreSpecific: boolean;
-		onRunTextAction: (actionId: StudioTextActionId) => Promise<void>;
+		onRunTextAction: (_actionId: StudioTextActionId) => Promise<void>;
 		onScheduleDraftSave: () => void;
-		onDedicationInput: (event: Event) => void;
+		onDedicationInput: (_event: Event) => void;
 	} = $props();
 </script>
 
