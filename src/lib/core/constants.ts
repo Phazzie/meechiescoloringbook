@@ -21,3 +21,10 @@ Rules:
 - Output JSON only. No markdown, no prose.`
 } as const;
 
+export const findDisallowedKeywords = (input: unknown): string[] => {
+	const text = JSON.stringify(input).toLowerCase();
+	return SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS.filter((keyword) =>
+		text.includes(keyword.toLowerCase())
+	);
+};
+

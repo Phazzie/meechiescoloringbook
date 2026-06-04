@@ -42,7 +42,7 @@ const missingRequiredPhrases = (prompt: string, pageSize: PageSize): string[] =>
   return phrases.filter((phrase) => !promptLower.includes(phrase));
 };
 
-const errorResponse = (
+const buildError = (
   status: number,
   code: string,
   message: string
@@ -63,7 +63,7 @@ export const runImageGenerationPipeline = async (
 ): Promise<ImagePipelineResponse> => {
   const parsedInput = ImageGenerationInputSchema.safeParse(body);
   if (!parsedInput.success) {
-    return errorResponse(
+    return buildError(
       400,
       'IMAGE_INPUT_INVALID',
       'Image generation input is invalid.'
@@ -73,10 +73,10 @@ export const runImageGenerationPipeline = async (
   const { prompt, variations, spec } = parsedInput.data;
   const missing = missingRequiredPhrases(prompt, spec.pageSize);
   if (missing.length > 0) {
-    return errorResponse(
+    return buildError(
       400,
       'PROMPT_MISSING_REQUIRED_PHRASES',
-      'Prompt missing required phrases for deterministic generation.'
+      `Prompt missing required phrases: ${missing.join(', ')}`
     );
   }
 
@@ -113,7 +113,7 @@ export const runImageGenerationPipeline = async (
   }
 
   if (images.length === 0) {
-    return errorResponse(
+    return buildError(
       502,
       'PROVIDER_EMPTY_IMAGE',
       'Provider returned no images.'
@@ -142,7 +142,7 @@ export const runImageGenerationPipeline = async (
 
   const parsedResult = ImageGenerationResultSchema.safeParse(result);
   if (!parsedResult.success) {
-    return errorResponse(
+    return buildError(
       500,
       'IMAGE_OUTPUT_INVALID',
       'Image generation response did not match contract.'

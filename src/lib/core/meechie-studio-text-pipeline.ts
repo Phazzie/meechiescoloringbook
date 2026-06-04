@@ -3,7 +3,7 @@
 // Info flow: Request body -> ProviderAdapterSeam -> structured studio text result.
 import { env } from '$env/dynamic/private';
 import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
-import { SYSTEM_CONSTANTS } from '$lib/core/constants';
+import { findDisallowedKeywords } from '$lib/core/constants';
 import { selectTextModel } from '$lib/core/text-model';
 import {
 	MeechieStudioTextInputSchema,
@@ -146,13 +146,6 @@ const buildError = (
 		}
 	}
 });
-
-const findDisallowedKeywords = (input: unknown): string[] => {
-	const text = JSON.stringify(input).toLowerCase();
-	return SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS.filter((keyword) =>
-		text.includes(keyword.toLowerCase())
-	);
-};
 
 const actionInstruction = (actionId: string): string => {
 	switch (actionId) {
