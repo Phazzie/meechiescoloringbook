@@ -240,10 +240,14 @@ const buildUserMessage = (input: MeechieToolInput): UserMessage => {
 
 const parseResponse = (
 	content: string,
-	toolId: string
+	toolId: MeechieToolInput['toolId']
 ): { headline: string; response: string; rating?: number } | null => {
 	try {
-		const parsed = JSON.parse(content) as Record<string, unknown>;
+		let sanitized = content.trim();
+		if (sanitized.startsWith('```')) {
+			sanitized = sanitized.replace(/^```(?:json)?\n?|\n?```$/g, '').trim();
+		}
+		const parsed = JSON.parse(sanitized) as Record<string, unknown>;
 		const headline =
 			typeof parsed.headline === 'string' ? parsed.headline.trim() : '';
 		const response =
