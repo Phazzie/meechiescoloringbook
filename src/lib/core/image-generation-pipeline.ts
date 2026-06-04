@@ -36,10 +36,8 @@ export type ImagePipelineDeps = {
 
 const missingRequiredPhrases = (prompt: string, pageSize: PageSize): string[] => {
   const promptLower = prompt.toLowerCase();
-  const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)].map((phrase) =>
-    phrase.toLowerCase()
-  );
-  return phrases.filter((phrase) => !promptLower.includes(phrase));
+  const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)];
+  return phrases.filter((phrase) => !promptLower.includes(phrase.toLowerCase()));
 };
 
 const buildError = (
