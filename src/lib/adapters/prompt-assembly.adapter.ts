@@ -108,12 +108,21 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 export const promptAssemblyAdapter: PromptAssemblySeam = {
 	assemble: async (input: PromptAssemblyInput): Promise<Result<PromptAssemblyOutput>> => {
 		if (input.styleHint) {
-			if (includesReservedHeading(input.styleHint) || includesForbiddenToken(input.styleHint)) {
+			if (includesReservedHeading(input.styleHint)) {
 				return {
 					ok: false,
 					error: {
 						code: 'STYLE_HINT_CONTAINS_RESERVED_HEADING',
 						message: 'Style hint contains a reserved prompt heading.'
+					}
+				};
+			}
+			if (includesForbiddenToken(input.styleHint)) {
+				return {
+					ok: false,
+					error: {
+						code: 'STYLE_HINT_CONTAINS_FORBIDDEN_TOKEN',
+						message: 'Style hint contains a forbidden token.'
 					}
 				};
 			}
