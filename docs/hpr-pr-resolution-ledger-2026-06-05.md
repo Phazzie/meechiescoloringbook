@@ -21,6 +21,7 @@ HPR means Handoff PR Resolution. This ledger is the source of truth for the auto
 - Captured open non-PR issues: 1
 - Final completion is blocked until every captured PR has a final state, validation evidence path, replacement PR link or blocker, and closure/comment URL.
 - Issue #1 remains open as product specification unless the owner explicitly asks to close it.
+- Timeout/abort replacement PR: #134 (`https://github.com/Phazzie/meechiescoloringbook/pull/134`) for timeout/resilience portions of #108, #107, #100, #95, and #85.
 
 ## PR And Issue Ledger
 
