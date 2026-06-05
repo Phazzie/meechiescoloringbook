@@ -202,6 +202,80 @@ describe('/api/generate', () => {
 		expect(deps.generateImage).not.toHaveBeenCalled();
 	});
 
+	it('returns an aborted response before expensive seams when caller signal is already aborted', async () => {
+		const deps = buildPipelineDeps(async () => {
+			throw new Error('image generation should not be called');
+		});
+		const controller = new AbortController();
+		controller.abort();
+
+		const result = await runGeneratePipeline(
+			{
+				spec: validSpec,
+				styleHint: 'glam sparkle icons'
+			},
+			{
+				...deps,
+				signal: controller.signal
+			} as Parameters<typeof runGeneratePipeline>[1]
+		);
+
+		expect(result.status).toBe(499);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('GENERATE_ABORTED');
+		}
+		expect(deps.checkContentSafety).not.toHaveBeenCalled();
+		expect(deps.validateSpec).not.toHaveBeenCalled();
+		expect(deps.generateImage).not.toHaveBeenCalled();
+	});
+
+	it('passes caller signal into the image-generation dependency', async () => {
+		const controller = new AbortController();
+		const deps = buildPipelineDeps(async () => ({
+			status: 200,
+			body: {
+				ok: true,
+				value: {
+					images: [
+						{
+							id: 'image-1',
+							format: 'png',
+							mimeType: 'image/png',
+							data: 'abc123',
+							encoding: 'base64'
+						}
+					],
+					modelMetadata: {
+						provider: 'xai',
+						model: 'grok-imagine-image'
+					}
+				}
+			}
+		}));
+
+		await runGeneratePipeline(
+			{
+				spec: validSpec,
+				styleHint: 'glam sparkle icons'
+			},
+			{
+				...deps,
+				signal: controller.signal
+			} as Parameters<typeof runGeneratePipeline>[1]
+		);
+
+		expect(deps.generateImage).toHaveBeenCalledWith(
+			{
+				spec: validSpec,
+				prompt: assembledPrompt,
+				variations: validSpec.variations,
+				outputFormat: validSpec.outputFormat
+			},
+			controller.signal
+		);
+	});
+
 	it('preserves typed image-generation failures', async () => {
 		const deps = buildPipelineDeps(async () => ({
 			status: 503,

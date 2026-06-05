@@ -38,7 +38,8 @@ export type GeneratePipelineDeps = {
 	validateSpec: typeof specValidationAdapter.validate;
 	assemblePrompt: typeof promptAssemblyAdapter.assemble;
 	detectDrift: typeof driftDetectionAdapter.detect;
-	generateImage: (body: ImageGenerationInput) => Promise<ImagePipelineResponse>;
+	generateImage: (body: ImageGenerationInput, signal?: AbortSignal) => Promise<ImagePipelineResponse>;
+	signal?: AbortSignal;
 };
 
 const buildError = (
@@ -88,6 +89,14 @@ export const runGeneratePipeline = async (
 	body: unknown,
 	deps: GeneratePipelineDeps
 ): Promise<PipelineResponse> => {
+	if (deps.signal?.aborted) {
+		return buildError(
+			499,
+			'GENERATE_ABORTED',
+			'Generate request was canceled by the caller.'
+		);
+	}
+
 	const parsedInput = GenerateRequestSchema.safeParse(body);
 	if (!parsedInput.success) {
 		return buildError(400, 'GENERATE_INPUT_INVALID', 'Generate request is invalid.');
@@ -132,13 +141,16 @@ export const runGeneratePipeline = async (
 	}
 
 	let imageResult: ImagePipelineResponse;
+	const imageRequest = {
+		spec: parsedInput.data.spec,
+		prompt: promptResult.value.prompt,
+		variations: parsedInput.data.spec.variations,
+		outputFormat: parsedInput.data.spec.outputFormat
+	};
 	try {
-		imageResult = await deps.generateImage({
-			spec: parsedInput.data.spec,
-			prompt: promptResult.value.prompt,
-			variations: parsedInput.data.spec.variations,
-			outputFormat: parsedInput.data.spec.outputFormat
-		});
+		imageResult = deps.signal
+			? await deps.generateImage(imageRequest, deps.signal)
+			: await deps.generateImage(imageRequest);
 	} catch (error) {
 		return imageExceptionResponse(error);
 	}

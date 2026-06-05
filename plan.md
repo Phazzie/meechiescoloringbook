@@ -8,6 +8,63 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## HPR Timeout, Abort, and Retry Policy Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: copy PR #108/#85 retry code wholesale, retry billable image POSTs, and treat every `AbortError` as a timeout.
+2. Countermeasure: write red tests first on current stacked code, preserve caller abort separately from provider timeout, cap all retry delays, and remove automatic retries from provider image generation unless idempotency is implemented.
+3. Lower-debt path: keep timeout/signal behavior in shared HTTP primitives, keep route handlers responsible for passing caller signals, and keep adapter changes scoped to the seams that already own network I/O.
+
+### Plan
+
+- Goal: Harden timeout, abort, and retry behavior so caller cancellation is not retried, true provider timeouts are contract-shaped 504 responses, body-read aborts are not misreported as invalid JSON, retry inputs reject non-finite values, exponential backoff is capped, and billable provider image POSTs are not retried automatically.
+- Exact seams: `ImageGenerationSeam`, `WigTryOnSeam`, `ProviderAdapterSeam`, `SpecValidationSeam`, `PromptAssemblySeam`, `DriftDetectionSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/http-resilience.ts`
+  - `tests/unit/http-resilience.test.ts`
+  - `src/lib/adapters/provider-adapter.adapter.ts`
+  - `tests/unit/provider-adapter-helpers.test.ts`
+  - `src/lib/seams/image-generation-seam/contract.ts`
+  - `src/lib/adapters/image-generation-seam/index.ts`
+  - `tests/contract/image-generation.test.ts`
+  - `src/lib/core/image-generation-pipeline.ts`
+  - `tests/unit/image-generation-pipeline.test.ts`
+  - `src/lib/core/generate-pipeline.ts`
+  - `tests/unit/api-generate.test.ts`
+  - `src/routes/api/generate/+server.ts`
+  - `src/routes/api/image-generation/+server.ts`
+  - `src/lib/seams/wig-try-on-seam/contract.ts`
+  - `src/lib/seams/wig-try-on-seam/test.ts`
+  - `src/lib/adapters/wig-try-on-seam/index.ts`
+  - `src/lib/core/wig-try-on-pipeline.ts`
+  - `src/routes/api/wig-try-on/+server.ts`
+  - `tests/unit/api-wig-try-on.test.ts`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/http-resilience.test.ts tests/unit/provider-adapter-helpers.test.ts tests/contract/image-generation.test.ts tests/unit/image-generation-pipeline.test.ts tests/unit/api-generate.test.ts tests/unit/api-wig-try-on.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run rewind -- --seam ImageGenerationSeam`
+  3. `npm.cmd run rewind -- --seam WigTryOnSeam`
+  4. `npm.cmd run rewind -- --seam ProviderAdapterSeam`
+  5. `npm.cmd run check`
+  6. `npm.cmd run lint`
+  7. `npm.cmd test`
+  8. `npm.cmd run build`
+  9. `npm.cmd run verify`
+  10. `npm.cmd run cipher:gate`
+  11. `git diff --check`
+- Replacement PR base: `codex/hpr-safety-policy-generate-gate-2026-06-05`, because this workpack depends on the direct generate-to-`ImageGenerationSeam` path and safety gate from PRs #130/#131.
+- Old PR disposition rule: comment or close #108/#107/#100/#95/#85 only after this replacement work is merged, unless a remaining blocker is recorded in the ledger with a GitHub comment.
+
+### Self-critique
+
+1. What could be wrong: Adding `AbortSignal` to seam request types introduces a non-JSON in-process field that validators intentionally strip, so tests must prove fixture-backed mocks and routes still behave deterministically.
+2. What must be proven: Caller abort returns a distinct contract error and is not retried; true timeout returns timeout classification; body-read abort/timeout is not reported as parse failure; provider image generation no longer retries billable POSTs; chat retry behavior still works; finite retry validation rejects `NaN`, `Infinity`, non-integer attempts, and negative delay; and capped delays are observable with fake timers.
+3. Riskiest assumption: It is acceptable to keep `ProviderAdapterSeam` chat retries for now while disabling provider image retries, because chat retry policy needs a separate product decision about duplicate model-call cost and caller idempotency.
+4. Evidence to prove/disprove: Red/green targeted tests, seam rewinds for `ImageGenerationSeam`, `WigTryOnSeam`, and `ProviderAdapterSeam`, full check/lint/test/build/verify output, Cipher Gate evidence, and HPR ledger updates.
+
 ## HPR SafetyPolicySeam Generate Gate Workpack (2026-06-05)
 
 ### Shortcut Check

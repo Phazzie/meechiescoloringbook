@@ -14,6 +14,10 @@ describe('isAbortError', () => {
 		expect(isAbortError(error)).toBe(true);
 	});
 
+	it('returns true for a structural DOMException-like AbortError', () => {
+		expect(isAbortError({ name: 'AbortError', message: 'aborted' })).toBe(true);
+	});
+
 	it('returns false for a plain Error', () => {
 		expect(isAbortError(new Error('network failure'))).toBe(false);
 	});
@@ -47,7 +51,7 @@ describe('fetchWithTimeout', () => {
 		expect(result.status).toBe(200);
 	});
 
-	it('aborts and rejects with an AbortError when timeout fires', async () => {
+	it('aborts and rejects with a TimeoutError when timeout fires', async () => {
 		vi.stubGlobal(
 			'fetch',
 			vi.fn().mockImplementation((_url: string, init: RequestInit) => {
@@ -59,10 +63,9 @@ describe('fetchWithTimeout', () => {
 			})
 		);
 
-		const promise = fetchWithTimeout('https://example.com', {}, 1_000);
-		const assertion = expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+		const rejection = fetchWithTimeout('https://example.com', {}, 1_000).catch((error) => error);
 		await vi.runAllTimersAsync();
-		await assertion;
+		await expect(rejection).resolves.toMatchObject({ name: 'TimeoutError' });
 	});
 
 	it('clears the timer so it does not fire after a fast response', async () => {
@@ -114,12 +117,29 @@ describe('fetchWithRetry', () => {
 
 	it('rejects when maxAttempts is less than 1', async () => {
 		await expect(fetchWithRetry(vi.fn(), { maxAttempts: 0, baseDelayMs: 100 }))
-			.rejects.toThrow('maxAttempts must be >= 1');
+			.rejects.toThrow('maxAttempts must be a finite integer >= 1');
+	});
+
+	it.each([
+		['NaN', NaN],
+		['Infinity', Infinity],
+		['non-integer', 1.5]
+	])('rejects when maxAttempts is %s', async (_label, maxAttempts) => {
+		await expect(fetchWithRetry(vi.fn(), { maxAttempts, baseDelayMs: 100 }))
+			.rejects.toThrow('maxAttempts must be a finite integer >= 1');
 	});
 
 	it('rejects when baseDelayMs is negative', async () => {
 		await expect(fetchWithRetry(vi.fn(), { maxAttempts: 3, baseDelayMs: -1 }))
-			.rejects.toThrow('baseDelayMs must be >= 0');
+			.rejects.toThrow('baseDelayMs must be finite and >= 0');
+	});
+
+	it.each([
+		['NaN', NaN],
+		['Infinity', Infinity]
+	])('rejects when baseDelayMs is %s', async (_label, baseDelayMs) => {
+		await expect(fetchWithRetry(vi.fn(), { maxAttempts: 3, baseDelayMs }))
+			.rejects.toThrow('baseDelayMs must be finite and >= 0');
 	});
 
 	it('returns immediately on a 200 response without retrying', async () => {
@@ -188,6 +208,24 @@ describe('fetchWithRetry', () => {
 		expect(fetcher).toHaveBeenCalledTimes(2);
 	});
 
+	it('does not retry AbortError when the caller signal is already aborted', async () => {
+		const caller = new AbortController();
+		caller.abort();
+		const abortError = Object.assign(new Error('The operation was aborted'), { name: 'AbortError' });
+		const fetcher = vi.fn().mockRejectedValue(abortError);
+		const options = {
+			maxAttempts: 3,
+			baseDelayMs: 100,
+			signal: caller.signal
+		} as Parameters<typeof fetchWithRetry>[1];
+
+		const rejection = fetchWithRetry(fetcher, options).catch((error) => error);
+		await vi.runAllTimersAsync();
+
+		await expect(rejection).resolves.toMatchObject({ name: 'AbortError' });
+		expect(fetcher).toHaveBeenCalledTimes(1);
+	});
+
 	it('throws after exhausting retries on repeated AbortErrors', async () => {
 		const abortError = Object.assign(new Error('The operation was aborted'), { name: 'AbortError' });
 		const fetcher = vi.fn().mockRejectedValue(abortError);
@@ -237,6 +275,26 @@ describe('fetchWithRetry', () => {
 		await vi.advanceTimersByTimeAsync(2_100);
 		const result = await promise;
 
+		expect(result.status).toBe(200);
+		expect(fetcher).toHaveBeenCalledTimes(2);
+	});
+
+	it('caps jittered exponential backoff at 30 seconds when Retry-After is absent', async () => {
+		vi.spyOn(Math, 'random').mockReturnValue(0.5);
+		const fetcher = vi
+			.fn()
+			.mockResolvedValueOnce(new Response('unavailable', { status: 503 }))
+			.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+		let settled = false;
+
+		const promise = fetchWithRetry(fetcher, { maxAttempts: 2, baseDelayMs: 1_000_000 });
+		promise.then(() => {
+			settled = true;
+		});
+		await vi.advanceTimersByTimeAsync(30_001);
+
+		expect(settled).toBe(true);
+		const result = await promise;
 		expect(result.status).toBe(200);
 		expect(fetcher).toHaveBeenCalledTimes(2);
 	});

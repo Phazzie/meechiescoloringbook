@@ -70,4 +70,60 @@ describe('/api/wig-try-on', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('WIG_TRY_ON_INPUT_INVALID');
 	});
+
+	it('passes the request signal to wig image fetch and WigTryOnSeam', async () => {
+		vi.mocked(createAppConfigSeam).mockReturnValue({} as ReturnType<typeof createAppConfigSeam>);
+		const wig = {
+			id: 'wig-001',
+			name: 'Sleek Straight Goddess',
+			brand: 'Beautyforever',
+			affiliateProgram: 'beautyforever' as const,
+			affiliateUrl: 'https://example.com/wig',
+			imageUrl: 'https://example.com/wig.png',
+			priceUsd: 89.99,
+			style: 'Straight Lace Front',
+			hairType: 'human' as const,
+			length: 'medium' as const,
+			color: 'Natural Black',
+			colorFamily: 'black' as const,
+			tags: ['sleek']
+		};
+		vi.mocked(createWigCatalogSeam).mockReturnValue({
+			listWigs: vi.fn(),
+			getWigById: vi.fn(async () => ({ ok: true as const, value: wig }))
+		});
+		const tryOn = vi.fn(async () => ({
+			ok: true as const,
+			value: {
+				portraitBase64: 'portrait-data',
+				portraitMimeType: 'image/png',
+				timingMs: 10
+			}
+		}));
+		vi.mocked(createWigTryOnSeam).mockReturnValue({ tryOn });
+		const fetchImpl = vi.fn(async () =>
+			new Response(new Uint8Array([1, 2, 3]), {
+				status: 200,
+				headers: { 'Content-Type': 'image/png' }
+			})
+		);
+		const request = new Request('http://localhost/api/wig-try-on', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				selfieBase64: 'selfie-data',
+				selfieMimeType: 'image/jpeg',
+				wigId: wig.id
+			})
+		});
+
+		const response = await POST({
+			request,
+			fetch: fetchImpl
+		} as unknown as Parameters<typeof POST>[0]);
+
+		expect(response.status).toBe(200);
+		expect(fetchImpl).toHaveBeenCalledWith(wig.imageUrl, { signal: request.signal });
+		expect(tryOn).toHaveBeenCalledWith(expect.objectContaining({ signal: request.signal }));
+	});
 });

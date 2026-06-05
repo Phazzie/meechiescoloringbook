@@ -20,10 +20,12 @@ export const POST: RequestHandler = async ({ request }) => {
 	const pipelineResult = await runGeneratePipeline(parsed.body, {
 		...generatePipelineDeps,
 		checkContentSafety: safetyPolicySeam.validateGenerateRequest,
-		generateImage: (body) =>
+		generateImage: (body, signal) =>
 			runImageGenerationPipeline(body, {
-				imageGenerationSeam
-			})
+				imageGenerationSeam,
+				signal: signal ?? request.signal
+			}),
+		signal: request.signal
 	});
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };

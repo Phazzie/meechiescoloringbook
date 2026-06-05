@@ -1,0 +1,23 @@
+
+> meechies-coloringbook@0.1.0 test
+> vitest run tests/unit/http-resilience.test.ts tests/unit/provider-adapter-helpers.test.ts tests/contract/image-generation.test.ts tests/unit/image-generation-pipeline.test.ts tests/unit/api-generate.test.ts tests/unit/api-wig-try-on.test.ts src/lib/seams/wig-try-on-seam/test.ts --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/Meechiescoloringbook[39m
+
+ [32m✓[39m tests/unit/provider-adapter-helpers.test.ts [2m([22m[2m24 tests[22m[2m)[22m[33m 9118[2mms[22m[39m
+   [33m[2m✓[22m[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22mextracts error message from error.message field [33m 3199[2mms[22m[39m
+   [33m[2m✓[22m[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22muses statusText when response body has no message [33m 2968[2mms[22m[39m
+   [33m[2m✓[22m[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22mgenerates fallback message when body and statusText are empty [33m 2746[2mms[22m[39m
+ [32m✓[39m tests/unit/http-resilience.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 80[2mms[22m[39m
+ [32m✓[39m tests/unit/api-generate.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 90[2mms[22m[39m
+ [32m✓[39m tests/unit/api-wig-try-on.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m tests/contract/image-generation.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m tests/unit/image-generation-pipeline.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m src/lib/seams/wig-try-on-seam/test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m      Tests [22m [1m[32m92 passed[39m[22m[90m (92)[39m
+[2m   Start at [22m 06:12:34
+[2m   Duration [22m 34.80s[2m (transform 1.16s, setup 480ms, collect 1.68s, tests 9.44s, environment 18.24s, prepare 1.97s)[22m
+
