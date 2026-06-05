@@ -8,6 +8,49 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## HPR Dedication Input Draft-Save Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: copy PR #92's broad non-main UI extraction or only change `saveDraft()` to `scheduleDraftSave()` without proving the stale input and clearing behavior.
+2. Countermeasure: keep the patch to the current `+page.svelte`/`StudioInputPanel.svelte` flow, add a Playwright red test that observes real browser input events and localStorage draft writes, and preserve `currentDedication()` normalization.
+3. Lower-debt path: use the existing debounced `scheduleDraftSave()` helper, let the child component read the DOM input value, pass a plain string to the parent, and avoid introducing a new store or component abstraction for one handler.
+
+### Plan
+
+- Goal: Fix the Shoutout/dedication input path so each input event updates local state before validation, normalizes cleared text to `undefined`, and schedules the existing debounced draft save instead of writing the draft on every keystroke.
+- Exact seams: `CreationStoreSeam`, `SpecValidationSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/routes/+page.svelte`
+  - `src/lib/components/studio/StudioInputPanel.svelte`
+  - `tests/e2e/smoke.spec.ts`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npx playwright test tests/e2e/smoke.spec.ts --project=chromium --grep "shoutout"`
+  2. `npm.cmd run check`
+  3. `npm.cmd test -- tests/unit/meechie-studio.test.ts tests/contract/creation-store.test.ts --pool=forks --maxWorkers=1`
+  4. `npm.cmd run rewind -- --seam CreationStoreSeam`
+  5. `npm.cmd run rewind -- --seam SpecValidationSeam`
+  6. `npx playwright test tests/e2e/smoke.spec.ts --project=chromium`
+  7. `npm.cmd run lint`
+  8. `npm.cmd test`
+  9. `npm.cmd run build`
+  10. `npm.cmd run verify`
+  11. `npm.cmd run cipher:gate`
+  12. `git diff --check`
+- Replacement PR base: `codex/hpr-studio-text-recovery-2026-06-05`, because this workpack follows the studio-text recovery slice in the HPR stack.
+- Required red test before production edits: `tests/e2e/smoke.spec.ts` should fill the Shoutout field, assert no `cb_drafts_v1` localStorage write happens immediately, poll until the debounced write appears with trimmed dedication, then clear the field and poll until the saved draft omits `intent.dedication`.
+- Old PR disposition rule: comment or close #92 only after this replacement work is merged, unless a remaining blocker is recorded in the ledger with a GitHub comment.
+
+### Self-critique
+
+1. What could be wrong: E2E timing can be flaky if the test depends on arbitrary waits or app hydration rather than observable localStorage writes.
+2. What must be proven: The child passes the current input value as a string, `spec.dedication` is `trim() || undefined`, draft writes are debounced rather than immediate, clearing the input persists `undefined`, and existing home smoke flows still pass.
+3. Riskiest assumption: Reading the draft payload from `localStorage` is a stable proxy for `CreationStoreSeam.saveDraft()` in the browser; this is acceptable because the adapter's draft key is contract-local and the test waits for the session marker before clearing and typing.
+4. Evidence to prove/disprove: Red/green Playwright shoutout test, Svelte check, focused CreationStore/SpecValidation tests, seam rewinds, full smoke test, full check/lint/test/build/verify output, Cipher Gate evidence, and HPR ledger updates.
+
 ## HPR MeechieStudioTextPipeline Error Recovery Workpack (2026-06-05)
 
 ### Shortcut Check
