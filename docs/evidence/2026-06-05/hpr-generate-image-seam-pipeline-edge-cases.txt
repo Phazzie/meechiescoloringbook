@@ -1,0 +1,13 @@
+
+> meechies-coloringbook@0.1.0 test
+> vitest run tests/unit/pipeline-edge-cases.test.ts --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/Meechiescoloringbook[39m
+
+ [32m✓[39m tests/unit/pipeline-edge-cases.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 98[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m22 passed[39m[22m[90m (22)[39m
+[2m   Start at [22m 04:01:10
+[2m   Duration [22m 11.33s[2m (transform 1.27s, setup 219ms, collect 1.34s, tests 98ms, environment 5.62s, prepare 1.30s)[22m

@@ -2,6 +2,7 @@
 // Why: Keep the main generation path on one server endpoint with contract-checked output.
 // Info flow: Generate request -> endpoint orchestration -> contract response.
 import { describe, expect, it, vi } from 'vitest';
+import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
 import { POST } from '../../src/routes/api/generate/+server';
 
 const validSpec = {
@@ -55,6 +56,44 @@ const buildRawEvent = (
 		fetch: fetchImpl
 	}) as Parameters<typeof POST>[0];
 
+const assembledPrompt = [
+	'Black-and-white coloring book page',
+	'outline-only',
+	'easy to color',
+	'Crisp vector-like linework',
+	'NEGATIVE PROMPT:',
+	'US Letter 8.5x11 portrait.'
+].join(' ');
+
+const buildPipelineDeps = (
+	generateImageImpl: (body: unknown) => Promise<{ status: number; body: unknown }>
+): Parameters<typeof runGeneratePipeline>[1] & {
+	fetchImpl: ReturnType<typeof vi.fn>;
+	generateImage: ReturnType<typeof vi.fn>;
+} => {
+	const fetchImpl = vi.fn(async () => {
+		throw new Error('internal image-generation fetch should not be used');
+	});
+	const generateImage = vi.fn(generateImageImpl);
+
+	return {
+		fetchImpl,
+		generateImage,
+		validateSpec: vi.fn(async () => ({ ok: true, issues: [] })),
+		assemblePrompt: vi.fn(async () => ({
+			ok: true,
+			value: { prompt: assembledPrompt, templateVersion: 'test-template' }
+		})),
+		detectDrift: vi.fn(async () => ({
+			ok: true,
+			value: { violations: [], confidenceScore: 1, recommendedFixes: [] }
+		}))
+	} as Parameters<typeof runGeneratePipeline>[1] & {
+		fetchImpl: ReturnType<typeof vi.fn>;
+		generateImage: ReturnType<typeof vi.fn>;
+	};
+};
+
 describe('/api/generate', () => {
 	it('rejects malformed JSON with INVALID_JSON code', async () => {
 		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
@@ -78,7 +117,126 @@ describe('/api/generate', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
-	it('returns orchestrated generation output for valid requests', async () => {
+	it('returns orchestrated generation output without fetching the sibling route', async () => {
+		const deps = buildPipelineDeps(async () => ({
+			status: 200,
+			body: {
+				ok: true,
+				value: {
+					images: [
+						{
+							id: 'image-1',
+							format: 'png',
+							mimeType: 'image/png',
+							data: 'abc123',
+							encoding: 'base64'
+						}
+					],
+					revisedPrompt: 'black and white revised prompt',
+					modelMetadata: {
+						provider: 'xai',
+						model: 'grok-imagine-image'
+					}
+				}
+			}
+		}));
+
+		const result = await runGeneratePipeline(
+			{
+				spec: validSpec,
+				styleHint: 'glam sparkle icons'
+			},
+			deps
+		);
+
+		expect(result.status).toBe(200);
+		expect(result.body.ok).toBe(true);
+		if (result.body.ok) {
+			expect(result.body.value.prompt).toBe(assembledPrompt);
+			expect(result.body.value.images).toHaveLength(1);
+			expect(Array.isArray(result.body.value.violations)).toBe(true);
+			expect(Array.isArray(result.body.value.recommendedFixes)).toBe(true);
+		}
+		expect(deps.fetchImpl).not.toHaveBeenCalled();
+		expect(deps.generateImage).toHaveBeenCalledWith({
+			spec: validSpec,
+			prompt: assembledPrompt,
+			variations: validSpec.variations,
+			outputFormat: validSpec.outputFormat
+		});
+	});
+
+	it('preserves typed image-generation failures', async () => {
+		const deps = buildPipelineDeps(async () => ({
+			status: 503,
+			body: {
+				ok: false,
+				error: { code: 'IMAGE_CONFIG_ERROR', message: 'Missing image provider key' }
+			}
+		}));
+
+		const result = await runGeneratePipeline({ spec: validSpec }, deps);
+
+		expect(result.status).toBe(503);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('IMAGE_CONFIG_ERROR');
+			expect(result.body.error.message).toBe('Missing image provider key');
+		}
+		expect(deps.fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it('rejects invalid image-generation pipeline bodies', async () => {
+		const deps = buildPipelineDeps(async () => ({
+			status: 200,
+			body: { ok: true, value: { images: [{ id: '' }] } }
+		}));
+
+		const result = await runGeneratePipeline({ spec: validSpec }, deps);
+
+		expect(result.status).toBe(502);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('IMAGE_RESPONSE_INVALID');
+		}
+		expect(deps.fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it('converts thrown image-generation exceptions into contract errors', async () => {
+		const deps = buildPipelineDeps(async () => {
+			throw new Error('adapter exploded');
+		});
+
+		const result = await runGeneratePipeline({ spec: validSpec }, deps);
+
+		expect(result.status).toBe(502);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('IMAGE_GENERATION_FAILED');
+			expect(result.body.error.details?.reason).toBe('adapter exploded');
+		}
+		expect(deps.fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it('classifies thrown image-generation timeouts as 504 contract errors', async () => {
+		const deps = buildPipelineDeps(async () => {
+			const timeout = new Error('provider request timed out');
+			timeout.name = 'TimeoutError';
+			throw timeout;
+		});
+
+		const result = await runGeneratePipeline({ spec: validSpec }, deps);
+
+		expect(result.status).toBe(504);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('IMAGE_GENERATION_TIMEOUT');
+			expect(result.body.error.details?.reason).toBe('provider request timed out');
+		}
+		expect(deps.fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it('keeps the endpoint parse and input guards transport-thin', async () => {
 		const fetchMock = vi.fn(async () =>
 			new Response(
 				JSON.stringify({
@@ -118,14 +276,9 @@ describe('/api/generate', () => {
 		);
 		const payload = await response.json();
 
-		expect(response.status).toBe(200);
-		expect(payload.ok).toBe(true);
-		expect(payload.value.prompt).toContain('Black-and-white coloring book page');
-		expect(payload.value.images).toHaveLength(1);
-		expect(Array.isArray(payload.value.violations)).toBe(true);
-		expect(Array.isArray(payload.value.recommendedFixes)).toBe(true);
-		expect(fetchMock).toHaveBeenCalledTimes(1);
-		expect(fetchMock).toHaveBeenCalledWith(
+		expect(response.status).not.toBe(400);
+		expect(payload.error?.code).not.toBe('GENERATE_INPUT_INVALID');
+		expect(fetchMock).not.toHaveBeenCalledWith(
 			'/api/image-generation',
 			expect.objectContaining({ method: 'POST' })
 		);

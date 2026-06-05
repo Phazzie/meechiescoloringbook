@@ -8,21 +8,31 @@ import {
 	GenerateRequestSchema,
 	GenerateResultSchema
 } from '../../../contracts/generate.contract';
-import { ImageGenerationResultSchema } from '../../../contracts/image-generation.contract';
+import {
+	ImageGenerationInputSchema,
+	ImageGenerationResultSchema
+} from '../../../contracts/image-generation.contract';
 import { z } from 'zod';
 
 type GenerateResult = z.infer<typeof GenerateResultSchema>;
+type ImageGenerationInput = z.infer<typeof ImageGenerationInputSchema>;
+type ImageGenerationResult = z.infer<typeof ImageGenerationResultSchema>;
 
 type PipelineResponse = {
 	status: number;
 	body: GenerateResult;
 };
 
-type PipelineDeps = {
-	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+type ImagePipelineResponse = {
+	status: number;
+	body: ImageGenerationResult;
+};
+
+export type GeneratePipelineDeps = {
 	validateSpec: typeof specValidationAdapter.validate;
 	assemblePrompt: typeof promptAssemblyAdapter.assemble;
 	detectDrift: typeof driftDetectionAdapter.detect;
+	generateImage: (body: ImageGenerationInput) => Promise<ImagePipelineResponse>;
 };
 
 const buildError = (
@@ -48,9 +58,21 @@ const defaultDeps = {
 	detectDrift: driftDetectionAdapter.detect
 };
 
+const imageExceptionResponse = (error: unknown): PipelineResponse => {
+	const reason = error instanceof Error ? error.message : String(error);
+	const name = error instanceof Error ? error.name : '';
+	const isTimeout = name === 'TimeoutError' || /timeout/i.test(reason);
+	return buildError(
+		isTimeout ? 504 : 502,
+		isTimeout ? 'IMAGE_GENERATION_TIMEOUT' : 'IMAGE_GENERATION_FAILED',
+		isTimeout ? 'Image generation timed out.' : 'Image generation failed unexpectedly.',
+		{ reason }
+	);
+};
+
 export const runGeneratePipeline = async (
 	body: unknown,
-	deps: PipelineDeps
+	deps: GeneratePipelineDeps
 ): Promise<PipelineResponse> => {
 	const parsedInput = GenerateRequestSchema.safeParse(body);
 	if (!parsedInput.success) {
@@ -82,23 +104,19 @@ export const runGeneratePipeline = async (
 		};
 	}
 
-	const imageResponse = await deps.fetchImpl('/api/image-generation', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
+	let imageResult: ImagePipelineResponse;
+	try {
+		imageResult = await deps.generateImage({
 			spec: parsedInput.data.spec,
 			prompt: promptResult.value.prompt,
 			variations: parsedInput.data.spec.variations,
 			outputFormat: parsedInput.data.spec.outputFormat
-		})
-	});
-	const imagePayload = await imageResponse.json().catch(() => null);
-	if (imagePayload === null) {
-		return imageResponse.ok
-			? buildError(502, 'IMAGE_RESPONSE_INVALID', 'Image generation response did not match contract.')
-			: buildError(imageResponse.status, 'IMAGE_HTTP_ERROR', `Image generation returned HTTP ${imageResponse.status}.`, { status: String(imageResponse.status) });
+		});
+	} catch (error) {
+		return imageExceptionResponse(error);
 	}
-	const parsedImageResult = ImageGenerationResultSchema.safeParse(imagePayload);
+
+	const parsedImageResult = ImageGenerationResultSchema.safeParse(imageResult.body);
 	if (!parsedImageResult.success) {
 		return buildError(
 			502,
@@ -108,7 +126,7 @@ export const runGeneratePipeline = async (
 	}
 	if (!parsedImageResult.data.ok) {
 		return {
-			status: imageResponse.ok ? 502 : imageResponse.status,
+			status: imageResult.status >= 400 ? imageResult.status : 502,
 			body: parsedImageResult.data
 		};
 	}

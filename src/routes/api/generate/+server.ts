@@ -4,16 +4,23 @@ Why: Keep generation flow server-driven behind a single endpoint.
 Info flow: UI generate request -> validation -> prompt/image/drift seams -> JSON response.
 */
 import { json } from '@sveltejs/kit';
+import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
+import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 import { generatePipelineDeps, runGeneratePipeline } from '$lib/core/generate-pipeline';
+import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';
 import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request, fetch }) => {
+export const POST: RequestHandler = async ({ request }) => {
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
+	const imageGenerationSeam = createImageGenerationSeam(createImageProviderConfigSeam());
 	const pipelineResult = await runGeneratePipeline(parsed.body, {
-		fetchImpl: fetch,
-		...generatePipelineDeps
+		...generatePipelineDeps,
+		generateImage: (body) =>
+			runImageGenerationPipeline(body, {
+				imageGenerationSeam
+			})
 	});
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };

@@ -8,6 +8,47 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## HPR Generate Through ImageGenerationSeam Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: keep the internal `/api/image-generation` fetch and only add a catch around it.
+2. Countermeasure: remove the sibling HTTP hop from `runGeneratePipeline`, inject the image-generation pipeline function directly, and prove `fetch` is not part of the generate orchestration path.
+3. Lower-debt path: keep route handlers thin, keep adapter creation in the route layer, and keep core generation orchestration behind typed dependencies.
+
+### Plan
+
+- Goal: Route `/api/generate` orchestration through `runImageGenerationPipeline`/`ImageGenerationSeam` instead of raw internal HTTP, while preserving typed image failure payloads and guarding unexpected thrown image errors as contract-shaped generate errors.
+- Exact seams: `ImageGenerationSeam`, `SpecValidationSeam`, `OutputPackagingSeam`, `ProviderAdapterSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/generate-pipeline.ts`
+  - `src/routes/api/generate/+server.ts`
+  - `tests/unit/api-generate.test.ts`
+  - `tests/unit/pipeline-edge-cases.test.ts`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/api-generate.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd test -- tests/unit/api-generate.test.ts tests/unit/image-generation-pipeline.test.ts tests/contract/image-generation.test.ts --pool=forks --maxWorkers=1`
+  3. `npm.cmd run rewind -- --seam ImageGenerationSeam`
+  4. `npm.cmd run check`
+  5. `npm.cmd run lint`
+  6. `npm.cmd test`
+  7. `npm.cmd run build`
+  8. `npm.cmd run verify`
+  9. `npm.cmd run cipher:gate`
+  10. `git diff --check`
+- Replacement PR base: `codex/hpr-http-error-policy-2026-06-05`, because this workpack depends on the structured HTTP error policy and ledger from PR #129.
+- Old PR disposition rule: comment or close #112/#74 only after this replacement work is merged, unless a no-salvage audit and comment URL are recorded.
+
+### Self-critique
+
+1. What could be wrong: Moving from an HTTP boundary to a direct function boundary could accidentally change status mapping or let thrown adapter errors escape as generic SvelteKit 500s.
+2. What must be proven: Generate success still assembles prompt/images/drift, typed image errors preserve their code and status, invalid image pipeline bodies become contract errors, thrown image exceptions become contract-shaped 502/504 responses, and route-level invalid JSON/payload behavior remains unchanged.
+3. Riskiest assumption: It is acceptable for `/api/generate` to compose `runImageGenerationPipeline` directly while `/api/image-generation` remains available as its own route for direct callers.
+4. Evidence to prove/disprove: Red/green `tests/unit/api-generate.test.ts`, focused image seam/pipeline tests, updated pipeline edge-case tests, `npm.cmd run rewind -- --seam ImageGenerationSeam`, full check/lint/test/build/verify output, Cipher Gate evidence, and HPR ledger updates.
+
 ## HPR HTTP Error Policy Workpack (2026-06-05)
 
 ### Shortcut Check

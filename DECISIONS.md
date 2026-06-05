@@ -1736,3 +1736,24 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Evidence: docs/evidence/2026-05-16/rewind-CacheSeam.txt; docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
   - Summary: Addressed PR #66 review blockers by making service-worker install and activation reject when CacheSeam returns an error, validating cache names and URL lists before Web Cache API calls without bundling Zod into the service worker, preserving distinct open/addAll error codes, surfacing failed stale-cache deletion keys, logging cache-match fallback warnings, and marking CacheSeam's browser probe as a manual 2026-05-15 check.
   - Risks: CacheSeam still relies on manual browser probing for real Cache Storage behavior; Node tests use stubbed Cache Storage to prove adapter control flow.
+
+## 2026-06-05 - Route generate orchestration through ImageGenerationSeam
+- Date: 2026-06-05
+- Decision: `/api/generate` composes `runImageGenerationPipeline` through an injected `ImageGenerationSeam` dependency instead of calling the sibling `/api/image-generation` route through raw internal HTTP.
+- Context: The Handoff PR Resolution drain identified PR #112 as the high-value branch for removing the brittle sibling-route fetch, but that idea needed a guard so thrown image adapter exceptions still return contract-shaped errors instead of generic SvelteKit failures.
+- Alternatives: Keep the sibling HTTP fetch and add broader `postJson` handling; rejected because it preserves unnecessary internal network I/O. Merge PR #112 directly; rejected because the replacement branch can implement the behavior on current stacked code with explicit thrown-error tests and ledger evidence.
+- Consequences: Core generate orchestration receives a typed image pipeline dependency, preserves typed image failures, rejects invalid image pipeline bodies, and maps unexpected thrown image errors to structured 502/504 responses. The route layer owns adapter construction, keeping Seam-Driven Development boundaries explicit.
+- Revisit criteria: Revisit if `ImageGenerationSeam` gains a separate idempotent queue, streaming output, or another transport boundary that should be orchestrated outside the SvelteKit route.
+- Plan:
+  - Goal: Route `/api/generate` through `runImageGenerationPipeline`/`ImageGenerationSeam` while preserving structured image-generation failures and guarding thrown image exceptions.
+  - Seams: ImageGenerationSeam, SpecValidationSeam, OutputPackagingSeam, ProviderAdapterSeam.
+  - Files: `plan.md`, `src/lib/core/generate-pipeline.ts`, `src/routes/api/generate/+server.ts`, `tests/unit/api-generate.test.ts`, `tests/unit/pipeline-edge-cases.test.ts`, `docs/hpr-pr-resolution-ledger-2026-06-05.md`, `DECISIONS.md`.
+  - Commands: `npm.cmd test -- tests/unit/api-generate.test.ts --pool=forks --maxWorkers=1`, `npm.cmd test -- tests/unit/api-generate.test.ts tests/unit/image-generation-pipeline.test.ts tests/contract/image-generation.test.ts --pool=forks --maxWorkers=1`, `npm.cmd run rewind -- --seam ImageGenerationSeam`, `npm.cmd run check`, `npm.cmd run lint`, `npm.cmd test`, `npm.cmd run build`, `npm.cmd run verify`, `npm.cmd run cipher:gate`, `git diff --check`.
+- Self-critique: A direct function call could have hidden status mapping changes or widened core I/O, so tests prove success, typed failure, invalid returned bodies, generic thrown errors, timeout thrown errors, and route parse guards. The remaining risks are baseline lint debt and Windows Vercel adapter symlink failure, both tracked separately.
+
+- Cipher Gate:
+  - Date: 2026-06-05
+  - Seams: ImageGenerationSeam, SpecValidationSeam, OutputPackagingSeam, ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-06-05/hpr-generate-image-seam-red-api-generate.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-green-api-generate.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-targeted-forks.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-pipeline-edge-cases.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-rewind.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-check.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-lint.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-test.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-build.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-verify.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-cipher-gate.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-exit-codes.txt
+  - Summary: Removed the raw internal `/api/image-generation` fetch from generate orchestration, injected the typed image pipeline dependency, preserved structured image-generation failures, and mapped unexpected thrown image errors to contract-shaped generate responses.
+  - Risks: This does not yet address timeout signal propagation or provider retry policy; those remain in the later timeout/resilience workpack.

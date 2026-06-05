@@ -1,0 +1,152 @@
+
+> meechies-coloringbook@0.1.0 test
+> vitest run tests/unit/api-generate.test.ts --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/Meechiescoloringbook[39m
+
+ [31m❯[39m tests/unit/api-generate.test.ts [2m([22m[2m8 tests[22m[2m | [22m[31m6 failed[39m[2m)[22m[32m 111[2mms[22m[39m
+   [32m✓[39m /api/generate[2m > [22mrejects malformed JSON with INVALID_JSON code[32m 29[2mms[22m[39m
+   [32m✓[39m /api/generate[2m > [22mrejects invalid payloads[32m 11[2mms[22m[39m
+[31m   [31m×[31m /api/generate[2m > [22mreturns orchestrated generation output without fetching the sibling route[39m[32m 21[2mms[22m[39m
+[31m     → internal image-generation fetch should not be used[39m
+[31m   [31m×[31m /api/generate[2m > [22mpreserves typed image-generation failures[39m[32m 4[2mms[22m[39m
+[31m     → internal image-generation fetch should not be used[39m
+[31m   [31m×[31m /api/generate[2m > [22mrejects invalid image-generation pipeline bodies[39m[32m 3[2mms[22m[39m
+[31m     → internal image-generation fetch should not be used[39m
+[31m   [31m×[31m /api/generate[2m > [22mconverts thrown image-generation exceptions into contract errors[39m[32m 3[2mms[22m[39m
+[31m     → internal image-generation fetch should not be used[39m
+[31m   [31m×[31m /api/generate[2m > [22mclassifies thrown image-generation timeouts as 504 contract errors[39m[32m 2[2mms[22m[39m
+[31m     → internal image-generation fetch should not be used[39m
+[31m   [31m×[31m /api/generate[2m > [22mkeeps the endpoint parse and input guards transport-thin[39m[32m 34[2mms[22m[39m
+[31m     → expected "spy" to not be called with arguments: [ '/api/image-generation', …(1) ][90m
+
+Received:
+
+[1m  1st spy call:
+
+[22m[2m  [[22m
+[2m    "/api/image-generation",[22m
+[32m-   ObjectContaining {[90m
+[31m+   {[90m
+[31m+     "body": "{\"spec\":{\"title\":\"Dream Big\",\"items\":[{\"number\":1,\"label\":\"Shine\"},{\"number\":2,\"label\":\"Grow\"}],\"listMode\":\"list\",\"alignment\":\"left\",\"numberAlignment\":\"strict\",\"listGutter\":\"normal\",\"whitespaceScale\":50,\"textSize\":\"small\",\"fontStyle\":\"rounded\",\"textStrokeWidth\":6,\"colorMode\":\"black_and_white_only\",\"decorations\":\"none\",\"illustrations\":\"none\",\"shading\":\"none\",\"border\":\"plain\",\"borderThickness\":8,\"variations\":1,\"outputFormat\":\"pdf\",\"pageSize\":\"US_Letter\"},\"prompt\":\"Black-and-white coloring book page for print.\\nSTYLE:\\n[Describe the vibe. Include outline-only and easy to color.]\\nVibe: glam sparkle icons outline-only, easy to color. Color: black and white only.\\nTEXT (exact):\\n[Main quote EXACT — do not alter text.]\\nDream Big\\n[Secondary line EXACT — omit if none.]\\nTYPOGRAPHY:\\nBold bubble letters; thick outlines.\\nGlitter outline only (no shading).\\nFont: rounded. Stroke: 6px.\\nLAYOUT:\\nUS Letter 8.5x11 portrait. Left-align the quote. Line 1 headline; line 2 below.\\nKeep generous whitespace; treat blank space intentional.\\nList items: 1. Shine; 2. Grow (Gutter: normal).\\nall numbers vertically aligned; all text left-aligned; treat blank space as intentional; do not fill empty space.\\nDECORATIONS:\\nDecorations: none. Illustrations: none. Shading: none. Border: plain 8px.\\nOUTPUT:\\nCrisp vector-like linework. Black outlines on white. Printable.\\nNEGATIVE PROMPT:\\nno color\\nno grayscale\\nno shading\\nno gradients\\nno filled shapes\\nno extra words\",\"variations\":1,\"outputFormat\":\"pdf\"}",[90m
+[31m+     "headers": {[90m
+[31m+       "Content-Type": "application/json",[90m
+[31m+     },[90m
+[2m      "method": "POST",[22m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 6 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/unit/api-generate.test.ts[2m > [22m/api/generate[2m > [22mreturns orchestrated generation output without fetching the sibling route
+[31m[1mError[22m: internal image-generation fetch should not be used[39m
+[36m [2m❯[22m Object.<anonymous> tests/unit/api-generate.test.ts:[2m75:9[22m[39m
+    [90m 73| [39m} [33m=>[39m {
+    [90m 74| [39m [35mconst[39m fetchImpl [33m=[39m vi[33m.[39m[34mfn[39m([35masync[39m () [33m=>[39m {
+    [90m 75| [39m  throw new Error('internal image-generation fetch should not be used'…
+    [90m   | [39m        [31m^[39m
+    [90m 76| [39m })[33m;[39m
+    [90m 77| [39m [35mconst[39m generateImage [33m=[39m vi[33m.[39m[34mfn[39m(generateImageImpl)[33m;[39m
+[90m [2m❯[22m runGeneratePipeline src/lib/core/generate-pipeline.ts:[2m85:35[22m[39m
+[90m [2m❯[22m tests/unit/api-generate.test.ts:[2m144:18[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/api-generate.test.ts[2m > [22m/api/generate[2m > [22mpreserves typed image-generation failures
+[31m[1mError[22m: internal image-generation fetch should not be used[39m
+[36m [2m❯[22m Object.<anonymous> tests/unit/api-generate.test.ts:[2m75:9[22m[39m
+    [90m 73| [39m} [33m=>[39m {
+    [90m 74| [39m [35mconst[39m fetchImpl [33m=[39m vi[33m.[39m[34mfn[39m([35masync[39m () [33m=>[39m {
+    [90m 75| [39m  throw new Error('internal image-generation fetch should not be used'…
+    [90m   | [39m        [31m^[39m
+    [90m 76| [39m })[33m;[39m
+    [90m 77| [39m [35mconst[39m generateImage [33m=[39m vi[33m.[39m[34mfn[39m(generateImageImpl)[33m;[39m
+[90m [2m❯[22m runGeneratePipeline src/lib/core/generate-pipeline.ts:[2m85:35[22m[39m
+[90m [2m❯[22m tests/unit/api-generate.test.ts:[2m178:18[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/api-generate.test.ts[2m > [22m/api/generate[2m > [22mrejects invalid image-generation pipeline bodies
+[31m[1mError[22m: internal image-generation fetch should not be used[39m
+[36m [2m❯[22m Object.<anonymous> tests/unit/api-generate.test.ts:[2m75:9[22m[39m
+    [90m 73| [39m} [33m=>[39m {
+    [90m 74| [39m [35mconst[39m fetchImpl [33m=[39m vi[33m.[39m[34mfn[39m([35masync[39m () [33m=>[39m {
+    [90m 75| [39m  throw new Error('internal image-generation fetch should not be used'…
+    [90m   | [39m        [31m^[39m
+    [90m 76| [39m })[33m;[39m
+    [90m 77| [39m [35mconst[39m generateImage [33m=[39m vi[33m.[39m[34mfn[39m(generateImageImpl)[33m;[39m
+[90m [2m❯[22m runGeneratePipeline src/lib/core/generate-pipeline.ts:[2m85:35[22m[39m
+[90m [2m❯[22m tests/unit/api-generate.test.ts:[2m195:18[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/api-generate.test.ts[2m > [22m/api/generate[2m > [22mconverts thrown image-generation exceptions into contract errors
+[31m[1mError[22m: internal image-generation fetch should not be used[39m
+[36m [2m❯[22m Object.<anonymous> tests/unit/api-generate.test.ts:[2m75:9[22m[39m
+    [90m 73| [39m} [33m=>[39m {
+    [90m 74| [39m [35mconst[39m fetchImpl [33m=[39m vi[33m.[39m[34mfn[39m([35masync[39m () [33m=>[39m {
+    [90m 75| [39m  throw new Error('internal image-generation fetch should not be used'…
+    [90m   | [39m        [31m^[39m
+    [90m 76| [39m })[33m;[39m
+    [90m 77| [39m [35mconst[39m generateImage [33m=[39m vi[33m.[39m[34mfn[39m(generateImageImpl)[33m;[39m
+[90m [2m❯[22m runGeneratePipeline src/lib/core/generate-pipeline.ts:[2m85:35[22m[39m
+[90m [2m❯[22m tests/unit/api-generate.test.ts:[2m210:18[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/api-generate.test.ts[2m > [22m/api/generate[2m > [22mclassifies thrown image-generation timeouts as 504 contract errors
+[31m[1mError[22m: internal image-generation fetch should not be used[39m
+[36m [2m❯[22m Object.<anonymous> tests/unit/api-generate.test.ts:[2m75:9[22m[39m
+    [90m 73| [39m} [33m=>[39m {
+    [90m 74| [39m [35mconst[39m fetchImpl [33m=[39m vi[33m.[39m[34mfn[39m([35masync[39m () [33m=>[39m {
+    [90m 75| [39m  throw new Error('internal image-generation fetch should not be used'…
+    [90m   | [39m        [31m^[39m
+    [90m 76| [39m })[33m;[39m
+    [90m 77| [39m [35mconst[39m generateImage [33m=[39m vi[33m.[39m[34mfn[39m(generateImageImpl)[33m;[39m
+[90m [2m❯[22m runGeneratePipeline src/lib/core/generate-pipeline.ts:[2m85:35[22m[39m
+[90m [2m❯[22m tests/unit/api-generate.test.ts:[2m228:18[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/api-generate.test.ts[2m > [22m/api/generate[2m > [22mkeeps the endpoint parse and input guards transport-thin
+[31m[1mAssertionError[22m: expected "spy" to not be called with arguments: [ '/api/image-generation', …(1) ][90m
+
+Received:
+
+[1m  1st spy call:
+
+[22m[2m  [[22m
+[2m    "/api/image-generation",[22m
+[32m-   ObjectContaining {[90m
+[31m+   {[90m
+[31m+     "body": "{\"spec\":{\"title\":\"Dream Big\",\"items\":[{\"number\":1,\"label\":\"Shine\"},{\"number\":2,\"label\":\"Grow\"}],\"listMode\":\"list\",\"alignment\":\"left\",\"numberAlignment\":\"strict\",\"listGutter\":\"normal\",\"whitespaceScale\":50,\"textSize\":\"small\",\"fontStyle\":\"rounded\",\"textStrokeWidth\":6,\"colorMode\":\"black_and_white_only\",\"decorations\":\"none\",\"illustrations\":\"none\",\"shading\":\"none\",\"border\":\"plain\",\"borderThickness\":8,\"variations\":1,\"outputFormat\":\"pdf\",\"pageSize\":\"US_Letter\"},\"prompt\":\"Black-and-white coloring book page for print.\\nSTYLE:\\n[Describe the vibe. Include outline-only and easy to color.]\\nVibe: glam sparkle icons outline-only, easy to color. Color: black and white only.\\nTEXT (exact):\\n[Main quote EXACT — do not alter text.]\\nDream Big\\n[Secondary line EXACT — omit if none.]\\nTYPOGRAPHY:\\nBold bubble letters; thick outlines.\\nGlitter outline only (no shading).\\nFont: rounded. Stroke: 6px.\\nLAYOUT:\\nUS Letter 8.5x11 portrait. Left-align the quote. Line 1 headline; line 2 below.\\nKeep generous whitespace; treat blank space intentional.\\nList items: 1. Shine; 2. Grow (Gutter: normal).\\nall numbers vertically aligned; all text left-aligned; treat blank space as intentional; do not fill empty space.\\nDECORATIONS:\\nDecorations: none. Illustrations: none. Shading: none. Border: plain 8px.\\nOUTPUT:\\nCrisp vector-like linework. Black outlines on white. Printable.\\nNEGATIVE PROMPT:\\nno color\\nno grayscale\\nno shading\\nno gradients\\nno filled shapes\\nno extra words\",\"variations\":1,\"outputFormat\":\"pdf\"}",[90m
+[31m+     "headers": {[90m
+[31m+       "Content-Type": "application/json",[90m
+[31m+     },[90m
+[2m      "method": "POST",[22m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m tests/unit/api-generate.test.ts:[2m281:25[22m[39m
+    [90m279| [39m  [34mexpect[39m(response[33m.[39mstatus)[33m.[39mnot[33m.[39m[34mtoBe[39m([34m400[39m)[33m;[39m
+    [90m280| [39m  [34mexpect[39m(payload[33m.[39merror[33m?.[39mcode)[33m.[39mnot[33m.[39m[34mtoBe[39m([32m'GENERATE_INPUT_INVALID'[39m)[33m;[39m
+    [90m281| [39m  [34mexpect[39m(fetchMock)[33m.[39mnot[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                        [31m^[39m
+    [90m282| [39m   [32m'/api/image-generation'[39m[33m,[39m
+    [90m283| [39m   expect[33m.[39m[34mobjectContaining[39m({ method[33m:[39m [32m'POST'[39m })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m6 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (8)[39m
+[2m   Start at [22m 03:51:01
+[2m   Duration [22m 5.30s[2m (transform 483ms, setup 104ms, collect 527ms, tests 111ms, environment 3.61s, prepare 395ms)[22m
