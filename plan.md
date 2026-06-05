@@ -8,6 +8,44 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## HPR HTTP Error Policy Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: copy an old PR's `postJson` change and reintroduce non-2xx structured error loss.
+2. Countermeasure: write focused failing tests first, implement current-main behavior directly, and keep old PR branches as evidence only.
+3. Lower-debt path: centralize the policy in `src/lib/core/http-client.ts`, keep endpoint contracts untouched, and validate the downstream API tests instead of patching each caller.
+
+### Plan
+
+- Goal: Lock the browser JSON POST policy so successful JSON returns parsed data, `204` and `205` return `undefined`, non-2xx contract-shaped JSON is returned to callers, invalid JSON errors include URL/status/status text/parse reason, and empty non-OK bodies throw a rich HTTP error.
+- Exact seams: `ProviderAdapterSeam`, `ChatInterpretationSeam`, `MeechieToolSeam`, `MeechieStudioTextSeam`, `ImageGenerationSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/http-client.ts`
+  - `tests/unit/http-client.test.ts`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/http-client.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd test -- tests/unit/http-client.test.ts tests/unit/api-chat-interpretation.test.ts tests/unit/api-tools.test.ts --pool=forks --maxWorkers=1`
+  3. `npm.cmd run check`
+  4. `npm.cmd run lint`
+  5. `npm.cmd test`
+  6. `npm.cmd run build`
+  7. `npm.cmd run verify`
+  8. `npm.cmd run cipher:gate`
+  9. `git diff --check`
+- Replacement PR base: `codex/hpr-ledger-baseline-2026-06-05`, because this workpack updates the Handoff PR Resolution ledger from PR #128.
+- Old PR disposition rule: comment or close only after this replacement work is merged, unless the ledger records a no-salvage blocker and a comment URL.
+
+### Self-critique
+
+1. What could be wrong: Some callers may currently expect `postJson` to reject on non-2xx status, so returning contract JSON could reveal caller assumptions that need targeted fixes.
+2. What must be proven: Structured non-2xx payloads reach callers, invalid JSON failures remain loud and diagnostic, `204`/`205` do not parse a body, and downstream chat/tool tests still match the new policy.
+3. Riskiest assumption: This is a client helper policy change and does not require endpoint contract fixture refresh because endpoint payload shapes are not changing.
+4. Evidence to prove/disprove: Focused red/green `tests/unit/http-client.test.ts` output, downstream API unit output, full check/lint/test/build output, `npm.cmd run verify`, `npm.cmd run cipher:gate`, and ledger entries for the superseded HTTP-policy PRs.
+
 ## Autonomous PR Drain Split-PR Runbook (2026-06-05)
 
 ### Plan
