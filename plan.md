@@ -8,6 +8,57 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## HPR MeechieStudioTextPipeline Error Recovery Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: copy PR #98 wholesale, keep direct `$env/dynamic/private` reads in core, and call malformed JSON plus schema failures the same thing.
+2. Countermeasure: write red tests first on current stacked code, separate JSON syntax failures from schema validation failures, preserve valid JSON primitives as parse successes that fail schema validation, and inject runtime mode/text model through deps.
+3. Lower-debt path: keep `MeechieStudioTextSeam` orchestration pure, keep provider I/O behind `ProviderAdapterSeam`, avoid changing provider contracts in this slice, and make retry prompt field guidance derive from one shared required-field list.
+
+### Plan
+
+- Goal: Port the useful #98 error-recovery behavior into current code while fixing its valid review comments: syntax-vs-schema retries, primitive JSON handling, retry prompt/schema consistency, injected runtime mode, accurate timeout status mapping, and removal of redundant post-parse validation.
+- Exact seams: `MeechieStudioTextSeam`, `ProviderAdapterSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/meechie-studio-text-pipeline.ts`
+  - `src/routes/api/meechie-studio-text/+server.ts`
+  - `src/lib/adapters/meechie-studio-text.adapter.ts`
+  - `tests/unit/meechie-studio-text-pipeline.test.ts`
+  - `tests/contract/meechie-studio-text.test.ts` only if adapter deps signature requires a contract-test update
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/meechie-studio-text-pipeline.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd test -- tests/unit/meechie-studio-text-pipeline.test.ts tests/contract/meechie-studio-text.test.ts --pool=forks --maxWorkers=1`
+  3. `npm.cmd run rewind -- --seam MeechieStudioTextSeam`
+  4. `npm.cmd run rewind -- --seam ProviderAdapterSeam`
+  5. `npm.cmd run check`
+  6. `npm.cmd run lint`
+  7. `npm.cmd test`
+  8. `npm.cmd run build`
+  9. `npm.cmd run verify`
+  10. `npm.cmd run cipher:gate`
+  11. `git diff --check`
+- Replacement PR base: `codex/hpr-timeout-abort-policy-2026-06-05`, because this workpack depends on the current provider timeout/abort classification and keeps the HPR stack linear after PR #134.
+- Required red tests before production edits:
+  1. A malformed JSON first attempt sends a retry prompt that names JSON syntax failure and succeeds when the retry returns a valid contract object.
+  2. A schema-invalid object first attempt sends a retry prompt that names schema validation failure and uses required-field guidance consistent with `STUDIO_TEXT_RESPONSE_FORMAT.required`.
+  3. Valid JSON primitives such as `false`, `0`, `""`, and `null` are treated as parsed JSON that failed schema validation, not syntax failures.
+  4. Provider `PROVIDER_API_KEY_MISSING` returns status 200 in non-production mode and 502 in production mode through injected deps, without reading env in core.
+  5. Provider 429 or other `PROVIDER_HTTP_ERROR` returns 502 while preserving the provider error payload.
+  6. Provider timeout-like `PROVIDER_NETWORK_ERROR` returns 504, while generic network `PROVIDER_NETWORK_ERROR` returns 502.
+  7. Provider error during retry is returned with the same status classifier as first-attempt provider errors.
+- Old PR disposition rule: comment or close #98 only after this replacement work is merged, unless a remaining blocker is recorded in the ledger with a GitHub comment.
+
+### Self-critique
+
+1. What could be wrong: Moving env-derived model/runtime values out of core can accidentally change default adapter behavior if route and adapter defaults are not preserved carefully.
+2. What must be proven: Schema failures and JSON syntax failures get different retry prompts; primitive JSON reaches schema validation; retry prompt required fields stay aligned with the response-format schema; missing API key dev/prod statuses are driven by deps; timeout network errors map to 504 while generic network errors map to 502; and retry provider errors preserve structured payloads.
+3. Riskiest assumption: Classifying provider timeout by error code plus timeout wording is acceptable for this slice because `ProviderAdapterSeam` currently uses `PROVIDER_NETWORK_ERROR` for both timeout and non-timeout transport failures; a richer provider error code can be a later seam-contract change if needed.
+4. Evidence to prove/disprove: Red/green targeted unit tests, `npm.cmd run rewind -- --seam MeechieStudioTextSeam`, `npm.cmd run rewind -- --seam ProviderAdapterSeam`, full check/lint/test/build/verify output, Cipher Gate evidence, and HPR ledger updates.
+
 ## HPR Timeout, Abort, and Retry Policy Workpack (2026-06-05)
 
 ### Shortcut Check
