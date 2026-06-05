@@ -118,6 +118,16 @@ describe('http-client', () => {
 			);
 		});
 
+		it('rethrows browser-initiated AbortError unchanged when no timeoutMs is set', async () => {
+			const abortError = Object.assign(new Error('The user aborted a request.'), {
+				name: 'AbortError'
+			});
+			vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
+
+			// Must not produce "NaNs" — should propagate the original AbortError
+			await expect(postJson('/api/test', {})).rejects.toThrow('The user aborted a request.');
+		});
+
 		it('succeeds normally when timeoutMs is set but request completes in time', async () => {
 			const mockPayload = { ok: true, value: 'fast response' };
 			const mockResponse = {

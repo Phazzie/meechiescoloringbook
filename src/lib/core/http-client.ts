@@ -32,9 +32,9 @@ export const postJson = async <T = unknown>(
 				? await fetchWithTimeout(url, init, timeoutMs)
 				: await fetch(url, init);
 	} catch (error) {
-		if (isAbortError(error)) {
+		if (isAbortError(error) && timeoutMs !== undefined) {
 			throw new Error(
-				`Request timed out after ${timeoutMs! / 1000}s. The AI took too long to respond — please try again.`
+				`Request timed out after ${timeoutMs / 1000}s. The AI took too long to respond — please try again.`
 			);
 		}
 		throw error;
