@@ -333,7 +333,10 @@ describe('generate-pipeline edge cases', () => {
 		}
 	};
 
-	const baseDeps: GeneratePipelineDeps = {
+	const buildGenerateDeps = (
+		overrides: Partial<GeneratePipelineDeps> = {}
+	): GeneratePipelineDeps => ({
+		checkContentSafety: vi.fn().mockReturnValue({ ok: true as const }),
 		validateSpec: vi.fn().mockResolvedValue({ ok: true as const, issues: [] }),
 		assemblePrompt: vi.fn().mockResolvedValue({
 			ok: true as const,
@@ -346,11 +349,12 @@ describe('generate-pipeline edge cases', () => {
 		generateImage: vi.fn().mockResolvedValue({
 			status: 200,
 			body: imageSuccessBody
-		})
-	};
+		}),
+		...overrides
+	});
 
 	it('rejects invalid request body', async () => {
-		const result = await runGeneratePipeline({ spec: {} }, baseDeps);
+		const result = await runGeneratePipeline({ spec: {} }, buildGenerateDeps());
 		expect(result.status).toBe(400);
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
@@ -358,11 +362,38 @@ describe('generate-pipeline edge cases', () => {
 		}
 	});
 
+	it('stops before downstream generation seams when content safety fails', async () => {
+		const deps = buildGenerateDeps({
+			checkContentSafety: vi.fn().mockReturnValue({
+				ok: false,
+				error: {
+					code: 'DISALLOWED_CONTENT',
+					message: 'Generate request contains disallowed content.',
+					details: ['Field: styleHint']
+				}
+			})
+		});
+
+		const result = await runGeneratePipeline(
+			{ spec: validSpec, styleHint: 'self-harm scene' },
+			deps
+		);
+
+		expect(result.status).toBe(400);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('CONTENT_POLICY_VIOLATION');
+		}
+		expect(deps.validateSpec).not.toHaveBeenCalled();
+		expect(deps.assemblePrompt).not.toHaveBeenCalled();
+		expect(deps.generateImage).not.toHaveBeenCalled();
+	});
+
 	it('returns error when spec validation fails', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
-				...baseDeps,
+				...buildGenerateDeps(),
 				validateSpec: vi.fn().mockResolvedValue({
 					ok: false,
 					issues: [{ code: 'SPEC_INVALID', field: 'title', message: 'Title too short.' }]
@@ -380,7 +411,7 @@ describe('generate-pipeline edge cases', () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
-				...baseDeps,
+				...buildGenerateDeps(),
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: false,
@@ -399,7 +430,7 @@ describe('generate-pipeline edge cases', () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
-				...baseDeps,
+				...buildGenerateDeps(),
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
@@ -422,7 +453,7 @@ describe('generate-pipeline edge cases', () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
-				...baseDeps,
+				...buildGenerateDeps(),
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
@@ -448,7 +479,7 @@ describe('generate-pipeline edge cases', () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
-				...baseDeps,
+				...buildGenerateDeps(),
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
@@ -472,7 +503,7 @@ describe('generate-pipeline edge cases', () => {
 	it('succeeds with valid pipeline flow', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec, styleHint: 'sparkle' },
-			{
+			buildGenerateDeps({
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
@@ -486,7 +517,7 @@ describe('generate-pipeline edge cases', () => {
 					ok: true,
 					value: { violations: [], confidenceScore: 1, recommendedFixes: [] }
 				})
-			}
+			})
 		);
 		expect(result.status).toBe(200);
 		expect(result.body.ok).toBe(true);
@@ -500,7 +531,7 @@ describe('generate-pipeline edge cases', () => {
 	it('includes empty violations when drift detection fails', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
-			{
+			buildGenerateDeps({
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
@@ -514,7 +545,7 @@ describe('generate-pipeline edge cases', () => {
 					ok: false,
 					error: { code: 'DRIFT_ERROR', message: 'Detection failed' }
 				})
-			}
+			})
 		);
 		expect(result.status).toBe(200);
 		expect(result.body.ok).toBe(true);

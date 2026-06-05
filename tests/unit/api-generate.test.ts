@@ -69,15 +69,18 @@ const buildPipelineDeps = (
 	generateImageImpl: (body: unknown) => Promise<{ status: number; body: unknown }>
 ): Parameters<typeof runGeneratePipeline>[1] & {
 	fetchImpl: ReturnType<typeof vi.fn>;
+	checkContentSafety: ReturnType<typeof vi.fn>;
 	generateImage: ReturnType<typeof vi.fn>;
 } => {
 	const fetchImpl = vi.fn(async () => {
 		throw new Error('internal image-generation fetch should not be used');
 	});
+	const checkContentSafety = vi.fn(() => ({ ok: true as const }));
 	const generateImage = vi.fn(generateImageImpl);
 
 	return {
 		fetchImpl,
+		checkContentSafety,
 		generateImage,
 		validateSpec: vi.fn(async () => ({ ok: true, issues: [] })),
 		assemblePrompt: vi.fn(async () => ({
@@ -90,6 +93,7 @@ const buildPipelineDeps = (
 		}))
 	} as Parameters<typeof runGeneratePipeline>[1] & {
 		fetchImpl: ReturnType<typeof vi.fn>;
+		checkContentSafety: ReturnType<typeof vi.fn>;
 		generateImage: ReturnType<typeof vi.fn>;
 	};
 };
@@ -164,6 +168,38 @@ describe('/api/generate', () => {
 			variations: validSpec.variations,
 			outputFormat: validSpec.outputFormat
 		});
+	});
+
+	it('returns a content policy violation before image generation when safety fails', async () => {
+		const deps = buildPipelineDeps(async () => {
+			throw new Error('image generation should not be called');
+		});
+		deps.checkContentSafety.mockReturnValue({
+			ok: false,
+			error: {
+				code: 'DISALLOWED_CONTENT',
+				message: 'Generate request contains disallowed content.',
+				details: ['Field: styleHint']
+			}
+		});
+
+		const result = await runGeneratePipeline(
+			{
+				spec: validSpec,
+				styleHint: 'self-harm scene'
+			},
+			deps
+		);
+
+		expect(result.status).toBe(400);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('CONTENT_POLICY_VIOLATION');
+			expect(result.body.error.details?.policyCode).toBe('DISALLOWED_CONTENT');
+			expect(result.body.error.details?.policyDetails).toContain('styleHint');
+		}
+		expect(deps.validateSpec).not.toHaveBeenCalled();
+		expect(deps.generateImage).not.toHaveBeenCalled();
 	});
 
 	it('preserves typed image-generation failures', async () => {
@@ -282,5 +318,25 @@ describe('/api/generate', () => {
 			'/api/image-generation',
 			expect.objectContaining({ method: 'POST' })
 		);
+	});
+
+	it('rejects unsafe style hints at the endpoint before image generation', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+		const response = await POST(
+			buildEvent(
+				{
+					spec: validSpec,
+					styleHint: 'self-harm scene'
+				},
+				fetchMock
+			)
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('CONTENT_POLICY_VIOLATION');
+		expect(payload.error.details.policyDetails).toContain('styleHint');
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });

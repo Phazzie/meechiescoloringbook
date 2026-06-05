@@ -8,6 +8,52 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## HPR SafetyPolicySeam Generate Gate Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: port PR #115 directly and leave its review comments unresolved.
+2. Countermeasure: write the replacement against the current generate-through-ImageGenerationSeam branch, include `styleHint` in the checked input, rebuild test deps per test, and keep core generation dependency-injected instead of importing a mock by name.
+3. Lower-debt path: expose a pure production-facing safety policy factory for the deterministic in-process guardrail, keep route composition responsible for wiring it, and document the remaining mock/fixture debt instead of hiding it.
+
+### Plan
+
+- Goal: Wire `SafetyPolicySeam` into `/api/generate` as the first generate-path gate so unsafe spec or `styleHint` text returns a contract-shaped `CONTENT_POLICY_VIOLATION` before spec validation, prompt assembly, image generation, or drift detection.
+- Exact seams: `SafetyPolicySeam`, `ImageGenerationSeam`, `SpecValidationSeam`, `PromptAssemblySeam`, `DriftDetectionSeam`, `ProviderAdapterSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/generate-pipeline.ts`
+  - `src/routes/api/generate/+server.ts`
+  - `src/lib/seams/safety-policy-seam/contract.ts`
+  - `src/lib/seams/safety-policy-seam/fixtures.ts`
+  - `src/lib/seams/safety-policy-seam/mock.ts`
+  - `src/lib/seams/safety-policy-seam/policy.ts`
+  - `src/lib/seams/safety-policy-seam/probe.ts`
+  - `src/lib/seams/safety-policy-seam/test.ts`
+  - `tests/unit/api-generate.test.ts`
+  - `tests/unit/pipeline-edge-cases.test.ts`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm.cmd test -- src/lib/seams/safety-policy-seam/test.ts tests/unit/api-generate.test.ts tests/unit/pipeline-edge-cases.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run rewind -- --seam SafetyPolicySeam`
+  3. `npm.cmd run check`
+  4. `npm.cmd run lint`
+  5. `npm.cmd test`
+  6. `npm.cmd run build`
+  7. `npm.cmd run verify`
+  8. `npm.cmd run cipher:gate`
+  9. `git diff --check`
+- Replacement PR base: `codex/hpr-generate-image-seam-2026-06-05`, because this workpack depends on the direct image pipeline dependency shape from PR #130.
+- Old PR disposition rule: comment or close #115 only after this replacement work is merged, unless a blocker is recorded with a GitHub comment.
+
+### Self-critique
+
+1. What could be wrong: Running safety before `SpecValidationSeam` means the safety policy sees request-schema-validated but not domain-validated specs, so optional fields and future raw shapes must be handled defensively.
+2. What must be proven: Unsafe title, item label, dedication, footer label, and `styleHint` text are blocked before image generation; safe specs still generate; test mocks do not lose implementations after `vi.restoreAllMocks`; and structured image errors remain unchanged when safety passes.
+3. Riskiest assumption: A deterministic in-process safety policy is acceptable as the production guardrail for this repo even though the existing file is named `mock.ts`; the mitigation is a pure `policy.ts` factory and a ledger note that deeper fixture-scenario cleanup remains separate.
+4. Evidence to prove/disprove: Red/green targeted safety/generate tests, `npm.cmd run rewind -- --seam SafetyPolicySeam`, full check/lint/test/build/verify output, Cipher Gate evidence, and HPR ledger updates.
+
 ## HPR Generate Through ImageGenerationSeam Workpack (2026-06-05)
 
 ### Shortcut Check

@@ -4,6 +4,11 @@
 import { driftDetectionAdapter } from '$lib/adapters/drift-detection.adapter';
 import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+import type {
+	SafetyPolicyError,
+	SafetyPolicyGenerateInput,
+	SafetyPolicyResult
+} from '$lib/seams/safety-policy-seam/contract';
 import {
 	GenerateRequestSchema,
 	GenerateResultSchema
@@ -29,6 +34,7 @@ type ImagePipelineResponse = {
 };
 
 export type GeneratePipelineDeps = {
+	checkContentSafety: (input: SafetyPolicyGenerateInput) => SafetyPolicyResult;
 	validateSpec: typeof specValidationAdapter.validate;
 	assemblePrompt: typeof promptAssemblyAdapter.assemble;
 	detectDrift: typeof driftDetectionAdapter.detect;
@@ -58,6 +64,14 @@ const defaultDeps = {
 	detectDrift: driftDetectionAdapter.detect
 };
 
+const safetyErrorDetails = (error: SafetyPolicyError) => {
+	const details: Record<string, string> = { policyCode: error.code };
+	if (error.details?.length) {
+		details.policyDetails = error.details.join(' | ');
+	}
+	return details;
+};
+
 const imageExceptionResponse = (error: unknown): PipelineResponse => {
 	const reason = error instanceof Error ? error.message : String(error);
 	const name = error instanceof Error ? error.name : '';
@@ -77,6 +91,19 @@ export const runGeneratePipeline = async (
 	const parsedInput = GenerateRequestSchema.safeParse(body);
 	if (!parsedInput.success) {
 		return buildError(400, 'GENERATE_INPUT_INVALID', 'Generate request is invalid.');
+	}
+
+	const safetyResult = deps.checkContentSafety({
+		spec: parsedInput.data.spec,
+		styleHint: parsedInput.data.styleHint
+	});
+	if (!safetyResult.ok) {
+		return buildError(
+			400,
+			'CONTENT_POLICY_VIOLATION',
+			safetyResult.error.message,
+			safetyErrorDetails(safetyResult.error)
+		);
 	}
 
 	const validation = await deps.validateSpec({ spec: parsedInput.data.spec });
