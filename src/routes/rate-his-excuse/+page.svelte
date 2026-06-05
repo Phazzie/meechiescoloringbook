@@ -33,10 +33,14 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		packagedFiles = [];
 
 		try {
-			const payload = await postJson('/api/tools', {
-				toolId: 'rate_excuse',
-				excuse: excuse.trim()
-			});
+			const payload = await postJson(
+				'/api/tools',
+				{
+					toolId: 'rate_excuse',
+					excuse: excuse.trim()
+				},
+				{ timeoutMs: 90_000 }
+			);
 			const parsed = MeechieToolResultSchema.safeParse(payload);
 			if (!parsed.success || !parsed.data.ok) {
 				error =
@@ -71,32 +75,36 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				result.headline,
 				result.response
 			]);
-			const payload = await postJson('/api/generate', {
-				spec: {
-					title: saying,
-					listMode: 'title_only',
-					items: [],
-					dedication: dedicatedTo.trim() || undefined,
-					alignment: 'center',
-					numberAlignment: 'strict',
-					listGutter: 'normal',
-					whitespaceScale: 30,
-					textSize: 'large',
-					fontStyle: 'block',
-					textStrokeWidth: 9,
-					colorMode: 'black_and_white_only',
-					decorations: 'dense',
-					illustrations: 'simple',
-					shading: 'none',
-					border: 'decorative',
-					borderThickness: 10,
-					variations: 1,
-					outputFormat: 'pdf',
-					pageSize: 'US_Letter'
+			const payload = await postJson(
+				'/api/generate',
+				{
+					spec: {
+						title: saying,
+						listMode: 'title_only',
+						items: [],
+						dedication: dedicatedTo.trim() || undefined,
+						alignment: 'center',
+						numberAlignment: 'strict',
+						listGutter: 'normal',
+						whitespaceScale: 30,
+						textSize: 'large',
+						fontStyle: 'block',
+						textStrokeWidth: 9,
+						colorMode: 'black_and_white_only',
+						decorations: 'dense',
+						illustrations: 'simple',
+						shading: 'none',
+						border: 'decorative',
+						borderThickness: 10,
+						variations: 1,
+						outputFormat: 'pdf',
+						pageSize: 'US_Letter'
+					},
+					styleHint:
+						'gavel, scales, diamonds, verdict stamp, bold statement coloring page'
 				},
-				styleHint:
-					'gavel, scales, diamonds, verdict stamp, bold statement coloring page'
-			});
+				{ timeoutMs: 180_000 }
+			);
 
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success || !parsed.data.ok) {

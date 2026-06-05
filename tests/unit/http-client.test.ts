@@ -97,5 +97,39 @@ describe('http-client', () => {
 				'postJson: failed to parse JSON response (HTTP 500): bad json'
 			);
 		});
+
+		it('throws a user-readable timeout error when fetch is aborted', async () => {
+			const abortError = Object.assign(new Error('The operation was aborted.'), {
+				name: 'AbortError'
+			});
+			vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
+
+			await expect(postJson('/api/test', {}, { timeoutMs: 90_000 })).rejects.toThrow(
+				'Request timed out after 90s. The AI took too long to respond — please try again.'
+			);
+		});
+
+		it('rethrows non-abort network errors unchanged', async () => {
+			const networkError = new TypeError('Failed to fetch');
+			vi.stubGlobal('fetch', vi.fn().mockRejectedValue(networkError));
+
+			await expect(postJson('/api/test', {}, { timeoutMs: 90_000 })).rejects.toThrow(
+				'Failed to fetch'
+			);
+		});
+
+		it('succeeds normally when timeoutMs is set but request completes in time', async () => {
+			const mockPayload = { ok: true, value: 'fast response' };
+			const mockResponse = {
+				ok: true,
+				status: 200,
+				json: () => Promise.resolve(mockPayload)
+			} as unknown as Response;
+
+			vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
+
+			const result = await postJson('/api/test', { x: 1 }, { timeoutMs: 5_000 });
+			expect(result).toEqual(mockPayload);
+		});
 	});
 });

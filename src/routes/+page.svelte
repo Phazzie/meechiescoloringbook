@@ -351,16 +351,20 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				return;
 			}
 
-			const payload = await postJson('/api/meechie-studio-text', {
-				actionId: action.aiAction,
-				modeId: selectedMode.id,
-				modeLabel: selectedMode.label,
-				themeLabel: activeTheme.label,
-				evidence: safeEvidence,
-				dedication: currentDedication(),
-				voice,
-				currentText: currentTextPayload()
-			});
+			const payload = await postJson(
+				'/api/meechie-studio-text',
+				{
+					actionId: action.aiAction,
+					modeId: selectedMode.id,
+					modeLabel: selectedMode.label,
+					themeLabel: activeTheme.label,
+					evidence: safeEvidence,
+					dedication: currentDedication(),
+					voice,
+					currentText: currentTextPayload()
+				},
+				{ timeoutMs: 90_000 }
+			);
 			const parsed = MeechieStudioTextResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				textError = 'Meechie sent back a line the studio could not read.';
@@ -397,10 +401,14 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				generationError = 'Fix the page settings before generating.';
 				return;
 			}
-			const payload = await postJson('/api/generate', {
-				spec,
-				styleHint: currentStyleHint()
-			});
+			const payload = await postJson(
+				'/api/generate',
+				{
+					spec,
+					styleHint: currentStyleHint()
+				},
+				{ timeoutMs: 180_000 }
+			);
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				generationError = 'Generate response did not match contract.';
@@ -491,11 +499,15 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		tryOnPortraitUrl = '';
 		isTryingOn = true;
 		try {
-			const payload = await postJson('/api/wig-try-on', {
-				selfieBase64,
-				selfieMimeType,
-				wigId: selectedWigId
-			});
+			const payload = await postJson(
+				'/api/wig-try-on',
+				{
+					selfieBase64,
+					selfieMimeType,
+					wigId: selectedWigId
+				},
+				{ timeoutMs: 150_000 }
+			);
 			const parsed = WigTryOnResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				tryOnError = 'Try-on response did not match contract.';

@@ -31,9 +31,11 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		packagedFiles = [];
 
 		try {
-			const payload = await postJson('/api/tools', {
-				toolId: 'random_meechie'
-			});
+			const payload = await postJson(
+				'/api/tools',
+				{ toolId: 'random_meechie' },
+				{ timeoutMs: 90_000 }
+			);
 			const parsed = MeechieToolResultSchema.safeParse(payload);
 			if (!parsed.success || !parsed.data.ok) {
 				error =
@@ -58,32 +60,36 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		packagedFiles = [];
 
 		try {
-			const payload = await postJson('/api/generate', {
-				spec: {
-					title: compactColoringPageTitle([result.response]),
-					listMode: 'title_only',
-					items: [],
-					dedication: dedicatedTo.trim() || undefined,
-					alignment: 'center',
-					numberAlignment: 'strict',
-					listGutter: 'normal',
-					whitespaceScale: 35,
-					textSize: 'large',
-					fontStyle: 'block',
-					textStrokeWidth: 9,
-					colorMode: 'black_and_white_only',
-					decorations: 'dense',
-					illustrations: 'simple',
-					shading: 'none',
-					border: 'decorative',
-					borderThickness: 10,
-					variations: 1,
-					outputFormat: 'pdf',
-					pageSize: 'US_Letter'
+			const payload = await postJson(
+				'/api/generate',
+				{
+					spec: {
+						title: compactColoringPageTitle([result.response]),
+						listMode: 'title_only',
+						items: [],
+						dedication: dedicatedTo.trim() || undefined,
+						alignment: 'center',
+						numberAlignment: 'strict',
+						listGutter: 'normal',
+						whitespaceScale: 35,
+						textSize: 'large',
+						fontStyle: 'block',
+						textStrokeWidth: 9,
+						colorMode: 'black_and_white_only',
+						decorations: 'dense',
+						illustrations: 'simple',
+						shading: 'none',
+						border: 'decorative',
+						borderThickness: 10,
+						variations: 1,
+						outputFormat: 'pdf',
+						pageSize: 'US_Letter'
+					},
+					styleHint:
+						'crown, sparkles, diamonds, roses, bold statement coloring page for women'
 				},
-				styleHint:
-					'crown, sparkles, diamonds, roses, bold statement coloring page for women'
-			});
+				{ timeoutMs: 180_000 }
+			);
 
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success || !parsed.data.ok) {
