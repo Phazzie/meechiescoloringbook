@@ -1,0 +1,17 @@
+﻿ docs/evidence/2026-05-20/assumption-alarm.json |  71 ++
+ docs/evidence/2026-05-20/chamber-lock.json     | 840 +++++++++++++++++++++++
+ docs/evidence/2026-05-20/clan-chain.json       | 100 +++
+ docs/evidence/2026-05-20/clan-chain.md         |  36 +
+ docs/evidence/2026-05-20/proof-tape.json       |  78 +++
+ docs/evidence/2026-05-20/proof-tape.md         |  22 +
+ docs/evidence/2026-05-20/seam-ledger.json      | 886 +++++++++++++++++++++++++
+ docs/evidence/2026-05-20/seam-ledger.md        |  34 +
+ docs/evidence/2026-05-20/shaolin-lint.json     |  25 +
+ docs/evidence/2026-05-20/test.txt              |  74 +++
+ docs/evidence/2026-05-20/verify.txt            |  86 +++
+ eslint.config.js                               |  32 +
+ probes/provider-adapter.probe.mjs              |   2 +-
+ src/lib/components/SelfieUpload.svelte         |   2 +-
+ src/lib/components/WigCarousel.svelte          |   2 +-
+ tests/e2e/smoke.spec.ts                        |  84 ++-
+ 16 files changed, 2356 insertions(+), 18 deletions(-)

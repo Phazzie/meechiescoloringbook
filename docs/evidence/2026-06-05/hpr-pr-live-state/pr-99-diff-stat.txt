@@ -1,0 +1,8 @@
+﻿ src/lib/adapters/chat-interpretation.adapter.ts | 10 ++++++++++
+ src/lib/core/http-client.ts                     |  2 +-
+ src/lib/seams/gallery-store-seam/mock.ts        |  1 -
+ src/lib/seams/prompt-compiler-seam/mock.ts      |  1 -
+ tests/contract/chat-interpretation.test.ts      | 15 +++++++++++++++
+ tests/unit/http-client.test.ts                  |  4 ++--
+ tests/unit/meechie-quote-scoring.test.ts        |  4 ++++
+ 7 files changed, 32 insertions(+), 5 deletions(-)

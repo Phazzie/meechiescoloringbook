@@ -1,0 +1,11 @@
+﻿ contracts/image-generation.contract.ts       |  13 +-
+ docs/seams.md                                |   3 +-
+ fixtures/image-generation/dense-scene.json   |  52 ------
+ fixtures/image-generation/fault.json         |  42 -----
+ fixtures/image-generation/sample.json        |  62 --------
+ probes/image-generation.probe.mjs            | 229 +++++++--------------------
+ src/lib/adapters/image-generation.adapter.ts |  81 ----------
+ src/lib/mocks/image-generation.mock.ts       |  26 ---
+ src/lib/seams/image-generation-seam/test.ts  | 100 ++++++++++--
+ tests/contract/image-generation.test.ts      | 115 --------------
+ 10 files changed, 155 insertions(+), 568 deletions(-)

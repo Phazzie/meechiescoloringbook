@@ -1,0 +1,20 @@
+﻿ docs/evidence/2026-05-23/assumption-alarm.json     |  71 ++
+ docs/evidence/2026-05-23/chamber-lock.json         | 840 +++++++++++++++++++
+ docs/evidence/2026-05-23/clan-chain.json           | 100 +++
+ docs/evidence/2026-05-23/clan-chain.md             |  37 +
+ docs/evidence/2026-05-23/proof-tape.json           |  92 +++
+ docs/evidence/2026-05-23/proof-tape.md             |  25 +
+ docs/evidence/2026-05-23/seam-ledger.json          | 886 +++++++++++++++++++++
+ docs/evidence/2026-05-23/seam-ledger.md            |  35 +
+ docs/evidence/2026-05-23/shaolin-lint.json         |  25 +
+ docs/evidence/2026-05-23/test.txt                  |  74 ++
+ docs/evidence/2026-05-23/verify.txt                |  86 ++
+ src/lib/components/studio/StudioHero.svelte        |  78 ++
+ src/lib/components/studio/StudioInputPanel.svelte  | 131 +++
+ .../components/studio/StudioPreviewPanel.svelte    | 150 ++++
+ .../components/studio/StudioSettingsPanel.svelte   | 124 +++
+ src/lib/components/studio/SystemTrace.svelte       |  50 ++
+ src/lib/components/studio/VerdictRow.svelte        |  71 ++
+ src/lib/components/studio/WigTryOnStudio.svelte    | 113 +++
+ src/routes/+page.svelte                            | 815 +++++--------------
+ 19 files changed, 3196 insertions(+), 607 deletions(-)

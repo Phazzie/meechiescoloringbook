@@ -1,0 +1,12 @@
+﻿ eslint.config.js                                  |  22 +
+ probes/provider-adapter.probe.mjs                 |   2 +-
+ src/lib/adapters/chat-interpretation.adapter.ts   |  28 +-
+ src/lib/components/SelfieUpload.svelte            |   2 +-
+ src/lib/components/WigCarousel.svelte             |   2 +-
+ src/lib/components/studio/StudioHero.svelte       |   4 +-
+ src/lib/components/studio/StudioInputPanel.svelte |   7 +-
+ src/lib/components/studio/VerdictRow.svelte       |   6 +-
+ src/lib/components/studio/WigTryOnStudio.svelte   |   4 +-
+ src/routes/+page.svelte                           | 812 ++--------------------
+ src/routes/studio-state.svelte.ts                 | 649 +++++++++++++++++
+ 11 files changed, 776 insertions(+), 762 deletions(-)

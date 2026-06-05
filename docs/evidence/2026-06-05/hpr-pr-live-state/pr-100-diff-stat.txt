@@ -1,0 +1,3 @@
+﻿ design.md                       | 163 ++++++++++++++++++++++++++++++++++++++++
+ src/lib/core/http-resilience.ts |   6 +-
+ 2 files changed, 164 insertions(+), 5 deletions(-)

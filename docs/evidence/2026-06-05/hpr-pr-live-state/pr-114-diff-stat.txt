@@ -1,0 +1,5 @@
+﻿ src/lib/adapters/app-config-seam/index.ts    |  8 ++++-
+ src/lib/adapters/meechie-tool.adapter.ts     | 12 ++++++--
+ src/lib/core/generate-pipeline.ts            |  6 ++--
+ src/lib/core/meechie-studio-text-pipeline.ts | 46 ++++++++++++----------------
+ 4 files changed, 40 insertions(+), 32 deletions(-)
