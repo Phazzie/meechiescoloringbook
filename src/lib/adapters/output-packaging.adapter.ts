@@ -16,6 +16,8 @@ const PAGE_SIZES = {
 
 const SHARE_SQUARE = 1080;
 const SHARE_CHAT = 720;
+const PRINT_WIDTH = 2550;
+const PRINT_HEIGHT = 3300;
 
 const toBase64 = (bytes: Uint8Array): string => {
 	let binary = '';
@@ -38,8 +40,8 @@ const parseSvgSize = (svg: string): { width: number; height: number } => {
 	const widthMatch = svg.match(/width="(\d+(?:\.\d+)?)"/);
 	const heightMatch = svg.match(/height="(\d+(?:\.\d+)?)"/);
 	return {
-		width: widthMatch ? Number(widthMatch[1]) : 2550,
-		height: heightMatch ? Number(heightMatch[1]) : 3300
+		width: widthMatch ? Number(widthMatch[1]) : PRINT_WIDTH,
+		height: heightMatch ? Number(heightMatch[1]) : PRINT_HEIGHT
 	};
 };
 
@@ -137,8 +139,8 @@ const imageToPngBase64 = async (
 		}
 		return drawImageToCanvas(
 			`data:image/jpeg;base64,${image.data}`,
-			2550,
-			3300
+			PRINT_WIDTH,
+			PRINT_HEIGHT
 		);
 	}
 

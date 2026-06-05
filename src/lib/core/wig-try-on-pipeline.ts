@@ -37,8 +37,8 @@ const fetchImageAsBase64 = async (
 		if (!res.ok) return null;
 		const buffer = await res.arrayBuffer();
 		const base64 = Buffer.from(buffer).toString('base64');
-		const mimeType = res.headers.get('content-type') ?? 'image/jpeg';
-		return { base64, mimeType: mimeType.split(';')[0].trim() };
+		const mimeType = res.headers.get('content-type')?.split(';')[0]?.trim() ?? 'image/jpeg';
+		return { base64, mimeType };
 	} catch {
 		return null;
 	}

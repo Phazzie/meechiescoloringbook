@@ -260,7 +260,7 @@ const parseProviderText = (
 	model: string
 ): MeechieStudioTextResult => {
 	const parsed = extractJson(content);
-	if (!parsed) {
+	if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
 		return invalidProviderTextResult(content, model);
 	}
 

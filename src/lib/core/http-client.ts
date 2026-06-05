@@ -12,7 +12,7 @@ export const postJson = async <T = unknown>(url: string, body: unknown): Promise
 		headers: buildJsonHeaders(),
 		body: JSON.stringify(body)
 	});
-	if (response.status === 204) return undefined as T;
+	if (response.status === 204) return undefined as unknown as T;
 	const payload = await response.json().catch((err: unknown) => {
 		throw new Error(
 			`postJson: failed to parse JSON response (HTTP ${response.status}): ${err instanceof Error ? err.message : String(err)}`
