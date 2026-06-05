@@ -1,0 +1,6 @@
+﻿ src/lib/core/image-generation-pipeline.ts  | 10 ++++++----
+ src/lib/seams/gallery-store-seam/mock.ts   |  1 -
+ src/lib/seams/prompt-compiler-seam/mock.ts |  1 -
+ src/routes/+layout.svelte                  |  3 ++-
+ src/routes/+page.svelte                    |  4 +++-
+ 5 files changed, 11 insertions(+), 8 deletions(-)

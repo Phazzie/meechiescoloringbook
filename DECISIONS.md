@@ -7,6 +7,22 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-05 - HPR HTTP client structured error policy
+
+- Date: 2026-06-05
+- Decision: Change the shared browser `postJson` helper to parse response text once, return parsed JSON for non-2xx contract responses, return `undefined` for `204`, `205`, and empty successful bodies, and throw URL/status/status-text/parse-reason errors for invalid or empty failure bodies.
+- Context: Multiple open PRs attempted `postJson` or `response.ok` cleanup but risked losing structured API error payloads. The app intentionally returns contract-shaped JSON such as `{ ok: false, error: ... }` on non-2xx statuses, so the client helper must preserve that body instead of converting it to an exception.
+- Alternatives: Keep throwing on every non-OK response after parsing, or move special-case logic into each caller. Throwing masks contract payloads; caller-specific handling would duplicate policy and invite drift.
+- Consequences: API callers can inspect structured non-2xx payloads consistently, no-content responses are safe, and malformed provider/proxy responses still fail loudly with actionable diagnostics.
+- Revisit criteria: Revisit if API routes stop using contract-shaped non-2xx JSON or if callers need a typed `HttpError` object instead of `Error` messages for malformed responses.
+
+- Cipher Gate:
+  - Date: 2026-06-05
+  - Seams: ProviderAdapterSeam, ChatInterpretationSeam, MeechieToolSeam, MeechieStudioTextSeam, ImageGenerationSeam
+  - Evidence: docs/evidence/2026-06-05/hpr-http-error-policy-red-http-client-threads.txt; docs/evidence/2026-06-05/hpr-http-error-policy-green-http-client-threads.txt; docs/evidence/2026-06-05/hpr-http-error-policy-targeted-forks.txt; docs/evidence/2026-06-05/hpr-http-error-policy-check.txt; docs/evidence/2026-06-05/hpr-http-error-policy-lint.txt; docs/evidence/2026-06-05/hpr-http-error-policy-test.txt; docs/evidence/2026-06-05/hpr-http-error-policy-build.txt; docs/evidence/2026-06-05/hpr-http-error-policy-verify-long.txt
+  - Summary: Locked the central `postJson` policy with red/green tests so structured non-2xx JSON payloads survive, `204`/`205` and empty successful bodies return `undefined`, and invalid/empty failure bodies produce rich diagnostics.
+  - Risks: Some UI callers may still assume `postJson` rejects on all non-2xx responses; targeted chat/tools tests passed, and broader caller behavior remains covered by later generate/UI workpacks.
+
 ## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
 
 - Cipher Gate:

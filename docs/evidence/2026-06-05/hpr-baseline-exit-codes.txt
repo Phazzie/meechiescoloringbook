@@ -1,0 +1,5 @@
+npm.cmd ci: exit 0
+npm.cmd run check: exit 0
+npm.cmd run lint: exit 1
+npm.cmd test: exit 0
+npm.cmd run build: exit 1

@@ -26,7 +26,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		type StudioActionId,
 		type StudioTextActionId
 	} from '$lib/core/meechie-studio';
-	import { postJson } from '$lib/core/http-client';
+	import { postJson, HttpError } from '$lib/core/http-client';
 	import { GenerateResultSchema } from '../../contracts/generate.contract';
 	import { WigTryOnResultSchema } from '../../contracts/wig-try-on.contract';
 	import {
@@ -375,10 +375,16 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			resetGeneratedPage();
 			await applyTextToSpec(parsed.data.value);
 		} catch (error) {
-			textError =
-				error instanceof Error
-					? error.message
-					: 'Meechie could not reach the AI text service.';
+			if (error instanceof HttpError) {
+				const parsed = MeechieStudioTextResultSchema.safeParse(error.payload);
+				if (parsed.success && !parsed.data.ok) {
+					textError = parsed.data.error.message;
+				} else {
+					textError = error.message;
+				}
+			} else {
+				textError = error instanceof Error ? error.message : 'Meechie could not reach the AI text service.';
+			}
 		} finally {
 			isTextWorking = false;
 		}
@@ -430,10 +436,16 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 				generationError = packagingResult.error.message;
 			}
 		} catch (error) {
-			generationError =
-				error instanceof Error
-					? error.message
-					: 'Coloring page generation failed.';
+			if (error instanceof HttpError) {
+				const parsed = GenerateResultSchema.safeParse(error.payload);
+				if (parsed.success && !parsed.data.ok) {
+					generationError = parsed.data.error.message;
+				} else {
+					generationError = error.message;
+				}
+			} else {
+				generationError = error instanceof Error ? error.message : 'Coloring page generation failed.';
+			}
 		} finally {
 			isGenerating = false;
 		}
@@ -507,8 +519,16 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			}
 			tryOnPortraitUrl = `data:${parsed.data.value.portraitMimeType};base64,${parsed.data.value.portraitBase64}`;
 		} catch (error) {
-			tryOnError =
-				error instanceof Error ? error.message : 'Wig try-on failed.';
+			if (error instanceof HttpError) {
+				const parsed = WigTryOnResultSchema.safeParse(error.payload);
+				if (parsed.success && !parsed.data.ok) {
+					tryOnError = parsed.data.error.message;
+				} else {
+					tryOnError = error.message;
+				}
+			} else {
+				tryOnError = error instanceof Error ? error.message : 'Wig try-on failed.';
+			}
 		} finally {
 			isTryingOn = false;
 		}

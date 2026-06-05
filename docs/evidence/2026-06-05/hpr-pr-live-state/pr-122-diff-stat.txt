@@ -1,0 +1,7 @@
+﻿ src/lib/seams/gallery-store-seam/fixtures.ts   | 10 ++++++
+ src/lib/seams/gallery-store-seam/mock.ts       | 15 +++++----
+ src/lib/seams/gallery-store-seam/test.ts       | 42 ++++++++++++++++++++++++--
+ src/lib/seams/prompt-compiler-seam/fixtures.ts | 27 +++++++++++++++++
+ src/lib/seams/prompt-compiler-seam/mock.ts     | 14 ++++-----
+ src/lib/seams/prompt-compiler-seam/test.ts     | 25 +++++++++++++--
+ 6 files changed, 114 insertions(+), 19 deletions(-)

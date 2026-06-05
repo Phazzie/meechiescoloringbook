@@ -1,0 +1,5 @@
+﻿ src/lib/core/generate-pipeline.ts      |  45 ++++--------
+ src/routes/api/generate/+server.ts     |   6 +-
+ tests/unit/api-generate.test.ts        |  94 ++++++++++---------------
+ tests/unit/pipeline-edge-cases.test.ts | 121 ++++++++++++++-------------------
+ 4 files changed, 107 insertions(+), 159 deletions(-)

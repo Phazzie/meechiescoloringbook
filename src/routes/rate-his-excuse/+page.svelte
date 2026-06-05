@@ -4,7 +4,7 @@ Why: Give users an instant, numbered verdict on an excuse so the judgment feels 
 Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate coloring page.
 -->
 <script lang="ts">
-	import { postJson } from '$lib/core/http-client';
+	import { postJson, HttpError } from '$lib/core/http-client';
 	import type { MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
 	import type { GeneratedImage } from '../../../contracts/image-generation.contract';
 	import type { PackagedFile } from '../../../contracts/output-packaging.contract';
@@ -47,7 +47,12 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				result = parsed.data.value;
 			}
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Network error. Try again.';
+			if (e instanceof HttpError) {
+				const parsed = MeechieToolResultSchema.safeParse(e.payload);
+				error = parsed.success && !parsed.data.ok ? parsed.data.error.message : e.message;
+			} else {
+				error = e instanceof Error ? e.message : 'Network error. Try again.';
+			}
 		} finally {
 			isWorking = false;
 		}
@@ -133,8 +138,12 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				generateError = packResult.error.message;
 			}
 		} catch (e) {
-			generateError =
-				e instanceof Error ? e.message : 'Network error. Try again.';
+			if (e instanceof HttpError) {
+				const parsed = GenerateResultSchema.safeParse(e.payload);
+				generateError = parsed.success && !parsed.data.ok ? parsed.data.error.message : e.message;
+			} else {
+				generateError = e instanceof Error ? e.message : 'Network error. Try again.';
+			}
 		} finally {
 			isGenerating = false;
 		}

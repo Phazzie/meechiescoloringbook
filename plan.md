@@ -4,7 +4,84 @@ Why: Keep scope, seams, files, and validation explicit before implementation.
 Info flow: User request -> execution specs -> implementation -> review evidence.
 -->
 
-# Autonomous Plan (2026-02-14)
+# Autonomous Plan
+
+Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
+
+## HPR HTTP Error Policy Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: copy an old PR's `postJson` change and reintroduce non-2xx structured error loss.
+2. Countermeasure: write focused failing tests first, implement current-main behavior directly, and keep old PR branches as evidence only.
+3. Lower-debt path: centralize the policy in `src/lib/core/http-client.ts`, keep endpoint contracts untouched, and validate the downstream API tests instead of patching each caller.
+
+### Plan
+
+- Goal: Lock the browser JSON POST policy so successful JSON returns parsed data, `204` and `205` return `undefined`, non-2xx contract-shaped JSON is returned to callers, invalid JSON errors include URL/status/status text/parse reason, and empty non-OK bodies throw a rich HTTP error.
+- Exact seams: `ProviderAdapterSeam`, `ChatInterpretationSeam`, `MeechieToolSeam`, `MeechieStudioTextSeam`, `ImageGenerationSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/http-client.ts`
+  - `tests/unit/http-client.test.ts`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/http-client.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd test -- tests/unit/http-client.test.ts tests/unit/api-chat-interpretation.test.ts tests/unit/api-tools.test.ts --pool=forks --maxWorkers=1`
+  3. `npm.cmd run check`
+  4. `npm.cmd run lint`
+  5. `npm.cmd test`
+  6. `npm.cmd run build`
+  7. `npm.cmd run verify`
+  8. `npm.cmd run cipher:gate`
+  9. `git diff --check`
+- Replacement PR base: `codex/hpr-ledger-baseline-2026-06-05`, because this workpack updates the Handoff PR Resolution ledger from PR #128.
+- Old PR disposition rule: comment or close only after this replacement work is merged, unless the ledger records a no-salvage blocker and a comment URL.
+
+### Self-critique
+
+1. What could be wrong: Some callers may currently expect `postJson` to reject on non-2xx status, so returning contract JSON could reveal caller assumptions that need targeted fixes.
+2. What must be proven: Structured non-2xx payloads reach callers, invalid JSON failures remain loud and diagnostic, `204`/`205` do not parse a body, and downstream chat/tool tests still match the new policy.
+3. Riskiest assumption: This is a client helper policy change and does not require endpoint contract fixture refresh because endpoint payload shapes are not changing.
+4. Evidence to prove/disprove: Focused red/green `tests/unit/http-client.test.ts` output, downstream API unit output, full check/lint/test/build output, `npm.cmd run verify`, `npm.cmd run cipher:gate`, and ledger entries for the superseded HTTP-policy PRs.
+
+## Autonomous PR Drain Split-PR Runbook (2026-06-05)
+
+### Plan
+
+- Goal: Drain the open PR backlog through several small replacement PRs while the user can step away, with live GitHub state capture, periodic self-critique, validation gates, and a final salvage audit for broad PRs before closure.
+- Exact seams: `ProviderAdapterSeam`, `ChatInterpretationSeam`, `MeechieToolSeam`, `MeechieStudioTextSeam`, `ImageGenerationSeam`, `SpecValidationSeam`, `OutputPackagingSeam`, `WigCatalogSeam`, `WigTryOnSeam`, `CreationStoreSeam`, `PromptCompilerSeam`, `GalleryStoreSeam`, `SafetyPolicySeam`, `TelemetrySeam`, `SessionSeam`.
+- Exact file paths to touch for this planning branch:
+  - `plan.md`
+  - `docs/superpowers/plans/2026-06-05-autonomous-pr-drain.md`
+- Exact commands to run before implementation starts:
+  1. `git status --short --branch` and stop if the worktree is dirty.
+  2. `git fetch origin`
+  3. `git fetch origin '+refs/pull/*/head:refs/remotes/origin/pr/*'`
+  4. `git checkout main`
+  5. `git pull --ff-only`
+  6. `gh pr list --state open --limit 200 --json number,title,headRefName,baseRefName,mergeStateStatus,isDraft,updatedAt,url`
+  7. `gh issue list --state open --limit 200 --json number,title,url`
+  8. Per-PR `gh pr view`, review-thread GraphQL capture with pagination, and base-branch-aware `git diff`.
+  9. `npm.cmd ci`
+  10. `npm.cmd run check`
+  11. `npm.cmd run lint`
+  12. `npm.cmd test`
+  13. `npm.cmd run build`
+  14. `gh pr checks $replacementPrNumber --watch` after each replacement PR is opened, followed by `gh run view $failedRunId --log-failed` for any failed check.
+- Detailed runbook: `docs/superpowers/plans/2026-06-05-autonomous-pr-drain.md`.
+- Closure safety rule: comment-only while a replacement PR is still open; old PR closure requires merged replacement work on `main`, or a ledgered no-salvage audit plus closure comment URL.
+- Coverage gate: the baseline open PR set observed on 2026-06-05 was `127,126,125,124,123,122,121,120,119,118,117,116,115,114,113,112,111,110,109,108,107,106,105,104,102,101,100,99,98,95,94,92,89,88,87,86,85,82,81,80,79,77,74,73,72,71,60`; final completion is blocked unless every captured PR has a ledger state, evidence path, replacement PR link or blocker, and closure/comment URL.
+- Issue #1 remains open as product specification unless the owner explicitly asks to close it.
+- Seam changes must follow the full Seam-Driven Development workflow and record `npm.cmd run verify` evidence, plus `npm.cmd run cipher:gate` when required.
+
+### Self-critique
+
+1. What could be wrong: A single giant integration PR would make review and rollback harder, while an overly fragmented plan could close old PRs before their useful content is actually checked.
+2. What must be proven: Live PR state is refreshed, every review thread is captured with pagination, each replacement PR has a narrow scope, tests pass per workpack, GitHub checks pass or are diagnosed, every old PR has a ledgered disposition, and broad PRs are audited before closure.
+3. Riskiest assumption: GitHub permissions and branch protection will allow autonomous PR creation, comments, checks, and merges; if not, the run must record blockers instead of pretending completion.
+4. Evidence to prove/disprove: `gh` command output, exact files under `docs/evidence/2026-06-05/`, the Handoff PR Resolution ledger, replacement PR validation output, final `gh pr list --state open`, and final check/lint/test/build/verify results.
 
 ## PR #66 CacheSeam Review Blocker Follow-up (2026-05-16)
 

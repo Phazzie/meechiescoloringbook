@@ -1,0 +1,23 @@
+﻿ docs/evidence/2026-05-22/assumption-alarm.json |  71 ++
+ docs/evidence/2026-05-22/chamber-lock.json     | 840 +++++++++++++++++++++++
+ docs/evidence/2026-05-22/clan-chain.json       | 100 +++
+ docs/evidence/2026-05-22/clan-chain.md         |  37 ++
+ docs/evidence/2026-05-22/proof-tape.json       |  92 +++
+ docs/evidence/2026-05-22/proof-tape.md         |  25 +
+ docs/evidence/2026-05-22/seam-ledger.json      | 886 +++++++++++++++++++++++++
+ docs/evidence/2026-05-22/seam-ledger.md        |  35 +
+ docs/evidence/2026-05-22/shaolin-lint.json     |  25 +
+ docs/evidence/2026-05-22/test.txt              |  74 +++
+ docs/evidence/2026-05-22/verify.txt            |  86 +++
+ src/lib/components/MeechieModePage.svelte      |   2 +-
+ src/lib/components/MeechieTools.svelte         |   2 +-
+ src/lib/core/chat-interpretation-pipeline.ts   |  15 +-
+ src/lib/core/generate-pipeline.ts              |   2 +-
+ src/lib/core/http-client.ts                    |   8 +-
+ src/routes/+layout.svelte                      |   2 +-
+ src/routes/+page.svelte                        |   6 +-
+ src/routes/random/+page.svelte                 |   4 +-
+ src/routes/rate-his-excuse/+page.svelte        |   4 +-
+ src/routes/who-fucked-up/+page.svelte          |   4 +-
+ tests/unit/http-client.test.ts                 |   3 +-
+ 22 files changed, 2291 insertions(+), 32 deletions(-)
