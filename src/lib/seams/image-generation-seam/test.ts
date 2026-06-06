@@ -1,13 +1,52 @@
-// Purpose: Contract tests for ImageGenerationSeam.
-// Why: Enforce mock adherence to the seam contract, and prove the fault fixture fails before mocking.
-// Info flow: tests -> mock -> contract assertions.
-import { describe, expect, it } from 'vitest';
+// Purpose: Contract tests for ImageGenerationSeam (mock and adapter).
+// Why: Enforce mock adherence to the seam contract, prove fault fixture fails before mocking,
+//      and verify the live adapter handles HTTP success, failure, and validation errors.
+// Info flow: tests -> mock/adapter -> contract assertions.
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { imageGenerationRequestFixture, imageGenerationFaultFixture } from './fixtures';
 import { createMockImageGenerationSeam } from './mock';
 import {
   validateImageGenerationRequest,
   validateImageGenerationResult
 } from './validators';
+import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
+import type { ImageProviderConfigSeam } from '$lib/seams/image-provider-config-seam/contract';
+
+const mockConfigSeam: ImageProviderConfigSeam = {
+  getConfig: () => ({
+    xaiApiKey: 'test-key',
+    xaiImageModel: 'grok-imaging-image',
+    xaiBaseUrl: 'https://api.x.ai/v1',
+    xaiImageEndpointPath: '/images/generations'
+  })
+};
+
+// xAI wire format — the shape the xAI /v1/images/generations endpoint returns.
+const xaiSampleResponse = {
+  data: [
+    {
+      url: 'https://example.com/image.png',
+      b64_json: null,
+      revised_prompt: 'a test image'
+    }
+  ]
+};
+
+let fetchMock: ReturnType<typeof vi.fn>;
+
+beforeEach(() => {
+  fetchMock = vi.fn(async () => {
+    return new Response(JSON.stringify(xaiSampleResponse), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('ImageGenerationSeam mock contract', () => {
   it('returns a Result with deterministic images on success', async () => {
@@ -54,5 +93,53 @@ describe('ImageGenerationSeam mock contract', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.images).toHaveLength(1);
+  });
+});
+
+describe('ImageGenerationSeam adapter', () => {
+  it('returns IMAGE_HTTP_ERROR when xAI responds with an HTTP failure', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response('rate limited', {
+        status: 429,
+        statusText: 'Too Many Requests'
+      })
+    );
+    const seam = createImageGenerationSeam(mockConfigSeam);
+    const output = await seam.generate(imageGenerationRequestFixture);
+
+    expect(output.ok).toBe(false);
+    if (!output.ok) {
+      expect(output.error.code).toBe('IMAGE_HTTP_ERROR');
+      if (output.error.code === 'IMAGE_HTTP_ERROR') {
+        expect(output.error.details?.status).toBe('429');
+      }
+    }
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('returns an ok Result with images from a successful xAI response', async () => {
+    const seam = createImageGenerationSeam(mockConfigSeam);
+    const output = await seam.generate(imageGenerationRequestFixture);
+
+    expect(output.ok).toBe(true);
+    if (output.ok) {
+      expect(output.value.images).toHaveLength(1);
+      expect(output.value.images[0].url).toBe('https://example.com/image.png');
+    }
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('returns IMAGE_VALIDATION_ERROR for an invalid request without calling fetch', async () => {
+    const seam = createImageGenerationSeam(mockConfigSeam);
+    const output = await seam.generate({
+      ...imageGenerationRequestFixture,
+      prompt: ''
+    });
+
+    expect(output.ok).toBe(false);
+    if (!output.ok) {
+      expect(output.error.code).toBe('IMAGE_VALIDATION_ERROR');
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

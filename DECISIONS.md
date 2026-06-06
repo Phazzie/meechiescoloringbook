@@ -7,6 +7,38 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-06 — ImageGenerationSeam: Retire Dual Registration, Consolidate to Self-Contained Layout
+
+**Context**: Two entries for `ImageGenerationSeam` existed in `docs/seams.md`: a legacy flat-layout entry (line 33) and a new self-contained seam entry (line 34). This caused three problems:
+1. The legacy `ImageGenerationSeam` interface type (in `contracts/image-generation.contract.ts`) was dead code — the pipeline and route had already migrated to the new seam's contract types.
+2. The legacy adapter (`src/lib/adapters/image-generation.adapter.ts`) and mock (`src/lib/mocks/image-generation.mock.ts`) were never imported anywhere — both were orphaned artifacts.
+3. The adapter integration tests lived in `tests/contract/image-generation.test.ts` (legacy location) but already tested the new seam's mock and adapter, creating a split test surface.
+
+**Decision**: Remove the legacy seam artifacts and consolidate everything under the self-contained layout. The legacy Zod schemas in `contracts/image-generation.contract.ts` (`ImageGenerationInputSchema`, `ImageGenerationResultSchema`, `GeneratedImage`) are NOT removed — they define the HTTP API contract used by the generate pipeline and UI routes, which is a separate concern from the xAI seam interface.
+
+**Rationale**:
+- Single source of truth: one seam registry entry, one test file, one adapter
+- The HTTP API schema (legacy contract) and the xAI seam interface (self-contained seam) are properly separated — the pipeline bridges them intentionally
+- Adapter integration tests (HTTP error, success, validation failure) are migrated to `src/lib/seams/image-generation-seam/test.ts` alongside the mock contract tests they complement
+- Removes ~130 lines of dead code and eliminates the structural ambiguity that could cause future contributors to reimplement the wrong seam
+
+**Files deleted**:
+- `src/lib/adapters/image-generation.adapter.ts` — dead client-side adapter, replaced by the new seam adapter
+- `src/lib/mocks/image-generation.mock.ts` — dead mock implementing the orphaned legacy interface
+- `tests/contract/image-generation.test.ts` — tests migrated to `src/lib/seams/image-generation-seam/test.ts`
+
+**Files modified**:
+- `contracts/image-generation.contract.ts` — removed dead `ImageGenerationSeam` interface type and its `Result` import
+- `src/lib/seams/image-generation-seam/test.ts` — added 3 adapter integration tests migrated from the deleted legacy test file; fixed config mock to use `ImageProviderConfigSeam` (correct type) instead of `AppConfigSeam`
+- `docs/seams.md` — removed legacy entry, promoted self-contained entry as the sole `ImageGenerationSeam` registration
+
+- Cipher Gate:
+    Date: 2026-06-06
+    Seams: ImageGenerationSeam
+    Evidence: src/lib/seams/image-generation-seam/test.ts (6 contract + adapter tests), src/lib/adapters/image-generation-seam/index.ts, src/lib/seams/image-generation-seam/contract.ts
+    Summary: Retired dual ImageGenerationSeam registration. Deleted 3 dead legacy artifacts (adapter, mock, legacy test). Migrated 3 adapter integration tests to the self-contained seam test file. Removed dead ImageGenerationSeam interface type from legacy contract. HTTP API schemas in contracts/image-generation.contract.ts are retained — they serve the generate pipeline and UI as the HTTP API contract, which is a distinct concern from the xAI seam.
+    Risks: The legacy fixtures at fixtures/image-generation/ are still present on disk; they are no longer referenced by any mock or test. They can be removed in a future cleanup pass once the seam registry is fully migrated to self-contained layout.
+
 ## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
 
 - Cipher Gate:

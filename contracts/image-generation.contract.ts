@@ -7,7 +7,6 @@ import {
 	OutputFormatSchema
 } from './spec-validation.contract';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
-import type { Result } from './shared.contract';
 
 export const ImageDataEncodingSchema = z.enum(['utf8', 'base64']);
 
@@ -44,7 +43,3 @@ export const ImageGenerationResultSchema = resultSchema(
 export type GeneratedImage = z.infer<typeof GeneratedImageSchema>;
 export type ImageGenerationInput = z.infer<typeof ImageGenerationInputSchema>;
 export type ImageGenerationOutput = z.infer<typeof ImageGenerationOutputSchema>;
-
-export type ImageGenerationSeam = {
-	generate(input: ImageGenerationInput): Promise<Result<ImageGenerationOutput>>;
-};
