@@ -5,8 +5,8 @@ import type {
 	PromptAssemblyInput,
 	PromptAssemblyOutput,
 	PromptAssemblySeam
-} from '../../../contracts/prompt-assembly.contract';
-import type { Result } from '../../../contracts/shared.contract';
+} from '../../seams/prompt-assembly-seam/contract';
+import type { Result } from '../../../../contracts/shared.contract';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import {
 	NEGATIVE_PROMPT_HEADING,
@@ -107,8 +107,11 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 
 export const promptAssemblyAdapter: PromptAssemblySeam = {
 	assemble: async (input: PromptAssemblyInput): Promise<Result<PromptAssemblyOutput>> => {
-		if (input.styleHint) {
-			if (includesReservedHeading(input.styleHint)) {
+		const normalizedInput: PromptAssemblyInput = input.styleHint
+			? { ...input, styleHint: input.styleHint.replace(/\s+/g, ' ').trim() || undefined }
+			: input;
+		if (normalizedInput.styleHint) {
+			if (includesReservedHeading(normalizedInput.styleHint)) {
 				return {
 					ok: false,
 					error: {
@@ -117,7 +120,7 @@ export const promptAssemblyAdapter: PromptAssemblySeam = {
 					}
 				};
 			}
-			if (includesForbiddenToken(input.styleHint)) {
+			if (includesForbiddenToken(normalizedInput.styleHint)) {
 				return {
 					ok: false,
 					error: {
@@ -128,7 +131,7 @@ export const promptAssemblyAdapter: PromptAssemblySeam = {
 			}
 		}
 
-		const assembled = buildPrompt(input);
+		const assembled = buildPrompt(normalizedInput);
 		if (assembled.prompt.length > MAX_PROMPT_LENGTH) {
 			return {
 				ok: false,

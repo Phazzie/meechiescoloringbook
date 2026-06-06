@@ -5,11 +5,11 @@ import type {
 	MeechieToolInput,
 	MeechieToolOutput,
 	MeechieToolSeam
-} from '../../../contracts/meechie-tool.contract';
-import type { MeechieVoicePack } from '../../../contracts/meechie-voice.contract';
-import type { Result } from '../../../contracts/shared.contract';
-import { createProviderAdapter } from './provider-adapter.adapter';
-import { meechieVoiceAdapter } from './meechie-voice.adapter';
+} from '../../seams/meechie-tool-seam/contract';
+import type { MeechieVoicePack } from '../../seams/meechie-voice-seam/contract';
+import type { Result } from '../../../../contracts/shared.contract';
+import { createProviderAdapter } from '../provider-adapter.adapter';
+import { meechieVoiceAdapter } from '../meechie-voice-seam';
 import { selectTextModel } from '$lib/core/text-model';
 import { env } from '$env/dynamic/private';
 
@@ -240,7 +240,7 @@ const buildUserMessage = (input: MeechieToolInput): UserMessage => {
 
 const parseResponse = (
 	content: string,
-	toolId: string
+	toolId: MeechieToolInput['toolId']
 ): { headline: string; response: string; rating?: number } | null => {
 	try {
 		let sanitized = content.trim();
