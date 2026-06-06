@@ -8,6 +8,9 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Added a local PR backlog dry-run validation script (`scripts/validate-pr-backlog.js`) to automate checking out, testing, and verifying clean PR candidates.
+- Added a review-comment extraction script (`scripts/get-pr-todos.js`) to isolate and scope active review threads for a specific PR.
+- Added a real-time merge conflict analysis script (`scripts/analyze-merge-conflicts.js`) to test all open PR branches for merge conflicts and update the triage table.
 - Fully redesigned the builder and Meechie pages with a cleaner modern visual system, clearer hierarchy, and polished action flows on desktop/mobile.
 - Moved Meechie tools to a dedicated destination path from the main builder flow and added a focused handoff card.
 - Added a temporary UI API key panel (save/load/clear/show) and propagated `x-api-key` from client requests to generation endpoints.

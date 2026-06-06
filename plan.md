@@ -8,6 +8,31 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## PR Backlog Resolution and Merge Workpack (2026-06-06)
+
+### Plan
+- Goal: Automate conflict resolution, test verification, and clean merging of all open PRs using the validation scripts and programmatic Codex commands.
+- Exact seams: process execution, git/filesystem operations.
+- Exact file paths to touch:
+  - `plan.md`
+  - `docs/triage-table.md`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+- Exact commands to run:
+  1. `git stash --include-untracked` to stash local staged modifications and untracked files safely.
+  2. `node scripts/validate-pr-backlog.js` to run verification against the clean candidate branch (PR #127).
+  3. `node scripts/get-pr-todos.js 127` to parse open review comment threads.
+  4. Call Codex MCP to resolve the review todos in `docs/evidence/2026-06-06/pr-127-todo.md` on the candidate branch.
+  5. Run `npm test` and `npm run verify` on the candidate branch.
+  6. Checkout `main` and merge the validated PR branch.
+  7. Loop through other conflicting PRs (starting from recent ones) to resolve conflicts: checkout a branch, merge `main`, call Codex programmatically to resolve conflicts, verify, and merge.
+  8. Run `git stash pop` to restore the staged modifications once PR merges are complete.
+
+### Self-critique
+1. What could be wrong: Stashing the 40+ modified/staged files could result in conflicts when popping them if the PR merges modify the same lines or files (e.g. `docs/seams.md` or Svelte components).
+2. What must be proven: That PR #127 matches current contracts, passes all lints and vitests, and matches the review thread requirements.
+3. Riskiest assumption: That all 46 conflicting PRs can be merged programmatically without manual design conflict resolution. In reality, some stale PRs might have been superseded by newer workpacks and should be marked as "Closed/Superseded" instead of merged.
+4. Evidence to prove/disprove: Log outputs of `validate-pr-backlog.js`, verification reports under `docs/evidence/2026-06-06/`, and successful run of `npm run verify` after each merge.
+
 ## HPR Dedication Input Draft-Save Workpack (2026-06-05)
 
 ### Shortcut Check
