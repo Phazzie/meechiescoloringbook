@@ -33,11 +33,11 @@ Short, durable decisions with context and tradeoffs.
 - `docs/seams.md` — removed legacy entry, promoted self-contained entry as the sole `ImageGenerationSeam` registration
 
 - Cipher Gate:
-    Date: 2026-06-06
-    Seams: ImageGenerationSeam
-    Evidence: src/lib/seams/image-generation-seam/test.ts (6 contract + adapter tests), src/lib/adapters/image-generation-seam/index.ts, src/lib/seams/image-generation-seam/contract.ts
-    Summary: Retired dual ImageGenerationSeam registration. Deleted 3 dead legacy artifacts (adapter, mock, legacy test). Migrated 3 adapter integration tests to the self-contained seam test file. Removed dead ImageGenerationSeam interface type from legacy contract. HTTP API schemas in contracts/image-generation.contract.ts are retained — they serve the generate pipeline and UI as the HTTP API contract, which is a distinct concern from the xAI seam.
-    Risks: The legacy fixtures at fixtures/image-generation/ are still present on disk; they are no longer referenced by any mock or test. They can be removed in a future cleanup pass once the seam registry is fully migrated to self-contained layout.
+  - Date: 2026-06-06
+  - Seams: ImageGenerationSeam
+  - Evidence: src/lib/seams/image-generation-seam/test.ts, src/lib/adapters/image-generation-seam/index.ts, src/lib/seams/image-generation-seam/contract.ts
+  - Summary: Retired dual ImageGenerationSeam registration. Deleted 3 dead legacy artifacts (adapter, mock, legacy test). Migrated 3 adapter integration tests to the self-contained seam test file. Removed dead ImageGenerationSeam interface type from legacy contract. HTTP API schemas in contracts/image-generation.contract.ts are retained — they serve the generate pipeline and UI as the HTTP API contract, which is a distinct concern from the xAI seam.
+  - Risks: The legacy fixtures at fixtures/image-generation/ are still present on disk; they are no longer referenced by any mock or test. They can be removed in a future cleanup pass once the seam registry is fully migrated to self-contained layout.
 
 ## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
 
