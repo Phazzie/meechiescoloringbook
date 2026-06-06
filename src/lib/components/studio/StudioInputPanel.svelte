@@ -37,8 +37,16 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		canMakeMoreSpecific: boolean;
 		onRunTextAction: (_actionId: StudioTextActionId) => Promise<void>;
 		onScheduleDraftSave: () => void;
-		onDedicationInput: (_event: Event) => void;
+		onDedicationInput: (value: string) => void;
 	} = $props();
+
+	const handleDedicationValue = (event: globalThis.Event): void => {
+		const nextValue =
+			event.currentTarget instanceof globalThis.HTMLInputElement
+				? event.currentTarget.value
+				: dedication;
+		onDedicationInput(nextValue);
+	};
 </script>
 
 <div class="input-panel">
@@ -62,7 +70,7 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 	<input
 		id="dedication"
 		bind:value={dedication}
-		oninput={onDedicationInput}
+		oninput={handleDedicationValue}
 		maxlength="60"
 		placeholder="Optional dedication"
 	/>

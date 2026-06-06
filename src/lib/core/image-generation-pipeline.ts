@@ -32,17 +32,16 @@ type ImagePipelineResponse = {
 
 export type ImagePipelineDeps = {
   imageGenerationSeam: ImageGenerationSeam;
+  signal?: AbortSignal;
 };
 
 const missingRequiredPhrases = (prompt: string, pageSize: PageSize): string[] => {
   const promptLower = prompt.toLowerCase();
-  const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)].map((phrase) =>
-    phrase.toLowerCase()
-  );
-  return phrases.filter((phrase) => !promptLower.includes(phrase));
+  const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)];
+  return phrases.filter((phrase) => !promptLower.includes(phrase.toLowerCase()));
 };
 
-const errorResponse = (
+const buildError = (
   status: number,
   code: string,
   message: string
@@ -61,9 +60,17 @@ export const runImageGenerationPipeline = async (
   body: unknown,
   deps: ImagePipelineDeps
 ): Promise<ImagePipelineResponse> => {
+  if (deps.signal?.aborted) {
+    return buildError(
+      499,
+      'IMAGE_ABORTED',
+      'Image generation request was canceled by the caller.'
+    );
+  }
+
   const parsedInput = ImageGenerationInputSchema.safeParse(body);
   if (!parsedInput.success) {
-    return errorResponse(
+    return buildError(
       400,
       'IMAGE_INPUT_INVALID',
       'Image generation input is invalid.'
@@ -73,10 +80,10 @@ export const runImageGenerationPipeline = async (
   const { prompt, variations, spec } = parsedInput.data;
   const missing = missingRequiredPhrases(prompt, spec.pageSize);
   if (missing.length > 0) {
-    return errorResponse(
+    return buildError(
       400,
       'PROMPT_MISSING_REQUIRED_PHRASES',
-      'Prompt missing required phrases for deterministic generation.'
+      `Prompt missing required phrases (case-insensitive checks, normalized): ${missing.join(', ')}`
     );
   }
 
@@ -84,13 +91,19 @@ export const runImageGenerationPipeline = async (
     prompt,
     n: variations,
     size: DEFAULT_IMAGE_SIZE,
-    format: RESPONSE_FORMAT
+    format: RESPONSE_FORMAT,
+    signal: deps.signal
   });
 
   if (!seamResult.ok) {
-    const isConfigError = seamResult.error.code === 'IMAGE_CONFIG_ERROR';
+    const statusByCode: Record<string, number> = {
+      IMAGE_ABORTED: 499,
+      IMAGE_TIMEOUT_ERROR: 504,
+      IMAGE_CONFIG_ERROR: 503,
+      IMAGE_VALIDATION_ERROR: 400
+    };
     return {
-      status: isConfigError ? 503 : 502,
+      status: statusByCode[seamResult.error.code] ?? 502,
       body: {
         ok: false,
         error: seamResult.error
@@ -113,7 +126,7 @@ export const runImageGenerationPipeline = async (
   }
 
   if (images.length === 0) {
-    return errorResponse(
+    return buildError(
       502,
       'PROVIDER_EMPTY_IMAGE',
       'Provider returned no images.'
@@ -142,7 +155,7 @@ export const runImageGenerationPipeline = async (
 
   const parsedResult = ImageGenerationResultSchema.safeParse(result);
   if (!parsedResult.success) {
-    return errorResponse(
+    return buildError(
       500,
       'IMAGE_OUTPUT_INVALID',
       'Image generation response did not match contract.'

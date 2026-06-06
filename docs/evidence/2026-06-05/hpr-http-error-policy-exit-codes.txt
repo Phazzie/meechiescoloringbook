@@ -1,0 +1,12 @@
+hpr-http-error-policy-red-http-client.txt: exit 1, environment OOM before assertions
+hpr-http-error-policy-red-http-client-heap4096.txt: exit 1, runner exited before useful assertions
+hpr-http-error-policy-red-http-client-threads.txt: exit 1, valid red proof with 7 intended assertion failures
+hpr-http-error-policy-green-http-client-threads.txt: exit 0, 10 HTTP client tests passed
+hpr-http-error-policy-targeted-forks.txt: exit 0, 3 files passed, 16 tests passed
+hpr-http-error-policy-check.txt: exit 0
+hpr-http-error-policy-lint.txt: exit 1, baseline lint debt; no HTTP client-specific failure observed in tail
+hpr-http-error-policy-test.txt: exit 0, 54 files passed, 423 tests passed, 1 skipped
+hpr-http-error-policy-build.txt: exit 1, baseline Vercel adapter Windows symlink EPERM after SvelteKit build output
+hpr-http-error-policy-verify.txt: exit 124, tool timeout after verify reached proof:tape; superseded by long run
+hpr-http-error-policy-verify-long.txt: exit 0
+hpr-http-error-policy-cipher-gate.txt: exit 0

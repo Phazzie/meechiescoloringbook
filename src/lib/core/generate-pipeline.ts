@@ -1,28 +1,45 @@
 // Purpose: Centralize generation endpoint orchestration in a reusable core pipeline.
 // Why: Keep route handlers thin and isolate seam composition logic from transport concerns.
 // Info flow: Raw request body -> validation/seams -> contract-shaped response payload.
-import { driftDetectionAdapter } from '$lib/adapters/drift-detection.adapter';
-import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly.adapter';
-import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+import { driftDetectionAdapter } from '$lib/adapters/drift-detection-seam';
+import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly-seam';
+import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
+import type {
+	SafetyPolicyError,
+	SafetyPolicyGenerateInput,
+	SafetyPolicyResult
+} from '$lib/seams/safety-policy-seam/contract';
 import {
 	GenerateRequestSchema,
 	GenerateResultSchema
 } from '../../../contracts/generate.contract';
-import { ImageGenerationResultSchema } from '../../../contracts/image-generation.contract';
+import {
+	ImageGenerationInputSchema,
+	ImageGenerationResultSchema
+} from '../../../contracts/image-generation.contract';
 import { z } from 'zod';
 
 type GenerateResult = z.infer<typeof GenerateResultSchema>;
+type ImageGenerationInput = z.infer<typeof ImageGenerationInputSchema>;
+type ImageGenerationResult = z.infer<typeof ImageGenerationResultSchema>;
 
 type PipelineResponse = {
 	status: number;
 	body: GenerateResult;
 };
 
-type PipelineDeps = {
-	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+type ImagePipelineResponse = {
+	status: number;
+	body: ImageGenerationResult;
+};
+
+export type GeneratePipelineDeps = {
+	checkContentSafety: (input: SafetyPolicyGenerateInput) => SafetyPolicyResult;
 	validateSpec: typeof specValidationAdapter.validate;
 	assemblePrompt: typeof promptAssemblyAdapter.assemble;
 	detectDrift: typeof driftDetectionAdapter.detect;
+	generateImage: (body: ImageGenerationInput, signal?: AbortSignal) => Promise<ImagePipelineResponse>;
+	signal?: AbortSignal;
 };
 
 const buildError = (
@@ -48,13 +65,54 @@ const defaultDeps = {
 	detectDrift: driftDetectionAdapter.detect
 };
 
+const safetyErrorDetails = (error: SafetyPolicyError) => {
+	const details: Record<string, string> = { policyCode: error.code };
+	if (error.details?.length) {
+		details.policyDetails = error.details.join(' | ');
+	}
+	return details;
+};
+
+const imageExceptionResponse = (error: unknown): PipelineResponse => {
+	const reason = error instanceof Error ? error.message : String(error);
+	const name = error instanceof Error ? error.name : '';
+	const isTimeout = name === 'TimeoutError' || /timeout/i.test(reason);
+	return buildError(
+		isTimeout ? 504 : 502,
+		isTimeout ? 'IMAGE_GENERATION_TIMEOUT' : 'IMAGE_GENERATION_FAILED',
+		isTimeout ? 'Image generation timed out.' : 'Image generation failed unexpectedly.',
+		{ reason }
+	);
+};
+
 export const runGeneratePipeline = async (
 	body: unknown,
-	deps: PipelineDeps
+	deps: GeneratePipelineDeps
 ): Promise<PipelineResponse> => {
+	if (deps.signal?.aborted) {
+		return buildError(
+			499,
+			'GENERATE_ABORTED',
+			'Generate request was canceled by the caller.'
+		);
+	}
+
 	const parsedInput = GenerateRequestSchema.safeParse(body);
 	if (!parsedInput.success) {
 		return buildError(400, 'GENERATE_INPUT_INVALID', 'Generate request is invalid.');
+	}
+
+	const safetyResult = deps.checkContentSafety({
+		spec: parsedInput.data.spec,
+		styleHint: parsedInput.data.styleHint
+	});
+	if (!safetyResult.ok) {
+		return buildError(
+			400,
+			'CONTENT_POLICY_VIOLATION',
+			safetyResult.error.message,
+			safetyErrorDetails(safetyResult.error)
+		);
 	}
 
 	const validation = await deps.validateSpec({ spec: parsedInput.data.spec });
@@ -82,23 +140,22 @@ export const runGeneratePipeline = async (
 		};
 	}
 
-	const imageResponse = await deps.fetchImpl('/api/image-generation', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			spec: parsedInput.data.spec,
-			prompt: promptResult.value.prompt,
-			variations: parsedInput.data.spec.variations,
-			outputFormat: parsedInput.data.spec.outputFormat
-		})
-	});
-	const imagePayload = await imageResponse.json().catch(() => null);
-	if (imagePayload === null) {
-		return imageResponse.ok
-			? buildError(502, 'IMAGE_RESPONSE_INVALID', 'Image generation response did not match contract.')
-			: buildError(imageResponse.status, 'IMAGE_HTTP_ERROR', `Image generation returned HTTP ${imageResponse.status}.`, { status: String(imageResponse.status) });
+	let imageResult: ImagePipelineResponse;
+	const imageRequest = {
+		spec: parsedInput.data.spec,
+		prompt: promptResult.value.prompt,
+		variations: parsedInput.data.spec.variations,
+		outputFormat: parsedInput.data.spec.outputFormat
+	};
+	try {
+		imageResult = deps.signal
+			? await deps.generateImage(imageRequest, deps.signal)
+			: await deps.generateImage(imageRequest);
+	} catch (error) {
+		return imageExceptionResponse(error);
 	}
-	const parsedImageResult = ImageGenerationResultSchema.safeParse(imagePayload);
+
+	const parsedImageResult = ImageGenerationResultSchema.safeParse(imageResult.body);
 	if (!parsedImageResult.success) {
 		return buildError(
 			502,
@@ -108,7 +165,7 @@ export const runGeneratePipeline = async (
 	}
 	if (!parsedImageResult.data.ok) {
 		return {
-			status: imageResponse.ok ? 502 : imageResponse.status,
+			status: imageResult.status >= 400 ? imageResult.status : 502,
 			body: parsedImageResult.data
 		};
 	}

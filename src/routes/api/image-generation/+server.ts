@@ -14,7 +14,8 @@ export const POST: RequestHandler = async ({ request }) => {
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 	const pipelineResult = await runImageGenerationPipeline(parsed.body, {
-		imageGenerationSeam: createImageGenerationSeam(createImageProviderConfigSeam())
+		imageGenerationSeam: createImageGenerationSeam(createImageProviderConfigSeam()),
+		signal: request.signal
 	});
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };

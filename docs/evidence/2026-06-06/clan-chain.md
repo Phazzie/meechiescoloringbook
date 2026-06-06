@@ -1,0 +1,42 @@
+<!--
+Purpose: Highlight seams that are clean vs blocked/missing.
+Why: Keep the seam chain visible for non-coders.
+Info flow: seam ledger -> chain summary -> review.
+-->
+# Clan Chain
+
+Generated at: 2026-06-06T21:11:38.693Z
+Evidence folder: docs\evidence\2026-06-06
+
+Clean seams:
+- AppConfigSeam (owner: hbpheonix)
+- ImageProviderConfigSeam (owner: hbpheonix)
+- PromptCompilerSeam (owner: hbpheonix)
+- SafetyPolicySeam (owner: hbpheonix)
+- GalleryStoreSeam (owner: hbpheonix)
+- TelemetrySeam (owner: hbpheonix)
+- AuthContextSeam (owner: hbpheonix)
+- CreationStoreSeam (owner: hbpheonix)
+- PromptAssemblySeam (owner: hbpheonix)
+- PromptAssemblySeam (self-contained) (owner: hbpheonix)
+- ChatInterpretationSeam (owner: hbpheonix)
+- ImageGenerationSeam (owner: hbpheonix)
+- ImageGenerationSeam (self-contained) (owner: hbpheonix)
+- DriftDetectionSeam (owner: hbpheonix)
+- DriftDetectionSeam (self-contained) (owner: hbpheonix)
+- MeechieVoiceSeam (owner: hbpheonix)
+- MeechieVoiceSeam (self-contained) (owner: hbpheonix)
+- MeechieToolSeam (owner: hbpheonix)
+- MeechieToolSeam (self-contained) (owner: hbpheonix)
+- MeechieStudioTextSeam (owner: hbpheonix)
+- ProviderAdapterSeam (owner: hbpheonix)
+- OutputPackagingSeam (owner: hbpheonix)
+- SessionSeam (owner: hbpheonix)
+- SpecValidationSeam (owner: hbpheonix)
+- SpecValidationSeam (self-contained) (owner: hbpheonix)
+- WigCatalogSeam (owner: hbpheonix)
+- WigTryOnSeam (owner: hbpheonix)
+- CacheSeam (owner: hbpheonix)
+
+Dirty seams:
+

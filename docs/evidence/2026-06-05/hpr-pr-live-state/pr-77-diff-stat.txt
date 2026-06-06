@@ -1,0 +1,15 @@
+﻿ docs/evidence/2026-05-20/assumption-alarm.json |  71 ++
+ docs/evidence/2026-05-20/chamber-lock.json     | 840 +++++++++++++++++++++++
+ docs/evidence/2026-05-20/clan-chain.json       | 100 +++
+ docs/evidence/2026-05-20/clan-chain.md         |  37 ++
+ docs/evidence/2026-05-20/proof-tape.json       |  92 +++
+ docs/evidence/2026-05-20/proof-tape.md         |  25 +
+ docs/evidence/2026-05-20/seam-ledger.json      | 886 +++++++++++++++++++++++++
+ docs/evidence/2026-05-20/seam-ledger.md        |  35 +
+ docs/evidence/2026-05-20/shaolin-lint.json     |  25 +
+ docs/evidence/2026-05-20/test.txt              |  74 +++
+ docs/evidence/2026-05-20/verify.txt            |  86 +++
+ src/lib/core/http-client.ts                    |   2 +-
+ src/lib/core/meechie-studio.ts                 |  16 +-
+ tests/unit/http-client.test.ts                 |  29 +-
+ 14 files changed, 2306 insertions(+), 12 deletions(-)

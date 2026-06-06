@@ -1,0 +1,18 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-06T20:15:57.975Z",
+  "cipher": {
+    "date": "2026-06-06",
+    "seams": "MeechieVoiceSeam, DriftDetectionSeam, PromptAssemblySeam, PromptCompilerSeam, MeechieToolSeam, SpecValidationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-06/npm-verify-pr-127-resolution.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Extracted Meechie voice pack to shared module, added word-boundary check for forbidden tokens, normalized styleHint in legacy prompt-assembly adapter, tightened legacy meechie-tool adapter toolId union types, and wired all newly migrated canonical self-contained seams into production pipelines. Documented PromptCompilerSeam exception allowing dynamic mock interpolation.",
+    "risks": "PromptCompilerSeam mock uses dynamic logic rather than hardcoded fixture loading to prevent falsely passing integration test cases that drop compiler inputs. This is documented as a pure-compiler exception to the strict fixture-mock rule."
+  },
+  "latestChangeMs": 1780776392449.0952,
+  "status": "ok"
+}

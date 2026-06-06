@@ -1,8 +1,8 @@
 // Purpose: Mock PromptCompilerSeam behavior using fixtures.
 // Why: Keep tests deterministic without live I/O.
 // Info flow: tests -> mock -> fixtures.
-// TODO: Refactor to load from fixture scenarios per SDD conventions (requires probe run with XAI_API_KEY)
 import type { CompiledPrompt, PromptCompilerInput, PromptCompilerSeam } from './contract';
+import { compiledPromptFixture, promptCompilerInputFixture } from './fixtures';
 import { SYSTEM_CONSTANTS } from '../../core/constants';
 
 const densityMap: Record<PromptCompilerInput['density'], string> = {
@@ -66,8 +66,23 @@ const buildPrompt = (input: PromptCompilerInput) => {
   ].join('\n');
 };
 
+const isFixtureInput = (input: PromptCompilerInput): boolean => {
+  return (
+    input.description === promptCompilerInputFixture.description &&
+    input.glamLevel === promptCompilerInputFixture.glamLevel &&
+    input.density === promptCompilerInputFixture.density &&
+    input.lineThickness === promptCompilerInputFixture.lineThickness &&
+    input.borderStyle === promptCompilerInputFixture.borderStyle &&
+    input.addCaption === promptCompilerInputFixture.addCaption &&
+    input.captionText === promptCompilerInputFixture.captionText
+  );
+};
+
 export const createMockPromptCompilerSeam = (): PromptCompilerSeam => ({
   compile: async (input) => {
+    if (isFixtureInput(input)) {
+      return compiledPromptFixture;
+    }
     const compiled: CompiledPrompt = {
       imagePrompt: buildPrompt(input),
       negativePrompt,
@@ -81,7 +96,6 @@ export const createMockPromptCompilerSeam = (): PromptCompilerSeam => ({
         enforcedConstraints: constraints
       }
     };
-
     return compiled;
   }
 });

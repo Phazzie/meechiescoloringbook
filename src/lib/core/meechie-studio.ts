@@ -212,8 +212,10 @@ export const studioModes: StudioMode[] = [
 //      1 mode rotates monthly (changes on the 1st), 2 rotate weekly.
 //      All 8 modes get equal exposure over time.
 
-const getMonthKey = (): number =>
-	new Date().getFullYear() * 12 + new Date().getMonth();
+const getMonthKey = (): number => {
+	const now = new Date();
+	return now.getFullYear() * 12 + now.getMonth();
+};
 
 const getWeekNumber = (): number =>
 	Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));

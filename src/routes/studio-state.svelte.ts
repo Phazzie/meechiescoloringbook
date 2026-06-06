@@ -205,7 +205,7 @@ export class StudioState {
 		this.isSavingDraft = true;
 		this.draftSaveError = '';
 		try {
-			await creationStoreAdapter.saveDraft({
+			const result = await creationStoreAdapter.saveDraft({
 				draft: {
 					updatedAtISO: new Date().toISOString(),
 					intent: $state.snapshot(this.spec),
@@ -213,7 +213,11 @@ export class StudioState {
 					studioText: this.textOutput ? $state.snapshot(this.textOutput) : undefined
 				}
 			});
-			this.draftSaveError = '';
+			if (result.ok) {
+				this.draftSaveError = '';
+			} else {
+				this.draftSaveError = result.error.message;
+			}
 		} catch (error) {
 			this.draftSaveError = error instanceof Error ? error.message : 'Draft save failed';
 		} finally {
@@ -262,7 +266,7 @@ export class StudioState {
 	}
 
 	private parseTryOnPortraitImage(): GeneratedImage | null {
-		const match = this.tryOnPortraitUrl.match(/^data:(image\/(png|jpeg|jpg));base64,(.+)$/);
+		const match = this.tryOnPortraitUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/);
 		if (!match) return null;
 		const mimeType = match[1];
 		const subtype = match[2];
@@ -441,7 +445,7 @@ export class StudioState {
 
 			const creationId = this.generateCreationId();
 			const packagingResult = await outputPackagingAdapter.package({
-				images: this.images,
+				images: $state.snapshot(this.images),
 				outputFormat: 'pdf',
 				fileBaseName: `meechie-coloring-page-${creationId}`,
 				pageSize: this.spec.pageSize,
@@ -482,7 +486,7 @@ export class StudioState {
 			this.images = [portraitImage];
 			const creationId = this.generateCreationId();
 			const packagingResult = await outputPackagingAdapter.package({
-				images: this.images,
+				images: $state.snapshot(this.images),
 				outputFormat: 'pdf',
 				fileBaseName: `meechie-try-on-coloring-page-${creationId}`,
 				pageSize: this.spec.pageSize,
@@ -544,7 +548,9 @@ export class StudioState {
 
 	saveToVault = async (): Promise<void> => {
 		if (this.isSaving) return;
-		if (!this.owner || !this.textOutput) {
+		const owner = this.owner;
+		const textOutput = this.textOutput;
+		if (!owner || !textOutput) {
 			this.vaultStatus = 'Session is still connecting. Try again in a moment.';
 			return;
 		}
@@ -560,14 +566,14 @@ export class StudioState {
 					id: creationId,
 					createdAtISO: new Date().toISOString(),
 					intent: $state.snapshot(this.spec),
-					assembledPrompt: this.assembledPrompt || this.textOutput.quote,
-					studioText: this.textOutput ? $state.snapshot(this.textOutput) : undefined,
+					assembledPrompt: this.assembledPrompt || textOutput.quote,
+					studioText: $state.snapshot(textOutput),
 					revisedPrompt: this.revisedPrompt || undefined,
 					images: storedImages.length > 0 ? storedImages : undefined,
-					violations: this.violations,
+					violations: $state.snapshot(this.violations),
 					fixesApplied: this.recommendedFixes.map((fix) => fix.code),
 					authContext: this.authContext ?? undefined,
-					owner: this.owner
+					owner
 				}
 			});
 			this.vaultStatus = result.ok ? 'Saved to the quote vault.' : result.error.message;
