@@ -2,6 +2,7 @@
 // Why: Catch broken buttons, selectors, and API error states before deployment.
 // Info flow: Playwright route stubs -> UI interactions -> visible states.
 import { expect, test, type Page } from '@playwright/test';
+import { getWeeklyModes } from '../../src/lib/core/meechie-studio';
 
 test.setTimeout(120000);
 test.describe.configure({ mode: 'serial' });
@@ -88,8 +89,9 @@ test('home mode switching and generation controls work', async ({ page }) => {
 	await gotoHydrated(page, '/');
 	await expect(page.getByTestId('home-mode-rate-excuse')).toBeVisible();
 
+	const initialMode = getWeeklyModes()[0];
 	await expect(page.getByTestId('home-active-mode-heading')).toHaveText(
-		'Who Fucked Up?'
+		initialMode.label
 	);
 	await page.getByTestId('home-mode-rate-excuse').click();
 	await expect(page.getByTestId('home-active-mode-heading')).toHaveText(
@@ -145,6 +147,40 @@ test('home quote vault can save, load, pin, and delete creations', async ({
 	await expect(page.getByTestId('home-vault-pin')).toHaveText('Unpin');
 	await page.getByTestId('home-vault-delete').click();
 	await expect(page.getByTestId('home-vault-empty')).toBeVisible();
+});
+
+test('home shoutout input debounces draft save and clears dedication', async ({
+	page
+}) => {
+	await gotoHydrated(page, '/');
+	await expect
+		.poll(async () => page.evaluate(() => localStorage.getItem('cb_session_id_v1')), {
+			timeout: 5000
+		})
+		.not.toBeNull();
+	await page.evaluate(() => {
+		localStorage.removeItem('cb_drafts_v1');
+	});
+
+	const readDraft = (): Promise<{ intent?: { dedication?: string } } | null> =>
+		page.evaluate(() => JSON.parse(localStorage.getItem('cb_drafts_v1') ?? 'null'));
+
+	const shoutout = page.getByLabel('Shoutout');
+	await shoutout.fill('  Big Sis  ');
+	expect(await readDraft()).toBeNull();
+	await expect
+		.poll(async () => (await readDraft())?.intent?.dedication, {
+			timeout: 5000
+		})
+		.toBe('Big Sis');
+
+	await shoutout.fill('   ');
+	expect((await readDraft())?.intent?.dedication).toBe('Big Sis');
+	await expect
+		.poll(async () => (await readDraft())?.intent?.dedication, {
+			timeout: 5000
+		})
+		.toBeUndefined();
 });
 
 test('random route tap and page generation work', async ({ page }) => {

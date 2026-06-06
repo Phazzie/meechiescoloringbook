@@ -10,6 +10,7 @@ export type WigTryOnRequest = {
   wigImageMimeType: 'image/jpeg' | 'image/png' | 'image/webp';
   wigName: string;
   wigStyle: string;
+  signal?: AbortSignal;
 };
 
 export type WigTryOnResult = {

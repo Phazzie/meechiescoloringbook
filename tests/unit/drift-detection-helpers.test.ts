@@ -171,6 +171,20 @@ describe('drift-detection adapter edge cases', () => {
 				expect(styleTokenViolations).toHaveLength(0);
 			}
 		});
+
+		it('does not flag harmless words containing forbidden tokens as substrings', async () => {
+			const validPrompt = buildValidPrompt(baseSpec) + '\nlifestyle choices are cool\nwe need to resize the canvas';
+			const result = await driftDetectionAdapter.detect({
+				spec: baseSpec,
+				promptSent: validPrompt
+			});
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				const violations = result.value.violations.filter((v) => v.code === 'FORBIDDEN_TOKEN');
+				expect(violations).toHaveLength(0);
+			}
+		});
+
 	});
 
 	describe('alignment phrase detection', () => {

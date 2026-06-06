@@ -15,6 +15,17 @@ When asked for Wu-Bob’s thoughts, respond in a single combined voice that blen
 ## Why Seam-Driven Development Here
 The common failure modes are assuming behavior, skipping probes, widening scope, and claiming compliance without evidence. Seam-Driven Development prevents that by forcing reality capture, fixture-backed mocks, and contract-first tests.
 
+## Codex MCP Server & Programmatic Usage
+- **Direct MCP Integration:** Codex is configured as a direct stdio-based Model Context Protocol (MCP) server for Antigravity in `mcp_config.json`. This allows Antigravity to automatically call Codex tools (such as git operations, filesystem edits, and tool searches) without manual copy-paste.
+- **Programmatic Codex CLI Calls:** In scripts and background automation, Codex can be invoked programmatically via the command line:
+  - `codex exec "<instruction>"` for isolated task delegation.
+  - `codex run <skill>` to execute a structured, pre-defined skill workflow.
+- **When to Invoke Codex Programmatically:**
+  - **PR Conflict Resolution:** To delegate merging, conflict parsing, and resolution of specific stale branches.
+  - **Review Harvesting:** To query and compile open PR review comments into local Markdown checklists.
+  - **Automated Validation:** To coordinate checkout, test, and verification pipelines on isolated candidate branches.
+  - **Repetitive Refactoring:** For repetitive code updates or boilerplate changes across multiple files or seams.
+
 ## Core Principles (Keep These Intact)
 1. Reality first: probe real behavior for any seam that touches the world.
 2. Determinism: mocks load fixtures, not invented data.

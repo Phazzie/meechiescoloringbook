@@ -1,0 +1,1801 @@
+
+> meechies-coloringbook@0.1.0 lint
+> eslint .
+
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\generated\client-optimized\app.js
+  26:33  error  'console' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\generated\client\app.js
+  26:33  error  'console' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\generated\root.svelte
+  11:20  error  svelte-ignore comment is used, but not warned                                                                                                                                               svelte/no-unused-svelte-ignore
+  12:28  error  This reference only captures the initial value of `stores`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally(state_referenced_locally)  svelte/valid-compile
+  18:20  error  svelte-ignore comment is used, but not warned                                                                                                                                               svelte/no-unused-svelte-ignore
+  19:3   error  This reference only captures the initial value of `stores`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally(state_referenced_locally)  svelte/valid-compile
+  19:19  error  This reference only captures the initial value of `page`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally(state_referenced_locally)    svelte/valid-compile
+  35:14  error  'document' is not defined                                                                                                                                                                   no-undef
+  49:27  error  svelte-ignore comment is used, but not warned                                                                                                                                               svelte/no-unused-svelte-ignore
+  51:28  error  svelte-ignore comment is used, but not warned                                                                                                                                               svelte/no-unused-svelte-ignore
+  57:21  error  svelte-ignore comment is used, but not warned                                                                                                                                               svelte/no-unused-svelte-ignore
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\generated\server\internal.js
+  25:23  error  'assets' is defined but never used  no-unused-vars
+  25:31  error  'nonce' is defined but never used   no-unused-vars
+  25:38  error  'env' is defined but never used     no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\chunks\3Ffpm5KL.js
+  1:86   error  Unnecessary escape character: \/  no-useless-escape
+  1:332  error  Unnecessary escape character: \-  no-useless-escape
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\chunks\BdUHV4dB.js
+  1:1135   error  'e' is defined but never used    no-unused-vars
+  1:1137   error  't' is defined but never used    no-unused-vars
+  1:1139   error  'n' is defined but never used    no-unused-vars
+  1:1213   error  'e' is defined but never used    no-unused-vars
+  1:1367   error  'e' is defined but never used    no-unused-vars
+  1:1590   error  'e' is defined but never used    no-unused-vars
+  1:2130   error  'console' is not defined         no-undef
+  1:2193   error  'e' is defined but never used    no-unused-vars
+  1:2196   error  'console' is not defined         no-undef
+  1:2266   error  'console' is not defined         no-undef
+  1:2347   error  'console' is not defined         no-undef
+  1:3146   error  'n' is defined but never used    no-unused-vars
+  1:3238   error  'e' is defined but never used    no-unused-vars
+  1:3454   error  'queueMicrotask' is not defined  no-undef
+  1:5594   error  'r' is defined but never used    no-unused-vars
+  1:7037   error  '#S' is defined but never used   no-unused-private-class-members
+  1:9034   error  'e' is defined but never used    no-unused-vars
+  1:11241  error  't' is defined but never used    no-unused-vars
+  1:11243  error  'n' is defined but never used    no-unused-vars
+  1:12759  error  't' is defined but never used    no-unused-vars
+  1:12835  error  't' is defined but never used    no-unused-vars
+  1:16005  error  Empty block statement            no-empty
+  1:16115  error  'window' is not defined          no-undef
+  1:16125  error  'document' is not defined        no-undef
+  1:16152  error  'navigator' is not defined       no-undef
+  1:16179  error  'Element' is not defined         no-undef
+  1:16199  error  'Node' is not defined            no-undef
+  1:16216  error  'Text' is not defined            no-undef
+  1:16391  error  'document' is not defined        no-undef
+  1:16715  error  'Comment' is not defined         no-undef
+  1:17077  error  't' is defined but never used    no-unused-vars
+  1:17079  error  'n' is defined but never used    no-unused-vars
+  1:17089  error  'document' is not defined        no-undef
+  1:17354  error  'document' is not defined        no-undef
+  1:17707  error  'e' is defined but never used    no-unused-vars
+  1:23132  error  'i' is defined but never used    no-unused-vars
+  1:24248  error  'EventTarget' is not defined     no-undef
+  1:24445  error  'EventTarget' is not defined     no-undef
+  1:24545  error  Empty block statement            no-empty
+  1:24736  error  Empty block statement            no-empty
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\chunks\BlBOnzwj.js
+  1:1523  error  'document' is not defined               no-undef
+  1:1838  error  'document' is not defined               no-undef
+  2:73    error  'console' is not defined                no-undef
+  2:259   error  'n' is assigned a value but never used  no-unused-vars
+  2:628   error  'document' is not defined               no-undef
+  2:844   error  'document' is not defined               no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\chunks\CTl113l_.js
+   1:3056    error  Do not access Object.prototype method 'hasOwnProperty' from target object  no-prototype-builtins
+   1:3625    error  'n' is already defined                                                     no-redeclare
+   1:5242    error  'e' is already defined                                                     no-redeclare
+   1:6053    error  Unnecessary escape character: \/                                           no-useless-escape
+   1:6055    error  Unnecessary escape character: \+                                           no-useless-escape
+   1:6852    error  Unexpected control character(s) in regular expression: \x0b                no-control-regex
+   1:6910    error  Unexpected control character(s) in regular expression: \x0b                no-control-regex
+   1:6961    error  Unexpected control character(s) in regular expression: \x0b                no-control-regex
+   1:8643    error  'i' is already defined                                                     no-redeclare
+   1:8871    error  't' is already defined                                                     no-redeclare
+   1:8875    error  'n' is already defined                                                     no-redeclare
+   1:9883    error  'setTimeout' is not defined                                                no-undef
+   1:11490   error  't' is already defined                                                     no-redeclare
+   1:16178   error  'ee' is defined but never used                                             no-unused-vars
+   1:46718   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:46920   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:47109   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:47343   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:47625   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:47883   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:48136   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:48466   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:48597   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:48628   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:49138   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:49155   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:49548   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:49890   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:51088   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:51106   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:51848   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:52021   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:52470   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:52702   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:53381   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:53554   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   2:472     error  'e' is defined but never used                                              no-unused-vars
+   2:721     error  'e' is defined but never used                                              no-unused-vars
+   2:723     error  't' is defined but never used                                              no-unused-vars
+   2:1241    error  'n' is assigned a value but never used                                     no-unused-vars
+   2:5496    error  'n' is assigned a value but never used                                     no-unused-vars
+   4:717     error  't' is defined but never used                                              no-unused-vars
+   7:1290    error  'n' is assigned a value but never used                                     no-unused-vars
+   8:2483    error  'n' is already defined                                                     no-redeclare
+   8:2487    error  'i' is already defined                                                     no-redeclare
+  15:1465    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:1920    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:2753    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:2913    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:4390    error  'l' is already defined                                                     no-redeclare
+  15:4410    error  'd' is already defined                                                     no-redeclare
+  15:4479    error  'l' is already defined                                                     no-redeclare
+  15:6142    error  'y' is already defined                                                     no-redeclare
+  15:6193    error  'y' is already defined                                                     no-redeclare
+  15:6557    error  'w' is already defined                                                     no-redeclare
+  15:6598    error  'w' is already defined                                                     no-redeclare
+  15:7414    error  'y' is already defined                                                     no-redeclare
+  15:7416    error  'w' is already defined                                                     no-redeclare
+  15:7418    error  'F' is already defined                                                     no-redeclare
+  15:7420    error  'S' is already defined                                                     no-redeclare
+  15:7697    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:7993    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:8172    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:8228    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:8488    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:5448    error  'e' is defined but never used                                              no-unused-vars
+  35:7839    error  'd' is defined but never used                                              no-unused-vars
+  35:8831    error  'd' is defined but never used                                              no-unused-vars
+  35:9354    error  'i' is defined but never used                                              no-unused-vars
+  35:10299   error  'w' is already defined                                                     no-redeclare
+  35:10631   error  'v' is already defined                                                     no-redeclare
+  35:10716   error  'v' is already defined                                                     no-redeclare
+  35:10795   error  'v' is already defined                                                     no-redeclare
+  35:10812   error  'w' is already defined                                                     no-redeclare
+  35:10904   error  'v' is already defined                                                     no-redeclare
+  35:10928   error  'w' is already defined                                                     no-redeclare
+  35:11032   error  'v' is already defined                                                     no-redeclare
+  35:11049   error  'C' is already defined                                                     no-redeclare
+  35:11056   error  'w' is already defined                                                     no-redeclare
+  35:11260   error  'v' is already defined                                                     no-redeclare
+  35:11277   error  'C' is already defined                                                     no-redeclare
+  35:11396   error  'P' is already defined                                                     no-redeclare
+  35:11416   error  'M' is already defined                                                     no-redeclare
+  35:11422   error  'V' is already defined                                                     no-redeclare
+  35:11428   error  'v' is already defined                                                     no-redeclare
+  35:11445   error  'C' is already defined                                                     no-redeclare
+  35:11454   error  'q' is already defined                                                     no-redeclare
+  35:11484   error  'G' is already defined                                                     no-redeclare
+  35:11564   error  'P' is already defined                                                     no-redeclare
+  35:11584   error  'M' is already defined                                                     no-redeclare
+  35:11590   error  'V' is already defined                                                     no-redeclare
+  35:11596   error  'v' is already defined                                                     no-redeclare
+  35:11613   error  'C' is already defined                                                     no-redeclare
+  35:11622   error  'q' is already defined                                                     no-redeclare
+  35:11653   error  'G' is already defined                                                     no-redeclare
+  35:11733   error  'v' is already defined                                                     no-redeclare
+  35:11750   error  'C' is already defined                                                     no-redeclare
+  35:11757   error  'q' is already defined                                                     no-redeclare
+  35:11764   error  'G' is already defined                                                     no-redeclare
+  35:11859   error  'v' is already defined                                                     no-redeclare
+  35:11876   error  'C' is already defined                                                     no-redeclare
+  35:11953   error  'v' is already defined                                                     no-redeclare
+  35:11970   error  'C' is already defined                                                     no-redeclare
+  35:11977   error  'Z' is already defined                                                     no-redeclare
+  35:11984   error  'z' is already defined                                                     no-redeclare
+  35:12052   error  'F' is already defined                                                     no-redeclare
+  35:12081   error  'P' is already defined                                                     no-redeclare
+  35:12144   error  'z' is already defined                                                     no-redeclare
+  35:12242   error  'Y' is already defined                                                     no-redeclare
+  35:12259   error  'z' is already defined                                                     no-redeclare
+  35:12296   error  'J' is already defined                                                     no-redeclare
+  35:12360   error  'Y' is already defined                                                     no-redeclare
+  35:12377   error  'z' is already defined                                                     no-redeclare
+  35:12415   error  'J' is already defined                                                     no-redeclare
+  35:12479   error  'Y' is already defined                                                     no-redeclare
+  35:12496   error  'z' is already defined                                                     no-redeclare
+  35:12505   error  'J' is already defined                                                     no-redeclare
+  35:12567   error  'Y' is already defined                                                     no-redeclare
+  35:12584   error  'z' is already defined                                                     no-redeclare
+  35:12598   error  'J' is already defined                                                     no-redeclare
+  35:13038   error  'd' is already defined                                                     no-redeclare
+  35:13513   error  'd' is already defined                                                     no-redeclare
+  35:13661   error  'd' is already defined                                                     no-redeclare
+  35:13904   error  'C' is already defined                                                     no-redeclare
+  35:13934   error  'B' is already defined                                                     no-redeclare
+  35:14073   error  'E' is already defined                                                     no-redeclare
+  35:14228   error  'd' is already defined                                                     no-redeclare
+  35:14697   error  'w' is already defined                                                     no-redeclare
+  35:15892   error  'G' is already defined                                                     no-redeclare
+  35:17089   error  'u' is already defined                                                     no-redeclare
+  35:19034   error  'n' is already defined                                                     no-redeclare
+  35:19803   error  'V' is already defined                                                     no-redeclare
+  35:19872   error  'V' is already defined                                                     no-redeclare
+  35:22360   error  'w' is already defined                                                     no-redeclare
+  35:22369   error  'F' is already defined                                                     no-redeclare
+  35:22376   error  'S' is already defined                                                     no-redeclare
+  35:22385   error  'R' is already defined                                                     no-redeclare
+  35:22394   error  'C' is already defined                                                     no-redeclare
+  35:22403   error  'B' is already defined                                                     no-redeclare
+  35:22410   error  'E' is already defined                                                     no-redeclare
+  35:22419   error  'D' is already defined                                                     no-redeclare
+  35:22541   error  'w' is already defined                                                     no-redeclare
+  35:22550   error  'F' is already defined                                                     no-redeclare
+  35:22557   error  'S' is already defined                                                     no-redeclare
+  35:22566   error  'R' is already defined                                                     no-redeclare
+  35:22575   error  'C' is already defined                                                     no-redeclare
+  35:22584   error  'B' is already defined                                                     no-redeclare
+  35:22591   error  'E' is already defined                                                     no-redeclare
+  35:22600   error  'D' is already defined                                                     no-redeclare
+  35:23662   error  'y' is already defined                                                     no-redeclare
+  35:24207   error  'v' is already defined                                                     no-redeclare
+  35:24266   error  'y' is already defined                                                     no-redeclare
+  35:24452   error  'y' is already defined                                                     no-redeclare
+  35:24535   error  'w' is already defined                                                     no-redeclare
+  35:24566   error  'F' is already defined                                                     no-redeclare
+  35:24835   error  'v' is already defined                                                     no-redeclare
+  35:25515   error  'F' is already defined                                                     no-redeclare
+  35:25638   error  'F' is already defined                                                     no-redeclare
+  35:25740   error  'v' is already defined                                                     no-redeclare
+  35:25826   error  'F' is already defined                                                     no-redeclare
+  35:25890   error  'v' is already defined                                                     no-redeclare
+  35:25969   error  'w' is already defined                                                     no-redeclare
+  35:26018   error  'F' is already defined                                                     no-redeclare
+  35:26293   error  'v' is already defined                                                     no-redeclare
+  35:26317   error  'z' is already defined                                                     no-redeclare
+  35:26346   error  'te' is already defined                                                    no-redeclare
+  35:26534   error  'F' is already defined                                                     no-redeclare
+  35:26623   error  'ae' is already defined                                                    no-redeclare
+  35:26697   error  'ae' is already defined                                                    no-redeclare
+  35:26771   error  'ae' is already defined                                                    no-redeclare
+  35:26875   error  'Ve' is already defined                                                    no-redeclare
+  35:26911   error  'F' is already defined                                                     no-redeclare
+  35:26929   error  'G' is already defined                                                     no-redeclare
+  35:27610   error  'z' is already defined                                                     no-redeclare
+  35:27951   error  's' is already defined                                                     no-redeclare
+  35:28322   error  'G' is already defined                                                     no-redeclare
+  35:28346   error  'Q' is already defined                                                     no-redeclare
+  35:28353   error  'Ne' is assigned a value but never used                                    no-unused-vars
+  35:29336   error  'UZIP' is not defined                                                      no-undef
+  35:29347   error  'UZIP' is not defined                                                      no-undef
+  35:29471   error  'h' is already defined                                                     no-redeclare
+  35:29742   error  'f' is already defined                                                     no-redeclare
+  35:29776   error  'f' is already defined                                                     no-redeclare
+  35:29841   error  'f' is already defined                                                     no-redeclare
+  35:29883   error  'f' is already defined                                                     no-redeclare
+  35:29925   error  'f' is already defined                                                     no-redeclare
+  35:29989   error  'f' is already defined                                                     no-redeclare
+  35:30060   error  'f' is already defined                                                     no-redeclare
+  35:30120   error  'f' is already defined                                                     no-redeclare
+  35:30176   error  'f' is already defined                                                     no-redeclare
+  35:30250   error  'f' is already defined                                                     no-redeclare
+  35:30308   error  'f' is already defined                                                     no-redeclare
+  35:31784   error  'u' is already defined                                                     no-redeclare
+  35:31838   error  'u' is already defined                                                     no-redeclare
+  35:32004   error  'u' is already defined                                                     no-redeclare
+  35:34364   error  't' is already defined                                                     no-redeclare
+  35:35859   error  'n' is defined but never used                                              no-unused-vars
+  35:36015   error  'a' is defined but never used                                              no-unused-vars
+  35:37491   error  'o' is already defined                                                     no-redeclare
+  35:48280   error  'console' is not defined                                                   no-undef
+  35:51855   error  'i' is defined but never used                                              no-unused-vars
+  35:52017   error  'v' is defined but never used                                              no-unused-vars
+  35:58148   error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:58164   error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:58194   error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:71145   error  'f' is defined but never used                                              no-unused-vars
+  35:71466   error  'f' is defined but never used                                              no-unused-vars
+  35:82233   error  't' is already defined                                                     no-redeclare
+  35:82532   error  'console' is not defined                                                   no-undef
+  35:82581   error  'i' is already defined                                                     no-redeclare
+  35:82659   error  'console' is not defined                                                   no-undef
+  35:89411   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:89635   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:90529   error  'i' is already defined                                                     no-redeclare
+  35:90533   error  'a' is already defined                                                     no-redeclare
+  35:91207   error  'v' is already defined                                                     no-redeclare
+  35:91211   error  'y' is already defined                                                     no-redeclare
+  35:91260   error  'v' is already defined                                                     no-redeclare
+  35:91264   error  'y' is already defined                                                     no-redeclare
+  35:92065   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:92305   error  'console' is not defined                                                   no-undef
+  35:94070   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:94285   error  'console' is not defined                                                   no-undef
+  35:94340   error  'console' is not defined                                                   no-undef
+  35:94842   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:94941   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:94972   error  Unexpected comma in middle of array                                        no-sparse-arrays
+  35:95260   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:118579  error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:118595  error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:118624  error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:118828  error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:118858  error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:118888  error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:118918  error  Unnecessary escape character: \ .                                          no-useless-escape
+  36:3136    error  'Z' is already defined                                                     no-redeclare
+  36:3262    error  'Z' is already defined                                                     no-redeclare
+  37:167     error  'M' is already defined                                                     no-redeclare
+  37:171     error  'V' is already defined                                                     no-redeclare
+  37:1204    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  37:2488    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  37:5188    error  'e' is defined but never used                                              no-unused-vars
+  38:12891   error  'i' is already defined                                                     no-redeclare
+  38:12895   error  'a' is already defined                                                     no-redeclare
+  38:13490   error  'o' is already defined                                                     no-redeclare
+  38:13494   error  's' is already defined                                                     no-redeclare
+  38:19223   error  'console' is not defined                                                   no-undef
+  38:29938   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:30750   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:31043   error  'i' is defined but never used                                              no-unused-vars
+  38:32716   error  'u' is defined but never used                                              no-unused-vars
+  38:33036   error  'console' is not defined                                                   no-undef
+  38:37897   error  'u' is defined but never used                                              no-unused-vars
+  38:38834   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:40237   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:40683   error  'f' is already defined                                                     no-redeclare
+  38:40685   error  'l' is already defined                                                     no-redeclare
+  38:41007   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:41154   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:43014   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:43081   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:60167   error  'a' is already defined                                                     no-redeclare
+  38:60171   error  'o' is already defined                                                     no-redeclare
+  38:62729   error  'btoa' is not defined                                                      no-undef
+  38:62753   error  'atob' is not defined                                                      no-undef
+  38:63186   error  'document' is not defined                                                  no-undef
+  38:63390   error  'Blob' is not defined                                                      no-undef
+  38:63439   error  'URL' is not defined                                                       no-undef
+  38:63503   error  'Image' is not defined                                                     no-undef
+  38:63588   error  'URL' is not defined                                                       no-undef
+  38:63804   error  'URL' is not defined                                                       no-undef
+  38:64946   error  'document' is not defined                                                  no-undef
+  38:65070   error  'Image' is not defined                                                     no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\chunks\CdrqdQkK.js
+  1:67  error  'e' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\chunks\D8Jo79XI.js
+  1:723    error  'Headers' is not defined                                         no-undef
+  1:999    error  'URL' is not defined                                             no-undef
+  1:1375   error  'URL' is not defined                                             no-undef
+  1:2178   error  'TextEncoder' is not defined                                     no-undef
+  1:2213   error  'atob' is not defined                                            no-undef
+  1:2314   error  'window' is not defined                                          no-undef
+  1:2327   error  'window' is not defined                                          no-undef
+  1:2362   error  'Request' is not defined                                         no-undef
+  1:2482   error  'document' is not defined                                        no-undef
+  1:2734   error  'Response' is not defined                                        no-undef
+  1:2756   error  'window' is not defined                                          no-undef
+  1:2842   error  'performance' is not defined                                     no-undef
+  1:2947   error  'Response' is not defined                                        no-undef
+  1:2991   error  'window' is not defined                                          no-undef
+  1:3103   error  'Request' is not defined                                         no-undef
+  1:3184   error  'Headers' is not defined                                         no-undef
+  1:5493   error  'sessionStorage' is not defined                                  no-undef
+  1:5517   error  Empty block statement                                            no-empty
+  1:5571   error  'sessionStorage' is not defined                                  no-undef
+  1:5596   error  Empty block statement                                            no-empty
+  1:5908   error  'location' is not defined                                        no-undef
+  1:5955   error  'URL' is not defined                                             no-undef
+  1:5974   error  'document' is not defined                                        no-undef
+  1:6006   error  'document' is not defined                                        no-undef
+  1:6065   error  'document' is not defined                                        no-undef
+  1:6089   error  'URL' is not defined                                             no-undef
+  1:6120   error  'pageXOffset' is not defined                                     no-undef
+  1:6134   error  'pageYOffset' is not defined                                     no-undef
+  1:6470   error  'URL' is not defined                                             no-undef
+  1:6487   error  'SVGAElement' is not defined                                     no-undef
+  1:6521   error  'document' is not defined                                        no-undef
+  1:6574   error  'location' is not defined                                        no-undef
+  1:6637   error  Empty block statement                                            no-empty
+  1:6660   error  'SVGAElement' is not defined                                     no-undef
+  1:6949   error  'document' is not defined                                        no-undef
+  1:7688   error  'clearTimeout' is not defined                                    no-undef
+  1:7722   error  'fetch' is not defined                                           no-undef
+  1:7892   error  'clearTimeout' is not defined                                    no-undef
+  1:8040   error  'location' is not defined                                        no-undef
+  1:8073   error  'e' is defined but never used                                    no-unused-vars
+  1:8591   error  'URL' is not defined                                             no-undef
+  1:9122   error  'URL' is not defined                                             no-undef
+  1:10039  error  'location' is not defined                                        no-undef
+  1:10064  error  'location' is not defined                                        no-undef
+  1:10141  error  'navigator' is not defined                                       no-undef
+  1:10166  error  'navigator' is not defined                                       no-undef
+  1:10646  error  'document' is not defined                                        no-undef
+  1:10661  error  'location' is not defined                                        no-undef
+  1:10677  error  'location' is not defined                                        no-undef
+  1:10691  error  'location.href' is assigned to itself                            no-self-assign
+  1:10691  error  'location' is not defined                                        no-undef
+  1:10744  error  'document' is not defined                                        no-undef
+  1:10814  error  'history' is not defined                                         no-undef
+  1:10835  error  'history' is not defined                                         no-undef
+  1:10873  error  'history' is not defined                                         no-undef
+  1:10898  error  'history' is not defined                                         no-undef
+  1:10960  error  'history' is not defined                                         no-undef
+  1:10995  error  'scrollTo' is not defined                                        no-undef
+  1:11081  error  'URL' is not defined                                             no-undef
+  1:11085  error  'location' is not defined                                        no-undef
+  1:11101  error  'location' is not defined                                        no-undef
+  1:12412  error  'URL' is not defined                                             no-undef
+  1:12416  error  'location' is not defined                                        no-undef
+  1:12461  error  'document' is not defined                                        no-undef
+  1:12873  error  'r' is defined but never used                                    no-unused-vars
+  1:13067  error  'e.search' is assigned to itself                                 no-self-assign
+  1:13581  error  'URL' is not defined                                             no-undef
+  1:13903  error  'URL' is not defined                                             no-undef
+  1:14216  error  'Request' is not defined                                         no-undef
+  1:14959  error  'Request' is not defined                                         no-undef
+  1:14987  error  'URL' is not defined                                             no-undef
+  1:15372  error  'URL' is not defined                                             no-undef
+  1:17793  error  'URL' is not defined                                             no-undef
+  1:17808  error  'location' is not defined                                        no-undef
+  1:17970  error  'URL' is not defined                                             no-undef
+  1:18053  error  'URL' is not defined                                             no-undef
+  1:19576  error  'URL' is not defined                                             no-undef
+  1:20076  error  'history' is not defined                                         no-undef
+  1:20097  error  'history' is not defined                                         no-undef
+  1:20121  error  'history' is not defined                                         no-undef
+  1:20732  error  'document' is not defined                                        no-undef
+  1:20821  error  'scrollTo' is not defined                                        no-undef
+  1:20840  error  Expected a conditional expression and instead saw an assignment  no-cond-assign
+  1:20850  error  'document' is not defined                                        no-undef
+  1:20901  error  'scrollTo' is not defined                                        no-undef
+  1:20924  error  'document' is not defined                                        no-undef
+  1:20952  error  'document' is not defined                                        no-undef
+  1:20977  error  'document' is not defined                                        no-undef
+  1:21312  error  'location' is not defined                                        no-undef
+  1:21496  error  'clearTimeout' is not defined                                    no-undef
+  1:21514  error  'setTimeout' is not defined                                      no-undef
+  1:21707  error  'IntersectionObserver' is not defined                            no-undef
+  1:21775  error  'URL' is not defined                                             no-undef
+  1:22680  error  'URL' is not defined                                             no-undef
+  1:22686  error  'location' is not defined                                        no-undef
+  1:22739  error  'history' is not defined                                         no-undef
+  1:22774  error  'addEventListener' is not defined                                no-undef
+  1:23008  error  'history' is not defined                                         no-undef
+  1:23043  error  'addEventListener' is not defined                                no-undef
+  1:23084  error  'document' is not defined                                        no-undef
+  1:23128  error  'navigator' is not defined                                       no-undef
+  1:23450  error  'window' is not defined                                          no-undef
+  1:23466  error  'window' is not defined                                          no-undef
+  1:23542  error  'SVGAElement' is not defined                                     no-undef
+  1:23569  error  'location' is not defined                                        no-undef
+  1:23716  error  'location' is not defined                                        no-undef
+  1:23962  error  'scrollTo' is not defined                                        no-undef
+  1:24177  error  'requestAnimationFrame' is not defined                           no-undef
+  1:24204  error  'setTimeout' is not defined                                      no-undef
+  1:24222  error  'setTimeout' is not defined                                      no-undef
+  1:24351  error  'location' is not defined                                        no-undef
+  1:24446  error  'HTMLFormElement' is not defined                                 no-undef
+  1:24605  error  'URL' is not defined                                             no-undef
+  1:24781  error  'FormData' is not defined                                        no-undef
+  1:24808  error  'URLSearchParams' is not defined                                 no-undef
+  1:24941  error  'location' is not defined                                        no-undef
+  1:24967  error  'addEventListener' is not defined                                no-undef
+  1:25107  error  'URL' is not defined                                             no-undef
+  1:25124  error  'location' is not defined                                        no-undef
+  1:25163  error  'location' is not defined                                        no-undef
+  1:25249  error  'scrollTo' is not defined                                        no-undef
+  1:25387  error  'history' is not defined                                         no-undef
+  1:25449  error  'URL' is not defined                                             no-undef
+  1:25453  error  'location' is not defined                                        no-undef
+  1:25481  error  'location' is not defined                                        no-undef
+  1:25503  error  'addEventListener' is not defined                                no-undef
+  1:25547  error  'history' is not defined                                         no-undef
+  1:25572  error  'history' is not defined                                         no-undef
+  1:25604  error  'location' is not defined                                        no-undef
+  1:25637  error  'document' is not defined                                        no-undef
+  1:25694  error  't.href' is assigned to itself                                   no-self-assign
+  1:25702  error  'addEventListener' is not defined                                no-undef
+  1:25928  error  's' is defined but never used                                    no-unused-vars
+  1:25964  error  'URL' is not defined                                             no-undef
+  1:25968  error  'location' is not defined                                        no-undef
+  1:26564  error  'URL' is not defined                                             no-undef
+  1:26579  error  'location' is not defined                                        no-undef
+  1:26988  error  'document' is not defined                                        no-undef
+  1:27066  error  'document' is not defined                                        no-undef
+  1:27113  error  'setTimeout' is not defined                                      no-undef
+  1:27137  error  'history' is not defined                                         no-undef
+  1:27157  error  'location' is not defined                                        no-undef
+  1:27178  error  'URL' is not defined                                             no-undef
+  1:27190  error  'location' is not defined                                        no-undef
+  1:27206  error  'history' is not defined                                         no-undef
+  1:27238  error  'scrollTo' is not defined                                        no-undef
+  1:27273  error  'document' is not defined                                        no-undef
+  1:27450  error  'getSelection' is not defined                                    no-undef
+  1:27555  error  'setTimeout' is not defined                                      no-undef
+  1:28344  error  'URL' is not defined                                             no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\chunks\DDnw7GuN.js
+  1:541   error  'document' is not defined          no-undef
+  1:560   error  'window' is not defined            no-undef
+  1:572   error  'document' is not defined          no-undef
+  1:595   error  'HTMLMediaElement' is not defined  no-undef
+  1:932   error  'document' is not defined          no-undef
+  1:946   error  'window' is not defined            no-undef
+  1:1370  error  'queueMicrotask' is not defined    no-undef
+  1:1961  error  'document' is not defined          no-undef
+  1:2229  error  'document' is not defined          no-undef
+  1:2265  error  'document' is not defined          no-undef
+  1:2476  error  'window' is not defined            no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\chunks\DEkFYOMn.js
+  1:1025  error  'document' is not defined         no-undef
+  2:5     error  Irregular whitespace not allowed  no-irregular-whitespace
+  2:337   error  'i' is defined but never used     no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\chunks\DVeo9kBK.js
+  1:579    error  'document' is not defined         no-undef
+  1:1022   error  'a' is defined but never used     no-unused-vars
+  1:1039   error  'a' is defined but never used     no-unused-vars
+  1:1067   error  'a' is defined but never used     no-unused-vars
+  1:14952  error  Unnecessary escape character: \.  no-useless-escape
+  1:14985  error  Unnecessary escape character: \-  no-useless-escape
+  1:17742  error  'atob' is not defined             no-undef
+  1:19962  error  'URL' is not defined              no-undef
+  1:56245  error  'e' is defined but never used     no-unused-vars
+  1:56403  error  'fetch' is not defined            no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\chunks\DbJd3pE_.js
+  1:743   error  'document' is not defined  no-undef
+  1:1140  error  'document' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\chunks\Dcyd2hXU.js
+  1:336  error  'MutationObserver' is not defined  no-undef
+  1:770  error  'document' is not defined          no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\chunks\Do99OAPT.js
+  1:235   error  'document' is not defined      no-undef
+  1:354   error  'document' is not defined      no-undef
+  1:894   error  'i' is defined but never used  no-unused-vars
+  1:1329  error  'Element' is not defined       no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\entry\app.CjqE7tHr.js
+  2:867   error  'c' is defined but never used   no-unused-vars
+  2:2268  error  'URL' is not defined            no-undef
+  2:2498  error  'document' is not defined       no-undef
+  2:2538  error  'document' is not defined       no-undef
+  2:2836  error  'document' is not defined       no-undef
+  2:2899  error  'document' is not defined       no-undef
+  2:3031  error  'document' is not defined       no-undef
+  2:3228  error  'Event' is not defined          no-undef
+  2:3286  error  'window' is not defined         no-undef
+  2:4033  error  'document' is not defined       no-undef
+  2:4329  error  'jt' is defined but never used  no-unused-vars
+  2:5968  error  'console' is not defined        no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\nodes\0.BQz9bHg3.js
+  1:4417  error  'navigator' is not defined  no-undef
+  1:4428  error  'navigator' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\nodes\2.PevMPh2h.js
+  1:2978   error  'localStorage' is not defined  no-undef
+  1:3182   error  'localStorage' is not defined  no-undef
+  1:5761   error  'crypto' is not defined        no-undef
+  1:5791   error  'crypto' is not defined        no-undef
+  1:6037   error  'localStorage' is not defined  no-undef
+  1:6133   error  'localStorage' is not defined  no-undef
+  3:14796  error  'FileReader' is not defined    no-undef
+  3:20970  error  'crypto' is not defined        no-undef
+  3:21000  error  'crypto' is not defined        no-undef
+  3:21064  error  'TextEncoder' is not defined   no-undef
+  3:21149  error  'btoa' is not defined          no-undef
+  3:21428  error  'clearTimeout' is not defined  no-undef
+  3:21448  error  'setTimeout' is not defined    no-undef
+  3:25699  error  'navigator' is not defined     no-undef
+  3:28026  error  'r' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\nodes\3.D4w03Zl6.js
+  1:7865  error  'e' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\nodes\4.C5QePf4K.js
+  1:9180  error  'F' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\nodes\5.YVvab91t.js
+  1:4831  error  's' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\nodes\6.BZOG884s.js
+  1:5185  error  't' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\_app\immutable\nodes\7.CdpjCdnE.js
+  1:4837  error  'a' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\client\service-worker.js
+  1:9     error  'location' is not defined  no-undef
+  1:2443  error  'caches' is not defined    no-undef
+  1:2773  error  'caches' is not defined    no-undef
+  1:2842  error  'caches' is not defined    no-undef
+  1:3198  error  'caches' is not defined    no-undef
+  1:3365  error  'self' is not defined      no-undef
+  1:3514  error  'self' is not defined      no-undef
+  1:3671  error  'self' is not defined      no-undef
+  1:3808  error  'fetch' is not defined     no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\chunks\exports.js
+   4:22  error  'URL' is not defined  no-undef
+   7:17  error  'URL' is not defined  no-undef
+   8:13  error  'URL' is not defined  no-undef
+  30:23  error  'URL' is not defined  no-undef
+  96:26  error  'URL' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\chunks\http-resilience.js
+   3:48  error  'setTimeout' is not defined       no-undef
+  19:26  error  'AbortController' is not defined  no-undef
+  27:17  error  'setTimeout' is not defined       no-undef
+  28:10  error  'fetch' is not defined            no-undef
+  29:5   error  'clearTimeout' is not defined     no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\chunks\internal.js
+   8:23  error  '_' is defined but never used       no-unused-vars
+  28:25  error  'assets' is defined but never used  no-unused-vars
+  28:33  error  'nonce' is defined but never used   no-unused-vars
+  28:40  error  'env' is defined but never used     no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\chunks\render-context.js
+  1:38  error  'name' is defined but never used  no-unused-vars
+  6:38  error  'name' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\chunks\renderer.js
+    20:34  error  'name' is defined but never used           no-unused-vars
+    26:15  error  'fn' is defined but never used             no-unused-vars
+   121:32  error  'key' is defined but never used            no-unused-vars
+   121:37  error  'stack' is defined but never used          no-unused-vars
+   123:5   error  'console' is not defined                   no-undef
+   427:24  error  'TextEncoder' is not defined               no-undef
+   444:10  error  'btoa' is not defined                      no-undef
+   674:17  error  'component_fn' is defined but never used   no-unused-vars
+   875:25  error  'onrejected' is defined but never used     no-unused-vars
+   961:16  error  '#render_async' is defined but never used  no-unused-private-class-members
+  1031:17  error  '_' is assigned a value but never used     no-unused-vars
+  1132:30  error  Unnecessary escape character: \/           no-useless-escape
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\chunks\root.js
+    36:5   error  'console' is not defined                            no-undef
+    39:29  error  'location' is defined but never used                no-unused-vars
+    41:5   error  'console' is not defined                            no-undef
+    46:5   error  'console' is not defined                            no-undef
+   113:22  error  'runes' is assigned a value but never used          no-unused-vars
+   113:37  error  'fn' is defined but never used                      no-unused-vars
+   128:14  error  'component' is defined but never used               no-unused-vars
+   159:5   error  'queueMicrotask' is not defined                     no-undef
+   242:5   error  'source_stacks' is assigned a value but never used  no-unused-vars
+   482:29  error  'render_effects' is defined but never used          no-unused-vars
+   637:3   error  '#commit' is defined but never used                 no-unused-private-class-members
+  1151:49  error  'document' is not defined                           no-undef
+  1183:51  error  'document' is not defined                           no-undef
+  1502:20  error  'stack' is defined but never used                   no-unused-vars
+  1515:19  error  'stack' is defined but never used                   no-unused-vars
+  1521:59  error  'trackable' is assigned a value but never used      no-unused-vars
+  1831:13  error  'window' is not defined                             no-undef
+  1832:27  error  'Element' is not defined                            no-undef
+  1833:24  error  'Node' is not defined                               no-undef
+  1834:24  error  'Text' is not defined                               no-undef
+  1848:10  error  'document' is not defined                           no-undef
+  2392:9   error  'dep' is defined but never used                     no-unused-vars
+  2528:47  error  'document' is not defined                           no-undef
+  2529:5   error  'window' is not defined                             no-undef
+  2582:9   error  'queueMicrotask' is not defined                     no-undef
+  2638:7   error  'console' is not defined                            no-undef
+  2653:75  error  'intro' is assigned a value but never used          no-unused-vars
+  2702:37  error  'document' is not defined                           no-undef
+  2722:37  error  'document' is not defined                           no-undef
+  2889:32  error  'onrejected' is defined but never used              no-unused-vars
+  2913:7   error  'components' is assigned a value but never used     no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\chunks\shared.contract.js
+  9:36  error  'errorSchema' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\chunks\shared.js
+   23:21  error  'TextDecoder' is not defined     no-undef
+  170:18  error  'File' is not defined            no-undef
+  229:32  error  'Response' is not defined        no-undef
+  265:16  error  'ReadableStream' is not defined  no-undef
+  502:40  error  'File' is not defined            no-undef
+  504:44  error  'DataTransfer' is not defined    no-undef
+  510:79  error  'File' is not defined            no-undef
+  512:44  error  'DataTransfer' is not defined    no-undef
+  715:24  error  'Response' is not defined        no-undef
+  966:27  error  'TextDecoder' is not defined     no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\chunks\utils.js
+   1:26  error  'TextEncoder' is not defined  no-undef
+  22:10  error  'btoa' is not defined         no-undef
+  29:18  error  'atob' is not defined         no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\entries\endpoints\api\image-generation\_server.ts.js
+  131:14  error  'URL' is not defined    no-undef
+  161:24  error  'fetch' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\entries\endpoints\api\meechie-studio-text\_server.ts.js
+  168:10  error  Expected a conditional expression and instead saw an assignment  no-cond-assign
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\entries\endpoints\api\wig-try-on\_server.ts.js
+  241:20  error  'Buffer' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\entries\fallbacks\error.svelte.js
+   9:11  error  'set' is assigned a value but never used                              no-unused-vars
+  13:7   error  Definition for rule '@typescript-eslint/require-await' was not found  @typescript-eslint/require-await
+  29:14  error  'URL' is not defined                                                  no-undef
+  50:30  error  '$$props' is defined but never used                                   no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\entries\pages\_page.svelte.js
+   98:17  error  'localStorage' is not defined                             no-undef
+  103:12  error  'error' is defined but never used                         no-unused-vars
+  115:5   error  'localStorage' is not defined                             no-undef
+  117:12  error  'error' is defined but never used                         no-unused-vars
+  589:26  error  'fetch' is not defined                                    no-undef
+  650:7   error  'textOutput' is assigned a value but never used           no-unused-vars
+  659:7   error  'onRunTextAction' is assigned a value but never used      no-unused-vars
+  660:7   error  'onScheduleDraftSave' is assigned a value but never used  no-unused-vars
+  661:7   error  'onDedicationInput' is assigned a value but never used    no-unused-vars
+  973:28  error  '$$props' is defined but never used                       no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\entries\pages\meechie\_page.svelte.js
+  3:35  error  '$$props' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\entries\pages\random\_page.svelte.js
+  5:28  error  '$$props' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\entries\pages\rate-his-excuse\_page.svelte.js
+  5:28  error  '$$props' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\entries\pages\who-fucked-up\_page.svelte.js
+  5:28  error  '$$props' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\index.js
+     5:45   error  'try_get_request_store' is defined but never used                      no-unused-vars
+     8:77   error  'SCHEME' is defined but never used                                     no-unused-vars
+     8:307  error  'validate_server_exports' is defined but never used                    no-unused-vars
+    47:18   error  'Response' is not defined                                              no-undef
+    58:31   error  'Response' is not defined                                              no-undef
+    64:26   error  'Response' is not defined                                              no-undef
+    67:22   error  'Headers' is not defined                                               no-undef
+    86:18   error  'Response' is not defined                                              no-undef
+   174:30   error  'name' is defined but never used                                       no-unused-vars
+   174:36   error  'attributes' is defined but never used                                 no-unused-vars
+   335:19   error  'URL' is not defined                                                   no-undef
+   380:10   error  'validate_action_return' is defined but never used                     no-unused-vars
+   413:25   error  'Response' is not defined                                              no-undef
+   478:46   error  Unexpected comma in middle of array                                    no-sparse-arrays
+   486:37   error  Unexpected comma in middle of array                                    no-sparse-arrays
+   534:23   error  Unnecessary escape character: \/                                       no-useless-escape
+   680:17   error  'URL' is not defined                                                   no-undef
+   680:37   error  'Request' is not defined                                               no-undef
+   686:36   error  'URL' is not defined                                                   no-undef
+   786:42   error  'Request' is not defined                                               no-undef
+   787:45   error  'Request' is not defined                                               no-undef
+   787:88   error  'Headers' is not defined                                               no-undef
+   789:21   error  'URL' is not defined                                                   no-undef
+   789:42   error  'Request' is not defined                                               no-undef
+   798:37   error  'Request' is not defined                                               no-undef
+   800:24   error  'Response' is not defined                                              no-undef
+   829:32   error  'Request' is not defined                                               no-undef
+   941:23   error  'TextDecoder' is not defined                                           no-undef
+  1005:27   error  'Headers' is not defined                                               no-undef
+  1019:54   error  Unnecessary escape character: \/                                       no-useless-escape
+  1067:10   error  'btoa' is not defined                                                  no-undef
+  1120:3    error  'crypto' is not defined                                                no-undef
+  1121:10   error  'btoa' is not defined                                                  no-undef
+  1467:24   error  'Headers' is not defined                                               no-undef
+  1614:11   error  'fetch2' is assigned a value but never used                            no-unused-vars
+  1724:65   error  'URL' is not defined                                                   no-undef
+  1841:17   error  'queueMicrotask' is not defined                                        no-undef
+  1918:80   error  Unnecessary escape character: \/                                       no-useless-escape
+  1921:24   error  'Headers' is not defined                                               no-undef
+  1968:12   error  'Response' is not defined                                              no-undef
+  1969:9    error  'ReadableStream' is not defined                                        no-undef
+  2174:9    error  Definition for rule '@typescript-eslint/require-await' was not found   @typescript-eslint/require-await
+  2184:9    error  Definition for rule '@typescript-eslint/require-await' was not found   @typescript-eslint/require-await
+  2347:13   error  'URL' is not defined                                                   no-undef
+  2350:27   error  'TextEncoder' is not defined                                           no-undef
+  2359:18   error  'Response' is not defined                                              no-undef
+  2360:13   error  'ReadableStream' is not defined                                        no-undef
+  2416:11   error  'URL' is not defined                                                   no-undef
+  2614:18   error  'Response' is not defined                                              no-undef
+  2846:7    error  Definition for rule '@typescript-eslint/await-thenable' was not found  @typescript-eslint/await-thenable
+  2863:16   error  'Response' is not defined                                              no-undef
+  2871:21   error  'URL' is not defined                                                   no-undef
+  2947:16   error  'Response' is not defined                                              no-undef
+  2948:11   error  'ReadableStream' is not defined                                        no-undef
+  2994:40   error  Unexpected control character(s) in regular expression: \x00, \x1f      no-control-regex
+  3060:9    error  'console' is not defined                                               no-undef
+  3158:33   error  'Request' is not defined                                               no-undef
+  3159:40   error  'Request' is not defined                                               no-undef
+  3165:25   error  'URL' is not defined                                                   no-undef
+  3170:36   error  'Request' is not defined                                               no-undef
+  3171:43   error  'Request' is not defined                                               no-undef
+  3182:18   error  'fetch' is not defined                                                 no-undef
+  3193:24   error  'Response' is not defined                                              no-undef
+  3199:24   error  'Response' is not defined                                              no-undef
+  3206:24   error  'fetch' is not defined                                                 no-undef
+  3209:24   error  'fetch' is not defined                                                 no-undef
+  3258:23   error  'Request' is not defined                                               no-undef
+  3261:14   error  'Request' is not defined                                               no-undef
+  3261:53   error  'URL' is not defined                                                   no-undef
+  3266:17   error  'DOMException' is not defined                                          no-undef
+  3271:20   error  'DOMException' is not defined                                          no-undef
+  3298:19   error  'Headers' is not defined                                               no-undef
+  3303:16   error  'Response' is not defined                                              no-undef
+  3305:14   error  'Response' is not defined                                              no-undef
+  3314:19   error  'URL' is not defined                                                   no-undef
+  3438:63   error  'URL' is not defined                                                   no-undef
+  3456:22   error  'URL' is not defined                                                   no-undef
+  3459:30   error  'fetch' is not defined                                                 no-undef
+  3460:29   error  'Headers' is not defined                                               no-undef
+  3465:18   error  'Response' is not defined                                              no-undef
+  3482:45   error  'URL' is not defined                                                   no-undef
+  3488:27   error  'Headers' is not defined                                               no-undef
+  3523:22   error  'Response' is not defined                                              no-undef
+  3628:31   error  'Headers' is not defined                                               no-undef
+  3640:20   error  'Response' is not defined                                              no-undef
+  3747:31   error  'Response' is not defined                                              no-undef
+  3771:29   error  'Response' is not defined                                              no-undef
+  3774:28   error  'Headers' is not defined                                               no-undef
+  3782:31   error  'Headers' is not defined                                               no-undef
+  3784:22   error  'fetch' is not defined                                                 no-undef
+  3806:30   error  'fetch' is not defined                                                 no-undef
+  3807:18   error  'Response' is not defined                                              no-undef
+  3841:18   error  'value' is defined but never used                                      no-unused-vars
+  3878:31   error  'ReadableStream' is not defined                                        no-undef
+  3881:22   error  'ReadableStream' is not defined                                        no-undef
+  3917:13   error  'console' is not defined                                               no-undef
+  3921:13   error  'console' is not defined                                               no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\output\server\remote-entry.js
+  400:21  error  'fetch' is not defined       no-undef
+  400:31  error  'URL' is not defined         no-undef
+  413:17  error  Empty block statement        no-empty
+  555:7   error  'setTimeout' is not defined  no-undef
+  922:13  error  Empty block statement        no-empty
+
+C:\Users\ieatc\Meechiescoloringbook\.svelte-kit\vercel-tmp\index.js
+  23:19  error  'URL' is not defined      no-undef
+  33:18  error  'Request' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\chunks\exports.js
+   4:22  error  'URL' is not defined  no-undef
+   7:17  error  'URL' is not defined  no-undef
+   8:13  error  'URL' is not defined  no-undef
+  30:23  error  'URL' is not defined  no-undef
+  96:26  error  'URL' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\chunks\http-resilience.js
+   3:48  error  'setTimeout' is not defined       no-undef
+  19:26  error  'AbortController' is not defined  no-undef
+  27:17  error  'setTimeout' is not defined       no-undef
+  28:10  error  'fetch' is not defined            no-undef
+  29:5   error  'clearTimeout' is not defined     no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\chunks\internal.js
+   8:23  error  '_' is defined but never used       no-unused-vars
+  28:25  error  'assets' is defined but never used  no-unused-vars
+  28:33  error  'nonce' is defined but never used   no-unused-vars
+  28:40  error  'env' is defined but never used     no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\chunks\render-context.js
+  1:38  error  'name' is defined but never used  no-unused-vars
+  6:38  error  'name' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\chunks\renderer.js
+    20:34  error  'name' is defined but never used           no-unused-vars
+    26:15  error  'fn' is defined but never used             no-unused-vars
+   121:32  error  'key' is defined but never used            no-unused-vars
+   121:37  error  'stack' is defined but never used          no-unused-vars
+   123:5   error  'console' is not defined                   no-undef
+   427:24  error  'TextEncoder' is not defined               no-undef
+   444:10  error  'btoa' is not defined                      no-undef
+   674:17  error  'component_fn' is defined but never used   no-unused-vars
+   875:25  error  'onrejected' is defined but never used     no-unused-vars
+   961:16  error  '#render_async' is defined but never used  no-unused-private-class-members
+  1031:17  error  '_' is assigned a value but never used     no-unused-vars
+  1132:30  error  Unnecessary escape character: \/           no-useless-escape
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\chunks\root.js
+    36:5   error  'console' is not defined                            no-undef
+    39:29  error  'location' is defined but never used                no-unused-vars
+    41:5   error  'console' is not defined                            no-undef
+    46:5   error  'console' is not defined                            no-undef
+   113:22  error  'runes' is assigned a value but never used          no-unused-vars
+   113:37  error  'fn' is defined but never used                      no-unused-vars
+   128:14  error  'component' is defined but never used               no-unused-vars
+   159:5   error  'queueMicrotask' is not defined                     no-undef
+   242:5   error  'source_stacks' is assigned a value but never used  no-unused-vars
+   482:29  error  'render_effects' is defined but never used          no-unused-vars
+   637:3   error  '#commit' is defined but never used                 no-unused-private-class-members
+  1151:49  error  'document' is not defined                           no-undef
+  1183:51  error  'document' is not defined                           no-undef
+  1502:20  error  'stack' is defined but never used                   no-unused-vars
+  1515:19  error  'stack' is defined but never used                   no-unused-vars
+  1521:59  error  'trackable' is assigned a value but never used      no-unused-vars
+  1831:13  error  'window' is not defined                             no-undef
+  1832:27  error  'Element' is not defined                            no-undef
+  1833:24  error  'Node' is not defined                               no-undef
+  1834:24  error  'Text' is not defined                               no-undef
+  1848:10  error  'document' is not defined                           no-undef
+  2392:9   error  'dep' is defined but never used                     no-unused-vars
+  2528:47  error  'document' is not defined                           no-undef
+  2529:5   error  'window' is not defined                             no-undef
+  2582:9   error  'queueMicrotask' is not defined                     no-undef
+  2638:7   error  'console' is not defined                            no-undef
+  2653:75  error  'intro' is assigned a value but never used          no-unused-vars
+  2702:37  error  'document' is not defined                           no-undef
+  2722:37  error  'document' is not defined                           no-undef
+  2889:32  error  'onrejected' is defined but never used              no-unused-vars
+  2913:7   error  'components' is assigned a value but never used     no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\chunks\shared.contract.js
+  9:36  error  'errorSchema' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\chunks\shared.js
+   23:21  error  'TextDecoder' is not defined     no-undef
+  170:18  error  'File' is not defined            no-undef
+  229:32  error  'Response' is not defined        no-undef
+  265:16  error  'ReadableStream' is not defined  no-undef
+  502:40  error  'File' is not defined            no-undef
+  504:44  error  'DataTransfer' is not defined    no-undef
+  510:79  error  'File' is not defined            no-undef
+  512:44  error  'DataTransfer' is not defined    no-undef
+  715:24  error  'Response' is not defined        no-undef
+  966:27  error  'TextDecoder' is not defined     no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\chunks\utils.js
+   1:26  error  'TextEncoder' is not defined  no-undef
+  22:10  error  'btoa' is not defined         no-undef
+  29:18  error  'atob' is not defined         no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\entries\endpoints\api\image-generation\_server.ts.js
+  131:14  error  'URL' is not defined    no-undef
+  161:24  error  'fetch' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\entries\endpoints\api\meechie-studio-text\_server.ts.js
+  168:10  error  Expected a conditional expression and instead saw an assignment  no-cond-assign
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\entries\endpoints\api\wig-try-on\_server.ts.js
+  241:20  error  'Buffer' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\entries\fallbacks\error.svelte.js
+   9:11  error  'set' is assigned a value but never used                              no-unused-vars
+  13:7   error  Definition for rule '@typescript-eslint/require-await' was not found  @typescript-eslint/require-await
+  29:14  error  'URL' is not defined                                                  no-undef
+  50:30  error  '$$props' is defined but never used                                   no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\entries\pages\_page.svelte.js
+   98:17  error  'localStorage' is not defined                             no-undef
+  103:12  error  'error' is defined but never used                         no-unused-vars
+  115:5   error  'localStorage' is not defined                             no-undef
+  117:12  error  'error' is defined but never used                         no-unused-vars
+  589:26  error  'fetch' is not defined                                    no-undef
+  650:7   error  'textOutput' is assigned a value but never used           no-unused-vars
+  659:7   error  'onRunTextAction' is assigned a value but never used      no-unused-vars
+  660:7   error  'onScheduleDraftSave' is assigned a value but never used  no-unused-vars
+  661:7   error  'onDedicationInput' is assigned a value but never used    no-unused-vars
+  973:28  error  '$$props' is defined but never used                       no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\entries\pages\meechie\_page.svelte.js
+  3:35  error  '$$props' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\entries\pages\random\_page.svelte.js
+  5:28  error  '$$props' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\entries\pages\rate-his-excuse\_page.svelte.js
+  5:28  error  '$$props' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\entries\pages\who-fucked-up\_page.svelte.js
+  5:28  error  '$$props' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\output\server\index.js
+     5:45   error  'try_get_request_store' is defined but never used                      no-unused-vars
+     8:77   error  'SCHEME' is defined but never used                                     no-unused-vars
+     8:307  error  'validate_server_exports' is defined but never used                    no-unused-vars
+    47:18   error  'Response' is not defined                                              no-undef
+    58:31   error  'Response' is not defined                                              no-undef
+    64:26   error  'Response' is not defined                                              no-undef
+    67:22   error  'Headers' is not defined                                               no-undef
+    86:18   error  'Response' is not defined                                              no-undef
+   174:30   error  'name' is defined but never used                                       no-unused-vars
+   174:36   error  'attributes' is defined but never used                                 no-unused-vars
+   335:19   error  'URL' is not defined                                                   no-undef
+   380:10   error  'validate_action_return' is defined but never used                     no-unused-vars
+   413:25   error  'Response' is not defined                                              no-undef
+   478:46   error  Unexpected comma in middle of array                                    no-sparse-arrays
+   486:37   error  Unexpected comma in middle of array                                    no-sparse-arrays
+   534:23   error  Unnecessary escape character: \/                                       no-useless-escape
+   680:17   error  'URL' is not defined                                                   no-undef
+   680:37   error  'Request' is not defined                                               no-undef
+   686:36   error  'URL' is not defined                                                   no-undef
+   786:42   error  'Request' is not defined                                               no-undef
+   787:45   error  'Request' is not defined                                               no-undef
+   787:88   error  'Headers' is not defined                                               no-undef
+   789:21   error  'URL' is not defined                                                   no-undef
+   789:42   error  'Request' is not defined                                               no-undef
+   798:37   error  'Request' is not defined                                               no-undef
+   800:24   error  'Response' is not defined                                              no-undef
+   829:32   error  'Request' is not defined                                               no-undef
+   941:23   error  'TextDecoder' is not defined                                           no-undef
+  1005:27   error  'Headers' is not defined                                               no-undef
+  1019:54   error  Unnecessary escape character: \/                                       no-useless-escape
+  1067:10   error  'btoa' is not defined                                                  no-undef
+  1120:3    error  'crypto' is not defined                                                no-undef
+  1121:10   error  'btoa' is not defined                                                  no-undef
+  1467:24   error  'Headers' is not defined                                               no-undef
+  1614:11   error  'fetch2' is assigned a value but never used                            no-unused-vars
+  1724:65   error  'URL' is not defined                                                   no-undef
+  1841:17   error  'queueMicrotask' is not defined                                        no-undef
+  1918:80   error  Unnecessary escape character: \/                                       no-useless-escape
+  1921:24   error  'Headers' is not defined                                               no-undef
+  1968:12   error  'Response' is not defined                                              no-undef
+  1969:9    error  'ReadableStream' is not defined                                        no-undef
+  2174:9    error  Definition for rule '@typescript-eslint/require-await' was not found   @typescript-eslint/require-await
+  2184:9    error  Definition for rule '@typescript-eslint/require-await' was not found   @typescript-eslint/require-await
+  2347:13   error  'URL' is not defined                                                   no-undef
+  2350:27   error  'TextEncoder' is not defined                                           no-undef
+  2359:18   error  'Response' is not defined                                              no-undef
+  2360:13   error  'ReadableStream' is not defined                                        no-undef
+  2416:11   error  'URL' is not defined                                                   no-undef
+  2614:18   error  'Response' is not defined                                              no-undef
+  2846:7    error  Definition for rule '@typescript-eslint/await-thenable' was not found  @typescript-eslint/await-thenable
+  2863:16   error  'Response' is not defined                                              no-undef
+  2871:21   error  'URL' is not defined                                                   no-undef
+  2947:16   error  'Response' is not defined                                              no-undef
+  2948:11   error  'ReadableStream' is not defined                                        no-undef
+  2994:40   error  Unexpected control character(s) in regular expression: \x00, \x1f      no-control-regex
+  3060:9    error  'console' is not defined                                               no-undef
+  3158:33   error  'Request' is not defined                                               no-undef
+  3159:40   error  'Request' is not defined                                               no-undef
+  3165:25   error  'URL' is not defined                                                   no-undef
+  3170:36   error  'Request' is not defined                                               no-undef
+  3171:43   error  'Request' is not defined                                               no-undef
+  3182:18   error  'fetch' is not defined                                                 no-undef
+  3193:24   error  'Response' is not defined                                              no-undef
+  3199:24   error  'Response' is not defined                                              no-undef
+  3206:24   error  'fetch' is not defined                                                 no-undef
+  3209:24   error  'fetch' is not defined                                                 no-undef
+  3258:23   error  'Request' is not defined                                               no-undef
+  3261:14   error  'Request' is not defined                                               no-undef
+  3261:53   error  'URL' is not defined                                                   no-undef
+  3266:17   error  'DOMException' is not defined                                          no-undef
+  3271:20   error  'DOMException' is not defined                                          no-undef
+  3298:19   error  'Headers' is not defined                                               no-undef
+  3303:16   error  'Response' is not defined                                              no-undef
+  3305:14   error  'Response' is not defined                                              no-undef
+  3314:19   error  'URL' is not defined                                                   no-undef
+  3438:63   error  'URL' is not defined                                                   no-undef
+  3456:22   error  'URL' is not defined                                                   no-undef
+  3459:30   error  'fetch' is not defined                                                 no-undef
+  3460:29   error  'Headers' is not defined                                               no-undef
+  3465:18   error  'Response' is not defined                                              no-undef
+  3482:45   error  'URL' is not defined                                                   no-undef
+  3488:27   error  'Headers' is not defined                                               no-undef
+  3523:22   error  'Response' is not defined                                              no-undef
+  3628:31   error  'Headers' is not defined                                               no-undef
+  3640:20   error  'Response' is not defined                                              no-undef
+  3747:31   error  'Response' is not defined                                              no-undef
+  3771:29   error  'Response' is not defined                                              no-undef
+  3774:28   error  'Headers' is not defined                                               no-undef
+  3782:31   error  'Headers' is not defined                                               no-undef
+  3784:22   error  'fetch' is not defined                                                 no-undef
+  3806:30   error  'fetch' is not defined                                                 no-undef
+  3807:18   error  'Response' is not defined                                              no-undef
+  3841:18   error  'value' is defined but never used                                      no-unused-vars
+  3878:31   error  'ReadableStream' is not defined                                        no-undef
+  3881:22   error  'ReadableStream' is not defined                                        no-undef
+  3917:13   error  'console' is not defined                                               no-undef
+  3921:13   error  'console' is not defined                                               no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\![-]\catchall.func\.svelte-kit\vercel-tmp\index.js
+  23:19  error  'URL' is not defined      no-undef
+  33:18  error  'Request' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\chunks\3Ffpm5KL.js
+  1:86   error  Unnecessary escape character: \/  no-useless-escape
+  1:332  error  Unnecessary escape character: \-  no-useless-escape
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\chunks\BdUHV4dB.js
+  1:1135   error  'e' is defined but never used    no-unused-vars
+  1:1137   error  't' is defined but never used    no-unused-vars
+  1:1139   error  'n' is defined but never used    no-unused-vars
+  1:1213   error  'e' is defined but never used    no-unused-vars
+  1:1367   error  'e' is defined but never used    no-unused-vars
+  1:1590   error  'e' is defined but never used    no-unused-vars
+  1:2130   error  'console' is not defined         no-undef
+  1:2193   error  'e' is defined but never used    no-unused-vars
+  1:2196   error  'console' is not defined         no-undef
+  1:2266   error  'console' is not defined         no-undef
+  1:2347   error  'console' is not defined         no-undef
+  1:3146   error  'n' is defined but never used    no-unused-vars
+  1:3238   error  'e' is defined but never used    no-unused-vars
+  1:3454   error  'queueMicrotask' is not defined  no-undef
+  1:5594   error  'r' is defined but never used    no-unused-vars
+  1:7037   error  '#S' is defined but never used   no-unused-private-class-members
+  1:9034   error  'e' is defined but never used    no-unused-vars
+  1:11241  error  't' is defined but never used    no-unused-vars
+  1:11243  error  'n' is defined but never used    no-unused-vars
+  1:12759  error  't' is defined but never used    no-unused-vars
+  1:12835  error  't' is defined but never used    no-unused-vars
+  1:16005  error  Empty block statement            no-empty
+  1:16115  error  'window' is not defined          no-undef
+  1:16125  error  'document' is not defined        no-undef
+  1:16152  error  'navigator' is not defined       no-undef
+  1:16179  error  'Element' is not defined         no-undef
+  1:16199  error  'Node' is not defined            no-undef
+  1:16216  error  'Text' is not defined            no-undef
+  1:16391  error  'document' is not defined        no-undef
+  1:16715  error  'Comment' is not defined         no-undef
+  1:17077  error  't' is defined but never used    no-unused-vars
+  1:17079  error  'n' is defined but never used    no-unused-vars
+  1:17089  error  'document' is not defined        no-undef
+  1:17354  error  'document' is not defined        no-undef
+  1:17707  error  'e' is defined but never used    no-unused-vars
+  1:23132  error  'i' is defined but never used    no-unused-vars
+  1:24248  error  'EventTarget' is not defined     no-undef
+  1:24445  error  'EventTarget' is not defined     no-undef
+  1:24545  error  Empty block statement            no-empty
+  1:24736  error  Empty block statement            no-empty
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\chunks\BlBOnzwj.js
+  1:1523  error  'document' is not defined               no-undef
+  1:1838  error  'document' is not defined               no-undef
+  2:73    error  'console' is not defined                no-undef
+  2:259   error  'n' is assigned a value but never used  no-unused-vars
+  2:628   error  'document' is not defined               no-undef
+  2:844   error  'document' is not defined               no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\chunks\CTl113l_.js
+   1:3056    error  Do not access Object.prototype method 'hasOwnProperty' from target object  no-prototype-builtins
+   1:3625    error  'n' is already defined                                                     no-redeclare
+   1:5242    error  'e' is already defined                                                     no-redeclare
+   1:6053    error  Unnecessary escape character: \/                                           no-useless-escape
+   1:6055    error  Unnecessary escape character: \+                                           no-useless-escape
+   1:6852    error  Unexpected control character(s) in regular expression: \x0b                no-control-regex
+   1:6910    error  Unexpected control character(s) in regular expression: \x0b                no-control-regex
+   1:6961    error  Unexpected control character(s) in regular expression: \x0b                no-control-regex
+   1:8643    error  'i' is already defined                                                     no-redeclare
+   1:8871    error  't' is already defined                                                     no-redeclare
+   1:8875    error  'n' is already defined                                                     no-redeclare
+   1:9883    error  'setTimeout' is not defined                                                no-undef
+   1:11490   error  't' is already defined                                                     no-redeclare
+   1:16178   error  'ee' is defined but never used                                             no-unused-vars
+   1:46718   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:46920   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:47109   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:47343   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:47625   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:47883   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:48136   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:48466   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:48597   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:48628   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:49138   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:49155   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:49548   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:49890   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:51088   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:51106   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:51848   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:52021   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:52470   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:52702   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:53381   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   1:53554   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+   2:472     error  'e' is defined but never used                                              no-unused-vars
+   2:721     error  'e' is defined but never used                                              no-unused-vars
+   2:723     error  't' is defined but never used                                              no-unused-vars
+   2:1241    error  'n' is assigned a value but never used                                     no-unused-vars
+   2:5496    error  'n' is assigned a value but never used                                     no-unused-vars
+   4:717     error  't' is defined but never used                                              no-unused-vars
+   7:1290    error  'n' is assigned a value but never used                                     no-unused-vars
+   8:2483    error  'n' is already defined                                                     no-redeclare
+   8:2487    error  'i' is already defined                                                     no-redeclare
+  15:1465    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:1920    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:2753    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:2913    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:4390    error  'l' is already defined                                                     no-redeclare
+  15:4410    error  'd' is already defined                                                     no-redeclare
+  15:4479    error  'l' is already defined                                                     no-redeclare
+  15:6142    error  'y' is already defined                                                     no-redeclare
+  15:6193    error  'y' is already defined                                                     no-redeclare
+  15:6557    error  'w' is already defined                                                     no-redeclare
+  15:6598    error  'w' is already defined                                                     no-redeclare
+  15:7414    error  'y' is already defined                                                     no-redeclare
+  15:7416    error  'w' is already defined                                                     no-redeclare
+  15:7418    error  'F' is already defined                                                     no-redeclare
+  15:7420    error  'S' is already defined                                                     no-redeclare
+  15:7697    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:7993    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:8172    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:8228    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  15:8488    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:5448    error  'e' is defined but never used                                              no-unused-vars
+  35:7839    error  'd' is defined but never used                                              no-unused-vars
+  35:8831    error  'd' is defined but never used                                              no-unused-vars
+  35:9354    error  'i' is defined but never used                                              no-unused-vars
+  35:10299   error  'w' is already defined                                                     no-redeclare
+  35:10631   error  'v' is already defined                                                     no-redeclare
+  35:10716   error  'v' is already defined                                                     no-redeclare
+  35:10795   error  'v' is already defined                                                     no-redeclare
+  35:10812   error  'w' is already defined                                                     no-redeclare
+  35:10904   error  'v' is already defined                                                     no-redeclare
+  35:10928   error  'w' is already defined                                                     no-redeclare
+  35:11032   error  'v' is already defined                                                     no-redeclare
+  35:11049   error  'C' is already defined                                                     no-redeclare
+  35:11056   error  'w' is already defined                                                     no-redeclare
+  35:11260   error  'v' is already defined                                                     no-redeclare
+  35:11277   error  'C' is already defined                                                     no-redeclare
+  35:11396   error  'P' is already defined                                                     no-redeclare
+  35:11416   error  'M' is already defined                                                     no-redeclare
+  35:11422   error  'V' is already defined                                                     no-redeclare
+  35:11428   error  'v' is already defined                                                     no-redeclare
+  35:11445   error  'C' is already defined                                                     no-redeclare
+  35:11454   error  'q' is already defined                                                     no-redeclare
+  35:11484   error  'G' is already defined                                                     no-redeclare
+  35:11564   error  'P' is already defined                                                     no-redeclare
+  35:11584   error  'M' is already defined                                                     no-redeclare
+  35:11590   error  'V' is already defined                                                     no-redeclare
+  35:11596   error  'v' is already defined                                                     no-redeclare
+  35:11613   error  'C' is already defined                                                     no-redeclare
+  35:11622   error  'q' is already defined                                                     no-redeclare
+  35:11653   error  'G' is already defined                                                     no-redeclare
+  35:11733   error  'v' is already defined                                                     no-redeclare
+  35:11750   error  'C' is already defined                                                     no-redeclare
+  35:11757   error  'q' is already defined                                                     no-redeclare
+  35:11764   error  'G' is already defined                                                     no-redeclare
+  35:11859   error  'v' is already defined                                                     no-redeclare
+  35:11876   error  'C' is already defined                                                     no-redeclare
+  35:11953   error  'v' is already defined                                                     no-redeclare
+  35:11970   error  'C' is already defined                                                     no-redeclare
+  35:11977   error  'Z' is already defined                                                     no-redeclare
+  35:11984   error  'z' is already defined                                                     no-redeclare
+  35:12052   error  'F' is already defined                                                     no-redeclare
+  35:12081   error  'P' is already defined                                                     no-redeclare
+  35:12144   error  'z' is already defined                                                     no-redeclare
+  35:12242   error  'Y' is already defined                                                     no-redeclare
+  35:12259   error  'z' is already defined                                                     no-redeclare
+  35:12296   error  'J' is already defined                                                     no-redeclare
+  35:12360   error  'Y' is already defined                                                     no-redeclare
+  35:12377   error  'z' is already defined                                                     no-redeclare
+  35:12415   error  'J' is already defined                                                     no-redeclare
+  35:12479   error  'Y' is already defined                                                     no-redeclare
+  35:12496   error  'z' is already defined                                                     no-redeclare
+  35:12505   error  'J' is already defined                                                     no-redeclare
+  35:12567   error  'Y' is already defined                                                     no-redeclare
+  35:12584   error  'z' is already defined                                                     no-redeclare
+  35:12598   error  'J' is already defined                                                     no-redeclare
+  35:13038   error  'd' is already defined                                                     no-redeclare
+  35:13513   error  'd' is already defined                                                     no-redeclare
+  35:13661   error  'd' is already defined                                                     no-redeclare
+  35:13904   error  'C' is already defined                                                     no-redeclare
+  35:13934   error  'B' is already defined                                                     no-redeclare
+  35:14073   error  'E' is already defined                                                     no-redeclare
+  35:14228   error  'd' is already defined                                                     no-redeclare
+  35:14697   error  'w' is already defined                                                     no-redeclare
+  35:15892   error  'G' is already defined                                                     no-redeclare
+  35:17089   error  'u' is already defined                                                     no-redeclare
+  35:19034   error  'n' is already defined                                                     no-redeclare
+  35:19803   error  'V' is already defined                                                     no-redeclare
+  35:19872   error  'V' is already defined                                                     no-redeclare
+  35:22360   error  'w' is already defined                                                     no-redeclare
+  35:22369   error  'F' is already defined                                                     no-redeclare
+  35:22376   error  'S' is already defined                                                     no-redeclare
+  35:22385   error  'R' is already defined                                                     no-redeclare
+  35:22394   error  'C' is already defined                                                     no-redeclare
+  35:22403   error  'B' is already defined                                                     no-redeclare
+  35:22410   error  'E' is already defined                                                     no-redeclare
+  35:22419   error  'D' is already defined                                                     no-redeclare
+  35:22541   error  'w' is already defined                                                     no-redeclare
+  35:22550   error  'F' is already defined                                                     no-redeclare
+  35:22557   error  'S' is already defined                                                     no-redeclare
+  35:22566   error  'R' is already defined                                                     no-redeclare
+  35:22575   error  'C' is already defined                                                     no-redeclare
+  35:22584   error  'B' is already defined                                                     no-redeclare
+  35:22591   error  'E' is already defined                                                     no-redeclare
+  35:22600   error  'D' is already defined                                                     no-redeclare
+  35:23662   error  'y' is already defined                                                     no-redeclare
+  35:24207   error  'v' is already defined                                                     no-redeclare
+  35:24266   error  'y' is already defined                                                     no-redeclare
+  35:24452   error  'y' is already defined                                                     no-redeclare
+  35:24535   error  'w' is already defined                                                     no-redeclare
+  35:24566   error  'F' is already defined                                                     no-redeclare
+  35:24835   error  'v' is already defined                                                     no-redeclare
+  35:25515   error  'F' is already defined                                                     no-redeclare
+  35:25638   error  'F' is already defined                                                     no-redeclare
+  35:25740   error  'v' is already defined                                                     no-redeclare
+  35:25826   error  'F' is already defined                                                     no-redeclare
+  35:25890   error  'v' is already defined                                                     no-redeclare
+  35:25969   error  'w' is already defined                                                     no-redeclare
+  35:26018   error  'F' is already defined                                                     no-redeclare
+  35:26293   error  'v' is already defined                                                     no-redeclare
+  35:26317   error  'z' is already defined                                                     no-redeclare
+  35:26346   error  'te' is already defined                                                    no-redeclare
+  35:26534   error  'F' is already defined                                                     no-redeclare
+  35:26623   error  'ae' is already defined                                                    no-redeclare
+  35:26697   error  'ae' is already defined                                                    no-redeclare
+  35:26771   error  'ae' is already defined                                                    no-redeclare
+  35:26875   error  'Ve' is already defined                                                    no-redeclare
+  35:26911   error  'F' is already defined                                                     no-redeclare
+  35:26929   error  'G' is already defined                                                     no-redeclare
+  35:27610   error  'z' is already defined                                                     no-redeclare
+  35:27951   error  's' is already defined                                                     no-redeclare
+  35:28322   error  'G' is already defined                                                     no-redeclare
+  35:28346   error  'Q' is already defined                                                     no-redeclare
+  35:28353   error  'Ne' is assigned a value but never used                                    no-unused-vars
+  35:29336   error  'UZIP' is not defined                                                      no-undef
+  35:29347   error  'UZIP' is not defined                                                      no-undef
+  35:29471   error  'h' is already defined                                                     no-redeclare
+  35:29742   error  'f' is already defined                                                     no-redeclare
+  35:29776   error  'f' is already defined                                                     no-redeclare
+  35:29841   error  'f' is already defined                                                     no-redeclare
+  35:29883   error  'f' is already defined                                                     no-redeclare
+  35:29925   error  'f' is already defined                                                     no-redeclare
+  35:29989   error  'f' is already defined                                                     no-redeclare
+  35:30060   error  'f' is already defined                                                     no-redeclare
+  35:30120   error  'f' is already defined                                                     no-redeclare
+  35:30176   error  'f' is already defined                                                     no-redeclare
+  35:30250   error  'f' is already defined                                                     no-redeclare
+  35:30308   error  'f' is already defined                                                     no-redeclare
+  35:31784   error  'u' is already defined                                                     no-redeclare
+  35:31838   error  'u' is already defined                                                     no-redeclare
+  35:32004   error  'u' is already defined                                                     no-redeclare
+  35:34364   error  't' is already defined                                                     no-redeclare
+  35:35859   error  'n' is defined but never used                                              no-unused-vars
+  35:36015   error  'a' is defined but never used                                              no-unused-vars
+  35:37491   error  'o' is already defined                                                     no-redeclare
+  35:48280   error  'console' is not defined                                                   no-undef
+  35:51855   error  'i' is defined but never used                                              no-unused-vars
+  35:52017   error  'v' is defined but never used                                              no-unused-vars
+  35:58148   error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:58164   error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:58194   error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:71145   error  'f' is defined but never used                                              no-unused-vars
+  35:71466   error  'f' is defined but never used                                              no-unused-vars
+  35:82233   error  't' is already defined                                                     no-redeclare
+  35:82532   error  'console' is not defined                                                   no-undef
+  35:82581   error  'i' is already defined                                                     no-redeclare
+  35:82659   error  'console' is not defined                                                   no-undef
+  35:89411   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:89635   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:90529   error  'i' is already defined                                                     no-redeclare
+  35:90533   error  'a' is already defined                                                     no-redeclare
+  35:91207   error  'v' is already defined                                                     no-redeclare
+  35:91211   error  'y' is already defined                                                     no-redeclare
+  35:91260   error  'v' is already defined                                                     no-redeclare
+  35:91264   error  'y' is already defined                                                     no-redeclare
+  35:92065   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:92305   error  'console' is not defined                                                   no-undef
+  35:94070   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:94285   error  'console' is not defined                                                   no-undef
+  35:94340   error  'console' is not defined                                                   no-undef
+  35:94842   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:94941   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:94972   error  Unexpected comma in middle of array                                        no-sparse-arrays
+  35:95260   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  35:118579  error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:118595  error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:118624  error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:118828  error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:118858  error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:118888  error  Unnecessary escape character: \ .                                          no-useless-escape
+  35:118918  error  Unnecessary escape character: \ .                                          no-useless-escape
+  36:3136    error  'Z' is already defined                                                     no-redeclare
+  36:3262    error  'Z' is already defined                                                     no-redeclare
+  37:167     error  'M' is already defined                                                     no-redeclare
+  37:171     error  'V' is already defined                                                     no-redeclare
+  37:1204    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  37:2488    error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  37:5188    error  'e' is defined but never used                                              no-unused-vars
+  38:12891   error  'i' is already defined                                                     no-redeclare
+  38:12895   error  'a' is already defined                                                     no-redeclare
+  38:13490   error  'o' is already defined                                                     no-redeclare
+  38:13494   error  's' is already defined                                                     no-redeclare
+  38:19223   error  'console' is not defined                                                   no-undef
+  38:29938   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:30750   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:31043   error  'i' is defined but never used                                              no-unused-vars
+  38:32716   error  'u' is defined but never used                                              no-unused-vars
+  38:33036   error  'console' is not defined                                                   no-undef
+  38:37897   error  'u' is defined but never used                                              no-unused-vars
+  38:38834   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:40237   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:40683   error  'f' is already defined                                                     no-redeclare
+  38:40685   error  'l' is already defined                                                     no-redeclare
+  38:41007   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:41154   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:43014   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:43081   error  Expected a 'break' statement before 'case'                                 no-fallthrough
+  38:60167   error  'a' is already defined                                                     no-redeclare
+  38:60171   error  'o' is already defined                                                     no-redeclare
+  38:62729   error  'btoa' is not defined                                                      no-undef
+  38:62753   error  'atob' is not defined                                                      no-undef
+  38:63186   error  'document' is not defined                                                  no-undef
+  38:63390   error  'Blob' is not defined                                                      no-undef
+  38:63439   error  'URL' is not defined                                                       no-undef
+  38:63503   error  'Image' is not defined                                                     no-undef
+  38:63588   error  'URL' is not defined                                                       no-undef
+  38:63804   error  'URL' is not defined                                                       no-undef
+  38:64946   error  'document' is not defined                                                  no-undef
+  38:65070   error  'Image' is not defined                                                     no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\chunks\CdrqdQkK.js
+  1:67  error  'e' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\chunks\D8Jo79XI.js
+  1:723    error  'Headers' is not defined                                         no-undef
+  1:999    error  'URL' is not defined                                             no-undef
+  1:1375   error  'URL' is not defined                                             no-undef
+  1:2178   error  'TextEncoder' is not defined                                     no-undef
+  1:2213   error  'atob' is not defined                                            no-undef
+  1:2314   error  'window' is not defined                                          no-undef
+  1:2327   error  'window' is not defined                                          no-undef
+  1:2362   error  'Request' is not defined                                         no-undef
+  1:2482   error  'document' is not defined                                        no-undef
+  1:2734   error  'Response' is not defined                                        no-undef
+  1:2756   error  'window' is not defined                                          no-undef
+  1:2842   error  'performance' is not defined                                     no-undef
+  1:2947   error  'Response' is not defined                                        no-undef
+  1:2991   error  'window' is not defined                                          no-undef
+  1:3103   error  'Request' is not defined                                         no-undef
+  1:3184   error  'Headers' is not defined                                         no-undef
+  1:5493   error  'sessionStorage' is not defined                                  no-undef
+  1:5517   error  Empty block statement                                            no-empty
+  1:5571   error  'sessionStorage' is not defined                                  no-undef
+  1:5596   error  Empty block statement                                            no-empty
+  1:5908   error  'location' is not defined                                        no-undef
+  1:5955   error  'URL' is not defined                                             no-undef
+  1:5974   error  'document' is not defined                                        no-undef
+  1:6006   error  'document' is not defined                                        no-undef
+  1:6065   error  'document' is not defined                                        no-undef
+  1:6089   error  'URL' is not defined                                             no-undef
+  1:6120   error  'pageXOffset' is not defined                                     no-undef
+  1:6134   error  'pageYOffset' is not defined                                     no-undef
+  1:6470   error  'URL' is not defined                                             no-undef
+  1:6487   error  'SVGAElement' is not defined                                     no-undef
+  1:6521   error  'document' is not defined                                        no-undef
+  1:6574   error  'location' is not defined                                        no-undef
+  1:6637   error  Empty block statement                                            no-empty
+  1:6660   error  'SVGAElement' is not defined                                     no-undef
+  1:6949   error  'document' is not defined                                        no-undef
+  1:7688   error  'clearTimeout' is not defined                                    no-undef
+  1:7722   error  'fetch' is not defined                                           no-undef
+  1:7892   error  'clearTimeout' is not defined                                    no-undef
+  1:8040   error  'location' is not defined                                        no-undef
+  1:8073   error  'e' is defined but never used                                    no-unused-vars
+  1:8591   error  'URL' is not defined                                             no-undef
+  1:9122   error  'URL' is not defined                                             no-undef
+  1:10039  error  'location' is not defined                                        no-undef
+  1:10064  error  'location' is not defined                                        no-undef
+  1:10141  error  'navigator' is not defined                                       no-undef
+  1:10166  error  'navigator' is not defined                                       no-undef
+  1:10646  error  'document' is not defined                                        no-undef
+  1:10661  error  'location' is not defined                                        no-undef
+  1:10677  error  'location' is not defined                                        no-undef
+  1:10691  error  'location.href' is assigned to itself                            no-self-assign
+  1:10691  error  'location' is not defined                                        no-undef
+  1:10744  error  'document' is not defined                                        no-undef
+  1:10814  error  'history' is not defined                                         no-undef
+  1:10835  error  'history' is not defined                                         no-undef
+  1:10873  error  'history' is not defined                                         no-undef
+  1:10898  error  'history' is not defined                                         no-undef
+  1:10960  error  'history' is not defined                                         no-undef
+  1:10995  error  'scrollTo' is not defined                                        no-undef
+  1:11081  error  'URL' is not defined                                             no-undef
+  1:11085  error  'location' is not defined                                        no-undef
+  1:11101  error  'location' is not defined                                        no-undef
+  1:12412  error  'URL' is not defined                                             no-undef
+  1:12416  error  'location' is not defined                                        no-undef
+  1:12461  error  'document' is not defined                                        no-undef
+  1:12873  error  'r' is defined but never used                                    no-unused-vars
+  1:13067  error  'e.search' is assigned to itself                                 no-self-assign
+  1:13581  error  'URL' is not defined                                             no-undef
+  1:13903  error  'URL' is not defined                                             no-undef
+  1:14216  error  'Request' is not defined                                         no-undef
+  1:14959  error  'Request' is not defined                                         no-undef
+  1:14987  error  'URL' is not defined                                             no-undef
+  1:15372  error  'URL' is not defined                                             no-undef
+  1:17793  error  'URL' is not defined                                             no-undef
+  1:17808  error  'location' is not defined                                        no-undef
+  1:17970  error  'URL' is not defined                                             no-undef
+  1:18053  error  'URL' is not defined                                             no-undef
+  1:19576  error  'URL' is not defined                                             no-undef
+  1:20076  error  'history' is not defined                                         no-undef
+  1:20097  error  'history' is not defined                                         no-undef
+  1:20121  error  'history' is not defined                                         no-undef
+  1:20732  error  'document' is not defined                                        no-undef
+  1:20821  error  'scrollTo' is not defined                                        no-undef
+  1:20840  error  Expected a conditional expression and instead saw an assignment  no-cond-assign
+  1:20850  error  'document' is not defined                                        no-undef
+  1:20901  error  'scrollTo' is not defined                                        no-undef
+  1:20924  error  'document' is not defined                                        no-undef
+  1:20952  error  'document' is not defined                                        no-undef
+  1:20977  error  'document' is not defined                                        no-undef
+  1:21312  error  'location' is not defined                                        no-undef
+  1:21496  error  'clearTimeout' is not defined                                    no-undef
+  1:21514  error  'setTimeout' is not defined                                      no-undef
+  1:21707  error  'IntersectionObserver' is not defined                            no-undef
+  1:21775  error  'URL' is not defined                                             no-undef
+  1:22680  error  'URL' is not defined                                             no-undef
+  1:22686  error  'location' is not defined                                        no-undef
+  1:22739  error  'history' is not defined                                         no-undef
+  1:22774  error  'addEventListener' is not defined                                no-undef
+  1:23008  error  'history' is not defined                                         no-undef
+  1:23043  error  'addEventListener' is not defined                                no-undef
+  1:23084  error  'document' is not defined                                        no-undef
+  1:23128  error  'navigator' is not defined                                       no-undef
+  1:23450  error  'window' is not defined                                          no-undef
+  1:23466  error  'window' is not defined                                          no-undef
+  1:23542  error  'SVGAElement' is not defined                                     no-undef
+  1:23569  error  'location' is not defined                                        no-undef
+  1:23716  error  'location' is not defined                                        no-undef
+  1:23962  error  'scrollTo' is not defined                                        no-undef
+  1:24177  error  'requestAnimationFrame' is not defined                           no-undef
+  1:24204  error  'setTimeout' is not defined                                      no-undef
+  1:24222  error  'setTimeout' is not defined                                      no-undef
+  1:24351  error  'location' is not defined                                        no-undef
+  1:24446  error  'HTMLFormElement' is not defined                                 no-undef
+  1:24605  error  'URL' is not defined                                             no-undef
+  1:24781  error  'FormData' is not defined                                        no-undef
+  1:24808  error  'URLSearchParams' is not defined                                 no-undef
+  1:24941  error  'location' is not defined                                        no-undef
+  1:24967  error  'addEventListener' is not defined                                no-undef
+  1:25107  error  'URL' is not defined                                             no-undef
+  1:25124  error  'location' is not defined                                        no-undef
+  1:25163  error  'location' is not defined                                        no-undef
+  1:25249  error  'scrollTo' is not defined                                        no-undef
+  1:25387  error  'history' is not defined                                         no-undef
+  1:25449  error  'URL' is not defined                                             no-undef
+  1:25453  error  'location' is not defined                                        no-undef
+  1:25481  error  'location' is not defined                                        no-undef
+  1:25503  error  'addEventListener' is not defined                                no-undef
+  1:25547  error  'history' is not defined                                         no-undef
+  1:25572  error  'history' is not defined                                         no-undef
+  1:25604  error  'location' is not defined                                        no-undef
+  1:25637  error  'document' is not defined                                        no-undef
+  1:25694  error  't.href' is assigned to itself                                   no-self-assign
+  1:25702  error  'addEventListener' is not defined                                no-undef
+  1:25928  error  's' is defined but never used                                    no-unused-vars
+  1:25964  error  'URL' is not defined                                             no-undef
+  1:25968  error  'location' is not defined                                        no-undef
+  1:26564  error  'URL' is not defined                                             no-undef
+  1:26579  error  'location' is not defined                                        no-undef
+  1:26988  error  'document' is not defined                                        no-undef
+  1:27066  error  'document' is not defined                                        no-undef
+  1:27113  error  'setTimeout' is not defined                                      no-undef
+  1:27137  error  'history' is not defined                                         no-undef
+  1:27157  error  'location' is not defined                                        no-undef
+  1:27178  error  'URL' is not defined                                             no-undef
+  1:27190  error  'location' is not defined                                        no-undef
+  1:27206  error  'history' is not defined                                         no-undef
+  1:27238  error  'scrollTo' is not defined                                        no-undef
+  1:27273  error  'document' is not defined                                        no-undef
+  1:27450  error  'getSelection' is not defined                                    no-undef
+  1:27555  error  'setTimeout' is not defined                                      no-undef
+  1:28344  error  'URL' is not defined                                             no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\chunks\DDnw7GuN.js
+  1:541   error  'document' is not defined          no-undef
+  1:560   error  'window' is not defined            no-undef
+  1:572   error  'document' is not defined          no-undef
+  1:595   error  'HTMLMediaElement' is not defined  no-undef
+  1:932   error  'document' is not defined          no-undef
+  1:946   error  'window' is not defined            no-undef
+  1:1370  error  'queueMicrotask' is not defined    no-undef
+  1:1961  error  'document' is not defined          no-undef
+  1:2229  error  'document' is not defined          no-undef
+  1:2265  error  'document' is not defined          no-undef
+  1:2476  error  'window' is not defined            no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\chunks\DEkFYOMn.js
+  1:1025  error  'document' is not defined         no-undef
+  2:5     error  Irregular whitespace not allowed  no-irregular-whitespace
+  2:337   error  'i' is defined but never used     no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\chunks\DVeo9kBK.js
+  1:579    error  'document' is not defined         no-undef
+  1:1022   error  'a' is defined but never used     no-unused-vars
+  1:1039   error  'a' is defined but never used     no-unused-vars
+  1:1067   error  'a' is defined but never used     no-unused-vars
+  1:14952  error  Unnecessary escape character: \.  no-useless-escape
+  1:14985  error  Unnecessary escape character: \-  no-useless-escape
+  1:17742  error  'atob' is not defined             no-undef
+  1:19962  error  'URL' is not defined              no-undef
+  1:56245  error  'e' is defined but never used     no-unused-vars
+  1:56403  error  'fetch' is not defined            no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\chunks\DbJd3pE_.js
+  1:743   error  'document' is not defined  no-undef
+  1:1140  error  'document' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\chunks\Dcyd2hXU.js
+  1:336  error  'MutationObserver' is not defined  no-undef
+  1:770  error  'document' is not defined          no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\chunks\Do99OAPT.js
+  1:235   error  'document' is not defined      no-undef
+  1:354   error  'document' is not defined      no-undef
+  1:894   error  'i' is defined but never used  no-unused-vars
+  1:1329  error  'Element' is not defined       no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\entry\app.CjqE7tHr.js
+  2:867   error  'c' is defined but never used   no-unused-vars
+  2:2268  error  'URL' is not defined            no-undef
+  2:2498  error  'document' is not defined       no-undef
+  2:2538  error  'document' is not defined       no-undef
+  2:2836  error  'document' is not defined       no-undef
+  2:2899  error  'document' is not defined       no-undef
+  2:3031  error  'document' is not defined       no-undef
+  2:3228  error  'Event' is not defined          no-undef
+  2:3286  error  'window' is not defined         no-undef
+  2:4033  error  'document' is not defined       no-undef
+  2:4329  error  'jt' is defined but never used  no-unused-vars
+  2:5968  error  'console' is not defined        no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\nodes\0.BQz9bHg3.js
+  1:4417  error  'navigator' is not defined  no-undef
+  1:4428  error  'navigator' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\nodes\2.PevMPh2h.js
+  1:2978   error  'localStorage' is not defined  no-undef
+  1:3182   error  'localStorage' is not defined  no-undef
+  1:5761   error  'crypto' is not defined        no-undef
+  1:5791   error  'crypto' is not defined        no-undef
+  1:6037   error  'localStorage' is not defined  no-undef
+  1:6133   error  'localStorage' is not defined  no-undef
+  3:14796  error  'FileReader' is not defined    no-undef
+  3:20970  error  'crypto' is not defined        no-undef
+  3:21000  error  'crypto' is not defined        no-undef
+  3:21064  error  'TextEncoder' is not defined   no-undef
+  3:21149  error  'btoa' is not defined          no-undef
+  3:21428  error  'clearTimeout' is not defined  no-undef
+  3:21448  error  'setTimeout' is not defined    no-undef
+  3:25699  error  'navigator' is not defined     no-undef
+  3:28026  error  'r' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\nodes\3.D4w03Zl6.js
+  1:7865  error  'e' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\nodes\4.C5QePf4K.js
+  1:9180  error  'F' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\nodes\5.YVvab91t.js
+  1:4831  error  's' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\nodes\6.BZOG884s.js
+  1:5185  error  't' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\_app\immutable\nodes\7.CdpjCdnE.js
+  1:4837  error  'a' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\.vercel\output\static\service-worker.js
+  1:9     error  'location' is not defined  no-undef
+  1:2443  error  'caches' is not defined    no-undef
+  1:2773  error  'caches' is not defined    no-undef
+  1:2842  error  'caches' is not defined    no-undef
+  1:3198  error  'caches' is not defined    no-undef
+  1:3365  error  'self' is not defined      no-undef
+  1:3514  error  'self' is not defined      no-undef
+  1:3671  error  'self' is not defined      no-undef
+  1:3808  error  'fetch' is not defined     no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\probes\browser-seams.probe.mjs
+   40:3   error  'localStorage' is not defined  no-undef
+   41:3   error  'localStorage' is not defined  no-undef
+   42:21  error  'localStorage' is not defined  no-undef
+   91:16  error  'localStorage' is not defined  no-undef
+  104:4   error  'localStorage' is not defined  no-undef
+  117:3   error  'localStorage' is not defined  no-undef
+  150:4   error  'localStorage' is not defined  no-undef
+  155:16  error  'localStorage' is not defined  no-undef
+  167:4   error  'localStorage' is not defined  no-undef
+  208:3   error  'console' is not defined       no-undef
+  209:3   error  'console' is not defined       no-undef
+  210:3   error  'console' is not defined       no-undef
+  211:3   error  'console' is not defined       no-undef
+  219:2   error  'console' is not defined       no-undef
+  220:2   error  'console' is not defined       no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\probes\chat-interpretation.probe.mjs
+    9:13  error  'process' is not defined  no-undef
+   26:9   error  'process' is not defined  no-undef
+   27:5   error  'process' is not defined  no-undef
+   38:16  error  'process' is not defined  no-undef
+   84:18  error  'process' is not defined  no-undef
+   87:25  error  'fetch' is not defined    no-undef
+  135:2   error  'console' is not defined  no-undef
+  136:2   error  'console' is not defined  no-undef
+  137:2   error  'console' is not defined  no-undef
+  141:2   error  'console' is not defined  no-undef
+  142:2   error  'console' is not defined  no-undef
+  143:2   error  'process' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\probes\image-generation.probe.mjs
+    9:13  error  'process' is not defined  no-undef
+   26:9   error  'process' is not defined  no-undef
+   27:5   error  'process' is not defined  no-undef
+   38:16  error  'process' is not defined  no-undef
+   65:18  error  'process' is not defined  no-undef
+  125:25  error  'fetch' is not defined    no-undef
+  230:2   error  'console' is not defined  no-undef
+  231:2   error  'console' is not defined  no-undef
+  232:2   error  'console' is not defined  no-undef
+  236:2   error  'console' is not defined  no-undef
+  237:2   error  'console' is not defined  no-undef
+  238:2   error  'process' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\probes\provider-adapter.probe.mjs
+    9:13  error  'process' is not defined           no-undef
+   26:9   error  'process' is not defined           no-undef
+   27:5   error  'process' is not defined           no-undef
+   38:16  error  'process' is not defined           no-undef
+   52:11  error  'error' is defined but never used  no-unused-vars
+  118:18  error  'process' is not defined           no-undef
+  134:29  error  'fetch' is not defined             no-undef
+  150:30  error  'fetch' is not defined             no-undef
+  189:34  error  'fetch' is not defined             no-undef
+  205:35  error  'fetch' is not defined             no-undef
+  243:2   error  'console' is not defined           no-undef
+  244:2   error  'console' is not defined           no-undef
+  248:2   error  'console' is not defined           no-undef
+  249:2   error  'console' is not defined           no-undef
+  250:2   error  'process' is not defined           no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\src\lib\components\MeechieTools.svelte
+  247:27  error  'HTMLInputElement' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\src\lib\components\SelfieUpload.svelte
+   9:33  error  'base64' is defined but never used    no-unused-vars
+   9:49  error  'mimeType' is defined but never used  no-unused-vars
+  17:31  error  'Event' is not defined                no-undef
+  19:36  error  'HTMLInputElement' is not defined     no-undef
+  32:22  error  'FileReader' is not defined           no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\src\lib\components\WigCarousel.svelte
+  25:14  error  'wig' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\src\lib\components\studio\StudioHero.svelte
+  25:21  error  'actionId' is defined but never used  no-unused-vars
+  26:18  error  'modeId' is defined but never used    no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\src\lib\components\studio\StudioInputPanel.svelte
+  15:3   error  'textOutput' is assigned a value but never used  no-unused-vars
+  41:21  error  'actionId' is defined but never used             no-unused-vars
+  43:23  error  'event' is defined but never used                no-unused-vars
+  43:30  error  'Event' is not defined                           no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\src\lib\components\studio\VerdictRow.svelte
+  19:20  error  'creation' is defined but never used  no-unused-vars
+  20:22  error  'id' is defined but never used        no-unused-vars
+  21:22  error  'creation' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\src\lib\components\studio\WigTryOnStudio.svelte
+  31:17  error  'wig' is defined but never used       no-unused-vars
+  32:20  error  'base64' is defined but never used    no-unused-vars
+  32:36  error  'mimeType' is defined but never used  no-unused-vars
+
+C:\Users\ieatc\Meechiescoloringbook\src\routes\+layout.svelte
+  18:34  error  'navigator' is not defined  no-undef
+  19:4   error  'navigator' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\src\routes\+page.svelte
+  112:36  error  'setTimeout' is not defined        no-undef
+  147:11  error  'crypto' is not defined            no-undef
+  149:11  error  'crypto' is not defined            no-undef
+  155:21  error  'TextEncoder' is not defined       no-undef
+  160:10  error  'btoa' is not defined              no-undef
+  181:4   error  'clearTimeout' is not defined      no-undef
+  183:16  error  'setTimeout' is not defined        no-undef
+  267:40  error  'Event' is not defined             no-undef
+  268:41  error  'HTMLInputElement' is not defined  no-undef
+  522:10  error  'navigator' is not defined         no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\src\routes\rate-his-excuse\+page.svelte
+  56:28  error  'KeyboardEvent' is not defined  no-undef
+
+C:\Users\ieatc\Meechiescoloringbook\src\routes\who-fucked-up\+page.svelte
+  56:28  error  'KeyboardEvent' is not defined  no-undef
+
+✖ 1588 problems (1588 errors, 0 warnings)

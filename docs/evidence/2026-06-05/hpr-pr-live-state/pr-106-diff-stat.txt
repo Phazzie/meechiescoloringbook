@@ -1,0 +1,19 @@
+﻿ design.md                                      | 152 +++++
+ docs/evidence/2026-05-28/assumption-alarm.json |  71 ++
+ docs/evidence/2026-05-28/chamber-lock.json     | 840 +++++++++++++++++++++++
+ docs/evidence/2026-05-28/clan-chain.json       | 100 +++
+ docs/evidence/2026-05-28/clan-chain.md         |  37 ++
+ docs/evidence/2026-05-28/proof-tape.json       |  92 +++
+ docs/evidence/2026-05-28/proof-tape.md         |  25 +
+ docs/evidence/2026-05-28/seam-ledger.json      | 886 +++++++++++++++++++++++++
+ docs/evidence/2026-05-28/seam-ledger.md        |  35 +
+ docs/evidence/2026-05-28/shaolin-lint.json     |  25 +
+ docs/evidence/2026-05-28/test.txt              |  81 +++
+ docs/evidence/2026-05-28/verify.txt            |  93 +++
+ src/lib/seams/gallery-store-seam/fixtures.ts   |  10 +
+ src/lib/seams/gallery-store-seam/mock.ts       |  11 +-
+ src/lib/seams/gallery-store-seam/test.ts       |  32 +-
+ src/lib/seams/prompt-compiler-seam/fixtures.ts |  27 +
+ src/lib/seams/prompt-compiler-seam/mock.ts     |  88 +--
+ src/lib/seams/prompt-compiler-seam/test.ts     |  17 +-
+ 18 files changed, 2529 insertions(+), 93 deletions(-)

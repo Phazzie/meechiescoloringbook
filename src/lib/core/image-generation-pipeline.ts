@@ -32,6 +32,7 @@ type ImagePipelineResponse = {
 
 export type ImagePipelineDeps = {
   imageGenerationSeam: ImageGenerationSeam;
+  signal?: AbortSignal;
 };
 
 const missingRequiredPhrases = (prompt: string, pageSize: PageSize): string[] => {
@@ -59,6 +60,14 @@ export const runImageGenerationPipeline = async (
   body: unknown,
   deps: ImagePipelineDeps
 ): Promise<ImagePipelineResponse> => {
+  if (deps.signal?.aborted) {
+    return buildError(
+      499,
+      'IMAGE_ABORTED',
+      'Image generation request was canceled by the caller.'
+    );
+  }
+
   const parsedInput = ImageGenerationInputSchema.safeParse(body);
   if (!parsedInput.success) {
     return buildError(
@@ -74,7 +83,7 @@ export const runImageGenerationPipeline = async (
     return buildError(
       400,
       'PROMPT_MISSING_REQUIRED_PHRASES',
-      `Prompt missing required phrases: ${missing.join(', ')}`
+      `Prompt missing required phrases (case-insensitive checks, normalized): ${missing.join(', ')}`
     );
   }
 
@@ -82,13 +91,19 @@ export const runImageGenerationPipeline = async (
     prompt,
     n: variations,
     size: DEFAULT_IMAGE_SIZE,
-    format: RESPONSE_FORMAT
+    format: RESPONSE_FORMAT,
+    signal: deps.signal
   });
 
   if (!seamResult.ok) {
-    const isConfigError = seamResult.error.code === 'IMAGE_CONFIG_ERROR';
+    const statusByCode: Record<string, number> = {
+      IMAGE_ABORTED: 499,
+      IMAGE_TIMEOUT_ERROR: 504,
+      IMAGE_CONFIG_ERROR: 503,
+      IMAGE_VALIDATION_ERROR: 400
+    };
     return {
-      status: isConfigError ? 503 : 502,
+      status: statusByCode[seamResult.error.code] ?? 502,
       body: {
         ok: false,
         error: seamResult.error

@@ -107,8 +107,11 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 
 export const promptAssemblyAdapter: PromptAssemblySeam = {
 	assemble: async (input: PromptAssemblyInput): Promise<Result<PromptAssemblyOutput>> => {
-		if (input.styleHint) {
-			if (includesReservedHeading(input.styleHint) || includesForbiddenToken(input.styleHint)) {
+		const normalizedInput: PromptAssemblyInput = input.styleHint
+			? { ...input, styleHint: input.styleHint.replace(/\s+/g, ' ').trim() || undefined }
+			: input;
+		if (normalizedInput.styleHint) {
+			if (includesReservedHeading(normalizedInput.styleHint)) {
 				return {
 					ok: false,
 					error: {
@@ -117,9 +120,18 @@ export const promptAssemblyAdapter: PromptAssemblySeam = {
 					}
 				};
 			}
+			if (includesForbiddenToken(normalizedInput.styleHint)) {
+				return {
+					ok: false,
+					error: {
+						code: 'STYLE_HINT_CONTAINS_FORBIDDEN_TOKEN',
+						message: 'Style hint contains a forbidden token.'
+					}
+				};
+			}
 		}
 
-		const assembled = buildPrompt(input);
+		const assembled = buildPrompt(normalizedInput);
 		if (assembled.prompt.length > MAX_PROMPT_LENGTH) {
 			return {
 				ok: false,

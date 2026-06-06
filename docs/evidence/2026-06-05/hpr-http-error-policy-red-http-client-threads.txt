@@ -1,0 +1,146 @@
+
+> meechies-coloringbook@0.1.0 test
+> vitest run tests/unit/http-client.test.ts --pool=threads --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/Meechiescoloringbook[39m
+
+ [31m❯[39m tests/unit/http-client.test.ts [2m([22m[2m10 tests[22m[2m | [22m[31m7 failed[39m[2m)[22m[32m 143[2mms[22m[39m
+   [32m✓[39m http-client[2m > [22mbuildJsonHeaders[2m > [22mreturns Content-Type header[32m 7[2mms[22m[39m
+   [32m✓[39m http-client[2m > [22mpostJson[2m > [22msends POST request with JSON body and returns parsed payload[32m 29[2mms[22m[39m
+   [32m✓[39m http-client[2m > [22mpostJson[2m > [22mreturns undefined for 204 No Content without parsing body[32m 3[2mms[22m[39m
+[31m   [31m×[31m http-client[2m > [22mpostJson[2m > [22mreturns undefined for 205 Reset Content without parsing body[39m[32m 23[2mms[22m[39m
+[31m     → Cannot read properties of undefined (reading 'catch')[39m
+[31m   [31m×[31m http-client[2m > [22mpostJson[2m > [22mreturns undefined when an OK response has an empty body[39m[32m 3[2mms[22m[39m
+[31m     → postJson: failed to parse JSON response (HTTP 200): Unexpected end of JSON input[39m
+[31m   [31m×[31m http-client[2m > [22mpostJson[2m > [22mreturns contract-shaped JSON from non-OK responses[39m[32m 20[2mms[22m[39m
+[31m     → promise rejected "Error: Prompt missing required field" instead of resolving[39m
+[31m   [31m×[31m http-client[2m > [22mpostJson[2m > [22mreturns any JSON body from non-OK responses without requiring a structured error[39m[32m 5[2mms[22m[39m
+[31m     → promise rejected "Error: postJson: HTTP 502 Bad Gateway" instead of resolving[39m
+[31m   [31m×[31m http-client[2m > [22mpostJson[2m > [22mthrows rich parse details when a non-OK response is not JSON[39m[32m 20[2mms[22m[39m
+[31m     → expected [Function] to throw error matching /postJson: HTTP 502 Bad Gateway fr…/api\ but got 'postJson: failed to parse JSON respon…'[39m
+[31m   [31m×[31m http-client[2m > [22mpostJson[2m > [22mthrows rich parse details when an OK response is not JSON[39m[32m 5[2mms[22m[39m
+[31m     → expected [Function] to throw error matching /postJson: failed to parse JSON re…/api\ but got 'postJson: failed to parse JSON respon…'[39m
+[31m   [31m×[31m http-client[2m > [22mpostJson[2m > [22mthrows rich status details when a non-OK response has an empty body[39m[32m 21[2mms[22m[39m
+[31m     → expected [Function] to throw error including 'postJson: HTTP 503 Service Unavailabl…' but got 'postJson: failed to parse JSON respon…'[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 7 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-client.test.ts[2m > [22mhttp-client[2m > [22mpostJson[2m > [22mreturns undefined for 205 Reset Content without parsing body
+[31m[1mTypeError[22m: Cannot read properties of undefined (reading 'catch')[39m
+[36m [2m❯[22m postJson src/lib/core/http-client.ts:[2m16:38[22m[39m
+    [90m 14| [39m })[33m;[39m
+    [90m 15| [39m [35mif[39m (response[33m.[39mstatus [33m===[39m [34m204[39m) [35mreturn[39m undefined [35mas[39m [33mT[39m[33m;[39m
+    [90m 16| [39m [35mconst[39m payload [33m=[39m [35mawait[39m response[33m.[39m[34mjson[39m()[33m.[39m[35mcatch[39m((err[33m:[39m unknown) [33m=>[39m {
+    [90m   | [39m                                     [31m^[39m
+    [90m 17| [39m  [35mthrow[39m [35mnew[39m [33mError[39m(
+    [90m 18| [39m   `postJson: failed to parse JSON response (HTTP ${response.status}):…
+[90m [2m❯[22m tests/unit/http-client.test.ts:[2m76:19[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-client.test.ts[2m > [22mhttp-client[2m > [22mpostJson[2m > [22mreturns undefined when an OK response has an empty body
+[31m[1mError[22m: postJson: failed to parse JSON response (HTTP 200): Unexpected end of JSON input[39m
+[36m [2m❯[22m src/lib/core/http-client.ts:[2m17:9[22m[39m
+    [90m 15| [39m [35mif[39m (response[33m.[39mstatus [33m===[39m [34m204[39m) [35mreturn[39m undefined [35mas[39m [33mT[39m[33m;[39m
+    [90m 16| [39m [35mconst[39m payload [33m=[39m [35mawait[39m response[33m.[39m[34mjson[39m()[33m.[39m[35mcatch[39m((err[33m:[39m unknown) [33m=>[39m {
+    [90m 17| [39m  [35mthrow[39m [35mnew[39m [33mError[39m(
+    [90m   | [39m        [31m^[39m
+    [90m 18| [39m   `postJson: failed to parse JSON response (HTTP ${response.status}):…
+    [90m 19| [39m  )[33m;[39m
+[90m [2m❯[22m postJson src/lib/core/http-client.ts:[2m16:18[22m[39m
+[90m [2m❯[22m tests/unit/http-client.test.ts:[2m87:19[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-client.test.ts[2m > [22mhttp-client[2m > [22mpostJson[2m > [22mreturns contract-shaped JSON from non-OK responses
+[31m[1mAssertionError[22m: promise rejected "Error: Prompt missing required field" instead of resolving[39m
+[36m [2m❯[22m tests/unit/http-client.test.ts:[2m104:42[22m[39m
+    [90m102| [39m   vi[33m.[39m[34mstubGlobal[39m([32m'fetch'[39m[33m,[39m vi[33m.[39m[34mfn[39m()[33m.[39m[34mmockResolvedValue[39m(mockResponse))[33m;[39m
+    [90m103| [39m
+    [90m104| [39m   [35mawait[39m [34mexpect[39m([34mpostJson[39m([32m'/api/test'[39m[33m,[39m {}))[33m.[39mresolves[33m.[39m[34mtoEqual[39m(payload)[33m;[39m
+    [90m   | [39m                                         [31m^[39m
+    [90m105| [39m  })[33m;[39m
+    [90m106| [39m
+
+[31m[1mCaused by: Error[22m: Prompt missing required field[39m
+[36m [2m❯[22m postJson src/lib/core/http-client.ts:[2m32:9[22m[39m
+[90m [2m❯[22m tests/unit/http-client.test.ts:[2m104:4[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-client.test.ts[2m > [22mhttp-client[2m > [22mpostJson[2m > [22mreturns any JSON body from non-OK responses without requiring a structured error
+[31m[1mAssertionError[22m: promise rejected "Error: postJson: HTTP 502 Bad Gateway" instead of resolving[39m
+[36m [2m❯[22m tests/unit/http-client.test.ts:[2m116:42[22m[39m
+    [90m114| [39m   vi[33m.[39m[34mstubGlobal[39m([32m'fetch'[39m[33m,[39m vi[33m.[39m[34mfn[39m()[33m.[39m[34mmockResolvedValue[39m(mockResponse))[33m;[39m
+    [90m115| [39m
+    [90m116| [39m   [35mawait[39m [34mexpect[39m([34mpostJson[39m([32m'/api/test'[39m[33m,[39m {}))[33m.[39mresolves[33m.[39m[34mtoEqual[39m(payload)[33m;[39m
+    [90m   | [39m                                         [31m^[39m
+    [90m117| [39m  })[33m;[39m
+    [90m118| [39m
+
+[31m[1mCaused by: Error[22m: postJson: HTTP 502 Bad Gateway[39m
+[36m [2m❯[22m postJson src/lib/core/http-client.ts:[2m32:9[22m[39m
+[90m [2m❯[22m tests/unit/http-client.test.ts:[2m116:4[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-client.test.ts[2m > [22mhttp-client[2m > [22mpostJson[2m > [22mthrows rich parse details when a non-OK response is not JSON
+[31m[1mAssertionError[22m: expected [Function] to throw error matching /postJson: HTTP 502 Bad Gateway fr…/api\ but got 'postJson: failed to parse JSON respon…'[39m
+
+[32m- Expected:[39m
+/postJson: HTTP 502 Bad Gateway from \/api\/test: failed to parse JSON response: .*?(not valid JSON|Unexpected token)/
+
+[31m+ Received:[39m
+"postJson: failed to parse JSON response (HTTP 502): Unexpected token 'o', \"not json\" is not valid JSON"
+
+[36m [2m❯[22m tests/unit/http-client.test.ts:[2m127:4[22m[39m
+    [90m125| [39m   vi[33m.[39m[34mstubGlobal[39m([32m'fetch'[39m[33m,[39m vi[33m.[39m[34mfn[39m()[33m.[39m[34mmockResolvedValue[39m(mockResponse))[33m;[39m
+    [90m126| [39m
+    [90m127| [39m   [35mawait[39m [34mexpect[39m([34mpostJson[39m([32m'/api/test'[39m[33m,[39m {}))[33m.[39mrejects[33m.[39m[34mtoThrow[39m(
+    [90m   | [39m   [31m^[39m
+    [90m128| [39m    /postJson: HTTP 502 Bad Gateway from \/api\/test: failed to parse …
+    [90m129| [39m   )[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-client.test.ts[2m > [22mhttp-client[2m > [22mpostJson[2m > [22mthrows rich parse details when an OK response is not JSON
+[31m[1mAssertionError[22m: expected [Function] to throw error matching /postJson: failed to parse JSON re…/api\ but got 'postJson: failed to parse JSON respon…'[39m
+
+[32m- Expected:[39m
+/postJson: failed to parse JSON response from \/api\/test \(HTTP 200 OK\): .*?(not valid JSON|Unexpected token)/
+
+[31m+ Received:[39m
+"postJson: failed to parse JSON response (HTTP 200): Unexpected token 'o', \"not json\" is not valid JSON"
+
+[36m [2m❯[22m tests/unit/http-client.test.ts:[2m137:4[22m[39m
+    [90m135| [39m   vi[33m.[39m[34mstubGlobal[39m([32m'fetch'[39m[33m,[39m vi[33m.[39m[34mfn[39m()[33m.[39m[34mmockResolvedValue[39m(mockResponse))[33m;[39m
+    [90m136| [39m
+    [90m137| [39m   [35mawait[39m [34mexpect[39m([34mpostJson[39m([32m'/api/test'[39m[33m,[39m {}))[33m.[39mrejects[33m.[39m[34mtoThrow[39m(
+    [90m   | [39m   [31m^[39m
+    [90m138| [39m    /postJson: failed to parse JSON response from \/api\/test \(HTTP 2…
+    [90m139| [39m   )[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-client.test.ts[2m > [22mhttp-client[2m > [22mpostJson[2m > [22mthrows rich status details when a non-OK response has an empty body
+[31m[1mAssertionError[22m: expected [Function] to throw error including 'postJson: HTTP 503 Service Unavailabl…' but got 'postJson: failed to parse JSON respon…'[39m
+
+Expected: [32m"postJson: [7mHTTP 503 Service Unavailable from /api/test: empty response body[27m"[39m
+Received: [31m"postJson: [7mfailed to parse JSON response (HTTP 503): Unexpected end of JSON input[27m"[39m
+
+[36m [2m❯[22m tests/unit/http-client.test.ts:[2m147:4[22m[39m
+    [90m145| [39m   vi[33m.[39m[34mstubGlobal[39m([32m'fetch'[39m[33m,[39m vi[33m.[39m[34mfn[39m()[33m.[39m[34mmockResolvedValue[39m(mockResponse))[33m;[39m
+    [90m146| [39m
+    [90m147| [39m   [35mawait[39m [34mexpect[39m([34mpostJson[39m([32m'/api/test'[39m[33m,[39m {}))[33m.[39mrejects[33m.[39m[34mtoThrow[39m(
+    [90m   | [39m   [31m^[39m
+    [90m148| [39m    'postJson: HTTP 503 Service Unavailable from /api/test: empty resp…
+    [90m149| [39m   )[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m7 failed[39m[22m[2m | [22m[1m[32m3 passed[39m[22m[90m (10)[39m
+[2m   Start at [22m 02:57:27
+[2m   Duration [22m 8.67s[2m (transform 394ms, setup 170ms, collect 117ms, tests 143ms, environment 6.13s, prepare 769ms)[22m

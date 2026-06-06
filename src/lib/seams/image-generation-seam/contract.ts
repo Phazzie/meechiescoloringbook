@@ -13,6 +13,7 @@ export type ImageGenerationRequest = {
   format: ImageFormat;
   seed?: number;
   userTag?: string;
+  signal?: AbortSignal;
 };
 
 export type GeneratedImage = {
@@ -29,10 +30,14 @@ export type ImageGenerationResult = {
 
 // IMAGE_CONFIG_ERROR: config/env validation failures (distinct from request validation).
 // IMAGE_VALIDATION_ERROR: request payload validation failures.
+// IMAGE_TIMEOUT_ERROR: provider request timed out before the response was fully read.
+// IMAGE_ABORTED: caller canceled the request before completion.
 export type ImageGenerationError =
   | { code: 'IMAGE_VALIDATION_ERROR'; message: string }
   | { code: 'IMAGE_CONFIG_ERROR'; message: string }
   | { code: 'IMAGE_HTTP_ERROR'; message: string; details?: Record<string, string> }
+  | { code: 'IMAGE_TIMEOUT_ERROR'; message: string }
+  | { code: 'IMAGE_ABORTED'; message: string }
   | { code: 'IMAGE_NETWORK_ERROR'; message: string }
   | { code: 'IMAGE_EMPTY_RESPONSE'; message: string };
 

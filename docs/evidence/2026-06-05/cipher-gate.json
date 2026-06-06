@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-05T07:26:07.031Z",
+  "cipher": {
+    "date": "2026-06-05",
+    "seams": "ProviderAdapterSeam, ChatInterpretationSeam, MeechieToolSeam, MeechieStudioTextSeam, ImageGenerationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-05/hpr-http-error-policy-red-http-client-threads.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-05/hpr-http-error-policy-green-http-client-threads.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-05/hpr-http-error-policy-targeted-forks.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-05/hpr-http-error-policy-check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-05/hpr-http-error-policy-lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-05/hpr-http-error-policy-test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-05/hpr-http-error-policy-build.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-05/hpr-http-error-policy-verify-long.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Locked the central `postJson` policy with red/green tests so structured non-2xx JSON payloads survive, `204`/`205` and empty successful bodies return `undefined`, and invalid/empty failure bodies produce rich diagnostics.",
+    "risks": "Some UI callers may still assume `postJson` rejects on all non-2xx responses; targeted chat/tools tests passed, and broader caller behavior remains covered by later generate/UI workpacks."
+  },
+  "latestChangeMs": 1780636979075.8838,
+  "status": "ok"
+}

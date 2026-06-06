@@ -3,7 +3,7 @@
 // Info flow: Request body -> ProviderAdapterSeam -> structured studio text result.
 import { env } from '$env/dynamic/private';
 import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
-import { findDisallowedKeywords } from '$lib/core/constants';
+import { findDisallowedKeywords, SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { selectTextModel } from '$lib/core/text-model';
 import {
 	MeechieStudioTextInputSchema,
@@ -11,9 +11,28 @@ import {
 	MeechieStudioTextResultSchema
 } from '../../../contracts/meechie-studio-text.contract';
 import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.contract';
+import type { Result, SeamError } from '../../../contracts/shared.contract';
 import { z } from 'zod';
 
-const TEXT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
+const STUDIO_TEXT_REQUIRED_FIELDS = [
+	'verdict',
+	'quote',
+	'pageTitle',
+	'pageItems',
+	'rating',
+	'qualityState',
+	'revisionNote'
+] as const;
+
+const STUDIO_TEXT_REQUIRED_FIELD_GUIDANCE = [
+	'verdict (string)',
+	'quote (string)',
+	'pageTitle (string)',
+	'pageItems (array of 2-6 objects each with integer "number" and string "label")',
+	'rating (integer 1-10)',
+	'qualityState ("ready" | "needs_more_evidence" | "blocked")',
+	'revisionNote (string)'
+] as const;
 
 const STUDIO_TEXT_RESPONSE_FORMAT = {
 	type: 'json_schema',
@@ -46,15 +65,7 @@ const STUDIO_TEXT_RESPONSE_FORMAT = {
 				},
 				revisionNote: { type: 'string' }
 			},
-			required: [
-				'verdict',
-				'quote',
-				'pageTitle',
-				'pageItems',
-				'rating',
-				'qualityState',
-				'revisionNote'
-			]
+			required: [...STUDIO_TEXT_REQUIRED_FIELDS]
 		}
 	}
 };
@@ -114,12 +125,27 @@ type PipelineResponse = {
 };
 
 export type MeechieStudioTextPipelineDeps = {
-	createProvider: typeof createProviderAdapter;
+	createProvider: () => ProviderAdapterSeam;
+	textModel?: string;
+	isProduction?: boolean;
 };
+
+type ProviderTextFailureKind = 'json_syntax_error' | 'schema_error';
+
+type ProviderTextParseOutcome = {
+	result: MeechieStudioTextResult;
+	failureKind?: ProviderTextFailureKind;
+	schemaHint?: string;
+};
+
+type JsonExtraction =
+	| { ok: true; value: unknown }
+	| { ok: false; reason: 'syntax_error' };
 
 const invalidProviderTextResult = (
 	content: string,
-	model: string
+	model: string,
+	details: Record<string, string> = {}
 ): MeechieStudioTextResult => ({
 	ok: false,
 	error: {
@@ -127,7 +153,8 @@ const invalidProviderTextResult = (
 		message: 'Provider text response did not match contract.',
 		details: {
 			model,
-			contentPreview: content.slice(0, 500)
+			contentPreview: content.slice(0, 500),
+			...details
 		}
 	}
 });
@@ -182,17 +209,17 @@ const buildMessages = (input: z.infer<typeof MeechieStudioTextInputSchema>) => [
 	}
 ];
 
-const parseJsonCandidate = (candidate: string): unknown | null => {
+const parseJsonCandidate = (candidate: string): JsonExtraction => {
 	try {
-		return JSON.parse(candidate);
+		return { ok: true, value: JSON.parse(candidate) };
 	} catch {
-		return null;
+		return { ok: false, reason: 'syntax_error' };
 	}
 };
 
-const extractJson = (text: string): unknown => {
+const extractJson = (text: string): JsonExtraction => {
 	const direct = parseJsonCandidate(text);
-	if (direct) {
+	if (direct.ok) {
 		return direct;
 	}
 
@@ -200,7 +227,7 @@ const extractJson = (text: string): unknown => {
 	let fenceMatch: RegExpExecArray | null;
 	while ((fenceMatch = fencePattern.exec(text))) {
 		const fenced = parseJsonCandidate(fenceMatch[1].trim());
-		if (fenced) {
+		if (fenced.ok) {
 			return fenced;
 		}
 	}
@@ -236,7 +263,7 @@ const extractJson = (text: string): unknown => {
 				depth--;
 				if (depth === 0) {
 					const balanced = parseJsonCandidate(text.slice(start, index + 1));
-					if (balanced) {
+					if (balanced.ok) {
 						return balanced;
 					}
 					break;
@@ -245,31 +272,121 @@ const extractJson = (text: string): unknown => {
 		}
 	}
 
-	return null;
+	return { ok: false, reason: 'syntax_error' };
 };
+
+const schemaIssueHint = (error: z.ZodError): string =>
+	error.issues
+		.slice(0, 4)
+		.map((issue) => {
+			const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
+			return `${path}: ${issue.message}`;
+		})
+		.join('; ');
+
+const objectRecord = (value: unknown): Record<string, unknown> =>
+	typeof value === 'object' && value !== null && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: {};
 
 const parseProviderText = (
 	content: string,
 	model: string
-): MeechieStudioTextResult => {
-	const parsed = extractJson(content);
-	if (!parsed) {
-		return invalidProviderTextResult(content, model);
+): ProviderTextParseOutcome => {
+	const extracted = extractJson(content);
+	if (!extracted.ok) {
+		return {
+			result: invalidProviderTextResult(content, model, {
+				failureKind: 'json_syntax_error'
+			}),
+			failureKind: 'json_syntax_error'
+		};
 	}
 
 	const output = MeechieStudioTextOutputSchema.safeParse({
-		...(parsed as Record<string, unknown>),
+		...objectRecord(extracted.value),
 		modelMetadata: {
 			provider: 'xai',
 			model
 		}
 	});
 	if (!output.success) {
-		return invalidProviderTextResult(content, model);
+		const schemaHint = schemaIssueHint(output.error);
+		return {
+			result: invalidProviderTextResult(content, model, {
+				failureKind: 'schema_error',
+				schemaHint
+			}),
+			failureKind: 'schema_error',
+			schemaHint
+		};
 	}
 	return {
-		ok: true,
-		value: output.data
+		result: {
+			ok: true,
+			value: output.data
+		}
+	};
+};
+
+const requiredFieldGuidance = (): string =>
+	STUDIO_TEXT_REQUIRED_FIELD_GUIDANCE.join(', ');
+
+const buildRetryMessage = (
+	failureKind: ProviderTextFailureKind,
+	schemaHint?: string
+): string => {
+	if (failureKind === 'schema_error') {
+		const hint = schemaHint ? `: ${schemaHint}` : '.';
+		return [
+			`Your previous response was valid JSON but failed schema validation${hint}`,
+			'Respond with ONLY a JSON object with these required fields:',
+			`${requiredFieldGuidance()}.`,
+			'No markdown fences, no prose, no code blocks.'
+		].join(' ');
+	}
+
+	return [
+		'Your previous response had a JSON syntax error and could not be parsed.',
+		'Respond with ONLY a JSON object with these required fields:',
+		`${requiredFieldGuidance()}.`,
+		'No markdown fences, no prose, no code blocks.'
+	].join(' ');
+};
+
+const isProviderTimeout = (error: SeamError): boolean =>
+	error.code === 'PROVIDER_NETWORK_ERROR' &&
+	/\b(timeout|timed out)\b/i.test(error.message);
+
+const providerErrorStatus = (
+	error: SeamError,
+	isProduction: boolean
+): number => {
+	if (error.code === 'PROVIDER_API_KEY_MISSING') {
+		return isProduction ? 502 : 200;
+	}
+	if (isProviderTimeout(error)) {
+		return 504;
+	}
+	return 502;
+};
+
+const providerErrorResponse = (
+	result: Extract<Result<unknown>, { ok: false }>,
+	isProduction: boolean
+): PipelineResponse => {
+	const missingKey = result.error.code === 'PROVIDER_API_KEY_MISSING';
+	return {
+		status: providerErrorStatus(result.error, isProduction),
+		body: {
+			ok: false,
+			error: {
+				...result.error,
+				message: missingKey
+					? 'AI text generation requires XAI_API_KEY to be set on the server.'
+					: result.error.message
+			}
+		}
 	};
 };
 
@@ -295,38 +412,32 @@ export const runMeechieStudioTextPipeline = async (
 		);
 	}
 
-	const provider: ProviderAdapterSeam = deps.createProvider({});
+	const provider: ProviderAdapterSeam = deps.createProvider();
 	const messages = buildMessages(parsedInput.data);
+	const textModel = selectTextModel(deps.textModel);
+	const isProduction = deps.isProduction === true;
 	let providerResult = await provider.createChatCompletion({
-		model: TEXT_MODEL,
+		model: textModel,
 		messages,
 		responseFormat: STUDIO_TEXT_RESPONSE_FORMAT
 	});
 
 	if (!providerResult.ok) {
-		const missingKey = providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
-		return {
-			status: missingKey && env.NODE_ENV !== 'production' ? 200 : 502,
-			body: {
-				ok: false,
-				error: {
-					...providerResult.error,
-					message: missingKey
-						? 'AI text generation requires XAI_API_KEY to be set on the server.'
-						: providerResult.error.message
-				}
-			}
-		};
+		return providerErrorResponse(providerResult, isProduction);
 	}
 
 	// Capture the first attempt's raw response so it can be echoed back on retry.
 	const lastRawResponse = providerResult.value.content;
-	let result = parseProviderText(lastRawResponse, providerResult.value.model);
+	let parseOutcome = parseProviderText(
+		lastRawResponse,
+		providerResult.value.model
+	);
 
-	if (!result.ok) {
+	if (!parseOutcome.result.ok) {
 		// Bounded retry (max 1 retry): send a different prompt that explains the
 		// failure so the model has new information to act on instead of repeating
 		// the same malformed output.
+		const failureKind = parseOutcome.failureKind ?? 'json_syntax_error';
 		const retryMessages = [
 			...messages,
 			{
@@ -335,51 +446,25 @@ export const runMeechieStudioTextPipeline = async (
 			},
 			{
 				role: 'user' as const,
-				content:
-					'Your previous response could not be parsed as valid JSON. Please respond with ONLY valid JSON matching the required schema, no markdown, no explanation, no code fences.'
+				content: buildRetryMessage(failureKind, parseOutcome.schemaHint)
 			}
 		];
 		providerResult = await provider.createChatCompletion({
-			model: TEXT_MODEL,
+			model: textModel,
 			messages: retryMessages,
 			responseFormat: STUDIO_TEXT_RESPONSE_FORMAT
 		});
 		if (!providerResult.ok) {
-			const missingKey =
-				providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
-			return {
-				status: missingKey && env.NODE_ENV !== 'production' ? 200 : 502,
-				body: {
-					ok: false,
-					error: {
-						...providerResult.error,
-						message: missingKey
-							? 'AI text generation requires XAI_API_KEY to be set on the server.'
-							: providerResult.error.message
-					}
-				}
-			};
+			return providerErrorResponse(providerResult, isProduction);
 		}
-		result = parseProviderText(
+		parseOutcome = parseProviderText(
 			providerResult.value.content,
 			providerResult.value.model
 		);
 	}
-	const parsedResult = MeechieStudioTextResultSchema.safeParse(result);
-	if (!parsedResult.success) {
-		return buildError(
-			500,
-			'MEECHIE_STUDIO_TEXT_OUTPUT_INVALID',
-			'Meechie studio text output did not match contract.'
-		);
-	}
 
 	return {
-		status: result.ok ? 200 : 502,
-		body: parsedResult.data
+		status: parseOutcome.result.ok ? 200 : 502,
+		body: parseOutcome.result
 	};
-};
-
-export const meechieStudioTextPipelineDeps: MeechieStudioTextPipelineDeps = {
-	createProvider: createProviderAdapter
 };

@@ -1,0 +1,19 @@
+﻿ docs/evidence/2026-05-21/assumption-alarm.json  |  71 ++
+ docs/evidence/2026-05-21/chamber-lock.json      | 840 ++++++++++++++++++++++
+ docs/evidence/2026-05-21/clan-chain.json        | 100 +++
+ docs/evidence/2026-05-21/clan-chain.md          |  37 +
+ docs/evidence/2026-05-21/proof-tape.json        |  78 +++
+ docs/evidence/2026-05-21/proof-tape.md          |  23 +
+ docs/evidence/2026-05-21/seam-ledger.json       | 886 ++++++++++++++++++++++++
+ docs/evidence/2026-05-21/seam-ledger.md         |  35 +
+ docs/evidence/2026-05-21/shaolin-lint.json      |  25 +
+ docs/evidence/2026-05-21/test.txt               |  78 +++
+ docs/evidence/2026-05-21/verify.txt             |  90 +++
+ src/lib/adapters/image-generation-seam/index.ts |  35 +-
+ src/lib/adapters/provider-adapter.adapter.ts    |  26 +-
+ src/lib/adapters/wig-try-on-seam/index.ts       |  21 +-
+ src/lib/core/http-resilience.ts                 |  89 +++
+ src/lib/core/image-generation-pipeline.ts       |   4 +-
+ tests/unit/http-resilience.test.ts              | 224 ++++++
+ tests/unit/image-generation-pipeline.test.ts    |  40 ++
+ 18 files changed, 2676 insertions(+), 26 deletions(-)

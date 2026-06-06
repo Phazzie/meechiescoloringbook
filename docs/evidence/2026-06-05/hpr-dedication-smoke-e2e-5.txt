@@ -1,0 +1,11 @@
+
+Running 6 tests using 1 worker
+
+  ok 1 [chromium] › tests\e2e\smoke.spec.ts:88:1 › home mode switching and generation controls work (18.9s)
+  ok 2 [chromium] › tests\e2e\smoke.spec.ts:123:1 › home quote vault can save, load, pin, and delete creations (6.9s)
+  ok 3 [chromium] › tests\e2e\smoke.spec.ts:152:1 › home shoutout input debounces draft save and clears dedication (8.3s)
+  ok 4 [chromium] › tests\e2e\smoke.spec.ts:186:1 › random route tap and page generation work (5.7s)
+  ok 5 [chromium] › tests\e2e\smoke.spec.ts:202:1 › rate and who routes submit, reset, and generate pages (10.9s)
+  ok 6 [chromium] › tests\e2e\smoke.spec.ts:224:1 › meechie toolkit tabs and lineup controls work (4.7s)
+
+  6 passed (1.4m)

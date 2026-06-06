@@ -1,0 +1,28 @@
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: c:\Users\ieatc\Meechiescoloringbook
+Getting Svelte diagnostics...
+
+c:\Users\ieatc\Meechiescoloringbook\[32msrc\lib\core\http-resilience.ts[39m:116:3
+[31mError[39m: Type 'AbortSignal | null | undefined' is not assignable to type 'AbortSignal | undefined'.
+  Type 'null' is not assignable to type 'AbortSignal | undefined'. 
+[36m	runWithTimeoutSignal((signal) => fetch(url, { ...init, signal }), timeoutMs, {
+		[35msignal[36m: init.signal,
+		timeoutMessage: `Request timed out after ${timeoutMs}ms.`[39m
+
+c:\Users\ieatc\Meechiescoloringbook\[32mtests\unit\api-wig-try-on.test.ts[39m:93:4
+[31mError[39m: Type 'Mock<() => Promise<{ ok: boolean; value: { id: string; name: string; brand: string; affiliateProgram: "beautyforever"; affiliateUrl: string; imageUrl: string; priceUsd: number; style: string; hairType: "human"; length: "medium"; color: string; colorFamily: "black"; tags: string[]; }; }>>' is not assignable to type '(id: string) => Promise<Result<Wig, WigCatalogError>>'.
+  Type 'Promise<{ ok: boolean; value: { id: string; name: string; brand: string; affiliateProgram: "beautyforever"; affiliateUrl: string; imageUrl: string; priceUsd: number; style: string; hairType: "human"; length: "medium"; color: string; colorFamily: "black"; tags: string[]; }; }>' is not assignable to type 'Promise<Result<Wig, WigCatalogError>>'.
+    Type '{ ok: boolean; value: { id: string; name: string; brand: string; affiliateProgram: "beautyforever"; affiliateUrl: string; imageUrl: string; priceUsd: number; style: string; hairType: "human"; length: "medium"; color: string; colorFamily: "black"; tags: string[]; }; }' is not assignable to type 'Result<Wig, WigCatalogError>'.
+      Type '{ ok: boolean; value: { id: string; name: string; brand: string; affiliateProgram: "beautyforever"; affiliateUrl: string; imageUrl: string; priceUsd: number; style: string; hairType: "human"; length: "medium"; color: string; colorFamily: "black"; tags: string[]; }; }' is not assignable to type '{ ok: true; value: Wig; }'.
+        Types of property 'ok' are incompatible.
+          Type 'boolean' is not assignable to type 'true'. 
+[36m			listWigs: vi.fn(),
+			[35mgetWigById[36m: vi.fn(async () => ({ ok: true, value: wig }))
+		});[39m
+
+====================================
+[31msvelte-check found 2 errors and 0 warnings in 2 files
+[39m

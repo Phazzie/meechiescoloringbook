@@ -1,0 +1,8 @@
+﻿ design.md                                      | 150 +++++++++++++++++++++++++
+ src/lib/seams/gallery-store-seam/fixtures.ts   |  10 ++
+ src/lib/seams/gallery-store-seam/mock.ts       |  11 +-
+ src/lib/seams/gallery-store-seam/test.ts       |  31 ++++-
+ src/lib/seams/prompt-compiler-seam/fixtures.ts |  30 +++++
+ src/lib/seams/prompt-compiler-seam/mock.ts     |  90 +--------------
+ src/lib/seams/prompt-compiler-seam/test.ts     |  24 +++-
+ 7 files changed, 252 insertions(+), 94 deletions(-)

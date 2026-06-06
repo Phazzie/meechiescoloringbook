@@ -1,91 +1,141 @@
-// Purpose: Shared HTTP resilience primitives — timeout guard and exponential-backoff retry.
-// Why: Outbound fetch calls must not hang indefinitely on stalled APIs, and transient
-//      rate-limit (429) or server (5xx) errors should be retried before surfacing a failure.
-//      Centralising this avoids duplicating AbortController wiring across every adapter.
+// Purpose: Shared HTTP resilience primitives for timeout guards and retry backoff.
+// Why: Outbound fetch calls must not hang indefinitely, and retryable failures need
+//      bounded, caller-aware retry behavior without duplicating AbortController wiring.
+// Info flow: adapter fetch task -> timeout/retry wrapper -> Response or typed error.
 
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 const MAX_RETRY_AFTER_MS = 30_000;
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+const buildNamedError = (name: 'AbortError' | 'TimeoutError', message: string): Error =>
+	Object.assign(new Error(message), { name });
 
-// Spread ±20% jitter over the nominal delay to avoid thundering-herd on simultaneous retries.
+const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
+	new Promise((resolve, reject) => {
+		if (signal?.aborted) {
+			reject(buildNamedError('AbortError', 'Operation aborted by caller.'));
+			return;
+		}
+
+		let timer: ReturnType<typeof setTimeout>;
+		const onAbort = () => {
+			clearTimeout(timer);
+			signal?.removeEventListener('abort', onAbort);
+			reject(buildNamedError('AbortError', 'Operation aborted by caller.'));
+		};
+		timer = setTimeout(() => {
+			signal?.removeEventListener('abort', onAbort);
+			resolve();
+		}, ms);
+		signal?.addEventListener('abort', onAbort, { once: true });
+	});
+
+const capDelayMs = (ms: number): number => Math.min(Math.max(0, ms), MAX_RETRY_AFTER_MS);
+
+// Spread +/-20% jitter over the nominal delay to avoid simultaneous retries.
 const withJitter = (ms: number): number => ms * (0.8 + Math.random() * 0.4);
 
-// Parses Retry-After header as either delta-seconds or RFC-1123 HTTP-date.
+// Parses Retry-After as either delay seconds or an RFC-1123 HTTP date.
 const parseRetryAfterMs = (header: string | null): number => {
 	if (header === null) return NaN;
 	const seconds = Number(header);
 	if (Number.isFinite(seconds)) {
-		return Math.min(Math.max(0, seconds * 1000), MAX_RETRY_AFTER_MS);
+		return capDelayMs(seconds * 1000);
 	}
 	const dateMs = Date.parse(header) - Date.now();
 	if (Number.isFinite(dateMs)) {
-		return Math.min(Math.max(0, dateMs), MAX_RETRY_AFTER_MS);
+		return capDelayMs(dateMs);
 	}
 	return NaN;
 };
 
-/**
- * Returns true when the thrown error is an AbortController abort signal.
- * Works for both browser DOMException and Node's undici AbortError.
- */
-export const isAbortError = (error: unknown): boolean =>
-	error instanceof Error && error.name === 'AbortError';
+const errorName = (error: unknown): unknown =>
+	typeof error === 'object' && error !== null ? (error as { name?: unknown }).name : undefined;
 
-/**
- * Wraps fetch with an AbortController-based timeout.
- * Preserves any caller-provided init.signal by forwarding its abort to the
- * internal controller, so both the timeout and upstream cancellation work.
- * Throws an AbortError (name === 'AbortError') if timeoutMs elapses before
- * response headers arrive.
- */
-export const fetchWithTimeout = (url: string, init: RequestInit, timeoutMs: number): Promise<Response> => {
+const errorMessage = (error: unknown): string =>
+	error instanceof Error ? error.message : String(error);
+
+export const isAbortError = (error: unknown): boolean => errorName(error) === 'AbortError';
+
+export const isTimeoutError = (error: unknown): boolean =>
+	errorName(error) === 'TimeoutError' || /timed out/i.test(errorMessage(error));
+
+export type TimeoutSignalOptions = {
+	signal?: AbortSignal;
+	timeoutMessage?: string;
+};
+
+export const runWithTimeoutSignal = async <T>(
+	task: (signal: AbortSignal) => Promise<T>,
+	timeoutMs: number,
+	options: TimeoutSignalOptions = {}
+): Promise<T> => {
+	if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+		throw new Error('runWithTimeoutSignal: timeoutMs must be finite and > 0');
+	}
+
 	const controller = new AbortController();
-	const upstreamSignal = init.signal;
-	const onUpstreamAbort = () => controller.abort();
+	const upstreamSignal = options.signal;
+	const timeoutMessage = options.timeoutMessage ?? `Operation timed out after ${timeoutMs}ms.`;
+	let timedOut = false;
+	let upstreamAborted = upstreamSignal?.aborted ?? false;
 
-	if (upstreamSignal?.aborted) {
+	const onUpstreamAbort = () => {
+		upstreamAborted = true;
+		controller.abort();
+	};
+
+	if (upstreamAborted) {
 		controller.abort();
 	} else {
 		upstreamSignal?.addEventListener('abort', onUpstreamAbort, { once: true });
 	}
 
-	const timer = setTimeout(() => controller.abort(), timeoutMs);
-	return fetch(url, { ...init, signal: controller.signal }).finally(() => {
+	const timer = setTimeout(() => {
+		timedOut = true;
+		controller.abort();
+	}, timeoutMs);
+
+	try {
+		return await task(controller.signal);
+	} catch (error) {
+		if (timedOut && (isAbortError(error) || isTimeoutError(error))) {
+			throw buildNamedError('TimeoutError', timeoutMessage);
+		}
+		if (upstreamAborted && isAbortError(error)) {
+			throw buildNamedError('AbortError', 'Operation aborted by caller.');
+		}
+		throw error;
+	} finally {
 		clearTimeout(timer);
 		upstreamSignal?.removeEventListener('abort', onUpstreamAbort);
-	});
+	}
 };
+
+export const fetchWithTimeout = (url: string, init: RequestInit, timeoutMs: number): Promise<Response> =>
+	runWithTimeoutSignal((signal) => fetch(url, { ...init, signal }), timeoutMs, {
+		signal: init.signal ?? undefined,
+		timeoutMessage: `Request timed out after ${timeoutMs}ms.`
+	});
 
 export type RetryOptions = {
-	/** Total number of attempts (including the first).  maxAttempts=3 → up to 2 retries. */
+	/** Total number of attempts including the first. maxAttempts=3 means up to 2 retries. */
 	maxAttempts: number;
-	/** Base delay before the first retry in milliseconds.  Doubles each subsequent attempt. */
+	/** Base delay before the first retry in milliseconds. Doubles each retry. */
 	baseDelayMs: number;
+	/** Optional caller cancellation signal; caller aborts are never retried. */
+	signal?: AbortSignal;
 };
 
-/**
- * Calls fetcher() and, on retryable responses or AbortErrors, backs off and retries.
- *
- * Retry policy:
- *   – Retries on HTTP status codes: 429, 500, 502, 503, 504
- *   – Retries on AbortError (request timeout)
- *   – Does NOT retry on other thrown errors (network errors beyond timeout, etc.)
- *   – Respects the Retry-After response header (delta-seconds or HTTP-date); caps at 30 s
- *   – Drains the discarded response body before sleeping to avoid connection leaks
- *   – Delay between retries: jittered exponential backoff (baseDelayMs * 2^(attempt-1))
- *
- * Non-retryable status codes (e.g. 400, 401, 403) are returned immediately on the
- * first attempt — the caller must still check response.ok.
- */
 export const fetchWithRetry = async (
 	fetcher: () => Promise<Response>,
-	{ maxAttempts, baseDelayMs }: RetryOptions
+	{ maxAttempts, baseDelayMs, signal }: RetryOptions
 ): Promise<Response> => {
-	if (maxAttempts < 1) throw new Error('fetchWithRetry: maxAttempts must be >= 1');
-	if (baseDelayMs < 0) throw new Error('fetchWithRetry: baseDelayMs must be >= 0');
-
-	let lastAbortError: unknown;
+	if (!Number.isFinite(maxAttempts) || !Number.isInteger(maxAttempts) || maxAttempts < 1) {
+		throw new Error('fetchWithRetry: maxAttempts must be a finite integer >= 1');
+	}
+	if (!Number.isFinite(baseDelayMs) || baseDelayMs < 0) {
+		throw new Error('fetchWithRetry: baseDelayMs must be finite and >= 0');
+	}
 
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 		let response: Response;
@@ -93,28 +143,26 @@ export const fetchWithRetry = async (
 		try {
 			response = await fetcher();
 		} catch (error) {
-			if (isAbortError(error) && attempt < maxAttempts) {
-				lastAbortError = error;
-				await sleep(withJitter(baseDelayMs * Math.pow(2, attempt - 1)));
+			const callerAborted = signal?.aborted ?? false;
+			if ((isAbortError(error) || isTimeoutError(error)) && !callerAborted && attempt < maxAttempts) {
+				await sleep(capDelayMs(withJitter(baseDelayMs * Math.pow(2, attempt - 1))), signal);
 				continue;
 			}
 			throw error;
 		}
 
 		if (RETRYABLE_STATUSES.has(response.status) && attempt < maxAttempts) {
-			// Cancel the body to release the connection before sleeping.
 			response.body?.cancel().catch(() => undefined);
 			const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
 			const delayMs = Number.isFinite(retryAfterMs)
 				? retryAfterMs
-				: withJitter(baseDelayMs * Math.pow(2, attempt - 1));
-			await sleep(delayMs);
+				: capDelayMs(withJitter(baseDelayMs * Math.pow(2, attempt - 1)));
+			await sleep(delayMs, signal);
 			continue;
 		}
 
 		return response;
 	}
 
-	// We only reach here when every attempt was an AbortError.
-	throw lastAbortError ?? new Error('fetchWithRetry: exhausted all attempts');
+	throw new Error('fetchWithRetry: exhausted all attempts');
 };

@@ -10,7 +10,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 	import { sessionAdapter } from '$lib/adapters/session.adapter';
-	import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+	import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 	import {
 		DEFAULT_REVISION_BUDGET,
 		DEFAULT_STUDIO_TEXT_OUTPUT,
@@ -264,12 +264,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		packagedFiles = [];
 	};
 
-	const handleDedicationInput = (event: Event): void => {
-		const target = event.currentTarget as HTMLInputElement;
-		dedication = target.value;
-		spec = { ...spec, dedication: currentDedication() };
+	const handleDedicationInput = (nextValue: string): void => {
+		dedication = nextValue;
+		spec = { ...spec, dedication: nextValue.trim() || undefined };
 		void validateSpec();
-		void saveDraft();
+		scheduleDraftSave();
 	};
 
 	const selectWigForTryOn = async (wig: Wig): Promise<void> => {

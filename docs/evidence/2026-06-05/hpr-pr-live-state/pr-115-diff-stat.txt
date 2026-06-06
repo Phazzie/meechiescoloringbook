@@ -1,0 +1,9 @@
+﻿ DECISIONS.md                                 | 28 ++++++++++++++++++++
+ src/lib/core/generate-pipeline.ts            | 14 +++++++++-
+ src/lib/seams/safety-policy-seam/contract.ts |  2 ++
+ src/lib/seams/safety-policy-seam/fixtures.ts | 38 ++++++++++++++++++++++++++++
+ src/lib/seams/safety-policy-seam/mock.ts     | 24 ++++++++++++++++++
+ src/lib/seams/safety-policy-seam/test.ts     | 28 ++++++++++++++++++++
+ tests/unit/api-generate.test.ts              | 12 +++++++++
+ tests/unit/pipeline-edge-cases.test.ts       |  3 +++
+ 8 files changed, 148 insertions(+), 1 deletion(-)

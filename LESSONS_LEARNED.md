@@ -139,3 +139,27 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Finishing PR #65 review blockers after bot checks failed on the prior head.
 - Lesson: Bound UI values still need explicit persistence when the saved draft reads from `spec`, and shared provider configuration should normalize whitespace before request construction.
 - Action: Keep small pure helpers covered with focused unit tests and run `npm run verify` before pushing review-followup commits.
+
+## 2026-06-05
+- Date: 2026-06-05
+- Context: Porting PR #92 dedication draft-save behavior during the Handoff PR Resolution drain.
+- Lesson: Browser tests should observe durable user-visible state, not monkey-patched `Storage.prototype` counters; component callbacks should pass stable values rather than forwarded DOM events when the parent does not need the event object.
+- Action: Assert the saved draft payload with `expect.poll`, let child components translate DOM events into plain values, and use focused seam tests plus browser smoke coverage for UI-to-storage flows.
+
+## 2026-06-05
+- Date: 2026-06-05
+- Context: Stabilizing the dedication E2E smoke test.
+- Lesson: Hydration waits based only on a fixed timeout can race client-side setup; the input can show typed text before the page's mounted draft/session path is ready.
+- Action: Wait for an observable readiness marker such as `cb_session_id_v1` before clearing storage and asserting debounced draft persistence.
+
+## 2026-06-05
+- Date: 2026-06-05
+- Context: Full smoke validation after the dedication fix.
+- Lesson: Date-rotated UI modes make hardcoded E2E headings stale; on 2026-06-05 the monthly mode is `Caption Drop`, not the older `Who Fucked Up?` expectation.
+- Action: Derive rotating-mode expectations from `getWeeklyModes()` or freeze the browser clock when a test needs a fixed calendar state.
+
+## 2026-06-05
+- Date: 2026-06-05
+- Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
+- Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
+- Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
