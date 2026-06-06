@@ -6,49 +6,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
-	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
-	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
-	import { sessionAdapter } from '$lib/adapters/session.adapter';
-	import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
-	import {
-		DEFAULT_REVISION_BUDGET,
-		DEFAULT_STUDIO_TEXT_OUTPUT,
-		buildColoringPageSpecFromMeechieText,
-		buildStudioTextFromCreationRecord,
-		buildStudioTextFromDraftRecord,
-		canRunStudioAction,
-		consumeStudioActionBudget,
-		getStudioTextAction,
-		getMonthlyMode,
-		getWeeklyModes,
-		studioThemes,
-		type StudioActionId,
-		type StudioTextActionId
-	} from '$lib/core/meechie-studio';
-	import { postJson } from '$lib/core/http-client';
-	import { GenerateResultSchema } from '../../contracts/generate.contract';
-	import { WigTryOnResultSchema } from '../../contracts/wig-try-on.contract';
-	import {
-		MeechieStudioTextResultSchema,
-		type MeechieStudioTextOutput,
-		type MeechieStudioVoiceSettings
-	} from '../../contracts/meechie-studio-text.contract';
-	import type {
-		CreationOwner,
-		CreationRecord
-	} from '../../contracts/creation-store.contract';
-	import type {
-		DriftDetectionOutput,
-		Violation
-	} from '../../contracts/drift-detection.contract';
-	import type { GeneratedImage } from '../../contracts/image-generation.contract';
-	import type { PackagedFile } from '../../contracts/output-packaging.contract';
-	import type {
-		ColoringPageSpec,
-		SpecValidationOutput
-	} from '../../contracts/spec-validation.contract';
-	import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
+	import { StudioState } from './studio-state.svelte';
 	import StudioHero from '$lib/components/studio/StudioHero.svelte';
 	import StudioInputPanel from '$lib/components/studio/StudioInputPanel.svelte';
 	import StudioPreviewPanel from '$lib/components/studio/StudioPreviewPanel.svelte';
@@ -57,641 +15,14 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	import VerdictRow from '$lib/components/studio/VerdictRow.svelte';
 	import SystemTrace from '$lib/components/studio/SystemTrace.svelte';
 
-	type PageSize = ColoringPageSpec['pageSize'];
-	type BorderChoice = ColoringPageSpec['border'];
-
-	// --- Reactive state (template-bound) ---
-	const weeklyModes = getWeeklyModes();
-	const monthlyModeId = getMonthlyMode().id;
-	let activeModeId = $state(weeklyModes[0].id);
-	let selectedThemeId = $state(studioThemes[0].id);
-	let evidence = $state('');
-	let dedication = $state('');
-	let voice = $state<MeechieStudioVoiceSettings>({
-		intensity: 'receipts_out',
-		rawness: 'mild',
-		thirdPerson: 'sometimes'
-	});
-	let pageSize = $state<PageSize>('US_Letter');
-	let border = $state<BorderChoice>('decorative');
-	let glitter = $state(false);
-	let revisionBudget = $state(DEFAULT_REVISION_BUDGET);
-	let textOutput = $state<MeechieStudioTextOutput | null>(null);
-	let textError = $state('');
-	let generationError = $state('');
-	let draftSaveError = $state('');
-	let isTextWorking = $state(false);
-	let isGenerating = $state(false);
-	let copyStatus = $state('');
-	let vaultStatus = $state('');
-	let validationIssues = $state<SpecValidationOutput['issues']>([]);
-	let assembledPrompt = $state('');
-	let revisedPrompt = $state('');
-	let violations = $state<Violation[]>([]);
-	let recommendedFixes = $state<DriftDetectionOutput['recommendedFixes']>([]);
-	let images = $state<GeneratedImage[]>([]);
-	let packagedFiles = $state<PackagedFile[]>([]);
-	let creations = $state<CreationRecord[]>([]);
-	let isSaving = $state(false);
-
-	// --- Wig try-on state ---
-	let selectedWigId = $state<string | null>(null);
-	let selectedWig = $state<Wig | null>(null);
-	let selfieBase64 = $state('');
-	let selfieMimeType = $state<'image/jpeg' | 'image/png' | 'image/webp'>(
-		'image/jpeg'
-	);
-	let isTryingOn = $state(false);
-	let tryOnPortraitUrl = $state('');
-	let tryOnError = $state('');
-
-	// --- Non-reactive implementation details ---
-	let owner: CreationOwner | null = null;
-	let authContext: CreationRecord['authContext'] | null = null;
-	let isBrowser = false;
-	let draftTimer: ReturnType<typeof setTimeout> | null = null;
-	let isSavingDraft = false;
-	let isDraftSavePending = false;
-
-	const getActiveMode = (modeId: string) =>
-		weeklyModes.find((mode) => mode.id === modeId) ?? weeklyModes[0];
-
-	// --- Derived state ---
-	let activeMode = $derived(getActiveMode(activeModeId));
-	let activeTheme = $derived(
-		studioThemes.find((theme) => theme.id === selectedThemeId) ??
-			studioThemes[0]
-	);
-
-	// spec is initialized from literal initial values to avoid capturing $state references.
-	// It is updated explicitly via applyTextToSpec() whenever page settings change.
-	let spec = $state<ColoringPageSpec>(
-		buildColoringPageSpecFromMeechieText({
-			output: DEFAULT_STUDIO_TEXT_OUTPUT,
-			pageSize: 'US_Letter',
-			border: 'decorative',
-			styleHint: studioThemes[0].styleHint
-		})
-	);
-
-	let previewOutput = $derived(textOutput);
-
-	const buildOwner = (sessionId: string): CreationOwner => ({
-		kind: 'anonymous',
-		sessionId
-	});
-
-	const generateCreationId = (): string => {
-		if (
-			typeof crypto !== 'undefined' &&
-			typeof crypto.randomUUID === 'function'
-		) {
-			return crypto.randomUUID();
-		}
-		return `creation-${Date.now()}`;
-	};
-
-	const encodeBase64 = (value: string): string => {
-		const bytes = new TextEncoder().encode(value);
-		let binary = '';
-		for (const byte of bytes) {
-			binary += String.fromCharCode(byte);
-		}
-		return btoa(binary);
-	};
-
-	const currentStyleHint = (): string => {
-		const glitterText = glitter ? ' removable glitter overlay accents' : '';
-		const wigText = selectedWig
-			? ` featuring ${selectedWig.name} (${selectedWig.style})`
-			: '';
-		return `${activeTheme.styleHint}; ${voice.intensity}; ${voice.rawness}; ${voice.thirdPerson}${glitterText}${wigText}`;
-	};
-
-	const currentDedication = (): string | undefined => {
-		const trimmedDedication = dedication.trim();
-		return trimmedDedication.length > 0 ? trimmedDedication : undefined;
-	};
-
-	const scheduleDraftSave = (): void => {
-		if (!isBrowser) {
-			return;
-		}
-		if (draftTimer) {
-			clearTimeout(draftTimer);
-		}
-		draftTimer = setTimeout(() => {
-			void saveDraft();
-		}, 300);
-	};
-
-	const saveDraft = async (): Promise<void> => {
-		if (isSavingDraft) {
-			isDraftSavePending = true;
-			return;
-		}
-		isSavingDraft = true;
-		draftSaveError = '';
-		try {
-			await creationStoreAdapter.saveDraft({
-				draft: {
-					updatedAtISO: new Date().toISOString(),
-					intent: spec,
-					chatMessage: evidence.trim().length > 0 ? evidence : undefined,
-					studioText: textOutput ?? undefined
-				}
-			});
-			draftSaveError = '';
-		} catch (error) {
-			draftSaveError =
-				error instanceof Error ? error.message : 'Draft save failed';
-		} finally {
-			isSavingDraft = false;
-			if (isDraftSavePending) {
-				isDraftSavePending = false;
-				void saveDraft();
-			}
-		}
-	};
-
-	const validateSpec = async (): Promise<boolean> => {
-		const validation = await specValidationAdapter.validate({ spec });
-		validationIssues = validation.issues;
-		return validation.ok;
-	};
-
-	const applyTextToSpec = async (
-		output: MeechieStudioTextOutput
-	): Promise<void> => {
-		spec = buildColoringPageSpecFromMeechieText({
-			output,
-			pageSize,
-			border,
-			styleHint: currentStyleHint(),
-			dedication: currentDedication()
-		});
-		await validateSpec();
-		scheduleDraftSave();
-	};
-
-	const syncSpecFromCurrentText = async (): Promise<void> => {
-		try {
-			await applyTextToSpec(textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT);
-		} catch (error) {
-			draftSaveError =
-				error instanceof Error
-					? error.message
-					: 'Page settings could not be saved.';
-			throw error;
-		}
-	};
-
-	const resetGeneratedPage = (): void => {
-		generationError = '';
-		assembledPrompt = '';
-		revisedPrompt = '';
-		violations = [];
-		recommendedFixes = [];
-		images = [];
-		packagedFiles = [];
-	};
-
-	const resetTryOnResultState = (): void => {
-		tryOnPortraitUrl = '';
-		tryOnError = '';
-		generationError = '';
-		images = [];
-		packagedFiles = [];
-	};
-
-	const handleDedicationInput = (event: Event): void => {
-		const target = event.currentTarget as HTMLInputElement;
-		dedication = target.value;
-		spec = { ...spec, dedication: currentDedication() };
-		void validateSpec();
-		void saveDraft();
-	};
-
-	const selectWigForTryOn = async (wig: Wig): Promise<void> => {
-		selectedWigId = wig.id;
-		selectedWig = wig;
-		resetTryOnResultState();
-		await syncSpecFromCurrentText();
-	};
-
-	const setSelfieForTryOn = (
-		base64: string,
-		mimeType: 'image/jpeg' | 'image/png' | 'image/webp'
-	): void => {
-		selfieBase64 = base64;
-		selfieMimeType = mimeType;
-		resetTryOnResultState();
-	};
-
-	const parseTryOnPortraitImage = (): GeneratedImage | null => {
-		const match = tryOnPortraitUrl.match(
-			/^data:(image\/(png|jpeg|jpg));base64,(.+)$/
-		);
-		if (!match) {
-			return null;
-		}
-		const mimeType = match[1];
-		const subtype = match[2];
-		const data = match[3];
-		return {
-			id: 'try-on-portrait-1',
-			format: subtype === 'png' ? 'png' : 'jpg',
-			mimeType,
-			data,
-			encoding: 'base64'
-		};
-	};
-
-	const canRunAction = (actionId: StudioActionId): boolean =>
-		canRunStudioAction(actionId, {
-			remainingBudget: revisionBudget,
-			isRunning: isTextWorking
-		});
-
-	const currentTextPayload = () =>
-		textOutput
-			? {
-					verdict: textOutput.verdict,
-					quote: textOutput.quote,
-					pageTitle: textOutput.pageTitle,
-					pageItems: textOutput.pageItems.map((item) => item.label),
-					rating: textOutput.rating
-				}
-			: undefined;
-
-	const runTextAction = async (actionId: StudioTextActionId): Promise<void> => {
-		let action: ReturnType<typeof getStudioTextAction>;
-		try {
-			action = getStudioTextAction(actionId);
-		} catch {
-			textError = 'This action is not available. Try Generate Verdict instead.';
-			return;
-		}
-		if (!canRunAction(actionId)) {
-			return;
-		}
-		textError = '';
-		copyStatus = '';
-		vaultStatus = '';
-		isTextWorking = true;
-		try {
-			const selectedMode = getActiveMode(activeModeId);
-			const trimmedEvidence = evidence.trim();
-			const safeEvidence =
-				trimmedEvidence.length > 0 || selectedMode.toolId === 'random_meechie'
-					? trimmedEvidence || 'Random Meechie line request.'
-					: '';
-			if (!safeEvidence) {
-				textError = 'Meechie needs a few facts before she can call it.';
-				return;
-			}
-
-			const payload = await postJson('/api/meechie-studio-text', {
-				actionId: action.aiAction,
-				modeId: selectedMode.id,
-				modeLabel: selectedMode.label,
-				themeLabel: activeTheme.label,
-				evidence: safeEvidence,
-				dedication: currentDedication(),
-				voice,
-				currentText: currentTextPayload()
-			});
-			const parsed = MeechieStudioTextResultSchema.safeParse(payload);
-			if (!parsed.success) {
-				textError = 'Meechie sent back a line the studio could not read.';
-				return;
-			}
-			if (!parsed.data.ok) {
-				textError = parsed.data.error.message;
-				return;
-			}
-			textOutput = parsed.data.value;
-			revisionBudget = consumeStudioActionBudget(revisionBudget, actionId);
-			resetGeneratedPage();
-			await applyTextToSpec(parsed.data.value);
-		} catch (error) {
-			textError =
-				error instanceof Error
-					? error.message
-					: 'Meechie could not reach the AI text service.';
-		} finally {
-			isTextWorking = false;
-		}
-	};
-
-	const handleGeneratePage = async (): Promise<void> => {
-		if (!textOutput) {
-			generationError = 'Generate Meechie words before creating the page.';
-			return;
-		}
-		resetGeneratedPage();
-		isGenerating = true;
-		try {
-			await applyTextToSpec(textOutput);
-			if (validationIssues.length > 0) {
-				generationError = 'Fix the page settings before generating.';
-				return;
-			}
-			const payload = await postJson('/api/generate', {
-				spec,
-				styleHint: currentStyleHint()
-			});
-			const parsed = GenerateResultSchema.safeParse(payload);
-			if (!parsed.success) {
-				generationError = 'Generate response did not match contract.';
-				return;
-			}
-			if (!parsed.data.ok) {
-				generationError = parsed.data.error.message;
-				return;
-			}
-			assembledPrompt = parsed.data.value.prompt;
-			images = parsed.data.value.images;
-			revisedPrompt = parsed.data.value.revisedPrompt || '';
-			violations = parsed.data.value.violations;
-			recommendedFixes = parsed.data.value.recommendedFixes;
-
-			const creationId = generateCreationId();
-			const packagingResult = await outputPackagingAdapter.package({
-				images,
-				outputFormat: 'pdf',
-				fileBaseName: `meechie-coloring-page-${creationId}`,
-				pageSize: spec.pageSize,
-				variants: ['print']
-			});
-			if (packagingResult.ok) {
-				packagedFiles = packagingResult.value.files;
-			} else {
-				generationError = packagingResult.error.message;
-			}
-		} catch (error) {
-			generationError =
-				error instanceof Error
-					? error.message
-					: 'Coloring page generation failed.';
-		} finally {
-			isGenerating = false;
-		}
-	};
-
-	const handleGenerateTryOnPage = async (): Promise<void> => {
-		if (!tryOnPortraitUrl) {
-			generationError = 'Create a try-on portrait first.';
-			return;
-		}
-		resetGeneratedPage();
-		isGenerating = true;
-		try {
-			await syncSpecFromCurrentText();
-			const portraitImage = parseTryOnPortraitImage();
-			if (!portraitImage) {
-				generationError =
-					'Try-on portrait format is not supported for coloring-page export.';
-				return;
-			}
-			if (validationIssues.length > 0) {
-				generationError = 'Fix the page settings before generating.';
-				return;
-			}
-			images = [portraitImage];
-			const creationId = generateCreationId();
-			const packagingResult = await outputPackagingAdapter.package({
-				images,
-				outputFormat: 'pdf',
-				fileBaseName: `meechie-try-on-coloring-page-${creationId}`,
-				pageSize: spec.pageSize,
-				variants: ['print']
-			});
-			if (packagingResult.ok) {
-				packagedFiles = packagingResult.value.files;
-			} else {
-				generationError = packagingResult.error.message;
-			}
-		} catch (error) {
-			generationError =
-				error instanceof Error
-					? error.message
-					: 'Try-on coloring page generation failed.';
-		} finally {
-			isGenerating = false;
-		}
-	};
-
-	const handleWigTryOn = async (): Promise<void> => {
-		if (!selectedWigId || !selfieBase64) {
-			tryOnError = 'Select a wig and upload your selfie first.';
-			return;
-		}
-		tryOnError = '';
-		tryOnPortraitUrl = '';
-		isTryingOn = true;
-		try {
-			const payload = await postJson('/api/wig-try-on', {
-				selfieBase64,
-				selfieMimeType,
-				wigId: selectedWigId
-			});
-			const parsed = WigTryOnResultSchema.safeParse(payload);
-			if (!parsed.success) {
-				tryOnError = 'Try-on response did not match contract.';
-				return;
-			}
-			if (!parsed.data.ok) {
-				tryOnError = parsed.data.error.message;
-				return;
-			}
-			tryOnPortraitUrl = `data:${parsed.data.value.portraitMimeType};base64,${parsed.data.value.portraitBase64}`;
-		} catch (error) {
-			tryOnError =
-				error instanceof Error ? error.message : 'Wig try-on failed.';
-		} finally {
-			isTryingOn = false;
-		}
-	};
-
-	const copyQuote = async (): Promise<void> => {
-		if (!textOutput || !isBrowser) {
-			return;
-		}
-		try {
-			await navigator.clipboard.writeText(textOutput.quote);
-			copyStatus = 'Quote copied.';
-		} catch {
-			copyStatus = 'Copy unavailable in this browser.';
-		}
-	};
-
-	const saveToVault = async (): Promise<void> => {
-		if (isSaving) return;
-		if (!owner || !textOutput) {
-			vaultStatus = 'Session is still connecting. Try again in a moment.';
-			return;
-		}
-		isSaving = true;
-		vaultStatus = 'Saving...';
-		const creationId = generateCreationId();
-		const storedImages = images.map((image) => ({
-			b64: image.encoding === 'base64' ? image.data : encodeBase64(image.data)
-		}));
-		try {
-			const result = await creationStoreAdapter.saveCreation({
-				record: {
-					id: creationId,
-					createdAtISO: new Date().toISOString(),
-					intent: spec,
-					assembledPrompt: assembledPrompt || textOutput.quote,
-					studioText: textOutput,
-					revisedPrompt: revisedPrompt || undefined,
-					images: storedImages.length > 0 ? storedImages : undefined,
-					violations,
-					fixesApplied: recommendedFixes.map((fix) => fix.code),
-					authContext: authContext ?? undefined,
-					owner
-				}
-			});
-			vaultStatus = result.ok
-				? 'Saved to the quote vault.'
-				: result.error.message;
-			await refreshCreations();
-		} finally {
-			isSaving = false;
-		}
-	};
-
-	const refreshCreations = async (): Promise<void> => {
-		if (!owner) {
-			return;
-		}
-		const result = await creationStoreAdapter.listCreations({ owner });
-		if (result.ok) {
-			creations = result.value;
-		}
-	};
-
-	const loadCreation = async (creation: CreationRecord): Promise<void> => {
-		const restoredText = buildStudioTextFromCreationRecord(creation);
-		spec = creation.intent;
-		evidence = creation.studioText?.quote ?? creation.assembledPrompt;
-		dedication = creation.intent.dedication ?? '';
-		pageSize = creation.intent.pageSize;
-		border = creation.intent.border;
-		textOutput = restoredText;
-		await validateSpec();
-		scheduleDraftSave();
-	};
-
-	const deleteCreation = async (id: string): Promise<void> => {
-		const result = await creationStoreAdapter.deleteCreation({ id });
-		if (result.ok) {
-			await refreshCreations();
-		}
-	};
-
-	const toggleFavorite = async (creation: CreationRecord): Promise<void> => {
-		const result = await creationStoreAdapter.saveCreation({
-			record: { ...creation, favorite: !creation.favorite }
-		});
-		if (result.ok) {
-			await refreshCreations();
-		}
-	};
-
-	let canGenerateText = $derived(
-		canRunStudioAction('generate_text', {
-			remainingBudget: revisionBudget,
-			isRunning: isTextWorking
-		})
-	);
-	let canRegenerateText = $derived(
-		!!textOutput &&
-			canRunStudioAction('regenerate', {
-				remainingBudget: revisionBudget,
-				isRunning: isTextWorking
-			})
-	);
-	let canMakePrettier = $derived(
-		!!textOutput &&
-			canRunStudioAction('make_prettier', {
-				remainingBudget: revisionBudget,
-				isRunning: isTextWorking
-			})
-	);
-	let canMakeMeaner = $derived(
-		!!textOutput &&
-			canRunStudioAction('make_meaner', {
-				remainingBudget: revisionBudget,
-				isRunning: isTextWorking
-			})
-	);
-	let canMakeMoreSpecific = $derived(
-		!!textOutput &&
-			canRunStudioAction('make_more_specific', {
-				remainingBudget: revisionBudget,
-				isRunning: isTextWorking
-			})
-	);
-	let imagePreviews = $derived(
-		images.map((image) => {
-			if (image.format === 'svg' && image.encoding === 'utf8') {
-				return `data:image/svg+xml;utf8,${encodeURIComponent(image.data)}`;
-			}
-			if (image.encoding === 'base64') {
-				return `data:image/${image.format};base64,${image.data}`;
-			}
-			return '';
-		})
-	);
-
-	let canTryOn = $derived(!!selectedWigId && !!selfieBase64 && !isTryingOn);
-
-	const handleModeSelect = (modeId: string): void => {
-		activeModeId = modeId;
-		textError = '';
-		resetGeneratedPage();
-		scheduleDraftSave();
-	};
-
-	onDestroy(() => {
-		if (draftTimer) {
-			globalThis.clearTimeout(draftTimer);
-		}
-	});
+	const studio = new StudioState();
 
 	onMount(async () => {
-		isBrowser = true;
-		const [sessionResult, draft] = await Promise.all([
-			sessionAdapter.getSession(),
-			creationStoreAdapter.getDraft({})
-		]);
-		if (sessionResult.ok) {
-			owner = buildOwner(sessionResult.value.sessionId);
-			const authResult = await authContextAdapter.getAuthContext({
-				sessionId: sessionResult.value.sessionId
-			});
-			if (authResult.ok) {
-				authContext = authResult.value;
-			}
-		}
-		if (draft.ok && draft.value) {
-			spec = draft.value.intent;
-			evidence = draft.value.chatMessage || '';
-			dedication = draft.value.intent.dedication ?? '';
-			pageSize = draft.value.intent.pageSize;
-			border = draft.value.intent.border;
-			if (
-				draft.value.studioText ||
-				draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
-			) {
-				textOutput = buildStudioTextFromDraftRecord(draft.value);
-			}
-		}
-		await validateSpec();
-		await refreshCreations();
+		await studio.init();
+	});
+
+	onDestroy(() => {
+		studio.destroy();
 	});
 </script>
 
@@ -701,92 +32,91 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 
 <main class="studio">
 	<StudioHero
-		{weeklyModes}
-		{monthlyModeId}
-		{activeModeId}
-		{activeMode}
-		{isTextWorking}
-		{canGenerateText}
-		onRunTextAction={runTextAction}
-		onModeSelect={handleModeSelect}
+		weeklyModes={studio.weeklyModes}
+		monthlyModeId={studio.monthlyModeId}
+		activeModeId={studio.activeModeId}
+		activeMode={studio.activeMode}
+		isTextWorking={studio.isTextWorking}
+		canGenerateText={studio.canGenerateText}
+		onRunTextAction={studio.runTextAction}
+		onModeSelect={studio.handleModeSelect}
 	/>
 
 	<section class="workbench">
 		<StudioInputPanel
-			bind:evidence
-			bind:dedication
-			{activeMode}
-			{revisionBudget}
-			{textOutput}
-			{textError}
-			{isTextWorking}
-			{draftSaveError}
-			{canGenerateText}
-			{canRegenerateText}
-			{canMakePrettier}
-			{canMakeMeaner}
-			{canMakeMoreSpecific}
-			onRunTextAction={runTextAction}
-			onScheduleDraftSave={scheduleDraftSave}
-			onDedicationInput={handleDedicationInput}
+			bind:evidence={studio.evidence}
+			bind:dedication={studio.dedication}
+			activeMode={studio.activeMode}
+			revisionBudget={studio.revisionBudget}
+			textError={studio.textError}
+			isTextWorking={studio.isTextWorking}
+			draftSaveError={studio.draftSaveError}
+			canGenerateText={studio.canGenerateText}
+			canRegenerateText={studio.canRegenerateText}
+			canMakePrettier={studio.canMakePrettier}
+			canMakeMeaner={studio.canMakeMeaner}
+			canMakeMoreSpecific={studio.canMakeMoreSpecific}
+			onRunTextAction={studio.runTextAction}
+			onScheduleDraftSave={studio.scheduleDraftSave}
+			onDedicationInput={studio.handleDedicationInput}
 		/>
 
 		<StudioPreviewPanel
-			{previewOutput}
-			{imagePreviews}
-			{packagedFiles}
-			{generationError}
-			{isGenerating}
-			{textOutput}
-			{copyStatus}
-			{vaultStatus}
-			{isSaving}
-			{glitter}
-			{activeTheme}
-			onGeneratePage={handleGeneratePage}
-			onCopyQuote={copyQuote}
-			onSaveToVault={saveToVault}
+			previewOutput={studio.previewOutput}
+			imagePreviews={studio.imagePreviews}
+			packagedFiles={studio.packagedFiles}
+			generationError={studio.generationError}
+			isGenerating={studio.isGenerating}
+			textOutput={studio.textOutput}
+			copyStatus={studio.copyStatus}
+			vaultStatus={studio.vaultStatus}
+			isSaving={studio.isSaving}
+			glitter={studio.glitter}
+			activeTheme={studio.activeTheme}
+			onGeneratePage={studio.handleGeneratePage}
+			onCopyQuote={studio.copyQuote}
+			onSaveToVault={studio.saveToVault}
 		/>
 
 		<StudioSettingsPanel
-			bind:selectedThemeId
-			bind:intensity={voice.intensity}
-			bind:rawness={voice.rawness}
-			bind:thirdPerson={voice.thirdPerson}
-			bind:pageSize
-			bind:border
-			bind:glitter
-			onSettingChange={syncSpecFromCurrentText}
+			bind:selectedThemeId={studio.selectedThemeId}
+			bind:intensity={studio.voice.intensity}
+			bind:rawness={studio.voice.rawness}
+			bind:thirdPerson={studio.voice.thirdPerson}
+			bind:pageSize={studio.pageSize}
+			bind:border={studio.border}
+			bind:glitter={studio.glitter}
+			onSettingChange={studio.syncSpecFromCurrentText}
 		/>
 	</section>
 
 	<WigTryOnStudio
-		{selectedWigId}
-		{selectedWig}
-		{tryOnPortraitUrl}
-		{tryOnError}
-		{isTryingOn}
-		{canTryOn}
-		{isGenerating}
-		onWigSelect={selectWigForTryOn}
-		onSelfieUpload={setSelfieForTryOn}
-		onWigTryOn={handleWigTryOn}
-		onGenerateTryOnPage={handleGenerateTryOnPage}
+		selectedWigId={studio.selectedWigId}
+		selectedWig={studio.selectedWig}
+		tryOnPortraitUrl={studio.tryOnPortraitUrl}
+		tryOnError={studio.tryOnError}
+		isTryingOn={studio.isTryingOn}
+		canTryOn={studio.canTryOn}
+		isGenerating={studio.isGenerating}
+		onWigSelect={studio.selectWigForTryOn}
+		onSelfieUpload={studio.setSelfieForTryOn}
+		onWigTryOn={studio.handleWigTryOn}
+		onGenerateTryOnPage={studio.handleGenerateTryOnPage}
 	/>
 
 	<VerdictRow
-		{textOutput}
-		{creations}
-		onLoadCreation={loadCreation}
-		onDeleteCreation={deleteCreation}
-		onToggleFavorite={toggleFavorite}
+		textOutput={studio.textOutput}
+		creations={studio.creations}
+		onLoadCreation={studio.loadCreation}
+		onDeleteCreation={studio.deleteCreation}
+		onToggleFavorite={studio.toggleFavorite}
 	/>
 
 	<SystemTrace
-		{assembledPrompt}
-		{revisedPrompt}
-		{validationIssues}
-		{violations}
+		assembledPrompt={studio.assembledPrompt}
+		revisedPrompt={studio.revisedPrompt}
+		validationIssues={studio.validationIssues}
+		violations={studio.violations}
 	/>
 </main>
 
