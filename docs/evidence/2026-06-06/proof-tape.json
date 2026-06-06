@@ -1,0 +1,145 @@
+{
+  "tool": "proof-tape",
+  "generatedAt": "2026-06-06T20:15:43.538Z",
+  "evidenceDir": "docs\\evidence\\2026-06-06",
+  "files": [
+    {
+      "name": "assumption-alarm.json",
+      "path": "docs\\evidence\\2026-06-06\\assumption-alarm.json",
+      "sizeBytes": 3636,
+      "modifiedAt": "2026-06-06T20:15:40.534Z",
+      "commands": []
+    },
+    {
+      "name": "chamber-lock.json",
+      "path": "docs\\evidence\\2026-06-06\\chamber-lock.json",
+      "sizeBytes": 25704,
+      "modifiedAt": "2026-06-06T20:11:24.211Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.json",
+      "path": "docs\\evidence\\2026-06-06\\clan-chain.json",
+      "sizeBytes": 2343,
+      "modifiedAt": "2026-06-06T20:15:42.558Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.md",
+      "path": "docs\\evidence\\2026-06-06\\clan-chain.md",
+      "sizeBytes": 1477,
+      "modifiedAt": "2026-06-06T20:15:42.558Z",
+      "commands": []
+    },
+    {
+      "name": "pr-127-todo.md",
+      "path": "docs\\evidence\\2026-06-06\\pr-127-todo.md",
+      "sizeBytes": 7216,
+      "modifiedAt": "2026-06-06T19:46:13.718Z",
+      "commands": [
+        "![medium](https://www.gstatic.com/codereviewagent/medium-priority.svg)",
+        "Using simple substring matching with `lowered.includes(token)` can lead to false positives (e.g., matching a short forbidden token like `'art'` inside a harmless word like `'earth'`). Consider using word boundary checks or a regular expression to match whole words only.",
+        "```suggestion",
+        "\treturn PROMPT_FORBIDDEN_TOKENS.filter((token) => {",
+        "\t\tconst regex = new RegExp(`\\\\b${token}\\\\b`, 'i');",
+        "\t\treturn regex.test(lowered);",
+        "\t});",
+        "```",
+        "![medium](https://www.gstatic.com/codereviewagent/medium-priority.svg)",
+        "If the LLM returns markdown code blocks (e.g., ```json ... ```), `JSON.parse` will throw an error and fail the response validation. Although structured outputs are requested, models can occasionally output markdown formatting under edge cases or fallback scenarios. Sanitizing the content by stripping potential markdown code fences before parsing will make the parser more robust.",
+        "```typescript",
+        "\tlet sanitized = content.trim();",
+        "\tif (sanitized.startsWith('```')) {",
+        "\t\tsanitized = sanitized.replace(/^```(?:json)?\\n?|\\n?```$/g, '').trim();",
+        "\t}",
+        "\ttry {",
+        "\t\tconst parsed = JSON.parse(sanitized) as Record<string, unknown>;",
+        "\t\tconst headline =",
+        "\t\t\ttypeof parsed.headline === 'string' ? parsed.headline.trim() : '';",
+        "\t\tconst response =",
+        "\t\t\ttypeof parsed.response === 'string' ? parsed.response.trim() : '';",
+        "\t\tif (!headline || !response) {",
+        "\t\t\treturn null;",
+        "\t\t}",
+        "\t\tif (toolId === 'rate_excuse') {",
+        "\t\t\tif (typeof parsed.rating !== 'number') {",
+        "\t\t\t\treturn null;",
+        "\t\t\t}",
+        "\t\t\tconst rating = Math.max(1, Math.min(10, Math.round(parsed.rating)));",
+        "\t\t\treturn { headline: `${rating}/10`, response, rating };",
+        "\t\t}",
+        "\t\treturn { headline, response };",
+        "\t} catch {",
+        "\t\treturn null;",
+        "\t}",
+        "```",
+        "`styleHint` is concatenated into the prompt verbatim, and `NonEmptyStringSchema` allows newlines/whitespace. A multi-line (or whitespace-only) style hint can inject extra lines/headings into the prompt and potentially alter downstream drift-detection or provider behavior. Normalize `styleHint` to a single trimmed line (collapse whitespace/newlines, treat whitespace-only as absent) before validating and building the prompt.",
+        "`parseResponse` accepts `toolId: string`, which allows callers to pass values outside the seam contract and weakens exhaustiveness/typing (especially since behavior differs for `'rate_excuse'`). Tighten the type to the contract’s union so invalid toolIds are caught at compile time.",
+        "This adapter embeds the entire `meechieVoicePack` as a large inline literal, while the same voice pack content also exists elsewhere (e.g. fixtures and the legacy flat adapter). Keeping multiple authoritative copies makes divergence very likely (voice edits will need to be made in several places, and tests may only cover one). Consider extracting the voice pack into a single source (shared JSON/module validated by `MeechieVoicePackSchema`) and importing it from both adapters.",
+        "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Wire canonical seams into runtime**",
+        "When the app exercises the generation, chat, or Meechie tool flows, these newly declared canonical self-contained seams are not used: repo-wide search shows `src/lib/core/generate-pipeline.ts` still imports the flat prompt/drift/spec adapters, `src/lib/core/chat-interpretation-pipeline.ts` still imports the flat spec contract/adapter, and `src/lib/core/tools-pipeline.ts` still imports the flat Meechie tool adapter. This means fixes or contract changes made in the migrated self-contained seams and their fixture-backed mocks will only affect the new seam-local tests, not production behavior, so the migration is effectively bypassed until the runtime imports are updated.",
+        "Useful? React with 👍 / 👎.",
+        "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Preserve input-specific prompt compilation**",
+        "When any test or probe calls this mock with a `PromptCompilerInput` other than `promptCompilerInputFixture`, it now returns the sample fixture prompt and metadata regardless of the requested description, density, line thickness, border, or caption. The previous mock interpolated those fields into the compiled prompt, so this change can let code that drops or misroutes prompt-compiler inputs still pass against the mock while producing the wrong prompt shape for non-sample inputs.",
+        "Useful? React with 👍 / 👎."
+      ]
+    },
+    {
+      "name": "proof-tape.json",
+      "path": "docs\\evidence\\2026-06-06\\proof-tape.json",
+      "sizeBytes": 7805,
+      "modifiedAt": "2026-06-06T19:51:53.410Z",
+      "commands": []
+    },
+    {
+      "name": "proof-tape.md",
+      "path": "docs\\evidence\\2026-06-06\\proof-tape.md",
+      "sizeBytes": 5422,
+      "modifiedAt": "2026-06-06T19:51:53.413Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.json",
+      "path": "docs\\evidence\\2026-06-06\\seam-ledger.json",
+      "sizeBytes": 27293,
+      "modifiedAt": "2026-06-06T20:15:41.585Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.md",
+      "path": "docs\\evidence\\2026-06-06\\seam-ledger.md",
+      "sizeBytes": 2252,
+      "modifiedAt": "2026-06-06T20:15:41.585Z",
+      "commands": []
+    },
+    {
+      "name": "shaolin-lint.json",
+      "path": "docs\\evidence\\2026-06-06\\shaolin-lint.json",
+      "sizeBytes": 519,
+      "modifiedAt": "2026-06-06T20:15:39.532Z",
+      "commands": []
+    },
+    {
+      "name": "test.txt",
+      "path": "docs\\evidence\\2026-06-06\\test.txt",
+      "sizeBytes": 8870,
+      "modifiedAt": "2026-06-06T20:15:38.438Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ]
+    },
+    {
+      "name": "verify.txt",
+      "path": "docs\\evidence\\2026-06-06\\verify.txt",
+      "sizeBytes": 9139,
+      "modifiedAt": "2026-06-06T20:15:38.435Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ]
+    }
+  ]
+}

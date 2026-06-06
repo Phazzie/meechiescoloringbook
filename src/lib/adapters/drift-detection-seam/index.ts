@@ -80,8 +80,12 @@ const detectForbiddenTokens = (prompt: string): string[] => {
 		return true;
 	});
 	const lowered = sanitizedLines.join('\n').toLowerCase();
-	return PROMPT_FORBIDDEN_TOKENS.filter((token) => lowered.includes(token));
+	return PROMPT_FORBIDDEN_TOKENS.filter((token) => {
+		const regex = new RegExp(`\\b${token}`, 'i');
+		return regex.test(lowered);
+	});
 };
+
 
 export const driftDetectionAdapter: DriftDetectionSeam = {
 	detect: async (input: DriftDetectionInput): Promise<Result<DriftDetectionOutput>> => {

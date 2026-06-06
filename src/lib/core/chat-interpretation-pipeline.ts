@@ -2,7 +2,7 @@
 // Why: Keep route handlers thin and make chat/spec validation behavior easy to test in isolation.
 // Info flow: Raw request body -> provider completion -> JSON extraction + validation -> contract response.
 import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
-import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { selectTextModel } from '$lib/core/text-model';
 import { env } from '$env/dynamic/private';

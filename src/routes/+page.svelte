@@ -10,7 +10,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 	import { sessionAdapter } from '$lib/adapters/session.adapter';
-	import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+	import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 	import {
 		DEFAULT_REVISION_BUDGET,
 		DEFAULT_STUDIO_TEXT_OUTPUT,

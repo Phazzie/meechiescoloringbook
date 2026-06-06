@@ -240,7 +240,7 @@ const buildUserMessage = (input: MeechieToolInput): UserMessage => {
 
 const parseResponse = (
 	content: string,
-	toolId: string
+	toolId: MeechieToolInput['toolId']
 ): { headline: string; response: string; rating?: number } | null => {
 	try {
 		let sanitized = content.trim();

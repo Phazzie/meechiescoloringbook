@@ -1,7 +1,7 @@
 // Purpose: Centralize Meechie tools endpoint orchestration in a reusable core pipeline.
 // Why: Keep route handlers transport-only while preserving safety and contract checks.
 // Info flow: Raw request body -> input validation + safety checks -> tool adapter -> contract response.
-import { meechieToolAdapter } from '$lib/adapters/meechie-tool.adapter';
+import { meechieToolAdapter } from '$lib/adapters/meechie-tool-seam';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import {
 	MeechieToolInputSchema,

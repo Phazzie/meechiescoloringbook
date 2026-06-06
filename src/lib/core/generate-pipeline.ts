@@ -1,9 +1,9 @@
 // Purpose: Centralize generation endpoint orchestration in a reusable core pipeline.
 // Why: Keep route handlers thin and isolate seam composition logic from transport concerns.
 // Info flow: Raw request body -> validation/seams -> contract-shaped response payload.
-import { driftDetectionAdapter } from '$lib/adapters/drift-detection.adapter';
-import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly.adapter';
-import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+import { driftDetectionAdapter } from '$lib/adapters/drift-detection-seam';
+import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly-seam';
+import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import type {
 	SafetyPolicyError,
 	SafetyPolicyGenerateInput,

@@ -1,0 +1,27 @@
+<!--
+Purpose: Summarize evidence artifacts in plain language.
+Why: Help non-coders understand proof coverage without reading code.
+Info flow: evidence files -> summary -> review.
+-->
+# Proof Tape
+
+Generated at: 2026-06-06T20:15:43.538Z
+Evidence folder: docs\evidence\2026-06-06
+
+Files included:
+- assumption-alarm.json (3636 bytes)
+- chamber-lock.json (25704 bytes)
+- clan-chain.json (2343 bytes)
+- clan-chain.md (1477 bytes)
+- pr-127-todo.md (7216 bytes)
+  Commands: ![medium](https://www.gstatic.com/codereviewagent/medium-priority.svg) | Using simple substring matching with `lowered.includes(token)` can lead to false positives (e.g., matching a short forbidden token like `'art'` inside a harmless word like `'earth'`). Consider using word boundary checks or a regular expression to match whole words only. | ```suggestion | 	return PROMPT_FORBIDDEN_TOKENS.filter((token) => { | 		const regex = new RegExp(`\\b${token}\\b`, 'i'); | 		return regex.test(lowered); | 	}); | ``` | ![medium](https://www.gstatic.com/codereviewagent/medium-priority.svg) | If the LLM returns markdown code blocks (e.g., ```json ... ```), `JSON.parse` will throw an error and fail the response validation. Although structured outputs are requested, models can occasionally output markdown formatting under edge cases or fallback scenarios. Sanitizing the content by stripping potential markdown code fences before parsing will make the parser more robust. | ```typescript | 	let sanitized = content.trim(); | 	if (sanitized.startsWith('```')) { | 		sanitized = sanitized.replace(/^```(?:json)?\n?|\n?```$/g, '').trim(); | 	} | 	try { | 		const parsed = JSON.parse(sanitized) as Record<string, unknown>; | 		const headline = | 			typeof parsed.headline === 'string' ? parsed.headline.trim() : ''; | 		const response = | 			typeof parsed.response === 'string' ? parsed.response.trim() : ''; | 		if (!headline || !response) { | 			return null; | 		} | 		if (toolId === 'rate_excuse') { | 			if (typeof parsed.rating !== 'number') { | 				return null; | 			} | 			const rating = Math.max(1, Math.min(10, Math.round(parsed.rating))); | 			return { headline: `${rating}/10`, response, rating }; | 		} | 		return { headline, response }; | 	} catch { | 		return null; | 	} | ``` | `styleHint` is concatenated into the prompt verbatim, and `NonEmptyStringSchema` allows newlines/whitespace. A multi-line (or whitespace-only) style hint can inject extra lines/headings into the prompt and potentially alter downstream drift-detection or provider behavior. Normalize `styleHint` to a single trimmed line (collapse whitespace/newlines, treat whitespace-only as absent) before validating and building the prompt. | `parseResponse` accepts `toolId: string`, which allows callers to pass values outside the seam contract and weakens exhaustiveness/typing (especially since behavior differs for `'rate_excuse'`). Tighten the type to the contract’s union so invalid toolIds are caught at compile time. | This adapter embeds the entire `meechieVoicePack` as a large inline literal, while the same voice pack content also exists elsewhere (e.g. fixtures and the legacy flat adapter). Keeping multiple authoritative copies makes divergence very likely (voice edits will need to be made in several places, and tests may only cover one). Consider extracting the voice pack into a single source (shared JSON/module validated by `MeechieVoicePackSchema`) and importing it from both adapters. | **<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Wire canonical seams into runtime** | When the app exercises the generation, chat, or Meechie tool flows, these newly declared canonical self-contained seams are not used: repo-wide search shows `src/lib/core/generate-pipeline.ts` still imports the flat prompt/drift/spec adapters, `src/lib/core/chat-interpretation-pipeline.ts` still imports the flat spec contract/adapter, and `src/lib/core/tools-pipeline.ts` still imports the flat Meechie tool adapter. This means fixes or contract changes made in the migrated self-contained seams and their fixture-backed mocks will only affect the new seam-local tests, not production behavior, so the migration is effectively bypassed until the runtime imports are updated. | Useful? React with 👍 / 👎. | **<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Preserve input-specific prompt compilation** | When any test or probe calls this mock with a `PromptCompilerInput` other than `promptCompilerInputFixture`, it now returns the sample fixture prompt and metadata regardless of the requested description, density, line thickness, border, or caption. The previous mock interpolated those fields into the compiled prompt, so this change can let code that drops or misroutes prompt-compiler inputs still pass against the mock while producing the wrong prompt shape for non-sample inputs. | Useful? React with 👍 / 👎.
+- proof-tape.json (7805 bytes)
+- proof-tape.md (5422 bytes)
+- seam-ledger.json (27293 bytes)
+- seam-ledger.md (2252 bytes)
+- shaolin-lint.json (519 bytes)
+- test.txt (8870 bytes)
+  Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+- verify.txt (9139 bytes)
+  Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+

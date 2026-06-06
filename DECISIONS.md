@@ -7,6 +7,22 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-06 - PR #127 reviews resolution & canonical seam migration
+
+- Date: 2026-06-06
+- Decision: Extract duplicate Meechie voice pack literal into a shared module, update forbidden token check to use RegExp word boundaries (`\b`), normalize styleHint in prompt assembly, and switch all pipeline imports to use the self-contained canonical adapters. Document the pure compiler exception for `PromptCompilerSeam` mock dynamic compilation.
+- Context: Outstanding review comments on PR #127 required fixing potential false positives in drift detection, stripping markdown fences in tool responses, and extraction of the huge duplicate voice pack. The review also highlighted that migrated self-contained seams were bypassed at runtime because the legacy flat adapters were still imported.
+- Alternatives: Keep dynamic logic out of the PromptCompilerSeam mock and use static fixtures. However, this causes integration tests to falsely pass when inputs are dropped. Since PromptCompilerSeam is a pure compiler with no external I/O or state, allowing dynamic mock compilation is a safe and necessary exception to strict fixture-only mocking.
+- Consequences: Shared voice pack is extracted, reducing duplication and preventing divergence. Harmless substrings (e.g., "lifestyle") are no longer false positives in drift detection. Pipelines now run on the canonical self-contained seams.
+- Revisit criteria: Revisit if the compiler logic changes or if further flat seams are migrated.
+
+- Cipher Gate:
+  - Date: 2026-06-06
+  - Seams: MeechieVoiceSeam, DriftDetectionSeam, PromptAssemblySeam, PromptCompilerSeam, MeechieToolSeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-06-06/npm-verify-pr-127-resolution.txt
+  - Summary: Extracted Meechie voice pack to shared module, added word-boundary check for forbidden tokens, normalized styleHint in legacy prompt-assembly adapter, tightened legacy meechie-tool adapter toolId union types, and wired all newly migrated canonical self-contained seams into production pipelines. Documented PromptCompilerSeam exception allowing dynamic mock interpolation.
+  - Risks: PromptCompilerSeam mock uses dynamic logic rather than hardcoded fixture loading to prevent falsely passing integration test cases that drop compiler inputs. This is documented as a pure-compiler exception to the strict fixture-mock rule.
+
 ## 2026-06-05 - HPR HTTP client structured error policy
 
 - Date: 2026-06-05
