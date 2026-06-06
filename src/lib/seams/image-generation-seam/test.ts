@@ -124,7 +124,7 @@ describe('ImageGenerationSeam adapter', () => {
     expect(output.ok).toBe(true);
     if (output.ok) {
       expect(output.value.images).toHaveLength(1);
-      expect(output.value.images[0].url).toBe('https://example.com/image.png');
+      expect(output.value.images[0]?.url).toBe('https://example.com/image.png');
     }
     expect(fetchMock).toHaveBeenCalledOnce();
   });
