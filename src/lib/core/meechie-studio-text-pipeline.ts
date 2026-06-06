@@ -14,6 +14,7 @@ import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.co
 import { z } from 'zod';
 
 const TEXT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
+const CONTENT_PREVIEW_LENGTH = 500;
 
 const STUDIO_TEXT_RESPONSE_FORMAT = {
 	type: 'json_schema',
@@ -127,7 +128,7 @@ const invalidProviderTextResult = (
 		message: 'Provider text response did not match contract.',
 		details: {
 			model,
-			contentPreview: content.slice(0, 500)
+			contentPreview: content.slice(0, CONTENT_PREVIEW_LENGTH)
 		}
 	}
 });
