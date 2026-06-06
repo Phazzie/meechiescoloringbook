@@ -21,7 +21,8 @@ export const chatInterpretationAdapter: ChatInterpretationSeam = {
 			});
 			// Always parse the body first: the route sends a structured Result even on
 			// non-2xx status codes (e.g. CHAT_INPUT_INVALID on 400, provider errors on 502).
-			// Only fall back to CHAT_NETWORK_ERROR when the body is not parseable at all.
+			// CHAT_NETWORK_ERROR is only returned from the catch block when fetch itself throws
+			// (true network failure); non-2xx → CHAT_HTTP_ERROR, schema mismatch → CHAT_RESPONSE_INVALID.
 			const payload = await response.json().catch(() => null);
 			const parsed = payload !== null ? ChatInterpretationResultSchema.safeParse(payload) : null;
 			if (parsed?.success) {

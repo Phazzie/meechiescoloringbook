@@ -24,8 +24,9 @@ export default [
       }
     },
     rules: {
-      // Function-type parameter names in TS type declarations look like unused vars to
-      // plain ESLint; suppress by convention: prefix unused names with _.
+      // Use base no-unused-vars (not @typescript-eslint/no-unused-vars) because
+      // @typescript-eslint/eslint-plugin is not in devDependencies. Suppress false
+      // positives on type-declaration parameter names by prefixing unused names with _.
       'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }]
     }
   },
