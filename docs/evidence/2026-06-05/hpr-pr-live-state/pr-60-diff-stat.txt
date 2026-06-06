@@ -1,0 +1,6 @@
+﻿ contracts/shared.contract.ts                    | 18 ++++++++---
+ src/lib/adapters/image-generation-seam/index.ts | 41 ++++++++++++-------------
+ src/lib/seams/image-generation-seam/mock.ts     |  7 +++--
+ tests/contract/image-generation.test.ts         | 10 +++---
+ tests/unit/image-generation-pipeline.test.ts    |  4 ++-
+ 5 files changed, 47 insertions(+), 33 deletions(-)

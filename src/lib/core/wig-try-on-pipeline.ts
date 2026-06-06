@@ -17,6 +17,7 @@ type PipelineDeps = {
 	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 	wigCatalogSeam: WigCatalogSeam;
 	wigTryOnSeam: WigTryOnSeam;
+	signal?: AbortSignal;
 };
 
 const buildError = (
@@ -30,10 +31,11 @@ const buildError = (
 
 const fetchImageAsBase64 = async (
 	url: string,
-	fetchImpl: PipelineDeps['fetchImpl']
+	fetchImpl: PipelineDeps['fetchImpl'],
+	signal?: AbortSignal
 ): Promise<{ base64: string; mimeType: string } | null> => {
 	try {
-		const res = await fetchImpl(url);
+		const res = signal ? await fetchImpl(url, { signal }) : await fetchImpl(url);
 		if (!res.ok) return null;
 		const buffer = await res.arrayBuffer();
 		const base64 = Buffer.from(buffer).toString('base64');
@@ -65,7 +67,7 @@ export const runWigTryOnPipeline = async (
 
 	const wig = wigResult.value;
 
-	const wigImage = await fetchImageAsBase64(wig.imageUrl, deps.fetchImpl);
+	const wigImage = await fetchImageAsBase64(wig.imageUrl, deps.fetchImpl, deps.signal);
 	if (!wigImage) {
 		return buildError(502, 'WIG_IMAGE_FETCH_FAILED', `Could not fetch wig image for ${wig.name}.`);
 	}
@@ -80,7 +82,8 @@ export const runWigTryOnPipeline = async (
 		wigImageBase64: wigImage.base64,
 		wigImageMimeType: safeMimeType,
 		wigName: wig.name,
-		wigStyle: `${wig.style}, ${wig.color}, ${wig.length} length`
+		wigStyle: `${wig.style}, ${wig.color}, ${wig.length} length`,
+		signal: deps.signal
 	});
 
 	if (!tryOnResult.ok) {

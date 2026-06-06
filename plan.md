@@ -4,7 +4,347 @@ Why: Keep scope, seams, files, and validation explicit before implementation.
 Info flow: User request -> execution specs -> implementation -> review evidence.
 -->
 
-# Autonomous Plan (2026-02-14)
+# Autonomous Plan
+
+Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
+
+## PR Backlog Resolution and Merge Workpack (2026-06-06)
+
+### Plan
+- Goal: Automate conflict resolution, test verification, and clean merging of all open PRs using the validation scripts and programmatic Codex commands.
+- Exact seams: process execution, git/filesystem operations.
+- Exact file paths to touch:
+  - `plan.md`
+  - `docs/triage-table.md`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+- Exact commands to run:
+  1. `git stash --include-untracked` to stash local staged modifications and untracked files safely.
+  2. `node scripts/validate-pr-backlog.js` to run verification against the clean candidate branch (PR #127).
+  3. `node scripts/get-pr-todos.js 127` to parse open review comment threads.
+  4. Call Codex MCP to resolve the review todos in `docs/evidence/2026-06-06/pr-127-todo.md` on the candidate branch.
+  5. Run `npm test` and `npm run verify` on the candidate branch.
+  6. Checkout `main` and merge the validated PR branch.
+  7. Loop through other conflicting PRs (starting from recent ones) to resolve conflicts: checkout a branch, merge `main`, call Codex programmatically to resolve conflicts, verify, and merge.
+  8. Run `git stash pop` to restore the staged modifications once PR merges are complete.
+
+### Self-critique
+1. What could be wrong: Stashing the 40+ modified/staged files could result in conflicts when popping them if the PR merges modify the same lines or files (e.g. `docs/seams.md` or Svelte components).
+2. What must be proven: That PR #127 matches current contracts, passes all lints and vitests, and matches the review thread requirements.
+3. Riskiest assumption: That all 46 conflicting PRs can be merged programmatically without manual design conflict resolution. In reality, some stale PRs might have been superseded by newer workpacks and should be marked as "Closed/Superseded" instead of merged.
+4. Evidence to prove/disprove: Log outputs of `validate-pr-backlog.js`, verification reports under `docs/evidence/2026-06-06/`, and successful run of `npm run verify` after each merge.
+
+## HPR Dedication Input Draft-Save Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: copy PR #92's broad non-main UI extraction or only change `saveDraft()` to `scheduleDraftSave()` without proving the stale input and clearing behavior.
+2. Countermeasure: keep the patch to the current `+page.svelte`/`StudioInputPanel.svelte` flow, add a Playwright red test that observes real browser input events and localStorage draft writes, and preserve `currentDedication()` normalization.
+3. Lower-debt path: use the existing debounced `scheduleDraftSave()` helper, let the child component read the DOM input value, pass a plain string to the parent, and avoid introducing a new store or component abstraction for one handler.
+
+### Plan
+
+- Goal: Fix the Shoutout/dedication input path so each input event updates local state before validation, normalizes cleared text to `undefined`, and schedules the existing debounced draft save instead of writing the draft on every keystroke.
+- Exact seams: `CreationStoreSeam`, `SpecValidationSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/routes/+page.svelte`
+  - `src/lib/components/studio/StudioInputPanel.svelte`
+  - `tests/e2e/smoke.spec.ts`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npx playwright test tests/e2e/smoke.spec.ts --project=chromium --grep "shoutout"`
+  2. `npm.cmd run check`
+  3. `npm.cmd test -- tests/unit/meechie-studio.test.ts tests/contract/creation-store.test.ts --pool=forks --maxWorkers=1`
+  4. `npm.cmd run rewind -- --seam CreationStoreSeam`
+  5. `npm.cmd run rewind -- --seam SpecValidationSeam`
+  6. `npx playwright test tests/e2e/smoke.spec.ts --project=chromium`
+  7. `npm.cmd run lint`
+  8. `npm.cmd test`
+  9. `npm.cmd run build`
+  10. `npm.cmd run verify`
+  11. `npm.cmd run cipher:gate`
+  12. `git diff --check`
+- Replacement PR base: `codex/hpr-studio-text-recovery-2026-06-05`, because this workpack follows the studio-text recovery slice in the HPR stack.
+- Required red test before production edits: `tests/e2e/smoke.spec.ts` should fill the Shoutout field, assert no `cb_drafts_v1` localStorage write happens immediately, poll until the debounced write appears with trimmed dedication, then clear the field and poll until the saved draft omits `intent.dedication`.
+- Old PR disposition rule: comment or close #92 only after this replacement work is merged, unless a remaining blocker is recorded in the ledger with a GitHub comment.
+
+### Self-critique
+
+1. What could be wrong: E2E timing can be flaky if the test depends on arbitrary waits or app hydration rather than observable localStorage writes.
+2. What must be proven: The child passes the current input value as a string, `spec.dedication` is `trim() || undefined`, draft writes are debounced rather than immediate, clearing the input persists `undefined`, and existing home smoke flows still pass.
+3. Riskiest assumption: Reading the draft payload from `localStorage` is a stable proxy for `CreationStoreSeam.saveDraft()` in the browser; this is acceptable because the adapter's draft key is contract-local and the test waits for the session marker before clearing and typing.
+4. Evidence to prove/disprove: Red/green Playwright shoutout test, Svelte check, focused CreationStore/SpecValidation tests, seam rewinds, full smoke test, full check/lint/test/build/verify output, Cipher Gate evidence, and HPR ledger updates.
+
+## HPR MeechieStudioTextPipeline Error Recovery Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: copy PR #98 wholesale, keep direct `$env/dynamic/private` reads in core, and call malformed JSON plus schema failures the same thing.
+2. Countermeasure: write red tests first on current stacked code, separate JSON syntax failures from schema validation failures, preserve valid JSON primitives as parse successes that fail schema validation, and inject runtime mode/text model through deps.
+3. Lower-debt path: keep `MeechieStudioTextSeam` orchestration pure, keep provider I/O behind `ProviderAdapterSeam`, avoid changing provider contracts in this slice, and make retry prompt field guidance derive from one shared required-field list.
+
+### Plan
+
+- Goal: Port the useful #98 error-recovery behavior into current code while fixing its valid review comments: syntax-vs-schema retries, primitive JSON handling, retry prompt/schema consistency, injected runtime mode, accurate timeout status mapping, and removal of redundant post-parse validation.
+- Exact seams: `MeechieStudioTextSeam`, `ProviderAdapterSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/meechie-studio-text-pipeline.ts`
+  - `src/routes/api/meechie-studio-text/+server.ts`
+  - `src/lib/adapters/meechie-studio-text.adapter.ts`
+  - `tests/unit/meechie-studio-text-pipeline.test.ts`
+  - `tests/contract/meechie-studio-text.test.ts` only if adapter deps signature requires a contract-test update
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/meechie-studio-text-pipeline.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd test -- tests/unit/meechie-studio-text-pipeline.test.ts tests/contract/meechie-studio-text.test.ts --pool=forks --maxWorkers=1`
+  3. `npm.cmd run rewind -- --seam MeechieStudioTextSeam`
+  4. `npm.cmd run rewind -- --seam ProviderAdapterSeam`
+  5. `npm.cmd run check`
+  6. `npm.cmd run lint`
+  7. `npm.cmd test`
+  8. `npm.cmd run build`
+  9. `npm.cmd run verify`
+  10. `npm.cmd run cipher:gate`
+  11. `git diff --check`
+- Replacement PR base: `codex/hpr-timeout-abort-policy-2026-06-05`, because this workpack depends on the current provider timeout/abort classification and keeps the HPR stack linear after PR #134.
+- Required red tests before production edits:
+  1. A malformed JSON first attempt sends a retry prompt that names JSON syntax failure and succeeds when the retry returns a valid contract object.
+  2. A schema-invalid object first attempt sends a retry prompt that names schema validation failure and uses required-field guidance consistent with `STUDIO_TEXT_RESPONSE_FORMAT.required`.
+  3. Valid JSON primitives such as `false`, `0`, `""`, and `null` are treated as parsed JSON that failed schema validation, not syntax failures.
+  4. Provider `PROVIDER_API_KEY_MISSING` returns status 200 in non-production mode and 502 in production mode through injected deps, without reading env in core.
+  5. Provider 429 or other `PROVIDER_HTTP_ERROR` returns 502 while preserving the provider error payload.
+  6. Provider timeout-like `PROVIDER_NETWORK_ERROR` returns 504, while generic network `PROVIDER_NETWORK_ERROR` returns 502.
+  7. Provider error during retry is returned with the same status classifier as first-attempt provider errors.
+- Old PR disposition rule: comment or close #98 only after this replacement work is merged, unless a remaining blocker is recorded in the ledger with a GitHub comment.
+
+### Self-critique
+
+1. What could be wrong: Moving env-derived model/runtime values out of core can accidentally change default adapter behavior if route and adapter defaults are not preserved carefully.
+2. What must be proven: Schema failures and JSON syntax failures get different retry prompts; primitive JSON reaches schema validation; retry prompt required fields stay aligned with the response-format schema; missing API key dev/prod statuses are driven by deps; timeout network errors map to 504 while generic network errors map to 502; and retry provider errors preserve structured payloads.
+3. Riskiest assumption: Classifying provider timeout by error code plus timeout wording is acceptable for this slice because `ProviderAdapterSeam` currently uses `PROVIDER_NETWORK_ERROR` for both timeout and non-timeout transport failures; a richer provider error code can be a later seam-contract change if needed.
+4. Evidence to prove/disprove: Red/green targeted unit tests, `npm.cmd run rewind -- --seam MeechieStudioTextSeam`, `npm.cmd run rewind -- --seam ProviderAdapterSeam`, full check/lint/test/build/verify output, Cipher Gate evidence, and HPR ledger updates.
+
+## HPR Timeout, Abort, and Retry Policy Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: copy PR #108/#85 retry code wholesale, retry billable image POSTs, and treat every `AbortError` as a timeout.
+2. Countermeasure: write red tests first on current stacked code, preserve caller abort separately from provider timeout, cap all retry delays, and remove automatic retries from provider image generation unless idempotency is implemented.
+3. Lower-debt path: keep timeout/signal behavior in shared HTTP primitives, keep route handlers responsible for passing caller signals, and keep adapter changes scoped to the seams that already own network I/O.
+
+### Plan
+
+- Goal: Harden timeout, abort, and retry behavior so caller cancellation is not retried, true provider timeouts are contract-shaped 504 responses, body-read aborts are not misreported as invalid JSON, retry inputs reject non-finite values, exponential backoff is capped, and billable provider image POSTs are not retried automatically.
+- Exact seams: `ImageGenerationSeam`, `WigTryOnSeam`, `ProviderAdapterSeam`, `SpecValidationSeam`, `PromptAssemblySeam`, `DriftDetectionSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/http-resilience.ts`
+  - `tests/unit/http-resilience.test.ts`
+  - `src/lib/adapters/provider-adapter.adapter.ts`
+  - `tests/unit/provider-adapter-helpers.test.ts`
+  - `src/lib/seams/image-generation-seam/contract.ts`
+  - `src/lib/adapters/image-generation-seam/index.ts`
+  - `tests/contract/image-generation.test.ts`
+  - `src/lib/core/image-generation-pipeline.ts`
+  - `tests/unit/image-generation-pipeline.test.ts`
+  - `src/lib/core/generate-pipeline.ts`
+  - `tests/unit/api-generate.test.ts`
+  - `src/routes/api/generate/+server.ts`
+  - `src/routes/api/image-generation/+server.ts`
+  - `src/lib/seams/wig-try-on-seam/contract.ts`
+  - `src/lib/seams/wig-try-on-seam/test.ts`
+  - `src/lib/adapters/wig-try-on-seam/index.ts`
+  - `src/lib/core/wig-try-on-pipeline.ts`
+  - `src/routes/api/wig-try-on/+server.ts`
+  - `tests/unit/api-wig-try-on.test.ts`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/http-resilience.test.ts tests/unit/provider-adapter-helpers.test.ts tests/contract/image-generation.test.ts tests/unit/image-generation-pipeline.test.ts tests/unit/api-generate.test.ts tests/unit/api-wig-try-on.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run rewind -- --seam ImageGenerationSeam`
+  3. `npm.cmd run rewind -- --seam WigTryOnSeam`
+  4. `npm.cmd run rewind -- --seam ProviderAdapterSeam`
+  5. `npm.cmd run check`
+  6. `npm.cmd run lint`
+  7. `npm.cmd test`
+  8. `npm.cmd run build`
+  9. `npm.cmd run verify`
+  10. `npm.cmd run cipher:gate`
+  11. `git diff --check`
+- Replacement PR base: `codex/hpr-safety-policy-generate-gate-2026-06-05`, because this workpack depends on the direct generate-to-`ImageGenerationSeam` path and safety gate from PRs #130/#131.
+- Old PR disposition rule: comment or close #108/#107/#100/#95/#85 only after this replacement work is merged, unless a remaining blocker is recorded in the ledger with a GitHub comment.
+
+### Self-critique
+
+1. What could be wrong: Adding `AbortSignal` to seam request types introduces a non-JSON in-process field that validators intentionally strip, so tests must prove fixture-backed mocks and routes still behave deterministically.
+2. What must be proven: Caller abort returns a distinct contract error and is not retried; true timeout returns timeout classification; body-read abort/timeout is not reported as parse failure; provider image generation no longer retries billable POSTs; chat retry behavior still works; finite retry validation rejects `NaN`, `Infinity`, non-integer attempts, and negative delay; and capped delays are observable with fake timers.
+3. Riskiest assumption: It is acceptable to keep `ProviderAdapterSeam` chat retries for now while disabling provider image retries, because chat retry policy needs a separate product decision about duplicate model-call cost and caller idempotency.
+4. Evidence to prove/disprove: Red/green targeted tests, seam rewinds for `ImageGenerationSeam`, `WigTryOnSeam`, and `ProviderAdapterSeam`, full check/lint/test/build/verify output, Cipher Gate evidence, and HPR ledger updates.
+
+## HPR SafetyPolicySeam Generate Gate Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: port PR #115 directly and leave its review comments unresolved.
+2. Countermeasure: write the replacement against the current generate-through-ImageGenerationSeam branch, include `styleHint` in the checked input, rebuild test deps per test, and keep core generation dependency-injected instead of importing a mock by name.
+3. Lower-debt path: expose a pure production-facing safety policy factory for the deterministic in-process guardrail, keep route composition responsible for wiring it, and document the remaining mock/fixture debt instead of hiding it.
+
+### Plan
+
+- Goal: Wire `SafetyPolicySeam` into `/api/generate` as the first generate-path gate so unsafe spec or `styleHint` text returns a contract-shaped `CONTENT_POLICY_VIOLATION` before spec validation, prompt assembly, image generation, or drift detection.
+- Exact seams: `SafetyPolicySeam`, `ImageGenerationSeam`, `SpecValidationSeam`, `PromptAssemblySeam`, `DriftDetectionSeam`, `ProviderAdapterSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/generate-pipeline.ts`
+  - `src/routes/api/generate/+server.ts`
+  - `src/lib/seams/safety-policy-seam/contract.ts`
+  - `src/lib/seams/safety-policy-seam/fixtures.ts`
+  - `src/lib/seams/safety-policy-seam/mock.ts`
+  - `src/lib/seams/safety-policy-seam/policy.ts`
+  - `src/lib/seams/safety-policy-seam/probe.ts`
+  - `src/lib/seams/safety-policy-seam/test.ts`
+  - `tests/unit/api-generate.test.ts`
+  - `tests/unit/pipeline-edge-cases.test.ts`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm.cmd test -- src/lib/seams/safety-policy-seam/test.ts tests/unit/api-generate.test.ts tests/unit/pipeline-edge-cases.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run rewind -- --seam SafetyPolicySeam`
+  3. `npm.cmd run check`
+  4. `npm.cmd run lint`
+  5. `npm.cmd test`
+  6. `npm.cmd run build`
+  7. `npm.cmd run verify`
+  8. `npm.cmd run cipher:gate`
+  9. `git diff --check`
+- Replacement PR base: `codex/hpr-generate-image-seam-2026-06-05`, because this workpack depends on the direct image pipeline dependency shape from PR #130.
+- Old PR disposition rule: comment or close #115 only after this replacement work is merged, unless a blocker is recorded with a GitHub comment.
+
+### Self-critique
+
+1. What could be wrong: Running safety before `SpecValidationSeam` means the safety policy sees request-schema-validated but not domain-validated specs, so optional fields and future raw shapes must be handled defensively.
+2. What must be proven: Unsafe title, item label, dedication, footer label, and `styleHint` text are blocked before image generation; safe specs still generate; test mocks do not lose implementations after `vi.restoreAllMocks`; and structured image errors remain unchanged when safety passes.
+3. Riskiest assumption: A deterministic in-process safety policy is acceptable as the production guardrail for this repo even though the existing file is named `mock.ts`; the mitigation is a pure `policy.ts` factory and a ledger note that deeper fixture-scenario cleanup remains separate.
+4. Evidence to prove/disprove: Red/green targeted safety/generate tests, `npm.cmd run rewind -- --seam SafetyPolicySeam`, full check/lint/test/build/verify output, Cipher Gate evidence, and HPR ledger updates.
+
+## HPR Generate Through ImageGenerationSeam Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: keep the internal `/api/image-generation` fetch and only add a catch around it.
+2. Countermeasure: remove the sibling HTTP hop from `runGeneratePipeline`, inject the image-generation pipeline function directly, and prove `fetch` is not part of the generate orchestration path.
+3. Lower-debt path: keep route handlers thin, keep adapter creation in the route layer, and keep core generation orchestration behind typed dependencies.
+
+### Plan
+
+- Goal: Route `/api/generate` orchestration through `runImageGenerationPipeline`/`ImageGenerationSeam` instead of raw internal HTTP, while preserving typed image failure payloads and guarding unexpected thrown image errors as contract-shaped generate errors.
+- Exact seams: `ImageGenerationSeam`, `SpecValidationSeam`, `OutputPackagingSeam`, `ProviderAdapterSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/generate-pipeline.ts`
+  - `src/routes/api/generate/+server.ts`
+  - `tests/unit/api-generate.test.ts`
+  - `tests/unit/pipeline-edge-cases.test.ts`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/api-generate.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd test -- tests/unit/api-generate.test.ts tests/unit/image-generation-pipeline.test.ts tests/contract/image-generation.test.ts --pool=forks --maxWorkers=1`
+  3. `npm.cmd run rewind -- --seam ImageGenerationSeam`
+  4. `npm.cmd run check`
+  5. `npm.cmd run lint`
+  6. `npm.cmd test`
+  7. `npm.cmd run build`
+  8. `npm.cmd run verify`
+  9. `npm.cmd run cipher:gate`
+  10. `git diff --check`
+- Replacement PR base: `codex/hpr-http-error-policy-2026-06-05`, because this workpack depends on the structured HTTP error policy and ledger from PR #129.
+- Old PR disposition rule: comment or close #112/#74 only after this replacement work is merged, unless a no-salvage audit and comment URL are recorded.
+
+### Self-critique
+
+1. What could be wrong: Moving from an HTTP boundary to a direct function boundary could accidentally change status mapping or let thrown adapter errors escape as generic SvelteKit 500s.
+2. What must be proven: Generate success still assembles prompt/images/drift, typed image errors preserve their code and status, invalid image pipeline bodies become contract errors, thrown image exceptions become contract-shaped 502/504 responses, and route-level invalid JSON/payload behavior remains unchanged.
+3. Riskiest assumption: It is acceptable for `/api/generate` to compose `runImageGenerationPipeline` directly while `/api/image-generation` remains available as its own route for direct callers.
+4. Evidence to prove/disprove: Red/green `tests/unit/api-generate.test.ts`, focused image seam/pipeline tests, updated pipeline edge-case tests, `npm.cmd run rewind -- --seam ImageGenerationSeam`, full check/lint/test/build/verify output, Cipher Gate evidence, and HPR ledger updates.
+
+## HPR HTTP Error Policy Workpack (2026-06-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: copy an old PR's `postJson` change and reintroduce non-2xx structured error loss.
+2. Countermeasure: write focused failing tests first, implement current-main behavior directly, and keep old PR branches as evidence only.
+3. Lower-debt path: centralize the policy in `src/lib/core/http-client.ts`, keep endpoint contracts untouched, and validate the downstream API tests instead of patching each caller.
+
+### Plan
+
+- Goal: Lock the browser JSON POST policy so successful JSON returns parsed data, `204` and `205` return `undefined`, non-2xx contract-shaped JSON is returned to callers, invalid JSON errors include URL/status/status text/parse reason, and empty non-OK bodies throw a rich HTTP error.
+- Exact seams: `ProviderAdapterSeam`, `ChatInterpretationSeam`, `MeechieToolSeam`, `MeechieStudioTextSeam`, `ImageGenerationSeam`.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/http-client.ts`
+  - `tests/unit/http-client.test.ts`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `DECISIONS.md`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/http-client.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd test -- tests/unit/http-client.test.ts tests/unit/api-chat-interpretation.test.ts tests/unit/api-tools.test.ts --pool=forks --maxWorkers=1`
+  3. `npm.cmd run check`
+  4. `npm.cmd run lint`
+  5. `npm.cmd test`
+  6. `npm.cmd run build`
+  7. `npm.cmd run verify`
+  8. `npm.cmd run cipher:gate`
+  9. `git diff --check`
+- Replacement PR base: `codex/hpr-ledger-baseline-2026-06-05`, because this workpack updates the Handoff PR Resolution ledger from PR #128.
+- Old PR disposition rule: comment or close only after this replacement work is merged, unless the ledger records a no-salvage blocker and a comment URL.
+
+### Self-critique
+
+1. What could be wrong: Some callers may currently expect `postJson` to reject on non-2xx status, so returning contract JSON could reveal caller assumptions that need targeted fixes.
+2. What must be proven: Structured non-2xx payloads reach callers, invalid JSON failures remain loud and diagnostic, `204`/`205` do not parse a body, and downstream chat/tool tests still match the new policy.
+3. Riskiest assumption: This is a client helper policy change and does not require endpoint contract fixture refresh because endpoint payload shapes are not changing.
+4. Evidence to prove/disprove: Focused red/green `tests/unit/http-client.test.ts` output, downstream API unit output, full check/lint/test/build output, `npm.cmd run verify`, `npm.cmd run cipher:gate`, and ledger entries for the superseded HTTP-policy PRs.
+
+## Autonomous PR Drain Split-PR Runbook (2026-06-05)
+
+### Plan
+
+- Goal: Drain the open PR backlog through several small replacement PRs while the user can step away, with live GitHub state capture, periodic self-critique, validation gates, and a final salvage audit for broad PRs before closure.
+- Exact seams: `ProviderAdapterSeam`, `ChatInterpretationSeam`, `MeechieToolSeam`, `MeechieStudioTextSeam`, `ImageGenerationSeam`, `SpecValidationSeam`, `OutputPackagingSeam`, `WigCatalogSeam`, `WigTryOnSeam`, `CreationStoreSeam`, `PromptCompilerSeam`, `GalleryStoreSeam`, `SafetyPolicySeam`, `TelemetrySeam`, `SessionSeam`.
+- Exact file paths to touch for this planning branch:
+  - `plan.md`
+  - `docs/superpowers/plans/2026-06-05-autonomous-pr-drain.md`
+- Exact commands to run before implementation starts:
+  1. `git status --short --branch` and stop if the worktree is dirty.
+  2. `git fetch origin`
+  3. `git fetch origin '+refs/pull/*/head:refs/remotes/origin/pr/*'`
+  4. `git checkout main`
+  5. `git pull --ff-only`
+  6. `gh pr list --state open --limit 200 --json number,title,headRefName,baseRefName,mergeStateStatus,isDraft,updatedAt,url`
+  7. `gh issue list --state open --limit 200 --json number,title,url`
+  8. Per-PR `gh pr view`, review-thread GraphQL capture with pagination, and base-branch-aware `git diff`.
+  9. `npm.cmd ci`
+  10. `npm.cmd run check`
+  11. `npm.cmd run lint`
+  12. `npm.cmd test`
+  13. `npm.cmd run build`
+  14. `gh pr checks $replacementPrNumber --watch` after each replacement PR is opened, followed by `gh run view $failedRunId --log-failed` for any failed check.
+- Detailed runbook: `docs/superpowers/plans/2026-06-05-autonomous-pr-drain.md`.
+- Closure safety rule: comment-only while a replacement PR is still open; old PR closure requires merged replacement work on `main`, or a ledgered no-salvage audit plus closure comment URL.
+- Coverage gate: the baseline open PR set observed on 2026-06-05 was `127,126,125,124,123,122,121,120,119,118,117,116,115,114,113,112,111,110,109,108,107,106,105,104,102,101,100,99,98,95,94,92,89,88,87,86,85,82,81,80,79,77,74,73,72,71,60`; final completion is blocked unless every captured PR has a ledger state, evidence path, replacement PR link or blocker, and closure/comment URL.
+- Issue #1 remains open as product specification unless the owner explicitly asks to close it.
+- Seam changes must follow the full Seam-Driven Development workflow and record `npm.cmd run verify` evidence, plus `npm.cmd run cipher:gate` when required.
+
+### Self-critique
+
+1. What could be wrong: A single giant integration PR would make review and rollback harder, while an overly fragmented plan could close old PRs before their useful content is actually checked.
+2. What must be proven: Live PR state is refreshed, every review thread is captured with pagination, each replacement PR has a narrow scope, tests pass per workpack, GitHub checks pass or are diagnosed, every old PR has a ledgered disposition, and broad PRs are audited before closure.
+3. Riskiest assumption: GitHub permissions and branch protection will allow autonomous PR creation, comments, checks, and merges; if not, the run must record blockers instead of pretending completion.
+4. Evidence to prove/disprove: `gh` command output, exact files under `docs/evidence/2026-06-05/`, the Handoff PR Resolution ledger, replacement PR validation output, final `gh pr list --state open`, and final check/lint/test/build/verify results.
 
 ## PR #66 CacheSeam Review Blocker Follow-up (2026-05-16)
 

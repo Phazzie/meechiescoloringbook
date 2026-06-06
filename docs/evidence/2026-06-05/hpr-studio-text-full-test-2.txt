@@ -1,0 +1,88 @@
+
+> meechies-coloringbook@0.1.0 test
+> vitest run
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/Meechiescoloringbook[39m
+
+ [32m✓[39m tests/unit/meechie-tool-adapter.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 324[2mms[22m[39m
+ [32m✓[39m tests/unit/pipeline-edge-cases.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 182[2mms[22m[39m
+ [32m✓[39m tests/unit/provider-adapter-helpers.test.ts [2m([22m[2m24 tests[22m[2m)[22m[33m 10070[2mms[22m[39m
+   [33m[2m✓[22m[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22mextracts error message from error.message field [33m 3325[2mms[22m[39m
+   [33m[2m✓[22m[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22muses statusText when response body has no message [33m 3529[2mms[22m[39m
+   [33m[2m✓[22m[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22mgenerates fallback message when body and statusText are empty [33m 2902[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-studio-text-pipeline.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 303[2mms[22m[39m
+ [32m✓[39m tests/unit/api-generate.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 453[2mms[22m[39m
+ [32m✓[39m tests/unit/http-resilience.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 531[2mms[22m[39m
+ [32m✓[39m tests/unit/image-generation-pipeline.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 152[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-tool-adapter.responses.test.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 579[2mms[22m[39m
+ [32m✓[39m tests/unit/creation-store-helpers.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 6819[2mms[22m[39m
+   [33m[2m✓[22m[39m creation-store adapter[2m > [22msaveCreation and getCreation[2m > [22msaves and retrieves a creation record [33m 1203[2mms[22m[39m
+   [33m[2m✓[22m[39m creation-store adapter[2m > [22mMAX_CREATIONS limit[2m > [22mlimits stored creations to maximum [33m 4172[2mms[22m[39m
+ [32m✓[39m tests/unit/drift-detection-helpers.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 963[2mms[22m[39m
+   [33m[2m✓[22m[39m drift-detection adapter edge cases[2m > [22mmissing required section[2m > [22mreturns MISSING_REQUIRED_SECTION when a heading is absent [33m 318[2mms[22m[39m
+ [32m✓[39m tests/unit/prompt-template.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 139[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-studio.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 274[2mms[22m[39m
+ [32m✓[39m src/lib/seams/cache-seam/test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 277[2mms[22m[39m
+ [32m✓[39m tests/unit/output-packaging-helpers.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 530[2mms[22m[39m
+npm.cmd : [90mstderr[2m | tests/unit/output-packaging-helpers.test.ts[2m > [22m[2moutput-packaging adapter edge cases[2m > [22m[2mSVG conversion[2m > [22m[2mSVG conversion fails deterministically in 
+non-browser environment
+At line:2 char:1
++ & npm.cmd test *> docs\evidence\2026-06-05\hpr-studio-text-full-test- ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([90mstderr[2m...ser environment:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ [32m✓[39m tests/contract/creation-store.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 203[2mms[22m[39m
+ [32m✓[39m tests/unit/http-client.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 385[2mms[22m[39m
+ [32m✓[39m tests/contract/image-generation.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 375[2mms[22m[39m
+ [32m✓[39m tests/contract/provider-adapter.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 203[2mms[22m[39m
+ [32m✓[39m tests/unit/shared-contract.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 344[2mms[22m[39m
+ [32m✓[39m src/lib/seams/safety-policy-seam/test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 101[2mms[22m[39m
+ [32m✓[39m tests/unit/api-wig-try-on.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1135[2mms[22m[39m
+   [33m[2m✓[22m[39m /api/wig-try-on[2m > [22mrejects malformed JSON with INVALID_JSON code before creating any seams [33m 1051[2mms[22m[39m
+ [32m✓[39m tests/unit/api-image-generation.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 329[2mms[22m[39m
+ [32m✓[39m tests/unit/session-auth-helpers.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 79[2mms[22m[39m
+ [32m✓[39m tests/contract/meechie-tool.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m tests/unit/constants.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 112[2mms[22m[39m
+ [32m✓[39m tests/unit/app-config-seam.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 280[2mms[22m[39m
+ [32m✓[39m src/lib/seams/wig-try-on-seam/test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 96[2mms[22m[39m
+ [32m✓[39m tests/unit/alignment-line.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m tests/unit/api-chat-interpretation.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 138[2mms[22m[39m
+ [32m✓[39m tests/unit/api-tools.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 98[2mms[22m[39m
+ [32m✓[39m tests/unit/evidence-reporting.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 145[2mms[22m[39m
+ [32m✓[39m tests/contract/chat-interpretation.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 144[2mms[22m[39m
+ [32m✓[39m tests/contract/spec-validation.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 86[2mms[22m[39m
+ [32m✓[39m tests/unit/image-generation-validators.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 64[2mms[22m[39m
+ [32m✓[39m src/lib/seams/wig-catalog-seam/test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 102[2mms[22m[39m
+[90mstderr[2m | tests/contract/output-packaging.test.ts[2m > [22m[2mOutputPackagingSeam contract[2m > [22m[2madapter behavior is gated to browser for svg conversion
+[22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ [32m✓[39m tests/contract/output-packaging.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 156[2mms[22m[39m
+ [32m✓[39m tests/contract/meechie-studio-text.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m src/lib/seams/image-provider-config-seam/test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+ [32m✓[39m tests/unit/coloring-page-title.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m tests/contract/prompt-assembly.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m tests/contract/drift-detection.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m src/lib/seams/image-generation-seam/test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 108[2mms[22m[39m
+ [32m✓[39m tests/contract/auth-context.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32m✓[39m tests/contract/meechie-voice.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 76[2mms[22m[39m
+ [32m✓[39m tests/contract/session.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-quote-scoring.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m tests/unit/api-meechie-studio-text-endpoint.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 100[2mms[22m[39m
+ [32m✓[39m tests/unit/parse-request-body.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 117[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-tools-parity.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [2m[90m↓[39m[22m tests/integration/image-generation-seam.test.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m
+ [32m✓[39m src/lib/seams/app-config-seam/test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m tests/unit/text-model.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m src/lib/seams/prompt-compiler-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m src/lib/seams/telemetry-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/lib/seams/gallery-store-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 58[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m54 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (55)[39m
+[2m      Tests [22m [1m[32m466 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (467)[39m
+[2m   Start at [22m 09:56:08
+[2m   Duration [22m 303.87s[2m (transform 28.81s, setup 13.68s, collect 60.86s, tests 27.26s, environment 669.54s, prepare 57.46s)[22m
+

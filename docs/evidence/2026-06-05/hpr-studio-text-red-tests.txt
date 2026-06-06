@@ -1,0 +1,158 @@
+
+> meechies-coloringbook@0.1.0 test
+> vitest run tests/unit/meechie-studio-text-pipeline.test.ts --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/Meechiescoloringbook[39m
+
+ [31m❯[39m tests/unit/meechie-studio-text-pipeline.test.ts [2m([22m[2m16 tests[22m[2m | [22m[31m9 failed[39m[2m)[22m[32m 180[2mms[22m[39m
+   [32m✓[39m Meechie Studio Text Pipeline Resilience[2m > [22mhandles valid JSON correctly[32m 27[2mms[22m[39m
+   [32m✓[39m Meechie Studio Text Pipeline Resilience[2m > [22mreturns a browser-quiet structured error when the API key is missing[32m 6[2mms[22m[39m
+   [32m✓[39m Meechie Studio Text Pipeline Resilience[2m > [22mextracts JSON from markdown fences and prose[32m 4[2mms[22m[39m
+   [32m✓[39m Meechie Studio Text Pipeline Resilience[2m > [22mextracts balanced JSON when prose contains extra braces[32m 4[2mms[22m[39m
+   [32m✓[39m Meechie Studio Text Pipeline Resilience[2m > [22mretries once if JSON is malformed and fails gracefully[32m 4[2mms[22m[39m
+[31m   [31m×[31m Meechie Studio Text Pipeline Resilience[2m > [22mretries malformed JSON with a syntax-specific prompt and accepts the retry output[39m[32m 45[2mms[22m[39m
+[31m     → expected 'Your previous response could not be p…' to contain 'JSON syntax error'[39m
+[31m   [31m×[31m Meechie Studio Text Pipeline Resilience[2m > [22mretries schema-invalid JSON with required-field guidance that matches the response format[39m[32m 24[2mms[22m[39m
+[31m     → expected 'Your previous response could not be p…' to contain 'valid JSON but failed schema validati…'[39m
+[31m   [31m×[31m Meechie Studio Text Pipeline Resilience[2m > [22mtreats valid JSON primitive false as a schema failure before retrying[39m[32m 5[2mms[22m[39m
+[31m     → expected 'Your previous response could not be p…' to contain 'valid JSON but failed schema validati…'[39m
+[31m   [31m×[31m Meechie Studio Text Pipeline Resilience[2m > [22mtreats valid JSON primitive 0 as a schema failure before retrying[39m[32m 15[2mms[22m[39m
+[31m     → expected 'Your previous response could not be p…' to contain 'valid JSON but failed schema validati…'[39m
+[31m   [31m×[31m Meechie Studio Text Pipeline Resilience[2m > [22mtreats valid JSON primitive "" as a schema failure before retrying[39m[32m 14[2mms[22m[39m
+[31m     → expected 'Your previous response could not be p…' to contain 'valid JSON but failed schema validati…'[39m
+[31m   [31m×[31m Meechie Studio Text Pipeline Resilience[2m > [22mtreats valid JSON primitive null as a schema failure before retrying[39m[32m 5[2mms[22m[39m
+[31m     → expected 'Your previous response could not be p…' to contain 'valid JSON but failed schema validati…'[39m
+[31m   [31m×[31m Meechie Studio Text Pipeline Resilience[2m > [22muses injected runtime mode for missing API key status[39m[32m 13[2mms[22m[39m
+[31m     → expected 200 to be 502 // Object.is equality[39m
+   [32m✓[39m Meechie Studio Text Pipeline Resilience[2m > [22mpreserves provider HTTP errors with a 502 status[32m 1[2mms[22m[39m
+[31m   [31m×[31m Meechie Studio Text Pipeline Resilience[2m > [22mmaps timeout provider network errors to 504 and generic network errors to 502[39m[32m 2[2mms[22m[39m
+[31m     → expected 502 to be 504 // Object.is equality[39m
+[31m   [31m×[31m Meechie Studio Text Pipeline Resilience[2m > [22mclassifies provider errors returned during retry[39m[32m 2[2mms[22m[39m
+[31m     → expected 502 to be 504 // Object.is equality[39m
+   [32m✓[39m Meechie Studio Text Pipeline Resilience[2m > [22mrejects input containing a disallowed keyword and does not call the provider[32m 5[2mms[22m[39m
+npm.cmd : 
+At line:2 char:8
++ $out = & npm.cmd test -- tests/unit/meechie-studio-text-pipeline.test ...
++        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 9 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22mretries malformed JSON with a syntax-specific prompt and accepts the retry 
+output
+[31m[1mAssertionError[22m: expected 'Your previous response could not be p…' to contain 'JSON syntax error'[39m
+
+Expected: [32m"JSON syntax error"[39m
+Received: [31m"Your previous response could not be parsed as valid JSON. Please respond with ONLY valid JSON matching the required schema, no markdown, no explanation, no code fences."[39m
+
+[36m [2m❯[22m tests/unit/meechie-studio-text-pipeline.test.ts:[2m373:40[22m[39m
+    [90m371| [39m  }
+    [90m372| [39m  [34mexpect[39m(requests)[33m.[39m[34mtoHaveLength[39m([34m2[39m)[33m;[39m
+    [90m373| [39m  [34mexpect[39m([34mlastUserMessage[39m(requests[[34m1[39m]))[33m.[39m[34mtoContain[39m([32m'JSON syntax error'[39m)[33m;[39m
+    [90m   | [39m                                       [31m^[39m
+    [90m374| [39m  [34mexpect[39m([34mlastUserMessage[39m(requests[[34m1[39m]))[33m.[39m[34mtoContain[39m([32m'ONLY a JSON object'[39m)[33m;[39m
+    [90m375| [39m })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22mretries schema-invalid JSON with required-field guidance that matches the 
+response format
+[31m[1mAssertionError[22m: expected 'Your previous response could not be p…' to contain 'valid JSON but failed schema validati…'[39m
+
+Expected: [32m"valid JSON but failed schema validation"[39m
+Received: [31m"Your previous response could not be parsed as valid JSON. Please respond with ONLY valid JSON matching the required schema, no markdown, no explanation, no code fences."[39m
+
+[36m [2m❯[22m tests/unit/meechie-studio-text-pipeline.test.ts:[2m392:23[22m[39m
+    [90m390| [39m  [34mexpect[39m(requests)[33m.[39m[34mtoHaveLength[39m([34m2[39m)[33m;[39m
+    [90m391| [39m  [35mconst[39m retryPrompt [33m=[39m [34mlastUserMessage[39m(requests[[34m1[39m])[33m;[39m
+    [90m392| [39m  expect(retryPrompt).toContain('valid JSON but failed schema validati…
+    [90m   | [39m                      [31m^[39m
+    [90m393| [39m  [34mexpect[39m(retryPrompt)[33m.[39m[34mtoContain[39m([32m'rating (integer 1-10)'[39m)[33m;[39m
+    [90m394| [39m  [34mexpect[39m(retryPrompt)[33m.[39m[34mtoContain[39m([32m'revisionNote (string)'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22mtreats valid JSON primitive false as a schema failure before retrying
+[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22mtreats valid JSON primitive 0 as a schema failure before retrying
+[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22mtreats valid JSON primitive "" as a schema failure before retrying
+[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22mtreats valid JSON primitive null as a schema failure before retrying
+[31m[1mAssertionError[22m: expected 'Your previous response could not be p…' to contain 'valid JSON but failed schema validati…'[39m
+
+Expected: [32m"valid JSON but failed schema validation"[39m
+Received: [31m"Your previous response could not be parsed as valid JSON. Please respond with ONLY valid JSON matching the required schema, no markdown, no explanation, no code fences."[39m
+
+[36m [2m❯[22m tests/unit/meechie-studio-text-pipeline.test.ts:[2m411:41[22m[39m
+    [90m409| [39m   [34mexpect[39m(response[33m.[39mbody[33m.[39mok)[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m410| [39m   [34mexpect[39m(requests)[33m.[39m[34mtoHaveLength[39m([34m2[39m)[33m;[39m
+    [90m411| [39m   [34mexpect[39m([34mlastUserMessage[39m(requests[[34m1[39m]))[33m.[39m[34mtoContain[39m(
+    [90m   | [39m                                        [31m^[39m
+    [90m412| [39m    [32m'valid JSON but failed schema validation'[39m
+    [90m413| [39m   )[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22muses injected runtime mode for missing API key status
+[31m[1mAssertionError[22m: expected 200 to be 502 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 502[39m
+[31m+ 200[39m
+
+[36m [2m❯[22m tests/unit/meechie-studio-text-pipeline.test.ts:[2m439:31[22m[39m
+    [90m437| [39m
+    [90m438| [39m  [34mexpect[39m(devResponse[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m200[39m)[33m;[39m
+    [90m439| [39m  [34mexpect[39m(prodResponse[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m502[39m)[33m;[39m
+    [90m   | [39m                              [31m^[39m
+    [90m440| [39m  [34mexpect[39m(prodResponse[33m.[39mbody)[33m.[39m[34mtoMatchObject[39m({
+    [90m441| [39m   ok[33m:[39m [35mfalse[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22mmaps timeout provider network errors to 504 and generic network errors to 502
+[31m[1mAssertionError[22m: expected 502 to be 504 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 504[39m
+[31m+ 502[39m
+
+[36m [2m❯[22m tests/unit/meechie-studio-text-pipeline.test.ts:[2m488:34[22m[39m
+    [90m486| [39m  )[33m;[39m
+    [90m487| [39m
+    [90m488| [39m  [34mexpect[39m(timeoutResponse[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m504[39m)[33m;[39m
+    [90m   | [39m                                 [31m^[39m
+    [90m489| [39m  [34mexpect[39m(genericResponse[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m502[39m)[33m;[39m
+    [90m490| [39m })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22mclassifies provider errors returned during retry
+
+[31m[1mAssertionError[22m: expected 502 to be 504 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 504[39m
+[31m+ 502[39m
+
+[36m [2m❯[22m tests/unit/meechie-studio-text-pipeline.test.ts:[2m503:27[22m[39m
+    [90m501| [39m  const response = await runMeechieStudioTextPipeline(studioInput, dep…
+    [90m502| [39m
+    [90m503| [39m  [34mexpect[39m(response[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m504[39m)[33m;[39m
+    [90m   | [39m                          [31m^[39m
+    [90m504| [39m  [34mexpect[39m(response[33m.[39mbody)[33m.[39m[34mtoMatchObject[39m({
+    [90m505| [39m   ok[33m:[39m [35mfalse[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m9 failed[39m[22m[2m | [22m[1m[32m7 passed[39m[22m[90m (16)[39m
+[2m   Start at [22m 09:40:58
+[2m   Duration [22m 12.12s[2m (transform 1.05s, setup 276ms, collect 1.01s, tests 180ms, environment 8.56s, prepare 1.16s)[22m
+

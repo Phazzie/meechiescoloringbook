@@ -4,7 +4,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runChatInterpretationPipeline } from '../../src/lib/core/chat-interpretation-pipeline';
 import { runToolsPipeline } from '../../src/lib/core/tools-pipeline';
-import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
+import {
+	runGeneratePipeline,
+	type GeneratePipelineDeps
+} from '../../src/lib/core/generate-pipeline';
 
 const validSpec = {
 	title: 'Dream Big',
@@ -313,15 +316,45 @@ describe('tools-pipeline edge cases', () => {
 });
 
 describe('generate-pipeline edge cases', () => {
-	const baseDeps = {
-		fetchImpl: vi.fn(),
-		validateSpec: vi.fn(),
-		assemblePrompt: vi.fn(),
-		detectDrift: vi.fn()
+	const imageSuccessBody = {
+		ok: true as const,
+		value: {
+			images: [
+				{
+					id: 'img-1',
+					format: 'png' as const,
+					mimeType: 'image/png',
+					data: 'abc123',
+					encoding: 'base64' as const
+				}
+			],
+			revisedPrompt: 'revised prompt',
+			modelMetadata: { provider: 'xai', model: 'grok-imagine-image' }
+		}
 	};
 
+	const buildGenerateDeps = (
+		overrides: Partial<GeneratePipelineDeps> = {}
+	): GeneratePipelineDeps => ({
+		checkContentSafety: vi.fn().mockReturnValue({ ok: true as const }),
+		validateSpec: vi.fn().mockResolvedValue({ ok: true as const, issues: [] }),
+		assemblePrompt: vi.fn().mockResolvedValue({
+			ok: true as const,
+			value: { prompt: 'assembled prompt', templateVersion: 'v2' }
+		}),
+		detectDrift: vi.fn().mockResolvedValue({
+			ok: true as const,
+			value: { violations: [], confidenceScore: 1, recommendedFixes: [] }
+		}),
+		generateImage: vi.fn().mockResolvedValue({
+			status: 200,
+			body: imageSuccessBody
+		}),
+		...overrides
+	});
+
 	it('rejects invalid request body', async () => {
-		const result = await runGeneratePipeline({ spec: {} }, baseDeps);
+		const result = await runGeneratePipeline({ spec: {} }, buildGenerateDeps());
 		expect(result.status).toBe(400);
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
@@ -329,11 +362,38 @@ describe('generate-pipeline edge cases', () => {
 		}
 	});
 
+	it('stops before downstream generation seams when content safety fails', async () => {
+		const deps = buildGenerateDeps({
+			checkContentSafety: vi.fn().mockReturnValue({
+				ok: false,
+				error: {
+					code: 'DISALLOWED_CONTENT',
+					message: 'Generate request contains disallowed content.',
+					details: ['Field: styleHint']
+				}
+			})
+		});
+
+		const result = await runGeneratePipeline(
+			{ spec: validSpec, styleHint: 'self-harm scene' },
+			deps
+		);
+
+		expect(result.status).toBe(400);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('CONTENT_POLICY_VIOLATION');
+		}
+		expect(deps.validateSpec).not.toHaveBeenCalled();
+		expect(deps.assemblePrompt).not.toHaveBeenCalled();
+		expect(deps.generateImage).not.toHaveBeenCalled();
+	});
+
 	it('returns error when spec validation fails', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
-				...baseDeps,
+				...buildGenerateDeps(),
 				validateSpec: vi.fn().mockResolvedValue({
 					ok: false,
 					issues: [{ code: 'SPEC_INVALID', field: 'title', message: 'Title too short.' }]
@@ -351,7 +411,7 @@ describe('generate-pipeline edge cases', () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
-				...baseDeps,
+				...buildGenerateDeps(),
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: false,
@@ -370,15 +430,16 @@ describe('generate-pipeline edge cases', () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
-				...baseDeps,
+				...buildGenerateDeps(),
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
 					value: { prompt: 'test prompt', templateVersion: 'v2' }
 				}),
-				fetchImpl: vi.fn().mockResolvedValue(
-					new Response('not-json', { status: 200 })
-				)
+				generateImage: vi.fn().mockResolvedValue({
+					status: 200,
+					body: { ok: true, value: { images: [{ id: '' }] } }
+				})
 			}
 		);
 		expect(result.status).toBe(502);
@@ -388,19 +449,23 @@ describe('generate-pipeline edge cases', () => {
 		}
 	});
 
-	it('preserves upstream HTTP status when image generation returns a non-JSON error body', async () => {
+	it('preserves image pipeline status when image generation returns a typed failure', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
-				...baseDeps,
+				...buildGenerateDeps(),
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
 					value: { prompt: 'test prompt', templateVersion: 'v2' }
 				}),
-				fetchImpl: vi.fn().mockResolvedValue(
-					new Response('<html>Service Unavailable</html>', { status: 503 })
-				)
+				generateImage: vi.fn().mockResolvedValue({
+					status: 503,
+					body: {
+						ok: false,
+						error: { code: 'IMAGE_HTTP_ERROR', message: 'Provider unavailable' }
+					}
+				})
 			}
 		);
 		expect(result.status).toBe(503);
@@ -414,21 +479,19 @@ describe('generate-pipeline edge cases', () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			{
-				...baseDeps,
+				...buildGenerateDeps(),
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
 					value: { prompt: 'test prompt', templateVersion: 'v2' }
 				}),
-				fetchImpl: vi.fn().mockResolvedValue(
-					new Response(
-						JSON.stringify({
-							ok: false,
-							error: { code: 'PROVIDER_EMPTY_IMAGE', message: 'No images' }
-						}),
-						{ status: 502 }
-					)
-				)
+				generateImage: vi.fn().mockResolvedValue({
+					status: 502,
+					body: {
+						ok: false,
+						error: { code: 'PROVIDER_EMPTY_IMAGE', message: 'No images' }
+					}
+				})
 			}
 		);
 		expect(result.body.ok).toBe(false);
@@ -440,38 +503,21 @@ describe('generate-pipeline edge cases', () => {
 	it('succeeds with valid pipeline flow', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec, styleHint: 'sparkle' },
-			{
+			buildGenerateDeps({
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
 					value: { prompt: 'assembled prompt', templateVersion: 'v2' }
 				}),
-				fetchImpl: vi.fn().mockResolvedValue(
-					new Response(
-						JSON.stringify({
-							ok: true,
-							value: {
-								images: [
-									{
-										id: 'img-1',
-										format: 'png',
-										mimeType: 'image/png',
-										data: 'abc123',
-										encoding: 'base64'
-									}
-								],
-								revisedPrompt: 'revised prompt',
-								modelMetadata: { provider: 'xai', model: 'grok-imagine-image' }
-							}
-						}),
-						{ status: 200 }
-					)
-				),
+				generateImage: vi.fn().mockResolvedValue({
+					status: 200,
+					body: imageSuccessBody
+				}),
 				detectDrift: vi.fn().mockResolvedValue({
 					ok: true,
 					value: { violations: [], confidenceScore: 1, recommendedFixes: [] }
 				})
-			}
+			})
 		);
 		expect(result.status).toBe(200);
 		expect(result.body.ok).toBe(true);
@@ -485,38 +531,21 @@ describe('generate-pipeline edge cases', () => {
 	it('includes empty violations when drift detection fails', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
-			{
+			buildGenerateDeps({
 				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
 				assemblePrompt: vi.fn().mockResolvedValue({
 					ok: true,
 					value: { prompt: 'assembled prompt', templateVersion: 'v2' }
 				}),
-				fetchImpl: vi.fn().mockResolvedValue(
-					new Response(
-						JSON.stringify({
-							ok: true,
-							value: {
-								images: [
-									{
-										id: 'img-1',
-										format: 'png',
-										mimeType: 'image/png',
-										data: 'abc123',
-										encoding: 'base64'
-									}
-								],
-								revisedPrompt: 'revised',
-								modelMetadata: { provider: 'xai', model: 'test' }
-							}
-						}),
-						{ status: 200 }
-					)
-				),
+				generateImage: vi.fn().mockResolvedValue({
+					status: 200,
+					body: imageSuccessBody
+				}),
 				detectDrift: vi.fn().mockResolvedValue({
 					ok: false,
 					error: { code: 'DRIFT_ERROR', message: 'Detection failed' }
 				})
-			}
+			})
 		);
 		expect(result.status).toBe(200);
 		expect(result.body.ok).toBe(true);

@@ -1,0 +1,6 @@
+﻿ src/lib/seams/auth-context-seam/test.ts           |  96 +++++++
+ src/lib/seams/chat-interpretation-seam/test.ts    | 129 +++++++++
+ src/lib/seams/creation-store-seam/test.ts         | 276 +++++++++++++++++++
+ tests/unit/generate-contract.test.ts              | 237 ++++++++++++++++
+ tests/unit/image-generation-wire-contract.test.ts | 314 ++++++++++++++++++++++
+ 5 files changed, 1052 insertions(+)

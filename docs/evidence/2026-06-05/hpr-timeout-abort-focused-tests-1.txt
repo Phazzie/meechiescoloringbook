@@ -1,0 +1,70 @@
+
+> meechies-coloringbook@0.1.0 test
+> vitest run tests/unit/http-resilience.test.ts tests/unit/provider-adapter-helpers.test.ts tests/contract/image-generation.test.ts tests/unit/image-generation-pipeline.test.ts tests/unit/api-generate.test.ts tests/unit/api-wig-try-on.test.ts src/lib/seams/wig-try-on-seam/test.ts --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/Meechiescoloringbook[39m
+
+ [31m❯[39m tests/unit/provider-adapter-helpers.test.ts [2m([22m[2m24 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 13342[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeBaseUrl via adapter behavior[2m > [22mstrips trailing slash from base URL[32m 18[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeBaseUrl via adapter behavior[2m > [22mstrips trailing /v1 from base URL[32m 2[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeBaseUrl via adapter behavior[2m > [22mstrips trailing /v1/ from base URL[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mmissing API key[2m > [22mreturns PROVIDER_API_KEY_MISSING for chat when no key provided[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mmissing API key[2m > [22mreturns PROVIDER_API_KEY_MISSING for image when no key provided[32m 2[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeChatOutput edge cases[2m > [22mreturns empty chat error when content is whitespace only[32m 2[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeChatOutput edge cases[2m > [22mreturns empty chat error when choices array is empty[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeChatOutput edge cases[2m > [22muses text field as fallback when message.content is missing[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeChatOutput edge cases[2m > [22muses fallback model when response does not include model[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeChatOutput edge cases[2m > [22mpasses response_format through for structured chat output[32m 4[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mdoes not retry image generation POSTs on retryable HTTP failure[32m 9[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mreturns empty image error when data array has no usable entries[32m 2[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mreturns empty image error when data is not an array[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mextracts revised_prompt from top level[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mextracts revisedPrompt from camelCase field[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mextracts revised_prompt from data entry when top-level is missing[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mreturns undefined revisedPrompt when none available[32m 1[2mms[22m[39m
+   [33m[2m✓[22m[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22mextracts error message from error.message field [33m 3550[2mms[22m[39m
+   [33m[2m✓[22m[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22muses statusText when response body has no message [33m 3406[2mms[22m[39m
+   [33m[2m✓[22m[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22mgenerates fallback message when body and statusText are empty [33m 3186[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22mextracts top-level message field as fallback[32m 2[2mms[22m[39m
+[31m   [31m×[31m provider-adapter helpers[2m > [22mnetwork error handling[2m > [22mreturns PROVIDER_NETWORK_ERROR for chat when fetch throws[39m[33m 3141[2mms[22m[39m
+[31m     → expected 'Chat completion request timed out.' to be 'Network timeout' // Object.is equality[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnetwork error handling[2m > [22mreturns PROVIDER_NETWORK_ERROR for image when fetch throws[32m 2[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnetwork error handling[2m > [22mreturns generic message when non-Error is thrown[32m 1[2mms[22m[39m
+ [32m✓[39m tests/unit/http-resilience.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 93[2mms[22m[39m
+ [32m✓[39m tests/unit/api-generate.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 80[2mms[22m[39m
+ [32m✓[39m tests/unit/image-generation-pipeline.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [32m✓[39m tests/unit/api-wig-try-on.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32m✓[39m tests/contract/image-generation.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m src/lib/seams/wig-try-on-seam/test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+npm.cmd : 
+At line:2 char:1
++ npm.cmd test -- tests/unit/http-resilience.test.ts tests/unit/provide ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/unit/provider-adapter-helpers.test.ts[2m > [22mprovider-adapter helpers[2m > [22mnetwork error handling[2m > [22mreturns PROVIDER_NETWORK_ERROR for chat when fetch throws
+[31m[1mAssertionError[22m: expected 'Chat completion request timed out.' to be 'Network timeout' // Object.is equality[39m
+
+Expected: [32m"[7mNetwork[27m timeout"[39m
+Received: [31m"[7mChat completion request[27m time[7md [27mout[7m.[27m"[39m
+
+[36m [2m❯[22m tests/unit/provider-adapter-helpers.test.ts:[2m553:34[22m[39m
+    [90m551| [39m   [35mif[39m ([33m![39mresult[33m.[39mok) {
+    [90m552| [39m    [34mexpect[39m(result[33m.[39merror[33m.[39mcode)[33m.[39m[34mtoBe[39m([32m'PROVIDER_NETWORK_ERROR'[39m)[33m;[39m
+    [90m553| [39m    [34mexpect[39m(result[33m.[39merror[33m.[39mmessage)[33m.[39m[34mtoBe[39m([32m'Network timeout'[39m)[33m;[39m
+    [90m   | [39m                                 [31m^[39m
+    [90m554| [39m   }
+    [90m555| [39m  })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m6 passed[39m[22m[90m (7)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m91 passed[39m[22m[90m (92)[39m
+[2m   Start at [22m 06:11:12
+[2m   Duration [22m 41.48s[2m (transform 1.11s, setup 402ms, collect 1.60s, tests 13.67s, environment 20.44s, prepare 2.13s)[22m
+

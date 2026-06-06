@@ -264,12 +264,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		packagedFiles = [];
 	};
 
-	const handleDedicationInput = (event: Event): void => {
-		const target = event.currentTarget as HTMLInputElement;
-		dedication = target.value;
-		spec = { ...spec, dedication: currentDedication() };
+	const handleDedicationInput = (nextValue: string): void => {
+		dedication = nextValue;
+		spec = { ...spec, dedication: nextValue.trim() || undefined };
 		void validateSpec();
-		void saveDraft();
+		scheduleDraftSave();
 	};
 
 	const selectWigForTryOn = async (wig: Wig): Promise<void> => {

@@ -10,7 +10,7 @@ import type {
 import type { Result } from '../../../../contracts/shared.contract';
 import { validateWigTryOnRequest } from '../../seams/wig-try-on-seam/validators';
 import type { AppConfigSeam } from '../../seams/app-config-seam/contract';
-import { fetchWithTimeout, isAbortError } from '$lib/core/http-resilience';
+import { isAbortError, isTimeoutError, runWithTimeoutSignal } from '$lib/core/http-resilience';
 
 const WIG_TRY_ON_TIMEOUT_MS = 120_000;
 
@@ -35,6 +35,11 @@ type GeminiResponse = {
 	}>;
 };
 
+type GeminiReadResult =
+	| { kind: 'ok'; payload: GeminiResponse }
+	| { kind: 'http_error'; status: number; text: string }
+	| { kind: 'parse_error' };
+
 const errorResult = (
 	error: WigTryOnError
 ): Result<WigTryOnResult, WigTryOnError> => ({
@@ -46,6 +51,14 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 	tryOn: async (
 		request: WigTryOnRequest
 	): Promise<Result<WigTryOnResult, WigTryOnError>> => {
+		const callerSignal = request.signal;
+		if (callerSignal?.aborted) {
+			return errorResult({
+				code: 'WIG_TRY_ON_NETWORK_ERROR',
+				message: 'Wig try-on request was canceled by the caller.'
+			});
+		}
+
 		let validated: WigTryOnRequest;
 		try {
 			validated = validateWigTryOnRequest(request);
@@ -104,46 +117,67 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 		};
 
 		const start = Date.now();
-		let response: Response;
+		let readResult: GeminiReadResult;
 		try {
-			response = await fetchWithTimeout(
-				endpoint,
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(requestBody)
+			readResult = await runWithTimeoutSignal(
+				async (signal): Promise<GeminiReadResult> => {
+					const response = await fetch(endpoint, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(requestBody),
+						signal
+					});
+
+					if (!response.ok) {
+						let text = '';
+						try {
+							text = await response.text();
+						} catch (error) {
+							if (isAbortError(error) || isTimeoutError(error)) throw error;
+						}
+						return { kind: 'http_error', status: response.status, text };
+					}
+
+					try {
+						return { kind: 'ok', payload: (await response.json()) as GeminiResponse };
+					} catch (error) {
+						if (isAbortError(error) || isTimeoutError(error)) throw error;
+						return { kind: 'parse_error' };
+					}
 				},
-				WIG_TRY_ON_TIMEOUT_MS
+				WIG_TRY_ON_TIMEOUT_MS,
+				{
+					signal: callerSignal,
+					timeoutMessage: `Wig try-on request timed out after ${WIG_TRY_ON_TIMEOUT_MS / 1000} seconds.`
+				}
 			);
 		} catch (error) {
 			return errorResult({
 				code: 'WIG_TRY_ON_NETWORK_ERROR',
 				message: isAbortError(error)
+					? 'Wig try-on request was canceled by the caller.'
+					: isTimeoutError(error)
 					? `Wig try-on request timed out after ${WIG_TRY_ON_TIMEOUT_MS / 1000} seconds.`
 					: error instanceof Error ? error.message : 'Gemini API network request failed.'
 			});
 		}
 
-		if (!response.ok) {
-			const text = await response.text().catch(() => '');
+		if (readResult.kind === 'http_error') {
 			return errorResult({
 				code: 'WIG_TRY_ON_HTTP_ERROR',
-				message: `Gemini API returned ${response.status}${text ? `: ${text.slice(0, 200)}` : ''}`,
-				details: { status: String(response.status) }
+				message: `Gemini API returned ${readResult.status}${readResult.text ? `: ${readResult.text.slice(0, 200)}` : ''}`,
+				details: { status: String(readResult.status) }
 			});
 		}
 
-		let geminiResponse: GeminiResponse;
-		try {
-			geminiResponse = (await response.json()) as GeminiResponse;
-		} catch {
+		if (readResult.kind === 'parse_error') {
 			return errorResult({
 				code: 'WIG_TRY_ON_PARSE_ERROR',
 				message: 'Failed to parse Gemini API response.'
 			});
 		}
 
-		const parts = geminiResponse.candidates?.[0]?.content?.parts ?? [];
+		const parts = readResult.payload.candidates?.[0]?.content?.parts ?? [];
 		const imagePart = parts.find(
 			(p): p is { inline_data: { mime_type: string; data: string } } =>
 				'inline_data' in p && typeof p.inline_data?.data === 'string'

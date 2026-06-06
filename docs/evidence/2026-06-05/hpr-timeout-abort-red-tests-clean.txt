@@ -1,0 +1,526 @@
+
+> meechies-coloringbook@0.1.0 test
+> vitest run tests/unit/http-resilience.test.ts tests/unit/provider-adapter-helpers.test.ts tests/contract/image-generation.test.ts tests/unit/image-generation-pipeline.test.ts tests/unit/api-generate.test.ts tests/unit/api-wig-try-on.test.ts src/lib/seams/wig-try-on-seam/test.ts --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/Meechiescoloringbook[39m
+
+ [31m❯[39m tests/unit/provider-adapter-helpers.test.ts [2m([22m[2m24 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 8184[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeBaseUrl via adapter behavior[2m > [22mstrips trailing slash from base URL[32m 18[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeBaseUrl via adapter behavior[2m > [22mstrips trailing /v1 from base URL[32m 2[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeBaseUrl via adapter behavior[2m > [22mstrips trailing /v1/ from base URL[32m 2[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mmissing API key[2m > [22mreturns PROVIDER_API_KEY_MISSING for chat when no key provided[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mmissing API key[2m > [22mreturns PROVIDER_API_KEY_MISSING for image when no key provided[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeChatOutput edge cases[2m > [22mreturns empty chat error when content is whitespace only[32m 2[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeChatOutput edge cases[2m > [22mreturns empty chat error when choices array is empty[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeChatOutput edge cases[2m > [22muses text field as fallback when message.content is missing[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeChatOutput edge cases[2m > [22muses fallback model when response does not include model[32m 4[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeChatOutput edge cases[2m > [22mpasses response_format through for structured chat output[32m 5[2mms[22m[39m
+[31m   [31m×[31m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mdoes not retry image generation POSTs on retryable HTTP failure[39m[32m 33[2mms[22m[39m
+[31m     → expected "spy" to be called 1 times, but got 3 times[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mreturns empty image error when data array has no usable entries[32m 3[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mreturns empty image error when data is not an array[32m 2[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mextracts revised_prompt from top level[32m 2[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mextracts revisedPrompt from camelCase field[32m 2[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mextracts revised_prompt from data entry when top-level is missing[32m 2[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mreturns undefined revisedPrompt when none available[32m 2[2mms[22m[39m
+   [33m[2m✓[22m[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22mextracts error message from error.message field [33m 2699[2mms[22m[39m
+   [33m[2m✓[22m[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22muses statusText when response body has no message [33m 2673[2mms[22m[39m
+   [33m[2m✓[22m[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22mgenerates fallback message when body and statusText are empty [33m 2718[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mbuildHttpError edge cases[2m > [22mextracts top-level message field as fallback[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnetwork error handling[2m > [22mreturns PROVIDER_NETWORK_ERROR for chat when fetch throws[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnetwork error handling[2m > [22mreturns PROVIDER_NETWORK_ERROR for image when fetch throws[32m 1[2mms[22m[39m
+   [32m✓[39m provider-adapter helpers[2m > [22mnetwork error handling[2m > [22mreturns generic message when non-Error is thrown[32m 1[2mms[22m[39m
+ [31m❯[39m tests/unit/http-resilience.test.ts [2m([22m[2m28 tests[22m[2m | [22m[31m9 failed[39m[2m)[22m[32m 143[2mms[22m[39m
+   [32m✓[39m isAbortError[2m > [22mreturns true for an Error with name AbortError[32m 4[2mms[22m[39m
+[31m   [31m×[31m isAbortError[2m > [22mreturns true for a structural DOMException-like AbortError[39m[32m 19[2mms[22m[39m
+[31m     → expected false to be true // Object.is equality[39m
+   [32m✓[39m isAbortError[2m > [22mreturns false for a plain Error[32m 1[2mms[22m[39m
+   [32m✓[39m isAbortError[2m > [22mreturns false for a non-Error value[32m 0[2mms[22m[39m
+   [32m✓[39m fetchWithTimeout[2m > [22mresolves with the response when the request completes before the timeout[32m 14[2mms[22m[39m
+[31m   [31m×[31m fetchWithTimeout[2m > [22maborts and rejects with a TimeoutError when timeout fires[39m[32m 17[2mms[22m[39m
+[31m     → expected AbortError: The operation was aborted to match object { name: 'TimeoutError' }[39m
+   [32m✓[39m fetchWithTimeout[2m > [22mclears the timer so it does not fire after a fast response[32m 3[2mms[22m[39m
+   [32m✓[39m fetchWithTimeout[2m > [22mforwards upstream abort to the internal controller[32m 3[2mms[22m[39m
+   [32m✓[39m fetchWithRetry[2m > [22mrejects when maxAttempts is less than 1[32m 4[2mms[22m[39m
+[31m   [31m×[31m fetchWithRetry[2m > [22mrejects when maxAttempts is NaN[39m[32m 9[2mms[22m[39m
+[31m     → expected [Function] to throw error including 'maxAttempts must be a finite integer …' but got 'fetchWithRetry: exhausted all attempts'[39m
+[31m   [31m×[31m fetchWithRetry[2m > [22mrejects when maxAttempts is Infinity[39m[32m 9[2mms[22m[39m
+[31m     → expected [Function] to throw error including 'maxAttempts must be a finite integer …' but got 'Cannot read properties of undefined (…'[39m
+[31m   [31m×[31m fetchWithRetry[2m > [22mrejects when maxAttempts is non-integer[39m[32m 5[2mms[22m[39m
+[31m     → expected [Function] to throw error including 'maxAttempts must be a finite integer …' but got 'Cannot read properties of undefined (…'[39m
+   [32m✓[39m fetchWithRetry[2m > [22mrejects when baseDelayMs is negative[32m 2[2mms[22m[39m
+[31m   [31m×[31m fetchWithRetry[2m > [22mrejects when baseDelayMs is NaN[39m[32m 3[2mms[22m[39m
+[31m     → expected [Function] to throw error including 'baseDelayMs must be finite and >= 0' but got 'Cannot read properties of undefined (…'[39m
+[31m   [31m×[31m fetchWithRetry[2m > [22mrejects when baseDelayMs is Infinity[39m[32m 3[2mms[22m[39m
+[31m     → expected [Function] to throw error including 'baseDelayMs must be finite and >= 0' but got 'Cannot read properties of undefined (…'[39m
+   [32m✓[39m fetchWithRetry[2m > [22mreturns immediately on a 200 response without retrying[32m 4[2mms[22m[39m
+   [32m✓[39m fetchWithRetry[2m > [22mretries on 429 and returns the successful second response[32m 5[2mms[22m[39m
+   [32m✓[39m fetchWithRetry[2m > [22mretries on 503 and exhausts all attempts, returning the last response[32m 2[2mms[22m[39m
+   [32m✓[39m fetchWithRetry[2m > [22mdoes not retry on 400 Bad Request[32m 1[2mms[22m[39m
+   [32m✓[39m fetchWithRetry[2m > [22mdoes not retry on 401 Unauthorized[32m 1[2mms[22m[39m
+   [32m✓[39m fetchWithRetry[2m > [22mretries on AbortError (timeout) and returns success on the next attempt[32m 2[2mms[22m[39m
+[31m   [31m×[31m fetchWithRetry[2m > [22mdoes not retry AbortError when the caller signal is already aborted[39m[32m 3[2mms[22m[39m
+[31m     → expected "spy" to be called 1 times, but got 3 times[39m
+   [32m✓[39m fetchWithRetry[2m > [22mthrows after exhausting retries on repeated AbortErrors[32m 2[2mms[22m[39m
+   [32m✓[39m fetchWithRetry[2m > [22mdoes not retry on non-abort thrown errors[32m 1[2mms[22m[39m
+   [32m✓[39m fetchWithRetry[2m > [22mrespects the Retry-After header (delta-seconds) on 429[32m 6[2mms[22m[39m
+   [32m✓[39m fetchWithRetry[2m > [22mrespects the Retry-After header (HTTP-date) on 429[32m 9[2mms[22m[39m
+[31m   [31m×[31m fetchWithRetry[2m > [22mcaps jittered exponential backoff at 30 seconds when Retry-After is absent[39m[32m 3[2mms[22m[39m
+[31m     → expected false to be true // Object.is equality[39m
+   [32m✓[39m fetchWithRetry[2m > [22mcaps Retry-After at 30 seconds[32m 2[2mms[22m[39m
+ [31m❯[39m tests/unit/api-generate.test.ts [2m([22m[2m12 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 115[2mms[22m[39m
+   [32m✓[39m /api/generate[2m > [22mrejects malformed JSON with INVALID_JSON code[32m 25[2mms[22m[39m
+   [32m✓[39m /api/generate[2m > [22mrejects invalid payloads[32m 10[2mms[22m[39m
+   [32m✓[39m /api/generate[2m > [22mreturns orchestrated generation output without fetching the sibling route[32m 12[2mms[22m[39m
+   [32m✓[39m /api/generate[2m > [22mreturns a content policy violation before image generation when safety fails[32m 3[2mms[22m[39m
+[31m   [31m×[31m /api/generate[2m > [22mreturns an aborted response before expensive seams when caller signal is already aborted[39m[32m 22[2mms[22m[39m
+[31m     → expected 502 to be 499 // Object.is equality[39m
+[31m   [31m×[31m /api/generate[2m > [22mpasses caller signal into the image-generation dependency[39m[32m 16[2mms[22m[39m
+[31m     → expected "spy" to be called with arguments: [ { spec: { …(19) }, …(3) }, …(1) ][90m
+
+Received: 
+
+[1m  1st spy call:
+
+[22m[33m@@ -32,7 +32,6 @@[90m
+[2m        "variations": 1,[22m
+[2m        "whitespaceScale": 50,[22m
+[2m      },[22m
+[2m      "variations": 1,[22m
+[2m    },[22m
+[32m-   AbortSignal {},[90m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+   [32m✓[39m /api/generate[2m > [22mpreserves typed image-generation failures[32m 2[2mms[22m[39m
+   [32m✓[39m /api/generate[2m > [22mrejects invalid image-generation pipeline bodies[32m 2[2mms[22m[39m
+   [32m✓[39m /api/generate[2m > [22mconverts thrown image-generation exceptions into contract errors[32m 1[2mms[22m[39m
+   [32m✓[39m /api/generate[2m > [22mclassifies thrown image-generation timeouts as 504 contract errors[32m 1[2mms[22m[39m
+   [32m✓[39m /api/generate[2m > [22mkeeps the endpoint parse and input guards transport-thin[32m 11[2mms[22m[39m
+   [32m✓[39m /api/generate[2m > [22mrejects unsafe style hints at the endpoint before image generation[32m 5[2mms[22m[39m
+ [31m❯[39m tests/unit/image-generation-pipeline.test.ts [2m([22m[2m13 tests[22m[2m | [22m[31m4 failed[39m[2m)[22m[32m 73[2mms[22m[39m
+   [32m✓[39m image-generation-pipeline edge cases[2m > [22mrejects invalid input[32m 11[2mms[22m[39m
+   [32m✓[39m image-generation-pipeline edge cases[2m > [22mrejects prompt missing required phrases[32m 3[2mms[22m[39m
+   [32m✓[39m image-generation-pipeline edge cases[2m > [22mreturns 502 when seam returns a network error[32m 1[2mms[22m[39m
+[31m   [31m×[31m image-generation-pipeline edge cases[2m > [22mreturns 504 when seam returns a timeout error[39m[32m 21[2mms[22m[39m
+[31m     → expected 502 to be 504 // Object.is equality[39m
+[31m   [31m×[31m image-generation-pipeline edge cases[2m > [22mreturns 400 when seam returns a request validation error[39m[32m 2[2mms[22m[39m
+[31m     → expected 502 to be 400 // Object.is equality[39m
+[31m   [31m×[31m image-generation-pipeline edge cases[2m > [22mreturns an aborted response before calling the seam when caller signal is already aborted[39m[32m 4[2mms[22m[39m
+[31m     → expected 200 to be 499 // Object.is equality[39m
+[31m   [31m×[31m image-generation-pipeline edge cases[2m > [22mpasses caller signal into ImageGenerationSeam requests[39m[32m 18[2mms[22m[39m
+[31m     → expected "spy" to be called with arguments: [ ObjectContaining {"signal": {}} ][90m
+
+Received: 
+
+[1m  1st spy call:
+
+[22m[2m  [[22m
+[32m-   ObjectContaining {[90m
+[32m-     "signal": AbortSignal {},[90m
+[31m+   {[90m
+[31m+     "format": "b64_json",[90m
+[31m+     "n": 1,[90m
+[31m+     "prompt": "Black-and-white coloring book page outline-only easy to color Crisp vector-like linework NEGATIVE PROMPT: US Letter 8.5x11 portrait.",[90m
+[31m+     "size": "1024x1024",[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+   [32m✓[39m image-generation-pipeline edge cases[2m > [22mreturns 502 when seam returns an HTTP error[32m 1[2mms[22m[39m
+   [32m✓[39m image-generation-pipeline edge cases[2m > [22mreturns error when seam returns images without b64[32m 1[2mms[22m[39m
+   [32m✓[39m image-generation-pipeline edge cases[2m > [22msucceeds with valid b64 images[32m 3[2mms[22m[39m
+   [32m✓[39m image-generation-pipeline edge cases[2m > [22mmarks JPEG base64 as jpg for downstream packaging[32m 2[2mms[22m[39m
+   [32m✓[39m image-generation-pipeline edge cases[2m > [22mfilters out images without b64 and keeps valid ones[32m 2[2mms[22m[39m
+   [32m✓[39m image-generation-pipeline edge cases[2m > [22mvalidates A4 page size phrase check[32m 1[2mms[22m[39m
+ [31m❯[39m tests/unit/api-wig-try-on.test.ts [2m([22m[2m3 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 69[2mms[22m[39m
+   [32m✓[39m /api/wig-try-on[2m > [22mrejects malformed JSON with INVALID_JSON code before creating any seams[32m 26[2mms[22m[39m
+   [32m✓[39m /api/wig-try-on[2m > [22mrejects schema-invalid payload with WIG_TRY_ON_INPUT_INVALID (not INVALID_JSON)[32m 9[2mms[22m[39m
+[31m   [31m×[31m /api/wig-try-on[2m > [22mpasses the request signal to wig image fetch and WigTryOnSeam[39m[32m 31[2mms[22m[39m
+[31m     → expected "spy" to be called with arguments: [ 'https://example.com/wig.png', …(1) ][90m
+
+Received: 
+
+[1m  1st spy call:
+
+[22m[2m  [[22m
+[2m    "https://example.com/wig.png",[22m
+[32m-   {[90m
+[32m-     "signal": AbortSignal {},[90m
+[32m-   },[90m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+ [31m❯[39m tests/contract/image-generation.test.ts [2m([22m[2m7 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 61[2mms[22m[39m
+   [32m✓[39m ImageGenerationSeam contract[2m > [22mmock returns sample fixture output[32m 7[2mms[22m[39m
+   [32m✓[39m ImageGenerationSeam contract[2m > [22mmock returns fault fixture output[32m 1[2mms[22m[39m
+   [32m✓[39m ImageGenerationSeam contract[2m > [22madapter returns IMAGE_HTTP_ERROR when xAI responds with an HTTP failure[32m 15[2mms[22m[39m
+[31m   [31m×[31m ImageGenerationSeam contract[2m > [22madapter returns IMAGE_ABORTED without fetching when caller signal is already aborted[39m[32m 22[2mms[22m[39m
+[31m     → expected true to be false // Object.is equality[39m
+[31m   [31m×[31m ImageGenerationSeam contract[2m > [22madapter returns IMAGE_TIMEOUT_ERROR when xAI response body parsing times out[39m[32m 7[2mms[22m[39m
+[31m     → expected 'IMAGE_NETWORK_ERROR' to be 'IMAGE_TIMEOUT_ERROR' // Object.is equality[39m
+   [32m✓[39m ImageGenerationSeam contract[2m > [22madapter returns ok result with images from xAI response[32m 4[2mms[22m[39m
+   [32m✓[39m ImageGenerationSeam contract[2m > [22madapter returns error for invalid prompt (validation)[32m 3[2mms[22m[39m
+ [31m❯[39m src/lib/seams/wig-try-on-seam/test.ts [2m([22m[2m5 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 36[2mms[22m[39m
+   [32m✓[39m WigTryOnSeam mock contract[2m > [22mtryOn returns a portrait Result on success[32m 9[2mms[22m[39m
+   [32m✓[39m WigTryOnSeam mock contract[2m > [22mhttp_error scenario returns WIG_TRY_ON_HTTP_ERROR[32m 1[2mms[22m[39m
+   [32m✓[39m WigTryOnSeam mock contract[2m > [22mconfig_error scenario returns WIG_TRY_ON_CONFIG_ERROR[32m 1[2mms[22m[39m
+   [32m✓[39m WigTryOnSeam mock contract[2m > [22mportrait base64 is a non-empty string[32m 1[2mms[22m[39m
+[31m   [31m×[31m WigTryOnSeam mock contract[2m > [22madapter reports response body timeouts as network timeouts, not parse errors[39m[32m 22[2mms[22m[39m
+[31m     → expected 'WIG_TRY_ON_PARSE_ERROR' to be 'WIG_TRY_ON_NETWORK_ERROR' // Object.is equality[39m
+npm.cmd : 
+At line:2 char:1
++ npm.cmd test -- tests/unit/http-resilience.test.ts tests/unit/provide ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 20 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/contract/image-generation.test.ts[2m > [22mImageGenerationSeam contract[2m > [22madapter returns IMAGE_ABORTED without fetching when caller signal is already aborted
+[31m[1mAssertionError[22m: expected true to be false // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- false[39m
+[31m+ true[39m
+
+[36m [2m❯[22m tests/contract/image-generation.test.ts:[2m100:21[22m[39m
+    [90m 98| [39m  } [35mas[39m [35mtypeof[39m imageGenerationRequestFixture)[33m;[39m
+    [90m 99| [39m
+    [90m100| [39m  [34mexpect[39m(output[33m.[39mok)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m   | [39m                    [31m^[39m
+    [90m101| [39m  [35mif[39m ([33m![39moutput[33m.[39mok) {
+    [90m102| [39m   [34mexpect[39m(output[33m.[39merror[33m.[39mcode)[33m.[39m[34mtoBe[39m([32m'IMAGE_ABORTED'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/contract/image-generation.test.ts[2m > [22mImageGenerationSeam contract[2m > [22madapter returns IMAGE_TIMEOUT_ERROR when xAI response body parsing times out
+[31m[1mAssertionError[22m: expected 'IMAGE_NETWORK_ERROR' to be 'IMAGE_TIMEOUT_ERROR' // Object.is equality[39m
+
+Expected: [32m"IMAGE_[7mTIMEOUT[27m_ERROR"[39m
+Received: [31m"IMAGE_[7mNETWORK[27m_ERROR"[39m
+
+[36m [2m❯[22m tests/contract/image-generation.test.ts:[2m119:30[22m[39m
+    [90m117| [39m  [34mexpect[39m(output[33m.[39mok)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m118| [39m  [35mif[39m ([33m![39moutput[33m.[39mok) {
+    [90m119| [39m   [34mexpect[39m(output[33m.[39merror[33m.[39mcode)[33m.[39m[34mtoBe[39m([32m'IMAGE_TIMEOUT_ERROR'[39m)[33m;[39m
+    [90m   | [39m                             [31m^[39m
+    [90m120| [39m   [34mexpect[39m(output[33m.[39merror[33m.[39mmessage)[33m.[39m[34mtoContain[39m([32m'timed out'[39m)[33m;[39m
+    [90m121| [39m  }
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/api-generate.test.ts[2m > [22m/api/generate[2m > [22mreturns an aborted response before expensive seams when caller signal is already aborted
+[31m[1mAssertionError[22m: expected 502 to be 499 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 499[39m
+[31m+ 502[39m
+
+[36m [2m❯[22m tests/unit/api-generate.test.ts:[2m223:25[22m[39m
+    [90m221| [39m  )[33m;[39m
+    [90m222| [39m
+    [90m223| [39m  [34mexpect[39m(result[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m499[39m)[33m;[39m
+    [90m   | [39m                        [31m^[39m
+    [90m224| [39m  [34mexpect[39m(result[33m.[39mbody[33m.[39mok)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m225| [39m  [35mif[39m ([33m![39mresult[33m.[39mbody[33m.[39mok) {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/api-generate.test.ts[2m > [22m/api/generate[2m > [22mpasses caller signal into the image-generation dependency
+[31m[1mAssertionError[22m: expected "spy" to be called with arguments: [ { spec: { …(19) }, …(3) }, …(1) ][90m
+
+Received: 
+
+[1m  1st spy call:
+
+[22m[33m@@ -32,7 +32,6 @@[90m
+[2m        "variations": 1,[22m
+[2m        "whitespaceScale": 50,[22m
+[2m      },[22m
+[2m      "variations": 1,[22m
+[2m    },[22m
+[32m-   AbortSignal {},[90m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m tests/unit/api-generate.test.ts:[2m268:30[22m[39m
+    [90m266| [39m  )[33m;[39m
+    [90m267| [39m
+    [90m268| [39m  [34mexpect[39m(deps[33m.[39mgenerateImage)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                             [31m^[39m
+    [90m269| [39m   {
+    [90m270| [39m    spec[33m:[39m validSpec[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/api-wig-try-on.test.ts[2m > [22m/api/wig-try-on[2m > [22mpasses the request signal to wig image fetch and WigTryOnSeam
+[31m[1mAssertionError[22m: expected "spy" to be called with arguments: [ 'https://example.com/wig.png', …(1) ][90m
+
+Received: 
+
+[1m  1st spy call:
+
+[22m[2m  [[22m
+[2m    "https://example.com/wig.png",[22m
+[32m-   {[90m
+[32m-     "signal": AbortSignal {},[90m
+[32m-   },[90m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m tests/unit/api-wig-try-on.test.ts:[2m126:21[22m[39m
+    [90m124| [39m
+    [90m125| [39m  [34mexpect[39m(response[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m200[39m)[33m;[39m
+    [90m126| [39m  expect(fetchImpl).toHaveBeenCalledWith(wig.imageUrl, { signal: reque…
+    [90m   | [39m                    [31m^[39m
+    [90m127| [39m  expect(tryOn).toHaveBeenCalledWith(expect.objectContaining({ signal:…
+    [90m128| [39m })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-resilience.test.ts[2m > [22misAbortError[2m > [22mreturns true for a structural DOMException-like AbortError
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m tests/unit/http-resilience.test.ts:[2m18:68[22m[39m
+    [90m 16| [39m
+    [90m 17| [39m it('returns true for a structural DOMException-like AbortError', () =…
+    [90m 18| [39m  expect(isAbortError({ name: 'AbortError', message: 'aborted' })).toB…
+    [90m   | [39m                                                                   [31m^[39m
+    [90m 19| [39m })[33m;[39m
+    [90m 20| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-resilience.test.ts[2m > [22mfetchWithTimeout[2m > [22maborts and rejects with a TimeoutError when timeout fires
+[31m[1mAssertionError[22m: expected AbortError: The operation was aborted to match object { name: 'TimeoutError' }[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- {[39m
+[32m-   "name": "TimeoutError",[39m
+[31m+ Error {[39m
+[31m+   "name": "AbortError",[39m
+[2m  }[22m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-resilience.test.ts[2m > [22mfetchWithRetry[2m > [22mrejects when maxAttempts is NaN
+[31m[1mAssertionError[22m: expected [Function] to throw error including 'maxAttempts must be a finite integer …' but got 'fetchWithRetry: exhausted all attempts'[39m
+
+Expected: [32m"maxAttempts must be a finite integer >= 1"[39m
+Received: [31m"fetchWithRetry: exhausted all attempts"[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-resilience.test.ts[2m > [22mfetchWithRetry[2m > [22mrejects when maxAttempts is Infinity
+[41m[1m FAIL [22m[49m tests/unit/http-resilience.test.ts[2m > [22mfetchWithRetry[2m > [22mrejects when maxAttempts is non-integer
+[31m[1mAssertionError[22m: expected [Function] to throw error including 'maxAttempts must be a finite integer …' but got 'Cannot read properties of undefined (…'[39m
+
+Expected: [32m"maxAttempts must be a finite integer >= 1"[39m
+Received: [31m"Cannot read properties of undefined (reading 'status')"[39m
+
+[36m [2m❯[22m tests/unit/http-resilience.test.ts:[2m128:3[22m[39m
+    [90m126| [39m  [[32m'non-integer'[39m[33m,[39m [34m1.5[39m]
+    [90m127| [39m ])([32m'rejects when maxAttempts is %s'[39m[33m,[39m [35masync[39m (_label[33m,[39m maxAttempts) [33m=>[39m {
+    [90m128| [39m  await expect(fetchWithRetry(vi.fn(), { maxAttempts, baseDelayMs: 100…
+    [90m   | [39m  [31m^[39m
+    [90m129| [39m   [33m.[39mrejects[33m.[39m[34mtoThrow[39m([32m'maxAttempts must be a finite integer >= 1'[39m)[33m;[39m
+    [90m130| [39m })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-resilience.test.ts[2m > [22mfetchWithRetry[2m > [22mrejects when baseDelayMs is NaN
+[41m[1m FAIL [22m[49m tests/unit/http-resilience.test.ts[2m > [22mfetchWithRetry[2m > [22mrejects when baseDelayMs is Infinity
+[31m[1mAssertionError[22m: expected [Function] to throw error including 'baseDelayMs must be finite and >= 0' but got 'Cannot read properties of undefined (…'[39m
+
+Expected: [32m"baseDelayMs must be finite and >= 0"[39m
+Received: [31m"Cannot read properties of undefined (reading 'status')"[39m
+
+[36m [2m❯[22m tests/unit/http-resilience.test.ts:[2m141:3[22m[39m
+    [90m139| [39m  [[32m'Infinity'[39m[33m,[39m [33mInfinity[39m]
+    [90m140| [39m ])([32m'rejects when baseDelayMs is %s'[39m[33m,[39m [35masync[39m (_label[33m,[39m baseDelayMs) [33m=>[39m {
+    [90m141| [39m  await expect(fetchWithRetry(vi.fn(), { maxAttempts: 3, baseDelayMs }…
+    [90m   | [39m  [31m^[39m
+    [90m142| [39m   [33m.[39mrejects[33m.[39m[34mtoThrow[39m([32m'baseDelayMs must be finite and >= 0'[39m)[33m;[39m
+    [90m143| [39m })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-resilience.test.ts[2m > [22mfetchWithRetry[2m > [22mdoes not retry AbortError when the caller signal is already aborted
+[31m[1mAssertionError[22m: expected "spy" to be called 1 times, but got 3 times[39m
+[36m [2m❯[22m tests/unit/http-resilience.test.ts:[2m226:19[22m[39m
+    [90m224| [39m
+    [90m225| [39m  await expect(rejection).resolves.toMatchObject({ name: 'AbortError' …
+    [90m226| [39m  [34mexpect[39m(fetcher)[33m.[39m[34mtoHaveBeenCalledTimes[39m([34m1[39m)[33m;[39m
+
+[2m Test Files [22m [1m[31m7 failed[39m[22m[90m (7)[39m
+    [90m   | [39m                  [31m^[39m
+    [90m227| [39m })[33m;[39m
+[2m      Tests [22m [1m[31m20 failed[39m[22m[2m | [22m[1m[32m72 passed[39m[22m[90m (92)[39m
+[2m   Start at [22m 05:53:17
+    [90m228| [39m
+
+[2m   Duration [22m 35.57s[2m (transform 927ms, setup 407ms, collect 1.52s, tests 8.68s, environment 19.85s, prepare 2.04s)[22m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/http-resilience.test.ts[2m > [22mfetchWithRetry[2m > [22mcaps jittered exponential backoff at 30 seconds when Retry-After is absent
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m tests/unit/http-resilience.test.ts:[2m296:19[22m[39m
+    [90m294| [39m  [35mawait[39m vi[33m.[39m[34madvanceTimersByTimeAsync[39m([34m30_001[39m)[33m;[39m
+    [90m295| [39m
+    [90m296| [39m  [34mexpect[39m(settled)[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m   | [39m                  [31m^[39m
+    [90m297| [39m  [35mconst[39m result [33m=[39m [35mawait[39m promise[33m;[39m
+    [90m298| [39m  [34mexpect[39m(result[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m200[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/image-generation-pipeline.test.ts[2m > [22mimage-generation-pipeline edge cases[2m > [22mreturns 504 when seam returns a timeout error
+[31m[1mAssertionError[22m: expected 502 to be 504 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 504[39m
+[31m+ 502[39m
+
+[36m [2m❯[22m tests/unit/image-generation-pipeline.test.ts:[2m110:27[22m[39m
+    [90m108| [39m      }))
+    [90m109| [39m    )[33m;[39m
+    [90m110| [39m    [34mexpect[39m(result[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m504[39m)[33m;[39m
+    [90m   | [39m                          [31m^[39m
+    [90m111| [39m    [34mexpect[39m(result[33m.[39mbody[33m.[39mok)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m112| [39m    [35mif[39m ([33m![39mresult[33m.[39mbody[33m.[39mok) {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/image-generation-pipeline.test.ts[2m > [22mimage-generation-pipeline edge cases[2m > [22mreturns 400 when seam returns a request validation error
+[31m[1mAssertionError[22m: expected 502 to be 400 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 400[39m
+[31m+ 502[39m
+
+[36m [2m❯[22m tests/unit/image-generation-pipeline.test.ts:[2m130:27[22m[39m
+    [90m128| [39m      }))
+    [90m129| [39m    )[33m;[39m
+    [90m130| [39m    [34mexpect[39m(result[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m400[39m)[33m;[39m
+    [90m   | [39m                          [31m^[39m
+    [90m131| [39m    [34mexpect[39m(result[33m.[39mbody[33m.[39mok)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m132| [39m    [35mif[39m ([33m![39mresult[33m.[39mbody[33m.[39mok) {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/image-generation-pipeline.test.ts[2m > [22mimage-generation-pipeline edge cases[2m > [22mreturns an aborted response before calling the seam when caller signal is already 
+aborted
+[31m[1mAssertionError[22m: expected 200 to be 499 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 499[39m
+[31m+ 200[39m
+
+[36m [2m❯[22m tests/unit/image-generation-pipeline.test.ts:[2m162:27[22m[39m
+    [90m160| [39m    )[33m;[39m
+    [90m161| [39m
+    [90m162| [39m    [34mexpect[39m(result[33m.[39mstatus)[33m.[39m[34mtoBe[39m([34m499[39m)[33m;[39m
+    [90m   | [39m                          [31m^[39m
+    [90m163| [39m    [34mexpect[39m(result[33m.[39mbody[33m.[39mok)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m164| [39m    [35mif[39m ([33m![39mresult[33m.[39mbody[33m.[39mok) {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/image-generation-pipeline.test.ts[2m > [22mimage-generation-pipeline edge cases[2m > [22mpasses caller signal into ImageGenerationSeam requests
+[31m[1mAssertionError[22m: expected "spy" to be called with arguments: [ ObjectContaining {"signal": {}} ][90m
+
+Received: 
+
+[1m  1st spy call:
+
+[22m[2m  [[22m
+[32m-   ObjectContaining {[90m
+[32m-     "signal": AbortSignal {},[90m
+[31m+   {[90m
+[31m+     "format": "b64_json",[90m
+[31m+     "n": 1,[90m
+[31m+     "prompt": "Black-and-white coloring book page outline-only easy to color Crisp vector-like linework NEGATIVE PROMPT: US Letter 8.5x11 portrait.",[90m
+[31m+     "size": "1024x1024",[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m tests/unit/image-generation-pipeline.test.ts:[2m194:22[22m[39m
+    [90m192| [39m    )[33m;[39m
+    [90m193| [39m
+    [90m194| [39m    [34mexpect[39m(generate)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                     [31m^[39m
+    [90m195| [39m      expect[33m.[39m[34mobjectContaining[39m({ signal[33m:[39m controller[33m.[39msignal })
+    [90m196| [39m    )[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/provider-adapter-helpers.test.ts[2m > [22mprovider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mdoes not retry image generation POSTs on retryable 
+HTTP failure
+[31m[1mAssertionError[22m: expected "spy" to be called 1 times, but got 3 times[39m
+[36m [2m❯[22m tests/unit/provider-adapter-helpers.test.ts:[2m281:23[22m[39m
+    [90m279| [39m     [34mexpect[39m(result[33m.[39merror[33m.[39mmessage)[33m.[39m[34mtoBe[39m([32m'temporary provider failure'[39m)[33m;[39m
+    [90m280| [39m    }
+    [90m281| [39m    [34mexpect[39m(fetchMock)[33m.[39m[34mtoHaveBeenCalledTimes[39m([34m1[39m)[33m;[39m
+    [90m   | [39m                      [31m^[39m
+    [90m282| [39m   } [35mfinally[39m {
+    [90m283| [39m    vi[33m.[39m[34museRealTimers[39m()[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/20]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/seams/wig-try-on-seam/test.ts[2m > [22mWigTryOnSeam mock contract[2m > [22madapter reports response body timeouts as network timeouts, not parse errors
+[31m[1mAssertionError[22m: expected 'WIG_TRY_ON_PARSE_ERROR' to be 'WIG_TRY_ON_NETWORK_ERROR' // Object.is equality[39m
+
+Expected: [32m"WIG_TRY_ON_[7mNETWORK[27m_ERROR"[39m
+Received: [31m"WIG_TRY_ON_[7mPARSE[27m_ERROR"[39m
+
+[36m [2m❯[22m src/lib/seams/wig-try-on-seam/test.ts:[2m91:33[22m[39m
+    [90m 89| [39m    [34mexpect[39m(result[33m.[39mok)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m 90| [39m    [35mif[39m ([33m![39mresult[33m.[39mok) {
+    [90m 91| [39m      [34mexpect[39m(result[33m.[39merror[33m.[39mcode)[33m.[39m[34mtoBe[39m([32m'WIG_TRY_ON_NETWORK_ERROR'[39m)[33m;[39m
+    [90m   | [39m                                [31m^[39m
+    [90m 92| [39m      [34mexpect[39m(result[33m.[39merror[33m.[39mmessage)[33m.[39m[34mtoContain[39m([32m'timed out'[39m)[33m;[39m
+    [90m 93| [39m    }
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/20]⎯[22m[39m
+
