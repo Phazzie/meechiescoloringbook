@@ -1,0 +1,28 @@
+git.exe : warning: in the working copy of 'DECISIONS.md', LF will be replaced by CRLF the next time Git touches it
+At line:2 char:8
++ $out = & git diff --check 2>&1; $code = $LASTEXITCODE; $out | Tee-Obj ...
++        ~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: in the... Git touches it:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+warning: in the working copy of 'docs/hpr-pr-resolution-ledger-2026-06-05.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plan.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/adapters/image-generation-seam/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/adapters/provider-adapter.adapter.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/adapters/wig-try-on-seam/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/core/generate-pipeline.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/core/http-resilience.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/core/image-generation-pipeline.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/core/wig-try-on-pipeline.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/seams/image-generation-seam/contract.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/seams/wig-try-on-seam/contract.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/seams/wig-try-on-seam/test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/routes/api/generate/+server.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/routes/api/image-generation/+server.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/routes/api/wig-try-on/+server.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/contract/image-generation.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/unit/api-generate.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/unit/api-wig-try-on.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/unit/http-resilience.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/unit/image-generation-pipeline.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/unit/provider-adapter-helpers.test.ts', LF will be replaced by CRLF the next time Git touches it

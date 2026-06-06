@@ -7,6 +7,22 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-05 - HPR HTTP client structured error policy
+
+- Date: 2026-06-05
+- Decision: Change the shared browser `postJson` helper to parse response text once, return parsed JSON for non-2xx contract responses, return `undefined` for `204`, `205`, and empty successful bodies, and throw URL/status/status-text/parse-reason errors for invalid or empty failure bodies.
+- Context: Multiple open PRs attempted `postJson` or `response.ok` cleanup but risked losing structured API error payloads. The app intentionally returns contract-shaped JSON such as `{ ok: false, error: ... }` on non-2xx statuses, so the client helper must preserve that body instead of converting it to an exception.
+- Alternatives: Keep throwing on every non-OK response after parsing, or move special-case logic into each caller. Throwing masks contract payloads; caller-specific handling would duplicate policy and invite drift.
+- Consequences: API callers can inspect structured non-2xx payloads consistently, no-content responses are safe, and malformed provider/proxy responses still fail loudly with actionable diagnostics.
+- Revisit criteria: Revisit if API routes stop using contract-shaped non-2xx JSON or if callers need a typed `HttpError` object instead of `Error` messages for malformed responses.
+
+- Cipher Gate:
+  - Date: 2026-06-05
+  - Seams: ProviderAdapterSeam, ChatInterpretationSeam, MeechieToolSeam, MeechieStudioTextSeam, ImageGenerationSeam
+  - Evidence: docs/evidence/2026-06-05/hpr-http-error-policy-red-http-client-threads.txt; docs/evidence/2026-06-05/hpr-http-error-policy-green-http-client-threads.txt; docs/evidence/2026-06-05/hpr-http-error-policy-targeted-forks.txt; docs/evidence/2026-06-05/hpr-http-error-policy-check.txt; docs/evidence/2026-06-05/hpr-http-error-policy-lint.txt; docs/evidence/2026-06-05/hpr-http-error-policy-test.txt; docs/evidence/2026-06-05/hpr-http-error-policy-build.txt; docs/evidence/2026-06-05/hpr-http-error-policy-verify-long.txt
+  - Summary: Locked the central `postJson` policy with red/green tests so structured non-2xx JSON payloads survive, `204`/`205` and empty successful bodies return `undefined`, and invalid/empty failure bodies produce rich diagnostics.
+  - Risks: Some UI callers may still assume `postJson` rejects on all non-2xx responses; targeted chat/tools tests passed, and broader caller behavior remains covered by later generate/UI workpacks.
+
 ## 2026-05-15 — CacheSeam: Route Service Worker Cache I/O Through Approved Seam Adapter
 
 - Cipher Gate:
@@ -1720,3 +1736,108 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Evidence: docs/evidence/2026-05-16/rewind-CacheSeam.txt; docs/evidence/2026-05-16/test.txt; docs/evidence/2026-05-16/verify.txt; docs/evidence/2026-05-16/proof-tape.md
   - Summary: Addressed PR #66 review blockers by making service-worker install and activation reject when CacheSeam returns an error, validating cache names and URL lists before Web Cache API calls without bundling Zod into the service worker, preserving distinct open/addAll error codes, surfacing failed stale-cache deletion keys, logging cache-match fallback warnings, and marking CacheSeam's browser probe as a manual 2026-05-15 check.
   - Risks: CacheSeam still relies on manual browser probing for real Cache Storage behavior; Node tests use stubbed Cache Storage to prove adapter control flow.
+
+## 2026-06-05 - Route generate orchestration through ImageGenerationSeam
+- Date: 2026-06-05
+- Decision: `/api/generate` composes `runImageGenerationPipeline` through an injected `ImageGenerationSeam` dependency instead of calling the sibling `/api/image-generation` route through raw internal HTTP.
+- Context: The Handoff PR Resolution drain identified PR #112 as the high-value branch for removing the brittle sibling-route fetch, but that idea needed a guard so thrown image adapter exceptions still return contract-shaped errors instead of generic SvelteKit failures.
+- Alternatives: Keep the sibling HTTP fetch and add broader `postJson` handling; rejected because it preserves unnecessary internal network I/O. Merge PR #112 directly; rejected because the replacement branch can implement the behavior on current stacked code with explicit thrown-error tests and ledger evidence.
+- Consequences: Core generate orchestration receives a typed image pipeline dependency, preserves typed image failures, rejects invalid image pipeline bodies, and maps unexpected thrown image errors to structured 502/504 responses. The route layer owns adapter construction, keeping Seam-Driven Development boundaries explicit.
+- Revisit criteria: Revisit if `ImageGenerationSeam` gains a separate idempotent queue, streaming output, or another transport boundary that should be orchestrated outside the SvelteKit route.
+- Plan:
+  - Goal: Route `/api/generate` through `runImageGenerationPipeline`/`ImageGenerationSeam` while preserving structured image-generation failures and guarding thrown image exceptions.
+  - Seams: ImageGenerationSeam, SpecValidationSeam, OutputPackagingSeam, ProviderAdapterSeam.
+  - Files: `plan.md`, `src/lib/core/generate-pipeline.ts`, `src/routes/api/generate/+server.ts`, `tests/unit/api-generate.test.ts`, `tests/unit/pipeline-edge-cases.test.ts`, `docs/hpr-pr-resolution-ledger-2026-06-05.md`, `DECISIONS.md`.
+  - Commands: `npm.cmd test -- tests/unit/api-generate.test.ts --pool=forks --maxWorkers=1`, `npm.cmd test -- tests/unit/api-generate.test.ts tests/unit/image-generation-pipeline.test.ts tests/contract/image-generation.test.ts --pool=forks --maxWorkers=1`, `npm.cmd run rewind -- --seam ImageGenerationSeam`, `npm.cmd run check`, `npm.cmd run lint`, `npm.cmd test`, `npm.cmd run build`, `npm.cmd run verify`, `npm.cmd run cipher:gate`, `git diff --check`.
+- Self-critique: A direct function call could have hidden status mapping changes or widened core I/O, so tests prove success, typed failure, invalid returned bodies, generic thrown errors, timeout thrown errors, and route parse guards. The remaining risks are baseline lint debt and Windows Vercel adapter symlink failure, both tracked separately.
+
+- Cipher Gate:
+  - Date: 2026-06-05
+  - Seams: ImageGenerationSeam, SpecValidationSeam, OutputPackagingSeam, ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-06-05/hpr-generate-image-seam-red-api-generate.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-green-api-generate.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-targeted-forks.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-pipeline-edge-cases.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-rewind.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-check.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-lint.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-test.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-build.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-verify.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-cipher-gate.txt; docs/evidence/2026-06-05/hpr-generate-image-seam-exit-codes.txt
+  - Summary: Removed the raw internal `/api/image-generation` fetch from generate orchestration, injected the typed image pipeline dependency, preserved structured image-generation failures, and mapped unexpected thrown image errors to contract-shaped generate responses.
+  - Risks: This does not yet address timeout signal propagation or provider retry policy; those remain in the later timeout/resilience workpack.
+
+## 2026-06-05 - Gate generate requests with SafetyPolicySeam
+- Date: 2026-06-05
+- Decision: `/api/generate` now runs a `SafetyPolicySeam` generate-request check before spec validation, prompt assembly, image generation, or drift detection.
+- Context: PR #115 correctly identified that the existing safety seam was not wired into the generate path, but its branch left valid review concerns around `styleHint`, optional-field safety, mock reset behavior, and core importing mock implementations.
+- Alternatives: Merge PR #115 directly; rejected because unresolved review comments were still valid. Put keyword checks directly in `generate-pipeline.ts`; rejected because policy belongs behind the seam. Build a network-backed moderation adapter now; rejected as broader than this Handoff PR Resolution slice.
+- Consequences: Unsafe title, item, footer, dedication, or `styleHint` text returns a structured `CONTENT_POLICY_VIOLATION` with the underlying `DISALLOWED_CONTENT` policy code and actionable field details. Core generation stays dependency-injected; the route composes the pure deterministic safety policy factory.
+- Revisit criteria: Revisit when safety policy rules move to a live moderation provider, when fixture-scenario mock cleanup reaches `SafetyPolicySeam`, or when product policy needs more granular error codes.
+- Plan:
+  - Goal: Wire `SafetyPolicySeam` into `/api/generate` as the first generate-path gate while preserving structured errors and avoiding direct I/O in core.
+  - Seams: SafetyPolicySeam, ImageGenerationSeam, SpecValidationSeam, PromptAssemblySeam, DriftDetectionSeam, ProviderAdapterSeam.
+  - Files: `plan.md`, `src/lib/core/generate-pipeline.ts`, `src/routes/api/generate/+server.ts`, `src/lib/seams/safety-policy-seam/contract.ts`, `src/lib/seams/safety-policy-seam/fixtures.ts`, `src/lib/seams/safety-policy-seam/mock.ts`, `src/lib/seams/safety-policy-seam/policy.ts`, `src/lib/seams/safety-policy-seam/probe.ts`, `src/lib/seams/safety-policy-seam/test.ts`, `tests/unit/api-generate.test.ts`, `tests/unit/pipeline-edge-cases.test.ts`, `docs/hpr-pr-resolution-ledger-2026-06-05.md`, `DECISIONS.md`.
+  - Commands: `npm.cmd test -- src/lib/seams/safety-policy-seam/test.ts tests/unit/api-generate.test.ts tests/unit/pipeline-edge-cases.test.ts --pool=forks --maxWorkers=1`, `npm.cmd run rewind -- --seam SafetyPolicySeam`, `npm.cmd run check`, `npm.cmd run lint`, `npm.cmd test`, `npm.cmd run build`, `npm.cmd run verify`, `npm.cmd run cipher:gate`, `git diff --check`.
+- Self-critique: The main risk is that this deterministic policy remains implemented locally rather than by a live moderation provider; this work keeps that explicit by using a pure policy factory and recording future provider-backed safety as a revisit path. Baseline lint and Windows Vercel symlink build failures remain separate drain items.
+
+- Cipher Gate:
+  - Date: 2026-06-05
+  - Seams: SafetyPolicySeam, ImageGenerationSeam, SpecValidationSeam, PromptAssemblySeam, DriftDetectionSeam, ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-red-targeted.txt; docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-green-targeted.txt; docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-rewind.txt; docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-check.txt; docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-lint.txt; docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-test.txt; docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-build.txt; docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-verify.txt; docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-cipher-gate.txt; docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-exit-codes.txt
+  - Summary: Added a first-step `SafetyPolicySeam` gate to generate orchestration, included `styleHint` in policy checks, surfaced actionable offending-field details, and kept core generation free of direct mock imports.
+  - Risks: The policy is still a deterministic local keyword guardrail rather than a live moderation provider; future policy expansion should decide whether this remains sufficient.
+
+## 2026-06-05 - Harden timeout, abort, and retry policy across image paths
+- Date: 2026-06-05
+- Decision: Shared HTTP resilience now distinguishes caller abort from provider timeout, caps retry delays, validates retry options with finite checks, and prevents automatic retries for billable provider image-generation POSTs without idempotency.
+- Context: PRs #108/#85/#107/#100/#95 overlapped on timeout, abort, and retry behavior. Their useful ideas were valuable, but review comments identified timeout swallowing during body parsing, caller aborts being retried, uncapped delay growth, partial finite validation, and duplicate-billing risk for non-idempotent image POSTs.
+- Alternatives: Merge PR #108/#85 directly; rejected because their review comments were still valid and the current stack already routes `/api/generate` through `ImageGenerationSeam`. Retry image POSTs by default; rejected because there is no idempotency key contract. Leave `fetchWithTimeout` as headers-only; rejected because body-read aborts could still be misclassified as invalid JSON.
+- Consequences: `/api/generate`, `/api/image-generation`, and `/api/wig-try-on` thread `request.signal` through the relevant pipelines. `ImageGenerationSeam` returns `IMAGE_ABORTED` for caller cancellation and `IMAGE_TIMEOUT_ERROR` for true provider timeout, with pipeline status mapping to 499 and 504 respectively. `WigTryOnSeam` keeps existing public error codes while reporting body-read timeout as a network timeout. `ProviderAdapterSeam.createImageGeneration` no longer retries provider image POSTs automatically; chat retry behavior remains unchanged pending a separate product/idempotency decision.
+- Revisit criteria: Revisit when provider image generation supports idempotency keys, when chat retry policy receives product approval for duplicate-call risk, or when route cancellation should propagate into prompt/spec/drift seams that currently perform local deterministic work.
+- Plan:
+  - Goal: Harden timeout, abort, and retry behavior so caller cancellation is not retried, true provider timeouts are contract-shaped responses, body-read aborts are not misreported as invalid JSON, retry inputs reject non-finite values, exponential backoff is capped, and billable provider image POSTs are not retried automatically.
+  - Seams: ImageGenerationSeam, WigTryOnSeam, ProviderAdapterSeam, SpecValidationSeam, PromptAssemblySeam, DriftDetectionSeam.
+  - Files: `plan.md`, `src/lib/core/http-resilience.ts`, `src/lib/adapters/provider-adapter.adapter.ts`, `src/lib/seams/image-generation-seam/contract.ts`, `src/lib/adapters/image-generation-seam/index.ts`, `src/lib/core/image-generation-pipeline.ts`, `src/lib/core/generate-pipeline.ts`, `src/routes/api/generate/+server.ts`, `src/routes/api/image-generation/+server.ts`, `src/lib/seams/wig-try-on-seam/contract.ts`, `src/lib/adapters/wig-try-on-seam/index.ts`, `src/lib/core/wig-try-on-pipeline.ts`, `src/routes/api/wig-try-on/+server.ts`, targeted tests, `docs/hpr-pr-resolution-ledger-2026-06-05.md`, `DECISIONS.md`.
+  - Commands: focused red/green tests, `npm.cmd run check`, `npm.cmd run rewind -- --seam ImageGenerationSeam`, `npm.cmd run rewind -- --seam WigTryOnSeam`, `npm.cmd run rewind -- --seam ProviderAdapterSeam`, `npm.cmd test`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run verify`, `npm.cmd run cipher:gate`, `git diff --check`.
+- Self-critique: The riskiest tradeoff is adding optional `AbortSignal` fields to in-process seam request types while validators intentionally strip them from JSON-like fixture validation. Tests prove route/pipeline signal threading and mock fixture paths remain deterministic. Local `npm run verify` timed out on the serial `verify:runner` test leg, so this entry cites the green check, focused tests, seam rewinds, full parallel test summary, and separately passing non-test governance scripts instead of claiming a complete local verify pass.
+
+- Cipher Gate:
+  - Date: 2026-06-05
+  - Seams: ImageGenerationSeam, WigTryOnSeam, ProviderAdapterSeam, SpecValidationSeam, PromptAssemblySeam, DriftDetectionSeam
+  - Evidence: docs/evidence/2026-06-05/hpr-timeout-abort-red-tests-clean.txt; docs/evidence/2026-06-05/hpr-timeout-abort-focused-tests-2.txt; docs/evidence/2026-06-05/hpr-timeout-abort-check-2.txt; docs/evidence/2026-06-05/hpr-timeout-abort-rewind-ImageGenerationSeam.txt; docs/evidence/2026-06-05/hpr-timeout-abort-rewind-WigTryOnSeam.txt; docs/evidence/2026-06-05/hpr-timeout-abort-rewind-ProviderAdapterSeam.txt; docs/evidence/2026-06-05/hpr-timeout-abort-full-test.txt; docs/evidence/2026-06-05/hpr-timeout-abort-lint.txt; docs/evidence/2026-06-05/hpr-timeout-abort-build.txt; docs/evidence/2026-06-05/hpr-timeout-abort-validation-summary.md
+  - Summary: Added caller-signal threading through generate, image-generation, and wig try-on paths; distinguished caller abort from provider timeout; prevented body-read timeouts from becoming parse errors; capped retry delays; rejected non-finite retry options; and stopped automatic retries for billable provider image POSTs.
+  - Risks: Local `npm run verify`/`verify:runner` timed out on the serial test leg; `npm run lint` and `npm run build` still fail for baseline generated-output lint debt and Windows Vercel symlink `EPERM`, respectively.
+
+## 2026-06-05 - Deepen MeechieStudioTextPipeline error recovery
+- Date: 2026-06-05
+- Decision: `MeechieStudioTextPipeline` now distinguishes JSON syntax failures from schema-validation failures, retries each with a specific prompt, treats valid JSON primitives as schema failures, and receives text-model/runtime mode through injected deps instead of reading runtime env in core.
+- Context: PR #98 contained valuable studio-text recovery work, but valid review comments identified retry prompt/schema drift, primitive JSON misclassification, redundant result validation, direct runtime env access in `src/lib/core`, and incorrect 504 mapping for generic provider network failures.
+- Alternatives: Merge PR #98 directly; rejected because its review comments were still valid. Change `ProviderAdapterSeam` error codes now; deferred because this slice can classify existing provider errors by code plus timeout wording without widening the provider contract. Keep env reads in core; rejected because route/adapter composition can supply runtime values cleanly.
+- Consequences: The first provider response is parsed into an explicit syntax-vs-schema outcome; schema retry prompts derive required-field guidance from the same list used by `STUDIO_TEXT_RESPONSE_FORMAT.required`; missing API key status uses injected runtime mode; timeout-like provider network failures map to 504 while generic network failures remain 502; and the redundant final `MeechieStudioTextResultSchema.safeParse(result)` check is removed.
+- Revisit criteria: Revisit if `ProviderAdapterSeam` gains distinct timeout/network error codes, if the response-format required fields need to diverge from contract optionality, or if model/runtime config moves behind a dedicated config seam.
+- Plan:
+  - Goal: Port #98's useful error-recovery behavior while fixing review comments around parse classification, retry prompt consistency, runtime injection, provider status mapping, and redundant validation.
+  - Seams: MeechieStudioTextSeam, ProviderAdapterSeam.
+  - Files: `plan.md`, `src/lib/core/meechie-studio-text-pipeline.ts`, `src/routes/api/meechie-studio-text/+server.ts`, `src/lib/adapters/meechie-studio-text.adapter.ts`, `tests/unit/meechie-studio-text-pipeline.test.ts`, `docs/hpr-pr-resolution-ledger-2026-06-05.md`, `DECISIONS.md`.
+  - Commands: `npm.cmd test -- tests/unit/meechie-studio-text-pipeline.test.ts --pool=forks --maxWorkers=1`, `npm.cmd test -- tests/unit/meechie-studio-text-pipeline.test.ts tests/contract/meechie-studio-text.test.ts --pool=forks --maxWorkers=1`, `npm.cmd run rewind -- --seam MeechieStudioTextSeam`, `npm.cmd run rewind -- --seam ProviderAdapterSeam`, `npm.cmd run check`, `npm.cmd run lint`, `npm.cmd test`, `npm.cmd run build`, `npm.cmd run verify`, `npm.cmd run cipher:gate`, `git diff --check`.
+- Self-critique: The riskiest assumption is classifying timeout from the existing `PROVIDER_NETWORK_ERROR` message because `ProviderAdapterSeam` does not yet emit a distinct timeout code. This keeps the contract stable for the HPR slice, but a future provider-contract pass should add explicit timeout/network codes if callers need stronger semantics.
+
+- Cipher Gate:
+  - Date: 2026-06-05
+  - Seams: MeechieStudioTextSeam, ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-06-05/hpr-studio-text-red-tests.txt; docs/evidence/2026-06-05/hpr-studio-text-green-tests-1.txt; docs/evidence/2026-06-05/hpr-studio-text-focused-tests-1.txt; docs/evidence/2026-06-05/hpr-studio-text-rewind-MeechieStudioTextSeam.txt; docs/evidence/2026-06-05/hpr-studio-text-rewind-ProviderAdapterSeam.txt; docs/evidence/2026-06-05/hpr-studio-text-check-1.txt; docs/evidence/2026-06-05/hpr-studio-text-full-test-2.txt; docs/evidence/2026-06-05/hpr-studio-text-lint.txt; docs/evidence/2026-06-05/hpr-studio-text-build.txt; docs/evidence/2026-06-05/hpr-studio-text-verify.txt; docs/evidence/2026-06-05/hpr-studio-text-validation-summary.md
+  - Summary: Added explicit provider-text parse outcomes, syntax-specific and schema-specific retry prompts, required-field retry guidance tied to the response-format required list, injected runtime/model deps, and provider error status classification that maps timeout-like network errors to 504 while preserving generic network failures as 502.
+  - Risks: Timeout classification still relies on the current provider error message because `ProviderAdapterSeam` has not yet split timeout and generic network errors into separate contract codes; `npm run lint` and `npm run build` retain known baseline/generated-output and Windows Vercel symlink failures.
+
+## 2026-06-05 - Fix dedication draft-save stale input
+- Date: 2026-06-05
+- Decision: The home studio dedication input now reads the DOM value inside `StudioInputPanel`, passes a plain string to the parent, updates local state before validation, and saves `spec.dedication` as the trimmed value or `undefined` through the existing debounced draft-save path.
+- Context: PR #92 identified that the parent handler could save a stale dedication value and write drafts immediately. During validation, forwarding DOM events across the component boundary proved unreliable, so the replacement uses a value callback instead.
+- Alternatives: Merge PR #92 directly; rejected because its base branch is not `main` and this replacement slice can port the behavior onto the current stacked branch with focused evidence. Save drafts immediately on every keystroke; rejected because the existing debounce path already exists and avoids unnecessary storage churn.
+- Consequences: Clearing the shoutout field removes `intent.dedication` from the saved draft instead of persisting `""`, and typing a new shoutout saves the latest character after debounce. The E2E smoke test waits for the session marker before typing and derives the initial rotating mode from `getWeeklyModes()` instead of hardcoding a date-sensitive heading.
+- Revisit criteria: Revisit if the studio state extraction PR changes ownership of draft scheduling, or if the E2E stabilization workpack replaces the current hydration helper and rotating-mode assertions.
+- Plan:
+  - Goal: Port PR #92's dedication stale-input fix from current main while preserving validation and debounced draft persistence.
+  - Seams: CreationStoreSeam, SpecValidationSeam.
+  - Files: `plan.md`, `src/routes/+page.svelte`, `src/lib/components/studio/StudioInputPanel.svelte`, `tests/e2e/smoke.spec.ts`, `docs/hpr-pr-resolution-ledger-2026-06-05.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`.
+  - Commands: `npx.cmd playwright test tests/e2e/smoke.spec.ts --project=chromium --grep shoutout`, `npm.cmd run check`, `npm.cmd test -- tests/unit/meechie-studio.test.ts tests/contract/creation-store.test.ts --pool=forks --maxWorkers=1`, `npm.cmd run rewind -- --seam CreationStoreSeam`, `npm.cmd run rewind -- --seam SpecValidationSeam`, `npx.cmd playwright test tests/e2e/smoke.spec.ts --project=chromium`, `npm.cmd run lint`, `npm.cmd test`, `npm.cmd run build`, `npm.cmd run verify`, `npm.cmd run cipher:gate`, `git diff --check`.
+- Self-critique: The riskiest assumption is using browser `localStorage` draft contents as the observable proxy for `CreationStoreSeam`; focused contract tests and full browser smoke coverage prove both the seam and the UI path. The first Playwright red attempt only proved missing local browser setup, so the ledger cites the clean post-install failure and green evidence separately.
+
+- Cipher Gate:
+  - Date: 2026-06-05
+  - Seams: CreationStoreSeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-06-05/hpr-dedication-red-e2e-event-forwarding.txt; docs/evidence/2026-06-05/hpr-dedication-green-e2e-globalthis-handler.txt; docs/evidence/2026-06-05/hpr-dedication-check-7.txt; docs/evidence/2026-06-05/hpr-dedication-focused-tests-3.txt; docs/evidence/2026-06-05/hpr-dedication-rewind-CreationStoreSeam-2.txt; docs/evidence/2026-06-05/hpr-dedication-rewind-SpecValidationSeam-2.txt; docs/evidence/2026-06-05/hpr-dedication-smoke-e2e-5.txt; docs/evidence/2026-06-05/hpr-dedication-full-test-3.txt; docs/evidence/2026-06-05/hpr-dedication-lint-3.txt; docs/evidence/2026-06-05/hpr-dedication-build-2.txt; docs/evidence/2026-06-05/hpr-dedication-verify-3.txt; docs/evidence/2026-06-05/hpr-dedication-cipher-gate-2.txt
+  - Summary: Dedication input now passes a plain string from the child to the parent, updates local state before validation, normalizes blank input to `undefined`, and saves through the existing debounced draft path; smoke coverage proves save and clear behavior.
+  - Risks: `npm run lint` still fails on known baseline no-undef/unused-variable debt, and `npm run build` still fails after Vite output on the Windows Vercel symlink `EPERM`; the browser smoke spec still contains older `waitForTimeout` hydration settling that should be addressed in the later E2E stabilization workpack.

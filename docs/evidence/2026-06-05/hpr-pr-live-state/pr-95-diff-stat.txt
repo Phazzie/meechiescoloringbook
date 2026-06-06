@@ -1,0 +1,10 @@
+﻿ docs/evidence/2026-05-20/proof-tape.json           |  88 +++
+ docs/evidence/2026-05-20/seam-ledger.json          | 699 +++++++++++++++++++++
+ docs/evidence/2026-05-20/shaolin-lint.json         |  28 +
+ .../2026-05-20/testing-evaluation-notes.md         |  34 +
+ src/lib/core/http-resilience.ts                    | 122 ++++
+ tests/e2e/chaos.spec.ts                            |  81 +++
+ tests/integration/mocks/env.ts                     |  19 +
+ tests/unit/http-resilience.test.ts                 | 262 ++++++++
+ vitest.integration.config.ts                       |  13 +-
+ 9 files changed, 1342 insertions(+), 4 deletions(-)

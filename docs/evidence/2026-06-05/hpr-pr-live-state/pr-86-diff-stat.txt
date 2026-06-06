@@ -1,0 +1,20 @@
+﻿ docs/evidence/2026-05-21/assumption-alarm.json |  71 ++
+ docs/evidence/2026-05-21/chamber-lock.json     | 840 +++++++++++++++++++++++
+ docs/evidence/2026-05-21/clan-chain.json       | 100 +++
+ docs/evidence/2026-05-21/clan-chain.md         |  37 ++
+ docs/evidence/2026-05-21/proof-tape.json       |  92 +++
+ docs/evidence/2026-05-21/proof-tape.md         |  25 +
+ docs/evidence/2026-05-21/seam-ledger.json      | 886 +++++++++++++++++++++++++
+ docs/evidence/2026-05-21/seam-ledger.md        |  35 +
+ docs/evidence/2026-05-21/shaolin-lint.json     |  25 +
+ docs/evidence/2026-05-21/test.txt              |  74 +++
+ docs/evidence/2026-05-21/verify.txt            |  86 +++
+ src/lib/adapters/app-config-seam/index.ts      |   2 +-
+ src/lib/adapters/image-generation.adapter.ts   |  10 +
+ src/lib/core/generate-pipeline.ts              |   7 +-
+ src/lib/core/http-client.ts                    |   2 +-
+ src/lib/seams/app-config-seam/validators.ts    |   2 +-
+ tests/unit/app-config-seam.test.ts             |  15 +
+ tests/unit/http-client.test.ts                 |  26 +-
+ tests/unit/pipeline-edge-cases.test.ts         |  23 +-
+ 19 files changed, 2350 insertions(+), 8 deletions(-)

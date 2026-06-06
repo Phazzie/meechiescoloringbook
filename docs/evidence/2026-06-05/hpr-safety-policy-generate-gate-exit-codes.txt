@@ -1,0 +1,33 @@
+Purpose: Summarize validation exit codes for the SafetyPolicySeam generate-gate workpack.
+Why: Keep the Handoff PR Resolution ledger concise while preserving command evidence paths.
+Info flow: command output files -> this summary -> ledger and PR body.
+
+# SafetyPolicySeam Generate Gate Workpack Exit Codes - 2026-06-05
+
+- `npm.cmd test -- src/lib/seams/safety-policy-seam/test.ts tests/unit/api-generate.test.ts tests/unit/pipeline-edge-cases.test.ts --pool=forks --maxWorkers=1`
+  - Evidence: `docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-red-targeted.txt`
+  - Result: exit 1, expected red proof; tests failed because `validateGenerateRequest` and generate safety gating were missing.
+- `npm.cmd test -- src/lib/seams/safety-policy-seam/test.ts tests/unit/api-generate.test.ts tests/unit/pipeline-edge-cases.test.ts --pool=forks --maxWorkers=1`
+  - Evidence: `docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-green-targeted.txt`
+  - Result: exit 0; 3 files passed, 43 tests passed.
+- `npm.cmd run rewind -- --seam SafetyPolicySeam`
+  - Evidence: `docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-rewind.txt`
+  - Result: exit 0.
+- `npm.cmd run check`
+  - Evidence: `docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-check.txt`
+  - Result: exit 0.
+- `npm.cmd run lint`
+  - Evidence: `docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-lint.txt`
+  - Result: exit 1; baseline lint debt remains outside this workpack.
+- `npm.cmd test`
+  - Evidence: `docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-test.txt`
+  - Result: exit 0; 54 files passed, 437 tests passed, 1 skipped.
+- `npm.cmd run build`
+  - Evidence: `docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-build.txt`
+  - Result: exit 1; baseline Windows Vercel adapter symlink `EPERM` remains after SvelteKit output.
+- `npm.cmd run verify`
+  - Evidence: `docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-verify.txt`
+  - Result: exit 0.
+- `npm.cmd run cipher:gate`
+  - Evidence: `docs/evidence/2026-06-05/hpr-safety-policy-generate-gate-cipher-gate.txt`
+  - Result: exit 0.

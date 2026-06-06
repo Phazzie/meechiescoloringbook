@@ -94,6 +94,108 @@ describe('image-generation-pipeline edge cases', () => {
     expect(result.body.ok).toBe(false);
   });
 
+  it('returns 504 when seam returns a timeout error', async () => {
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: false,
+        error: { code: 'IMAGE_TIMEOUT_ERROR', message: 'xAI image generation timed out.' } as never
+      }))
+    );
+    expect(result.status).toBe(504);
+    expect(result.body.ok).toBe(false);
+    if (!result.body.ok) {
+      expect(result.body.error.code).toBe('IMAGE_TIMEOUT_ERROR');
+    }
+  });
+
+  it('returns 400 when seam returns a request validation error', async () => {
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: false,
+        error: { code: 'IMAGE_VALIDATION_ERROR', message: 'bad image request' }
+      }))
+    );
+    expect(result.status).toBe(400);
+    expect(result.body.ok).toBe(false);
+    if (!result.body.ok) {
+      expect(result.body.error.code).toBe('IMAGE_VALIDATION_ERROR');
+    }
+  });
+
+  it('returns an aborted response before calling the seam when caller signal is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const generate = vi.fn(async () => ({
+      ok: true as const,
+      value: {
+        images: [{ id: 'xai-1', b64: 'data' }],
+        rawModelInfo: {},
+        timingMs: 100
+      }
+    }));
+
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      {
+        imageGenerationSeam: { generate },
+        signal: controller.signal
+      } as ImagePipelineDeps
+    );
+
+    expect(result.status).toBe(499);
+    expect(result.body.ok).toBe(false);
+    if (!result.body.ok) {
+      expect(result.body.error.code).toBe('IMAGE_ABORTED');
+    }
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('passes caller signal into ImageGenerationSeam requests', async () => {
+    const controller = new AbortController();
+    const generate = vi.fn(async () => ({
+      ok: true as const,
+      value: {
+        images: [{ id: 'xai-1', b64: 'data' }],
+        rawModelInfo: {},
+        timingMs: 100
+      }
+    }));
+
+    await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      {
+        imageGenerationSeam: { generate },
+        signal: controller.signal
+      } as ImagePipelineDeps
+    );
+
+    expect(generate).toHaveBeenCalledWith(
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
+
   it('returns 502 when seam returns an HTTP error', async () => {
     const result = await runImageGenerationPipeline(
       {

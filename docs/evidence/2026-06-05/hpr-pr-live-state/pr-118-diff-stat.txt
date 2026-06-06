@@ -1,0 +1,23 @@
+﻿ contracts/image-generation.contract.ts            |  13 +-
+ docs/evidence/2026-06-01/assumption-alarm.json    |  71 ++
+ docs/evidence/2026-06-01/chamber-lock.json        | 804 ++++++++++++++++++++
+ docs/evidence/2026-06-01/clan-chain.json          |  96 +++
+ docs/evidence/2026-06-01/clan-chain.md            |  36 +
+ docs/evidence/2026-06-01/proof-tape.json          |  92 +++
+ docs/evidence/2026-06-01/proof-tape.md            |  25 +
+ docs/evidence/2026-06-01/seam-ledger.json         | 848 ++++++++++++++++++++++
+ docs/evidence/2026-06-01/seam-ledger.md           |  34 +
+ docs/evidence/2026-06-01/shaolin-lint.json        |  25 +
+ docs/evidence/2026-06-01/test.txt                 |  81 +++
+ docs/evidence/2026-06-01/verify.txt               |  93 +++
+ docs/seams.md                                     |   3 +-
+ src/lib/adapters/image-generation-seam/index.ts   |  19 +-
+ src/lib/adapters/image-generation.adapter.ts      |  81 ---
+ src/lib/mocks/image-generation.mock.ts            |  26 -
+ src/lib/seams/gallery-store-seam/contract.ts      |   4 +-
+ src/lib/seams/gallery-store-seam/validators.ts    |   4 +-
+ src/lib/seams/image-generation-seam/contract.ts   |  18 +-
+ src/lib/seams/image-generation-seam/mock.ts       |   9 +-
+ src/lib/seams/image-generation-seam/validators.ts |  11 +-
+ tests/contract/image-generation.test.ts           |  12 +-
+ 22 files changed, 2250 insertions(+), 155 deletions(-)

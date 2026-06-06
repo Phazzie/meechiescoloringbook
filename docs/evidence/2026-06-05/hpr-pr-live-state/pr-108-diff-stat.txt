@@ -1,0 +1,9 @@
+﻿ src/lib/adapters/image-generation-seam/index.ts |   9 ++
+ src/lib/core/generate-pipeline.ts               |  53 ++++++++---
+ src/lib/core/image-generation-pipeline.ts       |   3 +-
+ src/lib/core/wig-try-on-pipeline.ts             |  19 +++-
+ src/lib/seams/image-generation-seam/contract.ts |   2 +
+ src/routes/api/generate/+server.ts              |   1 +
+ tests/unit/image-generation-pipeline.test.ts    |  20 +++++
+ tests/unit/pipeline-edge-cases.test.ts          | 115 ++++++++++++++++++++++++
+ 8 files changed, 208 insertions(+), 14 deletions(-)

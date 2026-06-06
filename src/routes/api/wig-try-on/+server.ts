@@ -20,7 +20,8 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 	const result = await runWigTryOnPipeline(parsed.body, {
 		fetchImpl: fetch,
 		wigCatalogSeam,
-		wigTryOnSeam
+		wigTryOnSeam,
+		signal: request.signal
 	});
 
 	return json(result.body, { status: result.status });

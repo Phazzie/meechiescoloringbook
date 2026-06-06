@@ -1,0 +1,15 @@
+
+> meechies-coloringbook@0.1.0 test
+> vitest run src/lib/seams/safety-policy-seam/test.ts tests/unit/api-generate.test.ts tests/unit/pipeline-edge-cases.test.ts --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/Meechiescoloringbook[39m
+
+ [32m✓[39m tests/unit/api-generate.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m src/lib/seams/safety-policy-seam/test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m tests/unit/pipeline-edge-cases.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m43 passed[39m[22m[90m (43)[39m
+[2m   Start at [22m 04:50:02
+[2m   Duration [22m 13.73s[2m (transform 822ms, setup 228ms, collect 1.39s, tests 172ms, environment 9.58s, prepare 967ms)[22m

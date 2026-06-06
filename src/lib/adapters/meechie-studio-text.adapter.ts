@@ -1,6 +1,7 @@
 // Purpose: Adapter implementation for MeechieStudioTextSeam.
 // Why: Route AI wording actions through ProviderAdapterSeam without exposing provider details.
 // Info flow: Studio text input -> pipeline -> contract result.
+import { env } from '$env/dynamic/private';
 import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
 import {
 	runMeechieStudioTextPipeline,
@@ -13,8 +14,14 @@ import type {
 } from '../../../contracts/meechie-studio-text.contract';
 import type { Result } from '../../../contracts/shared.contract';
 
+const createDefaultDeps = (): MeechieStudioTextPipelineDeps => ({
+	createProvider: createProviderAdapter,
+	textModel: env.XAI_TEXT_MODEL,
+	isProduction: env.NODE_ENV === 'production'
+});
+
 export const createMeechieStudioTextAdapter = (
-	deps: MeechieStudioTextPipelineDeps = { createProvider: createProviderAdapter }
+	deps: MeechieStudioTextPipelineDeps = createDefaultDeps()
 ): MeechieStudioTextSeam => ({
 	respond: async (input: MeechieStudioTextInput): Promise<Result<MeechieStudioTextOutput>> => {
 		const response = await runMeechieStudioTextPipeline(input, deps);

@@ -248,6 +248,42 @@ describe('provider-adapter helpers', () => {
 	});
 
 	describe('normalizeImageOutput edge cases', () => {
+		it('does not retry image generation POSTs on retryable HTTP failure', async () => {
+			vi.useFakeTimers();
+			try {
+				const fetchMock = vi.fn(
+					async () =>
+						new Response(JSON.stringify({ error: { message: 'temporary provider failure' } }), {
+							status: 503,
+							statusText: 'Service Unavailable'
+						})
+				);
+				vi.stubGlobal('fetch', fetchMock);
+
+				const adapter = createProviderAdapter({
+					apiKey: 'test-key',
+					baseUrl: 'https://api.x.ai'
+				});
+				const promise = adapter.createImageGeneration({
+					model: 'test',
+					prompt: 'test',
+					n: 1,
+					responseFormat: 'b64_json'
+				});
+				await vi.runAllTimersAsync();
+				const result = await promise;
+
+				expect(result.ok).toBe(false);
+				if (!result.ok) {
+					expect(result.error.code).toBe('PROVIDER_HTTP_ERROR');
+					expect(result.error.message).toBe('temporary provider failure');
+				}
+				expect(fetchMock).toHaveBeenCalledTimes(1);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
 		it('returns empty image error when data array has no usable entries', async () => {
 			const fetchMock = vi.fn(async () =>
 				jsonResponse({

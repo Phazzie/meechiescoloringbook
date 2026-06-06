@@ -1,0 +1,5 @@
+﻿ eslint.config.js                                  | 19 +++++++++++++++++++
+ src/lib/components/SelfieUpload.svelte            | 12 +++++++++---
+ src/lib/components/studio/StudioInputPanel.svelte |  3 ---
+ src/routes/+page.svelte                           |  1 -
+ 4 files changed, 28 insertions(+), 7 deletions(-)

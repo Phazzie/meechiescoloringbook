@@ -10,7 +10,7 @@ import type {
 } from '../../../contracts/provider-adapter.contract';
 import type { Result, SeamError } from '../../../contracts/shared.contract';
 import { env } from '$env/dynamic/private';
-import { fetchWithTimeout, fetchWithRetry, isAbortError } from '$lib/core/http-resilience';
+import { fetchWithTimeout, fetchWithRetry, isAbortError, isTimeoutError } from '$lib/core/http-resilience';
 
 export type ProviderAdapterConfig = {
 	apiKey?: string | null;
@@ -200,7 +200,7 @@ export const createProviderAdapter = (
 				ok: false,
 				error: buildError(
 					'PROVIDER_NETWORK_ERROR',
-					isAbortError(error)
+					isAbortError(error) || isTimeoutError(error)
 						? 'Chat completion request timed out.'
 						: error instanceof Error ? error.message : 'Provider request failed.'
 				)
@@ -236,10 +236,7 @@ export const createProviderAdapter = (
 					response_format: input.responseFormat
 				})
 			};
-			const response = await fetchWithRetry(
-				() => fetchWithTimeout(url, requestInit, IMAGE_TIMEOUT_MS),
-				RETRY_OPTIONS
-			);
+			const response = await fetchWithTimeout(url, requestInit, IMAGE_TIMEOUT_MS);
 			const payload = await readJson(response);
 			if (!response.ok) {
 				return buildHttpError(response, payload);
@@ -250,7 +247,7 @@ export const createProviderAdapter = (
 				ok: false,
 				error: buildError(
 					'PROVIDER_NETWORK_ERROR',
-					isAbortError(error)
+					isAbortError(error) || isTimeoutError(error)
 						? 'Image generation request timed out.'
 						: error instanceof Error ? error.message : 'Provider request failed.'
 				)

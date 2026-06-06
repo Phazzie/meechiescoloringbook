@@ -88,6 +88,40 @@ describe('ImageGenerationSeam contract', () => {
 		expect(fetchMock).toHaveBeenCalledOnce();
 	});
 
+	it('adapter returns IMAGE_ABORTED without fetching when caller signal is already aborted', async () => {
+		const controller = new AbortController();
+		controller.abort();
+		const seam = createImageGenerationSeam(mockConfigSeam);
+		const output = await seam.generate({
+			...imageGenerationRequestFixture,
+			signal: controller.signal
+		} as typeof imageGenerationRequestFixture);
+
+		expect(output.ok).toBe(false);
+		if (!output.ok) {
+			expect(output.error.code).toBe('IMAGE_ABORTED');
+		}
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('adapter returns IMAGE_TIMEOUT_ERROR when xAI response body parsing times out', async () => {
+		const timeout = Object.assign(new Error('body read timed out'), { name: 'TimeoutError' });
+		fetchMock.mockResolvedValueOnce({
+			ok: true,
+			status: 200,
+			json: vi.fn().mockRejectedValue(timeout)
+		} as unknown as Response);
+		const seam = createImageGenerationSeam(mockConfigSeam);
+		const output = await seam.generate(imageGenerationRequestFixture);
+
+		expect(output.ok).toBe(false);
+		if (!output.ok) {
+			expect(output.error.code).toBe('IMAGE_TIMEOUT_ERROR');
+			expect(output.error.message).toContain('timed out');
+		}
+		expect(fetchMock).toHaveBeenCalledOnce();
+	});
+
 	it('adapter returns ok result with images from xAI response', async () => {
 		const seam = createImageGenerationSeam(mockConfigSeam);
 		const output = await seam.generate(imageGenerationRequestFixture);

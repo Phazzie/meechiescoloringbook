@@ -1,0 +1,8 @@
+﻿ docs/seams.md                                |  3 +-
+ fixtures/image-generation/dense-scene.json   | 52 ------------------
+ fixtures/image-generation/fault.json         | 42 ---------------
+ fixtures/image-generation/sample.json        | 62 ---------------------
+ src/lib/adapters/image-generation.adapter.ts | 81 ----------------------------
+ src/lib/mocks/image-generation.mock.ts       | 26 ---------
+ tests/contract/image-generation.test.ts      | 12 ++---
+ 7 files changed, 4 insertions(+), 274 deletions(-)
