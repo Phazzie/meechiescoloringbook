@@ -42,6 +42,7 @@ import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 type PageSize = ColoringPageSpec['pageSize'];
 type BorderChoice = ColoringPageSpec['border'];
 
+const DRAFT_SAVE_DEBOUNCE_MS = 300;
 
 export class StudioState {
 	// Computed per-instance so week/month rotation stays fresh on each page mount.
@@ -308,7 +309,7 @@ export class StudioState {
 	scheduleDraftSave = (): void => {
 		if (!this.isBrowser) return;
 		if (this.draftTimer) clearTimeout(this.draftTimer);
-		this.draftTimer = setTimeout(() => void this.saveDraft(), 300);
+		this.draftTimer = setTimeout(() => void this.saveDraft(), DRAFT_SAVE_DEBOUNCE_MS);
 	};
 
 	syncSpecFromCurrentText = async (): Promise<void> => {

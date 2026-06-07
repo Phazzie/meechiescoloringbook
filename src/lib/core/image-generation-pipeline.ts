@@ -18,10 +18,12 @@ const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
 const imageFormatFromBase64 = (
   data: string
-): Pick<GeneratedImage, 'format' | 'mimeType'> =>
-  data.startsWith('/9j/')
-    ? { format: 'jpg', mimeType: 'image/jpeg' }
-    : { format: 'png', mimeType: 'image/png' };
+): Pick<GeneratedImage, 'format' | 'mimeType'> => {
+  if (data.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg' };
+  if (data.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png' };
+  console.warn('imageFormatFromBase64: unrecognized header, defaulting to png');
+  return { format: 'png', mimeType: 'image/png' };
+};
 
 type ImageGenerationResult = z.infer<typeof ImageGenerationResultSchema>;
 
