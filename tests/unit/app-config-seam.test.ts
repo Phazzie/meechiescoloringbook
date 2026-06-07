@@ -77,8 +77,20 @@ describe('AppConfigSeam adapter', () => {
 		expect(config.maxImagesPerRequest).toBe(4);
 	});
 
+	it('defaults maxImagesPerRequest to 4 when MAX_IMAGES_PER_REQUEST is whitespace only', () => {
+		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '   ' });
+		const config = seam.getConfig();
+		expect(config.maxImagesPerRequest).toBe(4);
+	});
+
 	it('defaults maxImagesPerRequest to 4 when MAX_IMAGES_PER_REQUEST is non-numeric', () => {
 		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: 'abc' });
+		const config = seam.getConfig();
+		expect(config.maxImagesPerRequest).toBe(4);
+	});
+
+	it('defaults maxImagesPerRequest to 4 instead of truncating float strings', () => {
+		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '3.5' });
 		const config = seam.getConfig();
 		expect(config.maxImagesPerRequest).toBe(4);
 	});

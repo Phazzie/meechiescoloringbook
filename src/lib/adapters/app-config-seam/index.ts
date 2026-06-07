@@ -6,6 +6,12 @@ import { validateAppConfig } from '../../seams/app-config-seam/validators';
 import { env as privateEnv } from '$env/dynamic/private';
 
 // Use Record<string, string | undefined> to accept the shape of SvelteKit's private environment
+const optionalInteger = (value: string | undefined): number | undefined => {
+	if (value === undefined || value.trim() === '') return undefined;
+	if (!/^-?\d+$/.test(value.trim())) return undefined;
+	return Number(value);
+};
+
 const readConfig = (env: Record<string, string | undefined>): AppConfig => {
 	const config = {
 		xaiApiKey: env.XAI_API_KEY,
@@ -14,7 +20,7 @@ const readConfig = (env: Record<string, string | undefined>): AppConfig => {
 		xaiBaseUrl: env.XAI_BASE_URL,
 		xaiImageEndpointPath: env.XAI_IMAGE_ENDPOINT_PATH,
 		featureIntegrationTests: env.FEATURE_INTEGRATION_TESTS === 'true',
-		maxImagesPerRequest: (env.MAX_IMAGES_PER_REQUEST && !isNaN(Number(env.MAX_IMAGES_PER_REQUEST))) ? Number(env.MAX_IMAGES_PER_REQUEST) : undefined,
+		maxImagesPerRequest: optionalInteger(env.MAX_IMAGES_PER_REQUEST),
 		defaultImageSize: env.DEFAULT_IMAGE_SIZE,
 		geminiApiKey: env.GEMINI_API_KEY ?? '',
 		geminiBaseUrl: env.GEMINI_BASE_URL ?? 'https://generativelanguage.googleapis.com'

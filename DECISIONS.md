@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
+
+- Date: 2026-06-07
+- Decision: Port PR #114's still-current ordinal formatting and AppConfig integer parsing fixes onto current `main` while leaving stale generate-pipeline, studio-text, and HTTP-client hunks out of this slice.
+- Context: PR #114 is dirty against current `main`. The HTTP double-parse/error-policy concern was already salvaged by the HPR HTTP client policy work, and current generate/studio-text pipelines have newer behavior that should not be overwritten. The remaining useful behavior was correct English ordinal suffixes for Meechie lineup positions and safer `MAX_IMAGES_PER_REQUEST` parsing that does not accept whitespace or floats as valid optional integers.
+- Alternatives: Merge PR #114 wholesale; rejected because it would reintroduce stale code. Close it without salvage; rejected because the ordinal and integer parsing bugs were still current. Keep formatter logic duplicated in each adapter; rejected because the legacy and self-contained MeechieToolSeam adapters would drift.
+- Consequences: `formatOrdinal` is shared by both Meechie tool adapter layouts, 11th/12th/13th and 21st/22nd/23rd display correctly, and `MAX_IMAGES_PER_REQUEST` only accepts integer strings before schema validation handles bounds.
+- Revisit criteria: Revisit if AppConfigSeam moves to typed env parsing before adapter construction or if MeechieToolSeam drops the legacy flat adapter.
+- Plan:
+  - Goal: Manually integrate PR #114's still-current ordinal and AppConfigSeam parsing improvements without regressing current pipeline behavior.
+  - Seams: MeechieToolSeam, AppConfigSeam.
+  - Files: `plan.md`, `DECISIONS.md`, `src/lib/core/ordinal.ts`, `src/lib/adapters/meechie-tool.adapter.ts`, `src/lib/adapters/meechie-tool-seam/index.ts`, `src/lib/adapters/app-config-seam/index.ts`, `tests/unit/meechie-tool-adapter.test.ts`, `tests/unit/app-config-seam.test.ts`, `tests/unit/ordinal.test.ts`, `src/lib/seams/meechie-tool-seam/test.ts`, `docs/evidence/2026-06-07/pr-114-*.txt`.
+  - Commands: `npm.cmd test -- tests/unit/meechie-tool-adapter.test.ts tests/unit/app-config-seam.test.ts tests/unit/ordinal.test.ts src/lib/seams/meechie-tool-seam/test.ts --pool=forks --maxWorkers=1`, `npm.cmd run rewind -- --seam MeechieToolSeam`, `npm.cmd run rewind -- --seam AppConfigSeam`, `npm.cmd run check`, `npm.cmd run lint`, `npm.cmd test -- tests/unit/meechie-tool-adapter.test.ts tests/unit/meechie-tool-adapter.responses.test.ts tests/contract/meechie-tool.test.ts tests/unit/app-config-seam.test.ts tests/unit/ordinal.test.ts src/lib/seams/meechie-tool-seam/test.ts --pool=forks --maxWorkers=1`, `git diff --check`.
+- Self-critique: The riskiest assumption is that malformed optional integer strings should default instead of hard-fail; this matches the existing non-numeric default behavior while still allowing schema validation to reject integer strings outside the configured range.
+
+- Cipher Gate:
+  - Date: 2026-06-07
+  - Seams: MeechieToolSeam, AppConfigSeam
+  - Evidence: docs/evidence/2026-06-07/pr-114-focused-tests.txt; docs/evidence/2026-06-07/pr-114-check.txt; docs/evidence/2026-06-07/pr-114-lint.txt; docs/evidence/2026-06-07/pr-114-rewind-MeechieToolSeam.txt; docs/evidence/2026-06-07/pr-114-rewind-AppConfigSeam.txt; docs/evidence/2026-06-07/pr-114-impact-tests.txt; docs/evidence/2026-06-07/pr-114-diff-check.txt
+  - Summary: Added shared ordinal formatting for both Meechie tool adapter layouts and tightened AppConfigSeam optional integer parsing before schema validation.
+  - Risks: `npm run verify` and a direct full-suite `npm test -- --pool=forks --maxWorkers=1` timed out locally after partial green output, so final merge should rely on CI for full-suite confirmation while this slice uses focused, seam rewind, check, lint, impact-test, and diff-check evidence.
+
 ## 2026-06-06 - PR #127 reviews resolution & canonical seam migration
 
 - Date: 2026-06-06
