@@ -140,6 +140,8 @@ type JsonExtraction =
 	| { ok: true; value: unknown }
 	| { ok: false; reason: 'syntax_error' };
 
+const CONTENT_PREVIEW_LENGTH = 500;
+
 const invalidProviderTextResult = (
 	content: string,
 	model: string,
@@ -151,7 +153,7 @@ const invalidProviderTextResult = (
 		message: 'Provider text response did not match contract.',
 		details: {
 			model,
-			contentPreview: content.slice(0, 500),
+			contentPreview: content.slice(0, CONTENT_PREVIEW_LENGTH),
 			...details
 		}
 	}

@@ -1878,3 +1878,24 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Evidence: docs/evidence/2026-06-07/webp-dedication-focused-tests.txt; docs/evidence/2026-06-07/studio-state-mode-select.txt; docs/evidence/2026-06-07/check.txt; docs/evidence/2026-06-07/lint.txt; docs/evidence/2026-06-07/test.txt; docs/evidence/2026-06-07/build.txt; docs/evidence/2026-06-07/e2e-smoke.txt; docs/evidence/2026-06-07/verify.txt; docs/evidence/2026-06-07/verify-wrapper.txt; docs/evidence/2026-06-07/whitespace-normalized-files.txt; docs/evidence/2026-06-07/proof-tape.md; docs/evidence/2026-06-07/proof-tape-wrapper.txt; docs/evidence/2026-06-07/cipher-gate.json; docs/evidence/2026-06-07/cipher-gate-wrapper.txt
   - Summary: Fixed ESLint flat config and source lint residue, added regression coverage for dedication, mode-card selection, and WebP try-on packaging, updated GeneratedImageSchema/OutputPackagingSeam/StudioState to preserve WebP, normalized trailing-whitespace debt in the PR-drain evidence stack, fixed verify Markdown generators to stop emitting blank EOF lines, removed temporary diagnostics from the proof tape, and verified check/lint/test/build/e2e/verify plus `git diff --check origin/main` locally.
   - Risks: Real browser WebP canvas conversion is not proven by jsdom or the current smoke E2E; PR remote state still needs inspection before claiming the drain is complete.
+
+## 2026-06-07 - Manually integrate PR #139 quick refactors
+- Date: 2026-06-07
+- Decision: Port PR #139's readability-only refactors onto current `main` by naming the title word-break threshold and studio-text content preview length, using the exponentiation operator in retry backoff, and simplifying text-model fallback.
+- Context: PR #139 was open but became dirty after the verified main push and later PR #111/#120 merges. Directly merging its branch would regress newer abort-signal handling in `http-resilience.ts` and newer studio-text parsing behavior, so only the behavior-preserving pieces were applied.
+- Alternatives: Merge PR #139 as-is; rejected because `git merge-tree` showed conflicts that would overwrite newer retry and JSON parsing behavior. Close PR #139 without replacement; rejected because the small readability improvements still reduce maintenance debt. Defer the refactor; rejected because it is low-risk once applied manually to current code.
+- Consequences: Constants document the `40` word-break threshold and `500` provider content preview length, retry backoff uses `2 ** (...)` while still capping delays and honoring caller aborts, and text-model fallback behavior remains unchanged for empty or whitespace-only config.
+- Revisit criteria: Revisit if retry policy moves behind a dedicated resilience seam or if studio-text provider error details need configurable preview length.
+- Plan:
+  - Goal: Manually integrate PR #139's behavior-preserving quick refactors after the verified main push made the PR dirty.
+  - Seams: ProviderAdapterSeam, MeechieStudioTextSeam.
+  - Files: `plan.md`, `DECISIONS.md`, `src/lib/core/coloring-page-title.ts`, `src/lib/core/http-resilience.ts`, `src/lib/core/meechie-studio-text-pipeline.ts`, `src/lib/core/text-model.ts`, `docs/evidence/2026-06-07/*`.
+  - Commands: `npm.cmd test -- tests/unit/coloring-page-title.test.ts tests/unit/http-resilience.test.ts tests/unit/text-model.test.ts tests/unit/meechie-studio-text-pipeline.test.ts --pool=forks --maxWorkers=1`, `npm.cmd run check`, `npm.cmd run lint`, `npm.cmd run verify`, `npm.cmd run cipher:gate`, `git diff --check`.
+- Self-critique: The main risk is accidentally accepting stale PR #139 hunks that remove current abort-signal retry behavior or studio-text JSON recovery. The focused diff keeps those current branches intact, and the evidence proves behavior through targeted tests plus full verification.
+
+- Cipher Gate:
+  - Date: 2026-06-07
+  - Seams: ProviderAdapterSeam, MeechieStudioTextSeam
+  - Evidence: docs/evidence/2026-06-07/pr-139-focused-tests.txt; docs/evidence/2026-06-07/pr-139-check.txt; docs/evidence/2026-06-07/pr-139-lint.txt; docs/evidence/2026-06-07/pr-139-verify-wrapper.txt; docs/evidence/2026-06-07/pr-139-cipher-gate-wrapper.txt; docs/evidence/2026-06-07/cipher-gate.json; docs/evidence/2026-06-07/pr-139-diff-check.txt
+  - Summary: Manually integrated PR #139's quick refactors while preserving current retry abort/cap behavior and studio-text JSON recovery.
+  - Risks: This is readability-only and does not add new contract fixtures; if future behavior changes reuse these constants, that later work should add dedicated contract coverage.

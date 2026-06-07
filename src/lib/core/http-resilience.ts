@@ -145,7 +145,7 @@ export const fetchWithRetry = async (
 		} catch (error) {
 			const callerAborted = signal?.aborted ?? false;
 			if ((isAbortError(error) || isTimeoutError(error)) && !callerAborted && attempt < maxAttempts) {
-				await sleep(capDelayMs(withJitter(baseDelayMs * Math.pow(2, attempt - 1))), signal);
+				await sleep(capDelayMs(withJitter(baseDelayMs * 2 ** (attempt - 1))), signal);
 				continue;
 			}
 			throw error;
@@ -156,7 +156,7 @@ export const fetchWithRetry = async (
 			const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
 			const delayMs = Number.isFinite(retryAfterMs)
 				? retryAfterMs
-				: capDelayMs(withJitter(baseDelayMs * Math.pow(2, attempt - 1)));
+				: capDelayMs(withJitter(baseDelayMs * 2 ** (attempt - 1)));
 			await sleep(delayMs, signal);
 			continue;
 		}

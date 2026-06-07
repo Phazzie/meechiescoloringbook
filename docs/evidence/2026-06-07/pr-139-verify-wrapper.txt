@@ -1,21 +1,24 @@
-# Purpose: Store npm run verify output for evidence.
-# Why: Provide an audit trail for Seam-Driven Development verification.
-# Info flow: Command output -> evidence file -> review.
 
-$ npm run verify
+> meechies-coloringbook@0.1.0 verify
+> npm run chamber:lock && npm run verify:runner && npm run shaolin:lint && npm run assumption:alarm && npm run seam:ledger && npm run clan:chain && npm run proof:tape
 
-$ npm run check
+
+> meechies-coloringbook@0.1.0 chamber:lock
+> node scripts/chamber-lock.mjs
+
+
+> meechies-coloringbook@0.1.0 verify:runner
+> node scripts/verify-runner.mjs
+
 
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 
-Loading svelte-check in workspace: <REPO_ROOT>
+Loading svelte-check in workspace: c:\Users\ieatc\Meechiescoloringbook
 Getting Svelte diagnostics...
 
 [32msvelte-check found 0 errors and 0 warnings
 [39m
-$ npm test -- --pool=forks --maxWorkers=1
-
 > meechies-coloringbook@0.1.0 test
 > vitest run --pool=forks --maxWorkers=1
 
@@ -100,3 +103,23 @@ $ npm test -- --pool=forks --maxWorkers=1
 
 [90mstderr[2m | tests/contract/output-packaging.test.ts[2m > [22m[2mOutputPackagingSeam contract[2m > [22m[2madapter behavior is gated to browser for svg conversion
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+
+> meechies-coloringbook@0.1.0 shaolin:lint
+> node scripts/shaolin-lint.mjs
+
+
+> meechies-coloringbook@0.1.0 assumption:alarm
+> node scripts/assumption-alarm.mjs
+
+
+> meechies-coloringbook@0.1.0 seam:ledger
+> node scripts/seam-ledger.mjs
+
+
+> meechies-coloringbook@0.1.0 clan:chain
+> node scripts/clan-chain.mjs
+
+
+> meechies-coloringbook@0.1.0 proof:tape
+> node scripts/proof-tape.mjs

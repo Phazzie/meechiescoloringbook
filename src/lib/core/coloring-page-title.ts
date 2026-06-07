@@ -2,6 +2,7 @@
 // Why: Tool responses can be long, while title-only pages only need the strongest printable line.
 // Info flow: Tool output text -> compact page title -> prompt assembly.
 const MAX_TITLE_LENGTH = 96;
+const MIN_WORD_BREAK_POSITION = 40;
 
 const normalizeTitleText = (value: string): string =>
 	value
@@ -23,7 +24,7 @@ export const compactColoringPageTitle = (
 
 	const sliced = safe.slice(0, MAX_TITLE_LENGTH).trim();
 	const lastSpace = sliced.lastIndexOf(' ');
-	return (lastSpace > 40 ? sliced.slice(0, lastSpace) : sliced)
+	return (lastSpace > MIN_WORD_BREAK_POSITION ? sliced.slice(0, lastSpace) : sliced)
 		.replace(/[.,;:-]+$/, '')
 		.trim();
 };

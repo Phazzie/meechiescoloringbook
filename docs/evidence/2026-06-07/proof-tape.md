@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-06-07T03:27:19.249Z
+Generated at: 2026-06-07T04:50:14.998Z
 Evidence folder: docs\evidence\2026-06-07
 
 Files included:
@@ -17,17 +17,43 @@ Files included:
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 - cipher-gate-wrapper.txt (74 bytes)
   Commands: meechies-coloringbook@0.1.0 cipher:gate | node scripts/cipher-gate.mjs
-- cipher-gate.json (2419 bytes)
+- cipher-gate.json (1332 bytes)
 - clan-chain.json (2343 bytes)
 - clan-chain.md (1476 bytes)
 - e2e-smoke.txt (814 bytes)
   Commands: meechies-coloringbook@0.1.0 test:e2e | playwright test
-- lint.txt (48 bytes)
+- lint.txt (47 bytes)
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
-- proof-tape-wrapper.txt (73 bytes)
+- open-prs-after-contained-close.json (29138 bytes)
+- open-prs-after-main-push.json (33058 bytes)
+- open-prs-after-pr120-merge.json (28162 bytes)
+- open-prs-after-recalc.json (27986 bytes)
+- open-prs-current.json (17625 bytes)
+- pr-139-check.txt (254 bytes)
+  Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+- pr-139-cipher-gate-wrapper.txt (75 bytes)
+  Commands: meechies-coloringbook@0.1.0 cipher:gate | node scripts/cipher-gate.mjs
+- pr-139-diff-check.txt (2170 bytes)
+- pr-139-focused-tests.txt (1074 bytes)
+  Commands: meechies-coloringbook@0.1.0 test | vitest run tests/unit/coloring-page-title.test.ts tests/unit/http-resilience.test.ts tests/unit/text-model.test.ts tests/unit/meechie-studio-text-pipeline.test.ts --pool=forks --maxWorkers=1
+- pr-139-full-test.txt (9124 bytes)
+  Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+- pr-139-lint.txt (48 bytes)
+  Commands: meechies-coloringbook@0.1.0 lint | eslint .
+- pr-139-proof-tape-wrapper.txt (73 bytes)
   Commands: meechies-coloringbook@0.1.0 proof:tape | node scripts/proof-tape.mjs
-- proof-tape.json (6864 bytes)
-- proof-tape.md (2901 bytes)
+- pr-139-verify-runner-wrapper.txt (9456 bytes)
+  Commands: meechies-coloringbook@0.1.0 verify:runner | node scripts/verify-runner.mjs | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+- pr-139-verify-wrapper.txt (10122 bytes)
+  Commands: meechies-coloringbook@0.1.0 verify | npm run chamber:lock && npm run verify:runner && npm run shaolin:lint && npm run assumption:alarm && npm run seam:ledger && npm run clan:chain && npm run proof:tape | meechies-coloringbook@0.1.0 chamber:lock | node scripts/chamber-lock.mjs | meechies-coloringbook@0.1.0 verify:runner | node scripts/verify-runner.mjs | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1 | meechies-coloringbook@0.1.0 shaolin:lint | node scripts/shaolin-lint.mjs | meechies-coloringbook@0.1.0 assumption:alarm | node scripts/assumption-alarm.mjs | meechies-coloringbook@0.1.0 seam:ledger | node scripts/seam-ledger.mjs | meechies-coloringbook@0.1.0 clan:chain | node scripts/clan-chain.mjs | meechies-coloringbook@0.1.0 proof:tape | node scripts/proof-tape.mjs
+- pr-containment-after-main-push.json (31669 bytes)
+- pr-containment-after-main-push.md (9432 bytes)
+- pr-containment-ledger.json (33701 bytes)
+- pr-containment-ledger.md (9952 bytes)
+- proof-tape-wrapper.txt (72 bytes)
+  Commands: meechies-coloringbook@0.1.0 proof:tape | node scripts/proof-tape.mjs
+- proof-tape.json (12159 bytes)
+- proof-tape.md (5197 bytes)
 - seam-ledger.json (27293 bytes)
 - seam-ledger.md (2251 bytes)
 - shaolin-lint.json (519 bytes)

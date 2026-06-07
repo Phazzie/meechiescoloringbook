@@ -1,0 +1,17 @@
+warning: in the working copy of 'DECISIONS.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/evidence/2026-06-07/assumption-alarm.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/evidence/2026-06-07/chamber-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/evidence/2026-06-07/clan-chain.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/evidence/2026-06-07/clan-chain.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/evidence/2026-06-07/proof-tape.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/evidence/2026-06-07/proof-tape.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/evidence/2026-06-07/seam-ledger.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/evidence/2026-06-07/seam-ledger.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/evidence/2026-06-07/shaolin-lint.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/evidence/2026-06-07/test.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/evidence/2026-06-07/verify.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plan.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/core/coloring-page-title.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/core/http-resilience.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/core/meechie-studio-text-pipeline.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/core/text-model.ts', LF will be replaced by CRLF the next time Git touches it

@@ -1,56 +1,28 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-06-07T03:17:17.539Z",
+  "generatedAt": "2026-06-07T04:50:00.967Z",
   "cipher": {
     "date": "2026-06-07",
-    "seams": "ImageGenerationSeam, OutputPackagingSeam, CreationStoreSeam, SpecValidationSeam",
+    "seams": "ProviderAdapterSeam, MeechieStudioTextSeam",
     "evidence": [
       {
-        "path": "docs/evidence/2026-06-07/webp-dedication-focused-tests.txt",
+        "path": "docs/evidence/2026-06-07/pr-139-focused-tests.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-06-07/studio-state-mode-select.txt",
+        "path": "docs/evidence/2026-06-07/pr-139-check.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-06-07/check.txt",
+        "path": "docs/evidence/2026-06-07/pr-139-lint.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-06-07/lint.txt",
+        "path": "docs/evidence/2026-06-07/pr-139-verify-wrapper.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-06-07/test.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-06-07/build.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-06-07/e2e-smoke.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-06-07/verify.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-06-07/verify-wrapper.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-06-07/whitespace-normalized-files.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-06-07/proof-tape.md",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-06-07/proof-tape-wrapper.txt",
+        "path": "docs/evidence/2026-06-07/pr-139-cipher-gate-wrapper.txt",
         "exists": true
       },
       {
@@ -58,13 +30,13 @@
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-06-07/cipher-gate-wrapper.txt",
+        "path": "docs/evidence/2026-06-07/pr-139-diff-check.txt",
         "exists": true
       }
     ],
-    "summary": "Fixed ESLint flat config and source lint residue, added regression coverage for dedication, mode-card selection, and WebP try-on packaging, updated GeneratedImageSchema/OutputPackagingSeam/StudioState to preserve WebP, normalized trailing-whitespace debt in the PR-drain evidence stack, fixed verify Markdown generators to stop emitting blank EOF lines, removed temporary diagnostics from the proof tape, and verified check/lint/test/build/e2e/verify plus `git diff --check origin/main` locally.",
-    "risks": "Real browser WebP canvas conversion is not proven by jsdom or the current smoke E2E; PR remote state still needs inspection before claiming the drain is complete."
+    "summary": "Manually integrated PR #139's quick refactors while preserving current retry abort/cap behavior and studio-text JSON recovery.",
+    "risks": "This is readability-only and does not add new contract fixtures; if future behavior changes reuse these constants, that later work should add dedicated contract coverage."
   },
-  "latestChangeMs": 1780801732089.2783,
+  "latestChangeMs": 1780804792551.6477,
   "status": "ok"
 }
