@@ -3,7 +3,13 @@
 // Info flow: tests -> mock -> fixtures.
 import type { CompiledPrompt, PromptCompilerInput, PromptCompilerSeam } from './contract';
 import { compiledPromptFixture, promptCompilerInputFixture } from './fixtures';
-import { SYSTEM_CONSTANTS } from '../../core/constants';
+import {
+  BASE_PAGE_PHRASE,
+  EASY_TO_COLOR_PHRASE,
+  NEGATIVE_PROMPT_HEADING,
+  OUTLINE_ONLY_PHRASE,
+  VECTOR_LINEWORK_PHRASE
+} from '../../core/prompt-template';
 
 const densityMap: Record<PromptCompilerInput['density'], string> = {
   simple: 'sparse composition with lots of open space',
@@ -24,15 +30,15 @@ const borderMap: Record<PromptCompilerInput['borderStyle'], string> = {
 };
 
 const constraints = [
-  SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[0],
-  SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[1],
+  BASE_PAGE_PHRASE,
+  OUTLINE_ONLY_PHRASE,
   'clean bold contours',
-  SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[2],
-  SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[3],
+  EASY_TO_COLOR_PHRASE,
+  VECTOR_LINEWORK_PHRASE,
   'NO color fill, NO grayscale, NO shading, NO gradients',
   'printable, lots of open spaces for coloring',
   'avoid photorealism, avoid 3D render, avoid halftone, avoid crosshatching shading',
-  `${SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[4]} no color, no grayscale, no shading, no gradients`
+  `${NEGATIVE_PROMPT_HEADING} no color, no grayscale, no shading, no gradients`
 ];
 
 const glamElements = [

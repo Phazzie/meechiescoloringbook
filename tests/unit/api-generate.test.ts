@@ -162,12 +162,15 @@ describe('/api/generate', () => {
 			expect(Array.isArray(result.body.value.recommendedFixes)).toBe(true);
 		}
 		expect(deps.fetchImpl).not.toHaveBeenCalled();
-		expect(deps.generateImage).toHaveBeenCalledWith({
-			spec: validSpec,
-			prompt: assembledPrompt,
-			variations: validSpec.variations,
-			outputFormat: validSpec.outputFormat
-		});
+		expect(deps.generateImage).toHaveBeenCalledWith(
+			{
+				spec: validSpec,
+				prompt: assembledPrompt,
+				variations: validSpec.variations,
+				outputFormat: validSpec.outputFormat
+			},
+			undefined
+		);
 	});
 
 	it('returns a content policy violation before image generation when safety fails', async () => {

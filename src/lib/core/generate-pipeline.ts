@@ -148,9 +148,7 @@ export const runGeneratePipeline = async (
 		outputFormat: parsedInput.data.spec.outputFormat
 	};
 	try {
-		imageResult = deps.signal
-			? await deps.generateImage(imageRequest, deps.signal)
-			: await deps.generateImage(imageRequest);
+		imageResult = await deps.generateImage(imageRequest, deps.signal);
 	} catch (error) {
 		return imageExceptionResponse(error);
 	}
