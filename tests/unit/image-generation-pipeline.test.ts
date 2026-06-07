@@ -39,6 +39,8 @@ const validPrompt = [
   'US Letter 8.5x11 portrait.'
 ].join(' ');
 
+const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ';
+
 const makeDeps = (
   generateImpl: ImagePipelineDeps['imageGenerationSeam']['generate']
 ): ImagePipelineDeps => ({
@@ -140,7 +142,7 @@ describe('image-generation-pipeline edge cases', () => {
     const generate = vi.fn(async () => ({
       ok: true as const,
       value: {
-        images: [{ id: 'xai-1', b64: 'data' }],
+        images: [{ id: 'xai-1', b64: pngBase64 }],
         rawModelInfo: {},
         timingMs: 100
       }
@@ -172,7 +174,7 @@ describe('image-generation-pipeline edge cases', () => {
     const generate = vi.fn(async () => ({
       ok: true as const,
       value: {
-        images: [{ id: 'xai-1', b64: 'data' }],
+        images: [{ id: 'xai-1', b64: pngBase64 }],
         rawModelInfo: {},
         timingMs: 100
       }
@@ -252,7 +254,7 @@ describe('image-generation-pipeline edge cases', () => {
       makeDeps(async () => ({
         ok: true,
         value: {
-          images: [{ id: 'xai-1', b64: 'abc123' }],
+          images: [{ id: 'xai-1', b64: pngBase64 }],
           rawModelInfo: { revisedPrompt: 'revised prompt' },
           timingMs: 100
         }
@@ -263,9 +265,40 @@ describe('image-generation-pipeline edge cases', () => {
     if (result.body.ok) {
       expect(result.body.value.images).toHaveLength(1);
       expect(result.body.value.images[0].format).toBe('png');
+      expect(result.body.value.images[0].mimeType).toBe('image/png');
       expect(result.body.value.images[0].encoding).toBe('base64');
       expect(result.body.value.revisedPrompt).toBe('revised prompt');
     }
+  });
+
+  it('warns and defaults to png for unrecognized base64 headers', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: 'not-a-known-image-header' }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    if (result.body.ok) {
+      expect(result.body.value.images[0].format).toBe('png');
+      expect(result.body.value.images[0].mimeType).toBe('image/png');
+    }
+    expect(warn).toHaveBeenCalledWith('imageFormatFromBase64: unrecognized header, defaulting to png');
+    warn.mockRestore();
   });
 
   it('marks JPEG base64 as jpg for downstream packaging', async () => {
@@ -307,7 +340,7 @@ describe('image-generation-pipeline edge cases', () => {
         value: {
           images: [
             { id: 'xai-1', url: 'https://only-url.png' },
-            { id: 'xai-2', b64: 'valid-base64' }
+            { id: 'xai-2', b64: pngBase64 }
           ],
           rawModelInfo: {},
           timingMs: 100
@@ -344,7 +377,7 @@ describe('image-generation-pipeline edge cases', () => {
       makeDeps(async () => ({
         ok: true,
         value: {
-          images: [{ id: 'xai-1', b64: 'data' }],
+          images: [{ id: 'xai-1', b64: pngBase64 }],
           rawModelInfo: {},
           timingMs: 100
         }
