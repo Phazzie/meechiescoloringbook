@@ -7,8 +7,8 @@
 	import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 	import wigData from '$lib/data/wigs.json';
 
-	// Cast the imported JSON to Wig[] — validators run at adapter layer, not here.
-	const wigs = wigData as unknown as Wig[];
+	// Validate shape at runtime; validators run at adapter layer, not here.
+	const wigs: Wig[] = Array.isArray(wigData) ? (wigData as unknown as Wig[]) : [];
 
 	const getBrand = (affiliateUrl: string): string => {
 		if (affiliateUrl.includes('beautyforever')) return 'Beautyforever';
