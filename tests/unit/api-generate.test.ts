@@ -162,7 +162,8 @@ describe('/api/generate', () => {
 			expect(Array.isArray(result.body.value.recommendedFixes)).toBe(true);
 		}
 		expect(deps.fetchImpl).not.toHaveBeenCalled();
-		expect(deps.generateImage).toHaveBeenCalledWith({
+		expect(deps.generateImage).toHaveBeenCalledOnce();
+		expect(deps.generateImage.mock.calls[0]?.[0]).toEqual({
 			spec: validSpec,
 			prompt: assembledPrompt,
 			variations: validSpec.variations,
