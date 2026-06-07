@@ -1,6 +1,12 @@
 // Purpose: Centralize image-generation endpoint orchestration in a reusable core pipeline.
 // Why: Keep route handlers thin and make validation/provider behavior easier to test.
-// Info flow: Raw request body -> validation -> ImageGenerationSeam -> contract-shaped response.
+// Info flow: HTTP request body -> ImageGenerationInputSchema -> ImageGenerationSeam (xAI) -> ImageGenerationResultSchema -> HTTP response.
+//
+// DESIGN NOTE — two distinct contracts intentionally:
+//   contracts/image-generation.contract.ts  : HTTP API schemas (what clients send and receive).
+//   src/lib/seams/image-generation-seam/    : internal xAI provider seam (ImageGenerationRequest -> ImageGenerationResult).
+// This pipeline bridges them: it validates the HTTP request with ImageGenerationInputSchema,
+// calls the seam with the provider-facing shape, and maps the seam result back to ImageGenerationResultSchema.
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { pageSizeLine } from '$lib/core/prompt-template';
 import { z } from 'zod';
