@@ -12,6 +12,7 @@ import { createProviderAdapter } from './provider-adapter.adapter';
 import { meechieVoiceAdapter } from './meechie-voice.adapter';
 import { selectTextModel } from '$lib/core/text-model';
 import { env } from '$env/dynamic/private';
+import { formatOrdinal } from '$lib/core/ordinal';
 
 const TEXT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
 
@@ -199,10 +200,8 @@ const buildUserMessage = (input: MeechieToolInput): UserMessage => {
 			};
 
 		case 'lineup': {
-			const ordinal = (n: number) =>
-				n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
 			const itemList = input.items
-				.map((item, i) => `${ordinal(i + 1)}: ${item}`)
+				.map((item, i) => `${formatOrdinal(i + 1)}: ${item}`)
 				.join('\n');
 			return {
 				content: [

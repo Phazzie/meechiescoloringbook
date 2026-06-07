@@ -8,6 +8,53 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## PR #114 Manual Integration: Ordinal and Config Parsing Cleanup (2026-06-07)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: merge PR #114 as-is and overwrite newer generate-pipeline and studio-text-pipeline behavior.
+2. Countermeasure: compare the PR against current `main`, skip stale hunks, and only port changes that still fix current code.
+3. Lower-debt path: share ordinal formatting between the legacy and self-contained MeechieToolSeam adapters, and validate optional integer config with an explicit integer-string parser instead of accepting floats.
+
+### Plan
+
+- Goal: Manually integrate PR #114's still-current ordinal and AppConfigSeam parsing improvements without regressing current pipeline behavior.
+- Exact seams: MeechieToolSeam, AppConfigSeam.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `src/lib/core/ordinal.ts`
+  - `src/lib/adapters/meechie-tool.adapter.ts`
+  - `src/lib/adapters/meechie-tool-seam/index.ts`
+  - `src/lib/adapters/app-config-seam/index.ts`
+  - `tests/unit/meechie-tool-adapter.test.ts`
+  - `tests/unit/app-config-seam.test.ts`
+  - `tests/unit/ordinal.test.ts`
+  - `src/lib/seams/meechie-tool-seam/test.ts`
+  - `docs/hpr-pr-resolution-ledger-2026-06-05.md`
+  - `docs/evidence/2026-06-07/pr-114-focused-tests.txt`
+  - `docs/evidence/2026-06-07/pr-114-check.txt`
+  - `docs/evidence/2026-06-07/pr-114-lint.txt`
+  - `docs/evidence/2026-06-07/pr-114-verify.txt`
+  - `docs/evidence/2026-06-07/pr-114-diff-check.txt`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/meechie-tool-adapter.test.ts tests/unit/app-config-seam.test.ts tests/unit/ordinal.test.ts src/lib/seams/meechie-tool-seam/test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run check`
+  3. `npm.cmd run lint`
+  4. `npm.cmd run verify`
+  5. `git diff --check`
+- Skipped stale hunks:
+  - `src/lib/core/generate-pipeline.ts`: current `main` already validates the typed image-generation seam result body instead of parsing `Response.json()` directly.
+  - `src/lib/core/meechie-studio-text-pipeline.ts`: current `main` already centralizes provider error response handling and preserves newer status mapping.
+  - `src/lib/core/http-client.ts`: current `main` already has the stronger structured response policy from the HTTP error workpack.
+
+### Self-critique
+
+1. What could be wrong: Treating the ordinal fix as a legacy-adapter-only bug would leave the self-contained MeechieToolSeam adapter with the same defect.
+2. What must be proven: Legacy and self-contained MeechieToolSeam lineups format 11th/12th/13th and 21st/22nd/23rd correctly, whitespace-only max image config defaults through the schema, float config does not get accepted as an integer, and focused/full verification gates pass.
+3. Riskiest assumption: Returning `undefined` for non-integer optional config preserves the existing "invalid optional string becomes default" policy; out-of-range integer strings still prove rejection through the existing schema tests.
+4. Evidence to prove/disprove: Focused red/green tests, Svelte check, lint, full Seam-Driven Development verification, and diff-check output.
+
 ## PR #136 Manual Integration: Client postJson Timeouts (2026-06-07)
 
 ### Shortcut Check

@@ -1,0 +1,9 @@
+warning: in the working copy of 'DECISIONS.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/hpr-pr-resolution-ledger-2026-06-05.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'plan.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/adapters/app-config-seam/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/adapters/meechie-tool-seam/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/adapters/meechie-tool.adapter.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/seams/meechie-tool-seam/test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/unit/app-config-seam.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/unit/meechie-tool-adapter.test.ts', LF will be replaced by CRLF the next time Git touches it

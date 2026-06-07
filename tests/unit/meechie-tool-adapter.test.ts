@@ -148,6 +148,31 @@ describe('meechie-tool adapter', () => {
 			const call = mockCreateChatCompletion.mock.calls[0][0];
 			expect(call.messages[1].content).toContain('4th');
 		});
+
+		it('uses correct ordinal suffixes for teen and twenties lineup positions', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Ranked and Ruled', 'Lineup ranked.')
+			);
+			await meechieToolAdapter.respond({
+				toolId: 'lineup',
+				prompt: 'Rank these',
+				items: Array.from({ length: 23 }, (_, i) => `Item ${i + 1}`)
+			});
+			const call = mockCreateChatCompletion.mock.calls[0][0];
+			const content = call.messages[1].content;
+			expect(content).toContain('11th: Item 11');
+			expect(content).toContain('12th: Item 12');
+			expect(content).toContain('13th: Item 13');
+			expect(content).toContain('21st: Item 21');
+			expect(content).toContain('22nd: Item 22');
+			expect(content).toContain('23rd: Item 23');
+			expect(content).not.toContain('11st: Item 11');
+			expect(content).not.toContain('12nd: Item 12');
+			expect(content).not.toContain('13rd: Item 13');
+			expect(content).not.toContain('21th: Item 21');
+			expect(content).not.toContain('22th: Item 22');
+			expect(content).not.toContain('23th: Item 23');
+		});
 	});
 
 	describe('horoscope', () => {
