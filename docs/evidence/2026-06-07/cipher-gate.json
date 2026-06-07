@@ -1,28 +1,32 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-06-07T04:50:00.967Z",
+  "generatedAt": "2026-06-07T05:11:15.770Z",
   "cipher": {
     "date": "2026-06-07",
-    "seams": "ProviderAdapterSeam, MeechieStudioTextSeam",
+    "seams": "OutputPackagingSeam",
     "evidence": [
       {
-        "path": "docs/evidence/2026-06-07/pr-139-focused-tests.txt",
+        "path": "docs/evidence/2026-06-07/pr-133-print-dimension-debt-before.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-06-07/pr-139-check.txt",
+        "path": "docs/evidence/2026-06-07/pr-133-print-dimension-debt-after.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-06-07/pr-139-lint.txt",
+        "path": "docs/evidence/2026-06-07/pr-133-focused-tests.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-06-07/pr-139-verify-wrapper.txt",
+        "path": "docs/evidence/2026-06-07/pr-133-check.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-06-07/pr-139-cipher-gate-wrapper.txt",
+        "path": "docs/evidence/2026-06-07/pr-133-lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-07/pr-133-verify-wrapper.txt",
         "exists": true
       },
       {
@@ -30,13 +34,13 @@
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-06-07/pr-139-diff-check.txt",
+        "path": "docs/evidence/2026-06-07/pr-133-diff-check.txt",
         "exists": true
       }
     ],
-    "summary": "Manually integrated PR #139's quick refactors while preserving current retry abort/cap behavior and studio-text JSON recovery.",
-    "risks": "This is readability-only and does not add new contract fixtures; if future behavior changes reuse these constants, that later work should add dedicated contract coverage."
+    "summary": "Centralized OutputPackagingSeam print dimensions for SVG fallback plus JPEG/WebP browser conversion and skipped stale PR #133 hunks that would regress current HTTP/studio-text policies.",
+    "risks": "This is behavior-preserving cleanup, so no new contract fixtures were added; future configurable print dimensions would need contract-level tests."
   },
-  "latestChangeMs": 1780804792551.6477,
+  "latestChangeMs": 1780808512094.5486,
   "status": "ok"
 }

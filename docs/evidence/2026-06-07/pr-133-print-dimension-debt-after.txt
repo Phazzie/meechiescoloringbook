@@ -1,0 +1,2 @@
+19:const PRINT_WIDTH = 2550;
+20:const PRINT_HEIGHT = 3300;

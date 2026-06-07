@@ -1,0 +1,27 @@
+
+> meechies-coloringbook@0.1.0 test
+> vitest run tests/unit/output-packaging-helpers.test.ts tests/contract/output-packaging.test.ts tests/unit/api-wig-try-on.test.ts tests/unit/http-client.test.ts tests/unit/meechie-studio-text-pipeline.test.ts --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/Meechiescoloringbook[39m
+
+[90mstderr[2m | tests/unit/output-packaging-helpers.test.ts[2m > [22m[2moutput-packaging adapter edge cases[2m > [22m[2mSVG conversion[2m > [22m[2mSVG conversion fails deterministically in non-browser environment
+[22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+[90mstderr[2m | tests/unit/output-packaging-helpers.test.ts[2m > [22m[2moutput-packaging adapter edge cases[2m > [22m[2mWebP conversion[2m > [22m[2mroutes WebP images through browser image conversion instead of unsupported-format handling
+[22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ [32m✓[39m tests/unit/output-packaging-helpers.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m tests/unit/meechie-studio-text-pipeline.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m tests/unit/api-wig-try-on.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+ [32m✓[39m tests/unit/http-client.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+[90mstderr[2m | tests/contract/output-packaging.test.ts[2m > [22m[2mOutputPackagingSeam contract[2m > [22m[2madapter behavior is gated to browser for svg conversion
+[22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ [32m✓[39m tests/contract/output-packaging.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[32m44 passed[39m[22m[90m (44)[39m
+[2m   Start at [22m 01:02:15
+[2m   Duration [22m 20.57s[2m (transform 692ms, setup 357ms, collect 2.22s, tests 245ms, environment 14.10s, prepare 1.50s)[22m
+

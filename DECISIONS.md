@@ -1899,3 +1899,24 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Evidence: docs/evidence/2026-06-07/pr-139-focused-tests.txt; docs/evidence/2026-06-07/pr-139-check.txt; docs/evidence/2026-06-07/pr-139-lint.txt; docs/evidence/2026-06-07/pr-139-verify-wrapper.txt; docs/evidence/2026-06-07/pr-139-cipher-gate-wrapper.txt; docs/evidence/2026-06-07/cipher-gate.json; docs/evidence/2026-06-07/pr-139-diff-check.txt
   - Summary: Manually integrated PR #139's quick refactors while preserving current retry abort/cap behavior and studio-text JSON recovery.
   - Risks: This is readability-only and does not add new contract fixtures; if future behavior changes reuse these constants, that later work should add dedicated contract coverage.
+
+## 2026-06-07 - Manually integrate PR #133 print-dimension cleanup
+- Date: 2026-06-07
+- Decision: Port only PR #133's current-safe OutputPackagingSeam cleanup by centralizing the print raster dimensions as `PRINT_WIDTH` and `PRINT_HEIGHT`, including the newer WebP path that did not exist in the stale PR diff.
+- Context: PR #133 was dirty against current `main`. Its HTTP client hunk used a double cast that reviewers rejected and current `main` already has a stronger `204`/`205`/empty-body/non-2xx JSON policy. Its MeechieStudioTextPipeline hunk would also weaken the newer schema-error retry path that intentionally treats JSON primitives and arrays as schema failures with hints. The remaining low-debt value was removing duplicated `2550` and `3300` literals from print packaging.
+- Alternatives: Merge PR #133 as-is; rejected because it would reintroduce stale HTTP and studio-text behavior. Close PR #133 without replacement; rejected because OutputPackagingSeam still had duplicated print dimensions. Add source-scanning tests for literal counts; rejected because that would overfit tests to implementation text instead of behavior.
+- Consequences: SVG fallback sizing, JPEG print conversion, and WebP print conversion now share the same named dimensions. Existing OutputPackagingSeam behavior is unchanged and the current HTTP/studio-text policies remain intact.
+- Revisit criteria: Revisit if print dimensions become user-configurable or if OutputPackagingSeam needs server-side image conversion that cannot use browser canvas.
+- Plan:
+  - Goal: Manually integrate the safe subset of PR #133 after current `main` made the PR stale.
+  - Seams: OutputPackagingSeam.
+  - Files: `plan.md`, `DECISIONS.md`, `src/lib/adapters/output-packaging.adapter.ts`, `docs/evidence/2026-06-07/*`.
+  - Commands: `rg -n "2550|3300" src/lib/adapters/output-packaging.adapter.ts`, focused output-packaging/wig/http/studio tests, `npm.cmd run check`, `npm.cmd run lint`, `npm.cmd run verify`, `npm.cmd run cipher:gate`, `git diff --check`.
+- Self-critique: The main risk is accepting a cosmetic refactor without proving that current WebP print handling still follows the same browser conversion path. Focused OutputPackagingSeam tests, current API wig tests, HTTP client tests, studio-text tests, and full verify cover the behavior while the source scans prove the duplicated literal debt was removed.
+
+- Cipher Gate:
+  - Date: 2026-06-07
+  - Seams: OutputPackagingSeam
+  - Evidence: docs/evidence/2026-06-07/pr-133-print-dimension-debt-before.txt; docs/evidence/2026-06-07/pr-133-print-dimension-debt-after.txt; docs/evidence/2026-06-07/pr-133-focused-tests.txt; docs/evidence/2026-06-07/pr-133-check.txt; docs/evidence/2026-06-07/pr-133-lint.txt; docs/evidence/2026-06-07/pr-133-verify-wrapper.txt; docs/evidence/2026-06-07/cipher-gate.json; docs/evidence/2026-06-07/pr-133-diff-check.txt
+  - Summary: Centralized OutputPackagingSeam print dimensions for SVG fallback plus JPEG/WebP browser conversion and skipped stale PR #133 hunks that would regress current HTTP/studio-text policies.
+  - Risks: This is behavior-preserving cleanup, so no new contract fixtures were added; future configurable print dimensions would need contract-level tests.
