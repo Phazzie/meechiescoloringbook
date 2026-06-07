@@ -3,6 +3,7 @@
 // Info flow: Helper inputs -> function logic -> verified outputs.
 import { describe, expect, it } from 'vitest';
 import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging.adapter';
+import { GeneratedImageSchema } from '../../contracts/image-generation.contract';
 
 describe('output-packaging adapter edge cases', () => {
 	describe('empty images list', () => {
@@ -178,6 +179,43 @@ describe('output-packaging adapter edge cases', () => {
 				expect(['BROWSER_REQUIRED', 'CANVAS_UNAVAILABLE', 'SVG_IMAGE_LOAD_FAILED', 'PNG_ENCODING_FAILED']).toContain(
 					result.error.code
 				);
+			}
+		});
+	});
+
+	describe('WebP conversion', () => {
+		it('accepts WebP generated images at the contract boundary', () => {
+			const parsed = GeneratedImageSchema.safeParse({
+				id: 'webp-portrait',
+				format: 'webp',
+				mimeType: 'image/webp',
+				data: 'd2VicA==',
+				encoding: 'base64'
+			});
+
+			expect(parsed.success).toBe(true);
+		});
+
+		it('routes WebP images through browser image conversion instead of unsupported-format handling', async () => {
+			const result = await outputPackagingAdapter.package({
+				images: [
+					{
+						id: 'webp-portrait',
+						format: 'webp' as 'png',
+						mimeType: 'image/webp',
+						data: 'd2VicA==',
+						encoding: 'base64'
+					}
+				],
+				outputFormat: 'png',
+				pageSize: 'US_Letter',
+				fileBaseName: 'webp-test',
+				variants: ['print']
+			});
+
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('CANVAS_UNAVAILABLE');
 			}
 		});
 	});

@@ -1,11 +1,11 @@
-f : The term 'f' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the 
+f : The term 'f' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
 spelling of the name, or if a path was included, verify that the path is correct and try again.
 At C:\Program Files\nodejs\npm.ps1:1 char:1
 + f you #!/usr/bin/env pwsh
 + ~
     + CategoryInfo          : ObjectNotFound: (f:String) [], CommandNotFoundException
     + FullyQualifiedErrorId : CommandNotFoundException
- 
+
 
 > meechies-coloringbook@0.1.0 verify
 > npm run chamber:lock && npm run verify:runner && npm run shaolin:lint && npm run assumption:alarm && npm run seam:ledger && npm run clan:chain && npm run proof:tape
@@ -127,4 +127,3 @@ Not implemented: HTMLCanvasElement's getContext() method: without installing the
 
 > meechies-coloringbook@0.1.0 proof:tape
 > node scripts/proof-tape.mjs
-

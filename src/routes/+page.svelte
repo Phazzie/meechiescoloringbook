@@ -30,7 +30,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	<title>Meechies Coloring Book Studio</title>
 </svelte:head>
 
-<main class="studio">
+<main class="studio" data-testid="studio-root" data-hydrated={studio.isBrowser ? 'true' : 'false'}>
 	<StudioHero
 		weeklyModes={studio.weeklyModes}
 		monthlyModeId={studio.monthlyModeId}

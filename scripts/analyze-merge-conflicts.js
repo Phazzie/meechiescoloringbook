@@ -61,8 +61,6 @@ async function main() {
 
   console.log(`Analyzing merge status for ${prRows.length} PRs against current HEAD...`);
 
-  // Record initial branch
-  const branchResult = runCommand('git show-branch');
   const originalBranch = runCommand('git branch --show-current').output || 'main';
 
   // Process each PR
@@ -94,7 +92,7 @@ async function main() {
 
     // Attempt merge
     const mergeResult = runCommand(`git merge ${tempBranch} --no-commit --no-ff`);
-    
+
     let isClean = true;
     let conflictFiles = [];
 
@@ -103,7 +101,7 @@ async function main() {
       // Get list of files with merge conflicts (Unmerged status)
       const diffResult = runCommand('git diff --name-only --diff-filter=U');
       conflictFiles = diffResult.output.split('\n').filter(f => f.trim().length > 0);
-      
+
       // Abort the merge
       runCommand('git merge --abort');
     }
@@ -115,15 +113,15 @@ async function main() {
 
     // Update row details
     const statusText = isClean ? 'CLEAN' : 'CONFLICT';
-    const notes = isClean 
-      ? 'Merges cleanly against origin/main.' 
+    const notes = isClean
+      ? 'Merges cleanly against origin/main.'
       : `Has conflicts: ${conflictFiles.join(', ')}.`;
 
     // Reconstruct the table line
     // Format: | #PR | Title | Author | Merge Status | Target Bucket | Concrete Reason |
     const parts = row.originalLine.split('|');
     parts[4] = ` ${statusText} `;
-    
+
     // If it's currently marked as clean but has conflicts, demote the Target Bucket
     let targetBucket = parts[5].trim();
     if (!isClean && targetBucket.includes('1. Safe candidate')) {
@@ -131,7 +129,7 @@ async function main() {
     } else if (isClean && targetBucket.includes('4. High-conflict')) {
       targetBucket = '**1. Safe candidate for dry-run**';
     }
-    
+
     parts[5] = ` ${targetBucket} `;
     parts[6] = ` ${notes} `;
 

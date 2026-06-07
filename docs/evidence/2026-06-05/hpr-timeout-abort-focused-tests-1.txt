@@ -37,13 +37,13 @@
  [32m✓[39m tests/unit/api-wig-try-on.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 46[2mms[22m[39m
  [32m✓[39m tests/contract/image-generation.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 45[2mms[22m[39m
  [32m✓[39m src/lib/seams/wig-try-on-seam/test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 23[2mms[22m[39m
-npm.cmd : 
+npm.cmd :
 At line:2 char:1
 + npm.cmd test -- tests/unit/http-resilience.test.ts tests/unit/provide ...
 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
 [31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
 
 [41m[1m FAIL [22m[49m tests/unit/provider-adapter-helpers.test.ts[2m > [22mprovider-adapter helpers[2m > [22mnetwork error handling[2m > [22mreturns PROVIDER_NETWORK_ERROR for chat when fetch throws
@@ -67,4 +67,3 @@ Received: [31m"[7mChat completion request[27m time[7md [27mout[7m.[27m"[
 [2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m91 passed[39m[22m[90m (92)[39m
 [2m   Start at [22m 06:11:12
 [2m   Duration [22m 41.48s[2m (transform 1.11s, setup 402ms, collect 1.60s, tests 13.67s, environment 20.44s, prepare 2.13s)[22m
-

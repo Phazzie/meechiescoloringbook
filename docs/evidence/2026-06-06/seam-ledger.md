@@ -37,4 +37,3 @@ Generated at: 2026-06-06T21:11:37.169Z
 | WigCatalogSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | WigTryOnSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | CacheSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
-

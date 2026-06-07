@@ -8,11 +8,11 @@
 - **Discussion URL:** [Link to GitHub](https://github.com/Phazzie/meechiescoloringbook/pull/125#discussion_r3354999614)
 - **Comment:**
     > ![high](https://www.gstatic.com/codereviewagent/high-priority.svg)
-    > 
+    >
     > There are two issues in `saveToVault`:
     > 1. **Escaping Reactive Proxy**: `this.violations` is a reactive `$state` array. Passing it directly to `creationStoreAdapter.saveCreation` allows the reactive proxy to escape the component boundary, which can lead to unexpected side effects or serialization issues. Use `$state.snapshot()` to pass a static copy.
     > 2. **TypeScript Narrowing**: Because `this.owner` and `this.textOutput` are mutable class properties, TypeScript's control flow analysis does not narrow them to non-nullable types after the `if (!this.owner || !this.textOutput)` check. This can cause compilation errors in strict mode. Copying them to local variables at the start of the method ensures clean, safe narrowing.
-    > 
+    >
     > ```typescript
     > 	saveToVault = async (): Promise<void> => {
     > 		if (this.isSaving) return;
@@ -55,9 +55,9 @@
 - **Discussion URL:** [Link to GitHub](https://github.com/Phazzie/meechiescoloringbook/pull/125#discussion_r3354999623)
 - **Comment:**
     > ![high](https://www.gstatic.com/codereviewagent/high-priority.svg)
-    > 
+    >
     > The `this.images` array is a reactive `$state` proxy. To prevent reactive proxies from escaping the component/state boundary into external adapters (like `outputPackagingAdapter`), use `$state.snapshot()` to pass a static copy.
-    > 
+    >
     > ```suggestion
     > 			const packagingResult = await outputPackagingAdapter.package({
     > 				images: $state.snapshot(this.images),
@@ -72,9 +72,9 @@
 - **Discussion URL:** [Link to GitHub](https://github.com/Phazzie/meechiescoloringbook/pull/125#discussion_r3354999641)
 - **Comment:**
     > ![high](https://www.gstatic.com/codereviewagent/high-priority.svg)
-    > 
+    >
     > Similar to `handleGeneratePage`, `this.images` is a reactive `$state` proxy. Use `$state.snapshot()` to pass a static copy to the external packaging adapter.
-    > 
+    >
     > ```suggestion
     > 			const packagingResult = await outputPackagingAdapter.package({
     > 				images: $state.snapshot(this.images),
@@ -89,11 +89,11 @@
 - **Discussion URL:** [Link to GitHub](https://github.com/Phazzie/meechiescoloringbook/pull/125#discussion_r3354999655)
 - **Comment:**
     > ![medium](https://www.gstatic.com/codereviewagent/medium-priority.svg)
-    > 
+    >
     > While the PR description mentions that switching to `@typescript-eslint/no-unused-vars` would not help, this is actually incorrect. The core ESLint `no-unused-vars` rule does not understand TypeScript AST nodes and incorrectly flags parameter names in type signatures/aliases as unused. In contrast, `@typescript-eslint/no-unused-vars` is specifically designed to handle TypeScript syntax and will correctly ignore parameters in type declarations (since they do not declare runtime variables).
-    > 
+    >
     > To resolve this cleanly without needing to prefix all your type parameters with underscores, you should disable the base `no-unused-vars` rule and enable the TypeScript-specific version. Note that you may need to import and register the `@typescript-eslint` plugin in your flat config if it isn't already loaded by Svelte's configuration.
-    > 
+    >
     > ```javascript
     >     rules: {
     >       'no-unused-vars': 'off',
@@ -130,9 +130,9 @@
 - **Discussion URL:** [Link to GitHub](https://github.com/Phazzie/meechiescoloringbook/pull/125#discussion_r3355031724)
 - **Comment:**
     > **<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Read the dedication from the input event**
-    > 
+    >
     > When the shoutout input changes, `StudioInputPanel.svelte` still calls this handler from the same `input` event that also drives `bind:dedication`; Svelte runs the explicit listener before the binding updates, so `this.dedication` can still be the previous value here. That makes the spec validation/draft save at lines 319-321 persist a one-keystroke-stale dedication whenever users edit the shoutout, whereas the old handler read `event.currentTarget.value` directly.
-    > 
+    >
     > Useful? React with 👍 / 👎.
 
 
@@ -144,16 +144,16 @@
 - **Discussion URL:** [Link to GitHub](https://github.com/Phazzie/meechiescoloringbook/pull/125#discussion_r3355034137)
 - **Comment:**
     > _⚠️ Potential issue_ | _🟠 Major_ | _⚡ Quick win_
-    > 
+    >
     > **`parseTryOnPortraitImage` regex excludes webp, but webp is a valid selfie format.**
-    > 
+    >
     > `selfieMimeType` (line 87) accepts `'image/webp'`, and the wig try-on API may return a webp portrait. However, the regex on line 265 only matches `png|jpeg|jpg`, so `handleGenerateTryOnPage` will fail with "Try-on portrait format is not supported" for valid webp results.
-    > 
-    > 
-    > 
+    >
+    >
+    >
     > <details>
     > <summary>🐛 Proposed fix to support webp</summary>
-    > 
+    >
     > ```diff
     >  	private parseTryOnPortraitImage(): GeneratedImage | null {
     > -		const match = this.tryOnPortraitUrl.match(/^data:(image\/(png|jpeg|jpg));base64,(.+)$/);
@@ -173,15 +173,15 @@
     >  	}
     > ```
     > </details>
-    > 
+    >
     > <!-- suggestion_start -->
-    > 
+    >
     > <details>
     > <summary>📝 Committable suggestion</summary>
-    > 
+    >
     > > ‼️ **IMPORTANT**
     > > Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
-    > 
+    >
     > ```suggestion
     > 	private resetGeneratedPage(): void {
     > 		this.generationError = '';
@@ -192,7 +192,7 @@
     > 		this.images = [];
     > 		this.packagedFiles = [];
     > 	}
-    > 
+    >
     > 	private resetTryOnResultState(): void {
     > 		this.tryOnPortraitUrl = '';
     > 		this.tryOnError = '';
@@ -200,7 +200,7 @@
     > 		this.images = [];
     > 		this.packagedFiles = [];
     > 	}
-    > 
+    >
     > 	private parseTryOnPortraitImage(): GeneratedImage | null {
     > 		const match = this.tryOnPortraitUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/);
     > 		if (!match) return null;
@@ -216,18 +216,18 @@
     > 		};
     > 	}
     > ```
-    > 
+    >
     > </details>
-    > 
+    >
     > <!-- suggestion_end -->
-    > 
+    >
     > <details>
     > <summary>🤖 Prompt for AI Agents</summary>
-    > 
+    >
     > ```
     > Verify each finding against current code. Fix only still-valid issues, skip the
     > rest with a brief reason, keep changes minimal, and validate.
-    > 
+    >
     > In `@src/routes/studio-state.svelte.ts` around lines 246 - 277, The regex in
     > parseTryOnPortraitImage currently only matches png|jpeg|jpg which excludes valid
     > 'image/webp' portraits; update the regex in parseTryOnPortraitImage to also
@@ -237,11 +237,9 @@
     > data and encoding are still populated from the same capture groups so
     > handleGenerateTryOnPage no longer rejects webp portraits.
     > ```
-    > 
+    >
     > </details>
-    > 
+    >
     > <!-- fingerprinting:phantom:medusa:ocelot -->
-    > 
+    >
     > <!-- This is an auto-generated comment by CodeRabbit -->
-
-

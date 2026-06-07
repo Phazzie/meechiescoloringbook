@@ -7,14 +7,14 @@
 
  [32m✓[39m tests/unit/http-resilience.test.ts [2m([22m[2m28 tests[22m[2m)[22m[33m 472[2mms[22m[39m
  [32m✓[39m tests/unit/creation-store-helpers.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 202[2mms[22m[39m
-npm.cmd : [90mstderr[2m | tests/unit/output-packaging-helpers.test.ts[2m > [22m[2moutput-packaging adapter edge cases[2m > [22m[2mSVG conversion[2m > [22m[2mSVG conversion fails deterministically in 
+npm.cmd : [90mstderr[2m | tests/unit/output-packaging-helpers.test.ts[2m > [22m[2moutput-packaging adapter edge cases[2m > [22m[2mSVG conversion[2m > [22m[2mSVG conversion fails deterministically in
 non-browser environment
 At line:2 char:1
 + npm.cmd test *> docs\evidence\2026-06-05\hpr-timeout-abort-full-test- ...
 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: ([90mstderr[2m...ser environment:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 
  [32m✓[39m tests/unit/output-packaging-helpers.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 104[2mms[22m[39m

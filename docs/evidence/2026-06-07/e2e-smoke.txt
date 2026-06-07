@@ -1,0 +1,15 @@
+
+> meechies-coloringbook@0.1.0 test:e2e
+> playwright test
+
+
+Running 6 tests using 1 worker
+
+  ✓  1 [chromium] › tests\e2e\smoke.spec.ts:92:1 › home mode switching and generation controls work (9.8s)
+  ✓  2 [chromium] › tests\e2e\smoke.spec.ts:127:1 › home quote vault can save, load, pin, and delete creations (6.0s)
+  ✓  3 [chromium] › tests\e2e\smoke.spec.ts:156:1 › home shoutout input debounces draft save and clears dedication (5.2s)
+  ✓  4 [chromium] › tests\e2e\smoke.spec.ts:190:1 › random route tap and page generation work (5.1s)
+  ✓  5 [chromium] › tests\e2e\smoke.spec.ts:206:1 › rate and who routes submit, reset, and generate pages (10.2s)
+  ✓  6 [chromium] › tests\e2e\smoke.spec.ts:228:1 › meechie toolkit tabs and lineup controls work (3.3s)
+
+  6 passed (1.3m)

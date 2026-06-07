@@ -100,7 +100,6 @@ const run = async () => {
 			lines.push(`  Commands: ${file.commands.join(' | ')}`);
 		}
 	}
-	lines.push('');
 	await fs.writeFile(path.join(outputDir, 'proof-tape.md'), `${lines.join('\n')}\n`, 'utf8');
 };
 

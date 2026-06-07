@@ -7,7 +7,7 @@ const normalizeTitleText = (value: string): string =>
 	value
 		.normalize('NFKD')
 		.replace(/[\u2012-\u2015]/g, '-')
-		.replace(/[^\w .,!?'":;\/\-()]+/g, ' ')
+		.replace(/[^\w .,!?'":;/\-()]+/g, ' ')
 		.replace(/\s+/g, ' ')
 		.trim();
 
@@ -24,6 +24,6 @@ export const compactColoringPageTitle = (
 	const sliced = safe.slice(0, MAX_TITLE_LENGTH).trim();
 	const lastSpace = sliced.lastIndexOf(' ');
 	return (lastSpace > 40 ? sliced.slice(0, lastSpace) : sliced)
-		.replace(/[.,;:\-]+$/, '')
+		.replace(/[.,;:-]+$/, '')
 		.trim();
 };

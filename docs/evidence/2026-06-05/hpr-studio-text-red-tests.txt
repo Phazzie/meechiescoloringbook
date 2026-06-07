@@ -31,16 +31,16 @@
 [31m   [31m×[31m Meechie Studio Text Pipeline Resilience[2m > [22mclassifies provider errors returned during retry[39m[32m 2[2mms[22m[39m
 [31m     → expected 502 to be 504 // Object.is equality[39m
    [32m✓[39m Meechie Studio Text Pipeline Resilience[2m > [22mrejects input containing a disallowed keyword and does not call the provider[32m 5[2mms[22m[39m
-npm.cmd : 
+npm.cmd :
 At line:2 char:8
 + $out = & npm.cmd test -- tests/unit/meechie-studio-text-pipeline.test ...
 +        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
 [31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 9 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
 
-[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22mretries malformed JSON with a syntax-specific prompt and accepts the retry 
+[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22mretries malformed JSON with a syntax-specific prompt and accepts the retry
 output
 [31m[1mAssertionError[22m: expected 'Your previous response could not be p…' to contain 'JSON syntax error'[39m
 
@@ -57,7 +57,7 @@ Received: [31m"Your previous response could not be parsed as valid JSON. Please
 
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯[22m[39m
 
-[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22mretries schema-invalid JSON with required-field guidance that matches the 
+[41m[1m FAIL [22m[49m tests/unit/meechie-studio-text-pipeline.test.ts[2m > [22mMeechie Studio Text Pipeline Resilience[2m > [22mretries schema-invalid JSON with required-field guidance that matches the
 response format
 [31m[1mAssertionError[22m: expected 'Your previous response could not be p…' to contain 'valid JSON but failed schema validati…'[39m
 
@@ -155,4 +155,3 @@ Received: [31m"Your previous response could not be parsed as valid JSON. Please
 [2m      Tests [22m [1m[31m9 failed[39m[22m[2m | [22m[1m[32m7 passed[39m[22m[90m (16)[39m
 [2m   Start at [22m 09:40:58
 [2m   Duration [22m 12.12s[2m (transform 1.05s, setup 276ms, collect 1.01s, tests 180ms, environment 8.56s, prepare 1.16s)[22m
-

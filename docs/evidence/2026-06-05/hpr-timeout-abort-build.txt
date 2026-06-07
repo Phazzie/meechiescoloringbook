@@ -110,7 +110,7 @@ At line:2 char:8
 +        ~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: ([31merror during build::String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
 Error: EPERM: operation not permitted, symlink '![-]\catchall.func' -> 'C:\Users\ieatc\Meechiescoloringbook\.vercel\output\functions\index.func'
     at Object.symlinkSync (node:fs:1855:11)
     at adapt (file:///C:/Users/ieatc/Meechiescoloringbook/node_modules/@sveltejs/adapter-vercel/index.js:477:9)

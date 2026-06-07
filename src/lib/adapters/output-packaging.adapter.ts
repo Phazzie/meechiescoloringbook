@@ -142,6 +142,23 @@ const imageToPngBase64 = async (
 		);
 	}
 
+	if (image.format === 'webp') {
+		if (image.encoding !== 'base64') {
+			return {
+				ok: false,
+				error: {
+					code: 'WEBP_ENCODING_UNSUPPORTED',
+					message: 'WebP data must be base64 encoded.'
+				}
+			};
+		}
+		return drawImageToCanvas(
+			`data:image/webp;base64,${image.data}`,
+			2550,
+			3300
+		);
+	}
+
 	if (image.format === 'svg') {
 		return svgToPngBase64(image.data);
 	}
@@ -169,6 +186,9 @@ const toImageDataUrl = async (
 	}
 	if (image.format === 'jpg' && image.encoding === 'base64') {
 		return { ok: true, value: `data:image/jpeg;base64,${image.data}` };
+	}
+	if (image.format === 'webp' && image.encoding === 'base64') {
+		return { ok: true, value: `data:image/webp;base64,${image.data}` };
 	}
 	return {
 		ok: false,

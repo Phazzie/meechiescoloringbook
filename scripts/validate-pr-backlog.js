@@ -101,14 +101,14 @@ async function main() {
     console.log(`--------------------------------------------------`);
 
     const tempBranch = `pr-${pr}-dryrun-temp`;
-    
+
     // Clean up if temp branch exists from a past run
     runCommand(`git branch -D ${tempBranch}`);
 
     // Fetch and create temp branch
     const fetchCmd = `git fetch origin pull/${pr}/head:${tempBranch}`;
     const fetchResult = runCommand(fetchCmd);
-    
+
     if (!fetchResult.success) {
       console.error(`[FAIL] Fetch failed for PR #${pr}.`);
       reportMarkdown += `| #${pr} | ❌ Fetch Failed | - | - | ❌ FAILED | Fetch output: ${fetchResult.output.replace(/\n/g, '<br>')} |\n`;
@@ -133,7 +133,7 @@ async function main() {
     const verifyStatus = verifyResult.success ? '✅ PASS' : '❌ FAIL';
 
     const finalResult = (testResult.success && verifyResult.success) ? '✅ VERIFIED' : '❌ FAILED';
-    
+
     if (testResult.success && verifyResult.success) {
       console.log(`[PASS] PR #${pr} passed all validation tests!`);
     } else {

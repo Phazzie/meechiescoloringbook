@@ -6,14 +6,14 @@
 [1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mC:/Users/ieatc/Meechiescoloringbook[39m
 
  [32m✓[39m tests/unit/creation-store-helpers.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 225[2mms[22m[39m
-npm.cmd : [90mstderr[2m | tests/unit/output-packaging-helpers.test.ts[2m > [22m[2moutput-packaging adapter edge cases[2m > [22m[2mSVG conversion[2m > [22m[2mSVG conversion fails deterministically in 
+npm.cmd : [90mstderr[2m | tests/unit/output-packaging-helpers.test.ts[2m > [22m[2moutput-packaging adapter edge cases[2m > [22m[2mSVG conversion[2m > [22m[2mSVG conversion fails deterministically in
 non-browser environment
 At line:2 char:1
 + npm.cmd test 2>&1 | Tee-Object -FilePath docs\evidence\2026-06-05\hpr ...
 + ~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: ([90mstderr[2m...ser environment:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 
  [32m✓[39m tests/unit/output-packaging-helpers.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 118[2mms[22m[39m
@@ -81,4 +81,3 @@ At line:2 char:1
 [2m      Tests [22m [1m[32m456 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (457)[39m
 [2m   Start at [22m 06:16:37
 [2m   Duration [22m 102.01s[2m (transform 4.68s, setup 3.57s, collect 12.05s, tests 11.60s, environment 216.97s, prepare 24.72s)[22m
-

@@ -12,4 +12,3 @@
 [2m      Tests [22m [1m[32m19 passed[39m[22m[90m (19)[39m
 [2m   Start at [22m 09:46:35
 [2m   Duration [22m 14.93s[2m (transform 1.22s, setup 257ms, collect 1.24s, tests 106ms, environment 10.82s, prepare 1.15s)[22m
-

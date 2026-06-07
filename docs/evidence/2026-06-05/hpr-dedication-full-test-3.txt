@@ -8,14 +8,14 @@
  [32m✓[39m src/lib/seams/wig-catalog-seam/test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 69[2mms[22m[39m
  [32m✓[39m tests/unit/creation-store-helpers.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 326[2mms[22m[39m
  [32m✓[39m tests/unit/api-meechie-studio-text-endpoint.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 61[2mms[22m[39m
-npm.cmd : [90mstderr[2m | tests/unit/output-packaging-helpers.test.ts[2m > [22m[2moutput-packaging adapter edge cases[2m > [22m[2mSVG conversion[2m > [22m[2mSVG conversion fails deterministically in 
+npm.cmd : [90mstderr[2m | tests/unit/output-packaging-helpers.test.ts[2m > [22m[2moutput-packaging adapter edge cases[2m > [22m[2mSVG conversion[2m > [22m[2mSVG conversion fails deterministically in
 non-browser environment
 At line:2 char:1
 + & npm.cmd test *> docs\evidence\2026-06-05\hpr-dedication-full-test-3 ...
 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: ([90mstderr[2m...ser environment:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 
  [32m✓[39m tests/unit/output-packaging-helpers.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 160[2mms[22m[39m
@@ -81,4 +81,3 @@ At line:2 char:1
 [2m      Tests [22m [1m[32m466 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (467)[39m
 [2m   Start at [22m 12:56:57
 [2m   Duration [22m 117.88s[2m (transform 5.93s, setup 3.94s, collect 15.39s, tests 12.03s, environment 257.56s, prepare 24.81s)[22m
-

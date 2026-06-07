@@ -98,7 +98,6 @@ const run = async () => {
 			`- ${seam.seam} (owner: ${seam.owner || 'unassigned'}, status: ${seam.status})`
 		);
 	}
-	lines.push('');
 	await fs.writeFile(path.join(outputDir, 'clan-chain.md'), `${lines.join('\n')}\n`, 'utf8');
 };
 

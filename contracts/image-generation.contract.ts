@@ -13,7 +13,7 @@ export const ImageDataEncodingSchema = z.enum(['utf8', 'base64']);
 
 export const GeneratedImageSchema = z.object({
 	id: NonEmptyStringSchema,
-	format: z.enum(['svg', 'png', 'jpg']),
+	format: z.enum(['svg', 'png', 'jpg', 'webp']),
 	mimeType: NonEmptyStringSchema,
 	data: NonEmptyStringSchema,
 	encoding: ImageDataEncodingSchema

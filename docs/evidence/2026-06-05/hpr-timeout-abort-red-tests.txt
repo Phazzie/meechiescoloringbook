@@ -37,7 +37,7 @@ At line:2 char:1
 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: ((node:4700) Pro...ejection id: 6):String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
 (Use `node --trace-warnings ...` to show where the warning was created)
  [31m❯[39m tests/unit/http-resilience.test.ts [2m([22m[2m28 tests[22m[2m | [22m[31m9 failed[39m[2m)[22m[33m 5172[2mms[22m[39m
    [32m✓[39m isAbortError[2m > [22mreturns true for an Error with name AbortError[32m 4[2mms[22m[39m
@@ -88,7 +88,7 @@ If this is a long-running test, pass a timeout value as the last argument or con
 [31m   [31m×[31m /api/generate[2m > [22mpasses caller signal into the image-generation dependency[39m[32m 22[2mms[22m[39m
 [31m     → expected "spy" to be called with arguments: [ { spec: { …(19) }, …(3) }, …(1) ][90m
 
-Received: 
+Received:
 
 [1m  1st spy call:
 
@@ -126,7 +126,7 @@ Number of calls: [1m1[22m
 [31m   [31m×[31m /api/wig-try-on[2m > [22mpasses the request signal to wig image fetch and WigTryOnSeam[39m[32m 31[2mms[22m[39m
 [31m     → expected "spy" to be called with arguments: [ 'https://example.com/wig.png', …(1) ][90m
 
-Received: 
+Received:
 
 [1m  1st spy call:
 
@@ -153,7 +153,7 @@ Number of calls: [1m1[22m
 [31m   [31m×[31m image-generation-pipeline edge cases[2m > [22mpasses caller signal into ImageGenerationSeam requests[39m[32m 14[2mms[22m[39m
 [31m     → expected "spy" to be called with arguments: [ ObjectContaining {"signal": {}} ][90m
 
-Received: 
+Received:
 
 [1m  1st spy call:
 
@@ -244,7 +244,7 @@ Received: [31m"IMAGE_[7mNETWORK[27m_ERROR"[39m
 [41m[1m FAIL [22m[49m tests/unit/api-generate.test.ts[2m > [22m/api/generate[2m > [22mpasses caller signal into the image-generation dependency
 [31m[1mAssertionError[22m: expected "spy" to be called with arguments: [ { spec: { …(19) }, …(3) }, …(1) ][90m
 
-Received: 
+Received:
 
 [1m  1st spy call:
 
@@ -273,7 +273,7 @@ Number of calls: [1m1[22m
 [41m[1m FAIL [22m[49m tests/unit/api-wig-try-on.test.ts[2m > [22m/api/wig-try-on[2m > [22mpasses the request signal to wig image fetch and WigTryOnSeam
 [31m[1mAssertionError[22m: expected "spy" to be called with arguments: [ 'https://example.com/wig.png', …(1) ][90m
 
-Received: 
+Received:
 
 [1m  1st spy call:
 
@@ -449,7 +449,7 @@ If this is a long-running test, pass a timeout value as the last argument or con
 
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/20]⎯[22m[39m
 
-[41m[1m FAIL [22m[49m tests/unit/image-generation-pipeline.test.ts[2m > [22mimage-generation-pipeline edge cases[2m > [22mreturns an aborted response before calling the seam when caller signal is already 
+[41m[1m FAIL [22m[49m tests/unit/image-generation-pipeline.test.ts[2m > [22mimage-generation-pipeline edge cases[2m > [22mreturns an aborted response before calling the seam when caller signal is already
 aborted
 [31m[1mAssertionError[22m: expected 200 to be 499 // Object.is equality[39m
 
@@ -472,7 +472,7 @@ aborted
 [41m[1m FAIL [22m[49m tests/unit/image-generation-pipeline.test.ts[2m > [22mimage-generation-pipeline edge cases[2m > [22mpasses caller signal into ImageGenerationSeam requests
 [31m[1mAssertionError[22m: expected "spy" to be called with arguments: [ ObjectContaining {"signal": {}} ][90m
 
-Received: 
+Received:
 
 [1m  1st spy call:
 
@@ -500,7 +500,7 @@ Number of calls: [1m1[22m
 
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/20]⎯[22m[39m
 
-[41m[1m FAIL [22m[49m tests/unit/provider-adapter-helpers.test.ts[2m > [22mprovider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mdoes not retry image generation POSTs on retryable 
+[41m[1m FAIL [22m[49m tests/unit/provider-adapter-helpers.test.ts[2m > [22mprovider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mdoes not retry image generation POSTs on retryable
 HTTP failure
 [31m[1mAssertionError[22m: expected "spy" to be called 1 times, but got 3 times[39m
 [36m [2m❯[22m tests/unit/provider-adapter-helpers.test.ts:[2m281:23[22m[39m
@@ -556,4 +556,3 @@ This might cause false positive tests. Resolve unhandled errors to make sure you
 - The error was thrown, while Vitest was running this test.
 - If the error occurred after the test had been completed, this was the last documented test before it was thrown.[39m
 [31m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39m
-

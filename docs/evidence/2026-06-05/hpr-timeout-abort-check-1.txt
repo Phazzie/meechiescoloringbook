@@ -7,7 +7,7 @@ Getting Svelte diagnostics...
 
 c:\Users\ieatc\Meechiescoloringbook\[32msrc\lib\core\http-resilience.ts[39m:116:3
 [31mError[39m: Type 'AbortSignal | null | undefined' is not assignable to type 'AbortSignal | undefined'.
-  Type 'null' is not assignable to type 'AbortSignal | undefined'. 
+  Type 'null' is not assignable to type 'AbortSignal | undefined'.
 [36m	runWithTimeoutSignal((signal) => fetch(url, { ...init, signal }), timeoutMs, {
 		[35msignal[36m: init.signal,
 		timeoutMessage: `Request timed out after ${timeoutMs}ms.`[39m
@@ -18,7 +18,7 @@ c:\Users\ieatc\Meechiescoloringbook\[32mtests\unit\api-wig-try-on.test.ts[39m:
     Type '{ ok: boolean; value: { id: string; name: string; brand: string; affiliateProgram: "beautyforever"; affiliateUrl: string; imageUrl: string; priceUsd: number; style: string; hairType: "human"; length: "medium"; color: string; colorFamily: "black"; tags: string[]; }; }' is not assignable to type 'Result<Wig, WigCatalogError>'.
       Type '{ ok: boolean; value: { id: string; name: string; brand: string; affiliateProgram: "beautyforever"; affiliateUrl: string; imageUrl: string; priceUsd: number; style: string; hairType: "human"; length: "medium"; color: string; colorFamily: "black"; tags: string[]; }; }' is not assignable to type '{ ok: true; value: Wig; }'.
         Types of property 'ok' are incompatible.
-          Type 'boolean' is not assignable to type 'true'. 
+          Type 'boolean' is not assignable to type 'true'.
 [36m			listWigs: vi.fn(),
 			[35mgetWigById[36m: vi.fn(async () => ({ ok: true, value: wig }))
 		});[39m

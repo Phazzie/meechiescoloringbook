@@ -1,7 +1,7 @@
 // Purpose: Verify /api/meechie-studio-text rejects malformed JSON before pipeline invocation.
 // Why: Ensure the INVALID_JSON guard fires and pipelines don't receive broken input.
 // Info flow: Raw request -> parseRequestBody -> INVALID_JSON response (no pipeline calls).
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { POST } from '../../src/routes/api/meechie-studio-text/+server';
 
 const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>

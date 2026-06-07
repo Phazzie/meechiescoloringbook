@@ -76,7 +76,7 @@ function main() {
 
   const outputPath = path.join(evidenceDir, `pr-${prNumber}-todo.md`);
   fs.writeFileSync(outputPath, resultText);
-  
+
   console.log(`\n==================================================`);
   console.log(`Scoped todo file written to: ${outputPath}`);
   console.log(`==================================================`);

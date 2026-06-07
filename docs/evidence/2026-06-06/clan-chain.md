@@ -39,4 +39,3 @@ Clean seams:
 - CacheSeam (owner: hbpheonix)
 
 Dirty seams:
-

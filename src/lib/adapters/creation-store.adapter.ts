@@ -33,7 +33,7 @@ const readJson = (key: string): Result<unknown | null> => {
 			return { ok: true, value: null };
 		}
 		return { ok: true, value: JSON.parse(raw) };
-	} catch (error) {
+	} catch {
 		return {
 			ok: false,
 			error: {
@@ -48,7 +48,7 @@ const writeJson = (key: string, value: unknown): Result<boolean> => {
 	try {
 		localStorage.setItem(key, JSON.stringify(value));
 		return { ok: true, value: true };
-	} catch (error) {
+	} catch {
 		return {
 			ok: false,
 			error: {

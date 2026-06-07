@@ -78,7 +78,11 @@ const gotoHydrated = async (page: Page, path: string): Promise<void> => {
 	await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
 		// Some asset pipelines keep a request open; hydration still completes.
 	});
-	await page.waitForTimeout(250);
+	if (path === '/') {
+		await expect(page.getByTestId('studio-root')).toHaveAttribute('data-hydrated', 'true');
+	} else {
+		await page.waitForTimeout(250);
+	}
 };
 
 test.beforeEach(async ({ page }) => {

@@ -4,7 +4,7 @@ At line:2 char:8
 +        ~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (warning: in the... Git touches it:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
 warning: in the working copy of 'docs/hpr-pr-resolution-ledger-2026-06-05.md', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'plan.md', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'src/lib/adapters/image-generation-seam/index.ts', LF will be replaced by CRLF the next time Git touches it

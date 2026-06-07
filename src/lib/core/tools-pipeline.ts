@@ -2,7 +2,7 @@
 // Why: Keep route handlers transport-only while preserving safety and contract checks.
 // Info flow: Raw request body -> input validation + safety checks -> tool adapter -> contract response.
 import { meechieToolAdapter } from '$lib/adapters/meechie-tool-seam';
-import { findDisallowedKeywords, SYSTEM_CONSTANTS } from '$lib/core/constants';
+import { findDisallowedKeywords } from '$lib/core/constants';
 import {
 	MeechieToolInputSchema,
 	MeechieToolResultSchema

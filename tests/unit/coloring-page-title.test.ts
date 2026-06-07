@@ -21,7 +21,7 @@ describe('compactColoringPageTitle', () => {
 		]);
 
 		expect(title.length).toBeLessThanOrEqual(96);
-		expect(title).not.toMatch(/[.,;:\-]$/);
+		expect(title).not.toMatch(/[.,;:-]$/);
 	});
 
 	it('falls back when all input text is empty', () => {

@@ -207,8 +207,7 @@ const run = async () => {
 		'',
 		`Generated at: ${report.generatedAt}`,
 		'',
-		...tableLines,
-		''
+		...tableLines
 	].join('\n');
 	await fs.writeFile(path.join(evidenceDir, 'seam-ledger.md'), `${md}\n`, 'utf8');
 };

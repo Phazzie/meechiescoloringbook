@@ -79,7 +79,7 @@
 [31m   [31m×[31m /api/generate[2m > [22mpasses caller signal into the image-generation dependency[39m[32m 16[2mms[22m[39m
 [31m     → expected "spy" to be called with arguments: [ { spec: { …(19) }, …(3) }, …(1) ][90m
 
-Received: 
+Received:
 
 [1m  1st spy call:
 
@@ -114,7 +114,7 @@ Number of calls: [1m1[22m
 [31m   [31m×[31m image-generation-pipeline edge cases[2m > [22mpasses caller signal into ImageGenerationSeam requests[39m[32m 18[2mms[22m[39m
 [31m     → expected "spy" to be called with arguments: [ ObjectContaining {"signal": {}} ][90m
 
-Received: 
+Received:
 
 [1m  1st spy call:
 
@@ -144,7 +144,7 @@ Number of calls: [1m1[22m
 [31m   [31m×[31m /api/wig-try-on[2m > [22mpasses the request signal to wig image fetch and WigTryOnSeam[39m[32m 31[2mms[22m[39m
 [31m     → expected "spy" to be called with arguments: [ 'https://example.com/wig.png', …(1) ][90m
 
-Received: 
+Received:
 
 [1m  1st spy call:
 
@@ -175,13 +175,13 @@ Number of calls: [1m1[22m
    [32m✓[39m WigTryOnSeam mock contract[2m > [22mportrait base64 is a non-empty string[32m 1[2mms[22m[39m
 [31m   [31m×[31m WigTryOnSeam mock contract[2m > [22madapter reports response body timeouts as network timeouts, not parse errors[39m[32m 22[2mms[22m[39m
 [31m     → expected 'WIG_TRY_ON_PARSE_ERROR' to be 'WIG_TRY_ON_NETWORK_ERROR' // Object.is equality[39m
-npm.cmd : 
+npm.cmd :
 At line:2 char:1
 + npm.cmd test -- tests/unit/http-resilience.test.ts tests/unit/provide ...
 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
 [31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 20 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
 
 [41m[1m FAIL [22m[49m tests/contract/image-generation.test.ts[2m > [22mImageGenerationSeam contract[2m > [22madapter returns IMAGE_ABORTED without fetching when caller signal is already aborted
@@ -241,7 +241,7 @@ Received: [31m"IMAGE_[7mNETWORK[27m_ERROR"[39m
 [41m[1m FAIL [22m[49m tests/unit/api-generate.test.ts[2m > [22m/api/generate[2m > [22mpasses caller signal into the image-generation dependency
 [31m[1mAssertionError[22m: expected "spy" to be called with arguments: [ { spec: { …(19) }, …(3) }, …(1) ][90m
 
-Received: 
+Received:
 
 [1m  1st spy call:
 
@@ -270,7 +270,7 @@ Number of calls: [1m1[22m
 [41m[1m FAIL [22m[49m tests/unit/api-wig-try-on.test.ts[2m > [22m/api/wig-try-on[2m > [22mpasses the request signal to wig image fetch and WigTryOnSeam
 [31m[1mAssertionError[22m: expected "spy" to be called with arguments: [ 'https://example.com/wig.png', …(1) ][90m
 
-Received: 
+Received:
 
 [1m  1st spy call:
 
@@ -444,7 +444,7 @@ Received: [31m"Cannot read properties of undefined (reading 'status')"[39m
 
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/20]⎯[22m[39m
 
-[41m[1m FAIL [22m[49m tests/unit/image-generation-pipeline.test.ts[2m > [22mimage-generation-pipeline edge cases[2m > [22mreturns an aborted response before calling the seam when caller signal is already 
+[41m[1m FAIL [22m[49m tests/unit/image-generation-pipeline.test.ts[2m > [22mimage-generation-pipeline edge cases[2m > [22mreturns an aborted response before calling the seam when caller signal is already
 aborted
 [31m[1mAssertionError[22m: expected 200 to be 499 // Object.is equality[39m
 
@@ -467,7 +467,7 @@ aborted
 [41m[1m FAIL [22m[49m tests/unit/image-generation-pipeline.test.ts[2m > [22mimage-generation-pipeline edge cases[2m > [22mpasses caller signal into ImageGenerationSeam requests
 [31m[1mAssertionError[22m: expected "spy" to be called with arguments: [ ObjectContaining {"signal": {}} ][90m
 
-Received: 
+Received:
 
 [1m  1st spy call:
 
@@ -495,7 +495,7 @@ Number of calls: [1m1[22m
 
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/20]⎯[22m[39m
 
-[41m[1m FAIL [22m[49m tests/unit/provider-adapter-helpers.test.ts[2m > [22mprovider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mdoes not retry image generation POSTs on retryable 
+[41m[1m FAIL [22m[49m tests/unit/provider-adapter-helpers.test.ts[2m > [22mprovider-adapter helpers[2m > [22mnormalizeImageOutput edge cases[2m > [22mdoes not retry image generation POSTs on retryable
 HTTP failure
 [31m[1mAssertionError[22m: expected "spy" to be called 1 times, but got 3 times[39m
 [36m [2m❯[22m tests/unit/provider-adapter-helpers.test.ts:[2m281:23[22m[39m
@@ -523,4 +523,3 @@ Received: [31m"WIG_TRY_ON_[7mPARSE[27m_ERROR"[39m
     [90m 93| [39m    }
 
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/20]⎯[22m[39m
-

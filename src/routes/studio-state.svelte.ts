@@ -158,7 +158,7 @@ export class StudioState {
 	// --- Non-reactive implementation details ---
 	owner: CreationOwner | null = null;
 	authContext: CreationRecord['authContext'] | null = null;
-	isBrowser = false;
+	isBrowser = $state(false);
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
@@ -271,9 +271,11 @@ export class StudioState {
 		const mimeType = match[1];
 		const subtype = match[2];
 		const data = match[3];
+		const format = subtype === 'jpeg' ? 'jpg' : subtype;
+		if (format !== 'png' && format !== 'jpg' && format !== 'webp') return null;
 		return {
 			id: 'try-on-portrait-1',
-			format: subtype === 'png' ? 'png' : 'jpg',
+			format,
 			mimeType,
 			data,
 			encoding: 'base64'
@@ -319,10 +321,11 @@ export class StudioState {
 		}
 	};
 
-	handleDedicationInput = (): void => {
+	handleDedicationInput = (value: string): void => {
+		this.dedication = value;
 		this.spec = { ...this.spec, dedication: this.currentDedication() };
 		void this.validateSpec();
-		void this.saveDraft();
+		this.scheduleDraftSave();
 	};
 
 	handleModeSelect = (modeId: string): void => {

@@ -4,7 +4,7 @@ At line:2 char:8
 +        ~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : NotSpecified: (warning: in the... Git touches it:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
- 
+
 warning: in the working copy of 'docs/evidence/2026-06-05/assumption-alarm.json', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'docs/evidence/2026-06-05/chamber-lock.json', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'docs/evidence/2026-06-05/clan-chain.json', LF will be replaced by CRLF the next time Git touches it

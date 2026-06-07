@@ -6,16 +6,36 @@ import svelte from 'eslint-plugin-svelte';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
+import tsParser from '@typescript-eslint/parser';
 
 export default [
-  { ignores: ['.svelte-kit/**', 'build/**', 'dist/**'] },
+  { ignores: ['.svelte-kit/**', '.vercel/**', 'build/**', 'dist/**', 'coverage/**'] },
   js.configs.recommended,
   ...svelte.configs['flat/recommended'],
   prettier,
   {
-    // Svelte and TypeScript files: browser globals (DOM, fetch, crypto, etc.) + TypeScript parser.
-    // The no-undef rule lacks browser context by default in flat config.
-    files: ['**/*.svelte', '**/*.ts'],
+    // TypeScript files need the TypeScript parser at the flat-config language level.
+    files: ['**/*.ts'],
+    plugins: {
+      '@typescript-eslint': tsPlugin
+    },
+    languageOptions: {
+      parser: tsParser,
+      globals: {
+        ...globals.browser,
+        ...globals.node
+      }
+    },
+    rules: {
+      // Use TypeScript-specific unused variable rule to correctly parse type signatures
+      'no-undef': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }]
+    }
+  },
+  {
+    // Svelte files keep eslint-plugin-svelte's parser and use TypeScript for script blocks.
+    files: ['**/*.svelte'],
     plugins: {
       '@typescript-eslint': tsPlugin
     },
@@ -24,13 +44,22 @@ export default [
         ...globals.browser
       },
       parserOptions: {
-        parser: (await import('@typescript-eslint/parser')).default
+        parser: tsParser
       }
     },
     rules: {
-      // Use TypeScript-specific unused variable rule to correctly parse type signatures
+      'no-undef': 'off',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }]
+    }
+  },
+  {
+    // Node-authored project scripts and config files run outside the browser.
+    files: ['*.js', '*.mjs', 'scripts/**/*.js', 'scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node
+      }
     }
   },
   {

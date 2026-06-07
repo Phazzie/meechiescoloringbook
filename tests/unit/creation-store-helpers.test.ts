@@ -1,7 +1,7 @@
 // Purpose: Unit tests for creation-store adapter helper functions and edge cases.
 // Why: Ensure localStorage operations, record parsing, and owner matching work correctly.
 // Info flow: Storage operations -> adapter methods -> verified results.
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
 
 const validIntent = {

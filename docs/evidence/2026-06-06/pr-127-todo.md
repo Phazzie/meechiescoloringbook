@@ -8,9 +8,9 @@
 - **Discussion URL:** [Link to GitHub](https://github.com/Phazzie/meechiescoloringbook/pull/127#discussion_r3356058154)
 - **Comment:**
     > ![medium](https://www.gstatic.com/codereviewagent/medium-priority.svg)
-    > 
+    >
     > Using simple substring matching with `lowered.includes(token)` can lead to false positives (e.g., matching a short forbidden token like `'art'` inside a harmless word like `'earth'`). Consider using word boundary checks or a regular expression to match whole words only.
-    > 
+    >
     > ```suggestion
     > 	return PROMPT_FORBIDDEN_TOKENS.filter((token) => {
     > 		const regex = new RegExp(`\\b${token}\\b`, 'i');
@@ -27,9 +27,9 @@
 - **Discussion URL:** [Link to GitHub](https://github.com/Phazzie/meechiescoloringbook/pull/127#discussion_r3356058166)
 - **Comment:**
     > ![medium](https://www.gstatic.com/codereviewagent/medium-priority.svg)
-    > 
+    >
     > If the LLM returns markdown code blocks (e.g., ```json ... ```), `JSON.parse` will throw an error and fail the response validation. Although structured outputs are requested, models can occasionally output markdown formatting under edge cases or fallback scenarios. Sanitizing the content by stripping potential markdown code fences before parsing will make the parser more robust.
-    > 
+    >
     > ```typescript
     > 	let sanitized = content.trim();
     > 	if (sanitized.startsWith('```')) {
@@ -37,14 +37,14 @@
     > 	}
     > 	try {
     > 		const parsed = JSON.parse(sanitized) as Record<string, unknown>;
-    > 		const headline = 
+    > 		const headline =
     > 			typeof parsed.headline === 'string' ? parsed.headline.trim() : '';
-    > 		const response = 
+    > 		const response =
     > 			typeof parsed.response === 'string' ? parsed.response.trim() : '';
     > 		if (!headline || !response) {
     > 			return null;
     > 		}
-    > 
+    >
     > 		if (toolId === 'rate_excuse') {
     > 			if (typeof parsed.rating !== 'number') {
     > 				return null;
@@ -52,7 +52,7 @@
     > 			const rating = Math.max(1, Math.min(10, Math.round(parsed.rating)));
     > 			return { headline: `${rating}/10`, response, rating };
     > 		}
-    > 
+    >
     > 		return { headline, response };
     > 	} catch {
     > 		return null;
@@ -98,9 +98,9 @@
 - **Discussion URL:** [Link to GitHub](https://github.com/Phazzie/meechiescoloringbook/pull/127#discussion_r3356080425)
 - **Comment:**
     > **<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Wire canonical seams into runtime**
-    > 
+    >
     > When the app exercises the generation, chat, or Meechie tool flows, these newly declared canonical self-contained seams are not used: repo-wide search shows `src/lib/core/generate-pipeline.ts` still imports the flat prompt/drift/spec adapters, `src/lib/core/chat-interpretation-pipeline.ts` still imports the flat spec contract/adapter, and `src/lib/core/tools-pipeline.ts` still imports the flat Meechie tool adapter. This means fixes or contract changes made in the migrated self-contained seams and their fixture-backed mocks will only affect the new seam-local tests, not production behavior, so the migration is effectively bypassed until the runtime imports are updated.
-    > 
+    >
     > Useful? React with 👍 / 👎.
 
 
@@ -112,9 +112,7 @@
 - **Discussion URL:** [Link to GitHub](https://github.com/Phazzie/meechiescoloringbook/pull/127#discussion_r3356080431)
 - **Comment:**
     > **<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Preserve input-specific prompt compilation**
-    > 
+    >
     > When any test or probe calls this mock with a `PromptCompilerInput` other than `promptCompilerInputFixture`, it now returns the sample fixture prompt and metadata regardless of the requested description, density, line thickness, border, or caption. The previous mock interpolated those fields into the compiled prompt, so this change can let code that drops or misroutes prompt-compiler inputs still pass against the mock while producing the wrong prompt shape for non-sample inputs.
-    > 
+    >
     > Useful? React with 👍 / 👎.
-
-
