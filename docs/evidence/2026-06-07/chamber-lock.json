@@ -1,6 +1,6 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-06-07T05:56:29.445Z",
+  "generatedAt": "2026-06-07T12:20:17.031Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -404,42 +404,6 @@
       "checks": [
         {
           "kind": "contract",
-          "path": "contracts/image-generation.contract.ts",
-          "status": "ok"
-        },
-        {
-          "kind": "probe",
-          "path": "probes/image-generation.probe.mjs",
-          "status": "ok"
-        },
-        {
-          "kind": "fixtures",
-          "path": "fixtures/image-generation/",
-          "status": "ok"
-        },
-        {
-          "kind": "mock",
-          "path": "src/lib/mocks/image-generation.mock.ts",
-          "status": "ok"
-        },
-        {
-          "kind": "tests",
-          "path": "tests/contract/image-generation.test.ts",
-          "status": "ok"
-        },
-        {
-          "kind": "adapter",
-          "path": "src/lib/adapters/image-generation.adapter.ts",
-          "status": "ok"
-        }
-      ]
-    },
-    {
-      "seam": "ImageGenerationSeam (self-contained)",
-      "status": "ok",
-      "checks": [
-        {
-          "kind": "contract",
           "path": "src/lib/seams/image-generation-seam/contract.ts",
           "status": "ok"
         },
@@ -460,7 +424,7 @@
         },
         {
           "kind": "tests",
-          "path": "src/lib/seams/image-generation-seam/test.ts",
+          "path": "tests/contract/image-generation.test.ts",
           "status": "ok"
         },
         {
@@ -1012,7 +976,7 @@
     }
   ],
   "summary": {
-    "ok": 28,
+    "ok": 27,
     "blocked": 0,
     "missing": 0,
     "overallStatus": "ok"

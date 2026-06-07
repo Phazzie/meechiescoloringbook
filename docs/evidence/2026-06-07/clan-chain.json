@@ -1,7 +1,7 @@
 {
   "tool": "clan-chain",
-  "generatedAt": "2026-06-07T06:01:33.851Z",
-  "evidenceDir": "docs\\evidence\\2026-06-07",
+  "generatedAt": "2026-06-07T12:21:23.344Z",
+  "evidenceDir": "docs/evidence/2026-06-07",
   "clean": [
     {
       "seam": "AppConfigSeam",
@@ -49,10 +49,6 @@
     },
     {
       "seam": "ImageGenerationSeam",
-      "owner": "hbpheonix"
-    },
-    {
-      "seam": "ImageGenerationSeam (self-contained)",
       "owner": "hbpheonix"
     },
     {

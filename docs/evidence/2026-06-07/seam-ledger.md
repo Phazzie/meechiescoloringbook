@@ -5,7 +5,7 @@ Info flow: seam checks -> ledger table -> review.
 -->
 # Seam Ledger
 
-Generated at: 2026-06-07T06:01:31.523Z
+Generated at: 2026-06-07T12:21:23.163Z
 
 | Seam | Status | Contract | Probe | Fixtures | Mock | Tests | Adapter |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -20,8 +20,7 @@ Generated at: 2026-06-07T06:01:31.523Z
 | PromptAssemblySeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | PromptAssemblySeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | ChatInterpretationSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| ImageGenerationSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| ImageGenerationSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
+| ImageGenerationSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | DriftDetectionSeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | DriftDetectionSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | MeechieVoiceSeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
