@@ -19,7 +19,6 @@ const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
 		let timer: ReturnType<typeof setTimeout>;
 		const onAbort = () => {
 			clearTimeout(timer);
-			signal?.removeEventListener('abort', onAbort);
 			reject(buildNamedError('AbortError', 'Operation aborted by caller.'));
 		};
 		timer = setTimeout(() => {
