@@ -4,7 +4,7 @@ Why: Give users zero-friction access to Meechie's voice with no input required, 
 Info flow: Tap -> tools API (random_meechie) -> saying display -> generate coloring page.
 -->
 <script lang="ts">
-	import { postJson } from '$lib/core/http-client';
+	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 	import type { MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
 	import type { GeneratedImage } from '../../../contracts/image-generation.contract';
 	import type { PackagedFile } from '../../../contracts/output-packaging.contract';
@@ -31,9 +31,13 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		packagedFiles = [];
 
 		try {
-			const payload = await postJson('/api/tools', {
-				toolId: 'random_meechie'
-			});
+			const payload = await postJson(
+				'/api/tools',
+				{
+					toolId: 'random_meechie'
+				},
+				{ timeoutMs: POST_JSON_TIMEOUTS_MS.tools }
+			);
 			const parsed = MeechieToolResultSchema.safeParse(payload);
 			if (!parsed.success || !parsed.data.ok) {
 				error =
@@ -58,32 +62,36 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		packagedFiles = [];
 
 		try {
-			const payload = await postJson('/api/generate', {
-				spec: {
-					title: compactColoringPageTitle([result.response]),
-					listMode: 'title_only',
-					items: [],
-					dedication: dedicatedTo.trim() || undefined,
-					alignment: 'center',
-					numberAlignment: 'strict',
-					listGutter: 'normal',
-					whitespaceScale: 35,
-					textSize: 'large',
-					fontStyle: 'block',
-					textStrokeWidth: 9,
-					colorMode: 'black_and_white_only',
-					decorations: 'dense',
-					illustrations: 'simple',
-					shading: 'none',
-					border: 'decorative',
-					borderThickness: 10,
-					variations: 1,
-					outputFormat: 'pdf',
-					pageSize: 'US_Letter'
+			const payload = await postJson(
+				'/api/generate',
+				{
+					spec: {
+						title: compactColoringPageTitle([result.response]),
+						listMode: 'title_only',
+						items: [],
+						dedication: dedicatedTo.trim() || undefined,
+						alignment: 'center',
+						numberAlignment: 'strict',
+						listGutter: 'normal',
+						whitespaceScale: 35,
+						textSize: 'large',
+						fontStyle: 'block',
+						textStrokeWidth: 9,
+						colorMode: 'black_and_white_only',
+						decorations: 'dense',
+						illustrations: 'simple',
+						shading: 'none',
+						border: 'decorative',
+						borderThickness: 10,
+						variations: 1,
+						outputFormat: 'pdf',
+						pageSize: 'US_Letter'
+					},
+					styleHint:
+						'crown, sparkles, diamonds, roses, bold statement coloring page for women'
 				},
-				styleHint:
-					'crown, sparkles, diamonds, roses, bold statement coloring page for women'
-			});
+				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
+			);
 
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success || !parsed.data.ok) {

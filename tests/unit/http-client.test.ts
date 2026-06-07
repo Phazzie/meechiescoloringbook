@@ -20,6 +20,7 @@ describe('http-client', () => {
 
 	describe('postJson', () => {
 		afterEach(() => {
+			vi.useRealTimers();
 			vi.unstubAllGlobals();
 		});
 
@@ -146,6 +147,67 @@ describe('http-client', () => {
 			await expect(postJson('/api/test', {})).rejects.toThrow(
 				'postJson: HTTP 503 Service Unavailable from /api/test: empty response body'
 			);
+		});
+
+		it('rejects with a user-readable timeout when timeoutMs elapses', async () => {
+			vi.useFakeTimers();
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+					return new Promise<Response>((_, reject) => {
+						init.signal?.addEventListener('abort', () => {
+							reject(Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }));
+						});
+					});
+				})
+			);
+
+			const request = postJson('/api/test', {}, { timeoutMs: 1_000 }).catch((error) => error);
+			await vi.advanceTimersByTimeAsync(1_001);
+			const result = await Promise.race([request, Promise.resolve('still pending')]);
+
+			expect(result).toBeInstanceOf(Error);
+			expect((result as Error).message).toBe(
+				'Request timed out after 1s. The AI took too long to respond - please try again.'
+			);
+		});
+
+		it('passes an abort signal to fetch when timeoutMs is set and returns parsed payload', async () => {
+			const mockPayload = { ok: true, value: 'fast response' };
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockResolvedValue(jsonResponse(mockPayload, { status: 200, statusText: 'OK' }))
+			);
+
+			const result = await postJson('/api/test', { input: 'data' }, { timeoutMs: 5_000 });
+
+			expect(result).toEqual(mockPayload);
+			const init = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
+			expect(init.signal).toBeInstanceOf(AbortSignal);
+		});
+
+		it('returns non-OK JSON payloads when timeoutMs is set', async () => {
+			const payload = {
+				ok: false,
+				error: { code: 'VALIDATION_FAILED', message: 'Prompt missing required field' }
+			};
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockResolvedValue(jsonResponse(payload, { status: 400, statusText: 'Bad Request' }))
+			);
+
+			await expect(postJson('/api/test', {}, { timeoutMs: 5_000 })).resolves.toEqual(payload);
+			const init = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
+			expect(init.signal).toBeInstanceOf(AbortSignal);
+		});
+
+		it('rethrows browser AbortError unchanged when no timeoutMs is set', async () => {
+			const abortError = Object.assign(new Error('The user aborted a request.'), {
+				name: 'AbortError'
+			});
+			vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
+
+			await expect(postJson('/api/test', {})).rejects.toThrow('The user aborted a request.');
 		});
 	});
 });

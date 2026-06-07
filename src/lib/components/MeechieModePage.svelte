@@ -4,7 +4,7 @@ Why: Avoid duplicate per-route form/request logic while exposing focused mode ex
 Info flow: Mode config + user inputs -> MeechieToolInputSchema -> /api/tools -> rendered tool output.
 -->
 <script lang="ts">
-	import { postJson } from '$lib/core/http-client';
+	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 	import type { MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
 	import {
 		MeechieToolInputSchema,
@@ -41,7 +41,9 @@ Info flow: Mode config + user inputs -> MeechieToolInputSchema -> /api/tools -> 
 		}
 
 		try {
-			const payload = await postJson('/api/tools', parsedInput.data);
+			const payload = await postJson('/api/tools', parsedInput.data, {
+				timeoutMs: POST_JSON_TIMEOUTS_MS.tools
+			});
 			const parsedResult = MeechieToolResultSchema.safeParse(payload);
 			if (!parsedResult.success) {
 				error = 'Tool response did not match contract.';

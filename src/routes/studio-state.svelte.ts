@@ -21,7 +21,7 @@ import {
 	studioThemes,
 	type StudioTextActionId
 } from '$lib/core/meechie-studio';
-import { postJson } from '$lib/core/http-client';
+import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 import { GenerateResultSchema } from '../../contracts/generate.contract';
 import { WigTryOnResultSchema } from '../../contracts/wig-try-on.contract';
 import {
@@ -383,16 +383,20 @@ export class StudioState {
 
 		this.isTextWorking = true;
 		try {
-			const payload = await postJson('/api/meechie-studio-text', {
-				actionId: action.aiAction,
-				modeId: this.activeMode.id,
-				modeLabel: this.activeMode.label,
-				themeLabel: this.activeTheme.label,
-				evidence: safeEvidence,
-				dedication: this.currentDedication(),
-				voice: $state.snapshot(this.voice),
-				currentText: this.currentTextPayload()
-			});
+			const payload = await postJson(
+				'/api/meechie-studio-text',
+				{
+					actionId: action.aiAction,
+					modeId: this.activeMode.id,
+					modeLabel: this.activeMode.label,
+					themeLabel: this.activeTheme.label,
+					evidence: safeEvidence,
+					dedication: this.currentDedication(),
+					voice: $state.snapshot(this.voice),
+					currentText: this.currentTextPayload()
+				},
+				{ timeoutMs: POST_JSON_TIMEOUTS_MS.studioText }
+			);
 			const parsed = MeechieStudioTextResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.textError = 'Meechie sent back a line the studio could not read.';
@@ -427,10 +431,14 @@ export class StudioState {
 				this.generationError = 'Fix the page settings before generating.';
 				return;
 			}
-			const payload = await postJson('/api/generate', {
-				spec: $state.snapshot(this.spec),
-				styleHint: this.currentStyleHint()
-			});
+			const payload = await postJson(
+				'/api/generate',
+				{
+					spec: $state.snapshot(this.spec),
+					styleHint: this.currentStyleHint()
+				},
+				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
+			);
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.generationError = 'Generate response did not match contract.';
@@ -517,11 +525,15 @@ export class StudioState {
 		this.tryOnPortraitUrl = '';
 		this.isTryingOn = true;
 		try {
-			const payload = await postJson('/api/wig-try-on', {
-				selfieBase64: this.selfieBase64,
-				selfieMimeType: this.selfieMimeType,
-				wigId: this.selectedWigId
-			});
+			const payload = await postJson(
+				'/api/wig-try-on',
+				{
+					selfieBase64: this.selfieBase64,
+					selfieMimeType: this.selfieMimeType,
+					wigId: this.selectedWigId
+				},
+				{ timeoutMs: POST_JSON_TIMEOUTS_MS.wigTryOn }
+			);
 			const parsed = WigTryOnResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.tryOnError = 'Try-on response did not match contract.';

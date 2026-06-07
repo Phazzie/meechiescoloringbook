@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-06-07T05:43:38.609Z
+Generated at: 2026-06-07T06:01:36.348Z
 Evidence folder: docs\evidence\2026-06-07
 
 Files included:
@@ -30,8 +30,10 @@ Files included:
 - open-prs-after-recalc.json (27986 bytes)
 - open-prs-current.json (17625 bytes)
 - pr-117-check.txt (530 bytes)
+- pr-117-diff-check.txt (1688 bytes)
 - pr-117-lint.txt (106 bytes)
 - pr-117-selfie-upload-focused-tests.txt (1228 bytes)
+- pr-117-selfie-upload-red.txt (636 bytes)
 - pr-117-verify.txt (20736 bytes)
 - pr-133-check.txt (254 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
@@ -46,6 +48,11 @@ Files included:
 - pr-133-print-dimension-debt-before.txt (166 bytes)
 - pr-133-verify-wrapper.txt (10121 bytes)
   Commands: meechies-coloringbook@0.1.0 verify | npm run chamber:lock && npm run verify:runner && npm run shaolin:lint && npm run assumption:alarm && npm run seam:ledger && npm run clan:chain && npm run proof:tape | meechies-coloringbook@0.1.0 chamber:lock | node scripts/chamber-lock.mjs | meechies-coloringbook@0.1.0 verify:runner | node scripts/verify-runner.mjs | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1 | meechies-coloringbook@0.1.0 shaolin:lint | node scripts/shaolin-lint.mjs | meechies-coloringbook@0.1.0 assumption:alarm | node scripts/assumption-alarm.mjs | meechies-coloringbook@0.1.0 seam:ledger | node scripts/seam-ledger.mjs | meechies-coloringbook@0.1.0 clan:chain | node scripts/clan-chain.mjs | meechies-coloringbook@0.1.0 proof:tape | node scripts/proof-tape.mjs
+- pr-136-check.txt (530 bytes)
+- pr-136-http-client-focused-tests.txt (1222 bytes)
+- pr-136-http-client-red.txt (12072 bytes)
+- pr-136-lint.txt (106 bytes)
+- pr-136-verify.txt (20456 bytes)
 - pr-139-check.txt (255 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 - pr-139-cipher-gate-wrapper.txt (74 bytes)
@@ -69,18 +76,18 @@ Files included:
 - pr-containment-ledger.md (9952 bytes)
 - proof-tape-wrapper.txt (72 bytes)
   Commands: meechies-coloringbook@0.1.0 proof:tape | node scripts/proof-tape.mjs
-- proof-tape.json (15928 bytes)
-- proof-tape.md (7090 bytes)
+- proof-tape.json (17322 bytes)
+- proof-tape.md (7403 bytes)
 - seam-ledger.json (27293 bytes)
 - seam-ledger.md (2251 bytes)
 - shaolin-lint.json (519 bytes)
 - studio-state-mode-select.txt (590 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run tests/unit/studio-state.test.ts
-- test.txt (9591 bytes)
+- test.txt (9450 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-wrapper.txt (10121 bytes)
   Commands: meechies-coloringbook@0.1.0 verify | npm run chamber:lock && npm run verify:runner && npm run shaolin:lint && npm run assumption:alarm && npm run seam:ledger && npm run clan:chain && npm run proof:tape | meechies-coloringbook@0.1.0 chamber:lock | node scripts/chamber-lock.mjs | meechies-coloringbook@0.1.0 verify:runner | node scripts/verify-runner.mjs | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1 | meechies-coloringbook@0.1.0 shaolin:lint | node scripts/shaolin-lint.mjs | meechies-coloringbook@0.1.0 assumption:alarm | node scripts/assumption-alarm.mjs | meechies-coloringbook@0.1.0 seam:ledger | node scripts/seam-ledger.mjs | meechies-coloringbook@0.1.0 clan:chain | node scripts/clan-chain.mjs | meechies-coloringbook@0.1.0 proof:tape | node scripts/proof-tape.mjs
-- verify.txt (9860 bytes)
+- verify.txt (9719 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - webp-dedication-focused-tests.txt (1468 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run tests/unit/studio-state.test.ts tests/unit/output-packaging-helpers.test.ts

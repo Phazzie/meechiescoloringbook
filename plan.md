@@ -8,6 +8,49 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## PR #136 Manual Integration: Client postJson Timeouts (2026-06-07)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: apply PR #136 directly and accidentally regress current `postJson` handling for 204/205, empty bodies, malformed JSON, and non-OK JSON payloads.
+2. Countermeasure: write focused timeout tests against current `postJson`, preserve every existing HTTP-client behavior test, and port only the timeout behavior plus caller budgets.
+3. Lower-debt path: centralize endpoint timeout budgets in `src/lib/core/http-client.ts` so callers do not duplicate magic numbers across Svelte routes and components.
+
+### Plan
+
+- Goal: Add bounded client-side timeouts to every browser `postJson` caller while preserving current response parsing and non-OK payload policy.
+- Exact seams: none; this is browser HTTP helper behavior and UI caller configuration, not a listed Seam-Driven Development seam.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/http-client.ts`
+  - `src/routes/studio-state.svelte.ts`
+  - `src/lib/components/MeechieModePage.svelte`
+  - `src/lib/components/MeechieTools.svelte`
+  - `src/routes/random/+page.svelte`
+  - `src/routes/rate-his-excuse/+page.svelte`
+  - `src/routes/who-fucked-up/+page.svelte`
+  - `tests/unit/http-client.test.ts`
+  - `docs/evidence/2026-06-07/pr-136-http-client-red.txt`
+  - `docs/evidence/2026-06-07/pr-136-http-client-focused-tests.txt`
+  - `docs/evidence/2026-06-07/pr-136-check.txt`
+  - `docs/evidence/2026-06-07/pr-136-lint.txt`
+  - `docs/evidence/2026-06-07/pr-136-verify.txt`
+  - `docs/evidence/2026-06-07/pr-136-diff-check.txt`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/http-client.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run check`
+  3. `npm.cmd run lint`
+  4. `npm.cmd run verify`
+  5. `git diff --check`
+- PR disposition rule: close #136 only after the replacement commit is on `origin/main`, with a comment noting the stale PR parser regression was avoided.
+
+### Self-critique
+
+1. What could be wrong: Client timeouts could surface as generic errors if `TimeoutError` is not mapped at the `postJson` boundary.
+2. What must be proven: Timeout-enabled requests pass an abort signal to `fetch`, elapsed timeouts reject with a readable message, no-timeout AbortErrors remain unchanged, and non-OK JSON bodies still resolve to payloads.
+3. Riskiest assumption: The endpoint timeout budgets from PR #136 are still reasonable for current main.
+4. Evidence to prove/disprove: Red/green HTTP-client tests, check/lint/full verify output, and a caller inventory showing no unbudgeted `postJson` calls remain.
+
 ## PR #117 Manual Integration: SelfieUpload FileReader Guard (2026-06-07)
 
 ### Shortcut Check

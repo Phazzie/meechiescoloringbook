@@ -1,13 +1,13 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-06-07T05:43:38.609Z",
+  "generatedAt": "2026-06-07T06:01:36.348Z",
   "evidenceDir": "docs\\evidence\\2026-06-07",
   "files": [
     {
       "name": "assumption-alarm.json",
       "path": "docs\\evidence\\2026-06-07\\assumption-alarm.json",
       "sizeBytes": 3636,
-      "modifiedAt": "2026-06-07T05:43:35.225Z",
+      "modifiedAt": "2026-06-07T06:01:29.070Z",
       "commands": []
     },
     {
@@ -25,7 +25,7 @@
       "name": "chamber-lock.json",
       "path": "docs\\evidence\\2026-06-07\\chamber-lock.json",
       "sizeBytes": 25704,
-      "modifiedAt": "2026-06-07T05:37:36.129Z",
+      "modifiedAt": "2026-06-07T05:56:29.453Z",
       "commands": []
     },
     {
@@ -59,14 +59,14 @@
       "name": "clan-chain.json",
       "path": "docs\\evidence\\2026-06-07\\clan-chain.json",
       "sizeBytes": 2343,
-      "modifiedAt": "2026-06-07T05:43:37.459Z",
+      "modifiedAt": "2026-06-07T06:01:33.858Z",
       "commands": []
     },
     {
       "name": "clan-chain.md",
       "path": "docs\\evidence\\2026-06-07\\clan-chain.md",
       "sizeBytes": 1476,
-      "modifiedAt": "2026-06-07T05:43:37.461Z",
+      "modifiedAt": "2026-06-07T06:01:33.865Z",
       "commands": []
     },
     {
@@ -132,6 +132,13 @@
       "commands": []
     },
     {
+      "name": "pr-117-diff-check.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-117-diff-check.txt",
+      "sizeBytes": 1688,
+      "modifiedAt": "2026-06-07T05:44:34.985Z",
+      "commands": []
+    },
+    {
       "name": "pr-117-lint.txt",
       "path": "docs\\evidence\\2026-06-07\\pr-117-lint.txt",
       "sizeBytes": 106,
@@ -143,6 +150,13 @@
       "path": "docs\\evidence\\2026-06-07\\pr-117-selfie-upload-focused-tests.txt",
       "sizeBytes": 1228,
       "modifiedAt": "2026-06-07T05:30:00.141Z",
+      "commands": []
+    },
+    {
+      "name": "pr-117-selfie-upload-red.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-117-selfie-upload-red.txt",
+      "sizeBytes": 636,
+      "modifiedAt": "2026-06-07T05:45:50.319Z",
       "commands": []
     },
     {
@@ -240,6 +254,41 @@
         "meechies-coloringbook@0.1.0 proof:tape",
         "node scripts/proof-tape.mjs"
       ]
+    },
+    {
+      "name": "pr-136-check.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-136-check.txt",
+      "sizeBytes": 530,
+      "modifiedAt": "2026-06-07T05:56:10.378Z",
+      "commands": []
+    },
+    {
+      "name": "pr-136-http-client-focused-tests.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-136-http-client-focused-tests.txt",
+      "sizeBytes": 1222,
+      "modifiedAt": "2026-06-07T05:55:14.486Z",
+      "commands": []
+    },
+    {
+      "name": "pr-136-http-client-red.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-136-http-client-red.txt",
+      "sizeBytes": 12072,
+      "modifiedAt": "2026-06-07T05:51:59.894Z",
+      "commands": []
+    },
+    {
+      "name": "pr-136-lint.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-136-lint.txt",
+      "sizeBytes": 106,
+      "modifiedAt": "2026-06-07T05:55:38.101Z",
+      "commands": []
+    },
+    {
+      "name": "pr-136-verify.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-136-verify.txt",
+      "sizeBytes": 20456,
+      "modifiedAt": "2026-06-07T06:01:35.750Z",
+      "commands": []
     },
     {
       "name": "pr-139-check.txt",
@@ -391,36 +440,36 @@
     {
       "name": "proof-tape.json",
       "path": "docs\\evidence\\2026-06-07\\proof-tape.json",
-      "sizeBytes": 15928,
-      "modifiedAt": "2026-06-07T05:09:56.000Z",
+      "sizeBytes": 17322,
+      "modifiedAt": "2026-06-07T05:43:38.613Z",
       "commands": []
     },
     {
       "name": "proof-tape.md",
       "path": "docs\\evidence\\2026-06-07\\proof-tape.md",
-      "sizeBytes": 7090,
-      "modifiedAt": "2026-06-07T05:09:56.002Z",
+      "sizeBytes": 7403,
+      "modifiedAt": "2026-06-07T05:43:38.615Z",
       "commands": []
     },
     {
       "name": "seam-ledger.json",
       "path": "docs\\evidence\\2026-06-07\\seam-ledger.json",
       "sizeBytes": 27293,
-      "modifiedAt": "2026-06-07T05:43:36.426Z",
+      "modifiedAt": "2026-06-07T06:01:31.530Z",
       "commands": []
     },
     {
       "name": "seam-ledger.md",
       "path": "docs\\evidence\\2026-06-07\\seam-ledger.md",
       "sizeBytes": 2251,
-      "modifiedAt": "2026-06-07T05:43:36.428Z",
+      "modifiedAt": "2026-06-07T06:01:31.534Z",
       "commands": []
     },
     {
       "name": "shaolin-lint.json",
       "path": "docs\\evidence\\2026-06-07\\shaolin-lint.json",
       "sizeBytes": 519,
-      "modifiedAt": "2026-06-07T05:43:34.176Z",
+      "modifiedAt": "2026-06-07T06:01:26.603Z",
       "commands": []
     },
     {
@@ -436,8 +485,8 @@
     {
       "name": "test.txt",
       "path": "docs\\evidence\\2026-06-07\\test.txt",
-      "sizeBytes": 9591,
-      "modifiedAt": "2026-06-07T05:43:32.804Z",
+      "sizeBytes": 9450,
+      "modifiedAt": "2026-06-07T06:01:24.322Z",
       "commands": [
         "meechies-coloringbook@0.1.0 test",
         "vitest run --pool=forks --maxWorkers=1"
@@ -474,8 +523,8 @@
     {
       "name": "verify.txt",
       "path": "docs\\evidence\\2026-06-07\\verify.txt",
-      "sizeBytes": 9860,
-      "modifiedAt": "2026-06-07T05:43:32.802Z",
+      "sizeBytes": 9719,
+      "modifiedAt": "2026-06-07T06:01:24.317Z",
       "commands": [
         "meechies-coloringbook@0.1.0 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
