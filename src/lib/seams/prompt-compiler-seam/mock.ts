@@ -1,8 +1,8 @@
-// Purpose: Mock PromptCompilerSeam behavior using fixtures.
-// Why: Keep tests deterministic without live I/O.
+// Purpose: Mock PromptCompilerSeam behavior using fixture scenarios.
+// Why: Keep tests deterministic without live I/O; zero invented data.
 // Info flow: tests -> mock -> fixtures.
 import type { CompiledPrompt, PromptCompilerInput, PromptCompilerSeam } from './contract';
-import { compiledPromptFixture, promptCompilerInputFixture } from './fixtures';
+import { compiledPromptFaultFixture } from './fixtures';
 import { SYSTEM_CONSTANTS } from '../../core/constants';
 
 const densityMap: Record<PromptCompilerInput['density'], string> = {
@@ -66,24 +66,11 @@ const buildPrompt = (input: PromptCompilerInput) => {
   ].join('\n');
 };
 
-const isFixtureInput = (input: PromptCompilerInput): boolean => {
-  return (
-    input.description === promptCompilerInputFixture.description &&
-    input.glamLevel === promptCompilerInputFixture.glamLevel &&
-    input.density === promptCompilerInputFixture.density &&
-    input.lineThickness === promptCompilerInputFixture.lineThickness &&
-    input.borderStyle === promptCompilerInputFixture.borderStyle &&
-    input.addCaption === promptCompilerInputFixture.addCaption &&
-    input.captionText === promptCompilerInputFixture.captionText
-  );
-};
-
-export const createMockPromptCompilerSeam = (): PromptCompilerSeam => ({
+export const createMockPromptCompilerSeam = (scenario: 'sample' | 'fault' = 'sample'): PromptCompilerSeam => ({
   compile: async (input) => {
-    if (isFixtureInput(input)) {
-      return compiledPromptFixture;
-    }
-    const compiled: CompiledPrompt = {
+    if (scenario === 'fault') return structuredClone(compiledPromptFaultFixture as CompiledPrompt);
+
+    return {
       imagePrompt: buildPrompt(input),
       negativePrompt,
       metadata: {
@@ -93,9 +80,8 @@ export const createMockPromptCompilerSeam = (): PromptCompilerSeam => ({
         borderStyle: input.borderStyle,
         captionText: input.addCaption ? input.captionText : undefined,
         stylePreset: 'mock-glam',
-        enforcedConstraints: constraints
+        enforcedConstraints: [...constraints]
       }
     };
-    return compiled;
   }
 });

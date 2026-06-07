@@ -74,6 +74,7 @@ const run = async () => {
 		'contracts',
 		'fixtures',
 		'src/lib/mocks',
+		'src/lib/seams',
 		'tests/contract',
 		'src/lib/adapters',
 		'docs/seams.md',
