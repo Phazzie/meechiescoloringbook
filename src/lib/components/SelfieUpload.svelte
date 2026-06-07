@@ -4,6 +4,8 @@
   Info flow: File input -> FileReader -> base64 string + mimeType -> onUpload callback -> parent page.
 -->
 <script lang="ts">
+	import { parseSelfieDataUrl } from '$lib/core/selfie-upload';
+
 	type AllowedMime = 'image/jpeg' | 'image/png' | 'image/webp';
 
 	let { onUpload }: { onUpload: (_base64: string, _mimeType: AllowedMime) => void } = $props();
@@ -31,15 +33,13 @@
 
 		const reader = new FileReader();
 		reader.onload = () => {
-			const dataUrl = reader.result as string;
-			// dataUrl format: data:<mimeType>;base64,<base64data>
-			const base64 = dataUrl.split(',')[1];
-			if (!base64) {
-				error = 'Image could not be read. Please try again.';
+			const parsed = parseSelfieDataUrl(reader.result);
+			if (!parsed.ok) {
+				error = parsed.error;
 				return;
 			}
-			previewUrl = dataUrl;
-			onUpload(base64, file.type as AllowedMime);
+			previewUrl = parsed.dataUrl;
+			onUpload(parsed.base64, file.type as AllowedMime);
 		};
 		reader.onerror = () => {
 			error = 'Failed to read file. Please try again.';

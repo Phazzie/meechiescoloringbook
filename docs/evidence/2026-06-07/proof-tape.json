@@ -1,13 +1,13 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-06-07T05:09:55.996Z",
+  "generatedAt": "2026-06-07T05:43:38.609Z",
   "evidenceDir": "docs\\evidence\\2026-06-07",
   "files": [
     {
       "name": "assumption-alarm.json",
       "path": "docs\\evidence\\2026-06-07\\assumption-alarm.json",
       "sizeBytes": 3636,
-      "modifiedAt": "2026-06-07T05:09:52.701Z",
+      "modifiedAt": "2026-06-07T05:43:35.225Z",
       "commands": []
     },
     {
@@ -25,7 +25,7 @@
       "name": "chamber-lock.json",
       "path": "docs\\evidence\\2026-06-07\\chamber-lock.json",
       "sizeBytes": 25704,
-      "modifiedAt": "2026-06-07T05:04:25.107Z",
+      "modifiedAt": "2026-06-07T05:37:36.129Z",
       "commands": []
     },
     {
@@ -51,22 +51,22 @@
     {
       "name": "cipher-gate.json",
       "path": "docs\\evidence\\2026-06-07\\cipher-gate.json",
-      "sizeBytes": 1332,
-      "modifiedAt": "2026-06-07T04:50:00.970Z",
+      "sizeBytes": 1474,
+      "modifiedAt": "2026-06-07T05:11:15.773Z",
       "commands": []
     },
     {
       "name": "clan-chain.json",
       "path": "docs\\evidence\\2026-06-07\\clan-chain.json",
       "sizeBytes": 2343,
-      "modifiedAt": "2026-06-07T05:09:54.829Z",
+      "modifiedAt": "2026-06-07T05:43:37.459Z",
       "commands": []
     },
     {
       "name": "clan-chain.md",
       "path": "docs\\evidence\\2026-06-07\\clan-chain.md",
       "sizeBytes": 1476,
-      "modifiedAt": "2026-06-07T05:09:54.831Z",
+      "modifiedAt": "2026-06-07T05:43:37.461Z",
       "commands": []
     },
     {
@@ -125,6 +125,34 @@
       "commands": []
     },
     {
+      "name": "pr-117-check.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-117-check.txt",
+      "sizeBytes": 530,
+      "modifiedAt": "2026-06-07T05:30:41.071Z",
+      "commands": []
+    },
+    {
+      "name": "pr-117-lint.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-117-lint.txt",
+      "sizeBytes": 106,
+      "modifiedAt": "2026-06-07T05:29:33.874Z",
+      "commands": []
+    },
+    {
+      "name": "pr-117-selfie-upload-focused-tests.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-117-selfie-upload-focused-tests.txt",
+      "sizeBytes": 1228,
+      "modifiedAt": "2026-06-07T05:30:00.141Z",
+      "commands": []
+    },
+    {
+      "name": "pr-117-verify.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-117-verify.txt",
+      "sizeBytes": 20736,
+      "modifiedAt": "2026-06-07T05:43:38.265Z",
+      "commands": []
+    },
+    {
       "name": "pr-133-check.txt",
       "path": "docs\\evidence\\2026-06-07\\pr-133-check.txt",
       "sizeBytes": 254,
@@ -133,6 +161,23 @@
         "meechies-coloringbook@0.1.0 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
       ]
+    },
+    {
+      "name": "pr-133-cipher-gate-wrapper.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-133-cipher-gate-wrapper.txt",
+      "sizeBytes": 75,
+      "modifiedAt": "2026-06-07T05:11:15.484Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 cipher:gate",
+        "node scripts/cipher-gate.mjs"
+      ]
+    },
+    {
+      "name": "pr-133-diff-check.txt",
+      "path": "docs\\evidence\\2026-06-07\\pr-133-diff-check.txt",
+      "sizeBytes": 1933,
+      "modifiedAt": "2026-06-07T05:11:34.175Z",
+      "commands": []
     },
     {
       "name": "pr-133-focused-tests.txt",
@@ -346,36 +391,36 @@
     {
       "name": "proof-tape.json",
       "path": "docs\\evidence\\2026-06-07\\proof-tape.json",
-      "sizeBytes": 13021,
-      "modifiedAt": "2026-06-07T04:50:15.002Z",
+      "sizeBytes": 15928,
+      "modifiedAt": "2026-06-07T05:09:56.000Z",
       "commands": []
     },
     {
       "name": "proof-tape.md",
       "path": "docs\\evidence\\2026-06-07\\proof-tape.md",
-      "sizeBytes": 5486,
-      "modifiedAt": "2026-06-07T04:50:15.007Z",
+      "sizeBytes": 7090,
+      "modifiedAt": "2026-06-07T05:09:56.002Z",
       "commands": []
     },
     {
       "name": "seam-ledger.json",
       "path": "docs\\evidence\\2026-06-07\\seam-ledger.json",
       "sizeBytes": 27293,
-      "modifiedAt": "2026-06-07T05:09:53.775Z",
+      "modifiedAt": "2026-06-07T05:43:36.426Z",
       "commands": []
     },
     {
       "name": "seam-ledger.md",
       "path": "docs\\evidence\\2026-06-07\\seam-ledger.md",
       "sizeBytes": 2251,
-      "modifiedAt": "2026-06-07T05:09:53.777Z",
+      "modifiedAt": "2026-06-07T05:43:36.428Z",
       "commands": []
     },
     {
       "name": "shaolin-lint.json",
       "path": "docs\\evidence\\2026-06-07\\shaolin-lint.json",
       "sizeBytes": 519,
-      "modifiedAt": "2026-06-07T05:09:51.559Z",
+      "modifiedAt": "2026-06-07T05:43:34.176Z",
       "commands": []
     },
     {
@@ -391,8 +436,8 @@
     {
       "name": "test.txt",
       "path": "docs\\evidence\\2026-06-07\\test.txt",
-      "sizeBytes": 9341,
-      "modifiedAt": "2026-06-07T05:09:50.155Z",
+      "sizeBytes": 9591,
+      "modifiedAt": "2026-06-07T05:43:32.804Z",
       "commands": [
         "meechies-coloringbook@0.1.0 test",
         "vitest run --pool=forks --maxWorkers=1"
@@ -429,8 +474,8 @@
     {
       "name": "verify.txt",
       "path": "docs\\evidence\\2026-06-07\\verify.txt",
-      "sizeBytes": 9610,
-      "modifiedAt": "2026-06-07T05:09:50.153Z",
+      "sizeBytes": 9860,
+      "modifiedAt": "2026-06-07T05:43:32.802Z",
       "commands": [
         "meechies-coloringbook@0.1.0 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

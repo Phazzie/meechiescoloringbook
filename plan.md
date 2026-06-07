@@ -8,6 +8,44 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## PR #117 Manual Integration: SelfieUpload FileReader Guard (2026-06-07)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: close PR #117 as superseded after seeing the ESLint and prop-cleanup pieces already exist on main.
+2. Countermeasure: inspect each PR claim against current files, isolate the one missing behavior, and add a failing focused test before changing production code.
+3. Lower-debt path: avoid merging stale lint configuration or callback-name churn; extract the small data URL parsing rule into a pure helper so the edge case is testable without adding a component-test dependency.
+
+### Plan
+
+- Goal: Preserve current main while manually integrating only PR #117's missing `FileReader.result` runtime guard for `SelfieUpload`.
+- Exact seams: none; this is component-local browser file-input parsing and does not change a listed Seam-Driven Development seam.
+- Exact file paths to touch:
+  - `plan.md`
+  - `src/lib/core/selfie-upload.ts`
+  - `src/lib/components/SelfieUpload.svelte`
+  - `tests/unit/selfie-upload.test.ts`
+  - `docs/evidence/2026-06-07/pr-117-selfie-upload-red.txt`
+  - `docs/evidence/2026-06-07/pr-117-selfie-upload-focused-tests.txt`
+  - `docs/evidence/2026-06-07/pr-117-check.txt`
+  - `docs/evidence/2026-06-07/pr-117-lint.txt`
+  - `docs/evidence/2026-06-07/pr-117-verify.txt`
+  - `docs/evidence/2026-06-07/pr-117-diff-check.txt`
+- Exact commands to run:
+  1. `npm.cmd test -- tests/unit/selfie-upload.test.ts --pool=forks --maxWorkers=1`
+  2. `npm.cmd run check`
+  3. `npm.cmd run lint`
+  4. `npm.cmd run verify`
+  5. `git diff --check`
+- PR disposition rule: close #117 only after current main has the missing guard, focused verification passes, and the PR comment states which parts were already superseded versus manually integrated.
+
+### Self-critique
+
+1. What could be wrong: A helper extraction could be unnecessary abstraction if it grows beyond data URL parsing.
+2. What must be proven: Non-string `FileReader.result` does not call `onUpload`, gives the existing readable error, and valid data URLs still parse to the same base64 payload.
+3. Riskiest assumption: Focused unit coverage is enough for this slice because the actual file input and callback wiring remain unchanged.
+4. Evidence to prove/disprove: Red/green focused unit test output, Svelte check, ESLint output, full verify output, and whitespace diff check.
+
 ## PR Backlog Resolution and Merge Workpack (2026-06-06)
 
 ### Plan

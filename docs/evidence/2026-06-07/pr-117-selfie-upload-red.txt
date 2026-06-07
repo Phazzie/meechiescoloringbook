@@ -1,0 +1,14 @@
+Command:
+npm.cmd test -- tests/unit/selfie-upload.test.ts --pool=forks --maxWorkers=1
+
+Exit code:
+1
+
+Relevant output:
+FAIL tests/unit/selfie-upload.test.ts [ tests/unit/selfie-upload.test.ts ]
+Error: Failed to resolve import "$lib/core/selfie-upload" from "tests/unit/selfie-upload.test.ts". Does the file exist?
+Plugin: vite:import-analysis
+File: C:/Users/ieatc/Meechiescoloringbook/tests/unit/selfie-upload.test.ts:5:35
+
+Why this is the expected red state:
+The test specified a small parser API for FileReader.result handling before production code existed. The missing import showed the behavior was not implemented on current main.
