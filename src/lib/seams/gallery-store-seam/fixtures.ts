@@ -16,3 +16,13 @@ export const galleryRecordFixture: GalleryRecord = {
     }
   ]
 };
+
+// Intentionally invalid: empty id and createdAt (both violate min(1)).
+// Used to prove validateGalleryRecord() rejects malformed records.
+export const galleryRecordFaultFixture: unknown = {
+  id: '',
+  createdAt: '',
+  request: promptCompilerInputFixture,
+  compiled: compiledPromptFixture,
+  images: []
+};
