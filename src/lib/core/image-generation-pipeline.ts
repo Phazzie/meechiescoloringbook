@@ -22,7 +22,6 @@ const imageFormatFromBase64 = (
   if (data.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg' };
   if (data.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png' };
   if (data.startsWith('UklGR')) return { format: 'webp', mimeType: 'image/webp' };
-  if (data.startsWith('PHN2Zy') || data.startsWith('PD94bW')) return { format: 'svg', mimeType: 'image/svg+xml' };
   return { format: 'png', mimeType: 'image/png' };
 };
 
