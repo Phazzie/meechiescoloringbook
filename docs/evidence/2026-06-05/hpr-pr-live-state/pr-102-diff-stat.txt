@@ -1,4 +1,4 @@
-﻿ contracts/image-generation.contract.ts       |  13 +-
+ contracts/image-generation.contract.ts       |  13 +-
  docs/seams.md                                |   3 +-
  fixtures/image-generation/dense-scene.json   |  52 ------
  fixtures/image-generation/fault.json         |  42 -----

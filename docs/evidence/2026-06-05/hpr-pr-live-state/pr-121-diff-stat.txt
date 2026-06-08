@@ -1,4 +1,4 @@
-﻿ docs/seams.md                                |  3 +-
+ docs/seams.md                                |  3 +-
  fixtures/image-generation/dense-scene.json   | 52 ------------------
  fixtures/image-generation/fault.json         | 42 ---------------
  fixtures/image-generation/sample.json        | 62 ---------------------

@@ -1,4 +1,4 @@
-﻿ src/lib/seams/gallery-store-seam/fixtures.ts   | 10 ++++++++++
+ src/lib/seams/gallery-store-seam/fixtures.ts   | 10 ++++++++++
  src/lib/seams/gallery-store-seam/mock.ts       | 10 +++++-----
  src/lib/seams/gallery-store-seam/test.ts       | 18 +++++++++++++++++-
  src/lib/seams/prompt-compiler-seam/fixtures.ts | 26 ++++++++++++++++++++++++++

@@ -1,4 +1,4 @@
-﻿ DECISIONS.md                                   | 15 +++++
+ DECISIONS.md                                   | 15 +++++
  src/lib/seams/gallery-store-seam/fixtures.ts   | 10 +++
  src/lib/seams/gallery-store-seam/mock.ts       |  9 ++-
  src/lib/seams/gallery-store-seam/test.ts       | 30 ++++++++-

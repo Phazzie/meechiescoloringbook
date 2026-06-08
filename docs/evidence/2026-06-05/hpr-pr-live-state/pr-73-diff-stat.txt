@@ -1,4 +1,4 @@
-﻿ .gitignore                                         |   3 +
+ .gitignore                                         |   3 +
  contracts/CLAUDE.md                                |  22 +-
  contracts/generate.contract.ts                     |   6 +-
  contracts/image-generation.contract.ts             |   2 +-
