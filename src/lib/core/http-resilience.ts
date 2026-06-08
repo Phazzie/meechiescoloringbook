@@ -152,8 +152,9 @@ export const fetchWithRetry = async (
 
 		if (RETRYABLE_STATUSES.has(response.status) && attempt < maxAttempts) {
 			response.body?.cancel().catch((err: unknown) => {
-				if (err instanceof Error && !/aborted|canceled/i.test(err.message)) {
-					console.error('fetchWithRetry: failed to cancel response body:', err.message);
+				const message = errorMessage(err);
+				if (!/aborted|canceled/i.test(message)) {
+					console.error('fetchWithRetry: failed to cancel response body:', message);
 				}
 			});
 			const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
