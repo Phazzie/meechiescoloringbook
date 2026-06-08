@@ -2,7 +2,7 @@
 // Why: Keep prompt wording deterministic and prevent copy drift across seams.
 // Info flow: Spec/style inputs -> canonical line builders -> adapters/tests.
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
-import type { ColoringPageSpec } from '../../../contracts/spec-validation.contract';
+import type { ColoringPageSpec } from '$lib/seams/spec-validation-seam/contract';
 
 export const BASE_PAGE_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[0];
 export const OUTLINE_ONLY_PHRASE = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES[1];

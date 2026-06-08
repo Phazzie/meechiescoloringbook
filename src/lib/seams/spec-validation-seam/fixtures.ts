@@ -4,10 +4,10 @@
 import { z } from 'zod';
 import { SpecValidationInputSchema, SpecValidationOutputSchema } from './contract';
 import { ScenarioSchema } from '../../../../contracts/shared.contract';
-import sampleJson from '../../../../fixtures/spec-validation/sample.json';
-import faultJson from '../../../../fixtures/spec-validation/fault.json';
-import titleOnlyJson from '../../../../fixtures/spec-validation/title-only.json';
-import maxItemsJson from '../../../../fixtures/spec-validation/max-items.json';
+import sampleJson from './sample.json';
+import faultJson from './fault.json';
+import titleOnlyJson from './title-only.json';
+import maxItemsJson from './max-items.json';
 
 const fixtureSchema = z.object({
 	scenario: ScenarioSchema,

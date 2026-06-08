@@ -5,7 +5,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange tri
 -->
 <script lang="ts">
 	import { studioThemes } from '$lib/core/meechie-studio';
-	import type { ColoringPageSpec } from '../../../../contracts/spec-validation.contract';
+	import type { ColoringPageSpec } from '$lib/seams/spec-validation-seam/contract';
 
 	type PageSize = ColoringPageSpec['pageSize'];
 	type BorderChoice = ColoringPageSpec['border'];
