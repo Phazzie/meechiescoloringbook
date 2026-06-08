@@ -2,7 +2,7 @@
 // Why: Package generated images into downloadable artifacts.
 // Info flow: Generated images -> packaged files for download.
 import { z } from 'zod';
-import { OutputFormatSchema, PageSizeSchema } from './spec-validation.contract';
+import { OutputFormatSchema, PageSizeSchema } from '../src/lib/seams/spec-validation-seam/contract';
 import { GeneratedImageSchema } from './image-generation.contract';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 import type { Result } from './shared.contract';

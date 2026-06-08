@@ -4,9 +4,9 @@
 import { z } from 'zod';
 import { PromptAssemblyInputSchema, PromptAssemblyResultSchema } from './contract';
 import { ScenarioSchema } from '../../../../contracts/shared.contract';
-import sampleJson from '../../../../fixtures/prompt-assembly/sample.json';
-import faultJson from '../../../../fixtures/prompt-assembly/fault.json';
-import titleOnlyJson from '../../../../fixtures/prompt-assembly/title-only.json';
+import sampleJson from './sample.json';
+import faultJson from './fault.json';
+import titleOnlyJson from './title-only.json';
 
 const fixtureSchema = z.object({
 	scenario: ScenarioSchema,

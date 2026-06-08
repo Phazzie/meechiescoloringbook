@@ -4,8 +4,8 @@
 import { z } from 'zod';
 import { MeechieVoiceInputSchema, MeechieVoiceResultSchema } from './contract';
 import { ScenarioSchema } from '../../../../contracts/shared.contract';
-import sampleJson from '../../../../fixtures/meechie-voice/sample.json';
-import faultJson from '../../../../fixtures/meechie-voice/fault.json';
+import sampleJson from './sample.json';
+import faultJson from './fault.json';
 
 const fixtureSchema = z.object({
 	scenario: ScenarioSchema,

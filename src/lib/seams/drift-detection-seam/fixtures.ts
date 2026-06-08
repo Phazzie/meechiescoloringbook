@@ -4,9 +4,9 @@
 import { z } from 'zod';
 import { DriftDetectionInputSchema, DriftDetectionResultSchema } from './contract';
 import { ScenarioSchema } from '../../../../contracts/shared.contract';
-import sampleJson from '../../../../fixtures/drift-detection/sample.json';
-import faultJson from '../../../../fixtures/drift-detection/fault.json';
-import titleOnlyJson from '../../../../fixtures/drift-detection/title-only.json';
+import sampleJson from './sample.json';
+import faultJson from './fault.json';
+import titleOnlyJson from './title-only.json';
 
 const fixtureSchema = z.object({
 	scenario: ScenarioSchema,

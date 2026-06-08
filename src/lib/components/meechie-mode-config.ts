@@ -1,7 +1,7 @@
 // Purpose: Define shared mode configuration types for generic Meechie mode pages.
 // Why: Keep route-level mode maps and rendering component aligned without duplicate type declarations.
 // Info flow: Route mode map -> ModeConfig -> MeechieModePage rendering + tool payload build.
-import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract';
+import type { MeechieToolInput } from '$lib/seams/meechie-tool-seam/contract';
 
 export type ModeFieldId =
 	| 'situation'
