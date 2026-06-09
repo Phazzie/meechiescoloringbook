@@ -5,7 +5,6 @@ import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { selectTextModel } from '$lib/core/text-model';
-import { env } from '$env/dynamic/private';
 import {
 	ChatInterpretationInputSchema,
 	ChatInterpretationResultSchema
@@ -15,8 +14,6 @@ import {
 	RawColoringPageSpecSchema
 } from '../../../contracts/spec-validation.contract';
 import { z } from 'zod';
-
-const CHAT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
 
 type ChatInterpretationResult = z.infer<typeof ChatInterpretationResultSchema>;
 
@@ -28,6 +25,7 @@ type ChatPipelineResponse = {
 type ChatPipelineDeps = {
 	createChatCompletion: typeof providerAdapter.createChatCompletion;
 	validateSpec: typeof specValidationAdapter.validate;
+	model?: string;
 };
 
 const extractSingleJsonObject = (content: string): Record<string, unknown> | null => {
@@ -74,7 +72,7 @@ export const runChatInterpretationPipeline = async (
 	}
 
 	const chatResult = await deps.createChatCompletion({
-		model: CHAT_MODEL,
+		model: selectTextModel(deps.model),
 		messages: [
 			{ role: 'system', content: SYSTEM_CONSTANTS.CHAT_SYSTEM_PROMPT },
 			{ role: 'user', content: parsedInput.data.message }
@@ -127,7 +125,3 @@ export const runChatInterpretationPipeline = async (
 	};
 };
 
-export const chatInterpretationPipelineDeps: ChatPipelineDeps = {
-	createChatCompletion: (input) => providerAdapter.createChatCompletion(input),
-	validateSpec: (input) => specValidationAdapter.validate(input)
-};
