@@ -1,4 +1,4 @@
-﻿ contracts/shared.contract.ts                    | 18 ++++++++---
+ contracts/shared.contract.ts                    | 18 ++++++++---
  src/lib/adapters/image-generation-seam/index.ts | 41 ++++++++++++-------------
  src/lib/seams/image-generation-seam/mock.ts     |  7 +++--
  tests/contract/image-generation.test.ts         | 10 +++---

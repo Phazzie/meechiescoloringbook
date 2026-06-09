@@ -1,4 +1,4 @@
-﻿ design.md                                      | 150 +++++++++++++++++++++++++
+ design.md                                      | 150 +++++++++++++++++++++++++
  src/lib/seams/gallery-store-seam/fixtures.ts   |  10 ++
  src/lib/seams/gallery-store-seam/mock.ts       |  11 +-
  src/lib/seams/gallery-store-seam/test.ts       |  31 ++++-

@@ -1,4 +1,4 @@
-﻿ contracts/image-generation.contract.ts            |  13 +-
+ contracts/image-generation.contract.ts            |  13 +-
  docs/evidence/2026-06-01/assumption-alarm.json    |  71 ++
  docs/evidence/2026-06-01/chamber-lock.json        | 804 ++++++++++++++++++++
  docs/evidence/2026-06-01/clan-chain.json          |  96 +++

@@ -1,4 +1,4 @@
-﻿ src/lib/adapters/image-generation-seam/index.ts |   9 ++
+ src/lib/adapters/image-generation-seam/index.ts |   9 ++
  src/lib/core/generate-pipeline.ts               |  53 ++++++++---
  src/lib/core/image-generation-pipeline.ts       |   3 +-
  src/lib/core/wig-try-on-pipeline.ts             |  19 +++-

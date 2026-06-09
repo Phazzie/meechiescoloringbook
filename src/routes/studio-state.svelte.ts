@@ -149,7 +149,8 @@ export class StudioState {
 				return `data:image/svg+xml;utf8,${encodeURIComponent(image.data)}`;
 			}
 			if (image.encoding === 'base64') {
-				return `data:image/${image.format};base64,${image.data}`;
+				const mimeType = image.format === 'svg' ? 'image/svg+xml' : `image/${image.format}`;
+				return `data:${mimeType};base64,${image.data}`;
 			}
 			return '';
 		})
@@ -160,6 +161,8 @@ export class StudioState {
 	owner: CreationOwner | null = null;
 	authContext: CreationRecord['authContext'] | null = null;
 	isBrowser = $state(false);
+	private initialized = false;
+	private initSavePending = false;
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
@@ -199,6 +202,10 @@ export class StudioState {
 	}
 
 	private async saveDraft(): Promise<void> {
+		if (!this.initialized) {
+			this.initSavePending = true;
+			return;
+		}
 		if (this.isSavingDraft) {
 			this.isDraftSavePending = true;
 			return;
@@ -661,6 +668,11 @@ export class StudioState {
 		}
 		await this.validateSpec();
 		await this.refreshCreations();
+		this.initialized = true;
+		if (this.initSavePending) {
+			this.initSavePending = false;
+			void this.saveDraft();
+		}
 	}
 
 	destroy(): void {

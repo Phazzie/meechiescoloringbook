@@ -1,4 +1,4 @@
-﻿ docs/evidence/2026-05-17/assumption-alarm.json |  71 ++
+ docs/evidence/2026-05-17/assumption-alarm.json |  71 ++
  docs/evidence/2026-05-17/chamber-lock.json     | 840 +++++++++++++++++++++++
  docs/evidence/2026-05-17/clan-chain.json       | 100 +++
  docs/evidence/2026-05-17/clan-chain.md         |  37 ++

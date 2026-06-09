@@ -1,4 +1,4 @@
-﻿ src/lib/core/constants.ts                    | 13 +++++++++++++
+ src/lib/core/constants.ts                    | 13 +++++++++++++
  src/lib/core/image-generation-pipeline.ts    | 18 ++++++++----------
  src/lib/core/meechie-studio-text-pipeline.ts |  9 +--------
  src/lib/core/meechie-studio.ts               |  6 ++++--

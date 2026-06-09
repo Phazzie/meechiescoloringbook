@@ -1,4 +1,4 @@
-﻿ src/lib/adapters/chat-interpretation.adapter.ts | 10 ++++++++++
+ src/lib/adapters/chat-interpretation.adapter.ts | 10 ++++++++++
  src/lib/core/http-client.ts                     |  2 +-
  src/lib/seams/gallery-store-seam/mock.ts        |  1 -
  src/lib/seams/prompt-compiler-seam/mock.ts      |  1 -

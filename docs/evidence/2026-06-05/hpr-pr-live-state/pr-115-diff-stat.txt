@@ -1,4 +1,4 @@
-﻿ DECISIONS.md                                 | 28 ++++++++++++++++++++
+ DECISIONS.md                                 | 28 ++++++++++++++++++++
  src/lib/core/generate-pipeline.ts            | 14 +++++++++-
  src/lib/seams/safety-policy-seam/contract.ts |  2 ++
  src/lib/seams/safety-policy-seam/fixtures.ts | 38 ++++++++++++++++++++++++++++

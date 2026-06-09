@@ -1,4 +1,4 @@
-﻿ docs/seams.md                                    |  15 +-
+ docs/seams.md                                    |  15 +-
  src/lib/adapters/drift-detection-seam/index.ts   | 238 +++++++
  src/lib/adapters/meechie-tool-seam/index.ts      | 339 ++++++++++
  src/lib/adapters/meechie-tool.adapter.ts         |   6 +-

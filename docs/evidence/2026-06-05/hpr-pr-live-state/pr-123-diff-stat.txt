@@ -1,4 +1,4 @@
-﻿ eslint.config.js                                  | 22 ++++++++++++++++++
+ eslint.config.js                                  | 22 ++++++++++++++++++
  probes/provider-adapter.probe.mjs                 |  2 +-
  src/lib/adapters/chat-interpretation.adapter.ts   | 28 ++++++++++++++++++-----
  src/lib/components/SelfieUpload.svelte            |  2 +-

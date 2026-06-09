@@ -1,4 +1,4 @@
-﻿ eslint.config.js                                  | 19 +++++++++++++++++++
+ eslint.config.js                                  | 19 +++++++++++++++++++
  src/lib/components/SelfieUpload.svelte            | 12 +++++++++---
  src/lib/components/studio/StudioInputPanel.svelte |  3 ---
  src/routes/+page.svelte                           |  1 -

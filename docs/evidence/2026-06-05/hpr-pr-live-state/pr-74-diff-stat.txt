@@ -1,4 +1,4 @@
-﻿ DECISIONS.md                                   |  17 +
+ DECISIONS.md                                   |  17 +
  docs/evidence/2026-05-19/assumption-alarm.json |  71 ++
  docs/evidence/2026-05-19/chamber-lock.json     | 840 +++++++++++++++++++++++
  docs/evidence/2026-05-19/clan-chain.json       | 100 +++

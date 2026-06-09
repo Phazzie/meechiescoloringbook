@@ -1,4 +1,4 @@
-﻿ src/lib/core/chat-interpretation-pipeline.ts | 13 +++----------
+ src/lib/core/chat-interpretation-pipeline.ts | 13 +++----------
  src/lib/core/http-resilience.ts              |  8 ++++----
  src/lib/core/text-model.ts                   |  4 +---
  3 files changed, 8 insertions(+), 17 deletions(-)
