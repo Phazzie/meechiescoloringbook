@@ -15,8 +15,8 @@ export const POST: RequestHandler = async ({ request }) => {
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 	const pipelineResult = await runChatInterpretationPipeline(parsed.body, {
-		createChatCompletion: (input) => providerAdapter.createChatCompletion(input),
-		validateSpec: (input) => specValidationAdapter.validate(input),
+		createChatCompletion: providerAdapter.createChatCompletion,
+		validateSpec: specValidationAdapter.validate,
 		model: env.XAI_TEXT_MODEL
 	});
 	return json(pipelineResult.body, { status: pipelineResult.status });
