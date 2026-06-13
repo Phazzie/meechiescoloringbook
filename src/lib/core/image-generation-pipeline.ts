@@ -16,12 +16,19 @@ const RESPONSE_FORMAT = 'b64_json' as const;
 const DEFAULT_IMAGE_SIZE = '1024x1024';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
+const STATUS_BY_ERROR_CODE: Record<string, number> = {
+  IMAGE_ABORTED: 499,
+  IMAGE_TIMEOUT_ERROR: 504,
+  IMAGE_CONFIG_ERROR: 503,
+  IMAGE_VALIDATION_ERROR: 400
+};
+
 const imageFormatFromBase64 = (
   data: string
 ): Pick<GeneratedImage, 'format' | 'mimeType'> => {
   if (data.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg' };
   if (data.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png' };
-  console.warn('imageFormatFromBase64: unrecognized header, defaulting to png');
+  if (import.meta.env.DEV) console.warn('imageFormatFromBase64: unrecognized header, defaulting to png');
   return { format: 'png', mimeType: 'image/png' };
 };
 
@@ -42,6 +49,13 @@ const missingRequiredPhrases = (prompt: string, pageSize: PageSize): string[] =>
   const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)];
   return phrases.filter((phrase) => !promptLower.includes(phrase.toLowerCase()));
 };
+
+const extractImageMetadata = (
+  rawModelInfo: Record<string, unknown>
+): { revisedPrompt: string | undefined; model: string } => ({
+  revisedPrompt: typeof rawModelInfo.revisedPrompt === 'string' ? rawModelInfo.revisedPrompt : undefined,
+  model: typeof rawModelInfo.model === 'string' ? rawModelInfo.model : 'unknown'
+});
 
 const buildError = (
   status: number,
@@ -98,14 +112,8 @@ export const runImageGenerationPipeline = async (
   });
 
   if (!seamResult.ok) {
-    const statusByCode: Record<string, number> = {
-      IMAGE_ABORTED: 499,
-      IMAGE_TIMEOUT_ERROR: 504,
-      IMAGE_CONFIG_ERROR: 503,
-      IMAGE_VALIDATION_ERROR: 400
-    };
     return {
-      status: statusByCode[seamResult.error.code] ?? 502,
+      status: STATUS_BY_ERROR_CODE[seamResult.error.code] ?? 502,
       body: {
         ok: false,
         error: seamResult.error
@@ -135,10 +143,7 @@ export const runImageGenerationPipeline = async (
     );
   }
 
-  const revisedPrompt =
-    typeof seamResult.value.rawModelInfo.revisedPrompt === 'string'
-      ? seamResult.value.rawModelInfo.revisedPrompt
-      : undefined;
+  const { revisedPrompt, model } = extractImageMetadata(seamResult.value.rawModelInfo);
 
   const result: ImageGenerationResult = {
     ok: true,
@@ -147,10 +152,7 @@ export const runImageGenerationPipeline = async (
       revisedPrompt,
       modelMetadata: {
         provider: 'xai',
-        model:
-          typeof seamResult.value.rawModelInfo.model === 'string'
-            ? seamResult.value.rawModelInfo.model
-            : 'unknown'
+        model
       }
     }
   };

@@ -131,13 +131,7 @@ export const runGeneratePipeline = async (
 		styleHint: parsedInput.data.styleHint
 	});
 	if (!promptResult.ok) {
-		return {
-			status: 400,
-			body: {
-				ok: false,
-				error: promptResult.error
-			}
-		};
+		return buildError(400, promptResult.error.code, promptResult.error.message, promptResult.error.details);
 	}
 
 	let imageResult: ImagePipelineResponse;
