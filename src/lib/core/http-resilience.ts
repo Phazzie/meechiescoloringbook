@@ -154,7 +154,7 @@ export const fetchWithRetry = async (
 			response.body?.cancel().catch((err: unknown) => {
 				const name = String(errorName(err) ?? '');
 				const message = errorMessage(err);
-				if (!/abort|cancel/i.test(name) && !/aborted|canceled/i.test(message)) {
+				if (!/abort|cancel/i.test(name) && !/abort|cancel/i.test(message)) {
 					console.error('fetchWithRetry: failed to cancel response body:', message);
 				}
 			});

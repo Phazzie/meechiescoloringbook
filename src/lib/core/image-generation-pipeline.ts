@@ -121,11 +121,12 @@ export const runImageGenerationPipeline = async (
       continue;
     }
     const format = imageFormatFromBase64(image.b64);
+    const isSvg = format.format === 'svg';
     images.push({
       id: `image-${index + 1}`,
       ...format,
-      data: image.b64,
-      encoding: 'base64'
+      data: isSvg ? Buffer.from(image.b64, 'base64').toString('utf8') : image.b64,
+      encoding: isSvg ? 'utf8' : 'base64'
     });
   }
 
