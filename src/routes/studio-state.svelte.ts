@@ -149,7 +149,8 @@ export class StudioState {
 				return `data:image/svg+xml;utf8,${encodeURIComponent(image.data)}`;
 			}
 			if (image.encoding === 'base64') {
-				return `data:image/${image.format};base64,${image.data}`;
+				const mimeType = image.format === 'svg' ? 'image/svg+xml' : `image/${image.format}`;
+				return `data:${mimeType};base64,${image.data}`;
 			}
 			return '';
 		})
@@ -160,9 +161,11 @@ export class StudioState {
 	owner: CreationOwner | null = null;
 	authContext: CreationRecord['authContext'] | null = null;
 	isBrowser = $state(false);
+	initialized = $state(false);
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
+	private hasPendingInitSave = false;
 
 	// --- Private helpers ---
 	private buildOwner(sessionId: string): CreationOwner {
@@ -308,6 +311,11 @@ export class StudioState {
 
 	scheduleDraftSave = (): void => {
 		if (!this.isBrowser) return;
+		if (!this.initialized) {
+			// Queue the save; init() will flush it once loading completes.
+			this.hasPendingInitSave = true;
+			return;
+		}
 		if (this.draftTimer) clearTimeout(this.draftTimer);
 		this.draftTimer = setTimeout(() => void this.saveDraft(), DRAFT_SAVE_DEBOUNCE_MS);
 	};
@@ -661,6 +669,11 @@ export class StudioState {
 		}
 		await this.validateSpec();
 		await this.refreshCreations();
+		this.initialized = true;
+		if (this.hasPendingInitSave) {
+			this.hasPendingInitSave = false;
+			this.scheduleDraftSave();
+		}
 	}
 
 	destroy(): void {
