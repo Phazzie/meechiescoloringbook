@@ -2,7 +2,7 @@
 // Why: Prevent long tool responses from exceeding provider prompt limits.
 // Info flow: Raw route text -> compact title -> assertions.
 import { describe, expect, it } from 'vitest';
-import { promptAssemblyAdapter } from '../../src/lib/adapters/prompt-assembly.adapter';
+import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly-seam';
 import { compactColoringPageTitle } from '../../src/lib/core/coloring-page-title';
 
 describe('compactColoringPageTitle', () => {

@@ -12,7 +12,7 @@ vi.mock('../../src/lib/adapters/provider-adapter.adapter', () => ({
 	})
 }));
 
-const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool.adapter');
+const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool-seam/index');
 
 const providerOk = (headline: string, response: string, extra?: Record<string, unknown>) => ({
 	ok: true as const,

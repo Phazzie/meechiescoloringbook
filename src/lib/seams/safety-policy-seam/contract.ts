@@ -1,7 +1,7 @@
 // Purpose: Define SafetyPolicySeam contract types.
 // Why: Keep seam interfaces explicit and shared across implementations.
 // Info flow: contract types -> adapters/mocks/tests.
-import type { ColoringPageSpec } from '../../../../contracts/spec-validation.contract';
+import type { ColoringPageSpec } from '../spec-validation-seam/contract';
 import type { CompiledPrompt, PromptCompilerInput } from '../prompt-compiler-seam/contract';
 
 export type SafetyPolicyErrorCode =
