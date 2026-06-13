@@ -10,13 +10,17 @@ import {
   type GeneratedImage
 } from '../../../contracts/image-generation.contract';
 import type { PageSize } from '../../../contracts/spec-validation.contract';
-import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contract';
+import type {
+  ImageGenerationSeam,
+  ImageGenerationError,
+  ImageGenerationResult as SeamImageGenerationResult
+} from '$lib/seams/image-generation-seam/contract';
 
 const RESPONSE_FORMAT = 'b64_json' as const;
 const DEFAULT_IMAGE_SIZE = '1024x1024';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
-const STATUS_BY_ERROR_CODE: Record<string, number> = {
+const STATUS_BY_ERROR_CODE: Partial<Record<ImageGenerationError['code'], number>> = {
   IMAGE_ABORTED: 499,
   IMAGE_TIMEOUT_ERROR: 504,
   IMAGE_CONFIG_ERROR: 503,
@@ -28,7 +32,7 @@ const imageFormatFromBase64 = (
 ): Pick<GeneratedImage, 'format' | 'mimeType'> => {
   if (data.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg' };
   if (data.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png' };
-  if (import.meta.env.DEV) console.warn('imageFormatFromBase64: unrecognized header, defaulting to png');
+  if (import.meta.env?.DEV) console.warn('imageFormatFromBase64: unrecognized header, defaulting to png');
   return { format: 'png', mimeType: 'image/png' };
 };
 
@@ -51,7 +55,7 @@ const missingRequiredPhrases = (prompt: string, pageSize: PageSize): string[] =>
 };
 
 const extractImageMetadata = (
-  rawModelInfo: Record<string, unknown>
+  rawModelInfo: SeamImageGenerationResult['rawModelInfo']
 ): { revisedPrompt: string | undefined; model: string } => ({
   revisedPrompt: typeof rawModelInfo.revisedPrompt === 'string' ? rawModelInfo.revisedPrompt : undefined,
   model: typeof rawModelInfo.model === 'string' ? rawModelInfo.model : 'unknown'
