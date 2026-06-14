@@ -1,0 +1,78 @@
+{
+  "tool": "proof-tape",
+  "generatedAt": "2026-06-14T12:20:55.745Z",
+  "evidenceDir": "docs/evidence/2026-06-14",
+  "files": [
+    {
+      "name": "assumption-alarm.json",
+      "path": "docs/evidence/2026-06-14/assumption-alarm.json",
+      "sizeBytes": 3636,
+      "modifiedAt": "2026-06-14T12:20:55.216Z",
+      "commands": []
+    },
+    {
+      "name": "chamber-lock.json",
+      "path": "docs/evidence/2026-06-14/chamber-lock.json",
+      "sizeBytes": 20510,
+      "modifiedAt": "2026-06-14T12:19:51.904Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.json",
+      "path": "docs/evidence/2026-06-14/clan-chain.json",
+      "sizeBytes": 1872,
+      "modifiedAt": "2026-06-14T12:20:55.568Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.md",
+      "path": "docs/evidence/2026-06-14/clan-chain.md",
+      "sizeBytes": 1223,
+      "modifiedAt": "2026-06-14T12:20:55.568Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.json",
+      "path": "docs/evidence/2026-06-14/seam-ledger.json",
+      "sizeBytes": 21768,
+      "modifiedAt": "2026-06-14T12:20:55.396Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.md",
+      "path": "docs/evidence/2026-06-14/seam-ledger.md",
+      "sizeBytes": 1848,
+      "modifiedAt": "2026-06-14T12:20:55.396Z",
+      "commands": []
+    },
+    {
+      "name": "shaolin-lint.json",
+      "path": "docs/evidence/2026-06-14/shaolin-lint.json",
+      "sizeBytes": 518,
+      "modifiedAt": "2026-06-14T12:20:55.036Z",
+      "commands": []
+    },
+    {
+      "name": "test.txt",
+      "path": "docs/evidence/2026-06-14/test.txt",
+      "sizeBytes": 1029,
+      "modifiedAt": "2026-06-14T12:20:54.840Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ]
+    },
+    {
+      "name": "verify.txt",
+      "path": "docs/evidence/2026-06-14/verify.txt",
+      "sizeBytes": 1288,
+      "modifiedAt": "2026-06-14T12:20:54.840Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ]
+    }
+  ]
+}
