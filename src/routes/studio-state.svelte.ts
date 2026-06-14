@@ -149,7 +149,7 @@ export class StudioState {
 				return `data:image/svg+xml;utf8,${encodeURIComponent(image.data)}`;
 			}
 			if (image.encoding === 'base64') {
-				return `data:image/${image.format};base64,${image.data}`;
+				return `data:${image.mimeType};base64,${image.data}`;
 			}
 			return '';
 		})
@@ -160,6 +160,8 @@ export class StudioState {
 	owner: CreationOwner | null = null;
 	authContext: CreationRecord['authContext'] | null = null;
 	isBrowser = $state(false);
+	initialized = $state(false);
+	private hasPendingInitSave = false;
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
@@ -308,6 +310,10 @@ export class StudioState {
 
 	scheduleDraftSave = (): void => {
 		if (!this.isBrowser) return;
+		if (!this.initialized) {
+			this.hasPendingInitSave = true;
+			return;
+		}
 		if (this.draftTimer) clearTimeout(this.draftTimer);
 		this.draftTimer = setTimeout(() => void this.saveDraft(), DRAFT_SAVE_DEBOUNCE_MS);
 	};
@@ -633,34 +639,42 @@ export class StudioState {
 
 	async init(): Promise<void> {
 		this.isBrowser = true;
-		const [sessionResult, draft] = await Promise.all([
-			sessionAdapter.getSession(),
-			creationStoreAdapter.getDraft({})
-		]);
-		if (sessionResult.ok) {
-			this.owner = this.buildOwner(sessionResult.value.sessionId);
-			const authResult = await authContextAdapter.getAuthContext({
-				sessionId: sessionResult.value.sessionId
-			});
-			if (authResult.ok) {
-				this.authContext = authResult.value;
+		try {
+			const [sessionResult, draft] = await Promise.all([
+				sessionAdapter.getSession(),
+				creationStoreAdapter.getDraft({})
+			]);
+			if (sessionResult.ok) {
+				this.owner = this.buildOwner(sessionResult.value.sessionId);
+				const authResult = await authContextAdapter.getAuthContext({
+					sessionId: sessionResult.value.sessionId
+				});
+				if (authResult.ok) {
+					this.authContext = authResult.value;
+				}
+			}
+			if (draft.ok && draft.value) {
+				this.spec = draft.value.intent;
+				this.evidence = draft.value.chatMessage || '';
+				this.dedication = draft.value.intent.dedication ?? '';
+				this.pageSize = draft.value.intent.pageSize;
+				this.border = draft.value.intent.border;
+				if (
+					draft.value.studioText ||
+					draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+				) {
+					this.textOutput = buildStudioTextFromDraftRecord(draft.value);
+				}
+			}
+			await this.validateSpec();
+			await this.refreshCreations();
+		} finally {
+			this.initialized = true;
+			if (this.hasPendingInitSave) {
+				this.hasPendingInitSave = false;
+				this.scheduleDraftSave();
 			}
 		}
-		if (draft.ok && draft.value) {
-			this.spec = draft.value.intent;
-			this.evidence = draft.value.chatMessage || '';
-			this.dedication = draft.value.intent.dedication ?? '';
-			this.pageSize = draft.value.intent.pageSize;
-			this.border = draft.value.intent.border;
-			if (
-				draft.value.studioText ||
-				draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
-			) {
-				this.textOutput = buildStudioTextFromDraftRecord(draft.value);
-			}
-		}
-		await this.validateSpec();
-		await this.refreshCreations();
 	}
 
 	destroy(): void {

@@ -76,7 +76,7 @@ const safetyErrorDetails = (error: SafetyPolicyError) => {
 const imageExceptionResponse = (error: unknown): PipelineResponse => {
 	const reason = error instanceof Error ? error.message : String(error);
 	const name = error instanceof Error ? error.name : '';
-	const isTimeout = name === 'TimeoutError' || /timeout/i.test(reason);
+	const isTimeout = name === 'TimeoutError' || /timeout|timed out/i.test(reason);
 	return buildError(
 		isTimeout ? 504 : 502,
 		isTimeout ? 'IMAGE_GENERATION_TIMEOUT' : 'IMAGE_GENERATION_FAILED',

@@ -21,8 +21,15 @@ const imageFormatFromBase64 = (
 ): Pick<GeneratedImage, 'format' | 'mimeType'> => {
   if (data.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg' };
   if (data.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png' };
+  if (data.startsWith('UklGR')) return { format: 'webp', mimeType: 'image/webp' };
+  if (data.startsWith('PHN2Zy') || data.startsWith('PD94bW')) return { format: 'svg', mimeType: 'image/svg+xml' };
   console.warn('imageFormatFromBase64: unrecognized header, defaulting to png');
   return { format: 'png', mimeType: 'image/png' };
+};
+
+const base64ToUtf8 = (b64: string): string => {
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 };
 
 type ImageGenerationResult = z.infer<typeof ImageGenerationResultSchema>;
@@ -118,12 +125,13 @@ export const runImageGenerationPipeline = async (
     if (!image.b64) {
       continue;
     }
-    const format = imageFormatFromBase64(image.b64);
+    const formatInfo = imageFormatFromBase64(image.b64);
+    const isSvg = formatInfo.format === 'svg';
     images.push({
       id: `image-${index + 1}`,
-      ...format,
-      data: image.b64,
-      encoding: 'base64'
+      ...formatInfo,
+      data: isSvg ? base64ToUtf8(image.b64) : image.b64,
+      encoding: isSvg ? 'utf8' : 'base64'
     });
   }
 
