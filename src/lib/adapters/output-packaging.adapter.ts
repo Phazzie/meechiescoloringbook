@@ -174,7 +174,7 @@ const imageToPngBase64 = async (
 	};
 };
 
-const BASE64_MIME: Record<string, string> = {
+const BASE64_MIME: Record<'png' | 'jpg' | 'webp', string> = {
 	png: 'image/png',
 	jpg: 'image/jpeg',
 	webp: 'image/webp'
@@ -190,16 +190,16 @@ const toImageDataUrl = async (
 		};
 	}
 	const mime = BASE64_MIME[image.format];
-	if (mime && image.encoding === 'base64') {
-		return { ok: true, value: `data:${mime};base64,${image.data}` };
+	if (image.encoding !== 'base64') {
+		return {
+			ok: false,
+			error: {
+				code: 'UNSUPPORTED_IMAGE_ENCODING',
+				message: `Unsupported encoding for ${image.format}: ${image.encoding}. Expected base64.`
+			}
+		};
 	}
-	return {
-		ok: false,
-		error: {
-			code: 'UNSUPPORTED_IMAGE_FORMAT',
-			message: `Unsupported image format: ${image.format}`
-		}
-	};
+	return { ok: true, value: `data:${mime};base64,${image.data}` };
 };
 
 const drawImageToCanvas = async (
