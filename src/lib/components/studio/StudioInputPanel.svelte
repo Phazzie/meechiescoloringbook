@@ -53,13 +53,14 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 	<div class="panel-head">
 		<p class="eyebrow">Evidence</p>
 		<h2 data-testid="home-active-mode-heading">{activeMode.label}</h2>
-		<p>{activeMode.help}</p>
+		<p id="evidence-help">{activeMode.help}</p>
 	</div>
 
 	<label for="evidence">What happened?</label>
 	<textarea
 		id="evidence"
 		data-testid="home-evidence"
+		aria-describedby="evidence-help"
 		rows="8"
 		bind:value={evidence}
 		oninput={onScheduleDraftSave}
@@ -69,10 +70,11 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 	<label for="dedication">Shoutout</label>
 	<input
 		id="dedication"
+		data-testid="home-dedication"
 		bind:value={dedication}
 		oninput={handleDedicationValue}
 		maxlength="60"
-		placeholder="Optional dedication"
+		placeholder="Optional dedication (max 60 characters)"
 	/>
 
 	<div class="budget">

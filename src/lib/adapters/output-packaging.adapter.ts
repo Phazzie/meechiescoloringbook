@@ -174,6 +174,12 @@ const imageToPngBase64 = async (
 	};
 };
 
+const BASE64_MIME: Record<string, string> = {
+	png: 'image/png',
+	jpg: 'image/jpeg',
+	webp: 'image/webp'
+};
+
 const toImageDataUrl = async (
 	image: OutputPackagingInput['images'][number]
 ): Promise<Result<string>> => {
@@ -183,14 +189,9 @@ const toImageDataUrl = async (
 			value: `data:image/svg+xml;utf8,${encodeURIComponent(image.data)}`
 		};
 	}
-	if (image.format === 'png' && image.encoding === 'base64') {
-		return { ok: true, value: `data:image/png;base64,${image.data}` };
-	}
-	if (image.format === 'jpg' && image.encoding === 'base64') {
-		return { ok: true, value: `data:image/jpeg;base64,${image.data}` };
-	}
-	if (image.format === 'webp' && image.encoding === 'base64') {
-		return { ok: true, value: `data:image/webp;base64,${image.data}` };
+	const mime = BASE64_MIME[image.format];
+	if (mime && image.encoding === 'base64') {
+		return { ok: true, value: `data:${mime};base64,${image.data}` };
 	}
 	return {
 		ok: false,
