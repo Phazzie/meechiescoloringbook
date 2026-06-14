@@ -6,7 +6,7 @@ import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
 import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 import { sessionAdapter } from '$lib/adapters/session.adapter';
-import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import {
 	DEFAULT_REVISION_BUDGET,
 	DEFAULT_STUDIO_TEXT_OUTPUT,
@@ -36,7 +36,7 @@ import type { PackagedFile } from '../../contracts/output-packaging.contract';
 import type {
 	ColoringPageSpec,
 	SpecValidationOutput
-} from '../../contracts/spec-validation.contract';
+} from '$lib/seams/spec-validation-seam/contract';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
 type PageSize = ColoringPageSpec['pageSize'];

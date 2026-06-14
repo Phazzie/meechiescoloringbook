@@ -9,7 +9,7 @@ import {
 } from '../../contracts/prompt-assembly.contract';
 import { ScenarioSchema } from '../../contracts/shared.contract';
 import { createPromptAssemblyMock } from '../../src/lib/mocks/prompt-assembly.mock';
-import { promptAssemblyAdapter } from '../../src/lib/adapters/prompt-assembly.adapter';
+import { promptAssemblyAdapter } from '../../src/lib/adapters/prompt-assembly-seam';
 import sample from '../../fixtures/prompt-assembly/sample.json';
 import fault from '../../fixtures/prompt-assembly/fault.json';
 import titleOnly from '../../fixtures/prompt-assembly/title-only.json';

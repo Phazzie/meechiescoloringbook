@@ -9,7 +9,7 @@ import {
 } from '../../contracts/meechie-voice.contract';
 import { ScenarioSchema } from '../../contracts/shared.contract';
 import { createMeechieVoiceMock } from '../../src/lib/mocks/meechie-voice.mock';
-import { meechieVoiceAdapter } from '../../src/lib/adapters/meechie-voice.adapter';
+import { meechieVoiceAdapter } from '../../src/lib/adapters/meechie-voice-seam';
 import sample from '../../fixtures/meechie-voice/sample.json';
 import fault from '../../fixtures/meechie-voice/fault.json';
 

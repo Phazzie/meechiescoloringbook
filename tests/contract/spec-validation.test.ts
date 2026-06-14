@@ -9,7 +9,7 @@ import {
 } from '../../contracts/spec-validation.contract';
 import { ScenarioSchema } from '../../contracts/shared.contract';
 import { createSpecValidationMock } from '../../src/lib/mocks/spec-validation.mock';
-import { specValidationAdapter } from '../../src/lib/adapters/spec-validation.adapter';
+import { specValidationAdapter } from '../../src/lib/adapters/spec-validation-seam';
 import sample from '../../fixtures/spec-validation/sample.json';
 import fault from '../../fixtures/spec-validation/fault.json';
 import titleOnly from '../../fixtures/spec-validation/title-only.json';

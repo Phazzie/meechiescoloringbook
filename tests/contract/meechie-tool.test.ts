@@ -21,7 +21,7 @@ vi.mock('../../src/lib/adapters/provider-adapter.adapter', () => ({
 	})
 }));
 
-const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool.adapter');
+const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool-seam');
 
 const fixtureSchema = z.object({
 	scenario: ScenarioSchema,
