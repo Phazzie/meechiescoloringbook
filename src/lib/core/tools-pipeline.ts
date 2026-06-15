@@ -6,7 +6,7 @@ import { findDisallowedKeywords } from '$lib/core/constants';
 import {
 	MeechieToolInputSchema,
 	MeechieToolResultSchema
-} from '../../../contracts/meechie-tool.contract';
+} from '$lib/seams/meechie-tool-seam/contract';
 import { z } from 'zod';
 
 type MeechieToolResult = z.infer<typeof MeechieToolResultSchema>;

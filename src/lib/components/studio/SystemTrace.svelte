@@ -4,8 +4,8 @@ Why: Extracted from +page.svelte; read-only view of generation debug data.
 Info flow: Parent passes all diagnostic values; no state or callbacks needed.
 -->
 <script lang="ts">
-	import type { SpecValidationOutput } from '../../../../contracts/spec-validation.contract';
-	import type { Violation } from '../../../../contracts/drift-detection.contract';
+	import type { SpecValidationOutput } from '$lib/seams/spec-validation-seam/contract';
+	import type { Violation } from '$lib/seams/drift-detection-seam/contract';
 
 	let {
 		assembledPrompt,

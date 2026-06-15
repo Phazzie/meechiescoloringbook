@@ -7,6 +7,25 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-15 - Remove 5 legacy flat-layout seams and migrate all imports to self-contained layout
+
+- Date: 2026-06-15
+- Decision: Delete the 5 legacy flat-layout seam files (contracts, mocks, adapters, tests) for PromptAssemblySeam, DriftDetectionSeam, MeechieVoiceSeam, MeechieToolSeam, and SpecValidationSeam, and update all remaining imports across the codebase to use the canonical self-contained seam paths.
+- Context: These 5 seams had already been migrated to the self-contained layout under `src/lib/seams/<seam>/` but the legacy flat-layout files were never deleted. The entire codebase was importing types and adapters from both the legacy and canonical locations, creating dual sources of truth for `ColoringPageSpec`, `MeechieToolIdSchema`, etc. This violated the SDD mandate that "pipelines now run on the canonical self-contained seams" (DECISIONS.md 2026-06-06).
+- Seams affected: PromptAssemblySeam, DriftDetectionSeam, MeechieVoiceSeam, MeechieToolSeam, SpecValidationSeam.
+- Files deleted (20): 5 legacy contracts, 5 legacy mocks, 5 legacy adapters, 5 legacy contract tests.
+- Files updated (20): src/lib/core/prompt-template.ts, meechie-studio.ts, chat-interpretation-pipeline.ts, image-generation-pipeline.ts, tools-pipeline.ts; src/lib/utils/alignment-line.ts; src/lib/seams/safety-policy-seam/contract.ts; src/lib/components/MeechieTools.svelte, MeechieModePage.svelte, meechie-mode-config.ts, studio/StudioSettingsPanel.svelte, studio/SystemTrace.svelte; src/routes/studio-state.svelte.ts, who-fucked-up/+page.svelte, rate-his-excuse/+page.svelte, random/+page.svelte; tests/helpers/make-base-spec.ts; tests/unit/meechie-tools-parity.test.ts, drift-detection-helpers.test.ts, coloring-page-title.test.ts.
+- Alternatives: Keep legacy files as re-exports; rejected because it adds indirection without eliminating the dual source-of-truth problem. Migrate one seam at a time; rejected as unnecessarily slow given the canonical seams were already fully functional.
+- Consequences: Single source of truth for seam contracts and types; no more `(self-contained)` duplicate rows in seams.md; canonical adapter paths used everywhere.
+- Revisit criteria: Revisit if any remaining legacy-path imports are found (e.g. in generated or config files).
+
+- Cipher Gate:
+  - Date: 2026-06-15
+  - Seams: PromptAssemblySeam, DriftDetectionSeam, MeechieVoiceSeam, MeechieToolSeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-06-15/ (post-migration verify run pending)
+  - Summary: Deleted 20 legacy flat-layout seam files; updated 20 source/test files to import from canonical self-contained seam paths. docs/seams.md deduplicated to remove 5 legacy rows. contracts/CLAUDE.md updated to reflect remaining shared contracts only.
+  - Risks: Any file not caught by the initial grep that still imports from deleted legacy paths will fail to build. Mitigation: grep for remaining legacy contract imports post-commit and run npm run check before merge.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07

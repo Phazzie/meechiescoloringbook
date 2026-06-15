@@ -6,7 +6,7 @@ import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
 import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 import { sessionAdapter } from '$lib/adapters/session.adapter';
-import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import {
 	DEFAULT_REVISION_BUDGET,
 	DEFAULT_STUDIO_TEXT_OUTPUT,
@@ -30,13 +30,13 @@ import {
 	type MeechieStudioVoiceSettings
 } from '../../contracts/meechie-studio-text.contract';
 import type { CreationOwner, CreationRecord } from '../../contracts/creation-store.contract';
-import type { DriftDetectionOutput, Violation } from '../../contracts/drift-detection.contract';
+import type { DriftDetectionOutput, Violation } from '$lib/seams/drift-detection-seam/contract';
 import type { GeneratedImage } from '../../contracts/image-generation.contract';
 import type { PackagedFile } from '../../contracts/output-packaging.contract';
 import type {
 	ColoringPageSpec,
 	SpecValidationOutput
-} from '../../contracts/spec-validation.contract';
+} from '$lib/seams/spec-validation-seam/contract';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
 type PageSize = ColoringPageSpec['pageSize'];
