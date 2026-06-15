@@ -299,17 +299,14 @@ export const meechieToolAdapter: MeechieToolSeam = {
 		});
 
 		if (!providerResult.ok) {
+			const isApiKeyMissing = providerResult.error.code === 'PROVIDER_API_KEY_MISSING';
 			return {
 				ok: false,
 				error: {
-					code:
-						providerResult.error.code === 'PROVIDER_API_KEY_MISSING'
-							? 'PROVIDER_API_KEY_MISSING'
-							: 'MEECHIE_TOOL_PROVIDER_ERROR',
-					message:
-						providerResult.error.code === 'PROVIDER_API_KEY_MISSING'
-							? 'AI tools require XAI_API_KEY to be set on the server.'
-							: providerResult.error.message
+					code: isApiKeyMissing ? 'PROVIDER_API_KEY_MISSING' : 'MEECHIE_TOOL_PROVIDER_ERROR',
+					message: isApiKeyMissing
+						? 'AI tools require XAI_API_KEY to be set on the server.'
+						: providerResult.error.message
 				}
 			};
 		}

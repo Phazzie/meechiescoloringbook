@@ -14,12 +14,12 @@ export const imageProviderConfigFixture: ImageProviderConfig = imageProviderConf
 
 // Intentionally invalid: empty xaiApiKey triggers validation failure.
 // Not parsed at module load — doing so would throw at import time and break all consumers.
-export const imageProviderConfigFaultFixture = {
+export const imageProviderConfigFaultFixture: ImageProviderConfig = {
   xaiApiKey: '',
   xaiImageModel: 'grok-imagine-image',
   xaiBaseUrl: 'https://api.x.ai',
   xaiImageEndpointPath: '/v1/images/generations'
-} as unknown as ImageProviderConfig;
+};
 
 export const getImageProviderConfigFixture = (scenario: 'sample' | 'fault' = 'sample') =>
   scenario === 'fault' ? imageProviderConfigFaultFixture : imageProviderConfigFixture;

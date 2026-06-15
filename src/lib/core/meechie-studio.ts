@@ -21,6 +21,8 @@ export const DEFAULT_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	revisionNote: 'Canon Meechie preview.'
 };
 
+const DEFAULT_ITEM_LABEL = DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0]!.label;
+
 export type CostClass = 'free' | 'paid' | 'unclassified';
 
 type StudioActionDefinition = {
@@ -363,7 +365,7 @@ const buildStudioTextFromSpec = (input: {
 			input.intent.items.length > 0
 				? input.intent.items.map((item) => ({
 						number: item.number,
-						label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
+						label: normalizeSpecLabel(item.label, DEFAULT_ITEM_LABEL)
 					}))
 				: DEFAULT_STUDIO_TEXT_OUTPUT.pageItems,
 		qualityState: 'ready'
@@ -398,7 +400,7 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	title: normalizeSpecLabel(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle),
 	items: input.output.pageItems.map((item) => ({
 		number: item.number,
-		label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
+		label: normalizeSpecLabel(item.label, DEFAULT_ITEM_LABEL)
 	})),
 	footerItem: {
 		number: 97,
