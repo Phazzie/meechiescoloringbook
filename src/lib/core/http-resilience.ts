@@ -123,11 +123,13 @@ export type RetryOptions = {
 	baseDelayMs: number;
 	/** Optional caller cancellation signal; caller aborts are never retried. */
 	signal?: AbortSignal;
+	/** Called when response body cancel fails for a non-abort/cancel reason. Caller decides how to surface it. */
+	onResponseBodyCancelError?: (message: string) => void;
 };
 
 export const fetchWithRetry = async (
 	fetcher: () => Promise<Response>,
-	{ maxAttempts, baseDelayMs, signal }: RetryOptions
+	{ maxAttempts, baseDelayMs, signal, onResponseBodyCancelError }: RetryOptions
 ): Promise<Response> => {
 	if (!Number.isFinite(maxAttempts) || !Number.isInteger(maxAttempts) || maxAttempts < 1) {
 		throw new Error('fetchWithRetry: maxAttempts must be a finite integer >= 1');
@@ -151,7 +153,13 @@ export const fetchWithRetry = async (
 		}
 
 		if (RETRYABLE_STATUSES.has(response.status) && attempt < maxAttempts) {
-			response.body?.cancel().catch(() => undefined);
+			response.body?.cancel().catch((err: unknown) => {
+				const name = String(errorName(err) ?? '');
+				const message = errorMessage(err);
+				if (!/abort|cancel/i.test(name) && !/abort|cancel/i.test(message)) {
+					onResponseBodyCancelError?.(message);
+				}
+			});
 			const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
 			const delayMs = Number.isFinite(retryAfterMs)
 				? retryAfterMs
