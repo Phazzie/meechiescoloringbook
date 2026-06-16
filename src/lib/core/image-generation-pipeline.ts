@@ -46,9 +46,10 @@ type DetectedImage = Pick<GeneratedImage, 'format' | 'mimeType' | 'data' | 'enco
 
 const WEBP_HEADER_B64_LENGTH = 16; // base64 chars covering the 12-byte RIFF size + format code
 
-// The "RIFF" container prefix (b64 "UklGR") is shared by WAV/AVI/etc, so it alone can't
-// confirm WebP — the format code at byte offset 8-11 must also read "WEBP".
-const hasWebpFormatCode = (b64: string): boolean => {
+// The 5-char b64 prefix "UklGR" only constrains the top 6 of byte 3's 8 bits, so corrupt
+// headers like "RIFD"/"RIFE"/"RIFG" can also match it — decode the real header bytes and
+// check both the "RIFF" container signature and the "WEBP" format code exactly.
+const hasWebpHeader = (b64: string): boolean => {
   const headerB64 = b64.slice(0, WEBP_HEADER_B64_LENGTH);
   if (headerB64.length < WEBP_HEADER_B64_LENGTH) return false;
   try {
@@ -56,12 +57,12 @@ const hasWebpFormatCode = (b64: string): boolean => {
       typeof Buffer !== 'undefined'
         ? Buffer.from(headerB64, 'base64')
         : Uint8Array.from(atob(headerB64), (c) => c.charCodeAt(0));
-    return (
-      bytes.length >= 12 &&
-      String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]) === 'WEBP'
-    );
+    if (bytes.length < 12) return false;
+    const riff = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+    const format = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+    return riff === 'RIFF' && format === 'WEBP';
   } catch (error) {
-    console.error('hasWebpFormatCode: failed to decode base64 header', error);
+    console.error('hasWebpHeader: failed to decode base64 header', error);
     return false;
   }
 };
@@ -69,7 +70,7 @@ const hasWebpFormatCode = (b64: string): boolean => {
 const detectImageFromBase64 = (b64: string): DetectedImage => {
   if (b64.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg', data: b64, encoding: 'base64' };
   if (b64.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png', data: b64, encoding: 'base64' };
-  if (b64.startsWith('UklGR') && hasWebpFormatCode(b64)) {
+  if (b64.startsWith('UklGR') && hasWebpHeader(b64)) {
     return { format: 'webp', mimeType: 'image/webp', data: b64, encoding: 'base64' };
   }
   const decoded = decodeBase64ToUtf8(b64);

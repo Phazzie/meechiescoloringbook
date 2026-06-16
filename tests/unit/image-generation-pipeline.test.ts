@@ -486,6 +486,43 @@ describe('image-generation-pipeline edge cases', () => {
     warn.mockRestore();
   });
 
+  it('does not mark a corrupt RIFF header sharing the "UklGR" b64 prefix as webp', async () => {
+    // "RIFD" shares the same 5-char base64 prefix as "RIFF" ("UklGR"), since that prefix
+    // only constrains the top 6 of byte 3's 8 bits.
+    const corruptBytes = Buffer.concat([
+      Buffer.from('RIFD'),
+      Buffer.from([0x00, 0x00, 0x00, 0x00]),
+      Buffer.from('WEBP')
+    ]);
+    const corruptBase64 = corruptBytes.toString('base64');
+    expect(corruptBase64.startsWith('UklGR')).toBe(true);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: corruptBase64 }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    if (result.body.ok) {
+      expect(result.body.value.images[0].format).not.toBe('webp');
+    }
+    warn.mockRestore();
+  });
+
   it('filters out images without b64 and keeps valid ones', async () => {
     const result = await runImageGenerationPipeline(
       {
