@@ -6,7 +6,7 @@ import { z } from 'zod';
 import {
 	ColoringPageSpecSchema,
 	OutputFormatSchema
-} from '../src/lib/seams/spec-validation-seam/contract';
+} from '$lib/seams/spec-validation-seam/contract';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 
 export const ImageDataEncodingSchema = z.enum(['utf8', 'base64']);

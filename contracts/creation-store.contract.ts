@@ -3,11 +3,11 @@
 // Info flow: Creation data -> store -> list/get for reload.
 import { z } from 'zod';
 import { AuthContextSchema } from './auth-context.contract';
-import { ColoringPageSpecSchema } from '../src/lib/seams/spec-validation-seam/contract';
+import { ColoringPageSpecSchema } from '$lib/seams/spec-validation-seam/contract';
 import { MeechieStudioTextOutputSchema } from './meechie-studio-text.contract';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 import type { Result } from './shared.contract';
-import { ViolationSchema } from '../src/lib/seams/drift-detection-seam/contract';
+import { ViolationSchema } from '$lib/seams/drift-detection-seam/contract';
 
 export const CreationOwnerSchema = z.union([
 	z.object({

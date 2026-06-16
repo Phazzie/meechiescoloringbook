@@ -2,7 +2,7 @@
 // Why: Map free-text intent to a structured ColoringPageSpec.
 // Info flow: User text -> structured spec -> validation.
 import { z } from 'zod';
-import { ColoringPageSpecSchema } from '../src/lib/seams/spec-validation-seam/contract';
+import { ColoringPageSpecSchema } from '$lib/seams/spec-validation-seam/contract';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 import type { Result } from './shared.contract';
 
