@@ -26,7 +26,7 @@ const STUDIO_TEXT_FIELD_GUIDANCE = {
 
 const STUDIO_TEXT_REQUIRED_FIELDS = Object.keys(
 	STUDIO_TEXT_FIELD_GUIDANCE
-) as Array<keyof typeof STUDIO_TEXT_FIELD_GUIDANCE>;
+) as ReadonlyArray<keyof typeof STUDIO_TEXT_FIELD_GUIDANCE>;
 
 const STUDIO_TEXT_RESPONSE_FORMAT = {
 	type: 'json_schema',
