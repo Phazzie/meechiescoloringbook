@@ -80,6 +80,7 @@ describe('StudioState', () => {
 
 		const internals = studio as unknown as StudioStateInternals;
 		expect(internals.draftLoaded).toBe(true);
+		expect(studio.initialized).toBe(true);
 
 		vi.useFakeTimers();
 		studio.scheduleDraftSave();

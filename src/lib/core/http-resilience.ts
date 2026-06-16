@@ -56,7 +56,7 @@ const errorMessage = (error: unknown): string =>
 export const isAbortError = (error: unknown): boolean => errorName(error) === 'AbortError';
 
 export const isTimeoutError = (error: unknown): boolean =>
-	errorName(error) === 'TimeoutError' || /timeout|timed out/i.test(errorMessage(error));
+	errorName(error) === 'TimeoutError' || /\b(?:timeout|timed out)\b/i.test(errorMessage(error));
 
 export type TimeoutSignalOptions = {
 	signal?: AbortSignal;

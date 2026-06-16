@@ -33,10 +33,11 @@ const decodeBase64ToUtf8 = (b64: string): string => {
   }
 };
 
-// Matches an SVG payload that decodes to text starting with an XML declaration
-// (optionally preceded by a BOM/whitespace) or containing an <svg> root tag within
-// its first 1KB, tolerating leading comments/doctypes that precede the root element.
-const SVG_TEXT_PATTERN = /^[\s\uFEFF]*<\?xml|<svg[\s>]/i;
+// Matches an SVG payload whose decoded text reaches an <svg> root tag after only
+// a BOM/whitespace, XML declaration, comments, and/or a doctype \u2014 anchored to the
+// start so an <svg substring deeper in unrelated text can't cause a false match.
+const SVG_TEXT_PATTERN =
+  /^(?:[\s\uFEFF]|<\?xml[\s\S]*?\?>|<!--[\s\S]*?-->|<!DOCTYPE[\s\S]*?>)*<svg[\s>]/i;
 
 type DetectedImage = Pick<GeneratedImage, 'format' | 'mimeType' | 'data' | 'encoding'>;
 
