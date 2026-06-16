@@ -12,25 +12,21 @@ import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.co
 import type { Result, SeamError } from '../../../contracts/shared.contract';
 import { z } from 'zod';
 
-const STUDIO_TEXT_REQUIRED_FIELDS = [
-	'verdict',
-	'quote',
-	'pageTitle',
-	'pageItems',
-	'rating',
-	'qualityState',
-	'revisionNote'
-] as const;
+// Single source of truth: each required field maps to its guidance string, so
+// the field list and the prompt-facing guidance can never drift apart.
+const STUDIO_TEXT_FIELD_GUIDANCE = {
+	verdict: 'verdict (string)',
+	quote: 'quote (string)',
+	pageTitle: 'pageTitle (string)',
+	pageItems: 'pageItems (array of 2-6 objects each with integer "number" and string "label")',
+	rating: 'rating (integer 1-10)',
+	qualityState: 'qualityState ("ready" | "needs_more_evidence" | "blocked")',
+	revisionNote: 'revisionNote (string)'
+} as const;
 
-const STUDIO_TEXT_REQUIRED_FIELD_GUIDANCE = [
-	'verdict (string)',
-	'quote (string)',
-	'pageTitle (string)',
-	'pageItems (array of 2-6 objects each with integer "number" and string "label")',
-	'rating (integer 1-10)',
-	'qualityState ("ready" | "needs_more_evidence" | "blocked")',
-	'revisionNote (string)'
-] as const;
+const STUDIO_TEXT_REQUIRED_FIELDS = Object.keys(
+	STUDIO_TEXT_FIELD_GUIDANCE
+) as Array<keyof typeof STUDIO_TEXT_FIELD_GUIDANCE>;
 
 const STUDIO_TEXT_RESPONSE_FORMAT = {
 	type: 'json_schema',
@@ -275,9 +271,11 @@ const extractJson = (text: string): JsonExtraction => {
 	return { ok: false, reason: 'syntax_error' };
 };
 
+const MAX_SCHEMA_ISSUES_IN_HINT = 4;
+
 const schemaIssueHint = (error: z.ZodError): string =>
 	error.issues
-		.slice(0, 4)
+		.slice(0, MAX_SCHEMA_ISSUES_IN_HINT)
 		.map((issue) => {
 			const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
 			return `${path}: ${issue.message}`;
@@ -330,7 +328,7 @@ const parseProviderText = (
 };
 
 const requiredFieldGuidance = (): string =>
-	STUDIO_TEXT_REQUIRED_FIELD_GUIDANCE.join(', ');
+	Object.values(STUDIO_TEXT_FIELD_GUIDANCE).join(', ');
 
 const buildRetryMessage = (
 	failureKind: ProviderTextFailureKind,

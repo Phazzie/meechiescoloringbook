@@ -73,6 +73,9 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		}
 	] as const;
 
+	// Mirrors MeechieToolInputSchema's lineup.items max(6) contract limit.
+	const MAX_LINEUP_ITEMS = 6;
+
 	const signs = HoroscopeSignSchema.options;
 	type Tool = (typeof tools)[number];
 	type ToolId = (typeof tools)[number]['id'];
@@ -112,7 +115,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	};
 
 	const addLineupItem = (): void => {
-		if (lineupItems.length >= 6) {
+		if (lineupItems.length >= MAX_LINEUP_ITEMS) {
 			return;
 		}
 		lineupItems = [...lineupItems, ''];
