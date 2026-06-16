@@ -536,7 +536,7 @@ describe('provider-adapter helpers', () => {
 		it('returns PROVIDER_NETWORK_ERROR for chat when fetch throws', async () => {
 			vi.stubGlobal(
 				'fetch',
-				vi.fn().mockRejectedValue(new Error('Network timeout'))
+				vi.fn().mockRejectedValue(new Error('Connection reset by peer'))
 			);
 
 			const adapter = createProviderAdapter({
@@ -550,7 +550,7 @@ describe('provider-adapter helpers', () => {
 			expect(result.ok).toBe(false);
 			if (!result.ok) {
 				expect(result.error.code).toBe('PROVIDER_NETWORK_ERROR');
-				expect(result.error.message).toBe('Network timeout');
+				expect(result.error.message).toBe('Connection reset by peer');
 			}
 		});
 

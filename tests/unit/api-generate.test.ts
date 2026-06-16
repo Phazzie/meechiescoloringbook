@@ -347,6 +347,22 @@ describe('/api/generate', () => {
 		expect(deps.fetchImpl).not.toHaveBeenCalled();
 	});
 
+	it('classifies generic "timeout" wording (without "timed out") as a 504 contract error', async () => {
+		const deps = buildPipelineDeps(async () => {
+			throw new Error('Network timeout');
+		});
+
+		const result = await runGeneratePipeline({ spec: validSpec }, deps);
+
+		expect(result.status).toBe(504);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('IMAGE_GENERATION_TIMEOUT');
+			expect(result.body.error.details?.reason).toBe('Network timeout');
+		}
+		expect(deps.fetchImpl).not.toHaveBeenCalled();
+	});
+
 	it('keeps the endpoint parse and input guards transport-thin', async () => {
 		const fetchMock = vi.fn(async () =>
 			new Response(

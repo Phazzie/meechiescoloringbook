@@ -17,16 +17,26 @@ const DEFAULT_IMAGE_SIZE = '1024x1024';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
 const decodeBase64ToUtf8 = (b64: string): string => {
-  if (typeof Buffer !== 'undefined') {
-    return Buffer.from(b64, 'base64').toString('utf8');
+  try {
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(b64, 'base64').toString('utf8');
+    }
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new TextDecoder().decode(bytes);
+  } catch (error) {
+    console.error('decodeBase64ToUtf8: failed to decode base64 string', error);
+    return '';
   }
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return new TextDecoder().decode(bytes);
 };
+
+// Matches an SVG payload that decodes to text starting with an XML declaration
+// (optionally preceded by a BOM/whitespace) or containing an <svg> root tag within
+// its first 1KB, tolerating leading comments/doctypes that precede the root element.
+const SVG_TEXT_PATTERN = /^[\s\uFEFF]*<\?xml|<svg[\s>]/i;
 
 type DetectedImage = Pick<GeneratedImage, 'format' | 'mimeType' | 'data' | 'encoding'>;
 
@@ -34,10 +44,11 @@ const detectImageFromBase64 = (b64: string): DetectedImage => {
   if (b64.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg', data: b64, encoding: 'base64' };
   if (b64.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png', data: b64, encoding: 'base64' };
   if (b64.startsWith('UklGR')) return { format: 'webp', mimeType: 'image/webp', data: b64, encoding: 'base64' };
-  if (b64.startsWith('PHN2Zy') || b64.startsWith('PD94bW')) {
-    return { format: 'svg', mimeType: 'image/svg+xml', data: decodeBase64ToUtf8(b64), encoding: 'utf8' };
+  const decoded = decodeBase64ToUtf8(b64);
+  if (SVG_TEXT_PATTERN.test(decoded.slice(0, 1024))) {
+    return { format: 'svg', mimeType: 'image/svg+xml', data: decoded, encoding: 'utf8' };
   }
-  console.warn('imageFormatFromBase64: unrecognized header, defaulting to png');
+  console.warn('detectImageFromBase64: unrecognized header, defaulting to png');
   return { format: 'png', mimeType: 'image/png', data: b64, encoding: 'base64' };
 };
 

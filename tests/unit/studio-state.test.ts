@@ -2,8 +2,15 @@
 // Why: Keep extracted studio state behavior aligned with component callback contracts.
 // Info flow: StudioState actions -> spec/images/package calls -> assertions.
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
+import { sessionAdapter } from '../../src/lib/adapters/session.adapter';
 import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging.adapter';
 import { StudioState } from '../../src/routes/studio-state.svelte';
+
+type StudioStateInternals = {
+	draftLoaded: boolean;
+	draftTimer: ReturnType<typeof setTimeout> | null;
+};
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -52,5 +59,34 @@ describe('StudioState', () => {
 			data: 'd2VicA==',
 			encoding: 'base64'
 		});
+	});
+
+	it('still allows draft saves after init when the initial draft read fails', async () => {
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: false,
+			error: { code: 'BROWSER_REQUIRED', message: 'no session' }
+		});
+		vi.spyOn(creationStoreAdapter, 'getDraft').mockResolvedValue({
+			ok: false,
+			error: { code: 'STORAGE_PARSE_FAILED', message: 'corrupt draft' }
+		});
+		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft').mockResolvedValue({
+			ok: true,
+			value: { updatedAtISO: new Date().toISOString(), intent: undefined } as never
+		});
+
+		const studio = new StudioState();
+		await studio.init();
+
+		const internals = studio as unknown as StudioStateInternals;
+		expect(internals.draftLoaded).toBe(true);
+
+		vi.useFakeTimers();
+		studio.scheduleDraftSave();
+		expect(internals.draftTimer).not.toBeNull();
+		await vi.runAllTimersAsync();
+		vi.useRealTimers();
+
+		expect(saveDraftSpy).toHaveBeenCalled();
 	});
 });

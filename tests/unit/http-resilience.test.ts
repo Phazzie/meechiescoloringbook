@@ -2,7 +2,12 @@
 // Why: Timeout and retry logic must be verified deterministically with fake timers;
 //      real network calls would make these tests slow and flaky.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchWithTimeout, fetchWithRetry, isAbortError } from '../../src/lib/core/http-resilience';
+import {
+	fetchWithTimeout,
+	fetchWithRetry,
+	isAbortError,
+	isTimeoutError
+} from '../../src/lib/core/http-resilience';
 
 // ---------------------------------------------------------------------------
 // isAbortError
@@ -25,6 +30,29 @@ describe('isAbortError', () => {
 	it('returns false for a non-Error value', () => {
 		expect(isAbortError('AbortError')).toBe(false);
 		expect(isAbortError(null)).toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// isTimeoutError
+// ---------------------------------------------------------------------------
+
+describe('isTimeoutError', () => {
+	it('returns true for an Error named TimeoutError', () => {
+		const error = Object.assign(new Error('boom'), { name: 'TimeoutError' });
+		expect(isTimeoutError(error)).toBe(true);
+	});
+
+	it('returns true for a message containing "timed out"', () => {
+		expect(isTimeoutError(new Error('Request timed out after 5000ms.'))).toBe(true);
+	});
+
+	it('returns true for a message containing "timeout" without "timed out"', () => {
+		expect(isTimeoutError(new Error('Network timeout'))).toBe(true);
+	});
+
+	it('returns false for an unrelated error', () => {
+		expect(isTimeoutError(new Error('ECONNREFUSED'))).toBe(false);
 	});
 });
 
@@ -312,5 +340,83 @@ describe('fetchWithRetry', () => {
 
 		expect(result.status).toBe(200);
 		expect(fetcher).toHaveBeenCalledTimes(2);
+	});
+
+	it('invokes onResponseBodyCancelError with the original error for non-abort/cancel body cancel failures', async () => {
+		const cancelError = new Error('boom');
+		const response = {
+			status: 503,
+			headers: new Headers(),
+			body: { cancel: vi.fn().mockRejectedValue(cancelError) }
+		} as unknown as Response;
+		const fetcher = vi
+			.fn()
+			.mockResolvedValueOnce(response)
+			.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+		const onResponseBodyCancelError = vi.fn();
+
+		const promise = fetchWithRetry(fetcher, {
+			maxAttempts: 2,
+			baseDelayMs: 100,
+			onResponseBodyCancelError
+		});
+		await vi.runAllTimersAsync();
+		const result = await promise;
+
+		expect(result.status).toBe(200);
+		expect(onResponseBodyCancelError).toHaveBeenCalledWith(cancelError);
+	});
+
+	it('does not invoke onResponseBodyCancelError when the body cancel fails with an abort-like error', async () => {
+		const abortError = Object.assign(new Error('aborted'), { name: 'AbortError' });
+		const response = {
+			status: 503,
+			headers: new Headers(),
+			body: { cancel: vi.fn().mockRejectedValue(abortError) }
+		} as unknown as Response;
+		const fetcher = vi
+			.fn()
+			.mockResolvedValueOnce(response)
+			.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+		const onResponseBodyCancelError = vi.fn();
+
+		const promise = fetchWithRetry(fetcher, {
+			maxAttempts: 2,
+			baseDelayMs: 100,
+			onResponseBodyCancelError
+		});
+		await vi.runAllTimersAsync();
+		await promise;
+
+		expect(onResponseBodyCancelError).not.toHaveBeenCalled();
+	});
+
+	it('does not let a throwing onResponseBodyCancelError callback break the retry flow', async () => {
+		const cancelError = new Error('boom');
+		const response = {
+			status: 503,
+			headers: new Headers(),
+			body: { cancel: vi.fn().mockRejectedValue(cancelError) }
+		} as unknown as Response;
+		const fetcher = vi
+			.fn()
+			.mockResolvedValueOnce(response)
+			.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+		const onResponseBodyCancelError = vi.fn(() => {
+			throw new Error('callback exploded');
+		});
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+		const promise = fetchWithRetry(fetcher, {
+			maxAttempts: 2,
+			baseDelayMs: 100,
+			onResponseBodyCancelError
+		});
+		await vi.runAllTimersAsync();
+		const result = await promise;
+
+		expect(result.status).toBe(200);
+		expect(onResponseBodyCancelError).toHaveBeenCalledWith(cancelError);
+		errorSpy.mockRestore();
 	});
 });

@@ -56,7 +56,7 @@ const errorMessage = (error: unknown): string =>
 export const isAbortError = (error: unknown): boolean => errorName(error) === 'AbortError';
 
 export const isTimeoutError = (error: unknown): boolean =>
-	errorName(error) === 'TimeoutError' || /timed out/i.test(errorMessage(error));
+	errorName(error) === 'TimeoutError' || /timeout|timed out/i.test(errorMessage(error));
 
 export type TimeoutSignalOptions = {
 	signal?: AbortSignal;
@@ -124,7 +124,7 @@ export type RetryOptions = {
 	/** Optional caller cancellation signal; caller aborts are never retried. */
 	signal?: AbortSignal;
 	/** Called when response body cancel fails for a non-abort/cancel reason. Caller decides how to surface it. */
-	onResponseBodyCancelError?: (message: string) => void;
+	onResponseBodyCancelError?: (error: unknown) => void;
 };
 
 export const fetchWithRetry = async (
@@ -154,10 +154,13 @@ export const fetchWithRetry = async (
 
 		if (RETRYABLE_STATUSES.has(response.status) && attempt < maxAttempts) {
 			response.body?.cancel().catch((err: unknown) => {
-				const name = String(errorName(err) ?? '');
-				const message = errorMessage(err);
-				if (!/abort|cancel/i.test(name) && !/abort|cancel/i.test(message)) {
-					onResponseBodyCancelError?.(message);
+				if (isAbortError(err) || /cancel/i.test(errorMessage(err))) {
+					return;
+				}
+				try {
+					onResponseBodyCancelError?.(err);
+				} catch (callbackError) {
+					console.error('fetchWithRetry: onResponseBodyCancelError callback threw', callbackError);
 				}
 			});
 			const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
