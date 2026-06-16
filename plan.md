@@ -1130,3 +1130,35 @@ Deliver a brand-new modern/sleek/polished UI with strong visual identity, refres
 2. What must be proven: JPEG and WebP print packaging still route through browser conversion at 2550 by 3300, SVG fallback dimensions remain 2550 by 3300, the HTTP client and studio-text improvements are not regressed, and focused plus full verification gates pass.
 3. Riskiest assumption: Removing duplicated numeric literals without adding a behavior test is acceptable because this slice changes names, not values; the mitigation is focused OutputPackagingSeam tests plus a before/after source debt scan.
 4. Evidence to prove/disprove: Debt scan, focused output-packaging/wig/http/studio tests, Svelte check, lint, full verify, Cipher Gate, and diff-check output.
+
+## Eliminate Dual Seam Layout: PromptAssembly, DriftDetection, MeechieVoice, MeechieTool, SpecValidation (2026-06-16)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: rebase or cherry-pick one of the 4 prior open duplicate PRs (#151, #156, #159, #161) without re-verifying it against current `main`, or skip the import-mapping grep and just delete the flat files.
+2. Countermeasure: redo the migration fresh against current `main`, grep every repo-wide reference to each legacy path before deleting it, and diff legacy vs. canonical files first to confirm they are functionally identical mirrors rather than divergent forks.
+3. Lower-debt path: keep the legacy `fixtures/<seam>/*.json` directories in place (the canonical `fixtures.ts` modules still import from them) instead of relocating fixture JSON, since relocation is not required to make the self-contained layout the sole source of truth.
+
+### Plan
+
+- Goal: Delete the legacy flat-layout contract/mock/adapter/test files for PromptAssemblySeam, DriftDetectionSeam, MeechieVoiceSeam, MeechieToolSeam, and SpecValidationSeam, redirect all consumer imports to the canonical `src/lib/seams/<seam-name>/` layout, and consolidate the seam registry — with zero behavior change.
+- Exact seams: PromptAssemblySeam, DriftDetectionSeam, MeechieVoiceSeam, MeechieToolSeam, SpecValidationSeam.
+- Exact file paths to touch:
+  - `docs/seams.md`, `contracts/CLAUDE.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `plan.md`
+  - Deleted: `contracts/{prompt-assembly,drift-detection,meechie-voice,meechie-tool,spec-validation}.contract.ts`, `src/lib/mocks/{prompt-assembly,drift-detection,meechie-voice,meechie-tool,spec-validation}.mock.ts`, `src/lib/adapters/{prompt-assembly,drift-detection,meechie-voice,meechie-tool,spec-validation}.adapter.ts`, `tests/contract/{prompt-assembly,drift-detection,meechie-voice,meechie-tool,spec-validation}.test.ts`
+  - Import redirects: `src/lib/components/MeechieModePage.svelte`, `src/lib/components/MeechieTools.svelte`, `src/lib/components/meechie-mode-config.ts`, `src/lib/components/studio/StudioSettingsPanel.svelte`, `src/lib/components/studio/SystemTrace.svelte`, `src/lib/core/chat-interpretation-pipeline.ts`, `src/lib/core/image-generation-pipeline.ts`, `src/lib/core/meechie-studio.ts`, `src/lib/core/prompt-template.ts`, `src/lib/core/tools-pipeline.ts`, `src/lib/seams/safety-policy-seam/contract.ts`, `src/lib/utils/alignment-line.ts`, `src/routes/random/+page.svelte`, `src/routes/rate-his-excuse/+page.svelte`, `src/routes/who-fucked-up/+page.svelte`, `src/routes/studio-state.svelte.ts`, `tests/helpers/make-base-spec.ts`, `tests/unit/coloring-page-title.test.ts`, `tests/unit/drift-detection-helpers.test.ts`, `tests/unit/meechie-tool-adapter.test.ts`, `tests/unit/meechie-tool-adapter.responses.test.ts`, `tests/unit/meechie-tools-parity.test.ts`
+  - Relative-path redirects in surviving flat contracts: `contracts/creation-store.contract.ts`, `contracts/image-generation.contract.ts`, `contracts/output-packaging.contract.ts`, `contracts/chat-interpretation.contract.ts`, `contracts/generate.contract.ts`
+- Exact commands to run:
+  1. `npm run check`
+  2. `npm run lint`
+  3. `npm test`
+  4. `npm run build`
+  5. `npm run verify`
+  6. `git push -u origin claude/sweet-mendel-n3gjq7`
+
+### Self-critique
+
+1. What could be wrong: A legacy file could be deleted while something still imports it, breaking the build at runtime rather than at type-check time.
+2. What must be proven: Every one of the 31 import sites resolves correctly post-redirect, no remaining references to the 5 deleted legacy contract/mock/adapter paths exist anywhere in `src/` or `tests/`, and the test count drop is exactly the expected 25 duplicate tests across 5 files (519/62 -> 494/57).
+3. Riskiest assumption: The flat and self-contained copies of each of the 5 seams were truly identical mirrors (not divergent), confirmed by direct diff before deletion rather than assumed from file naming alone.
+4. Evidence to prove/disprove: Repo-wide grep for each deleted path returning zero hits, `npm run check`/`lint`/`test`/`build`/`verify` all green, and the before/after test-count comparison.

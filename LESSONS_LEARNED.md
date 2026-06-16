@@ -163,3 +163,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-06-16
+- Date: 2026-06-16
+- Context: A scheduled "find the 10 hardest fixes, do the hardest one, open a PR" routine ran daily against this repo and independently produced PRs #151 (2026-06-08), #156 (2026-06-13), #159 (2026-06-14), and #161 (2026-06-15) — all fixing the identical dual-seam-layout defect, all left open and unmerged.
+- Lesson: A routine that always branches from `main` and never checks for prior open PRs covering the same defect will keep "discovering" and re-fixing it forever; the fix only sticks once a PR is actually merged.
+- Action: Before starting this kind of repo-wide audit task, list open PRs and check whether one already addresses the top candidate; if so, prefer flagging it for merge over re-doing the work. Surface the duplication explicitly (PR body + notification) so a human can merge one and close the rest instead of letting the pile grow.

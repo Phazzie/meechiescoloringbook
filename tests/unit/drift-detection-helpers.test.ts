@@ -2,7 +2,7 @@
 // Why: Ensure heading detection, negative section extraction, and forbidden tokens work correctly.
 // Info flow: Prompt strings -> adapter detect -> violation arrays.
 import { describe, expect, it } from 'vitest';
-import { driftDetectionAdapter } from '../../src/lib/adapters/drift-detection.adapter';
+import { driftDetectionAdapter } from '$lib/adapters/drift-detection-seam';
 import { SYSTEM_CONSTANTS } from '../../src/lib/core/constants';
 import {
 	PROMPT_REQUIRED_HEADINGS,

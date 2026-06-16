@@ -1,7 +1,7 @@
 // Purpose: Provide shared wording for alignment enforcement across seams.
 // Why: Keep prompt text and drift detection expectations synchronized.
 // Info flow: ColoringPageSpec -> formatted alignment sentence -> shared adapters.
-import type { ColoringPageSpec } from '../../../contracts/spec-validation.contract';
+import type { ColoringPageSpec } from '$lib/seams/spec-validation-seam/contract';
 
 const SPACING_CLAUSE = 'treat blank space as intentional; do not fill empty space.';
 

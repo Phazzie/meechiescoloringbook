@@ -5,11 +5,11 @@ Info flow: Mode config + user inputs -> MeechieToolInputSchema -> /api/tools -> 
 -->
 <script lang="ts">
 	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
-	import type { MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
+	import type { MeechieToolOutput } from '$lib/seams/meechie-tool-seam/contract';
 	import {
 		MeechieToolInputSchema,
 		MeechieToolResultSchema
-	} from '../../../contracts/meechie-tool.contract';
+	} from '$lib/seams/meechie-tool-seam/contract';
 	import type { ModeConfig, ModeFieldId } from './meechie-mode-config';
 
 	export let config: ModeConfig;
