@@ -419,6 +419,73 @@ describe('image-generation-pipeline edge cases', () => {
     }
   });
 
+  it('marks valid WebP base64 as webp for downstream packaging', async () => {
+    const webpBytes = Buffer.concat([
+      Buffer.from('RIFF'),
+      Buffer.from([0x1a, 0x00, 0x00, 0x00]),
+      Buffer.from('WEBP')
+    ]);
+    const webpBase64 = webpBytes.toString('base64');
+
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: webpBase64 }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    if (result.body.ok) {
+      expect(result.body.value.images[0].format).toBe('webp');
+      expect(result.body.value.images[0].mimeType).toBe('image/webp');
+    }
+  });
+
+  it('does not mark non-WebP RIFF payloads (e.g. WAV) as webp', async () => {
+    const wavBytes = Buffer.concat([
+      Buffer.from('RIFF'),
+      Buffer.from([0x24, 0x00, 0x00, 0x00]),
+      Buffer.from('WAVE')
+    ]);
+    const wavBase64 = wavBytes.toString('base64');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: wavBase64 }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    if (result.body.ok) {
+      expect(result.body.value.images[0].format).not.toBe('webp');
+    }
+    warn.mockRestore();
+  });
+
   it('filters out images without b64 and keeps valid ones', async () => {
     const result = await runImageGenerationPipeline(
       {

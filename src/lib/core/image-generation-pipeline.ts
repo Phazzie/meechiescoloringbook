@@ -36,15 +36,42 @@ const decodeBase64ToUtf8 = (b64: string): string => {
 // Matches an SVG payload whose decoded text reaches an <svg> root tag after only
 // a BOM/whitespace, XML declaration, comments, and/or a doctype \u2014 anchored to the
 // start so an <svg substring deeper in unrelated text can't cause a false match.
+// Each preamble alternative consumes up to its closing token via a negative
+// lookahead (rather than a lazy [\s\S]*?) so repeated/unterminated tokens can't
+// trigger catastrophic backtracking.
 const SVG_TEXT_PATTERN =
-  /^(?:[\s\uFEFF]|<\?xml[\s\S]*?\?>|<!--[\s\S]*?-->|<!DOCTYPE[\s\S]*?>)*<svg[\s>]/i;
+  /^(?:[\s\uFEFF]|<\?xml(?:(?!\?>)[\s\S])*\?>|<!--(?:(?!-->)[\s\S])*-->|<!DOCTYPE(?:(?!>)[\s\S])*>)*<svg[\s>]/i;
 
 type DetectedImage = Pick<GeneratedImage, 'format' | 'mimeType' | 'data' | 'encoding'>;
+
+const WEBP_HEADER_B64_LENGTH = 16; // base64 chars covering the 12-byte RIFF size + format code
+
+// The "RIFF" container prefix (b64 "UklGR") is shared by WAV/AVI/etc, so it alone can't
+// confirm WebP — the format code at byte offset 8-11 must also read "WEBP".
+const hasWebpFormatCode = (b64: string): boolean => {
+  const headerB64 = b64.slice(0, WEBP_HEADER_B64_LENGTH);
+  if (headerB64.length < WEBP_HEADER_B64_LENGTH) return false;
+  try {
+    const bytes =
+      typeof Buffer !== 'undefined'
+        ? Buffer.from(headerB64, 'base64')
+        : Uint8Array.from(atob(headerB64), (c) => c.charCodeAt(0));
+    return (
+      bytes.length >= 12 &&
+      String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]) === 'WEBP'
+    );
+  } catch (error) {
+    console.error('hasWebpFormatCode: failed to decode base64 header', error);
+    return false;
+  }
+};
 
 const detectImageFromBase64 = (b64: string): DetectedImage => {
   if (b64.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg', data: b64, encoding: 'base64' };
   if (b64.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png', data: b64, encoding: 'base64' };
-  if (b64.startsWith('UklGR')) return { format: 'webp', mimeType: 'image/webp', data: b64, encoding: 'base64' };
+  if (b64.startsWith('UklGR') && hasWebpFormatCode(b64)) {
+    return { format: 'webp', mimeType: 'image/webp', data: b64, encoding: 'base64' };
+  }
   const decoded = decodeBase64ToUtf8(b64);
   if (SVG_TEXT_PATTERN.test(decoded.slice(0, 1024))) {
     return { format: 'svg', mimeType: 'image/svg+xml', data: decoded, encoding: 'utf8' };
