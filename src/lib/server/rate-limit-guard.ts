@@ -50,6 +50,8 @@ const resolveClientKey = (route: RateLimitRouteName, event: RateLimitClientEvent
 	} catch {
 		// Some test harnesses and local adapters don't implement getClientAddress(); fall back to
 		// a shared bucket rather than throwing, since this limiter is already a best-effort guard.
+		// Warn so an unexpected platform-level failure here doesn't silently mask itself.
+		console.warn(`enforceRateLimit: getClientAddress() failed for route "${route}"; using shared "unknown" bucket.`);
 	}
 	return `${route}:${address}`;
 };
