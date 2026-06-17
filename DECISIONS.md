@@ -1944,6 +1944,7 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Risks: This is behavior-preserving cleanup, so no new contract fixtures were added; future configurable print dimensions would need contract-level tests.
 
 ## 2026-06-17 - Add RateLimitSeam and guard AI-provider routes against unbounded abuse
+
 - Date: 2026-06-17
 - Decision: Add a new self-contained `RateLimitSeam` (pure, dependency-injected sliding-window limiter) and wire it into `/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/meechie-studio-text`, and `/api/wig-try-on` via `src/lib/server/rate-limit-guard.ts`, which returns a 429 with `Retry-After` once a per-route, per-client budget is exceeded.
 - Context: A repo-wide difficulty survey found that none of the five routes that proxy metered external AI provider calls (xAI for chat/generate/image/studio-text, Gemini for wig try-on) had any request throttling, leaving paid provider spend exposed to unbounded client abuse. This was confirmed net-new by cross-checking the five most recent open PRs from prior runs of this same "hardest fix" routine (#151, #156, #159, #161, #164), none of which touch rate limiting.

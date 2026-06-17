@@ -5,7 +5,7 @@ Info flow: seam checks -> ledger table -> review.
 -->
 # Seam Ledger
 
-Generated at: 2026-06-17T12:27:35.115Z
+Generated at: 2026-06-17T12:52:20.687Z
 
 | Seam | Status | Contract | Probe | Fixtures | Mock | Tests | Adapter |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -36,4 +36,4 @@ Generated at: 2026-06-17T12:27:35.115Z
 | WigCatalogSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | WigTryOnSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | CacheSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
-| RateLimitSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | — |
+| RateLimitSeam | ✅ | ✅ | — | — | ✅ | ✅ | — |

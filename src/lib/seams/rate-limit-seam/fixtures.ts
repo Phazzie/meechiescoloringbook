@@ -15,8 +15,11 @@ export const sampleCheckInput: RateLimitCheckInput = {
 export const invalidCheckInputFixtures: unknown[] = [
 	{ ...sampleCheckInput, key: '' },
 	{ ...sampleCheckInput, limit: 0 },
+	{ ...sampleCheckInput, limit: -1 },
 	{ ...sampleCheckInput, limit: 1.5 },
 	{ ...sampleCheckInput, windowMs: 0 },
+	{ ...sampleCheckInput, windowMs: -500 },
 	{ ...sampleCheckInput, nowMs: Number.NaN },
+	{ ...sampleCheckInput, nowMs: -100 },
 	'not-an-object'
 ];
