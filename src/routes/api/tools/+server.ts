@@ -6,9 +6,14 @@ Info flow: Client tool request -> schema + safety checks -> tool adapter -> JSON
 import { json } from '@sveltejs/kit';
 import { runToolsPipeline, toolsPipelineDeps } from '$lib/core/tools-pipeline';
 import { parseRequestBody } from '$lib/server/parse-request-body';
+import { enforceRateLimit } from '$lib/server/rate-limit-guard';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const rateLimitResult = enforceRateLimit('tools', event);
+	if (!rateLimitResult.ok) return rateLimitResult.response;
+
+	const { request } = event;
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 	const pipelineResult = await runToolsPipeline(parsed.body, toolsPipelineDeps);

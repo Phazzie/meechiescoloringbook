@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-06-17T12:27:35.115Z",
+  "generatedAt": "2026-06-17T12:52:20.687Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -1041,8 +1041,8 @@
         },
         {
           "kind": "probe",
-          "status": "ok",
-          "path": "src/lib/seams/rate-limit-seam/probe.ts"
+          "status": "na",
+          "path": "N/A (pure)"
         },
         {
           "kind": "fixtures",

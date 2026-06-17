@@ -53,7 +53,7 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 				value: {
 					limit,
 					remaining: limit - recentHits.length,
-					resetAtMs: nowMs + windowMs
+					resetAtMs: recentHits[0] + windowMs
 				}
 			};
 		}

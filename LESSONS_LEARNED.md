@@ -165,6 +165,7 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
 
 ## 2026-06-17
+
 - Date: 2026-06-17
 - Context: Building RateLimitSeam's "allows requests again once the oldest hit has fully expired" contract test.
 - Lesson: When a test seeds several hits at `nowMs + i` for small `i` to simulate a burst, the window-elapsed offset used for the follow-up check must clear the *last* hit in the burst, not just the first; using `windowMs + 1` only expired the earliest of three 1ms-apart hits and left the test silently asserting the wrong `remaining` value relative to actual sliding-window behavior.

@@ -55,4 +55,12 @@ describe('enforceRateLimit', () => {
 		const result = enforceRateLimit('meechie-studio-text', throwingEvent);
 		expect(result.ok).toBe(true);
 	});
+
+	it('enforces a budget on the tools route', () => {
+		const event = buildEvent('203.0.113.4');
+		for (let i = 0; i < 30; i += 1) {
+			expect(enforceRateLimit('tools', event).ok).toBe(true);
+		}
+		expect(enforceRateLimit('tools', event).ok).toBe(false);
+	});
 });

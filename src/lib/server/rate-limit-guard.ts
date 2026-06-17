@@ -12,7 +12,8 @@ export type RateLimitRouteName =
 	| 'image-generation'
 	| 'chat-interpretation'
 	| 'meechie-studio-text'
-	| 'wig-try-on';
+	| 'wig-try-on'
+	| 'tools';
 
 export type RateLimitClientEvent = {
 	getClientAddress: () => string;
@@ -27,7 +28,8 @@ const ROUTE_LIMIT_POLICIES: Record<RateLimitRouteName, RateLimitPolicy> = {
 	'image-generation': { limit: 10, windowMs: 10 * 60_000 },
 	'wig-try-on': { limit: 10, windowMs: 10 * 60_000 },
 	'chat-interpretation': { limit: 30, windowMs: 10 * 60_000 },
-	'meechie-studio-text': { limit: 30, windowMs: 10 * 60_000 }
+	'meechie-studio-text': { limit: 30, windowMs: 10 * 60_000 },
+	tools: { limit: 30, windowMs: 10 * 60_000 }
 };
 
 // One limiter instance per route per process. On Vercel this means the budget is enforced
