@@ -46,6 +46,8 @@ Info flow: Layout renders children -> pages render within layout.
 		<button
 			class="hamburger"
 			aria-label="Toggle navigation menu"
+			aria-haspopup="true"
+			aria-controls="mobile-menu"
 			aria-expanded={mobileMenuOpen}
 			onclick={toggleMenu}
 		>
@@ -55,7 +57,7 @@ Info flow: Layout renders children -> pages render within layout.
 		</button>
 	</div>
 	{#if mobileMenuOpen}
-		<nav class="mobile-menu">
+		<nav id="mobile-menu" class="mobile-menu">
 			<a href="/who-fucked-up" onclick={closeMenu}>Who Fucked Up?</a>
 			<a href="/rate-his-excuse" onclick={closeMenu}>Rate His Excuse</a>
 			<a href="/random" onclick={closeMenu}>Random</a>

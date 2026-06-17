@@ -76,7 +76,7 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 				<img
 					src="/meechie/demo-coloring-page.png"
 					alt="Example Meechie coloring page"
-					style="width: 100%; border-radius: 8px;"
+					class="demo-image"
 				/>
 				<p class="demo-caption">✨ Example page — generate yours above</p>
 			</div>

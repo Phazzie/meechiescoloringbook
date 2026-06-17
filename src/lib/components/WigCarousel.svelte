@@ -55,7 +55,6 @@
 				target="_blank"
 				rel="noopener noreferrer"
 				class="shop-link"
-				onclick={(e) => e.stopPropagation()}
 			>
 				Shop ↗
 			</a>

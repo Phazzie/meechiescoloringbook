@@ -489,6 +489,11 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		object-fit: contain;
 	}
 
+	:global(.studio .demo-image) {
+		width: 100%;
+		border-radius: 8px;
+	}
+
 	:global(.studio .paper-empty) {
 		width: 82%;
 		text-align: center;

@@ -61,6 +61,8 @@ export const scoreMeechieQuote = (quote: string): MeechieQuoteScoreDetails => {
 	const words = text.split(/\s+/).filter(Boolean);
 	const hasConcrete = hasAny(text, concreteRoleWords);
 	const hasConsequence = hasAny(text, consequenceWords);
+	const hasBannedPhrase = hasAny(text, bannedPhrases);
+	const hasGenericEmpowermentDrift = hasAny(text, genericEmpowermentPhrases);
 	const hasThirdPersonLead = /^\s*(he|she|they)\s/.test(text);
 	const hasI = /\bi\b/.test(text);
 	const hasYou = /\byou\b/.test(text);
@@ -70,20 +72,20 @@ export const scoreMeechieQuote = (quote: string): MeechieQuoteScoreDetails => {
 		{ key: 'specificity', max: 10, score: hasConcrete ? 10 : 3, reason: hasConcrete ? 'Concrete role/place/object found.' : 'Lacks concrete role/place/object.' },
 		{ key: 'consequence', max: 10, score: hasConsequence ? 10 : 2, reason: hasConsequence ? 'Names a consequence or condition.' : 'No explicit consequence named.' },
 		{ key: 'agency', max: 10, score: hasI ? 9 : hasYou ? 6 : 3, reason: 'Measures direct agency language.' },
-		{ key: 'freshness', max: 10, score: hasAny(text, bannedPhrases) ? 1 : 9, reason: 'Rewards non-cliche phrasing.' },
+		{ key: 'freshness', max: 10, score: hasBannedPhrase ? 1 : 9, reason: 'Rewards non-cliche phrasing.' },
 		{ key: 'cadence', max: 10, score: words.length >= 8 && words.length <= 24 ? 9 : 5, reason: 'Prefers concise but complete cadence.' },
 		{ key: 'clarity', max: 10, score: text.length >= 35 ? 8 : 5, reason: 'Rewards clear complete thought.' },
 		{ key: 'boundary', max: 10, score: hasAny(text, ['door', 'boundary', 'access', 'locked', 'leave']) ? 10 : 4, reason: 'Checks boundary-setting language.' },
 		{ key: 'wit', max: 10, score: hasAny(text, ['economy', 'cheap seats', 'interesting', 'vision problem']) ? 9 : 6, reason: 'Checks playful sharpness.' },
-		{ key: 'non_generic', max: 10, score: hasAny(text, genericEmpowermentPhrases) ? 2 : 10, reason: 'Penalizes generic empowerment drift.' }
+		{ key: 'non_generic', max: 10, score: hasGenericEmpowermentDrift ? 2 : 10, reason: 'Penalizes generic empowerment drift.' }
 	];
 
 	const penalties: MeechieQuotePenalty[] = [];
-	if (hasAny(text, bannedPhrases)) penalties.push({ key: 'banned_phrase', points: 25, reason: 'Contains banned cliche phrase.' });
+	if (hasBannedPhrase) penalties.push({ key: 'banned_phrase', points: 25, reason: 'Contains banned cliche phrase.' });
 	if (hasAny(text, therapyVagueWords) && !hasConcrete) penalties.push({ key: 'therapy_vagueness', points: 10, reason: 'Uses therapy-vague language without concrete anchor.' });
 	if (!(hasConcrete && hasConsequence)) penalties.push({ key: 'missing_concrete_anchor', points: 12, reason: 'Missing concrete noun/role/place/object/consequence combination.' });
 	if (hasThirdPersonLead && !hasI) penalties.push({ key: 'forced_third_person', points: 8, reason: 'Starts in detached third person without first-person voice.' });
-	if (hasAny(text, genericEmpowermentPhrases)) penalties.push({ key: 'generic_empowerment_drift', points: 18, reason: 'Drifts into generic empowerment language.' });
+	if (hasGenericEmpowermentDrift) penalties.push({ key: 'generic_empowerment_drift', points: 18, reason: 'Drifts into generic empowerment language.' });
 
 	const totalBeforePenalties = subscores.reduce((sum, item) => sum + item.score, 0);
 	const totalPenalty = penalties.reduce((sum, item) => sum + item.points, 0);
