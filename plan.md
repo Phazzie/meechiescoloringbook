@@ -8,6 +8,57 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## RateLimitSeam: Guard AI-Provider Routes Against Unbounded Abuse (2026-06-17)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: re-fix the already-known dual-seam-layout debt (already green and unmerged across PRs #151/#156/#159/#161/#164 from prior runs of this same routine), creating a sixth duplicate PR instead of finding a genuinely new problem.
+2. Countermeasure: cross-checked the five most recent open PRs from this routine's prior runs before choosing a target, confirmed none of them touch rate limiting, and picked the one route-level gap (zero throttling on metered xAI/Gemini-backed routes) that was independently verifiable as net-new.
+3. Lower-debt path: implement one pure, dependency-injected `RateLimitSeam` (sliding window, caller-supplied clock) reused via a single `enforceRateLimit` guard across all five routes, instead of bespoke per-route limiting logic.
+
+### Plan
+
+- Goal: Add request-budget protection to every API route that triggers a paid external AI provider call, using the self-contained Seam-Driven Development layout, without regressing any existing route test.
+- Exact seams: RateLimitSeam (new, pure/dependency-injected — no adapter, same pattern as SafetyPolicySeam).
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `LESSONS_LEARNED.md`
+  - `docs/seams.md`
+  - `src/lib/seams/CLAUDE.md`
+  - `src/lib/seams/rate-limit-seam/contract.ts`
+  - `src/lib/seams/rate-limit-seam/validators.ts`
+  - `src/lib/seams/rate-limit-seam/limiter.ts`
+  - `src/lib/seams/rate-limit-seam/mock.ts`
+  - `src/lib/seams/rate-limit-seam/fixtures.ts`
+  - `src/lib/seams/rate-limit-seam/probe.ts`
+  - `src/lib/seams/rate-limit-seam/test.ts`
+  - `src/lib/server/rate-limit-guard.ts`
+  - `tests/unit/rate-limit-guard.test.ts`
+  - `src/routes/api/generate/+server.ts`
+  - `src/routes/api/image-generation/+server.ts`
+  - `src/routes/api/chat-interpretation/+server.ts`
+  - `src/routes/api/meechie-studio-text/+server.ts`
+  - `src/routes/api/wig-try-on/+server.ts`
+  - `docs/evidence/2026-06-17/*`
+- Exact commands to run:
+  1. `npx vitest run src/lib/seams/rate-limit-seam/test.ts`
+  2. `npx vitest run tests/unit/rate-limit-guard.test.ts`
+  3. `npm run rewind -- --seam RateLimitSeam`
+  4. `npm run check`
+  5. `npm run lint`
+  6. `npm test`
+  7. `npm run build`
+  8. `npm run verify`
+  9. `npm run cipher:gate`
+
+### Self-critique
+
+1. What could be wrong: an in-memory limiter is only a per-serverless-instance budget on Vercel, not a globally consistent one — recorded explicitly as a DECISIONS.md Assumption entry rather than left as a silent gap.
+2. What must be proven: under-limit requests pass through unchanged, the (limit+1)th request returns 429 with `Retry-After`, budgets reset after the sliding window elapses, budgets are independent per route and per client, and `getClientAddress()` failures (as seen in existing hand-built test events) fall back safely instead of throwing.
+3. Riskiest assumption: existing route-level unit tests (max 4 `POST()` calls per file) stay well under every configured limit (10/10min or 30/10min), so wiring in the guard does not flip any existing test red.
+4. Evidence to prove/disprove: green seam contract tests (13/13), green guard unit tests (4/4), green `npm run rewind -- --seam RateLimitSeam`, and a full green `npm run check`/`lint`/`test`/`build`/`verify`/`cipher:gate` chain, all captured under `docs/evidence/2026-06-17/`.
+
 ## PR #114 Manual Integration: Ordinal and Config Parsing Cleanup (2026-06-07)
 
 ### Shortcut Check
