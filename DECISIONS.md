@@ -1942,3 +1942,31 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Evidence: docs/evidence/2026-06-07/pr-133-print-dimension-debt-before.txt; docs/evidence/2026-06-07/pr-133-print-dimension-debt-after.txt; docs/evidence/2026-06-07/pr-133-focused-tests.txt; docs/evidence/2026-06-07/pr-133-check.txt; docs/evidence/2026-06-07/pr-133-lint.txt; docs/evidence/2026-06-07/pr-133-verify-wrapper.txt; docs/evidence/2026-06-07/cipher-gate.json; docs/evidence/2026-06-07/pr-133-diff-check.txt
   - Summary: Centralized OutputPackagingSeam print dimensions for SVG fallback plus JPEG/WebP browser conversion and skipped stale PR #133 hunks that would regress current HTTP/studio-text policies.
   - Risks: This is behavior-preserving cleanup, so no new contract fixtures were added; future configurable print dimensions would need contract-level tests.
+
+## 2026-06-17 - Add RateLimitSeam and guard AI-provider routes against unbounded abuse
+- Date: 2026-06-17
+- Decision: Add a new self-contained `RateLimitSeam` (pure, dependency-injected sliding-window limiter) and wire it into `/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/meechie-studio-text`, and `/api/wig-try-on` via `src/lib/server/rate-limit-guard.ts`, which returns a 429 with `Retry-After` once a per-route, per-client budget is exceeded.
+- Context: A repo-wide difficulty survey found that none of the five routes that proxy metered external AI provider calls (xAI for chat/generate/image/studio-text, Gemini for wig try-on) had any request throttling, leaving paid provider spend exposed to unbounded client abuse. This was confirmed net-new by cross-checking the five most recent open PRs from prior runs of this same "hardest fix" routine (#151, #156, #159, #161, #164), none of which touch rate limiting.
+- Alternatives: Add a distributed rate limiter backed by Redis/Upstash; rejected because it requires a new paid external dependency and credentials not available in this environment. Rely on Vercel's platform-level rate limiting; rejected because it is not configured in this repo and isn't visible/testable from the codebase. Add a single shared limiter instance instead of per-route policies; rejected because image-generating routes are materially more expensive per call than text-only routes and deserve a tighter budget.
+- Consequences: Each guarded route now consumes one budget slot per request before any provider call, deterministic in tests via injected `nowMs`. The limiter is in-memory per Node process; on Vercel's serverless platform this means budgets are enforced per warm function instance, not globally across every instance that could serve a given client — documented below as a deliberate, accepted tradeoff rather than a silent gap.
+- Revisit criteria: Revisit if Vercel KV/Upstash (or another shared store) becomes available, or if abuse patterns show the per-instance budget is being trivially bypassed via cold-start churn.
+- Plan:
+  - Goal: Close the "no rate limiting on metered AI routes" gap with a seam that follows Seam-Driven Development and does not regress any existing route test.
+  - Seams: RateLimitSeam (new).
+  - Files: `src/lib/seams/rate-limit-seam/{contract,validators,limiter,mock,fixtures,probe,test}.ts`, `src/lib/server/rate-limit-guard.ts`, `tests/unit/rate-limit-guard.test.ts`, `src/routes/api/{generate,image-generation,chat-interpretation,meechie-studio-text,wig-try-on}/+server.ts`, `docs/seams.md`, `src/lib/seams/CLAUDE.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `plan.md`.
+  - Commands: `npx vitest run src/lib/seams/rate-limit-seam/test.ts`, `npx vitest run tests/unit/rate-limit-guard.test.ts`, `npm run rewind -- --seam RateLimitSeam`, `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`.
+- Self-critique: An earlier draft of the seam's own "fully expired" boundary test used a clock offset that only expired one of three closely-spaced hits, which would have shipped a false-positive green test; caught by actually running the new test before wiring anything into routes, then fixed by re-deriving the offset relative to the last hit instead of the first. The remaining known risk is the per-instance (not global) budget on serverless, which is recorded explicitly as an Assumption entry below instead of left implicit.
+
+- Cipher Gate:
+  - Date: 2026-06-17
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-06-17/rewind-RateLimitSeam.txt; docs/evidence/2026-06-17/rate-limit-guard-targeted-test.txt; docs/evidence/2026-06-17/check.txt; docs/evidence/2026-06-17/lint.txt; docs/evidence/2026-06-17/build.txt; docs/evidence/2026-06-17/test.txt; docs/evidence/2026-06-17/verify.txt; docs/evidence/2026-06-17/seam-ledger.md; docs/evidence/2026-06-17/proof-tape.md
+  - Summary: Added a pure sliding-window RateLimitSeam and an `enforceRateLimit` guard, wired into the five AI-provider-backed routes ahead of any provider call, with full contract/unit test coverage and a green `npm run verify`.
+  - Risks: The limiter is per-process/per-serverless-instance, not a globally consistent budget; see the Assumption entry below for the accepted scope of this mitigation.
+
+- Assumption:
+  - Date: 2026-06-17
+  - Seams: RateLimitSeam
+  - Statement: An in-memory, per-process sliding-window limiter is an acceptable mitigation for AI-provider route abuse even though Vercel serverless functions do not share memory across instances, so the effective budget is per-instance rather than globally enforced per client.
+  - Validation: Manual verification steps are documented in `src/lib/seams/rate-limit-seam/probe.ts`; revisit if abuse telemetry shows clients bypassing the budget via concurrent cold starts, at which point migrate to a shared store (e.g. Vercel KV/Upstash).
+  - Status: Accepted as a documented best-effort mitigation; not waived because no live credentials are required to reach this state, it is an inherent property of the chosen architecture (in-process Map, no external store).

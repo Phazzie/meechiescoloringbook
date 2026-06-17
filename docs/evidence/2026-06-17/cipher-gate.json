@@ -1,0 +1,50 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-17T12:28:27.937Z",
+  "cipher": {
+    "date": "2026-06-17",
+    "seams": "RateLimitSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-17/rewind-RateLimitSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-17/rate-limit-guard-targeted-test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-17/check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-17/lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-17/build.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-17/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-17/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-17/seam-ledger.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-17/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Added a pure sliding-window RateLimitSeam and an `enforceRateLimit` guard, wired into the five AI-provider-backed routes ahead of any provider call, with full contract/unit test coverage and a green `npm run verify`.",
+    "risks": "The limiter is per-process/per-serverless-instance, not a globally consistent budget; see the Assumption entry below for the accepted scope of this mitigation."
+  },
+  "latestChangeMs": 1781698839707.2727,
+  "status": "ok"
+}
