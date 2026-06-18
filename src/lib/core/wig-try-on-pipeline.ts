@@ -5,6 +5,7 @@ import { WigTryOnRequestSchema, WigTryOnResultSchema } from '../../../contracts/
 import { z } from 'zod';
 import type { WigCatalogSeam } from '../seams/wig-catalog-seam/contract';
 import type { WigTryOnSeam } from '../seams/wig-try-on-seam/contract';
+import { buildPipelineError as buildError } from './pipeline-error';
 
 type WigTryOnResult = z.infer<typeof WigTryOnResultSchema>;
 
@@ -19,15 +20,6 @@ type PipelineDeps = {
 	wigTryOnSeam: WigTryOnSeam;
 	signal?: AbortSignal;
 };
-
-const buildError = (
-	status: number,
-	code: string,
-	message: string
-): PipelineResponse => ({
-	status,
-	body: { ok: false, error: { code, message } }
-});
 
 const fetchImageAsBase64 = async (
 	url: string,

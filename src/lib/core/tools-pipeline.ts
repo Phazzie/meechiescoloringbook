@@ -3,6 +3,7 @@
 // Info flow: Raw request body -> input validation + safety checks -> tool adapter -> contract response.
 import { meechieToolAdapter } from '$lib/adapters/meechie-tool-seam';
 import { findDisallowedKeywords } from '$lib/core/constants';
+import { buildPipelineError as buildError } from './pipeline-error';
 import {
 	MeechieToolInputSchema,
 	MeechieToolResultSchema
@@ -19,23 +20,6 @@ type ToolsPipelineResponse = {
 type ToolsPipelineDeps = {
 	respond: typeof meechieToolAdapter.respond;
 };
-
-const buildError = (
-	status: number,
-	code: string,
-	message: string,
-	details?: Record<string, string>
-): ToolsPipelineResponse => ({
-	status,
-	body: {
-		ok: false,
-		error: {
-			code,
-			message,
-			...(details ? { details } : {})
-		}
-	}
-});
 
 export const runToolsPipeline = async (
 	body: unknown,

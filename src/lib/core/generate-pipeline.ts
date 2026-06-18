@@ -4,6 +4,7 @@
 import { driftDetectionAdapter } from '$lib/adapters/drift-detection-seam';
 import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly-seam';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
+import { buildPipelineError as buildError } from './pipeline-error';
 import type {
 	SafetyPolicyError,
 	SafetyPolicyGenerateInput,
@@ -41,23 +42,6 @@ export type GeneratePipelineDeps = {
 	generateImage: (body: ImageGenerationInput, signal?: AbortSignal) => Promise<ImagePipelineResponse>;
 	signal?: AbortSignal;
 };
-
-const buildError = (
-	status: number,
-	code: string,
-	message: string,
-	details?: Record<string, string>
-): PipelineResponse => ({
-	status,
-	body: {
-		ok: false,
-		error: {
-			code,
-			message,
-			...(details ? { details } : {})
-		}
-	}
-});
 
 const defaultDeps = {
 	validateSpec: specValidationAdapter.validate,

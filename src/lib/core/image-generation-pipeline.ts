@@ -11,6 +11,7 @@ import {
 } from '../../../contracts/image-generation.contract';
 import type { PageSize } from '../../../contracts/spec-validation.contract';
 import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contract';
+import { buildPipelineError as buildError } from './pipeline-error';
 
 const RESPONSE_FORMAT = 'b64_json' as const;
 const DEFAULT_IMAGE_SIZE = '1024x1024';
@@ -42,21 +43,6 @@ const missingRequiredPhrases = (prompt: string, pageSize: PageSize): string[] =>
   const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)];
   return phrases.filter((phrase) => !promptLower.includes(phrase.toLowerCase()));
 };
-
-const buildError = (
-  status: number,
-  code: string,
-  message: string
-): ImagePipelineResponse => ({
-  status,
-  body: {
-    ok: false,
-    error: {
-      code,
-      message
-    }
-  }
-});
 
 export const runImageGenerationPipeline = async (
   body: unknown,

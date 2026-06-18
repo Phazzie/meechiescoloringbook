@@ -6,6 +6,7 @@ import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { selectTextModel } from '$lib/core/text-model';
 import { env } from '$env/dynamic/private';
+import { buildPipelineError as buildError } from './pipeline-error';
 import {
 	ChatInterpretationInputSchema,
 	ChatInterpretationResultSchema
@@ -46,23 +47,6 @@ const extractSingleJsonObject = (content: string): Record<string, unknown> | nul
 		return null;
 	}
 };
-
-const buildError = (
-	status: number,
-	code: string,
-	message: string,
-	details?: Record<string, string>
-): ChatPipelineResponse => ({
-	status,
-	body: {
-		ok: false,
-		error: {
-			code,
-			message,
-			...(details ? { details } : {})
-		}
-	}
-});
 
 export const runChatInterpretationPipeline = async (
 	body: unknown,

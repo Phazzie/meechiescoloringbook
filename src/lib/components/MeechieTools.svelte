@@ -218,7 +218,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 					class:active={selectedTool === tool.id}
 					data-testid={`meechie-tool-${tool.id}`}
 					aria-selected={selectedTool === tool.id}
-					on:click={() => {
+					onclick={() => {
 						selectedTool = tool.id;
 						resetState();
 					}}
@@ -248,7 +248,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 					<div class="lineup-row">
 						<input
 							value={item}
-							on:input={(event) =>
+							oninput={(event) =>
 								updateLineupItem(
 									index,
 									(event.target as HTMLInputElement).value
@@ -258,7 +258,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 							class="ghost"
 							type="button"
 							data-testid="meechie-lineup-remove"
-							on:click={() => removeLineupItem(index)}
+							onclick={() => removeLineupItem(index)}
 						>
 							Remove
 						</button>
@@ -268,7 +268,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 					class="ghost"
 					type="button"
 					data-testid="meechie-lineup-add"
-					on:click={addLineupItem}>Add item</button
+					onclick={addLineupItem}>Add item</button
 				>
 			</div>
 		{:else if selectedTool === 'horoscope'}
@@ -305,7 +305,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 			class="primary"
 			type="button"
 			data-testid="meechie-tool-generate"
-			on:click={handleGenerate}
+			onclick={handleGenerate}
 			disabled={isWorking}
 		>
 			{#if isWorking}

@@ -10,6 +10,7 @@ import {
 } from '../../../contracts/meechie-studio-text.contract';
 import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.contract';
 import type { Result, SeamError } from '../../../contracts/shared.contract';
+import { buildPipelineError as buildError } from './pipeline-error';
 import { z } from 'zod';
 
 const STUDIO_TEXT_REQUIRED_FIELDS = [
@@ -155,21 +156,6 @@ const invalidProviderTextResult = (
 			model,
 			contentPreview: content.slice(0, CONTENT_PREVIEW_LENGTH),
 			...details
-		}
-	}
-});
-
-const buildError = (
-	status: number,
-	code: string,
-	message: string
-): PipelineResponse => ({
-	status,
-	body: {
-		ok: false,
-		error: {
-			code,
-			message
 		}
 	}
 });
