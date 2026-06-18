@@ -27,8 +27,14 @@ export const evictExpiredKeys = (hitsByKey: Map<string, number[]>, windowStartMs
 	}
 };
 
+// Throttling the sweep instead of running it on every call keeps the common-case cost at the
+// single matched key's prune (the eviction itself is still correctness-neutral: a key's own
+// budget is always pruned on the call that touches it, regardless of when the last sweep ran).
+const EVICTION_SWEEP_INTERVAL_MS = 10_000;
+
 export const createRateLimitSeam = (): RateLimitSeam => {
 	const hitsByKey = new Map<string, number[]>();
+	let lastSweepMs = -Infinity;
 
 	return {
 		checkAndConsume: (rawInput): RateLimitResult => {
@@ -47,7 +53,10 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 
 			const { key, limit, windowMs, nowMs } = input;
 			const windowStartMs = nowMs - windowMs;
-			evictExpiredKeys(hitsByKey, windowStartMs);
+			if (nowMs - lastSweepMs > EVICTION_SWEEP_INTERVAL_MS) {
+				evictExpiredKeys(hitsByKey, windowStartMs);
+				lastSweepMs = nowMs;
+			}
 			const recentHits = pruneExpired(hitsByKey.get(key) ?? [], windowStartMs);
 
 			if (recentHits.length >= limit) {

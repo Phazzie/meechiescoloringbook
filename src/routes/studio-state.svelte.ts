@@ -641,42 +641,39 @@ export class StudioState {
 
 	async init(): Promise<void> {
 		this.isBrowser = true;
-		try {
-			const [sessionResult, draft] = await Promise.all([
-				sessionAdapter.getSession(),
-				creationStoreAdapter.getDraft({})
-			]);
-			if (sessionResult.ok) {
-				this.owner = this.buildOwner(sessionResult.value.sessionId);
-				const authResult = await authContextAdapter.getAuthContext({
-					sessionId: sessionResult.value.sessionId
-				});
-				if (authResult.ok) {
-					this.authContext = authResult.value;
-				}
+		const [sessionResult, draft] = await Promise.all([
+			sessionAdapter.getSession(),
+			creationStoreAdapter.getDraft({})
+		]);
+		if (sessionResult.ok) {
+			this.owner = this.buildOwner(sessionResult.value.sessionId);
+			const authResult = await authContextAdapter.getAuthContext({
+				sessionId: sessionResult.value.sessionId
+			});
+			if (authResult.ok) {
+				this.authContext = authResult.value;
 			}
-			if (draft.ok && draft.value) {
-				this.spec = draft.value.intent;
-				this.evidence = draft.value.chatMessage || '';
-				this.dedication = draft.value.intent.dedication ?? '';
-				this.pageSize = draft.value.intent.pageSize;
-				this.border = draft.value.intent.border;
-				if (
-					draft.value.studioText ||
-					draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
-				) {
-					this.textOutput = buildStudioTextFromDraftRecord(draft.value);
-				}
+		}
+		if (draft.ok && draft.value) {
+			this.spec = draft.value.intent;
+			this.evidence = draft.value.chatMessage || '';
+			this.dedication = draft.value.intent.dedication ?? '';
+			this.pageSize = draft.value.intent.pageSize;
+			this.border = draft.value.intent.border;
+			if (
+				draft.value.studioText ||
+				draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+			) {
+				this.textOutput = buildStudioTextFromDraftRecord(draft.value);
 			}
-			await this.validateSpec();
-			await this.refreshCreations();
-		} finally {
-			this.draftLoaded = true;
-			this.initialized = true;
-			if (this.hasPendingInitSave) {
-				this.hasPendingInitSave = false;
-				this.scheduleDraftSave();
-			}
+		}
+		await this.validateSpec();
+		await this.refreshCreations();
+		this.draftLoaded = true;
+		this.initialized = true;
+		if (this.hasPendingInitSave) {
+			this.hasPendingInitSave = false;
+			this.scheduleDraftSave();
 		}
 	}
 

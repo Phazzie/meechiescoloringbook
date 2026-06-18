@@ -90,4 +90,20 @@ describe('StudioState', () => {
 
 		expect(saveDraftSpy).toHaveBeenCalled();
 	});
+
+	it('leaves initialized/draftLoaded false when init() throws, so a later draft save cannot overwrite the server draft with empty state', async () => {
+		vi.spyOn(sessionAdapter, 'getSession').mockRejectedValue(new Error('network down'));
+		vi.spyOn(creationStoreAdapter, 'getDraft').mockResolvedValue({
+			ok: false,
+			error: { code: 'STORAGE_PARSE_FAILED', message: 'corrupt draft' }
+		});
+
+		const studio = new StudioState();
+
+		await expect(studio.init()).rejects.toThrow('network down');
+
+		const internals = studio as unknown as StudioStateInternals;
+		expect(internals.draftLoaded).toBe(false);
+		expect(studio.initialized).toBe(false);
+	});
 });
