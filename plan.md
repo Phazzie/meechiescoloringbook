@@ -27,8 +27,11 @@ Current active plan is listed first. Older dated entries remain below as histori
   - `LESSONS_LEARNED.md`
   - `src/lib/seams/rate-limit-seam/limiter.ts`
   - `src/lib/seams/rate-limit-seam/test.ts`
+  - `src/lib/server/rate-limit-guard.ts`
+  - `tests/unit/rate-limit-guard.test.ts`
   - (plus PR #163's merged file set: `studio-state.svelte.ts`, `image-generation-pipeline.ts`, `http-resilience.ts`, `generate-pipeline.ts`, related tests)
   - `docs/evidence/2026-06-18/*`
+  - Note: `src/routes/api/tools/+server.ts` is also guarded by `rate-limit-guard.ts` (a sixth route added after the 2026-06-17 plan below was written, which accurately lists five for that date) but isn't touched by this PR's diff.
 - Exact commands to run:
   1. `npx vitest run src/lib/seams/rate-limit-seam/test.ts`
   2. `npm run rewind -- --seam RateLimitSeam`

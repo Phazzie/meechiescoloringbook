@@ -2,7 +2,7 @@
 // Why: This is the only consumer of RateLimitSeam in the request path; its 429 shape, headers,
 //      and getClientAddress() fallback aren't covered by the seam's own contract tests.
 // Info flow: fake client event -> enforceRateLimit -> pass-through or 429 Response.
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { enforceRateLimit, type RateLimitClientEvent } from '../../src/lib/server/rate-limit-guard';
 
 const buildEvent = (address: string): RateLimitClientEvent => ({
@@ -16,6 +16,10 @@ const throwingEvent: RateLimitClientEvent = {
 };
 
 describe('enforceRateLimit', () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
 	it('allows requests under the route limit', () => {
 		const event = buildEvent('203.0.113.1');
 		const result = enforceRateLimit('chat-interpretation', event);
@@ -62,5 +66,15 @@ describe('enforceRateLimit', () => {
 			expect(enforceRateLimit('tools', event).ok).toBe(true);
 		}
 		expect(enforceRateLimit('tools', event).ok).toBe(false);
+	});
+
+	it('warns only once per route when getClientAddress keeps throwing', () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+		enforceRateLimit('wig-try-on', throwingEvent);
+		enforceRateLimit('wig-try-on', throwingEvent);
+		enforceRateLimit('wig-try-on', throwingEvent);
+
+		expect(warnSpy).toHaveBeenCalledTimes(1);
 	});
 });

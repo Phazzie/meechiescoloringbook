@@ -35,6 +35,7 @@ const ROUTE_LIMIT_POLICIES: Record<RateLimitRouteName, RateLimitPolicy> = {
 // One limiter instance per route per process. On Vercel this means the budget is enforced
 // per-serverless-instance, not globally — see DECISIONS.md 2026-06-17 Assumption entry.
 const limitersByRoute = new Map<RateLimitRouteName, RateLimitSeam>();
+const warnedUnknownAddressRoutes = new Set<RateLimitRouteName>();
 
 const getLimiter = (route: RateLimitRouteName): RateLimitSeam => {
 	let limiter = limitersByRoute.get(route);
@@ -52,8 +53,12 @@ const resolveClientKey = (route: RateLimitRouteName, event: RateLimitClientEvent
 	} catch {
 		// Some test harnesses and local adapters don't implement getClientAddress(); fall back to
 		// a shared bucket rather than throwing, since this limiter is already a best-effort guard.
-		// Warn so an unexpected platform-level failure here doesn't silently mask itself.
-		console.warn(`enforceRateLimit: getClientAddress() failed for route "${route}"; using shared "unknown" bucket.`);
+		// Warn once per route (not every request) so a persistent platform-level failure stays
+		// visible without flooding logs under sustained traffic.
+		if (!warnedUnknownAddressRoutes.has(route)) {
+			warnedUnknownAddressRoutes.add(route);
+			console.warn(`enforceRateLimit: getClientAddress() failed for route "${route}"; using shared "unknown" bucket.`);
+		}
 	}
 	return `${route}:${address}`;
 };
