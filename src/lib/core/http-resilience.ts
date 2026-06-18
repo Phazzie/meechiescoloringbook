@@ -50,13 +50,30 @@ const parseRetryAfterMs = (header: string | null): number => {
 const errorName = (error: unknown): unknown =>
 	typeof error === 'object' && error !== null ? (error as { name?: unknown }).name : undefined;
 
-const errorMessage = (error: unknown): string =>
-	error instanceof Error ? error.message : String(error);
+const hasMessageProperty = (error: unknown): error is { message: unknown } =>
+	typeof error === 'object' && error !== null && 'message' in error;
+
+const errorMessage = (error: unknown): string => {
+	if (error instanceof Error) return error.message;
+	if (hasMessageProperty(error)) return String(error.message);
+	return String(error);
+};
+
+// Canonical pattern for recognizing a timeout from a human-readable message.
+// Single source of truth: callers that only have a message string (e.g. a SeamError)
+// must use this instead of hand-rolling their own regex, which previously caused
+// generate-pipeline and meechie-studio-text-pipeline to disagree with this module
+// (and each other) on whether the same error was a timeout. No \b word boundaries:
+// snake_case provider error codes like "request_timeout" or "connect_timeout" must
+// still match, and "_" counts as a word character so \b would exclude them.
+const TIMEOUT_MESSAGE_PATTERN = /timeout|timed out/i;
+
+export const isTimeoutMessage = (message: string): boolean => TIMEOUT_MESSAGE_PATTERN.test(message);
 
 export const isAbortError = (error: unknown): boolean => errorName(error) === 'AbortError';
 
 export const isTimeoutError = (error: unknown): boolean =>
-	errorName(error) === 'TimeoutError' || /timed out/i.test(errorMessage(error));
+	errorName(error) === 'TimeoutError' || isTimeoutMessage(errorMessage(error));
 
 export type TimeoutSignalOptions = {
 	signal?: AbortSignal;

@@ -8,6 +8,7 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Centralized timeout/abort error classification: `generate-pipeline.ts` and `meechie-studio-text-pipeline.ts` now defer to the shared `isTimeoutError`/`isTimeoutMessage` helpers in `http-resilience.ts` instead of each maintaining its own divergent regex, fixing a real cross-module inconsistency where the same error message could be classified as a timeout (504) by one module and a generic failure (502) by another. The shared pattern matches `timeout`/`timed out` without word boundaries (so snake_case provider codes like `request_timeout` still match) and reads `.message` off plain non-`Error` objects too.
 - Added a local PR backlog dry-run validation script (`scripts/validate-pr-backlog.js`) to automate checking out, testing, and verifying clean PR candidates.
 - Added a review-comment extraction script (`scripts/get-pr-todos.js`) to isolate and scope active review threads for a specific PR.
 - Added a real-time merge conflict analysis script (`scripts/analyze-merge-conflicts.js`) to test all open PR branches for merge conflicts and update the triage table.
