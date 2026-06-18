@@ -163,3 +163,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-06-18
+- Date: 2026-06-18
+- Context: Auditing timeout-vs-generic-failure status code classification (502 vs 504) across `generate-pipeline.ts`, `meechie-studio-text-pipeline.ts`, and `http-resilience.ts`.
+- Lesson: Each module had independently written its own regex to detect "is this a timeout" from a thrown error or `SeamError` message (`/timeout/i`, `/\b(timeout|timed out)\b/i`, `/timed out/i`). They quietly disagreed on edge cases — e.g. a plain `Error` with message "request timed out" and no `.name` set was classified as a timeout by `http-resilience.ts` but as a generic 502 failure by `generate-pipeline.ts`. A test fixture (`provider-adapter-helpers.test.ts`) had also picked the word "Network timeout" to mean "a generic non-timeout network failure," which only worked because the regex in use at the time happened not to match a single bare "timeout" word.
+- Action: When multiple modules need to classify the same kind of error from a message string, write one exported pure function (`isTimeoutMessage` in `http-resilience.ts`) and require every caller to use it instead of inlining a regex. Audit test fixtures whose literal strings coincidentally avoid matching a pattern — those are landmines for future refactors that legitimately broaden the pattern.

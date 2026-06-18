@@ -2,7 +2,13 @@
 // Why: Timeout and retry logic must be verified deterministically with fake timers;
 //      real network calls would make these tests slow and flaky.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchWithTimeout, fetchWithRetry, isAbortError } from '../../src/lib/core/http-resilience';
+import {
+	fetchWithTimeout,
+	fetchWithRetry,
+	isAbortError,
+	isTimeoutError,
+	isTimeoutMessage
+} from '../../src/lib/core/http-resilience';
 
 // ---------------------------------------------------------------------------
 // isAbortError
@@ -25,6 +31,59 @@ describe('isAbortError', () => {
 	it('returns false for a non-Error value', () => {
 		expect(isAbortError('AbortError')).toBe(false);
 		expect(isAbortError(null)).toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// isTimeoutMessage / isTimeoutError
+//
+// This is the single canonical timeout classifier. generate-pipeline.ts and
+// meechie-studio-text-pipeline.ts previously each hand-rolled their own regex
+// here (/timeout/i and /\b(timeout|timed out)\b/i respectively) which could
+// disagree with this module's own /timed out/i check on the same message
+// (e.g. a bare "Provider timeout" message). All three now defer to this one
+// pattern, so these tests pin down what counts as a timeout for everyone.
+// ---------------------------------------------------------------------------
+
+describe('isTimeoutMessage', () => {
+	it('matches the single word "timeout"', () => {
+		expect(isTimeoutMessage('Provider timeout')).toBe(true);
+	});
+
+	it('matches the two-word phrase "timed out"', () => {
+		expect(isTimeoutMessage('Chat completion request timed out.')).toBe(true);
+	});
+
+	it('is case-insensitive', () => {
+		expect(isTimeoutMessage('REQUEST TIMED OUT')).toBe(true);
+	});
+
+	it('does not match unrelated messages', () => {
+		expect(isTimeoutMessage('ECONNREFUSED')).toBe(false);
+		expect(isTimeoutMessage('adapter exploded')).toBe(false);
+	});
+});
+
+describe('isTimeoutError', () => {
+	it('returns true for an Error named TimeoutError regardless of message', () => {
+		const error = Object.assign(new Error('boom'), { name: 'TimeoutError' });
+		expect(isTimeoutError(error)).toBe(true);
+	});
+
+	it('returns true for a plain Error whose message contains "timeout"', () => {
+		expect(isTimeoutError(new Error('Provider timeout'))).toBe(true);
+	});
+
+	it('returns true for a plain Error whose message contains "timed out"', () => {
+		expect(isTimeoutError(new Error('provider request timed out'))).toBe(true);
+	});
+
+	it('returns false for a plain Error with an unrelated message', () => {
+		expect(isTimeoutError(new Error('ECONNREFUSED'))).toBe(false);
+	});
+
+	it('returns false for a non-Error value with no timeout signal', () => {
+		expect(isTimeoutError('nope')).toBe(false);
 	});
 });
 

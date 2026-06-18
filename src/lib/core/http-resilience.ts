@@ -53,10 +53,19 @@ const errorName = (error: unknown): unknown =>
 const errorMessage = (error: unknown): string =>
 	error instanceof Error ? error.message : String(error);
 
+// Canonical pattern for recognizing a timeout from a human-readable message.
+// Single source of truth: callers that only have a message string (e.g. a SeamError)
+// must use this instead of hand-rolling their own regex, which previously caused
+// generate-pipeline and meechie-studio-text-pipeline to disagree with this module
+// (and each other) on whether the same error was a timeout.
+const TIMEOUT_MESSAGE_PATTERN = /\b(timeout|timed out)\b/i;
+
+export const isTimeoutMessage = (message: string): boolean => TIMEOUT_MESSAGE_PATTERN.test(message);
+
 export const isAbortError = (error: unknown): boolean => errorName(error) === 'AbortError';
 
 export const isTimeoutError = (error: unknown): boolean =>
-	errorName(error) === 'TimeoutError' || /timed out/i.test(errorMessage(error));
+	errorName(error) === 'TimeoutError' || isTimeoutMessage(errorMessage(error));
 
 export type TimeoutSignalOptions = {
 	signal?: AbortSignal;

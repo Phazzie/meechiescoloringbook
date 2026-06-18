@@ -2,6 +2,7 @@
 // Why: Keep provider calls, JSON parsing, and contract validation testable.
 // Info flow: Request body -> ProviderAdapterSeam -> structured studio text result.
 import { findDisallowedKeywords } from '$lib/core/constants';
+import { isTimeoutMessage } from '$lib/core/http-resilience';
 import { selectTextModel } from '$lib/core/text-model';
 import {
 	MeechieStudioTextInputSchema,
@@ -355,8 +356,7 @@ const buildRetryMessage = (
 };
 
 const isProviderTimeout = (error: SeamError): boolean =>
-	error.code === 'PROVIDER_NETWORK_ERROR' &&
-	/\b(timeout|timed out)\b/i.test(error.message);
+	error.code === 'PROVIDER_NETWORK_ERROR' && isTimeoutMessage(error.message);
 
 const providerErrorStatus = (
 	error: SeamError,

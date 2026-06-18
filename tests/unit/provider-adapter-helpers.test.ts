@@ -536,7 +536,7 @@ describe('provider-adapter helpers', () => {
 		it('returns PROVIDER_NETWORK_ERROR for chat when fetch throws', async () => {
 			vi.stubGlobal(
 				'fetch',
-				vi.fn().mockRejectedValue(new Error('Network timeout'))
+				vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
 			);
 
 			const adapter = createProviderAdapter({
@@ -550,7 +550,7 @@ describe('provider-adapter helpers', () => {
 			expect(result.ok).toBe(false);
 			if (!result.ok) {
 				expect(result.error.code).toBe('PROVIDER_NETWORK_ERROR');
-				expect(result.error.message).toBe('Network timeout');
+				expect(result.error.message).toBe('ECONNREFUSED');
 			}
 		});
 
@@ -574,6 +574,27 @@ describe('provider-adapter helpers', () => {
 			if (!result.ok) {
 				expect(result.error.code).toBe('PROVIDER_NETWORK_ERROR');
 				expect(result.error.message).toBe('DNS lookup failed');
+			}
+		});
+
+		it('rewrites a named TimeoutError into a fixed chat timeout message', async () => {
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'TimeoutError' }))
+			);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+			const result = await adapter.createChatCompletion({
+				model: 'test',
+				messages: [{ role: 'user', content: 'hi' }]
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('PROVIDER_NETWORK_ERROR');
+				expect(result.error.message).toBe('Chat completion request timed out.');
 			}
 		});
 

@@ -347,6 +347,25 @@ describe('/api/generate', () => {
 		expect(deps.fetchImpl).not.toHaveBeenCalled();
 	});
 
+	it('classifies a "timed out" message as a timeout even without a TimeoutError name', async () => {
+		// Regression test: this pipeline used to classify timeouts with its own
+		// /timeout/i regex, which does not match the two-word phrase "timed out".
+		// It now defers to the shared isTimeoutError classifier from
+		// http-resilience.ts so plain-Error timeouts are recognized consistently
+		// with every other adapter in the codebase.
+		const deps = buildPipelineDeps(async () => {
+			throw new Error('Image provider request timed out.');
+		});
+
+		const result = await runGeneratePipeline({ spec: validSpec }, deps);
+
+		expect(result.status).toBe(504);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('IMAGE_GENERATION_TIMEOUT');
+		}
+	});
+
 	it('keeps the endpoint parse and input guards transport-thin', async () => {
 		const fetchMock = vi.fn(async () =>
 			new Response(
