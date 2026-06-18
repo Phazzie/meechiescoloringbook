@@ -170,3 +170,10 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Building RateLimitSeam's "allows requests again once the oldest hit has fully expired" contract test.
 - Lesson: When a test seeds several hits at `nowMs + i` for small `i` to simulate a burst, the window-elapsed offset used for the follow-up check must clear the *last* hit in the burst, not just the first; using `windowMs + 1` only expired the earliest of three 1ms-apart hits and left the test silently asserting the wrong `remaining` value relative to actual sliding-window behavior.
 - Action: When seeding N closely-spaced hits in a test, pick the "fully expired" check offset relative to the last seeded timestamp (e.g. `windowMs + N`), and always run a newly written contract test before relying on it as a regression guard.
+
+## 2026-06-18
+
+- Date: 2026-06-18
+- Context: Picking the two PRs (from the last 5 days) with the most unaddressed review comments to fix in a new PR.
+- Lesson: GitHub's unresolved-thread count is not a reliable proxy for unaddressed work — a thread stays `isResolved: false` even after a later commit on the same branch fixes the exact line it was about, and a separate unmerged PR can already contain the fix for another PR's threads. Counting raw unresolved threads without reading each one's current diff context would have produced duplicate, wasted fixes for comments that were already addressed elsewhere.
+- Action: Before fixing review feedback, diff each flagged thread's file/line against the branch's current tip and check for other open branches that already touch the same lines; only the comments that survive that check are genuinely unaddressed.

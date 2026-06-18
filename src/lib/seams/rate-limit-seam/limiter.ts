@@ -9,8 +9,23 @@ import { validateRateLimitCheckInput } from './validators';
 // independent, per-process budget. On a serverless platform (Vercel) each function instance
 // gets its own Map, so this limits abuse per-instance, not globally across every instance
 // that might handle requests for the same key. See DECISIONS.md 2026-06-17 Assumption entry.
-const pruneExpired = (hitTimestampsMs: number[], windowStartMs: number): number[] =>
+export const pruneExpired = (hitTimestampsMs: number[], windowStartMs: number): number[] =>
 	hitTimestampsMs.filter((timestampMs) => timestampMs > windowStartMs);
+
+// Without this, hitsByKey only grows: a key whose client never returns keeps its (eventually
+// all-expired) array forever. Every call sweeps the whole map and drops keys with no hits left
+// in the window, so idle high-cardinality keys (e.g. one-off client IPs) don't accumulate
+// unboundedly over a long-lived serverless instance.
+export const evictExpiredKeys = (hitsByKey: Map<string, number[]>, windowStartMs: number): void => {
+	for (const [key, hits] of hitsByKey) {
+		const remaining = pruneExpired(hits, windowStartMs);
+		if (remaining.length === 0) {
+			hitsByKey.delete(key);
+		} else if (remaining.length !== hits.length) {
+			hitsByKey.set(key, remaining);
+		}
+	}
+};
 
 export const createRateLimitSeam = (): RateLimitSeam => {
 	const hitsByKey = new Map<string, number[]>();
@@ -32,6 +47,7 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 
 			const { key, limit, windowMs, nowMs } = input;
 			const windowStartMs = nowMs - windowMs;
+			evictExpiredKeys(hitsByKey, windowStartMs);
 			const recentHits = pruneExpired(hitsByKey.get(key) ?? [], windowStartMs);
 
 			if (recentHits.length >= limit) {

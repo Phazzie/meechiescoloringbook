@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { invalidCheckInputFixtures, sampleCheckInput, sampleKey } from './fixtures';
 import { createMockRateLimitSeam } from './mock';
+import { evictExpiredKeys } from './limiter';
 
 describe('RateLimitSeam mock contract', () => {
 	it('allows requests under the limit and decrements remaining', () => {
@@ -124,5 +125,47 @@ describe('RateLimitSeam mock contract', () => {
 		const result = seam.checkAndConsume(sampleCheckInput);
 		expect(result.ok).toBe(true);
 		expect(sampleCheckInput.key).toBe(sampleKey);
+	});
+
+	it('forgets a key once every one of its hits has expired, so high-cardinality idle clients do not accumulate forever', () => {
+		const seam = createMockRateLimitSeam();
+		for (let i = 0; i < 500; i += 1) {
+			seam.checkAndConsume({ ...sampleCheckInput, key: `generate:198.51.100.${i}`, nowMs: sampleCheckInput.nowMs });
+		}
+
+		// Long after every one of those 500 keys' single hit has expired, touching one of them
+		// again should behave exactly like a brand-new key (full budget), confirming nothing
+		// about a stale key's prior state leaked forward.
+		const revisit = seam.checkAndConsume({
+			...sampleCheckInput,
+			key: 'generate:198.51.100.250',
+			nowMs: sampleCheckInput.nowMs + sampleCheckInput.windowMs + 1
+		});
+
+		expect(revisit.ok).toBe(true);
+		if (!revisit.ok) return;
+		expect(revisit.value.remaining).toBe(2);
+	});
+});
+
+describe('evictExpiredKeys', () => {
+	it('deletes keys whose hits are all before the window start and prunes the rest', () => {
+		const hitsByKey = new Map<string, number[]>([
+			['idle', [100, 200]],
+			['mixed', [100, 500, 900]],
+			['active', [950, 999]]
+		]);
+
+		evictExpiredKeys(hitsByKey, /* windowStartMs */ 500);
+
+		expect(hitsByKey.has('idle')).toBe(false);
+		expect(hitsByKey.get('mixed')).toEqual([900]);
+		expect(hitsByKey.get('active')).toEqual([950, 999]);
+	});
+
+	it('is a no-op on an empty map', () => {
+		const hitsByKey = new Map<string, number[]>();
+		evictExpiredKeys(hitsByKey, 0);
+		expect(hitsByKey.size).toBe(0);
 	});
 });

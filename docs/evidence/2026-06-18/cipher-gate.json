@@ -1,0 +1,38 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-18T09:50:21.769Z",
+  "cipher": {
+    "date": "2026-06-18",
+    "seams": "RateLimitSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-18/rewind-RateLimitSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-18/check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-18/lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-18/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-18/build.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-18/verify.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Closed RateLimitSeam's idle-key memory-growth gap with a full-map eviction sweep on every `checkAndConsume` call, backed by a contract test (500 idle keys don't poison a later reused key) and a direct unit test on the new `evictExpiredKeys` helper; consolidated with PR #163's already-fixed PR #160 review comments instead of duplicating them.",
+    "risks": "The added per-call full-map sweep trades O(1) for O(active keys) per request; acceptable at expected traffic levels per the Consequences note above, revisit if profiling says otherwise."
+  },
+  "latestChangeMs": 1781775536000.7612,
+  "status": "ok"
+}

@@ -8,6 +8,7 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Fixed `RateLimitSeam` to evict idle clients' expired hit history on every call instead of only pruning the key being checked, so high-cardinality one-off clients (e.g. unique IPs) no longer accumulate unbounded entries in the in-memory limiter over a long-lived serverless instance.
 - Added a sliding-window `RateLimitSeam` and request-budget guard on the six AI-provider-backed routes (`/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/meechie-studio-text`, `/api/wig-try-on`, `/api/tools`) to return `429` responses with a `Retry-After` header once a client exceeds its per-route budget.
 - Added a local PR backlog dry-run validation script (`scripts/validate-pr-backlog.js`) to automate checking out, testing, and verifying clean PR candidates.
 - Added a review-comment extraction script (`scripts/get-pr-todos.js`) to isolate and scope active review threads for a specific PR.

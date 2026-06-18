@@ -8,6 +8,43 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Consolidate Highest-Review-Debt PRs and Close RateLimitSeam's Idle-Key Eviction Gap (2026-06-18)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: trust the raw GitHub unresolved-thread count and re-implement fixes for every flagged comment on the two highest-count PRs from scratch, even where a later commit or a separate branch already fixed them, producing a third near-duplicate "fix review comments" PR.
+2. Countermeasure: read each flagged thread's file/line against the current branch tip before fixing anything. This showed PR #166's own tip commit had already fixed 7 of its 9 threads (just not marked resolved) and PR #160's 9 threads were already fixed on a separate unmerged branch, PR #163.
+3. Lower-debt path: merge PR #163's already-tested branch into this one instead of re-deriving its fixes, and implement only the one verified remaining gap (RateLimitSeam idle-key eviction) plus explicitly decline an out-of-scope nitpick (validation-boundary refactor) with stated rationale.
+
+### Plan
+
+- Goal: Address the two PRs opened in the last 5 days with the most unaddressed review comments, in a single new PR, without duplicating work already done elsewhere.
+- Exact seams: RateLimitSeam (bug fix, no contract change).
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `CHANGELOG.md`
+  - `LESSONS_LEARNED.md`
+  - `src/lib/seams/rate-limit-seam/limiter.ts`
+  - `src/lib/seams/rate-limit-seam/test.ts`
+  - (plus PR #163's merged file set: `studio-state.svelte.ts`, `image-generation-pipeline.ts`, `http-resilience.ts`, `generate-pipeline.ts`, related tests)
+  - `docs/evidence/2026-06-18/*`
+- Exact commands to run:
+  1. `npx vitest run src/lib/seams/rate-limit-seam/test.ts`
+  2. `npm run rewind -- --seam RateLimitSeam`
+  3. `npm run check`
+  4. `npm run lint`
+  5. `npm test`
+  6. `npm run build`
+  7. `npm run verify`
+
+### Self-critique
+
+1. What could be wrong: the full-map sweep added to `evictExpiredKeys` runs on every `checkAndConsume` call, trading O(1) for O(active keys) per request; acceptable at expected traffic but worth a profiling revisit if it ever shows up hot.
+2. What must be proven: 500 distinct idle keys' fully-expired hits don't survive to poison a later reused key's budget, and the standalone `evictExpiredKeys` helper deletes fully-expired keys, prunes partially-expired ones, and no-ops on an empty map.
+3. Riskiest assumption: that PR #163's branch, merged in verbatim, still applies cleanly and passes its own tests against current `main` — verified via a clean `git merge --no-edit` with no conflicts before relying on it.
+4. Evidence to prove/disprove: green `RateLimitSeam` contract tests (including the two new ones), green `npm run rewind -- --seam RateLimitSeam`, and a full green `npm run check`/`lint`/`test`/`build`/`verify` chain, captured under `docs/evidence/2026-06-18/`.
+
 ## RateLimitSeam: Guard AI-Provider Routes Against Unbounded Abuse (2026-06-17)
 
 ### Shortcut Check
