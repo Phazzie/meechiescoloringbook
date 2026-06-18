@@ -62,6 +62,13 @@ describe('isTimeoutMessage', () => {
 		expect(isTimeoutMessage('ECONNREFUSED')).toBe(false);
 		expect(isTimeoutMessage('adapter exploded')).toBe(false);
 	});
+
+	it('matches snake_case timeout error codes', () => {
+		// Regression: an earlier version of this pattern used \b word boundaries,
+		// which exclude "_" as a boundary character and missed codes like this.
+		expect(isTimeoutMessage('request_timeout exceeded')).toBe(true);
+		expect(isTimeoutMessage('connect_timeout')).toBe(true);
+	});
 });
 
 describe('isTimeoutError', () => {
@@ -84,6 +91,16 @@ describe('isTimeoutError', () => {
 
 	it('returns false for a non-Error value with no timeout signal', () => {
 		expect(isTimeoutError('nope')).toBe(false);
+	});
+
+	it('returns true for a plain (non-Error) object with a timeout message property', () => {
+		// Some providers throw/reject with a serialized object rather than an Error
+		// instance (e.g. a parsed API error body). The message must still be readable.
+		expect(isTimeoutError({ message: 'request timed out' })).toBe(true);
+	});
+
+	it('returns false for a plain object with an unrelated message property', () => {
+		expect(isTimeoutError({ message: 'ECONNREFUSED' })).toBe(false);
 	});
 });
 
