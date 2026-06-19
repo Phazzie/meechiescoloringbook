@@ -1,9 +1,13 @@
+# Purpose: Store targeted vitest output for the studio-state draftLoaded fix evidence.
+# Why: Cipher Gate requires command evidence for every entry.
+# Info flow: Command output -> evidence file -> review.
+
 
 [1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
 
 
-[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
-[2m      Tests [22m [1m[32m69 passed[39m[22m[90m (69)[39m
-[2m   Start at [22m 10:14:13
-[2m   Duration [22m 12.88s[2m (transform 1.20s, setup 135ms, import 1.48s, tests 12.07s, environment 2.69s)[22m
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m   Start at [22m 10:23:12
+[2m   Duration [22m 1.64s[2m (transform 794ms, setup 64ms, import 1.03s, tests 38ms, environment 1.01s)[22m
 

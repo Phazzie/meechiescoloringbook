@@ -12,6 +12,7 @@ All notable user-visible changes for this repo.
 - Changed `RateLimitSeam`'s idle-key sweep to run at most once per 60 seconds instead of on every request, keeping the per-request cost O(1) amortized under high traffic or key cardinality.
 - Fixed `RateLimitSeam`'s limiter holding an entry forever for any client key that is only ever seen once; idle keys are now evicted once their hits fully expire.
 - Fixed coloring-page drafts permanently failing to save for the rest of a session after the initial draft load failed.
+- Fixed coloring-page drafts also permanently failing to save for the rest of a session when the initial draft/session load threw instead of returning a failure result (e.g. a network error during session lookup).
 - Fixed SVG image detection missing payloads with a leading BOM, XML declaration, comment, or doctype before `<svg>`, which had caused valid SVGs to be mis-packaged as PNG.
 - Fixed provider timeout errors with a message but no `TimeoutError` name being misclassified as generic network failures.
 - Added a sliding-window `RateLimitSeam` and request-budget guard on the six AI-provider-backed routes (`/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/meechie-studio-text`, `/api/wig-try-on`, `/api/tools`) to return `429` responses with a `Retry-After` header once a client exceeds its per-route budget.

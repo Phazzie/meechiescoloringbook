@@ -1,3 +1,7 @@
+# Purpose: Store npm run lint output for evidence.
+# Why: Cipher Gate requires command evidence for every entry.
+# Info flow: Command output -> evidence file -> review.
+
 
 > meechies-coloringbook@0.1.0 lint
 > eslint .

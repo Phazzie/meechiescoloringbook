@@ -63,6 +63,29 @@ describe('StudioState', () => {
 		expect(saveDraftSpy).toHaveBeenCalled();
 	});
 
+	it('still allows draft saves after init throws instead of resolving a failed Result', async () => {
+		vi.spyOn(sessionAdapter, 'getSession').mockRejectedValue(new Error('network unreachable'));
+		vi.spyOn(creationStoreAdapter, 'getDraft').mockResolvedValue({
+			ok: false,
+			error: { code: 'DRAFT_READ_FAILED', message: 'corrupt draft' }
+		});
+		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+
+		vi.useFakeTimers();
+		const studio = new StudioState();
+		await expect(studio.init()).rejects.toThrow('network unreachable');
+
+		saveDraftSpy.mockResolvedValue({
+			ok: true,
+			value: { updatedAtISO: new Date().toISOString(), intent: studio.spec }
+		});
+
+		studio.handleDedicationInput('Edited after thrown init error');
+		await vi.runAllTimersAsync();
+
+		expect(saveDraftSpy).toHaveBeenCalled();
+	});
+
 	it('preserves WebP try-on portraits as WebP images for packaging', async () => {
 		const studio = new StudioState();
 		const packageSpy = vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({

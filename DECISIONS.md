@@ -2037,3 +2037,25 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Evidence: docs/evidence/2026-06-19/rewind-RateLimitSeam.txt; docs/evidence/2026-06-19/targeted-tests.txt; docs/evidence/2026-06-19/check.txt; docs/evidence/2026-06-19/lint.txt; docs/evidence/2026-06-19/build.txt; docs/evidence/2026-06-19/test.txt; docs/evidence/2026-06-19/verify.txt; docs/evidence/2026-06-19/seam-ledger.md; docs/evidence/2026-06-19/proof-tape.md
   - Summary: Fixed a stale route-list comment in `rate-limit-guard.ts` and strengthened the fallback-bucket rate-limit test to prove enforcement continues, in response to CodeRabbit's review on PR #171, with a green `npm run verify`.
   - Risks: None; both changes are comment text and test-only, with no production behavior change.
+
+## 2026-06-19 - Fix studio-state draftLoaded permanently false after a thrown init() error
+
+- Date: 2026-06-19
+- Decision: Move `this.draftLoaded = true` out of `init()`'s `try` block and into its `finally` block, alongside the already-unconditional `this.initialized = true`, so a rejected `await` during init no longer permanently blocks `scheduleDraftSave()`.
+- Context: chatgpt-codex-connector's review on PR #171 flagged that `StudioState.init()` only set `this.draftLoaded = true` after several `await`s inside the `try` block; if any of those (e.g. `sessionAdapter.getSession()`, `authContextAdapter.getAuthContext()`) rejected instead of resolving a `{ ok: false }` Result, the `finally` block still ran and set `this.initialized = true`, but `draftLoaded` stayed `false` forever, and `scheduleDraftSave()`'s `if (!this.draftLoaded) return;` guard then silently no-ops every future draft save for the rest of the session. This is distinct from the existing test ("still allows draft saves after init fails to load the initial draft"), which only covers adapters resolving `{ ok: false }`, not a thrown/rejected promise — a structurally different failure path that the existing fixture never exercised.
+- Alternatives: Track "draft load attempted" as a separate flag from "draft load succeeded" (the reviewer's other suggested remedy); rejected because `draftLoaded` is only ever read as a gate for "is it safe to schedule a save," and that's true the moment `init()` finishes regardless of outcome — a second flag would duplicate `initialized`'s existing unconditional-finally semantics without adding information. Add a `catch` block to swallow the error inside `init()`; rejected as out of scope — silently swallowing an init failure changes existing error-propagation behavior (the call site doesn't currently expect `init()` to never throw) and isn't needed to fix the `draftLoaded` defect, which only requires the flag itself to be set unconditionally.
+- Consequences: `draftLoaded` is now set to `true` in `finally`, unconditionally, matching `initialized`. Draft saves resume working after a transient init failure (e.g. a network blip on session/auth lookup) instead of staying disabled for the rest of the page session.
+- Revisit criteria: If `init()` later gains a `catch` block for other reasons, keep `draftLoaded`'s assignment in `finally` rather than moving it back into `try`.
+- Plan:
+  - Goal: Close the one outstanding genuine defect from PR #171's review activity (chatgpt-codex-connector, thread `PRRT_kwDOQ-oWbM6KzIb0`) before continuing PR stewardship.
+  - Seams: None (UI page-state lifecycle bug; no seam contract touched).
+  - Files: `src/routes/studio-state.svelte.ts`, `tests/unit/studio-state.test.ts`, `DECISIONS.md`, `LESSONS_LEARNED.md`.
+  - Commands: `npx vitest run tests/unit/studio-state.test.ts tests/unit/rate-limit-guard.test.ts`, `npm run check`, `npm run lint`, `npm run build`, `npm run verify`.
+- Self-critique: Confirmed the new regression test actually exercises the bug by reverting only the production fix (via `git stash push -- src/routes/studio-state.svelte.ts`) and re-running the test file — it failed without the fix (`saveDraft` never called) and passed with it, rather than trusting a green run alone to mean the test was meaningful.
+
+- Cipher Gate:
+  - Date: 2026-06-19
+  - Seams: None
+  - Evidence: docs/evidence/2026-06-19/targeted-tests.txt; docs/evidence/2026-06-19/check.txt; docs/evidence/2026-06-19/lint.txt; docs/evidence/2026-06-19/build.txt; docs/evidence/2026-06-19/test.txt; docs/evidence/2026-06-19/verify.txt; docs/evidence/2026-06-19/seam-ledger.md; docs/evidence/2026-06-19/proof-tape.md
+  - Summary: Fixed `StudioState.init()` so `draftLoaded` is set unconditionally in `finally`, preventing a thrown init error from permanently disabling draft saves; added a regression test that reverts the fix to confirm it actually fails without it.
+  - Risks: None; the change only widens when an existing flag gets set to `true` and does not alter any Result-based error handling.

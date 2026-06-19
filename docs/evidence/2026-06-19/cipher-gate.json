@@ -1,14 +1,10 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-06-19T10:14:35.325Z",
+  "generatedAt": "2026-06-19T10:25:29.406Z",
   "cipher": {
     "date": "2026-06-19",
-    "seams": "RateLimitSeam",
+    "seams": "None",
     "evidence": [
-      {
-        "path": "docs/evidence/2026-06-19/rewind-RateLimitSeam.txt",
-        "exists": true
-      },
       {
         "path": "docs/evidence/2026-06-19/targeted-tests.txt",
         "exists": true
@@ -42,9 +38,9 @@
         "exists": true
       }
     ],
-    "summary": "Fixed a stale route-list comment in `rate-limit-guard.ts` and strengthened the fallback-bucket rate-limit test to prove enforcement continues, in response to CodeRabbit's review on PR #171, with a green `npm run verify`.",
-    "risks": "None; both changes are comment text and test-only, with no production behavior change."
+    "summary": "Fixed `StudioState.init()` so `draftLoaded` is set unconditionally in `finally`, preventing a thrown init error from permanently disabling draft saves; added a regression test that reverts the fix to confirm it actually fails without it.",
+    "risks": "None; the change only widens when an existing flag gets set to `true` and does not alter any Result-based error handling."
   },
-  "latestChangeMs": 1781861711292.5496,
+  "latestChangeMs": 1781864459472.726,
   "status": "ok"
 }

@@ -197,3 +197,8 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: CodeRabbit's review on PR #171 re-flagged the same ReDoS and sweep-cost issues Gemini had already raised, plus a fallback-bucket rate-limit test that only checked the first request succeeded.
 - Lesson: A test asserting only "the first request through a fallback path succeeds" doesn't prove the fallback path is still rate-limited; a regression that accidentally made the fallback bucket unlimited would stay green.
 - Action: When a test exists specifically to cover a fallback/degraded path, drive it past the budget boundary and assert the eventual rejection, not just that one early request is accepted.
+
+- Date: 2026-06-19
+- Context: chatgpt-codex-connector flagged that `StudioState.init()` set `this.draftLoaded = true` inside its `try` block but `this.initialized = true` unconditionally in `finally`.
+- Lesson: A completion flag set only on the success path of a `try` whose `finally` already runs unconditionally is a structurally different (and easy to miss) failure mode from a Result-based `{ ok: false }` failure; an existing test covering the latter gives false confidence about the former, since a rejected `await` skips straight to `finally` and never reaches the flag assignment.
+- Action: When a `try/finally` already sets one completion flag unconditionally in `finally`, audit every other flag set later in the same `try` block for the same gap, and add a regression test that rejects (not resolves `{ ok: false }`) one of the early awaited calls to prove the flag still gets set.

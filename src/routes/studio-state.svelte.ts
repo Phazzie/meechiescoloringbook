@@ -655,7 +655,6 @@ export class StudioState {
 					this.authContext = authResult.value;
 				}
 			}
-			this.draftLoaded = true;
 			if (draft.ok) {
 				if (draft.value) {
 					this.spec = draft.value.intent;
@@ -674,6 +673,9 @@ export class StudioState {
 			await this.validateSpec();
 			await this.refreshCreations();
 		} finally {
+			// Set unconditionally (not just on the success path) so a rejected await above can't
+			// permanently block scheduleDraftSave()'s `if (!this.draftLoaded) return;` guard.
+			this.draftLoaded = true;
 			this.initialized = true;
 			if (this.hasPendingInitSave) {
 				this.hasPendingInitSave = false;
