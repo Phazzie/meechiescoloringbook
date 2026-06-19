@@ -2,7 +2,7 @@
 // Why: FileReader.result can be string, ArrayBuffer, or null, but uploads need a data URL string.
 // Info flow: FileReader.result -> parseSelfieDataUrl -> component preview and upload callback.
 
-const SELFIE_UPLOAD_READ_ERROR = 'Image could not be read. Please try again.';
+export const SELFIE_UPLOAD_READ_ERROR = 'Image could not be read. Please try again.';
 
 export type ParsedSelfieDataUrl =
 	| {

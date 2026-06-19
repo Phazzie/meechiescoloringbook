@@ -88,7 +88,7 @@ export type StudioTextActionId = StudioTextActionMetadata['id'];
 const isStudioTextAction = (action: StudioActionMetadata): action is StudioTextActionMetadata =>
 	'aiAction' in action;
 
-class MissingStudioTextActionMetadataError extends Error {
+export class MissingStudioTextActionMetadataError extends Error {
 	constructor(id: string) {
 		super(`Studio action is missing aiAction metadata: ${id}`);
 		this.name = 'MissingStudioTextActionMetadataError';
