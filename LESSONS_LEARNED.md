@@ -163,3 +163,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-06-19
+- Date: 2026-06-19
+- Context: Adding `RATE_LIMIT_MAX_REQUESTS`/`RATE_LIMIT_WINDOW_MS` to `.env.example` while building RateLimitSeam.
+- Lesson: `cat`/terminal display of `.env.example` had looked like garbled text in past sessions and was dismissed as a tool rendering quirk; it was actually base64-encoded content committed in place of plain text (`base64 -d .env.example` recovered the real file byte-for-byte). A plausible "just a display artifact" explanation should still be verified against the file on disk (`file`, `wc -c`, a decode round-trip) before being ruled out.
+- Action: When a config/docs file renders unexpectedly, check the raw bytes (`file`, hexdump/base64 decode) before assuming it's a tool display issue, especially for files later sessions will read and trust at face value.

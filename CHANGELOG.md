@@ -8,6 +8,8 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Added rate limiting for all billable `/api/*` POST routes via a new `RateLimitSeam` and `src/hooks.server.ts`, returning `429` with `Retry-After` once a client address exceeds `RATE_LIMIT_MAX_REQUESTS` requests per `RATE_LIMIT_WINDOW_MS` window (defaults: 20 requests / 60s).
+- Fixed `.env.example`, which had been committed as base64-encoded text instead of plain text; restored readable contents and documented the new `RATE_LIMIT_MAX_REQUESTS` / `RATE_LIMIT_WINDOW_MS` variables.
 - Added a local PR backlog dry-run validation script (`scripts/validate-pr-backlog.js`) to automate checking out, testing, and verifying clean PR candidates.
 - Added a review-comment extraction script (`scripts/get-pr-todos.js`) to isolate and scope active review threads for a specific PR.
 - Added a real-time merge conflict analysis script (`scripts/analyze-merge-conflicts.js`) to test all open PR branches for merge conflicts and update the triage table.
