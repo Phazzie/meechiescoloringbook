@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-06-19T12:23:49.441Z",
+  "generatedAt": "2026-06-19T12:37:41.815Z",
   "cipher": {
     "date": "2026-06-19",
     "seams": "RateLimitSeam",
@@ -28,14 +28,10 @@
       {
         "path": "docs/evidence/2026-06-19/rewind-RateLimitSeam.txt",
         "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-06-19/diff-check.txt",
-        "exists": true
       }
     ],
-    "summary": "Added self-contained RateLimitSeam (fixed-window, clock-injected, in-memory) plus src/hooks.server.ts Handle hook gating every POST /api/* request by client address, returning 429/Retry-After once RATE_LIMIT_MAX_REQUESTS is exceeded within RATE_LIMIT_WINDOW_MS; also fixed a base64-corrupted .env.example found while wiring the new env vars. Full verify, check, lint, test, build, and seam rewind are green.",
-    "risks": "In-memory state does not persist across cold starts or share across concurrent serverless instances; client-address keying can be shared by clients behind the same NAT/proxy. Both are documented as revisit criteria rather than silently accepted."
+    "summary": "Added a bounded cleanup sweep to RateLimitSeam's in-memory windows Map (evicts expired entries once size exceeds 1000 keys) in response to a PR #173 review comment flagging unbounded memory growth; added a regression test driving 1001 expired keys through the seam to exercise the new branch. Check, lint, test, verify, and seam rewind are green.",
+    "risks": "The cleanup sweep is O(map size) when triggered, which adds latency to the triggering call only; this is judged acceptable since it only fires above the 1000-key threshold and only deletes already-expired entries."
   },
   "latestChangeMs": 1781871496659.1965,
   "status": "ok"

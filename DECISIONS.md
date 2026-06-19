@@ -1963,3 +1963,24 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Evidence: docs/evidence/2026-06-19/test.txt; docs/evidence/2026-06-19/check.txt; docs/evidence/2026-06-19/lint.txt; docs/evidence/2026-06-19/build.txt; docs/evidence/2026-06-19/verify.txt; docs/evidence/2026-06-19/rewind-RateLimitSeam.txt; docs/evidence/2026-06-19/diff-check.txt
   - Summary: Added self-contained RateLimitSeam (fixed-window, clock-injected, in-memory) plus src/hooks.server.ts Handle hook gating every POST /api/* request by client address, returning 429/Retry-After once RATE_LIMIT_MAX_REQUESTS is exceeded within RATE_LIMIT_WINDOW_MS; also fixed a base64-corrupted .env.example found while wiring the new env vars. Full verify, check, lint, test, build, and seam rewind are green.
   - Risks: In-memory state does not persist across cold starts or share across concurrent serverless instances; client-address keying can be shared by clients behind the same NAT/proxy. Both are documented as revisit criteria rather than silently accepted.
+
+## 2026-06-19 - Evict expired RateLimitSeam windows past a size threshold
+- Date: 2026-06-19
+- Decision: Add a bounded cleanup pass inside `RateLimitSeam.checkAndConsume` that sweeps and deletes expired window entries once the in-memory `windows` Map exceeds 1000 keys, instead of letting it grow forever.
+- Context: A `gemini-code-assist[bot]` review comment on PR #173 (src/lib/seams/rate-limit-seam/limiter.ts line 42) flagged that the `windows` Map keyed by client address never evicts entries, so a long-lived server instance accumulates one entry per unique client address forever — a real memory leak, distinct from the already-documented cold-start/cross-instance limitation.
+- Alternatives: Run a separate timer-based sweep (`setInterval`); rejected because it would require injecting a scheduler into a seam that is intentionally pure/clock-injected (`nowMs` only, no `Date.now()`/timers inside the seam), and would not be deterministically testable. Cap the Map at a fixed size with LRU eviction; rejected as more complex than needed for a fixed-window limiter where any sufficiently-expired entry is safe to drop outright.
+- Consequences: Once the map holds more than 1000 keys, each subsequent `checkAndConsume` call sweeps and removes any entry whose window has fully expired (`nowMs - windowStart >= windowMs`) before recording the current request. Below the threshold, behavior is unchanged. This is purely an internal memory bound; the public `RateLimitDecision` contract and all existing allow/deny/reset semantics are unaffected.
+- Revisit criteria: Revisit if real traffic shows the 1000-key threshold is reached often enough that the per-call sweep cost matters, or once a shared store (Upstash/Vercel KV) replaces the in-memory map entirely (per the original entry's revisit criteria), making this cleanup moot.
+- Plan:
+  - Goal: Fix the memory-leak review comment on PR #173 without changing the seam's public contract or clock-injection discipline.
+  - Seams: RateLimitSeam (existing).
+  - Files: `src/lib/seams/rate-limit-seam/limiter.ts`, `src/lib/seams/rate-limit-seam/test.ts`, `docs/evidence/2026-06-19/*`, `DECISIONS.md`, `CHANGELOG.md`, `LESSONS_LEARNED.md`.
+  - Commands: `npx vitest run src/lib/seams/rate-limit-seam/test.ts`, `npm run check`, `npm run lint`, `npm test`, `npm run verify`, `npm run rewind -- --seam RateLimitSeam`, `git diff --check`.
+- Self-critique: The new test drives 1001 unique expired keys through the seam and asserts the next call still returns a correct, fresh decision, which proves the cleanup branch executes without breaking correctness — but it cannot assert the Map's actual size from outside the seam's closure, since the contract intentionally exposes no internal-state accessor. I judged that adding a debug-only size accessor purely to assert memory shrank would be a larger, contract-widening change than the bug warrants, so I accepted indirect (behavioral) proof over direct (memory) proof for this fix.
+
+- Cipher Gate:
+  - Date: 2026-06-19
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-06-19/test.txt; docs/evidence/2026-06-19/check.txt; docs/evidence/2026-06-19/lint.txt; docs/evidence/2026-06-19/build.txt; docs/evidence/2026-06-19/verify.txt; docs/evidence/2026-06-19/rewind-RateLimitSeam.txt
+  - Summary: Added a bounded cleanup sweep to RateLimitSeam's in-memory windows Map (evicts expired entries once size exceeds 1000 keys) in response to a PR #173 review comment flagging unbounded memory growth; added a regression test driving 1001 expired keys through the seam to exercise the new branch. Check, lint, test, verify, and seam rewind are green.
+  - Risks: The cleanup sweep is O(map size) when triggered, which adds latency to the triggering call only; this is judged acceptable since it only fires above the 1000-key threshold and only deletes already-expired entries.

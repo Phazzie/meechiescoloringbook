@@ -19,6 +19,8 @@ type WindowState = {
 	count: number;
 };
 
+const CLEANUP_THRESHOLD = 1000;
+
 export const createRateLimitSeam = (config: RateLimitConfig): RateLimitSeam => {
 	const { maxRequests, windowMs } = validateRateLimitConfig(config);
 	const windows = new Map<string, WindowState>();
@@ -39,6 +41,15 @@ export const createRateLimitSeam = (config: RateLimitConfig): RateLimitSeam => {
 			}
 
 			const { key, nowMs } = validated;
+
+			if (windows.size > CLEANUP_THRESHOLD) {
+				for (const [mapKey, state] of windows) {
+					if (nowMs - state.windowStart >= windowMs) {
+						windows.delete(mapKey);
+					}
+				}
+			}
+
 			const existing = windows.get(key);
 			const carryOver =
 				existing !== undefined && nowMs - existing.windowStart < windowMs

@@ -121,6 +121,12 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Lesson: Local loopback servers can be blocked by the sandbox even without external network access.
 - Action: Run `node probes/browser-seams.probe.mjs` with escalated permissions when needed and capture the probe output as evidence.
 
+## 2026-06-19
+- Date: 2026-06-19
+- Context: PR #173 review (`gemini-code-assist[bot]`) on the new `RateLimitSeam`.
+- Lesson: An in-memory `Map` keyed by an unbounded dimension (client address) needs an explicit eviction strategy from the start; "it's just an in-memory cache" is not a safe default for long-lived server processes, even when the documented limitation is about cross-instance sharing rather than growth.
+- Action: Added a size-threshold cleanup sweep inside `checkAndConsume` itself (no separate timer, keeping the seam clock-injected and pure) plus a regression test that drives >1000 expired keys through the seam to exercise the new branch.
+
 ## Template
 - Date:
 - Context:

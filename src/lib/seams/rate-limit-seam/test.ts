@@ -86,6 +86,30 @@ describe('RateLimitSeam mock contract', () => {
 		}
 	});
 
+	it('evicts expired windows once the map grows past the cleanup threshold without breaking active keys', () => {
+		const seam = createMockRateLimitSeam(rateLimitConfigFixture);
+		const expiredWindowStart = rateLimitCheckRequestFixture.nowMs;
+
+		for (let i = 0; i < 1001; i += 1) {
+			seam.checkAndConsume({
+				key: `ip:cleanup-${i}`,
+				nowMs: expiredWindowStart
+			});
+		}
+
+		const afterCleanup = seam.checkAndConsume({
+			key: 'ip:cleanup-fresh',
+			nowMs: expiredWindowStart + rateLimitConfigFixture.windowMs
+		});
+		expect(afterCleanup.ok).toBe(true);
+		if (afterCleanup.ok) {
+			expect(afterCleanup.value.allowed).toBe(true);
+			expect(afterCleanup.value.remaining).toBe(
+				rateLimitConfigFixture.maxRequests - 1
+			);
+		}
+	});
+
 	it('fault fixture (empty key) fails contract-level validation', () => {
 		const seam = createMockRateLimitSeam(rateLimitConfigFixture);
 		const result = seam.checkAndConsume(
