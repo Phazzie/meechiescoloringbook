@@ -1,0 +1,50 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-19T09:50:53.358Z",
+  "cipher": {
+    "date": "2026-06-19",
+    "seams": "RateLimitSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-19/rewind-RateLimitSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-19/targeted-tests.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-19/check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-19/lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-19/build.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-19/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-19/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-19/seam-ledger.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-19/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Added an idle-key eviction sweep to RateLimitSeam's limiter so client keys that are never seen again don't accumulate in memory, plus carried-over fixes from PR #160 (SVG/base64 detection, draft-save-after-failed-load, timeout/abort classification) with a green `npm run verify`.",
+    "risks": "The sweep runs on every `checkAndConsume` call rather than on a throttled schedule; acceptable at current expected key cardinality per the Revisit criteria above."
+  },
+  "latestChangeMs": 1781861711292.5496,
+  "status": "ok"
+}

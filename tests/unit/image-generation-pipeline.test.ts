@@ -297,8 +297,40 @@ describe('image-generation-pipeline edge cases', () => {
       expect(result.body.value.images[0].format).toBe('png');
       expect(result.body.value.images[0].mimeType).toBe('image/png');
     }
-    expect(warn).toHaveBeenCalledWith('imageFormatFromBase64: unrecognized header, defaulting to png');
+    expect(warn).toHaveBeenCalledWith('detectImageFromBase64: unrecognized header, defaulting to png');
     warn.mockRestore();
+  });
+
+  it('detects SVG payloads preceded by a BOM, XML declaration, comment, and doctype', async () => {
+    const svgText =
+      '﻿<?xml version="1.0"?>\n<!-- generated --><!DOCTYPE svg PUBLIC "x">\n<svg width="1" height="1"></svg>';
+    const svgBase64 = Buffer.from(svgText, 'utf8').toString('base64');
+
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: svgBase64 }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    if (result.body.ok) {
+      expect(result.body.value.images[0].format).toBe('svg');
+      expect(result.body.value.images[0].mimeType).toBe('image/svg+xml');
+      expect(result.body.value.images[0].encoding).toBe('utf8');
+      expect(result.body.value.images[0].data).toBe(svgText);
+    }
   });
 
   it('marks JPEG base64 as jpg for downstream packaging', async () => {

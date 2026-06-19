@@ -2,11 +2,14 @@
 // Why: Keep extracted studio state behavior aligned with component callback contracts.
 // Info flow: StudioState actions -> spec/images/package calls -> assertions.
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging.adapter';
+import { sessionAdapter } from '../../src/lib/adapters/session.adapter';
 import { StudioState } from '../../src/routes/studio-state.svelte';
 
 afterEach(() => {
 	vi.restoreAllMocks();
+	vi.useRealTimers();
 });
 
 describe('StudioState', () => {
@@ -32,6 +35,32 @@ describe('StudioState', () => {
 		expect(studio.dedication).toBe('  Big Sis  ');
 		expect(studio.spec.dedication).toBe('Big Sis');
 		expect(scheduleDraftSave).toHaveBeenCalledOnce();
+	});
+
+	it('still allows draft saves after init fails to load the initial draft', async () => {
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: false,
+			error: { code: 'SESSION_ERROR', message: 'no session' }
+		});
+		vi.spyOn(creationStoreAdapter, 'getDraft').mockResolvedValue({
+			ok: false,
+			error: { code: 'DRAFT_READ_FAILED', message: 'corrupt draft' }
+		});
+		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+
+		vi.useFakeTimers();
+		const studio = new StudioState();
+		await studio.init();
+
+		saveDraftSpy.mockResolvedValue({
+			ok: true,
+			value: { updatedAtISO: new Date().toISOString(), intent: studio.spec }
+		});
+
+		studio.handleDedicationInput('Edited after failed load');
+		await vi.runAllTimersAsync();
+
+		expect(saveDraftSpy).toHaveBeenCalled();
 	});
 
 	it('preserves WebP try-on portraits as WebP images for packaging', async () => {

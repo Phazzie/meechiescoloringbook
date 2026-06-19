@@ -1,0 +1,12 @@
+# Purpose: Store npm run check output for evidence.
+# Why: Cipher Gate requires command evidence for seam-adjacent changes.
+# Info flow: Command output -> evidence file -> review.
+
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings

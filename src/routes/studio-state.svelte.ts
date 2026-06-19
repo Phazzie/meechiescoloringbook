@@ -655,8 +655,8 @@ export class StudioState {
 					this.authContext = authResult.value;
 				}
 			}
+			this.draftLoaded = true;
 			if (draft.ok) {
-				this.draftLoaded = true;
 				if (draft.value) {
 					this.spec = draft.value.intent;
 					this.evidence = draft.value.chatMessage || '';

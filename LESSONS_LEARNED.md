@@ -170,3 +170,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Building RateLimitSeam's "allows requests again once the oldest hit has fully expired" contract test.
 - Lesson: When a test seeds several hits at `nowMs + i` for small `i` to simulate a burst, the window-elapsed offset used for the follow-up check must clear the *last* hit in the burst, not just the first; using `windowMs + 1` only expired the earliest of three 1ms-apart hits and left the test silently asserting the wrong `remaining` value relative to actual sliding-window behavior.
 - Action: When seeding N closely-spaced hits in a test, pick the "fully expired" check offset relative to the last seeded timestamp (e.g. `windowMs + N`), and always run a newly written contract test before relying on it as a regression guard.
+
+## 2026-06-19
+
+- Date: 2026-06-19
+- Context: Widening `isTimeoutError` in `src/lib/core/http-resilience.ts` from `/timed out/i` to `/timeout|timed out/i` to fix a PR #160 review thread about misclassified provider timeouts.
+- Lesson: Broadening a shared classification helper used by multiple call sites (`generate-pipeline.ts`, `provider-adapter.adapter.ts`, `image-generation-seam`, `wig-try-on-seam`) can silently flip the expected behavior of an unrelated existing test whose fixture happens to match the new, wider pattern; `tests/unit/provider-adapter-helpers.test.ts` had a "generic network error" fixture using the literal message `'Network timeout'`, which is exactly the case the fix was meant to reclassify.
+- Action: After widening a shared regex/classifier, run the full unit suite (not just the seam/file directly under change) before treating a single targeted test file as sufficient evidence; fix any fixture that incidentally encoded the old gap rather than leaving it red or reverting the fix.
+
+- Date: 2026-06-19
+- Context: Adding idle-key eviction to RateLimitSeam's `hitsByKey` map so client keys that are queried once and never again don't accumulate forever.
+- Lesson: Pruning expired hits only for the *current request's* key (the original implementation) does nothing for keys that never come back; correctness requires sweeping every tracked key on each call using that key's own stored `windowMs`, not just the current call's key/windowMs.
+- Action: When a map is keyed by client identity, design the cleanup path around "what happens to entries nobody ever touches again," not just "what happens to the entry being touched right now."

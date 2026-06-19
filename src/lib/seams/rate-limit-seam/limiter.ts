@@ -12,8 +12,25 @@ import { validateRateLimitCheckInput } from './validators';
 const pruneExpired = (hitTimestampsMs: number[], windowStartMs: number): number[] =>
 	hitTimestampsMs.filter((timestampMs) => timestampMs > windowStartMs);
 
+export type KeyState = { hitTimestampsMs: number[]; windowMs: number };
+
+// Keys whose hits all expired are dropped outright (not just pruned to an empty array), so a
+// client/key that never returns doesn't sit in the map forever. windowMs is stored per key
+// because it's the only way to know when an otherwise-untouched key's entries have expired.
+// Exported for direct unit testing of the eviction behavior; not part of the RateLimitSeam contract.
+export const sweepIdleKeys = (stateByKey: Map<string, KeyState>, nowMs: number): void => {
+	for (const [key, state] of stateByKey) {
+		const prunedHits = pruneExpired(state.hitTimestampsMs, nowMs - state.windowMs);
+		if (prunedHits.length === 0) {
+			stateByKey.delete(key);
+		} else if (prunedHits.length !== state.hitTimestampsMs.length) {
+			stateByKey.set(key, { hitTimestampsMs: prunedHits, windowMs: state.windowMs });
+		}
+	}
+};
+
 export const createRateLimitSeam = (): RateLimitSeam => {
-	const hitsByKey = new Map<string, number[]>();
+	const stateByKey = new Map<string, KeyState>();
 
 	return {
 		checkAndConsume: (rawInput): RateLimitResult => {
@@ -31,11 +48,13 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 			}
 
 			const { key, limit, windowMs, nowMs } = input;
+			sweepIdleKeys(stateByKey, nowMs);
+
 			const windowStartMs = nowMs - windowMs;
-			const recentHits = pruneExpired(hitsByKey.get(key) ?? [], windowStartMs);
+			const recentHits = pruneExpired(stateByKey.get(key)?.hitTimestampsMs ?? [], windowStartMs);
 
 			if (recentHits.length >= limit) {
-				hitsByKey.set(key, recentHits);
+				stateByKey.set(key, { hitTimestampsMs: recentHits, windowMs });
 				return {
 					ok: false,
 					error: {
@@ -47,7 +66,7 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 			}
 
 			recentHits.push(nowMs);
-			hitsByKey.set(key, recentHits);
+			stateByKey.set(key, { hitTimestampsMs: recentHits, windowMs });
 			return {
 				ok: true,
 				value: {
