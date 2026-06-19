@@ -34,9 +34,13 @@ const decodeBase64ToUtf8 = (b64: string): string => {
 };
 
 // Matches SVG text that may be preceded by a BOM, an XML declaration, comments, and/or a doctype.
+// The comment body uses a negative-lookahead-per-character form instead of a lazy `[\s\S]*?` so
+// each comment has exactly one possible parse; combined with the outer repetition, the lazy form
+// let the engine backtrack over many equivalent splits of repeated "--><!--" runs (CodeQL-flagged
+// exponential backtracking / ReDoS).
 const SVG_TEXT_PATTERN = new RegExp(
   '^[\\s\\uFEFF]*(?:<\\?xml\\b[^>]*\\?>[\\s\\uFEFF]*)?' +
-    '(?:<!--[\\s\\S]*?-->[\\s\\uFEFF]*)*(?:<!doctype[^>]*>[\\s\\uFEFF]*)?<svg\\b',
+    '(?:<!--(?:(?!-->)[\\s\\S])*-->[\\s\\uFEFF]*)*(?:<!doctype[^>]*>[\\s\\uFEFF]*)?<svg\\b',
   'i'
 );
 

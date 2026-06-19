@@ -51,9 +51,11 @@ describe('enforceRateLimit', () => {
 		expect(enforceRateLimit('wig-try-on', event).ok).toBe(true);
 	});
 
-	it('falls back to a shared "unknown" bucket when getClientAddress throws', () => {
-		const result = enforceRateLimit('meechie-studio-text', throwingEvent);
-		expect(result.ok).toBe(true);
+	it('falls back to a shared "unknown" bucket and still enforces its budget', () => {
+		for (let i = 0; i < 30; i += 1) {
+			expect(enforceRateLimit('meechie-studio-text', throwingEvent).ok).toBe(true);
+		}
+		expect(enforceRateLimit('meechie-studio-text', throwingEvent).ok).toBe(false);
 	});
 
 	it('enforces a budget on the tools route', () => {

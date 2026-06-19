@@ -29,8 +29,13 @@ export const sweepIdleKeys = (stateByKey: Map<string, KeyState>, nowMs: number):
 	}
 };
 
+// Sweeping every key on every call is O(N) per request; throttling it to once per interval
+// keeps the amortized cost O(1) while still reclaiming idle keys promptly enough in practice.
+const SWEEP_INTERVAL_MS = 60_000;
+
 export const createRateLimitSeam = (): RateLimitSeam => {
 	const stateByKey = new Map<string, KeyState>();
+	let lastSweepMs = -Infinity;
 
 	return {
 		checkAndConsume: (rawInput): RateLimitResult => {
@@ -48,7 +53,10 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 			}
 
 			const { key, limit, windowMs, nowMs } = input;
-			sweepIdleKeys(stateByKey, nowMs);
+			if (nowMs - lastSweepMs >= SWEEP_INTERVAL_MS) {
+				sweepIdleKeys(stateByKey, nowMs);
+				lastSweepMs = nowMs;
+			}
 
 			const windowStartMs = nowMs - windowMs;
 			const recentHits = pruneExpired(stateByKey.get(key)?.hitTimestampsMs ?? [], windowStartMs);

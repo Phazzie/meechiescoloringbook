@@ -1,7 +1,7 @@
 // Purpose: Enforce per-route request budgets on API endpoints that call metered external AI providers.
-// Why: /api/generate, /api/image-generation, /api/chat-interpretation, /api/meechie-studio-text, and
-//      /api/wig-try-on each trigger paid xAI/Gemini calls with zero abuse protection. This wraps
-//      RateLimitSeam with one policy per route and a 429 response shaped like other endpoint errors.
+// Why: /api/generate, /api/image-generation, /api/chat-interpretation, /api/meechie-studio-text,
+//      /api/wig-try-on, and /api/tools each trigger paid xAI/Gemini calls with zero abuse protection.
+//      This wraps RateLimitSeam with one policy per route and a 429 response shaped like other endpoint errors.
 // Info flow: route handler -> enforceRateLimit(route, event) -> RateLimitSeam.checkAndConsume -> pass-through | 429 Response.
 import { json } from '@sveltejs/kit';
 import { createRateLimitSeam } from '$lib/seams/rate-limit-seam/limiter';

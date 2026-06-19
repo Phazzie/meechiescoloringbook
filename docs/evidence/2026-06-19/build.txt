@@ -1,7 +1,3 @@
-# Purpose: Store npm run build output for evidence.
-# Why: Cipher Gate requires command evidence for seam-adjacent changes.
-# Info flow: Command output -> evidence file -> review.
-
 
 > meechies-coloringbook@0.1.0 build
 > vite build
@@ -23,11 +19,11 @@ computing gzip size...
 .svelte-kit/output/client/_app/immutable/assets/5.Awox6ddz.css      6.32 kB │ gzip:   1.78 kB
 .svelte-kit/output/client/_app/immutable/assets/4.CBwwd1dZ.css      6.34 kB │ gzip:   1.80 kB
 .svelte-kit/output/client/_app/immutable/assets/2.C42lOP60.css     12.60 kB │ gzip:   3.28 kB
-.svelte-kit/output/client/_app/immutable/entry/start.BMCe9aTw.js    0.08 kB │ gzip:   0.09 kB
+.svelte-kit/output/client/_app/immutable/entry/start.ZUD3onPV.js    0.08 kB │ gzip:   0.09 kB
 .svelte-kit/output/client/_app/immutable/chunks/FI3KEeZl.js         0.25 kB │ gzip:   0.21 kB
 .svelte-kit/output/client/_app/immutable/chunks/Dfuk3axN.js         0.36 kB │ gzip:   0.27 kB
 .svelte-kit/output/client/_app/immutable/chunks/DkWPsWRr.js         0.37 kB │ gzip:   0.26 kB
-.svelte-kit/output/client/_app/immutable/nodes/1.Dwx_amlp.js        0.51 kB │ gzip:   0.33 kB
+.svelte-kit/output/client/_app/immutable/nodes/1.CzkQJA-A.js        0.51 kB │ gzip:   0.33 kB
 .svelte-kit/output/client/_app/immutable/chunks/a4eTN3v0.js         1.00 kB │ gzip:   0.57 kB
 .svelte-kit/output/client/_app/immutable/chunks/DAi8WGg3.js         1.00 kB │ gzip:   0.59 kB
 .svelte-kit/output/client/_app/immutable/chunks/B9VVtXOj.js         1.36 kB │ gzip:   0.66 kB
@@ -40,15 +36,15 @@ computing gzip size...
 .svelte-kit/output/client/_app/immutable/nodes/5.Cc2SlRWS.js        6.26 kB │ gzip:   2.70 kB
 .svelte-kit/output/client/_app/immutable/nodes/7.L_d60z7A.js        6.42 kB │ gzip:   2.87 kB
 .svelte-kit/output/client/_app/immutable/nodes/6.DWJta6jy.js        6.99 kB │ gzip:   3.08 kB
-.svelte-kit/output/client/_app/immutable/entry/app.BNBTJRbr.js      7.14 kB │ gzip:   3.17 kB
+.svelte-kit/output/client/_app/immutable/entry/app.D6n1jlQU.js      7.14 kB │ gzip:   3.18 kB
 .svelte-kit/output/client/_app/immutable/nodes/3.B0ahNj46.js        8.05 kB │ gzip:   2.62 kB
 .svelte-kit/output/client/_app/immutable/nodes/4.DKTp7pVt.js        9.37 kB │ gzip:   3.58 kB
 .svelte-kit/output/client/_app/immutable/chunks/D-EmO9az.js        25.89 kB │ gzip:  10.09 kB
-.svelte-kit/output/client/_app/immutable/chunks/sfqRQum_.js        28.61 kB │ gzip:  11.19 kB
+.svelte-kit/output/client/_app/immutable/chunks/D8gqSRBQ.js        28.60 kB │ gzip:  11.19 kB
 .svelte-kit/output/client/_app/immutable/nodes/2.7tmVXFl6.js       56.81 kB │ gzip:  17.74 kB
 .svelte-kit/output/client/_app/immutable/chunks/BuL2q0VI.js        58.90 kB │ gzip:  14.25 kB
 .svelte-kit/output/client/_app/immutable/chunks/DW8NSCAM.js       437.12 kB │ gzip: 180.41 kB
-✓ built in 2.49s
+✓ built in 2.31s
 vite v7.3.2 building client environment for production...
 transforming...
 ✓ 4 modules transformed.
@@ -81,20 +77,20 @@ computing gzip size...
 .svelte-kit/output/server/chunks/meechie-studio-text.contract.js                     2.03 kB
 .svelte-kit/output/server/chunks/constants.js                                        2.22 kB
 .svelte-kit/output/server/chunks/meechie-tool.contract.js                            3.30 kB
-.svelte-kit/output/server/chunks/internal2.js                                        3.40 kB
+.svelte-kit/output/server/chunks/internal2.js                                        3.39 kB
 .svelte-kit/output/server/entries/pages/_layout.svelte.js                            4.11 kB
 .svelte-kit/output/server/entries/endpoints/api/chat-interpretation/_server.ts.js    4.14 kB
 .svelte-kit/output/server/chunks/http-resilience.js                                  4.83 kB
 .svelte-kit/output/server/chunks/spec-validation.contract.js                         4.86 kB
-.svelte-kit/output/server/chunks/parse-request-body.js                               5.12 kB
 .svelte-kit/output/server/chunks/wig-try-on.contract.js                              5.16 kB
+.svelte-kit/output/server/chunks/parse-request-body.js                               5.27 kB
 .svelte-kit/output/server/chunks/text-model.js                                       6.09 kB
 .svelte-kit/output/server/chunks/index.js                                            7.02 kB
 .svelte-kit/output/server/chunks/exports.js                                          7.02 kB
 .svelte-kit/output/server/entries/pages/m/_mode_/_page.svelte.js                     9.25 kB
 .svelte-kit/output/server/entries/pages/meechie/_page.svelte.js                      9.73 kB
 .svelte-kit/output/server/entries/endpoints/api/wig-try-on/_server.ts.js            12.70 kB
-.svelte-kit/output/server/chunks/image-generation-pipeline.js                       14.34 kB
+.svelte-kit/output/server/chunks/image-generation-pipeline.js                       14.35 kB
 .svelte-kit/output/server/entries/endpoints/api/meechie-studio-text/_server.ts.js   14.73 kB
 .svelte-kit/output/server/entries/endpoints/api/generate/_server.ts.js              18.92 kB
 .svelte-kit/output/server/chunks/shared.js                                          35.22 kB
@@ -104,7 +100,7 @@ computing gzip size...
 .svelte-kit/output/server/entries/pages/_page.svelte.js                             85.57 kB
 .svelte-kit/output/server/chunks/root.js                                            86.50 kB
 .svelte-kit/output/server/index.js                                                 130.75 kB
-✓ built in 6.09s
+✓ built in 5.84s
 
 Run npm run preview to preview your production build locally.
 

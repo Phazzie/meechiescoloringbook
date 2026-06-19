@@ -8,6 +8,8 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Fixed a ReDoS-prone SVG-detection regular expression (CodeQL-flagged catastrophic backtracking on repeated comment markers) by replacing its lazy dot-star comment matcher with a deterministic, non-backtracking form.
+- Changed `RateLimitSeam`'s idle-key sweep to run at most once per 60 seconds instead of on every request, keeping the per-request cost O(1) amortized under high traffic or key cardinality.
 - Fixed `RateLimitSeam`'s limiter holding an entry forever for any client key that is only ever seen once; idle keys are now evicted once their hits fully expire.
 - Fixed coloring-page drafts permanently failing to save for the rest of a session after the initial draft load failed.
 - Fixed SVG image detection missing payloads with a leading BOM, XML declaration, comment, or doctype before `<svg>`, which had caused valid SVGs to be mis-packaged as PNG.

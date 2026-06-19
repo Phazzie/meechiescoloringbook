@@ -182,3 +182,18 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Adding idle-key eviction to RateLimitSeam's `hitsByKey` map so client keys that are queried once and never again don't accumulate forever.
 - Lesson: Pruning expired hits only for the *current request's* key (the original implementation) does nothing for keys that never come back; correctness requires sweeping every tracked key on each call using that key's own stored `windowMs`, not just the current call's key/windowMs.
 - Action: When a map is keyed by client identity, design the cleanup path around "what happens to entries nobody ever touches again," not just "what happens to the entry being touched right now."
+
+- Date: 2026-06-19
+- Context: CodeQL flagged the new BOM/XML-declaration/comment/doctype-tolerant SVG_TEXT_PATTERN regex (PR #171) as exponentially backtracking on inputs with many repeated `--><!--` runs.
+- Lesson: A lazy dot-star bounded by a literal terminator (`[\s\S]*?-->`) nested inside an outer `*` repetition gives the backtracking engine many equivalent ways to partition repeated occurrences of the terminator, which is exactly the catastrophic-backtracking shape CodeQL detects; this is invisible in normal contract tests because they only exercise small, matching fixtures, never large/adversarial non-matching input.
+- Action: Replace `X*?Y` terminator patterns with the deterministic `(?:(?!Y)[\s\S])*Y` form (one parse per match, no backtracking) instead of reaching for input-length truncation, which only shrinks the attack surface rather than removing it; re-run the existing fixture-based tests to confirm the rewritten pattern still matches the same inputs.
+
+- Date: 2026-06-19
+- Context: Gemini review on PR #171 flagged RateLimitSeam's per-request `sweepIdleKeys(stateByKey, nowMs)` call as an O(N) cost on every metered-route request.
+- Lesson: A correctness-only fix (sweep every call) can still be a performance regression under high key cardinality even though no test catches it, because contract tests check outcomes, not call frequency.
+- Action: Throttle the sweep to run at most once per `SWEEP_INTERVAL_MS` (60s) using a closure-held `lastSweepMs`, keeping per-key pruning on the read path (so a returning key's own correctness is unaffected by the throttle) while making the amortized per-request map-wide cost O(1).
+
+- Date: 2026-06-19
+- Context: CodeRabbit's review on PR #171 re-flagged the same ReDoS and sweep-cost issues Gemini had already raised, plus a fallback-bucket rate-limit test that only checked the first request succeeded.
+- Lesson: A test asserting only "the first request through a fallback path succeeds" doesn't prove the fallback path is still rate-limited; a regression that accidentally made the fallback bucket unlimited would stay green.
+- Action: When a test exists specifically to cover a fallback/degraded path, drive it past the budget boundary and assert the eventual rejection, not just that one early request is accepted.
