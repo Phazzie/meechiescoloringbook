@@ -31,7 +31,7 @@ type StudioActionDefinition = {
 	aiAction?: MeechieStudioTextAction;
 };
 
-export const studioActions = [
+const studioActions = [
 	{
 		id: 'generate_text',
 		label: 'Generate Verdict',
@@ -88,7 +88,7 @@ export type StudioTextActionId = StudioTextActionMetadata['id'];
 const isStudioTextAction = (action: StudioActionMetadata): action is StudioTextActionMetadata =>
 	'aiAction' in action;
 
-export class MissingStudioTextActionMetadataError extends Error {
+class MissingStudioTextActionMetadataError extends Error {
 	constructor(id: string) {
 		super(`Studio action is missing aiAction metadata: ${id}`);
 		this.name = 'MissingStudioTextActionMetadataError';

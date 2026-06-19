@@ -141,6 +141,7 @@ type JsonExtraction =
 	| { ok: false; reason: 'syntax_error' };
 
 const CONTENT_PREVIEW_LENGTH = 500;
+const MAX_SCHEMA_ISSUES_IN_HINT = 4;
 
 const invalidProviderTextResult = (
 	content: string,
@@ -277,7 +278,7 @@ const extractJson = (text: string): JsonExtraction => {
 
 const schemaIssueHint = (error: z.ZodError): string =>
 	error.issues
-		.slice(0, 4)
+		.slice(0, MAX_SCHEMA_ISSUES_IN_HINT)
 		.map((issue) => {
 			const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
 			return `${path}: ${issue.message}`;
