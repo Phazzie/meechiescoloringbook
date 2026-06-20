@@ -169,3 +169,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-06-20
+- Date: 2026-06-20
+- Context: Reviewer bot (Codex) flagged that PR #176's `plan.md` self-critique cited "fresh `npm run build` success, clean `npm run lint`" without a committed evidence file backing either claim, while `verify.txt`/`test.txt` were properly cited.
+- Lesson: Every gate named in a plan's self-critique or a PR description must point at a committed evidence file, not just an inline assertion; partial citation (some gates with files, some without) reads as proof when it is actually a mix of proof and assertion.
+- Action: Capture `npm run build` and `npm run lint` output to `docs/evidence/<date>/build.txt` and `lint.txt`, regenerate `proof-tape` so it picks them up automatically, and update the citing prose to name the exact files.
