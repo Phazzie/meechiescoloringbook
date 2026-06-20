@@ -11,8 +11,9 @@ import type { Result } from '../../../../contracts/shared.contract';
 import { validateWigTryOnRequest } from '../../seams/wig-try-on-seam/validators';
 import type { AppConfigSeam } from '../../seams/app-config-seam/contract';
 import { isAbortError, isTimeoutError, runWithTimeoutSignal } from '$lib/core/http-resilience';
+import { DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS } from '$lib/core/constants';
 
-const WIG_TRY_ON_TIMEOUT_MS = 120_000;
+const WIG_TRY_ON_TIMEOUT_MS = DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS;
 
 const WIG_TRY_ON_PROMPT = [
 	'You are an AI artist. Using the first image (a selfie) and the second image (a wig product photo),',

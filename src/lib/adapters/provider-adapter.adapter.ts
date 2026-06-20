@@ -11,6 +11,7 @@ import type {
 import type { Result, SeamError } from '../../../contracts/shared.contract';
 import { env } from '$env/dynamic/private';
 import { fetchWithTimeout, fetchWithRetry, isAbortError, isTimeoutError } from '$lib/core/http-resilience';
+import { DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS } from '$lib/core/constants';
 
 export type ProviderAdapterConfig = {
 	apiKey?: string | null;
@@ -21,7 +22,7 @@ const DEFAULT_BASE_URL = 'https://api.x.ai';
 const CHAT_PATH = '/v1/chat/completions';
 const IMAGE_PATH = '/v1/images/generations';
 const CHAT_TIMEOUT_MS = 60_000;
-const IMAGE_TIMEOUT_MS = 120_000;
+const IMAGE_TIMEOUT_MS = DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS;
 const RETRY_OPTIONS = { maxAttempts: 3, baseDelayMs: 1_000 } as const;
 
 const normalizeBaseUrl = (baseUrl: string): string => {

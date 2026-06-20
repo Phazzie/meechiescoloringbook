@@ -12,6 +12,7 @@ import type { Result } from '../../../../contracts/shared.contract';
 import { validateImageGenerationRequest } from '../../seams/image-generation-seam/validators';
 import type { ImageProviderConfig, ImageProviderConfigSeam } from '../../seams/image-provider-config-seam/contract';
 import { isAbortError, isTimeoutError, runWithTimeoutSignal } from '$lib/core/http-resilience';
+import { DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS } from '$lib/core/constants';
 
 type XaiImageResponse = {
   data: Array<{
@@ -26,7 +27,7 @@ type XaiReadResult =
   | { kind: 'http_error'; status: number; text: string }
   | { kind: 'parse_error' };
 
-const XAI_IMAGE_TIMEOUT_MS = 120_000;
+const XAI_IMAGE_TIMEOUT_MS = DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS;
 
 const buildUrl = (baseUrl: string, path: string) => {
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;

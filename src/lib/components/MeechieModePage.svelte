@@ -107,7 +107,7 @@ Info flow: Mode config + user inputs -> MeechieToolInputSchema -> /api/tools -> 
 		{/if}
 	</section>
 
-	<button type="button" on:click={handleGenerate} disabled={isWorking}>
+	<button type="button" onclick={handleGenerate} disabled={isWorking}>
 		{isWorking ? 'Working...' : config.button}
 	</button>
 

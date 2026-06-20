@@ -1,6 +1,10 @@
 // Purpose: Provide shared cross-seam constants for deterministic behavior.
 // Why: Prevent phrase/rule drift between adapters, routes, seams, and tests.
 // Info flow: Constants -> adapters/routes/mocks -> runtime validation and generation.
+// Shared by adapters that call long-running xAI/Gemini image-style endpoints
+// (image-generation-seam, wig-try-on-seam, provider-adapter.adapter image path).
+export const DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS = 120_000;
+
 export const SYSTEM_CONSTANTS = {
 	REQUIRED_PROMPT_PHRASES: [
 		'Black-and-white coloring book page',

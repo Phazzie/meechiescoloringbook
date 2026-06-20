@@ -20,6 +20,8 @@ Info flow: Parent passes textOutput + creations; user load/pin/delete actions pr
 		onDeleteCreation: (_id: string) => Promise<void>;
 		onToggleFavorite: (_creation: CreationRecord) => Promise<void>;
 	} = $props();
+
+	const MAX_VAULT_ITEMS_SHOWN = 4;
 </script>
 
 <section class="verdict-row">
@@ -41,7 +43,7 @@ Info flow: Parent passes textOutput + creations; user load/pin/delete actions pr
 			<p data-testid="home-vault-empty">No saved pages yet.</p>
 		{:else}
 			<div class="vault-list">
-				{#each creations.slice(0, 4) as creation}
+				{#each creations.slice(0, MAX_VAULT_ITEMS_SHOWN) as creation}
 					<div class="vault-item">
 						<button
 							type="button"
