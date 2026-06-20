@@ -121,6 +121,12 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Lesson: Local loopback servers can be blocked by the sandbox even without external network access.
 - Action: Run `node probes/browser-seams.probe.mjs` with escalated permissions when needed and capture the probe output as evidence.
 
+## 2026-06-20
+- Date: 2026-06-20
+- Context: Scheduled autonomous session asked to find the hardest fix needed and open a PR, on a designated branch (`claude/sweet-mendel-p5s5bt`) that turned out to already hold 42 unmerged commits of completed PR-drain integration work from prior sessions.
+- Lesson: Several prior sessions did the hard work of manually integrating dozens of stale PRs onto one branch but none of them ever reached the final "open a PR" step, so the work sat invisible and unreviewed for 12+ days while other automated sessions kept opening new, duplicate PRs (Issue #175) instead of noticing the finished branch.
+- Action: Before writing any new code on an assigned branch, diff it against `main` (`git rev-list --left-right --count main...HEAD`) and check for an existing PR. If the branch is already ahead with verified-green, unshipped work, ship that first instead of adding another isolated fix on top of it.
+
 ## Template
 - Date:
 - Context:
