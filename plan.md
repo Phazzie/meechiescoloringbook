@@ -1164,3 +1164,33 @@ Deliver a brand-new modern/sleek/polished UI with strong visual identity, refres
 2. What must be proven: `npm run verify`, `npm run build`, and `npm run lint` are green on this exact branch today (not just as of the stale 2026-06-07 evidence), and the branch is a clean fast-forward of `main` (0 commits behind) so merging cannot silently drop reviewer-approved changes from `main`.
 3. Riskiest assumption: that no human deliberately abandoned this branch for a reason not visible in `plan.md`/`DECISIONS.md`. Mitigation: the PR description will say explicitly that this is a resurfaced integration branch from prior autonomous sessions, not new work, so a human reviewer can reject it if there's context this session doesn't have.
 4. Evidence to prove/disprove: `docs/evidence/2026-06-20/verify.txt` (svelte-check 0 errors/0 warnings, 519 tests passed/1 skipped), `docs/evidence/2026-06-20/build.txt` (exit 0, Vercel adapter done), `docs/evidence/2026-06-20/lint.txt` (exit 0, no eslint findings), and `docs/evidence/2026-06-20/clan-chain.md` showing 0 dirty seams.
+
+### Correction (2026-06-20, same day) — the "42 commits ahead of main" premise above was false
+
+This section corrects the Goal/Plan above; it does not delete or replace it, per this repo's append-only correction convention (see `DECISIONS.md` "Correct the false '42 commits ahead of main' claim..." entry for the full writeup).
+
+A Codex review comment on PR #176 quoted `git diff --shortstat 2d17739^ 2d17739` showing only 17 files changed, not 467, and warned the PR's claimed integration work would still be absent from `main` after merge. Verifying directly against `origin/main` (`git fetch origin main`, `git diff --shortstat origin/main..HEAD`) confirmed the comment: the real diff is 17 files / +2698 lines, 0 deletions. The "42 commits ahead" figure in the Goal above was computed against a stale local `main` ref that had never been fetched from `origin/main`, carried forward across an earlier context-window compaction in this same session.
+
+Working-tree inspection confirms the integration work described above (SafetyPolicySeam gating on `/api/generate`, self-contained seam folders, etc.) is real and already present — it landed on `origin/main` (tip `29109f0`) through some prior, undocumented path before this session started, not through this branch or this PR. There is nothing left to "ship" via `claude/sweet-mendel-p5s5bt`/PR #176 beyond the small, real fixes this session actually made on top of that already-current `main`: the Rosentic CI env-var fix, the build/lint evidence-citation fix, and (added after this correction) a fix to `scripts/assumption-alarm.mjs`'s column-index bug. PR #176's title and body were rewritten to describe that actual diff instead of the retracted claim.
+
+## Fix scripts/assumption-alarm.mjs Reading the Wrong docs/seams.md Column (2026-06-20)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: dismiss the Codex comment about `"blockedSeams": []` as a non-issue since the underlying seams really are blocked and everyone already knows it, and skip fixing the script.
+2. Countermeasure: read `scripts/assumption-alarm.mjs` in full, compare its destructuring against the actual `docs/seams.md` table header order, and re-run the script after the fix to confirm it now reports the two known-blocked seams.
+3. Lower-debt path: index the needed column by its documented position with an inline comment naming every column, instead of skip-destructuring with blank placeholders that silently break if the table is reordered.
+
+### Plan
+
+- Goal: Fix `scripts/assumption-alarm.mjs` so it reads the "Last probe" status column instead of the "Probe" file-path column, then close the real gap the fix exposes (a missing `DECISIONS.md` Assumption entry for `WigTryOnSeam`).
+- Exact seams: none changed (tooling-script fix; affects evidence generation only, not any contract/adapter/mock).
+- Exact file paths touched: `scripts/assumption-alarm.mjs`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `plan.md`, `docs/evidence/2026-06-20/assumption-alarm.json` (regenerated).
+- Exact commands run: `node scripts/assumption-alarm.mjs` (before fix, confirmed empty `blockedSeams`), `grep -n "Current seams" -A2 docs/seams.md` (confirmed column header order), `node scripts/assumption-alarm.mjs` (after fix, confirmed `blockedSeams: ["ImageGenerationSeam", "WigTryOnSeam"]` and exit 1 due to missing `WigTryOnSeam` coverage), `node scripts/assumption-alarm.mjs` (after adding the Assumption entry, confirmed exit 0).
+
+### Self-critique
+
+1. What could be wrong: the fix could still be reading the wrong column if `docs/seams.md`'s header order changes in the future without updating the script; the inline comment naming every column index is meant to make that drift visible at a glance during review.
+2. What must be proven: `node scripts/assumption-alarm.mjs` exits 0 and `docs/evidence/2026-06-20/assumption-alarm.json` lists both `ImageGenerationSeam` and `WigTryOnSeam` under `blockedSeams`, each covered by an Assumption entry in `DECISIONS.md`.
+3. Riskiest assumption: that no other script in `scripts/` has the same positional-destructuring bug against `docs/seams.md`; this was not audited beyond `assumption-alarm.mjs` since that is the only script a reviewer flagged.
+4. Evidence to prove/disprove: `docs/evidence/2026-06-20/assumption-alarm.json` (regenerated, shows both blocked seams with zero missing coverage), `npm run verify` output for this same date.

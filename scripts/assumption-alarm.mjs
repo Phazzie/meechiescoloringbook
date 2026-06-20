@@ -41,8 +41,10 @@ const parseSeams = (content) => {
 		if (cells[0].startsWith('---')) {
 			continue;
 		}
-		const [seam, , probe] = cells;
-		seams.push({ seam, probe });
+		// Column order: Seam(0) Contract(1) Probe(2) Fixtures(3) Mock(4) Tests(5) Adapter(6) Owner(7) Last probe(8) Notes(9)
+		const seam = cells[0];
+		const lastProbe = cells[8];
+		seams.push({ seam, probe: lastProbe });
 	}
 	return seams;
 };

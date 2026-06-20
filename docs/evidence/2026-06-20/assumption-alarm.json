@@ -1,7 +1,10 @@
 {
   "tool": "assumption-alarm",
-  "generatedAt": "2026-06-20T12:16:47.182Z",
-  "blockedSeams": [],
+  "generatedAt": "2026-06-20T12:47:13.609Z",
+  "blockedSeams": [
+    "ImageGenerationSeam",
+    "WigTryOnSeam"
+  ],
   "assumptions": [
     {
       "date": "2026-02-11",
@@ -62,6 +65,17 @@
       "status": "Active for PR #70 because the seam reads environment values only and has no live provider call to probe.",
       "seamList": [
         "ImageProviderConfigSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-06-20",
+      "seams": "WigTryOnSeam",
+      "statement": "`WigTryOnSeam`'s probe (`src/lib/seams/wig-try-on-seam/probe.ts`) cannot run in this environment because `GEMINI_API_KEY` is not present, so the Gemini 2.5 Flash multi-image (selfie + wig product photo) compositing call has never been verified against a live response; the adapter and contract tests remain stubbed/deterministic.",
+      "validation": "Populate `GEMINI_API_KEY` in `.env` and run the seam's probe (`src/lib/seams/wig-try-on-seam/probe.ts`), then update `docs/seams.md`'s \"Last probe\" column and capture the output under `docs/evidence/<date>/`.",
+      "status": "Blocked — no Gemini credentials available in this autonomous session's environment. This entry exists because `scripts/assumption-alarm.mjs` was fixed today (it was reading the wrong `docs/seams.md` table column and silently reporting zero blocked seams); the corrected script now requires explicit coverage for every `TBD (blocked)` seam.",
+      "seamList": [
+        "WigTryOnSeam"
       ],
       "missingFields": []
     }

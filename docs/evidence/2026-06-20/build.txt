@@ -12,18 +12,18 @@ transforming...
 rendering chunks...
 computing gzip size...
 .svelte-kit/output/client/_app/version.json                         0.03 kB │ gzip:   0.05 kB
-.svelte-kit/output/client/.vite/manifest.json                       7.36 kB │ gzip:   1.03 kB
+.svelte-kit/output/client/.vite/manifest.json                       7.36 kB │ gzip:   1.04 kB
 .svelte-kit/output/client/_app/immutable/assets/0.DNmHA-bj.css      4.04 kB │ gzip:   1.30 kB
 .svelte-kit/output/client/_app/immutable/assets/7.-dasO1DS.css      5.50 kB │ gzip:   1.59 kB
 .svelte-kit/output/client/_app/immutable/assets/6.DQCpUjWO.css      5.82 kB │ gzip:   1.66 kB
 .svelte-kit/output/client/_app/immutable/assets/5.Awox6ddz.css      6.32 kB │ gzip:   1.78 kB
 .svelte-kit/output/client/_app/immutable/assets/4.CBwwd1dZ.css      6.34 kB │ gzip:   1.80 kB
 .svelte-kit/output/client/_app/immutable/assets/2.C42lOP60.css     12.60 kB │ gzip:   3.28 kB
-.svelte-kit/output/client/_app/immutable/entry/start.C2xMK_YU.js    0.08 kB │ gzip:   0.09 kB
+.svelte-kit/output/client/_app/immutable/entry/start.B91Gn0ef.js    0.08 kB │ gzip:   0.09 kB
 .svelte-kit/output/client/_app/immutable/chunks/FI3KEeZl.js         0.25 kB │ gzip:   0.21 kB
 .svelte-kit/output/client/_app/immutable/chunks/Dfuk3axN.js         0.36 kB │ gzip:   0.27 kB
 .svelte-kit/output/client/_app/immutable/chunks/DkWPsWRr.js         0.37 kB │ gzip:   0.26 kB
-.svelte-kit/output/client/_app/immutable/nodes/1.CSzh-3UJ.js        0.51 kB │ gzip:   0.33 kB
+.svelte-kit/output/client/_app/immutable/nodes/1.BWOlk-rr.js        0.51 kB │ gzip:   0.33 kB
 .svelte-kit/output/client/_app/immutable/chunks/a4eTN3v0.js         1.00 kB │ gzip:   0.57 kB
 .svelte-kit/output/client/_app/immutable/chunks/DAi8WGg3.js         1.00 kB │ gzip:   0.59 kB
 .svelte-kit/output/client/_app/immutable/chunks/CZ3rvoUy.js         1.36 kB │ gzip:   0.66 kB
@@ -36,22 +36,22 @@ computing gzip size...
 .svelte-kit/output/client/_app/immutable/nodes/5.zjGiEjEV.js        6.26 kB │ gzip:   2.70 kB
 .svelte-kit/output/client/_app/immutable/nodes/7.C9Kt62sx.js        6.42 kB │ gzip:   2.87 kB
 .svelte-kit/output/client/_app/immutable/nodes/6.BguvzgMJ.js        6.99 kB │ gzip:   3.08 kB
-.svelte-kit/output/client/_app/immutable/entry/app.BguuzRnB.js      7.14 kB │ gzip:   3.18 kB
+.svelte-kit/output/client/_app/immutable/entry/app.CBwEhxGf.js      7.14 kB │ gzip:   3.17 kB
 .svelte-kit/output/client/_app/immutable/nodes/3.KsdqATeX.js        8.05 kB │ gzip:   2.62 kB
 .svelte-kit/output/client/_app/immutable/nodes/4.hVn4TUAn.js        9.37 kB │ gzip:   3.58 kB
 .svelte-kit/output/client/_app/immutable/chunks/D-EmO9az.js        25.89 kB │ gzip:  10.09 kB
-.svelte-kit/output/client/_app/immutable/chunks/BgksF2ZT.js        28.61 kB │ gzip:  11.19 kB
+.svelte-kit/output/client/_app/immutable/chunks/DEb3l7ij.js        28.61 kB │ gzip:  11.19 kB
 .svelte-kit/output/client/_app/immutable/nodes/2.BzJGRBkw.js       56.49 kB │ gzip:  17.66 kB
 .svelte-kit/output/client/_app/immutable/chunks/BZmr_IjK.js        58.90 kB │ gzip:  14.25 kB
 .svelte-kit/output/client/_app/immutable/chunks/CUFCcxwn.js       437.12 kB │ gzip: 180.41 kB
-✓ built in 2.24s
+✓ built in 2.18s
 vite v7.3.2 building client environment for production...
 transforming...
 ✓ 4 modules transformed.
 rendering chunks...
 computing gzip size...
-.svelte-kit/output/client/service-worker.mjs  3.83 kB │ gzip: 1.45 kB
-✓ built in 19ms
+.svelte-kit/output/client/service-worker.mjs  3.83 kB │ gzip: 1.44 kB
+✓ built in 21ms
 .svelte-kit/output/server/.vite/manifest.json                                       10.08 kB
 .svelte-kit/output/server/_app/immutable/assets/_layout.9gd9m8-8.css                 4.01 kB
 .svelte-kit/output/server/_app/immutable/assets/_page.-dasO1DS.css                   5.50 kB
@@ -100,7 +100,7 @@ computing gzip size...
 .svelte-kit/output/server/entries/pages/_page.svelte.js                             85.07 kB
 .svelte-kit/output/server/chunks/root.js                                            86.50 kB
 .svelte-kit/output/server/index.js                                                 130.75 kB
-✓ built in 5.91s
+✓ built in 5.81s
 
 Run npm run preview to preview your production build locally.
 
