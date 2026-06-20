@@ -27,8 +27,6 @@ type XaiReadResult =
   | { kind: 'http_error'; status: number; text: string }
   | { kind: 'parse_error' };
 
-const XAI_IMAGE_TIMEOUT_MS = DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS;
-
 const buildUrl = (baseUrl: string, path: string) => {
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   const normalizedPath = path.startsWith('/') ? path.slice(1) : path;
@@ -113,10 +111,10 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
             return { kind: 'parse_error' };
           }
         },
-        XAI_IMAGE_TIMEOUT_MS,
+        DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS,
         {
           signal: callerSignal,
-          timeoutMessage: `xAI image generation timed out after ${XAI_IMAGE_TIMEOUT_MS / 1000} seconds.`
+          timeoutMessage: `xAI image generation timed out after ${DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS / 1000} seconds.`
         }
       );
     } catch (error) {

@@ -22,7 +22,6 @@ const DEFAULT_BASE_URL = 'https://api.x.ai';
 const CHAT_PATH = '/v1/chat/completions';
 const IMAGE_PATH = '/v1/images/generations';
 const CHAT_TIMEOUT_MS = 60_000;
-const IMAGE_TIMEOUT_MS = DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS;
 const RETRY_OPTIONS = { maxAttempts: 3, baseDelayMs: 1_000 } as const;
 
 const normalizeBaseUrl = (baseUrl: string): string => {
@@ -237,7 +236,7 @@ export const createProviderAdapter = (
 					response_format: input.responseFormat
 				})
 			};
-			const response = await fetchWithTimeout(url, requestInit, IMAGE_TIMEOUT_MS);
+			const response = await fetchWithTimeout(url, requestInit, DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS);
 			const payload = await readJson(response);
 			if (!response.ok) {
 				return buildHttpError(response, payload);

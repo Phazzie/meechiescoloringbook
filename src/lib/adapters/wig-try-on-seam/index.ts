@@ -13,8 +13,6 @@ import type { AppConfigSeam } from '../../seams/app-config-seam/contract';
 import { isAbortError, isTimeoutError, runWithTimeoutSignal } from '$lib/core/http-resilience';
 import { DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS } from '$lib/core/constants';
 
-const WIG_TRY_ON_TIMEOUT_MS = DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS;
-
 const WIG_TRY_ON_PROMPT = [
 	'You are an AI artist. Using the first image (a selfie) and the second image (a wig product photo),',
 	'create a glamorous illustrated portrait of the person wearing that wig.',
@@ -146,10 +144,10 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 						return { kind: 'parse_error' };
 					}
 				},
-				WIG_TRY_ON_TIMEOUT_MS,
+				DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS,
 				{
 					signal: callerSignal,
-					timeoutMessage: `Wig try-on request timed out after ${WIG_TRY_ON_TIMEOUT_MS / 1000} seconds.`
+					timeoutMessage: `Wig try-on request timed out after ${DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS / 1000} seconds.`
 				}
 			);
 		} catch (error) {
@@ -158,7 +156,7 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 				message: isAbortError(error)
 					? 'Wig try-on request was canceled by the caller.'
 					: isTimeoutError(error)
-					? `Wig try-on request timed out after ${WIG_TRY_ON_TIMEOUT_MS / 1000} seconds.`
+					? `Wig try-on request timed out after ${DEFAULT_PROVIDER_IMAGE_TIMEOUT_MS / 1000} seconds.`
 					: error instanceof Error ? error.message : 'Gemini API network request failed.'
 			});
 		}
