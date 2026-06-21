@@ -163,3 +163,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-06-21
+- Date: 2026-06-21
+- Context: Upgrading zod from v3 to v4 across every contract and seam validator.
+- Lesson: Researching breaking changes from blog posts/changelogs overstates the blast radius; a trial `npm install` of the new major version followed by `npm run check` and `npm test` gave an exact, authoritative list (13 type errors in 7 files, 2 test failures with one shared root cause) far faster than reading migration guides. Most call sites were already future-proof because they used the two-argument `z.record(keySchema, valueSchema)` form; only a handful of single-argument call sites and one renamed issue code (`invalid_string` -> `invalid_format`) needed changes.
+- Action: For major dependency bumps, do the trial install + full type-check + full test run first to measure real impact before planning the fix, rather than scoping work from documentation alone.
+
+## 2026-06-21
+- Date: 2026-06-21
+- Context: Fixing the Zod v4 `invalid_string` -> `invalid_format` issue code in SpecValidationSeam.
+- Lesson: `src/lib/adapters/spec-validation.adapter.ts` (legacy) and `src/lib/adapters/spec-validation-seam/index.ts` (canonical) are byte-for-byte identical, so every bugfix or dependency-driven change to this seam's adapter logic must be applied twice by hand, with no compiler or test enforcement that both copies stay in sync.
+- Action: When touching any seam that still has both a legacy and canonical adapter, diff the two files first and apply the same edit to both before running `npm run check`/`npm test`; flag persistent dual-layout seams for consolidation rather than re-discovering the duplication each time.

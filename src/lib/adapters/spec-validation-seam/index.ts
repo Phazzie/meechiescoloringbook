@@ -25,7 +25,7 @@ const formatPath = (path: Array<string | number>): string => {
 };
 
 const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] => {
-	const field = formatPath(issue.path);
+	const field = formatPath(issue.path as Array<string | number>);
 	const pathString = issue.path.map((segment) => String(segment)).join('.');
 
 	if (pathString.endsWith('items.0.number') || pathString.endsWith('number')) {
@@ -47,7 +47,7 @@ const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] =
 	}
 
 	if (pathString.endsWith('label')) {
-		if (issue.code === 'invalid_string') {
+		if (issue.code === 'invalid_format') {
 			return {
 				code: 'LABEL_INVALID_CHARS',
 				field: field || 'items.label',

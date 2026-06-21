@@ -13,7 +13,7 @@ export const ProviderChatMessageSchema = z.object({
 export const ProviderChatInputSchema = z.object({
 	model: NonEmptyStringSchema,
 	messages: z.array(ProviderChatMessageSchema),
-	responseFormat: z.record(z.unknown()).optional()
+	responseFormat: z.record(z.string(), z.unknown()).optional()
 });
 
 export const ProviderChatOutputSchema = z.object({
