@@ -25,7 +25,9 @@ const formatPath = (path: Array<string | number>): string => {
 };
 
 const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] => {
-	const field = formatPath(issue.path as Array<string | number>);
+	const field = formatPath(
+		issue.path.filter((segment): segment is string | number => typeof segment !== 'symbol')
+	);
 	const pathString = issue.path.map((segment) => String(segment)).join('.');
 
 	if (pathString.endsWith('items.0.number') || pathString.endsWith('number')) {
