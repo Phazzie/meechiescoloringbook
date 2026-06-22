@@ -8,10 +8,15 @@ import {
 	chatInterpretationPipelineDeps,
 	runChatInterpretationPipeline
 } from '$lib/core/chat-interpretation-pipeline';
+import { enforceRateLimit } from '$lib/server/rate-limit-guard';
 import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
+	const rateLimit = enforceRateLimit('chat-interpretation', event);
+	if (!rateLimit.ok) return rateLimit.response;
+
+	const { request } = event;
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 	const pipelineResult = await runChatInterpretationPipeline(parsed.body, chatInterpretationPipelineDeps);
