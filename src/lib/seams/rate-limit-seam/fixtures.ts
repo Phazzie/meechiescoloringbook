@@ -21,5 +21,8 @@ export const invalidCheckInputFixtures: unknown[] = [
 	{ ...sampleCheckInput, windowMs: -500 },
 	{ ...sampleCheckInput, nowMs: Number.NaN },
 	{ ...sampleCheckInput, nowMs: -100 },
+	{ ...sampleCheckInput, limit: Number.POSITIVE_INFINITY },
+	{ ...sampleCheckInput, windowMs: Number.POSITIVE_INFINITY },
+	{ ...sampleCheckInput, nowMs: Number.POSITIVE_INFINITY },
 	'not-an-object'
 ];
