@@ -1,6 +1,6 @@
 {
   "tool": "audit-gate",
-  "generatedAt": "2026-06-22T14:01:42.494Z",
+  "generatedAt": "2026-06-22T14:09:05.505Z",
   "failingSeverities": [
     "high",
     "critical"

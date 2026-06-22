@@ -18,19 +18,31 @@ const ensureEvidenceDir = async (dateFolder) => {
 };
 
 const runNpmAudit = () => {
-	const result = spawnSync('npm', ['audit', '--json'], {
+	const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+	const result = spawnSync(npmCommand, ['audit', '--json'], {
 		cwd: ROOT,
 		encoding: 'utf8',
-		shell: false
+		shell: false,
+		maxBuffer: 10 * 1024 * 1024
 	});
 	if (result.error) {
 		throw new Error(`npm audit failed to start: ${result.error.message}`);
 	}
+	let report;
 	try {
-		return JSON.parse(result.stdout || '{}');
+		report = JSON.parse(result.stdout || '{}');
 	} catch {
 		throw new Error(`npm audit produced non-JSON output: ${result.stdout}${result.stderr}`);
 	}
+	if (report.error) {
+		throw new Error(`npm audit reported an error: ${report.error.summary ?? JSON.stringify(report.error)}`);
+	}
+	// npm audit exits non-zero whenever vulnerabilities are found, not just on real failures;
+	// only treat a non-zero exit as a failure when the report has no metadata to fall back on.
+	if (result.status !== 0 && !report.metadata) {
+		throw new Error(`npm audit failed with exit code ${result.status}. Stderr: ${result.stderr}`);
+	}
+	return report;
 };
 
 const run = async () => {
