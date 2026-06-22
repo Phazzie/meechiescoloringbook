@@ -53,7 +53,9 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 			}
 
 			const { key, limit, windowMs, nowMs } = input;
-			if (nowMs - lastSweepMs >= SWEEP_INTERVAL_MS) {
+			// nowMs < lastSweepMs covers backward clock adjustments (e.g. NTP sync); without it,
+			// a clock step back would block all future sweeps until the clock caught back up.
+			if (nowMs - lastSweepMs >= SWEEP_INTERVAL_MS || nowMs < lastSweepMs) {
 				sweepIdleKeys(stateByKey, nowMs);
 				lastSweepMs = nowMs;
 			}

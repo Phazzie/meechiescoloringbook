@@ -65,11 +65,12 @@ export const enforceRateLimit = (
 	event: RateLimitClientEvent
 ): RateLimitGuardResult => {
 	const policy = ROUTE_LIMIT_POLICIES[route];
+	const nowMs = Date.now();
 	const result = getLimiter(route).checkAndConsume({
 		key: resolveClientKey(route, event),
 		limit: policy.limit,
 		windowMs: policy.windowMs,
-		nowMs: Date.now()
+		nowMs
 	});
 
 	if (result.ok) return { ok: true };
@@ -80,7 +81,7 @@ export const enforceRateLimit = (
 		throw new Error(`Invalid rate limit configuration for route "${route}": ${result.error.message}`);
 	}
 
-	const retryAfterSeconds = Math.max(0, Math.ceil((result.error.resetAtMs - Date.now()) / 1000));
+	const retryAfterSeconds = Math.max(0, Math.ceil((result.error.resetAtMs - nowMs) / 1000));
 	return {
 		ok: false,
 		response: json(
