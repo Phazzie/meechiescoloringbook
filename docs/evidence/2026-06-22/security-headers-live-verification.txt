@@ -1,0 +1,37 @@
+=== GET / headers ===
+content-security-policy: default-src 'self'; connect-src 'self'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://placehold.co; object-src 'none'; script-src 'self' 'nonce-7JkVg9fVXsYKaKR7rZlqkQ=='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+permissions-policy: camera=(), microphone=(), geolocation=()
+referrer-policy: strict-origin-when-cross-origin
+strict-transport-security: max-age=63072000; includeSubDomains; preload
+x-content-type-options: nosniff
+x-frame-options: DENY
+
+=== nonce match check ===
+CSP header nonce:
+nonce-czJDgNSPOEaNzyeYiEWBRg==
+Inline <script> nonce attr in body:
+<script nonce="7JkVg9fVXsYKaKR7rZlqkQ=="
+
+=== route sweep (expect 200 + CSP on every route) ===
+/ -> HTTP 200, CSP header present: 1
+/meechie -> HTTP 200, CSP header present: 1
+/m/random -> HTTP 200, CSP header present: 1
+/m/caption -> HTTP 200, CSP header present: 1
+/rate-his-excuse -> HTTP 200, CSP header present: 1
+/who-fucked-up -> HTTP 200, CSP header present: 1
+/random -> HTTP 200, CSP header present: 1
+
+=== API route still functions under new headers ===
+HTTP/1.1 400 Bad Request
+Access-Control-Allow-Origin: *
+content-length: 101
+content-type: application/json
+permissions-policy: camera=(), microphone=(), geolocation=()
+referrer-policy: strict-origin-when-cross-origin
+strict-transport-security: max-age=63072000; includeSubDomains; preload
+x-content-type-options: nosniff
+x-frame-options: DENY
+Date: Mon, 22 Jun 2026 12:18:51 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
