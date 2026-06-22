@@ -163,3 +163,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-06-22
+- Date: 2026-06-22
+- Context: Auditing the repo for the hardest outstanding fix and finding a 26+-PR backlog (GitHub Issue #175) with 0 merges in 14+ days, including 5-6 divergent unmerged attempts each at `RateLimitSeam` and at the legacy/self-contained seam-layout consolidation.
+- Lesson: When most of the "hard" candidates already have multiple competing unmerged autonomous attempts in flight, picking one of them and adding yet another implementation compounds the exact backlog problem rather than fixing anything; "hardest" and "highest-value-to-attempt-right-now" are not always the same item.
+- Action: Verified `npm audit` was unenforced (4 advisories, 2 high, with the only open PR touching it proposing a breaking major-version bump instead of a safe fix), fixed it with an in-range `npm audit fix`, and added `scripts/audit-gate.mjs` to `npm run verify` so the same drift cannot recur silently. Documented why the larger, more contested items were deliberately not attempted in `DECISIONS.md`.

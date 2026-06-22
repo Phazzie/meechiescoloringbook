@@ -1,0 +1,17 @@
+{
+  "tool": "audit-gate",
+  "generatedAt": "2026-06-22T14:01:42.494Z",
+  "failingSeverities": [
+    "high",
+    "critical"
+  ],
+  "counts": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "status": "ok"
+}

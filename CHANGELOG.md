@@ -58,3 +58,4 @@ All notable user-visible changes for this repo.
 - Updated Wu-Bob response guidance to a combined voice format.
 - Added AI-agent reference notes plus a Seam-Driven Development checklist to keep plans and evidence explicit for autonomous agents.
 - Shortened the canonical prompt template to fit the xAI 1024-character limit, updated drift checks, fixtures, and probes to match, and clarified negative/option line phrasing.
+- Fixed 4 dependency vulnerabilities (high severity in `undici`/`vite`, moderate in `js-yaml`/`tar`) via an in-range `npm audit fix`, and added an `audit:gate` check to `npm run verify` so future high/critical advisories fail verification instead of going unnoticed.
