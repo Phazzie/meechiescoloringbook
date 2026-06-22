@@ -50,7 +50,7 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 				{previewOutput ? previewOutput.pageTitle : 'Your coloring page'}
 			</h2>
 		</div>
-		<img src={activeTheme.image} alt="" />
+		<img src={activeTheme.image} alt="" aria-hidden="true" />
 	</div>
 
 	<div class="paper" class:glitter>

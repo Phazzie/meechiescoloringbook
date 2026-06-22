@@ -28,7 +28,7 @@ Live app: **https://meechiescoloringbook.vercel.app**
 |-------|------------|
 | **Framework** | SvelteKit 2 with Svelte 5 runes |
 | **AI** | xAI (Grok) for text and image generation |
-| **Testing** | Vitest 3 (unit/integration) + Playwright (E2E) |
+| **Testing** | Vitest 4 (unit/integration) + Playwright (E2E) |
 | **Deployment** | Vercel with `@sveltejs/adapter-vercel` (Node 22) |
 | **Validation** | Zod schema validation at all seam boundaries |
 | **Architecture** | Seam-Driven Development (SDD) |
@@ -96,7 +96,7 @@ Copy `.env.example` to `.env` and fill in your values.
 | `npm run format` | Format files with Prettier |
 | `npm run format:check` | Check formatting (CI) |
 | `npm run check` | SvelteKit type check |
-| `npm run verify` | Full verify pipeline (chamber lock + lint + type check + tests + seam ledger + proof tape) |
+| `npm run verify` | Full verify pipeline (chamber lock + type check + tests + shaolin lint + assumption alarm + seam ledger + clan chain + proof tape) |
 | `npm run hooks:install` | Install local git pre-commit/pre-push hooks |
 
 ---
