@@ -18,8 +18,11 @@ const ensureEvidenceDir = async (dateFolder) => {
 };
 
 const runNpmAudit = () => {
-	const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-	const result = spawnSync(npmCommand, ['audit', '--json'], {
+	const args = ['audit', '--json'];
+	const executable = process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : 'npm';
+	const executableArgs =
+		process.platform === 'win32' ? ['/d', '/s', '/c', ['npm', ...args].join(' ')] : args;
+	const result = spawnSync(executable, executableArgs, {
 		cwd: ROOT,
 		encoding: 'utf8',
 		shell: false,
