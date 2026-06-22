@@ -70,7 +70,7 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 					error: {
 						code: 'RATE_LIMIT_EXCEEDED',
 						message: `Rate limit of ${limit} requests per ${windowMs}ms exceeded.`,
-						resetAtMs: recentHits[0] + windowMs
+						resetAtMs: Math.min(...recentHits) + windowMs
 					}
 				};
 			}
@@ -82,7 +82,7 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 				value: {
 					limit,
 					remaining: limit - recentHits.length,
-					resetAtMs: recentHits[0] + windowMs
+					resetAtMs: Math.min(...recentHits) + windowMs
 				}
 			};
 		}

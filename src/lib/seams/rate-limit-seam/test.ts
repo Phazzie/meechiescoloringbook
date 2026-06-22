@@ -127,6 +127,32 @@ describe('RateLimitSeam mock contract', () => {
 		expect(sampleCheckInput.key).toBe(sampleKey);
 	});
 
+	it('computes resetAtMs from the earliest live hit even if the clock steps backward between calls', () => {
+		const seam = createMockRateLimitSeam();
+		const policy = { ...sampleCheckInput, limit: 3 };
+
+		const first = seam.checkAndConsume({ ...policy, nowMs: 1_000 });
+		expect(first.ok).toBe(true);
+
+		// Clock steps backward (e.g. NTP sync) before the next call for the same key, so the
+		// hit list is no longer in ascending order: [1000, 500].
+		const second = seam.checkAndConsume({ ...policy, nowMs: 500 });
+		expect(second.ok).toBe(true);
+		if (!second.ok) return;
+		expect(second.value.resetAtMs).toBe(500 + policy.windowMs);
+
+		const third = seam.checkAndConsume({ ...policy, nowMs: 600 });
+		expect(third.ok).toBe(true);
+
+		const fourth = seam.checkAndConsume({ ...policy, nowMs: 700 });
+		expect(fourth.ok).toBe(false);
+		if (fourth.ok) return;
+		expect(fourth.error.code).toBe('RATE_LIMIT_EXCEEDED');
+		if (fourth.error.code !== 'RATE_LIMIT_EXCEEDED') return;
+		// Must reset relative to the earliest live hit (500), not the first-appended one (1000).
+		expect(fourth.error.resetAtMs).toBe(500 + policy.windowMs);
+	});
+
 	it('does not grow unbounded when many distinct keys never return', () => {
 		const seam = createMockRateLimitSeam();
 		for (let i = 0; i < 500; i += 1) {

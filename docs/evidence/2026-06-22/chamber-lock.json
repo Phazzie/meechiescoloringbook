@@ -1,6 +1,6 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-06-22T09:43:15.839Z",
+  "generatedAt": "2026-06-22T10:25:51.657Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -985,8 +985,8 @@
         },
         {
           "kind": "probe",
-          "path": "N/A (pure)",
-          "status": "na"
+          "path": "src/lib/seams/rate-limit-seam/probe.ts",
+          "status": "ok"
         },
         {
           "kind": "fixtures",
