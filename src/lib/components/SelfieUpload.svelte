@@ -23,11 +23,11 @@
 		if (!file) return;
 
 		if (!ALLOWED_TYPES.includes(file.type as AllowedMime)) {
-			error = 'Upload a JPEG, PNG, or WebP photo.';
+			error = 'Upload a JPEG, PNG, or WebP selfie.';
 			return;
 		}
 		if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-			error = `Photo must be under ${MAX_SIZE_MB}MB.`;
+			error = `Selfie must be under ${MAX_SIZE_MB}MB.`;
 			return;
 		}
 

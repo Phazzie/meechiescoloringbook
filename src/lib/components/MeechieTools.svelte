@@ -258,6 +258,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 							class="ghost"
 							type="button"
 							data-testid="meechie-lineup-remove"
+							aria-label={`Remove excuse ${index + 1}`}
 							on:click={() => removeLineupItem(index)}
 						>
 							Remove

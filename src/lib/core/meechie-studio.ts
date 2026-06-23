@@ -227,7 +227,7 @@ export const getWeeklyModes = (): StudioMode[] => {
 	const monthly = getMonthlyMode();
 	const pool = studioModes.filter((m) => m.id !== monthly.id);
 	const offset = (getWeekNumber() * 2) % pool.length;
-	const weekly = [pool[offset % pool.length], pool[(offset + 1) % pool.length]];
+	const weekly = [pool[offset], pool[(offset + 1) % pool.length]];
 	return [monthly, ...weekly];
 };
 
