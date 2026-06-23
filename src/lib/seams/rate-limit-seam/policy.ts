@@ -8,11 +8,21 @@ type WindowState = {
 	windowStart: number;
 };
 
+const CLEANUP_THRESHOLD = 1000;
+
 export const createRateLimitSeam = (): RateLimitSeam => {
 	const windows = new Map<string, WindowState>();
 
+	const evictExpired = (now: number, windowMs: number): void => {
+		if (windows.size <= CLEANUP_THRESHOLD) return;
+		for (const [staleKey, staleState] of windows) {
+			if (now - staleState.windowStart >= windowMs) windows.delete(staleKey);
+		}
+	};
+
 	return {
 		checkAndConsume: ({ key, maxRequests, windowMs, now }: RateLimitCheckInput): RateLimitResult => {
+			evictExpired(now, windowMs);
 			const existing = windows.get(key);
 			const isFreshWindow = !existing || now - existing.windowStart >= windowMs;
 			const state: WindowState = isFreshWindow ? { count: 0, windowStart: now } : existing;

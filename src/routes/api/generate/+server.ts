@@ -14,10 +14,10 @@ import { createSafetyPolicySeam } from '$lib/seams/safety-policy-seam/policy';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
-	const limited = enforceAiRateLimit(getClientAddress);
-	if (limited) return limited;
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
+	const limited = enforceAiRateLimit(getClientAddress);
+	if (limited) return limited;
 	const imageGenerationSeam = createImageGenerationSeam(createImageProviderConfigSeam());
 	const safetyPolicySeam = createSafetyPolicySeam();
 	const pipelineResult = await runGeneratePipeline(parsed.body, {

@@ -112,6 +112,17 @@ describe('/api/generate', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
+	it('does not consume rate-limit quota for malformed JSON bodies', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(buildRawEvent('{not: valid json}', fetchMock));
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('INVALID_JSON');
+		}
+	});
+
 	it('rejects invalid payloads', async () => {
 		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
 		const response = await POST(buildEvent({ spec: {} }, fetchMock));

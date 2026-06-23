@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-23T16:41:27.020Z",
+  "cipher": {
+    "date": "2026-06-23",
+    "seams": "RateLimitSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-23/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/proof-tape.json",
+        "exists": true
+      }
+    ],
+    "summary": "Added a pure, dependency-injected RateLimitSeam and wired it into all six paid-AI-calling routes via a decoupled `src/lib/server/rate-limiter.ts`, deliberately avoiding coupling to AppConfigSeam.",
+    "risks": "In-memory/per-process state means the limit is not enforced globally across multiple serverless instances; documented as an accepted limitation above, to be revisited if/when the deployment topology changes."
+  },
+  "latestChangeMs": 1782232580614.5254,
+  "status": "ok"
+}

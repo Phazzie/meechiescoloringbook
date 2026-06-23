@@ -121,6 +121,12 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Lesson: Local loopback servers can be blocked by the sandbox even without external network access.
 - Action: Run `node probes/browser-seams.probe.mjs` with escalated permissions when needed and capture the probe output as evidence.
 
+## 2026-06-23
+- Date: 2026-06-23
+- Context: Automated review findings (Gemini Code Assist, Sourcery, Codex) on PR #187's new RateLimitSeam/rate-limiter code.
+- Lesson: A rate-limit check placed before request-body parsing lets a stream of malformed JSON consume the same shared per-IP quota as real requests, which can starve legitimate users on shared IPs (schools, offices, NAT/carrier-grade IPs); an unbounded in-memory Map keyed by client IP needs an eviction sweep or it grows without bound under high IP churn; and a throwing `.parse()`/unguarded `getClientAddress()` call turns a bad env var or a host-specific edge case into a 500 for every client instead of a graceful fallback.
+- Action: Reordered all six paid-AI routes to parse/validate the body before calling `enforceAiRateLimit`; added a size-triggered eviction sweep to `RateLimitSeam`'s `windows` Map; switched `rate-limiter.ts`'s config read to `safeParse` with a default fallback; tightened the `optionalInteger` regex to reject negative values instead of passing them to Zod's `.min()` checks; and wrapped `getClientAddress()` in try/catch with a fixed fallback key.
+
 ## Template
 - Date:
 - Context:

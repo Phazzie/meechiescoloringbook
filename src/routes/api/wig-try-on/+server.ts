@@ -11,10 +11,10 @@ import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, fetch, getClientAddress }) => {
-	const limited = enforceAiRateLimit(getClientAddress);
-	if (limited) return limited;
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
+	const limited = enforceAiRateLimit(getClientAddress);
+	if (limited) return limited;
 
 	const configSeam = createAppConfigSeam();
 	const wigCatalogSeam = createWigCatalogSeam();

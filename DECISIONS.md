@@ -10,7 +10,7 @@ Short, durable decisions with context and tradeoffs.
 ## 2026-06-23 - RateLimitSeam: in-memory fixed-window limiter on all paid-AI routes
 
 - Date: 2026-06-23
-- Decision: Add a self-contained, dependency-injected `RateLimitSeam` (pure, no adapter folder, modeled on `SafetyPolicySeam`) and wire it into all six paid-AI-calling routes (`generate`, `image-generation`, `wig-try-on`, `chat-interpretation`, `meechie-studio-text`, `tools`) via a small `src/lib/server/rate-limiter.ts` helper called first in each `POST` handler, before any seam construction or body parsing.
+- Decision: Add a self-contained, dependency-injected `RateLimitSeam` (pure, no adapter folder, modeled on `SafetyPolicySeam`) and wire it into all six paid-AI-calling routes (`generate`, `image-generation`, `wig-try-on`, `chat-interpretation`, `meechie-studio-text`, `tools`) via a small `src/lib/server/rate-limiter.ts` helper, called in each `POST` handler immediately after `parseRequestBody` succeeds (not before) so malformed-JSON bodies never consume quota — see the 2026-06-23 hardening update below.
 - Context: This repo calls paid third-party AI providers (xAI, Gemini) from public-facing API routes with no request throttling, so a single client could trigger unbounded billing/abuse. This was identified as the hardest item on a list of the 10 most difficult upgrades/fixes the repo needs (see PR description for the full list).
 - Alternatives considered:
   - Reading `RATE_LIMIT_MAX_REQUESTS`/`RATE_LIMIT_WINDOW_MS` through `AppConfigSeam`. Rejected: several existing endpoint tests (`tests/unit/api-wig-try-on.test.ts`, `tests/unit/api-image-generation.test.ts`) mock `createAppConfigSeam` with incomplete stubs for unrelated reasons; coupling the limiter to that seam would have crashed those tests or forced changing unrelated mocks. Decoupled instead, following the existing `ImageProviderConfigSeam`-vs-`AppConfigSeam` narrow-config precedent.
@@ -28,9 +28,18 @@ Short, durable decisions with context and tradeoffs.
 - Cipher Gate:
   - Date: 2026-06-23
   - Seams: RateLimitSeam
-  - Evidence: full-suite test run (527 passed, 1 skipped pre-existing), `npm run check` (0 errors/warnings), `npm run lint` (clean)
+  - Evidence: docs/evidence/2026-06-23/test.txt; docs/evidence/2026-06-23/verify.txt; docs/evidence/2026-06-23/chamber-lock.json; docs/evidence/2026-06-23/shaolin-lint.json; docs/evidence/2026-06-23/assumption-alarm.json; docs/evidence/2026-06-23/seam-ledger.json; docs/evidence/2026-06-23/clan-chain.json; docs/evidence/2026-06-23/proof-tape.json
   - Summary: Added a pure, dependency-injected RateLimitSeam and wired it into all six paid-AI-calling routes via a decoupled `src/lib/server/rate-limiter.ts`, deliberately avoiding coupling to AppConfigSeam.
   - Risks: In-memory/per-process state means the limit is not enforced globally across multiple serverless instances; documented as an accepted limitation above, to be revisited if/when the deployment topology changes.
+
+- 2026-06-23 hardening update (same day, in response to automated PR #187 review from Gemini Code Assist, Sourcery, and Codex):
+  - Moved the `enforceAiRateLimit` call after `parseRequestBody` in all six routes so malformed-JSON bodies are rejected for free instead of consuming a legitimate client's shared-IP quota.
+  - Added a size-triggered eviction sweep (`CLEANUP_THRESHOLD = 1000`) to `RateLimitSeam`'s `windows` Map so high IP churn cannot grow it unbounded for the lifetime of a warm process.
+  - Switched `rate-limiter.ts`'s `readRateLimitConfig` from `rateLimitConfigSchema.parse(...)` to `.safeParse(...)` with a default-value fallback, so an out-of-range env var (e.g. `RATE_LIMIT_MAX_REQUESTS=99999`) degrades to defaults instead of throwing an unhandled 500 on every request.
+  - Tightened `optionalInteger`'s regex from `/^-?\d+$/` to `/^\d+$/` so a negative env value is treated as unset rather than passed through to Zod's `.min()` check.
+  - Wrapped `getClientAddress()` in try/catch with a `'127.0.0.1'` fallback key, since it can throw in some proxy/serverless configurations.
+  - Declined one Codex suggestion (back `rate-limit-seam/mock.ts` with `fixtures.ts`): this seam's mock re-exports the pure, deterministic real implementation, matching the existing `SafetyPolicySeam` precedent — there is no external I/O to fake, and fixtures are already consumed by `test.ts` feeding scenarios into the mock's `checkAndConsume` calls.
+  - Evidence: docs/evidence/2026-06-23/test.txt; docs/evidence/2026-06-23/verify.txt (regenerated after the hardening fixes; 531 passed, 1 skipped pre-existing, 0 check/lint errors).
 
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 

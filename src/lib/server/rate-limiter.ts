@@ -17,19 +17,26 @@ const rateLimitConfigSchema = z.object({
 	rateLimitWindowMs: z.number().int().min(1000).max(3_600_000).default(60_000)
 });
 
+const DEFAULT_RATE_LIMIT_CONFIG = {
+	rateLimitMaxRequests: 20,
+	rateLimitWindowMs: 60_000
+};
+
 const optionalInteger = (value: string | undefined): number | undefined => {
 	if (value === undefined || value.trim() === '') return undefined;
-	if (!/^-?\d+$/.test(value.trim())) return undefined;
+	if (!/^\d+$/.test(value.trim())) return undefined;
 	return Number(value);
 };
 
 // Deliberately decoupled from AppConfigSeam: rate limiting must keep working
 // even when unrelated required config (e.g. xaiApiKey) is absent or mocked.
-const readRateLimitConfig = (env: Record<string, string | undefined> = privateEnv) =>
-	rateLimitConfigSchema.parse({
+export const readRateLimitConfig = (env: Record<string, string | undefined> = privateEnv) => {
+	const parsed = rateLimitConfigSchema.safeParse({
 		rateLimitMaxRequests: optionalInteger(env.RATE_LIMIT_MAX_REQUESTS),
 		rateLimitWindowMs: optionalInteger(env.RATE_LIMIT_WINDOW_MS)
 	});
+	return parsed.success ? parsed.data : DEFAULT_RATE_LIMIT_CONFIG;
+};
 
 export type EnforceAiRateLimitDeps = {
 	rateLimitSeam?: RateLimitSeam;
@@ -46,8 +53,15 @@ export const enforceAiRateLimit = (
 	const now = deps.now ?? Date.now;
 	const config = getConfig();
 
+	let clientKey: string;
+	try {
+		clientKey = getClientAddress();
+	} catch {
+		clientKey = '127.0.0.1';
+	}
+
 	const result = rateLimitSeam.checkAndConsume({
-		key: getClientAddress(),
+		key: clientKey,
 		maxRequests: config.rateLimitMaxRequests,
 		windowMs: config.rateLimitWindowMs,
 		now: now()
