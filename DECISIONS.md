@@ -7,6 +7,31 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-23 - RateLimitSeam: in-memory fixed-window limiter on all paid-AI routes
+
+- Date: 2026-06-23
+- Decision: Add a self-contained, dependency-injected `RateLimitSeam` (pure, no adapter folder, modeled on `SafetyPolicySeam`) and wire it into all six paid-AI-calling routes (`generate`, `image-generation`, `wig-try-on`, `chat-interpretation`, `meechie-studio-text`, `tools`) via a small `src/lib/server/rate-limiter.ts` helper called first in each `POST` handler, before any seam construction or body parsing.
+- Context: This repo calls paid third-party AI providers (xAI, Gemini) from public-facing API routes with no request throttling, so a single client could trigger unbounded billing/abuse. This was identified as the hardest item on a list of the 10 most difficult upgrades/fixes the repo needs (see PR description for the full list).
+- Alternatives considered:
+  - Reading `RATE_LIMIT_MAX_REQUESTS`/`RATE_LIMIT_WINDOW_MS` through `AppConfigSeam`. Rejected: several existing endpoint tests (`tests/unit/api-wig-try-on.test.ts`, `tests/unit/api-image-generation.test.ts`) mock `createAppConfigSeam` with incomplete stubs for unrelated reasons; coupling the limiter to that seam would have crashed those tests or forced changing unrelated mocks. Decoupled instead, following the existing `ImageProviderConfigSeam`-vs-`AppConfigSeam` narrow-config precedent.
+  - A distributed limiter (Redis/Upstash). Rejected for this slice: no such infrastructure exists yet in this repo, and adding one is a larger, separate infra decision. Documented as a known limitation below instead.
+  - Limiting per-route instead of with a shared limiter instance. Rejected: per-client fairness should be global across all paid-AI endpoints, not per-route, otherwise a client could exhaust each route's budget independently and multiply total spend.
+- Consequences: Every paid-AI route now returns `429` with a `Retry-After` header once a client IP (`getClientAddress()`) exceeds 20 requests per 60s (defaults; configurable via env). The limiter is in-memory and per-process: state is **not** shared across multiple serverless instances/regions, so the effective global limit is `requests_per_instance × instance_count`. This is an accepted, explicitly-documented gap, not an oversight.
+- Revisit criteria: Revisit if the app moves to a multi-instance/multi-region serverless deployment where per-process limits are no longer an acceptable approximation of a global budget, or if abuse patterns show the in-memory limiter is being bypassed by IP rotation.
+- Plan:
+  - Goal: Throttle all paid-AI-calling routes without coupling to AppConfigSeam.
+  - Seams: RateLimitSeam (new).
+  - Files: `src/lib/seams/rate-limit-seam/{contract,policy,mock,validators,fixtures,probe,test}.ts`, `src/lib/server/rate-limiter.ts`, `tests/unit/rate-limiter.test.ts`, six route files under `src/routes/api/*/+server.ts`, six existing endpoint test files updated to supply `getClientAddress`, `docs/seams.md`, `src/lib/seams/CLAUDE.md`.
+  - Commands: `npx vitest run` (targeted, 9 files, 48 tests), `npm test -- --pool=forks --maxWorkers=1` (full suite), `npm run check`, `npm run lint`.
+- Self-critique: The riskiest assumption is that an in-memory, per-process limiter is an acceptable interim mitigation; it is not a true distributed rate limit and gives a false sense of a hard global cap under horizontal scaling. This is called out explicitly above and in `docs/seams.md` rather than hidden.
+
+- Cipher Gate:
+  - Date: 2026-06-23
+  - Seams: RateLimitSeam
+  - Evidence: full-suite test run (527 passed, 1 skipped pre-existing), `npm run check` (0 errors/warnings), `npm run lint` (clean)
+  - Summary: Added a pure, dependency-injected RateLimitSeam and wired it into all six paid-AI-calling routes via a decoupled `src/lib/server/rate-limiter.ts`, deliberately avoiding coupling to AppConfigSeam.
+  - Risks: In-memory/per-process state means the limit is not enforced globally across multiple serverless instances; documented as an accepted limitation above, to be revisited if/when the deployment topology changes.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07

@@ -163,3 +163,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-06-23
+- Date: 2026-06-23
+- Context: Wiring a new RateLimitSeam config read into the request path.
+- Lesson: Before reusing an existing config seam (e.g. `AppConfigSeam`) for a new cross-cutting concern, check whether existing tests mock that seam incompletely for unrelated reasons — coupling a new feature to it can silently break those tests or force unrelated mock changes.
+- Action: Give the new concern its own narrow, independent config read (mirroring the existing `ImageProviderConfigSeam` precedent) instead of extending a shared config seam that other tests already stub loosely.
+
+## 2026-06-23
+- Date: 2026-06-23
+- Context: Discovered while adding new env vars to `.env.example` for rate-limit configuration.
+- Lesson: `.env.example`'s committed `HEAD` content was a single base64-encoded line rather than plaintext env declarations — likely introduced by a prior agent session that misread the file's true on-disk bytes. The Read tool's display for this file cannot be trusted to confirm true content either way; raw byte-level inspection (`python3 -c "open(path,'rb').read()"` or `od -c`) is required to verify `.env*` files.
+- Action: Always verify `.env*` file contents with a raw, non-tool-masked byte read before and after editing; restored `.env.example` to correct plaintext in this session.

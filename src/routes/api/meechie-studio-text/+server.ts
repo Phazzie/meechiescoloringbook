@@ -10,10 +10,13 @@ import {
 	runMeechieStudioTextPipeline,
 	type MeechieStudioTextPipelineDeps
 } from '$lib/core/meechie-studio-text-pipeline';
+import { enforceAiRateLimit } from '$lib/server/rate-limiter';
 import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	const limited = enforceAiRateLimit(getClientAddress);
+	if (limited) return limited;
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 	const deps: MeechieStudioTextPipelineDeps = {
