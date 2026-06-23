@@ -85,6 +85,23 @@ const imageExceptionResponse = (error: unknown): PipelineResponse => {
 	);
 };
 
+export type GenerateInputShapeCheck =
+	| { ok: true; data: z.infer<typeof GenerateRequestSchema> }
+	| { ok: false; response: PipelineResponse };
+
+// Exported so the route can reject schema-invalid bodies before consuming rate-limit
+// quota, without duplicating the GENERATE_INPUT_INVALID code/message in two places.
+export const checkGenerateInputShape = (body: unknown): GenerateInputShapeCheck => {
+	const parsedInput = GenerateRequestSchema.safeParse(body);
+	if (!parsedInput.success) {
+		return {
+			ok: false,
+			response: buildError(400, 'GENERATE_INPUT_INVALID', 'Generate request is invalid.')
+		};
+	}
+	return { ok: true, data: parsedInput.data };
+};
+
 export const runGeneratePipeline = async (
 	body: unknown,
 	deps: GeneratePipelineDeps
@@ -97,10 +114,9 @@ export const runGeneratePipeline = async (
 		);
 	}
 
-	const parsedInput = GenerateRequestSchema.safeParse(body);
-	if (!parsedInput.success) {
-		return buildError(400, 'GENERATE_INPUT_INVALID', 'Generate request is invalid.');
-	}
+	const shapeCheck = checkGenerateInputShape(body);
+	if (!shapeCheck.ok) return shapeCheck.response;
+	const parsedInput = { data: shapeCheck.data };
 
 	const safetyResult = deps.checkContentSafety({
 		spec: parsedInput.data.spec,

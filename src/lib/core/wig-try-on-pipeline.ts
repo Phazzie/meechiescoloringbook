@@ -48,16 +48,30 @@ const fetchImageAsBase64 = async (
 
 const ALLOWED_WIG_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+export type WigTryOnInputShapeCheck =
+	| { ok: true; data: z.infer<typeof WigTryOnRequestSchema> }
+	| { ok: false; response: PipelineResponse };
+
+// Exported so the route can reject schema-invalid bodies before consuming rate-limit
+// quota, without duplicating the WIG_TRY_ON_INPUT_INVALID code/message in two places.
+export const checkWigTryOnInputShape = (body: unknown): WigTryOnInputShapeCheck => {
+	const parsed = WigTryOnRequestSchema.safeParse(body);
+	if (!parsed.success) {
+		return {
+			ok: false,
+			response: buildError(400, 'WIG_TRY_ON_INPUT_INVALID', 'Wig try-on request is invalid.')
+		};
+	}
+	return { ok: true, data: parsed.data };
+};
+
 export const runWigTryOnPipeline = async (
 	body: unknown,
 	deps: PipelineDeps
 ): Promise<PipelineResponse> => {
-	const parsed = WigTryOnRequestSchema.safeParse(body);
-	if (!parsed.success) {
-		return buildError(400, 'WIG_TRY_ON_INPUT_INVALID', 'Wig try-on request is invalid.');
-	}
-
-	const { selfieBase64, selfieMimeType, wigId } = parsed.data;
+	const shapeCheck = checkWigTryOnInputShape(body);
+	if (!shapeCheck.ok) return shapeCheck.response;
+	const { selfieBase64, selfieMimeType, wigId } = shapeCheck.data;
 
 	const wigResult = await deps.wigCatalogSeam.getWigById(wigId);
 	if (!wigResult.ok) {

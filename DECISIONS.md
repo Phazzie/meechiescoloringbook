@@ -41,6 +41,13 @@ Short, durable decisions with context and tradeoffs.
   - Declined one Codex suggestion (back `rate-limit-seam/mock.ts` with `fixtures.ts`): this seam's mock re-exports the pure, deterministic real implementation, matching the existing `SafetyPolicySeam` precedent — there is no external I/O to fake, and fixtures are already consumed by `test.ts` feeding scenarios into the mock's `checkAndConsume` calls.
   - Evidence: docs/evidence/2026-06-23/test.txt; docs/evidence/2026-06-23/verify.txt (regenerated after the hardening fixes; 531 passed, 1 skipped pre-existing, 0 check/lint errors).
 
+- 2026-06-23 second hardening update (same day, in response to a further Codex finding on PR #187, "Charge quota only after validation passes"):
+  - The first hardening update above only moved `enforceAiRateLimit` after `parseRequestBody`, which stops syntactically-malformed JSON from consuming quota but not schema-valid-yet-business-invalid bodies (e.g. `{"spec": {}}` on `/api/generate`): each pipeline's own `XSchema.safeParse(body)` ran *after* the route-level rate-limit check, so well-formed-but-invalid requests still consumed a shared IP's quota before being rejected for free.
+  - Fixed by extracting each of the six pipelines' first-step `Schema.safeParse` + error-building into a small exported pure function, `checkXInputShape(body)`, returning the same `{ ok: true; data } | { ok: false; response }` shape the pipeline already used internally. Each pipeline's main `runXPipeline` now calls its own exported `checkXInputShape` (zero duplicated literal error code/message strings), and each route calls the same exported function before `enforceAiRateLimit`, so schema-invalid bodies are rejected before any quota is consumed.
+  - Applied uniformly across all six paid-AI pipelines/routes (`generate`, `image-generation`, `wig-try-on`, `chat-interpretation`, `meechie-studio-text`, `tools`), matching the established practice of fixing this vulnerability class identically everywhere it occurs rather than only at the single call site Codex's comment cited.
+  - Added a "does not consume rate-limit quota for schema-invalid payloads" regression test (25-request loop, asserting every response is the route's `*_INPUT_INVALID` 400 and the downstream seam/adapter/provider dependency is never invoked) to all six `tests/unit/api-*.test.ts` files.
+  - Evidence: docs/evidence/2026-06-23/test.txt; docs/evidence/2026-06-23/verify.txt (regenerated after this fix; 538 passed, 1 skipped pre-existing, 0 check/lint errors).
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07

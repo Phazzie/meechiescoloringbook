@@ -77,6 +77,18 @@ describe('/api/chat-interpretation', () => {
 		expect(providerSpy).not.toHaveBeenCalled();
 	});
 
+	it('does not consume rate-limit quota for schema-invalid payloads', async () => {
+		const providerSpy = vi.spyOn(providerAdapter, 'createChatCompletion');
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(buildEvent({ message: '' }));
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('CHAT_INPUT_INVALID');
+		}
+		expect(providerSpy).not.toHaveBeenCalled();
+	});
+
 	it('returns structured spec when provider returns valid JSON content', async () => {
 		vi.spyOn(providerAdapter, 'createChatCompletion').mockResolvedValue({
 			ok: true,

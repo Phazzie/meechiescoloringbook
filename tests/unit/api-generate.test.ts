@@ -134,6 +134,18 @@ describe('/api/generate', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
+	it('does not consume rate-limit quota for schema-invalid payloads', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(buildEvent({ spec: {} }, fetchMock));
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('GENERATE_INPUT_INVALID');
+		}
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it('returns orchestrated generation output without fetching the sibling route', async () => {
 		const deps = buildPipelineDeps(async () => ({
 			status: 200,

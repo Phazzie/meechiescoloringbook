@@ -58,6 +58,23 @@ const buildError = (
   }
 });
 
+export type ImageInputShapeCheck =
+  | { ok: true; data: z.infer<typeof ImageGenerationInputSchema> }
+  | { ok: false; response: ImagePipelineResponse };
+
+// Exported so the route can reject schema-invalid bodies before consuming rate-limit
+// quota, without duplicating the IMAGE_INPUT_INVALID code/message in two places.
+export const checkImageGenerationInputShape = (body: unknown): ImageInputShapeCheck => {
+  const parsedInput = ImageGenerationInputSchema.safeParse(body);
+  if (!parsedInput.success) {
+    return {
+      ok: false,
+      response: buildError(400, 'IMAGE_INPUT_INVALID', 'Image generation input is invalid.')
+    };
+  }
+  return { ok: true, data: parsedInput.data };
+};
+
 export const runImageGenerationPipeline = async (
   body: unknown,
   deps: ImagePipelineDeps
@@ -70,14 +87,9 @@ export const runImageGenerationPipeline = async (
     );
   }
 
-  const parsedInput = ImageGenerationInputSchema.safeParse(body);
-  if (!parsedInput.success) {
-    return buildError(
-      400,
-      'IMAGE_INPUT_INVALID',
-      'Image generation input is invalid.'
-    );
-  }
+  const shapeCheck = checkImageGenerationInputShape(body);
+  if (!shapeCheck.ok) return shapeCheck.response;
+  const parsedInput = { data: shapeCheck.data };
 
   const { prompt, variations, spec } = parsedInput.data;
   const missing = missingRequiredPhrases(prompt, spec.pageSize);

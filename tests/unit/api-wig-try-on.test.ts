@@ -73,6 +73,22 @@ describe('/api/wig-try-on', () => {
 		expect(payload.error.code).toBe('WIG_TRY_ON_INPUT_INVALID');
 	});
 
+	it('does not consume rate-limit quota for schema-invalid payloads', async () => {
+		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReset();
+		vi.mocked(createWigTryOnSeam).mockReset();
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(buildEvent({ invalid: 'payload' }));
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('WIG_TRY_ON_INPUT_INVALID');
+		}
+		expect(createAppConfigSeam).not.toHaveBeenCalled();
+		expect(createWigCatalogSeam).not.toHaveBeenCalled();
+		expect(createWigTryOnSeam).not.toHaveBeenCalled();
+	});
+
 	it('passes the request signal to wig image fetch and WigTryOnSeam', async () => {
 		vi.mocked(createAppConfigSeam).mockReturnValue({} as ReturnType<typeof createAppConfigSeam>);
 		const wig = {

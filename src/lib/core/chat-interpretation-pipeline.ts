@@ -64,14 +64,32 @@ const buildError = (
 	}
 });
 
+export type ChatInterpretationInputShapeCheck =
+	| { ok: true; data: z.infer<typeof ChatInterpretationInputSchema> }
+	| { ok: false; response: ChatPipelineResponse };
+
+// Exported so the route can reject schema-invalid bodies before consuming rate-limit
+// quota, without duplicating the CHAT_INPUT_INVALID code/message in two places.
+export const checkChatInterpretationInputShape = (
+	body: unknown
+): ChatInterpretationInputShapeCheck => {
+	const parsedInput = ChatInterpretationInputSchema.safeParse(body);
+	if (!parsedInput.success) {
+		return {
+			ok: false,
+			response: buildError(400, 'CHAT_INPUT_INVALID', 'Chat interpretation input is invalid.')
+		};
+	}
+	return { ok: true, data: parsedInput.data };
+};
+
 export const runChatInterpretationPipeline = async (
 	body: unknown,
 	deps: ChatPipelineDeps
 ): Promise<ChatPipelineResponse> => {
-	const parsedInput = ChatInterpretationInputSchema.safeParse(body);
-	if (!parsedInput.success) {
-		return buildError(400, 'CHAT_INPUT_INVALID', 'Chat interpretation input is invalid.');
-	}
+	const shapeCheck = checkChatInterpretationInputShape(body);
+	if (!shapeCheck.ok) return shapeCheck.response;
+	const parsedInput = { data: shapeCheck.data };
 
 	const chatResult = await deps.createChatCompletion({
 		model: CHAT_MODEL,

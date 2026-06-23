@@ -6,7 +6,11 @@ Info flow: UI generate request -> validation -> prompt/image/drift seams -> JSON
 import { json } from '@sveltejs/kit';
 import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
-import { generatePipelineDeps, runGeneratePipeline } from '$lib/core/generate-pipeline';
+import {
+	checkGenerateInputShape,
+	generatePipelineDeps,
+	runGeneratePipeline
+} from '$lib/core/generate-pipeline';
 import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';
 import { enforceAiRateLimit } from '$lib/server/rate-limiter';
 import { parseRequestBody } from '$lib/server/parse-request-body';
@@ -16,6 +20,8 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
+	const shapeCheck = checkGenerateInputShape(parsed.body);
+	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const imageGenerationSeam = createImageGenerationSeam(createImageProviderConfigSeam());

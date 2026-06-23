@@ -91,6 +91,16 @@ describe('/api/image-generation', () => {
     expect(payload.error.code).toBe('IMAGE_INPUT_INVALID');
   });
 
+  it('does not consume rate-limit quota for schema-invalid payloads', async () => {
+    for (let i = 0; i < 25; i += 1) {
+      const response = await POST(buildEvent({ spec: {} }));
+      expect(response.status).toBe(400);
+      const payload = await response.json();
+      expect(payload.error.code).toBe('IMAGE_INPUT_INVALID');
+    }
+    expect(mockCreateSeam).not.toHaveBeenCalled();
+  });
+
   it('returns 502 when seam returns a network error', async () => {
     mockCreateSeam.mockReturnValue({
       generate: vi.fn(async () => ({

@@ -4,7 +4,10 @@ Why: Keep xAI API keys server-side and return normalized image artifacts.
 Info flow: Client request -> seam-based pipeline -> image normalization -> response.
 */
 import { json } from '@sveltejs/kit';
-import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';
+import {
+	checkImageGenerationInputShape,
+	runImageGenerationPipeline
+} from '$lib/core/image-generation-pipeline';
 import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 import { enforceAiRateLimit } from '$lib/server/rate-limiter';
@@ -14,6 +17,8 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
+	const shapeCheck = checkImageGenerationInputShape(parsed.body);
+	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const pipelineResult = await runImageGenerationPipeline(parsed.body, {

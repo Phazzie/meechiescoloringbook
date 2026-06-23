@@ -181,3 +181,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Discovered while adding new env vars to `.env.example` for rate-limit configuration.
 - Lesson: `.env.example`'s committed `HEAD` content was a single base64-encoded line rather than plaintext env declarations — likely introduced by a prior agent session that misread the file's true on-disk bytes. The Read tool's display for this file cannot be trusted to confirm true content either way; raw byte-level inspection (`python3 -c "open(path,'rb').read()"` or `od -c`) is required to verify `.env*` files.
 - Action: Always verify `.env*` file contents with a raw, non-tool-masked byte read before and after editing; restored `.env.example` to correct plaintext in this session.
+
+## 2026-06-23
+- Date: 2026-06-23
+- Context: Hardening `enforceAiRateLimit` call ordering after the first PR #187 review round, then receiving a follow-up Codex finding on the same vulnerability class.
+- Lesson: Moving the rate limiter after `parseRequestBody` only stops JSON-syntax-invalid bodies from consuming quota; it does nothing for schema-valid-but-business-invalid bodies (e.g. `{"spec": {}}`), since each pipeline's own `Schema.safeParse` ran *after* the route-level rate-limit check. "Validate before charging quota" must mean the full validation chain (JSON parse + schema shape), not just the cheapest first step.
+- Action: Extract each pipeline's first-step `Schema.safeParse` into an exported `checkXInputShape(body)` function reused by both the pipeline and its route, so the route can reject schema-invalid bodies before calling `enforceAiRateLimit` without duplicating the error code/message. Applied to all six paid-AI routes/pipelines, with a 25-request-loop regression test per route proving none of them return 429 for schema-invalid input.

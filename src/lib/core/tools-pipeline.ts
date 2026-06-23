@@ -37,14 +37,30 @@ const buildError = (
 	}
 });
 
+export type MeechieToolInputShapeCheck =
+	| { ok: true; data: z.infer<typeof MeechieToolInputSchema> }
+	| { ok: false; response: ToolsPipelineResponse };
+
+// Exported so the route can reject schema-invalid bodies before consuming rate-limit
+// quota, without duplicating the MEECHIE_TOOL_INPUT_INVALID code/message in two places.
+export const checkMeechieToolInputShape = (body: unknown): MeechieToolInputShapeCheck => {
+	const parsedInput = MeechieToolInputSchema.safeParse(body);
+	if (!parsedInput.success) {
+		return {
+			ok: false,
+			response: buildError(400, 'MEECHIE_TOOL_INPUT_INVALID', 'Meechie tool input is invalid.')
+		};
+	}
+	return { ok: true, data: parsedInput.data };
+};
+
 export const runToolsPipeline = async (
 	body: unknown,
 	deps: ToolsPipelineDeps
 ): Promise<ToolsPipelineResponse> => {
-	const parsedInput = MeechieToolInputSchema.safeParse(body);
-	if (!parsedInput.success) {
-		return buildError(400, 'MEECHIE_TOOL_INPUT_INVALID', 'Meechie tool input is invalid.');
-	}
+	const shapeCheck = checkMeechieToolInputShape(body);
+	if (!shapeCheck.ok) return shapeCheck.response;
+	const parsedInput = { data: shapeCheck.data };
 
 	const disallowedKeywords = findDisallowedKeywords(parsedInput.data);
 	if (disallowedKeywords.length > 0) {

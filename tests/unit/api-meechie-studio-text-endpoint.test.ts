@@ -42,4 +42,13 @@ describe('/api/meechie-studio-text', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('MEECHIE_STUDIO_TEXT_INPUT_INVALID');
 	});
+
+	it('does not consume rate-limit quota for schema-invalid payloads', async () => {
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(buildEvent({ invalid: 'payload' }));
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('MEECHIE_STUDIO_TEXT_INPUT_INVALID');
+		}
+	});
 });

@@ -390,18 +390,34 @@ const providerErrorResponse = (
 	};
 };
 
+export type MeechieStudioTextInputShapeCheck =
+	| { ok: true; data: z.infer<typeof MeechieStudioTextInputSchema> }
+	| { ok: false; response: PipelineResponse };
+
+// Exported so the route can reject schema-invalid bodies before consuming rate-limit
+// quota, without duplicating the MEECHIE_STUDIO_TEXT_INPUT_INVALID code/message in two places.
+export const checkMeechieStudioTextInputShape = (body: unknown): MeechieStudioTextInputShapeCheck => {
+	const parsedInput = MeechieStudioTextInputSchema.safeParse(body);
+	if (!parsedInput.success) {
+		return {
+			ok: false,
+			response: buildError(
+				400,
+				'MEECHIE_STUDIO_TEXT_INPUT_INVALID',
+				'Meechie studio text input is invalid.'
+			)
+		};
+	}
+	return { ok: true, data: parsedInput.data };
+};
+
 export const runMeechieStudioTextPipeline = async (
 	body: unknown,
 	deps: MeechieStudioTextPipelineDeps
 ): Promise<PipelineResponse> => {
-	const parsedInput = MeechieStudioTextInputSchema.safeParse(body);
-	if (!parsedInput.success) {
-		return buildError(
-			400,
-			'MEECHIE_STUDIO_TEXT_INPUT_INVALID',
-			'Meechie studio text input is invalid.'
-		);
-	}
+	const shapeCheck = checkMeechieStudioTextInputShape(body);
+	if (!shapeCheck.ok) return shapeCheck.response;
+	const parsedInput = { data: shapeCheck.data };
 
 	const disallowedKeywords = findDisallowedKeywords(parsedInput.data);
 	if (disallowedKeywords.length > 0) {

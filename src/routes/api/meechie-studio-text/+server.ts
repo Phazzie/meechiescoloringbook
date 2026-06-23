@@ -7,6 +7,7 @@ import { env } from '$env/dynamic/private';
 import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { json } from '@sveltejs/kit';
 import {
+	checkMeechieStudioTextInputShape,
 	runMeechieStudioTextPipeline,
 	type MeechieStudioTextPipelineDeps
 } from '$lib/core/meechie-studio-text-pipeline';
@@ -17,6 +18,8 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
+	const shapeCheck = checkMeechieStudioTextInputShape(parsed.body);
+	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const deps: MeechieStudioTextPipelineDeps = {

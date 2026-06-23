@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-06-23T16:41:27.020Z",
+  "generatedAt": "2026-06-23T17:06:45.820Z",
   "cipher": {
     "date": "2026-06-23",
     "seams": "RateLimitSeam",
@@ -41,6 +41,6 @@
     "summary": "Added a pure, dependency-injected RateLimitSeam and wired it into all six paid-AI-calling routes via a decoupled `src/lib/server/rate-limiter.ts`, deliberately avoiding coupling to AppConfigSeam.",
     "risks": "In-memory/per-process state means the limit is not enforced globally across multiple serverless instances; documented as an accepted limitation above, to be revisited if/when the deployment topology changes."
   },
-  "latestChangeMs": 1782232580614.5254,
+  "latestChangeMs": 1782233858878.496,
   "status": "ok"
 }

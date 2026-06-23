@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-06-23T16:42:38.217Z",
+  "generatedAt": "2026-06-23T17:06:01.613Z",
   "seams": [
     {
       "seam": "AppConfigSeam",

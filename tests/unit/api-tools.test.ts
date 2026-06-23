@@ -41,6 +41,29 @@ describe('/api/tools', () => {
 		expect(adapterSpy).not.toHaveBeenCalled();
 	});
 
+	it('rejects schema-invalid payloads with MEECHIE_TOOL_INPUT_INVALID', async () => {
+		const adapterSpy = vi.spyOn(meechieToolAdapter, 'respond');
+		const response = await POST(buildEvent({ toolId: 'apology_translator' }));
+		const payload = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('MEECHIE_TOOL_INPUT_INVALID');
+		expect(adapterSpy).not.toHaveBeenCalled();
+	});
+
+	it('does not consume rate-limit quota for schema-invalid payloads', async () => {
+		const adapterSpy = vi.spyOn(meechieToolAdapter, 'respond');
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(buildEvent({ toolId: 'apology_translator' }));
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('MEECHIE_TOOL_INPUT_INVALID');
+		}
+		expect(adapterSpy).not.toHaveBeenCalled();
+	});
+
 	it('rejects disallowed content and does not invoke adapter', async () => {
 		const adapterSpy = vi.spyOn(meechieToolAdapter, 'respond');
 		const response = await POST(
