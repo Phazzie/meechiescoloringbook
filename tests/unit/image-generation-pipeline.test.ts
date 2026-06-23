@@ -297,8 +297,101 @@ describe('image-generation-pipeline edge cases', () => {
       expect(result.body.value.images[0].format).toBe('png');
       expect(result.body.value.images[0].mimeType).toBe('image/png');
     }
-    expect(warn).toHaveBeenCalledWith('imageFormatFromBase64: unrecognized header, defaulting to png');
+    expect(warn).toHaveBeenCalledWith('detectImageFromBase64: unrecognized header, defaulting to png');
     warn.mockRestore();
+  });
+
+  it('detects SVG payloads preceded by a BOM, XML declaration, comment, and doctype', async () => {
+    const svgText =
+      '﻿<?xml version="1.0"?>\n<!-- generated --><!DOCTYPE svg PUBLIC "x">\n<svg width="1" height="1"></svg>';
+    const svgBase64 = Buffer.from(svgText, 'utf8').toString('base64');
+
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: svgBase64 }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    if (result.body.ok) {
+      expect(result.body.value.images[0].format).toBe('svg');
+      expect(result.body.value.images[0].mimeType).toBe('image/svg+xml');
+      expect(result.body.value.images[0].encoding).toBe('utf8');
+      expect(result.body.value.images[0].data).toBe(svgText);
+    }
+  });
+
+  it('marks WebP base64 as webp for downstream packaging', async () => {
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: 'UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEA' }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    if (result.body.ok) {
+      expect(result.body.value.images[0].format).toBe('webp');
+      expect(result.body.value.images[0].mimeType).toBe('image/webp');
+      expect(result.body.value.images[0].encoding).toBe('base64');
+    }
+  });
+
+  it('does not hang on a pathological non-SVG payload that mimics nested comments', async () => {
+    // Many repeated "--><!--" runs are the shape that triggers catastrophic backtracking in a
+    // lazy `[\s\S]*?`-based comment pattern; this payload never resolves to a real <svg> tag, so
+    // a vulnerable regex would still need to exhaust every backtracking path before failing.
+    const pathological = '<!--' + '--><!--'.repeat(50_000) + 'not svg';
+    const base64 = Buffer.from(pathological, 'utf8').toString('base64');
+
+    const start = Date.now();
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: base64 }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+    const elapsedMs = Date.now() - start;
+
+    expect(elapsedMs).toBeLessThan(1000);
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    if (result.body.ok) {
+      expect(result.body.value.images[0].format).toBe('png');
+    }
   });
 
   it('marks JPEG base64 as jpg for downstream packaging', async () => {

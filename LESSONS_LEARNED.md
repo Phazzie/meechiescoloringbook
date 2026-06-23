@@ -163,3 +163,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-06-23
+- Date: 2026-06-23
+- Context: Porting an `initialized`/`draftLoaded` guard into `studio-state.svelte.ts` so `scheduleDraftSave()` can't fire before `init()` finishes loading the existing draft (which would otherwise overwrite it with default state).
+- Lesson: A `finally` block that only sets a "ready" flag on the success path leaves consumers permanently blocked if an earlier `await` in the `try` rejects; the guard flag must be set unconditionally in `finally`, separate from whether the awaited work actually succeeded.
+- Action: Wrap the awaited initialization in `try { ... } finally { this.draftLoaded = true; this.initialized = true; ... }` so the flags always flip even on a rejected promise, and track "load attempted" separately from "load succeeded with data."
+
+## 2026-06-23
+- Date: 2026-06-23
+- Context: Reviewing CodeQL/Gemini/CodeRabbit findings of catastrophic backtracking in an SVG-sniffing regex (`(?:<!--[\s\S]*?-->...)*` against repeated `--><!--` runs).
+- Lesson: A lazy `[\s\S]*?` comment body inside an outer `*` repetition lets the engine backtrack across many equivalent ways to split repeated delimiter-like runs; rewriting the comment body as a negative-lookahead-per-character (`(?:(?!-->)[\s\S])*`) gives each comment exactly one possible parse, and capping the input length before testing is cheap defense in depth on top of that.
+- Action: Prefer non-backtracking patterns (negative lookahead instead of lazy `*?`) for any regex that runs against untrusted/external text, and add a length cap before the test when the real match is known to live near the start of the string; add a timed regression test with a large pathological payload to prove the fix.

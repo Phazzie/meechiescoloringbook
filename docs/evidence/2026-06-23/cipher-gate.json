@@ -1,0 +1,62 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-23T10:02:46.448Z",
+  "cipher": {
+    "date": "2026-06-23",
+    "seams": "RateLimitSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-23/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/seam-ledger.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/clan-chain.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/proof-tape.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/proof-tape.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-23/rewind-RateLimitSeam.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Added self-contained RateLimitSeam (Zod-schema contract, scenario-aware mock, throttled idle-key sweep, clock-rollback-safe `resetAtMs`) wired into all 6 metered AI-provider routes, plus SVG/WebP image-format detection and a saved-draft mimeType fallback, closing the in-scope unaddressed review threads from PR #171 and PR #180; `npm run verify` passed clean (svelte-check 0 errors/0 warnings, 553 tests passed/1 skipped, lint/build green).",
+    "risks": "Rate limiting remains per-process in-memory state, so it will not coordinate across multiple server instances/regions. `enforceRateLimit` runs before request-body validation on all 6 routes by design, so a client's own malformed request still burns one slot of its own budget even though no provider call was made; this is judged a minor, self-inflicted cost against a single client's own quota rather than a cross-client abuse vector. CodeRabbit's `.jsonc`-for-evidence-files nitpicks on both source PRs are intentionally left unaddressed as low-value churn on auto-generated, dated evidence snapshots that aren't part of this feature."
+  },
+  "latestChangeMs": 1782208526607.4678,
+  "status": "ok"
+}

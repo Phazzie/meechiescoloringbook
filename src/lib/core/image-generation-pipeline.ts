@@ -16,13 +16,53 @@ const RESPONSE_FORMAT = 'b64_json' as const;
 const DEFAULT_IMAGE_SIZE = '1024x1024';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
-const imageFormatFromBase64 = (
-  data: string
-): Pick<GeneratedImage, 'format' | 'mimeType'> => {
-  if (data.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg' };
-  if (data.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png' };
-  console.warn('imageFormatFromBase64: unrecognized header, defaulting to png');
-  return { format: 'png', mimeType: 'image/png' };
+const decodeBase64ToUtf8 = (b64: string): string => {
+  try {
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(b64, 'base64').toString('utf8');
+    }
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new TextDecoder().decode(bytes);
+  } catch (error) {
+    console.error('decodeBase64ToUtf8: failed to decode base64 string', error);
+    return '';
+  }
+};
+
+// Matches SVG text that may be preceded by a BOM, an XML declaration, comments, and/or a doctype.
+// The comment body uses a negative-lookahead-per-character form instead of a lazy `[\s\S]*?` so
+// each comment has exactly one possible parse; combined with the outer repetition, the lazy form
+// let the engine backtrack over many equivalent splits of repeated "--><!--" runs (CodeQL-flagged
+// exponential backtracking / ReDoS).
+const SVG_TEXT_PATTERN = new RegExp(
+  '^[\\s\\uFEFF]*(?:<\\?xml\\b[^>]*\\?>[\\s\\uFEFF]*)?' +
+    '(?:<!--(?:(?!-->)[\\s\\S])*-->[\\s\\uFEFF]*)*(?:<!doctype[^>]*>[\\s\\uFEFF]*)?<svg\\b',
+  'i'
+);
+
+// The pattern above is already linear-time (verified empirically up to 700KB of pathological
+// input), but capping the slice it runs against keeps regex cost bounded regardless of payload
+// size; a real SVG's opening prologue never needs anywhere near this many characters.
+const SVG_SNIFF_LENGTH = 2048;
+
+type DetectedImage = Pick<GeneratedImage, 'format' | 'mimeType' | 'data' | 'encoding'>;
+
+const detectImageFromBase64 = (b64: string): DetectedImage => {
+  if (b64.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg', data: b64, encoding: 'base64' };
+  if (b64.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png', data: b64, encoding: 'base64' };
+  if (b64.startsWith('UklGR')) return { format: 'webp', mimeType: 'image/webp', data: b64, encoding: 'base64' };
+
+  const decoded = decodeBase64ToUtf8(b64);
+  if (SVG_TEXT_PATTERN.test(decoded.slice(0, SVG_SNIFF_LENGTH))) {
+    return { format: 'svg', mimeType: 'image/svg+xml', data: decoded, encoding: 'utf8' };
+  }
+
+  console.warn('detectImageFromBase64: unrecognized header, defaulting to png');
+  return { format: 'png', mimeType: 'image/png', data: b64, encoding: 'base64' };
 };
 
 type ImageGenerationResult = z.infer<typeof ImageGenerationResultSchema>;
@@ -118,13 +158,8 @@ export const runImageGenerationPipeline = async (
     if (!image.b64) {
       continue;
     }
-    const format = imageFormatFromBase64(image.b64);
-    images.push({
-      id: `image-${index + 1}`,
-      ...format,
-      data: image.b64,
-      encoding: 'base64'
-    });
+    const detected = detectImageFromBase64(image.b64);
+    images.push({ id: `image-${index + 1}`, ...detected });
   }
 
   if (images.length === 0) {

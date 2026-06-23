@@ -58,3 +58,5 @@ All notable user-visible changes for this repo.
 - Updated Wu-Bob response guidance to a combined voice format.
 - Added AI-agent reference notes plus a Seam-Driven Development checklist to keep plans and evidence explicit for autonomous agents.
 - Shortened the canonical prompt template to fit the xAI 1024-character limit, updated drift checks, fixtures, and probes to match, and clarified negative/option line phrasing.
+- Added per-route rate limiting to all 6 metered AI-provider endpoints (generate, image-generation, chat-interpretation, meechie-studio-text, tools, wig-try-on) to guard against abusive request volume.
+- Fixed image-generation responses to correctly detect WebP and SVG payloads instead of defaulting them to PNG, and fixed saved drafts predating the `mimeType` field to render correctly instead of breaking the image preview.
