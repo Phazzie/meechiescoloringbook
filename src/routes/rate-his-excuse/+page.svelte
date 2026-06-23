@@ -193,7 +193,7 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				id="excuse"
 				data-testid="rate-excuse-input"
 				bind:value={excuse}
-				on:keydown={handleKeydown}
+				onkeydown={handleKeydown}
 				rows="4"
 				placeholder="My phone died. I was with the guys. I was working late..."
 				aria-label="Enter the excuse"
@@ -208,7 +208,7 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				type="button"
 				class="cta"
 				data-testid="rate-submit"
-				on:click={handleSubmit}
+				onclick={handleSubmit}
 				disabled={isWorking || !excuse.trim()}
 			>
 				{isWorking ? 'Court is reviewing...' : 'Let Meechie Hear It'}
@@ -221,7 +221,7 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 
 			<div class="score-display">
 				<span class="score-number" style="color: {ratingColor}"
-					>{result.headline}</span
+					>{ratingScore}</span
 				>
 				<span class="score-label">out of 10</span>
 			</div>
@@ -233,7 +233,7 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				type="button"
 				class="ghost-btn"
 				data-testid="rate-reset"
-				on:click={reset}>← Different excuse</button
+				onclick={reset}>← Different excuse</button
 			>
 		</header>
 
@@ -269,7 +269,7 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				type="button"
 				class="cta"
 				data-testid="rate-generate-page"
-				on:click={handleGenerate}
+				onclick={handleGenerate}
 				disabled={isGenerating}
 			>
 				{isGenerating ? 'Printing the ruling...' : 'Generate My Coloring Page'}

@@ -181,7 +181,7 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 				id="situation"
 				data-testid="who-situation-input"
 				bind:value={situation}
-				on:keydown={handleKeydown}
+				onkeydown={handleKeydown}
 				rows="5"
 				placeholder="He said his phone died but I saw him active on Instagram at midnight..."
 				aria-label="Describe the situation"
@@ -196,7 +196,7 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 				type="button"
 				class="cta"
 				data-testid="who-submit"
-				on:click={handleSubmit}
+				onclick={handleSubmit}
 				disabled={isWorking || !situation.trim()}
 			>
 				{isWorking ? "She's reading it..." : "She's listening. Go."}
@@ -213,7 +213,7 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 				type="button"
 				class="ghost-btn"
 				data-testid="who-reset"
-				on:click={reset}>← Different situation</button
+				onclick={reset}>← Different situation</button
 			>
 		</header>
 
@@ -249,7 +249,7 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 				type="button"
 				class="cta"
 				data-testid="who-generate-page"
-				on:click={handleGenerate}
+				onclick={handleGenerate}
 				disabled={isGenerating}
 			>
 				{isGenerating ? 'Printing the truth...' : 'Generate My Coloring Page'}

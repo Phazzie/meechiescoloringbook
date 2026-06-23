@@ -169,7 +169,7 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 				type="button"
 				class="tap-cta"
 				data-testid="random-tap"
-				on:click={handleTap}
+				onclick={handleTap}
 				aria-label="Get a Meechie saying"
 			>
 				Tap For Truth
@@ -192,7 +192,7 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 					type="button"
 					class="ghost-btn"
 					data-testid="random-another"
-					on:click={another}
+					onclick={another}
 				>
 					Another one
 				</button>
@@ -231,7 +231,7 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 				type="button"
 				class="cta"
 				data-testid="random-generate-page"
-				on:click={handleGenerate}
+				onclick={handleGenerate}
 				disabled={isGenerating}
 			>
 				{isGenerating ? 'Printing the truth...' : 'Generate My Coloring Page'}
