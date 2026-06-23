@@ -12,15 +12,15 @@ import type { RateLimitSeam } from '$lib/seams/rate-limit-seam/contract';
 // distributed one — see DECISIONS.md (RateLimitSeam) for the accepted tradeoff.
 const sharedRateLimitSeam: RateLimitSeam = createRateLimitSeam();
 
-const rateLimitConfigSchema = z.object({
-	rateLimitMaxRequests: z.number().int().min(1).max(1000).default(20),
-	rateLimitWindowMs: z.number().int().min(1000).max(3_600_000).default(60_000)
-});
-
 const DEFAULT_RATE_LIMIT_CONFIG = {
 	rateLimitMaxRequests: 20,
 	rateLimitWindowMs: 60_000
 };
+
+// Each field is parsed independently so an out-of-range/invalid value in one
+// field falls back to its own default without discarding a valid sibling field.
+const rateLimitMaxRequestsSchema = z.number().int().min(1).max(1000);
+const rateLimitWindowMsSchema = z.number().int().min(1000).max(3_600_000);
 
 const optionalInteger = (value: string | undefined): number | undefined => {
 	if (value === undefined || value.trim() === '') return undefined;
@@ -28,14 +28,30 @@ const optionalInteger = (value: string | undefined): number | undefined => {
 	return Number(value);
 };
 
+const generateFallbackKey = (): string => {
+	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+		return `unknown-client-${crypto.randomUUID()}`;
+	}
+	return `unknown-client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
 // Deliberately decoupled from AppConfigSeam: rate limiting must keep working
 // even when unrelated required config (e.g. xaiApiKey) is absent or mocked.
 export const readRateLimitConfig = (env: Record<string, string | undefined> = privateEnv) => {
-	const parsed = rateLimitConfigSchema.safeParse({
-		rateLimitMaxRequests: optionalInteger(env.RATE_LIMIT_MAX_REQUESTS),
-		rateLimitWindowMs: optionalInteger(env.RATE_LIMIT_WINDOW_MS)
-	});
-	return parsed.success ? parsed.data : DEFAULT_RATE_LIMIT_CONFIG;
+	const maxRequestsParsed = rateLimitMaxRequestsSchema.safeParse(
+		optionalInteger(env.RATE_LIMIT_MAX_REQUESTS)
+	);
+	const windowMsParsed = rateLimitWindowMsSchema.safeParse(
+		optionalInteger(env.RATE_LIMIT_WINDOW_MS)
+	);
+	return {
+		rateLimitMaxRequests: maxRequestsParsed.success
+			? maxRequestsParsed.data
+			: DEFAULT_RATE_LIMIT_CONFIG.rateLimitMaxRequests,
+		rateLimitWindowMs: windowMsParsed.success
+			? windowMsParsed.data
+			: DEFAULT_RATE_LIMIT_CONFIG.rateLimitWindowMs
+	};
 };
 
 export type EnforceAiRateLimitDeps = {
@@ -57,7 +73,11 @@ export const enforceAiRateLimit = (
 	try {
 		clientKey = getClientAddress();
 	} catch {
-		clientKey = '127.0.0.1';
+		// A fixed fallback key would let every client whose address lookup fails
+		// share one quota bucket, collapsing per-client limiting into a single
+		// site-wide cap. A unique key per failure keeps failures from limiting
+		// each other instead.
+		clientKey = generateFallbackKey();
 	}
 
 	const result = rateLimitSeam.checkAndConsume({

@@ -8,6 +8,7 @@ import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { json } from '@sveltejs/kit';
 import {
 	checkMeechieStudioTextInputShape,
+	checkMeechieStudioTextSafety,
 	runMeechieStudioTextPipeline,
 	type MeechieStudioTextPipelineDeps
 } from '$lib/core/meechie-studio-text-pipeline';
@@ -20,6 +21,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	if (!parsed.ok) return parsed.response;
 	const shapeCheck = checkMeechieStudioTextInputShape(parsed.body);
 	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
+	const safetyCheck = checkMeechieStudioTextSafety(shapeCheck.data);
+	if (!safetyCheck.ok)
+		return json(safetyCheck.response.body, { status: safetyCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const deps: MeechieStudioTextPipelineDeps = {

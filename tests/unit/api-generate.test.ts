@@ -439,4 +439,18 @@ describe('/api/generate', () => {
 		expect(payload.error.details.policyDetails).toContain('styleHint');
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
+
+	it('does not consume rate-limit quota for content-policy-violation payloads', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(
+				buildEvent({ spec: validSpec, styleHint: 'self-harm scene' }, fetchMock)
+			);
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('CONTENT_POLICY_VIOLATION');
+		}
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
 });

@@ -48,7 +48,7 @@ describe('enforceAiRateLimit', () => {
 		expect(enforceAiRateLimit(() => '198.51.100.1', deps)).toBeNull();
 	});
 
-	it('falls back to a fixed key instead of throwing when getClientAddress throws', () => {
+	it('does not throw when getClientAddress throws, and falls back to an allowed result', () => {
 		const rateLimitSeam = createRateLimitSeam();
 		const deps = { rateLimitSeam, getConfig, now: () => 1_000 };
 		const throwingGetClientAddress = () => {
@@ -57,7 +57,20 @@ describe('enforceAiRateLimit', () => {
 
 		expect(() => enforceAiRateLimit(throwingGetClientAddress, deps)).not.toThrow();
 		expect(enforceAiRateLimit(throwingGetClientAddress, deps)).toBeNull();
-		expect(enforceAiRateLimit(throwingGetClientAddress, deps)).not.toBeNull();
+	});
+
+	it('does not let repeated address-lookup failures share one quota bucket', () => {
+		const rateLimitSeam = createRateLimitSeam();
+		const deps = { rateLimitSeam, getConfig, now: () => 1_000 };
+		const throwingGetClientAddress = () => {
+			throw new Error('could not determine client address');
+		};
+
+		// getConfig caps real clients at 2 requests; if fallback lookups shared a
+		// single key, a 3rd call here would 429. Each failure must get its own key.
+		for (let i = 0; i < 10; i += 1) {
+			expect(enforceAiRateLimit(throwingGetClientAddress, deps)).toBeNull();
+		}
 	});
 
 	it('treats a negative env value as unset and falls back to the default', () => {
@@ -65,6 +78,16 @@ describe('enforceAiRateLimit', () => {
 			rateLimitMaxRequests: 20,
 			rateLimitWindowMs: 60_000
 		});
+	});
+
+	it('keeps a valid field when its sibling field is invalid, instead of reverting both to defaults', () => {
+		expect(
+			readRateLimitConfig({ RATE_LIMIT_MAX_REQUESTS: '99999', RATE_LIMIT_WINDOW_MS: '30000' })
+		).toEqual({ rateLimitMaxRequests: 20, rateLimitWindowMs: 30_000 });
+
+		expect(
+			readRateLimitConfig({ RATE_LIMIT_MAX_REQUESTS: '5', RATE_LIMIT_WINDOW_MS: 'not-a-number' })
+		).toEqual({ rateLimitMaxRequests: 5, rateLimitWindowMs: 60_000 });
 	});
 
 	it('falls back to default config instead of throwing when env values are out of range', () => {

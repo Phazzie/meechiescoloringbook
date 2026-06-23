@@ -6,6 +6,7 @@ Info flow: Client tool request -> schema + safety checks -> tool adapter -> JSON
 import { json } from '@sveltejs/kit';
 import {
 	checkMeechieToolInputShape,
+	checkMeechieToolSafety,
 	runToolsPipeline,
 	toolsPipelineDeps
 } from '$lib/core/tools-pipeline';
@@ -18,6 +19,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	if (!parsed.ok) return parsed.response;
 	const shapeCheck = checkMeechieToolInputShape(parsed.body);
 	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
+	const safetyCheck = checkMeechieToolSafety(shapeCheck.data);
+	if (!safetyCheck.ok)
+		return json(safetyCheck.response.body, { status: safetyCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const pipelineResult = await runToolsPipeline(parsed.body, toolsPipelineDeps);

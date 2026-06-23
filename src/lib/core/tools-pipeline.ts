@@ -54,6 +54,30 @@ export const checkMeechieToolInputShape = (body: unknown): MeechieToolInputShape
 	return { ok: true, data: parsedInput.data };
 };
 
+export type MeechieToolSafetyCheck =
+	| { ok: true }
+	| { ok: false; response: ToolsPipelineResponse };
+
+// Exported so the route can reject disallowed-content bodies before consuming
+// rate-limit quota, without duplicating the DISALLOWED_CONTENT code/message.
+export const checkMeechieToolSafety = (
+	data: z.infer<typeof MeechieToolInputSchema>
+): MeechieToolSafetyCheck => {
+	const disallowedKeywords = findDisallowedKeywords(data);
+	if (disallowedKeywords.length > 0) {
+		return {
+			ok: false,
+			response: buildError(
+				400,
+				'DISALLOWED_CONTENT',
+				'Meechie tool input contains disallowed content.',
+				{ keywords: disallowedKeywords.join(',') }
+			)
+		};
+	}
+	return { ok: true };
+};
+
 export const runToolsPipeline = async (
 	body: unknown,
 	deps: ToolsPipelineDeps
@@ -62,12 +86,8 @@ export const runToolsPipeline = async (
 	if (!shapeCheck.ok) return shapeCheck.response;
 	const parsedInput = { data: shapeCheck.data };
 
-	const disallowedKeywords = findDisallowedKeywords(parsedInput.data);
-	if (disallowedKeywords.length > 0) {
-		return buildError(400, 'DISALLOWED_CONTENT', 'Meechie tool input contains disallowed content.', {
-			keywords: disallowedKeywords.join(',')
-		});
-	}
+	const safetyCheck = checkMeechieToolSafety(parsedInput.data);
+	if (!safetyCheck.ok) return safetyCheck.response;
 
 	const result = await deps.respond(parsedInput.data);
 	const parsedResult = MeechieToolResultSchema.safeParse(result);

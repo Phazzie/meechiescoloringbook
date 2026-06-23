@@ -51,4 +51,26 @@ describe('/api/meechie-studio-text', () => {
 			expect(payload.error.code).toBe('MEECHIE_STUDIO_TEXT_INPUT_INVALID');
 		}
 	});
+
+	it('does not consume rate-limit quota for disallowed-content payloads', async () => {
+		const disallowedPayload = {
+			actionId: 'generate',
+			modeId: 'test',
+			modeLabel: 'Test Mode',
+			themeLabel: 'Test Theme',
+			evidence: 'evidence mentioning minors in coloring books',
+			voice: {
+				intensity: 'receipts_out',
+				rawness: 'mild',
+				thirdPerson: 'sometimes'
+			}
+		};
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(buildEvent(disallowedPayload));
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('DISALLOWED_CONTENT');
+		}
+	});
 });

@@ -102,6 +102,32 @@ export const checkGenerateInputShape = (body: unknown): GenerateInputShapeCheck 
 	return { ok: true, data: parsedInput.data };
 };
 
+export type GenerateSafetyCheck = { ok: true } | { ok: false; response: PipelineResponse };
+
+// Exported so the route can reject content-policy-violating bodies before consuming
+// rate-limit quota, without duplicating the CONTENT_POLICY_VIOLATION code/message.
+export const checkGenerateSafety = (
+	data: z.infer<typeof GenerateRequestSchema>,
+	checkContentSafety: GeneratePipelineDeps['checkContentSafety']
+): GenerateSafetyCheck => {
+	const safetyResult = checkContentSafety({
+		spec: data.spec,
+		styleHint: data.styleHint
+	});
+	if (!safetyResult.ok) {
+		return {
+			ok: false,
+			response: buildError(
+				400,
+				'CONTENT_POLICY_VIOLATION',
+				safetyResult.error.message,
+				safetyErrorDetails(safetyResult.error)
+			)
+		};
+	}
+	return { ok: true };
+};
+
 export const runGeneratePipeline = async (
 	body: unknown,
 	deps: GeneratePipelineDeps
@@ -118,18 +144,8 @@ export const runGeneratePipeline = async (
 	if (!shapeCheck.ok) return shapeCheck.response;
 	const parsedInput = { data: shapeCheck.data };
 
-	const safetyResult = deps.checkContentSafety({
-		spec: parsedInput.data.spec,
-		styleHint: parsedInput.data.styleHint
-	});
-	if (!safetyResult.ok) {
-		return buildError(
-			400,
-			'CONTENT_POLICY_VIOLATION',
-			safetyResult.error.message,
-			safetyErrorDetails(safetyResult.error)
-		);
-	}
+	const safetyCheck = checkGenerateSafety(parsedInput.data, deps.checkContentSafety);
+	if (!safetyCheck.ok) return safetyCheck.response;
 
 	const validation = await deps.validateSpec({ spec: parsedInput.data.spec });
 	if (!validation.ok) {

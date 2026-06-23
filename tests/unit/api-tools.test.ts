@@ -80,6 +80,23 @@ describe('/api/tools', () => {
 		expect(adapterSpy).not.toHaveBeenCalled();
 	});
 
+	it('does not consume rate-limit quota for disallowed-content payloads', async () => {
+		const adapterSpy = vi.spyOn(meechieToolAdapter, 'respond');
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(
+				buildEvent({
+					toolId: 'apology_translator',
+					apology: 'This is self-harm content.'
+				})
+			);
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('DISALLOWED_CONTENT');
+		}
+		expect(adapterSpy).not.toHaveBeenCalled();
+	});
+
 	it('returns adapter output for valid input', async () => {
 		vi.spyOn(meechieToolAdapter, 'respond').mockResolvedValue({
 			ok: true,

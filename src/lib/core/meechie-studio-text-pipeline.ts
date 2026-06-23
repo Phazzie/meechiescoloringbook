@@ -411,6 +411,29 @@ export const checkMeechieStudioTextInputShape = (body: unknown): MeechieStudioTe
 	return { ok: true, data: parsedInput.data };
 };
 
+export type MeechieStudioTextSafetyCheck =
+	| { ok: true }
+	| { ok: false; response: PipelineResponse };
+
+// Exported so the route can reject disallowed-content bodies before consuming
+// rate-limit quota, without duplicating the DISALLOWED_CONTENT code/message.
+export const checkMeechieStudioTextSafety = (
+	data: z.infer<typeof MeechieStudioTextInputSchema>
+): MeechieStudioTextSafetyCheck => {
+	const disallowedKeywords = findDisallowedKeywords(data);
+	if (disallowedKeywords.length > 0) {
+		return {
+			ok: false,
+			response: buildError(
+				400,
+				'DISALLOWED_CONTENT',
+				'Meechie studio text input contains disallowed content.'
+			)
+		};
+	}
+	return { ok: true };
+};
+
 export const runMeechieStudioTextPipeline = async (
 	body: unknown,
 	deps: MeechieStudioTextPipelineDeps
@@ -419,14 +442,8 @@ export const runMeechieStudioTextPipeline = async (
 	if (!shapeCheck.ok) return shapeCheck.response;
 	const parsedInput = { data: shapeCheck.data };
 
-	const disallowedKeywords = findDisallowedKeywords(parsedInput.data);
-	if (disallowedKeywords.length > 0) {
-		return buildError(
-			400,
-			'DISALLOWED_CONTENT',
-			'Meechie studio text input contains disallowed content.'
-		);
-	}
+	const safetyCheck = checkMeechieStudioTextSafety(parsedInput.data);
+	if (!safetyCheck.ok) return safetyCheck.response;
 
 	const provider: ProviderAdapterSeam = deps.createProvider();
 	const messages = buildMessages(parsedInput.data);
