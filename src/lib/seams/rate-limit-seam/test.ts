@@ -153,6 +153,26 @@ describe('RateLimitSeam mock contract', () => {
 		expect(fourth.error.resetAtMs).toBe(500 + policy.windowMs);
 	});
 
+	it('bounds resetAtMs to nowMs + windowMs after a large backward clock correction', () => {
+		const seam = createMockRateLimitSeam();
+		const policy = { ...sampleCheckInput, limit: 1, windowMs: 600_000 };
+
+		const first = seam.checkAndConsume({ ...policy, nowMs: 600_000 });
+		expect(first.ok).toBe(true);
+
+		// Clock corrects far backward (e.g. an NTP resync), well past the start of the window.
+		// Without clamping the stored hit to the corrected nowMs, resetAtMs would be computed as
+		// the stale future-dated hit (600_000) plus windowMs (1_200_000) -- double the intended
+		// 10-minute window measured from the corrected clock.
+		const second = seam.checkAndConsume({ ...policy, nowMs: 0 });
+
+		expect(second.ok).toBe(false);
+		if (second.ok) return;
+		expect(second.error.code).toBe('RATE_LIMIT_EXCEEDED');
+		if (second.error.code !== 'RATE_LIMIT_EXCEEDED') return;
+		expect(second.error.resetAtMs).toBe(600_000);
+	});
+
 	it('does not grow unbounded when many distinct keys never return', () => {
 		const seam = createMockRateLimitSeam();
 		for (let i = 0; i < 500; i += 1) {

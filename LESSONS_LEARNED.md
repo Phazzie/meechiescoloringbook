@@ -164,19 +164,29 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
 
-## 2026-06-23
+## 2026-06-23 - Draft-load guard flag timing
+
 - Date: 2026-06-23
 - Context: Porting an `initialized`/`draftLoaded` guard into `studio-state.svelte.ts` so `scheduleDraftSave()` can't fire before `init()` finishes loading the existing draft (which would otherwise overwrite it with default state).
 - Lesson: A `finally` block that only sets a "ready" flag on the success path leaves consumers permanently blocked if an earlier `await` in the `try` rejects; the guard flag must be set unconditionally in `finally`, separate from whether the awaited work actually succeeded.
 - Action: Wrap the awaited initialization in `try { ... } finally { this.draftLoaded = true; this.initialized = true; ... }` so the flags always flip even on a rejected promise, and track "load attempted" separately from "load succeeded with data."
 
-## 2026-06-23
+## 2026-06-23 - SVG-sniffing regex ReDoS
+
 - Date: 2026-06-23
 - Context: Reviewing CodeQL/Gemini/CodeRabbit findings of catastrophic backtracking in an SVG-sniffing regex (`(?:<!--[\s\S]*?-->...)*` against repeated `--><!--` runs).
 - Lesson: A lazy `[\s\S]*?` comment body inside an outer `*` repetition lets the engine backtrack across many equivalent ways to split repeated delimiter-like runs; rewriting the comment body as a negative-lookahead-per-character (`(?:(?!-->)[\s\S])*`) gives each comment exactly one possible parse, and capping the input length before testing is cheap defense in depth on top of that.
 - Action: Prefer non-backtracking patterns (negative lookahead instead of lazy `*?`) for any regex that runs against untrusted/external text, and add a length cap before the test when the real match is known to live near the start of the string; add a timed regression test with a large pathological payload to prove the fix.
 
-## 2026-06-23
+## 2026-06-23 - Draft-load success tracking and SVG MIME/perf fixes
+
 - Date: 2026-06-23
 - Context: Gemini Code Assist review on PR #184 caught that the prior `draftLoaded` flag (set unconditionally in `init()`'s `finally`) only tracked "load attempted," not "load succeeded" — if `creationStoreAdapter.getDraft()` itself failed, `scheduleDraftSave()` would still be unblocked and could overwrite a real stored draft with the in-memory default spec.
 - Action: Added a separate `draftLoadSuccess` flag set only inside the `draft.ok` branch in `init()`, and gated `scheduleDraftSave()` on both `draftLoaded && draftLoadSuccess`; same pattern applied to a `detectImageFromBase64` perf nit (decode only a base64 prefix for the SVG sniff test, full-decode only on a positive match) and an `image/svg` vs `image/svg+xml` MIME fallback typo in the same review pass.
+
+## 2026-06-23 - SVG comment-after-doctype and rate-limit clock rollback
+
+- Date: 2026-06-23
+- Context: A second review pass on PR #184 (CodeRabbit and Codex, independently) found that `SVG_TEXT_PATTERN` only allowed a comment *before* the doctype, so a real SVG with `<!DOCTYPE svg><!-- generated --><svg ...>` fell through to the PNG fallback; separately, Codex flagged that `RateLimitSeam`'s sliding window let a hit recorded before a large backward clock correction (e.g. an NTP resync) keep counting as "recent" until the clock caught back up to its original timestamp, inflating `resetAtMs` to roughly double the intended window.
+- Lesson: A "comment OR doctype, either order, repeated" grammar needs the two alternatives interleaved under one repetition (disambiguated by their distinct `<!--`/`<!d` prefixes) rather than "optional comments, then an optional doctype." For the rate limiter, the existing fix for backward clock steps (never *drop* a future-dated hit, so a clock rollback can't be used to bypass the budget) was incomplete: it didn't bound how far the reported reset time could be pushed out by a stale future-dated timestamp.
+- Action: Rewrote the regex as `(?:(?:<!--...-->|<!doctype[^>]*>)\s*)*<svg\b` so comments and the doctype can interleave in any order/count; clamped each stored hit timestamp to `nowMs` before the window check in `pruneExpired` so a hit can never be dropped early (still blocks immediately) but can no longer push `resetAtMs` past `nowMs + windowMs`. Added regression tests for both: an SVG with a comment after the doctype, and a rate-limit check after a large backward clock correction.

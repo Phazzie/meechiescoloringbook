@@ -333,6 +333,37 @@ describe('image-generation-pipeline edge cases', () => {
     }
   });
 
+  it('detects SVG payloads with a comment placed after the doctype', async () => {
+    const svgText = '<!DOCTYPE svg><!-- generated --><svg width="1" height="1"></svg>';
+    const svgBase64 = Buffer.from(svgText, 'utf8').toString('base64');
+
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: svgBase64 }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    if (result.body.ok) {
+      expect(result.body.value.images[0].format).toBe('svg');
+      expect(result.body.value.images[0].mimeType).toBe('image/svg+xml');
+      expect(result.body.value.images[0].encoding).toBe('utf8');
+      expect(result.body.value.images[0].data).toBe(svgText);
+    }
+  });
+
   it('marks WebP base64 as webp for downstream packaging', async () => {
     const result = await runImageGenerationPipeline(
       {

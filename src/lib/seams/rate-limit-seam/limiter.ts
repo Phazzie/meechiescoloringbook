@@ -9,8 +9,16 @@ import { validateRateLimitCheckInput } from './validators';
 // independent, per-process budget. On a serverless platform (Vercel) each function instance
 // gets its own Map, so this limits abuse per-instance, not globally across every instance
 // that might handle requests for the same key.
-const pruneExpired = (hitTimestampsMs: number[], windowStartMs: number): number[] =>
-	hitTimestampsMs.filter((timestampMs) => timestampMs > windowStartMs);
+//
+// Each stored timestamp is clamped to nowMs before the window check. A hit can never be dropped
+// just because the clock stepped backward (clamping only lowers a timestamp, and a timestamp at
+// nowMs itself always satisfies `> nowMs - windowMs`), so a backward clock step still can't be
+// used to evade the limit. But without the clamp, a stale future-dated timestamp left over from
+// before a large backward correction (e.g. an NTP resync) would keep being counted as "recent"
+// until nowMs caught back up to it, inflating resetAtMs far past the intended window; clamping
+// bounds resetAtMs to at most nowMs + windowMs in every case.
+const pruneExpired = (hitTimestampsMs: number[], windowStartMs: number, nowMs: number): number[] =>
+	hitTimestampsMs.map((timestampMs) => Math.min(timestampMs, nowMs)).filter((timestampMs) => timestampMs > windowStartMs);
 
 export type KeyState = { hitTimestampsMs: number[]; windowMs: number };
 
@@ -20,7 +28,7 @@ export type KeyState = { hitTimestampsMs: number[]; windowMs: number };
 // Exported for direct unit testing of the eviction behavior; not part of the RateLimitSeam contract.
 export const sweepIdleKeys = (stateByKey: Map<string, KeyState>, nowMs: number): void => {
 	for (const [key, state] of stateByKey) {
-		const prunedHits = pruneExpired(state.hitTimestampsMs, nowMs - state.windowMs);
+		const prunedHits = pruneExpired(state.hitTimestampsMs, nowMs - state.windowMs, nowMs);
 		if (prunedHits.length === 0) {
 			stateByKey.delete(key);
 		} else if (prunedHits.length !== state.hitTimestampsMs.length) {
@@ -61,7 +69,7 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 			}
 
 			const windowStartMs = nowMs - windowMs;
-			const recentHits = pruneExpired(stateByKey.get(key)?.hitTimestampsMs ?? [], windowStartMs);
+			const recentHits = pruneExpired(stateByKey.get(key)?.hitTimestampsMs ?? [], windowStartMs, nowMs);
 
 			if (recentHits.length >= limit) {
 				stateByKey.set(key, { hitTimestampsMs: recentHits, windowMs });
