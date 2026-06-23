@@ -175,3 +175,8 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Reviewing CodeQL/Gemini/CodeRabbit findings of catastrophic backtracking in an SVG-sniffing regex (`(?:<!--[\s\S]*?-->...)*` against repeated `--><!--` runs).
 - Lesson: A lazy `[\s\S]*?` comment body inside an outer `*` repetition lets the engine backtrack across many equivalent ways to split repeated delimiter-like runs; rewriting the comment body as a negative-lookahead-per-character (`(?:(?!-->)[\s\S])*`) gives each comment exactly one possible parse, and capping the input length before testing is cheap defense in depth on top of that.
 - Action: Prefer non-backtracking patterns (negative lookahead instead of lazy `*?`) for any regex that runs against untrusted/external text, and add a length cap before the test when the real match is known to live near the start of the string; add a timed regression test with a large pathological payload to prove the fix.
+
+## 2026-06-23
+- Date: 2026-06-23
+- Context: Gemini Code Assist review on PR #184 caught that the prior `draftLoaded` flag (set unconditionally in `init()`'s `finally`) only tracked "load attempted," not "load succeeded" — if `creationStoreAdapter.getDraft()` itself failed, `scheduleDraftSave()` would still be unblocked and could overwrite a real stored draft with the in-memory default spec.
+- Action: Added a separate `draftLoadSuccess` flag set only inside the `draft.ok` branch in `init()`, and gated `scheduleDraftSave()` on both `draftLoaded && draftLoadSuccess`; same pattern applied to a `detectImageFromBase64` perf nit (decode only a base64 prefix for the SVG sniff test, full-decode only on a positive match) and an `image/svg` vs `image/svg+xml` MIME fallback typo in the same review pass.

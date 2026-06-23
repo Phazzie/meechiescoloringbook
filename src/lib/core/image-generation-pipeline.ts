@@ -56,9 +56,12 @@ const detectImageFromBase64 = (b64: string): DetectedImage => {
   if (b64.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png', data: b64, encoding: 'base64' };
   if (b64.startsWith('UklGR')) return { format: 'webp', mimeType: 'image/webp', data: b64, encoding: 'base64' };
 
-  const decoded = decodeBase64ToUtf8(b64);
-  if (SVG_TEXT_PATTERN.test(decoded.slice(0, SVG_SNIFF_LENGTH))) {
-    return { format: 'svg', mimeType: 'image/svg+xml', data: decoded, encoding: 'utf8' };
+  // Decode only enough base64 to cover SVG_SNIFF_LENGTH decoded chars (4000 base64 chars is a
+  // multiple of 4, so it decodes to a clean byte boundary); avoids a full decode of large
+  // non-SVG payloads just to test the first couple KB.
+  const prefixDecoded = decodeBase64ToUtf8(b64.slice(0, 4000));
+  if (SVG_TEXT_PATTERN.test(prefixDecoded.slice(0, SVG_SNIFF_LENGTH))) {
+    return { format: 'svg', mimeType: 'image/svg+xml', data: decodeBase64ToUtf8(b64), encoding: 'utf8' };
   }
 
   console.warn('detectImageFromBase64: unrecognized header, defaulting to png');

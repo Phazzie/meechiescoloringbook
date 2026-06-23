@@ -151,7 +151,13 @@ export class StudioState {
 			if (image.encoding === 'base64') {
 				// Saved drafts from before mimeType was contract-required may lack it; rebuild
 				// from format rather than emit `data:undefined;base64,...`.
-				const mimeType = image.mimeType || (image.format === 'jpg' ? 'image/jpeg' : `image/${image.format}`);
+				const mimeType =
+					image.mimeType ||
+					(image.format === 'jpg'
+						? 'image/jpeg'
+						: image.format === 'svg'
+							? 'image/svg+xml'
+							: `image/${image.format}`);
 				return `data:${mimeType};base64,${image.data}`;
 			}
 			return '';
@@ -169,6 +175,7 @@ export class StudioState {
 	private isDraftSavePending = false;
 	private hasPendingInitSave = false;
 	private draftLoaded = false;
+	private draftLoadSuccess = false;
 
 	// --- Private helpers ---
 	private buildOwner(sessionId: string): CreationOwner {
@@ -318,7 +325,7 @@ export class StudioState {
 			this.hasPendingInitSave = true;
 			return;
 		}
-		if (!this.draftLoaded) return;
+		if (!this.draftLoaded || !this.draftLoadSuccess) return;
 		if (this.draftTimer) clearTimeout(this.draftTimer);
 		this.draftTimer = setTimeout(() => void this.saveDraft(), DRAFT_SAVE_DEBOUNCE_MS);
 	};
@@ -658,17 +665,20 @@ export class StudioState {
 					this.authContext = authResult.value;
 				}
 			}
-			if (draft.ok && draft.value) {
-				this.spec = draft.value.intent;
-				this.evidence = draft.value.chatMessage || '';
-				this.dedication = draft.value.intent.dedication ?? '';
-				this.pageSize = draft.value.intent.pageSize;
-				this.border = draft.value.intent.border;
-				if (
-					draft.value.studioText ||
-					draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
-				) {
-					this.textOutput = buildStudioTextFromDraftRecord(draft.value);
+			if (draft.ok) {
+				this.draftLoadSuccess = true;
+				if (draft.value) {
+					this.spec = draft.value.intent;
+					this.evidence = draft.value.chatMessage || '';
+					this.dedication = draft.value.intent.dedication ?? '';
+					this.pageSize = draft.value.intent.pageSize;
+					this.border = draft.value.intent.border;
+					if (
+						draft.value.studioText ||
+						draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+					) {
+						this.textOutput = buildStudioTextFromDraftRecord(draft.value);
+					}
 				}
 			}
 			await this.validateSpec();
