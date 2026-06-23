@@ -220,10 +220,16 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 			<p class="excuse-echo">"{excuse}"</p>
 
 			<div class="score-display">
-				<span class="score-number" style="color: {ratingColor}"
-					>{ratingScore}</span
-				>
-				<span class="score-label">out of 10</span>
+				{#if ratingScore !== null}
+					<span class="score-number" style="color: {ratingColor}"
+						>{ratingScore}</span
+					>
+					<span class="score-label">out of 10</span>
+				{:else}
+					<span class="score-number" style="color: {ratingColor}"
+						>{result.headline}</span
+					>
+				{/if}
 			</div>
 
 			<p class="verdict-commentary" data-testid="rate-result">
