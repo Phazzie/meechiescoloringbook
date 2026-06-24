@@ -128,6 +128,52 @@ export const checkGenerateSafety = (
 	return { ok: true };
 };
 
+export type GeneratePromptGuardCheck =
+	| { ok: true; prompt: { prompt: string; templateVersion: string } }
+	| { ok: false; response: PipelineResponse };
+
+// Exported so the route can reject spec-invalid or prompt-policy-violating bodies
+// before consuming rate-limit quota, without duplicating the SPEC_INVALID/prompt
+// error codes. validateSpec and assemblePrompt are pure/local (Zod parsing and
+// deterministic string assembly) — safe to run again inside runGeneratePipeline.
+export const checkGeneratePromptGuards = async (
+	data: z.infer<typeof GenerateRequestSchema>,
+	deps: Pick<GeneratePipelineDeps, 'validateSpec' | 'assemblePrompt'>
+): Promise<GeneratePromptGuardCheck> => {
+	const validation = await deps.validateSpec({ spec: data.spec });
+	if (!validation.ok) {
+		const issue = validation.issues[0];
+		return {
+			ok: false,
+			response: buildError(
+				400,
+				'SPEC_INVALID',
+				issue ? issue.message : 'Spec validation failed.',
+				{ issueCount: String(validation.issues.length) }
+			)
+		};
+	}
+
+	const promptResult = await deps.assemblePrompt({
+		spec: data.spec,
+		styleHint: data.styleHint
+	});
+	if (!promptResult.ok) {
+		return {
+			ok: false,
+			response: {
+				status: 400,
+				body: {
+					ok: false,
+					error: promptResult.error
+				}
+			}
+		};
+	}
+
+	return { ok: true, prompt: promptResult.value };
+};
+
 export const runGeneratePipeline = async (
 	body: unknown,
 	deps: GeneratePipelineDeps
@@ -147,35 +193,13 @@ export const runGeneratePipeline = async (
 	const safetyCheck = checkGenerateSafety(parsedInput.data, deps.checkContentSafety);
 	if (!safetyCheck.ok) return safetyCheck.response;
 
-	const validation = await deps.validateSpec({ spec: parsedInput.data.spec });
-	if (!validation.ok) {
-		const issue = validation.issues[0];
-		return buildError(
-			400,
-			'SPEC_INVALID',
-			issue ? issue.message : 'Spec validation failed.',
-			{ issueCount: String(validation.issues.length) }
-		);
-	}
-
-	const promptResult = await deps.assemblePrompt({
-		spec: parsedInput.data.spec,
-		styleHint: parsedInput.data.styleHint
-	});
-	if (!promptResult.ok) {
-		return {
-			status: 400,
-			body: {
-				ok: false,
-				error: promptResult.error
-			}
-		};
-	}
+	const promptGuardCheck = await checkGeneratePromptGuards(parsedInput.data, deps);
+	if (!promptGuardCheck.ok) return promptGuardCheck.response;
 
 	let imageResult: ImagePipelineResponse;
 	const imageRequest = {
 		spec: parsedInput.data.spec,
-		prompt: promptResult.value.prompt,
+		prompt: promptGuardCheck.prompt.prompt,
 		variations: parsedInput.data.spec.variations,
 		outputFormat: parsedInput.data.spec.outputFormat
 	};
@@ -202,15 +226,15 @@ export const runGeneratePipeline = async (
 
 	const driftResult = await deps.detectDrift({
 		spec: parsedInput.data.spec,
-		promptSent: promptResult.value.prompt,
+		promptSent: promptGuardCheck.prompt.prompt,
 		revisedPrompt: parsedImageResult.data.value.revisedPrompt
 	});
 
 	const result: GenerateResult = {
 		ok: true,
 		value: {
-			prompt: promptResult.value.prompt,
-			templateVersion: promptResult.value.templateVersion,
+			prompt: promptGuardCheck.prompt.prompt,
+			templateVersion: promptGuardCheck.prompt.templateVersion,
 			images: parsedImageResult.data.value.images,
 			revisedPrompt: parsedImageResult.data.value.revisedPrompt,
 			modelMetadata: parsedImageResult.data.value.modelMetadata,

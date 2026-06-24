@@ -3,7 +3,7 @@
 // Info flow: wigId + selfieBase64 -> WigCatalogSeam -> image fetch -> WigTryOnSeam -> portrait Result.
 import { WigTryOnRequestSchema, WigTryOnResultSchema } from '../../../contracts/wig-try-on.contract';
 import { z } from 'zod';
-import type { WigCatalogSeam } from '../seams/wig-catalog-seam/contract';
+import type { Wig, WigCatalogSeam } from '../seams/wig-catalog-seam/contract';
 import type { WigTryOnSeam } from '../seams/wig-try-on-seam/contract';
 
 type WigTryOnResult = z.infer<typeof WigTryOnResultSchema>;
@@ -65,6 +65,30 @@ export const checkWigTryOnInputShape = (body: unknown): WigTryOnInputShapeCheck 
 	return { ok: true, data: parsed.data };
 };
 
+export type WigCatalogPreflightCheck =
+	| { ok: true; wig: Wig }
+	| { ok: false; response: PipelineResponse };
+
+// Exported so the route can reject unknown wig IDs before consuming rate-limit quota,
+// without duplicating the WIG_NOT_FOUND code/message. getWigById is a cheap, cached,
+// local catalog lookup — safe to run again inside runWigTryOnPipeline. The real network
+// fetch of the wig image (fetchImageAsBase64) deliberately stays after rate limiting to
+// avoid doubling outbound HTTP calls per request.
+export const checkWigCatalogPreflight = async (
+	wigId: string,
+	wigCatalogSeam: PipelineDeps['wigCatalogSeam']
+): Promise<WigCatalogPreflightCheck> => {
+	const wigResult = await wigCatalogSeam.getWigById(wigId);
+	if (!wigResult.ok) {
+		const status = wigResult.error.code === 'WIG_NOT_FOUND' ? 404 : 500;
+		return {
+			ok: false,
+			response: buildError(status, wigResult.error.code, wigResult.error.message)
+		};
+	}
+	return { ok: true, wig: wigResult.value };
+};
+
 export const runWigTryOnPipeline = async (
 	body: unknown,
 	deps: PipelineDeps
@@ -73,13 +97,10 @@ export const runWigTryOnPipeline = async (
 	if (!shapeCheck.ok) return shapeCheck.response;
 	const { selfieBase64, selfieMimeType, wigId } = shapeCheck.data;
 
-	const wigResult = await deps.wigCatalogSeam.getWigById(wigId);
-	if (!wigResult.ok) {
-		const status = wigResult.error.code === 'WIG_NOT_FOUND' ? 404 : 500;
-		return buildError(status, wigResult.error.code, wigResult.error.message);
-	}
+	const catalogCheck = await checkWigCatalogPreflight(wigId, deps.wigCatalogSeam);
+	if (!catalogCheck.ok) return catalogCheck.response;
 
-	const wig = wigResult.value;
+	const wig = catalogCheck.wig;
 
 	const wigImage = await fetchImageAsBase64(wig.imageUrl, deps.fetchImpl, deps.signal);
 	if (!wigImage) {

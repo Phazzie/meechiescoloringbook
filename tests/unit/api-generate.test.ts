@@ -121,6 +121,7 @@ describe('/api/generate', () => {
 			const payload = await response.json();
 			expect(payload.error.code).toBe('INVALID_JSON');
 		}
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	it('rejects invalid payloads', async () => {
@@ -450,6 +451,33 @@ describe('/api/generate', () => {
 			expect(response.status).toBe(400);
 			const payload = await response.json();
 			expect(payload.error.code).toBe('CONTENT_POLICY_VIOLATION');
+		}
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('rejects style hints containing forbidden tokens at the endpoint before image generation', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+		const response = await POST(
+			buildEvent({ spec: validSpec, styleHint: 'size: huge' }, fetchMock)
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('STYLE_HINT_CONTAINS_FORBIDDEN_TOKEN');
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('does not consume rate-limit quota for forbidden-style-hint-token payloads', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(
+				buildEvent({ spec: validSpec, styleHint: 'size: huge' }, fetchMock)
+			);
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('STYLE_HINT_CONTAINS_FORBIDDEN_TOKEN');
 		}
 		expect(fetchMock).not.toHaveBeenCalled();
 	});

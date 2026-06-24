@@ -19,3 +19,15 @@ export const nextWindowRateLimitCheckFixture: RateLimitCheckInput = {
 	...baseRateLimitCheckFixture,
 	now: baseRateLimitCheckFixture.now + baseRateLimitCheckFixture.windowMs
 };
+
+// Fault fixtures: non-positive maxRequests/windowMs must fail closed rather than
+// allow unlimited requests or divide by a degenerate window.
+export const invalidMaxRequestsRateLimitCheckFixture: RateLimitCheckInput = {
+	...baseRateLimitCheckFixture,
+	maxRequests: 0
+};
+
+export const invalidWindowMsRateLimitCheckFixture: RateLimitCheckInput = {
+	...baseRateLimitCheckFixture,
+	windowMs: 0
+};

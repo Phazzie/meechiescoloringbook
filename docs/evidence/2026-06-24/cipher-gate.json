@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-24T09:55:15.727Z",
+  "cipher": {
+    "date": "2026-06-24",
+    "seams": "RateLimitSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-24/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-24/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-24/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-24/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-24/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-24/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-24/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-24/proof-tape.json",
+        "exists": true
+      }
+    ],
+    "summary": "Closed the confirmed-still-open review findings from PR #187 and PR #180 on top of PR #187's RateLimitSeam baseline — moved three cheap/local preflight guards (generate's spec+prompt guard, image-generation's required-phrase guard, wig-try-on's catalog lookup) ahead of `enforceAiRateLimit` so invalid-but-cheap requests stop consuming shared-IP quota before reaching a real paid-provider call, added a fail-closed guard to `RateLimitSeam.checkAndConsume` for non-positive config values, and cleaned up redundant test assertions.",
+    "risks": "The Zod-in-core-pipeline debt and the wig-image-fetch duplication tradeoff are both explicitly left as-is per the alternatives above rather than fixed in this slice."
+  },
+  "latestChangeMs": 1782294312542.4758,
+  "status": "ok"
+}

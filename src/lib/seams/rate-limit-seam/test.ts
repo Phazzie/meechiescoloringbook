@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	baseRateLimitCheckFixture,
 	exceededRateLimitCheckFixture,
+	invalidMaxRequestsRateLimitCheckFixture,
+	invalidWindowMsRateLimitCheckFixture,
 	nextWindowRateLimitCheckFixture
 } from './fixtures';
 import { createMockRateLimitSeam } from './mock';
@@ -13,13 +15,12 @@ import { validateRateLimitResult } from './validators';
 describe('RateLimitSeam mock contract', () => {
 	it('allows requests under the limit and decrements remaining', () => {
 		const seam = createMockRateLimitSeam();
-		const first = seam.checkAndConsume(baseRateLimitCheckFixture);
+		const first = validateRateLimitResult(seam.checkAndConsume(baseRateLimitCheckFixture));
 		expect(first).toEqual({
 			ok: true,
 			remaining: baseRateLimitCheckFixture.maxRequests - 1,
 			resetAt: baseRateLimitCheckFixture.now + baseRateLimitCheckFixture.windowMs
 		});
-		expect(validateRateLimitResult(first)).toEqual(first);
 	});
 
 	it('denies requests once the window is exhausted', () => {
@@ -29,9 +30,8 @@ describe('RateLimitSeam mock contract', () => {
 			expect(seam.checkAndConsume(baseRateLimitCheckFixture).ok).toBe(true);
 		}
 
-		const denied = seam.checkAndConsume(exceededRateLimitCheckFixture);
+		const denied = validateRateLimitResult(seam.checkAndConsume(exceededRateLimitCheckFixture));
 		expect(denied.ok).toBe(false);
-		expect(validateRateLimitResult(denied)).toEqual(denied);
 		if (!denied.ok) {
 			expect(denied.error.code).toBe('RATE_LIMIT_EXCEEDED');
 			expect(denied.error.retryAfterMs).toBeGreaterThanOrEqual(0);
@@ -58,13 +58,36 @@ describe('RateLimitSeam mock contract', () => {
 		}
 		expect(seam.checkAndConsume(exceededRateLimitCheckFixture).ok).toBe(false);
 
-		const nextWindow = seam.checkAndConsume(nextWindowRateLimitCheckFixture);
+		const nextWindow = validateRateLimitResult(
+			seam.checkAndConsume(nextWindowRateLimitCheckFixture)
+		);
 		expect(nextWindow).toEqual({
 			ok: true,
 			remaining: maxRequests - 1,
 			resetAt: nextWindowRateLimitCheckFixture.now + nextWindowRateLimitCheckFixture.windowMs
 		});
-		expect(validateRateLimitResult(nextWindow)).toEqual(nextWindow);
+	});
+
+	it('fails closed when maxRequests is non-positive', () => {
+		const seam = createMockRateLimitSeam();
+		const result = validateRateLimitResult(
+			seam.checkAndConsume(invalidMaxRequestsRateLimitCheckFixture)
+		);
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
+		}
+	});
+
+	it('fails closed when windowMs is non-positive', () => {
+		const seam = createMockRateLimitSeam();
+		const result = validateRateLimitResult(
+			seam.checkAndConsume(invalidWindowMsRateLimitCheckFixture)
+		);
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
+		}
 	});
 
 	it('reset() clears all tracked keys', () => {

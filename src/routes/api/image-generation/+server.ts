@@ -6,6 +6,7 @@ Info flow: Client request -> seam-based pipeline -> image normalization -> respo
 import { json } from '@sveltejs/kit';
 import {
 	checkImageGenerationInputShape,
+	checkImageGenerationPromptGuard,
 	runImageGenerationPipeline
 } from '$lib/core/image-generation-pipeline';
 import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
@@ -19,6 +20,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	if (!parsed.ok) return parsed.response;
 	const shapeCheck = checkImageGenerationInputShape(parsed.body);
 	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
+	const promptGuardCheck = checkImageGenerationPromptGuard(shapeCheck.data);
+	if (!promptGuardCheck.ok)
+		return json(promptGuardCheck.response.body, { status: promptGuardCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const pipelineResult = await runImageGenerationPipeline(parsed.body, {

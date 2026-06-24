@@ -8,6 +8,7 @@ import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 import {
 	checkGenerateInputShape,
+	checkGeneratePromptGuards,
 	checkGenerateSafety,
 	generatePipelineDeps,
 	runGeneratePipeline
@@ -27,6 +28,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const safetyCheck = checkGenerateSafety(shapeCheck.data, safetyPolicySeam.validateGenerateRequest);
 	if (!safetyCheck.ok)
 		return json(safetyCheck.response.body, { status: safetyCheck.response.status });
+	const promptGuardCheck = await checkGeneratePromptGuards(shapeCheck.data, generatePipelineDeps);
+	if (!promptGuardCheck.ok)
+		return json(promptGuardCheck.response.body, { status: promptGuardCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const imageGenerationSeam = createImageGenerationSeam(createImageProviderConfigSeam());

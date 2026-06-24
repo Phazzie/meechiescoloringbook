@@ -89,6 +89,62 @@ describe('/api/wig-try-on', () => {
 		expect(createWigTryOnSeam).not.toHaveBeenCalled();
 	});
 
+	it('rejects unknown wig IDs with WIG_NOT_FOUND before creating WigTryOnSeam', async () => {
+		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReset();
+		vi.mocked(createWigTryOnSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReturnValue({
+			listWigs: vi.fn(),
+			getWigById: vi.fn(async () => ({
+				ok: false as const,
+				error: {
+					code: 'WIG_NOT_FOUND' as const,
+					message: 'Wig not found.',
+					details: { id: 'missing-wig' }
+				}
+			}))
+		});
+
+		const response = await POST(
+			buildEvent({ selfieBase64: 'selfie-data', selfieMimeType: 'image/jpeg', wigId: 'missing-wig' })
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(404);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('WIG_NOT_FOUND');
+		expect(createAppConfigSeam).not.toHaveBeenCalled();
+		expect(createWigTryOnSeam).not.toHaveBeenCalled();
+	});
+
+	it('does not consume rate-limit quota for unknown wig IDs', async () => {
+		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReset();
+		vi.mocked(createWigTryOnSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReturnValue({
+			listWigs: vi.fn(),
+			getWigById: vi.fn(async () => ({
+				ok: false as const,
+				error: {
+					code: 'WIG_NOT_FOUND' as const,
+					message: 'Wig not found.',
+					details: { id: 'missing-wig' }
+				}
+			}))
+		});
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(
+				buildEvent({ selfieBase64: 'selfie-data', selfieMimeType: 'image/jpeg', wigId: 'missing-wig' })
+			);
+			expect(response.status).toBe(404);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('WIG_NOT_FOUND');
+		}
+		expect(createAppConfigSeam).not.toHaveBeenCalled();
+		expect(createWigTryOnSeam).not.toHaveBeenCalled();
+	});
+
 	it('passes the request signal to wig image fetch and WigTryOnSeam', async () => {
 		vi.mocked(createAppConfigSeam).mockReturnValue({} as ReturnType<typeof createAppConfigSeam>);
 		const wig = {

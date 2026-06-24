@@ -101,6 +101,40 @@ describe('/api/image-generation', () => {
     expect(mockCreateSeam).not.toHaveBeenCalled();
   });
 
+  it('rejects prompts missing required phrases before calling the seam', async () => {
+    const response = await POST(
+      buildEvent({
+        spec: validSpec,
+        prompt: 'a prompt missing the required phrases',
+        variations: 1,
+        outputFormat: 'pdf'
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.ok).toBe(false);
+    expect(payload.error.code).toBe('PROMPT_MISSING_REQUIRED_PHRASES');
+    expect(mockCreateSeam).not.toHaveBeenCalled();
+  });
+
+  it('does not consume rate-limit quota for prompts missing required phrases', async () => {
+    for (let i = 0; i < 25; i += 1) {
+      const response = await POST(
+        buildEvent({
+          spec: validSpec,
+          prompt: 'a prompt missing the required phrases',
+          variations: 1,
+          outputFormat: 'pdf'
+        })
+      );
+      expect(response.status).toBe(400);
+      const payload = await response.json();
+      expect(payload.error.code).toBe('PROMPT_MISSING_REQUIRED_PHRASES');
+    }
+    expect(mockCreateSeam).not.toHaveBeenCalled();
+  });
+
   it('returns 502 when seam returns a network error', async () => {
     mockCreateSeam.mockReturnValue({
       generate: vi.fn(async () => ({

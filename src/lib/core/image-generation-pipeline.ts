@@ -75,6 +75,29 @@ export const checkImageGenerationInputShape = (body: unknown): ImageInputShapeCh
   return { ok: true, data: parsedInput.data };
 };
 
+export type ImagePromptGuardCheck = { ok: true } | { ok: false; response: ImagePipelineResponse };
+
+// Exported so the route can reject prompts missing required phrases before consuming
+// rate-limit quota, without duplicating the PROMPT_MISSING_REQUIRED_PHRASES code/message.
+// missingRequiredPhrases is pure/local (string matching) — safe to run again inside
+// runImageGenerationPipeline.
+export const checkImageGenerationPromptGuard = (
+  data: z.infer<typeof ImageGenerationInputSchema>
+): ImagePromptGuardCheck => {
+  const missing = missingRequiredPhrases(data.prompt, data.spec.pageSize);
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      response: buildError(
+        400,
+        'PROMPT_MISSING_REQUIRED_PHRASES',
+        `Prompt missing required phrases (case-insensitive checks, normalized): ${missing.join(', ')}`
+      )
+    };
+  }
+  return { ok: true };
+};
+
 export const runImageGenerationPipeline = async (
   body: unknown,
   deps: ImagePipelineDeps
@@ -91,15 +114,9 @@ export const runImageGenerationPipeline = async (
   if (!shapeCheck.ok) return shapeCheck.response;
   const parsedInput = { data: shapeCheck.data };
 
-  const { prompt, variations, spec } = parsedInput.data;
-  const missing = missingRequiredPhrases(prompt, spec.pageSize);
-  if (missing.length > 0) {
-    return buildError(
-      400,
-      'PROMPT_MISSING_REQUIRED_PHRASES',
-      `Prompt missing required phrases (case-insensitive checks, normalized): ${missing.join(', ')}`
-    );
-  }
+  const { prompt, variations } = parsedInput.data;
+  const promptGuardCheck = checkImageGenerationPromptGuard(parsedInput.data);
+  if (!promptGuardCheck.ok) return promptGuardCheck.response;
 
   const seamResult = await deps.imageGenerationSeam.generate({
     prompt,

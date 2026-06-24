@@ -22,6 +22,22 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 
 	return {
 		checkAndConsume: ({ key, maxRequests, windowMs, now }: RateLimitCheckInput): RateLimitResult => {
+			// The contract type doesn't statically enforce positive bounds, so a
+			// caller passing a non-positive maxRequests/windowMs (misconfigured env,
+			// future direct use of this policy) must fail closed rather than allow
+			// unlimited requests (maxRequests <= 0 would never block) or divide by a
+			// degenerate window.
+			if (maxRequests < 1 || windowMs < 1) {
+				return {
+					ok: false,
+					error: {
+						code: 'RATE_LIMIT_EXCEEDED',
+						message: 'Rate limit configuration is invalid; failing closed.',
+						retryAfterMs: Math.max(0, windowMs),
+						resetAt: now + Math.max(0, windowMs)
+					}
+				};
+			}
 			evictExpired(now, windowMs);
 			const existing = windows.get(key);
 			const isFreshWindow = !existing || now - existing.windowStart >= windowMs;
