@@ -150,7 +150,7 @@ describe('/api/image-generation', () => {
   });
 
   it('rejects prompts exceeding the max length before consuming rate-limit quota', async () => {
-    const oversizedPrompt = `${validPrompt} ${'a'.repeat(4000)}`;
+    const oversizedPrompt = `${validPrompt} ${'a'.repeat(8000)}`;
 
     for (let i = 0; i < 25; i += 1) {
       const response = await POST(

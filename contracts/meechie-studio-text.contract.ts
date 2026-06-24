@@ -5,6 +5,14 @@ import { z } from 'zod';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 import type { Result } from './shared.contract';
 
+// Bounds the cost of the disallowed-keyword scan that runs ahead of rate
+// limiting (see checkMeechieStudioTextSafety) — far above any genuine studio
+// input, so it never rejects legitimate requests.
+const MAX_FREE_TEXT_LENGTH = 4000;
+const MAX_LABEL_LENGTH = 200;
+const FreeTextSchema = NonEmptyStringSchema.max(MAX_FREE_TEXT_LENGTH);
+const LabelTextSchema = NonEmptyStringSchema.max(MAX_LABEL_LENGTH);
+
 export const MeechieStudioTextActionSchema = z.enum([
 	'generate',
 	'regenerate',
@@ -20,20 +28,20 @@ export const MeechieStudioVoiceSettingsSchema = z.object({
 });
 
 export const MeechieStudioCurrentTextSchema = z.object({
-	verdict: NonEmptyStringSchema,
-	quote: NonEmptyStringSchema,
-	pageTitle: NonEmptyStringSchema,
-	pageItems: z.array(NonEmptyStringSchema).min(2).max(6),
+	verdict: FreeTextSchema,
+	quote: FreeTextSchema,
+	pageTitle: LabelTextSchema,
+	pageItems: z.array(LabelTextSchema).min(2).max(6),
 	rating: z.number().int().min(1).max(10).optional()
 });
 
 export const MeechieStudioTextInputSchema = z.object({
 	actionId: MeechieStudioTextActionSchema,
-	modeId: NonEmptyStringSchema,
-	modeLabel: NonEmptyStringSchema,
-	themeLabel: NonEmptyStringSchema,
-	evidence: NonEmptyStringSchema,
-	dedication: NonEmptyStringSchema.optional(),
+	modeId: LabelTextSchema,
+	modeLabel: LabelTextSchema,
+	themeLabel: LabelTextSchema,
+	evidence: FreeTextSchema,
+	dedication: FreeTextSchema.optional(),
 	voice: MeechieStudioVoiceSettingsSchema,
 	currentText: MeechieStudioCurrentTextSchema.optional()
 });

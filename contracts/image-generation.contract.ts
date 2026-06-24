@@ -10,9 +10,11 @@ import {
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 
 // Bounds the cost of the prompt-guard keyword/phrase scan that runs ahead of
-// rate limiting (see checkImageGenerationPromptGuard) — far above any prompt
-// this app actually assembles, so it never rejects legitimate requests.
-export const MAX_PROMPT_LENGTH = 4000;
+// rate limiting (see checkImageGenerationPromptGuard). Must stay >= the
+// PromptAssemblySeam provider limit (currently 8000) — otherwise `/api/generate`
+// can assemble a prompt that's valid there but gets rejected here as
+// IMAGE_INPUT_INVALID after rate-limit quota has already been consumed.
+export const MAX_PROMPT_LENGTH = 8000;
 
 export const ImageDataEncodingSchema = z.enum(['utf8', 'base64']);
 

@@ -40,7 +40,56 @@ const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 		getClientAddress: () => '203.0.113.10'
 	}) as unknown as Parameters<typeof POST>[0];
 
+const buildAbortedEvent = (body: unknown): Parameters<typeof POST>[0] => {
+	const controller = new AbortController();
+	controller.abort();
+	return {
+		request: new Request('http://localhost/api/wig-try-on', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+			signal: controller.signal
+		}),
+		fetch: vi.fn(),
+		getClientAddress: () => '203.0.113.10'
+	} as unknown as Parameters<typeof POST>[0];
+};
+
 describe('/api/wig-try-on', () => {
+	it('rejects an already-aborted request before any preflight checks or rate-limit consumption', async () => {
+		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReset();
+		vi.mocked(createWigTryOnSeam).mockReset();
+
+		const response = await POST(
+			buildAbortedEvent({ selfieBase64: 'selfie-data', selfieMimeType: 'image/jpeg', wigId: 'wig-001' })
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(499);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('WIG_TRY_ON_ABORTED');
+		expect(createWigCatalogSeam).not.toHaveBeenCalled();
+		expect(createAppConfigSeam).not.toHaveBeenCalled();
+		expect(createWigTryOnSeam).not.toHaveBeenCalled();
+	});
+
+	it('does not consume rate-limit quota for already-aborted requests', async () => {
+		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReset();
+		vi.mocked(createWigTryOnSeam).mockReset();
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(
+				buildAbortedEvent({ selfieBase64: 'selfie-data', selfieMimeType: 'image/jpeg', wigId: 'wig-001' })
+			);
+			expect(response.status).toBe(499);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('WIG_TRY_ON_ABORTED');
+		}
+		expect(createWigCatalogSeam).not.toHaveBeenCalled();
+	});
+
 	it('rejects malformed JSON with INVALID_JSON code before creating any seams', async () => {
 		vi.mocked(createAppConfigSeam).mockReset();
 		vi.mocked(createWigCatalogSeam).mockReset();

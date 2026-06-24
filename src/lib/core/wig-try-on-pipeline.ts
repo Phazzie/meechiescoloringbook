@@ -48,6 +48,23 @@ const fetchImageAsBase64 = async (
 
 const ALLOWED_WIG_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+export type WigTryOnAbortCheck = { ok: true } | { ok: false; response: PipelineResponse };
+
+// Exported so the route can short-circuit an already-aborted request before running any
+// preflight checks or consuming rate-limit quota — see checkGenerateAbort in
+// generate-pipeline.ts for why the internal abort handling inside fetchImageAsBase64/
+// wigTryOnSeam.tryOn alone is no longer sufficient once routes preflight + rate-limit
+// ahead of the pipeline call.
+export const checkWigTryOnAbort = (signal?: AbortSignal): WigTryOnAbortCheck => {
+	if (signal?.aborted) {
+		return {
+			ok: false,
+			response: buildError(499, 'WIG_TRY_ON_ABORTED', 'Wig try-on request was canceled by the caller.')
+		};
+	}
+	return { ok: true };
+};
+
 export type WigTryOnInputShapeCheck =
 	| { ok: true; data: z.infer<typeof WigTryOnRequestSchema> }
 	| { ok: false; response: PipelineResponse };

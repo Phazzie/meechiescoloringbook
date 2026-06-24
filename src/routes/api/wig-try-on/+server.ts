@@ -7,6 +7,7 @@ import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import {
 	checkWigCatalogPreflight,
+	checkWigTryOnAbort,
 	checkWigTryOnInputShape,
 	runWigTryOnPipeline
 } from '$lib/core/wig-try-on-pipeline';
@@ -17,6 +18,8 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, fetch, getClientAddress }) => {
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
+	const abortCheck = checkWigTryOnAbort(request.signal);
+	if (!abortCheck.ok) return json(abortCheck.response.body, { status: abortCheck.response.status });
 	const shapeCheck = checkWigTryOnInputShape(parsed.body);
 	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
 

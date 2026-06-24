@@ -8,9 +8,14 @@ import { PromptAssemblyOutputSchema } from './prompt-assembly.contract';
 import { ColoringPageSpecSchema } from './spec-validation.contract';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 
+// Bounds the cost of the SafetyPolicySeam scan that runs ahead of rate
+// limiting (see checkGenerateSafety) — far above any genuine style hint, so
+// it never rejects legitimate requests.
+const MAX_STYLE_HINT_LENGTH = 2000;
+
 export const GenerateRequestSchema = z.object({
 	spec: ColoringPageSpecSchema,
-	styleHint: NonEmptyStringSchema.optional()
+	styleHint: NonEmptyStringSchema.max(MAX_STYLE_HINT_LENGTH).optional()
 });
 
 export const GenerateResponseValueSchema = z.object({
