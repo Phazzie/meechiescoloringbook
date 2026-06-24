@@ -85,6 +85,23 @@ const imageExceptionResponse = (error: unknown): PipelineResponse => {
 	);
 };
 
+export type GenerateAbortCheck = { ok: true } | { ok: false; response: PipelineResponse };
+
+// Exported so the route can short-circuit an already-aborted request before running any
+// preflight checks or consuming rate-limit quota. The equivalent check inside
+// runGeneratePipeline only protects work done *inside the pipeline*; once routes started
+// running preflight + rate-limiting ahead of the pipeline call, that internal check started
+// firing too late to prevent a disconnected client from consuming a rate-limit slot.
+export const checkGenerateAbort = (signal?: AbortSignal): GenerateAbortCheck => {
+	if (signal?.aborted) {
+		return {
+			ok: false,
+			response: buildError(499, 'GENERATE_ABORTED', 'Generate request was canceled by the caller.')
+		};
+	}
+	return { ok: true };
+};
+
 export type GenerateInputShapeCheck =
 	| { ok: true; data: z.infer<typeof GenerateRequestSchema> }
 	| { ok: false; response: PipelineResponse };

@@ -5,6 +5,7 @@ Info flow: Client request -> seam-based pipeline -> image normalization -> respo
 */
 import { json } from '@sveltejs/kit';
 import {
+	checkImageGenerationAbort,
 	checkImageGenerationInputShape,
 	checkImageGenerationPromptGuard,
 	runImageGenerationPipeline
@@ -18,6 +19,8 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
+	const abortCheck = checkImageGenerationAbort(request.signal);
+	if (!abortCheck.ok) return json(abortCheck.response.body, { status: abortCheck.response.status });
 	const shapeCheck = checkImageGenerationInputShape(parsed.body);
 	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
 	const promptGuardCheck = checkImageGenerationPromptGuard(shapeCheck.data);

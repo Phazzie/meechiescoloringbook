@@ -7,6 +7,7 @@ import { json } from '@sveltejs/kit';
 import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 import {
+	checkGenerateAbort,
 	checkGenerateInputShape,
 	checkGeneratePromptGuards,
 	checkGenerateSafety,
@@ -22,6 +23,8 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
+	const abortCheck = checkGenerateAbort(request.signal);
+	if (!abortCheck.ok) return json(abortCheck.response.body, { status: abortCheck.response.status });
 	const shapeCheck = checkGenerateInputShape(parsed.body);
 	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
 	const safetyPolicySeam = createSafetyPolicySeam();

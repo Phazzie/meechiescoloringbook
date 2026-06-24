@@ -9,6 +9,11 @@ import {
 } from './spec-validation.contract';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 
+// Bounds the cost of the prompt-guard keyword/phrase scan that runs ahead of
+// rate limiting (see checkImageGenerationPromptGuard) — far above any prompt
+// this app actually assembles, so it never rejects legitimate requests.
+export const MAX_PROMPT_LENGTH = 4000;
+
 export const ImageDataEncodingSchema = z.enum(['utf8', 'base64']);
 
 export const GeneratedImageSchema = z.object({
@@ -21,7 +26,7 @@ export const GeneratedImageSchema = z.object({
 
 export const ImageGenerationInputSchema = z.object({
 	spec: ColoringPageSpecSchema,
-	prompt: NonEmptyStringSchema,
+	prompt: NonEmptyStringSchema.max(MAX_PROMPT_LENGTH),
 	variations: z.number().int().min(1).max(4),
 	outputFormat: OutputFormatSchema
 });

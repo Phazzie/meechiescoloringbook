@@ -58,6 +58,22 @@ const buildError = (
   }
 });
 
+export type ImageAbortCheck = { ok: true } | { ok: false; response: ImagePipelineResponse };
+
+// Exported so the route can short-circuit an already-aborted request before running any
+// preflight checks or consuming rate-limit quota — see checkGenerateAbort in
+// generate-pipeline.ts for why the internal check in runImageGenerationPipeline alone is
+// no longer sufficient now that routes preflight + rate-limit ahead of the pipeline call.
+export const checkImageGenerationAbort = (signal?: AbortSignal): ImageAbortCheck => {
+  if (signal?.aborted) {
+    return {
+      ok: false,
+      response: buildError(499, 'IMAGE_ABORTED', 'Image generation request was canceled by the caller.')
+    };
+  }
+  return { ok: true };
+};
+
 export type ImageInputShapeCheck =
   | { ok: true; data: z.infer<typeof ImageGenerationInputSchema> }
   | { ok: false; response: ImagePipelineResponse };

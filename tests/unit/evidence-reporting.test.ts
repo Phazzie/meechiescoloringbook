@@ -51,6 +51,17 @@ describe('evidence reporting helpers', () => {
 		);
 	});
 
+	test('sanitizes a repo root immediately followed by an ANSI escape sequence', () => {
+		const root = '/home/user/meechiescoloringbook';
+		// Mirrors vitest's colorized "RUN v4.1.0 <path>" banner, where the path is
+		// immediately followed by an ANSI reset sequence instead of whitespace.
+		const output = `[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m${root}[39m`;
+
+		const sanitized = sanitizeEvidenceOutput(root, output);
+		expect(sanitized).not.toContain(root);
+		expect(sanitized).toContain('<REPO_ROOT>[39m');
+	});
+
 	test('rolls up N/A artifact checks as an ok seam when nothing is missing or blocked', () => {
 		expect(toSeamRollupStatus(['ok', 'na', 'ok'])).toBe('ok');
 		expect(toSeamRollupStatus(['na'])).toBe('ok');

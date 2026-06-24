@@ -8,7 +8,7 @@ $ npm test -- --pool=forks --maxWorkers=1
 > vitest run --pool=forks --maxWorkers=1
 
 
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m<REPO_ROOT>[39m
 
 
 [2m Test Files [22m [1m[32m64 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (65)[39m

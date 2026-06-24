@@ -58,6 +58,24 @@ const buildRawEvent = (
 		getClientAddress: () => '203.0.113.10'
 	}) as Parameters<typeof POST>[0];
 
+const buildAbortedEvent = (
+	body: unknown,
+	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+): Parameters<typeof POST>[0] => {
+	const controller = new AbortController();
+	controller.abort();
+	return {
+		request: new Request('http://localhost/api/generate', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+			signal: controller.signal
+		}),
+		fetch: fetchImpl,
+		getClientAddress: () => '203.0.113.10'
+	} as Parameters<typeof POST>[0];
+};
+
 const assembledPrompt = [
 	'Black-and-white coloring book page',
 	'outline-only',
@@ -120,6 +138,33 @@ describe('/api/generate', () => {
 			expect(response.status).toBe(400);
 			const payload = await response.json();
 			expect(payload.error.code).toBe('INVALID_JSON');
+		}
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('rejects an already-aborted request at the endpoint before any preflight checks or rate-limit consumption', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+		const response = await POST(
+			buildAbortedEvent({ spec: validSpec, styleHint: 'glam sparkle icons' }, fetchMock)
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(499);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('GENERATE_ABORTED');
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('does not consume rate-limit quota for already-aborted requests', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(
+				buildAbortedEvent({ spec: validSpec, styleHint: 'glam sparkle icons' }, fetchMock)
+			);
+			expect(response.status).toBe(499);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('GENERATE_ABORTED');
 		}
 		expect(fetchMock).not.toHaveBeenCalled();
 	});

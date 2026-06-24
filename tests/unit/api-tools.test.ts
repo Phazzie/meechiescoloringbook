@@ -64,6 +64,21 @@ describe('/api/tools', () => {
 		expect(adapterSpy).not.toHaveBeenCalled();
 	});
 
+	it('rejects free-text fields exceeding the max length before consuming rate-limit quota', async () => {
+		const adapterSpy = vi.spyOn(meechieToolAdapter, 'respond');
+		const oversizedApology = 'a'.repeat(2001);
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(
+				buildEvent({ toolId: 'apology_translator', apology: oversizedApology })
+			);
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('MEECHIE_TOOL_INPUT_INVALID');
+		}
+		expect(adapterSpy).not.toHaveBeenCalled();
+	});
+
 	it('rejects disallowed content and does not invoke adapter', async () => {
 		const adapterSpy = vi.spyOn(meechieToolAdapter, 'respond');
 		const response = await POST(

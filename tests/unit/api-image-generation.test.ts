@@ -70,6 +70,20 @@ const buildRawEvent = (rawBody: string) =>
     getClientAddress: () => '203.0.113.10'
   }) as Parameters<typeof POST>[0];
 
+const buildAbortedEvent = (body: unknown) => {
+  const controller = new AbortController();
+  controller.abort();
+  return {
+    request: new Request('http://localhost/api/image-generation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    }),
+    getClientAddress: () => '203.0.113.10'
+  } as Parameters<typeof POST>[0];
+};
+
 describe('/api/image-generation', () => {
   beforeEach(() => {
     mockCreateSeam.mockReset();
@@ -83,6 +97,40 @@ describe('/api/image-generation', () => {
     expect(payload.error.code).toBe('INVALID_JSON');
   });
 
+  it('rejects an already-aborted request before any preflight checks or rate-limit consumption', async () => {
+    const response = await POST(
+      buildAbortedEvent({
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(499);
+    expect(payload.ok).toBe(false);
+    expect(payload.error.code).toBe('IMAGE_ABORTED');
+    expect(mockCreateSeam).not.toHaveBeenCalled();
+  });
+
+  it('does not consume rate-limit quota for already-aborted requests', async () => {
+    for (let i = 0; i < 25; i += 1) {
+      const response = await POST(
+        buildAbortedEvent({
+          spec: validSpec,
+          prompt: validPrompt,
+          variations: 1,
+          outputFormat: 'pdf'
+        })
+      );
+      expect(response.status).toBe(499);
+      const payload = await response.json();
+      expect(payload.error.code).toBe('IMAGE_ABORTED');
+    }
+    expect(mockCreateSeam).not.toHaveBeenCalled();
+  });
+
   it('rejects invalid payloads', async () => {
     const response = await POST(buildEvent({ spec: {} }));
     const payload = await response.json();
@@ -94,6 +142,25 @@ describe('/api/image-generation', () => {
   it('does not consume rate-limit quota for schema-invalid payloads', async () => {
     for (let i = 0; i < 25; i += 1) {
       const response = await POST(buildEvent({ spec: {} }));
+      expect(response.status).toBe(400);
+      const payload = await response.json();
+      expect(payload.error.code).toBe('IMAGE_INPUT_INVALID');
+    }
+    expect(mockCreateSeam).not.toHaveBeenCalled();
+  });
+
+  it('rejects prompts exceeding the max length before consuming rate-limit quota', async () => {
+    const oversizedPrompt = `${validPrompt} ${'a'.repeat(4000)}`;
+
+    for (let i = 0; i < 25; i += 1) {
+      const response = await POST(
+        buildEvent({
+          spec: validSpec,
+          prompt: oversizedPrompt,
+          variations: 1,
+          outputFormat: 'pdf'
+        })
+      );
       expect(response.status).toBe(400);
       const payload = await response.json();
       expect(payload.error.code).toBe('IMAGE_INPUT_INVALID');

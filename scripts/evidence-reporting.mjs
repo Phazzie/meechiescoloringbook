@@ -33,7 +33,11 @@ export const sanitizeEvidenceOutput = (root, output) => {
 	const slashRoot = root.split(/[\\/]+/).join('/');
 	const backslashRoot = root.split(/[\\/]+/).join('\\');
 	const rootPattern = [slashRoot, backslashRoot].map(escapeRegExp).join('|');
-	const localRootPattern = new RegExp(`(?:${rootPattern})(?=$|[\\\\/\\s])`, 'gi');
+	// \x1b (ESC) is included alongside path/whitespace boundaries because colorized
+	// CLI output (e.g. vitest's "RUN v4.1.0 <path>" banner) immediately follows the
+	// path with an ANSI reset sequence rather than whitespace, which would otherwise
+	// let the raw path slip through unredacted.
+	const localRootPattern = new RegExp(`(?:${rootPattern})(?=$|[\\\\/\\s\\x1b])`, 'gi');
 
 	return output.replace(localRootPattern, '<REPO_ROOT>');
 };
