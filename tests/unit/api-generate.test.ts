@@ -192,6 +192,35 @@ describe('/api/generate', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
+	it('rejects oversized titles at the endpoint before content-safety scanning', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+		const oversizedTitle = 'a'.repeat(81);
+		const response = await POST(
+			buildEvent({ spec: { ...validSpec, title: oversizedTitle } }, fetchMock)
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('GENERATE_INPUT_INVALID');
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('does not consume rate-limit quota for oversized-title payloads', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+		const oversizedTitle = 'a'.repeat(81);
+
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(
+				buildEvent({ spec: { ...validSpec, title: oversizedTitle } }, fetchMock)
+			);
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('GENERATE_INPUT_INVALID');
+		}
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it('returns orchestrated generation output without fetching the sibling route', async () => {
 		const deps = buildPipelineDeps(async () => ({
 			status: 200,

@@ -7,6 +7,31 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-24 - RateLimitSeam: bound generate's spec.title before the SafetyPolicySeam pre-rate-limit scan
+
+- Date: 2026-06-24
+- Decision: Add `MAX_TITLE_LENGTH = 80` to `ColoringPageSpecSchema.title` (`title: NonEmptyStringSchema.max(MAX_TITLE_LENGTH)`) in both `contracts/spec-validation.contract.ts` and its self-contained-layout duplicate `src/lib/seams/spec-validation-seam/contract.ts`, which were already kept byte-for-byte in sync for `MAX_LABEL_LENGTH`/`MAX_DEDICATION_LENGTH`/`ALLOWED_TEXT_REGEX`.
+- Context: A seventh Codex finding on the same theme as the six fixed in the entry below: `checkGenerateSafety` (`src/lib/core/generate-pipeline.ts`) passes the whole `spec` object into `SafetyPolicySeam.validateGenerateRequest` ahead of `enforceAiRateLimit` in `/api/generate`, and `generateRequestSegments` (`src/lib/seams/safety-policy-seam/policy.ts`) includes `{ field: 'title', text: spec.title }` as one of the five segments scanned by `hasDisallowedContent`'s keyword-includes loop. Every sibling field in that scan — `item.label`/`footerItem.label` (`LabelSchema`, max 40), `dedication` (`DedicationSchema`, max 60), `styleHint` (`MAX_STYLE_HINT_LENGTH`, fixed earlier today) — was already bounded; `title` was the one field still using unbounded `NonEmptyStringSchema`, so a schema-valid request with an arbitrarily large title containing a disallowed keyword could be rejected as `CONTENT_POLICY_VIOLATION` without ever charging rate-limit quota, repeatable to burn CPU outside the limiter.
+- Alternatives considered:
+  - Bound only `contracts/spec-validation.contract.ts` (the copy actually wired into `/api/generate`'s `GenerateRequestSchema`) and leave the `spec-validation-seam` duplicate as-is. Rejected: the two files are maintained as exact duplicates for every other constant in this schema (confirmed identical `MAX_LABEL_LENGTH`/`MAX_DEDICATION_LENGTH`/`ALLOWED_TEXT_REGEX` values); leaving one out reintroduces drift between them and would reopen the same gap the moment the duplicate is wired into a route.
+  - Also apply `ALLOWED_TEXT_REGEX` to `title`, matching `LabelSchema`/`DedicationSchema`. Rejected as out of scope: the Codex finding is specifically about unbounded scan cost (a length problem), not character content; adding a character whitelist is a separate, riskier behavior change (could reject titles with characters the UI already accepts) not requested by this finding.
+  - Escalate via `AskUserQuestion` before fixing, per the standing protocol for ambiguous findings. Reconsidered: this is the same low-risk, conventional `.max()` bound already applied to five sibling fields in this exact PR; proceeding unilaterally and documenting the reasoning here is consistent with every prior fix in this series.
+- Consequences: A schema-valid `/api/generate` request with a title over 80 characters now fails `GenerateRequestSchema` parsing with `GENERATE_INPUT_INVALID` (400) before `checkGenerateSafety`'s scan or `enforceAiRateLimit` ever run — closing the same CPU-amplification vector already closed for `styleHint`/`item.label`/`dedication`. `tests/unit/api-generate.test.ts` gained two tests: oversized-title rejection, and no-rate-limit-quota-consumed-across-25-requests for the same payload.
+- Revisit criteria: Revisit the 80-character bound if a legitimate coloring-page title ever needs to be longer (no client-side length convention exists today to validate against, per a search of `studio-state.svelte.ts`).
+- Plan:
+  - Goal: Close the seventh Codex finding on PR #188 (unbounded `title` reaching the pre-rate-limit safety scan) using the exact pattern already applied to its sibling fields.
+  - Seams: SpecValidationSeam, SafetyPolicySeam.
+  - Files: `contracts/spec-validation.contract.ts`, `src/lib/seams/spec-validation-seam/contract.ts`, `tests/unit/api-generate.test.ts`, `DECISIONS.md`.
+  - Commands: `npm run check`, `npm run test`, `npm run lint`, `npm run verify`, `npm run cipher:gate`.
+- Self-critique: 80 characters is a reasonable round-number bound consistent with `MAX_DEDICATION_LENGTH = 60`/`MAX_LABEL_LENGTH = 40`, not derived from a measured per-character scan cost or any existing UI constraint — the same limitation already noted for every other bound chosen in this PR's prior entries.
+
+- Cipher Gate:
+  - Date: 2026-06-24
+  - Seams: SpecValidationSeam, SafetyPolicySeam
+  - Evidence: docs/evidence/2026-06-24/chamber-lock.json; docs/evidence/2026-06-24/verify.txt; docs/evidence/2026-06-24/test.txt; docs/evidence/2026-06-24/shaolin-lint.json; docs/evidence/2026-06-24/assumption-alarm.json; docs/evidence/2026-06-24/seam-ledger.json; docs/evidence/2026-06-24/clan-chain.json; docs/evidence/2026-06-24/proof-tape.json
+  - Summary: Bounded `ColoringPageSpecSchema.title` to 80 characters in both layout copies of the spec-validation contract, closing the last unbounded field reaching `SafetyPolicySeam`'s pre-rate-limit scan on `/api/generate`.
+  - Risks: The 80-character bound is a reasonable default, not measured against the scan's real per-character cost.
+
 ## 2026-06-24 - RateLimitSeam: extend abort-check/bounded-scan pattern to wig-try-on, studio-text, and generate; align prompt-length caps
 
 - Date: 2026-06-24

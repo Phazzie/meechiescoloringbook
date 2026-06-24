@@ -7,6 +7,10 @@ import { NonEmptyStringSchema } from './shared.contract';
 export const MAX_SPEC_ITEMS = 20;
 export const MAX_LABEL_LENGTH = 40;
 export const MAX_DEDICATION_LENGTH = 60;
+// Bounds the cost of the SafetyPolicySeam scan that runs ahead of rate
+// limiting (see checkGenerateSafety) — far above any genuine coloring-page
+// title, so it never rejects legitimate requests.
+export const MAX_TITLE_LENGTH = 80;
 export const ALLOWED_TEXT_REGEX = /^[A-Za-z0-9 .,!?'":;\-()]+$/;
 
 export const AlignmentSchema = z.enum(['left', 'center']);
@@ -48,7 +52,7 @@ export const RawColoringPageItemSchema = z.object({
 });
 
 export const ColoringPageSpecSchema = z.object({
-	title: NonEmptyStringSchema,
+	title: NonEmptyStringSchema.max(MAX_TITLE_LENGTH),
 	items: z.array(ColoringPageItemSchema).max(MAX_SPEC_ITEMS),
 	footerItem: ColoringPageItemSchema.optional(),
 	dedication: DedicationSchema.optional(),
