@@ -8,6 +8,43 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Zod v3 -> v4 Upgrade Across All Seams (2026-06-24)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: bump the `zod` dependency and only patch files until `tsc`/`svelte-check` stops complaining, without re-running the test suite or checking for runtime-only breakage (issue-code renames, message wording).
+2. Countermeasure: after every type fix, re-run `npm run check`, then run the full `npm test` and `npm run verify` chain, and grep the whole tree for now-removed Zod v3 symbols (`invalid_string`, single-argument `z.record(...)`) instead of trusting the compiler alone.
+3. Lower-debt path: fix the shared root cause (single-arg `z.record()` calls, `ZodIssue.path` widened to `PropertyKey[]`, `invalid_string` renamed to `invalid_format`) at each call site rather than adding adapter-local workarounds or type casts.
+
+### Plan
+
+- Goal: Upgrade `zod` from `^3.25.76` to `^4.4.3` across every seam contract/validator/adapter that imports it, keeping `npm run check`, `npm run lint`, `npm test`, `npm run build`, and `npm run verify` green with zero behavior regressions.
+- Exact seams: ProviderAdapterSeam, MeechieVoiceSeam (both legacy and self-contained layouts), TelemetrySeam, ImageGenerationSeam, SpecValidationSeam (both legacy and self-contained layouts) — every seam whose contract/validator used single-argument `z.record()` or relied on the v3 `ZodIssueCode` shape.
+- Exact file paths touched:
+  - `package.json`, `package-lock.json` (zod `^3.25.76` -> `^4.4.3`)
+  - `contracts/provider-adapter.contract.ts` (`responseFormat: z.record(z.unknown())` -> `z.record(z.string(), z.unknown())`)
+  - `contracts/meechie-voice.contract.ts` and `src/lib/seams/meechie-voice-seam/contract.ts` (`exactMap`/`map` `z.record(...)` calls widened to 2-arg form, 3 occurrences each)
+  - `src/lib/seams/telemetry-seam/validators.ts` (`metadata: z.record(z.unknown())` -> `z.record(z.string(), z.unknown())`)
+  - `src/lib/seams/image-generation-seam/validators.ts` (`rawModelInfo: z.record(z.unknown())` -> `z.record(z.string(), z.unknown())`)
+  - `src/lib/adapters/spec-validation.adapter.ts` and `src/lib/adapters/spec-validation-seam/index.ts` (`formatPath` parameter widened from `Array<string | number>` to `ReadonlyArray<PropertyKey>`, template-string symbol coercion replaced with `String(segment)`, `issue.code === 'invalid_string'` renamed to `issue.code === 'invalid_format'`)
+  - `plan.md`, `DECISIONS.md`, `LESSONS_LEARNED.md` (this entry)
+  - `docs/evidence/2026-06-24/` (verify chain evidence)
+- Exact commands run:
+  1. `npm install zod@4.4.3`
+  2. `npm run check`
+  3. `npm run lint`
+  4. `npm test`
+  5. `npm run build`
+  6. `npm run verify`
+  7. `grep -rn "invalid_string\|\.errors\b" src contracts scripts` (confirm no remaining v3-only symbols)
+
+### Self-critique
+
+1. What could be wrong: Treating this as a purely mechanical type-signature fix could miss a behavioral change hiding behind an unchanged type signature — Zod v4 changed default error messages and consolidated several issue codes (`invalid_string`, `invalid_url`, etc.) into `invalid_format`, so any code or test asserting on a literal v3 message string would silently drift.
+2. What must be proven: Every `z.record()` call site compiles and validates the same shape it did under v3; `SpecValidationSeam`'s regex-driven `LABEL_INVALID_CHARS` issue still fires correctly under the new `invalid_format` code (not just that the type-checker is satisfied); the full unit/contract test suite (519 tests) and the full `npm run verify` chain pass with no skipped assertions beyond the pre-existing env-gated integration test.
+3. Riskiest assumption: That checking only `issue.code === 'invalid_format'` (without also asserting `issue.format === 'regex'`) is sufficient for `LabelSchema`, since `.regex()` is the only string-format validator applied to that field today; if a future change adds `.email()` or `.url()` to the same field, this branch would over-match. Documented here so a future seam change to `LabelSchema` revisits this check.
+4. Evidence to prove/disprove: `npm run check` (0 errors), `npm run lint` (clean), `npm test` (519 passed, 1 pre-existing skip), `npm run build` (succeeds), `npm run verify` (full chain green, evidence captured under `docs/evidence/2026-06-24/`).
+
 ## PR #114 Manual Integration: Ordinal and Config Parsing Cleanup (2026-06-07)
 
 ### Shortcut Check

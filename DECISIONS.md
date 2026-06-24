@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-24 - Upgrade zod v3 -> v4 across all seams
+
+- Date: 2026-06-24
+- Decision: Bump `zod` from `^3.25.76` to `^4.4.3` and fix all resulting breakage at the call sites rather than pinning to v3 or adding a compatibility shim.
+- Context: `zod` v3 had fallen far behind upstream; v4 is the actively maintained line. The repo's entire validation layer (every seam contract, validator, and adapter) depends on `zod`, making this the highest-blast-radius dependency upgrade available, and one of the ten hardest items identified in a repo-wide difficulty audit. v4 makes `z.record()`'s key schema mandatory (was optional, implicit `string`), widens `ZodIssue.path` to `PropertyKey[]` (adds `symbol`), and consolidates string-format issue codes (`invalid_string` + `validation: 'regex'`) into a single `invalid_format` code with a `format` discriminator field.
+- Alternatives: Stay on v3 indefinitely; rejected because it accumulates upgrade debt and forgoes upstream fixes. Add a local compatibility wrapper around `zod` to preserve v3 call shapes; rejected because it would hide the new issue-code shape from every adapter that needs to read it correctly, and would need to be maintained indefinitely.
+- Consequences: All `z.record()` calls across `contracts/provider-adapter.contract.ts`, `contracts/meechie-voice.contract.ts`, `src/lib/seams/meechie-voice-seam/contract.ts`, `src/lib/seams/telemetry-seam/validators.ts`, and `src/lib/seams/image-generation-seam/validators.ts` now pass an explicit `z.string()` key schema. `SpecValidationSeam`'s two adapter layouts (`src/lib/adapters/spec-validation.adapter.ts` and `src/lib/adapters/spec-validation-seam/index.ts`) now check `issue.code === 'invalid_format'` instead of the removed `invalid_string`, and their shared `formatPath` helper accepts `PropertyKey[]` instead of `Array<string | number>`.
+- Revisit criteria: Revisit the `LabelSchema` regex-issue check in both `SpecValidationSeam` adapters if that field ever gains a second string-format validator (e.g. `.email()`/`.url()`) alongside `.regex()`, since the current check matches on `code` alone without also asserting `format === 'regex'`.
+- Plan:
+  - Goal: Upgrade `zod` to `^4.4.3` across every seam that imports it while keeping `npm run check`, `npm run lint`, `npm test`, `npm run build`, and `npm run verify` green.
+  - Seams: ProviderAdapterSeam, MeechieVoiceSeam (legacy + self-contained), TelemetrySeam, ImageGenerationSeam, SpecValidationSeam (legacy + self-contained).
+  - Files: `package.json`, `package-lock.json`, `contracts/provider-adapter.contract.ts`, `contracts/meechie-voice.contract.ts`, `src/lib/seams/meechie-voice-seam/contract.ts`, `src/lib/seams/telemetry-seam/validators.ts`, `src/lib/seams/image-generation-seam/validators.ts`, `src/lib/adapters/spec-validation.adapter.ts`, `src/lib/adapters/spec-validation-seam/index.ts`, `plan.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`.
+  - Commands: `npm install zod@4.4.3`, `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`, `grep -rn "invalid_string\|\.errors\b" src contracts scripts`.
+- Self-critique: The riskiest assumption is that matching only on `issue.code === 'invalid_format'` (without also checking `issue.format === 'regex'`) stays correct for `LabelSchema`, since `.regex()` is the only string-format validator on that field today; this is documented as a revisit trigger above rather than guarded with an extra check that has no current failing case to prove it against.
+
+- Cipher Gate:
+  - Date: 2026-06-24
+  - Seams: ProviderAdapterSeam, MeechieVoiceSeam, TelemetrySeam, ImageGenerationSeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-06-24/verify.txt; docs/evidence/2026-06-24/test.txt; docs/evidence/2026-06-24/chamber-lock.json; docs/evidence/2026-06-24/seam-ledger.json; docs/evidence/2026-06-24/clan-chain.md; docs/evidence/2026-06-24/proof-tape.md
+  - Summary: Upgraded `zod` to v4.4.3, widened all single-argument `z.record()` calls to the now-mandatory 2-argument form, and updated `SpecValidationSeam`'s two adapter layouts to read the renamed `invalid_format` issue code and the widened `PropertyKey[]` issue path. Full `npm run check`/`lint`/`test`/`build`/`verify` chain is green with no behavior regressions.
+  - Risks: Zod v4 also changed default validation message wording repo-wide; no current test asserts on a literal Zod-generated message string, so this is not expected to cause hidden breakage, but any future test that does should be written against the seam's own mapped error code/message (e.g. `LABEL_INVALID_CHARS`) rather than Zod's raw message.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07

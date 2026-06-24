@@ -7,6 +7,12 @@ Info flow: Experience -> lesson -> action applied to future changes.
 
 Short, dated entries capturing pitfalls, surprises, and fixes.
 
+## 2026-06-24
+- Date: 2026-06-24
+- Context: Upgrading `zod` v3 -> v4 across every seam contract/validator/adapter.
+- Lesson: `svelte-check`/`tsc` catching every call site does not guarantee behavioral correctness after a major validation-library upgrade — Zod v4 renamed `invalid_string` to `invalid_format` and consolidated several string-format codes under it, which is a type-level no-op at some call sites (string literal comparisons still compile against `string`-typed code fields in places) but a runtime behavior change. Type errors found 11 of 13 issues; the renamed issue code was only confirmed correct via an empirical `safeParse()` repro, not by reading the type definitions.
+- Action: After any major Zod (or similar schema-library) version bump, grep the tree for removed v3-only symbols (`invalid_string`, single-argument `z.record()`) in addition to fixing compiler errors, and write a throwaway Node repro of the new issue shape for any adapter that branches on `issue.code` before trusting the fix.
+
 ## 2026-01-22
 - Date: 2026-01-22
 - Context: Secret management for local development.
