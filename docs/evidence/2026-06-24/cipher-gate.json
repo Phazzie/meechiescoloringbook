@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-06-24T11:15:42.709Z",
+  "generatedAt": "2026-06-24T11:37:08.375Z",
   "cipher": {
     "date": "2026-06-24",
     "seams": "RateLimitSeam",
@@ -41,6 +41,6 @@
     "summary": "Closed the confirmed-still-open review findings from PR #187 and PR #180 on top of PR #187's RateLimitSeam baseline — moved three cheap/local preflight guards (generate's spec+prompt guard, image-generation's required-phrase guard, wig-try-on's catalog lookup) ahead of `enforceAiRateLimit` so invalid-but-cheap requests stop consuming shared-IP quota before reaching a real paid-provider call, added a fail-closed guard to `RateLimitSeam.checkAndConsume` for non-positive config values, and cleaned up redundant test assertions.",
     "risks": "The Zod-in-core-pipeline debt and the wig-image-fetch duplication tradeoff are both explicitly left as-is per the alternatives above rather than fixed in this slice."
   },
-  "latestChangeMs": 1782299489626.3574,
+  "latestChangeMs": 1782300734965.9102,
   "status": "ok"
 }

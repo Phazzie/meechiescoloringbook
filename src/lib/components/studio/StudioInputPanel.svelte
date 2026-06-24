@@ -64,6 +64,7 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		bind:value={evidence}
 		oninput={onScheduleDraftSave}
 		placeholder={activeMode.placeholder}
+		maxlength="4000"
 	></textarea>
 
 	<label for="dedication">Shoutout</label>

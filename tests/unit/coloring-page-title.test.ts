@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { promptAssemblyAdapter } from '../../src/lib/adapters/prompt-assembly.adapter';
 import { compactColoringPageTitle } from '../../src/lib/core/coloring-page-title';
+import { MAX_TITLE_LENGTH } from '../../contracts/spec-validation.contract';
 
 describe('compactColoringPageTitle', () => {
 	it('joins short title parts without changing useful text', () => {
@@ -20,7 +21,7 @@ describe('compactColoringPageTitle', () => {
 			)
 		]);
 
-		expect(title.length).toBeLessThanOrEqual(96);
+		expect(title.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
 		expect(title).not.toMatch(/[.,;:-]$/);
 	});
 

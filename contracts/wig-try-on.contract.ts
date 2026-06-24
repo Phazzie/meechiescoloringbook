@@ -10,8 +10,14 @@ import { resultSchema } from './shared.contract';
 // (longest current entry is 7 chars), so it never rejects legitimate requests.
 const MAX_WIG_ID_LENGTH = 64;
 
+// Bounds selfieBase64 before checkWigCatalogPreflight, which runs ahead of
+// rate limiting — generous headroom above the ~11.2M-character base64 string
+// a legitimate 8MB selfie produces (SelfieUpload.svelte's client-side
+// MAX_SIZE_MB cap), so it never rejects legitimate requests.
+const MAX_SELFIE_BASE64_LENGTH = 12_000_000;
+
 export const WigTryOnRequestSchema = z.object({
-	selfieBase64: z.string().min(1),
+	selfieBase64: z.string().min(1).max(MAX_SELFIE_BASE64_LENGTH),
 	selfieMimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
 	wigId: z.string().min(1).max(MAX_WIG_ID_LENGTH)
 });

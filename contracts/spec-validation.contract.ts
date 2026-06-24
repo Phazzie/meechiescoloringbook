@@ -9,7 +9,9 @@ export const MAX_LABEL_LENGTH = 40;
 export const MAX_DEDICATION_LENGTH = 60;
 // Bounds the cost of the SafetyPolicySeam scan that runs ahead of rate
 // limiting (see checkGenerateSafety) — far above any genuine coloring-page
-// title, so it never rejects legitimate requests.
+// title, so it never rejects legitimate requests. Also the shared cap for
+// compactColoringPageTitle, so tool-generated titles can never exceed what
+// this schema accepts.
 export const MAX_TITLE_LENGTH = 80;
 export const ALLOWED_TEXT_REGEX = /^[A-Za-z0-9 .,!?'":;\-()]+$/;
 

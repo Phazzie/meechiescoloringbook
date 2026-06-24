@@ -138,6 +138,45 @@ describe('/api/wig-try-on', () => {
 		expect(createWigTryOnSeam).not.toHaveBeenCalled();
 	});
 
+	it('rejects oversized selfieBase64 before the catalog preflight', async () => {
+		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReset();
+		vi.mocked(createWigTryOnSeam).mockReset();
+		const getWigById = vi.fn();
+		vi.mocked(createWigCatalogSeam).mockReturnValue({ listWigs: vi.fn(), getWigById });
+
+		const oversizedSelfie = 'a'.repeat(12_000_001);
+		const response = await POST(
+			buildEvent({ selfieBase64: oversizedSelfie, selfieMimeType: 'image/jpeg', wigId: 'missing-wig' })
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('WIG_TRY_ON_INPUT_INVALID');
+		expect(getWigById).not.toHaveBeenCalled();
+		expect(createWigTryOnSeam).not.toHaveBeenCalled();
+	});
+
+	it('does not consume rate-limit quota for oversized-selfie payloads', async () => {
+		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReset();
+		vi.mocked(createWigTryOnSeam).mockReset();
+		const getWigById = vi.fn();
+		vi.mocked(createWigCatalogSeam).mockReturnValue({ listWigs: vi.fn(), getWigById });
+
+		const oversizedSelfie = 'a'.repeat(12_000_001);
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(
+				buildEvent({ selfieBase64: oversizedSelfie, selfieMimeType: 'image/jpeg', wigId: 'missing-wig' })
+			);
+			expect(response.status).toBe(400);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('WIG_TRY_ON_INPUT_INVALID');
+		}
+		expect(getWigById).not.toHaveBeenCalled();
+	});
+
 	it('rejects unknown wig IDs with WIG_NOT_FOUND before creating WigTryOnSeam', async () => {
 		vi.mocked(createAppConfigSeam).mockReset();
 		vi.mocked(createWigCatalogSeam).mockReset();
