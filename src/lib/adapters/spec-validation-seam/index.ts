@@ -47,7 +47,7 @@ const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] =
 	}
 
 	if (pathString.endsWith('label')) {
-		if (issue.code === 'invalid_format') {
+		if (issue.code === 'invalid_format' && issue.format === 'regex') {
 			return {
 				code: 'LABEL_INVALID_CHARS',
 				field: field || 'items.label',
