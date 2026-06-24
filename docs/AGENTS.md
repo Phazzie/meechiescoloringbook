@@ -8,7 +8,7 @@ Info flow: Triage/Verify tools -> docs/evidence/ -> docs/triage-table.md & docs/
 This folder houses the repository's state ledgers, triage tables, seam catalogs, decision logs, and command evidence records. Any updates to documentation inside this directory must follow these rules:
 
 ## 1. Triage Table Maintenance (`triage-table.md`)
-The [triage-table.md](file:///C:/Users/ieatc/Meechiescoloringbook/docs/triage-table.md) acts as the single source of truth for open PR statuses.
+The [triage-table.md](./triage-table.md) acts as the single source of truth for open PR statuses.
 - **Merge Status:** Must only be updated to `CLEAN` or `CONFLICT` after a programmatic merge run (via `scripts/analyze-merge-conflicts.js`).
 - **Target Bucket Definitions:**
   - `1. Safe candidate for dry-run`: Clean merge, tests/verify pending.
@@ -24,9 +24,9 @@ Ledger documents (e.g. `docs/hpr-pr-resolution-ledger-YYYY-MM-DD.md`) track hist
 - References to evidence files must use relative links pointing to the specific file under `docs/evidence/YYYY-MM-DD/`.
 
 ## 3. Seam Definitions & Blueprints
-- The inventory of seams [seams.md](file:///C:/Users/ieatc/Meechiescoloringbook/docs/seams.md) must match the exact PascalCase name of the seam (e.g. `MeechieToolSeam`).
+- The inventory of seams [seams.md](./seams.md) must match the exact PascalCase name of the seam (e.g. `MeechieToolSeam`).
 - Any new seam must document its target contract, mock, test, and adapter path.
-- The blueprint [SEAM_BLUEPRINT.md](file:///C:/Users/ieatc/Meechiescoloringbook/docs/SEAM_BLUEPRINT.md) is the source of truth for new seam layouts.
+- The blueprint [SEAM_BLUEPRINT.md](./SEAM_BLUEPRINT.md) is the source of truth for new seam layouts.
 
 ## 4. Evidence Structure
 All script-generated outputs, lints, exit-code captures, and dry-run summaries must be written to:
