@@ -5,7 +5,7 @@ Info flow: seam checks -> ledger table -> review.
 -->
 # Seam Ledger
 
-Generated at: 2026-06-24T09:54:51.994Z
+Generated at: 2026-06-24T10:03:52.655Z
 
 | Seam | Status | Contract | Probe | Fixtures | Mock | Tests | Adapter |
 | --- | --- | --- | --- | --- | --- | --- | --- |

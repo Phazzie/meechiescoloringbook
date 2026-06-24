@@ -7,6 +7,30 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-24 - RateLimitSeam: fix fallback-key bypass flagged on PR #188
+
+- Date: 2026-06-24
+- Decision: Revert the per-failure random fallback key in `enforceAiRateLimit` (`src/lib/server/rate-limiter.ts`) back to a single fixed `'unknown-client'` key, and throttle `RateLimitSeam`'s eviction scan to once per `windowMs` instead of once per request past `CLEANUP_THRESHOLD`.
+- Context: Gemini Code Assist's review of PR #188 flagged that `generateFallbackKey()` (added by PR #187's own last hardening commit, `0dfda9f`, to stop unidentifiable clients from sharing one quota bucket) lets any client bypass the rate limiter entirely: forcing `getClientAddress()` to throw (e.g. by omitting/malforming a forwarded-for header) minted a fresh random key, and therefore a fresh quota, on every request.
+- Alternatives considered:
+  - Keep the unique-per-failure key and instead fail closed (500) whenever `getClientAddress()` throws. Rejected: more disruptive to legitimate traffic than necessary, and the shared-bucket approach already caps the abuse vector without rejecting requests outright.
+  - Leave eviction unthrottled. Rejected: a separate medium-priority finding on the same PR correctly noted the O(N) `windows` scan re-running on every request once the map exceeds `CLEANUP_THRESHOLD` is a needless per-request cost; throttling the scan to once per `windowMs` preserves the same eviction guarantee at near-O(1) amortized cost.
+- Consequences: All clients whose address lookup fails now share one `'unknown-client'` quota bucket — accepting that unidentifiable clients rate-limit each other (an intentional, documented tradeoff; this is strictly better than the bypass it replaces). `tests/unit/rate-limiter.test.ts`'s coverage was updated to assert the shared-bucket-collapse behavior instead of per-failure key uniqueness.
+- Revisit criteria: Revisit the fixed key if real traffic shows legitimate clients routinely failing `getClientAddress()` (would indicate the shared bucket is too easily exhausted) — at that point a smarter signal (e.g. a different cheap, spoof-resistant identifier) would be worth the added complexity.
+- Plan:
+  - Goal: Close the critical rate-limit bypass and the eviction-cost finding from PR #188's automated review before merge.
+  - Seams: RateLimitSeam.
+  - Files: `src/lib/server/rate-limiter.ts`, `src/lib/seams/rate-limit-seam/policy.ts`, `tests/unit/rate-limiter.test.ts`.
+  - Commands: `npm run check`, `npm run test`, `npm run lint`, `npm run verify`.
+- Self-critique: The shared `'unknown-client'` bucket reintroduces the exact fairness tradeoff PR #187's last commit tried to avoid (unidentifiable clients can rate-limit each other). That tradeoff is accepted here because the alternative is a full bypass of a billing-abuse control, which is strictly worse.
+
+- Cipher Gate:
+  - Date: 2026-06-24
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-06-24/chamber-lock.json; docs/evidence/2026-06-24/verify.txt; docs/evidence/2026-06-24/test.txt; docs/evidence/2026-06-24/shaolin-lint.json; docs/evidence/2026-06-24/assumption-alarm.json; docs/evidence/2026-06-24/seam-ledger.json; docs/evidence/2026-06-24/clan-chain.json; docs/evidence/2026-06-24/proof-tape.json
+  - Summary: Fixed a rate-limit bypass (unique random fallback key per failed `getClientAddress()` call let any client mint unlimited quota) by collapsing all such failures into one shared `'unknown-client'` bucket, and throttled the rate-limit seam's eviction scan to once per window instead of once per request.
+  - Risks: The shared fallback bucket means unidentifiable clients rate-limit each other; accepted per the alternatives above.
+
 ## 2026-06-24 - RateLimitSeam: close remaining quota-before-validation gaps from PR #187/#180
 
 - Date: 2026-06-24

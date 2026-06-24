@@ -28,12 +28,12 @@ const optionalInteger = (value: string | undefined): number | undefined => {
 	return Number(value);
 };
 
-const generateFallbackKey = (): string => {
-	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-		return `unknown-client-${crypto.randomUUID()}`;
-	}
-	return `unknown-client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-};
+// All clients whose address lookup fails share this one key. A unique key per
+// failure would let any client bypass rate limiting entirely by causing
+// getClientAddress() to throw (e.g. omitting/malforming a forwarded-for
+// header) — that defeats the limiter's purpose of capping paid-provider
+// billing, which is worse than unidentifiable clients sharing one bucket.
+const UNKNOWN_CLIENT_KEY = 'unknown-client';
 
 // Deliberately decoupled from AppConfigSeam: rate limiting must keep working
 // even when unrelated required config (e.g. xaiApiKey) is absent or mocked.
@@ -73,11 +73,7 @@ export const enforceAiRateLimit = (
 	try {
 		clientKey = getClientAddress();
 	} catch {
-		// A fixed fallback key would let every client whose address lookup fails
-		// share one quota bucket, collapsing per-client limiting into a single
-		// site-wide cap. A unique key per failure keeps failures from limiting
-		// each other instead.
-		clientKey = generateFallbackKey();
+		clientKey = UNKNOWN_CLIENT_KEY;
 	}
 
 	const result = rateLimitSeam.checkAndConsume({

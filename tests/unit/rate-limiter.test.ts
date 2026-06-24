@@ -59,18 +59,18 @@ describe('enforceAiRateLimit', () => {
 		expect(enforceAiRateLimit(throwingGetClientAddress, deps)).toBeNull();
 	});
 
-	it('does not let repeated address-lookup failures share one quota bucket', () => {
+	it('collapses repeated address-lookup failures into a shared quota bucket to prevent bypass', () => {
 		const rateLimitSeam = createRateLimitSeam();
 		const deps = { rateLimitSeam, getConfig, now: () => 1_000 };
 		const throwingGetClientAddress = () => {
 			throw new Error('could not determine client address');
 		};
 
-		// getConfig caps real clients at 2 requests; if fallback lookups shared a
-		// single key, a 3rd call here would 429. Each failure must get its own key.
-		for (let i = 0; i < 10; i += 1) {
-			expect(enforceAiRateLimit(throwingGetClientAddress, deps)).toBeNull();
-		}
+		// getConfig caps clients at 2 requests; a unique key per failure would let
+		// every failure bypass the cap entirely, so failures must share one key.
+		expect(enforceAiRateLimit(throwingGetClientAddress, deps)).toBeNull();
+		expect(enforceAiRateLimit(throwingGetClientAddress, deps)).toBeNull();
+		expect(enforceAiRateLimit(throwingGetClientAddress, deps)).not.toBeNull();
 	});
 
 	it('treats a negative env value as unset and falls back to the default', () => {

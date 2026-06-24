@@ -12,9 +12,16 @@ const CLEANUP_THRESHOLD = 1000;
 
 export const createRateLimitSeam = (): RateLimitSeam => {
 	const windows = new Map<string, WindowState>();
+	let lastCleanupAt = 0;
 
+	// Once the map is large, scanning it on every single request is an O(N)
+	// cost paid per request. Throttling the scan to at most once per window
+	// keeps the amortized cost near O(1) without changing eviction semantics
+	// (stale entries are still removed before they could accumulate further).
 	const evictExpired = (now: number, windowMs: number): void => {
 		if (windows.size <= CLEANUP_THRESHOLD) return;
+		if (now - lastCleanupAt < windowMs) return;
+		lastCleanupAt = now;
 		for (const [staleKey, staleState] of windows) {
 			if (now - staleState.windowStart >= windowMs) windows.delete(staleKey);
 		}
