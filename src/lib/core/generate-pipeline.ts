@@ -17,6 +17,7 @@ import {
 	ImageGenerationInputSchema,
 	ImageGenerationResultSchema
 } from '../../../contracts/image-generation.contract';
+import { isAbortError } from './http-resilience';
 import { z } from 'zod';
 
 type GenerateResult = z.infer<typeof GenerateResultSchema>;
@@ -74,6 +75,9 @@ const safetyErrorDetails = (error: SafetyPolicyError) => {
 };
 
 const imageExceptionResponse = (error: unknown): PipelineResponse => {
+	if (isAbortError(error)) {
+		return buildError(499, 'GENERATE_ABORTED', 'Generate request was canceled by the caller.');
+	}
 	const reason = error instanceof Error ? error.message : String(error);
 	const name = error instanceof Error ? error.name : '';
 	const isTimeout = name === 'TimeoutError' || /timeout/i.test(reason);

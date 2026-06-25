@@ -5,6 +5,7 @@ import { WigTryOnRequestSchema, WigTryOnResultSchema } from '../../../contracts/
 import { z } from 'zod';
 import type { WigCatalogSeam } from '../seams/wig-catalog-seam/contract';
 import type { WigTryOnSeam } from '../seams/wig-try-on-seam/contract';
+import { isAbortError } from './http-resilience';
 
 type WigTryOnResult = z.infer<typeof WigTryOnResultSchema>;
 
@@ -29,20 +30,26 @@ const buildError = (
 	body: { ok: false, error: { code, message } }
 });
 
+type FetchImageResult =
+	| { kind: 'ok'; base64: string; mimeType: string }
+	| { kind: 'aborted' }
+	| { kind: 'failed' };
+
 const fetchImageAsBase64 = async (
 	url: string,
 	fetchImpl: PipelineDeps['fetchImpl'],
 	signal?: AbortSignal
-): Promise<{ base64: string; mimeType: string } | null> => {
+): Promise<FetchImageResult> => {
 	try {
 		const res = signal ? await fetchImpl(url, { signal }) : await fetchImpl(url);
-		if (!res.ok) return null;
+		if (!res.ok) return { kind: 'failed' };
 		const buffer = await res.arrayBuffer();
 		const base64 = Buffer.from(buffer).toString('base64');
 		const mimeType = res.headers.get('content-type') ?? 'image/jpeg';
-		return { base64, mimeType: mimeType.split(';')[0].trim() };
-	} catch {
-		return null;
+		return { kind: 'ok', base64, mimeType: mimeType.split(';')[0].trim() };
+	} catch (error) {
+		if (isAbortError(error)) return { kind: 'aborted' };
+		return { kind: 'failed' };
 	}
 };
 
@@ -52,6 +59,10 @@ export const runWigTryOnPipeline = async (
 	body: unknown,
 	deps: PipelineDeps
 ): Promise<PipelineResponse> => {
+	if (deps.signal?.aborted) {
+		return buildError(499, 'WIG_TRY_ON_ABORTED', 'Wig try-on request was canceled by the caller.');
+	}
+
 	const parsed = WigTryOnRequestSchema.safeParse(body);
 	if (!parsed.success) {
 		return buildError(400, 'WIG_TRY_ON_INPUT_INVALID', 'Wig try-on request is invalid.');
@@ -68,7 +79,10 @@ export const runWigTryOnPipeline = async (
 	const wig = wigResult.value;
 
 	const wigImage = await fetchImageAsBase64(wig.imageUrl, deps.fetchImpl, deps.signal);
-	if (!wigImage) {
+	if (wigImage.kind === 'aborted') {
+		return buildError(499, 'WIG_TRY_ON_ABORTED', 'Wig try-on request was canceled by the caller.');
+	}
+	if (wigImage.kind === 'failed') {
 		return buildError(502, 'WIG_IMAGE_FETCH_FAILED', `Could not fetch wig image for ${wig.name}.`);
 	}
 

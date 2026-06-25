@@ -1,0 +1,10 @@
+# Purpose: Store npm run lint output for evidence.
+# Why: Provide an audit trail for the four-quick-wins fix slice.
+# Info flow: Command output -> evidence file -> review.
+
+$ npm run lint
+
+
+> meechies-coloringbook@0.1.0 lint
+> eslint .
+

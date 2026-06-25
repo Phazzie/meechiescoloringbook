@@ -233,6 +233,22 @@ describe('creation-store adapter', () => {
 				expect(getResult.value).toBeNull();
 			}
 		});
+
+		it('returns a typed error instead of throwing when the draft fails schema validation', async () => {
+			const result = await creationStoreAdapter.saveDraft({
+				draft: { ...validDraft, chatMessage: '' } as never
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('DRAFT_SCHEMA_MISMATCH');
+			}
+
+			const getResult = await creationStoreAdapter.getDraft({});
+			expect(getResult.ok).toBe(true);
+			if (getResult.ok) {
+				expect(getResult.value).toBeNull();
+			}
+		});
 	});
 
 	describe('corrupted storage', () => {

@@ -1,0 +1,58 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-25T15:54:35.285Z",
+  "cipher": {
+    "date": "2026-06-25",
+    "seams": "CreationStoreSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-25/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/quick-wins-lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/rewind-CreationStoreSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/quick-wins-diff-check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/proof-tape.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/assumption-alarm.json",
+        "exists": true
+      }
+    ],
+    "summary": "Fixed AbortError misclassification in generate-pipeline and wig-try-on-pipeline (502 -> 499), fixed creation-store's saveDraft throwing instead of returning a typed Result error, and corrected four stale references in SDD_MASTER_GUIDE_COPY.md.",
+    "risks": "Behavior-preserving for non-abort paths (covered by regression tests); no contract schema changes were needed since error codes are generic strings. Wig-try-on-seam's deeper network/abort conflation at `WIG_TRY_ON_NETWORK_ERROR` remains unfixed by design (out of scope for this slice)."
+  },
+  "latestChangeMs": 1782402493138.6477,
+  "status": "ok"
+}

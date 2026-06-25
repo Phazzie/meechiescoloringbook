@@ -528,6 +528,48 @@ describe('generate-pipeline edge cases', () => {
 		}
 	});
 
+	it('returns 499 when image generation throws an AbortError', async () => {
+		const result = await runGeneratePipeline(
+			{ spec: validSpec },
+			{
+				...buildGenerateDeps(),
+				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
+				assemblePrompt: vi.fn().mockResolvedValue({
+					ok: true,
+					value: { prompt: 'test prompt', templateVersion: 'v2' }
+				}),
+				generateImage: vi.fn().mockRejectedValue(
+					Object.assign(new Error('Operation aborted by caller.'), { name: 'AbortError' })
+				)
+			}
+		);
+		expect(result.status).toBe(499);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('GENERATE_ABORTED');
+		}
+	});
+
+	it('returns 502 when image generation throws a generic error', async () => {
+		const result = await runGeneratePipeline(
+			{ spec: validSpec },
+			{
+				...buildGenerateDeps(),
+				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
+				assemblePrompt: vi.fn().mockResolvedValue({
+					ok: true,
+					value: { prompt: 'test prompt', templateVersion: 'v2' }
+				}),
+				generateImage: vi.fn().mockRejectedValue(new Error('socket hang up'))
+			}
+		);
+		expect(result.status).toBe(502);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('IMAGE_GENERATION_FAILED');
+		}
+	});
+
 	it('includes empty violations when drift detection fails', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
