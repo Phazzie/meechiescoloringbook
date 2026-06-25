@@ -36,22 +36,22 @@ const okImageResponse = (contentType: string | null = 'image/png') =>
 		headers: contentType ? { 'Content-Type': contentType } : undefined
 	});
 
-const successfulTryOn = vi.fn(async () => ({
-	ok: true as const,
-	value: {
-		portraitBase64: 'portrait-data',
-		portraitMimeType: 'image/png',
-		timingMs: 10
-	}
-}));
-
 const makeDeps = (overrides: Partial<PipelineDeps> = {}): PipelineDeps => ({
 	fetchImpl: vi.fn(async () => okImageResponse()),
 	wigCatalogSeam: {
 		listWigs: vi.fn(async () => ({ ok: true as const, value: [wig] })),
 		getWigById: vi.fn(async () => ({ ok: true as const, value: wig }))
 	},
-	wigTryOnSeam: { tryOn: successfulTryOn },
+	wigTryOnSeam: {
+		tryOn: vi.fn(async () => ({
+			ok: true as const,
+			value: {
+				portraitBase64: 'portrait-data',
+				portraitMimeType: 'image/png',
+				timingMs: 10
+			}
+		}))
+	},
 	...overrides
 });
 
@@ -97,10 +97,10 @@ describe('runWigTryOnPipeline', () => {
 		const result = await runWigTryOnPipeline(validBody, deps);
 
 		expect(result.status).toBe(500);
-		expect(result.body.ok).toBe(false);
-		if (!result.body.ok) {
-			expect(result.body.error.code).toBe('WIG_CATALOG_LOAD_FAILED');
-		}
+		expect(result.body).toMatchObject({
+			ok: false,
+			error: { code: 'WIG_CATALOG_LOAD_FAILED' }
+		});
 	});
 
 	it('returns 502 WIG_IMAGE_FETCH_FAILED when the wig image response is not ok', async () => {
@@ -111,11 +111,13 @@ describe('runWigTryOnPipeline', () => {
 		const result = await runWigTryOnPipeline(validBody, deps);
 
 		expect(result.status).toBe(502);
-		expect(result.body.ok).toBe(false);
-		if (!result.body.ok) {
-			expect(result.body.error.code).toBe('WIG_IMAGE_FETCH_FAILED');
-			expect(result.body.error.message).toContain(wig.name);
-		}
+		expect(result.body).toMatchObject({
+			ok: false,
+			error: {
+				code: 'WIG_IMAGE_FETCH_FAILED',
+				message: expect.stringContaining(wig.name)
+			}
+		});
 	});
 
 	it('returns 502 WIG_IMAGE_FETCH_FAILED when fetching the wig image throws', async () => {
@@ -128,10 +130,10 @@ describe('runWigTryOnPipeline', () => {
 		const result = await runWigTryOnPipeline(validBody, deps);
 
 		expect(result.status).toBe(502);
-		expect(result.body.ok).toBe(false);
-		if (!result.body.ok) {
-			expect(result.body.error.code).toBe('WIG_IMAGE_FETCH_FAILED');
-		}
+		expect(result.body).toMatchObject({
+			ok: false,
+			error: { code: 'WIG_IMAGE_FETCH_FAILED' }
+		});
 	});
 
 	it('falls back to image/jpeg when the fetched wig image has a disallowed MIME type', async () => {
@@ -172,10 +174,10 @@ describe('runWigTryOnPipeline', () => {
 		const result = await runWigTryOnPipeline(validBody, deps);
 
 		expect(result.status).toBe(400);
-		expect(result.body.ok).toBe(false);
-		if (!result.body.ok) {
-			expect(result.body.error.code).toBe('WIG_TRY_ON_VALIDATION_ERROR');
-		}
+		expect(result.body).toMatchObject({
+			ok: false,
+			error: { code: 'WIG_TRY_ON_VALIDATION_ERROR' }
+		});
 	});
 
 	it('returns 502 when the try-on seam reports a provider/network error', async () => {
@@ -194,10 +196,10 @@ describe('runWigTryOnPipeline', () => {
 		const result = await runWigTryOnPipeline(validBody, deps);
 
 		expect(result.status).toBe(502);
-		expect(result.body.ok).toBe(false);
-		if (!result.body.ok) {
-			expect(result.body.error.code).toBe('WIG_TRY_ON_HTTP_ERROR');
-		}
+		expect(result.body).toMatchObject({
+			ok: false,
+			error: { code: 'WIG_TRY_ON_HTTP_ERROR' }
+		});
 	});
 
 	it('returns 500 WIG_TRY_ON_OUTPUT_INVALID when the seam result fails the output schema', async () => {
@@ -217,10 +219,10 @@ describe('runWigTryOnPipeline', () => {
 		const result = await runWigTryOnPipeline(validBody, deps);
 
 		expect(result.status).toBe(500);
-		expect(result.body.ok).toBe(false);
-		if (!result.body.ok) {
-			expect(result.body.error.code).toBe('WIG_TRY_ON_OUTPUT_INVALID');
-		}
+		expect(result.body).toMatchObject({
+			ok: false,
+			error: { code: 'WIG_TRY_ON_OUTPUT_INVALID' }
+		});
 	});
 
 	it('returns 200 with the portrait payload on the full success path', async () => {
