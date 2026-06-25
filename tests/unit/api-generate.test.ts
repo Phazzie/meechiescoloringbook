@@ -2,6 +2,29 @@
 // Why: Keep the main generation path on one server endpoint with contract-checked output.
 // Info flow: Generate request -> endpoint orchestration -> contract response.
 import { describe, expect, it, vi } from 'vitest';
+
+// Lets a single test simulate the caller disconnecting while the route's awaited
+// spec-validation preflight is in flight, without touching any other test's behavior
+// (the no-op default leaves specValidationAdapter.validate fully real/untouched).
+const lateAbortRef = vi.hoisted(() => ({ controller: null as AbortController | null }));
+
+vi.mock('$lib/adapters/spec-validation-seam', async () => {
+	const actual = await vi.importActual<typeof import('$lib/adapters/spec-validation-seam')>(
+		'$lib/adapters/spec-validation-seam'
+	);
+	return {
+		specValidationAdapter: {
+			...actual.specValidationAdapter,
+			validate: async (
+				...args: Parameters<typeof actual.specValidationAdapter.validate>
+			) => {
+				lateAbortRef.controller?.abort();
+				return actual.specValidationAdapter.validate(...args);
+			}
+		}
+	};
+});
+
 import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
 import { POST } from '../../src/routes/api/generate/+server';
 
@@ -53,6 +76,22 @@ const buildRawEvent = (
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
+		}),
+		fetch: fetchImpl,
+		getClientAddress: () => '203.0.113.10'
+	}) as Parameters<typeof POST>[0];
+
+const buildEventWithController = (
+	body: unknown,
+	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
+	controller: AbortController
+): Parameters<typeof POST>[0] =>
+	({
+		request: new Request('http://localhost/api/generate', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+			signal: controller.signal
 		}),
 		fetch: fetchImpl,
 		getClientAddress: () => '203.0.113.10'
@@ -167,6 +206,54 @@ describe('/api/generate', () => {
 			expect(payload.error.code).toBe('GENERATE_ABORTED');
 		}
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('rejects a request that aborts during prompt-guard preflight before consuming rate-limit quota', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+		const controller = new AbortController();
+		lateAbortRef.controller = controller;
+
+		try {
+			const response = await POST(
+				buildEventWithController(
+					{ spec: validSpec, styleHint: 'glam sparkle icons' },
+					fetchMock,
+					controller
+				)
+			);
+			const payload = await response.json();
+
+			expect(response.status).toBe(499);
+			expect(payload.ok).toBe(false);
+			expect(payload.error.code).toBe('GENERATE_ABORTED');
+			expect(fetchMock).not.toHaveBeenCalled();
+		} finally {
+			lateAbortRef.controller = null;
+		}
+	});
+
+	it('does not consume rate-limit quota when aborting during prompt-guard preflight', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+
+		try {
+			for (let i = 0; i < 25; i += 1) {
+				const controller = new AbortController();
+				lateAbortRef.controller = controller;
+				const response = await POST(
+					buildEventWithController(
+						{ spec: validSpec, styleHint: 'glam sparkle icons' },
+						fetchMock,
+						controller
+					)
+				);
+				expect(response.status).toBe(499);
+				const payload = await response.json();
+				expect(payload.error.code).toBe('GENERATE_ABORTED');
+			}
+			expect(fetchMock).not.toHaveBeenCalled();
+		} finally {
+			lateAbortRef.controller = null;
+		}
 	});
 
 	it('rejects invalid payloads', async () => {

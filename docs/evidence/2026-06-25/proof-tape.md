@@ -5,13 +5,13 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-06-25T11:09:27.992Z
+Generated at: 2026-06-25T11:37:07.536Z
 Evidence folder: docs/evidence/2026-06-25
 
 Files included:
 - assumption-alarm.json (3636 bytes)
 - chamber-lock.json (26724 bytes)
-- cipher-gate.json (1509 bytes)
+- cipher-gate.json (1508 bytes)
 - clan-chain.json (2389 bytes)
 - clan-chain.md (1488 bytes)
 - proof-tape.json (2815 bytes)

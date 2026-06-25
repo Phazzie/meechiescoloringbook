@@ -289,4 +289,113 @@ describe('/api/wig-try-on', () => {
 		expect(fetchImpl).toHaveBeenCalledWith(wig.imageUrl, { signal: request.signal });
 		expect(tryOn).toHaveBeenCalledWith(expect.objectContaining({ signal: request.signal }));
 	});
+
+	it('rejects a request that aborts during catalog preflight before consuming rate-limit quota', async () => {
+		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReset();
+		vi.mocked(createWigTryOnSeam).mockReset();
+
+		const controller = new AbortController();
+		const wig = {
+			id: 'wig-001',
+			name: 'Sleek Straight Goddess',
+			brand: 'Beautyforever',
+			affiliateProgram: 'beautyforever' as const,
+			affiliateUrl: 'https://example.com/wig',
+			imageUrl: 'https://example.com/wig.png',
+			priceUsd: 89.99,
+			style: 'Straight Lace Front',
+			hairType: 'human' as const,
+			length: 'medium' as const,
+			color: 'Natural Black',
+			colorFamily: 'black' as const,
+			tags: ['sleek']
+		};
+		vi.mocked(createWigCatalogSeam).mockReturnValue({
+			listWigs: vi.fn(),
+			getWigById: vi.fn(async () => {
+				controller.abort();
+				return { ok: true as const, value: wig };
+			})
+		});
+
+		const request = new Request('http://localhost/api/wig-try-on', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				selfieBase64: 'selfie-data',
+				selfieMimeType: 'image/jpeg',
+				wigId: wig.id
+			}),
+			signal: controller.signal
+		});
+
+		const response = await POST({
+			request,
+			fetch: vi.fn(),
+			getClientAddress: () => '203.0.113.10'
+		} as unknown as Parameters<typeof POST>[0]);
+		const payload = await response.json();
+
+		expect(response.status).toBe(499);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('WIG_TRY_ON_ABORTED');
+		expect(createAppConfigSeam).not.toHaveBeenCalled();
+		expect(createWigTryOnSeam).not.toHaveBeenCalled();
+	});
+
+	it('does not consume rate-limit quota when aborting during catalog preflight', async () => {
+		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReset();
+		vi.mocked(createWigTryOnSeam).mockReset();
+
+		const wig = {
+			id: 'wig-001',
+			name: 'Sleek Straight Goddess',
+			brand: 'Beautyforever',
+			affiliateProgram: 'beautyforever' as const,
+			affiliateUrl: 'https://example.com/wig',
+			imageUrl: 'https://example.com/wig.png',
+			priceUsd: 89.99,
+			style: 'Straight Lace Front',
+			hairType: 'human' as const,
+			length: 'medium' as const,
+			color: 'Natural Black',
+			colorFamily: 'black' as const,
+			tags: ['sleek']
+		};
+
+		for (let i = 0; i < 25; i += 1) {
+			const controller = new AbortController();
+			vi.mocked(createWigCatalogSeam).mockReturnValue({
+				listWigs: vi.fn(),
+				getWigById: vi.fn(async () => {
+					controller.abort();
+					return { ok: true as const, value: wig };
+				})
+			});
+
+			const request = new Request('http://localhost/api/wig-try-on', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					selfieBase64: 'selfie-data',
+					selfieMimeType: 'image/jpeg',
+					wigId: wig.id
+				}),
+				signal: controller.signal
+			});
+
+			const response = await POST({
+				request,
+				fetch: vi.fn(),
+				getClientAddress: () => '203.0.113.10'
+			} as unknown as Parameters<typeof POST>[0]);
+			expect(response.status).toBe(499);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('WIG_TRY_ON_ABORTED');
+		}
+		expect(createAppConfigSeam).not.toHaveBeenCalled();
+		expect(createWigTryOnSeam).not.toHaveBeenCalled();
+	});
 });

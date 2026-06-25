@@ -7,11 +7,15 @@ import {
 	baseRateLimitCheckFixture,
 	exceededRateLimitCheckFixture,
 	fractionalMaxRequestsRateLimitCheckFixture,
+	fractionalNowRateLimitCheckFixture,
 	fractionalWindowMsRateLimitCheckFixture,
 	infiniteMaxRequestsRateLimitCheckFixture,
+	infiniteNowRateLimitCheckFixture,
 	infiniteWindowMsRateLimitCheckFixture,
 	invalidMaxRequestsRateLimitCheckFixture,
 	invalidWindowMsRateLimitCheckFixture,
+	nanNowRateLimitCheckFixture,
+	negativeNowRateLimitCheckFixture,
 	nextWindowRateLimitCheckFixture
 } from './fixtures';
 import { createMockRateLimitSeam } from './mock';
@@ -140,6 +144,45 @@ describe('RateLimitSeam mock contract', () => {
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
 			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
+		}
+	});
+
+	it('fails closed when now is fractional', () => {
+		const seam = createMockRateLimitSeam();
+		const result = validateRateLimitResult(seam.checkAndConsume(fractionalNowRateLimitCheckFixture));
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
+		}
+	});
+
+	it('fails closed when now is negative', () => {
+		const seam = createMockRateLimitSeam();
+		const result = validateRateLimitResult(seam.checkAndConsume(negativeNowRateLimitCheckFixture));
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
+			expect(result.error.resetAt).toBeGreaterThanOrEqual(0);
+		}
+	});
+
+	it('fails closed when now is Infinity', () => {
+		const seam = createMockRateLimitSeam();
+		const result = validateRateLimitResult(seam.checkAndConsume(infiniteNowRateLimitCheckFixture));
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
+			expect(Number.isFinite(result.error.resetAt)).toBe(true);
+		}
+	});
+
+	it('fails closed when now is NaN', () => {
+		const seam = createMockRateLimitSeam();
+		const result = validateRateLimitResult(seam.checkAndConsume(nanNowRateLimitCheckFixture));
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
+			expect(Number.isFinite(result.error.resetAt)).toBe(true);
 		}
 	});
 

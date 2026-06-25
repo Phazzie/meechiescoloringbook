@@ -34,30 +34,33 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 		checkAndConsume: ({ key, maxRequests, windowMs, now }: RateLimitCheckInput): RateLimitResult => {
 			// The contract type doesn't statically enforce positive, finite, integer
 			// bounds, so a caller passing a non-integer, non-positive, or non-finite
-			// maxRequests/windowMs (misconfigured env, future direct use of this
+			// maxRequests/windowMs/now (misconfigured env, future direct use of this
 			// policy) must fail closed rather than allow unlimited requests
 			// (maxRequests <= 0, or Infinity, would never block), divide by a
-			// degenerate window, or return fractional remaining/resetAt values that
-			// violate the RateLimitResult integer contract.
+			// degenerate window, or return fractional/negative remaining/resetAt
+			// values that violate the RateLimitResult integer contract.
 			if (
 				!Number.isInteger(maxRequests) ||
 				maxRequests < 1 ||
 				!Number.isInteger(windowMs) ||
-				windowMs < 1
+				windowMs < 1 ||
+				!Number.isInteger(now) ||
+				now < 0
 			) {
-				// windowMs itself may be the non-finite/non-integer/invalid value, so it
-				// cannot be reused verbatim to size the retry hint — contract validators
-				// (e.g. the rateLimitErrorSchema int bounds) require a finite, integer,
-				// bounded result, so a finite-but-fractional windowMs (e.g. 1.5) must
-				// still be floored rather than passed through as-is.
+				// windowMs/now may themselves be the non-finite/non-integer/invalid
+				// value, so neither can be reused verbatim to build the result — contract
+				// validators (e.g. the rateLimitErrorSchema int bounds) require a finite,
+				// integer, non-negative result, so each fallback is independently clamped
+				// rather than passed through as-is.
 				const fallbackRetryAfterMs = Number.isFinite(windowMs) ? Math.floor(Math.max(0, windowMs)) : 0;
+				const fallbackNow = Number.isInteger(now) && now >= 0 ? now : 0;
 				return {
 					ok: false,
 					error: {
 						code: 'RATE_LIMIT_EXCEEDED',
 						message: 'Rate limit configuration is invalid; failing closed.',
 						retryAfterMs: fallbackRetryAfterMs,
-						resetAt: now + fallbackRetryAfterMs
+						resetAt: fallbackNow + fallbackRetryAfterMs
 					}
 				};
 			}

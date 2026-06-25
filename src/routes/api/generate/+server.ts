@@ -34,6 +34,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const promptGuardCheck = await checkGeneratePromptGuards(shapeCheck.data, generatePipelineDeps);
 	if (!promptGuardCheck.ok)
 		return json(promptGuardCheck.response.body, { status: promptGuardCheck.response.status });
+	// Preflight above awaits spec validation/prompt assembly, so a client can disconnect
+	// during that window; re-check here to avoid burning a rate-limit slot for no paid work.
+	const lateAbortCheck = checkGenerateAbort(request.signal);
+	if (!lateAbortCheck.ok)
+		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const imageGenerationSeam = createImageGenerationSeam(createImageProviderConfigSeam());

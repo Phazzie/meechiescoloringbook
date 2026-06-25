@@ -67,3 +67,27 @@ export const fractionalWindowMsRateLimitCheckFixture: RateLimitCheckInput = {
 	...baseRateLimitCheckFixture,
 	windowMs: 1.5
 };
+
+// now is also just `number` on the contract, so a direct caller passing a
+// fractional, negative, or non-finite clock value must fail closed too —
+// otherwise it is stored as windowStart/used to compute resetAt and breaks
+// the RateLimitResult integer/non-negative contract.
+export const fractionalNowRateLimitCheckFixture: RateLimitCheckInput = {
+	...baseRateLimitCheckFixture,
+	now: 1.5
+};
+
+export const negativeNowRateLimitCheckFixture: RateLimitCheckInput = {
+	...baseRateLimitCheckFixture,
+	now: -1
+};
+
+export const infiniteNowRateLimitCheckFixture: RateLimitCheckInput = {
+	...baseRateLimitCheckFixture,
+	now: Infinity
+};
+
+export const nanNowRateLimitCheckFixture: RateLimitCheckInput = {
+	...baseRateLimitCheckFixture,
+	now: NaN
+};

@@ -28,6 +28,12 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 	if (!catalogCheck.ok)
 		return json(catalogCheck.response.body, { status: catalogCheck.response.status });
 
+	// Catalog preflight above is awaited, so a client can disconnect during that window;
+	// re-check here to avoid burning a rate-limit slot for no paid work.
+	const lateAbortCheck = checkWigTryOnAbort(request.signal);
+	if (!lateAbortCheck.ok)
+		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
+
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 
