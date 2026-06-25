@@ -84,6 +84,20 @@ const buildAbortedEvent = (body: unknown) => {
   } as Parameters<typeof POST>[0];
 };
 
+const buildAbortedRawEvent = (rawBody: string) => {
+  const controller = new AbortController();
+  controller.abort();
+  return {
+    request: new Request('http://localhost/api/image-generation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: rawBody,
+      signal: controller.signal
+    }),
+    getClientAddress: () => '203.0.113.10'
+  } as Parameters<typeof POST>[0];
+};
+
 describe('/api/image-generation', () => {
   beforeEach(() => {
     mockCreateSeam.mockReset();
@@ -106,6 +120,16 @@ describe('/api/image-generation', () => {
         outputFormat: 'pdf'
       })
     );
+    const payload = await response.json();
+
+    expect(response.status).toBe(499);
+    expect(payload.ok).toBe(false);
+    expect(payload.error.code).toBe('IMAGE_ABORTED');
+    expect(mockCreateSeam).not.toHaveBeenCalled();
+  });
+
+  it('rejects an already-aborted request with IMAGE_ABORTED even when the body is malformed JSON, proving the abort check runs before body parsing', async () => {
+    const response = await POST(buildAbortedRawEvent('{not: valid json}'));
     const payload = await response.json();
 
     expect(response.status).toBe(499);

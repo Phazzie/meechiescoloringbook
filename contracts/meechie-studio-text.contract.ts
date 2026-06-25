@@ -54,13 +54,17 @@ export const MeechieStudioQualityStateSchema = z.enum([
 
 export const MeechieStudioPageItemSchema = z.object({
 	number: z.number().int().min(1).max(999),
-	label: NonEmptyStringSchema
+	label: LabelTextSchema
 });
 
+// verdict/quote/pageTitle/pageItems[].label are capped to match
+// MeechieStudioCurrentTextSchema above: studio-state.svelte.ts echoes this output back
+// as the next request's currentText, so an uncapped provider output here would pass this
+// schema but fail input validation on the very next round, stranding the user.
 export const MeechieStudioTextOutputSchema = z.object({
-	verdict: NonEmptyStringSchema,
-	quote: NonEmptyStringSchema,
-	pageTitle: NonEmptyStringSchema,
+	verdict: FreeTextSchema,
+	quote: FreeTextSchema,
+	pageTitle: LabelTextSchema,
 	pageItems: z.array(MeechieStudioPageItemSchema).min(2).max(6),
 	rating: z.number().int().min(1).max(10).optional(),
 	qualityState: MeechieStudioQualityStateSchema,

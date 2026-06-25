@@ -243,6 +243,25 @@ describe('chat-interpretation-pipeline edge cases', () => {
 });
 
 describe('tools-pipeline edge cases', () => {
+	it('returns MEECHIE_TOOL_ABORTED before calling the adapter when the signal is already aborted', async () => {
+		const controller = new AbortController();
+		controller.abort();
+		const mockRespond = vi.fn();
+		const result = await runToolsPipeline(
+			{
+				toolId: 'apology_translator',
+				apology: 'Sorry not sorry'
+			},
+			{ respond: mockRespond, signal: controller.signal }
+		);
+		expect(result.status).toBe(499);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('MEECHIE_TOOL_ABORTED');
+		}
+		expect(mockRespond).not.toHaveBeenCalled();
+	});
+
 	it('rejects invalid tool input', async () => {
 		const result = await runToolsPipeline(
 			{ toolId: 'nonexistent_tool' },

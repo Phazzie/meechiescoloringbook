@@ -5,6 +5,7 @@ Info flow: Client tool request -> schema + safety checks -> tool adapter -> JSON
 */
 import { json } from '@sveltejs/kit';
 import {
+	checkMeechieToolAbort,
 	checkMeechieToolInputShape,
 	checkMeechieToolSafety,
 	runToolsPipeline,
@@ -15,6 +16,8 @@ import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	const abortCheck = checkMeechieToolAbort(request.signal);
+	if (!abortCheck.ok) return json(abortCheck.response.body, { status: abortCheck.response.status });
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 	const shapeCheck = checkMeechieToolInputShape(parsed.body);
@@ -24,6 +27,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		return json(safetyCheck.response.body, { status: safetyCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
-	const pipelineResult = await runToolsPipeline(parsed.body, toolsPipelineDeps);
+	const pipelineResult = await runToolsPipeline(parsed.body, {
+		...toolsPipelineDeps,
+		signal: request.signal
+	});
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };

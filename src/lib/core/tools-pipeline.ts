@@ -18,6 +18,7 @@ type ToolsPipelineResponse = {
 
 type ToolsPipelineDeps = {
 	respond: typeof meechieToolAdapter.respond;
+	signal?: AbortSignal;
 };
 
 const buildError = (
@@ -36,6 +37,25 @@ const buildError = (
 		}
 	}
 });
+
+export type MeechieToolAbortCheck = { ok: true } | { ok: false; response: ToolsPipelineResponse };
+
+// Exported so the route can short-circuit an already-aborted request before consuming
+// rate-limit quota or triggering the paid AI provider call — see checkGenerateAbort in
+// generate-pipeline.ts for why this must run ahead of body parsing.
+export const checkMeechieToolAbort = (signal?: AbortSignal): MeechieToolAbortCheck => {
+	if (signal?.aborted) {
+		return {
+			ok: false,
+			response: buildError(
+				499,
+				'MEECHIE_TOOL_ABORTED',
+				'Meechie tool request was canceled by the caller.'
+			)
+		};
+	}
+	return { ok: true };
+};
 
 export type MeechieToolInputShapeCheck =
 	| { ok: true; data: z.infer<typeof MeechieToolInputSchema> }
@@ -82,6 +102,9 @@ export const runToolsPipeline = async (
 	body: unknown,
 	deps: ToolsPipelineDeps
 ): Promise<ToolsPipelineResponse> => {
+	const abortCheck = checkMeechieToolAbort(deps.signal);
+	if (!abortCheck.ok) return abortCheck.response;
+
 	const shapeCheck = checkMeechieToolInputShape(body);
 	if (!shapeCheck.ok) return shapeCheck.response;
 	const parsedInput = { data: shapeCheck.data };

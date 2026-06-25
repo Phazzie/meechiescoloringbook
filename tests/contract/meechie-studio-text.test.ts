@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
 	MeechieStudioTextInputSchema,
+	MeechieStudioTextOutputSchema,
 	MeechieStudioTextResultSchema
 } from '../../contracts/meechie-studio-text.contract';
 import { ScenarioSchema } from '../../contracts/shared.contract';
@@ -58,5 +59,40 @@ describe('MeechieStudioTextSeam contract', () => {
 			expect(output.value.verdict).toBe(sampleOutput?.verdict);
 			expect(output.value.pageItems).toHaveLength(3);
 		}
+	});
+
+	it('caps every output text field at the same length the next request must satisfy as currentText, so studio-state.svelte.ts can always echo an output back without tripping MEECHIE_STUDIO_TEXT_INPUT_INVALID', () => {
+		const maxOutput = MeechieStudioTextOutputSchema.parse({
+			verdict: 'v'.repeat(4000),
+			quote: 'q'.repeat(4000),
+			pageTitle: 't'.repeat(200),
+			pageItems: [
+				{ number: 1, label: 'a'.repeat(200) },
+				{ number: 2, label: 'b'.repeat(200) }
+			],
+			qualityState: 'ready'
+		});
+
+		const currentText = MeechieStudioTextInputSchema.shape.currentText.parse({
+			verdict: maxOutput.verdict,
+			quote: maxOutput.quote,
+			pageTitle: maxOutput.pageTitle,
+			pageItems: maxOutput.pageItems.map((item) => item.label)
+		});
+
+		expect(currentText?.pageItems).toHaveLength(2);
+
+		expect(() =>
+			MeechieStudioTextOutputSchema.parse({
+				verdict: 'v',
+				quote: 'q',
+				pageTitle: 't',
+				pageItems: [
+					{ number: 1, label: 'a'.repeat(201) },
+					{ number: 2, label: 'b' }
+				],
+				qualityState: 'ready'
+			})
+		).toThrow();
 	});
 });

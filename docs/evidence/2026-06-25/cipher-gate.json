@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-06-25T10:47:36.182Z",
+  "generatedAt": "2026-06-25T11:09:31.357Z",
   "cipher": {
     "date": "2026-06-25",
     "seams": "RateLimitSeam",
@@ -41,6 +41,6 @@
     "summary": "Closed two remaining gaps (non-finite maxRequests/windowMs, backward-clock eviction stall) found by independently re-verifying every originally-unresolved review thread from PR #187 and PR #180 against this branch (a continuation of PR #188) before opening a new consolidated PR.",
     "risks": "Gap B's fix is untested at the contract level (no observable behavioral difference exists to assert against); Gap A guards against a code path with no current caller."
   },
-  "latestChangeMs": 1782383618309.4988,
+  "latestChangeMs": 1782385488345.456,
   "status": "ok"
 }
