@@ -44,3 +44,12 @@ export const infiniteWindowMsRateLimitCheckFixture: RateLimitCheckInput = {
 	...baseRateLimitCheckFixture,
 	windowMs: Infinity
 };
+
+// A backward clock step (NTP correction) must land before the exhausted
+// window's start, not just outside its forward span — otherwise the stale,
+// already-exhausted window is reused and the client is locked out for longer
+// than windowMs instead of getting a fresh window.
+export const backwardClockRateLimitCheckFixture: RateLimitCheckInput = {
+	...baseRateLimitCheckFixture,
+	now: baseRateLimitCheckFixture.now - 1_000
+};

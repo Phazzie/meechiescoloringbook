@@ -7,6 +7,30 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-25 - RateLimitSeam: fix backward-clock lockout in isFreshWindow
+
+- Date: 2026-06-25
+- Decision: In `src/lib/seams/rate-limit-seam/policy.ts`'s `checkAndConsume`, extend the `isFreshWindow` check from `!existing || now - existing.windowStart >= windowMs` to also treat `now < existing.windowStart` as fresh.
+- Context: A `gemini-code-assist[bot]` review on PR #191 flagged that a backward clock step (NTP correction) landing `now` behind an existing key's `windowStart` makes `now - existing.windowStart` negative — never `>= windowMs` — so the stale window state is reused instead of reset. If that key was already at quota, the client is denied with `resetAt = state.windowStart + windowMs` computed from the old `windowStart`, and because `now` is now behind that `windowStart`, `retryAfterMs = resetAt - now` is inflated beyond the normal `windowMs` span instead of the client getting a fresh window. This is a third, distinct gap in the same fixed-window logic — separate from the same-day entry below, which fixed non-finite config (Gap A) and a backward-clock stall in the eviction-sweep throttle (Gap B); this is the windowing decision itself, not the cleanup sweep.
+- Alternatives considered:
+  - Clamp `now` to `existing.windowStart` instead of resetting the window. Rejected: that would still deny the request (count is already at quota) and produces the same inflated-lockout symptom, just computed slightly differently; resetting the window is what every other "fresh window" path in this function already does, including the Gap B-adjacent eviction logic's own backward-clock guard added in the same-day entry below.
+  - Skip a dedicated fixture/test, since this is structurally the same shape as the existing `nextWindowRateLimitCheckFixture` case. Rejected: the existing fixtures only exercise forward time; the bug is specifically in the backward direction, which has no existing coverage and is the entire point of the fix.
+- Consequences: A backward clock step while a client is at quota now resets that client's window (treated as a fresh request) instead of reusing the stale, exhausted state with an inflated `retryAfterMs`. `fixtures.ts` gained `backwardClockRateLimitCheckFixture` (same key, `now` shifted 1000ms before the base fixture's `now`); `test.ts` gained a contract test that exhausts the window, then asserts the backward-clock request is `ok: true` with a freshly-computed `resetAt`.
+- Revisit criteria: None identified — this closes the windowing logic's only remaining direction (backward) not already covered by the forward-time fresh-window and exceeded-window tests.
+- Plan:
+  - Goal: Close the backward-clock lockout gap surfaced by gemini-code-assist's review on PR #191, distinct from the eviction-throttle backward-clock fix already applied the same day.
+  - Seams: RateLimitSeam.
+  - Files: `src/lib/seams/rate-limit-seam/policy.ts`, `src/lib/seams/rate-limit-seam/fixtures.ts`, `src/lib/seams/rate-limit-seam/test.ts`, `DECISIONS.md`.
+  - Commands: `npm run check`, `npm run test`, `npm run lint`, `npm run verify`, `npm run cipher:gate`.
+- Self-critique: A backward clock step large enough to land `now` before `windowStart` but still within the same outage as a legitimate burst could let an attacker repeatedly "reset" their own window by manipulating client-supplied time — but `now` here is server time (`Date.now()` at the call site, not client-supplied), so this is only reachable by an actual NTP correction on the server, not by a malicious client. No test asserts that distinction since the contract takes `now` as an opaque input regardless of its source.
+
+- Cipher Gate:
+  - Date: 2026-06-25
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-06-25/chamber-lock.json; docs/evidence/2026-06-25/verify.txt; docs/evidence/2026-06-25/test.txt; docs/evidence/2026-06-25/shaolin-lint.json; docs/evidence/2026-06-25/assumption-alarm.json; docs/evidence/2026-06-25/seam-ledger.json; docs/evidence/2026-06-25/clan-chain.json; docs/evidence/2026-06-25/proof-tape.json
+  - Summary: Fixed a backward-clock lockout in `isFreshWindow` flagged by gemini-code-assist's review on PR #191, distinct from the same-day eviction-throttle backward-clock fix below.
+  - Risks: None beyond the self-critique above — server-time-only input means this isn't client-exploitable.
+
 ## 2026-06-25 - RateLimitSeam: reject non-finite maxRequests/windowMs and fix backward-clock eviction stall
 
 - Date: 2026-06-25

@@ -3,6 +3,7 @@
 // Info flow: tests -> mock -> contract assertions.
 import { describe, expect, it } from 'vitest';
 import {
+	backwardClockRateLimitCheckFixture,
 	baseRateLimitCheckFixture,
 	exceededRateLimitCheckFixture,
 	infiniteMaxRequestsRateLimitCheckFixture,
@@ -116,6 +117,24 @@ describe('RateLimitSeam mock contract', () => {
 			expect(result.error.retryAfterMs).toBe(0);
 			expect(result.error.resetAt).toBe(infiniteWindowMsRateLimitCheckFixture.now);
 		}
+	});
+
+	it('resets the window instead of extending the lockout when the clock steps backward', () => {
+		const seam = createMockRateLimitSeam();
+		const { maxRequests } = baseRateLimitCheckFixture;
+		for (let i = 0; i < maxRequests; i += 1) {
+			expect(seam.checkAndConsume(baseRateLimitCheckFixture).ok).toBe(true);
+		}
+		expect(seam.checkAndConsume(exceededRateLimitCheckFixture).ok).toBe(false);
+
+		const afterClockRollback = validateRateLimitResult(
+			seam.checkAndConsume(backwardClockRateLimitCheckFixture)
+		);
+		expect(afterClockRollback).toEqual({
+			ok: true,
+			remaining: maxRequests - 1,
+			resetAt: backwardClockRateLimitCheckFixture.now + backwardClockRateLimitCheckFixture.windowMs
+		});
 	});
 
 	it('reset() clears all tracked keys', () => {

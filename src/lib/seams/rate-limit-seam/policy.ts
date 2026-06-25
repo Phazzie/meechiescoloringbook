@@ -59,7 +59,12 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 			}
 			evictExpired(now, windowMs);
 			const existing = windows.get(key);
-			const isFreshWindow = !existing || now - existing.windowStart >= windowMs;
+			// A backward clock step (e.g. an NTP correction) can land `now` behind
+			// `existing.windowStart`, making `now - existing.windowStart` negative —
+			// never >= windowMs — so the stale, possibly-exhausted window would be
+			// reused instead of reset, inflating retryAfterMs/resetAt for the client.
+			const isFreshWindow =
+				!existing || now - existing.windowStart >= windowMs || now < existing.windowStart;
 			const state: WindowState = isFreshWindow ? { count: 0, windowStart: now } : existing;
 
 			if (state.count >= maxRequests) {
