@@ -33,8 +33,10 @@ Follow this order, no shortcuts:
 6. **Adapter**: `src/lib/adapters/<seam>.adapter.ts` (real I/O via JailedFs).
 
 ## 5) How To Use SDD In This Repo
+
 ### A) Start a New Seam
-1. Copy `docs/SEAM_BLUEPRINT.md` into `src/lib/seams/<name>/`.
+
+1. Use `docs/SEAM_BLUEPRINT.md` to plan the seam's files under `src/lib/seams/<name>/` (see `src/lib/seams/CLAUDE.md` for folder anatomy).
 2. Fill in the contract and failure modes.
 3. Write a probe and run it to capture fixtures.
 4. Implement mock + contract tests.
@@ -55,6 +57,7 @@ Follow this order, no shortcuts:
 - Seam coverage ledger: `npm run seam:ledger`
 
 ## 6) Non-Negotiable Mandates (Summary)
+
 Refer to `AGENTS.md` for authoritative wording. This is a summary:
 - **JailedFs Sovereignty:** Adapters must not import `fs`/`fs.promises` directly.
 - **Sharding Law:** Store updates write the shard first, manifest last.

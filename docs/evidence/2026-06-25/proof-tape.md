@@ -5,17 +5,24 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-06-25T15:52:36.826Z
+Generated at: 2026-06-25T16:14:08.981Z
 Evidence folder: docs/evidence/2026-06-25
 
 Files included:
 - assumption-alarm.json (3636 bytes)
 - chamber-lock.json (24795 bytes)
+- cipher-gate.json (2110 bytes)
 - clan-chain.json (2247 bytes)
 - clan-chain.md (1418 bytes)
+- proof-tape.json (3531 bytes)
+- proof-tape.md (1105 bytes)
+- quick-wins-diff-check.txt (229 bytes)
+- quick-wins-lint.txt (237 bytes)
+  Commands: meechies-coloringbook@0.1.0 lint | eslint .
+- rewind-CreationStoreSeam.txt (539 bytes)
 - seam-ledger.json (26323 bytes)
 - seam-ledger.md (2168 bytes)
-- shaolin-lint.json (519 bytes)
+- shaolin-lint.json (517 bytes)
 - test.txt (1030 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (1289 bytes)

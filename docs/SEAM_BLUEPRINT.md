@@ -12,29 +12,30 @@ Info flow: Blueprint -> contract/probe/fixtures -> mock/tests -> adapter.
 - Risk notes:
 
 ## Contract
-- File: `contracts/<seam>.contract.ts`
+- File: `src/lib/seams/<seam-name>/contract.ts`
 - Define schema, types, and explicit failure modes.
 
 ## Probe
-- File: `probes/<seam>.probe.ts`
+- File: `src/lib/seams/<seam-name>/probe.ts`
 - Capture real behavior and produce fixtures.
 
 ## Fixtures
-- Folder: `fixtures/<seam>/`
-- `sample.json`: happy path
-- `fault.json`: failing path (must fail before adapter work)
+- File: `src/lib/seams/<seam-name>/fixtures.ts`
+- Sample data: happy path
+- Fault data: failing path (must fail before adapter work)
+- Defined in-module or backed by co-located JSON files.
 - Include metadata fields if required by `docs/evidence/README.md`.
 
 ## Mock
-- File: `src/lib/mocks/<seam>.mock.ts`
-- Load fixtures by scenario, no invented data.
+- File: `src/lib/seams/<seam-name>/mock.ts`
+- Load fixtures by scenario from `fixtures.ts`, no invented data.
 
 ## Contract Tests
-- File: `tests/contract/<seam>.test.ts`
+- File: `src/lib/seams/<seam-name>/test.ts`
 - Run against mock first; assert fault fixture fails.
 
 ## Adapter
-- File: `src/lib/adapters/<seam>.adapter.ts`
+- File: `src/lib/adapters/<seam-name>/index.ts`
 - Real I/O only via JailedFs, async I/O only.
 
 ## Verification + Evidence
