@@ -31,3 +31,16 @@ export const invalidWindowMsRateLimitCheckFixture: RateLimitCheckInput = {
 	...baseRateLimitCheckFixture,
 	windowMs: 0
 };
+
+// Infinity is not < 1, so it must be rejected by an explicit finiteness check —
+// otherwise it disables blocking (maxRequests: Infinity) or window resets
+// (windowMs: Infinity) instead of failing closed.
+export const infiniteMaxRequestsRateLimitCheckFixture: RateLimitCheckInput = {
+	...baseRateLimitCheckFixture,
+	maxRequests: Infinity
+};
+
+export const infiniteWindowMsRateLimitCheckFixture: RateLimitCheckInput = {
+	...baseRateLimitCheckFixture,
+	windowMs: Infinity
+};

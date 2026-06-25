@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	baseRateLimitCheckFixture,
 	exceededRateLimitCheckFixture,
+	infiniteMaxRequestsRateLimitCheckFixture,
+	infiniteWindowMsRateLimitCheckFixture,
 	invalidMaxRequestsRateLimitCheckFixture,
 	invalidWindowMsRateLimitCheckFixture,
 	nextWindowRateLimitCheckFixture
@@ -87,6 +89,32 @@ describe('RateLimitSeam mock contract', () => {
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
 			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
+		}
+	});
+
+	it('fails closed when maxRequests is Infinity', () => {
+		const seam = createMockRateLimitSeam();
+		const result = validateRateLimitResult(
+			seam.checkAndConsume(infiniteMaxRequestsRateLimitCheckFixture)
+		);
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
+			expect(Number.isFinite(result.error.retryAfterMs)).toBe(true);
+			expect(Number.isFinite(result.error.resetAt)).toBe(true);
+		}
+	});
+
+	it('fails closed when windowMs is Infinity', () => {
+		const seam = createMockRateLimitSeam();
+		const result = validateRateLimitResult(
+			seam.checkAndConsume(infiniteWindowMsRateLimitCheckFixture)
+		);
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
+			expect(result.error.retryAfterMs).toBe(0);
+			expect(result.error.resetAt).toBe(infiniteWindowMsRateLimitCheckFixture.now);
 		}
 	});
 

@@ -20,7 +20,10 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 	// (stale entries are still removed before they could accumulate further).
 	const evictExpired = (now: number, windowMs: number): void => {
 		if (windows.size <= CLEANUP_THRESHOLD) return;
-		if (now - lastCleanupAt < windowMs) return;
+		// A backward clock step (e.g. an NTP correction) makes `now - lastCleanupAt`
+		// negative, which would otherwise stay below `windowMs` and suppress every
+		// sweep until real time catches back up to the pre-rollback baseline.
+		if (now >= lastCleanupAt && now - lastCleanupAt < windowMs) return;
 		lastCleanupAt = now;
 		for (const [staleKey, staleState] of windows) {
 			if (now - staleState.windowStart >= windowMs) windows.delete(staleKey);
@@ -29,19 +32,28 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 
 	return {
 		checkAndConsume: ({ key, maxRequests, windowMs, now }: RateLimitCheckInput): RateLimitResult => {
-			// The contract type doesn't statically enforce positive bounds, so a
-			// caller passing a non-positive maxRequests/windowMs (misconfigured env,
-			// future direct use of this policy) must fail closed rather than allow
-			// unlimited requests (maxRequests <= 0 would never block) or divide by a
-			// degenerate window.
-			if (maxRequests < 1 || windowMs < 1) {
+			// The contract type doesn't statically enforce positive, finite bounds,
+			// so a caller passing a non-positive or non-finite maxRequests/windowMs
+			// (misconfigured env, future direct use of this policy) must fail closed
+			// rather than allow unlimited requests (maxRequests <= 0, or Infinity,
+			// would never block) or divide by a degenerate window.
+			if (
+				!Number.isFinite(maxRequests) ||
+				maxRequests < 1 ||
+				!Number.isFinite(windowMs) ||
+				windowMs < 1
+			) {
+				// windowMs itself may be the non-finite/invalid value, so it cannot be
+				// reused to size the retry hint — contract validators (e.g. the
+				// rateLimitErrorSchema int bounds) require a finite, bounded result.
+				const fallbackRetryAfterMs = Number.isFinite(windowMs) ? Math.max(0, windowMs) : 0;
 				return {
 					ok: false,
 					error: {
 						code: 'RATE_LIMIT_EXCEEDED',
 						message: 'Rate limit configuration is invalid; failing closed.',
-						retryAfterMs: Math.max(0, windowMs),
-						resetAt: now + Math.max(0, windowMs)
+						retryAfterMs: fallbackRetryAfterMs,
+						resetAt: now + fallbackRetryAfterMs
 					}
 				};
 			}
