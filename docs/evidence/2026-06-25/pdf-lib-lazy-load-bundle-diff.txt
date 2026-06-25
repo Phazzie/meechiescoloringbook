@@ -1,0 +1,46 @@
+Purpose: Prove the pdf-lib dynamic-import change actually code-splits pdf-lib
+out of the eagerly-loaded route bundles, instead of just moving an import
+statement with no bundling effect.
+
+Method: `rm -rf .svelte-kit/output && npm run build`, once on the commit
+before this change (via `git stash`) and once after, then inspected
+`.svelte-kit/output/client/.vite/manifest.json` plus
+`grep -l PDFDocument .svelte-kit/output/client/_app/immutable/chunks/*.js`
+to find which chunk physically contains the pdf-lib library code, and which
+route-level node chunks statically import it.
+
+BEFORE (static `import { PDFDocument } from 'pdf-lib'` at module top of
+src/lib/adapters/output-packaging.adapter.ts, commit 29109f0):
+- pdf-lib's code is inlined directly into chunk `_CUFCcxwn.js`
+  (437,122 bytes / 181,170 bytes gzip).
+- Route node chunks 2, 5, 6, 7 (the routes that import StudioState, which
+  eagerly imports outputPackagingAdapter) list `_CUFCcxwn.js` in their
+  static `imports` array.
+- Net effect: every visitor to those routes downloads and parses the full
+  ~177KB-gzip pdf-lib bundle on initial page load, whether or not they ever
+  click "Download PDF".
+
+AFTER (lazy `const { PDFDocument } = await import('pdf-lib')` inside the
+non-PNG branch of OutputPackagingSeam.package(), this change):
+- The adapter's own code is now its own tiny chunk, `_Bu3ehXoU.js`
+  (8,461 bytes / 3,041 bytes gzip), which the manifest records as having
+  `dynamicImports: ['node_modules/pdf-lib/es/index.js']`.
+- pdf-lib itself now lives in a separate chunk, `C28niuCj.js`
+  (434,897 bytes / 180,916 bytes gzip), that is NOT in any route node's
+  static `imports` list — it is only fetched the first time `package()`
+  actually executes the PDF branch (i.e. the user requests a PDF output,
+  not a PNG-only output).
+- The same route node chunks (2, 5, 6, 7) now import `_Bu3ehXoU.js`
+  (8.4KB) instead of `_CUFCcxwn.js` (437KB).
+
+Conclusion: this is a real code-split, not just a cosmetic import move.
+Initial page load for the affected routes drops by ~177KB gzip
+(pdf-lib's full weight); that weight is deferred to a dynamic fetch that
+only fires when a user actually requests a PDF download.
+
+Raw evidence:
+- BEFORE: chunks/CUFCcxwn.js 437122 bytes, 181170 gzip (contains PDFDocument)
+- AFTER:  chunks/Bu3ehXoU.js 8461 bytes, 3041 gzip (adapter, dynamic-imports pdf-lib)
+          chunks/C28niuCj.js 434897 bytes, 180916 gzip (pdf-lib, fetched on demand)
+- AFTER manifest dynamicImports entry: "_Bu3ehXoU.js" -> dynamicImports: ["node_modules/pdf-lib/es/index.js"]
+- AFTER route node 2 imports: includes "_Bu3ehXoU.js" (not pdf-lib's chunk)
