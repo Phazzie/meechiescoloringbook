@@ -1,6 +1,6 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-06-25T09:58:06.274Z",
+  "generatedAt": "2026-06-25T10:44:29.983Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -1009,10 +1009,46 @@
           "status": "na"
         }
       ]
+    },
+    {
+      "seam": "RateLimitConfigSeam",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "src/lib/seams/rate-limit-config-seam/contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "src/lib/seams/rate-limit-config-seam/probe.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "N/A (fixture module: src/lib/seams/rate-limit-config-seam/fixtures.ts)",
+          "status": "na"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/seams/rate-limit-config-seam/mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "src/lib/seams/rate-limit-config-seam/test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/rate-limit-config-seam/index.ts",
+          "status": "ok"
+        }
+      ]
     }
   ],
   "summary": {
-    "ok": 28,
+    "ok": 29,
     "blocked": 0,
     "missing": 0,
     "overallStatus": "ok"

@@ -53,3 +53,17 @@ export const backwardClockRateLimitCheckFixture: RateLimitCheckInput = {
 	...baseRateLimitCheckFixture,
 	now: baseRateLimitCheckFixture.now - 1_000
 };
+
+// Fractional bounds pass the finiteness/>=1 check but are not integers — a
+// direct contract caller (the seam type accepts plain `number`) must still be
+// rejected, since allowing them through can produce fractional remaining/resetAt
+// values that violate the RateLimitResult integer contract.
+export const fractionalMaxRequestsRateLimitCheckFixture: RateLimitCheckInput = {
+	...baseRateLimitCheckFixture,
+	maxRequests: 1.5
+};
+
+export const fractionalWindowMsRateLimitCheckFixture: RateLimitCheckInput = {
+	...baseRateLimitCheckFixture,
+	windowMs: 1.5
+};

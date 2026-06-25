@@ -3,16 +3,14 @@
 // Info flow: User input -> validation -> downstream seams.
 import { z } from 'zod';
 import { NonEmptyStringSchema } from './shared.contract';
+import { MAX_TITLE_LENGTH } from '../src/lib/core/constants';
 
 export const MAX_SPEC_ITEMS = 20;
 export const MAX_LABEL_LENGTH = 40;
 export const MAX_DEDICATION_LENGTH = 60;
-// Bounds the cost of the SafetyPolicySeam scan that runs ahead of rate
-// limiting (see checkGenerateSafety) — far above any genuine coloring-page
-// title, so it never rejects legitimate requests. Also the shared cap for
-// compactColoringPageTitle, so tool-generated titles can never exceed what
-// this schema accepts.
-export const MAX_TITLE_LENGTH = 80;
+// Re-exported so existing importers (e.g. tests/unit/coloring-page-title.test.ts) keep
+// working — src/lib/core/constants.ts is the single source of truth; see the comment there.
+export { MAX_TITLE_LENGTH };
 export const ALLOWED_TEXT_REGEX = /^[A-Za-z0-9 .,!?'":;\-()]+$/;
 
 export const AlignmentSchema = z.enum(['left', 'center']);

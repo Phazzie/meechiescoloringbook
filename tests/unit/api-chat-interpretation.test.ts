@@ -50,6 +50,20 @@ const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 		getClientAddress: () => '203.0.113.10'
 	}) as Parameters<typeof POST>[0];
 
+const buildAbortedEvent = (body: unknown): Parameters<typeof POST>[0] => {
+	const controller = new AbortController();
+	controller.abort();
+	return {
+		request: new Request('http://localhost/api/chat-interpretation', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+			signal: controller.signal
+		}),
+		getClientAddress: () => '203.0.113.10'
+	} as Parameters<typeof POST>[0];
+};
+
 afterEach(() => {
 	vi.restoreAllMocks();
 });
@@ -87,6 +101,37 @@ describe('/api/chat-interpretation', () => {
 			expect(payload.error.code).toBe('CHAT_INPUT_INVALID');
 		}
 		expect(providerSpy).not.toHaveBeenCalled();
+	});
+
+	it('rejects a message over the max chat length with CHAT_INPUT_INVALID', async () => {
+		const providerSpy = vi.spyOn(providerAdapter, 'createChatCompletion');
+		const response = await POST(buildEvent({ message: 'a'.repeat(4001) }));
+		const payload = await response.json();
+
+		expect(response.status).toBe(400);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('CHAT_INPUT_INVALID');
+		expect(providerSpy).not.toHaveBeenCalled();
+	});
+
+	it('rejects an already-aborted request with CHAT_ABORTED before parsing the body', async () => {
+		const providerSpy = vi.spyOn(providerAdapter, 'createChatCompletion');
+		const response = await POST(buildAbortedEvent({ message: 'build me a page' }));
+		const payload = await response.json();
+
+		expect(response.status).toBe(499);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('CHAT_ABORTED');
+		expect(providerSpy).not.toHaveBeenCalled();
+	});
+
+	it('does not consume rate-limit quota for already-aborted requests', async () => {
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(buildAbortedEvent({ message: 'build me a page' }));
+			expect(response.status).toBe(499);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('CHAT_ABORTED');
+		}
 	});
 
 	it('returns structured spec when provider returns valid JSON content', async () => {

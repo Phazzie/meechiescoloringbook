@@ -563,4 +563,31 @@ Trailing {also not json}.`
 		// Provider MUST NOT have been called
 		expect(callCount).toBe(0);
 	});
+
+	it('returns MEECHIE_STUDIO_TEXT_ABORTED before calling the provider when the signal is already aborted', async () => {
+		const controller = new AbortController();
+		controller.abort();
+		let callCount = 0;
+		const deps: MeechieStudioTextPipelineDeps = {
+			createProvider: () => ({
+				createChatCompletion: async () => {
+					callCount++;
+					throw new Error('provider must not be called');
+				},
+				createImageGeneration: async () => {
+					throw new Error('not implemented');
+				}
+			}),
+			signal: controller.signal
+		};
+
+		const response = await runMeechieStudioTextPipeline(studioInput, deps);
+
+		expect(response.status).toBe(499);
+		expect(response.body).toMatchObject({
+			ok: false,
+			error: { code: 'MEECHIE_STUDIO_TEXT_ABORTED' }
+		});
+		expect(callCount).toBe(0);
+	});
 });

@@ -16,10 +16,10 @@ import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, fetch, getClientAddress }) => {
-	const parsed = await parseRequestBody(request);
-	if (!parsed.ok) return parsed.response;
 	const abortCheck = checkWigTryOnAbort(request.signal);
 	if (!abortCheck.ok) return json(abortCheck.response.body, { status: abortCheck.response.status });
+	const parsed = await parseRequestBody(request);
+	if (!parsed.ok) return parsed.response;
 	const shapeCheck = checkWigTryOnInputShape(parsed.body);
 	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
 

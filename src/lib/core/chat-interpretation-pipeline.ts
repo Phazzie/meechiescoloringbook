@@ -28,6 +28,7 @@ type ChatPipelineResponse = {
 type ChatPipelineDeps = {
 	createChatCompletion: typeof providerAdapter.createChatCompletion;
 	validateSpec: typeof specValidationAdapter.validate;
+	signal?: AbortSignal;
 };
 
 const extractSingleJsonObject = (content: string): Record<string, unknown> | null => {
@@ -64,6 +65,24 @@ const buildError = (
 	}
 });
 
+export type ChatInterpretationAbortCheck =
+	| { ok: true }
+	| { ok: false; response: ChatPipelineResponse };
+
+// Exported so the route can short-circuit an already-aborted request before
+// consuming rate-limit quota — see checkGenerateAbort in generate-pipeline.ts
+// for why an internal-only check is no longer sufficient once routes preflight
+// + rate-limit ahead of the pipeline call.
+export const checkChatInterpretationAbort = (signal?: AbortSignal): ChatInterpretationAbortCheck => {
+	if (signal?.aborted) {
+		return {
+			ok: false,
+			response: buildError(499, 'CHAT_ABORTED', 'Chat interpretation request was canceled by the caller.')
+		};
+	}
+	return { ok: true };
+};
+
 export type ChatInterpretationInputShapeCheck =
 	| { ok: true; data: z.infer<typeof ChatInterpretationInputSchema> }
 	| { ok: false; response: ChatPipelineResponse };
@@ -87,6 +106,9 @@ export const runChatInterpretationPipeline = async (
 	body: unknown,
 	deps: ChatPipelineDeps
 ): Promise<ChatPipelineResponse> => {
+	const abortCheck = checkChatInterpretationAbort(deps.signal);
+	if (!abortCheck.ok) return abortCheck.response;
+
 	const shapeCheck = checkChatInterpretationInputShape(body);
 	if (!shapeCheck.ok) return shapeCheck.response;
 	const parsedInput = { data: shapeCheck.data };

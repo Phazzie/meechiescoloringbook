@@ -24,7 +24,39 @@ const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 		getClientAddress: () => '203.0.113.10'
 	}) as Parameters<typeof POST>[0];
 
+const buildAbortedEvent = (body: unknown): Parameters<typeof POST>[0] => {
+	const controller = new AbortController();
+	controller.abort();
+	return {
+		request: new Request('http://localhost/api/meechie-studio-text', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+			signal: controller.signal
+		}),
+		getClientAddress: () => '203.0.113.10'
+	} as Parameters<typeof POST>[0];
+};
+
 describe('/api/meechie-studio-text', () => {
+	it('rejects an already-aborted request with MEECHIE_STUDIO_TEXT_ABORTED before parsing the body', async () => {
+		const response = await POST(buildAbortedEvent({ invalid: 'payload' }));
+		const payload = await response.json();
+
+		expect(response.status).toBe(499);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('MEECHIE_STUDIO_TEXT_ABORTED');
+	});
+
+	it('does not consume rate-limit quota for already-aborted requests', async () => {
+		for (let i = 0; i < 25; i += 1) {
+			const response = await POST(buildAbortedEvent({ invalid: 'payload' }));
+			expect(response.status).toBe(499);
+			const payload = await response.json();
+			expect(payload.error.code).toBe('MEECHIE_STUDIO_TEXT_ABORTED');
+		}
+	});
+
 	it('rejects malformed JSON with INVALID_JSON code', async () => {
 		const response = await POST(buildRawEvent('{not: valid json}'));
 		const payload = await response.json();

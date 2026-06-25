@@ -2,8 +2,9 @@
 // Why: Verify allow/deny responses and 429 Retry-After shape without depending on real env vars or clock.
 // Info flow: fake getClientAddress + injected RateLimitSeam/config/clock -> enforceAiRateLimit -> Response | null.
 import { describe, expect, it } from 'vitest';
-import { enforceAiRateLimit, readRateLimitConfig } from '../../src/lib/server/rate-limiter';
+import { enforceAiRateLimit } from '../../src/lib/server/rate-limiter';
 import { createRateLimitSeam } from '../../src/lib/seams/rate-limit-seam/policy';
+import { readRateLimitConfig } from '../../src/lib/seams/rate-limit-config-seam/validators';
 
 const getConfig = () => ({ rateLimitMaxRequests: 2, rateLimitWindowMs: 60_000 });
 
@@ -55,8 +56,11 @@ describe('enforceAiRateLimit', () => {
 			throw new Error('could not determine client address');
 		};
 
-		expect(() => enforceAiRateLimit(throwingGetClientAddress, deps)).not.toThrow();
-		expect(enforceAiRateLimit(throwingGetClientAddress, deps)).toBeNull();
+		let result: ReturnType<typeof enforceAiRateLimit> | undefined;
+		expect(() => {
+			result = enforceAiRateLimit(throwingGetClientAddress, deps);
+		}).not.toThrow();
+		expect(result).toBeNull();
 	});
 
 	it('collapses repeated address-lookup failures into a shared quota bucket to prevent bypass', () => {

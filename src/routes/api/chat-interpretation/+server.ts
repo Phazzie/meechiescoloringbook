@@ -6,6 +6,7 @@ Info flow: Client request -> provider adapter -> parsed spec -> response.
 import { json } from '@sveltejs/kit';
 import {
 	chatInterpretationPipelineDeps,
+	checkChatInterpretationAbort,
 	checkChatInterpretationInputShape,
 	runChatInterpretationPipeline
 } from '$lib/core/chat-interpretation-pipeline';
@@ -14,12 +15,17 @@ import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	const abortCheck = checkChatInterpretationAbort(request.signal);
+	if (!abortCheck.ok) return json(abortCheck.response.body, { status: abortCheck.response.status });
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 	const shapeCheck = checkChatInterpretationInputShape(parsed.body);
 	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
-	const pipelineResult = await runChatInterpretationPipeline(parsed.body, chatInterpretationPipelineDeps);
+	const pipelineResult = await runChatInterpretationPipeline(parsed.body, {
+		...chatInterpretationPipelineDeps,
+		signal: request.signal
+	});
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };

@@ -1,7 +1,7 @@
 // Purpose: Keep generated route titles short enough for provider prompt limits.
 // Why: Tool responses can be long, while title-only pages only need the strongest printable line.
 // Info flow: Tool output text -> compact page title -> prompt assembly.
-import { MAX_TITLE_LENGTH } from '../../../contracts/spec-validation.contract';
+import { MAX_TITLE_LENGTH } from './constants';
 
 const MIN_WORD_BREAK_POSITION = 40;
 

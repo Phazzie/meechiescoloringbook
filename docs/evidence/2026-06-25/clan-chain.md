@@ -5,7 +5,7 @@ Info flow: seam ledger -> chain summary -> review.
 -->
 # Clan Chain
 
-Generated at: 2026-06-25T09:59:28.581Z
+Generated at: 2026-06-25T10:45:54.608Z
 Evidence folder: docs/evidence/2026-06-25
 
 Clean seams:
@@ -37,5 +37,6 @@ Clean seams:
 - WigTryOnSeam (owner: hbpheonix)
 - CacheSeam (owner: hbpheonix)
 - RateLimitSeam (owner: claude)
+- RateLimitConfigSeam (owner: claude)
 
 Dirty seams:

@@ -126,6 +126,7 @@ export type MeechieStudioTextPipelineDeps = {
 	createProvider: () => ProviderAdapterSeam;
 	textModel?: string;
 	isProduction?: boolean;
+	signal?: AbortSignal;
 };
 
 type ProviderTextFailureKind = 'json_syntax_error' | 'schema_error';
@@ -390,6 +391,26 @@ const providerErrorResponse = (
 	};
 };
 
+export type MeechieStudioTextAbortCheck = { ok: true } | { ok: false; response: PipelineResponse };
+
+// Exported so the route can short-circuit an already-aborted request before running any
+// preflight checks or consuming rate-limit quota — see checkGenerateAbort in
+// generate-pipeline.ts for why this must run ahead of body parsing, not just ahead of the
+// pipeline call.
+export const checkMeechieStudioTextAbort = (signal?: AbortSignal): MeechieStudioTextAbortCheck => {
+	if (signal?.aborted) {
+		return {
+			ok: false,
+			response: buildError(
+				499,
+				'MEECHIE_STUDIO_TEXT_ABORTED',
+				'Meechie studio text request was canceled by the caller.'
+			)
+		};
+	}
+	return { ok: true };
+};
+
 export type MeechieStudioTextInputShapeCheck =
 	| { ok: true; data: z.infer<typeof MeechieStudioTextInputSchema> }
 	| { ok: false; response: PipelineResponse };
@@ -438,6 +459,9 @@ export const runMeechieStudioTextPipeline = async (
 	body: unknown,
 	deps: MeechieStudioTextPipelineDeps
 ): Promise<PipelineResponse> => {
+	const abortCheck = checkMeechieStudioTextAbort(deps.signal);
+	if (!abortCheck.ok) return abortCheck.response;
+
 	const shapeCheck = checkMeechieStudioTextInputShape(body);
 	if (!shapeCheck.ok) return shapeCheck.response;
 	const parsedInput = { data: shapeCheck.data };

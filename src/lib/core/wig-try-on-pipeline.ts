@@ -110,6 +110,9 @@ export const runWigTryOnPipeline = async (
 	body: unknown,
 	deps: PipelineDeps
 ): Promise<PipelineResponse> => {
+	const abortCheck = checkWigTryOnAbort(deps.signal);
+	if (!abortCheck.ok) return abortCheck.response;
+
 	const shapeCheck = checkWigTryOnInputShape(body);
 	if (!shapeCheck.ok) return shapeCheck.response;
 	const { selfieBase64, selfieMimeType, wigId } = shapeCheck.data;

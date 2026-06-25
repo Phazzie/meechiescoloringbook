@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-06-25T09:59:28.351Z",
+  "generatedAt": "2026-06-25T10:45:54.385Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -1065,10 +1065,48 @@
           "path": "N/A (dependency-injected seam; wired via src/lib/server/rate-limiter.ts)"
         }
       ]
+    },
+    {
+      "seam": "RateLimitConfigSeam",
+      "owner": "claude",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/rate-limit-config-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/rate-limit-config-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "na",
+          "path": "N/A (fixture module: src/lib/seams/rate-limit-config-seam/fixtures.ts)"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/rate-limit-config-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/rate-limit-config-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/rate-limit-config-seam/index.ts"
+        }
+      ]
     }
   ],
   "summary": {
-    "ok": 28,
+    "ok": 29,
     "missing": 0,
     "blocked": 0,
     "overallStatus": "ok"

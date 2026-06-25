@@ -21,10 +21,10 @@ import { createSafetyPolicySeam } from '$lib/seams/safety-policy-seam/policy';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
-	const parsed = await parseRequestBody(request);
-	if (!parsed.ok) return parsed.response;
 	const abortCheck = checkGenerateAbort(request.signal);
 	if (!abortCheck.ok) return json(abortCheck.response.body, { status: abortCheck.response.status });
+	const parsed = await parseRequestBody(request);
+	if (!parsed.ok) return parsed.response;
 	const shapeCheck = checkGenerateInputShape(parsed.body);
 	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
 	const safetyPolicySeam = createSafetyPolicySeam();

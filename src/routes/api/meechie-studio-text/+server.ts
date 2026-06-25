@@ -7,6 +7,7 @@ import { env } from '$env/dynamic/private';
 import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { json } from '@sveltejs/kit';
 import {
+	checkMeechieStudioTextAbort,
 	checkMeechieStudioTextInputShape,
 	checkMeechieStudioTextSafety,
 	runMeechieStudioTextPipeline,
@@ -17,6 +18,8 @@ import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	const abortCheck = checkMeechieStudioTextAbort(request.signal);
+	if (!abortCheck.ok) return json(abortCheck.response.body, { status: abortCheck.response.status });
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 	const shapeCheck = checkMeechieStudioTextInputShape(parsed.body);
@@ -29,7 +32,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const deps: MeechieStudioTextPipelineDeps = {
 		createProvider: createProviderAdapter,
 		textModel: env.XAI_TEXT_MODEL,
-		isProduction: env.NODE_ENV === 'production'
+		isProduction: env.NODE_ENV === 'production',
+		signal: request.signal
 	};
 	const pipelineResult = await runMeechieStudioTextPipeline(parsed.body, deps);
 	return json(pipelineResult.body, { status: pipelineResult.status });

@@ -2,7 +2,7 @@
 // Why: Ensure required prompt phrases and disallowed keywords are present and non-empty.
 // Info flow: SYSTEM_CONSTANTS -> structure/content assertions.
 import { describe, expect, it } from 'vitest';
-import { SYSTEM_CONSTANTS } from '../../src/lib/core/constants';
+import { MAX_TITLE_LENGTH, SYSTEM_CONSTANTS } from '../../src/lib/core/constants';
 
 describe('SYSTEM_CONSTANTS', () => {
 	describe('REQUIRED_PROMPT_PHRASES', () => {
@@ -84,6 +84,10 @@ describe('SYSTEM_CONSTANTS', () => {
 
 		it('includes item constraints', () => {
 			expect(SYSTEM_CONSTANTS.CHAT_SYSTEM_PROMPT).toContain('items: 1-20 items');
+		});
+
+		it('states the title cap in sync with MAX_TITLE_LENGTH, so the chat model never proposes a title that fails ColoringPageSpecSchema validation', () => {
+			expect(SYSTEM_CONSTANTS.CHAT_SYSTEM_PROMPT).toContain(`title: 1-${MAX_TITLE_LENGTH} chars`);
 		});
 	});
 });

@@ -6,6 +6,8 @@ import {
 	backwardClockRateLimitCheckFixture,
 	baseRateLimitCheckFixture,
 	exceededRateLimitCheckFixture,
+	fractionalMaxRequestsRateLimitCheckFixture,
+	fractionalWindowMsRateLimitCheckFixture,
 	infiniteMaxRequestsRateLimitCheckFixture,
 	infiniteWindowMsRateLimitCheckFixture,
 	invalidMaxRequestsRateLimitCheckFixture,
@@ -116,6 +118,28 @@ describe('RateLimitSeam mock contract', () => {
 			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
 			expect(result.error.retryAfterMs).toBe(0);
 			expect(result.error.resetAt).toBe(infiniteWindowMsRateLimitCheckFixture.now);
+		}
+	});
+
+	it('fails closed when maxRequests is fractional', () => {
+		const seam = createMockRateLimitSeam();
+		const result = validateRateLimitResult(
+			seam.checkAndConsume(fractionalMaxRequestsRateLimitCheckFixture)
+		);
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
+		}
+	});
+
+	it('fails closed when windowMs is fractional', () => {
+		const seam = createMockRateLimitSeam();
+		const result = validateRateLimitResult(
+			seam.checkAndConsume(fractionalWindowMsRateLimitCheckFixture)
+		);
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
 		}
 	});
 
