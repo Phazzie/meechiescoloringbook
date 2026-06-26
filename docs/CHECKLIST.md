@@ -29,7 +29,7 @@ Info flow: Plan -> commands -> evidence -> decisions -> completion.
 - [ ] Load credentials with `set -a; source .env; set +a` (exports variables from `.env` for the current shell).
 - [ ] Run `node probes/provider-adapter.probe.mjs` and save output to `docs/evidence/YYYY-MM-DD/probe-provider-adapter.txt`.
 - [ ] Run `node probes/chat-interpretation.probe.mjs` and save output to `docs/evidence/YYYY-MM-DD/probe-chat-interpretation.txt`.
-- [ ] ImageGenerationSeam uses the self-contained layout; run its probe via `src/lib/seams/image-generation-seam/probe.ts` (no standalone `probes/*.mjs` script — see `docs/seams.md`).
+- [ ] ImageGenerationSeam uses the self-contained layout; its probe (`src/lib/seams/image-generation-seam/probe.ts`) exports a function, not a runnable script — call it from a one-off script with a real adapter + request to refresh fixtures. No `npm run` entry point exists yet; see `docs/seams.md` (probe status: TBD/blocked) and item #9 in `docs/top-10-hardest-fixes.md`.
 - [ ] If any probe is blocked, record an Assumption entry (a dated blocked-probe note) in `DECISIONS.md`, run `npm run assumption:alarm`, and stop.
 
 ## Phase 4 - Fixtures refresh (probe-backed)
