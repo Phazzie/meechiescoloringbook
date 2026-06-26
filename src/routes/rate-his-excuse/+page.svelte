@@ -223,7 +223,9 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				<span class="score-number" style="color: {ratingColor}"
 					>{result.rating ?? result.headline}</span
 				>
-				<span class="score-label">out of 10</span>
+				{#if result.rating !== undefined}
+					<span class="score-label">out of 10</span>
+				{/if}
 			</div>
 
 			<p class="verdict-commentary" data-testid="rate-result">
