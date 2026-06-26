@@ -221,7 +221,7 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 
 			<div class="score-display">
 				<span class="score-number" style="color: {ratingColor}"
-					>{result.headline}</span
+					>{result.rating ?? result.headline}</span
 				>
 				<span class="score-label">out of 10</span>
 			</div>

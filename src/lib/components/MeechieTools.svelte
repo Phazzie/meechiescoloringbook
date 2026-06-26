@@ -248,6 +248,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 					<div class="lineup-row">
 						<input
 							value={item}
+							aria-label={`Lineup item ${index + 1}`}
 							on:input={(event) =>
 								updateLineupItem(
 									index,
@@ -258,6 +259,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 							class="ghost"
 							type="button"
 							data-testid="meechie-lineup-remove"
+							aria-label={`Remove item ${index + 1}`}
 							on:click={() => removeLineupItem(index)}
 						>
 							Remove

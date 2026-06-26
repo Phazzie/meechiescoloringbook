@@ -47,6 +47,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange tri
 					type="button"
 					class="theme-chip"
 					class:active={selectedThemeId === theme.id}
+					aria-pressed={selectedThemeId === theme.id}
 					onclick={async () => {
 						selectedThemeId = theme.id;
 						await onSettingChange();
