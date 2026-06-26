@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-26 - Add startup env-var diagnostics (item #2 of top-10 hardest fixes)
+
+- Date: 2026-06-26
+- Decision: Add `src/hooks.server.ts`, which logs missing required/optional env vars once at server boot, backed by a new pure core function `checkStartupEnv` in `src/lib/core/startup-env-check.ts`. Required: `XAI_API_KEY` (no fallback anywhere; image generation is the core feature). Optional/degrades gracefully: `GEMINI_API_KEY` (wig try-on returns a `WIG_TRY_ON_CONFIG_ERROR` Result instead of crashing) and `XAI_TEXT_MODEL` (falls back to `DEFAULT_TEXT_MODEL`).
+- Context: Item #2 of the "Top 10 Hardest Upgrades/Fixes" list (see PR #121 body / this PR's body). `AppConfigSeam.getConfig()` and `ImageProviderConfigSeam.getConfig()` validate env vars lazily via `zod.parse()`, so a missing `XAI_API_KEY` previously surfaced only as a thrown error on the first real request, not at boot. Confirmed via `src/lib/adapters/wig-try-on-seam/index.ts:74` that an unrelated missing AppConfig field (e.g. `XAI_API_KEY`) gets caught and misreported there as a Gemini config error — a smaller, separate bug noted here but not fixed in this slice (out of scope; would require splitting AppConfigSeam the way ImageProviderConfigSeam already split off from it).
+- Alternatives: Throw/`process.exit` on missing required vars — rejected because it would crash `vite dev`/CI/Playwright runs that don't set `XAI_API_KEY`, and AGENTS.md requires changes not break tests. Validate per-request inside `handle` — rejected as noisy (would log on every request) versus once at module load (effectively once per server boot / per serverless cold start).
+- Consequences: Operators see a clear, itemized startup log (`[startup] Missing required env var XAI_API_KEY — image generation will fail at request time...`) the moment the server starts handling traffic, instead of waiting for a confused user-facing failure. Verified manually: ran `npm run dev`, curled `/`, and observed the exact log lines in `docs/evidence/2026-06-26/`.
+- Revisit criteria: Revisit if AppConfigSeam is ever split into per-feature config seams (mirroring ImageProviderConfigSeam); the required/optional var list here should move with it. Also revisit the wig-try-on misreported-error-code issue noted above if it causes support confusion.
+- Plan:
+  - Goal: Make missing required env vars visible at server boot instead of only on first failing request, without crashing boot or breaking tests.
+  - Seams: none (no contract/probe/fixture/mock/adapter changed; this is a new pure core utility plus a SvelteKit hooks file consuming the same `$env/dynamic/private` binding AppConfigSeam/ImageProviderConfigSeam already use directly).
+  - Files: `src/lib/core/startup-env-check.ts`, `tests/unit/startup-env-check.test.ts`, `src/hooks.server.ts`, `docs/seams.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run dev` + `curl -s http://localhost:5173/` (manual boot-log verification).
+- Self-critique: The riskiest assumption is that `XAI_API_KEY` is the only truly required var with zero fallback; verified by reading `appConfigSchema`/`imageProviderConfigSchema` (no `.default()` on `xaiApiKey` in either) and `.env.example` (every other key ships a real default value or has a code fallback). If a future env var is added without a fallback, it must be added to `REQUIRED_ENV_VARS`.
+
+- Cipher Gate:
+  - Date: 2026-06-26
+  - Seams: ImageGenerationSeam (cleanup only; no contract/mock/adapter behavior changed)
+  - Evidence: docs/evidence/2026-06-26/startup-env-check-npm-test.txt (full suite, confirms no regressions after deletion)
+  - Summary: While closing out item #2, found that item #1's prior consolidation (PR #121) deleted the legacy `image-generation` adapter/mock but missed two orphans: `fixtures/image-generation/{sample,fault,dense-scene}.json` and `probes/image-generation.probe.mjs`, both unreferenced by any `.ts` file and superseded by `src/lib/seams/image-generation-seam/{fixtures.ts,probe.ts}`. Deleted both and corrected the two stale `docs/CHECKLIST.md` lines that still instructed running/updating them.
+  - Risks: None identified — confirmed via repo-wide grep that no source file imports either path before deleting; `npm test` still shows 0 failures afterward.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07

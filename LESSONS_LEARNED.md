@@ -163,3 +163,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-06-26
+- Date: 2026-06-26
+- Context: Closing item #2 of the top-10 hardest fixes list (no startup validation for required env vars).
+- Lesson: `AppConfigSeam`/`ImageProviderConfigSeam` validate env vars lazily inside `getConfig()`, so a missing `XAI_API_KEY` only surfaced on the first request that touched it — and in `wig-try-on-seam/index.ts`, that unrelated AppConfig failure was caught and misreported as a Gemini-specific config error. Logging at `vite dev`/serverless module-load time (via `src/hooks.server.ts`) catches this at boot without needing to touch any seam contract.
+- Action: Keep new fail-fast diagnostics as pure, unit-tested core functions (`checkStartupEnv`) consumed by a thin hooks/adapter wrapper, rather than inventing a new seam for what is just a presence check over an env binding the seams already read directly.
+
+## 2026-06-26
+- Date: 2026-06-26
+- Context: Rediscovering the "Top 10 Hardest Upgrades / Fixes" audit from a closed, unmerged PR (#121) before continuing it.
+- Lesson: A running "do-not-delete, only-strikethrough" audit list that lives only in a PR body is hard to rediscover later — it took a full grep-and-cross-reference pass through `docs/triage-table.md` to even find PR #121 existed. A claimed-fixed row in that list also is not proof; one of the four call sites in item #5's original wording was fixed by a prior session while the other three still read `env.XAI_TEXT_MODEL` at module load, so each row needs re-verification against current code before it is struck through, not just trusted from the last PR description.
+- Action: Added `docs/top-10-hardest-fixes.md` as the list's permanent home, and re-verified every item against current source before editing strikethrough state in this PR.
