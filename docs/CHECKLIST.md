@@ -29,7 +29,7 @@ Info flow: Plan -> commands -> evidence -> decisions -> completion.
 - [ ] Load credentials with `set -a; source .env; set +a` (exports variables from `.env` for the current shell).
 - [ ] Run `node probes/provider-adapter.probe.mjs` and save output to `docs/evidence/YYYY-MM-DD/probe-provider-adapter.txt`.
 - [ ] Run `node probes/chat-interpretation.probe.mjs` and save output to `docs/evidence/YYYY-MM-DD/probe-chat-interpretation.txt`.
-- [ ] Run `node probes/image-generation.probe.mjs` and save output to `docs/evidence/YYYY-MM-DD/probe-image-generation.txt`.
+- [ ] ImageGenerationSeam uses the self-contained layout; its probe (`src/lib/seams/image-generation-seam/probe.ts`) exports a function, not a runnable script — call it from a one-off script with a real adapter + request to refresh fixtures. No `npm run` entry point exists yet; see `docs/seams.md` (probe status: TBD/blocked) and item #9 in `docs/top-10-hardest-fixes.md`.
 - [ ] If any probe is blocked, record an Assumption entry (a dated blocked-probe note) in `DECISIONS.md`, run `npm run assumption:alarm`, and stop.
 
 ## Phase 4 - Fixtures refresh (probe-backed)
@@ -38,7 +38,7 @@ Info flow: Plan -> commands -> evidence -> decisions -> completion.
 - [ ] Update `fixtures/creation-store/` to match the latest browser probe outputs.
 - [ ] Update `fixtures/provider-adapter/` to match the latest probe outputs.
 - [ ] Update `fixtures/chat-interpretation/` to match the latest probe outputs.
-- [ ] Update `fixtures/image-generation/` to match the latest probe outputs.
+- [ ] ImageGenerationSeam fixtures live in `src/lib/seams/image-generation-seam/fixtures.ts` (no standalone `fixtures/image-generation/` directory).
 
 ## Phase 5 - Contract-first seam verification
 - [ ] Run `npm run rewind -- --seam AuthContextSeam` (the `--seam` flag selects a single seam contract test) and save output to `docs/evidence/YYYY-MM-DD/rewind-auth-context-seam.txt`.

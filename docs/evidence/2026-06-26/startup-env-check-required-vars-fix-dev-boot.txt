@@ -1,0 +1,16 @@
+
+> meechies-coloringbook@0.1.0 dev
+> vite dev
+
+
+  VITE v7.3.2  ready in 814 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+[startup] Missing required env var XAI_API_KEY — image generation will fail at request time until it is set.
+[startup] Missing required env var XAI_TEXT_MODEL — wig try-on will fail at request time until it is set.
+[startup] Missing required env var XAI_IMAGE_MODEL — wig try-on will fail at request time until it is set.
+[startup] Missing required env var XAI_BASE_URL — wig try-on will fail at request time until it is set.
+[startup] Missing required env var XAI_IMAGE_ENDPOINT_PATH — wig try-on will fail at request time until it is set.
+[startup] Missing required env var DEFAULT_IMAGE_SIZE — wig try-on will fail at request time until it is set.
+[startup] Missing optional env var GEMINI_API_KEY — wig try-on will be degraded/disabled until it is set.

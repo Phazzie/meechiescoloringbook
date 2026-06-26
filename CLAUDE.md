@@ -66,6 +66,7 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `docs/seams.md` | **Authoritative seam registry** — PascalCase names, file paths, probe status, last probe date |
 | `docs/SEAM_BLUEPRINT.md` | Template for new seams |
 | `docs/CHECKLIST.md` | Pre-ship checklist |
+| `docs/top-10-hardest-fixes.md` | Running audit of the hardest outstanding fixes — strikethrough only, never delete a row |
 | `docs/evidence/YYYY-MM-DD/` | Dated outputs from `npm run verify` (chamber-lock, proof-tape, etc.) |
 
 ### src/lib/core/ — orchestration pipelines (no direct I/O)
