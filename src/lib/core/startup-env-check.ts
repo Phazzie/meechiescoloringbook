@@ -28,8 +28,7 @@ export type StartupEnvCheckResult = {
 };
 
 const isMissing = (env: Record<string, string | undefined>, key: string): boolean => {
-	const value = env[key];
-	return value === undefined || value.trim() === '';
+	return !env[key]?.trim();
 };
 
 export const checkStartupEnv = (
