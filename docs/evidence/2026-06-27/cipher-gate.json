@@ -1,0 +1,42 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-27T15:55:22.614Z",
+  "cipher": {
+    "date": "2026-06-27",
+    "seams": "ProviderAdapterSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-27/check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-27/lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-27/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-27/circuit-breaker-focused-tests.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-27/rewind-ProviderAdapterSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-27/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-27/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Added a shared circuit breaker to ProviderAdapterSeam's chat and image-generation calls and fixed Retry-After being incorrectly clamped to the same 30s cap as self-generated backoff.",
+    "risks": "Breaker thresholds and the 10-minute Retry-After ceiling are judgment calls, not validated against live xAI traffic (no API key available in this environment); the breaker is a simplified two-state design without half-open trial-limiting by design."
+  },
+  "latestChangeMs": 1782575023101.9868,
+  "status": "ok"
+}
