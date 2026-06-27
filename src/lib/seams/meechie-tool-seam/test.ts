@@ -2,6 +2,7 @@
 // Why: Verify the tool seam contract is honored by both mock and AI-backed adapter.
 // Info flow: Fixtures -> mock/adapter -> assertions.
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { MeechieToolInputSchema } from './contract';
 import { meechieToolSampleFixture, meechieToolFaultFixture } from './fixtures';
 import { createMeechieToolMock } from './mock';
 
@@ -99,5 +100,22 @@ describe('MeechieToolSeam contract', () => {
 		expect(content).not.toContain('21th: Item 21');
 		expect(content).not.toContain('22th: Item 22');
 		expect(content).not.toContain('23th: Item 23');
+	});
+
+	it('rejects free-text fields over the length cap, mirroring the legacy contract', () => {
+		const result = MeechieToolInputSchema.safeParse({
+			toolId: 'apology_translator',
+			apology: 'a'.repeat(2001)
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('rejects lineup items over the per-item length cap', () => {
+		const result = MeechieToolInputSchema.safeParse({
+			toolId: 'lineup',
+			prompt: 'Rank these',
+			items: ['a'.repeat(201)]
+		});
+		expect(result.success).toBe(false);
 	});
 });

@@ -1,8 +1,27 @@
 // Purpose: Verify /api/meechie-studio-text rejects malformed JSON before pipeline invocation.
 // Why: Ensure the INVALID_JSON guard fires and pipelines don't receive broken input.
 // Info flow: Raw request -> parseRequestBody -> INVALID_JSON response (no pipeline calls).
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// Lets a single test simulate the caller disconnecting while parseRequestBody's
+// internal `await request.json()` is in flight, without touching any other test's
+// behavior (the no-op default leaves parseRequestBody fully real/untouched).
+const lateAbortRef = vi.hoisted(() => ({ controller: null as AbortController | null }));
+
+vi.mock('$lib/server/parse-request-body', async () => {
+	const actual = await vi.importActual<typeof import('$lib/server/parse-request-body')>(
+		'$lib/server/parse-request-body'
+	);
+	return {
+		parseRequestBody: async (request: Request) => {
+			lateAbortRef.controller?.abort();
+			return actual.parseRequestBody(request);
+		}
+	};
+});
+
 import { POST } from '../../src/routes/api/meechie-studio-text/+server';
+import * as providerAdapterModule from '../../src/lib/adapters/provider-adapter.adapter';
 
 const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 	({
@@ -38,6 +57,33 @@ const buildAbortedEvent = (body: unknown): Parameters<typeof POST>[0] => {
 	} as Parameters<typeof POST>[0];
 };
 
+const validPayload = {
+	actionId: 'generate',
+	modeId: 'test-mode',
+	modeLabel: 'Test Mode',
+	themeLabel: 'Test Theme',
+	evidence: 'He showed up late again and never apologized',
+	voice: {
+		intensity: 'receipts_out',
+		rawness: 'mild',
+		thirdPerson: 'sometimes'
+	}
+};
+
+const buildEventWithController = (
+	body: unknown,
+	controller: AbortController
+): Parameters<typeof POST>[0] =>
+	({
+		request: new Request('http://localhost/api/meechie-studio-text', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+			signal: controller.signal
+		}),
+		getClientAddress: () => '203.0.113.10'
+	}) as Parameters<typeof POST>[0];
+
 describe('/api/meechie-studio-text', () => {
 	it('rejects an already-aborted request with MEECHIE_STUDIO_TEXT_ABORTED before parsing the body', async () => {
 		const response = await POST(buildAbortedEvent({ invalid: 'payload' }));
@@ -54,6 +100,46 @@ describe('/api/meechie-studio-text', () => {
 			expect(response.status).toBe(499);
 			const payload = await response.json();
 			expect(payload.error.code).toBe('MEECHIE_STUDIO_TEXT_ABORTED');
+		}
+	});
+
+	it('rejects a request that aborts while the body is being parsed before consuming rate-limit quota', async () => {
+		const providerSpy = vi.spyOn(providerAdapterModule, 'createProviderAdapter');
+		const controller = new AbortController();
+		lateAbortRef.controller = controller;
+
+		try {
+			const response = await POST(
+				buildEventWithController(validPayload, controller)
+			);
+			const payload = await response.json();
+
+			expect(response.status).toBe(499);
+			expect(payload.ok).toBe(false);
+			expect(payload.error.code).toBe('MEECHIE_STUDIO_TEXT_ABORTED');
+			expect(providerSpy).not.toHaveBeenCalled();
+		} finally {
+			lateAbortRef.controller = null;
+		}
+	});
+
+	it('does not consume rate-limit quota when aborting while the body is being parsed', async () => {
+		const providerSpy = vi.spyOn(providerAdapterModule, 'createProviderAdapter');
+
+		try {
+			for (let i = 0; i < 25; i += 1) {
+				const controller = new AbortController();
+				lateAbortRef.controller = controller;
+				const response = await POST(
+					buildEventWithController(validPayload, controller)
+				);
+				expect(response.status).toBe(499);
+				const payload = await response.json();
+				expect(payload.error.code).toBe('MEECHIE_STUDIO_TEXT_ABORTED');
+			}
+			expect(providerSpy).not.toHaveBeenCalled();
+		} finally {
+			lateAbortRef.controller = null;
 		}
 	});
 

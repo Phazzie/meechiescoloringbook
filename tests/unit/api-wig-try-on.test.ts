@@ -16,6 +16,7 @@ vi.mock('$lib/adapters/wig-try-on-seam/index', () => ({
 import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
 import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
+import * as rateLimiterModule from '$lib/server/rate-limiter';
 import { POST } from '../../src/routes/api/wig-try-on/+server';
 
 const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
@@ -165,8 +166,12 @@ describe('/api/wig-try-on', () => {
 		const getWigById = vi.fn();
 		vi.mocked(createWigCatalogSeam).mockReturnValue({ listWigs: vi.fn(), getWigById });
 
+		// Asserting via a spy (rather than looping past the real rate-limit quota
+		// to observe a would-be 429) keeps this test fast even with a ~12MB body —
+		// repeating that body 25x pushed this test close to Vitest's 5s timeout.
+		const enforceSpy = vi.spyOn(rateLimiterModule, 'enforceAiRateLimit');
 		const oversizedSelfie = 'a'.repeat(12_000_001);
-		for (let i = 0; i < 25; i += 1) {
+		for (let i = 0; i < 3; i += 1) {
 			const response = await POST(
 				buildEvent({ selfieBase64: oversizedSelfie, selfieMimeType: 'image/jpeg', wigId: 'missing-wig' })
 			);
@@ -175,6 +180,8 @@ describe('/api/wig-try-on', () => {
 			expect(payload.error.code).toBe('WIG_TRY_ON_INPUT_INVALID');
 		}
 		expect(getWigById).not.toHaveBeenCalled();
+		expect(enforceSpy).not.toHaveBeenCalled();
+		enforceSpy.mockRestore();
 	});
 
 	it('rejects unknown wig IDs with WIG_NOT_FOUND before creating WigTryOnSeam', async () => {

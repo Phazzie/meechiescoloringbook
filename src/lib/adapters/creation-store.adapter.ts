@@ -37,6 +37,18 @@ const clampLegacyTitle = (record: unknown): unknown => {
 		return record;
 	}
 	const trimmedTitle = title.trim();
+	if (trimmedTitle.length === 0) {
+		// All-whitespace title: trimming to '' would fail NonEmptyStringSchema's
+		// min(1) and break the whole vault/draft read. Keep the original
+		// whitespace (clamped to the cap) instead, since it was valid when written.
+		if (title.length <= MAX_TITLE_LENGTH) {
+			return record;
+		}
+		return {
+			...record,
+			intent: { ...intent, title: title.slice(0, MAX_TITLE_LENGTH) }
+		};
+	}
 	if (trimmedTitle.length <= MAX_TITLE_LENGTH) {
 		if (trimmedTitle === title) {
 			return record;

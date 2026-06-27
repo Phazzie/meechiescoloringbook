@@ -21,6 +21,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	if (!parsed.ok) return parsed.response;
 	const shapeCheck = checkChatInterpretationInputShape(parsed.body);
 	if (!shapeCheck.ok) return json(shapeCheck.response.body, { status: shapeCheck.response.status });
+	// parseRequestBody above is awaited, so a client can disconnect during that
+	// window; re-check here to avoid burning a rate-limit slot for no paid work.
+	const lateAbortCheck = checkChatInterpretationAbort(request.signal);
+	if (!lateAbortCheck.ok)
+		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const pipelineResult = await runChatInterpretationPipeline(parsed.body, {

@@ -338,6 +338,39 @@ describe('creation-store adapter', () => {
 				expect(result.value[0].intent.title).toBe('A'.repeat(MAX_TITLE_LENGTH - 1));
 			}
 		});
+
+		it('preserves a whitespace-only legacy title instead of trimming it to an empty string that fails validation', async () => {
+			const whitespaceTitle = '   ';
+			localStorage.setItem(
+				'cb_creations_v1',
+				JSON.stringify([
+					{ ...validRecord, intent: { ...validIntent, title: whitespaceTitle } }
+				])
+			);
+
+			const result = await creationStoreAdapter.listCreations({
+				owner: validRecord.owner
+			});
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value).toHaveLength(1);
+				expect(result.value[0].intent.title).toBe(whitespaceTitle);
+			}
+		});
+
+		it('clamps an over-cap all-whitespace legacy draft title instead of failing the load', async () => {
+			const longWhitespaceTitle = ' '.repeat(MAX_TITLE_LENGTH + 10);
+			localStorage.setItem(
+				'cb_drafts_v1',
+				JSON.stringify({ ...validDraft, intent: { ...validIntent, title: longWhitespaceTitle } })
+			);
+
+			const result = await creationStoreAdapter.getDraft({});
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value?.intent.title.length).toBe(MAX_TITLE_LENGTH);
+			}
+		});
 	});
 
 	describe('MAX_CREATIONS limit', () => {

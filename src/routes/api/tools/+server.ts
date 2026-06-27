@@ -25,6 +25,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const safetyCheck = checkMeechieToolSafety(shapeCheck.data);
 	if (!safetyCheck.ok)
 		return json(safetyCheck.response.body, { status: safetyCheck.response.status });
+	// parseRequestBody above is awaited, so a client can disconnect during that
+	// window; re-check here to avoid burning a rate-limit slot for no paid work.
+	const lateAbortCheck = checkMeechieToolAbort(request.signal);
+	if (!lateAbortCheck.ok)
+		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const pipelineResult = await runToolsPipeline(parsed.body, {
