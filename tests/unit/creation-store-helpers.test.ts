@@ -3,6 +3,7 @@
 // Info flow: Storage operations -> adapter methods -> verified results.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
+import { MAX_TITLE_LENGTH } from '../../src/lib/core/constants';
 
 const validIntent = {
 	title: 'Test',
@@ -287,9 +288,9 @@ describe('creation-store adapter', () => {
 	});
 
 	describe('legacy title length migration', () => {
-		const legacyTitle = 'A'.repeat(90);
+		const legacyTitle = 'A'.repeat(MAX_TITLE_LENGTH + 10);
 
-		it('clamps a legacy 90-char creation title instead of failing the whole load', async () => {
+		it('clamps a legacy over-cap creation title instead of failing the whole load', async () => {
 			localStorage.setItem(
 				'cb_creations_v1',
 				JSON.stringify([
@@ -303,11 +304,11 @@ describe('creation-store adapter', () => {
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value).toHaveLength(1);
-				expect(result.value[0].intent.title.length).toBeLessThanOrEqual(80);
+				expect(result.value[0].intent.title.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
 			}
 		});
 
-		it('clamps a legacy 90-char draft title instead of failing the load', async () => {
+		it('clamps a legacy over-cap draft title instead of failing the load', async () => {
 			localStorage.setItem(
 				'cb_drafts_v1',
 				JSON.stringify({ ...validDraft, intent: { ...validIntent, title: legacyTitle } })
@@ -316,12 +317,12 @@ describe('creation-store adapter', () => {
 			const result = await creationStoreAdapter.getDraft({});
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value?.intent.title.length).toBeLessThanOrEqual(80);
+				expect(result.value?.intent.title.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
 			}
 		});
 
 		it('trims surrounding whitespace before measuring length, so a title only over the cap due to padding keeps all its real characters', async () => {
-			const paddedTitle = '   ' + 'A'.repeat(79);
+			const paddedTitle = '   ' + 'A'.repeat(MAX_TITLE_LENGTH - 1);
 			localStorage.setItem(
 				'cb_creations_v1',
 				JSON.stringify([
@@ -334,7 +335,7 @@ describe('creation-store adapter', () => {
 			});
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value[0].intent.title).toBe('A'.repeat(79));
+				expect(result.value[0].intent.title).toBe('A'.repeat(MAX_TITLE_LENGTH - 1));
 			}
 		});
 	});

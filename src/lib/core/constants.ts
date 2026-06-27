@@ -9,6 +9,11 @@
 // so importing either Zod-based contract there would bundle zod into the client for no reason.
 export const MAX_TITLE_LENGTH = 80;
 
+// Mirrors MAX_TITLE_LENGTH's rationale above: kept dependency-free so
+// StudioInputPanel.svelte can import the cap directly instead of pulling in
+// contracts/meechie-studio-text.contract.ts's zod schema graph for one number.
+export const MAX_FREE_TEXT_LENGTH = 4000;
+
 export const SYSTEM_CONSTANTS = {
 	REQUIRED_PROMPT_PHRASES: [
 		'Black-and-white coloring book page',

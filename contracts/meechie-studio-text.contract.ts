@@ -4,11 +4,13 @@
 import { z } from 'zod';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 import type { Result } from './shared.contract';
+import { MAX_FREE_TEXT_LENGTH } from '../src/lib/core/constants';
+
+export { MAX_FREE_TEXT_LENGTH };
 
 // Bounds the cost of the disallowed-keyword scan that runs ahead of rate
 // limiting (see checkMeechieStudioTextSafety) — far above any genuine studio
 // input, so it never rejects legitimate requests.
-const MAX_FREE_TEXT_LENGTH = 4000;
 const MAX_LABEL_LENGTH = 200;
 const FreeTextSchema = NonEmptyStringSchema.max(MAX_FREE_TEXT_LENGTH);
 const LabelTextSchema = NonEmptyStringSchema.max(MAX_LABEL_LENGTH);

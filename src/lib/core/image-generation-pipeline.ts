@@ -118,13 +118,8 @@ export const runImageGenerationPipeline = async (
   body: unknown,
   deps: ImagePipelineDeps
 ): Promise<ImagePipelineResponse> => {
-  if (deps.signal?.aborted) {
-    return buildError(
-      499,
-      'IMAGE_ABORTED',
-      'Image generation request was canceled by the caller.'
-    );
-  }
+  const abortCheck = checkImageGenerationAbort(deps.signal);
+  if (!abortCheck.ok) return abortCheck.response;
 
   const shapeCheck = checkImageGenerationInputShape(body);
   if (!shapeCheck.ok) return shapeCheck.response;

@@ -121,13 +121,13 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Lesson: Local loopback servers can be blocked by the sandbox even without external network access.
 - Action: Run `node probes/browser-seams.probe.mjs` with escalated permissions when needed and capture the probe output as evidence.
 
-## 2026-06-23
+## 2026-06-23 — rate-limit ordering, eviction, and config parsing
 - Date: 2026-06-23
 - Context: Automated review findings (Gemini Code Assist, Sourcery, Codex) on PR #187's new RateLimitSeam/rate-limiter code.
 - Lesson: A rate-limit check placed before request-body parsing lets a stream of malformed JSON consume the same shared per-IP quota as real requests, which can starve legitimate users on shared IPs (schools, offices, NAT/carrier-grade IPs); an unbounded in-memory Map keyed by client IP needs an eviction sweep or it grows without bound under high IP churn; and a throwing `.parse()`/unguarded `getClientAddress()` call turns a bad env var or a host-specific edge case into a 500 for every client instead of a graceful fallback.
 - Action: Reordered all six paid-AI routes to parse/validate the body before calling `enforceAiRateLimit`; added a size-triggered eviction sweep to `RateLimitSeam`'s `windows` Map; switched `rate-limiter.ts`'s config read to `safeParse` with a default fallback; tightened the `optionalInteger` regex to reject negative values instead of passing them to Zod's `.min()` checks; and wrapped `getClientAddress()` in try/catch with a fixed fallback key.
 
-## 2026-06-23
+## 2026-06-23 — client-key fallback and per-field config schemas
 - Date: 2026-06-23
 - Context: Third round of Codex findings on PR #187's `RateLimitSeam`/rate-limiter code, after the schema-validation-before-quota fix.
 - Lesson: A fixed fallback key for "I couldn't identify this client" cases (e.g. `getClientAddress()` throwing) recreates the exact bug it was meant to avoid: it collapses every unidentifiable client into one shared bucket, turning per-client limiting into an accidental site-wide cap if the failure isn't actually rare. Likewise, parsing several independent config fields through one combined Zod object means a single invalid field reverts every sibling field to its default too, even ones that were valid. And "validate before charging quota" must be applied to every preflight check in a pipeline, not just schema validation — a content-safety/disallowed-keyword check that runs after the rate limiter has the identical quota-theft problem as a schema check that does.
@@ -176,19 +176,19 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
 
-## 2026-06-23
+## 2026-06-23 — independent config seam over a shared one
 - Date: 2026-06-23
 - Context: Wiring a new RateLimitSeam config read into the request path.
 - Lesson: Before reusing an existing config seam (e.g. `AppConfigSeam`) for a new cross-cutting concern, check whether existing tests mock that seam incompletely for unrelated reasons — coupling a new feature to it can silently break those tests or force unrelated mock changes.
 - Action: Give the new concern its own narrow, independent config read (mirroring the existing `ImageProviderConfigSeam` precedent) instead of extending a shared config seam that other tests already stub loosely.
 
-## 2026-06-23
+## 2026-06-23 — .env.example raw-byte verification
 - Date: 2026-06-23
 - Context: Discovered while adding new env vars to `.env.example` for rate-limit configuration.
 - Lesson: `.env.example`'s committed `HEAD` content was a single base64-encoded line rather than plaintext env declarations — likely introduced by a prior agent session that misread the file's true on-disk bytes. The Read tool's display for this file cannot be trusted to confirm true content either way; raw byte-level inspection (`python3 -c "open(path,'rb').read()"` or `od -c`) is required to verify `.env*` files.
 - Action: Always verify `.env*` file contents with a raw, non-tool-masked byte read before and after editing; restored `.env.example` to correct plaintext in this session.
 
-## 2026-06-23
+## 2026-06-23 — validate the full schema chain, not just JSON parsing
 - Date: 2026-06-23
 - Context: Hardening `enforceAiRateLimit` call ordering after the first PR #187 review round, then receiving a follow-up Codex finding on the same vulnerability class.
 - Lesson: Moving the rate limiter after `parseRequestBody` only stops JSON-syntax-invalid bodies from consuming quota; it does nothing for schema-valid-but-business-invalid bodies (e.g. `{"spec": {}}`), since each pipeline's own `Schema.safeParse` ran *after* the route-level rate-limit check. "Validate before charging quota" must mean the full validation chain (JSON parse + schema shape), not just the cheapest first step.

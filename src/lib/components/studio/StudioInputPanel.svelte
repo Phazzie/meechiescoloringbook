@@ -5,6 +5,7 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 -->
 <script lang="ts">
 	import { getStudioAction, type StudioTextActionId, type StudioMode } from '$lib/core/meechie-studio';
+	import { MAX_FREE_TEXT_LENGTH } from '$lib/core/constants';
 
 	let {
 		evidence = $bindable(),
@@ -64,7 +65,7 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		bind:value={evidence}
 		oninput={onScheduleDraftSave}
 		placeholder={activeMode.placeholder}
-		maxlength="4000"
+		maxlength={MAX_FREE_TEXT_LENGTH}
 	></textarea>
 
 	<label for="dedication">Shoutout</label>
