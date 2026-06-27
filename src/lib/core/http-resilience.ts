@@ -35,7 +35,7 @@ const withJitter = (ms: number): number => ms * (0.8 + Math.random() * 0.4);
 
 // Parses Retry-After as either delay seconds or an RFC-1123 HTTP date.
 const parseRetryAfterMs = (header: string | null): number => {
-	if (header === null) return NaN;
+	if (header === null || header.trim() === '') return NaN;
 	const seconds = Number(header);
 	if (Number.isFinite(seconds)) {
 		return capDelayMs(seconds * 1000);

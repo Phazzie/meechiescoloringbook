@@ -43,16 +43,34 @@ export type MeechieQuoteScoreDetails = {
 	reasons: string[];
 };
 
-const bannedPhrases = ['live laugh love', 'good vibes only', 'know your worth'];
-const genericEmpowermentPhrases = ['you got this', 'be yourself', 'stay strong', 'keep going'];
-const concreteRoleWords = ['landlord', 'mama', 'phone', 'location', 'club', 'apartment', 'birthday', 'easter'];
-const consequenceWords = ['unless', 'watch', 'then', 'consequence', 'lose', 'locked'];
-const therapyVagueWords = ['healing', 'journey', 'energy', 'alignment', 'growth'];
+const toWordBoundaryRegexes = (words: string[]): RegExp[] =>
+	words.map((w) => new RegExp(`\\b${w}\\b`));
+
+const bannedPhrases = toWordBoundaryRegexes(['live laugh love', 'good vibes only', 'know your worth']);
+const genericEmpowermentPhrases = toWordBoundaryRegexes([
+	'you got this',
+	'be yourself',
+	'stay strong',
+	'keep going'
+]);
+const concreteRoleWords = toWordBoundaryRegexes([
+	'landlord',
+	'mama',
+	'phone',
+	'location',
+	'club',
+	'apartment',
+	'birthday',
+	'easter'
+]);
+const consequenceWords = toWordBoundaryRegexes(['unless', 'watch', 'then', 'consequence', 'lose', 'locked']);
+const therapyVagueWords = toWordBoundaryRegexes(['healing', 'journey', 'energy', 'alignment', 'growth']);
+const boundaryWords = toWordBoundaryRegexes(['door', 'boundary', 'access', 'locked', 'leave']);
+const witWords = toWordBoundaryRegexes(['economy', 'cheap seats', 'interesting', 'vision problem']);
 
 const normalize = (value: string): string => value.trim().toLowerCase();
 
-const hasAny = (text: string, words: string[]): boolean =>
-	words.some((w) => new RegExp(`\\b${w}\\b`).test(text));
+const hasAny = (text: string, patterns: RegExp[]): boolean => patterns.some((pattern) => pattern.test(text));
 
 const withBound = (score: number, max: number): number => Math.max(0, Math.min(max, score));
 
@@ -73,8 +91,8 @@ export const scoreMeechieQuote = (quote: string): MeechieQuoteScoreDetails => {
 		{ key: 'freshness', max: 10, score: hasAny(text, bannedPhrases) ? 1 : 9, reason: 'Rewards non-cliche phrasing.' },
 		{ key: 'cadence', max: 10, score: words.length >= 8 && words.length <= 24 ? 9 : 5, reason: 'Prefers concise but complete cadence.' },
 		{ key: 'clarity', max: 10, score: text.length >= 35 ? 8 : 5, reason: 'Rewards clear complete thought.' },
-		{ key: 'boundary', max: 10, score: hasAny(text, ['door', 'boundary', 'access', 'locked', 'leave']) ? 10 : 4, reason: 'Checks boundary-setting language.' },
-		{ key: 'wit', max: 10, score: hasAny(text, ['economy', 'cheap seats', 'interesting', 'vision problem']) ? 9 : 6, reason: 'Checks playful sharpness.' },
+		{ key: 'boundary', max: 10, score: hasAny(text, boundaryWords) ? 10 : 4, reason: 'Checks boundary-setting language.' },
+		{ key: 'wit', max: 10, score: hasAny(text, witWords) ? 9 : 6, reason: 'Checks playful sharpness.' },
 		{ key: 'non_generic', max: 10, score: hasAny(text, genericEmpowermentPhrases) ? 2 : 10, reason: 'Penalizes generic empowerment drift.' }
 	];
 

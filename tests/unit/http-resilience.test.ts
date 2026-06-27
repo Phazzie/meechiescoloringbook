@@ -299,6 +299,21 @@ describe('fetchWithRetry', () => {
 		expect(fetcher).toHaveBeenCalledTimes(2);
 	});
 
+	it('falls back to exponential backoff when Retry-After is an empty string', async () => {
+		const emptyRetryHeaders = new Headers({ 'Retry-After': '' });
+		const fetcher = vi
+			.fn()
+			.mockResolvedValueOnce(new Response('rate limited', { status: 429, headers: emptyRetryHeaders }))
+			.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+
+		const promise = fetchWithRetry(fetcher, { maxAttempts: 3, baseDelayMs: 100 });
+		await vi.runAllTimersAsync();
+		const result = await promise;
+
+		expect(result.status).toBe(200);
+		expect(fetcher).toHaveBeenCalledTimes(2);
+	});
+
 	it('caps Retry-After at 30 seconds', async () => {
 		const longRetryHeaders = new Headers({ 'Retry-After': '3600' });
 		const fetcher = vi
