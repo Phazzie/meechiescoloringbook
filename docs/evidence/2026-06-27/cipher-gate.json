@@ -1,9 +1,9 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-06-27T16:20:54.887Z",
+  "generatedAt": "2026-06-27T16:34:07.369Z",
   "cipher": {
     "date": "2026-06-27",
-    "seams": "ProviderAdapterSeam",
+    "seams": "MeechieToolSeam",
     "evidence": [
       {
         "path": "docs/evidence/2026-06-27/check.txt",
@@ -18,11 +18,7 @@
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-06-27/circuit-breaker-focused-tests.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-06-27/rewind-ProviderAdapterSeam.txt",
+        "path": "docs/evidence/2026-06-27/rewind-MeechieToolSeam.txt",
         "exists": true
       },
       {
@@ -34,9 +30,9 @@
         "exists": true
       }
     ],
-    "summary": "Fixed AbortError incorrectly tripping the circuit breaker, scoped image-generation breaker bookkeeping to the transport layer, and made meechie-studio-text's two call sites share the existing providerAdapter singleton instead of recreating the breaker per request.",
-    "risks": "meechie-tool's two call sites still recreate the breaker per request (deferred, documented); the dual-seam-layout gap means this breaker may not protect the live image-generation endpoint (pre-existing, tracked as hardest-fixes item #1); no live-traffic validation of any of this (no XAI_API_KEY in this environment)."
+    "summary": "Fixed the live `/api/tools` call site (`meechie-tool-seam/index.ts`) to reuse the shared providerAdapter singleton instead of constructing a fresh breaker per request, per a re-flagged chatgpt-codex-connector finding on PR #198; left the dead-code legacy adapter unchanged.",
+    "risks": "Legacy `meechie-tool.adapter.ts` still recreates the breaker per call but has zero production callers (verified via grep); no live-traffic validation (no XAI_API_KEY in this environment); no dedicated test proves cross-request breaker persistence in a running server process."
   },
-  "latestChangeMs": 1782576797002.01,
+  "latestChangeMs": 1782577780418.023,
   "status": "ok"
 }

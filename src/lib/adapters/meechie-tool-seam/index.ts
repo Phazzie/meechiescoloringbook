@@ -8,7 +8,7 @@ import type {
 } from '../../seams/meechie-tool-seam/contract';
 import type { MeechieVoicePack } from '../../seams/meechie-voice-seam/contract';
 import type { Result } from '../../../../contracts/shared.contract';
-import { createProviderAdapter } from '../provider-adapter.adapter';
+import { providerAdapter } from '../provider-adapter.adapter';
 import { meechieVoiceAdapter } from '../meechie-voice-seam';
 import { selectTextModel } from '$lib/core/text-model';
 import { env } from '$env/dynamic/private';
@@ -288,8 +288,10 @@ export const meechieToolAdapter: MeechieToolSeam = {
 		const systemPrompt = buildSystemPrompt(voiceResult.value);
 
 		const { content, responseFormat } = buildUserMessage(input);
-		const provider = createProviderAdapter({});
-		const providerResult = await provider.createChatCompletion({
+		// Reuses the shared providerAdapter singleton (rather than constructing a fresh adapter per
+		// call) so its circuit breaker accumulates failures across requests instead of resetting on
+		// every invocation.
+		const providerResult = await providerAdapter.createChatCompletion({
 			model: TEXT_MODEL,
 			messages: [
 				{ role: 'system', content: systemPrompt },
