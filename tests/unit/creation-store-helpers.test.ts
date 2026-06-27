@@ -286,6 +286,41 @@ describe('creation-store adapter', () => {
 		});
 	});
 
+	describe('legacy title length migration', () => {
+		const legacyTitle = 'A'.repeat(90);
+
+		it('clamps a legacy 90-char creation title instead of failing the whole load', async () => {
+			localStorage.setItem(
+				'cb_creations_v1',
+				JSON.stringify([
+					{ ...validRecord, intent: { ...validIntent, title: legacyTitle } }
+				])
+			);
+
+			const result = await creationStoreAdapter.listCreations({
+				owner: validRecord.owner
+			});
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value).toHaveLength(1);
+				expect(result.value[0].intent.title.length).toBeLessThanOrEqual(80);
+			}
+		});
+
+		it('clamps a legacy 90-char draft title instead of failing the load', async () => {
+			localStorage.setItem(
+				'cb_drafts_v1',
+				JSON.stringify({ ...validDraft, intent: { ...validIntent, title: legacyTitle } })
+			);
+
+			const result = await creationStoreAdapter.getDraft({});
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value?.intent.title.length).toBeLessThanOrEqual(80);
+			}
+		});
+	});
+
 	describe('MAX_CREATIONS limit', () => {
 		it('limits stored creations to maximum', async () => {
 			// Save 51 records to exceed the 50 max

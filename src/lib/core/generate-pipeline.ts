@@ -40,6 +40,12 @@ export type GeneratePipelineDeps = {
 	detectDrift: typeof driftDetectionAdapter.detect;
 	generateImage: (body: ImageGenerationInput, signal?: AbortSignal) => Promise<ImagePipelineResponse>;
 	signal?: AbortSignal;
+	// Set by the route when it already ran checkGeneratePromptGuards before charging
+	// rate-limit quota, so runGeneratePipeline doesn't re-await validateSpec/assemblePrompt
+	// after the charge — that gap let an abort during the redundant re-run waste a quota
+	// slot for zero paid work. Callers that haven't preflighted (e.g. direct tests) can
+	// omit this and runGeneratePipeline still validates from scratch.
+	precomputedPrompt?: { prompt: string; templateVersion: string };
 };
 
 const buildError = (
@@ -210,7 +216,9 @@ export const runGeneratePipeline = async (
 	const safetyCheck = checkGenerateSafety(parsedInput.data, deps.checkContentSafety);
 	if (!safetyCheck.ok) return safetyCheck.response;
 
-	const promptGuardCheck = await checkGeneratePromptGuards(parsedInput.data, deps);
+	const promptGuardCheck: GeneratePromptGuardCheck = deps.precomputedPrompt
+		? { ok: true, prompt: deps.precomputedPrompt }
+		: await checkGeneratePromptGuards(parsedInput.data, deps);
 	if (!promptGuardCheck.ok) return promptGuardCheck.response;
 
 	let imageResult: ImagePipelineResponse;

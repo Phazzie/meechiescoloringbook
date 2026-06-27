@@ -18,6 +18,12 @@ type PipelineDeps = {
 	wigCatalogSeam: WigCatalogSeam;
 	wigTryOnSeam: WigTryOnSeam;
 	signal?: AbortSignal;
+	// Set by the route when it already ran checkWigCatalogPreflight before charging
+	// rate-limit quota, so runWigTryOnPipeline doesn't re-await getWigById after the
+	// charge — that gap let an abort during the redundant lookup waste a quota slot
+	// for zero paid work. Callers that haven't preflighted (e.g. direct tests) can
+	// omit this and runWigTryOnPipeline still looks the wig up from scratch.
+	precomputedWig?: Wig;
 };
 
 const buildError = (
@@ -117,7 +123,9 @@ export const runWigTryOnPipeline = async (
 	if (!shapeCheck.ok) return shapeCheck.response;
 	const { selfieBase64, selfieMimeType, wigId } = shapeCheck.data;
 
-	const catalogCheck = await checkWigCatalogPreflight(wigId, deps.wigCatalogSeam);
+	const catalogCheck: WigCatalogPreflightCheck = deps.precomputedWig
+		? { ok: true, wig: deps.precomputedWig }
+		: await checkWigCatalogPreflight(wigId, deps.wigCatalogSeam);
 	if (!catalogCheck.ok) return catalogCheck.response;
 
 	const wig = catalogCheck.wig;

@@ -36,3 +36,46 @@ describe('runWigTryOnPipeline abort guard', () => {
 		expect(tryOn).not.toHaveBeenCalled();
 	});
 });
+
+const wig = {
+	id: 'wig-001',
+	name: 'Sleek Straight Goddess',
+	brand: 'Beautyforever',
+	affiliateProgram: 'beautyforever' as const,
+	affiliateUrl: 'https://example.com/wig',
+	imageUrl: 'https://example.com/wig.png',
+	priceUsd: 89.99,
+	style: 'Straight Lace Front',
+	hairType: 'human' as const,
+	length: 'medium' as const,
+	color: 'Natural Black',
+	colorFamily: 'black' as const,
+	tags: ['sleek']
+};
+
+describe('runWigTryOnPipeline precomputedWig', () => {
+	it('skips getWigById when precomputedWig is supplied', async () => {
+		const getWigById = vi.fn();
+		const fetchImpl = vi.fn(async () =>
+			new Response(new Uint8Array([1, 2, 3]), {
+				status: 200,
+				headers: { 'Content-Type': 'image/png' }
+			})
+		);
+		const tryOn = vi.fn(async () => ({
+			ok: true as const,
+			value: { portraitBase64: 'portrait-data', portraitMimeType: 'image/png', timingMs: 10 }
+		}));
+
+		const result = await runWigTryOnPipeline(validBody, {
+			fetchImpl,
+			wigCatalogSeam: { listWigs: vi.fn(), getWigById },
+			wigTryOnSeam: { tryOn },
+			precomputedWig: wig
+		});
+
+		expect(result.status).toBe(200);
+		expect(getWigById).not.toHaveBeenCalled();
+		expect(fetchImpl).toHaveBeenCalledWith(wig.imageUrl);
+	});
+});

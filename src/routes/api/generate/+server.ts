@@ -50,7 +50,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				imageGenerationSeam,
 				signal: signal ?? request.signal
 			}),
-		signal: request.signal
+		signal: request.signal,
+		precomputedPrompt: promptGuardCheck.prompt
 	});
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };

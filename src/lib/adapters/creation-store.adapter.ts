@@ -13,10 +13,34 @@ import type {
 	SaveDraftInput
 } from '../../../contracts/creation-store.contract';
 import type { Result } from '../../../contracts/shared.contract';
+import { MAX_TITLE_LENGTH } from '../core/constants';
 
 const CREATIONS_KEY = 'cb_creations_v1';
 const DRAFT_KEY = 'cb_drafts_v1';
 const MAX_CREATIONS = 50;
+
+// MAX_TITLE_LENGTH was tightened from 96 to 80 after some users had already saved
+// creations/drafts with longer titles; clamp those legacy titles on load so the
+// schema-mismatch doesn't take down the whole vault/draft read for old data that
+// was valid when it was written. New writes go through compactColoringPageTitle,
+// which already enforces the current cap, so this only matters for old records.
+const clampLegacyTitle = (record: unknown): unknown => {
+	if (!record || typeof record !== 'object' || !('intent' in record)) {
+		return record;
+	}
+	const intent = (record as { intent: unknown }).intent;
+	if (!intent || typeof intent !== 'object' || !('title' in intent)) {
+		return record;
+	}
+	const title = (intent as { title: unknown }).title;
+	if (typeof title !== 'string' || title.length <= MAX_TITLE_LENGTH) {
+		return record;
+	}
+	return {
+		...record,
+		intent: { ...intent, title: title.slice(0, MAX_TITLE_LENGTH).trim() }
+	};
+};
 
 const browserGuard = <T>(message: string): Result<T> => ({
 	ok: false,
@@ -74,7 +98,7 @@ const parseRecords = (value: unknown): Result<CreationRecord[]> => {
 	}
 	const records: CreationRecord[] = [];
 	for (const record of value) {
-		const parsed = CreationRecordSchema.safeParse(record);
+		const parsed = CreationRecordSchema.safeParse(clampLegacyTitle(record));
 		if (!parsed.success) {
 			return {
 				ok: false,
@@ -126,7 +150,7 @@ const parseDraft = (value: unknown | null): Result<DraftRecord | null> => {
 	if (value === null) {
 		return { ok: true, value: null };
 	}
-	const parsed = DraftRecordSchema.safeParse(value);
+	const parsed = DraftRecordSchema.safeParse(clampLegacyTitle(value));
 	if (!parsed.success) {
 		return {
 			ok: false,

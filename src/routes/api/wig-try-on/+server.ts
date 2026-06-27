@@ -44,7 +44,8 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 		fetchImpl: fetch,
 		wigCatalogSeam,
 		wigTryOnSeam,
-		signal: request.signal
+		signal: request.signal,
+		precomputedWig: catalogCheck.wig
 	});
 
 	return json(result.body, { status: result.status });

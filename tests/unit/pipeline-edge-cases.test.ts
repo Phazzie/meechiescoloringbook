@@ -445,6 +445,26 @@ describe('generate-pipeline edge cases', () => {
 		}
 	});
 
+	it('skips validateSpec/assemblePrompt when precomputedPrompt is supplied', async () => {
+		const deps = buildGenerateDeps();
+
+		const result = await runGeneratePipeline(
+			{ spec: validSpec },
+			{
+				...deps,
+				precomputedPrompt: { prompt: 'precomputed prompt', templateVersion: 'v2' }
+			}
+		);
+
+		expect(result.status).toBe(200);
+		expect(deps.validateSpec).not.toHaveBeenCalled();
+		expect(deps.assemblePrompt).not.toHaveBeenCalled();
+		expect(deps.generateImage).toHaveBeenCalledWith(
+			expect.objectContaining({ prompt: 'precomputed prompt' }),
+			undefined
+		);
+	});
+
 	it('returns error when image generation response is invalid', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
