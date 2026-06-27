@@ -33,12 +33,22 @@ const clampLegacyTitle = (record: unknown): unknown => {
 		return record;
 	}
 	const title = (intent as { title: unknown }).title;
-	if (typeof title !== 'string' || title.length <= MAX_TITLE_LENGTH) {
+	if (typeof title !== 'string') {
 		return record;
+	}
+	const trimmedTitle = title.trim();
+	if (trimmedTitle.length <= MAX_TITLE_LENGTH) {
+		if (trimmedTitle === title) {
+			return record;
+		}
+		return {
+			...record,
+			intent: { ...intent, title: trimmedTitle }
+		};
 	}
 	return {
 		...record,
-		intent: { ...intent, title: title.slice(0, MAX_TITLE_LENGTH).trim() }
+		intent: { ...intent, title: trimmedTitle.slice(0, MAX_TITLE_LENGTH).trim() }
 	};
 };
 

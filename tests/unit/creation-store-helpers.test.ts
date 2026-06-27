@@ -319,6 +319,24 @@ describe('creation-store adapter', () => {
 				expect(result.value?.intent.title.length).toBeLessThanOrEqual(80);
 			}
 		});
+
+		it('trims surrounding whitespace before measuring length, so a title only over the cap due to padding keeps all its real characters', async () => {
+			const paddedTitle = '   ' + 'A'.repeat(79);
+			localStorage.setItem(
+				'cb_creations_v1',
+				JSON.stringify([
+					{ ...validRecord, intent: { ...validIntent, title: paddedTitle } }
+				])
+			);
+
+			const result = await creationStoreAdapter.listCreations({
+				owner: validRecord.owner
+			});
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value[0].intent.title).toBe('A'.repeat(79));
+			}
+		});
 	});
 
 	describe('MAX_CREATIONS limit', () => {

@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-27 - Address PR #197 review feedback: trim before clamping legacy titles
+
+- Date: 2026-06-27
+- Decision: In `clampLegacyTitle` (`src/lib/adapters/creation-store.adapter.ts`), trim the title and measure the trimmed length *before* deciding whether to slice, instead of slicing the raw (untrimmed) string to `MAX_TITLE_LENGTH` and trimming afterward. A title with leading/trailing whitespace that pushes it past the cap (e.g. 3 spaces + 79 real characters = 82 chars) now keeps all 79 real characters once the padding is trimmed away, rather than losing 2 of them to a slice computed against the untrimmed length.
+- Context: `gemini-code-assist[bot]` left a medium-priority review comment on PR #197 pointing out the original order (slice-then-trim) discards valid characters whenever whitespace padding — not real content — is what pushed a legacy title over `MAX_TITLE_LENGTH`. The fix is small, the failure mode is real (silent, partial data loss on legacy titles with padding), and the suggested diff was correct as given, so it was applied directly rather than escalated.
+- Alternatives considered: Leaving the slice-then-trim order as-is (rejected — confirmed data loss for a plausible legacy-data shape, not just a hypothetical); normalizing whitespace on every title load regardless of length (rejected — out of scope, `clampLegacyTitle` exists only to fix the length-cap schema mismatch, not to canonicalize all stored titles).
+- Consequences: Titles within `MAX_TITLE_LENGTH` after trimming but not before now also get their surrounding whitespace stripped on load (a record is only rewritten when trimming actually changes the value); titles still over the cap after trimming are sliced against the trimmed string, not the original. Added a regression test (`tests/unit/creation-store-helpers.test.ts`) covering the padded-title case from the review comment.
+- Revisit criteria: If `clampLegacyTitle` ever needs to preserve internal whitespace exactly (e.g. for a future title format where leading/trailing spaces are meaningful), this trim-first behavior would need to be gated rather than unconditional.
+- Plan:
+  - Goal: Close the open `gemini-code-assist[bot]` review comment on PR #197 without altering the schema-mismatch-avoidance purpose of `clampLegacyTitle`.
+  - Seams: CreationStoreSeam.
+  - Files: `src/lib/adapters/creation-store.adapter.ts`, `tests/unit/creation-store-helpers.test.ts`.
+  - Commands: `npx vitest run tests/unit/creation-store-helpers.test.ts tests/contract/creation-store.test.ts --pool=forks --maxWorkers=1`, `npm run check`, `npm run lint`, `npm run verify`.
+- Self-critique: Also investigated the "Rosentic - Conflict Detection" CI failure on the same PR (flags `src/routes/api/chat-interpretation/+server.ts`'s contract as "changed" relative to ~135 other branches). Confirmed via `git log`/`git diff` that this file was never touched by any of this PR's own commits, and that the rate-limiting it flags as a "contract change" is absent from `origin/main` entirely — it was added by the inherited PR191-lineage commit `555756f`, which is the same RateLimitSeam feature this whole PR exists to consolidate. The "break" Rosentic reports is against other still-open, soon-to-be-superseded duplicate-feature branches in the same dupe swarm, not against `main` (the actual merge target), so no code change was made for it; treated as expected, already-documented cross-branch noise rather than a defect introduced here.
+
+- Cipher Gate:
+  - Date: 2026-06-27
+  - Seams: CreationStoreSeam
+  - Evidence: docs/evidence/2026-06-27/chamber-lock.json, docs/evidence/2026-06-27/verify.txt, docs/evidence/2026-06-27/test.txt, docs/evidence/2026-06-27/shaolin-lint.json, docs/evidence/2026-06-27/assumption-alarm.json, docs/evidence/2026-06-27/seam-ledger.json, docs/evidence/2026-06-27/clan-chain.json, docs/evidence/2026-06-27/proof-tape.json
+  - Summary: Trim-before-clamp fix for legacy title migration per PR #197 review comment; 602 tests pass (1 new); verify chain clean.
+  - Risks: Low — pure string-handling change confined to one already-narrow legacy-data-repair helper, covered by a new targeted regression test.
+
 ## 2026-06-27 - Close PR191's remaining review threads to supersede PR187/PR180's duplicate RateLimitSeam work
 
 - Date: 2026-06-27
