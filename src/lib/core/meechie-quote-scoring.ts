@@ -43,8 +43,10 @@ export type MeechieQuoteScoreDetails = {
 	reasons: string[];
 };
 
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const toWordBoundaryRegexes = (words: string[]): RegExp[] =>
-	words.map((w) => new RegExp(`\\b${w}\\b`));
+	words.map((w) => new RegExp(`\\b${escapeRegExp(w)}\\b`));
 
 const bannedPhrases = toWordBoundaryRegexes(['live laugh love', 'good vibes only', 'know your worth']);
 const genericEmpowermentPhrases = toWordBoundaryRegexes([
