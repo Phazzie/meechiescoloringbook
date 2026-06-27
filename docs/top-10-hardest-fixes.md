@@ -1,3 +1,9 @@
+<!--
+Purpose: Track the hardest technical-debt items and their resolution status.
+Why: Prevent duplicate work, maintain visibility of long-running fixes, and record why each item is difficult.
+Info flow: audit findings -> list -> strike-through on main merge -> archive in DECISIONS.md.
+-->
+
 # Top 10 Hardest Upgrades / Fixes
 
 This list originated in PR #121 / PR #195 and now has a permanent home here. Per

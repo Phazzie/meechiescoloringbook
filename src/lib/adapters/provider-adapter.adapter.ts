@@ -251,6 +251,10 @@ export const createProviderAdapter = (
 				};
 			}
 			const baseUrl = getBaseUrl(config);
+			// Tracks whether the breaker was already updated from the HTTP response status, so the
+			// catch block below only records a failure for a genuine transport/timeout error — not
+			// for an exception thrown while parsing or normalizing an already-received response.
+			let breakerRecorded = false;
 			try {
 				const url = `${baseUrl}${IMAGE_PATH}`;
 				const requestInit: RequestInit = {
@@ -267,18 +271,21 @@ export const createProviderAdapter = (
 					})
 				};
 				const response = await fetchWithTimeout(url, requestInit, IMAGE_TIMEOUT_MS);
-				const payload = await readJson(response);
 				if (RETRYABLE_STATUSES.has(response.status)) {
 					breaker.recordFailure();
 				} else {
 					breaker.recordSuccess();
 				}
+				breakerRecorded = true;
+				const payload = await readJson(response);
 				if (!response.ok) {
 					return buildHttpError(response, payload);
 				}
 				return normalizeImageOutput(payload);
 			} catch (error) {
-				breaker.recordFailure();
+				if (!breakerRecorded && !isAbortError(error)) {
+					breaker.recordFailure();
+				}
 				return {
 					ok: false,
 					error: buildError(

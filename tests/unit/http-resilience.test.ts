@@ -409,6 +409,16 @@ describe('fetchWithRetry', () => {
 		).rejects.toThrow('ECONNREFUSED');
 		expect(breaker.isOpen()).toBe(true);
 	});
+
+	it('does not record a breaker failure on an AbortError', async () => {
+		const breaker = createCircuitBreaker({ failureThreshold: 1, cooldownMs: 30_000, now: () => 0 });
+		const fetcher = vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+
+		await expect(
+			fetchWithRetry(fetcher, { maxAttempts: 1, baseDelayMs: 50, breaker })
+		).rejects.toMatchObject({ name: 'AbortError' });
+		expect(breaker.isOpen()).toBe(false);
+	});
 });
 
 describe('createCircuitBreaker', () => {

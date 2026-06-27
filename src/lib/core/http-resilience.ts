@@ -214,7 +214,7 @@ export const fetchWithRetry = async (
 			response = await fetcher();
 		} catch (error) {
 			const callerAborted = signal?.aborted ?? false;
-			if (!callerAborted) {
+			if (!callerAborted && !isAbortError(error)) {
 				breaker?.recordFailure();
 			}
 			if ((isAbortError(error) || isTimeoutError(error)) && !callerAborted && attempt < maxAttempts) {

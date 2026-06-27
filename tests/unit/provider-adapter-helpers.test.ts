@@ -436,6 +436,109 @@ describe('provider-adapter helpers', () => {
 		});
 	});
 
+	describe('createImageGeneration circuit breaker', () => {
+		it('opens after repeated retryable HTTP failures and fails fast without fetching', async () => {
+			const fetchMock = vi.fn(
+				async () =>
+					new Response(JSON.stringify({ error: { message: 'unavailable' } }), {
+						status: 503,
+						statusText: 'Service Unavailable'
+					})
+			);
+			vi.stubGlobal('fetch', fetchMock);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+
+			for (let i = 0; i < 3; i++) {
+				const result = await adapter.createImageGeneration({
+					model: 'test',
+					prompt: 'test',
+					n: 1,
+					responseFormat: 'b64_json'
+				});
+				expect(result.ok).toBe(false);
+			}
+			expect(fetchMock).toHaveBeenCalledTimes(3);
+
+			const result = await adapter.createImageGeneration({
+				model: 'test',
+				prompt: 'test',
+				n: 1,
+				responseFormat: 'b64_json'
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('PROVIDER_CIRCUIT_OPEN');
+			}
+			expect(fetchMock).toHaveBeenCalledTimes(3);
+		});
+
+		it('does not open the breaker when the fetch is aborted', async () => {
+			const fetchMock = vi.fn(async () => {
+				throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+			});
+			vi.stubGlobal('fetch', fetchMock);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+
+			for (let i = 0; i < 3; i++) {
+				const result = await adapter.createImageGeneration({
+					model: 'test',
+					prompt: 'test',
+					n: 1,
+					responseFormat: 'b64_json'
+				});
+				expect(result.ok).toBe(false);
+			}
+
+			// If the prior aborted calls had tripped the breaker, this 4th call would short-circuit
+			// with PROVIDER_CIRCUIT_OPEN instead of reaching fetch again.
+			await adapter.createImageGeneration({
+				model: 'test',
+				prompt: 'test',
+				n: 1,
+				responseFormat: 'b64_json'
+			});
+			expect(fetchMock).toHaveBeenCalledTimes(4);
+		});
+
+		it('records a breaker success on HTTP 200 even when image normalization fails', async () => {
+			const fetchMock = vi.fn(async () => jsonResponse({ data: [{ not_a_url: 'something' }] }));
+			vi.stubGlobal('fetch', fetchMock);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+
+			for (let i = 0; i < 3; i++) {
+				const result = await adapter.createImageGeneration({
+					model: 'test',
+					prompt: 'test',
+					n: 1,
+					responseFormat: 'b64_json'
+				});
+				expect(result.ok).toBe(false);
+			}
+
+			// A normalize-layer failure on a 200 response must not count toward the breaker — a 4th
+			// call should still reach fetch instead of short-circuiting with PROVIDER_CIRCUIT_OPEN.
+			await adapter.createImageGeneration({
+				model: 'test',
+				prompt: 'test',
+				n: 1,
+				responseFormat: 'b64_json'
+			});
+			expect(fetchMock).toHaveBeenCalledTimes(4);
+		});
+	});
+
 	describe('buildHttpError edge cases', () => {
 		it('extracts error message from error.message field', async () => {
 			const fetchMock = vi.fn(
