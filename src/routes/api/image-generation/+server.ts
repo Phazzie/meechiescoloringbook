@@ -26,6 +26,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const promptGuardCheck = checkImageGenerationPromptGuard(shapeCheck.data);
 	if (!promptGuardCheck.ok)
 		return json(promptGuardCheck.response.body, { status: promptGuardCheck.response.status });
+	const lateAbortCheck = checkImageGenerationAbort(request.signal);
+	if (!lateAbortCheck.ok)
+		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const pipelineResult = await runImageGenerationPipeline(parsed.body, {

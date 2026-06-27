@@ -7,6 +7,29 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-27 - Fourth round of PR #197 review fixes: late-abort race in image-generation route
+
+- Date: 2026-06-27
+- Decision: Closed one more `chatgpt-codex-connector[bot]` finding on PR #197: added the same late-abort re-check used by `generate`/`wig-try-on`/`chat-interpretation`/`tools`/`meechie-studio-text` to the `/api/image-generation` route — it now calls `checkImageGenerationAbort(request.signal)` again immediately after `checkImageGenerationPromptGuard` and before `enforceAiRateLimit`, closing the same window where a client disconnecting during `await parseRequestBody(request)` would still burn a rate-limit slot for a request the pipeline would have rejected with `IMAGE_ABORTED` anyway. Added two regression tests to `tests/unit/api-image-generation.test.ts` using the same `vi.hoisted` + `vi.mock('$lib/server/parse-request-body', ...)` pattern established for the three routes fixed in the prior round, mocking the parser to call `controller.abort()` mid-await before delegating to the real implementation.
+- Context: This is the fourth and (so far) last route found to have the identical TOCTOU-shaped gap; `image-generation` was not touched in the third round because the prior `chatgpt-codex-connector` review batch didn't flag it, and a proactive sweep at the time covered `tools`/`meechie-studio-text` (which share the literal `parseRequestBody` → sync checks → `enforceAiRateLimit` shape) but missed `image-generation`, which has the same shape with an extra `checkImageGenerationPromptGuard` step in between. The next review pass caught it explicitly.
+- Alternatives considered:
+  - Re-sweep all routes once more for any remaining instances of this pattern, rather than waiting for further review findings. Considered, but `generate`, `wig-try-on`, `chat-interpretation`, `tools`, `meechie-studio-text`, and now `image-generation` cover every route in `src/routes/api/` that calls `enforceAiRateLimit` after an awaited `parseRequestBody` — there is no remaining route with this shape left to fix.
+- Consequences: `/api/image-generation` now returns `IMAGE_ABORTED` (499) for a client that disconnects mid-parse, before any rate-limit quota is consumed — proven by two new tests in `tests/unit/api-image-generation.test.ts` (13/13 passing, up from 11). Every paid AI route in the app now has this guard.
+- Revisit criteria: If a new paid route is added under `src/routes/api/` that awaits `parseRequestBody` before calling `enforceAiRateLimit`, apply the same late-abort re-check at creation time rather than waiting for a review pass to catch it.
+- Plan:
+  - Goal: Close the fourth and final instance of the late-abort-before-quota race, flagged by chatgpt-codex-connector on `/api/image-generation`.
+  - Seams: ImageGenerationSeam.
+  - Files: `src/routes/api/image-generation/+server.ts`, `tests/unit/api-image-generation.test.ts`, `DECISIONS.md`.
+  - Commands: `npx vitest run tests/unit/api-image-generation.test.ts --reporter=verbose`, `npm run check`, `npm run lint`, `npm run test`, `npm run verify`, `npm run cipher:gate`.
+- Self-critique: This is the fourth round of fixing the same bug class one route at a time as review tools find each instance, rather than having swept all routes exhaustively in the first pass. The alternatives-considered note above confirms no further instances remain, but a more systematic check (e.g. a lint rule or shared route-handler helper enforcing the abort-recheck-before-rate-limit order) would have caught all six routes in one pass instead of four separate review-and-fix cycles.
+
+- Cipher Gate:
+  - Date: 2026-06-27
+  - Seams: ImageGenerationSeam
+  - Evidence: docs/evidence/2026-06-27/chamber-lock.json; docs/evidence/2026-06-27/verify.txt; docs/evidence/2026-06-27/test.txt; docs/evidence/2026-06-27/shaolin-lint.json; docs/evidence/2026-06-27/assumption-alarm.json; docs/evidence/2026-06-27/seam-ledger.json; docs/evidence/2026-06-27/clan-chain.json; docs/evidence/2026-06-27/proof-tape.json
+  - Summary: Closed the last known instance of the late-abort rate-limit-quota race, in the image-generation route; 614 tests pass (2 new), verify chain clean.
+  - Risks: Low — narrowly scoped, identical pattern to five already-reviewed fixes, with new regression tests.
+
 ## 2026-06-27 - Third round of PR #197 review fixes: late-abort race in three more routes, whitespace-only legacy title, canonical MeechieToolSeam length caps, flaky-test hardening
 
 - Date: 2026-06-27

@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-06-27T11:14:30.330Z",
+  "generatedAt": "2026-06-27T11:30:32.116Z",
   "cipher": {
     "date": "2026-06-27",
     "seams": "CreationStoreSeam, RateLimitSeam, WigCatalogSeam, WigTryOnSeam",
@@ -41,6 +41,6 @@
     "summary": "Closed PR191's 3 remaining unresolved review threads (legacy title-length migration gap, generate-route and wig-try-on-route quota-charged-before-redundant-preflight races) on top of its branch, producing the most-fixed state of the RateLimitSeam feature that PR187 and PR180 were independently attempting, with 4 new regression tests and a clean `npm run verify`.",
     "risks": "A full three-way diff confirming PR191's branch drops nothing useful from PR180 specifically was not re-run in this session (carried forward as an established fact from the prior session); the `precomputed*` short-circuit trusts the route's own preflight value by presence alone, acceptable since it originates same-request, same-route, moments earlier."
   },
-  "latestChangeMs": 1782558105505.5896,
+  "latestChangeMs": 1782559444922.3643,
   "status": "ok"
 }
