@@ -163,3 +163,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-06-28
+- Date: 2026-06-28
+- Context: Quick-wins sweep found `.env.example` committed as a single base64-encoded line (from the 2026-05-11 Gemini key commit), silently breaking `cp .env.example .env` for new contributors.
+- Lesson: Files meant to stay human-readable (`.env.example`, other plaintext templates) can get mangled by a stray encode/pipe before `git add` with no test to catch it, since nothing parses or runs that file in CI.
+- Action: Visually diff template/example files before committing, and prefer `git diff --stat`/`file <path>` checks on env/config templates when a commit touches them.

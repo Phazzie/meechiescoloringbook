@@ -16,6 +16,7 @@ Live app: **https://meechiescoloringbook.vercel.app**
 
 - AI-powered coloring book image generation via xAI (Grok)
 - Custom text and story generation with Meechie's unique voice
+- Wig try-on studio — upload a selfie and preview an AI-generated portrait via Gemini 2.5 Flash Image
 - PDF export of coloring pages — print and color right away
 - Deployed on Vercel at https://meechiescoloringbook.vercel.app
 - Android-friendly PWA with manifest and offline-safe assets
@@ -28,7 +29,7 @@ Live app: **https://meechiescoloringbook.vercel.app**
 |-------|------------|
 | **Framework** | SvelteKit 2 with Svelte 5 runes |
 | **AI** | xAI (Grok) for text and image generation |
-| **Testing** | Vitest 3 (unit/integration) + Playwright (E2E) |
+| **Testing** | Vitest 4 (unit/integration) + Playwright (E2E) |
 | **Deployment** | Vercel with `@sveltejs/adapter-vercel` (Node 22) |
 | **Validation** | Zod schema validation at all seam boundaries |
 | **Architecture** | Seam-Driven Development (SDD) |
@@ -77,6 +78,8 @@ Copy `.env.example` to `.env` and fill in your values.
 | `FEATURE_INTEGRATION_TESTS` | No | `false` | Set to `true` to enable live API integration tests |
 | `MAX_IMAGES_PER_REQUEST` | No | `4` | Maximum coloring pages generated per request |
 | `DEFAULT_IMAGE_SIZE` | No | `1024x1024` | Default image resolution (future-facing; xAI may ignore this) |
+| `GEMINI_API_KEY` | Yes (for wig try-on) | — | Your Gemini API key for the wig try-on portrait feature ([get one here](https://aistudio.google.com/app/apikey)) |
+| `GEMINI_BASE_URL` | No | `https://generativelanguage.googleapis.com` | Gemini API base URL |
 
 > **Note:** Integration tests require both `FEATURE_INTEGRATION_TESTS=true` and a valid `XAI_API_KEY`.
 
