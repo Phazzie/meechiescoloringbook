@@ -58,6 +58,35 @@ Short, durable decisions with context and tradeoffs.
   - Summary: Bounded RateLimitSeam's in-memory map with interval-gated full pruning, guarded `getClientAddress()` against throwing, centralized per-route limits, deduped the test client-address-counter helper across 6 test files, and strengthened the image-generation 429 test to assert the seam is not invoked when rate-limited.
   - Risks: Pruning still runs on the request hot path (gated by a timestamp check) rather than on a background timer, so a single request unlucky enough to cross the interval boundary pays the full-map scan cost; acceptable at current expected key-count scale.
 
+## 2026-06-28 - RateLimitSeam: close out second round of codex findings (peak-burst cap, live-call-in-test gaps)
+
+- Date: 2026-06-28
+- Decision: Fix three new codex findings posted on the post-hardening commit (`74fb025853`): (A) cap `policy.ts`'s `hits` map by insertion-time eviction so a single burst of unique keys within one cleanup interval cannot grow memory unbounded; (B) mock `$lib/adapters/image-generation-seam` in `tests/unit/api-generate.test.ts`'s 429 test; (C) add an explicit `providerAdapter.createChatCompletion` mock to `tests/unit/api-chat-interpretation.test.ts`'s 429 test.
+- Context: The prior round's interval-gated pruning (`CLEANUP_INTERVAL_MS = 60_000`) only reclaims memory once 60s have elapsed since the last prune — codex correctly pointed out this bounds steady-state memory but not peak memory, since a burst of thousands of unique client keys arriving inside a single interval is never pruned until the interval boundary passes. Separately, codex found that two of the rate-limit 429 tests added in the prior round could make live, billable provider calls: `api-generate.test.ts` passed a `fetchMock` via its injected `fetch` event property, but `src/routes/api/generate/+server.ts` never destructures `fetch` from the event at all — it constructs a real `createImageGenerationSeam(createImageProviderConfigSeam())`, whose adapter (`src/lib/adapters/image-generation-seam/index.ts:83`) calls the bare global `fetch` directly, so the injected mock was a no-op decoy; `api-chat-interpretation.test.ts`'s 429 test had no `vi.spyOn(providerAdapter, 'createChatCompletion')` of its own (unlike its sibling tests in the same file), so `afterEach(() => vi.restoreAllMocks())` left it exposed to the real adapter whenever relevant API-key env vars were present in the test process.
+- Alternatives: For the memory cap — an LRU library or a max-age-only eviction without a hard count cap; rejected as either a new dependency or insufficient to bound peak burst size, when a simple `MAX_KEYS = 10_000` constant with insertion-order eviction (`Map` guarantees insertion order) keeps the seam dependency-free and bounds worst case directly. For the live-call test gaps — leaving `fetchMock`/no mock as-is and instead unsetting provider env vars per-test; rejected as fragile (depends on ambient environment state rather than the test's own setup) versus the repo's own established precedent in `tests/unit/api-image-generation.test.ts` (`vi.mock('$lib/adapters/image-generation-seam', ...)`) and the existing per-test `vi.spyOn(providerAdapter, ...)` pattern already used by sibling tests in the same chat-interpretation file.
+- Consequences: `policy.ts` now evicts the oldest-inserted key (by `Map` insertion order) when a new key would exceed `MAX_KEYS` and an immediate prune doesn't free space, bounding peak memory regardless of burst speed; `tests/unit/api-generate.test.ts` now mocks `createImageGenerationSeam` (matching `api-image-generation.test.ts`'s precedent) so its 429 test's 5 allowed requests resolve through a deterministic in-memory stub instead of any real or accidentally-bypassed-mock HTTP path; `tests/unit/api-chat-interpretation.test.ts`'s 429 test now mocks `providerAdapter.createChatCompletion` explicitly, matching its sibling tests, so it cannot reach the real provider regardless of environment configuration.
+- Revisit criteria: Revisit `MAX_KEYS` if real traffic data shows distinct concurrent IPs regularly approach 10,000 within a 60s window (would need a higher cap or a real distributed store); revisit the per-test mock pattern if `runGeneratePipeline`/route handlers gain a formal fetch-injection seam that all routes honor consistently (today only some routes accept an injectable `fetch`, and `/api/generate` does not use it at all).
+- Plan:
+  - Goal: Close out the three new codex findings (peak-burst memory cap; two tests capable of issuing live billable provider calls) without expanding scope beyond what review flagged.
+  - Seams: RateLimitSeam.
+  - Files: `src/lib/seams/rate-limit-seam/{policy,test}.ts`, `tests/unit/api-generate.test.ts`, `tests/unit/api-chat-interpretation.test.ts`, `LESSONS_LEARNED.md`, `DECISIONS.md`.
+  - Commands: `npx vitest run src/lib/seams/rate-limit-seam/test.ts`, `npx vitest run tests/unit/api-generate.test.ts`, `npx vitest run tests/unit/api-chat-interpretation.test.ts`, `npm run check`, `npm run lint`, `npm run test`, `npm run build`, `npm run rewind -- --seam RateLimitSeam`, `npm run verify`.
+- Self-critique: The riskiest assumption is `MAX_KEYS = 10_000` as a fixed constant rather than a configured value — it is a reasonable v1 ceiling (10k concurrent distinct client buckets within one 60s window far exceeds this app's expected traffic) but is not measured against production load, same caveat as the original per-route limit values.
+
+- Assumption:
+  - Date: 2026-06-28
+  - Seams: RateLimitSeam
+  - Statement: `MAX_KEYS = 10_000` is a reasonable v1 ceiling on concurrently tracked rate-limit keys, not measured from production traffic.
+  - Validation: Revisit if real traffic data shows distinct concurrent client buckets regularly approach this ceiling, or if false-eviction reports appear in production.
+  - Status: open
+
+- Cipher Gate:
+  - Date: 2026-06-28
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-06-28/check.txt; docs/evidence/2026-06-28/lint.txt; docs/evidence/2026-06-28/test.txt; docs/evidence/2026-06-28/build.txt; docs/evidence/2026-06-28/rewind-RateLimitSeam.txt; docs/evidence/2026-06-28/verify.txt
+  - Summary: Added an insertion-time `MAX_KEYS` eviction cap to `policy.ts` to bound peak (not just steady-state) memory, and replaced two rate-limit 429 tests' ineffective/missing provider mocks with explicit seam-level mocks so neither test can issue live, billable provider calls.
+  - Risks: None new beyond the existing in-memory/per-process limiter caveat already on record; this round only tightens test isolation and worst-case memory bounds.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07

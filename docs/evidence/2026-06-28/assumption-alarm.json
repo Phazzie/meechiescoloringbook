@@ -1,6 +1,6 @@
 {
   "tool": "assumption-alarm",
-  "generatedAt": "2026-06-28T12:48:48.576Z",
+  "generatedAt": "2026-06-28T13:09:13.610Z",
   "blockedSeams": [],
   "assumptions": [
     {
@@ -8,6 +8,17 @@
       "seams": "RateLimitSeam",
       "statement": "Per-route limits (5 req/60s for generate, image-generation, wig-try-on; 10 req/60s for chat-interpretation, tools, meechie-studio-text) and per-process in-memory storage are reasonable v1 defaults, not measured from production traffic or validated against multi-instance Vercel cold starts.",
       "validation": "Revisit limit values once real traffic/usage data is available; move to a shared store (Vercel KV/Redis) if cold-start reset or cross-instance drift causes observed abuse.",
+      "status": "open",
+      "seamList": [
+        "RateLimitSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-06-28",
+      "seams": "RateLimitSeam",
+      "statement": "`MAX_KEYS = 10_000` is a reasonable v1 ceiling on concurrently tracked rate-limit keys, not measured from production traffic.",
+      "validation": "Revisit if real traffic data shows distinct concurrent client buckets regularly approach this ceiling, or if false-eviction reports appear in production.",
       "status": "open",
       "seamList": [
         "RateLimitSeam"

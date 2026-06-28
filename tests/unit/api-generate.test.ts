@@ -1,10 +1,18 @@
 // Purpose: Verify /api/generate orchestrates prompt, image, and drift flow for the UI.
 // Why: Keep the main generation path on one server endpoint with contract-checked output.
 // Info flow: Generate request -> endpoint orchestration -> contract response.
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('$lib/adapters/image-generation-seam', () => ({
+	createImageGenerationSeam: vi.fn()
+}));
+
+import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
 import { POST } from '../../src/routes/api/generate/+server';
 import { createClientAddressCounter } from '../helpers/client-address';
+
+const mockCreateImageGenerationSeam = vi.mocked(createImageGenerationSeam);
 
 const validSpec = {
 	title: 'Dream Big',
@@ -106,6 +114,10 @@ const buildPipelineDeps = (
 };
 
 describe('/api/generate', () => {
+	beforeEach(() => {
+		mockCreateImageGenerationSeam.mockReset();
+	});
+
 	it('rejects malformed JSON with INVALID_JSON code', async () => {
 		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
 		const response = await POST(buildRawEvent('{not: valid json}', fetchMock));
@@ -425,6 +437,16 @@ describe('/api/generate', () => {
 	it('returns 429 with RATE_LIMITED once a client exceeds the per-route limit', async () => {
 		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
 		const clientAddress = '203.0.113.7';
+		mockCreateImageGenerationSeam.mockReturnValue({
+			generate: vi.fn(async () => ({
+				ok: true as const,
+				value: {
+					images: [{ id: 'xai-1', b64: 'abc123' }],
+					rawModelInfo: { revisedPrompt: 'prompt' },
+					timingMs: 1
+				}
+			}))
+		});
 
 		for (let i = 0; i < 5; i++) {
 			const response = await POST(buildEvent({ spec: validSpec }, fetchMock, clientAddress));

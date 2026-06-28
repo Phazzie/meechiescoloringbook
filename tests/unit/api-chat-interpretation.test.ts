@@ -106,6 +106,13 @@ describe('/api/chat-interpretation', () => {
 	});
 
 	it('returns 429 with RATE_LIMITED once a client exceeds the per-route limit', async () => {
+		vi.spyOn(providerAdapter, 'createChatCompletion').mockResolvedValue({
+			ok: true,
+			value: {
+				model: 'grok-4-1-fast-reasoning',
+				content: JSON.stringify(validSpec)
+			}
+		});
 		const clientAddress = '203.0.113.9';
 		const body = { message: 'build me a clean printable page' };
 

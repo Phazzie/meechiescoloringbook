@@ -1,0 +1,38 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-28T13:09:13.824Z",
+  "cipher": {
+    "date": "2026-06-28",
+    "seams": "RateLimitSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-28/check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-28/lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-28/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-28/build.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-28/rewind-RateLimitSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-28/verify.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Added an insertion-time `MAX_KEYS` eviction cap to `policy.ts` to bound peak (not just steady-state) memory, and replaced two rate-limit 429 tests' ineffective/missing provider mocks with explicit seam-level mocks so neither test can issue live, billable provider calls.",
+    "risks": "None new beyond the existing in-memory/per-process limiter caveat already on record; this round only tightens test isolation and worst-case memory bounds."
+  },
+  "latestChangeMs": 1782650492312.808,
+  "status": "ok"
+}

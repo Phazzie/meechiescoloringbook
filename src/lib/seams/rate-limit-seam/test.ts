@@ -90,4 +90,18 @@ describe('RateLimitSeam mock contract', () => {
     });
     expect(afterCleanupInterval).toEqual({ allowed: true, remaining: 2 });
   });
+
+  it('caps total stored keys so a single burst cannot grow memory unbounded', () => {
+    const seam = createMockRateLimitSeam();
+
+    const first = seam.check({ ...baseCheckInputFixture, now: 0 });
+    expect(first).toEqual({ allowed: true, remaining: 2 });
+
+    for (let i = 0; i < 10_000; i++) {
+      seam.check({ ...baseCheckInputFixture, key: `generate:burst-${i}`, now: 0 });
+    }
+
+    const afterBurst = seam.check({ ...baseCheckInputFixture, now: 0 });
+    expect(afterBurst).toEqual({ allowed: true, remaining: 2 });
+  });
 });

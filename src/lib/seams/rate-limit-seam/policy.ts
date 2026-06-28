@@ -4,6 +4,7 @@
 import type { RateLimitCheckInput, RateLimitResult, RateLimitSeam } from './contract';
 
 const CLEANUP_INTERVAL_MS = 60_000;
+const MAX_KEYS = 10_000;
 
 export const createRateLimitSeam = (): RateLimitSeam => {
   const hits = new Map<string, number[]>();
@@ -25,6 +26,16 @@ export const createRateLimitSeam = (): RateLimitSeam => {
     check: ({ key, limit, windowMs, now }: RateLimitCheckInput): RateLimitResult => {
       if (now - lastCleanup > CLEANUP_INTERVAL_MS) {
         pruneExpiredKeys(now, windowMs);
+      }
+
+      if (!hits.has(key) && hits.size >= MAX_KEYS) {
+        pruneExpiredKeys(now, windowMs);
+        if (!hits.has(key) && hits.size >= MAX_KEYS) {
+          const oldestKey = hits.keys().next().value;
+          if (oldestKey !== undefined) {
+            hits.delete(oldestKey);
+          }
+        }
       }
 
       const windowStart = now - windowMs;
