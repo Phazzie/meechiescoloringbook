@@ -7,6 +7,7 @@ import { json } from '@sveltejs/kit';
 import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';
 import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
+import { RATE_LIMIT_CONFIG } from '$lib/server/rate-limit-config';
 import { checkRateLimit } from '$lib/server/rate-limit-guard';
 import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
@@ -14,8 +15,7 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const rateLimit = checkRateLimit({
 		routeName: 'image-generation',
-		limit: 5,
-		windowMs: 60_000,
+		...RATE_LIMIT_CONFIG['image-generation'],
 		getClientAddress
 	});
 	if (!rateLimit.ok) return rateLimit.response;

@@ -55,4 +55,19 @@ describe('checkRateLimit', () => {
 		});
 		expect(otherRoute.ok).toBe(true);
 	});
+
+	it('falls back to a stable key instead of throwing when getClientAddress throws', () => {
+		const seam = createRateLimitSeam();
+		const getClientAddress = () => {
+			throw new Error('getClientAddress: cannot determine client IP');
+		};
+
+		const first = checkRateLimit({ ...baseOptions, seam, now: 0, getClientAddress });
+		const second = checkRateLimit({ ...baseOptions, seam, now: 1_000, getClientAddress });
+		expect(first.ok).toBe(true);
+		expect(second.ok).toBe(true);
+
+		const third = checkRateLimit({ ...baseOptions, seam, now: 2_000, getClientAddress });
+		expect(third.ok).toBe(false);
+	});
 });

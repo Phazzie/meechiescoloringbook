@@ -169,3 +169,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Audit found none of the 6 public API routes had rate limiting, despite most calling billed third-party AI providers (xAI, Gemini).
 - Lesson: A shared module-level rate-limit singleton used across unit tests in the same file will leak hit-counts between unrelated test cases unless each test gets its own isolation key; a fixed default client address in test builders silently couples otherwise-independent tests to call order and count.
 - Action: Give test event builders a per-call-unique default key (e.g., an incrementing fake client address) and only reuse a fixed key in the one test deliberately exercising the 429 path.
+
+## 2026-06-28
+- Date: 2026-06-28
+- Context: Automated review (gemini-code-assist, sourcery-ai, codex) on PR #201 flagged that the new RateLimitSeam's `hits` map never evicted expired keys (unbounded memory growth) and that `getClientAddress()` can throw in some deployment environments, which would crash the guard before any route logic ran.
+- Lesson: A sliding-window limiter keyed by client address needs its own bounded-memory story (periodic full-map pruning, not just per-key filtering on the hot path) from day one; any call into a runtime-provided accessor like `getClientAddress()` must be treated as a boundary call that can throw, even though its type signature says it returns a plain string.
+- Action: Add interval-gated pruning over the whole map (deleting keys with zero remaining active timestamps) using the already-injected `now`, and wrap `getClientAddress()` in try/catch with a stable fallback bucket key so a single unresolvable-IP request can't take down the route.

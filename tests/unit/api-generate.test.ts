@@ -4,6 +4,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
 import { POST } from '../../src/routes/api/generate/+server';
+import { createClientAddressCounter } from '../helpers/client-address';
 
 const validSpec = {
 	title: 'Dream Big',
@@ -30,8 +31,7 @@ const validSpec = {
 	pageSize: 'US_Letter'
 } as const;
 
-let clientAddressCounter = 0;
-const nextClientAddress = () => `198.51.100.${++clientAddressCounter}`;
+const nextClientAddress = createClientAddressCounter();
 
 const buildEvent = (
 	body: unknown,

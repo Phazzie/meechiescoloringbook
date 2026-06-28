@@ -2,6 +2,7 @@
 // Why: Ensure the pipeline surfaces actionable errors and routes through the seam correctly.
 // Info flow: Request payload -> endpoint -> contract-shaped result.
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { createClientAddressCounter } from '../helpers/client-address';
 
 vi.mock('$lib/adapters/image-generation-seam', () => ({
   createImageGenerationSeam: vi.fn()
@@ -50,8 +51,7 @@ const validPrompt = [
   'US Letter 8.5x11 portrait.'
 ].join(' ');
 
-let clientAddressCounter = 0;
-const nextClientAddress = () => `198.51.100.${++clientAddressCounter}`;
+const nextClientAddress = createClientAddressCounter();
 
 const buildEvent = (body: unknown, clientAddress: string = nextClientAddress()) =>
   ({
@@ -147,12 +147,11 @@ describe('/api/image-generation', () => {
   });
 
   it('returns 429 with RATE_LIMITED once a client exceeds the per-route limit', async () => {
-    mockCreateSeam.mockReturnValue({
-      generate: vi.fn(async () => ({
-        ok: false as const,
-        error: { code: 'IMAGE_NETWORK_ERROR' as const, message: 'Connection refused' }
-      }))
-    });
+    const generate = vi.fn(async () => ({
+      ok: false as const,
+      error: { code: 'IMAGE_NETWORK_ERROR' as const, message: 'Connection refused' }
+    }));
+    mockCreateSeam.mockReturnValue({ generate });
     const clientAddress = '203.0.113.8';
     const body = { spec: validSpec, prompt: validPrompt, variations: 1, outputFormat: 'pdf' };
 
@@ -160,11 +159,13 @@ describe('/api/image-generation', () => {
       const response = await POST(buildEvent(body, clientAddress));
       expect(response.status).not.toBe(429);
     }
+    const callsBeforeLimit = generate.mock.calls.length;
 
     const limited = await POST(buildEvent(body, clientAddress));
     const payload = await limited.json();
 
     expect(limited.status).toBe(429);
     expect(payload.error.code).toBe('RATE_LIMITED');
+    expect(generate.mock.calls.length).toBe(callsBeforeLimit);
   });
 });

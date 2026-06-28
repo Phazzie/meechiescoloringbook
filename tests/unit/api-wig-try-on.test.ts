@@ -17,9 +17,9 @@ import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
 import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import { POST } from '../../src/routes/api/wig-try-on/+server';
+import { createClientAddressCounter } from '../helpers/client-address';
 
-let clientAddressCounter = 0;
-const nextClientAddress = () => `198.51.100.${++clientAddressCounter}`;
+const nextClientAddress = createClientAddressCounter();
 
 const buildRawEvent = (
 	rawBody: string,

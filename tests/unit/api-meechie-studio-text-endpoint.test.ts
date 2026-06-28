@@ -3,9 +3,9 @@
 // Info flow: Raw request -> parseRequestBody -> INVALID_JSON response (no pipeline calls).
 import { describe, expect, it } from 'vitest';
 import { POST } from '../../src/routes/api/meechie-studio-text/+server';
+import { createClientAddressCounter } from '../helpers/client-address';
 
-let clientAddressCounter = 0;
-const nextClientAddress = () => `198.51.100.${++clientAddressCounter}`;
+const nextClientAddress = createClientAddressCounter();
 
 const buildRawEvent = (
 	rawBody: string,

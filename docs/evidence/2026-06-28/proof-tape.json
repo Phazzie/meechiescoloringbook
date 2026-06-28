@@ -1,13 +1,13 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-06-28T12:27:38.905Z",
+  "generatedAt": "2026-06-28T12:48:49.123Z",
   "evidenceDir": "docs/evidence/2026-06-28",
   "files": [
     {
       "name": "assumption-alarm.json",
       "path": "docs/evidence/2026-06-28/assumption-alarm.json",
       "sizeBytes": 4320,
-      "modifiedAt": "2026-06-28T12:27:38.345Z",
+      "modifiedAt": "2026-06-28T12:48:48.577Z",
       "commands": []
     },
     {
@@ -25,7 +25,7 @@
       "name": "chamber-lock.json",
       "path": "docs/evidence/2026-06-28/chamber-lock.json",
       "sizeBytes": 25709,
-      "modifiedAt": "2026-06-28T12:26:32.625Z",
+      "modifiedAt": "2026-06-28T12:47:43.253Z",
       "commands": []
     },
     {
@@ -42,14 +42,14 @@
       "name": "clan-chain.json",
       "path": "docs/evidence/2026-06-28/clan-chain.json",
       "sizeBytes": 2318,
-      "modifiedAt": "2026-06-28T12:27:38.725Z",
+      "modifiedAt": "2026-06-28T12:48:48.937Z",
       "commands": []
     },
     {
       "name": "clan-chain.md",
       "path": "docs/evidence/2026-06-28/clan-chain.md",
       "sizeBytes": 1453,
-      "modifiedAt": "2026-06-28T12:27:38.725Z",
+      "modifiedAt": "2026-06-28T12:48:48.941Z",
       "commands": []
     },
     {
@@ -63,38 +63,52 @@
       ]
     },
     {
+      "name": "proof-tape.json",
+      "path": "docs/evidence/2026-06-28/proof-tape.json",
+      "sizeBytes": 3761,
+      "modifiedAt": "2026-06-28T12:27:38.905Z",
+      "commands": []
+    },
+    {
+      "name": "proof-tape.md",
+      "path": "docs/evidence/2026-06-28/proof-tape.md",
+      "sizeBytes": 1578,
+      "modifiedAt": "2026-06-28T12:27:38.905Z",
+      "commands": []
+    },
+    {
       "name": "rewind-RateLimitSeam.txt",
       "path": "docs/evidence/2026-06-28/rewind-RateLimitSeam.txt",
       "sizeBytes": 537,
-      "modifiedAt": "2026-06-28T12:26:27.541Z",
+      "modifiedAt": "2026-06-28T12:47:39.245Z",
       "commands": []
     },
     {
       "name": "seam-ledger.json",
       "path": "docs/evidence/2026-06-28/seam-ledger.json",
       "sizeBytes": 27291,
-      "modifiedAt": "2026-06-28T12:27:38.541Z",
+      "modifiedAt": "2026-06-28T12:48:48.769Z",
       "commands": []
     },
     {
       "name": "seam-ledger.md",
       "path": "docs/evidence/2026-06-28/seam-ledger.md",
       "sizeBytes": 2228,
-      "modifiedAt": "2026-06-28T12:27:38.541Z",
+      "modifiedAt": "2026-06-28T12:48:48.769Z",
       "commands": []
     },
     {
       "name": "shaolin-lint.json",
       "path": "docs/evidence/2026-06-28/shaolin-lint.json",
-      "sizeBytes": 519,
-      "modifiedAt": "2026-06-28T12:27:38.161Z",
+      "sizeBytes": 517,
+      "modifiedAt": "2026-06-28T12:48:48.397Z",
       "commands": []
     },
     {
       "name": "test.txt",
       "path": "docs/evidence/2026-06-28/test.txt",
       "sizeBytes": 1030,
-      "modifiedAt": "2026-06-28T12:27:37.949Z",
+      "modifiedAt": "2026-06-28T12:48:48.181Z",
       "commands": [
         "meechies-coloringbook@0.1.0 test",
         "vitest run --pool=forks --maxWorkers=1"
@@ -103,23 +117,13 @@
     {
       "name": "verify.txt",
       "path": "docs/evidence/2026-06-28/verify.txt",
-      "sizeBytes": 1795,
-      "modifiedAt": "2026-06-28T12:27:38.845Z",
+      "sizeBytes": 1289,
+      "modifiedAt": "2026-06-28T12:48:48.181Z",
       "commands": [
         "meechies-coloringbook@0.1.0 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
         "meechies-coloringbook@0.1.0 test",
-        "vitest run --pool=forks --maxWorkers=1",
-        "meechies-coloringbook@0.1.0 shaolin:lint",
-        "node scripts/shaolin-lint.mjs",
-        "meechies-coloringbook@0.1.0 assumption:alarm",
-        "node scripts/assumption-alarm.mjs",
-        "meechies-coloringbook@0.1.0 seam:ledger",
-        "node scripts/seam-ledger.mjs",
-        "meechies-coloringbook@0.1.0 clan:chain",
-        "node scripts/clan-chain.mjs",
-        "meechies-coloringbook@0.1.0 proof:tape",
-        "node scripts/proof-tape.mjs"
+        "vitest run --pool=forks --maxWorkers=1"
       ]
     }
   ]

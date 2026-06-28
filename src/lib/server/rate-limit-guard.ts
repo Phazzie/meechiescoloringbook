@@ -22,10 +22,18 @@ export type RateLimitGuardOptions = {
 // limitation that this resets on cold start and is not shared across concurrent instances.
 const sharedRateLimitSeam = createRateLimitSeam();
 
+const resolveClientAddress = (getClientAddress: () => string): string => {
+	try {
+		return getClientAddress();
+	} catch {
+		return 'unknown';
+	}
+};
+
 export const checkRateLimit = (options: RateLimitGuardOptions): RateLimitGuardResult => {
 	const seam = options.seam ?? sharedRateLimitSeam;
 	const now = options.now ?? Date.now();
-	const key = `${options.routeName}:${options.getClientAddress()}`;
+	const key = `${options.routeName}:${resolveClientAddress(options.getClientAddress)}`;
 	const result = seam.check({ key, limit: options.limit, windowMs: options.windowMs, now });
 
 	if (result.allowed) {

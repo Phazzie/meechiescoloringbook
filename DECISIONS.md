@@ -36,6 +36,28 @@ Short, durable decisions with context and tradeoffs.
   - Summary: Added RateLimitSeam (sliding-window, in-memory) and a shared `checkRateLimit` guard, wired as the first statement in all 6 public API route handlers, with per-route limits and new 429/RATE_LIMITED contract tests for each route.
   - Risks: In-memory state resets on serverless cold start and is not shared across concurrent instances, so this is an abuse brake, not a hard cap, until a distributed store is provisioned.
 
+## 2026-06-28 - RateLimitSeam: follow-up hardening from PR #201 automated review
+
+- Date: 2026-06-28
+- Decision: Fix the two real defects automated review found in PR #201 (gemini-code-assist: unbounded `hits` map; `getClientAddress()` can throw uncaught) directly on the same branch, and apply three accompanying suggestions (sourcery-ai: centralize per-route limits, dedupe the test client-address-counter helper; sourcery-ai inline: assert the downstream seam is not invoked on a rate-limited request).
+- Context: PR #201 added RateLimitSeam and wired it into all 6 public routes. Bot review on commit b42bfeeb2c flagged that `policy.ts`'s `hits: Map<string, number[]>` never evicted keys once their timestamps aged out (unbounded growth under sustained or wide-IP traffic), and that `rate-limit-guard.ts` called `getClientAddress()` unguarded, which can throw in some SvelteKit deployment environments and would crash the route before any handler logic ran. A separate codex review of the same pre-fix commit raised the identical memory-leak concern from a different angle (eviction, not just filtering) and a P1 suggestion that `rate-limit-seam/mock.ts` should be fixture-scenario-backed per `src/lib/seams/AGENTS.md` rather than re-exporting the real policy.
+- Alternatives: For the memory leak — switch to an LRU cache with a fixed max size; rejected as a heavier dependency change for a v1 in-memory limiter, when interval-gated full-map pruning using the already-injected `now` keeps the seam pure and dependency-free. For `getClientAddress()` — let it propagate and rely on a global error handler; rejected because that would still 500 the request instead of applying a deterministic rate-limit bucket. For the mock.ts P1 suggestion — left unchanged: `src/lib/seams/safety-policy-seam/mock.ts` already re-exports its pure policy the same way (`createSafetyPolicySeam as createMockSafetyPolicySeam`), and RateLimitSeam has no real "fault" external-call scenario to fixture (it is local deterministic math, not a third-party API); fixture/scenario switching in `mock.ts` is reserved for seams that model an external call with a happy/fault split (e.g. `prompt-compiler-seam`, `telemetry-seam`).
+- Consequences: `policy.ts` now prunes the whole `hits` map (deleting keys with zero remaining active timestamps) once `now - lastCleanup > 60_000`, bounding memory under sustained traffic; `rate-limit-guard.ts` falls back to a stable `'unknown'` bucket key instead of throwing when `getClientAddress()` fails; all 6 routes' limit/window literals now live in `src/lib/server/rate-limit-config.ts`; the 6 duplicated test-file `clientAddressCounter` closures were extracted to `tests/helpers/client-address.ts`; `tests/unit/api-image-generation.test.ts`'s 429 test now asserts the mocked `generate` call count is unchanged after the rate-limited 6th request.
+- Revisit criteria: Revisit the mock.ts pattern decision if RateLimitSeam grows a real fault/scenario axis (e.g. a future distributed-store adapter with its own failure modes) — at that point fixture-backed scenarios become meaningful and the safety-policy-seam precedent no longer applies.
+- Plan:
+  - Goal: Close out the two real defects and three suggestions raised by automated PR review without expanding scope beyond what review flagged.
+  - Seams: RateLimitSeam.
+  - Files: `src/lib/seams/rate-limit-seam/{policy,test}.ts`, `src/lib/server/{rate-limit-guard.ts,rate-limit-config.ts}`, all 6 `src/routes/api/*/+server.ts`, `tests/unit/rate-limit-guard.test.ts`, all 6 `tests/unit/api-*.test.ts`, `tests/helpers/client-address.ts`, `LESSONS_LEARNED.md`, `DECISIONS.md`.
+  - Commands: `npm run check`, `npm run lint`, `npm run test`, `npm run build`, `npm run rewind -- --seam RateLimitSeam`, `npm run verify`.
+- Self-critique: The riskiest call is declining the codex P1 mock.ts suggestion — it cites real governance text in `src/lib/seams/AGENTS.md`. The mitigating fact is direct, pre-existing repo precedent (`safety-policy-seam`) for the identical pattern on a pure seam, so this is treated as an established exception rather than a new shortcut.
+
+- Cipher Gate:
+  - Date: 2026-06-28
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-06-28/check.txt; docs/evidence/2026-06-28/lint.txt; docs/evidence/2026-06-28/test.txt; docs/evidence/2026-06-28/build.txt; docs/evidence/2026-06-28/rewind-RateLimitSeam.txt; docs/evidence/2026-06-28/verify.txt
+  - Summary: Bounded RateLimitSeam's in-memory map with interval-gated full pruning, guarded `getClientAddress()` against throwing, centralized per-route limits, deduped the test client-address-counter helper across 6 test files, and strengthened the image-generation 429 test to assert the seam is not invoked when rate-limited.
+  - Risks: Pruning still runs on the request hot path (gated by a timestamp check) rather than on a background timer, so a single request unlucky enough to cross the interval boundary pays the full-map scan cost; acceptable at current expected key-count scale.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07

@@ -76,4 +76,18 @@ describe('RateLimitSeam mock contract', () => {
   it('rejects an invalid result shape against the validator', () => {
     expect(() => validateRateLimitResult(invalidRateLimitResultFixture)).toThrow();
   });
+
+  it('prunes expired keys without breaking unrelated active keys', () => {
+    const seam = createMockRateLimitSeam();
+
+    for (let i = 0; i < 50; i++) {
+      seam.check({ ...baseCheckInputFixture, key: `generate:198.51.100.${i}`, now: 0 });
+    }
+
+    const afterCleanupInterval = seam.check({
+      ...baseCheckInputFixture,
+      now: baseCheckInputFixture.windowMs + 60_001
+    });
+    expect(afterCleanupInterval).toEqual({ allowed: true, remaining: 2 });
+  });
 });

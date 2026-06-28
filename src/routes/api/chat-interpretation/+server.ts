@@ -8,6 +8,7 @@ import {
 	chatInterpretationPipelineDeps,
 	runChatInterpretationPipeline
 } from '$lib/core/chat-interpretation-pipeline';
+import { RATE_LIMIT_CONFIG } from '$lib/server/rate-limit-config';
 import { checkRateLimit } from '$lib/server/rate-limit-guard';
 import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
@@ -15,8 +16,7 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const rateLimit = checkRateLimit({
 		routeName: 'chat-interpretation',
-		limit: 10,
-		windowMs: 60_000,
+		...RATE_LIMIT_CONFIG['chat-interpretation'],
 		getClientAddress
 	});
 	if (!rateLimit.ok) return rateLimit.response;
