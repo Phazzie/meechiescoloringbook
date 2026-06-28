@@ -4,22 +4,33 @@
 import { describe, expect, it } from 'vitest';
 import { POST } from '../../src/routes/api/meechie-studio-text/+server';
 
-const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
+let clientAddressCounter = 0;
+const nextClientAddress = () => `198.51.100.${++clientAddressCounter}`;
+
+const buildRawEvent = (
+	rawBody: string,
+	clientAddress: string = nextClientAddress()
+): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/meechie-studio-text', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
-		})
+		}),
+		getClientAddress: () => clientAddress
 	}) as Parameters<typeof POST>[0];
 
-const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
+const buildEvent = (
+	body: unknown,
+	clientAddress: string = nextClientAddress()
+): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/meechie-studio-text', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
-		})
+		}),
+		getClientAddress: () => clientAddress
 	}) as Parameters<typeof POST>[0];
 
 describe('/api/meechie-studio-text', () => {
@@ -39,5 +50,20 @@ describe('/api/meechie-studio-text', () => {
 		expect(response.status).toBe(400);
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('MEECHIE_STUDIO_TEXT_INPUT_INVALID');
+	});
+
+	it('returns 429 with RATE_LIMITED once a client exceeds the per-route limit', async () => {
+		const clientAddress = '203.0.113.12';
+
+		for (let i = 0; i < 10; i++) {
+			const response = await POST(buildEvent({ invalid: 'payload' }, clientAddress));
+			expect(response.status).not.toBe(429);
+		}
+
+		const limited = await POST(buildEvent({ invalid: 'payload' }, clientAddress));
+		const payload = await limited.json();
+
+		expect(limited.status).toBe(429);
+		expect(payload.error.code).toBe('RATE_LIMITED');
 	});
 });

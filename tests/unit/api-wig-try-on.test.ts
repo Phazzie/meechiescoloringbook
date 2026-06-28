@@ -18,24 +18,35 @@ import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import { POST } from '../../src/routes/api/wig-try-on/+server';
 
-const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
+let clientAddressCounter = 0;
+const nextClientAddress = () => `198.51.100.${++clientAddressCounter}`;
+
+const buildRawEvent = (
+	rawBody: string,
+	clientAddress: string = nextClientAddress()
+): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/wig-try-on', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
 		}),
-		fetch: vi.fn()
+		fetch: vi.fn(),
+		getClientAddress: () => clientAddress
 	}) as unknown as Parameters<typeof POST>[0];
 
-const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
+const buildEvent = (
+	body: unknown,
+	clientAddress: string = nextClientAddress()
+): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/wig-try-on', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
 		}),
-		fetch: vi.fn()
+		fetch: vi.fn(),
+		getClientAddress: () => clientAddress
 	}) as unknown as Parameters<typeof POST>[0];
 
 describe('/api/wig-try-on', () => {
@@ -119,11 +130,27 @@ describe('/api/wig-try-on', () => {
 
 		const response = await POST({
 			request,
-			fetch: fetchImpl
+			fetch: fetchImpl,
+			getClientAddress: () => nextClientAddress()
 		} as unknown as Parameters<typeof POST>[0]);
 
 		expect(response.status).toBe(200);
 		expect(fetchImpl).toHaveBeenCalledWith(wig.imageUrl, { signal: request.signal });
 		expect(tryOn).toHaveBeenCalledWith(expect.objectContaining({ signal: request.signal }));
+	});
+
+	it('returns 429 with RATE_LIMITED once a client exceeds the per-route limit', async () => {
+		const clientAddress = '203.0.113.11';
+
+		for (let i = 0; i < 5; i++) {
+			const response = await POST(buildRawEvent('{not: valid json}', clientAddress));
+			expect(response.status).not.toBe(429);
+		}
+
+		const limited = await POST(buildRawEvent('{not: valid json}', clientAddress));
+		const payload = await limited.json();
+
+		expect(limited.status).toBe(429);
+		expect(payload.error.code).toBe('RATE_LIMITED');
 	});
 });

@@ -50,22 +50,27 @@ const validPrompt = [
   'US Letter 8.5x11 portrait.'
 ].join(' ');
 
-const buildEvent = (body: unknown) =>
+let clientAddressCounter = 0;
+const nextClientAddress = () => `198.51.100.${++clientAddressCounter}`;
+
+const buildEvent = (body: unknown, clientAddress: string = nextClientAddress()) =>
   ({
     request: new Request('http://localhost/api/image-generation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
-    })
+    }),
+    getClientAddress: () => clientAddress
   }) as Parameters<typeof POST>[0];
 
-const buildRawEvent = (rawBody: string) =>
+const buildRawEvent = (rawBody: string, clientAddress: string = nextClientAddress()) =>
   ({
     request: new Request('http://localhost/api/image-generation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: rawBody
-    })
+    }),
+    getClientAddress: () => clientAddress
   }) as Parameters<typeof POST>[0];
 
 describe('/api/image-generation', () => {
@@ -139,5 +144,27 @@ describe('/api/image-generation', () => {
     const payload = await response.json();
     expect(payload.ok).toBe(true);
     expect(mockCreateSeam).toHaveBeenCalled();
+  });
+
+  it('returns 429 with RATE_LIMITED once a client exceeds the per-route limit', async () => {
+    mockCreateSeam.mockReturnValue({
+      generate: vi.fn(async () => ({
+        ok: false as const,
+        error: { code: 'IMAGE_NETWORK_ERROR' as const, message: 'Connection refused' }
+      }))
+    });
+    const clientAddress = '203.0.113.8';
+    const body = { spec: validSpec, prompt: validPrompt, variations: 1, outputFormat: 'pdf' };
+
+    for (let i = 0; i < 5; i++) {
+      const response = await POST(buildEvent(body, clientAddress));
+      expect(response.status).not.toBe(429);
+    }
+
+    const limited = await POST(buildEvent(body, clientAddress));
+    const payload = await limited.json();
+
+    expect(limited.status).toBe(429);
+    expect(payload.error.code).toBe('RATE_LIMITED');
   });
 });

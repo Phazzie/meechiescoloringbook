@@ -5,22 +5,33 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '../../src/routes/api/tools/+server';
 import { meechieToolAdapter } from '../../src/lib/adapters/meechie-tool-seam';
 
-const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
+let clientAddressCounter = 0;
+const nextClientAddress = () => `198.51.100.${++clientAddressCounter}`;
+
+const buildEvent = (
+	body: unknown,
+	clientAddress: string = nextClientAddress()
+): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/tools', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
-		})
+		}),
+		getClientAddress: () => clientAddress
 	}) as Parameters<typeof POST>[0];
 
-const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
+const buildRawEvent = (
+	rawBody: string,
+	clientAddress: string = nextClientAddress()
+): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/tools', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
-		})
+		}),
+		getClientAddress: () => clientAddress
 	}) as Parameters<typeof POST>[0];
 
 afterEach(() => {
@@ -82,5 +93,21 @@ describe('/api/tools', () => {
 				response: 'That apology was weak.'
 			}
 		});
+	});
+
+	it('returns 429 with RATE_LIMITED once a client exceeds the per-route limit', async () => {
+		const clientAddress = '203.0.113.10';
+		const body = { toolId: 'apology_translator', apology: 'This is self-harm content.' };
+
+		for (let i = 0; i < 10; i++) {
+			const response = await POST(buildEvent(body, clientAddress));
+			expect(response.status).not.toBe(429);
+		}
+
+		const limited = await POST(buildEvent(body, clientAddress));
+		const payload = await limited.json();
+
+		expect(limited.status).toBe(429);
+		expect(payload.error.code).toBe('RATE_LIMITED');
 	});
 });

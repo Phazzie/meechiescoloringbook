@@ -30,9 +30,13 @@ const validSpec = {
 	pageSize: 'US_Letter'
 } as const;
 
+let clientAddressCounter = 0;
+const nextClientAddress = () => `198.51.100.${++clientAddressCounter}`;
+
 const buildEvent = (
 	body: unknown,
-	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
+	clientAddress: string = nextClientAddress()
 ): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/generate', {
@@ -40,12 +44,14 @@ const buildEvent = (
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
 		}),
-		fetch: fetchImpl
+		fetch: fetchImpl,
+		getClientAddress: () => clientAddress
 	}) as Parameters<typeof POST>[0];
 
 const buildRawEvent = (
 	rawBody: string,
-	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
+	clientAddress: string = nextClientAddress()
 ): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/generate', {
@@ -53,7 +59,8 @@ const buildRawEvent = (
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
 		}),
-		fetch: fetchImpl
+		fetch: fetchImpl,
+		getClientAddress: () => clientAddress
 	}) as Parameters<typeof POST>[0];
 
 const assembledPrompt = [
@@ -413,5 +420,23 @@ describe('/api/generate', () => {
 		expect(payload.error.code).toBe('CONTENT_POLICY_VIOLATION');
 		expect(payload.error.details.policyDetails).toContain('styleHint');
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('returns 429 with RATE_LIMITED once a client exceeds the per-route limit', async () => {
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+		const clientAddress = '203.0.113.7';
+
+		for (let i = 0; i < 5; i++) {
+			const response = await POST(buildEvent({ spec: validSpec }, fetchMock, clientAddress));
+			expect(response.status).not.toBe(429);
+		}
+
+		const limited = await POST(buildEvent({ spec: validSpec }, fetchMock, clientAddress));
+		const payload = await limited.json();
+
+		expect(limited.status).toBe(429);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('RATE_LIMITED');
+		expect(limited.headers.get('Retry-After')).not.toBeNull();
 	});
 });

@@ -163,3 +163,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-06-28
+- Date: 2026-06-28
+- Context: Audit found none of the 6 public API routes had rate limiting, despite most calling billed third-party AI providers (xAI, Gemini).
+- Lesson: A shared module-level rate-limit singleton used across unit tests in the same file will leak hit-counts between unrelated test cases unless each test gets its own isolation key; a fixed default client address in test builders silently couples otherwise-independent tests to call order and count.
+- Action: Give test event builders a per-call-unique default key (e.g., an incrementing fake client address) and only reuse a fixed key in the one test deliberately exercising the 429 path.

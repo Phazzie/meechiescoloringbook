@@ -8,6 +8,7 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Added per-route rate limiting (RateLimitSeam) to all 6 public API routes (`/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/tools`, `/api/wig-try-on`, `/api/meechie-studio-text`) so a single client can no longer make unlimited billed provider calls; excess requests now return HTTP 429 with `RATE_LIMITED`.
 - Added a local PR backlog dry-run validation script (`scripts/validate-pr-backlog.js`) to automate checking out, testing, and verifying clean PR candidates.
 - Added a review-comment extraction script (`scripts/get-pr-todos.js`) to isolate and scope active review threads for a specific PR.
 - Added a real-time merge conflict analysis script (`scripts/analyze-merge-conflicts.js`) to test all open PR branches for merge conflicts and update the triage table.

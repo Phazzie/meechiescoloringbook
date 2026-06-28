@@ -7,6 +7,35 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-28 - RateLimitSeam: per-route abuse brake on all 6 public API routes
+
+- Date: 2026-06-28
+- Decision: Add a RateLimitSeam (sliding-window, in-memory, per-key) and wire a shared `checkRateLimit` guard as the first statement in all 6 public API route handlers, since none had any request-volume protection despite most calling billed third-party AI providers.
+- Context: None of `/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/tools`, `/api/wig-try-on`, `/api/meechie-studio-text` enforced rate limiting or authentication. All 6 call a billed third-party provider or external fetch (confirmed `/api/tools` also calls `createProviderAdapter().createChatCompletion` via `meechieToolAdapter`). An unauthenticated client could spam any route, running up real provider billing with no caps.
+- Alternatives: Add full auth (API keys/sessions) instead — rejected as a much larger scope change requiring account/session infra not present in this app. Use an external distributed limiter (Redis/Vercel KV) — rejected; no such infra is provisioned in this environment. Rate limit only the AI-provider-calling routes — rejected; `/api/wig-try-on` and `/api/tools` are billed too, and capping validation-only paths still guards against abuse/log-flooding.
+- Consequences: Every route now rejects with HTTP 429 / `RATE_LIMITED` once a client IP exceeds its per-route budget within a 60s sliding window, checked before JSON parsing so even malformed-payload spam is capped. The limiter is in-memory per server process — it resets on cold start and does not synchronize across concurrent serverless instances, so it is a best-effort abuse brake, not a hard guarantee, on Vercel.
+- Revisit criteria: Revisit if a shared store (Vercel KV/Redis) becomes available, or if real auth is introduced — at that point promote to a distributed limiter and/or per-user (not per-IP) keys.
+- Plan:
+  - Goal: Stop unauthenticated requests from running up unlimited billed provider calls across all 6 public API routes.
+  - Seams: RateLimitSeam (new).
+  - Files: `src/lib/seams/rate-limit-seam/{contract,validators,fixtures,policy,mock,probe,test}.ts`, `src/lib/server/rate-limit-guard.ts`, `tests/unit/rate-limit-guard.test.ts`, all 6 `src/routes/api/*/+server.ts`, all 6 corresponding `tests/unit/api-*.test.ts`, `docs/seams.md`, `src/lib/seams/CLAUDE.md`, `LESSONS_LEARNED.md`, `CHANGELOG.md`.
+  - Commands: `npx vitest run src/lib/seams/rate-limit-seam/test.ts`, `npx vitest run tests/unit/rate-limit-guard.test.ts`, `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`, `npm run rewind -- --seam RateLimitSeam`.
+- Self-critique: The riskiest assumption is the chosen per-route limit values (5/min on the heaviest provider-calling routes, 10/min on lighter ones) — these are reasonable defaults, not measured from real traffic, and the in-memory store offers no protection against a distributed/multi-instance flood. Both are recorded below as an explicit Assumption rather than silently shipped.
+
+- Assumption:
+  - Date: 2026-06-28
+  - Seams: RateLimitSeam
+  - Statement: Per-route limits (5 req/60s for generate, image-generation, wig-try-on; 10 req/60s for chat-interpretation, tools, meechie-studio-text) and per-process in-memory storage are reasonable v1 defaults, not measured from production traffic or validated against multi-instance Vercel cold starts.
+  - Validation: Revisit limit values once real traffic/usage data is available; move to a shared store (Vercel KV/Redis) if cold-start reset or cross-instance drift causes observed abuse.
+  - Status: open
+
+- Cipher Gate:
+  - Date: 2026-06-28
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-06-28/check.txt; docs/evidence/2026-06-28/lint.txt; docs/evidence/2026-06-28/test.txt; docs/evidence/2026-06-28/build.txt; docs/evidence/2026-06-28/rewind-RateLimitSeam.txt; docs/evidence/2026-06-28/verify.txt
+  - Summary: Added RateLimitSeam (sliding-window, in-memory) and a shared `checkRateLimit` guard, wired as the first statement in all 6 public API route handlers, with per-route limits and new 429/RATE_LIMITED contract tests for each route.
+  - Risks: In-memory state resets on serverless cold start and is not shared across concurrent instances, so this is an abuse brake, not a hard cap, until a distributed store is provisioned.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07
