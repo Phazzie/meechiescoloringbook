@@ -8,6 +8,7 @@ import {
   validateImageGenerationRequest,
   validateImageGenerationResult
 } from './validators';
+import { MAX_PROMPT_LENGTH } from '../../../../contracts/image-generation.contract';
 
 describe('ImageGenerationSeam mock contract', () => {
   it('returns a Result with deterministic images on success', async () => {
@@ -54,5 +55,14 @@ describe('ImageGenerationSeam mock contract', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.images).toHaveLength(1);
+  });
+
+  it('rejects a prompt over MAX_PROMPT_LENGTH', () => {
+    expect(() =>
+      validateImageGenerationRequest({
+        ...imageGenerationRequestFixture,
+        prompt: 'a'.repeat(MAX_PROMPT_LENGTH + 1)
+      })
+    ).toThrow();
   });
 });

@@ -2,7 +2,10 @@
 // Why: Ensure prompt phrase validation, seam error handling, and image extraction work correctly.
 // Info flow: Pipeline inputs -> function logic -> verified responses.
 import { describe, expect, it, vi } from 'vitest';
-import { runImageGenerationPipeline } from '../../src/lib/core/image-generation-pipeline';
+import {
+  checkImageGenerationProviderConfig,
+  runImageGenerationPipeline
+} from '../../src/lib/core/image-generation-pipeline';
 import type { ImagePipelineDeps } from '../../src/lib/core/image-generation-pipeline';
 
 const validSpec = {
@@ -385,5 +388,35 @@ describe('image-generation-pipeline edge cases', () => {
     );
     expect(result.status).toBe(200);
     expect(result.body.ok).toBe(true);
+  });
+});
+
+describe('checkImageGenerationProviderConfig', () => {
+  it('returns ok when the config seam resolves successfully', () => {
+    const result = checkImageGenerationProviderConfig({
+      getConfig: () => ({
+        xaiApiKey: 'test-key',
+        xaiImageModel: 'grok-imagine-image',
+        xaiBaseUrl: 'https://api.x.ai',
+        xaiImageEndpointPath: '/v1/images/generations'
+      })
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('returns a 503 IMAGE_CONFIG_ERROR response, without throwing, when the config seam throws', () => {
+    const result = checkImageGenerationProviderConfig({
+      getConfig: () => {
+        throw new Error('XAI_API_KEY is not set');
+      }
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(503);
+      expect(result.response.body.ok).toBe(false);
+      if (!result.response.body.ok) {
+        expect(result.response.body.error.code).toBe('IMAGE_CONFIG_ERROR');
+      }
+    }
   });
 });

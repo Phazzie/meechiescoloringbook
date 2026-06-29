@@ -11,6 +11,19 @@ vi.mock('$lib/adapters/app-config-seam', () => ({
   createAppConfigSeam: vi.fn()
 }));
 
+// Stubbed so checkImageGenerationProviderConfig's getConfig() call doesn't depend on a real
+// XAI_API_KEY being present in the test process environment.
+vi.mock('$lib/adapters/image-provider-config-seam', () => ({
+  createImageProviderConfigSeam: vi.fn(() => ({
+    getConfig: () => ({
+      xaiApiKey: 'test-key',
+      xaiImageModel: 'grok-imagine-image',
+      xaiBaseUrl: 'https://api.x.ai',
+      xaiImageEndpointPath: '/v1/images/generations'
+    })
+  }))
+}));
+
 // Lets a single test simulate the caller disconnecting while parseRequestBody's
 // internal `await request.json()` is in flight, without touching any other test's
 // behavior (the no-op default leaves parseRequestBody fully real/untouched).
@@ -29,9 +42,11 @@ vi.mock('$lib/server/parse-request-body', async () => {
 });
 
 import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
+import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 import { POST } from '../../src/routes/api/image-generation/+server';
 
 const mockCreateSeam = vi.mocked(createImageGenerationSeam);
+const mockCreateConfigSeam = vi.mocked(createImageProviderConfigSeam);
 
 const validSpec = {
   title: 'Dream Big',
@@ -129,6 +144,15 @@ const buildEventWithController = (body: unknown, controller: AbortController) =>
 describe('/api/image-generation', () => {
   beforeEach(() => {
     mockCreateSeam.mockReset();
+    mockCreateConfigSeam.mockReset();
+    mockCreateConfigSeam.mockReturnValue({
+      getConfig: () => ({
+        xaiApiKey: 'test-key',
+        xaiImageModel: 'grok-imagine-image',
+        xaiBaseUrl: 'https://api.x.ai',
+        xaiImageEndpointPath: '/v1/images/generations'
+      })
+    });
   });
 
   it('rejects malformed JSON with INVALID_JSON code', async () => {
@@ -347,5 +371,29 @@ describe('/api/image-generation', () => {
     const payload = await response.json();
     expect(payload.ok).toBe(true);
     expect(mockCreateSeam).toHaveBeenCalled();
+  });
+
+  it('returns 503 IMAGE_CONFIG_ERROR without consuming rate-limit quota when provider config is invalid', async () => {
+    mockCreateConfigSeam.mockReturnValue({
+      getConfig: () => {
+        throw new Error('XAI_API_KEY is not set');
+      }
+    });
+
+    for (let i = 0; i < 25; i += 1) {
+      const response = await POST(
+        buildEvent({
+          spec: validSpec,
+          prompt: validPrompt,
+          variations: 1,
+          outputFormat: 'pdf'
+        })
+      );
+      expect(response.status).toBe(503);
+      const payload = await response.json();
+      expect(payload.ok).toBe(false);
+      expect(payload.error.code).toBe('IMAGE_CONFIG_ERROR');
+    }
+    expect(mockCreateSeam).not.toHaveBeenCalled();
   });
 });

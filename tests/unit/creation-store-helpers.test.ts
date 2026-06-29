@@ -3,7 +3,8 @@
 // Info flow: Storage operations -> adapter methods -> verified results.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
-import { MAX_TITLE_LENGTH } from '../../src/lib/core/constants';
+import { MAX_TITLE_LENGTH, MAX_FREE_TEXT_LENGTH } from '../../src/lib/core/constants';
+import { MAX_LABEL_LENGTH as MAX_STUDIO_LABEL_LENGTH } from '../../contracts/meechie-studio-text.contract';
 
 const validIntent = {
 	title: 'Test',
@@ -44,6 +45,17 @@ const validDraft = {
 	updatedAtISO: '2026-01-01T00:00:00.000Z',
 	intent: validIntent,
 	chatMessage: 'Make a checklist about growth'
+};
+
+const validStudioText = {
+	verdict: 'Run.',
+	quote: 'Bring the receipts.',
+	pageTitle: 'Test Page',
+	pageItems: [
+		{ number: 1, label: 'Item One' },
+		{ number: 2, label: 'Item Two' }
+	],
+	qualityState: 'ready' as const
 };
 
 describe('creation-store adapter', () => {
@@ -369,6 +381,97 @@ describe('creation-store adapter', () => {
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value?.intent.title.length).toBe(MAX_TITLE_LENGTH);
+			}
+		});
+	});
+
+	describe('legacy studioText length migration', () => {
+		const legacyFreeText = 'A'.repeat(MAX_FREE_TEXT_LENGTH + 10);
+		const legacyLabel = 'B'.repeat(MAX_STUDIO_LABEL_LENGTH + 10);
+
+		it('clamps a legacy over-cap creation studioText.verdict/quote/pageTitle instead of failing the whole load', async () => {
+			localStorage.setItem(
+				'cb_creations_v1',
+				JSON.stringify([
+					{
+						...validRecord,
+						studioText: {
+							...validStudioText,
+							verdict: legacyFreeText,
+							quote: legacyFreeText,
+							pageTitle: legacyLabel
+						}
+					}
+				])
+			);
+
+			const result = await creationStoreAdapter.listCreations({
+				owner: validRecord.owner
+			});
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value).toHaveLength(1);
+				const studioText = result.value[0].studioText;
+				expect(studioText?.verdict.length).toBeLessThanOrEqual(MAX_FREE_TEXT_LENGTH);
+				expect(studioText?.quote.length).toBeLessThanOrEqual(MAX_FREE_TEXT_LENGTH);
+				expect(studioText?.pageTitle.length).toBeLessThanOrEqual(MAX_STUDIO_LABEL_LENGTH);
+			}
+		});
+
+		it('clamps a legacy over-cap studioText.pageItems[].label', async () => {
+			localStorage.setItem(
+				'cb_creations_v1',
+				JSON.stringify([
+					{
+						...validRecord,
+						studioText: {
+							...validStudioText,
+							pageItems: [
+								{ number: 1, label: legacyLabel },
+								{ number: 2, label: 'Item Two' }
+							]
+						}
+					}
+				])
+			);
+
+			const result = await creationStoreAdapter.listCreations({
+				owner: validRecord.owner
+			});
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value).toHaveLength(1);
+				expect(result.value[0].studioText?.pageItems[0].label.length).toBeLessThanOrEqual(
+					MAX_STUDIO_LABEL_LENGTH
+				);
+			}
+		});
+
+		it('clamps a legacy over-cap draft studioText the same way', async () => {
+			localStorage.setItem(
+				'cb_drafts_v1',
+				JSON.stringify({
+					...validDraft,
+					studioText: { ...validStudioText, quote: legacyFreeText }
+				})
+			);
+
+			const result = await creationStoreAdapter.getDraft({});
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value?.studioText?.quote.length).toBeLessThanOrEqual(MAX_FREE_TEXT_LENGTH);
+			}
+		});
+
+		it('leaves a record without studioText untouched', async () => {
+			localStorage.setItem('cb_creations_v1', JSON.stringify([validRecord]));
+
+			const result = await creationStoreAdapter.listCreations({
+				owner: validRecord.owner
+			});
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value[0].studioText).toBeUndefined();
 			}
 		});
 	});

@@ -2,11 +2,12 @@
 // Why: Keep runtime try-on payloads aligned with the contract schema.
 // Info flow: adapter/mock -> validators -> errors.
 import { z } from 'zod';
+import { MAX_SELFIE_BASE64_LENGTH } from '../../../../contracts/wig-try-on.contract';
 
 const mimeTypeSchema = z.enum(['image/jpeg', 'image/png', 'image/webp']);
 
 export const wigTryOnRequestSchema = z.object({
-  selfieBase64: z.string().min(1),
+  selfieBase64: z.string().min(1).max(MAX_SELFIE_BASE64_LENGTH),
   selfieMimeType: mimeTypeSchema,
   wigImageBase64: z.string().min(1),
   wigImageMimeType: mimeTypeSchema,

@@ -32,6 +32,7 @@ export type ImageGenerationResult = {
 // IMAGE_VALIDATION_ERROR: request payload validation failures.
 // IMAGE_TIMEOUT_ERROR: provider request timed out before the response was fully read.
 // IMAGE_ABORTED: caller canceled the request before completion.
+// IMAGE_CIRCUIT_OPEN: repeated upstream failures tripped the breaker; failing fast.
 export type ImageGenerationError =
   | { code: 'IMAGE_VALIDATION_ERROR'; message: string }
   | { code: 'IMAGE_CONFIG_ERROR'; message: string }
@@ -39,7 +40,8 @@ export type ImageGenerationError =
   | { code: 'IMAGE_TIMEOUT_ERROR'; message: string }
   | { code: 'IMAGE_ABORTED'; message: string }
   | { code: 'IMAGE_NETWORK_ERROR'; message: string }
-  | { code: 'IMAGE_EMPTY_RESPONSE'; message: string };
+  | { code: 'IMAGE_EMPTY_RESPONSE'; message: string }
+  | { code: 'IMAGE_CIRCUIT_OPEN'; message: string };
 
 export type ImageGenerationSeam = {
   generate: (request: ImageGenerationRequest) => Promise<Result<ImageGenerationResult, ImageGenerationError>>;

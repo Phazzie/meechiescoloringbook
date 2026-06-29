@@ -11,6 +11,7 @@ import {
 } from './fixtures';
 import { createMockWigTryOnSeam } from './mock';
 import { validateWigTryOnRequest, validateWigTryOnResult } from './validators';
+import { MAX_SELFIE_BASE64_LENGTH } from '../../../../contracts/wig-try-on.contract';
 
 const mockConfigSeam: AppConfigSeam = {
   getConfig: () => ({
@@ -91,5 +92,14 @@ describe('WigTryOnSeam mock contract', () => {
       expect(result.error.code).toBe('WIG_TRY_ON_NETWORK_ERROR');
       expect(result.error.message).toContain('timed out');
     }
+  });
+
+  it('rejects a selfieBase64 over MAX_SELFIE_BASE64_LENGTH', () => {
+    expect(() =>
+      validateWigTryOnRequest({
+        ...wigTryOnRequestFixture,
+        selfieBase64: 'a'.repeat(MAX_SELFIE_BASE64_LENGTH + 1)
+      })
+    ).toThrow();
   });
 });

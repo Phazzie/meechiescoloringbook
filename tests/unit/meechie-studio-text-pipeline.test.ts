@@ -465,12 +465,12 @@ Trailing {also not json}.`
 		});
 	});
 
-	it('maps timeout provider network errors to 504 and generic network errors to 502', async () => {
+	it('maps provider timeout errors to 504, aborted errors to 499, and generic network errors to 502', async () => {
 		const timeout = createDepsWithChatResults([
-			providerError(
-				'PROVIDER_NETWORK_ERROR',
-				'Chat completion request timed out.'
-			)
+			providerError('PROVIDER_TIMEOUT', 'Chat completion request timed out.')
+		]);
+		const aborted = createDepsWithChatResults([
+			providerError('PROVIDER_ABORTED', 'Chat completion request was aborted.')
 		]);
 		const generic = createDepsWithChatResults([
 			providerError('PROVIDER_NETWORK_ERROR', 'getaddrinfo ENOTFOUND api.x.ai')
@@ -480,22 +480,24 @@ Trailing {also not json}.`
 			studioInput,
 			timeout.deps
 		);
+		const abortedResponse = await runMeechieStudioTextPipeline(
+			studioInput,
+			aborted.deps
+		);
 		const genericResponse = await runMeechieStudioTextPipeline(
 			studioInput,
 			generic.deps
 		);
 
 		expect(timeoutResponse.status).toBe(504);
+		expect(abortedResponse.status).toBe(499);
 		expect(genericResponse.status).toBe(502);
 	});
 
 	it('classifies provider errors returned during retry', async () => {
 		const { deps } = createDepsWithChatResults([
 			okChat('not json'),
-			providerError(
-				'PROVIDER_NETWORK_ERROR',
-				'Chat completion request timed out.'
-			)
+			providerError('PROVIDER_TIMEOUT', 'Chat completion request timed out.')
 		]);
 
 		const response = await runMeechieStudioTextPipeline(studioInput, deps);
@@ -504,10 +506,27 @@ Trailing {also not json}.`
 		expect(response.body).toMatchObject({
 			ok: false,
 			error: {
-				code: 'PROVIDER_NETWORK_ERROR',
+				code: 'PROVIDER_TIMEOUT',
 				message: 'Chat completion request timed out.'
 			}
 		});
+	});
+
+	it('forwards deps.signal into every createChatCompletion call, including the retry', async () => {
+		const controller = new AbortController();
+		const { deps, requests } = createDepsWithChatResults(
+			[
+				okChat('not json'),
+				okChat(validStudioText())
+			],
+			{ signal: controller.signal }
+		);
+
+		await runMeechieStudioTextPipeline(studioInput, deps);
+
+		expect(requests).toHaveLength(2);
+		expect(requests[0].signal).toBe(controller.signal);
+		expect(requests[1].signal).toBe(controller.signal);
 	});
 
 	it('rejects input containing a disallowed keyword and does not call the provider', async () => {

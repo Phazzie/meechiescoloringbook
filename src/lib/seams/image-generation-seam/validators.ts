@@ -2,9 +2,10 @@
 // Why: Keep runtime data aligned with the contract schema.
 // Info flow: adapter/mock -> validators -> errors.
 import { z } from 'zod';
+import { MAX_PROMPT_LENGTH } from '../../../../contracts/image-generation.contract';
 
 export const imageGenerationRequestSchema = z.object({
-  prompt: z.string().min(1),
+  prompt: z.string().min(1).max(MAX_PROMPT_LENGTH),
   negativePrompt: z.string().optional(),
   n: z.number().int().min(1).max(10),
   size: z.string().min(1),

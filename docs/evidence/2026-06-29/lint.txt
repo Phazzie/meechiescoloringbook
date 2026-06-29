@@ -1,0 +1,10 @@
+# Purpose: Store npm run lint output for evidence.
+# Why: Provide an audit trail for Seam-Driven Development verification.
+# Info flow: Command output -> evidence file -> review.
+
+$ npm run lint
+
+
+> meechies-coloringbook@0.1.0 lint
+> eslint .
+

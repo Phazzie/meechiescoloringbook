@@ -11,7 +11,13 @@ import type {
 import type { Result } from '../../../../contracts/shared.contract';
 import { validateImageGenerationRequest } from '../../seams/image-generation-seam/validators';
 import type { ImageProviderConfig, ImageProviderConfigSeam } from '../../seams/image-provider-config-seam/contract';
-import { isAbortError, isTimeoutError, runWithTimeoutSignal } from '$lib/core/http-resilience';
+import {
+  createCircuitBreaker,
+  isAbortError,
+  isTimeoutError,
+  runWithTimeoutSignal,
+  RETRYABLE_STATUSES
+} from '$lib/core/http-resilience';
 
 type XaiImageResponse = {
   data: Array<{
@@ -27,6 +33,12 @@ type XaiReadResult =
   | { kind: 'parse_error' };
 
 const XAI_IMAGE_TIMEOUT_MS = 120_000;
+// Module-scope (not per-factory-call) so the breaker state survives across the per-request
+// createImageGenerationSeam(configSeam) instances the route creates — otherwise every request
+// would start with a fresh closed breaker and an outage would never trip fail-fast.
+const CIRCUIT_BREAKER_OPTIONS = { failureThreshold: 3, cooldownMs: 30_000 } as const;
+const breaker = createCircuitBreaker(CIRCUIT_BREAKER_OPTIONS);
+const CIRCUIT_OPEN_MESSAGE = 'xAI image generation is temporarily unavailable after repeated errors; failing fast.';
 
 const buildUrl = (baseUrl: string, path: string) => {
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
@@ -73,9 +85,17 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
       );
     }
 
+    if (breaker.isOpen()) {
+      return errorResult('IMAGE_CIRCUIT_OPEN', CIRCUIT_OPEN_MESSAGE);
+    }
+
     const url = buildUrl(config.xaiBaseUrl, config.xaiImageEndpointPath);
     const start = Date.now();
 
+    // Tracks whether the breaker was already updated from the HTTP response status, so the
+    // catch block below only records a failure for a genuine transport/timeout error — not
+    // for an exception thrown while parsing or normalizing an already-received response.
+    let breakerRecorded = false;
     let readResult: XaiReadResult;
     try {
       readResult = await runWithTimeoutSignal(
@@ -94,6 +114,13 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
             }),
             signal
           });
+
+          if (RETRYABLE_STATUSES.has(response.status)) {
+            breaker.recordFailure();
+          } else {
+            breaker.recordSuccess();
+          }
+          breakerRecorded = true;
 
           if (!response.ok) {
             let text = '';
@@ -119,6 +146,9 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
         }
       );
     } catch (error) {
+      if (!breakerRecorded && !isAbortError(error)) {
+        breaker.recordFailure();
+      }
       if (isTimeoutError(error)) {
         return errorResult('IMAGE_TIMEOUT_ERROR', 'xAI image generation timed out.');
       }

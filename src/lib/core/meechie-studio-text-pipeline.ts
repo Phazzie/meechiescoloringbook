@@ -355,10 +355,6 @@ const buildRetryMessage = (
 	].join(' ');
 };
 
-const isProviderTimeout = (error: SeamError): boolean =>
-	error.code === 'PROVIDER_NETWORK_ERROR' &&
-	/\b(timeout|timed out)\b/i.test(error.message);
-
 const providerErrorStatus = (
 	error: SeamError,
 	isProduction: boolean
@@ -366,8 +362,11 @@ const providerErrorStatus = (
 	if (error.code === 'PROVIDER_API_KEY_MISSING') {
 		return isProduction ? 502 : 200;
 	}
-	if (isProviderTimeout(error)) {
+	if (error.code === 'PROVIDER_TIMEOUT') {
 		return 504;
+	}
+	if (error.code === 'PROVIDER_ABORTED') {
+		return 499;
 	}
 	return 502;
 };
@@ -476,7 +475,8 @@ export const runMeechieStudioTextPipeline = async (
 	let providerResult = await provider.createChatCompletion({
 		model: textModel,
 		messages,
-		responseFormat: STUDIO_TEXT_RESPONSE_FORMAT
+		responseFormat: STUDIO_TEXT_RESPONSE_FORMAT,
+		signal: deps.signal
 	});
 
 	if (!providerResult.ok) {
@@ -509,7 +509,8 @@ export const runMeechieStudioTextPipeline = async (
 		providerResult = await provider.createChatCompletion({
 			model: textModel,
 			messages: retryMessages,
-			responseFormat: STUDIO_TEXT_RESPONSE_FORMAT
+			responseFormat: STUDIO_TEXT_RESPONSE_FORMAT,
+			signal: deps.signal
 		});
 		if (!providerResult.ok) {
 			return providerErrorResponse(providerResult, isProduction);

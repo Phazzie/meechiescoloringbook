@@ -202,11 +202,12 @@ export const createProviderAdapter = (
 						...(input.responseFormat
 							? { response_format: input.responseFormat }
 							: {})
-					})
+					}),
+					signal: input.signal
 				};
 				const response = await fetchWithRetry(
 					() => fetchWithTimeout(url, requestInit, CHAT_TIMEOUT_MS),
-					{ ...RETRY_OPTIONS, breaker }
+					{ ...RETRY_OPTIONS, breaker, signal: input.signal }
 				);
 				const payload = await readJson(response);
 				if (!response.ok) {
@@ -220,13 +221,23 @@ export const createProviderAdapter = (
 						error: buildError('PROVIDER_CIRCUIT_OPEN', CIRCUIT_OPEN_MESSAGE)
 					};
 				}
+				if (isAbortError(error)) {
+					return {
+						ok: false,
+						error: buildError('PROVIDER_ABORTED', 'Chat completion request was aborted.')
+					};
+				}
+				if (isTimeoutError(error)) {
+					return {
+						ok: false,
+						error: buildError('PROVIDER_TIMEOUT', 'Chat completion request timed out.')
+					};
+				}
 				return {
 					ok: false,
 					error: buildError(
 						'PROVIDER_NETWORK_ERROR',
-						isAbortError(error) || isTimeoutError(error)
-							? 'Chat completion request timed out.'
-							: error instanceof Error ? error.message : 'Provider request failed.'
+						error instanceof Error ? error.message : 'Provider request failed.'
 					)
 				};
 			}
@@ -286,13 +297,23 @@ export const createProviderAdapter = (
 				if (!breakerRecorded && !isAbortError(error)) {
 					breaker.recordFailure();
 				}
+				if (isAbortError(error)) {
+					return {
+						ok: false,
+						error: buildError('PROVIDER_ABORTED', 'Image generation request was aborted.')
+					};
+				}
+				if (isTimeoutError(error)) {
+					return {
+						ok: false,
+						error: buildError('PROVIDER_TIMEOUT', 'Image generation request timed out.')
+					};
+				}
 				return {
 					ok: false,
 					error: buildError(
 						'PROVIDER_NETWORK_ERROR',
-						isAbortError(error) || isTimeoutError(error)
-							? 'Image generation request timed out.'
-							: error instanceof Error ? error.message : 'Provider request failed.'
+						error instanceof Error ? error.message : 'Provider request failed.'
 					)
 				};
 			}

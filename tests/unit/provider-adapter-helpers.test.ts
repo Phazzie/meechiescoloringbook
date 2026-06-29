@@ -696,5 +696,138 @@ describe('provider-adapter helpers', () => {
 				expect(result.error.message).toBe('Provider request failed.');
 			}
 		});
+
+		it('returns PROVIDER_ABORTED for chat when the caller signal is already aborted', async () => {
+			const controller = new AbortController();
+			controller.abort();
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' }))
+			);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+			const result = await adapter.createChatCompletion({
+				model: 'test',
+				messages: [{ role: 'user', content: 'hi' }],
+				signal: controller.signal
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('PROVIDER_ABORTED');
+			}
+		});
+
+		it('returns PROVIDER_TIMEOUT for chat when every retry attempt times out', async () => {
+			vi.useFakeTimers();
+			try {
+				vi.stubGlobal(
+					'fetch',
+					vi.fn().mockRejectedValue(Object.assign(new Error('timed out'), { name: 'TimeoutError' }))
+				);
+
+				const adapter = createProviderAdapter({
+					apiKey: 'test-key',
+					baseUrl: 'https://api.x.ai'
+				});
+				const promise = adapter.createChatCompletion({
+					model: 'test',
+					messages: [{ role: 'user', content: 'hi' }]
+				});
+				await vi.runAllTimersAsync();
+				const result = await promise;
+
+				expect(result.ok).toBe(false);
+				if (!result.ok) {
+					expect(result.error.code).toBe('PROVIDER_TIMEOUT');
+				}
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
+		it('returns PROVIDER_ABORTED for image when fetch throws AbortError', async () => {
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' }))
+			);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+			const result = await adapter.createImageGeneration({
+				model: 'test',
+				prompt: 'test',
+				n: 1,
+				responseFormat: 'b64_json'
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('PROVIDER_ABORTED');
+			}
+		});
+
+		it('returns PROVIDER_TIMEOUT for image when fetch throws TimeoutError', async () => {
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockRejectedValue(Object.assign(new Error('timed out'), { name: 'TimeoutError' }))
+			);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+			const result = await adapter.createImageGeneration({
+				model: 'test',
+				prompt: 'test',
+				n: 1,
+				responseFormat: 'b64_json'
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('PROVIDER_TIMEOUT');
+			}
+		});
+	});
+
+	describe('signal forwarding', () => {
+		it('forwards the caller signal so aborting it cancels the in-flight chat request', async () => {
+			const controller = new AbortController();
+			let signalSeenByFetch: AbortSignal | null = null;
+
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+					signalSeenByFetch = init.signal ?? null;
+					return new Promise<Response>((_, reject) => {
+						init.signal?.addEventListener('abort', () => {
+							reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+						});
+					});
+				})
+			);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+			const promise = adapter.createChatCompletion({
+				model: 'test',
+				messages: [{ role: 'user', content: 'hi' }],
+				signal: controller.signal
+			});
+
+			controller.abort();
+			const result = await promise;
+
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('PROVIDER_ABORTED');
+			}
+			expect((signalSeenByFetch as AbortSignal | null)?.aborted).toBe(true);
+		});
 	});
 });

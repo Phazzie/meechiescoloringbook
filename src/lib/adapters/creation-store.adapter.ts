@@ -13,7 +13,8 @@ import type {
 	SaveDraftInput
 } from '../../../contracts/creation-store.contract';
 import type { Result } from '../../../contracts/shared.contract';
-import { MAX_TITLE_LENGTH } from '../core/constants';
+import { MAX_TITLE_LENGTH, MAX_FREE_TEXT_LENGTH } from '../core/constants';
+import { MAX_LABEL_LENGTH as MAX_STUDIO_LABEL_LENGTH } from '../../../contracts/meechie-studio-text.contract';
 
 const CREATIONS_KEY = 'cb_creations_v1';
 const DRAFT_KEY = 'cb_drafts_v1';
@@ -61,6 +62,63 @@ const clampLegacyTitle = (record: unknown): unknown => {
 	return {
 		...record,
 		intent: { ...intent, title: trimmedTitle.slice(0, MAX_TITLE_LENGTH).trim() }
+	};
+};
+
+// Shared by clampLegacyStudioText below for each over-cap string field it clamps.
+const clampLegacyText = (value: string, maxLength: number): string => {
+	const trimmed = value.trim();
+	if (trimmed.length === 0) {
+		// All-whitespace value: trimming to '' would fail NonEmptyStringSchema's min(1).
+		return value.length <= maxLength ? value : value.slice(0, maxLength);
+	}
+	if (trimmed.length <= maxLength) {
+		return trimmed;
+	}
+	return trimmed.slice(0, maxLength).trim();
+};
+
+// MeechieStudioTextOutputSchema's verdict/quote/pageTitle/pageItems[].label caps were added
+// after some users had already saved creations/drafts with longer studioText fields; clamp
+// those legacy values on load for the same reason clampLegacyTitle exists above — old data
+// was valid when it was written.
+const clampLegacyStudioText = (record: unknown): unknown => {
+	if (!record || typeof record !== 'object' || !('studioText' in record)) {
+		return record;
+	}
+	const studioText = (record as { studioText: unknown }).studioText;
+	if (!studioText || typeof studioText !== 'object') {
+		return record;
+	}
+	const { verdict, quote, pageTitle, pageItems } = studioText as {
+		verdict?: unknown;
+		quote?: unknown;
+		pageTitle?: unknown;
+		pageItems?: unknown;
+	};
+	const clampedPageItems = Array.isArray(pageItems)
+		? pageItems.map((item) =>
+				item && typeof item === 'object' && typeof (item as { label?: unknown }).label === 'string'
+					? {
+							...item,
+							label: clampLegacyText((item as { label: string }).label, MAX_STUDIO_LABEL_LENGTH)
+						}
+					: item
+			)
+		: pageItems;
+	return {
+		...record,
+		studioText: {
+			...studioText,
+			...(typeof verdict === 'string'
+				? { verdict: clampLegacyText(verdict, MAX_FREE_TEXT_LENGTH) }
+				: {}),
+			...(typeof quote === 'string' ? { quote: clampLegacyText(quote, MAX_FREE_TEXT_LENGTH) } : {}),
+			...(typeof pageTitle === 'string'
+				? { pageTitle: clampLegacyText(pageTitle, MAX_STUDIO_LABEL_LENGTH) }
+				: {}),
+			...(pageItems !== undefined ? { pageItems: clampedPageItems } : {})
+		}
 	};
 };
 
@@ -120,7 +178,9 @@ const parseRecords = (value: unknown): Result<CreationRecord[]> => {
 	}
 	const records: CreationRecord[] = [];
 	for (const record of value) {
-		const parsed = CreationRecordSchema.safeParse(clampLegacyTitle(record));
+		const parsed = CreationRecordSchema.safeParse(
+			clampLegacyStudioText(clampLegacyTitle(record))
+		);
 		if (!parsed.success) {
 			return {
 				ok: false,
@@ -172,7 +232,7 @@ const parseDraft = (value: unknown | null): Result<DraftRecord | null> => {
 	if (value === null) {
 		return { ok: true, value: null };
 	}
-	const parsed = DraftRecordSchema.safeParse(clampLegacyTitle(value));
+	const parsed = DraftRecordSchema.safeParse(clampLegacyStudioText(clampLegacyTitle(value)));
 	if (!parsed.success) {
 		return {
 			ok: false,

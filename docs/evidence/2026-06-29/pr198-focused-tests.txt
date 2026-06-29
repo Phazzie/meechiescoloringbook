@@ -1,0 +1,15 @@
+# Purpose: Store focused circuit-breaker/signal-forwarding test output for evidence.
+# Why: Provide an audit trail for the PR198 review-comment remediation (threads 1, 2, 7, 8).
+# Info flow: Command output -> evidence file -> review.
+
+$ npx vitest run tests/unit/provider-adapter-helpers.test.ts tests/unit/meechie-studio-text-pipeline.test.ts tests/contract/image-generation-circuit-breaker.test.ts tests/contract/provider-adapter.test.ts tests/contract/image-generation.test.ts
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+
+
+[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[32m64 passed[39m[22m[90m (64)[39m
+[2m   Start at [22m 10:16:18
+[2m   Duration [22m 10.52s[2m (transform 542ms, setup 96ms, import 675ms, tests 9.67s, environment 2.93s)[22m
+

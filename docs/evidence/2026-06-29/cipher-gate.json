@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-29T10:20:50.861Z",
+  "cipher": {
+    "date": "2026-06-29",
+    "seams": "ProviderAdapterSeam, ImageGenerationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-29/check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-29/lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-29/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-29/pr198-focused-tests.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-29/rewind-ImageGenerationSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-29/rewind-ProviderAdapterSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-29/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-29/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Split `PROVIDER_ABORTED`/`PROVIDER_TIMEOUT` out of `PROVIDER_NETWORK_ERROR` for both ProviderAdapterSeam methods, forwarded the caller's AbortSignal into `meechie-studio-text-pipeline.ts`'s chat calls, and added a circuit breaker to the live `image-generation-seam` adapter — closing PR #198's 4 remaining open review threads.",
+    "risks": "No live-traffic validation of any of this (no XAI_API_KEY in this environment); new breaker's thresholds are a convention copy, not independently tuned; threads 3/4/5/6/9 on PR #198 were left unacknowledged on that PR (already fixed in code, but their GitHub thread state was out of this routine's scope)."
+  },
+  "latestChangeMs": 1782727917576.091,
+  "status": "ok"
+}

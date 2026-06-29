@@ -15,6 +15,9 @@ import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 // can assemble a prompt that's valid there but gets rejected here as
 // IMAGE_INPUT_INVALID after rate-limit quota has already been consumed.
 export const MAX_PROMPT_LENGTH = 8000;
+// Re-exported for src/lib/seams/image-generation-seam/validators.ts, whose canonical
+// imageGenerationRequestSchema validates the same `prompt` field for the live xAI adapter and
+// must enforce the identical cap rather than drift from this contract's bound.
 
 export const ImageDataEncodingSchema = z.enum(['utf8', 'base64']);
 

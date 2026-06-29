@@ -7,6 +7,7 @@ import { json } from '@sveltejs/kit';
 import {
 	checkImageGenerationAbort,
 	checkImageGenerationInputShape,
+	checkImageGenerationProviderConfig,
 	checkImageGenerationPromptGuard,
 	runImageGenerationPipeline
 } from '$lib/core/image-generation-pipeline';
@@ -29,10 +30,14 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const lateAbortCheck = checkImageGenerationAbort(request.signal);
 	if (!lateAbortCheck.ok)
 		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
+	const configSeam = createImageProviderConfigSeam();
+	const configCheck = checkImageGenerationProviderConfig(configSeam);
+	if (!configCheck.ok)
+		return json(configCheck.response.body, { status: configCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const pipelineResult = await runImageGenerationPipeline(parsed.body, {
-		imageGenerationSeam: createImageGenerationSeam(createImageProviderConfigSeam()),
+		imageGenerationSeam: createImageGenerationSeam(configSeam),
 		signal: request.signal
 	});
 	return json(pipelineResult.body, { status: pipelineResult.status });

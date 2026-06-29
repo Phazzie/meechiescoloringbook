@@ -11,6 +11,7 @@ import {
 } from '../../../contracts/image-generation.contract';
 import type { PageSize } from '../../../contracts/spec-validation.contract';
 import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contract';
+import type { ImageProviderConfigSeam } from '$lib/seams/image-provider-config-seam/contract';
 
 const RESPONSE_FORMAT = 'b64_json' as const;
 const DEFAULT_IMAGE_SIZE = '1024x1024';
@@ -114,6 +115,30 @@ export const checkImageGenerationPromptGuard = (
   return { ok: true };
 };
 
+export type ImageProviderConfigCheck = { ok: true } | { ok: false; response: ImagePipelineResponse };
+
+// Exported so the route can reject a missing/invalid provider config (e.g. unset XAI_API_KEY)
+// before consuming rate-limit quota. Without this, getConfig() throwing only surfaced inside
+// ImageGenerationSeam.generate(), by which point enforceAiRateLimit had already charged a slot
+// for a request that could never reach the provider.
+export const checkImageGenerationProviderConfig = (
+  configSeam: ImageProviderConfigSeam
+): ImageProviderConfigCheck => {
+  try {
+    configSeam.getConfig();
+    return { ok: true };
+  } catch {
+    return {
+      ok: false,
+      response: buildError(
+        503,
+        'IMAGE_CONFIG_ERROR',
+        'Image generation configuration is invalid. Ensure XAI_API_KEY and related environment variables are set.'
+      )
+    };
+  }
+};
+
 export const runImageGenerationPipeline = async (
   body: unknown,
   deps: ImagePipelineDeps
@@ -142,7 +167,8 @@ export const runImageGenerationPipeline = async (
       IMAGE_ABORTED: 499,
       IMAGE_TIMEOUT_ERROR: 504,
       IMAGE_CONFIG_ERROR: 503,
-      IMAGE_VALIDATION_ERROR: 400
+      IMAGE_VALIDATION_ERROR: 400,
+      IMAGE_CIRCUIT_OPEN: 503
     };
     return {
       status: statusByCode[seamResult.error.code] ?? 502,

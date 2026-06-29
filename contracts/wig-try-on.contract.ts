@@ -14,7 +14,10 @@ const MAX_WIG_ID_LENGTH = 64;
 // rate limiting — generous headroom above the ~11.2M-character base64 string
 // a legitimate 8MB selfie produces (SelfieUpload.svelte's client-side
 // MAX_SIZE_MB cap), so it never rejects legitimate requests.
-const MAX_SELFIE_BASE64_LENGTH = 12_000_000;
+// Exported for src/lib/seams/wig-try-on-seam/validators.ts, whose canonical
+// wigTryOnRequestSchema validates the same `selfieBase64` field for the live Gemini adapter and
+// must enforce the identical cap rather than drift from this contract's bound.
+export const MAX_SELFIE_BASE64_LENGTH = 12_000_000;
 
 export const WigTryOnRequestSchema = z.object({
 	selfieBase64: z.string().min(1).max(MAX_SELFIE_BASE64_LENGTH),

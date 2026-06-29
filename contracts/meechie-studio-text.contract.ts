@@ -11,7 +11,9 @@ export { MAX_FREE_TEXT_LENGTH };
 // Bounds the cost of the disallowed-keyword scan that runs ahead of rate
 // limiting (see checkMeechieStudioTextSafety) — far above any genuine studio
 // input, so it never rejects legitimate requests.
-const MAX_LABEL_LENGTH = 200;
+// Exported (unlike the local name suggests) so creation-store.adapter.ts can clamp
+// legacy studioText.pageTitle/pageItems[].label values saved before this cap existed.
+export const MAX_LABEL_LENGTH = 200;
 const FreeTextSchema = NonEmptyStringSchema.max(MAX_FREE_TEXT_LENGTH);
 const LabelTextSchema = NonEmptyStringSchema.max(MAX_LABEL_LENGTH);
 
