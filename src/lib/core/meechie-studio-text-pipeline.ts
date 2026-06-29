@@ -368,6 +368,9 @@ const providerErrorStatus = (
 	if (error.code === 'PROVIDER_ABORTED') {
 		return 499;
 	}
+	if (error.code === 'PROVIDER_CIRCUIT_OPEN') {
+		return 503;
+	}
 	return 502;
 };
 

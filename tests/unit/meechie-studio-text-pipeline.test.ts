@@ -494,6 +494,20 @@ Trailing {also not json}.`
 		expect(genericResponse.status).toBe(502);
 	});
 
+	it('maps a provider circuit breaker open error to 503', async () => {
+		const { deps } = createDepsWithChatResults([
+			providerError('PROVIDER_CIRCUIT_OPEN', 'Provider temporarily unavailable; circuit open.')
+		]);
+
+		const response = await runMeechieStudioTextPipeline(studioInput, deps);
+
+		expect(response.status).toBe(503);
+		expect(response.body).toMatchObject({
+			ok: false,
+			error: { code: 'PROVIDER_CIRCUIT_OPEN' }
+		});
+	});
+
 	it('classifies provider errors returned during retry', async () => {
 		const { deps } = createDepsWithChatResults([
 			okChat('not json'),
