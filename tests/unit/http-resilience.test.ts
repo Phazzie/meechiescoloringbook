@@ -2,7 +2,13 @@
 // Why: Timeout and retry logic must be verified deterministically with fake timers;
 //      real network calls would make these tests slow and flaky.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchWithTimeout, fetchWithRetry, isAbortError } from '../../src/lib/core/http-resilience';
+import {
+	fetchWithTimeout,
+	fetchWithRetry,
+	isAbortError,
+	isCircuitOpenError,
+	createCircuitBreaker
+} from '../../src/lib/core/http-resilience';
 
 // ---------------------------------------------------------------------------
 // isAbortError
@@ -25,6 +31,26 @@ describe('isAbortError', () => {
 	it('returns false for a non-Error value', () => {
 		expect(isAbortError('AbortError')).toBe(false);
 		expect(isAbortError(null)).toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// isCircuitOpenError
+// ---------------------------------------------------------------------------
+
+describe('isCircuitOpenError', () => {
+	it('returns true for an Error with name CircuitOpenError', () => {
+		const error = Object.assign(new Error('open'), { name: 'CircuitOpenError' });
+		expect(isCircuitOpenError(error)).toBe(true);
+	});
+
+	it('returns false for an AbortError', () => {
+		const error = Object.assign(new Error('aborted'), { name: 'AbortError' });
+		expect(isCircuitOpenError(error)).toBe(false);
+	});
+
+	it('returns false for a non-Error value', () => {
+		expect(isCircuitOpenError(null)).toBe(false);
 	});
 });
 
@@ -299,18 +325,164 @@ describe('fetchWithRetry', () => {
 		expect(fetcher).toHaveBeenCalledTimes(2);
 	});
 
-	it('caps Retry-After at 30 seconds', async () => {
+	it('respects a Retry-After well beyond the 30s self-backoff cap instead of clamping it down', async () => {
+		const retryHeaders = new Headers({ 'Retry-After': '120' });
+		const fetcher = vi
+			.fn()
+			.mockResolvedValueOnce(new Response('rate limited', { status: 429, headers: retryHeaders }))
+			.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+		let settled = false;
+
+		const promise = fetchWithRetry(fetcher, { maxAttempts: 2, baseDelayMs: 50 });
+		promise.then(() => {
+			settled = true;
+		});
+
+		await vi.advanceTimersByTimeAsync(30_001);
+		expect(settled).toBe(false);
+		expect(fetcher).toHaveBeenCalledTimes(1);
+
+		await vi.advanceTimersByTimeAsync(90_000);
+		expect(settled).toBe(true);
+		const result = await promise;
+		expect(result.status).toBe(200);
+		expect(fetcher).toHaveBeenCalledTimes(2);
+	});
+
+	it('caps an excessive Retry-After at the trusted maximum (10 minutes), not at 30 seconds', async () => {
 		const longRetryHeaders = new Headers({ 'Retry-After': '3600' });
 		const fetcher = vi
 			.fn()
 			.mockResolvedValueOnce(new Response('rate limited', { status: 429, headers: longRetryHeaders }))
 			.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+		let settled = false;
 
 		const promise = fetchWithRetry(fetcher, { maxAttempts: 2, baseDelayMs: 50 });
-		await vi.advanceTimersByTimeAsync(30_001);
-		const result = await promise;
+		promise.then(() => {
+			settled = true;
+		});
 
+		await vi.advanceTimersByTimeAsync(30_001);
+		expect(settled).toBe(false);
+
+		await vi.advanceTimersByTimeAsync(600_000);
+		expect(settled).toBe(true);
+		const result = await promise;
 		expect(result.status).toBe(200);
 		expect(fetcher).toHaveBeenCalledTimes(2);
+	});
+
+	it('fails fast with a CircuitOpenError without calling the fetcher when the breaker is open', async () => {
+		const breaker = createCircuitBreaker({ failureThreshold: 1, cooldownMs: 30_000, now: () => 0 });
+		breaker.recordFailure();
+		const fetcher = vi.fn();
+
+		await expect(
+			fetchWithRetry(fetcher, { maxAttempts: 3, baseDelayMs: 100, breaker })
+		).rejects.toMatchObject({ name: 'CircuitOpenError' });
+		expect(fetcher).not.toHaveBeenCalled();
+	});
+
+	it('records a breaker failure on a retryable response, then a success once it recovers', async () => {
+		const breaker = createCircuitBreaker({ failureThreshold: 1, cooldownMs: 30_000, now: () => 0 });
+		const fetcher = vi
+			.fn()
+			.mockResolvedValueOnce(new Response('unavailable', { status: 503 }))
+			.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+
+		const promise = fetchWithRetry(fetcher, { maxAttempts: 2, baseDelayMs: 50, breaker });
+		await vi.runAllTimersAsync();
+		const result = await promise;
+
+		// The first attempt's failure opened the breaker mid-call, but the in-flight retry was
+		// not aborted (the breaker only gates new calls) — and its success closed it again.
+		expect(result.status).toBe(200);
+		expect(breaker.isOpen()).toBe(false);
+	});
+
+	it('records a breaker failure on a thrown network error', async () => {
+		const breaker = createCircuitBreaker({ failureThreshold: 1, cooldownMs: 30_000, now: () => 0 });
+		const fetcher = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'));
+
+		await expect(
+			fetchWithRetry(fetcher, { maxAttempts: 1, baseDelayMs: 50, breaker })
+		).rejects.toThrow('ECONNREFUSED');
+		expect(breaker.isOpen()).toBe(true);
+	});
+
+	it('does not record a breaker failure on an AbortError', async () => {
+		const breaker = createCircuitBreaker({ failureThreshold: 1, cooldownMs: 30_000, now: () => 0 });
+		const fetcher = vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+
+		await expect(
+			fetchWithRetry(fetcher, { maxAttempts: 1, baseDelayMs: 50, breaker })
+		).rejects.toMatchObject({ name: 'AbortError' });
+		expect(breaker.isOpen()).toBe(false);
+	});
+});
+
+describe('createCircuitBreaker', () => {
+	it('starts closed', () => {
+		const breaker = createCircuitBreaker({ failureThreshold: 2, cooldownMs: 1_000 });
+		expect(breaker.isOpen()).toBe(false);
+	});
+
+	it('stays closed until consecutive failures reach the threshold', () => {
+		let now = 0;
+		const breaker = createCircuitBreaker({ failureThreshold: 3, cooldownMs: 1_000, now: () => now });
+
+		breaker.recordFailure();
+		expect(breaker.isOpen()).toBe(false);
+		breaker.recordFailure();
+		expect(breaker.isOpen()).toBe(false);
+		breaker.recordFailure();
+		expect(breaker.isOpen()).toBe(true);
+	});
+
+	it('closes again once the cooldown elapses', () => {
+		let now = 0;
+		const breaker = createCircuitBreaker({ failureThreshold: 1, cooldownMs: 1_000, now: () => now });
+
+		breaker.recordFailure();
+		expect(breaker.isOpen()).toBe(true);
+
+		now = 999;
+		expect(breaker.isOpen()).toBe(true);
+
+		now = 1_000;
+		expect(breaker.isOpen()).toBe(false);
+	});
+
+	it('resets the consecutive-failure count on success', () => {
+		let now = 0;
+		const breaker = createCircuitBreaker({ failureThreshold: 2, cooldownMs: 1_000, now: () => now });
+
+		breaker.recordFailure();
+		breaker.recordSuccess();
+		breaker.recordFailure();
+		expect(breaker.isOpen()).toBe(false);
+	});
+
+	it('closes immediately on success even while open', () => {
+		let now = 0;
+		const breaker = createCircuitBreaker({ failureThreshold: 1, cooldownMs: 1_000, now: () => now });
+
+		breaker.recordFailure();
+		expect(breaker.isOpen()).toBe(true);
+
+		breaker.recordSuccess();
+		expect(breaker.isOpen()).toBe(false);
+	});
+
+	it('rejects a non-positive-integer failureThreshold', () => {
+		expect(() => createCircuitBreaker({ failureThreshold: 0, cooldownMs: 1_000 })).toThrow(
+			'failureThreshold must be a finite integer >= 1'
+		);
+	});
+
+	it('rejects a negative cooldownMs', () => {
+		expect(() => createCircuitBreaker({ failureThreshold: 1, cooldownMs: -1 })).toThrow(
+			'cooldownMs must be finite and >= 0'
+		);
 	});
 });
