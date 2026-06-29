@@ -40,6 +40,11 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 		onCopyQuote: () => Promise<void>;
 		onSaveToVault: () => Promise<void>;
 	} = $props();
+
+	const extensionFromDataUrl = (dataUrl: string): string => {
+		const subtype = /^data:image\/([a-z0-9.+-]+)[;,]/i.exec(dataUrl)?.[1] ?? 'png';
+		return subtype === 'svg+xml' ? 'svg' : subtype;
+	};
 </script>
 
 <section class="preview-panel" aria-label="Meechie coloring-page preview">
@@ -118,7 +123,7 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 			<a
 				class="button-link"
 				href={imagePreviews[0]}
-				download="meechie-coloring-page.png"
+				download={`meechie-coloring-page.${extensionFromDataUrl(imagePreviews[0])}`}
 			>
 				{getStudioAction('export_png').label}
 			</a>

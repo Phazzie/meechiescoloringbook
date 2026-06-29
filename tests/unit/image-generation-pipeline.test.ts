@@ -353,6 +353,39 @@ describe('image-generation-pipeline edge cases', () => {
     }
   });
 
+  it('defaults non-WebP RIFF containers (e.g. WAV) to png instead of misclassifying as webp', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    // RIFF/WAVE header sharing the same "UklGR" base64 prefix as WebP, but not a WebP form-type.
+    const wavBase64 = 'UklGRhgAAABXQVZFZm10IAAAAAAAAAAAAAAAAAAAAAA=';
+
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: wavBase64 }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    if (result.body.ok) {
+      expect(result.body.value.images[0].format).toBe('png');
+      expect(result.body.value.images[0].mimeType).toBe('image/png');
+    }
+    expect(warn).toHaveBeenCalledWith('imageFormatFromBase64: unrecognized header, defaulting to png');
+    warn.mockRestore();
+  });
+
   it('filters out images without b64 and keeps valid ones', async () => {
     const result = await runImageGenerationPipeline(
       {

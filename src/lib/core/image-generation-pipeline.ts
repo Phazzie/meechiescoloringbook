@@ -21,7 +21,15 @@ const imageFormatFromBase64 = (
 ): Pick<GeneratedImage, 'format' | 'mimeType'> => {
   if (data.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg' };
   if (data.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png' };
-  if (data.startsWith('UklGR')) return { format: 'webp', mimeType: 'image/webp' };
+  if (data.startsWith('UklGR')) {
+    const header = Buffer.from(data.slice(0, 32), 'base64');
+    if (
+      header.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      header.subarray(8, 12).toString('ascii') === 'WEBP'
+    ) {
+      return { format: 'webp', mimeType: 'image/webp' };
+    }
+  }
   console.warn('imageFormatFromBase64: unrecognized header, defaulting to png');
   return { format: 'png', mimeType: 'image/png' };
 };
