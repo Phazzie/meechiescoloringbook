@@ -118,7 +118,8 @@ export const runChatInterpretationPipeline = async (
 		messages: [
 			{ role: 'system', content: SYSTEM_CONSTANTS.CHAT_SYSTEM_PROMPT },
 			{ role: 'user', content: parsedInput.data.message }
-		]
+		],
+		signal: deps.signal
 	});
 	if (!chatResult.ok) {
 		return buildError(502, chatResult.error.code, chatResult.error.message, chatResult.error.details);

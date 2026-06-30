@@ -112,7 +112,7 @@ export const runToolsPipeline = async (
 	const safetyCheck = checkMeechieToolSafety(parsedInput.data);
 	if (!safetyCheck.ok) return safetyCheck.response;
 
-	const result = await deps.respond(parsedInput.data);
+	const result = await deps.respond(parsedInput.data, deps.signal);
 	const parsedResult = MeechieToolResultSchema.safeParse(result);
 	if (!parsedResult.success) {
 		return buildError(500, 'MEECHIE_TOOL_OUTPUT_INVALID', 'Meechie tool output did not match contract.');
@@ -125,5 +125,5 @@ export const runToolsPipeline = async (
 };
 
 export const toolsPipelineDeps: ToolsPipelineDeps = {
-	respond: (input) => meechieToolAdapter.respond(input)
+	respond: (input, signal) => meechieToolAdapter.respond(input, signal)
 };

@@ -150,5 +150,5 @@ export type MeechieToolInput = z.infer<typeof MeechieToolInputSchema>;
 export type MeechieToolOutput = z.infer<typeof MeechieToolOutputSchema>;
 
 export type MeechieToolSeam = {
-	respond(input: MeechieToolInput): Promise<Result<MeechieToolOutput>>;
+	respond(input: MeechieToolInput, signal?: AbortSignal): Promise<Result<MeechieToolOutput>>;
 };

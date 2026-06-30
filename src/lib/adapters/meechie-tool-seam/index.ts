@@ -271,7 +271,8 @@ const parseResponse = (
 
 export const meechieToolAdapter: MeechieToolSeam = {
 	respond: async (
-		input: MeechieToolInput
+		input: MeechieToolInput,
+		signal?: AbortSignal
 	): Promise<Result<MeechieToolOutput>> => {
 		const voiceResult = await meechieVoiceAdapter.getVoicePack({
 			voiceId: 'meechie'
@@ -297,7 +298,8 @@ export const meechieToolAdapter: MeechieToolSeam = {
 				{ role: 'system', content: systemPrompt },
 				{ role: 'user', content }
 			],
-			responseFormat
+			responseFormat,
+			signal
 		});
 
 		if (!providerResult.ok) {
