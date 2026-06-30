@@ -6,6 +6,7 @@ Info flow: UI generate request -> validation -> prompt/image/drift seams -> JSON
 import { json } from '@sveltejs/kit';
 import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
+import { createConsoleTelemetrySeam } from '$lib/adapters/telemetry-seam';
 import { generatePipelineDeps, runGeneratePipeline } from '$lib/core/generate-pipeline';
 import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';
 import { parseRequestBody } from '$lib/server/parse-request-body';
@@ -17,6 +18,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (!parsed.ok) return parsed.response;
 	const imageGenerationSeam = createImageGenerationSeam(createImageProviderConfigSeam());
 	const safetyPolicySeam = createSafetyPolicySeam();
+	const telemetry = createConsoleTelemetrySeam();
 	const pipelineResult = await runGeneratePipeline(parsed.body, {
 		...generatePipelineDeps,
 		checkContentSafety: safetyPolicySeam.validateGenerateRequest,
@@ -25,7 +27,8 @@ export const POST: RequestHandler = async ({ request }) => {
 				imageGenerationSeam,
 				signal: signal ?? request.signal
 			}),
-		signal: request.signal
+		signal: request.signal,
+		telemetry
 	});
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };
