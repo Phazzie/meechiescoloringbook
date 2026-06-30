@@ -123,9 +123,10 @@ export const runWigTryOnPipeline = async (
 	if (!shapeCheck.ok) return shapeCheck.response;
 	const { selfieBase64, selfieMimeType, wigId } = shapeCheck.data;
 
-	const catalogCheck: WigCatalogPreflightCheck = deps.precomputedWig
-		? { ok: true, wig: deps.precomputedWig }
-		: await checkWigCatalogPreflight(wigId, deps.wigCatalogSeam);
+	const catalogCheck: WigCatalogPreflightCheck =
+		deps.precomputedWig && deps.precomputedWig.id === wigId
+			? { ok: true, wig: deps.precomputedWig }
+			: await checkWigCatalogPreflight(wigId, deps.wigCatalogSeam);
 	if (!catalogCheck.ok) return catalogCheck.response;
 
 	const wig = catalogCheck.wig;

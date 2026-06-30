@@ -117,10 +117,14 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
 
           if (RETRYABLE_STATUSES.has(response.status)) {
             breaker.recordFailure();
-          } else {
+            breakerRecorded = true;
+          } else if (!response.ok) {
+            // Non-retryable HTTP error (e.g. 400, 401): upstream is reachable.
             breaker.recordSuccess();
+            breakerRecorded = true;
           }
-          breakerRecorded = true;
+          // For 2xx: defer success recording until after body is fully read so a
+          // body-stall timeout reaches the outer catch as a recordable failure.
 
           if (!response.ok) {
             let text = '';
@@ -133,9 +137,15 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
           }
 
           try {
-            return { kind: 'ok', payload: (await response.json()) as XaiImageResponse };
+            const payload = (await response.json()) as XaiImageResponse;
+            breaker.recordSuccess();
+            breakerRecorded = true;
+            return { kind: 'ok', payload };
           } catch (error) {
             if (isAbortError(error) || isTimeoutError(error)) throw error;
+            // Non-abort/timeout parse error: upstream sent unparseable data but was reachable.
+            breaker.recordSuccess();
+            breakerRecorded = true;
             return { kind: 'parse_error' };
           }
         },

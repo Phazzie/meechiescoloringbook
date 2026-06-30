@@ -3,6 +3,7 @@
 //      rate limiting must keep working even when env values are absent or malformed.
 // Info flow: raw env strings -> per-field parse+default -> RateLimitConfig.
 import { z } from 'zod';
+import type { RateLimitConfig } from './contract';
 
 export const rateLimitMaxRequestsSchema = z.number().int().min(1).max(1000);
 export const rateLimitWindowMsSchema = z.number().int().min(1000).max(3_600_000);
@@ -11,8 +12,6 @@ export const rateLimitConfigSchema = z.object({
 	rateLimitMaxRequests: rateLimitMaxRequestsSchema,
 	rateLimitWindowMs: rateLimitWindowMsSchema
 });
-
-export type RateLimitConfig = z.infer<typeof rateLimitConfigSchema>;
 
 export const validateRateLimitConfig = (config: unknown): RateLimitConfig =>
 	rateLimitConfigSchema.parse(config);

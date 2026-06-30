@@ -42,6 +42,10 @@ is struck through accordingly.
   `createChatCompletion` (via `fetchWithRetry`) and `createImageGeneration`
   (manual gate + bookkeeping, since that call has no retry loop) in
   `src/lib/adapters/provider-adapter.adapter.ts`.
+- A second, module-scope circuit breaker was also wired into
+  `src/lib/adapters/image-generation-seam/index.ts`, gating xAI image
+  generation calls independently; its open state surfaces as
+  `IMAGE_CIRCUIT_OPEN` in the `ImageGenerationError` union.
 - Fixed `Retry-After` being incorrectly clamped to the same 30s cap used for
   self-generated backoff. It is now honored up to a 10-minute ceiling
   (`MAX_RETRY_AFTER_MS`), while self-backoff stays capped at 30s

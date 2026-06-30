@@ -109,7 +109,14 @@ export const createCircuitBreaker = (options: CircuitBreakerOptions): CircuitBre
 	let openUntil = 0;
 
 	return {
-		isOpen: () => now() < openUntil,
+		isOpen: () => {
+			if (openUntil > 0 && now() >= openUntil) {
+				// Cooldown elapsed: reset failure count so trial requests start fresh.
+				consecutiveFailures = 0;
+				openUntil = 0;
+			}
+			return openUntil !== 0;
+		},
 		recordSuccess: () => {
 			consecutiveFailures = 0;
 			openUntil = 0;
@@ -204,6 +211,10 @@ export const fetchWithRetry = async (
 	}
 
 	if (breaker?.isOpen()) {
+		// A caller-aborted request must surface as AbortError even when the breaker is open.
+		if (signal?.aborted) {
+			throw buildNamedError('AbortError', 'Operation aborted by caller.');
+		}
 		throw buildNamedError('CircuitOpenError', 'Circuit breaker is open; failing fast without a request.');
 	}
 
