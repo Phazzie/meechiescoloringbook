@@ -14,11 +14,14 @@ import { createSafetyPolicySeam } from '$lib/seams/safety-policy-seam/policy';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
+	const telemetry = createConsoleTelemetrySeam();
 	const parsed = await parseRequestBody(request);
-	if (!parsed.ok) return parsed.response;
+	if (!parsed.ok) {
+		telemetry.emit({ name: 'generation_failed', timestamp: new Date().toISOString(), metadata: { code: 'BODY_PARSE_FAILED', stage: 'body_parse' } });
+		return parsed.response;
+	}
 	const imageGenerationSeam = createImageGenerationSeam(createImageProviderConfigSeam());
 	const safetyPolicySeam = createSafetyPolicySeam();
-	const telemetry = createConsoleTelemetrySeam();
 	const pipelineResult = await runGeneratePipeline(parsed.body, {
 		...generatePipelineDeps,
 		checkContentSafety: safetyPolicySeam.validateGenerateRequest,

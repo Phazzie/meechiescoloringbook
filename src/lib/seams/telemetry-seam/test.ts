@@ -53,4 +53,18 @@ describe('TelemetrySeam console adapter', () => {
     expect(() => seam.emit({ ...baseEvent, name: 'generation_failed' })).not.toThrow();
     expect(() => seam.emit({ ...baseEvent, name: 'prompt_compiler_fallback' })).not.toThrow();
   });
+
+  it('falls back to a safe log line when metadata is not serializable', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const seam = createConsoleTelemetrySeam();
+    const circular: Record<string, unknown> = {};
+    circular['self'] = circular;
+    seam.emit({ name: 'generation_failed', timestamp: '2025-01-01T00:00:00.000Z', metadata: { bad: circular } });
+
+    expect(logSpy).toHaveBeenCalledOnce();
+    const logged = logSpy.mock.calls[0][0] as string;
+    const parsed = JSON.parse(logged) as { telemetry: { name: string; metadata: { serialization_error: string } } };
+    expect(parsed.telemetry.name).toBe('generation_failed');
+    expect(typeof parsed.telemetry.metadata.serialization_error).toBe('string');
+  });
 });

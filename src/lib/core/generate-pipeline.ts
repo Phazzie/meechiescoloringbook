@@ -61,10 +61,7 @@ const emitTelemetry = (
 		...(metadata !== undefined ? { metadata } : {})
 	};
 	try {
-		const maybePromise = telemetry.emit(event);
-		if (maybePromise instanceof Promise) {
-			maybePromise.catch(() => undefined);
-		}
+		Promise.resolve(telemetry.emit(event)).catch(() => undefined);
 	} catch {
 		// Swallow synchronous emit errors so telemetry cannot break generation.
 	}
@@ -237,11 +234,13 @@ export const runGeneratePipeline = async (
 		return buildError(500, 'GENERATE_OUTPUT_INVALID', 'Generate response did not match contract.');
 	}
 
-	emitTelemetry(deps.telemetry, 'generation_succeeded', {
-		imageCount: parsedResult.data.ok ? parsedResult.data.value.images.length : 0,
-		templateVersion: promptResult.value.templateVersion,
-		hasRevisedPrompt: parsedImageResult.data.value.revisedPrompt !== undefined
-	});
+	if (parsedResult.data.ok) {
+		emitTelemetry(deps.telemetry, 'generation_succeeded', {
+			imageCount: parsedResult.data.value.images.length,
+			templateVersion: promptResult.value.templateVersion,
+			hasRevisedPrompt: parsedImageResult.data.value.revisedPrompt !== undefined
+		});
+	}
 
 	return {
 		status: 200,

@@ -6,6 +6,16 @@ import type { TelemetrySeam, TelemetryEvent } from '../../seams/telemetry-seam/c
 
 export const createConsoleTelemetrySeam = (): TelemetrySeam => ({
 	emit: (event: TelemetryEvent): void => {
-		console.log(JSON.stringify({ telemetry: event }));
+		try {
+			console.log(JSON.stringify({ telemetry: event }));
+		} catch (err) {
+			console.log(JSON.stringify({
+				telemetry: {
+					name: event.name,
+					timestamp: event.timestamp,
+					metadata: { serialization_error: err instanceof Error ? err.message : String(err) }
+				}
+			}));
+		}
 	}
 });
