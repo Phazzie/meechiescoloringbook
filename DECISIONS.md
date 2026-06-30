@@ -7,6 +7,22 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-06-30 - Implement TelemetrySeam console adapter and wire into generate pipeline
+
+- Date: 2026-06-30
+- Decision: Create a console-logging TelemetrySeam adapter and inject it as an optional dependency into `runGeneratePipeline`, emitting `generation_requested`, `generation_succeeded`, and `generation_failed` events at the correct pipeline stages.
+- Context: TelemetrySeam had a contract, mock, and test but no real adapter and no emission points anywhere in production code. The four defined event names (`generation_requested`, `generation_succeeded`, `generation_failed`, `prompt_compiler_fallback`) were dead letter — nothing emitted them. Without telemetry, all production generation traffic was invisible to operators.
+- Alternatives: Use a no-op adapter as default (would require callers to supply a real one explicitly). Use a remote analytics sink (adds external dependency and network I/O in the hot path). Use a required dep instead of optional (breaks all existing callers without changes). All rejected: console JSON lines are visible in Vercel function logs without extra infra, and optional avoids breaking the existing test helpers.
+- Consequences: Every generate request now emits structured JSON telemetry lines to the server log, including the stage metadata needed to diagnose which pipeline step failed. The adapter is fire-and-forget so a broken telemetry backend cannot block generation. `prompt_compiler_fallback` is defined in the contract but not yet emitted — the fallback path requires the PromptCompilerSeam to be wired in first.
+- Revisit criteria: Replace with a remote telemetry sink (e.g. Vercel Analytics, Datadog) when log-based observability is no longer sufficient. Emit `prompt_compiler_fallback` when the PromptCompilerSeam gains a canonical→compressed fallback path. Consider adding telemetry to `tools-pipeline.ts`, `meechie-studio-text-pipeline.ts`, and `wig-try-on-pipeline.ts`.
+
+- Cipher Gate:
+  - Date: 2026-06-30
+  - Seams: TelemetrySeam
+  - Evidence: 529 tests pass, 0 errors from svelte-check, 0 lint errors
+  - Summary: Created `src/lib/adapters/telemetry-seam/index.ts` (console logger), added optional `telemetry?: TelemetrySeam` to `GeneratePipelineDeps`, wired emit calls at all 8 pipeline exit points, injected adapter in `src/routes/api/generate/+server.ts`, added 10 contract and pipeline tests, updated `docs/seams.md` adapter column.
+  - Risks: Console log output is unstructured relative to Vercel's log aggregator — downstream log parsing must key on the `{ "telemetry": ... }` wrapper. Fire-and-forget semantics mean async telemetry failures are silently swallowed.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07

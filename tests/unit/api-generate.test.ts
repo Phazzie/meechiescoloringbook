@@ -1,7 +1,7 @@
 // Purpose: Verify /api/generate orchestrates prompt, image, and drift flow for the UI.
 // Why: Keep the main generation path on one server endpoint with contract-checked output.
 // Info flow: Generate request -> endpoint orchestration -> contract response.
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
 import { POST } from '../../src/routes/api/generate/+server';
 
@@ -413,5 +413,92 @@ describe('/api/generate', () => {
 		expect(payload.error.code).toBe('CONTENT_POLICY_VIOLATION');
 		expect(payload.error.details.policyDetails).toContain('styleHint');
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+});
+
+describe('generate pipeline telemetry', () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	const successImageResult = {
+		status: 200,
+		body: {
+			ok: true,
+			value: {
+				images: [{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc123', encoding: 'base64' }],
+				revisedPrompt: 'revised',
+				modelMetadata: { provider: 'xai', model: 'grok-imagine-image' }
+			}
+		}
+	} as const;
+
+	it('emits generation_requested then generation_succeeded on a happy path', async () => {
+		const emitSpy = vi.fn();
+		const deps = buildPipelineDeps(async () => successImageResult);
+		await runGeneratePipeline({ spec: validSpec, styleHint: 'sparkle' }, { ...deps, telemetry: { emit: emitSpy } });
+
+		const names = emitSpy.mock.calls.map((c) => (c[0] as { name: string }).name);
+		expect(names).toContain('generation_requested');
+		expect(names).toContain('generation_succeeded');
+		expect(names).not.toContain('generation_failed');
+	});
+
+	it('emits generation_requested event with spec metadata', async () => {
+		const emitSpy = vi.fn();
+		const deps = buildPipelineDeps(async () => successImageResult);
+		await runGeneratePipeline({ spec: validSpec }, { ...deps, telemetry: { emit: emitSpy } });
+
+		const requestedCall = emitSpy.mock.calls.find((c) => (c[0] as { name: string }).name === 'generation_requested');
+		expect(requestedCall).toBeDefined();
+		const event = requestedCall?.[0] as { metadata?: { variations?: number } };
+		expect(event.metadata?.variations).toBe(validSpec.variations);
+	});
+
+	it('emits generation_failed (not generation_succeeded) when image generation throws', async () => {
+		const emitSpy = vi.fn();
+		const deps = buildPipelineDeps(async () => { throw new Error('provider down'); });
+		await runGeneratePipeline({ spec: validSpec }, { ...deps, telemetry: { emit: emitSpy } });
+
+		const names = emitSpy.mock.calls.map((c) => (c[0] as { name: string }).name);
+		expect(names).toContain('generation_failed');
+		expect(names).not.toContain('generation_succeeded');
+	});
+
+	it('emits generation_failed before any seam when spec input is invalid', async () => {
+		const emitSpy = vi.fn();
+		const deps = buildPipelineDeps(async () => successImageResult);
+		await runGeneratePipeline({ spec: {} }, { ...deps, telemetry: { emit: emitSpy } });
+
+		const names = emitSpy.mock.calls.map((c) => (c[0] as { name: string }).name);
+		expect(names).toContain('generation_failed');
+		expect(names).not.toContain('generation_requested');
+		expect(names).not.toContain('generation_succeeded');
+	});
+
+	it('does not call telemetry.emit at all when no telemetry dep is provided', async () => {
+		const deps = buildPipelineDeps(async () => successImageResult);
+		// Should not throw even though telemetry is absent.
+		await expect(runGeneratePipeline({ spec: validSpec }, deps)).resolves.not.toThrow();
+	});
+
+	it('pipeline succeeds even when telemetry.emit throws synchronously', async () => {
+		const brokenTelemetry = { emit: vi.fn(() => { throw new Error('telemetry backend down'); }) };
+		const deps = buildPipelineDeps(async () => successImageResult);
+		const result = await runGeneratePipeline({ spec: validSpec }, { ...deps, telemetry: brokenTelemetry });
+
+		expect(result.status).toBe(200);
+		expect(result.body.ok).toBe(true);
+	});
+
+	it('emitted events carry ISO-8601 timestamps', async () => {
+		const emitSpy = vi.fn();
+		const deps = buildPipelineDeps(async () => successImageResult);
+		await runGeneratePipeline({ spec: validSpec }, { ...deps, telemetry: { emit: emitSpy } });
+
+		for (const call of emitSpy.mock.calls) {
+			const event = call[0] as { timestamp: string };
+			expect(new Date(event.timestamp).toISOString()).toBe(event.timestamp);
+		}
 	});
 });

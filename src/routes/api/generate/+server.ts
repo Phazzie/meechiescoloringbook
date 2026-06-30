@@ -6,6 +6,7 @@ Info flow: UI generate request -> validation -> prompt/image/drift seams -> JSON
 import { json } from '@sveltejs/kit';
 import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
+import { createConsoleTelemetrySeam } from '$lib/adapters/telemetry-seam';
 import { generatePipelineDeps, runGeneratePipeline } from '$lib/core/generate-pipeline';
 import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';
 import { parseRequestBody } from '$lib/server/parse-request-body';
@@ -13,8 +14,12 @@ import { createSafetyPolicySeam } from '$lib/seams/safety-policy-seam/policy';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
+	const telemetry = createConsoleTelemetrySeam();
 	const parsed = await parseRequestBody(request);
-	if (!parsed.ok) return parsed.response;
+	if (!parsed.ok) {
+		telemetry.emit({ name: 'generation_failed', timestamp: new Date().toISOString(), metadata: { code: 'BODY_PARSE_FAILED', stage: 'body_parse' } });
+		return parsed.response;
+	}
 	const imageGenerationSeam = createImageGenerationSeam(createImageProviderConfigSeam());
 	const safetyPolicySeam = createSafetyPolicySeam();
 	const pipelineResult = await runGeneratePipeline(parsed.body, {
@@ -25,7 +30,8 @@ export const POST: RequestHandler = async ({ request }) => {
 				imageGenerationSeam,
 				signal: signal ?? request.signal
 			}),
-		signal: request.signal
+		signal: request.signal,
+		telemetry
 	});
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };

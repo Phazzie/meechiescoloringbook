@@ -9,6 +9,11 @@ import type {
 	SafetyPolicyGenerateInput,
 	SafetyPolicyResult
 } from '$lib/seams/safety-policy-seam/contract';
+import type {
+	TelemetryEvent,
+	TelemetryEventName,
+	TelemetrySeam
+} from '$lib/seams/telemetry-seam/contract';
 import {
 	GenerateRequestSchema,
 	GenerateResultSchema
@@ -40,6 +45,26 @@ export type GeneratePipelineDeps = {
 	detectDrift: typeof driftDetectionAdapter.detect;
 	generateImage: (body: ImageGenerationInput, signal?: AbortSignal) => Promise<ImagePipelineResponse>;
 	signal?: AbortSignal;
+	telemetry?: TelemetrySeam;
+};
+
+// Fire-and-forget: telemetry failures must never block the main pipeline.
+const emitTelemetry = (
+	telemetry: TelemetrySeam | undefined,
+	name: TelemetryEventName,
+	metadata?: Record<string, unknown>
+): void => {
+	if (!telemetry) return;
+	const event: TelemetryEvent = {
+		name,
+		timestamp: new Date().toISOString(),
+		...(metadata !== undefined ? { metadata } : {})
+	};
+	try {
+		Promise.resolve(telemetry.emit(event)).catch(() => undefined);
+	} catch {
+		// Swallow synchronous emit errors so telemetry cannot break generation.
+	}
 };
 
 const buildError = (
@@ -90,6 +115,7 @@ export const runGeneratePipeline = async (
 	deps: GeneratePipelineDeps
 ): Promise<PipelineResponse> => {
 	if (deps.signal?.aborted) {
+		emitTelemetry(deps.telemetry, 'generation_failed', { code: 'GENERATE_ABORTED', stage: 'entry' });
 		return buildError(
 			499,
 			'GENERATE_ABORTED',
@@ -99,14 +125,21 @@ export const runGeneratePipeline = async (
 
 	const parsedInput = GenerateRequestSchema.safeParse(body);
 	if (!parsedInput.success) {
+		emitTelemetry(deps.telemetry, 'generation_failed', { code: 'GENERATE_INPUT_INVALID', stage: 'input_parse' });
 		return buildError(400, 'GENERATE_INPUT_INVALID', 'Generate request is invalid.');
 	}
+
+	emitTelemetry(deps.telemetry, 'generation_requested', {
+		variations: parsedInput.data.spec.variations,
+		colorMode: parsedInput.data.spec.colorMode
+	});
 
 	const safetyResult = deps.checkContentSafety({
 		spec: parsedInput.data.spec,
 		styleHint: parsedInput.data.styleHint
 	});
 	if (!safetyResult.ok) {
+		emitTelemetry(deps.telemetry, 'generation_failed', { code: 'CONTENT_POLICY_VIOLATION', stage: 'safety' });
 		return buildError(
 			400,
 			'CONTENT_POLICY_VIOLATION',
@@ -118,6 +151,7 @@ export const runGeneratePipeline = async (
 	const validation = await deps.validateSpec({ spec: parsedInput.data.spec });
 	if (!validation.ok) {
 		const issue = validation.issues[0];
+		emitTelemetry(deps.telemetry, 'generation_failed', { code: 'SPEC_INVALID', stage: 'spec_validation' });
 		return buildError(
 			400,
 			'SPEC_INVALID',
@@ -131,6 +165,7 @@ export const runGeneratePipeline = async (
 		styleHint: parsedInput.data.styleHint
 	});
 	if (!promptResult.ok) {
+		emitTelemetry(deps.telemetry, 'generation_failed', { code: promptResult.error.code, stage: 'prompt_assembly' });
 		return {
 			status: 400,
 			body: {
@@ -150,11 +185,13 @@ export const runGeneratePipeline = async (
 	try {
 		imageResult = await deps.generateImage(imageRequest, deps.signal);
 	} catch (error) {
+		emitTelemetry(deps.telemetry, 'generation_failed', { code: 'IMAGE_GENERATION_EXCEPTION', stage: 'image_generation' });
 		return imageExceptionResponse(error);
 	}
 
 	const parsedImageResult = ImageGenerationResultSchema.safeParse(imageResult.body);
 	if (!parsedImageResult.success) {
+		emitTelemetry(deps.telemetry, 'generation_failed', { code: 'IMAGE_RESPONSE_INVALID', stage: 'image_parse' });
 		return buildError(
 			502,
 			'IMAGE_RESPONSE_INVALID',
@@ -162,6 +199,10 @@ export const runGeneratePipeline = async (
 		);
 	}
 	if (!parsedImageResult.data.ok) {
+		emitTelemetry(deps.telemetry, 'generation_failed', {
+			code: parsedImageResult.data.error.code,
+			stage: 'image_result'
+		});
 		return {
 			status: imageResult.status >= 400 ? imageResult.status : 502,
 			body: parsedImageResult.data
@@ -189,7 +230,16 @@ export const runGeneratePipeline = async (
 
 	const parsedResult = GenerateResultSchema.safeParse(result);
 	if (!parsedResult.success) {
+		emitTelemetry(deps.telemetry, 'generation_failed', { code: 'GENERATE_OUTPUT_INVALID', stage: 'output_parse' });
 		return buildError(500, 'GENERATE_OUTPUT_INVALID', 'Generate response did not match contract.');
+	}
+
+	if (parsedResult.data.ok) {
+		emitTelemetry(deps.telemetry, 'generation_succeeded', {
+			imageCount: parsedResult.data.value.images.length,
+			templateVersion: promptResult.value.templateVersion,
+			hasRevisedPrompt: parsedImageResult.data.value.revisedPrompt !== undefined
+		});
 	}
 
 	return {
