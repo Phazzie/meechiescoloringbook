@@ -6,7 +6,7 @@ import { MAX_PROMPT_LENGTH } from '../../../../contracts/image-generation.contra
 
 export const imageGenerationRequestSchema = z.object({
   prompt: z.string().min(1).max(MAX_PROMPT_LENGTH),
-  negativePrompt: z.string().optional(),
+  negativePrompt: z.string().max(MAX_PROMPT_LENGTH).optional(),
   n: z.number().int().min(1).max(10),
   size: z.string().min(1),
   format: z.enum(['url', 'b64_json']),

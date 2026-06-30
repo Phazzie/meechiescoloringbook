@@ -241,7 +241,9 @@ describe('/api/wig-try-on', () => {
 	});
 
 	it('passes the request signal to wig image fetch and WigTryOnSeam', async () => {
-		vi.mocked(createAppConfigSeam).mockReturnValue({} as ReturnType<typeof createAppConfigSeam>);
+		vi.mocked(createAppConfigSeam).mockReturnValue({
+			getConfig: () => ({ geminiApiKey: 'test-key' }) as ReturnType<ReturnType<typeof createAppConfigSeam>['getConfig']>
+		} as ReturnType<typeof createAppConfigSeam>);
 		const wig = {
 			id: 'wig-001',
 			name: 'Sleek Straight Goddess',

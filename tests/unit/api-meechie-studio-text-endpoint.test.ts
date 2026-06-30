@@ -104,7 +104,7 @@ describe('/api/meechie-studio-text', () => {
 	});
 
 	it('rejects a request that aborts while the body is being parsed before consuming rate-limit quota', async () => {
-		const providerSpy = vi.spyOn(providerAdapterModule, 'createProviderAdapter');
+		const providerSpy = vi.spyOn(providerAdapterModule.providerAdapter, 'createChatCompletion');
 		const controller = new AbortController();
 		lateAbortRef.controller = controller;
 
@@ -119,12 +119,13 @@ describe('/api/meechie-studio-text', () => {
 			expect(payload.error.code).toBe('MEECHIE_STUDIO_TEXT_ABORTED');
 			expect(providerSpy).not.toHaveBeenCalled();
 		} finally {
+			providerSpy.mockRestore();
 			lateAbortRef.controller = null;
 		}
 	});
 
 	it('does not consume rate-limit quota when aborting while the body is being parsed', async () => {
-		const providerSpy = vi.spyOn(providerAdapterModule, 'createProviderAdapter');
+		const providerSpy = vi.spyOn(providerAdapterModule.providerAdapter, 'createChatCompletion');
 
 		try {
 			for (let i = 0; i < 25; i += 1) {
@@ -139,6 +140,7 @@ describe('/api/meechie-studio-text', () => {
 			}
 			expect(providerSpy).not.toHaveBeenCalled();
 		} finally {
+			providerSpy.mockRestore();
 			lateAbortRef.controller = null;
 		}
 	});

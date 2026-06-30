@@ -453,6 +453,31 @@ describe('createCircuitBreaker', () => {
 		expect(breaker.isOpen()).toBe(false);
 	});
 
+	it('resets consecutive-failure count after cooldown so one fresh failure does not reopen with threshold > 1', () => {
+		let now = 0;
+		const breaker = createCircuitBreaker({ failureThreshold: 2, cooldownMs: 1_000, now: () => now });
+
+		// First failure before cooldown — breaker stays closed.
+		breaker.recordFailure();
+		expect(breaker.isOpen()).toBe(false);
+
+		// Force open by recording a second failure.
+		breaker.recordFailure();
+		expect(breaker.isOpen()).toBe(true);
+
+		// Cooldown elapses — stale failure count should reset.
+		now = 1_000;
+		expect(breaker.isOpen()).toBe(false);
+
+		// One fresh failure after cooldown should NOT reopen the breaker (threshold is 2).
+		breaker.recordFailure();
+		expect(breaker.isOpen()).toBe(false);
+
+		// Second fresh failure now trips the threshold again.
+		breaker.recordFailure();
+		expect(breaker.isOpen()).toBe(true);
+	});
+
 	it('resets the consecutive-failure count on success', () => {
 		let now = 0;
 		const breaker = createCircuitBreaker({ failureThreshold: 2, cooldownMs: 1_000, now: () => now });

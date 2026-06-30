@@ -14,7 +14,10 @@ import {
 	generatePipelineDeps,
 	runGeneratePipeline
 } from '$lib/core/generate-pipeline';
-import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';
+import {
+	checkImageGenerationProviderConfig,
+	runImageGenerationPipeline
+} from '$lib/core/image-generation-pipeline';
 import { enforceAiRateLimit } from '$lib/server/rate-limiter';
 import { parseRequestBody } from '$lib/server/parse-request-body';
 import { createSafetyPolicySeam } from '$lib/seams/safety-policy-seam/policy';
@@ -39,9 +42,13 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const lateAbortCheck = checkGenerateAbort(request.signal);
 	if (!lateAbortCheck.ok)
 		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
+	const imageProviderConfigSeam = createImageProviderConfigSeam();
+	const configCheck = checkImageGenerationProviderConfig(imageProviderConfigSeam);
+	if (!configCheck.ok)
+		return json(configCheck.response.body, { status: configCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
-	const imageGenerationSeam = createImageGenerationSeam(createImageProviderConfigSeam());
+	const imageGenerationSeam = createImageGenerationSeam(imageProviderConfigSeam);
 	const pipelineResult = await runGeneratePipeline(parsed.body, {
 		...generatePipelineDeps,
 		checkContentSafety: safetyPolicySeam.validateGenerateRequest,

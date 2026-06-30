@@ -78,4 +78,29 @@ describe('runWigTryOnPipeline precomputedWig', () => {
 		expect(getWigById).not.toHaveBeenCalled();
 		expect(fetchImpl).toHaveBeenCalledWith(wig.imageUrl);
 	});
+
+	it('falls back to catalog lookup when precomputedWig.id does not match request wigId', async () => {
+		const staleWig = { ...wig, id: 'wig-999' };
+		const getWigById = vi.fn(async () => ({ ok: true as const, value: wig }));
+		const fetchImpl = vi.fn(async () =>
+			new Response(new Uint8Array([1, 2, 3]), {
+				status: 200,
+				headers: { 'Content-Type': 'image/png' }
+			})
+		);
+		const tryOn = vi.fn(async () => ({
+			ok: true as const,
+			value: { portraitBase64: 'portrait-data', portraitMimeType: 'image/png', timingMs: 10 }
+		}));
+
+		const result = await runWigTryOnPipeline(validBody, {
+			fetchImpl,
+			wigCatalogSeam: { listWigs: vi.fn(), getWigById },
+			wigTryOnSeam: { tryOn },
+			precomputedWig: staleWig
+		});
+
+		expect(result.status).toBe(200);
+		expect(getWigById).toHaveBeenCalledWith(validBody.wigId);
+	});
 });

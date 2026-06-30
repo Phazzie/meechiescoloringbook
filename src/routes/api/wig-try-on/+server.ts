@@ -8,6 +8,7 @@ import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import {
 	checkWigCatalogPreflight,
 	checkWigTryOnAbort,
+	checkWigTryOnConfig,
 	checkWigTryOnInputShape,
 	runWigTryOnPipeline
 } from '$lib/core/wig-try-on-pipeline';
@@ -34,10 +35,14 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 	if (!lateAbortCheck.ok)
 		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
 
+	const configSeam = createAppConfigSeam();
+	const configCheck = checkWigTryOnConfig(configSeam);
+	if (!configCheck.ok)
+		return json(configCheck.response.body, { status: configCheck.response.status });
+
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 
-	const configSeam = createAppConfigSeam();
 	const wigTryOnSeam = createWigTryOnSeam(configSeam);
 
 	const result = await runWigTryOnPipeline(parsed.body, {

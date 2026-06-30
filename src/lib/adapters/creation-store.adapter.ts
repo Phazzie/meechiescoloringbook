@@ -50,10 +50,10 @@ const clampLegacyTitle = (record: unknown): unknown => {
 			intent: { ...intent, title: title.slice(0, MAX_TITLE_LENGTH) }
 		};
 	}
+	if (title.length <= MAX_TITLE_LENGTH) {
+		return record;
+	}
 	if (trimmedTitle.length <= MAX_TITLE_LENGTH) {
-		if (trimmedTitle === title) {
-			return record;
-		}
 		return {
 			...record,
 			intent: { ...intent, title: trimmedTitle }
@@ -71,6 +71,9 @@ const clampLegacyText = (value: string, maxLength: number): string => {
 	if (trimmed.length === 0) {
 		// All-whitespace value: trimming to '' would fail NonEmptyStringSchema's min(1).
 		return value.length <= maxLength ? value : value.slice(0, maxLength);
+	}
+	if (value.length <= maxLength) {
+		return value;
 	}
 	if (trimmed.length <= maxLength) {
 		return trimmed;
