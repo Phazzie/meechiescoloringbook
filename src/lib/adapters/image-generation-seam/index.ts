@@ -158,7 +158,7 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
         images,
         rawModelInfo: {
           model: config.xaiImageModel,
-          revisedPrompt: readResult.payload.data[0]?.revised_prompt,
+          revisedPrompt: readResult.payload.data?.[0]?.revised_prompt,
           requestedSize: validated.size,
           responseFormat: validated.format
         },

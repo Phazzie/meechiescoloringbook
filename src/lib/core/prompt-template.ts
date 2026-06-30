@@ -24,7 +24,7 @@ export const PROMPT_FORBIDDEN_TOKENS = ['size:', 'quality:', 'style:'];
 
 export const RESERVED_STYLE_HINT_HEADINGS = [
 	'STYLE:',
-	'TEXT (EXACT):',
+	'TEXT (exact):',
 	'TYPOGRAPHY:',
 	'LAYOUT:',
 	'DECORATIONS:',
