@@ -65,4 +65,22 @@ describe('ImageGenerationSeam mock contract', () => {
       })
     ).toThrow();
   });
+
+  it('rejects a negativePrompt over MAX_PROMPT_LENGTH', () => {
+    expect(() =>
+      validateImageGenerationRequest({
+        ...imageGenerationRequestFixture,
+        negativePrompt: 'a'.repeat(MAX_PROMPT_LENGTH + 1)
+      })
+    ).toThrow();
+  });
+
+  it('accepts a negativePrompt at MAX_PROMPT_LENGTH', () => {
+    expect(() =>
+      validateImageGenerationRequest({
+        ...imageGenerationRequestFixture,
+        negativePrompt: 'a'.repeat(MAX_PROMPT_LENGTH)
+      })
+    ).not.toThrow();
+  });
 });
