@@ -22,15 +22,7 @@ export const PROMPT_REQUIRED_HEADINGS = [
 
 export const PROMPT_FORBIDDEN_TOKENS = ['size:', 'quality:', 'style:'];
 
-export const RESERVED_STYLE_HINT_HEADINGS = [
-	'STYLE:',
-	'TEXT (exact):',
-	'TYPOGRAPHY:',
-	'LAYOUT:',
-	'DECORATIONS:',
-	'OUTPUT:',
-	NEGATIVE_PROMPT_HEADING
-];
+export const RESERVED_STYLE_HINT_HEADINGS = PROMPT_REQUIRED_HEADINGS;
 
 export const formatListItems = (items: Array<{ number: number; label: string }>): string => {
 	const parts = items.map((item) => `${item.number}. ${item.label}`);

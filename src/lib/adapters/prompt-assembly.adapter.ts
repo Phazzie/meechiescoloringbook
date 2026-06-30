@@ -33,8 +33,8 @@ const TEMPLATE_VERSION = 'v2';
 const MAX_PROMPT_LENGTH = 8000;
 
 const includesReservedHeading = (styleHint: string): boolean => {
-	const normalized = styleHint.toUpperCase();
-	return RESERVED_STYLE_HINT_HEADINGS.some((heading) => normalized.includes(heading));
+	const lower = styleHint.toLowerCase();
+	return RESERVED_STYLE_HINT_HEADINGS.some((heading) => lower.includes(heading.toLowerCase()));
 };
 
 const includesForbiddenToken = (styleHint: string): boolean => {

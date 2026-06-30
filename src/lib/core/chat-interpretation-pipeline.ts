@@ -32,7 +32,7 @@ type ChatPipelineDeps = {
 
 const extractSingleJsonObject = (content: string): Record<string, unknown> | null => {
 	let trimmed = content.trim();
-	const fenceMatch = /^```(?:json)?\s*([\s\S]*?)```\s*$/i.exec(trimmed);
+	const fenceMatch = /```(?:json)?\s*([\s\S]*?)```/i.exec(trimmed);
 	if (fenceMatch) trimmed = fenceMatch[1].trim();
 	if (!trimmed.startsWith('{')) {
 		return null;
