@@ -1,4 +1,4 @@
-// Purpose: Contract tests for the ImageGenerationSeam adapter's circuit breaker.
+// Purpose: Unit tests for the ImageGenerationSeam adapter's circuit breaker.
 // Why: The breaker is module-scoped (shared across every createImageGenerationSeam(...) call,
 //      by design — see src/lib/adapters/image-generation-seam/index.ts), so it lives in its own
 //      file and resets the module before each test to start from a fresh, closed breaker instead

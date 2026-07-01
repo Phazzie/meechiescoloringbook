@@ -224,6 +224,35 @@ describe('RateLimitSeam mock contract', () => {
 		});
 	});
 
+	it('evicts a stale entry using its own windowMs during the cleanup sweep, not the triggering call\'s', () => {
+		const seam = createMockRateLimitSeam();
+
+		// A long-window entry, opened at t=0, expires at t=100_000 under its own policy.
+		const longWindowKey = 'long-window-key';
+		expect(
+			seam.checkAndConsume({ key: longWindowKey, maxRequests: 5, windowMs: 100_000, now: 0 }).ok
+		).toBe(true);
+
+		// Push the map size past CLEANUP_THRESHOLD (1000) so the next call triggers a sweep,
+		// each under a short window so the sweep's own throttle-gate windowMs is small too.
+		for (let i = 0; i < 1000; i += 1) {
+			seam.checkAndConsume({ key: `filler-${i}`, maxRequests: 5, windowMs: 1_000, now: 0 });
+		}
+
+		// At t=2_000, a short-window call's own windowMs (1_000) has elapsed since t=0, but the
+		// long-window entry's own policy (windowMs=100_000) has not — it must survive the sweep.
+		seam.checkAndConsume({ key: 'sweep-trigger', maxRequests: 5, windowMs: 1_000, now: 2_000 });
+
+		const stillFresh = validateRateLimitResult(
+			seam.checkAndConsume({ key: longWindowKey, maxRequests: 5, windowMs: 100_000, now: 2_000 })
+		);
+		expect(stillFresh).toEqual({
+			ok: true,
+			remaining: 3,
+			resetAt: 100_000
+		});
+	});
+
 	it('reset() clears all tracked keys', () => {
 		const seam = createMockRateLimitSeam();
 		const { maxRequests } = baseRateLimitCheckFixture;

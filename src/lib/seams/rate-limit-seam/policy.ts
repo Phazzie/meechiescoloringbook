@@ -24,6 +24,10 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 	// cost paid per request. Throttling the scan to at most once per window
 	// keeps the amortized cost near O(1) without changing eviction semantics
 	// (stale entries are still removed before they could accumulate further).
+	// The throttle itself only needs *a* window to pace against, so it uses the
+	// current call's windowMs — but the actual expiry check below must use each
+	// entry's own stored windowMs, since different keys (or the same key across
+	// a policy change) can have different windows.
 	const evictExpired = (now: number, windowMs: number): void => {
 		if (windows.size <= CLEANUP_THRESHOLD) return;
 		// A backward clock step (e.g. an NTP correction) makes `now - lastCleanupAt`
@@ -32,7 +36,7 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 		if (now >= lastCleanupAt && now - lastCleanupAt < windowMs) return;
 		lastCleanupAt = now;
 		for (const [staleKey, staleState] of windows) {
-			if (now - staleState.windowStart >= windowMs) windows.delete(staleKey);
+			if (now - staleState.windowStart >= staleState.windowMs) windows.delete(staleKey);
 		}
 	};
 
