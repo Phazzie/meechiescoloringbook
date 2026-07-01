@@ -56,7 +56,7 @@ const run = async () => {
 
 	const testHeader = [
 		'# Purpose: Store npm test output for evidence.',
-		'# Why: Provide an audit trail for Seam-Driven Development contract tests.',
+		'# Why: Provide an audit trail for the full Seam-Driven Development test run (unit + contract + integration-gated).',
 		'# Info flow: Command output -> evidence file -> review.',
 		''
 	].join('\n');

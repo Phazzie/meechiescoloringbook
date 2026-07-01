@@ -115,5 +115,15 @@ describe('SYSTEM_CONSTANTS', () => {
 			expect(() => findDisallowedKeywords(throwingObj)).not.toThrow();
 			expect(findDisallowedKeywords(throwingObj)).toEqual([]);
 		});
+
+		it('falls back to String(input) when JSON.stringify throws on a circular reference', () => {
+			// String() on a plain object yields "[object Object]", not its property
+			// values, so the circular reference falls back to scanning that literal
+			// string rather than the object's content.
+			const circular: Record<string, unknown> = { note: 'contains minors' };
+			circular.self = circular;
+			expect(() => findDisallowedKeywords(circular)).not.toThrow();
+			expect(findDisallowedKeywords(circular)).toEqual([]);
+		});
 	});
 });
