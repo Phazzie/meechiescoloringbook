@@ -82,6 +82,14 @@ const validPrompt = [
   'US Letter 8.5x11 portrait.'
 ].join(' ');
 
+// enforceAiRateLimit is module-scoped, so every test in this file shares one bucket per
+// client key — a hardcoded key would let one test's quota consumption leak into another's
+// assertions depending on run order. Each test gets its own address via beforeEach below;
+// all calls within a single test still share one address (loops that assert "no quota
+// consumed" rely on that).
+let currentClientAddress = '203.0.113.1';
+let clientAddressCounter = 0;
+
 const buildEvent = (body: unknown) =>
   ({
     request: new Request('http://localhost/api/image-generation', {
@@ -89,7 +97,7 @@ const buildEvent = (body: unknown) =>
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     }),
-    getClientAddress: () => '203.0.113.10'
+    getClientAddress: () => currentClientAddress
   }) as Parameters<typeof POST>[0];
 
 const buildRawEvent = (rawBody: string) =>
@@ -99,7 +107,7 @@ const buildRawEvent = (rawBody: string) =>
       headers: { 'Content-Type': 'application/json' },
       body: rawBody
     }),
-    getClientAddress: () => '203.0.113.10'
+    getClientAddress: () => currentClientAddress
   }) as Parameters<typeof POST>[0];
 
 const buildAbortedEvent = (body: unknown) => {
@@ -112,7 +120,7 @@ const buildAbortedEvent = (body: unknown) => {
       body: JSON.stringify(body),
       signal: controller.signal
     }),
-    getClientAddress: () => '203.0.113.10'
+    getClientAddress: () => currentClientAddress
   } as Parameters<typeof POST>[0];
 };
 
@@ -126,7 +134,7 @@ const buildAbortedRawEvent = (rawBody: string) => {
       body: rawBody,
       signal: controller.signal
     }),
-    getClientAddress: () => '203.0.113.10'
+    getClientAddress: () => currentClientAddress
   } as Parameters<typeof POST>[0];
 };
 
@@ -138,11 +146,13 @@ const buildEventWithController = (body: unknown, controller: AbortController) =>
       body: JSON.stringify(body),
       signal: controller.signal
     }),
-    getClientAddress: () => '203.0.113.10'
+    getClientAddress: () => currentClientAddress
   }) as Parameters<typeof POST>[0];
 
 describe('/api/image-generation', () => {
   beforeEach(() => {
+    clientAddressCounter += 1;
+    currentClientAddress = `203.0.113.${clientAddressCounter}`;
     mockCreateSeam.mockReset();
     mockCreateConfigSeam.mockReset();
     mockCreateConfigSeam.mockReturnValue({

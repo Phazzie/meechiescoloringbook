@@ -95,4 +95,21 @@ describe('ImageGenerationSeam adapter circuit breaker', () => {
 		await seam.generate(imageGenerationRequestFixture);
 		expect(fetchMock).toHaveBeenCalledTimes(4);
 	});
+
+	it('returns a typed error instead of crashing when data is present but not an array', async () => {
+		fetchMock.mockImplementation(
+			async () =>
+				new Response(JSON.stringify({ data: {} }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' }
+				})
+		);
+		const seam = createImageGenerationSeam(mockConfigSeam);
+
+		const output = await seam.generate(imageGenerationRequestFixture);
+		expect(output.ok).toBe(false);
+		if (!output.ok) {
+			expect(output.error.code).toBe('IMAGE_NETWORK_ERROR');
+		}
+	});
 });

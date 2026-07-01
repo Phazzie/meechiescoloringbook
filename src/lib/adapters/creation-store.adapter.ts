@@ -20,6 +20,23 @@ const CREATIONS_KEY = 'cb_creations_v1';
 const DRAFT_KEY = 'cb_drafts_v1';
 const MAX_CREATIONS = 50;
 
+// Shared by clampLegacyTitle and clampLegacyStudioText below for each over-cap string
+// field they clamp.
+const clampLegacyText = (value: string, maxLength: number): string => {
+	const trimmed = value.trim();
+	if (trimmed.length === 0) {
+		// All-whitespace value: trimming to '' would fail NonEmptyStringSchema's min(1).
+		return value.length <= maxLength ? value : value.slice(0, maxLength);
+	}
+	if (value.length <= maxLength) {
+		return value;
+	}
+	if (trimmed.length <= maxLength) {
+		return trimmed;
+	}
+	return trimmed.slice(0, maxLength).trim();
+};
+
 // MAX_TITLE_LENGTH was tightened from 96 to 80 after some users had already saved
 // creations/drafts with longer titles; clamp those legacy titles on load so the
 // schema-mismatch doesn't take down the whole vault/draft read for old data that
@@ -37,48 +54,8 @@ const clampLegacyTitle = (record: unknown): unknown => {
 	if (typeof title !== 'string') {
 		return record;
 	}
-	const trimmedTitle = title.trim();
-	if (trimmedTitle.length === 0) {
-		// All-whitespace title: trimming to '' would fail NonEmptyStringSchema's
-		// min(1) and break the whole vault/draft read. Keep the original
-		// whitespace (clamped to the cap) instead, since it was valid when written.
-		if (title.length <= MAX_TITLE_LENGTH) {
-			return record;
-		}
-		return {
-			...record,
-			intent: { ...intent, title: title.slice(0, MAX_TITLE_LENGTH) }
-		};
-	}
-	if (title.length <= MAX_TITLE_LENGTH) {
-		return record;
-	}
-	if (trimmedTitle.length <= MAX_TITLE_LENGTH) {
-		return {
-			...record,
-			intent: { ...intent, title: trimmedTitle }
-		};
-	}
-	return {
-		...record,
-		intent: { ...intent, title: trimmedTitle.slice(0, MAX_TITLE_LENGTH).trim() }
-	};
-};
-
-// Shared by clampLegacyStudioText below for each over-cap string field it clamps.
-const clampLegacyText = (value: string, maxLength: number): string => {
-	const trimmed = value.trim();
-	if (trimmed.length === 0) {
-		// All-whitespace value: trimming to '' would fail NonEmptyStringSchema's min(1).
-		return value.length <= maxLength ? value : value.slice(0, maxLength);
-	}
-	if (value.length <= maxLength) {
-		return value;
-	}
-	if (trimmed.length <= maxLength) {
-		return trimmed;
-	}
-	return trimmed.slice(0, maxLength).trim();
+	const clamped = clampLegacyText(title, MAX_TITLE_LENGTH);
+	return clamped === title ? record : { ...record, intent: { ...intent, title: clamped } };
 };
 
 // MeechieStudioTextOutputSchema's verdict/quote/pageTitle/pageItems[].label caps were added

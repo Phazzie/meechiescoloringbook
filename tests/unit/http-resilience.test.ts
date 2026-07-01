@@ -234,11 +234,10 @@ describe('fetchWithRetry', () => {
 		expect(fetcher).toHaveBeenCalledTimes(2);
 	});
 
-	it('does not retry AbortError when the caller signal is already aborted', async () => {
+	it('fails fast on an already-aborted signal without calling the fetcher', async () => {
 		const caller = new AbortController();
 		caller.abort();
-		const abortError = Object.assign(new Error('The operation was aborted'), { name: 'AbortError' });
-		const fetcher = vi.fn().mockRejectedValue(abortError);
+		const fetcher = vi.fn();
 		const options = {
 			maxAttempts: 3,
 			baseDelayMs: 100,
@@ -249,7 +248,7 @@ describe('fetchWithRetry', () => {
 		await vi.runAllTimersAsync();
 
 		await expect(rejection).resolves.toMatchObject({ name: 'AbortError' });
-		expect(fetcher).toHaveBeenCalledTimes(1);
+		expect(fetcher).not.toHaveBeenCalled();
 	});
 
 	it('throws after exhausting retries on repeated AbortErrors', async () => {
@@ -372,6 +371,19 @@ describe('fetchWithRetry', () => {
 		await expect(
 			fetchWithRetry(fetcher, { maxAttempts: 3, baseDelayMs: 100, breaker })
 		).rejects.toMatchObject({ name: 'CircuitOpenError' });
+		expect(fetcher).not.toHaveBeenCalled();
+	});
+
+	it('surfaces AbortError, not CircuitOpenError, when the caller is already aborted and the breaker is open', async () => {
+		const breaker = createCircuitBreaker({ failureThreshold: 1, cooldownMs: 30_000, now: () => 0 });
+		breaker.recordFailure();
+		const caller = new AbortController();
+		caller.abort();
+		const fetcher = vi.fn();
+
+		await expect(
+			fetchWithRetry(fetcher, { maxAttempts: 3, baseDelayMs: 100, breaker, signal: caller.signal })
+		).rejects.toMatchObject({ name: 'AbortError' });
 		expect(fetcher).not.toHaveBeenCalled();
 	});
 

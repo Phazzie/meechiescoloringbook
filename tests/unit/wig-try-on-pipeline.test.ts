@@ -1,7 +1,7 @@
-// Purpose: Unit tests for runWigTryOnPipeline's internal abort guard.
-// Why: Defense-in-depth — the route already checks checkWigTryOnAbort before calling in,
-// but the pipeline must also fail fast for any other caller that skips that preflight.
-// Info flow: Pipeline body+deps -> abort guard -> aborted response (no catalog/fetch/tryOn calls).
+// Purpose: Unit tests for runWigTryOnPipeline's abort guard and precomputed wig handling.
+// Why: Defense-in-depth for callers that skip route preflight, plus regression coverage for
+// avoiding redundant catalog lookups and re-checking cancellation after the awaited preflight.
+// Info flow: Pipeline body+deps -> abort/precomputed-wig branch -> early response or catalog/fetch/tryOn calls.
 import { describe, expect, it, vi } from 'vitest';
 import { runWigTryOnPipeline } from '../../src/lib/core/wig-try-on-pipeline';
 
@@ -9,6 +9,22 @@ const validBody = {
 	selfieBase64: 'selfie-data',
 	selfieMimeType: 'image/jpeg',
 	wigId: 'wig-001'
+};
+
+const wig = {
+	id: 'wig-001',
+	name: 'Sleek Straight Goddess',
+	brand: 'Beautyforever',
+	affiliateProgram: 'beautyforever' as const,
+	affiliateUrl: 'https://example.com/wig',
+	imageUrl: 'https://example.com/wig.png',
+	priceUsd: 89.99,
+	style: 'Straight Lace Front',
+	hairType: 'human' as const,
+	length: 'medium' as const,
+	color: 'Natural Black',
+	colorFamily: 'black' as const,
+	tags: ['sleek']
 };
 
 describe('runWigTryOnPipeline abort guard', () => {
@@ -35,23 +51,32 @@ describe('runWigTryOnPipeline abort guard', () => {
 		expect(fetchImpl).not.toHaveBeenCalled();
 		expect(tryOn).not.toHaveBeenCalled();
 	});
-});
 
-const wig = {
-	id: 'wig-001',
-	name: 'Sleek Straight Goddess',
-	brand: 'Beautyforever',
-	affiliateProgram: 'beautyforever' as const,
-	affiliateUrl: 'https://example.com/wig',
-	imageUrl: 'https://example.com/wig.png',
-	priceUsd: 89.99,
-	style: 'Straight Lace Front',
-	hairType: 'human' as const,
-	length: 'medium' as const,
-	color: 'Natural Black',
-	colorFamily: 'black' as const,
-	tags: ['sleek']
-};
+	it('returns WIG_TRY_ON_ABORTED if the signal aborts during the awaited catalog preflight, without fetching the image', async () => {
+		const controller = new AbortController();
+		const getWigById = vi.fn(async () => {
+			controller.abort();
+			return { ok: true as const, value: wig };
+		});
+		const fetchImpl = vi.fn();
+		const tryOn = vi.fn();
+
+		const result = await runWigTryOnPipeline(validBody, {
+			fetchImpl,
+			wigCatalogSeam: { listWigs: vi.fn(), getWigById },
+			wigTryOnSeam: { tryOn },
+			signal: controller.signal
+		});
+
+		expect(result.status).toBe(499);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('WIG_TRY_ON_ABORTED');
+		}
+		expect(fetchImpl).not.toHaveBeenCalled();
+		expect(tryOn).not.toHaveBeenCalled();
+	});
+});
 
 describe('runWigTryOnPipeline precomputedWig', () => {
 	it('skips getWigById when precomputedWig is supplied', async () => {

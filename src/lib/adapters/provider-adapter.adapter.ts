@@ -216,7 +216,9 @@ export const createProviderAdapter = (
 				try {
 					payload = await readJson(response);
 				} catch (readError) {
-					breaker.recordFailure();
+					if (!isAbortError(readError)) {
+						breaker.recordFailure();
+					}
 					throw readError;
 				}
 				if (!response.ok) {

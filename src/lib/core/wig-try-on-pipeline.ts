@@ -153,6 +153,12 @@ export const runWigTryOnPipeline = async (
 			: await checkWigCatalogPreflight(wigId, deps.wigCatalogSeam);
 	if (!catalogCheck.ok) return catalogCheck.response;
 
+	// checkWigCatalogPreflight above is awaited (unless a precomputed wig short-circuited
+	// it), so a client can disconnect during that window; re-check here to avoid an image
+	// fetch/tryOn call for a request that already aborted.
+	const postCatalogAbortCheck = checkWigTryOnAbort(deps.signal);
+	if (!postCatalogAbortCheck.ok) return postCatalogAbortCheck.response;
+
 	const wig = catalogCheck.wig;
 
 	const wigImage = await fetchImageAsBase64(wig.imageUrl, deps.fetchImpl, deps.signal);

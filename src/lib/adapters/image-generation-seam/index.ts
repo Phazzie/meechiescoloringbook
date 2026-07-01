@@ -137,10 +137,18 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
           }
 
           try {
-            const payload = (await response.json()) as XaiImageResponse;
+            const payload = (await response.json()) as Partial<XaiImageResponse>;
+            // The `as` cast above only satisfies TypeScript; a 200 with a malformed body
+            // (e.g. `{ data: {} }`) is valid JSON but not this shape, and would otherwise
+            // crash at `.map` below instead of returning a typed seam error.
+            if (payload.data !== undefined && !Array.isArray(payload.data)) {
+              breaker.recordSuccess();
+              breakerRecorded = true;
+              return { kind: 'parse_error' };
+            }
             breaker.recordSuccess();
             breakerRecorded = true;
-            return { kind: 'ok', payload };
+            return { kind: 'ok', payload: payload as XaiImageResponse };
           } catch (error) {
             if (isAbortError(error) || isTimeoutError(error)) throw error;
             // Non-abort/timeout parse error: upstream sent unparseable data but was reachable.

@@ -220,11 +220,13 @@ export const fetchWithRetry = async (
 		throw new Error('fetchWithRetry: baseDelayMs must be finite and >= 0');
 	}
 
+	// An already-aborted caller must fail fast before any breaker check or outbound
+	// fetch attempt — fetcher() isn't required to honor the signal itself.
+	if (signal?.aborted) {
+		throw buildNamedError('AbortError', 'Operation aborted by caller.');
+	}
+
 	if (breaker?.isOpen()) {
-		// A caller-aborted request must surface as AbortError even when the breaker is open.
-		if (signal?.aborted) {
-			throw buildNamedError('AbortError', 'Operation aborted by caller.');
-		}
 		throw buildNamedError('CircuitOpenError', 'Circuit breaker is open; failing fast without a request.');
 	}
 

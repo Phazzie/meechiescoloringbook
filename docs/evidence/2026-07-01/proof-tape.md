@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-07-01T10:13:12.028Z
+Generated at: 2026-07-01T10:36:29.987Z
 Evidence folder: docs/evidence/2026-07-01
 
 Files included:
@@ -13,14 +13,14 @@ Files included:
 - chamber-lock.json (26724 bytes)
 - check.txt (220 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
-- cipher-gate.json (1389 bytes)
+- cipher-gate.json (1472 bytes)
 - clan-chain.json (2389 bytes)
 - clan-chain.md (1488 bytes)
 - lint.txt (48 bytes)
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - proof-tape.json (2224 bytes)
 - proof-tape.md (840 bytes)
-- rewind-RateLimitConfigSeam.txt (537 bytes)
+- rewind-RateLimitConfigSeam.txt (538 bytes)
 - rewind-RateLimitSeam.txt (541 bytes)
 - seam-ledger.json (28354 bytes)
 - seam-ledger.md (2294 bytes)

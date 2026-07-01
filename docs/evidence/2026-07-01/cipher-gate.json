@@ -1,9 +1,9 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-07-01T10:11:57.515Z",
+  "generatedAt": "2026-07-01T10:35:15.649Z",
   "cipher": {
     "date": "2026-07-01",
-    "seams": "RateLimitSeam",
+    "seams": "RateLimitSeam, ImageGenerationSeam",
     "evidence": [
       {
         "path": "docs/evidence/2026-07-01/check.txt",
@@ -34,9 +34,9 @@
         "exists": true
       }
     ],
-    "summary": "Fixed RateLimitSeam's cleanup sweep comparing entries against the wrong call's windowMs (a bug in this same day's earlier policy-isolation fix, caught by Copilot's PR review), plus two smaller pre-existing Copilot findings (client bundle import, stale test file header).",
-    "risks": "The new regression test's 1000-entry setup makes it the heaviest test in this seam's suite; no live caller exercises multi-policy windows in production today."
+    "summary": "Fixed 8 CodeRabbit-flagged findings on PR #207: abort-vs-breaker/failure-recording ordering in two files, a malformed-response crash in the image-generation adapter, a missing post-preflight abort recheck in wig-try-on, a duplicated legacy-clamp algorithm, a missing export, a missing regression test, and cross-test rate-limit-quota leakage in three test files.",
+    "risks": "No live-traffic validation of the abort/breaker changes; the per-test client-address counter assumes under ~250 tests per file."
   },
-  "latestChangeMs": 1782899579846.729,
+  "latestChangeMs": 1782901769802.6787,
   "status": "ok"
 }

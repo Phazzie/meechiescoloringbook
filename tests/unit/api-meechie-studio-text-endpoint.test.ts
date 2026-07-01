@@ -1,7 +1,7 @@
 // Purpose: Verify /api/meechie-studio-text rejects malformed JSON before pipeline invocation.
 // Why: Ensure the INVALID_JSON guard fires and pipelines don't receive broken input.
 // Info flow: Raw request -> parseRequestBody -> INVALID_JSON response (no pipeline calls).
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Lets a single test simulate the caller disconnecting while parseRequestBody's
 // internal `await request.json()` is in flight, without touching any other test's
@@ -23,6 +23,14 @@ vi.mock('$lib/server/parse-request-body', async () => {
 import { POST } from '../../src/routes/api/meechie-studio-text/+server';
 import * as providerAdapterModule from '../../src/lib/adapters/provider-adapter.adapter';
 
+// enforceAiRateLimit is module-scoped, so every test in this file shares one bucket per
+// client key — a hardcoded key would let one test's quota consumption leak into another's
+// assertions depending on run order. Each test gets its own address via beforeEach below;
+// all calls within a single test still share one address (loops that assert "no quota
+// consumed" rely on that).
+let currentClientAddress = '203.0.113.1';
+let clientAddressCounter = 0;
+
 const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/meechie-studio-text', {
@@ -30,7 +38,7 @@ const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
 		}),
-		getClientAddress: () => '203.0.113.10'
+		getClientAddress: () => currentClientAddress
 	}) as Parameters<typeof POST>[0];
 
 const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
@@ -40,7 +48,7 @@ const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
 		}),
-		getClientAddress: () => '203.0.113.10'
+		getClientAddress: () => currentClientAddress
 	}) as Parameters<typeof POST>[0];
 
 const buildAbortedEvent = (body: unknown): Parameters<typeof POST>[0] => {
@@ -53,7 +61,7 @@ const buildAbortedEvent = (body: unknown): Parameters<typeof POST>[0] => {
 			body: JSON.stringify(body),
 			signal: controller.signal
 		}),
-		getClientAddress: () => '203.0.113.10'
+		getClientAddress: () => currentClientAddress
 	} as Parameters<typeof POST>[0];
 };
 
@@ -81,10 +89,15 @@ const buildEventWithController = (
 			body: JSON.stringify(body),
 			signal: controller.signal
 		}),
-		getClientAddress: () => '203.0.113.10'
+		getClientAddress: () => currentClientAddress
 	}) as Parameters<typeof POST>[0];
 
 describe('/api/meechie-studio-text', () => {
+	beforeEach(() => {
+		clientAddressCounter += 1;
+		currentClientAddress = `203.0.113.${clientAddressCounter}`;
+	});
+
 	it('rejects an already-aborted request with MEECHIE_STUDIO_TEXT_ABORTED before parsing the body', async () => {
 		const response = await POST(buildAbortedEvent({ invalid: 'payload' }));
 		const payload = await response.json();

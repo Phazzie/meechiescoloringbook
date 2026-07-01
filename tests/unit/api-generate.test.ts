@@ -73,6 +73,14 @@ const validSpec = {
 	pageSize: 'US_Letter'
 } as const;
 
+// enforceAiRateLimit is module-scoped, so every test in this file shares one bucket per
+// client key — a hardcoded key would let one test's quota consumption leak into another's
+// assertions depending on run order. Each test gets its own address via beforeEach below;
+// all calls within a single test still share one address (loops that assert "no quota
+// consumed" rely on that).
+let currentClientAddress = '203.0.113.1';
+let clientAddressCounter = 0;
+
 const buildEvent = (
 	body: unknown,
 	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -84,7 +92,7 @@ const buildEvent = (
 			body: JSON.stringify(body)
 		}),
 		fetch: fetchImpl,
-		getClientAddress: () => '203.0.113.10'
+		getClientAddress: () => currentClientAddress
 	}) as Parameters<typeof POST>[0];
 
 const buildRawEvent = (
@@ -98,7 +106,7 @@ const buildRawEvent = (
 			body: rawBody
 		}),
 		fetch: fetchImpl,
-		getClientAddress: () => '203.0.113.10'
+		getClientAddress: () => currentClientAddress
 	}) as Parameters<typeof POST>[0];
 
 const buildEventWithController = (
@@ -114,7 +122,7 @@ const buildEventWithController = (
 			signal: controller.signal
 		}),
 		fetch: fetchImpl,
-		getClientAddress: () => '203.0.113.10'
+		getClientAddress: () => currentClientAddress
 	}) as Parameters<typeof POST>[0];
 
 const buildAbortedEvent = (
@@ -131,7 +139,7 @@ const buildAbortedEvent = (
 			signal: controller.signal
 		}),
 		fetch: fetchImpl,
-		getClientAddress: () => '203.0.113.10'
+		getClientAddress: () => currentClientAddress
 	} as Parameters<typeof POST>[0];
 };
 
@@ -180,6 +188,8 @@ const buildPipelineDeps = (
 describe('/api/generate', () => {
 	beforeEach(() => {
 		createImageGenerationSeamSpy.mockClear();
+		clientAddressCounter += 1;
+		currentClientAddress = `203.0.113.${clientAddressCounter}`;
 	});
 
 	it('rejects malformed JSON with INVALID_JSON code', async () => {

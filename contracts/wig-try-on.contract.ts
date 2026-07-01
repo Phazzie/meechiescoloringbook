@@ -8,7 +8,7 @@ import { resultSchema } from './shared.contract';
 // limiting (see checkWigCatalogPreflight) and the length of any unknown ID
 // echoed back in the WIG_NOT_FOUND error — far above any real catalog ID
 // (longest current entry is 7 chars), so it never rejects legitimate requests.
-const MAX_WIG_ID_LENGTH = 64;
+export const MAX_WIG_ID_LENGTH = 64;
 
 // Bounds selfieBase64 before checkWigCatalogPreflight, which runs ahead of
 // rate limiting — generous headroom above the ~11.2M-character base64 string
