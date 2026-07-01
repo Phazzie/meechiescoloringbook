@@ -351,7 +351,7 @@ describe('image-generation-pipeline edge cases', () => {
     expect(result.body.ok).toBe(true);
     if (result.body.ok) {
       expect(result.body.value.images).toHaveLength(1);
-      expect(result.body.value.images[0].id).toBe('image-2');
+      expect(result.body.value.images[0].id).toBe('image-1');
     }
   });
 

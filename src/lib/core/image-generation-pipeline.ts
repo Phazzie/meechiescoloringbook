@@ -114,13 +114,13 @@ export const runImageGenerationPipeline = async (
   }
 
   const images: GeneratedImage[] = [];
-  for (const [index, image] of seamResult.value.images.entries()) {
+  for (const image of seamResult.value.images) {
     if (!image.b64) {
       continue;
     }
     const format = imageFormatFromBase64(image.b64);
     images.push({
-      id: `image-${index + 1}`,
+      id: `image-${images.length + 1}`,
       ...format,
       data: image.b64,
       encoding: 'base64'
