@@ -29,7 +29,11 @@ export const findDisallowedKeywords = (input: unknown): string[] => {
 	try {
 		serialized = JSON.stringify(input) ?? String(input);
 	} catch {
-		serialized = String(input);
+		try {
+			serialized = String(input);
+		} catch {
+			serialized = '';
+		}
 	}
 	const text = serialized.toLowerCase();
 	return SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS.filter((keyword) =>

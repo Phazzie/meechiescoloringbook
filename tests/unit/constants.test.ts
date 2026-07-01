@@ -108,5 +108,12 @@ describe('SYSTEM_CONSTANTS', () => {
 				expect.arrayContaining(['minors', 'self-harm'])
 			);
 		});
+
+		it('does not throw for input that fails both JSON.stringify and String() conversion', () => {
+			const throwingObj = Object.create(null);
+			throwingObj.self = throwingObj;
+			expect(() => findDisallowedKeywords(throwingObj)).not.toThrow();
+			expect(findDisallowedKeywords(throwingObj)).toEqual([]);
+		});
 	});
 });
