@@ -603,6 +603,14 @@ export class StudioState {
 
 	loadCreation = async (creation: CreationRecord): Promise<void> => {
 		const restoredText = buildStudioTextFromCreationRecord(creation);
+		this.resetGeneratedPage();
+		this.resetTryOnResultState();
+		this.textError = '';
+		this.copyStatus = '';
+		this.vaultStatus = '';
+		this.selectedWigId = null;
+		this.selectedWig = null;
+		this.selfieBase64 = '';
 		this.spec = creation.intent;
 		this.evidence = creation.studioText?.quote ?? creation.assembledPrompt;
 		this.dedication = creation.intent.dedication ?? '';

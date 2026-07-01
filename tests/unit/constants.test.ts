@@ -2,7 +2,7 @@
 // Why: Ensure required prompt phrases and disallowed keywords are present and non-empty.
 // Info flow: SYSTEM_CONSTANTS -> structure/content assertions.
 import { describe, expect, it } from 'vitest';
-import { SYSTEM_CONSTANTS } from '../../src/lib/core/constants';
+import { findDisallowedKeywords, SYSTEM_CONSTANTS } from '../../src/lib/core/constants';
 
 describe('SYSTEM_CONSTANTS', () => {
 	describe('REQUIRED_PROMPT_PHRASES', () => {
@@ -84,6 +84,29 @@ describe('SYSTEM_CONSTANTS', () => {
 
 		it('includes item constraints', () => {
 			expect(SYSTEM_CONSTANTS.CHAT_SYSTEM_PROMPT).toContain('items: 1-20 items');
+		});
+	});
+
+	describe('findDisallowedKeywords', () => {
+		it('returns an empty array for null or undefined input', () => {
+			expect(findDisallowedKeywords(null)).toEqual([]);
+			expect(findDisallowedKeywords(undefined)).toEqual([]);
+		});
+
+		it('returns an empty array when no disallowed keyword is present', () => {
+			expect(findDisallowedKeywords({ situation: 'He said he was working late.' })).toEqual([]);
+		});
+
+		it('finds a disallowed keyword regardless of casing or nesting', () => {
+			expect(findDisallowedKeywords({ nested: { note: 'Self-Harm is not a joke.' } })).toEqual([
+				'self-harm'
+			]);
+		});
+
+		it('finds every matching disallowed keyword', () => {
+			expect(findDisallowedKeywords('minors and self-harm')).toEqual(
+				expect.arrayContaining(['minors', 'self-harm'])
+			);
 		});
 	});
 });
