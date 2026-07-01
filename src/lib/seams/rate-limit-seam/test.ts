@@ -204,6 +204,26 @@ describe('RateLimitSeam mock contract', () => {
 		});
 	});
 
+	it('starts a fresh window when the same key is checked under a different policy', () => {
+		const seam = createMockRateLimitSeam();
+		const { key, now } = baseRateLimitCheckFixture;
+
+		// Exhaust a tight quota (1 request per window) for this key.
+		const tightPolicy = { key, maxRequests: 1, windowMs: baseRateLimitCheckFixture.windowMs, now };
+		expect(seam.checkAndConsume(tightPolicy).ok).toBe(true);
+		expect(seam.checkAndConsume(tightPolicy).ok).toBe(false);
+
+		// The same key, immediately after, under a much larger quota must not inherit the
+		// exhausted count from the other policy's window.
+		const loosePolicy = { key, maxRequests: 20, windowMs: baseRateLimitCheckFixture.windowMs, now };
+		const result = validateRateLimitResult(seam.checkAndConsume(loosePolicy));
+		expect(result).toEqual({
+			ok: true,
+			remaining: 19,
+			resetAt: now + baseRateLimitCheckFixture.windowMs
+		});
+	});
+
 	it('reset() clears all tracked keys', () => {
 		const seam = createMockRateLimitSeam();
 		const { maxRequests } = baseRateLimitCheckFixture;

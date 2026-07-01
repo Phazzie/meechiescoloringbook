@@ -7,9 +7,11 @@ import type { Result } from './shared.contract';
 
 // Bounds the cost of the disallowed-keyword scan that runs ahead of rate
 // limiting (see checkMeechieToolSafety) — far above any genuine tool input,
-// so it never rejects legitimate requests.
-const MAX_FREE_TEXT_LENGTH = 2000;
-const MAX_LINEUP_ITEM_LENGTH = 200;
+// so it never rejects legitimate requests. Exported so src/lib/seams/meechie-tool-seam/contract.ts
+// (the seam this legacy contract supersedes per docs/seams.md) imports these instead of
+// re-declaring them, so the two contracts can't silently drift apart.
+export const MAX_FREE_TEXT_LENGTH = 2000;
+export const MAX_LINEUP_ITEM_LENGTH = 200;
 const FreeTextInputSchema = NonEmptyStringSchema.max(MAX_FREE_TEXT_LENGTH);
 
 export const MeechieToolIdSchema = z.enum([

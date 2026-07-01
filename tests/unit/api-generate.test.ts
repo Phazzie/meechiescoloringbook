@@ -1,7 +1,7 @@
 // Purpose: Verify /api/generate orchestrates prompt, image, and drift flow for the UI.
 // Why: Keep the main generation path on one server endpoint with contract-checked output.
 // Info flow: Generate request -> endpoint orchestration -> contract response.
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Lets a single test simulate the caller disconnecting while the route's awaited
 // spec-validation preflight is in flight, without touching any other test's behavior
@@ -21,6 +21,26 @@ vi.mock('$lib/adapters/spec-validation-seam', async () => {
 				lateAbortRef.controller?.abort();
 				return actual.specValidationAdapter.validate(...args);
 			}
+		}
+	};
+});
+
+// The route never reads event.fetch (it builds its own ImageGenerationSeam internally), so a
+// fake event.fetch spy can't prove "no paid image request happened" for a rejected payload —
+// it would pass even if the route wrongly reached the image stage. Spy on the seam factory
+// itself: the route only calls it after every preflight/rate-limit guard has passed.
+const createImageGenerationSeamSpy = vi.hoisted(() => vi.fn());
+vi.mock('$lib/adapters/image-generation-seam', async () => {
+	const actual = await vi.importActual<typeof import('$lib/adapters/image-generation-seam')>(
+		'$lib/adapters/image-generation-seam'
+	);
+	return {
+		...actual,
+		createImageGenerationSeam: (
+			...args: Parameters<typeof actual.createImageGenerationSeam>
+		) => {
+			createImageGenerationSeamSpy(...args);
+			return actual.createImageGenerationSeam(...args);
 		}
 	};
 });
@@ -158,6 +178,10 @@ const buildPipelineDeps = (
 };
 
 describe('/api/generate', () => {
+	beforeEach(() => {
+		createImageGenerationSeamSpy.mockClear();
+	});
+
 	it('rejects malformed JSON with INVALID_JSON code', async () => {
 		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
 		const response = await POST(buildRawEvent('{not: valid json}', fetchMock));
@@ -167,6 +191,7 @@ describe('/api/generate', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('INVALID_JSON');
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 	});
 
 	it('does not consume rate-limit quota for malformed JSON bodies', async () => {
@@ -179,6 +204,7 @@ describe('/api/generate', () => {
 			expect(payload.error.code).toBe('INVALID_JSON');
 		}
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 	});
 
 	it('rejects an already-aborted request at the endpoint before any preflight checks or rate-limit consumption', async () => {
@@ -192,6 +218,7 @@ describe('/api/generate', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('GENERATE_ABORTED');
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 	});
 
 	it('does not consume rate-limit quota for already-aborted requests', async () => {
@@ -206,6 +233,7 @@ describe('/api/generate', () => {
 			expect(payload.error.code).toBe('GENERATE_ABORTED');
 		}
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 	});
 
 	it('rejects a request that aborts during prompt-guard preflight before consuming rate-limit quota', async () => {
@@ -227,6 +255,7 @@ describe('/api/generate', () => {
 			expect(payload.ok).toBe(false);
 			expect(payload.error.code).toBe('GENERATE_ABORTED');
 			expect(fetchMock).not.toHaveBeenCalled();
+			expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 		} finally {
 			lateAbortRef.controller = null;
 		}
@@ -251,6 +280,7 @@ describe('/api/generate', () => {
 				expect(payload.error.code).toBe('GENERATE_ABORTED');
 			}
 			expect(fetchMock).not.toHaveBeenCalled();
+			expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 		} finally {
 			lateAbortRef.controller = null;
 		}
@@ -265,6 +295,7 @@ describe('/api/generate', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('GENERATE_INPUT_INVALID');
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 	});
 
 	it('does not consume rate-limit quota for schema-invalid payloads', async () => {
@@ -277,6 +308,7 @@ describe('/api/generate', () => {
 			expect(payload.error.code).toBe('GENERATE_INPUT_INVALID');
 		}
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 	});
 
 	it('rejects oversized titles at the endpoint before content-safety scanning', async () => {
@@ -291,6 +323,7 @@ describe('/api/generate', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('GENERATE_INPUT_INVALID');
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 	});
 
 	it('does not consume rate-limit quota for oversized-title payloads', async () => {
@@ -306,6 +339,7 @@ describe('/api/generate', () => {
 			expect(payload.error.code).toBe('GENERATE_INPUT_INVALID');
 		}
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 	});
 
 	it('returns orchestrated generation output without fetching the sibling route', async () => {
@@ -600,6 +634,7 @@ describe('/api/generate', () => {
 		expect(payload.error.code).toBe('CONTENT_POLICY_VIOLATION');
 		expect(payload.error.details.policyDetails).toContain('styleHint');
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 	});
 
 	it('does not consume rate-limit quota for content-policy-violation payloads', async () => {
@@ -614,6 +649,7 @@ describe('/api/generate', () => {
 			expect(payload.error.code).toBe('CONTENT_POLICY_VIOLATION');
 		}
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 	});
 
 	it('rejects style hints containing forbidden tokens at the endpoint before image generation', async () => {
@@ -627,6 +663,7 @@ describe('/api/generate', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('STYLE_HINT_CONTAINS_FORBIDDEN_TOKEN');
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 	});
 
 	it('does not consume rate-limit quota for forbidden-style-hint-token payloads', async () => {
@@ -641,5 +678,6 @@ describe('/api/generate', () => {
 			expect(payload.error.code).toBe('STYLE_HINT_CONTAINS_FORBIDDEN_TOKEN');
 		}
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createImageGenerationSeamSpy).not.toHaveBeenCalled();
 	});
 });

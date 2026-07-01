@@ -325,8 +325,8 @@ describe('fetchWithRetry', () => {
 		expect(fetcher).toHaveBeenCalledTimes(2);
 	});
 
-	it('respects a Retry-After well beyond the 30s self-backoff cap instead of clamping it down', async () => {
-		const retryHeaders = new Headers({ 'Retry-After': '120' });
+	it('honors a Retry-After within the give-up threshold instead of clamping it to the self-backoff cap', async () => {
+		const retryHeaders = new Headers({ 'Retry-After': '20' });
 		const fetcher = vi
 			.fn()
 			.mockResolvedValueOnce(new Response('rate limited', { status: 429, headers: retryHeaders }))
@@ -338,38 +338,30 @@ describe('fetchWithRetry', () => {
 			settled = true;
 		});
 
-		await vi.advanceTimersByTimeAsync(30_001);
+		await vi.advanceTimersByTimeAsync(19_999);
 		expect(settled).toBe(false);
 		expect(fetcher).toHaveBeenCalledTimes(1);
 
-		await vi.advanceTimersByTimeAsync(90_000);
+		await vi.advanceTimersByTimeAsync(1);
 		expect(settled).toBe(true);
 		const result = await promise;
 		expect(result.status).toBe(200);
 		expect(fetcher).toHaveBeenCalledTimes(2);
 	});
 
-	it('caps an excessive Retry-After at the trusted maximum (10 minutes), not at 30 seconds', async () => {
+	it('gives up instead of sleeping when Retry-After exceeds the give-up threshold', async () => {
 		const longRetryHeaders = new Headers({ 'Retry-After': '3600' });
 		const fetcher = vi
 			.fn()
 			.mockResolvedValueOnce(new Response('rate limited', { status: 429, headers: longRetryHeaders }))
 			.mockResolvedValueOnce(new Response('ok', { status: 200 }));
-		let settled = false;
 
-		const promise = fetchWithRetry(fetcher, { maxAttempts: 2, baseDelayMs: 50 });
-		promise.then(() => {
-			settled = true;
-		});
+		const result = await fetchWithRetry(fetcher, { maxAttempts: 2, baseDelayMs: 50 });
 
-		await vi.advanceTimersByTimeAsync(30_001);
-		expect(settled).toBe(false);
-
-		await vi.advanceTimersByTimeAsync(600_000);
-		expect(settled).toBe(true);
-		const result = await promise;
-		expect(result.status).toBe(200);
-		expect(fetcher).toHaveBeenCalledTimes(2);
+		// A Retry-After this long would tie up the caller for an hour; fetchWithRetry must
+		// return the retryable response immediately rather than sleeping for it.
+		expect(result.status).toBe(429);
+		expect(fetcher).toHaveBeenCalledTimes(1);
 	});
 
 	it('fails fast with a CircuitOpenError without calling the fetcher when the breaker is open', async () => {
@@ -383,7 +375,7 @@ describe('fetchWithRetry', () => {
 		expect(fetcher).not.toHaveBeenCalled();
 	});
 
-	it('records a breaker failure on a retryable response, then a success once it recovers', async () => {
+	it('records a breaker failure on a retryable response; a 2xx response defers success to the caller', async () => {
 		const breaker = createCircuitBreaker({ failureThreshold: 1, cooldownMs: 30_000, now: () => 0 });
 		const fetcher = vi
 			.fn()
@@ -395,8 +387,31 @@ describe('fetchWithRetry', () => {
 		const result = await promise;
 
 		// The first attempt's failure opened the breaker mid-call, but the in-flight retry was
-		// not aborted (the breaker only gates new calls) — and its success closed it again.
+		// not aborted (the breaker only gates new calls). A 2xx response's body hasn't been
+		// read yet, so fetchWithRetry itself leaves the breaker open — recordSuccess() is the
+		// caller's job, once it has actually read the body (see provider-adapter.adapter.ts).
 		expect(result.status).toBe(200);
+		expect(breaker.isOpen()).toBe(true);
+
+		breaker.recordSuccess();
+		expect(breaker.isOpen()).toBe(false);
+	});
+
+	it('records success immediately for a non-retryable non-2xx response (no body dependency)', async () => {
+		let now = 0;
+		const breaker = createCircuitBreaker({ failureThreshold: 1, cooldownMs: 30_000, now: () => now });
+		breaker.recordFailure();
+		expect(breaker.isOpen()).toBe(true);
+
+		// Cooldown elapses so the next call is a trial request the breaker will let through.
+		now = 30_000;
+		const fetcher = vi.fn().mockResolvedValueOnce(new Response('bad request', { status: 400 }));
+
+		const result = await fetchWithRetry(fetcher, { maxAttempts: 1, baseDelayMs: 50, breaker });
+
+		// A non-retryable, non-2xx status proves the upstream is reachable regardless of the
+		// (unread) body, so the breaker closes immediately rather than waiting on a body read.
+		expect(result.status).toBe(400);
 		expect(breaker.isOpen()).toBe(false);
 	});
 

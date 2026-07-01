@@ -209,10 +209,20 @@ export const createProviderAdapter = (
 					() => fetchWithTimeout(url, requestInit, CHAT_TIMEOUT_MS),
 					{ ...RETRY_OPTIONS, breaker, signal: input.signal }
 				);
-				const payload = await readJson(response);
+				// fetchWithRetry defers breaker success for a 2xx response until the body is
+				// actually read (see its RetryOptions.breaker doc) — a stalled body read must
+				// surface as a breaker failure here rather than being silently uncounted.
+				let payload: unknown;
+				try {
+					payload = await readJson(response);
+				} catch (readError) {
+					breaker.recordFailure();
+					throw readError;
+				}
 				if (!response.ok) {
 					return buildHttpError(response, payload);
 				}
+				breaker.recordSuccess();
 				return normalizeChatOutput(payload, input.model);
 			} catch (error) {
 				if (isCircuitOpenError(error)) {

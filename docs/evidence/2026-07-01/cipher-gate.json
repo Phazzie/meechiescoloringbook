@@ -1,0 +1,42 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-07-01T10:00:20.212Z",
+  "cipher": {
+    "date": "2026-07-01",
+    "seams": "RateLimitSeam, RateLimitConfigSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-07-01/check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-01/lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-01/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-01/rewind-RateLimitSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-01/rewind-RateLimitConfigSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-01/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-01/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Deferred circuit-breaker success recording to the caller for 2xx chat responses, capped how long `fetchWithRetry` will honor a server `Retry-After` before giving up, isolated `RateLimitSeam` window state per policy, fixed a shared-reference leak in `RateLimitConfigSeam`'s mock, deduplicated the `meechie-tool` free-text-length constants, and strengthened two test files' \"no paid work happened\" assertions — closing PR #202's and PR #204's genuinely-still-open review threads.",
+    "risks": "No live-traffic validation of the breaker/retry changes (no XAI_API_KEY in this environment); the 30s give-up threshold is a judgment call, not independently tuned; `RateLimitSeam`'s policy-isolation fix has no live caller to exercise it yet; two false-positive findings were left unacknowledged on PR #202's own thread state (scope boundary: new PR, not thread management)."
+  },
+  "latestChangeMs": 1782899579846.729,
+  "status": "ok"
+}

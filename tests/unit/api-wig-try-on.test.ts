@@ -156,6 +156,7 @@ describe('/api/wig-try-on', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('WIG_TRY_ON_INPUT_INVALID');
 		expect(getWigById).not.toHaveBeenCalled();
+		expect(createWigCatalogSeam).not.toHaveBeenCalled();
 		expect(createWigTryOnSeam).not.toHaveBeenCalled();
 	});
 
@@ -170,18 +171,22 @@ describe('/api/wig-try-on', () => {
 		// to observe a would-be 429) keeps this test fast even with a ~12MB body —
 		// repeating that body 25x pushed this test close to Vitest's 5s timeout.
 		const enforceSpy = vi.spyOn(rateLimiterModule, 'enforceAiRateLimit');
-		const oversizedSelfie = 'a'.repeat(12_000_001);
-		for (let i = 0; i < 3; i += 1) {
-			const response = await POST(
-				buildEvent({ selfieBase64: oversizedSelfie, selfieMimeType: 'image/jpeg', wigId: 'missing-wig' })
-			);
-			expect(response.status).toBe(400);
-			const payload = await response.json();
-			expect(payload.error.code).toBe('WIG_TRY_ON_INPUT_INVALID');
+		try {
+			const oversizedSelfie = 'a'.repeat(12_000_001);
+			for (let i = 0; i < 3; i += 1) {
+				const response = await POST(
+					buildEvent({ selfieBase64: oversizedSelfie, selfieMimeType: 'image/jpeg', wigId: 'missing-wig' })
+				);
+				expect(response.status).toBe(400);
+				const payload = await response.json();
+				expect(payload.error.code).toBe('WIG_TRY_ON_INPUT_INVALID');
+			}
+			expect(getWigById).not.toHaveBeenCalled();
+			expect(createWigCatalogSeam).not.toHaveBeenCalled();
+			expect(enforceSpy).not.toHaveBeenCalled();
+		} finally {
+			enforceSpy.mockRestore();
 		}
-		expect(getWigById).not.toHaveBeenCalled();
-		expect(enforceSpy).not.toHaveBeenCalled();
-		enforceSpy.mockRestore();
 	});
 
 	it('rejects unknown wig IDs with WIG_NOT_FOUND before creating WigTryOnSeam', async () => {

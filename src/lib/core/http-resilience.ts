@@ -10,12 +10,16 @@
 export const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 // Cap for our own jittered exponential backoff (no server guidance available).
 const MAX_SELF_BACKOFF_MS = 30_000;
-// Cap for a server-supplied Retry-After value. This is intentionally much larger than
-// MAX_SELF_BACKOFF_MS: a server explicitly asking us to wait is a stronger signal than our
-// own guess, and silently clamping it down to 30s causes premature retries against a
-// service that just told us it is not ready (previously this used the same 30s cap as
-// self-backoff, which defeated the purpose of reading the header at all).
-const MAX_RETRY_AFTER_MS = 10 * 60 * 1000;
+// Above this, honoring a server-supplied Retry-After verbatim would tie up the caller (a
+// chat/route request with a much shorter overall budget, e.g. CHAT_TIMEOUT_MS) for longer
+// than any realistic request lifetime is worth blocking for. Below this threshold we sleep
+// the exact requested duration (a server explicitly asking us to wait is a stronger signal
+// than our own guess, so this is intentionally not clamped down to MAX_SELF_BACKOFF_MS —
+// that would cause premature retries against a service that just told us it isn't ready).
+// Above it, we give up and return the retryable response instead of sleeping — the server's
+// hint is still respected in spirit (we never retry sooner than it asked), we just stop
+// waiting rather than occupy the worker for minutes.
+const MAX_RETRY_AFTER_BEFORE_GIVING_UP_MS = 30_000;
 
 const buildNamedError = (name: 'AbortError' | 'TimeoutError' | 'CircuitOpenError', message: string): Error =>
 	Object.assign(new Error(message), { name });
@@ -40,21 +44,22 @@ const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
 	});
 
 const capSelfBackoffMs = (ms: number): number => Math.min(Math.max(0, ms), MAX_SELF_BACKOFF_MS);
-const capRetryAfterMs = (ms: number): number => Math.min(Math.max(0, ms), MAX_RETRY_AFTER_MS);
 
 // Spread +/-20% jitter over the nominal delay to avoid simultaneous retries.
 const withJitter = (ms: number): number => ms * (0.8 + Math.random() * 0.4);
 
-// Parses Retry-After as either delay seconds or an RFC-1123 HTTP date.
+// Parses Retry-After as either delay seconds or an RFC-1123 HTTP date. Not capped here —
+// fetchWithRetry decides whether to honor it (sleep) or give up based on
+// MAX_RETRY_AFTER_BEFORE_GIVING_UP_MS, so an absurdly large value never reaches a sleep().
 const parseRetryAfterMs = (header: string | null): number => {
 	if (header === null) return NaN;
 	const seconds = Number(header);
 	if (Number.isFinite(seconds)) {
-		return capRetryAfterMs(seconds * 1000);
+		return Math.max(0, seconds * 1000);
 	}
 	const dateMs = Date.parse(header) - Date.now();
 	if (Number.isFinite(dateMs)) {
-		return capRetryAfterMs(dateMs);
+		return Math.max(0, dateMs);
 	}
 	return NaN;
 };
@@ -195,7 +200,12 @@ export type RetryOptions = {
 	baseDelayMs: number;
 	/** Optional caller cancellation signal; caller aborts are never retried. */
 	signal?: AbortSignal;
-	/** Optional shared circuit breaker. When open, fails fast without attempting a fetch. */
+	/**
+	 * Optional shared circuit breaker. When open, fails fast without attempting a fetch.
+	 * Failures (thrown errors, retryable statuses) and non-retryable non-2xx responses are
+	 * recorded automatically. For a 2xx response the caller must call `breaker.recordSuccess()`
+	 * itself after successfully reading the body — see fetchWithRetry's 2xx branch.
+	 */
 	breaker?: CircuitBreaker;
 };
 
@@ -238,8 +248,13 @@ export const fetchWithRetry = async (
 		if (RETRYABLE_STATUSES.has(response.status)) {
 			breaker?.recordFailure();
 			if (attempt < maxAttempts) {
-				response.body?.cancel().catch(() => undefined);
 				const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
+				if (Number.isFinite(retryAfterMs) && retryAfterMs > MAX_RETRY_AFTER_BEFORE_GIVING_UP_MS) {
+					// The server asked for a delay too long to block this request for —
+					// stop retrying now instead of sleeping for minutes.
+					return response;
+				}
+				response.body?.cancel().catch(() => undefined);
 				const delayMs = Number.isFinite(retryAfterMs)
 					? retryAfterMs
 					: capSelfBackoffMs(withJitter(baseDelayMs * 2 ** (attempt - 1)));
@@ -249,7 +264,17 @@ export const fetchWithRetry = async (
 			return response;
 		}
 
-		breaker?.recordSuccess();
+		if (!response.ok) {
+			// Non-retryable HTTP error (e.g. 400, 401): classification alone proves the
+			// upstream is reachable, so record success without waiting on the body.
+			breaker?.recordSuccess();
+			return response;
+		}
+
+		// 2xx: the caller hasn't read the body yet, and a body-level stall (slow/hung
+		// stream after headers arrive) shouldn't count as a healthy call. Recording
+		// success here would let a hanging connection reset the breaker every time.
+		// Defer to the caller, who must record success only after reading the body.
 		return response;
 	}
 

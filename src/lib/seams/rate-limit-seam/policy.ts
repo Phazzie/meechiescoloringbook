@@ -6,6 +6,12 @@ import type { RateLimitCheckInput, RateLimitResult, RateLimitSeam } from './cont
 type WindowState = {
 	count: number;
 	windowStart: number;
+	// The policy this window was opened under. If a later call for the same key arrives
+	// under a different maxRequests/windowMs, the accumulated count/windowStart belong to a
+	// policy that no longer applies — reusing them would let one caller's quota bleed into
+	// another's, or apply a stale windowMs to eviction/reset decisions.
+	maxRequests: number;
+	windowMs: number;
 };
 
 const CLEANUP_THRESHOLD = 1000;
@@ -70,9 +76,18 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 			// `existing.windowStart`, making `now - existing.windowStart` negative —
 			// never >= windowMs — so the stale, possibly-exhausted window would be
 			// reused instead of reset, inflating retryAfterMs/resetAt for the client.
+			// A policy change (different maxRequests/windowMs than the window was opened
+			// under) also forces a fresh window — the existing count was accumulated
+			// under a quota that no longer applies to this call.
 			const isFreshWindow =
-				!existing || now - existing.windowStart >= windowMs || now < existing.windowStart;
-			const state: WindowState = isFreshWindow ? { count: 0, windowStart: now } : existing;
+				!existing ||
+				existing.maxRequests !== maxRequests ||
+				existing.windowMs !== windowMs ||
+				now - existing.windowStart >= windowMs ||
+				now < existing.windowStart;
+			const state: WindowState = isFreshWindow
+				? { count: 0, windowStart: now, maxRequests, windowMs }
+				: existing;
 
 			if (state.count >= maxRequests) {
 				windows.set(key, state);

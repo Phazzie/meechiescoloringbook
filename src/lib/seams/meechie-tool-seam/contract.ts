@@ -4,13 +4,13 @@
 import { z } from 'zod';
 import { NonEmptyStringSchema, resultSchema } from '../../../../contracts/shared.contract';
 import type { Result } from '../../../../contracts/shared.contract';
+import {
+	MAX_FREE_TEXT_LENGTH,
+	MAX_LINEUP_ITEM_LENGTH
+} from '../../../../contracts/meechie-tool.contract';
 
-// Mirrors the cap in contracts/meechie-tool.contract.ts (the legacy flat
-// contract this seam supersedes per docs/seams.md) — bounds the cost of the
-// disallowed-keyword scan that runs ahead of rate limiting, far above any
-// genuine tool input, so it never rejects legitimate requests.
-const MAX_FREE_TEXT_LENGTH = 2000;
-const MAX_LINEUP_ITEM_LENGTH = 200;
+export { MAX_FREE_TEXT_LENGTH, MAX_LINEUP_ITEM_LENGTH };
+
 const FreeTextInputSchema = NonEmptyStringSchema.max(MAX_FREE_TEXT_LENGTH);
 
 export const MeechieToolIdSchema = z.enum([
