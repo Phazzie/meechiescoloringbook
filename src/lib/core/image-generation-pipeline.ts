@@ -142,7 +142,7 @@ export const runImageGenerationPipeline = async (
 	}
 
 	const revisedPrompt =
-		typeof seamResult.value.rawModelInfo.revisedPrompt === 'string'
+		typeof seamResult.value.rawModelInfo?.revisedPrompt === 'string'
 			? seamResult.value.rawModelInfo.revisedPrompt
 			: undefined;
 
@@ -154,7 +154,7 @@ export const runImageGenerationPipeline = async (
 			modelMetadata: {
 				provider: 'xai',
 				model:
-					typeof seamResult.value.rawModelInfo.model === 'string'
+					typeof seamResult.value.rawModelInfo?.model === 'string'
 						? seamResult.value.rawModelInfo.model
 						: 'unknown'
 			}
