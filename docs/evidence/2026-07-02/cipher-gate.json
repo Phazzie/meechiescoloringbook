@@ -1,0 +1,50 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-07-02T12:16:49.336Z",
+  "cipher": {
+    "date": "2026-07-02",
+    "seams": "RateLimitSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-07-02/rewind-RateLimitSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-02/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-02/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-02/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-02/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-02/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-02/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-02/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-02/proof-tape.json",
+        "exists": true
+      }
+    ],
+    "summary": "Added RateLimitSeam (in-memory fixed-window limiter) and gated all six paid-provider API routes behind it, closing the top item from a repo-wide hardest-fixes audit: fully anonymous, unbounded access to metered xAI/Gemini calls.",
+    "risks": "In-memory state is per warm serverless instance only, not a distributed guarantee; a future KV/Redis-backed adapter behind the same contract is the documented follow-up if production abuse is observed."
+  },
+  "latestChangeMs": 1782994342953.297,
+  "status": "ok"
+}

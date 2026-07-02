@@ -163,3 +163,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-07-02
+- Date: 2026-07-02
+- Context: Repo-wide audit for the hardest outstanding upgrades/fixes; adding RateLimitSeam.
+- Lesson: All six API routes were anonymous and unbounded, with no rate limiting anywhere in the codebase, exposing metered xAI/Gemini calls to unlimited anonymous traffic. Route-level tests also constructed `RequestHandler` events by hand, so adding a required `getClientAddress()` call touched every route test file, not just the routes.
+- Action: Added `RateLimitSeam` (in-memory fixed-window limiter, dependency-injected pattern) plus a shared `src/lib/server/rate-limiter.ts` singleton and `enforce-rate-limit.ts` helper wired into all six paid-provider routes; updated every route's test event builders to supply `getClientAddress`. Documented the in-memory/per-instance limitation explicitly so a future KV-backed adapter swap stays a contract-compatible follow-up.
