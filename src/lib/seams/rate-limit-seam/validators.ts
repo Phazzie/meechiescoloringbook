@@ -10,7 +10,11 @@ export const rateLimitErrorSchema = z.object({
 });
 
 export const rateLimitResultSchema = z.union([
-	z.object({ ok: z.literal(true), remaining: z.number().int().nonnegative(), resetAtMs: z.number() }),
+	z.object({
+		ok: z.literal(true),
+		remaining: z.number().int().nonnegative(),
+		resetAtMs: z.number().nonnegative()
+	}),
 	z.object({ ok: z.literal(false), error: rateLimitErrorSchema })
 ]);
 

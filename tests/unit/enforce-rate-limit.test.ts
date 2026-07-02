@@ -48,4 +48,14 @@ describe('enforceRateLimit', () => {
 		const otherRoute = enforceRateLimit('test-route-b', clientAddress);
 		expect(otherRoute.ok).toBe(true);
 	});
+
+	it('normalizes an empty or whitespace-only client address to one explicit shared bucket', () => {
+		const routeName = 'test-route-empty-address';
+		for (let i = 0; i < SYSTEM_CONSTANTS.RATE_LIMIT.MAX_REQUESTS; i += 1) {
+			enforceRateLimit(routeName, '');
+		}
+
+		const blocked = enforceRateLimit(routeName, '   ');
+		expect(blocked.ok).toBe(false);
+	});
 });

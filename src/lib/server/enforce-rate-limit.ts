@@ -8,9 +8,17 @@ import { rateLimitSeam } from './rate-limiter';
 
 export type RateLimitCheck = { ok: true } | { ok: false; response: Response };
 
+// getClientAddress() is documented to always return a string, but normalize defensively so an
+// unexpected empty/whitespace value produces one explicit shared bucket instead of silently
+// merging distinct callers under a falsy key.
+const normalizeClientAddress = (clientAddress: string): string => {
+	const trimmed = clientAddress.trim();
+	return trimmed.length > 0 ? trimmed : 'unknown';
+};
+
 export const enforceRateLimit = (routeName: string, clientAddress: string): RateLimitCheck => {
 	const result = rateLimitSeam.consume({
-		key: `${routeName}:${clientAddress}`,
+		key: `${routeName}:${normalizeClientAddress(clientAddress)}`,
 		limit: SYSTEM_CONSTANTS.RATE_LIMIT.MAX_REQUESTS,
 		windowMs: SYSTEM_CONSTANTS.RATE_LIMIT.WINDOW_MS
 	});

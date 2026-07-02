@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-07-02T12:16:49.336Z",
+  "generatedAt": "2026-07-02T12:28:25.329Z",
   "cipher": {
     "date": "2026-07-02",
     "seams": "RateLimitSeam",
@@ -42,8 +42,8 @@
         "exists": true
       }
     ],
-    "summary": "Added RateLimitSeam (in-memory fixed-window limiter) and gated all six paid-provider API routes behind it, closing the top item from a repo-wide hardest-fixes audit: fully anonymous, unbounded access to metered xAI/Gemini calls.",
-    "risks": "In-memory state is per warm serverless instance only, not a distributed guarantee; a future KV/Redis-backed adapter behind the same contract is the documented follow-up if production abuse is observed."
+    "summary": "Fixed unbounded RateLimitSeam Map growth (expired-entry eviction + hard-cap oldest-first eviction), normalized empty client-address keys, and tightened the resetAtMs validator, in response to PR #211 automated review feedback.",
+    "risks": "Hard-cap eviction can force-reset a legitimate client's window under a concurrent flood of distinct keys; accepted as a bounded-memory-over-perfect-fairness trade-off for a best-effort, infrastructure-free limiter."
   },
   "latestChangeMs": 1782994342953.297,
   "status": "ok"

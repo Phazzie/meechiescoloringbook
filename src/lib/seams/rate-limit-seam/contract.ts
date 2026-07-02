@@ -23,4 +23,6 @@ export type RateLimitConsumeInput = {
 
 export type RateLimitSeam = {
 	consume: (input: RateLimitConsumeInput) => RateLimitResult;
+	/** Number of keys currently tracked. Exposed for observability and eviction testing. */
+	size: () => number;
 };

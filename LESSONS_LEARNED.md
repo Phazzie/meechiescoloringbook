@@ -169,3 +169,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Repo-wide audit for the hardest outstanding upgrades/fixes; adding RateLimitSeam.
 - Lesson: All six API routes were anonymous and unbounded, with no rate limiting anywhere in the codebase, exposing metered xAI/Gemini calls to unlimited anonymous traffic. Route-level tests also constructed `RequestHandler` events by hand, so adding a required `getClientAddress()` call touched every route test file, not just the routes.
 - Action: Added `RateLimitSeam` (in-memory fixed-window limiter, dependency-injected pattern) plus a shared `src/lib/server/rate-limiter.ts` singleton and `enforce-rate-limit.ts` helper wired into all six paid-provider routes; updated every route's test event builders to supply `getClientAddress`. Documented the in-memory/per-instance limitation explicitly so a future KV-backed adapter swap stays a contract-compatible follow-up.
+
+## 2026-07-02 (2)
+- Date: 2026-07-02
+- Context: Automated PR review (Gemini Code Assist, Sourcery, Copilot) on the RateLimitSeam singleton added earlier the same day.
+- Lesson: An in-memory rate limiter's per-key Map needs its own bounded lifecycle, independent from the rate-limit window logic. Expiring entries opportunistically only helps once traffic settles; it does nothing against a flood of always-fresh distinct keys (e.g. varying source IPs), because none of those entries are ever "expired" while the attack is ongoing. A limiter built to resist abuse needs a hard cap on tracked keys, not just window-expiry cleanup.
+- Action: Added expired-entry eviction (threshold-gated) plus a hard-cap oldest-first eviction to `RateLimitSeam`, exposed `size()` for observable/testable memory bounds, normalized `getClientAddress()` output before using it as a cache key, and tightened the `resetAtMs` validator to reject impossible negative values. Proved the hard-cap behavior with a dedicated flood test rather than asserting it.

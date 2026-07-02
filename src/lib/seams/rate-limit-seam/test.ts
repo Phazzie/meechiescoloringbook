@@ -68,4 +68,43 @@ describe('RateLimitSeam mock contract', () => {
 
 		expect(afterReset).toEqual({ ok: true, remaining: 2, resetAtMs: sampleConsumeInput.windowMs * 2 });
 	});
+
+	it('tracks the number of keys currently held via size()', () => {
+		const seam = createMockRateLimitSeam();
+		expect(seam.size()).toBe(0);
+
+		seam.consume(sampleConsumeInput);
+		expect(seam.size()).toBe(1);
+
+		seam.consume({ ...sampleConsumeInput, key: 'test-route:10.0.0.1' });
+		expect(seam.size()).toBe(2);
+	});
+
+	it('evicts expired entries once the tracked key count exceeds the sweep threshold', () => {
+		const seam = createMockRateLimitSeam();
+		const windowMs = 1000;
+
+		for (let i = 0; i < 1001; i += 1) {
+			seam.consume({ key: `sweep-key-${i}`, limit: 1, windowMs });
+		}
+		expect(seam.size()).toBe(1001);
+
+		vi.setSystemTime(windowMs + 1);
+		seam.consume({ key: 'sweep-trigger', limit: 1, windowMs });
+
+		expect(seam.size()).toBe(1);
+	});
+
+	it('caps memory growth under a flood of always-fresh distinct keys (e.g. varying attacker IPs)', () => {
+		const seam = createMockRateLimitSeam();
+		const windowMs = 10 * 60_000;
+		const floodSize = 6000;
+
+		for (let i = 0; i < floodSize; i += 1) {
+			seam.consume({ key: `flood-key-${i}`, limit: 1, windowMs });
+		}
+
+		expect(seam.size()).toBeLessThan(floodSize);
+		expect(seam.size()).toBeLessThanOrEqual(5001);
+	});
 });
