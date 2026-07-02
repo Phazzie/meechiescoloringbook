@@ -22,6 +22,8 @@ Short, durable decisions with context and tradeoffs.
   - Commands: `npm run check`, `npm run lint`, `npm run test`.
 - Self-critique: The riskiest assumption is that "PR #204's branch was built on PR #202's branch, based on main at 29109f0" (stated in the task background) combined with the direct code greps above is sufficient proof that none of this infrastructure reached `main` through some other route or PR — verified independently by grepping `src/` directly on this fresh `origin/main` checkout for the key symbols (`circuit`, `breaker`, `rate-limiter.ts`, `signal` threading in the affected routes) rather than trusting the PR descriptions alone, so the finding is grounded in the actual current tree, not in the PRs' own claims.
 
+## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
+
 - Date: 2026-06-07
 - Decision: Port PR #114's still-current ordinal formatting and AppConfig integer parsing fixes onto current `main` while leaving stale generate-pipeline, studio-text, and HTTP-client hunks out of this slice.
 - Context: PR #114 is dirty against current `main`. The HTTP double-parse/error-policy concern was already salvaged by the HPR HTTP client policy work, and current generate/studio-text pipelines have newer behavior that should not be overwritten. The remaining useful behavior was correct English ordinal suffixes for Meechie lineup positions and safer `MAX_IMAGES_PER_REQUEST` parsing that does not accept whitespace or floats as valid optional integers.
