@@ -1984,3 +1984,23 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Evidence: docs/evidence/2026-07-02/rewind-RateLimitSeam.txt; docs/evidence/2026-07-02/chamber-lock.json; docs/evidence/2026-07-02/test.txt; docs/evidence/2026-07-02/verify.txt; docs/evidence/2026-07-02/shaolin-lint.json; docs/evidence/2026-07-02/assumption-alarm.json; docs/evidence/2026-07-02/seam-ledger.json; docs/evidence/2026-07-02/clan-chain.json; docs/evidence/2026-07-02/proof-tape.json
   - Summary: Fixed unbounded RateLimitSeam Map growth (expired-entry eviction + hard-cap oldest-first eviction), normalized empty client-address keys, and tightened the resetAtMs validator, in response to PR #211 automated review feedback.
   - Risks: Hard-cap eviction can force-reset a legitimate client's window under a concurrent flood of distinct keys; accepted as a bounded-memory-over-perfect-fairness trade-off for a best-effort, infrastructure-free limiter.
+
+## 2026-07-02 - Add RateLimitSeam fault fixture and gate rate limiting after body parsing (PR #211 review follow-up 2)
+- Date: 2026-07-02
+- Decision: Address two further Codex review findings on PR #211: (1) `src/lib/seams/rate-limit-seam/fixtures.ts` only defined a passing sample input, with no fault fixture, which does not satisfy `src/lib/seams/AGENTS.md`'s "fixtures.ts provides sample + fault data" + red-proof requirement; (2) every gated route checked `enforceRateLimit` before `parseRequestBody`, so a client sending malformed JSON burned rate-limit budget for requests that could never reach a paid provider, risking false-positive `429`s for legitimate traffic behind the same client key.
+- Context: `faultConsumeInput` (a `limit: 0` input) deterministically triggers `RATE_LIMITED` on its first, stateless use, giving a genuine red-proof fixture consistent with how other dependency-injected seams (e.g. SafetyPolicySeam) satisfy the fault-fixture requirement without a scenario-selector mock. Reordering to parse-then-limit keeps the guard directly in front of every pipeline/paid-provider call while no longer charging quota for requests that fail at the parse stage.
+- Consequences: `RateLimitSeam` now has an explicit fault fixture and a dedicated red-proof test (`red proof: the fault fixture fails on its first, stateless use`). All six gated routes now call `parseRequestBody` first and `enforceRateLimit` second, before invoking their respective pipeline.
+- Revisit criteria: None beyond the existing entry's criteria.
+- Plan:
+  - Goal: Resolve remaining Codex review findings on PR #211 before merge.
+  - Seams: RateLimitSeam.
+  - Files: `src/lib/seams/rate-limit-seam/{fixtures,test}.ts`, `src/routes/api/{generate,image-generation,chat-interpretation,meechie-studio-text,tools,wig-try-on}/+server.ts`, `DECISIONS.md`, `docs/evidence/2026-07-02/*` (refreshed).
+  - Commands: `npm run rewind -- --seam RateLimitSeam`, `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`.
+- Self-critique: The main risk is that parse-then-limit still runs `parseRequestBody`'s (cheap) JSON.parse for every request regardless of rate-limit state, so a client could send unlimited malformed-JSON requests without ever being throttled. This is accepted because JSON parsing alone is not the exposure this seam protects against (paid provider calls are); a raw-request-volume DoS is a platform/edge concern, not this seam's stated scope.
+
+- Cipher Gate:
+  - Date: 2026-07-02
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-07-02/rewind-RateLimitSeam.txt; docs/evidence/2026-07-02/chamber-lock.json; docs/evidence/2026-07-02/test.txt; docs/evidence/2026-07-02/verify.txt; docs/evidence/2026-07-02/shaolin-lint.json; docs/evidence/2026-07-02/assumption-alarm.json; docs/evidence/2026-07-02/seam-ledger.json; docs/evidence/2026-07-02/clan-chain.json; docs/evidence/2026-07-02/proof-tape.json
+  - Summary: Added a red-proof fault fixture for RateLimitSeam and reordered all six gated routes to parse the request body before checking the rate limit, so malformed JSON no longer consumes paid-provider quota.
+  - Risks: Raw malformed-JSON request volume is no longer bounded by this limiter; accepted as out of this seam's stated scope (paid-provider cost/abuse protection, not raw request-volume DoS).

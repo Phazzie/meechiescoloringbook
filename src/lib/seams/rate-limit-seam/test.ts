@@ -2,7 +2,7 @@
 // Why: Enforce mock adherence to the seam contract and prove window/reset behavior deterministically.
 // Info flow: tests -> mock -> contract assertions.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { sampleConsumeInput } from './fixtures';
+import { faultConsumeInput, sampleConsumeInput } from './fixtures';
 import { createMockRateLimitSeam } from './mock';
 import { validateRateLimitResult } from './validators';
 
@@ -25,6 +25,19 @@ describe('RateLimitSeam mock contract', () => {
 
 		const second = seam.consume(sampleConsumeInput);
 		expect(second).toEqual({ ok: true, remaining: 1, resetAtMs: sampleConsumeInput.windowMs });
+	});
+
+	it('red proof: the fault fixture fails on its first, stateless use', () => {
+		const seam = createMockRateLimitSeam();
+
+		const result = seam.consume(faultConsumeInput);
+
+		expect(result.ok).toBe(false);
+		expect(validateRateLimitResult(result)).toEqual(result);
+		if (!result.ok) {
+			expect(result.error.code).toBe('RATE_LIMITED');
+			expect(result.error.retryAfterMs).toBe(faultConsumeInput.windowMs);
+		}
 	});
 
 	it('rejects requests once the limit is exceeded within a window', () => {

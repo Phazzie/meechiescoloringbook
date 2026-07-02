@@ -15,10 +15,10 @@ import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
-	const rateLimitCheck = enforceRateLimit('meechie-studio-text', getClientAddress());
-	if (!rateLimitCheck.ok) return rateLimitCheck.response;
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
+	const rateLimitCheck = enforceRateLimit('meechie-studio-text', getClientAddress());
+	if (!rateLimitCheck.ok) return rateLimitCheck.response;
 	const deps: MeechieStudioTextPipelineDeps = {
 		createProvider: createProviderAdapter,
 		textModel: env.XAI_TEXT_MODEL,
