@@ -163,3 +163,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-07-02
+- Date: 2026-07-02
+- Context: Asked to fix unresolved review comments on PR #202 and PR #204; both turned out to be an unmerged stacked chain (PR #198 → PR #202 → PR #204) that never landed on `main`, so 41 of 42 combined review threads described bugs in code that does not exist on `main` at all — a larger version of the 2026-06-05 stacked-PR lesson above.
+- Lesson: "PR X has N unresolved review threads" does not imply "N bugs exist in `main`." Before implementing any review-comment fix, grep `main` directly for the symbols/files the comment references; if the referenced code was introduced fresh within the PR's own diff and never merged, the comment is about the PR, not about `main`, and porting a targeted fix without the surrounding feature is either a no-op or a correctness trap.
+- Action: For every "address review comments from PR #N" task, first confirm each flagged file/symbol exists on the target base branch before writing a fix. If most of a PR's diff is genuinely new (check `additions`/`changed_files` via `pull_request_read` `get`), treat "land or don't land this PR" as a separate, explicit decision from "patch the specific lines reviewers flagged," and say so rather than silently reimplementing a large feature under a bug-fix task frame.

@@ -32,3 +32,11 @@ Some seams are pure or dependency-injected and have no separate adapter. When an
 | `telemetry-seam/` | Telemetry event contract (pure) |
 | `image-generation-seam/` | xAI image provider calls |
 | `image-provider-config-seam/` | Narrow config: only xAI image-provider env keys (decouples image generation from text-model and Gemini vars) |
+| `drift-detection-seam/` | Detects prompt/spec drift between requested and rendered output |
+| `meechie-tool-seam/` | Meechie tool dispatch (apology translator, red flag or run, lineup, etc.) |
+| `meechie-voice-seam/` | Meechie voice pack and tone shaping |
+| `prompt-assembly-seam/` | Assembles canonical/compressed prompts from a validated spec |
+| `spec-validation-seam/` | Validates a ColoringPageSpec before prompt assembly |
+| `wig-catalog-seam/` | 8-wig affiliate catalog reads |
+| `wig-try-on-seam/` | Gemini-backed wig try-on portrait generation |
+| `cache-seam/` | Thin wrapper over the Web Cache API for the PWA service worker |
