@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-07-03T12:14:05.305Z",
+  "cipher": {
+    "date": "2026-07-03",
+    "seams": "MeechieVoiceSeam, ProviderAdapterSeam, ImageGenerationSeam, TelemetrySeam, SpecValidationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-07-03/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-03/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-03/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-03/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-03/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-03/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-03/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-03/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Upgraded `zod` from v3 to v4, fixed the resulting `z.record()` two-argument requirement and `invalid_string`→`invalid_format`/`PropertyKey` path-typing breaks in `SpecValidationSeam`'s adapter, and verified with a full `npm run check` + `npm test` (519 passed) + `npm run lint` + `npm run build` + `npm run verify` pass.",
+    "risks": "Zod v4 deprecates (but still supports) chained string-format validators like `.url()`/`.email()` in favor of top-level `z.url()`/`z.email()`; those call sites were left as-is since they still typecheck and pass tests, but a future zod major version may require migrating them."
+  },
+  "latestChangeMs": 1783080655385.3113,
+  "status": "ok"
+}

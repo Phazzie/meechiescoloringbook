@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-07-03 - Upgrade zod dependency from v3 to v4
+
+- Date: 2026-07-03
+- Decision: Upgrade the `zod` dependency from `^3.25.76` to `^4.4.3` and fix the resulting breaking-change call sites across contracts, validators, and the SpecValidationSeam adapter (both the legacy and self-contained copies), instead of pinning to v3 indefinitely.
+- Context: `zod` underpins every contract-first schema in this Seam-Driven Development codebase (57 files reference it), so staying on an unmaintained major version accumulates upgrade risk over time. Zod v4 changes `z.record()` to require an explicit key schema (`z.record(z.string(), value)` instead of `z.record(value)`), replaces the `invalid_string` issue code with `invalid_format`, and widens `ZodIssue.path` to `PropertyKey[]` (adding `symbol`) instead of `(string | number)[]`.
+- Alternatives: Stay on zod v3; rejected because v3 is no longer the actively developed major version and every contract in the seam registry would keep compounding the eventual migration cost. Re-export a v3-compatible shim; rejected as unnecessary indirection since the actual call-site fixes were small (3 files with single-argument `z.record()`, 1 shared duplicate seam pair with `invalid_string`/`path` typing) and fully covered by the existing 519-test suite.
+- Consequences: `z.record(NonEmptyStringSchema)`-style single-argument calls in `contracts/meechie-voice.contract.ts`, `src/lib/seams/meechie-voice-seam/contract.ts`, `contracts/provider-adapter.contract.ts`, `src/lib/seams/image-generation-seam/validators.ts`, and `src/lib/seams/telemetry-seam/validators.ts` now pass an explicit `z.string()` key schema. `SpecValidationSeam`'s adapter (both `src/lib/adapters/spec-validation.adapter.ts` and `src/lib/adapters/spec-validation-seam/index.ts`) normalizes `issue.path` segments to `string | number` before formatting and checks `issue.code === 'invalid_format'` instead of the removed `invalid_string` code, so the `LABEL_INVALID_CHARS` validation-issue mapping still fires correctly. No schema's runtime validation behavior changes (string keys were always the only keys ever produced); this is a type/dependency-compatibility fix, not an observable seam contract change.
+- Revisit criteria: Revisit if a future zod v5 changes issue codes or `z.record()` again, or if any seam starts relying on non-string record keys.
+- Plan:
+  - Goal: Upgrade `zod` to v4 and repair every breaking-change call site so `npm run check`, `npm test`, `npm run lint`, and `npm run build` stay green.
+  - Seams: MeechieVoiceSeam (legacy + self-contained), ProviderAdapterSeam, ImageGenerationSeam (self-contained), TelemetrySeam, SpecValidationSeam (legacy + self-contained).
+  - Files: `package.json`, `package-lock.json`, `contracts/meechie-voice.contract.ts`, `contracts/provider-adapter.contract.ts`, `src/lib/seams/meechie-voice-seam/contract.ts`, `src/lib/seams/image-generation-seam/validators.ts`, `src/lib/seams/telemetry-seam/validators.ts`, `src/lib/adapters/spec-validation.adapter.ts`, `src/lib/adapters/spec-validation-seam/index.ts`, `docs/evidence/2026-07-03/*`.
+  - Commands: `npm install zod@^4.4.3`, `npm run check`, `npm test`, `npm run lint`, `npm run build`, `npm run verify`.
+- Self-critique: The main risk was silent behavior drift in error-issue-code mapping (`invalid_string` → `invalid_format`) going unnoticed if the fault fixtures didn't exercise the regex-validation path; the existing `SpecValidationSeam` contract tests do exercise `LABEL_INVALID_CHARS` via fault fixtures, and they passed after the fix, which is the evidence this mapping still fires. A second risk was the widened `ZodIssue.path` type breaking downstream `string`-only assumptions silently at runtime (e.g., symbol path segments); no schema in this codebase can currently produce symbol keys, so the `typeof segment === 'symbol'` normalization is defensive typing rather than an observed runtime case.
+
+- Cipher Gate:
+  - Date: 2026-07-03
+  - Seams: MeechieVoiceSeam, ProviderAdapterSeam, ImageGenerationSeam, TelemetrySeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-07-03/verify.txt; docs/evidence/2026-07-03/test.txt; docs/evidence/2026-07-03/chamber-lock.json; docs/evidence/2026-07-03/shaolin-lint.json; docs/evidence/2026-07-03/assumption-alarm.json; docs/evidence/2026-07-03/seam-ledger.json; docs/evidence/2026-07-03/clan-chain.json; docs/evidence/2026-07-03/proof-tape.md
+  - Summary: Upgraded `zod` from v3 to v4, fixed the resulting `z.record()` two-argument requirement and `invalid_string`→`invalid_format`/`PropertyKey` path-typing breaks in `SpecValidationSeam`'s adapter, and verified with a full `npm run check` + `npm test` (519 passed) + `npm run lint` + `npm run build` + `npm run verify` pass.
+  - Risks: Zod v4 deprecates (but still supports) chained string-format validators like `.url()`/`.email()` in favor of top-level `z.url()`/`z.email()`; those call sites were left as-is since they still typecheck and pass tests, but a future zod major version may require migrating them.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07

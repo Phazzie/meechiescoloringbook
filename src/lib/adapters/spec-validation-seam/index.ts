@@ -25,8 +25,9 @@ const formatPath = (path: Array<string | number>): string => {
 };
 
 const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] => {
-	const field = formatPath(issue.path);
-	const pathString = issue.path.map((segment) => String(segment)).join('.');
+	const path = issue.path.map((segment) => (typeof segment === 'symbol' ? String(segment) : segment));
+	const field = formatPath(path);
+	const pathString = path.map((segment) => String(segment)).join('.');
 
 	if (pathString.endsWith('items.0.number') || pathString.endsWith('number')) {
 		if (issue.code === 'too_small' || issue.code === 'too_big' || issue.code === 'invalid_type') {
@@ -47,7 +48,7 @@ const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] =
 	}
 
 	if (pathString.endsWith('label')) {
-		if (issue.code === 'invalid_string') {
+		if (issue.code === 'invalid_format') {
 			return {
 				code: 'LABEL_INVALID_CHARS',
 				field: field || 'items.label',
