@@ -89,8 +89,16 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 			});
 		}
 
+		if (!baseUrl) {
+			return errorResult({
+				code: 'WIG_TRY_ON_CONFIG_ERROR',
+				message: 'GEMINI_BASE_URL is not configured. The wig try-on feature requires a Gemini API base URL.'
+			});
+		}
+
 		const model = 'gemini-2.5-flash-image';
-		const endpoint = `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`;
+		const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+		const endpoint = `${normalizedBaseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
 		const requestBody = {
 			contents: [

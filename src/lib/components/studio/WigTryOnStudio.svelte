@@ -41,9 +41,10 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 		}).format(value);
 
 	const portraitFileExtension = (dataUrl: string): string => {
-		const match = dataUrl.match(/^data:image\/(png|jpeg|jpg|webp)/);
+		const match = dataUrl.match(/^data:image\/(png|jpeg|jpg|webp)/i);
 		if (!match) return 'png';
-		return match[1] === 'jpeg' ? 'jpg' : match[1];
+		const extension = match[1].toLowerCase();
+		return extension === 'jpeg' ? 'jpg' : extension;
 	};
 </script>
 

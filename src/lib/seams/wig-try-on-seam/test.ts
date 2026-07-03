@@ -120,4 +120,52 @@ describe('WigTryOnSeam mock contract', () => {
       expect.anything()
     );
   });
+
+  it('adapter strips a trailing slash from the configured base URL to avoid double slashes', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({
+        candidates: [
+          { content: { parts: [{ inline_data: { mime_type: 'image/png', data: 'ZmFrZQ==' } }] } }
+        ]
+      })
+    } as unknown as Response));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const trailingSlashConfigSeam: AppConfigSeam = {
+      getConfig: () => ({
+        ...mockConfigSeam.getConfig(),
+        geminiBaseUrl: 'https://gemini-proxy.example.com/'
+      })
+    };
+    const seam = createWigTryOnSeam(trailingSlashConfigSeam);
+    const result = await seam.tryOn(wigTryOnRequestFixture);
+
+    expect(result.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^https:\/\/gemini-proxy\.example\.com\/v1beta\//),
+      expect.anything()
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringMatching(/\.com\/\/v1beta/),
+      expect.anything()
+    );
+  });
+
+  it('returns WIG_TRY_ON_CONFIG_ERROR when geminiBaseUrl is configured as empty', async () => {
+    const emptyBaseUrlConfigSeam: AppConfigSeam = {
+      getConfig: () => ({
+        ...mockConfigSeam.getConfig(),
+        geminiBaseUrl: ''
+      })
+    };
+    const seam = createWigTryOnSeam(emptyBaseUrlConfigSeam);
+    const result = await seam.tryOn(wigTryOnRequestFixture);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('WIG_TRY_ON_CONFIG_ERROR');
+    }
+  });
 });

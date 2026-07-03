@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-07-03T12:13:03.778Z",
+  "generatedAt": "2026-07-03T12:22:48.772Z",
   "cipher": {
     "date": "2026-07-03",
     "seams": "WigTryOnSeam",
@@ -34,9 +34,9 @@
         "exists": true
       }
     ],
-    "summary": "Fixed WigTryOnSeam's unused geminiBaseUrl config, README Gemini env-var drift, a redundant \"out of 10\" score label, and a mislabeled portrait download extension; full verify green (520 tests passed, 1 skipped).",
-    "risks": "The WigTryOnSeam base-URL fix changes real request routing when GEMINI_BASE_URL is overridden; covered by a new adapter test but not by a live probe against a real alternate endpoint."
+    "summary": "Fixed WigTryOnSeam's unused geminiBaseUrl config (plus trailing-slash normalization and an empty-base-URL config-error guard added during review), README Gemini env-var drift, a redundant \"out of 10\" score label, and a mislabeled/case-sensitive portrait download extension; full verify green (522 tests passed, 1 skipped).",
+    "risks": "The WigTryOnSeam base-URL fix changes real request routing when GEMINI_BASE_URL is overridden; covered by adapter tests but not by a live probe against a real alternate endpoint."
   },
-  "latestChangeMs": 1783080603982.304,
+  "latestChangeMs": 1783081131142.3354,
   "status": "ok"
 }
