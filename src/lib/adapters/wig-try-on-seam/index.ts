@@ -70,9 +70,11 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 		}
 
 		let apiKey: string;
+		let baseUrl: string;
 		try {
 			const config = configSeam.getConfig();
 			apiKey = config.geminiApiKey;
+			baseUrl = config.geminiBaseUrl;
 		} catch {
 			return errorResult({
 				code: 'WIG_TRY_ON_CONFIG_ERROR',
@@ -88,7 +90,7 @@ export const createWigTryOnSeam = (configSeam: AppConfigSeam): WigTryOnSeam => (
 		}
 
 		const model = 'gemini-2.5-flash-image';
-		const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+		const endpoint = `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
 		const requestBody = {
 			contents: [

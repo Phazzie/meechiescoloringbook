@@ -8,6 +8,10 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Fixed the wig try-on adapter to honor a configured `GEMINI_BASE_URL` instead of always calling the hardcoded production Gemini host.
+- Documented `GEMINI_API_KEY`/`GEMINI_BASE_URL` in the README so the wig try-on feature's requirements aren't a surprise.
+- Removed a redundant "out of 10" label on `/rate-his-excuse` that duplicated the score already shown (e.g. "8/10 out of 10").
+- Fixed the "Save Portrait" download on the wig try-on studio to use the correct file extension (`.png`/`.jpg`/`.webp`) instead of always `.png`.
 - Added a local PR backlog dry-run validation script (`scripts/validate-pr-backlog.js`) to automate checking out, testing, and verifying clean PR candidates.
 - Added a review-comment extraction script (`scripts/get-pr-todos.js`) to isolate and scope active review threads for a specific PR.
 - Added a real-time merge conflict analysis script (`scripts/analyze-merge-conflicts.js`) to test all open PR branches for merge conflicts and update the triage table.

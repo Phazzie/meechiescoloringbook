@@ -223,7 +223,6 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				<span class="score-number" style="color: {ratingColor}"
 					>{result.headline}</span
 				>
-				<span class="score-label">out of 10</span>
 			</div>
 
 			<p class="verdict-commentary" data-testid="rate-result">
@@ -486,14 +485,6 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		line-height: 0.9;
 		letter-spacing: -0.04em;
 		text-shadow: 0 0 40px currentColor;
-	}
-
-	.score-label {
-		font-size: 1rem;
-		font-weight: 600;
-		color: var(--lavender);
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
 	}
 
 	.verdict-commentary {

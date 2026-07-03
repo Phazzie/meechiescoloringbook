@@ -92,4 +92,32 @@ describe('WigTryOnSeam mock contract', () => {
       expect(result.error.message).toContain('timed out');
     }
   });
+
+  it('adapter calls the configured Gemini base URL, not a hardcoded one', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({
+        candidates: [
+          { content: { parts: [{ inline_data: { mime_type: 'image/png', data: 'ZmFrZQ==' } }] } }
+        ]
+      })
+    } as unknown as Response));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const customConfigSeam: AppConfigSeam = {
+      getConfig: () => ({
+        ...mockConfigSeam.getConfig(),
+        geminiBaseUrl: 'https://gemini-proxy.example.com'
+      })
+    };
+    const seam = createWigTryOnSeam(customConfigSeam);
+    const result = await seam.tryOn(wigTryOnRequestFixture);
+
+    expect(result.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^https:\/\/gemini-proxy\.example\.com\//),
+      expect.anything()
+    );
+  });
 });
