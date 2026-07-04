@@ -12,7 +12,7 @@ A "voice pack" is a structured set of lines, templates, and keyword rules used b
 - Keys in `exactMap` and `map` must be lowercase because matching is normalized to lowercase.
 - The order of `wwmd.triggers` matters; the first match wins.
 - If you change any response text, update:
-  - `src/lib/adapters/meechie-voice.adapter.ts`
+  - `src/lib/adapters/meechie-voice-seam/index.ts`
   - `fixtures/meechie-voice/sample.json`
   - `fixtures/meechie-tool/sample.json` (if the output changes)
   - `fixtures/meechie-tool/fault.json` (if the lineup error message changes)

@@ -2,10 +2,10 @@
 // Why: Keep client/server generation orchestration deterministic and schema-validated.
 // Info flow: UI spec input -> server orchestration -> prompt/images/drift payload.
 import { z } from 'zod';
-import { DriftDetectionOutputSchema } from './drift-detection.contract';
+import { DriftDetectionOutputSchema } from '$lib/seams/drift-detection-seam/contract';
 import { ImageGenerationOutputSchema } from './image-generation.contract';
-import { PromptAssemblyOutputSchema } from './prompt-assembly.contract';
-import { ColoringPageSpecSchema } from './spec-validation.contract';
+import { PromptAssemblyOutputSchema } from '$lib/seams/prompt-assembly-seam/contract';
+import { ColoringPageSpecSchema } from '$lib/seams/spec-validation-seam/contract';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 
 export const GenerateRequestSchema = z.object({

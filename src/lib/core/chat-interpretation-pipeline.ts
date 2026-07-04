@@ -13,7 +13,7 @@ import {
 import {
 	ColoringPageSpecSchema,
 	RawColoringPageSpecSchema
-} from '../../../contracts/spec-validation.contract';
+} from '$lib/seams/spec-validation-seam/contract';
 import { z } from 'zod';
 
 const CHAT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);

@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-07-04 - Consolidate 5 duplicated legacy/self-contained seams
+
+- Date: 2026-07-04
+- Decision: Delete the legacy flat-layout contract, adapter, mock, and contract-test files for PromptAssemblySeam, SpecValidationSeam, DriftDetectionSeam, MeechieVoiceSeam, and MeechieToolSeam, and repoint every consumer (pipelines, components, routes, other contracts, unit tests) at the existing self-contained implementations under `src/lib/seams/<seam>/` and `src/lib/adapters/<seam>-seam/`. These 5 seams are now single-implementation; `docs/seams.md` no longer lists duplicate rows for them.
+- Context: `docs/seams.md` had carried "legacy flat layout; canonical version: self-contained at ..." notes for these 5 seams for months. Diffing every legacy file against its self-contained counterpart showed they were near-byte-identical (same exported types/functions, same behavior, differing only in relative import depth), meaning ~1,900 lines of pure duplication that had to be hand-kept in sync (`plan.md`'s 2026-06-07 PR #114 entry already records a bug — the ordinal formatter — that was fixed in one copy of MeechieToolSeam and not the other). This is exactly the drift Seam-Driven Development exists to prevent, so it was the highest-value, highest-blast-radius fix available in the repo (~40 consumer files across `src/lib/core`, `src/lib/components`, `src/routes`, `contracts/`, and `tests/`).
+- Alternatives: Leave both layouts in place; rejected because it is the actively acknowledged source of drift risk. Delete the self-contained copies and keep the legacy layout; rejected because `CLAUDE.md`/`AGENTS.md` mandate the self-contained layout for all new work, and `contracts/CLAUDE.md` already forbids adding new legacy contracts. Migrate only one seam as a smaller/safer slice; rejected because the remaining 4 would keep the exact same drift risk and the mechanical work (pure import-path swap, verified by types) did not get materially riskier by doing all 5 in one pass.
+- Consequences: Every consumer of these 5 seams now imports a single canonical module. `fixtures/<seam>/` JSON directories are retained (the canonical `fixtures.ts` modules load from them, so they were never legacy-only). `tests/contract/<seam>.test.ts` files were deleted only after confirming their test bodies (sample/fault/title-only/max-items scenarios) are already covered by the canonical `src/lib/seams/<seam>/test.ts` suites — no coverage was lost (test file count dropped from 63 to 58, test count from 519 to 494, matching exactly the 5 removed duplicate suites). `npm run check`, `npm run lint`, `npm test`, `npm run build`, and `npm run verify` are all green after the change.
+- Revisit criteria: If a 6th duplicated seam appears, or if `docs/seams.md` grows a new "legacy flat layout; canonical version: ..." note, re-run this same consolidation pattern promptly rather than letting it accumulate.
+- Plan:
+  - Goal: Remove duplicate legacy implementations for PromptAssemblySeam, SpecValidationSeam, DriftDetectionSeam, MeechieVoiceSeam, MeechieToolSeam without changing observable behavior.
+  - Seams: PromptAssemblySeam, SpecValidationSeam, DriftDetectionSeam, MeechieVoiceSeam, MeechieToolSeam.
+  - Files: deleted `contracts/{prompt-assembly,spec-validation,drift-detection,meechie-voice,meechie-tool}.contract.ts`, `src/lib/adapters/{same}.adapter.ts`, `src/lib/mocks/{same}.mock.ts`, `tests/contract/{same}.test.ts`; edited ~40 consumer files to import from `$lib/seams/<seam>/contract` and `$lib/adapters/<seam>-seam`; updated `docs/seams.md` and `docs/meechie-voice-pack.md`.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`, `git diff --check`.
+- Self-critique: The main risk was missing a consumer and shipping a broken import. Mitigated by grepping the whole repo (excluding `docs/evidence/` historical snapshots) for every legacy path variant before and after the edit, confirming zero live references remained, and by `svelte-check`/`vitest`/`vite build` all passing, which would fail on any unresolved import. The riskiest assumption was that the canonical mocks/tests were behaviorally equivalent, not just structurally similar; this was validated by diffing test bodies (not just imports) and confirming identical scenario coverage before deleting the legacy test files.
+
+- Cipher Gate:
+  - Date: 2026-07-04
+  - Seams: PromptAssemblySeam, SpecValidationSeam, DriftDetectionSeam, MeechieVoiceSeam, MeechieToolSeam
+  - Evidence: docs/evidence/2026-07-04/seam-consolidation-check.txt; docs/evidence/2026-07-04/seam-consolidation-lint.txt; docs/evidence/2026-07-04/seam-consolidation-test.txt; docs/evidence/2026-07-04/seam-consolidation-build.txt; docs/evidence/2026-07-04/seam-consolidation-diff-check.txt; docs/evidence/2026-07-04/verify.txt; docs/evidence/2026-07-04/chamber-lock.json; docs/evidence/2026-07-04/seam-ledger.json
+  - Summary: Removed ~1,900 lines of duplicate legacy seam implementations across 5 seams, repointed every consumer at the existing self-contained canonical modules, and confirmed no behavior or coverage change via full check/lint/test/build/verify.
+  - Risks: Historical docs (`plan.md`, `docs/next-steps-plan-2026-02-14.md`, `docs/hpr-pr-resolution-ledger-2026-06-05.md`, `docs/todo-from-cleanup.md`, `docs/gemini-findings-2026-02-15.md`) still mention the old legacy paths as point-in-time records; left untouched intentionally since they document past decisions, not live pointers.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07

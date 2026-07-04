@@ -8,6 +8,20 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Consolidate 5 duplicated legacy/self-contained seams (2026-07-04, complete)
+
+### Plan
+- Goal: Delete the legacy flat-layout duplicate of PromptAssemblySeam, SpecValidationSeam, DriftDetectionSeam, MeechieVoiceSeam, and MeechieToolSeam (each had lived in both `contracts/`/`src/lib/adapters/`/`src/lib/mocks/`/`tests/contract/` and the canonical `src/lib/seams/<seam>/` layout since their earlier migration), repoint every consumer at the canonical implementation, and update `docs/seams.md`.
+- Exact seams: PromptAssemblySeam, SpecValidationSeam, DriftDetectionSeam, MeechieVoiceSeam, MeechieToolSeam.
+- Exact file paths touched: deleted `contracts/{prompt-assembly,spec-validation,drift-detection,meechie-voice,meechie-tool}.contract.ts`, `src/lib/adapters/{same}.adapter.ts`, `src/lib/mocks/{same}.mock.ts`, `tests/contract/{same}.test.ts`; edited imports in `src/lib/core/{tools-pipeline,meechie-studio,prompt-template,image-generation-pipeline,chat-interpretation-pipeline}.ts`, `src/lib/components/{MeechieTools.svelte,MeechieModePage.svelte,meechie-mode-config.ts,studio/StudioSettingsPanel.svelte,studio/SystemTrace.svelte}`, `src/routes/{random,rate-his-excuse,who-fucked-up}/+page.svelte`, `src/routes/studio-state.svelte.ts`, `src/lib/utils/alignment-line.ts`, `src/lib/seams/safety-policy-seam/contract.ts`, `contracts/{generate,chat-interpretation,output-packaging,image-generation,creation-store}.contract.ts`, `tests/unit/{meechie-tool-adapter,meechie-tool-adapter.responses,meechie-tools-parity,coloring-page-title,drift-detection-helpers}.test.ts`, `tests/helpers/make-base-spec.ts`; updated `docs/seams.md` and `docs/meechie-voice-pack.md`.
+- Exact commands run: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`, `npm run cipher:gate`, `git diff --check`.
+
+### Self-critique
+1. What could be wrong: A missed consumer would surface as an unresolved import at type-check/build time, not silently.
+2. What must be proven: Every legacy import path is gone from live code (verified by repo-wide grep excluding `docs/evidence/` and historical planning docs), canonical mocks/tests cover the same scenarios as the deleted legacy tests, and `fixtures/<seam>/` JSON directories stay in place because the canonical `fixtures.ts` modules still load them.
+3. Riskiest assumption: The self-contained mock/adapter/contract modules are behaviorally identical to their legacy counterparts, not just structurally similar. Proven by diffing every pair (only relative import-path differences) and confirming test counts moved from 519/63 files to 494/58 files — exactly the 5 deleted duplicate suites, no more, no less.
+4. Evidence: `docs/evidence/2026-07-04/seam-consolidation-{check,lint,test,build,diff-check}.txt`, `docs/evidence/2026-07-04/verify.txt`, DECISIONS.md Cipher Gate entry (2026-07-04).
+
 ## PR #114 Manual Integration: Ordinal and Config Parsing Cleanup (2026-06-07)
 
 ### Shortcut Check
