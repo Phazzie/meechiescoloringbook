@@ -165,6 +165,7 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
 
 ## 2026-07-04
+
 - Date: 2026-07-04
 - Context: Consolidating 5 seams (PromptAssemblySeam, SpecValidationSeam, DriftDetectionSeam, MeechieVoiceSeam, MeechieToolSeam) that had lived in both the legacy flat layout and the self-contained layout since their 2026-05/06 migration.
 - Lesson: "Migrated to self-contained layout" in `docs/seams.md` did not mean the legacy copy was deleted — both layouts kept running in parallel for months, so a fix could land in one copy and not the other (the PR #114 ordinal-formatter bug is a concrete example). Also, the self-contained `fixtures.ts` modules for these seams still load raw JSON from the top-level `fixtures/<seam>/` directory, so that directory is not legacy-only and must not be deleted when retiring the legacy adapter/mock/contract/test files.
