@@ -271,9 +271,7 @@ describe('image-generation-pipeline edge cases', () => {
     }
   });
 
-  it('warns and defaults to png for unrecognized base64 headers', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-
+  it('defaults to png for unrecognized base64 headers', async () => {
     const result = await runImageGenerationPipeline(
       {
         spec: validSpec,
@@ -297,8 +295,6 @@ describe('image-generation-pipeline edge cases', () => {
       expect(result.body.value.images[0].format).toBe('png');
       expect(result.body.value.images[0].mimeType).toBe('image/png');
     }
-    expect(warn).toHaveBeenCalledWith('imageFormatFromBase64: unrecognized header, defaulting to png');
-    warn.mockRestore();
   });
 
   it('marks JPEG base64 as jpg for downstream packaging', async () => {

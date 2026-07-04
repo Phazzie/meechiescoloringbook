@@ -4,6 +4,7 @@
 import { driftDetectionAdapter } from '$lib/adapters/drift-detection-seam';
 import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly-seam';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
+import { isTimeoutError } from '$lib/core/http-resilience';
 import type {
 	SafetyPolicyError,
 	SafetyPolicyGenerateInput,
@@ -75,8 +76,7 @@ const safetyErrorDetails = (error: SafetyPolicyError) => {
 
 const imageExceptionResponse = (error: unknown): PipelineResponse => {
 	const reason = error instanceof Error ? error.message : String(error);
-	const name = error instanceof Error ? error.name : '';
-	const isTimeout = name === 'TimeoutError' || /timeout/i.test(reason);
+	const isTimeout = isTimeoutError(error);
 	return buildError(
 		isTimeout ? 504 : 502,
 		isTimeout ? 'IMAGE_GENERATION_TIMEOUT' : 'IMAGE_GENERATION_FAILED',

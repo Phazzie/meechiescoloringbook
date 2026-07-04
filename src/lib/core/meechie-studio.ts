@@ -8,6 +8,9 @@ import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract'
 
 export const DEFAULT_REVISION_BUDGET = 3;
 
+// Footer items use a number outside the 1-20 body item range so they never collide.
+const FOOTER_ITEM_NUMBER = 97;
+
 export const DEFAULT_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	verdict: 'Meechie already clocked it.',
 	quote: 'You fumbled ME? In THIS economy?',
@@ -401,7 +404,7 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 		label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
 	})),
 	footerItem: {
-		number: 97,
+		number: FOOTER_ITEM_NUMBER,
 		label: normalizeSpecLabel(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle)
 	},
 	listMode: 'list',
