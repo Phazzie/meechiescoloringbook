@@ -204,6 +204,32 @@ describe('RateLimitSeam mock contract', () => {
 		});
 	});
 
+	it('keeps a bucket on its own windowMs when the same key is later checked under a different policy', () => {
+		const seam = createMockRateLimitSeam();
+		const key = 'shared-key';
+		const start = seam.checkAndConsume({ key, maxRequests: 1, windowMs: 100, now: 0 });
+		expect(start.ok).toBe(true);
+
+		// Same key, different (larger) windowMs, well before the original 100ms window
+		// would have expired. If this call's windowMs leaked into the stored bucket's
+		// freshness check, the bucket would look fresh under the *new* 10_000ms window
+		// and silently reset instead of correctly still being within the original window.
+		const stillWithinOriginalWindow = validateRateLimitResult(
+			seam.checkAndConsume({ key, maxRequests: 1, windowMs: 10_000, now: 50 })
+		);
+		expect(stillWithinOriginalWindow.ok).toBe(false);
+		if (!stillWithinOriginalWindow.ok) {
+			expect(stillWithinOriginalWindow.error.resetAt).toBe(100);
+		}
+
+		// Past the original 100ms window: the bucket resets on its own stored windowMs,
+		// independent of whatever windowMs this later call happens to pass.
+		const afterOriginalWindow = validateRateLimitResult(
+			seam.checkAndConsume({ key, maxRequests: 1, windowMs: 10_000, now: 150 })
+		);
+		expect(afterOriginalWindow).toEqual({ ok: true, remaining: 0, resetAt: 10_150 });
+	});
+
 	it('reset() clears all tracked keys', () => {
 		const seam = createMockRateLimitSeam();
 		const { maxRequests } = baseRateLimitCheckFixture;

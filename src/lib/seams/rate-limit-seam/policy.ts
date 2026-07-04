@@ -6,6 +6,10 @@ import type { RateLimitCheckInput, RateLimitResult, RateLimitSeam } from './cont
 type WindowState = {
 	count: number;
 	windowStart: number;
+	// Persisted per-bucket (not re-read from whatever call happens to check next) so a key
+	// checked under two different maxRequests/windowMs policies keeps its own window's
+	// freshness/eviction/reset math tied to the policy that actually opened it.
+	windowMs: number;
 };
 
 const CLEANUP_THRESHOLD = 1000;
@@ -18,6 +22,9 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 	// cost paid per request. Throttling the scan to at most once per window
 	// keeps the amortized cost near O(1) without changing eviction semantics
 	// (stale entries are still removed before they could accumulate further).
+	// `windowMs` here only throttles how often the sweep runs (the triggering call's
+	// window is a reasonable cadence); each entry's own staleness is judged against its
+	// own stored `windowMs`, not this one.
 	const evictExpired = (now: number, windowMs: number): void => {
 		if (windows.size <= CLEANUP_THRESHOLD) return;
 		// A backward clock step (e.g. an NTP correction) makes `now - lastCleanupAt`
@@ -26,7 +33,7 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 		if (now >= lastCleanupAt && now - lastCleanupAt < windowMs) return;
 		lastCleanupAt = now;
 		for (const [staleKey, staleState] of windows) {
-			if (now - staleState.windowStart >= windowMs) windows.delete(staleKey);
+			if (now - staleState.windowStart >= staleState.windowMs) windows.delete(staleKey);
 		}
 	};
 
@@ -70,13 +77,20 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 			// `existing.windowStart`, making `now - existing.windowStart` negative —
 			// never >= windowMs — so the stale, possibly-exhausted window would be
 			// reused instead of reset, inflating retryAfterMs/resetAt for the client.
+			// Freshness is judged against the window's own stored windowMs, not this
+			// call's, so a key checked under two different policies isn't reset/kept
+			// by whichever policy happens to call in next.
 			const isFreshWindow =
-				!existing || now - existing.windowStart >= windowMs || now < existing.windowStart;
-			const state: WindowState = isFreshWindow ? { count: 0, windowStart: now } : existing;
+				!existing ||
+				now - existing.windowStart >= existing.windowMs ||
+				now < existing.windowStart;
+			const state: WindowState = isFreshWindow
+				? { count: 0, windowStart: now, windowMs }
+				: existing;
 
 			if (state.count >= maxRequests) {
 				windows.set(key, state);
-				const resetAt = state.windowStart + windowMs;
+				const resetAt = state.windowStart + state.windowMs;
 				return {
 					ok: false,
 					error: {
@@ -93,7 +107,7 @@ export const createRateLimitSeam = (): RateLimitSeam => {
 			return {
 				ok: true,
 				remaining: maxRequests - state.count,
-				resetAt: state.windowStart + windowMs
+				resetAt: state.windowStart + state.windowMs
 			};
 		},
 		reset: () => windows.clear()

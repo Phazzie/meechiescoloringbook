@@ -207,10 +207,24 @@ export const createProviderAdapter = (
 				};
 				const response = await fetchWithRetry(
 					() => fetchWithTimeout(url, requestInit, CHAT_TIMEOUT_MS),
-					{ ...RETRY_OPTIONS, breaker, signal: input.signal }
+					{ ...RETRY_OPTIONS, breaker, signal: input.signal, deferSuccessOnOk: true }
 				);
-				const payload = await readJson(response);
-				if (!response.ok) {
+				// Success for an `ok` response is deferred (see deferSuccessOnOk) until the body is
+				// actually read: a stalled or dropped body after 2xx headers is a real availability
+				// problem the breaker needs to see, not a free pass recorded before we know the read
+				// will complete.
+				let payload: unknown;
+				try {
+					payload = await readJson(response);
+				} catch (error) {
+					if (response.ok && !isAbortError(error)) {
+						breaker.recordFailure();
+					}
+					throw error;
+				}
+				if (response.ok) {
+					breaker.recordSuccess();
+				} else {
 					return buildHttpError(response, payload);
 				}
 				return normalizeChatOutput(payload, input.model);

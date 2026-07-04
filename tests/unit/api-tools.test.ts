@@ -14,8 +14,11 @@ vi.mock('$lib/server/parse-request-body', async () => {
 	);
 	return {
 		parseRequestBody: async (request: Request) => {
-			lateAbortRef.controller?.abort();
-			return actual.parseRequestBody(request);
+			const parsed = await actual.parseRequestBody(request);
+			if (parsed.ok) {
+				lateAbortRef.controller?.abort();
+			}
+			return parsed;
 		}
 	};
 });

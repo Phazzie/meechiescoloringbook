@@ -22,6 +22,14 @@ describe('RateLimitConfigSeam mock contract', () => {
 		expect(() => validateRateLimitConfig(config)).toThrow();
 	});
 
+	it('does not leak mutations between getConfig() calls', () => {
+		const seam = createMockRateLimitConfigSeam('sample');
+		const first = seam.getConfig();
+		(first as { rateLimitMaxRequests: number }).rateLimitMaxRequests = 999;
+		const second = seam.getConfig();
+		expect(second).toEqual(rateLimitConfigFixture);
+	});
+
 	it('config contains only the two rate-limit keys', () => {
 		const seam = createMockRateLimitConfigSeam('sample');
 		const config = seam.getConfig();

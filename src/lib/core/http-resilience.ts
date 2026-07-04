@@ -197,11 +197,21 @@ export type RetryOptions = {
 	signal?: AbortSignal;
 	/** Optional shared circuit breaker. When open, fails fast without attempting a fetch. */
 	breaker?: CircuitBreaker;
+	/**
+	 * When true, an `ok` (2xx) response does not record a breaker success here — the
+	 * caller must call `breaker.recordSuccess()` itself once it has finished reading the
+	 * response body. Without this, a response that stalls or errors while its body is
+	 * being read (after this function has already returned) is invisible to the breaker:
+	 * it would have already recorded a success for a call that never actually completed
+	 * healthily. Non-retryable non-ok responses still record success immediately here,
+	 * since receiving any HTTP response at all means the upstream was reachable.
+	 */
+	deferSuccessOnOk?: boolean;
 };
 
 export const fetchWithRetry = async (
 	fetcher: () => Promise<Response>,
-	{ maxAttempts, baseDelayMs, signal, breaker }: RetryOptions
+	{ maxAttempts, baseDelayMs, signal, breaker, deferSuccessOnOk }: RetryOptions
 ): Promise<Response> => {
 	if (!Number.isFinite(maxAttempts) || !Number.isInteger(maxAttempts) || maxAttempts < 1) {
 		throw new Error('fetchWithRetry: maxAttempts must be a finite integer >= 1');
@@ -249,7 +259,9 @@ export const fetchWithRetry = async (
 			return response;
 		}
 
-		breaker?.recordSuccess();
+		if (!deferSuccessOnOk || !response.ok) {
+			breaker?.recordSuccess();
+		}
 		return response;
 	}
 

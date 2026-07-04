@@ -539,6 +539,81 @@ describe('provider-adapter helpers', () => {
 		});
 	});
 
+	describe('createChatCompletion circuit breaker (deferred success)', () => {
+		it('does not record a breaker success when the response body fails to read after a 200', async () => {
+			const brokenBodyResponse = {
+				ok: true,
+				status: 200,
+				headers: new Headers(),
+				text: () => Promise.reject(new Error('stream reset'))
+			} as unknown as Response;
+			const fetchMock = vi.fn(async () => brokenBodyResponse);
+			vi.stubGlobal('fetch', fetchMock);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+
+			for (let i = 0; i < 3; i++) {
+				const result = await adapter.createChatCompletion({
+					model: 'test-model',
+					messages: [{ role: 'user', content: 'hi' }]
+				});
+				expect(result.ok).toBe(false);
+				if (!result.ok) {
+					expect(result.error.code).toBe('PROVIDER_NETWORK_ERROR');
+				}
+			}
+			expect(fetchMock).toHaveBeenCalledTimes(3);
+
+			// Three body-read failures on "successful" 200 responses must count as three
+			// breaker failures, exactly like three genuine network failures would. Before
+			// deferring success recording until after the body read, fetchWithRetry would
+			// have already recorded these as successes on the HTTP status alone, and the
+			// breaker would never open.
+			const result = await adapter.createChatCompletion({
+				model: 'test-model',
+				messages: [{ role: 'user', content: 'hi' }]
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('PROVIDER_CIRCUIT_OPEN');
+			}
+			expect(fetchMock).toHaveBeenCalledTimes(3);
+		});
+
+		it('records a breaker success once the body is read after a 200', async () => {
+			const fetchMock = vi.fn(async () =>
+				jsonResponse({ model: 'test-model', choices: [{ message: { content: 'hi' } }] })
+			);
+			vi.stubGlobal('fetch', fetchMock);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+
+			for (let i = 0; i < 3; i++) {
+				const result = await adapter.createChatCompletion({
+					model: 'test-model',
+					messages: [{ role: 'user', content: 'hi' }]
+				});
+				expect(result.ok).toBe(true);
+			}
+
+			// If a healthy read-to-completion hadn't recorded a success, three prior calls
+			// would have left stale failure bookkeeping and this call would still succeed
+			// only by coincidence rather than by an intentionally reset breaker.
+			const result = await adapter.createChatCompletion({
+				model: 'test-model',
+				messages: [{ role: 'user', content: 'hi' }]
+			});
+			expect(result.ok).toBe(true);
+			expect(fetchMock).toHaveBeenCalledTimes(4);
+		});
+	});
+
 	describe('buildHttpError edge cases', () => {
 		it('extracts error message from error.message field', async () => {
 			const fetchMock = vi.fn(

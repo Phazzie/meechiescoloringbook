@@ -7,5 +7,7 @@ import { getRateLimitConfigFixture } from './fixtures';
 export const createMockRateLimitConfigSeam = (
 	scenario: 'sample' | 'fault' = 'sample'
 ): RateLimitConfigSeam => ({
-	getConfig: () => getRateLimitConfigFixture(scenario)
+	// Fresh copy per call: the fixture is a module-scoped object, and callers must not be
+	// able to leak a mutation into a later getConfig() call by mutating what they got back.
+	getConfig: () => ({ ...getRateLimitConfigFixture(scenario) })
 });
