@@ -1,9 +1,9 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-07-04T09:48:19.593Z",
+  "generatedAt": "2026-07-04T09:57:11.242Z",
   "cipher": {
     "date": "2026-07-04",
-    "seams": "RateLimitSeam, RateLimitConfigSeam",
+    "seams": "ProviderAdapterSeam",
     "evidence": [
       {
         "path": "docs/evidence/2026-07-04/check.txt",
@@ -18,15 +18,11 @@
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-04/pr202-pr204-focused-tests.txt",
+        "path": "docs/evidence/2026-07-04/pr214-review-followup-focused-tests.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-04/rewind-RateLimitSeam.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-07-04/rewind-RateLimitConfigSeam.txt",
+        "path": "docs/evidence/2026-07-04/rewind-ProviderAdapterSeam-followup.txt",
         "exists": true
       },
       {
@@ -38,9 +34,9 @@
         "exists": true
       }
     ],
-    "summary": "Fixed a config-mutation leak in RateLimitConfigSeam's mock, a cross-policy window-state bug in RateLimitSeam, a circuit-breaker success recorded before the response body was read in the live chat-completion path, and two tautological/broken test assertions across PR #202's and PR #204's remaining unaddressed review threads.",
-    "risks": "No live-traffic validation of the deferred-breaker-success fix (no XAI_API_KEY in this environment); the RateLimitSeam cross-policy fix is currently unexercised in production since all routes share one global config; several ambiguous-value-judgment threads were deliberately left unchanged (documented above) and may warrant a human revisit."
+    "summary": "Deferred circuit-breaker success recording in `createImageGeneration` until the body is read (matching `createChatCompletion`), fixed a client-bundle Zod-dependency import in `StudioInputPanel.svelte`, and corrected a stale \"Contract tests\" header on a file living in `tests/unit/` — all three from automated review comments on PR #214 itself.",
+    "risks": "No live-traffic validation (no XAI_API_KEY in this environment); `createImageGeneration` remains uncalled by any production code path, so this fix has no live exercise beyond its own test."
   },
-  "latestChangeMs": 1783158477186.67,
+  "latestChangeMs": 1783158790918.6628,
   "status": "ok"
 }

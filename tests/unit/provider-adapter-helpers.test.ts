@@ -537,6 +537,46 @@ describe('provider-adapter helpers', () => {
 			});
 			expect(fetchMock).toHaveBeenCalledTimes(4);
 		});
+
+		it('does not record a breaker success when the response body fails to read after a 200', async () => {
+			const brokenBodyResponse = {
+				ok: true,
+				status: 200,
+				headers: new Headers(),
+				text: () => Promise.reject(new Error('stream reset'))
+			} as unknown as Response;
+			const fetchMock = vi.fn(async () => brokenBodyResponse);
+			vi.stubGlobal('fetch', fetchMock);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+
+			for (let i = 0; i < 3; i++) {
+				const result = await adapter.createImageGeneration({
+					model: 'test',
+					prompt: 'test',
+					n: 1,
+					responseFormat: 'b64_json'
+				});
+				expect(result.ok).toBe(false);
+			}
+
+			// Three body-read failures on "successful" 200 responses must count as three
+			// breaker failures, exactly like three genuine network failures would.
+			const result = await adapter.createImageGeneration({
+				model: 'test',
+				prompt: 'test',
+				n: 1,
+				responseFormat: 'b64_json'
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('PROVIDER_CIRCUIT_OPEN');
+			}
+			expect(fetchMock).toHaveBeenCalledTimes(3);
+		});
 	});
 
 	describe('createChatCompletion circuit breaker (deferred success)', () => {

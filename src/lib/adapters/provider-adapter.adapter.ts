@@ -298,11 +298,29 @@ export const createProviderAdapter = (
 				const response = await fetchWithTimeout(url, requestInit, IMAGE_TIMEOUT_MS);
 				if (RETRYABLE_STATUSES.has(response.status)) {
 					breaker.recordFailure();
-				} else {
+					breakerRecorded = true;
+				} else if (!response.ok) {
+					// Non-retryable HTTP error (e.g. 400, 401): upstream is reachable.
 					breaker.recordSuccess();
+					breakerRecorded = true;
 				}
-				breakerRecorded = true;
-				const payload = await readJson(response);
+				// For 2xx: defer success recording until after the body is fully read, so a
+				// body-stall/drop reaches the catch below as a recordable failure instead of
+				// having already been counted as a success on the HTTP status alone.
+				let payload: unknown;
+				try {
+					payload = await readJson(response);
+				} catch (error) {
+					if (!breakerRecorded && !isAbortError(error)) {
+						breaker.recordFailure();
+						breakerRecorded = true;
+					}
+					throw error;
+				}
+				if (!breakerRecorded) {
+					breaker.recordSuccess();
+					breakerRecorded = true;
+				}
 				if (!response.ok) {
 					return buildHttpError(response, payload);
 				}
