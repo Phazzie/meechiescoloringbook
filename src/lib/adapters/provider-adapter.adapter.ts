@@ -47,6 +47,13 @@ const getApiKey = (config: ProviderAdapterConfig): string | null => {
 	return key && key.length > 0 ? key : null;
 };
 
+// Exported so routes using the shared `providerAdapter` singleton (chat-interpretation,
+// tools, meechie-studio-text) can preflight the same check createChatCompletion/
+// createImageGeneration already run internally, and reject before enforceAiRateLimit
+// consumes a quota slot for a request that can never reach xAI. Only checks the env var
+// (not a config.apiKey override) since none of those routes construct a per-call config.
+export const hasProviderApiKey = (): boolean => getApiKey({}) !== null;
+
 const getBaseUrl = (config: ProviderAdapterConfig): string =>
 	normalizeBaseUrl(config.baseUrl || env.XAI_BASE_URL || DEFAULT_BASE_URL);
 

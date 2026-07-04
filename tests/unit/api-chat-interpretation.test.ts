@@ -8,6 +8,22 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 // behavior (the no-op default leaves parseRequestBody fully real/untouched).
 const lateAbortRef = vi.hoisted(() => ({ controller: null as AbortController | null }));
 
+// Stubbed (defaulting to true) so checkChatInterpretationProviderConfig's hasProviderApiKey()
+// check doesn't depend on a real XAI_API_KEY being present in the test process environment —
+// the tests below mock createChatCompletion directly instead. A dedicated test overrides this
+// to false to exercise the missing-key preflight itself.
+const hasProviderApiKeyRef = vi.hoisted(() => ({ value: true }));
+
+vi.mock('$lib/adapters/provider-adapter.adapter', async () => {
+	const actual = await vi.importActual<typeof import('$lib/adapters/provider-adapter.adapter')>(
+		'$lib/adapters/provider-adapter.adapter'
+	);
+	return {
+		...actual,
+		hasProviderApiKey: () => hasProviderApiKeyRef.value
+	};
+});
+
 vi.mock('$lib/server/parse-request-body', async () => {
 	const actual = await vi.importActual<typeof import('$lib/server/parse-request-body')>(
 		'$lib/server/parse-request-body'
@@ -223,5 +239,26 @@ describe('/api/chat-interpretation', () => {
 		expect(response.status).toBe(200);
 		expect(payload.ok).toBe(true);
 		expect(payload.value.spec).toEqual(validSpec);
+	});
+
+	it('returns PROVIDER_API_KEY_MISSING before invoking the provider when XAI_API_KEY is unset', async () => {
+		const providerSpy = vi.spyOn(providerAdapter, 'createChatCompletion');
+		hasProviderApiKeyRef.value = false;
+
+		try {
+			const response = await POST(
+				buildEvent({ message: 'build me a clean printable page' })
+			);
+			const payload = await response.json();
+
+			expect(response.status).toBe(502);
+			expect(payload).toEqual({
+				ok: false,
+				error: { code: 'PROVIDER_API_KEY_MISSING', message: 'XAI_API_KEY is required.' }
+			});
+			expect(providerSpy).not.toHaveBeenCalled();
+		} finally {
+			hasProviderApiKeyRef.value = true;
+		}
 	});
 });

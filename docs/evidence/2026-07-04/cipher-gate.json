@@ -1,9 +1,9 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-07-04T09:57:11.242Z",
+  "generatedAt": "2026-07-04T10:19:34.819Z",
   "cipher": {
     "date": "2026-07-04",
-    "seams": "ProviderAdapterSeam",
+    "seams": "WigTryOnSeam, ProviderAdapterSeam",
     "evidence": [
       {
         "path": "docs/evidence/2026-07-04/check.txt",
@@ -18,11 +18,15 @@
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-04/pr214-review-followup-focused-tests.txt",
+        "path": "docs/evidence/2026-07-04/pr214-round2-focused-tests.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-04/rewind-ProviderAdapterSeam-followup.txt",
+        "path": "docs/evidence/2026-07-04/rewind-WigTryOnSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-04/rewind-ProviderAdapterSeam-round2.txt",
         "exists": true
       },
       {
@@ -34,9 +38,9 @@
         "exists": true
       }
     ],
-    "summary": "Deferred circuit-breaker success recording in `createImageGeneration` until the body is read (matching `createChatCompletion`), fixed a client-bundle Zod-dependency import in `StudioInputPanel.svelte`, and corrected a stale \"Contract tests\" header on a file living in `tests/unit/` — all three from automated review comments on PR #214 itself.",
-    "risks": "No live-traffic validation (no XAI_API_KEY in this environment); `createImageGeneration` remains uncalled by any production code path, so this fix has no live exercise beyond its own test."
+    "summary": "Fixed wig-try-on's image-fetch abort misclassification (WIG_TRY_ON_ABORTED instead of WIG_IMAGE_FETCH_FAILED) and added a missing-XAI_API_KEY preflight to meechie-studio-text/tools/chat-interpretation before rate-limit quota is charged, reproducing each route's existing response shape exactly.",
+    "risks": "No live-traffic validation of the \"key present\" path for any of the three new preflights (no XAI_API_KEY in this environment); the three preflights are independently implemented per pipeline rather than shared, a deliberate scope tradeoff documented above."
   },
-  "latestChangeMs": 1783158790918.6628,
+  "latestChangeMs": 1783159878855.8372,
   "status": "ok"
 }

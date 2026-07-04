@@ -3,6 +3,7 @@
 // Info flow: Request body -> ProviderAdapterSeam -> structured studio text result.
 import { findDisallowedKeywords } from '$lib/core/constants';
 import { selectTextModel } from '$lib/core/text-model';
+import { hasProviderApiKey } from '$lib/adapters/provider-adapter.adapter';
 import {
 	MeechieStudioTextInputSchema,
 	MeechieStudioTextOutputSchema,
@@ -455,6 +456,28 @@ export const checkMeechieStudioTextSafety = (
 		};
 	}
 	return { ok: true };
+};
+
+export type MeechieStudioTextProviderConfigCheck =
+	| { ok: true }
+	| { ok: false; response: PipelineResponse };
+
+// Exported so the route can reject a missing XAI_API_KEY before consuming rate-limit
+// quota. createChatCompletion already detects this and returns PROVIDER_API_KEY_MISSING
+// at zero network cost, but only after enforceAiRateLimit has already charged a slot for
+// a request that could never reach xAI. Reuses providerErrorResponse so the status code
+// and message stay byte-identical to what the deferred provider-call path would produce.
+export const checkMeechieStudioTextProviderConfig = (
+	isProduction: boolean
+): MeechieStudioTextProviderConfigCheck => {
+	if (hasProviderApiKey()) return { ok: true };
+	return {
+		ok: false,
+		response: providerErrorResponse(
+			{ ok: false, error: { code: 'PROVIDER_API_KEY_MISSING', message: 'XAI_API_KEY is required.' } },
+			isProduction
+		)
+	};
 };
 
 export const runMeechieStudioTextPipeline = async (

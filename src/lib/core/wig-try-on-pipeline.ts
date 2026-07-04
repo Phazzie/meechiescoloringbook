@@ -6,6 +6,7 @@ import { z } from 'zod';
 import type { AppConfigSeam } from '../seams/app-config-seam/contract';
 import type { Wig, WigCatalogSeam } from '../seams/wig-catalog-seam/contract';
 import type { WigTryOnSeam } from '../seams/wig-try-on-seam/contract';
+import { isAbortError } from './http-resilience';
 
 type WigTryOnResult = z.infer<typeof WigTryOnResultSchema>;
 
@@ -36,20 +37,31 @@ const buildError = (
 	body: { ok: false, error: { code, message } }
 });
 
+type WigImageFetchResult =
+	| { kind: 'ok'; base64: string; mimeType: string }
+	| { kind: 'aborted' }
+	| { kind: 'failed' };
+
+// Distinguishes a caller abort from a genuine fetch failure: without this, a client
+// disconnecting mid-fetch (after the route has already charged rate-limit quota) was
+// reported as a generic WIG_IMAGE_FETCH_FAILED/502 for zero-paid-work requests, instead
+// of the WIG_TRY_ON_ABORTED/499 checkWigTryOnAbort already uses for the same situation
+// elsewhere in this pipeline.
 const fetchImageAsBase64 = async (
 	url: string,
 	fetchImpl: PipelineDeps['fetchImpl'],
 	signal?: AbortSignal
-): Promise<{ base64: string; mimeType: string } | null> => {
+): Promise<WigImageFetchResult> => {
 	try {
 		const res = signal ? await fetchImpl(url, { signal }) : await fetchImpl(url);
-		if (!res.ok) return null;
+		if (!res.ok) return { kind: 'failed' };
 		const buffer = await res.arrayBuffer();
 		const base64 = Buffer.from(buffer).toString('base64');
 		const mimeType = res.headers.get('content-type') ?? 'image/jpeg';
-		return { base64, mimeType: mimeType.split(';')[0].trim() };
-	} catch {
-		return null;
+		return { kind: 'ok', base64, mimeType: mimeType.split(';')[0].trim() };
+	} catch (error) {
+		if (isAbortError(error)) return { kind: 'aborted' };
+		return { kind: 'failed' };
 	}
 };
 
@@ -156,7 +168,10 @@ export const runWigTryOnPipeline = async (
 	const wig = catalogCheck.wig;
 
 	const wigImage = await fetchImageAsBase64(wig.imageUrl, deps.fetchImpl, deps.signal);
-	if (!wigImage) {
+	if (wigImage.kind === 'aborted') {
+		return buildError(499, 'WIG_TRY_ON_ABORTED', 'Wig try-on request was canceled by the caller.');
+	}
+	if (wigImage.kind === 'failed') {
 		return buildError(502, 'WIG_IMAGE_FETCH_FAILED', `Could not fetch wig image for ${wig.name}.`);
 	}
 

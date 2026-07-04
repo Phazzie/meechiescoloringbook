@@ -2,6 +2,7 @@
 // Why: Keep route handlers transport-only while preserving safety and contract checks.
 // Info flow: Raw request body -> input validation + safety checks -> tool adapter -> contract response.
 import { meechieToolAdapter } from '$lib/adapters/meechie-tool-seam';
+import { hasProviderApiKey } from '$lib/adapters/provider-adapter.adapter';
 import { findDisallowedKeywords } from '$lib/core/constants';
 import {
 	MeechieToolInputSchema,
@@ -96,6 +97,32 @@ export const checkMeechieToolSafety = (
 		};
 	}
 	return { ok: true };
+};
+
+export type MeechieToolProviderConfigCheck =
+	| { ok: true }
+	| { ok: false; response: ToolsPipelineResponse };
+
+// Exported so the route can reject a missing XAI_API_KEY before consuming rate-limit
+// quota. The live adapter (meechie-tool-seam/index.ts) already detects this and returns
+// PROVIDER_API_KEY_MISSING at zero network cost, but only after enforceAiRateLimit has
+// already charged a slot for a request that could never reach xAI. Status/message here
+// stay byte-identical to that existing fallback.
+export const checkMeechieToolProviderConfig = (): MeechieToolProviderConfigCheck => {
+	if (hasProviderApiKey()) return { ok: true };
+	return {
+		ok: false,
+		response: {
+			status: 200,
+			body: {
+				ok: false,
+				error: {
+					code: 'PROVIDER_API_KEY_MISSING',
+					message: 'AI tools require XAI_API_KEY to be set on the server.'
+				}
+			}
+		}
+	};
 };
 
 export const runToolsPipeline = async (

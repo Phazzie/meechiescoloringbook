@@ -7,6 +7,7 @@ import { json } from '@sveltejs/kit';
 import {
 	checkMeechieToolAbort,
 	checkMeechieToolInputShape,
+	checkMeechieToolProviderConfig,
 	checkMeechieToolSafety,
 	runToolsPipeline,
 	toolsPipelineDeps
@@ -30,6 +31,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const lateAbortCheck = checkMeechieToolAbort(request.signal);
 	if (!lateAbortCheck.ok)
 		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
+	const providerConfigCheck = checkMeechieToolProviderConfig();
+	if (!providerConfigCheck.ok)
+		return json(providerConfigCheck.response.body, { status: providerConfigCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const pipelineResult = await runToolsPipeline(parsed.body, {

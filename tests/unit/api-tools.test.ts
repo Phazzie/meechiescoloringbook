@@ -8,6 +8,22 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 // behavior (the no-op default leaves parseRequestBody fully real/untouched).
 const lateAbortRef = vi.hoisted(() => ({ controller: null as AbortController | null }));
 
+// Stubbed (defaulting to true) so checkMeechieToolProviderConfig's hasProviderApiKey() check
+// doesn't depend on a real XAI_API_KEY being present in the test process environment — the
+// tests below mock the tool adapter's respond() directly instead. A dedicated test overrides
+// this to false to exercise the missing-key preflight itself.
+const hasProviderApiKeyRef = vi.hoisted(() => ({ value: true }));
+
+vi.mock('$lib/adapters/provider-adapter.adapter', async () => {
+	const actual = await vi.importActual<typeof import('$lib/adapters/provider-adapter.adapter')>(
+		'$lib/adapters/provider-adapter.adapter'
+	);
+	return {
+		...actual,
+		hasProviderApiKey: () => hasProviderApiKeyRef.value
+	};
+});
+
 vi.mock('$lib/server/parse-request-body', async () => {
 	const actual = await vi.importActual<typeof import('$lib/server/parse-request-body')>(
 		'$lib/server/parse-request-body'
@@ -217,5 +233,29 @@ describe('/api/tools', () => {
 				response: 'That apology was weak.'
 			}
 		});
+	});
+
+	it('returns PROVIDER_API_KEY_MISSING before invoking the tool adapter when XAI_API_KEY is unset', async () => {
+		const adapterSpy = vi.spyOn(meechieToolAdapter, 'respond');
+		hasProviderApiKeyRef.value = false;
+
+		try {
+			const response = await POST(
+				buildEvent({ toolId: 'apology_translator', apology: "I'm sorry you feel that way." })
+			);
+			const payload = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(payload).toEqual({
+				ok: false,
+				error: {
+					code: 'PROVIDER_API_KEY_MISSING',
+					message: 'AI tools require XAI_API_KEY to be set on the server.'
+				}
+			});
+			expect(adapterSpy).not.toHaveBeenCalled();
+		} finally {
+			hasProviderApiKeyRef.value = true;
+		}
 	});
 });

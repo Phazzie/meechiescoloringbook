@@ -193,4 +193,25 @@ describe('/api/meechie-studio-text', () => {
 			expect(payload.error.code).toBe('DISALLOWED_CONTENT');
 		}
 	});
+
+	it('returns PROVIDER_API_KEY_MISSING before invoking the provider when XAI_API_KEY is unset', async () => {
+		// No XAI_API_KEY in the test process environment, so checkMeechieStudioTextProviderConfig's
+		// hasProviderApiKey() check is genuinely false here (unlike api-tools/api-chat-interpretation,
+		// this file doesn't need to mock it) — this test proves the endpoint's preflight now catches
+		// that before ever spying on/reaching providerAdapter.createChatCompletion.
+		const providerSpy = vi.spyOn(providerAdapterModule.providerAdapter, 'createChatCompletion');
+
+		const response = await POST(buildEvent(validPayload));
+		const payload = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(payload).toEqual({
+			ok: false,
+			error: {
+				code: 'PROVIDER_API_KEY_MISSING',
+				message: 'AI text generation requires XAI_API_KEY to be set on the server.'
+			}
+		});
+		expect(providerSpy).not.toHaveBeenCalled();
+	});
 });

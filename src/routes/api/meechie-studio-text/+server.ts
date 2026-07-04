@@ -9,6 +9,7 @@ import { json } from '@sveltejs/kit';
 import {
 	checkMeechieStudioTextAbort,
 	checkMeechieStudioTextInputShape,
+	checkMeechieStudioTextProviderConfig,
 	checkMeechieStudioTextSafety,
 	runMeechieStudioTextPipeline,
 	type MeechieStudioTextPipelineDeps
@@ -32,6 +33,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const lateAbortCheck = checkMeechieStudioTextAbort(request.signal);
 	if (!lateAbortCheck.ok)
 		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
+	const isProduction = env.NODE_ENV === 'production';
+	const providerConfigCheck = checkMeechieStudioTextProviderConfig(isProduction);
+	if (!providerConfigCheck.ok)
+		return json(providerConfigCheck.response.body, { status: providerConfigCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	// Reuses the shared providerAdapter singleton so its circuit breaker accumulates failures
@@ -39,7 +44,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const deps: MeechieStudioTextPipelineDeps = {
 		createProvider: () => providerAdapter,
 		textModel: env.XAI_TEXT_MODEL,
-		isProduction: env.NODE_ENV === 'production',
+		isProduction,
 		signal: request.signal
 	};
 	const pipelineResult = await runMeechieStudioTextPipeline(parsed.body, deps);

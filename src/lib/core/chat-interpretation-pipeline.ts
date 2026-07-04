@@ -1,7 +1,7 @@
 // Purpose: Centralize chat-interpretation endpoint orchestration in a reusable core pipeline.
 // Why: Keep route handlers thin and make chat/spec validation behavior easy to test in isolation.
 // Info flow: Raw request body -> provider completion -> JSON extraction + validation -> contract response.
-import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
+import { hasProviderApiKey, providerAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { selectTextModel } from '$lib/core/text-model';
@@ -100,6 +100,23 @@ export const checkChatInterpretationInputShape = (
 		};
 	}
 	return { ok: true, data: parsedInput.data };
+};
+
+export type ChatInterpretationProviderConfigCheck =
+	| { ok: true }
+	| { ok: false; response: ChatPipelineResponse };
+
+// Exported so the route can reject a missing XAI_API_KEY before consuming rate-limit
+// quota. createChatCompletion already detects this and returns PROVIDER_API_KEY_MISSING
+// at zero network cost, but only after enforceAiRateLimit has already charged a slot for
+// a request that could never reach xAI. Status/code/message here stay byte-identical to
+// runChatInterpretationPipeline's existing `!chatResult.ok` -> buildError(502, ...) path.
+export const checkChatInterpretationProviderConfig = (): ChatInterpretationProviderConfigCheck => {
+	if (hasProviderApiKey()) return { ok: true };
+	return {
+		ok: false,
+		response: buildError(502, 'PROVIDER_API_KEY_MISSING', 'XAI_API_KEY is required.')
+	};
 };
 
 export const runChatInterpretationPipeline = async (

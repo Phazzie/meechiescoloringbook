@@ -53,6 +53,52 @@ const wig = {
 	tags: ['sleek']
 };
 
+describe('runWigTryOnPipeline wig image fetch', () => {
+	it('returns WIG_TRY_ON_ABORTED (not WIG_IMAGE_FETCH_FAILED) when the wig image fetch is aborted', async () => {
+		const getWigById = vi.fn(async () => ({ ok: true as const, value: wig }));
+		const fetchImpl = vi.fn(async () => {
+			throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+		});
+		const tryOn = vi.fn();
+
+		const controller = new AbortController();
+		const result = await runWigTryOnPipeline(validBody, {
+			fetchImpl,
+			wigCatalogSeam: { listWigs: vi.fn(), getWigById },
+			wigTryOnSeam: { tryOn },
+			signal: controller.signal
+		});
+
+		expect(result.status).toBe(499);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('WIG_TRY_ON_ABORTED');
+		}
+		expect(tryOn).not.toHaveBeenCalled();
+	});
+
+	it('returns WIG_IMAGE_FETCH_FAILED for a genuine (non-abort) fetch failure', async () => {
+		const getWigById = vi.fn(async () => ({ ok: true as const, value: wig }));
+		const fetchImpl = vi.fn(async () => {
+			throw new Error('DNS lookup failed');
+		});
+		const tryOn = vi.fn();
+
+		const result = await runWigTryOnPipeline(validBody, {
+			fetchImpl,
+			wigCatalogSeam: { listWigs: vi.fn(), getWigById },
+			wigTryOnSeam: { tryOn }
+		});
+
+		expect(result.status).toBe(502);
+		expect(result.body.ok).toBe(false);
+		if (!result.body.ok) {
+			expect(result.body.error.code).toBe('WIG_IMAGE_FETCH_FAILED');
+		}
+		expect(tryOn).not.toHaveBeenCalled();
+	});
+});
+
 describe('runWigTryOnPipeline precomputedWig', () => {
 	it('skips getWigById when precomputedWig is supplied', async () => {
 		const getWigById = vi.fn();
