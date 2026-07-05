@@ -221,7 +221,12 @@ export const createProviderAdapter = (
 					}
 					throw readError;
 				}
-				breaker.recordSuccess();
+				// fetchWithRetry can return a retryable-status response as-is once attempts are
+				// exhausted (or the breaker just opened mid-loop) instead of throwing — recording
+				// success here unconditionally would immediately undo the failure it just recorded.
+				if (!RETRYABLE_STATUSES.has(response.status)) {
+					breaker.recordSuccess();
+				}
 				if (!response.ok) {
 					return buildHttpError(response, payload);
 				}

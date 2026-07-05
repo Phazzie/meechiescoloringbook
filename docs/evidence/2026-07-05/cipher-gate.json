@@ -1,9 +1,9 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-07-05T09:47:32.468Z",
+  "generatedAt": "2026-07-05T09:58:54.890Z",
   "cipher": {
     "date": "2026-07-05",
-    "seams": "RateLimitSeam, ProviderAdapterSeam",
+    "seams": "ProviderAdapterSeam",
     "evidence": [
       {
         "path": "docs/evidence/2026-07-05/chamber-lock.json",
@@ -38,9 +38,9 @@
         "exists": true
       }
     ],
-    "summary": "Merged PR #204 and PR #211, kept PR #204's more mature RateLimitSeam, verified 16 of PR #204's 19 review threads were already fixed, and fixed the 3 that were not (deferred circuit-breaker success recording until the response body is read, stopped retrying immediately once a failure opens the breaker, and lowered the Retry-After cap from 10 minutes to 60 seconds); 656 tests pass (1 new), verify chain clean.",
-    "risks": "No live-traffic validation of the breaker/retry timing changes (no XAI_API_KEY in this environment); PR #211's commit history is superseded rather than merged, by design, since its RateLimitSeam was redundant with PR #204's more mature one."
+    "summary": "Fixed a same-session regression where createChatCompletion could erase a just-recorded breaker failure, moved fetchWithRetry's breaker-open check inside the retry loop to cover concurrent trips, made createCircuitBreaker's recordFailure cooldown-safe independent of caller ordering, restored StudioInputPanel.svelte's dependency-free constant import, and deleted a dead SYSTEM_CONSTANTS.RATE_LIMIT constant left over from the discarded PR #211 merge.",
+    "risks": "No live-traffic validation of the breaker/retry timing changes (no XAI_API_KEY in this environment); same as the entry above."
   },
-  "latestChangeMs": 1783244386599.5652,
+  "latestChangeMs": 1783245211131.5464,
   "status": "ok"
 }

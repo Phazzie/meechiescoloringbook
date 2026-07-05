@@ -110,13 +110,19 @@ export const createCircuitBreaker = (options: CircuitBreakerOptions): CircuitBre
 	let consecutiveFailures = 0;
 	let openUntil = 0;
 
+	// Shared by isOpen/recordFailure so a stale, already-cooled-down failure count is never
+	// built on top of — a caller that records a failure without checking isOpen() first (as
+	// well as isOpen() itself) must see a fresh count once the cooldown has elapsed.
+	const checkCooldown = () => {
+		if (openUntil > 0 && now() >= openUntil) {
+			consecutiveFailures = 0;
+			openUntil = 0;
+		}
+	};
+
 	return {
 		isOpen: () => {
-			if (openUntil > 0 && now() >= openUntil) {
-				// Cooldown elapsed: reset failure count so trial requests start fresh.
-				consecutiveFailures = 0;
-				openUntil = 0;
-			}
+			checkCooldown();
 			return openUntil !== 0;
 		},
 		recordSuccess: () => {
@@ -124,6 +130,7 @@ export const createCircuitBreaker = (options: CircuitBreakerOptions): CircuitBre
 			openUntil = 0;
 		},
 		recordFailure: () => {
+			checkCooldown();
 			consecutiveFailures += 1;
 			if (consecutiveFailures >= failureThreshold) {
 				openUntil = now() + cooldownMs;
@@ -219,15 +226,19 @@ export const fetchWithRetry = async (
 		throw new Error('fetchWithRetry: baseDelayMs must be finite and >= 0');
 	}
 
-	if (breaker?.isOpen()) {
-		// A caller-aborted request must surface as AbortError even when the breaker is open.
-		if (signal?.aborted) {
-			throw buildNamedError('AbortError', 'Operation aborted by caller.');
-		}
-		throw buildNamedError('CircuitOpenError', 'Circuit breaker is open; failing fast without a request.');
-	}
-
 	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+		// Checked at the top of every attempt, not just once before the loop: a concurrent
+		// request sharing this breaker can trip it open while this call is asleep between
+		// retries, and that must stop the next attempt just as reliably as a failure this
+		// call recorded itself.
+		if (breaker?.isOpen()) {
+			// A caller-aborted request must surface as AbortError even when the breaker is open.
+			if (signal?.aborted) {
+				throw buildNamedError('AbortError', 'Operation aborted by caller.');
+			}
+			throw buildNamedError('CircuitOpenError', 'Circuit breaker is open; failing fast without a request.');
+		}
+
 		let response: Response;
 
 		try {
