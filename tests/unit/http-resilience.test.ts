@@ -326,7 +326,7 @@ describe('fetchWithRetry', () => {
 	});
 
 	it('respects a Retry-After well beyond the 30s self-backoff cap instead of clamping it down', async () => {
-		const retryHeaders = new Headers({ 'Retry-After': '120' });
+		const retryHeaders = new Headers({ 'Retry-After': '45' });
 		const fetcher = vi
 			.fn()
 			.mockResolvedValueOnce(new Response('rate limited', { status: 429, headers: retryHeaders }))
@@ -342,14 +342,14 @@ describe('fetchWithRetry', () => {
 		expect(settled).toBe(false);
 		expect(fetcher).toHaveBeenCalledTimes(1);
 
-		await vi.advanceTimersByTimeAsync(90_000);
+		await vi.advanceTimersByTimeAsync(15_000);
 		expect(settled).toBe(true);
 		const result = await promise;
 		expect(result.status).toBe(200);
 		expect(fetcher).toHaveBeenCalledTimes(2);
 	});
 
-	it('caps an excessive Retry-After at the trusted maximum (10 minutes), not at 30 seconds', async () => {
+	it('caps an excessive Retry-After at the trusted maximum (60 seconds), not at 30 seconds or the raw header value', async () => {
 		const longRetryHeaders = new Headers({ 'Retry-After': '3600' });
 		const fetcher = vi
 			.fn()
@@ -365,7 +365,7 @@ describe('fetchWithRetry', () => {
 		await vi.advanceTimersByTimeAsync(30_001);
 		expect(settled).toBe(false);
 
-		await vi.advanceTimersByTimeAsync(600_000);
+		await vi.advanceTimersByTimeAsync(30_000);
 		expect(settled).toBe(true);
 		const result = await promise;
 		expect(result.status).toBe(200);
@@ -383,8 +383,9 @@ describe('fetchWithRetry', () => {
 		expect(fetcher).not.toHaveBeenCalled();
 	});
 
-	it('records a breaker failure on a retryable response, then a success once it recovers', async () => {
-		const breaker = createCircuitBreaker({ failureThreshold: 1, cooldownMs: 30_000, now: () => 0 });
+	it('records a breaker failure on a retryable response, then retries and returns the recovered response', async () => {
+		// Threshold 2 so the first 503 alone does not open the breaker, letting the retry proceed.
+		const breaker = createCircuitBreaker({ failureThreshold: 2, cooldownMs: 30_000, now: () => 0 });
 		const fetcher = vi
 			.fn()
 			.mockResolvedValueOnce(new Response('unavailable', { status: 503 }))
@@ -394,10 +395,28 @@ describe('fetchWithRetry', () => {
 		await vi.runAllTimersAsync();
 		const result = await promise;
 
-		// The first attempt's failure opened the breaker mid-call, but the in-flight retry was
-		// not aborted (the breaker only gates new calls) — and its success closed it again.
 		expect(result.status).toBe(200);
+		expect(fetcher).toHaveBeenCalledTimes(2);
+		// fetchWithRetry never records success itself (see the `breaker` field doc on
+		// RetryOptions) — the caller must do that once it has read the body, so a single
+		// recorded failure below threshold leaves the breaker closed either way.
 		expect(breaker.isOpen()).toBe(false);
+	});
+
+	it('stops retrying immediately once a mid-loop failure opens the breaker', async () => {
+		const breaker = createCircuitBreaker({ failureThreshold: 1, cooldownMs: 30_000, now: () => 0 });
+		const fetcher = vi
+			.fn()
+			.mockResolvedValueOnce(new Response('unavailable', { status: 503 }))
+			.mockResolvedValueOnce(new Response('ok', { status: 200 }));
+
+		const result = await fetchWithRetry(fetcher, { maxAttempts: 3, baseDelayMs: 50, breaker });
+
+		// The first attempt's failure opened the breaker (threshold 1); a second call must not
+		// be scheduled even though attempts remain — the retryable response is returned as-is.
+		expect(result.status).toBe(503);
+		expect(fetcher).toHaveBeenCalledTimes(1);
+		expect(breaker.isOpen()).toBe(true);
 	});
 
 	it('records a breaker failure on a thrown network error', async () => {

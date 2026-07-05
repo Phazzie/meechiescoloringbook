@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-07-05T09:47:32.468Z",
+  "cipher": {
+    "date": "2026-07-05",
+    "seams": "RateLimitSeam, ProviderAdapterSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-07-05/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/proof-tape.json",
+        "exists": true
+      }
+    ],
+    "summary": "Merged PR #204 and PR #211, kept PR #204's more mature RateLimitSeam, verified 16 of PR #204's 19 review threads were already fixed, and fixed the 3 that were not (deferred circuit-breaker success recording until the response body is read, stopped retrying immediately once a failure opens the breaker, and lowered the Retry-After cap from 10 minutes to 60 seconds); 656 tests pass (1 new), verify chain clean.",
+    "risks": "No live-traffic validation of the breaker/retry timing changes (no XAI_API_KEY in this environment); PR #211's commit history is superseded rather than merged, by design, since its RateLimitSeam was redundant with PR #204's more mature one."
+  },
+  "latestChangeMs": 1783244386599.5652,
+  "status": "ok"
+}

@@ -209,7 +209,19 @@ export const createProviderAdapter = (
 					() => fetchWithTimeout(url, requestInit, CHAT_TIMEOUT_MS),
 					{ ...RETRY_OPTIONS, breaker, signal: input.signal }
 				);
-				const payload = await readJson(response);
+				let payload: unknown;
+				try {
+					payload = await readJson(response);
+				} catch (readError) {
+					// fetchWithRetry already classified transport/status failures; a throw here means
+					// the body itself failed to read (e.g. a dropped connection after a 2xx status),
+					// which is genuine evidence of upstream trouble and must still open the breaker.
+					if (!isAbortError(readError)) {
+						breaker.recordFailure();
+					}
+					throw readError;
+				}
+				breaker.recordSuccess();
 				if (!response.ok) {
 					return buildHttpError(response, payload);
 				}
@@ -284,11 +296,17 @@ export const createProviderAdapter = (
 				const response = await fetchWithTimeout(url, requestInit, IMAGE_TIMEOUT_MS);
 				if (RETRYABLE_STATUSES.has(response.status)) {
 					breaker.recordFailure();
-				} else {
-					breaker.recordSuccess();
+					breakerRecorded = true;
 				}
-				breakerRecorded = true;
+				// Deferred until after the body is read (rather than recorded immediately for any
+				// non-retryable status): a stalled/dropped body read is still evidence of upstream
+				// trouble and must reach the catch block's failure recording below, not be masked by
+				// an already-true breakerRecorded flag set purely from the HTTP status line.
 				const payload = await readJson(response);
+				if (!breakerRecorded) {
+					breaker.recordSuccess();
+					breakerRecorded = true;
+				}
 				if (!response.ok) {
 					return buildHttpError(response, payload);
 				}

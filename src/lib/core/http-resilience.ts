@@ -10,12 +10,14 @@
 export const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 // Cap for our own jittered exponential backoff (no server guidance available).
 const MAX_SELF_BACKOFF_MS = 30_000;
-// Cap for a server-supplied Retry-After value. This is intentionally much larger than
-// MAX_SELF_BACKOFF_MS: a server explicitly asking us to wait is a stronger signal than our
-// own guess, and silently clamping it down to 30s causes premature retries against a
-// service that just told us it is not ready (previously this used the same 30s cap as
-// self-backoff, which defeated the purpose of reading the header at all).
-const MAX_RETRY_AFTER_MS = 10 * 60 * 1000;
+// Cap for a server-supplied Retry-After value. Larger than MAX_SELF_BACKOFF_MS — a server
+// explicitly asking us to wait is a stronger signal than our own guess — but still bounded
+// well under the request's own per-attempt timeout budget (60s/120s, see CHAT_TIMEOUT_MS/
+// IMAGE_TIMEOUT_MS in provider-adapter.adapter.ts). A prior version of this cap was 10
+// minutes, which let a single Retry-After sleep hold a serverless request open far past any
+// realistic function/route timeout; honoring the header up to a minute keeps the "respect
+// the server's guidance" intent without risking that.
+const MAX_RETRY_AFTER_MS = 60 * 1000;
 
 const buildNamedError = (name: 'AbortError' | 'TimeoutError' | 'CircuitOpenError', message: string): Error =>
 	Object.assign(new Error(message), { name });
@@ -195,7 +197,14 @@ export type RetryOptions = {
 	baseDelayMs: number;
 	/** Optional caller cancellation signal; caller aborts are never retried. */
 	signal?: AbortSignal;
-	/** Optional shared circuit breaker. When open, fails fast without attempting a fetch. */
+	/**
+	 * Optional shared circuit breaker. When open, fails fast without attempting a fetch.
+	 * fetchWithRetry only records *failures* it can observe directly (transport errors,
+	 * retryable HTTP statuses) — it never records success, since it returns the Response
+	 * before the caller has read the body, and a stalled/dropped body read is itself
+	 * evidence of upstream trouble. Callers must call `breaker.recordSuccess()` themselves
+	 * once they have finished consuming the response.
+	 */
 	breaker?: CircuitBreaker;
 };
 
@@ -228,7 +237,12 @@ export const fetchWithRetry = async (
 			if (!callerAborted && !isAbortError(error)) {
 				breaker?.recordFailure();
 			}
-			if ((isAbortError(error) || isTimeoutError(error)) && !callerAborted && attempt < maxAttempts) {
+			if (
+				(isAbortError(error) || isTimeoutError(error)) &&
+				!callerAborted &&
+				attempt < maxAttempts &&
+				!breaker?.isOpen()
+			) {
 				await sleep(capSelfBackoffMs(withJitter(baseDelayMs * 2 ** (attempt - 1))), signal);
 				continue;
 			}
@@ -237,7 +251,9 @@ export const fetchWithRetry = async (
 
 		if (RETRYABLE_STATUSES.has(response.status)) {
 			breaker?.recordFailure();
-			if (attempt < maxAttempts) {
+			// A failure that just tripped the breaker must stop retrying immediately rather
+			// than schedule another attempt the next loop iteration would fail fast on anyway.
+			if (attempt < maxAttempts && !breaker?.isOpen()) {
 				response.body?.cancel().catch(() => undefined);
 				const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
 				const delayMs = Number.isFinite(retryAfterMs)
@@ -249,7 +265,9 @@ export const fetchWithRetry = async (
 			return response;
 		}
 
-		breaker?.recordSuccess();
+		// Success is not recorded here: the caller has not yet read the body, and a
+		// stalled/dropped read afterward is still evidence of upstream trouble. See the
+		// `breaker` field doc above.
 		return response;
 	}
 
