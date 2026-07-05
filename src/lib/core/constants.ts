@@ -23,6 +23,10 @@ export const SYSTEM_CONSTANTS = {
 		'NEGATIVE PROMPT:'
 	],
 	DISALLOWED_KEYWORDS: ['minors', 'self-harm'],
+	RATE_LIMIT: {
+		WINDOW_MS: 10 * 60 * 1000,
+		MAX_REQUESTS: 20
+	},
 	CHAT_SYSTEM_PROMPT: `You map user intent to a ColoringPageSpec JSON object. Output ONLY JSON.
 
 Rules:
