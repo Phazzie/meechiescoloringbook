@@ -1,7 +1,8 @@
 // Purpose: Adapter implementation for SpecValidationSeam.
 // Why: Enforce spec constraints deterministically before downstream work.
 // Info flow: Raw spec -> validation issues -> decision gating.
-import { mapZodIssueToSpecValidationIssue } from '../core/spec-validation-issue-mapping';
+import { mapValidationIssueToSpecValidationIssue } from '../core/spec-validation-issue-mapping';
+import type { ValidationIssueLike } from '../core/spec-validation-issue-mapping';
 import {
 	ColoringPageSpecSchema,
 	MAX_SPEC_ITEMS,
@@ -14,8 +15,8 @@ import type {
 	SpecValidationSeam
 } from '../../../contracts/spec-validation.contract';
 
-const issueFromZod = (issue: Parameters<typeof mapZodIssueToSpecValidationIssue>[0]) =>
-	mapZodIssueToSpecValidationIssue(issue, MAX_SPEC_ITEMS);
+const issueFromZod = (issue: ValidationIssueLike) =>
+	mapValidationIssueToSpecValidationIssue(issue, MAX_SPEC_ITEMS);
 
 export const specValidationAdapter: SpecValidationSeam = {
 	validate: async (input: SpecValidationInput): Promise<SpecValidationOutput> => {

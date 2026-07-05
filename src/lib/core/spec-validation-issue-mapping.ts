@@ -1,7 +1,12 @@
-// Purpose: Map zod validation issues to SpecValidationSeam issue codes.
-// Why: Share fault-classification logic between the legacy and self-contained SpecValidationSeam adapters.
-// Info flow: Zod issue -> classified spec validation issue.
-import type { ZodIssue } from 'zod';
+// Purpose: Map validator issues to SpecValidationSeam issue codes.
+// Why: Share fault-classification logic between the legacy and self-contained SpecValidationSeam adapters without coupling core logic to a third-party validator.
+// Info flow: Structural validation issue -> classified spec validation issue.
+
+export type ValidationIssueLike = {
+	path: ReadonlyArray<PropertyKey>;
+	code: string;
+	message: string;
+};
 
 export type SpecValidationMappedIssue = {
 	code: string;
@@ -17,8 +22,8 @@ const formatSpecValidationIssuePath = (path: ReadonlyArray<PropertyKey>): string
 		.replace('.[', '[');
 };
 
-export const mapZodIssueToSpecValidationIssue = (
-	issue: ZodIssue,
+export const mapValidationIssueToSpecValidationIssue = (
+	issue: ValidationIssueLike,
 	maxSpecItems: number
 ): SpecValidationMappedIssue => {
 	const field = formatSpecValidationIssuePath(issue.path);
@@ -59,9 +64,17 @@ export const mapZodIssueToSpecValidationIssue = (
 		}
 	}
 
+	if (issue.code === 'custom') {
+		return {
+			code: 'SPEC_INVALID',
+			field: field || 'spec',
+			message: issue.message
+		};
+	}
+
 	return {
 		code: 'SPEC_INVALID',
 		field: field || 'spec',
-		message: issue.message
+		message: 'Spec field failed validation.'
 	};
 };
