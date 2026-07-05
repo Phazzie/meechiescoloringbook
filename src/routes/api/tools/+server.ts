@@ -4,9 +4,11 @@ Why: Keep tool execution behind a server boundary and reject disallowed content.
 Info flow: Client tool request -> schema + safety checks -> tool adapter -> JSON result.
 */
 import { json } from '@sveltejs/kit';
+import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
 import {
 	checkMeechieToolAbort,
 	checkMeechieToolInputShape,
+	checkMeechieToolProviderConfig,
 	checkMeechieToolSafety,
 	runToolsPipeline,
 	toolsPipelineDeps
@@ -30,6 +32,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const lateAbortCheck = checkMeechieToolAbort(request.signal);
 	if (!lateAbortCheck.ok)
 		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
+	const configCheck = checkMeechieToolProviderConfig(createAppConfigSeam());
+	if (!configCheck.ok)
+		return json(configCheck.response.body, { status: configCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const pipelineResult = await runToolsPipeline(parsed.body, {

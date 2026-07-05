@@ -6,6 +6,7 @@ import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { selectTextModel } from '$lib/core/text-model';
 import { env } from '$env/dynamic/private';
+import type { AppConfigSeam } from '$lib/seams/app-config-seam/contract';
 import {
 	ChatInterpretationInputSchema,
 	ChatInterpretationResultSchema
@@ -81,6 +82,35 @@ export const checkChatInterpretationAbort = (signal?: AbortSignal): ChatInterpre
 		};
 	}
 	return { ok: true };
+};
+
+export type ChatInterpretationConfigCheck =
+	| { ok: true }
+	| { ok: false; response: ChatPipelineResponse };
+
+// Exported so the route can reject a missing/invalid XAI_API_KEY before consuming
+// rate-limit quota — mirrors checkWigTryOnConfig in wig-try-on-pipeline.ts. Without
+// this, the config error only surfaces inside providerAdapter.createChatCompletion,
+// after enforceAiRateLimit has already charged a slot for a request that can never
+// reach the provider.
+export const checkChatInterpretationProviderConfig = (
+	configSeam: AppConfigSeam
+): ChatInterpretationConfigCheck => {
+	try {
+		const config = configSeam.getConfig();
+		if (!config.xaiApiKey) {
+			return {
+				ok: false,
+				response: buildError(503, 'CHAT_CONFIG_ERROR', 'XAI_API_KEY is not configured. Chat interpretation requires an xAI API key.')
+			};
+		}
+		return { ok: true };
+	} catch {
+		return {
+			ok: false,
+			response: buildError(503, 'CHAT_CONFIG_ERROR', 'Provider configuration is invalid. Ensure XAI_API_KEY is set.')
+		};
+	}
 };
 
 export type ChatInterpretationInputShapeCheck =

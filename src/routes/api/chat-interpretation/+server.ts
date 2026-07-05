@@ -4,10 +4,12 @@ Why: Keep API keys server-side while returning structured specs to the client.
 Info flow: Client request -> provider adapter -> parsed spec -> response.
 */
 import { json } from '@sveltejs/kit';
+import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
 import {
 	chatInterpretationPipelineDeps,
 	checkChatInterpretationAbort,
 	checkChatInterpretationInputShape,
+	checkChatInterpretationProviderConfig,
 	runChatInterpretationPipeline
 } from '$lib/core/chat-interpretation-pipeline';
 import { enforceAiRateLimit } from '$lib/server/rate-limiter';
@@ -26,6 +28,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const lateAbortCheck = checkChatInterpretationAbort(request.signal);
 	if (!lateAbortCheck.ok)
 		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
+	const configCheck = checkChatInterpretationProviderConfig(createAppConfigSeam());
+	if (!configCheck.ok)
+		return json(configCheck.response.body, { status: configCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const pipelineResult = await runChatInterpretationPipeline(parsed.body, {

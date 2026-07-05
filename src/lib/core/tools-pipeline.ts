@@ -3,6 +3,7 @@
 // Info flow: Raw request body -> input validation + safety checks -> tool adapter -> contract response.
 import { meechieToolAdapter } from '$lib/adapters/meechie-tool-seam';
 import { findDisallowedKeywords } from '$lib/core/constants';
+import type { AppConfigSeam } from '$lib/seams/app-config-seam/contract';
 import {
 	MeechieToolInputSchema,
 	MeechieToolResultSchema
@@ -55,6 +56,31 @@ export const checkMeechieToolAbort = (signal?: AbortSignal): MeechieToolAbortChe
 		};
 	}
 	return { ok: true };
+};
+
+export type MeechieToolConfigCheck = { ok: true } | { ok: false; response: ToolsPipelineResponse };
+
+// Exported so the route can reject a missing/invalid XAI_API_KEY before consuming
+// rate-limit quota — mirrors checkWigTryOnConfig in wig-try-on-pipeline.ts. Without
+// this, the config error only surfaces inside meechieToolAdapter.respond(), after
+// enforceAiRateLimit has already charged a slot for a request that can never reach
+// the provider.
+export const checkMeechieToolProviderConfig = (configSeam: AppConfigSeam): MeechieToolConfigCheck => {
+	try {
+		const config = configSeam.getConfig();
+		if (!config.xaiApiKey) {
+			return {
+				ok: false,
+				response: buildError(503, 'MEECHIE_TOOL_CONFIG_ERROR', 'XAI_API_KEY is not configured. Meechie tools require an xAI API key.')
+			};
+		}
+		return { ok: true };
+	} catch {
+		return {
+			ok: false,
+			response: buildError(503, 'MEECHIE_TOOL_CONFIG_ERROR', 'Provider configuration is invalid. Ensure XAI_API_KEY is set.')
+		};
+	}
 };
 
 export type MeechieToolInputShapeCheck =

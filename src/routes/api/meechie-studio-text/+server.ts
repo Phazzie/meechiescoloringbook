@@ -4,11 +4,13 @@ Why: Keep AI text generation server-side and schema-validated.
 Info flow: Client request -> studio text pipeline -> JSON response.
 */
 import { env } from '$env/dynamic/private';
+import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
 import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { json } from '@sveltejs/kit';
 import {
 	checkMeechieStudioTextAbort,
 	checkMeechieStudioTextInputShape,
+	checkMeechieStudioTextProviderConfig,
 	checkMeechieStudioTextSafety,
 	runMeechieStudioTextPipeline,
 	type MeechieStudioTextPipelineDeps
@@ -32,6 +34,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const lateAbortCheck = checkMeechieStudioTextAbort(request.signal);
 	if (!lateAbortCheck.ok)
 		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
+	const configCheck = checkMeechieStudioTextProviderConfig(createAppConfigSeam());
+	if (!configCheck.ok)
+		return json(configCheck.response.body, { status: configCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	// Reuses the shared providerAdapter singleton so its circuit breaker accumulates failures

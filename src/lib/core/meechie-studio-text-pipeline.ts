@@ -3,6 +3,7 @@
 // Info flow: Request body -> ProviderAdapterSeam -> structured studio text result.
 import { findDisallowedKeywords } from '$lib/core/constants';
 import { selectTextModel } from '$lib/core/text-model';
+import type { AppConfigSeam } from '$lib/seams/app-config-seam/contract';
 import {
 	MeechieStudioTextInputSchema,
 	MeechieStudioTextOutputSchema,
@@ -411,6 +412,33 @@ export const checkMeechieStudioTextAbort = (signal?: AbortSignal): MeechieStudio
 		};
 	}
 	return { ok: true };
+};
+
+export type MeechieStudioTextConfigCheck = { ok: true } | { ok: false; response: PipelineResponse };
+
+// Exported so the route can reject a missing/invalid XAI_API_KEY before consuming
+// rate-limit quota — mirrors checkWigTryOnConfig in wig-try-on-pipeline.ts. Without
+// this, the config error only surfaces inside the provider adapter call, after
+// enforceAiRateLimit has already charged a slot for a request that can never reach
+// the provider.
+export const checkMeechieStudioTextProviderConfig = (
+	configSeam: AppConfigSeam
+): MeechieStudioTextConfigCheck => {
+	try {
+		const config = configSeam.getConfig();
+		if (!config.xaiApiKey) {
+			return {
+				ok: false,
+				response: buildError(503, 'MEECHIE_STUDIO_TEXT_CONFIG_ERROR', 'XAI_API_KEY is not configured. Meechie studio text requires an xAI API key.')
+			};
+		}
+		return { ok: true };
+	} catch {
+		return {
+			ok: false,
+			response: buildError(503, 'MEECHIE_STUDIO_TEXT_CONFIG_ERROR', 'Provider configuration is invalid. Ensure XAI_API_KEY is set.')
+		};
+	}
 };
 
 export type MeechieStudioTextInputShapeCheck =

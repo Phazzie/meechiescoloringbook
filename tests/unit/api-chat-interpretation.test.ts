@@ -20,8 +20,13 @@ vi.mock('$lib/server/parse-request-body', async () => {
 	};
 });
 
+vi.mock('$lib/adapters/app-config-seam/index', () => ({
+	createAppConfigSeam: vi.fn(() => ({ getConfig: () => ({ xaiApiKey: 'test-key' }) }))
+}));
+
 import { POST } from '../../src/routes/api/chat-interpretation/+server';
 import { providerAdapter } from '../../src/lib/adapters/provider-adapter.adapter';
+import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
 
 const validSpec = {
 	title: 'Dream Big',
@@ -223,5 +228,20 @@ describe('/api/chat-interpretation', () => {
 		expect(response.status).toBe(200);
 		expect(payload.ok).toBe(true);
 		expect(payload.value.spec).toEqual(validSpec);
+	});
+
+	it('rejects with CHAT_CONFIG_ERROR without consuming rate-limit quota when XAI_API_KEY is missing', async () => {
+		vi.mocked(createAppConfigSeam).mockReturnValueOnce({
+			getConfig: () => ({ xaiApiKey: '' })
+		} as ReturnType<typeof createAppConfigSeam>);
+		const providerSpy = vi.spyOn(providerAdapter, 'createChatCompletion');
+
+		const response = await POST(buildEvent({ message: 'build me a page' }));
+		const payload = await response.json();
+
+		expect(response.status).toBe(503);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('CHAT_CONFIG_ERROR');
+		expect(providerSpy).not.toHaveBeenCalled();
 	});
 });
