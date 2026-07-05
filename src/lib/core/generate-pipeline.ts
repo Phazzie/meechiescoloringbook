@@ -201,13 +201,8 @@ export const runGeneratePipeline = async (
 	body: unknown,
 	deps: GeneratePipelineDeps
 ): Promise<PipelineResponse> => {
-	if (deps.signal?.aborted) {
-		return buildError(
-			499,
-			'GENERATE_ABORTED',
-			'Generate request was canceled by the caller.'
-		);
-	}
+	const abortCheck = checkGenerateAbort(deps.signal);
+	if (!abortCheck.ok) return abortCheck.response;
 
 	const shapeCheck = checkGenerateInputShape(body);
 	if (!shapeCheck.ok) return shapeCheck.response;

@@ -4,7 +4,7 @@ Why: Keep API keys server-side while returning structured specs to the client.
 Info flow: Client request -> provider adapter -> parsed spec -> response.
 */
 import { json } from '@sveltejs/kit';
-import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
+import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 import {
 	chatInterpretationPipelineDeps,
 	checkChatInterpretationAbort,
@@ -28,7 +28,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const lateAbortCheck = checkChatInterpretationAbort(request.signal);
 	if (!lateAbortCheck.ok)
 		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
-	const configCheck = checkChatInterpretationProviderConfig(createAppConfigSeam());
+	const configCheck = checkChatInterpretationProviderConfig(createImageProviderConfigSeam());
 	if (!configCheck.ok)
 		return json(configCheck.response.body, { status: configCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);

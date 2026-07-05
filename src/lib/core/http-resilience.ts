@@ -210,7 +210,11 @@ export type RetryOptions = {
 	 * retryable HTTP statuses) — it never records success, since it returns the Response
 	 * before the caller has read the body, and a stalled/dropped body read is itself
 	 * evidence of upstream trouble. Callers must call `breaker.recordSuccess()` themselves
-	 * once they have finished consuming the response.
+	 * once they have finished consuming the response — and only for a healthy (`response.ok`)
+	 * result. fetchWithRetry can also return a retryable-status (429/5xx) Response as-is once
+	 * attempts are exhausted or the breaker opens mid-loop, instead of throwing; recording
+	 * success unconditionally after reading such a response's body would immediately undo the
+	 * failure fetchWithRetry already recorded for it.
 	 */
 	breaker?: CircuitBreaker;
 };

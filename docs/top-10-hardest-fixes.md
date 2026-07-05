@@ -47,7 +47,7 @@ is struck through accordingly.
   generation calls independently; its open state surfaces as
   `IMAGE_CIRCUIT_OPEN` in the `ImageGenerationError` union.
 - Fixed `Retry-After` being incorrectly clamped to the same 30s cap used for
-  self-generated backoff. It is now honored up to a 10-minute ceiling
+  self-generated backoff. It is now honored up to a 60-second ceiling
   (`MAX_RETRY_AFTER_MS`), while self-backoff stays capped at 30s
   (`MAX_SELF_BACKOFF_MS`, unchanged).
 - New `PROVIDER_CIRCUIT_OPEN` `SeamError` code added; no contract/schema

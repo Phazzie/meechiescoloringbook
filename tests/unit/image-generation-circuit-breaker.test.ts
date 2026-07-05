@@ -72,6 +72,33 @@ describe('ImageGenerationSeam adapter circuit breaker', () => {
 		expect(fetchMock).toHaveBeenCalledTimes(4);
 	});
 
+	it('records a breaker failure when reading a non-retryable HTTP error body times out', async () => {
+		fetchMock.mockImplementation(async () => ({
+			status: 400,
+			ok: false,
+			text: () => Promise.reject(Object.assign(new Error('timed out'), { name: 'TimeoutError' }))
+		}));
+		const seam = createImageGenerationSeam(mockConfigSeam);
+
+		for (let i = 0; i < 3; i++) {
+			const output = await seam.generate(imageGenerationRequestFixture);
+			expect(output.ok).toBe(false);
+			if (!output.ok) {
+				expect(output.error.code).toBe('IMAGE_TIMEOUT_ERROR');
+			}
+		}
+
+		// A stalled body read on a non-retryable status is still genuine evidence of upstream
+		// trouble and must count toward the breaker — a 4th call should short-circuit with
+		// IMAGE_CIRCUIT_OPEN instead of reaching fetch again.
+		const output = await seam.generate(imageGenerationRequestFixture);
+		expect(output.ok).toBe(false);
+		if (!output.ok) {
+			expect(output.error.code).toBe('IMAGE_CIRCUIT_OPEN');
+		}
+		expect(fetchMock).toHaveBeenCalledTimes(3);
+	});
+
 	it('records a breaker success on HTTP 200 even when the response has no images', async () => {
 		fetchMock.mockImplementation(
 			async () =>

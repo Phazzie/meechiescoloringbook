@@ -6,7 +6,7 @@ import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { selectTextModel } from '$lib/core/text-model';
 import { env } from '$env/dynamic/private';
-import type { AppConfigSeam } from '$lib/seams/app-config-seam/contract';
+import type { ImageProviderConfigSeam } from '$lib/seams/image-provider-config-seam/contract';
 import {
 	ChatInterpretationInputSchema,
 	ChatInterpretationResultSchema
@@ -89,12 +89,15 @@ export type ChatInterpretationConfigCheck =
 	| { ok: false; response: ChatPipelineResponse };
 
 // Exported so the route can reject a missing/invalid XAI_API_KEY before consuming
-// rate-limit quota — mirrors checkWigTryOnConfig in wig-try-on-pipeline.ts. Without
-// this, the config error only surfaces inside providerAdapter.createChatCompletion,
-// after enforceAiRateLimit has already charged a slot for a request that can never
-// reach the provider.
+// rate-limit quota. Deliberately takes ImageProviderConfigSeam, not AppConfigSeam:
+// AppConfigSeam.getConfig() requires every app-wide field (xaiTextModel, defaultImageSize,
+// etc.) and throws if any is absent, which would 503 a chat/tools/studio-text deployment
+// that has XAI_API_KEY set but omits unrelated image-only vars. ImageProviderConfigSeam
+// shares the same xaiApiKey field but defaults its other three fields in the adapter, so
+// it only actually fails when the key itself is missing — the one thing this check cares
+// about, whether the call is a chat or image request.
 export const checkChatInterpretationProviderConfig = (
-	configSeam: AppConfigSeam
+	configSeam: ImageProviderConfigSeam
 ): ChatInterpretationConfigCheck => {
 	try {
 		const config = configSeam.getConfig();

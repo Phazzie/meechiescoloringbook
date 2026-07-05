@@ -118,18 +118,24 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
           if (RETRYABLE_STATUSES.has(response.status)) {
             breaker.recordFailure();
             breakerRecorded = true;
-          } else if (!response.ok) {
-            // Non-retryable HTTP error (e.g. 400, 401): upstream is reachable.
-            breaker.recordSuccess();
-            breakerRecorded = true;
           }
-          // For 2xx: defer success recording until after body is fully read so a
-          // body-stall timeout reaches the outer catch as a recordable failure.
+          // For 2xx and non-retryable 4xx alike: defer success recording until after the body
+          // is fully read, so a body-stall timeout on either path reaches the outer catch as a
+          // recordable failure instead of being masked by an already-true breakerRecorded flag
+          // set purely from the HTTP status line.
 
           if (!response.ok) {
             let text = '';
             try {
               text = await response.text();
+              // Non-retryable HTTP error (e.g. 400, 401): only mark success once the body has
+              // actually been read — upstream is reachable and responded, not just present. A
+              // retryable status already recorded its failure above and must not have it
+              // overwritten by a success from reaching this same body-read step.
+              if (!breakerRecorded) {
+                breaker.recordSuccess();
+                breakerRecorded = true;
+              }
             } catch (error) {
               if (isAbortError(error) || isTimeoutError(error)) throw error;
             }

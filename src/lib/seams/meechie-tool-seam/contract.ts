@@ -8,10 +8,12 @@ import type { Result } from '../../../../contracts/shared.contract';
 // Mirrors the cap in contracts/meechie-tool.contract.ts (the legacy flat
 // contract this seam supersedes per docs/seams.md) — bounds the cost of the
 // disallowed-keyword scan that runs ahead of rate limiting, far above any
-// genuine tool input, so it never rejects legitimate requests.
-const MAX_FREE_TEXT_LENGTH = 2000;
+// genuine tool input, so it never rejects legitimate requests. Named distinctly
+// from core/constants.ts's MAX_FREE_TEXT_LENGTH (a different, unrelated cap for
+// studio text) to avoid import confusion between the two.
+const MAX_TOOL_FREE_TEXT_LENGTH = 2000;
 const MAX_LINEUP_ITEM_LENGTH = 200;
-const FreeTextInputSchema = NonEmptyStringSchema.max(MAX_FREE_TEXT_LENGTH);
+const FreeTextInputSchema = NonEmptyStringSchema.max(MAX_TOOL_FREE_TEXT_LENGTH);
 
 export const MeechieToolIdSchema = z.enum([
 	'apology_translator',

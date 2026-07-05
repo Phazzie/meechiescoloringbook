@@ -3,7 +3,7 @@
 // Info flow: Raw request body -> input validation + safety checks -> tool adapter -> contract response.
 import { meechieToolAdapter } from '$lib/adapters/meechie-tool-seam';
 import { findDisallowedKeywords } from '$lib/core/constants';
-import type { AppConfigSeam } from '$lib/seams/app-config-seam/contract';
+import type { ImageProviderConfigSeam } from '$lib/seams/image-provider-config-seam/contract';
 import {
 	MeechieToolInputSchema,
 	MeechieToolResultSchema
@@ -61,11 +61,14 @@ export const checkMeechieToolAbort = (signal?: AbortSignal): MeechieToolAbortChe
 export type MeechieToolConfigCheck = { ok: true } | { ok: false; response: ToolsPipelineResponse };
 
 // Exported so the route can reject a missing/invalid XAI_API_KEY before consuming
-// rate-limit quota — mirrors checkWigTryOnConfig in wig-try-on-pipeline.ts. Without
-// this, the config error only surfaces inside meechieToolAdapter.respond(), after
-// enforceAiRateLimit has already charged a slot for a request that can never reach
-// the provider.
-export const checkMeechieToolProviderConfig = (configSeam: AppConfigSeam): MeechieToolConfigCheck => {
+// rate-limit quota. Deliberately takes ImageProviderConfigSeam, not AppConfigSeam:
+// AppConfigSeam.getConfig() requires every app-wide field and throws if any is absent,
+// which would 503 a deployment that has XAI_API_KEY set but omits unrelated image-only
+// vars. ImageProviderConfigSeam shares the same xaiApiKey field but defaults its other
+// three fields in the adapter, so it only fails when the key itself is missing.
+export const checkMeechieToolProviderConfig = (
+	configSeam: ImageProviderConfigSeam
+): MeechieToolConfigCheck => {
 	try {
 		const config = configSeam.getConfig();
 		if (!config.xaiApiKey) {

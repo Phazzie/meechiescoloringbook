@@ -9,7 +9,7 @@ const mimeTypeSchema = z.enum(['image/jpeg', 'image/png', 'image/webp']);
 export const wigTryOnRequestSchema = z.object({
   selfieBase64: z.string().min(1).max(MAX_SELFIE_BASE64_LENGTH),
   selfieMimeType: mimeTypeSchema,
-  wigImageBase64: z.string().min(1),
+  wigImageBase64: z.string().min(1).max(MAX_SELFIE_BASE64_LENGTH),
   wigImageMimeType: mimeTypeSchema,
   wigName: z.string().min(1),
   wigStyle: z.string().min(1)

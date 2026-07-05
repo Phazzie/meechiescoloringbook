@@ -539,6 +539,57 @@ describe('provider-adapter helpers', () => {
 		});
 	});
 
+	describe('createChatCompletion circuit breaker', () => {
+		it('opens after repeated retryable HTTP failures and fails fast without fetching', async () => {
+			vi.useFakeTimers();
+			try {
+				const fetchMock = vi.fn(
+					async () =>
+						new Response(JSON.stringify({ error: { message: 'unavailable' } }), {
+							status: 503,
+							statusText: 'Service Unavailable'
+						})
+				);
+				vi.stubGlobal('fetch', fetchMock);
+
+				const adapter = createProviderAdapter({
+					apiKey: 'test-key',
+					baseUrl: 'https://api.x.ai'
+				});
+
+				// A single call retries internally (RETRY_OPTIONS.maxAttempts = 3), so three
+				// consecutive 503s within this one call already reach the breaker's failure
+				// threshold and open it before the call returns.
+				const firstPromise = adapter.createChatCompletion({
+					model: 'test',
+					messages: [{ role: 'user', content: 'hi' }]
+				});
+				await vi.runAllTimersAsync();
+				const first = await firstPromise;
+				expect(first.ok).toBe(false);
+				if (!first.ok) {
+					expect(first.error.code).not.toBe('PROVIDER_CIRCUIT_OPEN');
+				}
+				expect(fetchMock).toHaveBeenCalledTimes(3);
+
+				// The breaker is now open — this next call must fail fast without hitting fetch
+				// again, and must not have had its recorded failures erased by the unconditional
+				// recordSuccess() defect this test guards against.
+				const second = await adapter.createChatCompletion({
+					model: 'test',
+					messages: [{ role: 'user', content: 'hi' }]
+				});
+				expect(second.ok).toBe(false);
+				if (!second.ok) {
+					expect(second.error.code).toBe('PROVIDER_CIRCUIT_OPEN');
+				}
+				expect(fetchMock).toHaveBeenCalledTimes(3);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+	});
+
 	describe('buildHttpError edge cases', () => {
 		it('extracts error message from error.message field', async () => {
 			const fetchMock = vi.fn(

@@ -20,13 +20,13 @@ vi.mock('$lib/server/parse-request-body', async () => {
 	};
 });
 
-vi.mock('$lib/adapters/app-config-seam/index', () => ({
-	createAppConfigSeam: vi.fn(() => ({ getConfig: () => ({ xaiApiKey: 'test-key' }) }))
+vi.mock('$lib/adapters/image-provider-config-seam', () => ({
+	createImageProviderConfigSeam: vi.fn(() => ({ getConfig: () => ({ xaiApiKey: 'test-key' }) }))
 }));
 
 import { POST } from '../../src/routes/api/chat-interpretation/+server';
 import { providerAdapter } from '../../src/lib/adapters/provider-adapter.adapter';
-import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
+import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 
 const validSpec = {
 	title: 'Dream Big',
@@ -231,9 +231,9 @@ describe('/api/chat-interpretation', () => {
 	});
 
 	it('rejects with CHAT_CONFIG_ERROR without consuming rate-limit quota when XAI_API_KEY is missing', async () => {
-		vi.mocked(createAppConfigSeam).mockReturnValueOnce({
+		vi.mocked(createImageProviderConfigSeam).mockReturnValueOnce({
 			getConfig: () => ({ xaiApiKey: '' })
-		} as ReturnType<typeof createAppConfigSeam>);
+		} as ReturnType<typeof createImageProviderConfigSeam>);
 		const providerSpy = vi.spyOn(providerAdapter, 'createChatCompletion');
 
 		const response = await POST(buildEvent({ message: 'build me a page' }));
