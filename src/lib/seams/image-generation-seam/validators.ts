@@ -2,6 +2,7 @@
 // Why: Keep runtime data aligned with the contract schema.
 // Info flow: adapter/mock -> validators -> errors.
 import { z } from 'zod';
+import { UnknownRecordSchema } from '../../../../contracts/shared.contract';
 
 export const imageGenerationRequestSchema = z.object({
   prompt: z.string().min(1),
@@ -21,7 +22,7 @@ export const generatedImageSchema = z.object({
 
 export const imageGenerationResultSchema = z.object({
   images: z.array(generatedImageSchema),
-  rawModelInfo: z.record(z.string(), z.unknown()),
+  rawModelInfo: UnknownRecordSchema,
   timingMs: z.number()
 });
 

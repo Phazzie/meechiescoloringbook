@@ -165,6 +165,7 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
 
 ## 2026-07-05
+
 - Date: 2026-07-05
 - Context: Upgrading `zod` from v3 to v4 across every seam contract.
 - Lesson: A text grep for known-removed v3 APIs (`errorMap`, `invalid_type_error`, single-argument `z.record()`) is necessary but not sufficient; zod v4 also renamed the `invalid_string` issue code to `invalid_format` and widened `ZodIssue.path`'s element type to `PropertyKey`, both of which only surfaced through `svelte-check` and failing contract tests, not grep.

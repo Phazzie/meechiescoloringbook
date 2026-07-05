@@ -34,7 +34,7 @@ Current active plan is listed first. Older dated entries remain below as histori
   - any other file `npm run check`/`npm test` reveals as needing a v4-compat fix
 - Exact commands to run:
   1. `npm install zod@^4.4.3`
-  2. `rg -n "z\\.record\\(" src` to confirm every single-argument call site is fixed
+  2. `rg -n "z\\.record\\(" src contracts` to confirm every single-argument call site is fixed
   3. `npm run check`
   4. `npm run lint`
   5. `npm test`

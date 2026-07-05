@@ -1,7 +1,7 @@
 // Purpose: Adapter implementation for SpecValidationSeam.
 // Why: Enforce spec constraints deterministically before downstream work.
 // Info flow: Raw spec -> validation issues -> decision gating.
-import type { ZodIssue } from 'zod';
+import { mapZodIssueToSpecValidationIssue } from '../core/spec-validation-issue-mapping';
 import {
 	ColoringPageSpecSchema,
 	MAX_SPEC_ITEMS,
@@ -14,61 +14,8 @@ import type {
 	SpecValidationSeam
 } from '../../../contracts/spec-validation.contract';
 
-const formatPath = (path: ReadonlyArray<PropertyKey>): string => {
-	const withoutRoot = path.filter((segment) => segment !== 'spec');
-	return withoutRoot
-		.map((segment) =>
-			typeof segment === 'number' ? `[${segment}]` : String(segment)
-		)
-		.join('.')
-		.replace('.[', '[');
-};
-
-const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] => {
-	const field = formatPath(issue.path);
-	const pathString = issue.path.map((segment) => String(segment)).join('.');
-
-	if (pathString.endsWith('items.0.number') || pathString.endsWith('number')) {
-		if (issue.code === 'too_small' || issue.code === 'too_big' || issue.code === 'invalid_type') {
-			return {
-				code: 'ITEM_NUMBER_OUT_OF_RANGE',
-				field: field || 'items.number',
-				message: 'Item number must be between 1 and 999.'
-			};
-		}
-	}
-
-	if (pathString === 'items' && issue.code === 'too_big') {
-		return {
-			code: 'ITEMS_TOO_MANY',
-			field: 'items',
-			message: `List cannot exceed ${MAX_SPEC_ITEMS} items.`
-		};
-	}
-
-	if (pathString.endsWith('label')) {
-		if (issue.code === 'invalid_format') {
-			return {
-				code: 'LABEL_INVALID_CHARS',
-				field: field || 'items.label',
-				message: 'Label contains invalid characters.'
-			};
-		}
-		if (issue.code === 'too_small' || issue.code === 'too_big') {
-			return {
-				code: 'LABEL_LENGTH_OUT_OF_RANGE',
-				field: field || 'items.label',
-				message: 'Label must be between 1 and 40 characters.'
-			};
-		}
-	}
-
-	return {
-		code: 'SPEC_INVALID',
-		field: field || 'spec',
-		message: issue.message
-	};
-};
+const issueFromZod = (issue: Parameters<typeof mapZodIssueToSpecValidationIssue>[0]) =>
+	mapZodIssueToSpecValidationIssue(issue, MAX_SPEC_ITEMS);
 
 export const specValidationAdapter: SpecValidationSeam = {
 	validate: async (input: SpecValidationInput): Promise<SpecValidationOutput> => {

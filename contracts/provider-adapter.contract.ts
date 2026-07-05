@@ -2,7 +2,7 @@
 // Why: Isolate network/auth/retry behavior behind a single boundary.
 // Info flow: Core seams -> provider adapter -> external service.
 import { z } from 'zod';
-import { NonEmptyStringSchema, resultSchema } from './shared.contract';
+import { NonEmptyStringSchema, UnknownRecordSchema, resultSchema } from './shared.contract';
 import type { Result } from './shared.contract';
 
 export const ProviderChatMessageSchema = z.object({
@@ -13,7 +13,7 @@ export const ProviderChatMessageSchema = z.object({
 export const ProviderChatInputSchema = z.object({
 	model: NonEmptyStringSchema,
 	messages: z.array(ProviderChatMessageSchema),
-	responseFormat: z.record(z.string(), z.unknown()).optional()
+	responseFormat: UnknownRecordSchema.optional()
 });
 
 export const ProviderChatOutputSchema = z.object({

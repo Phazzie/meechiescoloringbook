@@ -2,6 +2,7 @@
 // Why: Keep runtime data aligned with the contract schema.
 // Info flow: adapter/mock -> validators -> errors.
 import { z } from 'zod';
+import { UnknownRecordSchema } from '../../../../contracts/shared.contract';
 
 export const telemetryEventSchema = z.object({
   name: z.enum([
@@ -11,7 +12,7 @@ export const telemetryEventSchema = z.object({
     'prompt_compiler_fallback'
   ]),
   timestamp: z.string().min(1),
-  metadata: z.record(z.string(), z.unknown()).optional()
+  metadata: UnknownRecordSchema.optional()
 });
 
 export const validateTelemetryEvent = (input: unknown) => telemetryEventSchema.parse(input);

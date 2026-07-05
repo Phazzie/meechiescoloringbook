@@ -8,6 +8,8 @@ export type Scenario = z.infer<typeof ScenarioSchema>;
 
 export const NonEmptyStringSchema = z.string().min(1);
 
+export const UnknownRecordSchema = z.record(z.string(), z.unknown());
+
 export const SeamErrorSchema = z.object({
 	code: NonEmptyStringSchema,
 	message: NonEmptyStringSchema,
