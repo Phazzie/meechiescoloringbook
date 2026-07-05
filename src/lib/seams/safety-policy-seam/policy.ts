@@ -15,7 +15,9 @@ type TextSegment = {
 };
 
 const hasDisallowedContent = (text: string) =>
-  SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS.some((keyword) => text.toLowerCase().includes(keyword));
+  SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS.some((keyword) =>
+    text.toLowerCase().includes(keyword.toLowerCase())
+  );
 
 const disallowedContent = (message: string, field: string): SafetyPolicyResult => ({
   ok: false,

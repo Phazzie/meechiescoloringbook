@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-07-05T12:14:56.573Z
+Generated at: 2026-07-05T12:23:29.305Z
 Evidence folder: docs/evidence/2026-07-05
 
 Files included:
@@ -13,8 +13,8 @@ Files included:
 - chamber-lock.json (24795 bytes)
 - clan-chain.json (2247 bytes)
 - clan-chain.md (1418 bytes)
-- proof-tape.json (2224 bytes)
-- proof-tape.md (840 bytes)
+- proof-tape.json (4792 bytes)
+- proof-tape.md (2171 bytes)
 - quick-wins-check.txt (240 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 - quick-wins-lint.txt (48 bytes)
