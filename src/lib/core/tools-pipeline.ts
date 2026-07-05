@@ -3,7 +3,6 @@
 // Info flow: Raw request body -> input validation + safety checks -> tool adapter -> contract response.
 import { meechieToolAdapter } from '$lib/adapters/meechie-tool-seam';
 import { findDisallowedKeywords } from '$lib/core/constants';
-import type { ImageProviderConfigSeam } from '$lib/seams/image-provider-config-seam/contract';
 import {
 	MeechieToolInputSchema,
 	MeechieToolResultSchema
@@ -60,30 +59,20 @@ export const checkMeechieToolAbort = (signal?: AbortSignal): MeechieToolAbortChe
 
 export type MeechieToolConfigCheck = { ok: true } | { ok: false; response: ToolsPipelineResponse };
 
-// Exported so the route can reject a missing/invalid XAI_API_KEY before consuming
-// rate-limit quota. Deliberately takes ImageProviderConfigSeam, not AppConfigSeam:
-// AppConfigSeam.getConfig() requires every app-wide field and throws if any is absent,
-// which would 503 a deployment that has XAI_API_KEY set but omits unrelated image-only
-// vars. ImageProviderConfigSeam shares the same xaiApiKey field but defaults its other
-// three fields in the adapter, so it only fails when the key itself is missing.
-export const checkMeechieToolProviderConfig = (
-	configSeam: ImageProviderConfigSeam
-): MeechieToolConfigCheck => {
-	try {
-		const config = configSeam.getConfig();
-		if (!config.xaiApiKey) {
-			return {
-				ok: false,
-				response: buildError(503, 'MEECHIE_TOOL_CONFIG_ERROR', 'XAI_API_KEY is not configured. Meechie tools require an xAI API key.')
-			};
-		}
-		return { ok: true };
-	} catch {
+// Exported so the route can reject a missing XAI_API_KEY before consuming rate-limit
+// quota. Takes the raw key value rather than a config seam: both AppConfigSeam (requires
+// every app-wide field) and ImageProviderConfigSeam (its other 3 fields are only
+// defaulted for undefined, not for an explicitly-empty-string env value) can still throw
+// for reasons unrelated to XAI_API_KEY itself, which would falsely 503 a working tools
+// deployment. Checking the key directly has no such coupling.
+export const checkMeechieToolProviderConfig = (apiKey: string | undefined): MeechieToolConfigCheck => {
+	if (!apiKey) {
 		return {
 			ok: false,
-			response: buildError(503, 'MEECHIE_TOOL_CONFIG_ERROR', 'Provider configuration is invalid. Ensure XAI_API_KEY is set.')
+			response: buildError(503, 'MEECHIE_TOOL_CONFIG_ERROR', 'XAI_API_KEY is not configured. Meechie tools require an xAI API key.')
 		};
 	}
+	return { ok: true };
 };
 
 export type MeechieToolInputShapeCheck =

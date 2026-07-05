@@ -4,7 +4,7 @@ Why: Keep tool execution behind a server boundary and reject disallowed content.
 Info flow: Client tool request -> schema + safety checks -> tool adapter -> JSON result.
 */
 import { json } from '@sveltejs/kit';
-import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
+import { env } from '$env/dynamic/private';
 import {
 	checkMeechieToolAbort,
 	checkMeechieToolInputShape,
@@ -32,7 +32,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const lateAbortCheck = checkMeechieToolAbort(request.signal);
 	if (!lateAbortCheck.ok)
 		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
-	const configCheck = checkMeechieToolProviderConfig(createImageProviderConfigSeam());
+	const configCheck = checkMeechieToolProviderConfig(env.XAI_API_KEY);
 	if (!configCheck.ok)
 		return json(configCheck.response.body, { status: configCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);

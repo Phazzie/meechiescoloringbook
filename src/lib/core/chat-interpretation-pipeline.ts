@@ -6,7 +6,6 @@ import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { selectTextModel } from '$lib/core/text-model';
 import { env } from '$env/dynamic/private';
-import type { ImageProviderConfigSeam } from '$lib/seams/image-provider-config-seam/contract';
 import {
 	ChatInterpretationInputSchema,
 	ChatInterpretationResultSchema
@@ -88,32 +87,22 @@ export type ChatInterpretationConfigCheck =
 	| { ok: true }
 	| { ok: false; response: ChatPipelineResponse };
 
-// Exported so the route can reject a missing/invalid XAI_API_KEY before consuming
-// rate-limit quota. Deliberately takes ImageProviderConfigSeam, not AppConfigSeam:
-// AppConfigSeam.getConfig() requires every app-wide field (xaiTextModel, defaultImageSize,
-// etc.) and throws if any is absent, which would 503 a chat/tools/studio-text deployment
-// that has XAI_API_KEY set but omits unrelated image-only vars. ImageProviderConfigSeam
-// shares the same xaiApiKey field but defaults its other three fields in the adapter, so
-// it only actually fails when the key itself is missing — the one thing this check cares
-// about, whether the call is a chat or image request.
+// Exported so the route can reject a missing XAI_API_KEY before consuming rate-limit
+// quota. Takes the raw key value rather than a config seam: both AppConfigSeam (requires
+// every app-wide field) and ImageProviderConfigSeam (its other 3 fields are only
+// defaulted for undefined, not for an explicitly-empty-string env value) can still throw
+// for reasons unrelated to XAI_API_KEY itself, which would falsely 503 a working chat
+// deployment. Checking the key directly has no such coupling.
 export const checkChatInterpretationProviderConfig = (
-	configSeam: ImageProviderConfigSeam
+	apiKey: string | undefined
 ): ChatInterpretationConfigCheck => {
-	try {
-		const config = configSeam.getConfig();
-		if (!config.xaiApiKey) {
-			return {
-				ok: false,
-				response: buildError(503, 'CHAT_CONFIG_ERROR', 'XAI_API_KEY is not configured. Chat interpretation requires an xAI API key.')
-			};
-		}
-		return { ok: true };
-	} catch {
+	if (!apiKey) {
 		return {
 			ok: false,
-			response: buildError(503, 'CHAT_CONFIG_ERROR', 'Provider configuration is invalid. Ensure XAI_API_KEY is set.')
+			response: buildError(503, 'CHAT_CONFIG_ERROR', 'XAI_API_KEY is not configured. Chat interpretation requires an xAI API key.')
 		};
 	}
+	return { ok: true };
 };
 
 export type ChatInterpretationInputShapeCheck =

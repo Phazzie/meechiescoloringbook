@@ -20,13 +20,11 @@ vi.mock('$lib/server/parse-request-body', async () => {
 	};
 });
 
-vi.mock('$lib/adapters/image-provider-config-seam', () => ({
-	createImageProviderConfigSeam: vi.fn(() => ({ getConfig: () => ({ xaiApiKey: 'test-key' }) }))
-}));
+const envRef = vi.hoisted(() => ({ XAI_API_KEY: 'test-key' as string | undefined }));
+vi.mock('$env/dynamic/private', () => ({ env: envRef }));
 
 import { POST } from '../../src/routes/api/tools/+server';
 import { meechieToolAdapter } from '../../src/lib/adapters/meechie-tool-seam';
-import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 
 const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 	({
@@ -222,19 +220,21 @@ describe('/api/tools', () => {
 	});
 
 	it('rejects with MEECHIE_TOOL_CONFIG_ERROR without consuming rate-limit quota when XAI_API_KEY is missing', async () => {
-		vi.mocked(createImageProviderConfigSeam).mockReturnValueOnce({
-			getConfig: () => ({ xaiApiKey: '' })
-		} as ReturnType<typeof createImageProviderConfigSeam>);
+		envRef.XAI_API_KEY = undefined;
 		const adapterSpy = vi.spyOn(meechieToolAdapter, 'respond');
 
-		const response = await POST(
-			buildEvent({ toolId: 'apology_translator', apology: "I'm sorry you feel that way." })
-		);
-		const payload = await response.json();
+		try {
+			const response = await POST(
+				buildEvent({ toolId: 'apology_translator', apology: "I'm sorry you feel that way." })
+			);
+			const payload = await response.json();
 
-		expect(response.status).toBe(503);
-		expect(payload.ok).toBe(false);
-		expect(payload.error.code).toBe('MEECHIE_TOOL_CONFIG_ERROR');
-		expect(adapterSpy).not.toHaveBeenCalled();
+			expect(response.status).toBe(503);
+			expect(payload.ok).toBe(false);
+			expect(payload.error.code).toBe('MEECHIE_TOOL_CONFIG_ERROR');
+			expect(adapterSpy).not.toHaveBeenCalled();
+		} finally {
+			envRef.XAI_API_KEY = 'test-key';
+		}
 	});
 });

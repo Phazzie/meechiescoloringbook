@@ -20,13 +20,11 @@ vi.mock('$lib/server/parse-request-body', async () => {
 	};
 });
 
-vi.mock('$lib/adapters/image-provider-config-seam', () => ({
-	createImageProviderConfigSeam: vi.fn(() => ({ getConfig: () => ({ xaiApiKey: 'test-key' }) }))
-}));
+const envRef = vi.hoisted(() => ({ XAI_API_KEY: 'test-key' as string | undefined }));
+vi.mock('$env/dynamic/private', () => ({ env: envRef }));
 
 import { POST } from '../../src/routes/api/meechie-studio-text/+server';
 import * as providerAdapterModule from '../../src/lib/adapters/provider-adapter.adapter';
-import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 
 const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 	({
@@ -200,9 +198,7 @@ describe('/api/meechie-studio-text', () => {
 	});
 
 	it('rejects with MEECHIE_STUDIO_TEXT_CONFIG_ERROR without consuming rate-limit quota when XAI_API_KEY is missing', async () => {
-		vi.mocked(createImageProviderConfigSeam).mockReturnValueOnce({
-			getConfig: () => ({ xaiApiKey: '' })
-		} as ReturnType<typeof createImageProviderConfigSeam>);
+		envRef.XAI_API_KEY = undefined;
 		const providerSpy = vi.spyOn(providerAdapterModule.providerAdapter, 'createChatCompletion');
 
 		try {
@@ -215,6 +211,7 @@ describe('/api/meechie-studio-text', () => {
 			expect(providerSpy).not.toHaveBeenCalled();
 		} finally {
 			providerSpy.mockRestore();
+			envRef.XAI_API_KEY = 'test-key';
 		}
 	});
 });

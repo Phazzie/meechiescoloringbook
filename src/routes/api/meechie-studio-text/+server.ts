@@ -4,7 +4,6 @@ Why: Keep AI text generation server-side and schema-validated.
 Info flow: Client request -> studio text pipeline -> JSON response.
 */
 import { env } from '$env/dynamic/private';
-import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { json } from '@sveltejs/kit';
 import {
@@ -34,7 +33,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const lateAbortCheck = checkMeechieStudioTextAbort(request.signal);
 	if (!lateAbortCheck.ok)
 		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
-	const configCheck = checkMeechieStudioTextProviderConfig(createImageProviderConfigSeam());
+	const configCheck = checkMeechieStudioTextProviderConfig(env.XAI_API_KEY);
 	if (!configCheck.ok)
 		return json(configCheck.response.body, { status: configCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
