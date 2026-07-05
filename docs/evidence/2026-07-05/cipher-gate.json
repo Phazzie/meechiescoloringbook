@@ -1,0 +1,42 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-07-05T13:33:49.695Z",
+  "cipher": {
+    "date": "2026-07-05",
+    "seams": "MeechieVoiceSeam, ImageGenerationSeam, TelemetrySeam, ProviderAdapterSeam, SpecValidationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-07-05/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/seam-ledger.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/clan-chain.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-05/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Upgraded `zod` from v3 to v4, fixed the resulting `z.record()` single-argument removal across four seam contracts, and fixed `SpecValidationSeam`'s issue-code/path-type handling for the v4 `invalid_format` rename and `PropertyKey[]` path typing; full local gate (`check`, `lint`, `test` 519 passed, `build`, `verify`) is green with zero contract behavior change.",
+    "risks": "This upgrade was verified against the existing fixture-backed contract test suite, not a live re-probe of any external provider; if a future zod point release changes another issue-code discriminator not exercised by current fixtures, it would need its own fault-fixture coverage to catch."
+  },
+  "latestChangeMs": 1783258243757.1091,
+  "status": "ok"
+}

@@ -163,3 +163,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-07-05
+- Date: 2026-07-05
+- Context: Upgrading `zod` from v3 to v4 across every seam contract.
+- Lesson: A text grep for known-removed v3 APIs (`errorMap`, `invalid_type_error`, single-argument `z.record()`) is necessary but not sufficient; zod v4 also renamed the `invalid_string` issue code to `invalid_format` and widened `ZodIssue.path`'s element type to `PropertyKey`, both of which only surfaced through `svelte-check` and failing contract tests, not grep.
+- Action: After any zod major bump, run the full local gate (`check`, `lint`, `test`, `build`, `verify`) before trusting a grep-based breaking-change audit, and treat any adapter that pattern-matches on `issue.code` as a required manual review site.

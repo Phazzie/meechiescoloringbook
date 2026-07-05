@@ -8,6 +8,47 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Zod v3 -> v4 Dependency Upgrade (2026-07-05)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: bump the `zod` version in `package.json` and stop once `npm install` succeeds, without checking whether any contract schema uses a v3-only API shape.
+2. Countermeasure: grep every seam contract/validator file for the specific v4 breaking-change surface (single-argument `z.record()`, `invalid_type_error`/`required_error` options, `errorMap`, `.errors` access, `z.nativeEnum`) before touching the dependency, then run the full local gate (`check`, `lint`, `test`, `build`, `verify`) after the bump.
+3. Lower-debt path: fix only the confirmed breaking call sites (`z.record(valueSchema)` -> `z.record(z.string(), valueSchema)`) instead of rewriting unrelated schema code, so the diff stays auditable against the upstream zod v4 migration guide.
+
+### Plan
+
+- Goal: Upgrade the `zod` dependency from `^3.25.76` to `^4.4.3` across the whole Seam-Driven Development contract layer without changing any observable contract behavior, since this is the most stale/broadest cross-cutting dependency in the repo (57 files import it) and its v4 release removed the single-argument `z.record()` form used by several seam contracts today.
+- Exact seams: MeechieVoiceSeam (legacy + self-contained), ImageGenerationSeam, TelemetrySeam, ProviderAdapterSeam, plus every other seam contract/validator file that imports `zod` (full list produced by `rg -l "from 'zod'"`).
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `package.json`
+  - `package-lock.json`
+  - `src/lib/seams/meechie-voice-seam/contract.ts`
+  - `contracts/meechie-voice.contract.ts`
+  - `src/lib/seams/image-generation-seam/validators.ts`
+  - `src/lib/seams/telemetry-seam/validators.ts`
+  - `contracts/shared.contract.ts`
+  - `contracts/provider-adapter.contract.ts`
+  - any other file `npm run check`/`npm test` reveals as needing a v4-compat fix
+- Exact commands to run:
+  1. `npm install zod@^4.4.3`
+  2. `rg -n "z\\.record\\(" src` to confirm every single-argument call site is fixed
+  3. `npm run check`
+  4. `npm run lint`
+  5. `npm test`
+  6. `npm run build`
+  7. `npm run verify`
+  8. `git diff --check`
+
+### Self-critique
+
+1. What could be wrong: Zod v4 changed default error messages and some numeric/string refinement internals; if any fixture or test asserts an exact zod-generated message string, the upgrade could pass type-checking but still change observable API error text.
+2. What must be proven: The full existing contract test suite (`tests/contract/*.test.ts`, `src/lib/seams/*/test.ts`) still passes unchanged, `npm run check` reports zero errors, and `npm run build` still produces a working Vercel bundle.
+3. Riskiest assumption: A grep-confirmed absence of `invalid_type_error`, `required_error`, `errorMap`, `.flatten()`, and hardcoded zod message-text assertions in this repo means no other call site depends on v3-only error-formatting behavior.
+4. Evidence to prove/disprove: Green `npm run check`, `npm run lint`, `npm test`, `npm run build`, and `npm run verify` output captured after the bump.
+
 ## PR #114 Manual Integration: Ordinal and Config Parsing Cleanup (2026-06-07)
 
 ### Shortcut Check
