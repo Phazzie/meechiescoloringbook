@@ -87,9 +87,12 @@ export const runWigTryOnPipeline = async (
 	});
 
 	if (!tryOnResult.ok) {
-		const isClientError = tryOnResult.error.code === 'WIG_TRY_ON_VALIDATION_ERROR';
+		const statusByCode: Record<string, number> = {
+			WIG_TRY_ON_VALIDATION_ERROR: 400,
+			WIG_TRY_ON_CONFIG_ERROR: 503
+		};
 		return buildError(
-			isClientError ? 400 : 502,
+			statusByCode[tryOnResult.error.code] ?? 502,
 			tryOnResult.error.code,
 			tryOnResult.error.message
 		);
