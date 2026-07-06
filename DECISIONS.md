@@ -1942,3 +1942,24 @@ The 2026-05-10 decision explicitly flagged this: "Revisit if xAI config keys are
   - Evidence: docs/evidence/2026-06-07/pr-133-print-dimension-debt-before.txt; docs/evidence/2026-06-07/pr-133-print-dimension-debt-after.txt; docs/evidence/2026-06-07/pr-133-focused-tests.txt; docs/evidence/2026-06-07/pr-133-check.txt; docs/evidence/2026-06-07/pr-133-lint.txt; docs/evidence/2026-06-07/pr-133-verify-wrapper.txt; docs/evidence/2026-06-07/cipher-gate.json; docs/evidence/2026-06-07/pr-133-diff-check.txt
   - Summary: Centralized OutputPackagingSeam print dimensions for SVG fallback plus JPEG/WebP browser conversion and skipped stale PR #133 hunks that would regress current HTTP/studio-text policies.
   - Risks: This is behavior-preserving cleanup, so no new contract fixtures were added; future configurable print dimensions would need contract-level tests.
+
+## 2026-07-06 - Fix CreationStoreSeam saveDraft throwing instead of returning a Result error
+- Date: 2026-07-06
+- Decision: Change `saveDraft` in `creation-store.adapter.ts` from `DraftRecordSchema.parse(input.draft)` (throws on invalid input) to `.safeParse()` returning `{ ok: false, error: { code: 'DRAFT_SCHEMA_MISMATCH', ... } }`, matching the sibling `saveCreation`/`parseDraft` error-handling pattern already in the same file.
+- Context: The `CreationStoreSeam` contract types `saveDraft` as `Promise<Result<DraftRecord>>`, but the adapter used a throwing `.parse()` while every other method in the file (`saveCreation`, `getDraft` via `parseDraft`) already returns a `Result` error on schema mismatch. An invalid draft (e.g. malformed UI state) would throw an uncaught `ZodError` instead of a handled error result.
+- Alternatives: Leave as-is and let callers catch the thrown error; rejected because it violates the seam's own `Result`-based contract and is inconsistent with every sibling method. Wrap the call site instead of the adapter; rejected because the fix belongs at the seam boundary that owns validation.
+- Consequences: `saveDraft` now returns a `DRAFT_SCHEMA_MISMATCH` error result for invalid input instead of throwing; no change to the happy path or to `getDraft`/`clearDraft`.
+- Revisit criteria: Revisit if `DraftRecordSchema` needs a distinct error code from the one used by `getDraft`'s stored-draft validation.
+- Plan:
+  - Goal: Make `saveDraft` match its own contract and the file's established `Result`-returning pattern instead of throwing.
+  - Seams: CreationStoreSeam.
+  - Files: `src/lib/adapters/creation-store.adapter.ts`, `tests/unit/creation-store-helpers.test.ts`, `DECISIONS.md`, `docs/evidence/2026-07-06/*`.
+  - Commands: `npm run test -- creation-store`, `npm run check`, `npm run lint`, `npm run test`, `npm run verify`.
+- Self-critique: The main risk is picking a different error code than expected by other consumers of `saveDraft`. Reused the existing `DRAFT_SCHEMA_MISMATCH` code (already used by `getDraft`'s `parseDraft` for the same schema) rather than inventing a new one, and added a unit test asserting the new error path plus ran the full suite/verify to confirm no regressions.
+
+- Cipher Gate:
+  - Date: 2026-07-06
+  - Seams: CreationStoreSeam
+  - Evidence: docs/evidence/2026-07-06/test.txt; docs/evidence/2026-07-06/verify.txt; docs/evidence/2026-07-06/chamber-lock.json; docs/evidence/2026-07-06/shaolin-lint.json; docs/evidence/2026-07-06/seam-ledger.json; docs/evidence/2026-07-06/clan-chain.json; docs/evidence/2026-07-06/proof-tape.json
+  - Summary: Fixed CreationStoreSeam's saveDraft to return a Result error on invalid input instead of throwing, matching its contract and sibling methods; added regression test; full verify green.
+  - Risks: Behavior-preserving for valid input; callers that relied on saveDraft throwing (none found in the codebase) would now receive a Result error instead.

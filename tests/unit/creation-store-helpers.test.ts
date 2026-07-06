@@ -213,6 +213,16 @@ describe('creation-store adapter', () => {
 			}
 		});
 
+		it('returns schema error instead of throwing when saving an invalid draft', async () => {
+			const result = await creationStoreAdapter.saveDraft({
+				draft: { invalid: true } as unknown as typeof validDraft
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('DRAFT_SCHEMA_MISMATCH');
+			}
+		});
+
 		it('returns null when no draft exists', async () => {
 			const result = await creationStoreAdapter.getDraft({});
 			expect(result.ok).toBe(true);

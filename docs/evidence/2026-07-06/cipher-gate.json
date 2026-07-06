@@ -1,0 +1,42 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-07-06T12:10:26.374Z",
+  "cipher": {
+    "date": "2026-07-06",
+    "seams": "CreationStoreSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-07-06/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/proof-tape.json",
+        "exists": true
+      }
+    ],
+    "summary": "Fixed CreationStoreSeam's saveDraft to return a Result error on invalid input instead of throwing, matching its contract and sibling methods; added regression test; full verify green.",
+    "risks": "Behavior-preserving for valid input; callers that relied on saveDraft throwing (none found in the codebase) would now receive a Result error instead."
+  },
+  "latestChangeMs": 1783339637043.5435,
+  "status": "ok"
+}

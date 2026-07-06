@@ -210,7 +210,17 @@ export const creationStoreAdapter: CreationStoreSeam = {
 		if (typeof localStorage === 'undefined') {
 			return browserGuard('Creation store requires a browser environment.');
 		}
-		const draft = DraftRecordSchema.parse(input.draft);
+		const parsedDraft = DraftRecordSchema.safeParse(input.draft);
+		if (!parsedDraft.success) {
+			return {
+				ok: false,
+				error: {
+					code: 'DRAFT_SCHEMA_MISMATCH',
+					message: 'Draft failed schema validation.'
+				}
+			};
+		}
+		const draft = parsedDraft.data;
 		const stored = writeJson(DRAFT_KEY, draft);
 		if (!stored.ok) {
 			return stored;
