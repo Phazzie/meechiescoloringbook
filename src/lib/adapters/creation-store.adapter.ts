@@ -210,7 +210,7 @@ export const creationStoreAdapter: CreationStoreSeam = {
 		if (typeof localStorage === 'undefined') {
 			return browserGuard('Creation store requires a browser environment.');
 		}
-		const parsedDraft = DraftRecordSchema.safeParse(input.draft);
+		const parsedDraft = DraftRecordSchema.safeParse(input?.draft);
 		if (!parsedDraft.success) {
 			return {
 				ok: false,
