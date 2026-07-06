@@ -1,0 +1,124 @@
+{
+  "tool": "clan-chain",
+  "generatedAt": "2026-07-06T09:41:29.698Z",
+  "evidenceDir": "docs/evidence/2026-07-06",
+  "clean": [
+    {
+      "seam": "AppConfigSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "ImageProviderConfigSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "PromptCompilerSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "SafetyPolicySeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "GalleryStoreSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "TelemetrySeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "AuthContextSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "CreationStoreSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "PromptAssemblySeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "PromptAssemblySeam (self-contained)",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "ChatInterpretationSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "ImageGenerationSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "DriftDetectionSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "DriftDetectionSeam (self-contained)",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "MeechieVoiceSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "MeechieVoiceSeam (self-contained)",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "MeechieToolSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "MeechieToolSeam (self-contained)",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "MeechieStudioTextSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "ProviderAdapterSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "OutputPackagingSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "SessionSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "SpecValidationSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "SpecValidationSeam (self-contained)",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "WigCatalogSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "WigTryOnSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "CacheSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "RateLimitSeam",
+      "owner": "claude"
+    },
+    {
+      "seam": "RateLimitConfigSeam",
+      "owner": "claude"
+    }
+  ],
+  "dirty": []
+}
