@@ -107,18 +107,39 @@ describe('RateLimitSeam adapter (stateful)', () => {
 		expect(seam.checkAndConsume('client-a', 1_500)).toEqual({ ok: true, value: undefined });
 	});
 
-	it('keeps returning correct decisions once tracked keys exceed the internal prune threshold', () => {
-		const seam = createRateLimitSeam({ limit: 1, windowMs: 1_000 });
+	it('keeps returning correct decisions once tracked keys exceed the prune threshold and every key has expired', () => {
+		const seam = createRateLimitSeam({ limit: 1, windowMs: 1_000 }, 3);
 
-		// Push past the internal MAX_TRACKED_KEYS cap (10_000) so the next new key triggers
-		// the store's opportunistic prune-expired-keys sweep; this proves the sweep runs
-		// without throwing and without corrupting decisions for old or new keys.
-		for (let i = 0; i < 10_001; i += 1) {
-			seam.checkAndConsume(`stale-client-${i}`, 0);
-		}
+		seam.checkAndConsume('stale-client-a', 0);
+		seam.checkAndConsume('stale-client-b', 0);
+		seam.checkAndConsume('stale-client-c', 0);
 
+		// All three prior keys' windows have elapsed by now (2_000ms later), so the
+		// opportunistic sweep should free room without needing to evict anything live.
 		expect(seam.checkAndConsume('new-client', 2_000)).toEqual({ ok: true, value: undefined });
-		expect(seam.checkAndConsume('stale-client-0', 2_000)).toEqual({ ok: true, value: undefined });
+		expect(seam.checkAndConsume('stale-client-a', 2_000)).toEqual({ ok: true, value: undefined });
+	});
+
+	it('hard-caps tracked keys via oldest-entry eviction even when every key stays active within its window', () => {
+		// A long window means nothing is ever prune-eligible, so this proves the fallback
+		// eviction path (not just the expiry sweep) actually bounds the store's size.
+		const seam = createRateLimitSeam({ limit: 1, windowMs: 100_000 }, 3);
+
+		expect(seam.checkAndConsume('client-a', 0)).toEqual({ ok: true, value: undefined });
+		expect(seam.checkAndConsume('client-b', 0)).toEqual({ ok: true, value: undefined });
+		expect(seam.checkAndConsume('client-c', 0)).toEqual({ ok: true, value: undefined });
+
+		// client-a's single-call limit is already used, so a repeat call is blocked --
+		// proving its entry is still intact before any eviction has happened.
+		expect(seam.checkAndConsume('client-a', 1).ok).toBe(false);
+
+		// A 4th distinct, still-active key must evict the oldest entry (client-a) to stay
+		// within the cap of 3, since nothing has expired for the sweep to reclaim.
+		expect(seam.checkAndConsume('client-d', 2)).toEqual({ ok: true, value: undefined });
+
+		// client-a is now treated as brand new (allowed again) even though its 100_000ms
+		// window has not elapsed -- the only way that happens is if it was evicted.
+		expect(seam.checkAndConsume('client-a', 3)).toEqual({ ok: true, value: undefined });
 	});
 });
 
