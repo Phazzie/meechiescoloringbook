@@ -3,7 +3,6 @@
 // Info flow: wigId + selfieBase64 -> WigCatalogSeam -> image fetch -> WigTryOnSeam -> portrait Result.
 import { WigTryOnRequestSchema, WigTryOnResultSchema } from '../../../contracts/wig-try-on.contract';
 import { z } from 'zod';
-import type { AppConfigSeam } from '../seams/app-config-seam/contract';
 import type { Wig, WigCatalogSeam } from '../seams/wig-catalog-seam/contract';
 import type { WigTryOnSeam } from '../seams/wig-try-on-seam/contract';
 
@@ -57,25 +56,20 @@ const ALLOWED_WIG_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 export type WigTryOnConfigCheck = { ok: true } | { ok: false; response: PipelineResponse };
 
-// Exported so the route can reject a missing/invalid Gemini config before consuming
-// rate-limit quota. Without this, the config error only surfaces inside wigTryOnSeam.tryOn(),
-// after enforceAiRateLimit has already charged a slot for a request that can never reach Gemini.
-export const checkWigTryOnConfig = (configSeam: AppConfigSeam): WigTryOnConfigCheck => {
-	try {
-		const config = configSeam.getConfig();
-		if (!config.geminiApiKey) {
-			return {
-				ok: false,
-				response: buildError(503, 'WIG_TRY_ON_CONFIG_ERROR', 'GEMINI_API_KEY is not configured. The wig try-on feature requires a Gemini API key.')
-			};
-		}
-		return { ok: true };
-	} catch {
+// Exported so the route can reject a missing GEMINI_API_KEY before consuming rate-limit quota.
+// Takes the raw key value rather than AppConfigSeam: that seam requires every app-wide field
+// (including image/text-provider vars unrelated to wig try-on), so a dedicated wig-try-on
+// deployment missing one of those would falsely 503 here even with a valid Gemini key. See the
+// identical fix already applied to chat-interpretation/tools/meechie-studio-text (LESSONS_LEARNED
+// 2026-07-05 (5)) — checking the key directly has no such coupling.
+export const checkWigTryOnConfig = (apiKey: string | undefined): WigTryOnConfigCheck => {
+	if (!apiKey) {
 		return {
 			ok: false,
-			response: buildError(503, 'WIG_TRY_ON_CONFIG_ERROR', 'Gemini configuration is invalid. Ensure GEMINI_API_KEY is set.')
+			response: buildError(503, 'WIG_TRY_ON_CONFIG_ERROR', 'GEMINI_API_KEY is not configured. The wig try-on feature requires a Gemini API key.')
 		};
 	}
+	return { ok: true };
 };
 
 export type WigTryOnAbortCheck = { ok: true } | { ok: false; response: PipelineResponse };

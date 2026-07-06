@@ -3,6 +3,9 @@
 // Info flow: Raw request -> parseRequestBody -> INVALID_JSON response (no seam calls).
 import { describe, expect, it, vi } from 'vitest';
 
+const envRef = vi.hoisted(() => ({ GEMINI_API_KEY: 'test-key' as string | undefined }));
+vi.mock('$env/dynamic/private', () => ({ env: envRef }));
+
 vi.mock('$lib/adapters/app-config-seam/index', () => ({
 	createAppConfigSeam: vi.fn()
 }));
@@ -406,5 +409,46 @@ describe('/api/wig-try-on', () => {
 		}
 		expect(createAppConfigSeam).not.toHaveBeenCalled();
 		expect(createWigTryOnSeam).not.toHaveBeenCalled();
+	});
+
+	it('rejects with WIG_TRY_ON_CONFIG_ERROR without consuming rate-limit quota when GEMINI_API_KEY is missing', async () => {
+		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReset();
+		vi.mocked(createWigTryOnSeam).mockReset();
+		const wig = {
+			id: 'wig-001',
+			name: 'Sleek Straight Goddess',
+			brand: 'Beautyforever',
+			affiliateProgram: 'beautyforever' as const,
+			affiliateUrl: 'https://example.com/wig',
+			imageUrl: 'https://example.com/wig.png',
+			priceUsd: 89.99,
+			style: 'Straight Lace Front',
+			hairType: 'human' as const,
+			length: 'medium' as const,
+			color: 'Natural Black',
+			colorFamily: 'black' as const,
+			tags: ['sleek']
+		};
+		vi.mocked(createWigCatalogSeam).mockReturnValue({
+			listWigs: vi.fn(),
+			getWigById: vi.fn(async () => ({ ok: true as const, value: wig }))
+		});
+
+		envRef.GEMINI_API_KEY = undefined;
+		try {
+			const response = await POST(
+				buildEvent({ selfieBase64: 'selfie-data', selfieMimeType: 'image/jpeg', wigId: wig.id })
+			);
+			const payload = await response.json();
+
+			expect(response.status).toBe(503);
+			expect(payload.ok).toBe(false);
+			expect(payload.error.code).toBe('WIG_TRY_ON_CONFIG_ERROR');
+			expect(createAppConfigSeam).not.toHaveBeenCalled();
+			expect(createWigTryOnSeam).not.toHaveBeenCalled();
+		} finally {
+			envRef.GEMINI_API_KEY = 'test-key';
+		}
 	});
 });

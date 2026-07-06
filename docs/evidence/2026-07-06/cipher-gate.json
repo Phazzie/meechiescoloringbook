@@ -1,9 +1,9 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-07-06T09:40:16.965Z",
+  "generatedAt": "2026-07-06T09:55:50.550Z",
   "cipher": {
     "date": "2026-07-06",
-    "seams": "RateLimitSeam, ProviderAdapterSeam",
+    "seams": "ImageGenerationSeam, WigTryOnSeam",
     "evidence": [
       {
         "path": "docs/evidence/2026-07-06/chamber-lock.json",
@@ -38,9 +38,9 @@
         "exists": true
       }
     ],
-    "summary": "Audited the 23 + 7 unresolved review threads on PR #217 and PR #211 (the two PRs from the last 5 days with the most unaddressed review comments) against current code; 20 of 23 and all 7 of 7 were already fixed by later commits or moot (superseded implementation); redacted a real leaked local path in two evidence files; 661 tests pass, verify chain clean.",
-    "risks": "2 refactor-only nitpicks left open intentionally (see Decision above) to avoid colliding with PR #216's in-flight seam consolidation; no new test coverage added since no source behavior changed."
+    "summary": "Fixed a circuit-breaker success-masking bug in `image-generation-seam`'s error/parse body reads (only `SyntaxError` now counts as a reachable-but-malformed success; everything else propagates as a failure) and decoupled `wig-try-on-pipeline`'s config preflight from the broad `AppConfigSeam` to a raw `GEMINI_API_KEY` check, matching the pattern already used by the other three text-provider routes; 664 tests pass (3 new), verify chain clean.",
+    "risks": "No live-traffic validation (no GEMINI_API_KEY/XAI_API_KEY in this environment); relies on the new unit tests' mocked fetch/Response shapes accurately modeling real stream-termination errors."
   },
-  "latestChangeMs": 1783330242001.1487,
+  "latestChangeMs": 1783331313337.051,
   "status": "ok"
 }

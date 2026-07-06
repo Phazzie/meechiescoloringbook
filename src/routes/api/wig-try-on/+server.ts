@@ -2,6 +2,7 @@
 // Why: Keep the endpoint thin and delegate orchestration to the pipeline.
 // Info flow: UI selfie + wigId -> pipeline -> WigCatalogSeam + WigTryOnSeam -> portrait JSON.
 import { json } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
 import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
@@ -35,14 +36,14 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 	if (!lateAbortCheck.ok)
 		return json(lateAbortCheck.response.body, { status: lateAbortCheck.response.status });
 
-	const configSeam = createAppConfigSeam();
-	const configCheck = checkWigTryOnConfig(configSeam);
+	const configCheck = checkWigTryOnConfig(env.GEMINI_API_KEY);
 	if (!configCheck.ok)
 		return json(configCheck.response.body, { status: configCheck.response.status });
 
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 
+	const configSeam = createAppConfigSeam();
 	const wigTryOnSeam = createWigTryOnSeam(configSeam);
 
 	const result = await runWigTryOnPipeline(parsed.body, {

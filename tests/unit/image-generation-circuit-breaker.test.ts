@@ -99,6 +99,60 @@ describe('ImageGenerationSeam adapter circuit breaker', () => {
 		expect(fetchMock).toHaveBeenCalledTimes(3);
 	});
 
+	it('records a breaker failure (not a swallowed success) when a non-retryable error body read fails with a generic network error', async () => {
+		fetchMock.mockImplementation(async () => ({
+			status: 400,
+			ok: false,
+			text: () => Promise.reject(new Error('socket hang up'))
+		}));
+		const seam = createImageGenerationSeam(mockConfigSeam);
+
+		for (let i = 0; i < 3; i++) {
+			const output = await seam.generate(imageGenerationRequestFixture);
+			expect(output.ok).toBe(false);
+			if (!output.ok) {
+				expect(output.error.code).toBe('IMAGE_NETWORK_ERROR');
+			}
+		}
+
+		// A dropped connection while reading a non-retryable error body is genuine evidence of
+		// upstream trouble and must count toward the breaker, not be silently swallowed into a
+		// success — a 4th call should short-circuit with IMAGE_CIRCUIT_OPEN instead of fetching.
+		const output = await seam.generate(imageGenerationRequestFixture);
+		expect(output.ok).toBe(false);
+		if (!output.ok) {
+			expect(output.error.code).toBe('IMAGE_CIRCUIT_OPEN');
+		}
+		expect(fetchMock).toHaveBeenCalledTimes(3);
+	});
+
+	it('records a breaker failure (not a false parse_error success) when response.json() throws a non-SyntaxError', async () => {
+		fetchMock.mockImplementation(async () => ({
+			status: 200,
+			ok: true,
+			json: () => Promise.reject(new Error('stream terminated unexpectedly'))
+		}));
+		const seam = createImageGenerationSeam(mockConfigSeam);
+
+		for (let i = 0; i < 3; i++) {
+			const output = await seam.generate(imageGenerationRequestFixture);
+			expect(output.ok).toBe(false);
+			if (!output.ok) {
+				expect(output.error.code).toBe('IMAGE_NETWORK_ERROR');
+			}
+		}
+
+		// A stream error while reading a 2xx body is genuine evidence of upstream trouble, not a
+		// reachable-but-malformed JSON payload — it must count toward the breaker instead of being
+		// misclassified as a parse_error success; a 4th call should short-circuit.
+		const output = await seam.generate(imageGenerationRequestFixture);
+		expect(output.ok).toBe(false);
+		if (!output.ok) {
+			expect(output.error.code).toBe('IMAGE_CIRCUIT_OPEN');
+		}
+		expect(fetchMock).toHaveBeenCalledTimes(3);
+	});
+
 	it('records a breaker success on HTTP 200 even when the response has no images', async () => {
 		fetchMock.mockImplementation(
 			async () =>

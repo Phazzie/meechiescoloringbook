@@ -125,19 +125,17 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
           // set purely from the HTTP status line.
 
           if (!response.ok) {
-            let text = '';
-            try {
-              text = await response.text();
-              // Non-retryable HTTP error (e.g. 400, 401): only mark success once the body has
-              // actually been read — upstream is reachable and responded, not just present. A
-              // retryable status already recorded its failure above and must not have it
-              // overwritten by a success from reaching this same body-read step.
-              if (!breakerRecorded) {
-                breaker.recordSuccess();
-                breakerRecorded = true;
-              }
-            } catch (error) {
-              if (isAbortError(error) || isTimeoutError(error)) throw error;
+            // Any error here (not just abort/timeout) is a genuine network/stream failure —
+            // e.g. a connection dropping mid-transfer — and must propagate to the outer catch
+            // to be recorded as a failure, not be swallowed into a false "http_error" success.
+            const text = await response.text();
+            // Non-retryable HTTP error (e.g. 400, 401): only mark success once the body has
+            // actually been read — upstream is reachable and responded, not just present. A
+            // retryable status already recorded its failure above and must not have it
+            // overwritten by a success from reaching this same body-read step.
+            if (!breakerRecorded) {
+              breaker.recordSuccess();
+              breakerRecorded = true;
             }
             return { kind: 'http_error', status: response.status, text };
           }
@@ -148,11 +146,15 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
             breakerRecorded = true;
             return { kind: 'ok', payload };
           } catch (error) {
-            if (isAbortError(error) || isTimeoutError(error)) throw error;
-            // Non-abort/timeout parse error: upstream sent unparseable data but was reachable.
-            breaker.recordSuccess();
-            breakerRecorded = true;
-            return { kind: 'parse_error' };
+            // Only malformed-but-reachable JSON (SyntaxError) is a "parse error" success; any
+            // other error (stream termination, abort, timeout) is a genuine failure and must
+            // propagate to the outer catch instead of being recorded as a success here.
+            if (error instanceof SyntaxError) {
+              breaker.recordSuccess();
+              breakerRecorded = true;
+              return { kind: 'parse_error' };
+            }
+            throw error;
           }
         },
         XAI_IMAGE_TIMEOUT_MS,
