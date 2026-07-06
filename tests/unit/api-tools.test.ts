@@ -4,9 +4,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '../../src/routes/api/tools/+server';
 import { meechieToolAdapter } from '../../src/lib/adapters/meechie-tool-seam';
-
-let clientCounter = 0;
-const nextClientAddress = () => `test-client-${clientCounter++}`;
+import { nextClientAddress } from '../helpers/next-client-address';
 
 const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 	({

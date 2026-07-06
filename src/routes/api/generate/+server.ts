@@ -1,7 +1,7 @@
 /*
 Purpose: Orchestrate prompt assembly, image generation, and drift checks for the main UI.
 Why: Keep generation flow server-driven behind a single endpoint.
-Info flow: UI generate request -> validation -> prompt/image/drift seams -> JSON response.
+Info flow: UI generate request -> rate limit gate -> validation -> prompt/image/drift seams -> JSON response.
 */
 import { json } from '@sveltejs/kit';
 import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';

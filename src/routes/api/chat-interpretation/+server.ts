@@ -1,7 +1,7 @@
 /*
 Purpose: Server endpoint for ChatInterpretationSeam using xAI chat completions.
 Why: Keep API keys server-side while returning structured specs to the client.
-Info flow: Client request -> provider adapter -> parsed spec -> response.
+Info flow: Client request -> rate limit gate -> provider adapter -> parsed spec -> response.
 */
 import { json } from '@sveltejs/kit';
 import { createRateLimitSeam } from '$lib/adapters/rate-limit-seam';

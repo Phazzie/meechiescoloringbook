@@ -1,7 +1,7 @@
 /*
 Purpose: Server endpoint for ImageGenerationSeam — seam-based implementation using xAI image generation.
 Why: Keep xAI API keys server-side and return normalized image artifacts.
-Info flow: Client request -> seam-based pipeline -> image normalization -> response.
+Info flow: Client request -> rate limit gate -> seam-based pipeline -> image normalization -> response.
 */
 import { json } from '@sveltejs/kit';
 import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';

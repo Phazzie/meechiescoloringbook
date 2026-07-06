@@ -13,6 +13,7 @@ vi.mock('$lib/adapters/app-config-seam', () => ({
 
 import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { POST } from '../../src/routes/api/image-generation/+server';
+import { nextClientAddress } from '../helpers/next-client-address';
 
 const mockCreateSeam = vi.mocked(createImageGenerationSeam);
 
@@ -49,9 +50,6 @@ const validPrompt = [
   'NEGATIVE PROMPT:',
   'US Letter 8.5x11 portrait.'
 ].join(' ');
-
-let clientCounter = 0;
-const nextClientAddress = () => `test-client-${clientCounter++}`;
 
 const buildEvent = (body: unknown) =>
   ({
@@ -171,6 +169,9 @@ describe('/api/image-generation', () => {
     let lastResponse: Response | undefined;
     for (let i = 0; i < 6; i += 1) {
       lastResponse = await POST(request());
+      if (i < 5) {
+        expect(lastResponse.status).not.toBe(429);
+      }
     }
 
     expect(lastResponse?.status).toBe(429);

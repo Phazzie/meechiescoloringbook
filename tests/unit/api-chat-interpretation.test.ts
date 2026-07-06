@@ -4,6 +4,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '../../src/routes/api/chat-interpretation/+server';
 import { providerAdapter } from '../../src/lib/adapters/provider-adapter.adapter';
+import { nextClientAddress } from '../helpers/next-client-address';
 
 const validSpec = {
 	title: 'Dream Big',
@@ -29,9 +30,6 @@ const validSpec = {
 	outputFormat: 'pdf',
 	pageSize: 'US_Letter'
 } as const;
-
-let clientCounter = 0;
-const nextClientAddress = () => `test-client-${clientCounter++}`;
 
 const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 	({
@@ -118,6 +116,9 @@ describe('/api/chat-interpretation', () => {
 		let lastResponse: Response | undefined;
 		for (let i = 0; i < 11; i += 1) {
 			lastResponse = await POST(request(`build page number ${i}`));
+			if (i < 10) {
+				expect(lastResponse.status).not.toBe(429);
+			}
 		}
 
 		expect(lastResponse?.status).toBe(429);

@@ -4,6 +4,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
 import { POST } from '../../src/routes/api/generate/+server';
+import { nextClientAddress } from '../helpers/next-client-address';
 
 const validSpec = {
 	title: 'Dream Big',
@@ -29,9 +30,6 @@ const validSpec = {
 	outputFormat: 'pdf',
 	pageSize: 'US_Letter'
 } as const;
-
-let clientCounter = 0;
-const nextClientAddress = () => `test-client-${clientCounter++}`;
 
 const buildEvent = (
 	body: unknown,

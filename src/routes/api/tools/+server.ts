@@ -1,7 +1,7 @@
 /*
 Purpose: Server endpoint for MeechieToolSeam with input safety checks.
 Why: Keep tool execution behind a server boundary and reject disallowed content.
-Info flow: Client tool request -> schema + safety checks -> tool adapter -> JSON result.
+Info flow: Client tool request -> rate limit gate -> schema + safety checks -> tool adapter -> JSON result.
 */
 import { json } from '@sveltejs/kit';
 import { createRateLimitSeam } from '$lib/adapters/rate-limit-seam';

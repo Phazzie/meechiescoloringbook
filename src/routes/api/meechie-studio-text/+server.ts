@@ -1,7 +1,7 @@
 /*
 Purpose: Server endpoint for MeechieStudioTextSeam.
 Why: Keep AI text generation server-side and schema-validated.
-Info flow: Client request -> studio text pipeline -> JSON response.
+Info flow: Client request -> rate limit gate -> studio text pipeline -> JSON response.
 */
 import { env } from '$env/dynamic/private';
 import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';

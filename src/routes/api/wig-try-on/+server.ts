@@ -1,6 +1,6 @@
 // Purpose: Handle wig try-on requests by running the Gemini multi-image pipeline.
 // Why: Keep the endpoint thin and delegate orchestration to the pipeline.
-// Info flow: UI selfie + wigId -> pipeline -> WigCatalogSeam + WigTryOnSeam -> portrait JSON.
+// Info flow: UI selfie + wigId -> rate limit gate -> pipeline -> WigCatalogSeam + WigTryOnSeam -> portrait JSON.
 import { json } from '@sveltejs/kit';
 import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
 import { createRateLimitSeam } from '$lib/adapters/rate-limit-seam';

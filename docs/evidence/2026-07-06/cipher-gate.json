@@ -1,38 +1,34 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-07-06T16:03:59.177Z",
+  "generatedAt": "2026-07-06T16:15:23.716Z",
   "cipher": {
     "date": "2026-07-06",
     "seams": "RateLimitSeam",
     "evidence": [
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-review-fixes-check.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-coderabbit-fixes-check.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-review-fixes-lint.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-coderabbit-fixes-lint.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-review-fixes-build.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-coderabbit-fixes-build.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-review-fixes-test.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-coderabbit-fixes-test.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-review-fixes-verify.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-07-06/rate-limit-review-fixes-rewind.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-coderabbit-fixes-verify.txt",
         "exists": true
       }
     ],
-    "summary": "Fixed the NaN-retryAfterMs edge case, bounded the in-memory rate-limit Map with an opportunistic prune sweep, and guarded every route's `getClientAddress()` call behind a safe fallback, all in response to independent Gemini Code Assist and Copilot review findings on PR #222.",
-    "risks": "None new; this closes gaps in the mitigation added earlier the same day without changing its documented in-memory/per-instance limitation."
+    "summary": "Fixed a route-count typo, strengthened two 429 boundary tests, deduplicated the `nextClientAddress` test helper across six test files, and corrected six routes' info-flow comments, in response to CodeRabbit's review of PR #222; declined the heavy-lift middleware refactor suggestion pending explicit user direction.",
+    "risks": "None new."
   },
-  "latestChangeMs": 1783353490721.9324,
+  "latestChangeMs": 1783354285177.9458,
   "status": "ok"
 }
