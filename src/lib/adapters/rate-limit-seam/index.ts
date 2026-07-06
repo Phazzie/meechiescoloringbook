@@ -5,11 +5,27 @@
 import type { RateLimitRule, RateLimitSeam } from '../../seams/rate-limit-seam/contract';
 import { evaluate } from '../../seams/rate-limit-seam/window';
 
+// Bounds how many distinct keys (client addresses) the in-memory store holds at once.
+// Without this, a client that never returns after its window expires would keep its
+// entry forever, letting the Map grow unbounded across the life of a warm instance.
+const MAX_TRACKED_KEYS = 10_000;
+
 export const createRateLimitSeam = (rule: RateLimitRule): RateLimitSeam => {
 	const store = new Map<string, number[]>();
 
+	const pruneExpiredKeys = (now: number) => {
+		for (const [trackedKey, timestamps] of store) {
+			const stillActive = timestamps.some((timestamp) => now - timestamp < rule.windowMs);
+			if (!stillActive) store.delete(trackedKey);
+		}
+	};
+
 	return {
 		checkAndConsume: (key, now) => {
+			if (store.size >= MAX_TRACKED_KEYS && !store.has(key)) {
+				pruneExpiredKeys(now);
+			}
+
 			const { result, nextTimestamps } = evaluate(store.get(key) ?? [], rule, now);
 			if (nextTimestamps.length === 0) {
 				store.delete(key);

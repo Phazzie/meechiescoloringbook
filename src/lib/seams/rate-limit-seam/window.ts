@@ -21,7 +21,10 @@ export const evaluate = (
 	const kept = timestamps.filter((timestamp) => withinWindow(timestamp, now, rule.windowMs));
 
 	if (kept.length >= rule.limit) {
-		const oldest = kept[0];
+		// Use the minimum rather than kept[0]: kept is normally insertion-ordered (oldest
+		// first), but computing the minimum keeps retryAfterMs correct even if a caller
+		// ever passes non-monotonic `now` values across calls.
+		const oldest = kept.length > 0 ? Math.min(...kept) : now;
 		const retryAfterMs = Math.max(0, rule.windowMs - (now - oldest));
 		return {
 			result: {

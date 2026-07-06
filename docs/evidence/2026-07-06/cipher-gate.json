@@ -1,78 +1,38 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-07-06T15:51:02.342Z",
+  "generatedAt": "2026-07-06T16:03:59.177Z",
   "cipher": {
     "date": "2026-07-06",
     "seams": "RateLimitSeam",
     "evidence": [
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-check.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-review-fixes-check.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-lint.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-review-fixes-lint.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-build.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-review-fixes-build.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/rewind-RateLimitSeam.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-review-fixes-test.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/test.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-review-fixes-verify.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/verify.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-07-06/chamber-lock.json",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-07-06/shaolin-lint.json",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-07-06/assumption-alarm.json",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-07-06/seam-ledger.json",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-07-06/seam-ledger.md",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-07-06/clan-chain.json",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-07-06/clan-chain.md",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-07-06/proof-tape.json",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-07-06/proof-tape.md",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-07-06/npm-audit.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-review-fixes-rewind.txt",
         "exists": true
       }
     ],
-    "summary": "Added a pure, contract-tested RateLimitSeam and wired it into all six paid-AI-provider-backed API routes, returning 429 + Retry-After once a client exceeds its per-route sliding-window limit; check/lint/test/build/rewind/verify are all green.",
-    "risks": "In-memory per-instance counters do not share state across cold starts or concurrent serverless instances, so this mitigates but does not eliminate abuse risk; a distributed store is the documented follow-up if traffic data shows it is needed."
+    "summary": "Fixed the NaN-retryAfterMs edge case, bounded the in-memory rate-limit Map with an opportunistic prune sweep, and guarded every route's `getClientAddress()` call behind a safe fallback, all in response to independent Gemini Code Assist and Copilot review findings on PR #222.",
+    "risks": "None new; this closes gaps in the mitigation added earlier the same day without changing its documented in-memory/per-instance limitation."
   },
-  "latestChangeMs": 1783352628185.9175,
+  "latestChangeMs": 1783353490721.9324,
   "status": "ok"
 }

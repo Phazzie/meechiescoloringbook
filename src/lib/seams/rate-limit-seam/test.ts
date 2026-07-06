@@ -47,6 +47,32 @@ describe('RateLimitSeam window evaluation (pure)', () => {
 		expect(result).toEqual({ ok: true, value: undefined });
 		expect(nextTimestamps).toEqual([expiredTimestampsNowFixture]);
 	});
+
+	it('blocks with a finite retryAfterMs (not NaN) when the rule limit is zero and no timestamps exist yet', () => {
+		const { result } = evaluate(emptyTimestampsFixture, { limit: 0, windowMs: 60_000 }, 1_000);
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(Number.isNaN(result.error.retryAfterMs)).toBe(false);
+			expect(result.error.retryAfterMs).toBe(60_000);
+		}
+	});
+
+	it('blocks with a finite retryAfterMs (not NaN) when the rule limit is negative', () => {
+		const { result } = evaluate(emptyTimestampsFixture, { limit: -1, windowMs: 30_000 }, 500);
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(Number.isNaN(result.error.retryAfterMs)).toBe(false);
+			expect(result.error.retryAfterMs).toBe(30_000);
+		}
+	});
+
+	it('computes retryAfterMs from the true minimum timestamp even if stored out of order', () => {
+		const { result } = evaluate([5_000, 1_000, 3_000], { limit: 3, windowMs: 60_000 }, 6_000);
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.retryAfterMs).toBe(60_000 - (6_000 - 1_000));
+		}
+	});
 });
 
 describe('RateLimitSeam adapter (stateful)', () => {
@@ -77,6 +103,20 @@ describe('RateLimitSeam adapter (stateful)', () => {
 
 		expect(seam.checkAndConsume('client-a', 0)).toEqual({ ok: true, value: undefined });
 		expect(seam.checkAndConsume('client-a', 1_500)).toEqual({ ok: true, value: undefined });
+	});
+
+	it('keeps returning correct decisions once tracked keys exceed the internal prune threshold', () => {
+		const seam = createRateLimitSeam({ limit: 1, windowMs: 1_000 });
+
+		// Push past the internal MAX_TRACKED_KEYS cap (10_000) so the next new key triggers
+		// the store's opportunistic prune-expired-keys sweep; this proves the sweep runs
+		// without throwing and without corrupting decisions for old or new keys.
+		for (let i = 0; i < 10_001; i += 1) {
+			seam.checkAndConsume(`stale-client-${i}`, 0);
+		}
+
+		expect(seam.checkAndConsume('new-client', 2_000)).toEqual({ ok: true, value: undefined });
+		expect(seam.checkAndConsume('stale-client-0', 2_000)).toEqual({ ok: true, value: undefined });
 	});
 });
 

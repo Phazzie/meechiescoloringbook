@@ -9,6 +9,7 @@ import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-conf
 import { createRateLimitSeam } from '$lib/adapters/rate-limit-seam';
 import { generatePipelineDeps, runGeneratePipeline } from '$lib/core/generate-pipeline';
 import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';
+import { safeClientAddress } from '$lib/server/client-address';
 import { parseRequestBody } from '$lib/server/parse-request-body';
 import { rateLimitedResponse } from '$lib/server/rate-limit-response';
 import { createSafetyPolicySeam } from '$lib/seams/safety-policy-seam/policy';
@@ -17,7 +18,7 @@ import type { RequestHandler } from './$types';
 const rateLimitSeam = createRateLimitSeam({ limit: 5, windowMs: 60_000 });
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
-	const rateLimitResult = rateLimitSeam.checkAndConsume(getClientAddress(), Date.now());
+	const rateLimitResult = rateLimitSeam.checkAndConsume(safeClientAddress(getClientAddress), Date.now());
 	if (!rateLimitResult.ok) return rateLimitedResponse(rateLimitResult.error);
 
 	const parsed = await parseRequestBody(request);

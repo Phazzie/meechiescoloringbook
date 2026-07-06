@@ -7,6 +7,7 @@ import { createRateLimitSeam } from '$lib/adapters/rate-limit-seam';
 import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import { runWigTryOnPipeline } from '$lib/core/wig-try-on-pipeline';
+import { safeClientAddress } from '$lib/server/client-address';
 import { parseRequestBody } from '$lib/server/parse-request-body';
 import { rateLimitedResponse } from '$lib/server/rate-limit-response';
 import type { RequestHandler } from './$types';
@@ -14,7 +15,7 @@ import type { RequestHandler } from './$types';
 const rateLimitSeam = createRateLimitSeam({ limit: 5, windowMs: 60_000 });
 
 export const POST: RequestHandler = async ({ request, fetch, getClientAddress }) => {
-	const rateLimitResult = rateLimitSeam.checkAndConsume(getClientAddress(), Date.now());
+	const rateLimitResult = rateLimitSeam.checkAndConsume(safeClientAddress(getClientAddress), Date.now());
 	if (!rateLimitResult.ok) return rateLimitedResponse(rateLimitResult.error);
 
 	const parsed = await parseRequestBody(request);
