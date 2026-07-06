@@ -9,7 +9,10 @@ import type {
   ImageGenerationSeam
 } from '../../seams/image-generation-seam/contract';
 import type { Result } from '../../../../contracts/shared.contract';
-import { validateImageGenerationRequest } from '../../seams/image-generation-seam/validators';
+import {
+  NEGATIVE_PROMPT_SEPARATOR,
+  validateImageGenerationRequest
+} from '../../seams/image-generation-seam/validators';
 import type { ImageProviderConfig, ImageProviderConfigSeam } from '../../seams/image-provider-config-seam/contract';
 import {
   createCircuitBreaker,
@@ -48,7 +51,7 @@ const buildUrl = (baseUrl: string, path: string) => {
 
 const buildPrompt = (request: ImageGenerationRequest) =>
   request.negativePrompt
-    ? `${request.prompt}\n\nNegative prompt: ${request.negativePrompt}`
+    ? `${request.prompt}${NEGATIVE_PROMPT_SEPARATOR}${request.negativePrompt}`
     : request.prompt;
 
 const errorResult = (

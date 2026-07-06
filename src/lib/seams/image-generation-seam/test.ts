@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { imageGenerationRequestFixture, imageGenerationFaultFixture } from './fixtures';
 import { createMockImageGenerationSeam } from './mock';
 import {
+  NEGATIVE_PROMPT_SEPARATOR,
   validateImageGenerationRequest,
   validateImageGenerationResult
 } from './validators';
@@ -75,12 +76,43 @@ describe('ImageGenerationSeam mock contract', () => {
     ).toThrow();
   });
 
-  it('accepts a negativePrompt at MAX_PROMPT_LENGTH', () => {
+  it('rejects prompt + negativePrompt whose combined built-prompt length exceeds MAX_PROMPT_LENGTH', () => {
+    // Each field independently satisfies MAX_PROMPT_LENGTH, but the adapter's buildPrompt
+    // concatenates them with NEGATIVE_PROMPT_SEPARATOR before sending to the provider — the
+    // fixture's short prompt plus an at-cap negativePrompt together exceed the real limit.
     expect(() =>
       validateImageGenerationRequest({
         ...imageGenerationRequestFixture,
         negativePrompt: 'a'.repeat(MAX_PROMPT_LENGTH)
       })
+    ).toThrow();
+  });
+
+  it('accepts prompt + negativePrompt whose combined built-prompt length is exactly at MAX_PROMPT_LENGTH', () => {
+    const prompt = 'a';
+    const negativePrompt = 'b'.repeat(
+      MAX_PROMPT_LENGTH - prompt.length - NEGATIVE_PROMPT_SEPARATOR.length
+    );
+    expect(() =>
+      validateImageGenerationRequest({
+        ...imageGenerationRequestFixture,
+        prompt,
+        negativePrompt
+      })
     ).not.toThrow();
+  });
+
+  it('rejects prompt + negativePrompt whose combined built-prompt length is one over MAX_PROMPT_LENGTH', () => {
+    const prompt = 'a';
+    const negativePrompt = 'b'.repeat(
+      MAX_PROMPT_LENGTH - prompt.length - NEGATIVE_PROMPT_SEPARATOR.length + 1
+    );
+    expect(() =>
+      validateImageGenerationRequest({
+        ...imageGenerationRequestFixture,
+        prompt,
+        negativePrompt
+      })
+    ).toThrow();
   });
 });
