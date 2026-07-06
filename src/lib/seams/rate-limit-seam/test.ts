@@ -13,6 +13,8 @@ import {
 	underLimitTimestampsFixture
 } from './fixtures';
 import { createMockRateLimitSeam } from './mock';
+import { rateLimitExceededFixture } from './fixtures';
+import { validateRateLimitRule } from './validators';
 import { evaluate } from './window';
 
 describe('RateLimitSeam window evaluation (pure)', () => {
@@ -126,13 +128,36 @@ describe('RateLimitSeam mock', () => {
 		expect(seam.checkAndConsume('any-key', 0)).toEqual({ ok: true, value: undefined });
 	});
 
-	it('always blocks in the "block" scenario', () => {
+	it('always blocks in the "block" scenario using the shared fixture', () => {
 		const seam = createMockRateLimitSeam('block');
 		const result = seam.checkAndConsume('any-key', 0);
-		expect(result.ok).toBe(false);
-		if (!result.ok) {
-			expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
-			expect(result.error.retryAfterMs).toBeGreaterThan(0);
-		}
+		expect(result).toEqual({ ok: false, error: rateLimitExceededFixture });
+	});
+});
+
+describe('RateLimitSeam validators', () => {
+	it('accepts a valid rule', () => {
+		expect(validateRateLimitRule({ limit: 5, windowMs: 60_000 })).toEqual({
+			limit: 5,
+			windowMs: 60_000
+		});
+	});
+
+	it('rejects a zero or negative limit', () => {
+		expect(() => validateRateLimitRule({ limit: 0, windowMs: 60_000 })).toThrow();
+		expect(() => validateRateLimitRule({ limit: -1, windowMs: 60_000 })).toThrow();
+	});
+
+	it('rejects a non-integer limit', () => {
+		expect(() => validateRateLimitRule({ limit: 5.5, windowMs: 60_000 })).toThrow();
+	});
+
+	it('rejects a zero or negative windowMs', () => {
+		expect(() => validateRateLimitRule({ limit: 5, windowMs: 0 })).toThrow();
+		expect(() => validateRateLimitRule({ limit: 5, windowMs: -1 })).toThrow();
+	});
+
+	it('makes createRateLimitSeam reject a misconfigured rule at construction time', () => {
+		expect(() => createRateLimitSeam({ limit: 0, windowMs: 60_000 })).toThrow();
 	});
 });

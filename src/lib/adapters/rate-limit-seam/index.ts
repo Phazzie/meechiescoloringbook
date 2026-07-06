@@ -3,6 +3,7 @@
 //      external infrastructure; state lives per warm serverless instance.
 // Info flow: route call -> in-memory Map<key, timestamps[]> -> pure evaluate() -> Result<>.
 import type { RateLimitRule, RateLimitSeam } from '../../seams/rate-limit-seam/contract';
+import { validateRateLimitRule } from '../../seams/rate-limit-seam/validators';
 import { evaluate } from '../../seams/rate-limit-seam/window';
 
 // Bounds how many distinct keys (client addresses) the in-memory store holds at once.
@@ -10,7 +11,8 @@ import { evaluate } from '../../seams/rate-limit-seam/window';
 // entry forever, letting the Map grow unbounded across the life of a warm instance.
 const MAX_TRACKED_KEYS = 10_000;
 
-export const createRateLimitSeam = (rule: RateLimitRule): RateLimitSeam => {
+export const createRateLimitSeam = (rawRule: RateLimitRule): RateLimitSeam => {
+	const rule = validateRateLimitRule(rawRule);
 	const store = new Map<string, number[]>();
 
 	const pruneExpiredKeys = (now: number) => {

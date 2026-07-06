@@ -1,34 +1,38 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-07-06T16:15:23.716Z",
+  "generatedAt": "2026-07-06T16:29:54.055Z",
   "cipher": {
     "date": "2026-07-06",
     "seams": "RateLimitSeam",
     "evidence": [
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-coderabbit-fixes-check.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-codex-fixes-check.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-coderabbit-fixes-lint.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-codex-fixes-lint.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-coderabbit-fixes-build.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-codex-fixes-build.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-coderabbit-fixes-test.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-codex-fixes-test.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-07-06/rate-limit-coderabbit-fixes-verify.txt",
+        "path": "docs/evidence/2026-07-06/rate-limit-codex-fixes-verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/rate-limit-codex-fixes-rewind.txt",
         "exists": true
       }
     ],
-    "summary": "Fixed a route-count typo, strengthened two 429 boundary tests, deduplicated the `nextClientAddress` test helper across six test files, and corrected six routes' info-flow comments, in response to CodeRabbit's review of PR #222; declined the heavy-lift middleware refactor suggestion pending explicit user direction.",
-    "risks": "None new."
+    "summary": "Added the missing `validators.ts` (Zod-validated `RateLimitRule`) and moved the mock's block-scenario error into a shared fixture, in response to Codex's review of PR #222, bringing `RateLimitSeam` in line with every other seam folder's established structure.",
+    "risks": "None new; the Codex finding about rate-limit-vs-validation ordering (P2) is a genuine product/security tradeoff rather than a small fix and is being raised to the user separately rather than decided unilaterally."
   },
-  "latestChangeMs": 1783354285177.9458,
+  "latestChangeMs": 1783355114992.2646,
   "status": "ok"
 }

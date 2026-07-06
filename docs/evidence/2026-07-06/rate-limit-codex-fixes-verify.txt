@@ -1,6 +1,18 @@
-# Purpose: Store npm test output for evidence.
-# Why: Provide an audit trail for Seam-Driven Development contract tests.
+# Purpose: Store npm run verify output for evidence.
+# Why: Provide an audit trail for Seam-Driven Development verification.
 # Info flow: Command output -> evidence file -> review.
+
+$ npm run verify
+
+$ npm run check
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: <REPO_ROOT>
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
 
 $ npm test -- --pool=forks --maxWorkers=1
 
@@ -13,8 +25,8 @@ $ npm test -- --pool=forks --maxWorkers=1
 
 [2m Test Files [22m [1m[32m64 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (65)[39m
 [2m      Tests [22m [1m[32m541 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (542)[39m
-[2m   Start at [22m 16:30:08
-[2m   Duration [22m 68.88s[2m (transform 2.33s, setup 629ms, import 4.30s, tests 10.12s, environment 42.14s)[22m
+[2m   Start at [22m 16:27:40
+[2m   Duration [22m 69.18s[2m (transform 2.42s, setup 636ms, import 4.36s, tests 9.99s, environment 42.38s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
