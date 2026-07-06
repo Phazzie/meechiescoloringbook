@@ -1,0 +1,144 @@
+{
+  "tool": "proof-tape",
+  "generatedAt": "2026-07-06T15:52:28.017Z",
+  "evidenceDir": "docs/evidence/2026-07-06",
+  "files": [
+    {
+      "name": "assumption-alarm.json",
+      "path": "docs/evidence/2026-07-06/assumption-alarm.json",
+      "sizeBytes": 3636,
+      "modifiedAt": "2026-07-06T15:52:27.302Z",
+      "commands": []
+    },
+    {
+      "name": "chamber-lock.json",
+      "path": "docs/evidence/2026-07-06/chamber-lock.json",
+      "sizeBytes": 25720,
+      "modifiedAt": "2026-07-06T15:51:06.162Z",
+      "commands": []
+    },
+    {
+      "name": "cipher-gate.json",
+      "path": "docs/evidence/2026-07-06/cipher-gate.json",
+      "sizeBytes": 2364,
+      "modifiedAt": "2026-07-06T15:51:02.342Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.json",
+      "path": "docs/evidence/2026-07-06/clan-chain.json",
+      "sizeBytes": 2318,
+      "modifiedAt": "2026-07-06T15:52:27.778Z",
+      "commands": []
+    },
+    {
+      "name": "clan-chain.md",
+      "path": "docs/evidence/2026-07-06/clan-chain.md",
+      "sizeBytes": 1453,
+      "modifiedAt": "2026-07-06T15:52:27.778Z",
+      "commands": []
+    },
+    {
+      "name": "npm-audit.txt",
+      "path": "docs/evidence/2026-07-06/npm-audit.txt",
+      "sizeBytes": 1991,
+      "modifiedAt": "2026-07-06T15:49:50.562Z",
+      "commands": []
+    },
+    {
+      "name": "proof-tape.json",
+      "path": "docs/evidence/2026-07-06/proof-tape.json",
+      "sizeBytes": 2439,
+      "modifiedAt": "2026-07-06T15:49:09.246Z",
+      "commands": []
+    },
+    {
+      "name": "proof-tape.md",
+      "path": "docs/evidence/2026-07-06/proof-tape.md",
+      "sizeBytes": 879,
+      "modifiedAt": "2026-07-06T15:49:09.246Z",
+      "commands": []
+    },
+    {
+      "name": "rate-limit-build.txt",
+      "path": "docs/evidence/2026-07-06/rate-limit-build.txt",
+      "sizeBytes": 8329,
+      "modifiedAt": "2026-07-06T15:49:49.082Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 build",
+        "vite build",
+        "Using @sveltejs/adapter-vercel"
+      ]
+    },
+    {
+      "name": "rate-limit-check.txt",
+      "path": "docs/evidence/2026-07-06/rate-limit-check.txt",
+      "sizeBytes": 240,
+      "modifiedAt": "2026-07-06T15:49:31.866Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+      ]
+    },
+    {
+      "name": "rate-limit-lint.txt",
+      "path": "docs/evidence/2026-07-06/rate-limit-lint.txt",
+      "sizeBytes": 48,
+      "modifiedAt": "2026-07-06T15:49:32.234Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 lint",
+        "eslint ."
+      ]
+    },
+    {
+      "name": "rewind-RateLimitSeam.txt",
+      "path": "docs/evidence/2026-07-06/rewind-RateLimitSeam.txt",
+      "sizeBytes": 538,
+      "modifiedAt": "2026-07-06T15:47:46.458Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.json",
+      "path": "docs/evidence/2026-07-06/seam-ledger.json",
+      "sizeBytes": 27309,
+      "modifiedAt": "2026-07-06T15:52:27.546Z",
+      "commands": []
+    },
+    {
+      "name": "seam-ledger.md",
+      "path": "docs/evidence/2026-07-06/seam-ledger.md",
+      "sizeBytes": 2228,
+      "modifiedAt": "2026-07-06T15:52:27.546Z",
+      "commands": []
+    },
+    {
+      "name": "shaolin-lint.json",
+      "path": "docs/evidence/2026-07-06/shaolin-lint.json",
+      "sizeBytes": 519,
+      "modifiedAt": "2026-07-06T15:52:27.082Z",
+      "commands": []
+    },
+    {
+      "name": "test.txt",
+      "path": "docs/evidence/2026-07-06/test.txt",
+      "sizeBytes": 1030,
+      "modifiedAt": "2026-07-06T15:52:26.802Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ]
+    },
+    {
+      "name": "verify.txt",
+      "path": "docs/evidence/2026-07-06/verify.txt",
+      "sizeBytes": 1289,
+      "modifiedAt": "2026-07-06T15:52:26.802Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ]
+    }
+  ]
+}

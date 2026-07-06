@@ -163,3 +163,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-07-06
+- Date: 2026-07-06
+- Context: Adding RateLimitSeam and wiring `getClientAddress()` into all six API routes.
+- Lesson: Every existing endpoint test builds a fake `RequestEvent` object by hand (`{ request, fetch }` cast as `Parameters<typeof POST>[0]`); adding any new required field to a route handler's destructured parameters silently breaks every test file that constructs its own fake event, with no compile-time warning because of the `as Parameters<typeof POST>[0]` cast.
+- Action: When adding a new dependency to a `RequestHandler`'s destructured parameters, grep `tests/unit/api-*.test.ts` for every hand-built fake event first and update each one; give shared in-memory per-route state (like rate-limit counters) a unique key per test call so pre-existing tests in the same file are not affected by call order or count.

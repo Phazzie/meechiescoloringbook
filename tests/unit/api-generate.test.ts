@@ -30,6 +30,9 @@ const validSpec = {
 	pageSize: 'US_Letter'
 } as const;
 
+let clientCounter = 0;
+const nextClientAddress = () => `test-client-${clientCounter++}`;
+
 const buildEvent = (
 	body: unknown,
 	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -40,7 +43,8 @@ const buildEvent = (
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
 		}),
-		fetch: fetchImpl
+		fetch: fetchImpl,
+		getClientAddress: nextClientAddress
 	}) as Parameters<typeof POST>[0];
 
 const buildRawEvent = (
@@ -53,7 +57,8 @@ const buildRawEvent = (
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
 		}),
-		fetch: fetchImpl
+		fetch: fetchImpl,
+		getClientAddress: nextClientAddress
 	}) as Parameters<typeof POST>[0];
 
 const assembledPrompt = [

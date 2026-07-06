@@ -5,13 +5,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '../../src/routes/api/tools/+server';
 import { meechieToolAdapter } from '../../src/lib/adapters/meechie-tool-seam';
 
+let clientCounter = 0;
+const nextClientAddress = () => `test-client-${clientCounter++}`;
+
 const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/tools', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
-		})
+		}),
+		getClientAddress: nextClientAddress
 	}) as Parameters<typeof POST>[0];
 
 const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
@@ -20,7 +24,8 @@ const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
-		})
+		}),
+		getClientAddress: nextClientAddress
 	}) as Parameters<typeof POST>[0];
 
 afterEach(() => {

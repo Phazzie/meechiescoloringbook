@@ -30,13 +30,17 @@ const validSpec = {
 	pageSize: 'US_Letter'
 } as const;
 
+let clientCounter = 0;
+const nextClientAddress = () => `test-client-${clientCounter++}`;
+
 const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/chat-interpretation', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
-		})
+		}),
+		getClientAddress: nextClientAddress
 	}) as Parameters<typeof POST>[0];
 
 const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
@@ -45,7 +49,8 @@ const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
-		})
+		}),
+		getClientAddress: nextClientAddress
 	}) as Parameters<typeof POST>[0];
 
 afterEach(() => {
@@ -92,5 +97,33 @@ describe('/api/chat-interpretation', () => {
 		expect(response.status).toBe(200);
 		expect(payload.ok).toBe(true);
 		expect(payload.value.spec).toEqual(validSpec);
+	});
+
+	it('returns 429 with a Retry-After header once a client exceeds the rate limit', async () => {
+		vi.spyOn(providerAdapter, 'createChatCompletion').mockResolvedValue({
+			ok: true,
+			value: { model: 'grok-4-1-fast-reasoning', content: JSON.stringify(validSpec) }
+		});
+		const sameClient = () => 'rate-limit-test-client';
+		const request = (message: string) =>
+			({
+				request: new Request('http://localhost/api/chat-interpretation', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ message })
+				}),
+				getClientAddress: sameClient
+			}) as Parameters<typeof POST>[0];
+
+		let lastResponse: Response | undefined;
+		for (let i = 0; i < 11; i += 1) {
+			lastResponse = await POST(request(`build page number ${i}`));
+		}
+
+		expect(lastResponse?.status).toBe(429);
+		expect(lastResponse?.headers.get('Retry-After')).toBeTruthy();
+		const payload = await lastResponse?.json();
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('RATE_LIMIT_EXCEEDED');
 	});
 });

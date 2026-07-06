@@ -18,6 +18,9 @@ import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import { POST } from '../../src/routes/api/wig-try-on/+server';
 
+let clientCounter = 0;
+const nextClientAddress = () => `test-client-${clientCounter++}`;
+
 const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/wig-try-on', {
@@ -25,7 +28,8 @@ const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
 		}),
-		fetch: vi.fn()
+		fetch: vi.fn(),
+		getClientAddress: nextClientAddress
 	}) as unknown as Parameters<typeof POST>[0];
 
 const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
@@ -35,7 +39,8 @@ const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
 		}),
-		fetch: vi.fn()
+		fetch: vi.fn(),
+		getClientAddress: nextClientAddress
 	}) as unknown as Parameters<typeof POST>[0];
 
 describe('/api/wig-try-on', () => {
@@ -119,7 +124,8 @@ describe('/api/wig-try-on', () => {
 
 		const response = await POST({
 			request,
-			fetch: fetchImpl
+			fetch: fetchImpl,
+			getClientAddress: nextClientAddress
 		} as unknown as Parameters<typeof POST>[0]);
 
 		expect(response.status).toBe(200);

@@ -50,13 +50,17 @@ const validPrompt = [
   'US Letter 8.5x11 portrait.'
 ].join(' ');
 
+let clientCounter = 0;
+const nextClientAddress = () => `test-client-${clientCounter++}`;
+
 const buildEvent = (body: unknown) =>
   ({
     request: new Request('http://localhost/api/image-generation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
-    })
+    }),
+    getClientAddress: nextClientAddress
   }) as Parameters<typeof POST>[0];
 
 const buildRawEvent = (rawBody: string) =>
@@ -65,7 +69,8 @@ const buildRawEvent = (rawBody: string) =>
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: rawBody
-    })
+    }),
+    getClientAddress: nextClientAddress
   }) as Parameters<typeof POST>[0];
 
 describe('/api/image-generation', () => {
@@ -139,5 +144,39 @@ describe('/api/image-generation', () => {
     const payload = await response.json();
     expect(payload.ok).toBe(true);
     expect(mockCreateSeam).toHaveBeenCalled();
+  });
+
+  it('returns 429 with a Retry-After header once a client exceeds the rate limit', async () => {
+    mockCreateSeam.mockReturnValue({
+      generate: vi.fn(async () => ({
+        ok: true as const,
+        value: {
+          images: [{ id: 'xai-1', b64: 'abc123' }],
+          rawModelInfo: { revisedPrompt: 'prompt' },
+          timingMs: 50
+        }
+      }))
+    });
+    const sameClient = () => 'rate-limit-test-client';
+    const request = () =>
+      ({
+        request: new Request('http://localhost/api/image-generation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ spec: validSpec, prompt: validPrompt, variations: 1, outputFormat: 'pdf' })
+        }),
+        getClientAddress: sameClient
+      }) as Parameters<typeof POST>[0];
+
+    let lastResponse: Response | undefined;
+    for (let i = 0; i < 6; i += 1) {
+      lastResponse = await POST(request());
+    }
+
+    expect(lastResponse?.status).toBe(429);
+    expect(lastResponse?.headers.get('Retry-After')).toBeTruthy();
+    const payload = await lastResponse?.json();
+    expect(payload.ok).toBe(false);
+    expect(payload.error.code).toBe('RATE_LIMIT_EXCEEDED');
   });
 });

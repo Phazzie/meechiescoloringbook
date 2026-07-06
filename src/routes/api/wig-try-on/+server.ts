@@ -3,13 +3,20 @@
 // Info flow: UI selfie + wigId -> pipeline -> WigCatalogSeam + WigTryOnSeam -> portrait JSON.
 import { json } from '@sveltejs/kit';
 import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
+import { createRateLimitSeam } from '$lib/adapters/rate-limit-seam';
 import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import { runWigTryOnPipeline } from '$lib/core/wig-try-on-pipeline';
 import { parseRequestBody } from '$lib/server/parse-request-body';
+import { rateLimitedResponse } from '$lib/server/rate-limit-response';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request, fetch }) => {
+const rateLimitSeam = createRateLimitSeam({ limit: 5, windowMs: 60_000 });
+
+export const POST: RequestHandler = async ({ request, fetch, getClientAddress }) => {
+	const rateLimitResult = rateLimitSeam.checkAndConsume(getClientAddress(), Date.now());
+	if (!rateLimitResult.ok) return rateLimitedResponse(rateLimitResult.error);
+
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 

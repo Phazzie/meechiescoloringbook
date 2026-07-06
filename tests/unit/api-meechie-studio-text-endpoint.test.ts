@@ -4,13 +4,17 @@
 import { describe, expect, it } from 'vitest';
 import { POST } from '../../src/routes/api/meechie-studio-text/+server';
 
+let clientCounter = 0;
+const nextClientAddress = () => `test-client-${clientCounter++}`;
+
 const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/meechie-studio-text', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
-		})
+		}),
+		getClientAddress: nextClientAddress
 	}) as Parameters<typeof POST>[0];
 
 const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
@@ -19,7 +23,8 @@ const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
-		})
+		}),
+		getClientAddress: nextClientAddress
 	}) as Parameters<typeof POST>[0];
 
 describe('/api/meechie-studio-text', () => {

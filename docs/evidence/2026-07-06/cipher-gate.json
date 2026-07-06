@@ -1,0 +1,78 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-07-06T15:51:02.342Z",
+  "cipher": {
+    "date": "2026-07-06",
+    "seams": "RateLimitSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-07-06/rate-limit-check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/rate-limit-lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/rate-limit-build.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/rewind-RateLimitSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/seam-ledger.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/clan-chain.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/proof-tape.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/proof-tape.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-06/npm-audit.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Added a pure, contract-tested RateLimitSeam and wired it into all six paid-AI-provider-backed API routes, returning 429 + Retry-After once a client exceeds its per-route sliding-window limit; check/lint/test/build/rewind/verify are all green.",
+    "risks": "In-memory per-instance counters do not share state across cold starts or concurrent serverless instances, so this mitigates but does not eliminate abuse risk; a distributed store is the documented follow-up if traffic data shows it is needed."
+  },
+  "latestChangeMs": 1783352628185.9175,
+  "status": "ok"
+}
