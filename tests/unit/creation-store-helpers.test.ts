@@ -3,6 +3,7 @@
 // Info flow: Storage operations -> adapter methods -> verified results.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
+import type { DraftRecord } from '../../contracts/creation-store.contract';
 
 const validIntent = {
 	title: 'Test',
@@ -215,7 +216,7 @@ describe('creation-store adapter', () => {
 
 		it('returns schema error instead of throwing when saving an invalid draft', async () => {
 			const result = await creationStoreAdapter.saveDraft({
-				draft: { invalid: true } as unknown as typeof validDraft
+				draft: { invalid: true } as unknown as DraftRecord
 			});
 			expect(result.ok).toBe(false);
 			if (!result.ok) {

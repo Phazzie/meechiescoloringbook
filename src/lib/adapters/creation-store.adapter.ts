@@ -216,7 +216,7 @@ export const creationStoreAdapter: CreationStoreSeam = {
 				ok: false,
 				error: {
 					code: 'DRAFT_SCHEMA_MISMATCH',
-					message: 'Draft failed schema validation.'
+					message: 'Draft record failed schema validation.'
 				}
 			};
 		}
