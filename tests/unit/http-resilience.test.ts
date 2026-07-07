@@ -349,7 +349,7 @@ describe('fetchWithRetry', () => {
 		expect(fetcher).toHaveBeenCalledTimes(2);
 	});
 
-	it('caps an excessive Retry-After at the trusted maximum (60 seconds), not at 30 seconds or the raw header value', async () => {
+	it('caps an excessive Retry-After at the trusted maximum (45 seconds), not at 30 seconds or the raw header value', async () => {
 		const longRetryHeaders = new Headers({ 'Retry-After': '3600' });
 		const fetcher = vi
 			.fn()
@@ -365,7 +365,7 @@ describe('fetchWithRetry', () => {
 		await vi.advanceTimersByTimeAsync(30_001);
 		expect(settled).toBe(false);
 
-		await vi.advanceTimersByTimeAsync(30_000);
+		await vi.advanceTimersByTimeAsync(15_000);
 		expect(settled).toBe(true);
 		const result = await promise;
 		expect(result.status).toBe(200);

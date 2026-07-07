@@ -43,6 +43,11 @@ const CIRCUIT_BREAKER_OPTIONS = { failureThreshold: 3, cooldownMs: 30_000 } as c
 const breaker = createCircuitBreaker(CIRCUIT_BREAKER_OPTIONS);
 const CIRCUIT_OPEN_MESSAGE = 'xAI image generation is temporarily unavailable after repeated errors; failing fast.';
 
+// Exported so routes can skip charging rate-limit quota for a request that is about to fail
+// fast anyway — see checkImageGenerationCircuitOpen in image-generation-pipeline.ts. Reads the
+// same module-scope breaker this file's own generate() call guards itself with.
+export const isImageGenerationCircuitOpen = (): boolean => breaker.isOpen();
+
 const buildUrl = (baseUrl: string, path: string) => {
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   const normalizedPath = path.startsWith('/') ? path.slice(1) : path;

@@ -58,3 +58,4 @@ All notable user-visible changes for this repo.
 - Updated Wu-Bob response guidance to a combined voice format.
 - Added AI-agent reference notes plus a Seam-Driven Development checklist to keep plans and evidence explicit for autonomous agents.
 - Shortened the canonical prompt template to fit the xAI 1024-character limit, updated drift checks, fixtures, and probes to match, and clarified negative/option line phrasing.
+- Stopped charging rate-limit quota for wig try-on requests that were always going to fail configuration validation, and for image/generate requests made while the provider circuit breaker is already open; lowered the retry-after wait cap so a single retry can no longer consume an entire request's timeout budget.

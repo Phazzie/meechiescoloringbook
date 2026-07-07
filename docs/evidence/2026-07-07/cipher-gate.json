@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-07-07T09:50:00.207Z",
+  "cipher": {
+    "date": "2026-07-07",
+    "seams": "WigTryOnSeam, ImageGenerationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-07-07/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-07/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-07/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-07/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-07/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-07/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-07/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-07/proof-tape.json",
+        "exists": true
+      }
+    ],
+    "summary": "Audited PR #217 (23 threads, all already fixed on this lineage) and PR #222 (21 threads, all already satisfied by this lineage's more mature RateLimitSeam — not merged, superseded) plus PR #220's own 11 fresh threads; fixed 3 real quota-before-validation-order bugs (wig-try-on full-config preflight, image-generation/generate circuit-open preflight, chat retry-after cap vs. timeout budget) and formally accepted the recurring \"direct env read in route preflight\" pattern as a documented tradeoff instead of building 3 new narrow seams; 668 tests pass, verify chain clean.",
+    "risks": "PR #222 is left open and unmerged (recommend closing it as superseded rather than leaving it to rank in a future \"top unaddressed\" audit again); no live-traffic validation of the new circuit/config preflight ordering (no real XAI_API_KEY/GEMINI_API_KEY in this environment)."
+  },
+  "latestChangeMs": 1783417180261.831,
+  "status": "ok"
+}

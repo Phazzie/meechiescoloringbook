@@ -5,6 +5,7 @@ import { WigTryOnRequestSchema, WigTryOnResultSchema } from '../../../contracts/
 import { z } from 'zod';
 import type { Wig, WigCatalogSeam } from '../seams/wig-catalog-seam/contract';
 import type { WigTryOnSeam } from '../seams/wig-try-on-seam/contract';
+import type { AppConfigSeam } from '../seams/app-config-seam/contract';
 
 type WigTryOnResult = z.infer<typeof WigTryOnResultSchema>;
 
@@ -70,6 +71,29 @@ export const checkWigTryOnConfig = (apiKey: string | undefined): WigTryOnConfigC
 		};
 	}
 	return { ok: true };
+};
+
+// checkWigTryOnConfig above only catches a missing Gemini key. createWigTryOnSeam also reads
+// the full AppConfigSeam (xaiApiKey, xaiTextModel, etc. all required, see app-config-seam
+// validators) the first time WigTryOnSeam.tryOn() runs — but that call happens inside
+// runWigTryOnPipeline, after the route has already charged rate-limit quota. On a Gemini-only
+// deployment missing an unrelated XAI_* var, every request would pass checkWigTryOnConfig,
+// burn a quota slot, and only then fail with WIG_TRY_ON_CONFIG_ERROR from deep inside the
+// pipeline. Exported so the route can run this before enforceAiRateLimit too.
+export const checkWigTryOnFullConfig = (configSeam: AppConfigSeam): WigTryOnConfigCheck => {
+	try {
+		configSeam.getConfig();
+		return { ok: true };
+	} catch {
+		return {
+			ok: false,
+			response: buildError(
+				503,
+				'WIG_TRY_ON_CONFIG_ERROR',
+				'Wig try-on configuration is invalid. Ensure GEMINI_API_KEY and required xAI environment variables are set.'
+			)
+		};
+	}
 };
 
 export type WigTryOnAbortCheck = { ok: true } | { ok: false; response: PipelineResponse };

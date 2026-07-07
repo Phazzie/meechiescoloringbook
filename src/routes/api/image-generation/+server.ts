@@ -6,12 +6,13 @@ Info flow: Client request -> seam-based pipeline -> image normalization -> respo
 import { json } from '@sveltejs/kit';
 import {
 	checkImageGenerationAbort,
+	checkImageGenerationCircuitOpen,
 	checkImageGenerationInputShape,
 	checkImageGenerationProviderConfig,
 	checkImageGenerationPromptGuard,
 	runImageGenerationPipeline
 } from '$lib/core/image-generation-pipeline';
-import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
+import { createImageGenerationSeam, isImageGenerationCircuitOpen } from '$lib/adapters/image-generation-seam';
 import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 import { enforceAiRateLimit } from '$lib/server/rate-limiter';
 import { parseRequestBody } from '$lib/server/parse-request-body';
@@ -34,6 +35,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const configCheck = checkImageGenerationProviderConfig(configSeam);
 	if (!configCheck.ok)
 		return json(configCheck.response.body, { status: configCheck.response.status });
+	const circuitCheck = checkImageGenerationCircuitOpen(isImageGenerationCircuitOpen());
+	if (!circuitCheck.ok)
+		return json(circuitCheck.response.body, { status: circuitCheck.response.status });
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 	const pipelineResult = await runImageGenerationPipeline(parsed.body, {

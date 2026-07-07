@@ -11,13 +11,16 @@ export const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 // Cap for our own jittered exponential backoff (no server guidance available).
 const MAX_SELF_BACKOFF_MS = 30_000;
 // Cap for a server-supplied Retry-After value. Larger than MAX_SELF_BACKOFF_MS — a server
-// explicitly asking us to wait is a stronger signal than our own guess — but still bounded
-// well under the request's own per-attempt timeout budget (60s/120s, see CHAT_TIMEOUT_MS/
-// IMAGE_TIMEOUT_MS in provider-adapter.adapter.ts). A prior version of this cap was 10
-// minutes, which let a single Retry-After sleep hold a serverless request open far past any
-// realistic function/route timeout; honoring the header up to a minute keeps the "respect
-// the server's guidance" intent without risking that.
-const MAX_RETRY_AFTER_MS = 60 * 1000;
+// explicitly asking us to wait is a stronger signal than our own guess — but must stay
+// meaningfully below the smallest per-attempt timeout of any caller using fetchWithRetry
+// (fetchWithRetry's only caller today is the chat path, CHAT_TIMEOUT_MS = 60s in
+// provider-adapter.adapter.ts). The sleep this caps happens between attempts, outside
+// fetchWithTimeout's own per-attempt budget, so a cap equal to (or above) that budget let a
+// single retry consume the entire per-attempt timeout in the Retry-After sleep alone, before
+// even starting the next network attempt — holding the route open far longer than intended.
+// A prior version of this cap was 10 minutes, which was worse still. Capping at 45s leaves at
+// least 15s of the 60s chat budget for the retried attempt itself.
+const MAX_RETRY_AFTER_MS = 45 * 1000;
 
 const buildNamedError = (name: 'AbortError' | 'TimeoutError' | 'CircuitOpenError', message: string): Error =>
 	Object.assign(new Error(message), { name });

@@ -4,7 +4,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 vi.mock('$lib/adapters/image-generation-seam', () => ({
-  createImageGenerationSeam: vi.fn()
+  createImageGenerationSeam: vi.fn(),
+  isImageGenerationCircuitOpen: vi.fn(() => false)
 }));
 
 vi.mock('$lib/adapters/app-config-seam', () => ({
@@ -41,12 +42,13 @@ vi.mock('$lib/server/parse-request-body', async () => {
   };
 });
 
-import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
+import { createImageGenerationSeam, isImageGenerationCircuitOpen } from '$lib/adapters/image-generation-seam';
 import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 import { POST } from '../../src/routes/api/image-generation/+server';
 
 const mockCreateSeam = vi.mocked(createImageGenerationSeam);
 const mockCreateConfigSeam = vi.mocked(createImageProviderConfigSeam);
+const mockIsCircuitOpen = vi.mocked(isImageGenerationCircuitOpen);
 
 const validSpec = {
   title: 'Dream Big',
@@ -153,6 +155,8 @@ describe('/api/image-generation', () => {
         xaiImageEndpointPath: '/v1/images/generations'
       })
     });
+    mockIsCircuitOpen.mockReset();
+    mockIsCircuitOpen.mockReturnValue(false);
   });
 
   it('rejects malformed JSON with INVALID_JSON code', async () => {
@@ -393,6 +397,26 @@ describe('/api/image-generation', () => {
       const payload = await response.json();
       expect(payload.ok).toBe(false);
       expect(payload.error.code).toBe('IMAGE_CONFIG_ERROR');
+    }
+    expect(mockCreateSeam).not.toHaveBeenCalled();
+  });
+
+  it('returns 503 IMAGE_CIRCUIT_OPEN without consuming rate-limit quota when the breaker is already open', async () => {
+    mockIsCircuitOpen.mockReturnValue(true);
+
+    for (let i = 0; i < 25; i += 1) {
+      const response = await POST(
+        buildEvent({
+          spec: validSpec,
+          prompt: validPrompt,
+          variations: 1,
+          outputFormat: 'pdf'
+        })
+      );
+      expect(response.status).toBe(503);
+      const payload = await response.json();
+      expect(payload.ok).toBe(false);
+      expect(payload.error.code).toBe('IMAGE_CIRCUIT_OPEN');
     }
     expect(mockCreateSeam).not.toHaveBeenCalled();
   });

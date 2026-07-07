@@ -10,6 +10,7 @@ import {
 	checkWigCatalogPreflight,
 	checkWigTryOnAbort,
 	checkWigTryOnConfig,
+	checkWigTryOnFullConfig,
 	checkWigTryOnInputShape,
 	runWigTryOnPipeline
 } from '$lib/core/wig-try-on-pipeline';
@@ -40,10 +41,17 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 	if (!configCheck.ok)
 		return json(configCheck.response.body, { status: configCheck.response.status });
 
+	// checkWigTryOnConfig only catches a missing Gemini key; createWigTryOnSeam also needs the
+	// full AppConfigSeam (all XAI_* vars) the first time it runs. Validate it here too, before
+	// charging rate-limit quota, so a misconfigured deployment fails without burning a slot.
+	const configSeam = createAppConfigSeam();
+	const fullConfigCheck = checkWigTryOnFullConfig(configSeam);
+	if (!fullConfigCheck.ok)
+		return json(fullConfigCheck.response.body, { status: fullConfigCheck.response.status });
+
 	const limited = enforceAiRateLimit(getClientAddress);
 	if (limited) return limited;
 
-	const configSeam = createAppConfigSeam();
 	const wigTryOnSeam = createWigTryOnSeam(configSeam);
 
 	const result = await runWigTryOnPipeline(parsed.body, {

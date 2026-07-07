@@ -451,4 +451,50 @@ describe('/api/wig-try-on', () => {
 			envRef.GEMINI_API_KEY = 'test-key';
 		}
 	});
+
+	it('rejects with WIG_TRY_ON_CONFIG_ERROR without consuming rate-limit quota when the full AppConfig is invalid', async () => {
+		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createWigCatalogSeam).mockReset();
+		vi.mocked(createWigTryOnSeam).mockReset();
+		const wig = {
+			id: 'wig-001',
+			name: 'Sleek Straight Goddess',
+			brand: 'Beautyforever',
+			affiliateProgram: 'beautyforever' as const,
+			affiliateUrl: 'https://example.com/wig',
+			imageUrl: 'https://example.com/wig.png',
+			priceUsd: 89.99,
+			style: 'Straight Lace Front',
+			hairType: 'human' as const,
+			length: 'medium' as const,
+			color: 'Natural Black',
+			colorFamily: 'black' as const,
+			tags: ['sleek']
+		};
+		vi.mocked(createWigCatalogSeam).mockReturnValue({
+			listWigs: vi.fn(),
+			getWigById: vi.fn(async () => ({ ok: true as const, value: wig }))
+		});
+		// GEMINI_API_KEY is present (checkWigTryOnConfig passes), but the full AppConfigSeam
+		// (which createWigTryOnSeam also needs, e.g. for XAI_* vars) fails to validate — a
+		// Gemini-only deployment missing an unrelated required var.
+		vi.mocked(createAppConfigSeam).mockReturnValue({
+			getConfig: () => {
+				throw new Error('invalid config');
+			}
+		} as ReturnType<typeof createAppConfigSeam>);
+		const enforceSpy = vi.spyOn(rateLimiterModule, 'enforceAiRateLimit');
+
+		const response = await POST(
+			buildEvent({ selfieBase64: 'selfie-data', selfieMimeType: 'image/jpeg', wigId: wig.id })
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(503);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('WIG_TRY_ON_CONFIG_ERROR');
+		expect(enforceSpy).not.toHaveBeenCalled();
+		expect(createWigTryOnSeam).not.toHaveBeenCalled();
+		enforceSpy.mockRestore();
+	});
 });

@@ -139,6 +139,27 @@ export const checkImageGenerationProviderConfig = (
   }
 };
 
+export type ImageGenerationCircuitCheck = { ok: true } | { ok: false; response: ImagePipelineResponse };
+
+// Exported so the route can reject with IMAGE_CIRCUIT_OPEN before consuming rate-limit quota
+// once the breaker has already tripped. Without this, an open circuit was only discovered
+// inside ImageGenerationSeam.generate() (after enforceAiRateLimit charged a slot), so a client
+// repeatedly hitting a fail-fast 503 during an upstream outage could exhaust its own quota and
+// then get blocked with 429 even though no paid provider call was ever attempted.
+export const checkImageGenerationCircuitOpen = (isCircuitOpen: boolean): ImageGenerationCircuitCheck => {
+  if (isCircuitOpen) {
+    return {
+      ok: false,
+      response: buildError(
+        503,
+        'IMAGE_CIRCUIT_OPEN',
+        'xAI image generation is temporarily unavailable after repeated errors; failing fast.'
+      )
+    };
+  }
+  return { ok: true };
+};
+
 export const runImageGenerationPipeline = async (
   body: unknown,
   deps: ImagePipelineDeps
