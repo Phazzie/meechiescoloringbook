@@ -25,8 +25,8 @@ Short, durable decisions with context and tradeoffs.
 - Cipher Gate:
   - Date: 2026-07-07
   - Seams: MeechieVoiceSeam, ProviderAdapterSeam, ImageGenerationSeam, TelemetrySeam, SpecValidationSeam
-  - Evidence: docs/evidence/2026-07-07/verify.txt; docs/evidence/2026-07-07/test.txt; docs/evidence/2026-07-07/chamber-lock.json; docs/evidence/2026-07-07/seam-ledger.json; docs/evidence/2026-07-07/clan-chain.json; docs/evidence/2026-07-07/proof-tape.json; docs/evidence/2026-07-07/shaolin-lint.json; docs/evidence/2026-07-07/assumption-alarm.json
-  - Summary: Upgraded `zod` v3 → v4, fixed the resulting `z.record()` signature and `invalid_string`/`invalid_format` issue-code breaks across 7 files, and confirmed `npm run verify` (check + full test suite + evidence chain) and `npm run build` are green with zero observable contract or fixture changes.
+  - Evidence: docs/evidence/2026-07-07/verify.txt; docs/evidence/2026-07-07/test.txt; docs/evidence/2026-07-07/build.txt; docs/evidence/2026-07-07/chamber-lock.json; docs/evidence/2026-07-07/seam-ledger.json; docs/evidence/2026-07-07/clan-chain.json; docs/evidence/2026-07-07/proof-tape.json; docs/evidence/2026-07-07/shaolin-lint.json; docs/evidence/2026-07-07/assumption-alarm.json
+  - Summary: Upgraded `zod` v3 → v4 (kept as a caret range, `^4.4.3`, for patch-level flexibility), fixed the resulting `z.record()` signature and `invalid_string`/`invalid_format` issue-code breaks across 7 files, and confirmed `npm run verify` (check + full test suite + evidence chain) and `npm run build` are green with zero observable contract or fixture changes.
   - Risks: `npm audit` still reports 4 unrelated transitive vulnerabilities (js-yaml, tar, undici, vite) that this change does not address; tracked separately as its own future fix.
 
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
