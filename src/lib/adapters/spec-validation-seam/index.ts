@@ -14,11 +14,11 @@ import type {
 	SpecValidationSeam
 } from '../../seams/spec-validation-seam/contract';
 
-const formatPath = (path: Array<string | number>): string => {
+const formatPath = (path: ReadonlyArray<PropertyKey>): string => {
 	const withoutRoot = path.filter((segment) => segment !== 'spec');
 	return withoutRoot
 		.map((segment) =>
-			typeof segment === 'number' ? `[${segment}]` : `${segment}`
+			typeof segment === 'number' ? `[${segment}]` : `${String(segment)}`
 		)
 		.join('.')
 		.replace('.[', '[');
@@ -47,7 +47,7 @@ const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] =
 	}
 
 	if (pathString.endsWith('label')) {
-		if (issue.code === 'invalid_string') {
+		if (issue.code === 'invalid_format') {
 			return {
 				code: 'LABEL_INVALID_CHARS',
 				field: field || 'items.label',

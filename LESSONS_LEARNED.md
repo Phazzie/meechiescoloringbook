@@ -121,6 +121,12 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Lesson: Local loopback servers can be blocked by the sandbox even without external network access.
 - Action: Run `node probes/browser-seams.probe.mjs` with escalated permissions when needed and capture the probe output as evidence.
 
+## 2026-07-07
+- Date: 2026-07-07
+- Context: Upgrading `zod` from v3 to v4 across 70 files that import it.
+- Lesson: zod v4 requires an explicit key schema for `z.record()` (`z.record(z.string(), value)`), renamed the `invalid_string` issue code to `invalid_format`, and widened `ZodIssue.path` to `PropertyKey[]`. `svelte-check` catches the type-level breaks, but the renamed issue code only surfaces as a wrong-branch bug in adapters that pattern-match on `issue.code` — it must be caught by running the full test suite, not just the type checker.
+- Action: Ran `npm run check`, `npm test`, and `npm run build` after the bump (not just `npm run check`) and fixed `spec-validation.adapter.ts`/`spec-validation-seam/index.ts` to match on `invalid_format` so the `LABEL_INVALID_CHARS` fault-fixture output stayed byte-identical.
+
 ## Template
 - Date:
 - Context:

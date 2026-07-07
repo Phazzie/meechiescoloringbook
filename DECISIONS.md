@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-07-07 - Upgrade zod from v3 to v4
+
+- Date: 2026-07-07
+- Decision: Upgrade the `zod` dependency from `^3.25.76` to exact `4.4.3` and fix every call site broken by the major version's breaking changes, without altering any seam's observable contract behavior.
+- Context: `zod` v4 changed the `z.record()` signature to require an explicit key schema (`z.record(z.string(), valueSchema)` instead of `z.record(valueSchema)`), renamed the `invalid_string` issue code to `invalid_format`, and widened `ZodIssue.path` to `PropertyKey[]` (adding `symbol`) instead of `(string | number)[]`. 70 files across this repo import `zod`, and it backs the schema layer of nearly every seam contract, so this was the highest-blast-radius dependency upgrade available in the repo.
+- Alternatives: Stay pinned to zod v3 indefinitely; rejected because it leaves the repo on an unmaintained major version and blocks future contract work that wants v4-only features. Do a partial/shim upgrade; rejected because `package.json` only supports one installed major version of `zod` at a time.
+- Consequences: `contracts/meechie-voice.contract.ts`, `src/lib/seams/meechie-voice-seam/contract.ts`, `contracts/provider-adapter.contract.ts`, `src/lib/seams/image-generation-seam/validators.ts`, and `src/lib/seams/telemetry-seam/validators.ts` now pass an explicit `z.string()` key schema to every `z.record()` call. `src/lib/adapters/spec-validation.adapter.ts` and `src/lib/adapters/spec-validation-seam/index.ts` now match on the `invalid_format` issue code (was `invalid_string`) for label-regex failures and type `formatPath`'s parameter as `ReadonlyArray<PropertyKey>` instead of `Array<string | number>`. No fixture, mock, or test expectation changed — the `SpecValidationSeam` fault fixture's `LABEL_INVALID_CHARS` output is byte-identical before and after the upgrade.
+- Revisit criteria: Revisit if a future zod release changes issue codes again, or if any seam starts relying on `z.record()`'s now-removed single-argument form.
+- Plan:
+  - Goal: Move the `zod` dependency to v4 and repair every broken call site with zero observable contract drift.
+  - Seams: MeechieVoiceSeam (legacy + self-contained), ProviderAdapterSeam, ImageGenerationSeam, TelemetrySeam, SpecValidationSeam (legacy + self-contained).
+  - Files: `package.json`, `package-lock.json`, `contracts/meechie-voice.contract.ts`, `src/lib/seams/meechie-voice-seam/contract.ts`, `contracts/provider-adapter.contract.ts`, `src/lib/seams/image-generation-seam/validators.ts`, `src/lib/seams/telemetry-seam/validators.ts`, `src/lib/adapters/spec-validation.adapter.ts`, `src/lib/adapters/spec-validation-seam/index.ts`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `CHANGELOG.md`, `docs/evidence/2026-07-07/`.
+  - Commands: `npm install zod@4 --save-exact`, `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`.
+- Self-critique: The riskiest assumption was that no other zod v4 breaking change (default-value semantics, coercion, `.email()`/format deprecations, custom error maps) was silently swallowed by TypeScript instead of surfacing as a compile error. Validated by running the full test suite (519 passing, 0 failing) and the production build after the bump, not just `svelte-check`.
+
+- Cipher Gate:
+  - Date: 2026-07-07
+  - Seams: MeechieVoiceSeam, ProviderAdapterSeam, ImageGenerationSeam, TelemetrySeam, SpecValidationSeam
+  - Evidence: docs/evidence/2026-07-07/verify.txt; docs/evidence/2026-07-07/test.txt; docs/evidence/2026-07-07/chamber-lock.json; docs/evidence/2026-07-07/seam-ledger.json; docs/evidence/2026-07-07/clan-chain.json; docs/evidence/2026-07-07/proof-tape.json; docs/evidence/2026-07-07/shaolin-lint.json; docs/evidence/2026-07-07/assumption-alarm.json
+  - Summary: Upgraded `zod` v3 → v4, fixed the resulting `z.record()` signature and `invalid_string`/`invalid_format` issue-code breaks across 7 files, and confirmed `npm run verify` (check + full test suite + evidence chain) and `npm run build` are green with zero observable contract or fixture changes.
+  - Risks: `npm audit` still reports 4 unrelated transitive vulnerabilities (js-yaml, tar, undici, vite) that this change does not address; tracked separately as its own future fix.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07
