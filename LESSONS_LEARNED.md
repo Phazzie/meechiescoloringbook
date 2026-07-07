@@ -127,6 +127,12 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Lesson: zod v4 requires an explicit key schema for `z.record()` (`z.record(z.string(), value)`), renamed the `invalid_string` issue code to `invalid_format`, and widened `ZodIssue.path` to `PropertyKey[]`. `svelte-check` catches the type-level breaks, but the renamed issue code only surfaces as a wrong-branch bug in adapters that pattern-match on `issue.code` — it must be caught by running the full test suite, not just the type checker.
 - Action: Ran `npm run check`, `npm test`, and `npm run build` after the bump (not just `npm run check`) and fixed `spec-validation.adapter.ts`/`spec-validation-seam/index.ts` to match on `invalid_format` so the `LABEL_INVALID_CHARS` fault-fixture output stayed byte-identical.
 
+## 2026-07-07 (2)
+- Date: 2026-07-07
+- Context: Automated PR review (`chatgpt-codex-connector`) on the zod v3→v4 upgrade caught that `SpecValidationSeam`'s generic `SPEC_INVALID` fallback still leaked zod's raw `issue.message` for any field without a dedicated issue-code branch (every enum field, plus the `dedication` regex) — and zod v4's default wording for those differs from v3's, so the "zero observable contract drift" claim was false for those paths even though the one fixture that got exercised (`LABEL_INVALID_CHARS`) was unaffected.
+- Lesson: A single fixture-backed fault case does not prove a fallback branch that forwards a third-party library's default error text is version-stable; every input path that can reach that fallback needs its own check, and a fallback that forwards library-internal wording is a contract leak waiting to happen on the library's next major bump.
+- Action: Made the `SPEC_INVALID` fallback message version-independent (`Invalid value for <field>.`) for every non-`custom` zod issue code, kept `issue.message` pass-through only for `code === 'custom'` (developer-authored via `ctx.addIssue`, stable across zod versions), and added a regression test exercising an invalid enum value so this path has fixture-equivalent coverage going forward.
+
 ## Template
 - Date:
 - Context:

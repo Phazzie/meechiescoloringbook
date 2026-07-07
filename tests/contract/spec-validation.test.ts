@@ -58,4 +58,15 @@ describe('SpecValidationSeam contract', () => {
 		const output = await specValidationAdapter.validate(maxItemsFixture.input);
 		expect(output).toEqual(maxItemsFixture.output);
 	});
+
+	it('adapter returns a stable message for generic enum/format failures regardless of zod version wording', async () => {
+		const input = {
+			spec: { ...sampleFixture.input.spec, alignment: 'diagonal' }
+		};
+		const output = await specValidationAdapter.validate(input);
+		expect(output).toEqual({
+			ok: false,
+			issues: [{ code: 'SPEC_INVALID', field: 'alignment', message: 'Invalid value for alignment.' }]
+		});
+	});
 });

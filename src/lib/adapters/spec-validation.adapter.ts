@@ -63,10 +63,12 @@ const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] =
 		}
 	}
 
+	const message = issue.code === 'custom' ? issue.message : `Invalid value for ${field || 'spec'}.`;
+
 	return {
 		code: 'SPEC_INVALID',
 		field: field || 'spec',
-		message: issue.message
+		message
 	};
 };
 
