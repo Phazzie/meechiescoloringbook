@@ -25,7 +25,8 @@ const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
 		}),
-		fetch: vi.fn()
+		fetch: vi.fn(),
+		getClientAddress: () => '203.0.113.14'
 	}) as unknown as Parameters<typeof POST>[0];
 
 const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
@@ -35,7 +36,8 @@ const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
 		}),
-		fetch: vi.fn()
+		fetch: vi.fn(),
+		getClientAddress: () => '203.0.113.14'
 	}) as unknown as Parameters<typeof POST>[0];
 
 describe('/api/wig-try-on', () => {
@@ -119,7 +121,8 @@ describe('/api/wig-try-on', () => {
 
 		const response = await POST({
 			request,
-			fetch: fetchImpl
+			fetch: fetchImpl,
+			getClientAddress: () => '203.0.113.14'
 		} as unknown as Parameters<typeof POST>[0]);
 
 		expect(response.status).toBe(200);

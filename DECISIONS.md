@@ -7,6 +7,35 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-07-08 - Add RateLimitSeam to bound abuse/cost risk on AI-provider-backed endpoints
+
+- Date: 2026-07-08
+- Decision: Add a new self-contained `RateLimitSeam` (in-memory fixed-window counter, keyed by `route:clientAddress`) and wire it into `/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/meechie-studio-text`, and `/api/wig-try-on` via a shared `src/lib/server/rate-limit-guard.ts` helper that returns HTTP 429 with a `Retry-After` header once a client's quota is exhausted. `/api/tools` was left unguarded because `MeechieToolSeam` is pure/local and makes no metered provider call.
+- Context: A repo-wide audit for the hardest outstanding upgrades/fixes found that none of the five endpoints that call metered external providers (xAI chat/image, Gemini multi-image) had any request-volume protection — a single client could script unlimited calls and exhaust API budget or trigger upstream provider throttling for every user. `npm audit` was clean and lint/check/tests were already green, so this was the most consequential real gap, not a dependency bump or doc cleanup.
+- Alternatives: Use a distributed store (Vercel KV / Upstash Redis) for a durable, cross-instance limiter; rejected for this slice because no live KV/Redis credentials are available in this environment and adding one would require new provisioned infrastructure. Skip rate limiting entirely and rely on provider-side quotas; rejected because provider-side throttling degrades service for all users instead of the abusive client. Add limiting only to `/api/generate` (the most expensive combined call); rejected because `/api/image-generation`, `/api/wig-try-on`, `/api/chat-interpretation`, and `/api/meechie-studio-text` are independently reachable and each calls a metered provider.
+- Consequences: All five AI-provider-backed routes now reject excess requests per client address within a rolling window with a machine-readable `RATE_LIMIT_EXCEEDED` error and `Retry-After` header. The limiter is in-memory and per-server-process only (see Assumption entry below) — it is defense-in-depth against casual abuse and scripted bursts, not a guarantee against a distributed attack across many warm serverless instances.
+- Revisit criteria: Revisit if Vercel KV/Upstash Redis credentials become available (swap the adapter behind the same `RateLimitSeam` contract for a distributed store) or if real abuse traffic is observed that a per-instance counter cannot bound.
+- Plan:
+  - Goal: Close the no-rate-limiting gap on metered AI endpoints without requiring external infrastructure this environment cannot credential.
+  - Seams: RateLimitSeam (new).
+  - Files: `src/lib/seams/rate-limit-seam/{contract,validators,fixtures,mock,probe,test}.ts`, `src/lib/adapters/rate-limit-seam/index.ts`, `src/lib/server/rate-limit-guard.ts`, `src/routes/api/{generate,image-generation,chat-interpretation,meechie-studio-text,wig-try-on}/+server.ts`, `tests/unit/{api-generate,api-image-generation,api-chat-interpretation,api-meechie-studio-text-endpoint,api-wig-try-on,rate-limit-guard}.test.ts`, `docs/seams.md`, `src/lib/seams/CLAUDE.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `CHANGELOG.md`.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run verify`.
+- Self-critique: The riskiest assumption is that a per-instance in-memory counter is an acceptable interim control given Vercel's stateless serverless model; it is explicitly documented as best-effort rather than distributed-safe so it cannot be mistaken for a stronger guarantee later.
+
+- Cipher Gate:
+  - Date: 2026-07-08
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-07-08/test.txt; docs/evidence/2026-07-08/verify.txt; docs/evidence/2026-07-08/chamber-lock.json; docs/evidence/2026-07-08/seam-ledger.md; docs/evidence/2026-07-08/clan-chain.md; docs/evidence/2026-07-08/proof-tape.md
+  - Summary: Added RateLimitSeam (contract/fixtures/mock/probe/test/adapter, self-contained layout) and wired it into the five AI-provider-backed API routes via a shared guard helper; full `npm run check`, `npm run lint`, `npm test`, and `npm run verify` are green.
+  - Risks: In-memory state does not survive cold starts or replicate across concurrent serverless instances, so the real-world ceiling on abuse is instance-count times the configured per-instance limit, not a hard global cap.
+
+- Assumption:
+  - Date: 2026-07-08
+  - Seams: RateLimitSeam
+  - Statement: An in-memory, per-server-process fixed-window counter is an acceptable interim rate limit for the deployed Vercel serverless environment, even though it does not coordinate across instances or survive cold starts.
+  - Validation: Provision Vercel KV or Upstash Redis, add a distributed adapter behind the existing `RateLimitSeam` contract, and re-run `npm run rewind -- --seam RateLimitSeam` plus `npm run verify` once credentials are available.
+  - Status: Waived for this slice because no live distributed-store credentials are present in this non-interactive environment; the in-memory adapter is deployed as defense-in-depth in the meantime.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07

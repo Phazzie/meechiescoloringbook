@@ -9,10 +9,13 @@ import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-conf
 import { generatePipelineDeps, runGeneratePipeline } from '$lib/core/generate-pipeline';
 import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';
 import { parseRequestBody } from '$lib/server/parse-request-body';
+import { guardRateLimit, RATE_LIMIT_CONFIGS } from '$lib/server/rate-limit-guard';
 import { createSafetyPolicySeam } from '$lib/seams/safety-policy-seam/policy';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	const guard = guardRateLimit('generate', getClientAddress(), RATE_LIMIT_CONFIGS.generate);
+	if (!guard.ok) return guard.response;
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 	const imageGenerationSeam = createImageGenerationSeam(createImageProviderConfigSeam());

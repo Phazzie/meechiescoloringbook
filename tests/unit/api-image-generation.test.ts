@@ -56,7 +56,8 @@ const buildEvent = (body: unknown) =>
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
-    })
+    }),
+    getClientAddress: () => '203.0.113.11'
   }) as Parameters<typeof POST>[0];
 
 const buildRawEvent = (rawBody: string) =>
@@ -65,7 +66,8 @@ const buildRawEvent = (rawBody: string) =>
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: rawBody
-    })
+    }),
+    getClientAddress: () => '203.0.113.11'
   }) as Parameters<typeof POST>[0];
 
 describe('/api/image-generation', () => {

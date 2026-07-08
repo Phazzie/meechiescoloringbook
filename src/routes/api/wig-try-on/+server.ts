@@ -7,9 +7,12 @@ import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import { runWigTryOnPipeline } from '$lib/core/wig-try-on-pipeline';
 import { parseRequestBody } from '$lib/server/parse-request-body';
+import { guardRateLimit, RATE_LIMIT_CONFIGS } from '$lib/server/rate-limit-guard';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request, fetch }) => {
+export const POST: RequestHandler = async ({ request, fetch, getClientAddress }) => {
+	const guard = guardRateLimit('wig-try-on', getClientAddress(), RATE_LIMIT_CONFIGS.wigTryOn);
+	if (!guard.ok) return guard.response;
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 
