@@ -14,7 +14,7 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const guard = guardRateLimit(
 		'image-generation',
-		getClientAddress(),
+		getClientAddress,
 		RATE_LIMIT_CONFIGS.imageGeneration
 	);
 	if (!guard.ok) return guard.response;

@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-07-08 - Address PR #225 review feedback on RateLimitSeam
+
+- Date: 2026-07-08
+- Decision: Fix review findings from Copilot, Gemini Code Assist, Codex, and CodeRabbit on the new `RateLimitSeam` (PR #225): (1) the in-memory `windows` Map grew without bound — added a size-threshold prune sweep that deletes fully-expired windows once the map exceeds 1000 entries; (2) `getClientAddress()` was invoked eagerly at the call site and could crash a route with an uncaught throw on platforms/proxies that don't supply it — `guardRateLimit` now accepts either a string or a function reference and resolves it inside a try/catch with an `unknown-client` fallback bucket; (3) validation failures (bad key/config) reused `RATE_LIMIT_EXCEEDED`, conflating caller bugs with client abuse and misreporting a 429 for what is really a 500 — added a distinct `RATE_LIMIT_CONFIG_INVALID` code that `guardRateLimit` maps to HTTP 500 instead of 429; (4) Codex correctly identified that `/api/tools` was wrongly left unguarded — `meechieToolAdapter.respond` (the real, wired-up implementation) calls `createProviderAdapter({}).createChatCompletion(...)`, a metered xAI call, contradicting the prior entry's claim that `MeechieToolSeam` makes no metered provider call; added a `tools` quota and wired `guardRateLimit` into that route; (5) CodeRabbit found the mock's `resetAt` returned a bare duration (`config.windowMs`) instead of an epoch-ms timestamp like the real adapter, and that the mock's `sample` scenario never actually enforced the quota (always `ok: true`, just clamping `remaining` to zero) — fixed both so the mock matches adapter behavior for sequential quota consumption.
+- Context: These were flagged as review findings on the seam added in the prior 2026-07-08 entry, before merge. Finding (4) in particular corrects a factual error in that entry's stated rationale for excluding `/api/tools`.
+- Alternatives: Add a full LRU cache dependency for eviction; rejected as unnecessary weight for a bounded, low-cardinality (route × client address) key space — a threshold sweep is sufficient and adds no new dependency. Leave `getClientAddress()` called eagerly and rely on it never throwing under adapter-vercel; rejected because the guard's entire purpose is to make routes more robust, not to introduce a new crash surface. Leave `/api/tools` unguarded on the theory that its safety-keyword check is enough; rejected because that check filters content, not request volume, and the route still reaches a metered provider on every allowed call.
+- Consequences: The limiter is now self-bounding in memory, cannot be crashed by a missing/throwing `getClientAddress`, reports config bugs as 500s distinct from real 429 throttling, guards all six routes that reach a metered provider (not five), and the mock now matches the adapter's quota-enforcement and timestamp semantics.
+- Revisit criteria: Same as the original entry below — revisit if a distributed store becomes available.
+- Plan:
+  - Goal: Resolve PR #225 review findings without changing the seam's external behavior for the already-covered allow/deny paths.
+  - Seams: RateLimitSeam.
+  - Files: `src/lib/seams/rate-limit-seam/{contract,mock,test}.ts`, `src/lib/adapters/rate-limit-seam/index.ts`, `src/lib/server/rate-limit-guard.ts`, `src/routes/api/{generate,image-generation,chat-interpretation,meechie-studio-text,wig-try-on,tools}/+server.ts`, `tests/unit/{rate-limit-guard,api-tools}.test.ts`, `docs/seams.md`, `CHANGELOG.md`, `LESSONS_LEARNED.md`, `DECISIONS.md`.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run verify`.
+- Self-critique: The prune sweep is O(map size) once triggered; at the bounded scale of route×client-address keys for a single warm instance this is cheap, but if the key space grows much larger a proper LRU would be worth revisiting. The riskiest assumption is that no other route reaches a metered provider through a path I haven't traced — I re-checked all six route pipelines' production deps (not just their names) after being wrong once about `/api/tools`.
+
+- Cipher Gate:
+  - Date: 2026-07-08
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-07-08/test.txt; docs/evidence/2026-07-08/verify.txt
+  - Summary: Added window pruning, defensive `getClientAddress` handling, a distinct `RATE_LIMIT_CONFIG_INVALID` error code (mapped to 500), `/api/tools` guarding, and mock fidelity fixes (epoch-ms `resetAt`, enforced sample-scenario quota) in response to PR #225 review feedback; `npm run check`, `npm run lint`, `npm test`, and `npm run verify` are green.
+  - Risks: None beyond the original entry's documented per-instance in-memory limitation.
+
 ## 2026-07-08 - Add RateLimitSeam to bound abuse/cost risk on AI-provider-backed endpoints
 
 - Date: 2026-07-08

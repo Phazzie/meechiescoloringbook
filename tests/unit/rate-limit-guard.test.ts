@@ -43,4 +43,40 @@ describe('guardRateLimit', () => {
 		expect(routeA.ok).toBe(true);
 		expect(routeB.ok).toBe(true);
 	});
+
+	it('accepts a getClientAddress function reference and resolves it lazily', () => {
+		const result = guardRateLimit('guard-test-fn-address', () => '198.51.100.4', {
+			limit: 2,
+			windowMs: 60_000
+		});
+
+		expect(result.ok).toBe(true);
+	});
+
+	it('falls back to a stable bucket instead of crashing when getClientAddress throws', () => {
+		const throwingAddress = () => {
+			throw new Error('getClientAddress unavailable on this platform');
+		};
+
+		const result = guardRateLimit('guard-test-throwing-address', throwingAddress, {
+			limit: 1,
+			windowMs: 60_000
+		});
+
+		expect(result.ok).toBe(true);
+	});
+
+	it('returns a 500 (not 429) when the config itself is invalid', async () => {
+		const result = guardRateLimit('guard-test-bad-config', '198.51.100.5', {
+			limit: -1,
+			windowMs: 60_000
+		});
+
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.response.status).toBe(500);
+		expect(result.response.headers.get('Retry-After')).toBeNull();
+		const payload = await result.response.json();
+		expect(payload.error.code).toBe('RATE_LIMIT_CONFIG_INVALID');
+	});
 });

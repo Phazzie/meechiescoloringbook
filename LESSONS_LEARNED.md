@@ -122,10 +122,11 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Action: Run `node probes/browser-seams.probe.mjs` with escalated permissions when needed and capture the probe output as evidence.
 
 ## 2026-07-08
+
 - Date: 2026-07-08
 - Context: Hardest-fix audit found no request-volume protection on any of the five API routes that call metered xAI/Gemini providers.
 - Lesson: Vercel serverless functions are stateless per instance, so a naive in-memory rate limiter is only best-effort defense-in-depth, not a distributed guarantee; that limitation must be documented as an explicit Assumption rather than silently implied.
-- Action: Added RateLimitSeam with an injectable-clock, in-memory fixed-window adapter, wired it into `/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/meechie-studio-text`, and `/api/wig-try-on` via `src/lib/server/rate-limit-guard.ts`, and recorded the per-instance limitation as a waived Assumption in `DECISIONS.md` pending distributed-store credentials.
+- Action: Added RateLimitSeam with an injectable-clock, in-memory fixed-window adapter, wired it into `/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/meechie-studio-text`, `/api/wig-try-on`, and `/api/tools` via `src/lib/server/rate-limit-guard.ts`, and recorded the per-instance limitation as a waived Assumption in `DECISIONS.md` pending distributed-store credentials.
 
 ## Template
 - Date:

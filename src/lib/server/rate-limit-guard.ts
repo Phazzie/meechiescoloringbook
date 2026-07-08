@@ -17,16 +17,38 @@ export const RATE_LIMIT_CONFIGS = {
 	imageGeneration: { limit: 10, windowMs: 60_000 },
 	chatInterpretation: { limit: 20, windowMs: 60_000 },
 	meechieStudioText: { limit: 20, windowMs: 60_000 },
-	wigTryOn: { limit: 6, windowMs: 60_000 }
+	wigTryOn: { limit: 6, windowMs: 60_000 },
+	tools: { limit: 20, windowMs: 60_000 }
 } as const satisfies Record<string, RateLimitConfig>;
 
 export const guardRateLimit = (
 	routeName: string,
-	clientAddress: string,
+	clientAddress: string | (() => string),
 	config: RateLimitConfig
 ): RateLimitGuardResult => {
-	const decision = rateLimitSeam.consume(`${routeName}:${clientAddress}`, config);
+	// getClientAddress() can throw when the deployment platform doesn't supply the expected
+	// headers (e.g. certain proxy setups or local testing); never let that crash the request.
+	let resolvedAddress: string;
+	try {
+		resolvedAddress = typeof clientAddress === 'function' ? clientAddress() : clientAddress;
+	} catch {
+		resolvedAddress = 'unknown-client';
+	}
+
+	const decision = rateLimitSeam.consume(`${routeName}:${resolvedAddress}`, config);
 	if (decision.ok) return { ok: true };
+
+	// RATE_LIMIT_CONFIG_INVALID means the caller passed bad input (a bug), not client abuse —
+	// surface it as a 500 rather than telling the client to slow down.
+	if (decision.error.code === 'RATE_LIMIT_CONFIG_INVALID') {
+		return {
+			ok: false,
+			response: json(
+				{ ok: false, error: { code: decision.error.code, message: decision.error.message } },
+				{ status: 500 }
+			)
+		};
+	}
 
 	return {
 		ok: false,

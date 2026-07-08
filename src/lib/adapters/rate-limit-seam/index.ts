@@ -6,16 +6,27 @@ import type { RateLimitConfig, RateLimitDecision, RateLimitError, RateLimitSeam 
 import type { Result } from '../../../../contracts/shared.contract';
 import { validateRateLimitConfig, validateRateLimitKey } from '../../seams/rate-limit-seam/validators';
 
-type Window = { start: number; count: number };
+type Window = { start: number; count: number; windowMs: number };
 
-const validationError = (err: unknown): RateLimitError => ({
-	code: 'RATE_LIMIT_EXCEEDED',
+// Once the map grows past this size, sweep out windows that have fully expired so a
+// long-lived warm instance seeing many unique client addresses does not grow unbounded.
+const PRUNE_THRESHOLD = 1000;
+
+const configInvalidError = (err: unknown): RateLimitError => ({
+	code: 'RATE_LIMIT_CONFIG_INVALID',
 	message: err instanceof Error ? err.message : 'Rate limit input validation failed.',
 	retryAfterMs: 0
 });
 
 export const createRateLimitSeam = (now: () => number = Date.now): RateLimitSeam => {
 	const windows = new Map<string, Window>();
+
+	const pruneExpired = (nowMs: number) => {
+		if (windows.size <= PRUNE_THRESHOLD) return;
+		for (const [k, win] of windows) {
+			if (nowMs - win.start >= win.windowMs) windows.delete(k);
+		}
+	};
 
 	return {
 		consume: (key, config): Result<RateLimitDecision, RateLimitError> => {
@@ -25,10 +36,12 @@ export const createRateLimitSeam = (now: () => number = Date.now): RateLimitSeam
 				validatedKey = validateRateLimitKey(key);
 				validatedConfig = validateRateLimitConfig(config);
 			} catch (err) {
-				return { ok: false, error: validationError(err) };
+				return { ok: false, error: configInvalidError(err) };
 			}
 
 			const nowMs = now();
+			pruneExpired(nowMs);
+
 			const existing = windows.get(validatedKey);
 			const windowStart =
 				existing && nowMs - existing.start < validatedConfig.windowMs ? existing.start : nowMs;
@@ -36,7 +49,7 @@ export const createRateLimitSeam = (now: () => number = Date.now): RateLimitSeam
 			const resetAt = windowStart + validatedConfig.windowMs;
 
 			if (count >= validatedConfig.limit) {
-				windows.set(validatedKey, { start: windowStart, count });
+				windows.set(validatedKey, { start: windowStart, count, windowMs: validatedConfig.windowMs });
 				return {
 					ok: false,
 					error: {
@@ -48,7 +61,7 @@ export const createRateLimitSeam = (now: () => number = Date.now): RateLimitSeam
 			}
 
 			const nextCount = count + 1;
-			windows.set(validatedKey, { start: windowStart, count: nextCount });
+			windows.set(validatedKey, { start: windowStart, count: nextCount, windowMs: validatedConfig.windowMs });
 			return {
 				ok: true,
 				value: {

@@ -17,7 +17,7 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const guard = guardRateLimit(
 		'meechie-studio-text',
-		getClientAddress(),
+		getClientAddress,
 		RATE_LIMIT_CONFIGS.meechieStudioText
 	);
 	if (!guard.ok) return guard.response;

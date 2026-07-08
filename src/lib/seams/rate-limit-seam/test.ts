@@ -18,6 +18,19 @@ describe('RateLimitSeam mock contract', () => {
 		expect(result.value.remaining).toBe(sampleConfig.limit - 1);
 	});
 
+	it('sample scenario returns RATE_LIMIT_EXCEEDED once the same key exhausts its quota', () => {
+		const seam = createMockRateLimitSeam('sample');
+
+		for (let i = 0; i < sampleConfig.limit; i += 1) {
+			expect(seam.consume(sampleKey, sampleConfig).ok).toBe(true);
+		}
+		const overLimit = seam.consume(sampleKey, sampleConfig);
+
+		expect(overLimit.ok).toBe(false);
+		if (overLimit.ok) return;
+		expect(overLimit.error.code).toBe('RATE_LIMIT_EXCEEDED');
+	});
+
 	it('fault fixture returns RATE_LIMIT_EXCEEDED before adapter work', () => {
 		const seam = createMockRateLimitSeam('fault');
 		const result = seam.consume(sampleKey, sampleConfig);
@@ -104,12 +117,37 @@ describe('RateLimitSeam adapter (fixed-window counter)', () => {
 		expect(a2.ok).toBe(false);
 	});
 
-	it('rejects invalid config before touching internal state', () => {
+	it('rejects invalid config before touching internal state, distinct from quota exhaustion', () => {
 		const seam = createRateLimitSeam(() => 0);
 		const result = seam.consume('k', { limit: -1, windowMs: 1000 });
 
 		expect(result.ok).toBe(false);
 		if (result.ok) return;
-		expect(result.error.code).toBe('RATE_LIMIT_EXCEEDED');
+		expect(result.error.code).toBe('RATE_LIMIT_CONFIG_INVALID');
+	});
+
+	it('prunes fully expired windows past the size threshold without disturbing active windows', () => {
+		let clock = 0;
+		const seam = createRateLimitSeam(() => clock);
+		const shortConfig = { limit: 1, windowMs: 100 };
+		const longConfig = { limit: 1, windowMs: 100_000 };
+
+		// A still-active window that must survive the prune sweep below.
+		seam.consume('active', longConfig);
+
+		// Push the map past the internal prune threshold with short-lived windows.
+		for (let i = 0; i < 1001; i += 1) {
+			seam.consume(`stale-${i}`, shortConfig);
+		}
+
+		// stale-* windows (100ms) are now expired; 'active' (100_000ms) is not.
+		clock = 200;
+		seam.consume('trigger-prune', shortConfig);
+
+		const stillActive = seam.consume('active', longConfig);
+
+		expect(stillActive.ok).toBe(false);
+		if (stillActive.ok) return;
+		expect(stillActive.error.code).toBe('RATE_LIMIT_EXCEEDED');
 	});
 });

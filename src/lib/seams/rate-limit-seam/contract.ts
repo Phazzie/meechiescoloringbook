@@ -5,7 +5,9 @@
 import type { Result } from '../../../../contracts/shared.contract';
 
 // RATE_LIMIT_EXCEEDED: the key has consumed its full quota within the current window.
-export type RateLimitErrorCode = 'RATE_LIMIT_EXCEEDED';
+// RATE_LIMIT_CONFIG_INVALID: the key or config passed to consume() failed validation — a
+//   caller/misconfiguration bug, not client abuse; guardRateLimit maps this to a 500, not a 429.
+export type RateLimitErrorCode = 'RATE_LIMIT_EXCEEDED' | 'RATE_LIMIT_CONFIG_INVALID';
 
 export type RateLimitError = {
 	code: RateLimitErrorCode;
