@@ -12,6 +12,11 @@ type Window = { start: number; count: number; windowMs: number };
 // long-lived warm instance seeing many unique client addresses does not grow unbounded.
 const PRUNE_THRESHOLD = 1000;
 
+// Hard ceiling independent of expiry: a burst of many distinct route:clientAddress keys
+// that are all still active within the same window would make pruning a no-op, so cap total
+// entries and evict the oldest-inserted key (FIFO) before admitting a new one past this size.
+const MAX_ENTRIES = 5000;
+
 const configInvalidError = (err: unknown): RateLimitError => ({
 	code: 'RATE_LIMIT_CONFIG_INVALID',
 	message: err instanceof Error ? err.message : 'Rate limit input validation failed.',
@@ -26,6 +31,12 @@ export const createRateLimitSeam = (now: () => number = Date.now): RateLimitSeam
 		for (const [k, win] of windows) {
 			if (nowMs - win.start >= win.windowMs) windows.delete(k);
 		}
+	};
+
+	const evictOldestIfAtCapacity = () => {
+		if (windows.size < MAX_ENTRIES) return;
+		const oldestKey = windows.keys().next().value;
+		if (oldestKey !== undefined) windows.delete(oldestKey);
 	};
 
 	return {
@@ -43,6 +54,7 @@ export const createRateLimitSeam = (now: () => number = Date.now): RateLimitSeam
 			pruneExpired(nowMs);
 
 			const existing = windows.get(validatedKey);
+			if (!existing) evictOldestIfAtCapacity();
 			const windowStart =
 				existing && nowMs - existing.start < validatedConfig.windowMs ? existing.start : nowMs;
 			const count = windowStart === existing?.start ? existing.count : 0;

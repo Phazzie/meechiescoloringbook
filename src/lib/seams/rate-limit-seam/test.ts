@@ -31,6 +31,22 @@ describe('RateLimitSeam mock contract', () => {
 		expect(overLimit.error.code).toBe('RATE_LIMIT_EXCEEDED');
 	});
 
+	it('sample scenario resets the window and quota once windowMs elapses', () => {
+		let clock = 0;
+		const seam = createMockRateLimitSeam('sample', () => clock);
+		const config = { limit: 1, windowMs: 1000 };
+
+		seam.consume('k', config);
+		const stillDenied = seam.consume('k', config);
+		clock = 1000;
+		const afterReset = seam.consume('k', config);
+
+		expect(stillDenied.ok).toBe(false);
+		expect(afterReset.ok).toBe(true);
+		if (!afterReset.ok) return;
+		expect(afterReset.value.remaining).toBe(0);
+	});
+
 	it('fault fixture returns RATE_LIMIT_EXCEEDED before adapter work', () => {
 		const seam = createMockRateLimitSeam('fault');
 		const result = seam.consume(sampleKey, sampleConfig);
@@ -149,5 +165,25 @@ describe('RateLimitSeam adapter (fixed-window counter)', () => {
 		expect(stillActive.ok).toBe(false);
 		if (stillActive.ok) return;
 		expect(stillActive.error.code).toBe('RATE_LIMIT_EXCEEDED');
+	});
+
+	it('caps total entries via oldest-first eviction when many keys stay active within one window', () => {
+		const seam = createRateLimitSeam(() => 0);
+		// A window long enough that nothing here ever expires or gets pruned by age alone.
+		const config = { limit: 1, windowMs: 100_000 };
+
+		for (let i = 0; i < 5000; i += 1) {
+			seam.consume(`k${i}`, config);
+		}
+		// The oldest key (k0) is still within its unexpired window and still exhausted.
+		const beforeEviction = seam.consume('k0', config);
+		expect(beforeEviction.ok).toBe(false);
+
+		// One more distinct key at capacity forces eviction of the oldest entry (k0).
+		seam.consume('k5000', config);
+
+		// k0 was evicted, not merely aged out, so it gets a brand-new window/quota.
+		const afterEviction = seam.consume('k0', config);
+		expect(afterEviction.ok).toBe(true);
 	});
 });

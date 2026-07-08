@@ -11,10 +11,10 @@ import { guardRateLimit, RATE_LIMIT_CONFIGS } from '$lib/server/rate-limit-guard
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, fetch, getClientAddress }) => {
-	const guard = guardRateLimit('wig-try-on', getClientAddress, RATE_LIMIT_CONFIGS.wigTryOn);
-	if (!guard.ok) return guard.response;
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
+	const guard = guardRateLimit('wig-try-on', getClientAddress, RATE_LIMIT_CONFIGS.wigTryOn);
+	if (!guard.ok) return guard.response;
 
 	const configSeam = createAppConfigSeam();
 	const wigCatalogSeam = createWigCatalogSeam();

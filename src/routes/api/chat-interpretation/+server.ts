@@ -13,14 +13,14 @@ import { guardRateLimit, RATE_LIMIT_CONFIGS } from '$lib/server/rate-limit-guard
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	const parsed = await parseRequestBody(request);
+	if (!parsed.ok) return parsed.response;
 	const guard = guardRateLimit(
 		'chat-interpretation',
 		getClientAddress,
 		RATE_LIMIT_CONFIGS.chatInterpretation
 	);
 	if (!guard.ok) return guard.response;
-	const parsed = await parseRequestBody(request);
-	if (!parsed.ok) return parsed.response;
 	const pipelineResult = await runChatInterpretationPipeline(parsed.body, chatInterpretationPipelineDeps);
 	return json(pipelineResult.body, { status: pipelineResult.status });
 };

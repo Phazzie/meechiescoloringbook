@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-07-08 - Address second round of PR #225 review feedback (Codex) on RateLimitSeam
+
+- Date: 2026-07-08
+- Decision: Fix two further Codex findings and partially address a third: (1) the mock never reset a key's window after `windowMs` elapsed — it tracked only a lifetime count, so a key that hit its limit stayed denied forever, unlike the real adapter; rewrote the mock to track `{start, count}` per key with an injectable clock, mirroring the adapter's fixed-window algorithm. (2) The prior prune sweep only removed windows that had fully expired, so a burst of many distinct `route:clientAddress` keys that are all still active within one window would make pruning a no-op and let the map grow with attacker-controlled cardinality; added a hard `MAX_ENTRIES` (5000) ceiling with oldest-first (FIFO) eviction on insert of a new key. (3) Codex also noted the guard consumes quota before the route's cheap validation gates, so malformed bodies burn the same budget as valid generation attempts; fixed the narrow, mechanical part of this (moved `guardRateLimit` after `parseRequestBody` in all six routes, so malformed-JSON requests no longer consume quota) but deliberately did **not** restructure the core pipelines to also exempt schema-invalid bodies, since that would mean splitting "validate" from "generate" across six different pipeline files under this repo's full Seam-Driven Development workflow — an architecturally significant change I'm not comfortable making unilaterally without confirmation. Flagging this as an open, accepted-for-now design tradeoff: a client that repeatedly submits schema-invalid bodies to a guarded route will exhaust its quota faster than one submitting only valid requests. This is arguably reasonable (same client, same route, still consuming server attention) but is a real precision gap if a future maintainer wants it tightened.
+- Context: Codex reviewed the round-one fix commit and found these on the resulting code.
+- Alternatives: For (3), share a single `validate`/`generate` split across all pipelines now; rejected as too large a unilateral change to make without the repo owner's sign-off, per this session's own escalation rule for architecturally-significant, ambiguous fixes.
+- Consequences: Mock behavior now matches the adapter's window-reset semantics; the limiter has a hard memory ceiling regardless of key cardinality within a single window; malformed-JSON requests are free again. The schema-invalid-body quota-consumption tradeoff remains, by choice, for a future pass.
+- Revisit criteria: Revisit item (3) if real traffic shows clients being locked out by their own retried-but-invalid requests, or if the repo owner asks for the full validate/generate split.
+- Plan:
+  - Goal: Resolve the remaining tractable Codex findings without an unrequested architecture change.
+  - Seams: RateLimitSeam.
+  - Files: `src/lib/seams/rate-limit-seam/{mock,test}.ts`, `src/lib/adapters/rate-limit-seam/index.ts`, `src/routes/api/{generate,image-generation,chat-interpretation,meechie-studio-text,wig-try-on,tools}/+server.ts`, `DECISIONS.md`.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run verify`.
+- Self-critique: The FIFO eviction is not a true LRU (re-consuming an existing key doesn't move it to the back), so a key that stays genuinely hot could theoretically be evicted before a cold one if the cold one was inserted later — acceptable for a defense-in-depth cap, not presented as a precise LRU guarantee.
+
+- Cipher Gate:
+  - Date: 2026-07-08
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-07-08/test.txt; docs/evidence/2026-07-08/verify.txt
+  - Summary: Fixed mock window-reset fidelity, added a hard MAX_ENTRIES cap with FIFO eviction, and reordered guardRateLimit to run after JSON parsing across all six guarded routes; `npm run check`, `npm run lint`, `npm test` (538 passed, 1 skipped), and `npm run verify` are green.
+  - Risks: Schema-invalid (but JSON-valid) request bodies still consume quota, by deliberate choice — see Decision above.
+
 ## 2026-07-08 - Address PR #225 review feedback on RateLimitSeam
 
 - Date: 2026-07-08
