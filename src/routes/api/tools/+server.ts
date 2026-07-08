@@ -12,7 +12,7 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
-	const guard = guardRateLimit('tools', getClientAddress, RATE_LIMIT_CONFIGS.tools);
+	const guard = await guardRateLimit('tools', getClientAddress, RATE_LIMIT_CONFIGS.tools);
 	if (!guard.ok) return guard.response;
 	const pipelineResult = await runToolsPipeline(parsed.body, toolsPipelineDeps);
 	return json(pipelineResult.body, { status: pipelineResult.status });

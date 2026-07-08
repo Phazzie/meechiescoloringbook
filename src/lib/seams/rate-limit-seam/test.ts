@@ -9,37 +9,37 @@ import { createMockRateLimitSeam } from './mock';
 import { validateRateLimitConfig, validateRateLimitKey } from './validators';
 
 describe('RateLimitSeam mock contract', () => {
-	it('allows requests under the limit in sample scenario', () => {
+	it('allows requests under the limit in sample scenario', async () => {
 		const seam = createMockRateLimitSeam('sample');
-		const result = seam.consume(sampleKey, sampleConfig);
+		const result = await seam.consume(sampleKey, sampleConfig);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 		expect(result.value.remaining).toBe(sampleConfig.limit - 1);
 	});
 
-	it('sample scenario returns RATE_LIMIT_EXCEEDED once the same key exhausts its quota', () => {
+	it('sample scenario returns RATE_LIMIT_EXCEEDED once the same key exhausts its quota', async () => {
 		const seam = createMockRateLimitSeam('sample');
 
 		for (let i = 0; i < sampleConfig.limit; i += 1) {
-			expect(seam.consume(sampleKey, sampleConfig).ok).toBe(true);
+			expect((await seam.consume(sampleKey, sampleConfig)).ok).toBe(true);
 		}
-		const overLimit = seam.consume(sampleKey, sampleConfig);
+		const overLimit = await seam.consume(sampleKey, sampleConfig);
 
 		expect(overLimit.ok).toBe(false);
 		if (overLimit.ok) return;
 		expect(overLimit.error.code).toBe('RATE_LIMIT_EXCEEDED');
 	});
 
-	it('sample scenario resets the window and quota once windowMs elapses', () => {
+	it('sample scenario resets the window and quota once windowMs elapses', async () => {
 		let clock = 0;
 		const seam = createMockRateLimitSeam('sample', () => clock);
 		const config = { limit: 1, windowMs: 1000 };
 
-		seam.consume('k', config);
-		const stillDenied = seam.consume('k', config);
+		await seam.consume('k', config);
+		const stillDenied = await seam.consume('k', config);
 		clock = 1000;
-		const afterReset = seam.consume('k', config);
+		const afterReset = await seam.consume('k', config);
 
 		expect(stillDenied.ok).toBe(false);
 		expect(afterReset.ok).toBe(true);
@@ -47,18 +47,18 @@ describe('RateLimitSeam mock contract', () => {
 		expect(afterReset.value.remaining).toBe(0);
 	});
 
-	it('fault fixture returns RATE_LIMIT_EXCEEDED before adapter work', () => {
+	it('fault fixture returns RATE_LIMIT_EXCEEDED before adapter work', async () => {
 		const seam = createMockRateLimitSeam('fault');
-		const result = seam.consume(sampleKey, sampleConfig);
+		const result = await seam.consume(sampleKey, sampleConfig);
 
 		expect(result.ok).toBe(false);
 		if (result.ok) return;
 		expect(result.error.code).toBe(rateLimitExceededFixture.code);
 	});
 
-	it('rejects an empty key before consuming quota', () => {
+	it('rejects an empty key before consuming quota', async () => {
 		const seam = createMockRateLimitSeam('sample');
-		const result = seam.consume('', sampleConfig);
+		const result = await seam.consume('', sampleConfig);
 
 		expect(result.ok).toBe(false);
 	});
@@ -73,14 +73,14 @@ describe('RateLimitSeam mock contract', () => {
 });
 
 describe('RateLimitSeam adapter (fixed-window counter)', () => {
-	it('allows up to the configured limit within a window', () => {
+	it('allows up to the configured limit within a window', async () => {
 		let clock = 0;
 		const seam = createRateLimitSeam(() => clock);
 		const config = { limit: 3, windowMs: 1000 };
 
-		const first = seam.consume('k', config);
-		const second = seam.consume('k', config);
-		const third = seam.consume('k', config);
+		const first = await seam.consume('k', config);
+		const second = await seam.consume('k', config);
+		const third = await seam.consume('k', config);
 
 		expect(first.ok).toBe(true);
 		expect(second.ok).toBe(true);
@@ -89,15 +89,15 @@ describe('RateLimitSeam adapter (fixed-window counter)', () => {
 		expect(third.value.remaining).toBe(0);
 	});
 
-	it('denies the request that exceeds the limit and reports retryAfterMs', () => {
+	it('denies the request that exceeds the limit and reports retryAfterMs', async () => {
 		let clock = 0;
 		const seam = createRateLimitSeam(() => clock);
 		const config = { limit: 2, windowMs: 1000 };
 
-		seam.consume('k', config);
-		seam.consume('k', config);
+		await seam.consume('k', config);
+		await seam.consume('k', config);
 		clock = 400;
-		const denied = seam.consume('k', config);
+		const denied = await seam.consume('k', config);
 
 		expect(denied.ok).toBe(false);
 		if (denied.ok) return;
@@ -105,85 +105,85 @@ describe('RateLimitSeam adapter (fixed-window counter)', () => {
 		expect(denied.error.retryAfterMs).toBe(600);
 	});
 
-	it('resets the window once windowMs elapses', () => {
+	it('resets the window once windowMs elapses', async () => {
 		let clock = 0;
 		const seam = createRateLimitSeam(() => clock);
 		const config = { limit: 1, windowMs: 1000 };
 
-		seam.consume('k', config);
+		await seam.consume('k', config);
 		clock = 1000;
-		const afterReset = seam.consume('k', config);
+		const afterReset = await seam.consume('k', config);
 
 		expect(afterReset.ok).toBe(true);
 		if (!afterReset.ok) return;
 		expect(afterReset.value.remaining).toBe(0);
 	});
 
-	it('tracks separate keys independently', () => {
+	it('tracks separate keys independently', async () => {
 		let clock = 0;
 		const seam = createRateLimitSeam(() => clock);
 		const config = { limit: 1, windowMs: 1000 };
 
-		const a1 = seam.consume('a', config);
-		const b1 = seam.consume('b', config);
-		const a2 = seam.consume('a', config);
+		const a1 = await seam.consume('a', config);
+		const b1 = await seam.consume('b', config);
+		const a2 = await seam.consume('a', config);
 
 		expect(a1.ok).toBe(true);
 		expect(b1.ok).toBe(true);
 		expect(a2.ok).toBe(false);
 	});
 
-	it('rejects invalid config before touching internal state, distinct from quota exhaustion', () => {
+	it('rejects invalid config before touching internal state, distinct from quota exhaustion', async () => {
 		const seam = createRateLimitSeam(() => 0);
-		const result = seam.consume('k', { limit: -1, windowMs: 1000 });
+		const result = await seam.consume('k', { limit: -1, windowMs: 1000 });
 
 		expect(result.ok).toBe(false);
 		if (result.ok) return;
 		expect(result.error.code).toBe('RATE_LIMIT_CONFIG_INVALID');
 	});
 
-	it('prunes fully expired windows past the size threshold without disturbing active windows', () => {
+	it('prunes fully expired windows past the size threshold without disturbing active windows', async () => {
 		let clock = 0;
 		const seam = createRateLimitSeam(() => clock);
 		const shortConfig = { limit: 1, windowMs: 100 };
 		const longConfig = { limit: 1, windowMs: 100_000 };
 
 		// A still-active window that must survive the prune sweep below.
-		seam.consume('active', longConfig);
+		await seam.consume('active', longConfig);
 
 		// Push the map past the internal prune threshold with short-lived windows.
 		for (let i = 0; i < 1001; i += 1) {
-			seam.consume(`stale-${i}`, shortConfig);
+			await seam.consume(`stale-${i}`, shortConfig);
 		}
 
 		// stale-* windows (100ms) are now expired; 'active' (100_000ms) is not.
 		clock = 200;
-		seam.consume('trigger-prune', shortConfig);
+		await seam.consume('trigger-prune', shortConfig);
 
-		const stillActive = seam.consume('active', longConfig);
+		const stillActive = await seam.consume('active', longConfig);
 
 		expect(stillActive.ok).toBe(false);
 		if (stillActive.ok) return;
 		expect(stillActive.error.code).toBe('RATE_LIMIT_EXCEEDED');
 	});
 
-	it('caps total entries via oldest-first eviction when many keys stay active within one window', () => {
+	it('caps total entries via oldest-first eviction when many keys stay active within one window', async () => {
 		const seam = createRateLimitSeam(() => 0);
 		// A window long enough that nothing here ever expires or gets pruned by age alone.
 		const config = { limit: 1, windowMs: 100_000 };
 
 		for (let i = 0; i < 5000; i += 1) {
-			seam.consume(`k${i}`, config);
+			await seam.consume(`k${i}`, config);
 		}
 		// The oldest key (k0) is still within its unexpired window and still exhausted.
-		const beforeEviction = seam.consume('k0', config);
+		const beforeEviction = await seam.consume('k0', config);
 		expect(beforeEviction.ok).toBe(false);
 
 		// One more distinct key at capacity forces eviction of the oldest entry (k0).
-		seam.consume('k5000', config);
+		await seam.consume('k5000', config);
 
 		// k0 was evicted, not merely aged out, so it gets a brand-new window/quota.
-		const afterEviction = seam.consume('k0', config);
+		const afterEviction = await seam.consume('k0', config);
 		expect(afterEviction.ok).toBe(true);
 	});
 });

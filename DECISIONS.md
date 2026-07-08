@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-07-08 - Address third round of PR #225 review feedback (Codex) on RateLimitSeam
+
+- Date: 2026-07-08
+- Decision: Fix two more Codex findings, skip one that contradicts documented repo convention: (1) `guardRateLimit`'s fallback for a throwing `getClientAddress()` used a single shared `'unknown-client'` bucket, which meant an address-resolution failure would let the first few requests exhaust the bucket and then return 429 to every other client on that route — turning a platform quirk into a route-wide denial of service. Changed the fallback to fail open (skip rate limiting for that request) instead, since without a real client key there is nothing safe to bound, and manufacturing a new outage is worse than the crash the guard was already fixed to prevent. (2) `RateLimitSeam.consume` was synchronous, but this seam's own documented plan (see the 2026-07-08 Assumption entry below) is to eventually swap the in-memory adapter for a network-backed store (Vercel KV / Upstash Redis), which cannot satisfy a sync signature; made `consume` return `Promise<Result<...>>` now so that swap won't require another breaking contract change across all six guarded routes. (3) Codex separately suggested adding Zod runtime schemas to `rate-limit-seam/contract.ts`; skipped — this repo's self-contained seam layout keeps `contract.ts` as plain TypeScript types only and puts validation in `validators.ts` (matches `CacheSeam`, `SafetyPolicySeam`, and a prior CodeRabbit-recorded learning on this exact point), so the suggestion conflicts with established, documented precedent rather than identifying a real gap.
+- Context: Codex reviewed the round-2 fix commit and found these on the resulting code.
+- Alternatives: For (1), derive a per-request-unique (but still non-shared) fallback key instead of failing open; rejected as equivalent in effect (still no real bounding for that request) but more code for no behavioral benefit. For (3), add the schemas anyway for extra safety; rejected because it would introduce an inconsistency with every other self-contained seam in the repo and duplicate validation already covered by `validators.ts` and the contract tests.
+- Consequences: A client-address resolution failure can no longer cascade into blocking unrelated clients. The seam is ready for a future distributed adapter without another breaking-change migration across routes. `contract.ts` stays consistent with the rest of the codebase.
+- Revisit criteria: Same as the prior entries — revisit when a distributed store becomes available.
+- Plan:
+  - Goal: Resolve the remaining tractable Codex findings from the round-2 fix commit.
+  - Seams: RateLimitSeam.
+  - Files: `src/lib/seams/rate-limit-seam/{contract,mock,test}.ts`, `src/lib/adapters/rate-limit-seam/index.ts`, `src/lib/server/rate-limit-guard.ts`, `src/routes/api/{generate,image-generation,chat-interpretation,meechie-studio-text,wig-try-on,tools}/+server.ts`, `tests/unit/rate-limit-guard.test.ts`, `DECISIONS.md`.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run verify`.
+- Self-critique: Failing open on address-resolution failure means a deployment where `getClientAddress()` always throws would have zero rate limiting — but that's already the honest state of affairs (there is no way to bound requests without a client key), and it's strictly better than the shared-bucket alternative, which actively broke unrelated clients.
+
+- Cipher Gate:
+  - Date: 2026-07-08
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-07-08/test.txt; docs/evidence/2026-07-08/verify.txt
+  - Summary: Made `RateLimitSeam.consume` async (future-proofing for a distributed adapter) and changed the `getClientAddress`-throws fallback from a shared bucket to fail-open; `npm run check`, `npm run lint`, `npm test` (538 passed, 1 skipped), and `npm run verify` are green.
+  - Risks: None beyond the already-documented per-instance in-memory limitation.
+
 ## 2026-07-08 - Address second round of PR #225 review feedback (Codex) on RateLimitSeam
 
 - Date: 2026-07-08

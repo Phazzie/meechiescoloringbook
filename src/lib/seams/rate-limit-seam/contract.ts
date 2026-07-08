@@ -29,6 +29,10 @@ export type RateLimitConfig = {
 };
 
 export type RateLimitSeam = {
-	/** Consume one unit of quota for `key` under `config`, evaluated at the current instant. */
-	consume: (key: string, config: RateLimitConfig) => Result<RateLimitDecision, RateLimitError>;
+	/**
+	 * Consume one unit of quota for `key` under `config`, evaluated at the current instant.
+	 * Async so a future distributed adapter (Vercel KV / Upstash Redis, see DECISIONS.md) can
+	 * satisfy this contract without another breaking signature change across every guarded route.
+	 */
+	consume: (key: string, config: RateLimitConfig) => Promise<Result<RateLimitDecision, RateLimitError>>;
 };

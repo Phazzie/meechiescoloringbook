@@ -21,21 +21,25 @@ export const RATE_LIMIT_CONFIGS = {
 	tools: { limit: 20, windowMs: 60_000 }
 } as const satisfies Record<string, RateLimitConfig>;
 
-export const guardRateLimit = (
+export const guardRateLimit = async (
 	routeName: string,
 	clientAddress: string | (() => string),
 	config: RateLimitConfig
-): RateLimitGuardResult => {
+): Promise<RateLimitGuardResult> => {
 	// getClientAddress() can throw when the deployment platform doesn't supply the expected
-	// headers (e.g. certain proxy setups or local testing); never let that crash the request.
+	// headers (e.g. certain proxy setups or local testing). A shared fallback bucket would turn
+	// that failure into a route-wide denial of service (the first few requests would exhaust
+	// the bucket and every other client would get 429s for the rest of the window), so instead
+	// fail open: without a real client key there is nothing safe to bound, and the guard's job
+	// is to add protection, not manufacture a new outage when address resolution is unavailable.
 	let resolvedAddress: string;
 	try {
 		resolvedAddress = typeof clientAddress === 'function' ? clientAddress() : clientAddress;
 	} catch {
-		resolvedAddress = 'unknown-client';
+		return { ok: true };
 	}
 
-	const decision = rateLimitSeam.consume(`${routeName}:${resolvedAddress}`, config);
+	const decision = await rateLimitSeam.consume(`${routeName}:${resolvedAddress}`, config);
 	if (decision.ok) return { ok: true };
 
 	// RATE_LIMIT_CONFIG_INVALID means the caller passed bad input (a bug), not client abuse —

@@ -15,7 +15,7 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
-	const guard = guardRateLimit(
+	const guard = await guardRateLimit(
 		'chat-interpretation',
 		getClientAddress,
 		RATE_LIMIT_CONFIGS.chatInterpretation

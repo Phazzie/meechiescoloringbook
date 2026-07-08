@@ -40,7 +40,7 @@ export const createRateLimitSeam = (now: () => number = Date.now): RateLimitSeam
 	};
 
 	return {
-		consume: (key, config): Result<RateLimitDecision, RateLimitError> => {
+		consume: async (key, config): Promise<Result<RateLimitDecision, RateLimitError>> => {
 			let validatedKey: string;
 			let validatedConfig: RateLimitConfig;
 			try {

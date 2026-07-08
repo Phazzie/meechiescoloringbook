@@ -25,7 +25,10 @@ export const createMockRateLimitSeam = (
 	const windows = new Map<string, Window>();
 
 	return {
-		consume: (key, config): Result<{ remaining: number; limit: number; resetAt: number }, RateLimitError> => {
+		consume: async (
+			key,
+			config
+		): Promise<Result<{ remaining: number; limit: number; resetAt: number }, RateLimitError>> => {
 			try {
 				validateRateLimitKey(key);
 				validateRateLimitConfig(config);
