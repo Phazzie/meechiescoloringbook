@@ -13,8 +13,10 @@ type Window = { start: number; count: number; windowMs: number };
 const PRUNE_THRESHOLD = 1000;
 
 // Hard ceiling independent of expiry: a burst of many distinct route:clientAddress keys
-// that are all still active within the same window would make pruning a no-op, so cap total
-// entries and evict the oldest-inserted key (FIFO) before admitting a new one past this size.
+// that are all still active within the same window would make pruning a no-op. At capacity,
+// new keys are refused (fail-closed) rather than evicted-in-place, because evicting an
+// existing key would wipe its still-active quota state -- letting an attacker who floods
+// enough distinct keys reset an unrelated client's exhausted count mid-window.
 const MAX_ENTRIES = 5000;
 
 const configInvalidError = (err: unknown): RateLimitError => ({
@@ -33,12 +35,6 @@ export const createRateLimitSeam = (now: () => number = Date.now): RateLimitSeam
 		}
 	};
 
-	const evictOldestIfAtCapacity = () => {
-		if (windows.size < MAX_ENTRIES) return;
-		const oldestKey = windows.keys().next().value;
-		if (oldestKey !== undefined) windows.delete(oldestKey);
-	};
-
 	return {
 		consume: async (key, config): Promise<Result<RateLimitDecision, RateLimitError>> => {
 			let validatedKey: string;
@@ -54,7 +50,18 @@ export const createRateLimitSeam = (now: () => number = Date.now): RateLimitSeam
 			pruneExpired(nowMs);
 
 			const existing = windows.get(validatedKey);
-			if (!existing) evictOldestIfAtCapacity();
+			if (!existing && windows.size >= MAX_ENTRIES) {
+				// At hard capacity with no expired entries reclaimed by the prune sweep above:
+				// refuse this new key instead of evicting an unrelated client's active state.
+				return {
+					ok: false,
+					error: {
+						code: 'RATE_LIMIT_EXCEEDED',
+						message: 'Too many requests. Please slow down and try again shortly.',
+						retryAfterMs: validatedConfig.windowMs
+					}
+				};
+			}
 			const windowStart =
 				existing && nowMs - existing.start < validatedConfig.windowMs ? existing.start : nowMs;
 			const count = windowStart === existing?.start ? existing.count : 0;

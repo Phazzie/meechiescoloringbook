@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-07-08 - Address fourth round of PR #225 review feedback (Codex) on RateLimitSeam
+
+- Date: 2026-07-08
+- Decision: Codex found that the round-3 `MAX_ENTRIES` fix (oldest-first eviction) had its own bug: evicting the oldest key when at the 5000-entry hard capacity could delete an *unexpired, still-exhausted* key's tracked state. Since eviction fully removes the entry, that client's next request would be treated as brand new and get a fresh quota mid-window — meaning an attacker who floods enough distinct `route:clientAddress` keys to hit capacity could reset an unrelated (or even their own) exhausted quota early. Replaced eviction with fail-closed admission control: at hard capacity, a brand-new key is refused (returns `RATE_LIMIT_EXCEEDED`) rather than evicting an existing key's state. Existing tracked keys are unaffected either way.
+- Context: Codex reviewed the round-3 fix commit and found this on the resulting code — a real correctness bug in code from the immediately prior round.
+- Alternatives: Keep FIFO eviction with a "never evict an unexpired window" guard (search for an expired entry to evict instead, and only evict an unexpired one as a last resort); rejected as needless complexity — if every entry is unexpired at capacity, refusing the new key is simplest and never sacrifices another client's correctness.
+- Consequences: A cardinality flood can no longer reset a targeted client's quota early. The cost is that brand-new clients are refused (rather than admitted) while the map is genuinely at capacity with no expired entries to reclaim — a strictly safer failure mode (throttling new traffic) than the alternative (silently resetting existing quotas).
+- Revisit criteria: Same as prior entries — revisit if a distributed store replaces the in-memory map, since capacity/eviction concerns disappear entirely with a TTL-backed external store.
+- Plan:
+  - Goal: Fix the correctness bug in the round-3 capacity-eviction logic without reintroducing the unbounded-growth problem it was meant to solve.
+  - Seams: RateLimitSeam.
+  - Files: `src/lib/adapters/rate-limit-seam/index.ts`, `src/lib/seams/rate-limit-seam/test.ts`, `DECISIONS.md`.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run verify`.
+- Self-critique: This is now the second bug found in the same capacity-handling code across two review rounds; the underlying lesson is that eviction of live state is a sharp edge and "just deny" is usually the safer default for a rate limiter operating at its own capacity limit.
+
+- Cipher Gate:
+  - Date: 2026-07-08
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-07-08/test.txt; docs/evidence/2026-07-08/verify.txt
+  - Summary: Replaced oldest-first eviction with fail-closed admission (deny new keys at hard capacity) so a cardinality flood can no longer reset an existing client's exhausted quota; `npm run check`, `npm run lint`, `npm test` (538 passed, 1 skipped), and `npm run verify` are green.
+  - Risks: None beyond the already-documented per-instance in-memory limitation.
+
 ## 2026-07-08 - Address third round of PR #225 review feedback (Codex) on RateLimitSeam
 
 - Date: 2026-07-08
