@@ -163,3 +163,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-07-09
+- Date: 2026-07-09
+- Context: Adding RateLimitSeam in front of the five provider-billed API routes.
+- Lesson: Route unit tests build a fake `RequestEvent` object by hand; adding any new field read from the real SvelteKit event (here, `getClientAddress`) silently breaks every test that constructs that fake object unless each builder is updated, since the route call throws a `TypeError` rather than failing a schema check.
+- Action: Grep for every test file that imports a route's `POST` handler before adding a new destructured `RequestEvent` field, and add the new mock field to each event builder in the same change.

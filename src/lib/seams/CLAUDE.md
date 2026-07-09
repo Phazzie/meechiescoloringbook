@@ -32,3 +32,4 @@ Some seams are pure or dependency-injected and have no separate adapter. When an
 | `telemetry-seam/` | Telemetry event contract (pure) |
 | `image-generation-seam/` | xAI image provider calls |
 | `image-provider-config-seam/` | Narrow config: only xAI image-provider env keys (decouples image generation from text-model and Gemini vars) |
+| `rate-limit-seam/` | Per-client fixed-window request budget gate for provider-billed API routes (pure algorithm, in-memory adapter) |

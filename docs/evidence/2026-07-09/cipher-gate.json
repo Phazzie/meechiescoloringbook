@@ -1,0 +1,50 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-07-09T12:17:35.312Z",
+  "cipher": {
+    "date": "2026-07-09",
+    "seams": "RateLimitSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-07-09/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-09/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-09/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-09/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-09/assumption-alarm.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-09/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-09/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-09/proof-tape.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-07-09/rewind-RateLimitSeam.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Added RateLimitSeam (contract/validators/fixtures/mock/probe/test + real in-memory adapter) and wired a shared `enforceRateLimit` guard into all five provider-billed API routes with per-route request budgets.",
+    "risks": "The in-memory store is per-warm-instance only; under multi-instance/multi-region serverless scaling, an attacker distributed across cold starts or regions can exceed the intended aggregate budget. This is documented as an accepted best-effort mitigation, not a durable rate limit."
+  },
+  "latestChangeMs": 1783599169341.2004,
+  "status": "ok"
+}

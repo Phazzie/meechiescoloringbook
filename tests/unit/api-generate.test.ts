@@ -40,7 +40,8 @@ const buildEvent = (
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
 		}),
-		fetch: fetchImpl
+		fetch: fetchImpl,
+		getClientAddress: () => '127.0.0.1'
 	}) as Parameters<typeof POST>[0];
 
 const buildRawEvent = (
@@ -53,7 +54,8 @@ const buildRawEvent = (
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
 		}),
-		fetch: fetchImpl
+		fetch: fetchImpl,
+		getClientAddress: () => '127.0.0.1'
 	}) as Parameters<typeof POST>[0];
 
 const assembledPrompt = [

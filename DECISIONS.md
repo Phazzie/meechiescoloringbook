@@ -7,6 +7,29 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-07-09 - Add RateLimitSeam in front of provider-billed API routes
+
+- Date: 2026-07-09
+- Decision: Add a new self-contained `RateLimitSeam` (fixed-window counter, pure algorithm over an injected store + clock) and wire it into `/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/meechie-studio-text`, and `/api/wig-try-on` via a shared `enforceRateLimit` guard keyed by `${routeName}:${clientAddress}`. Excess requests receive `429 RATE_LIMIT_EXCEEDED` with a `Retry-After` header. `/api/tools` is intentionally excluded because `MeechieToolSeam` is deterministic/template-based with no billed provider call.
+- Context: A repo-wide audit found none of the five provider-backed routes had any authentication or request budget. All five are public, unauthenticated, and call metered xAI/Gemini APIs directly from server code with real API keys. Any caller — a script, a bot, a competitor — could hit these endpoints without limit and drive unbounded provider billing or exhaust the endpoint. No `hooks.server.ts` and no prior rate limiting existed anywhere in the app.
+- Alternatives: (1) Add API-key-gated auth instead — rejected for this slice because the product is intentionally anonymous/no-login and adding auth is a much larger UX and seam surface change than a request budget. (2) Use an external durable store (Vercel KV / Upstash Redis) for a global, multi-instance-accurate limit — rejected for this slice because it adds a new paid external dependency and env var surface with no available credentials to probe against in this environment; the in-memory approach ships real protection today and can be swapped later by only replacing the adapter's store. (3) Rate-limit at the edge/middleware layer — rejected because SvelteKit + `adapter-vercel` in this repo has no edge middleware wired up, and route-level enforcement keeps the fix inside the existing Seam-Driven Development workflow instead of introducing a new deployment-config concern.
+- Consequences: Each provider-billed route now rejects excess requests per client IP before any provider call is made (image/portrait routes: 8 requests/minute; text-only routes: 20 requests/minute). The limiter is a module-level in-memory `Map`, so it resets on cold start and is not shared across concurrently warm serverless instances or regions — it is a best-effort, per-instance mitigation, not a durable global limit. All five affected route unit test files needed a `getClientAddress` mock added to their fake `RequestEvent` builders.
+- Revisit criteria: Revisit if the product adds authentication (switch the rate-limit key to a user/session id), if traffic volume shows the in-memory per-instance limit is insufficient (move the adapter to a durable external store such as Vercel KV/Upstash without changing the contract), or if `/api/tools` gains a real provider call.
+
+- Cipher Gate:
+  - Date: 2026-07-09
+  - Seams: RateLimitSeam
+  - Evidence: docs/evidence/2026-07-09/test.txt; docs/evidence/2026-07-09/verify.txt; docs/evidence/2026-07-09/chamber-lock.json; docs/evidence/2026-07-09/shaolin-lint.json; docs/evidence/2026-07-09/assumption-alarm.json; docs/evidence/2026-07-09/seam-ledger.json; docs/evidence/2026-07-09/clan-chain.json; docs/evidence/2026-07-09/proof-tape.json; docs/evidence/2026-07-09/rewind-RateLimitSeam.txt
+  - Summary: Added RateLimitSeam (contract/validators/fixtures/mock/probe/test + real in-memory adapter) and wired a shared `enforceRateLimit` guard into all five provider-billed API routes with per-route request budgets.
+  - Risks: The in-memory store is per-warm-instance only; under multi-instance/multi-region serverless scaling, an attacker distributed across cold starts or regions can exceed the intended aggregate budget. This is documented as an accepted best-effort mitigation, not a durable rate limit.
+
+- Assumption:
+  - Date: 2026-07-09
+  - Seams: RateLimitSeam
+  - Statement: A per-instance, in-memory fixed-window limiter is an acceptable interim mitigation for unauthenticated provider-billed routes on Vercel Node.js serverless functions, given no external rate-limit store (e.g., Vercel KV/Upstash Redis) is currently provisioned or credentialed in this environment.
+  - Validation: Verified by code inspection of `svelte.config.js` (no KV/Redis binding configured) and absence of any `hooks.server.ts` or existing rate-limit dependency in `package.json`. Real-world effectiveness under multi-instance production traffic has not been probed (no production deployment access in this environment).
+  - Status: Accepted as an interim mitigation; revisit with a durable external store once one is provisioned.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07
