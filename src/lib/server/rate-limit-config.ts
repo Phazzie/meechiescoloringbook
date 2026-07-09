@@ -13,3 +13,6 @@ export const WIG_TRY_ON_RATE_LIMIT: RateLimitRouteConfig = { limit: 8, windowMs:
 // Text-only provider calls are cheaper per-call; allow a higher budget.
 export const CHAT_INTERPRETATION_RATE_LIMIT: RateLimitRouteConfig = { limit: 20, windowMs: ONE_MINUTE_MS };
 export const MEECHIE_STUDIO_TEXT_RATE_LIMIT: RateLimitRouteConfig = { limit: 20, windowMs: ONE_MINUTE_MS };
+// The self-contained MeechieToolSeam adapter (src/lib/adapters/meechie-tool-seam) also calls the
+// real xAI provider via createChatCompletion — it is billed the same as the other text routes.
+export const TOOLS_RATE_LIMIT: RateLimitRouteConfig = { limit: 20, windowMs: ONE_MINUTE_MS };

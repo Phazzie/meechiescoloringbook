@@ -5,13 +5,14 @@
 // Info flow: tests -> mock (fresh store + fixed clock) -> evaluateRateLimit -> decision.
 import { evaluateRateLimit, type RateLimitStore } from '../../core/rate-limit';
 import type { RateLimitSeam } from './contract';
-import { validateRateLimitCheckInput } from './validators';
+import { validateRateLimitCheckInput, validateRateLimitCheckValue } from './validators';
 
 export const createMockRateLimitSeam = (now = 0, store: RateLimitStore = new Map()): RateLimitSeam => ({
 	checkLimit: (input) => {
 		try {
 			const validated = validateRateLimitCheckInput(input);
-			return { ok: true, value: evaluateRateLimit(store, { ...validated, now }) };
+			const decision = evaluateRateLimit(store, { ...validated, now });
+			return { ok: true, value: validateRateLimitCheckValue(decision) };
 		} catch {
 			return {
 				ok: false,

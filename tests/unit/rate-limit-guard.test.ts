@@ -3,7 +3,7 @@
 // Info flow: fake RateLimitSeam -> enforceRateLimit -> Response or null.
 import { describe, expect, it } from 'vitest';
 import type { RateLimitSeam } from '../../src/lib/seams/rate-limit-seam/contract';
-import { enforceRateLimit } from '../../src/lib/server/rate-limit-guard';
+import { enforceRateLimit, resolveClientAddress } from '../../src/lib/server/rate-limit-guard';
 
 const config = { limit: 1, windowMs: 60_000 };
 
@@ -49,5 +49,19 @@ describe('enforceRateLimit', () => {
 		};
 		enforceRateLimit(seam, '9.9.9.9', 'wig-try-on', config);
 		expect(calls).toEqual(['wig-try-on:9.9.9.9']);
+	});
+});
+
+describe('resolveClientAddress', () => {
+	it('returns the resolved address when getClientAddress succeeds', () => {
+		expect(resolveClientAddress(() => '5.6.7.8')).toBe('5.6.7.8');
+	});
+
+	it('falls back to a shared bucket instead of throwing when getClientAddress throws', () => {
+		expect(
+			resolveClientAddress(() => {
+				throw new Error('client address unavailable');
+			})
+		).toBe('unknown');
 	});
 });

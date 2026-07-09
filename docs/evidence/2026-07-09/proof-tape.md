@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-07-09T12:18:44.960Z
+Generated at: 2026-07-09T12:31:11.644Z
 Evidence folder: docs/evidence/2026-07-09
 
 Files included:
@@ -14,12 +14,12 @@ Files included:
 - cipher-gate.json (1661 bytes)
 - clan-chain.json (2318 bytes)
 - clan-chain.md (1453 bytes)
-- proof-tape.json (2439 bytes)
-- proof-tape.md (879 bytes)
+- proof-tape.json (3030 bytes)
+- proof-tape.md (970 bytes)
 - rewind-RateLimitSeam.txt (537 bytes)
 - seam-ledger.json (27309 bytes)
 - seam-ledger.md (2228 bytes)
-- shaolin-lint.json (519 bytes)
+- shaolin-lint.json (518 bytes)
 - test.txt (1029 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (1288 bytes)

@@ -4,7 +4,10 @@
 // Info flow: route -> checkLimit -> validated input + real clock -> evaluateRateLimit -> decision.
 import { evaluateRateLimit, type RateLimitStore } from '../../core/rate-limit';
 import type { RateLimitSeam } from '../../seams/rate-limit-seam/contract';
-import { validateRateLimitCheckInput } from '../../seams/rate-limit-seam/validators';
+import {
+	validateRateLimitCheckInput,
+	validateRateLimitCheckValue
+} from '../../seams/rate-limit-seam/validators';
 
 // Module-level singleton: persists across requests within the same warm serverless instance.
 // This is a best-effort, per-instance mitigation, not a durable multi-instance rate limit — see
@@ -28,7 +31,8 @@ export const createRateLimitSeam = (
 				}
 			};
 		}
-		return { ok: true, value: evaluateRateLimit(store, { ...validated, now: clock() }) };
+		const decision = evaluateRateLimit(store, { ...validated, now: clock() });
+		return { ok: true, value: validateRateLimitCheckValue(decision) };
 	}
 });
 

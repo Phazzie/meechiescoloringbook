@@ -12,6 +12,16 @@ export type RateLimitRouteConfig = {
 	windowMs: number;
 };
 
+// SvelteKit's getClientAddress() can throw in some adapter/proxy configurations. Never let that
+// crash the request with a 500 — fall back to a shared bucket so the rate limit still applies.
+export const resolveClientAddress = (getClientAddress: () => string): string => {
+	try {
+		return getClientAddress();
+	} catch {
+		return 'unknown';
+	}
+};
+
 export const enforceRateLimit = (
 	seam: RateLimitSeam,
 	clientAddress: string,

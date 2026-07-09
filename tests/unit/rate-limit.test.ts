@@ -2,7 +2,11 @@
 // Why: Lock allow/deny/reset/remaining behavior independent of any seam wiring.
 // Info flow: store + input -> evaluateRateLimit -> decision assertions.
 import { describe, expect, it } from 'vitest';
-import { evaluateRateLimit, type RateLimitStore } from '../../src/lib/core/rate-limit';
+import {
+	MAX_RATE_LIMIT_STORE_ENTRIES,
+	evaluateRateLimit,
+	type RateLimitStore
+} from '../../src/lib/core/rate-limit';
 
 describe('evaluateRateLimit', () => {
 	it('allows the first request in a fresh window and decrements remaining', () => {
@@ -34,5 +38,45 @@ describe('evaluateRateLimit', () => {
 		evaluateRateLimit(store, { key: 'a', limit: 1, windowMs: 1000, now: 0 });
 		const other = evaluateRateLimit(store, { key: 'b', limit: 1, windowMs: 1000, now: 0 });
 		expect(other.allowed).toBe(true);
+	});
+
+	it('never grows the store past the cap, preferring to evict an already-expired entry', () => {
+		const store: RateLimitStore = new Map();
+		for (let i = 0; i < MAX_RATE_LIMIT_STORE_ENTRIES; i++) {
+			evaluateRateLimit(store, { key: `expired-${i}`, limit: 1, windowMs: 1000, now: 0 });
+		}
+		expect(store.size).toBe(MAX_RATE_LIMIT_STORE_ENTRIES);
+
+		// All prior entries are now outside their window; a new key should evict one of them
+		// rather than growing the store past the cap.
+		evaluateRateLimit(store, { key: 'new-key', limit: 1, windowMs: 1000, now: 5000 });
+		expect(store.size).toBe(MAX_RATE_LIMIT_STORE_ENTRIES);
+		expect(store.has('new-key')).toBe(true);
+	});
+
+	it('falls back to FIFO eviction of the oldest key when every entry is still active', () => {
+		const store: RateLimitStore = new Map();
+		for (let i = 0; i < MAX_RATE_LIMIT_STORE_ENTRIES; i++) {
+			evaluateRateLimit(store, { key: `active-${i}`, limit: 100, windowMs: 60_000, now: 0 });
+		}
+		expect(store.size).toBe(MAX_RATE_LIMIT_STORE_ENTRIES);
+		expect(store.has('active-0')).toBe(true);
+
+		// Still within every existing entry's window, so nothing is expired; the oldest
+		// (first-inserted) key must be evicted to make room instead of growing unbounded.
+		evaluateRateLimit(store, { key: 'active-new', limit: 100, windowMs: 60_000, now: 1 });
+		expect(store.size).toBe(MAX_RATE_LIMIT_STORE_ENTRIES);
+		expect(store.has('active-0')).toBe(false);
+		expect(store.has('active-new')).toBe(true);
+	});
+
+	it('does not evict anything when updating an existing key at capacity', () => {
+		const store: RateLimitStore = new Map();
+		for (let i = 0; i < MAX_RATE_LIMIT_STORE_ENTRIES; i++) {
+			evaluateRateLimit(store, { key: `active-${i}`, limit: 100, windowMs: 60_000, now: 0 });
+		}
+		evaluateRateLimit(store, { key: 'active-0', limit: 100, windowMs: 60_000, now: 1 });
+		expect(store.size).toBe(MAX_RATE_LIMIT_STORE_ENTRIES);
+		expect(store.has('active-0')).toBe(true);
 	});
 });

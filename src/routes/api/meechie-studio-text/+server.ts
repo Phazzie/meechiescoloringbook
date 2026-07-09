@@ -12,14 +12,14 @@ import {
 	type MeechieStudioTextPipelineDeps
 } from '$lib/core/meechie-studio-text-pipeline';
 import { MEECHIE_STUDIO_TEXT_RATE_LIMIT } from '$lib/server/rate-limit-config';
-import { enforceRateLimit } from '$lib/server/rate-limit-guard';
+import { enforceRateLimit, resolveClientAddress } from '$lib/server/rate-limit-guard';
 import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const limited = enforceRateLimit(
 		rateLimitSeam,
-		getClientAddress(),
+		resolveClientAddress(getClientAddress),
 		'meechie-studio-text',
 		MEECHIE_STUDIO_TEXT_RATE_LIMIT
 	);

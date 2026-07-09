@@ -9,14 +9,14 @@ import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam';
 import { rateLimitSeam } from '$lib/adapters/rate-limit-seam';
 import { IMAGE_GENERATION_RATE_LIMIT } from '$lib/server/rate-limit-config';
-import { enforceRateLimit } from '$lib/server/rate-limit-guard';
+import { enforceRateLimit, resolveClientAddress } from '$lib/server/rate-limit-guard';
 import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const limited = enforceRateLimit(
 		rateLimitSeam,
-		getClientAddress(),
+		resolveClientAddress(getClientAddress),
 		'image-generation',
 		IMAGE_GENERATION_RATE_LIMIT
 	);

@@ -11,7 +11,8 @@ const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
-		})
+		}),
+		getClientAddress: () => '127.0.0.1'
 	}) as Parameters<typeof POST>[0];
 
 const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
@@ -20,7 +21,8 @@ const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
-		})
+		}),
+		getClientAddress: () => '127.0.0.1'
 	}) as Parameters<typeof POST>[0];
 
 afterEach(() => {

@@ -10,14 +10,14 @@ import {
 	runChatInterpretationPipeline
 } from '$lib/core/chat-interpretation-pipeline';
 import { CHAT_INTERPRETATION_RATE_LIMIT } from '$lib/server/rate-limit-config';
-import { enforceRateLimit } from '$lib/server/rate-limit-guard';
+import { enforceRateLimit, resolveClientAddress } from '$lib/server/rate-limit-guard';
 import { parseRequestBody } from '$lib/server/parse-request-body';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const limited = enforceRateLimit(
 		rateLimitSeam,
-		getClientAddress(),
+		resolveClientAddress(getClientAddress),
 		'chat-interpretation',
 		CHAT_INTERPRETATION_RATE_LIMIT
 	);
