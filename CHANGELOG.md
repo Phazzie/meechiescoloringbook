@@ -8,7 +8,7 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
-- Added a per-client rate limit (`RateLimitSeam`) in front of every provider-billed API route (`/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/meechie-studio-text`, `/api/wig-try-on`) so a single caller can no longer drive unbounded xAI/Gemini provider cost; excess requests now get a `429` with a `Retry-After` header.
+- Added a per-client rate limit (`RateLimitSeam`) in front of every provider-billed API route (`/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/meechie-studio-text`, `/api/wig-try-on`, `/api/tools`) to reduce xAI/Gemini provider cost from a single abusive caller on each warm instance; excess requests now get a `429` with a `Retry-After` header.
 - Added a local PR backlog dry-run validation script (`scripts/validate-pr-backlog.js`) to automate checking out, testing, and verifying clean PR candidates.
 - Added a review-comment extraction script (`scripts/get-pr-todos.js`) to isolate and scope active review threads for a specific PR.
 - Added a real-time merge conflict analysis script (`scripts/analyze-merge-conflicts.js`) to test all open PR branches for merge conflicts and update the triage table.
