@@ -25,7 +25,8 @@ Info flow: Layout renders children -> pages render within layout.
 		'/random',
 		'/meechie'
 	]);
-	const isTargetSubRoute = $derived(targetSubRoutes.has($page.url.pathname));
+	const normalizedPath = $derived($page.url.pathname.replace(/\/$/, '') || '/');
+	const isTargetSubRoute = $derived(targetSubRoutes.has(normalizedPath));
 
 	onMount(() => {
 		if (!dev && 'serviceWorker' in navigator) {
