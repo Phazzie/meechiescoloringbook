@@ -3,98 +3,101 @@ Purpose: Visual identity and design system specification for Meechie's Coloring 
 Why: Single authoritative reference so all contributors implement the same look and feel.
 Info flow: Tokens defined here -> implemented in components -> verified by visual review.
 -->
+
 ---
+
 version: alpha
-name: Meechie's Playful Canvas
-description: A warm, inviting design system for AI-powered coloring book generation
+name: Meechie's High-Glam Verdict Canvas
+description: A bold, high-glam statement design system for adult relationship verdict coloring pages
 colors:
-  primary: "#c9a227"
-  accent: "#f0c44a"
-  highlight: "#e8006a"
-  background: "#07070f"
-  surface: "#0d0a14"
-  text: "rgba(253, 246, 227, 0.9)"
-  text-muted: "rgba(253, 246, 227, 0.45)"
+primary: "#c9a227"
+accent: "#f0c44a"
+highlight: "#e8006a"
+background: "#07070f"
+surface: "#0d0a14"
+text: "rgba(253, 246, 227, 0.9)"
+text-muted: "rgba(253, 246, 227, 0.45)"
 typography:
-  h1:
-    fontFamily: "'Fraunces', Georgia, serif"
-    fontSize: 48px
-    fontWeight: 700
-    fontStyle: italic
-    lineHeight: 1.2
-    letterSpacing: -0.02em
-  h2:
-    fontFamily: "'Fraunces', Georgia, serif"
-    fontSize: 36px
-    fontWeight: 700
-    fontStyle: italic
-    lineHeight: 1.3
-  body-lg:
-    fontFamily: "'Bricolage Grotesque', system-ui, sans-serif"
-    fontSize: 18px
-    fontWeight: 400
-    lineHeight: 1.6
-  body-md:
-    fontFamily: "'Bricolage Grotesque', system-ui, sans-serif"
-    fontSize: 16px
-    fontWeight: 400
-    lineHeight: 1.5
-  label:
-    fontFamily: "'Barlow Condensed', 'Avenir Next Condensed', sans-serif"
-    fontSize: 14px
-    fontWeight: 700
-    lineHeight: 1.4
-    textTransform: uppercase
-    letterSpacing: 0.1em
+h1:
+fontFamily: "'Fraunces', Georgia, serif"
+fontSize: 48px
+fontWeight: 700
+fontStyle: italic
+lineHeight: 1.2
+letterSpacing: -0.02em
+h2:
+fontFamily: "'Fraunces', Georgia, serif"
+fontSize: 36px
+fontWeight: 700
+fontStyle: italic
+lineHeight: 1.3
+body-lg:
+fontFamily: "'Bricolage Grotesque', system-ui, sans-serif"
+fontSize: 18px
+fontWeight: 400
+lineHeight: 1.6
+body-md:
+fontFamily: "'Bricolage Grotesque', system-ui, sans-serif"
+fontSize: 16px
+fontWeight: 400
+lineHeight: 1.5
+label:
+fontFamily: "'Barlow Condensed', 'Avenir Next Condensed', sans-serif"
+fontSize: 14px
+fontWeight: 700
+lineHeight: 1.4
+textTransform: uppercase
+letterSpacing: 0.1em
 rounded:
-  none: 0px
-  sm: 4px
-  md: 8px
-  lg: 12px
-  xl: 16px
-  full: 9999px
+none: 0px
+sm: 4px
+md: 8px
+lg: 12px
+xl: 16px
+full: 9999px
 spacing:
-  xs: 4px
-  sm: 8px
-  md: 16px
-  lg: 32px
-  xl: 64px
-  container-padding: 24px
+xs: 4px
+sm: 8px
+md: 16px
+lg: 32px
+xl: 64px
+container-padding: 24px
 max-width: 1240px
 components:
-  button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.background}"
-    rounded: "{rounded.lg}"
-    padding: "12px 24px"
-  button-secondary:
-    backgroundColor: "transparent"
-    borderColor: "{colors.primary}"
-    borderWidth: "1px"
-    textColor: "{colors.accent}"
-    rounded: "{rounded.lg}"
-    padding: "12px 24px"
-  button-tertiary:
-    backgroundColor: "transparent"
-    borderColor: "{colors.highlight}"
-    borderWidth: "1px"
-    textColor: "{colors.highlight}"
-    rounded: "{rounded.lg}"
-    padding: "12px 24px"
-  card:
-    backgroundColor: "{colors.surface}"
-    rounded: "{rounded.lg}"
-    padding: "24px"
-    boxShadow: "0 2px 8px rgba(0,0,0,0.5)"
-  input:
-    backgroundColor: "rgba(255,255,255,0.04)"
-    borderColor: "rgba(201, 162, 39, 0.25)"
-    borderWidth: "1px"
-    borderStyle: "solid"
-    rounded: "{rounded.md}"
-    padding: "12px 16px"
-    focusBorderColor: "{colors.primary}"
-    focusBorderWidth: "1px"
+button-primary:
+backgroundColor: "{colors.primary}"
+textColor: "{colors.background}"
+rounded: "{rounded.lg}"
+padding: "12px 24px"
+button-secondary:
+backgroundColor: "transparent"
+borderColor: "{colors.primary}"
+borderWidth: "1px"
+textColor: "{colors.accent}"
+rounded: "{rounded.lg}"
+padding: "12px 24px"
+button-tertiary:
+backgroundColor: "transparent"
+borderColor: "{colors.highlight}"
+borderWidth: "1px"
+textColor: "{colors.highlight}"
+rounded: "{rounded.lg}"
+padding: "12px 24px"
+card:
+backgroundColor: "{colors.surface}"
+rounded: "{rounded.lg}"
+padding: "24px"
+boxShadow: "0 2px 8px rgba(0,0,0,0.5)"
+input:
+backgroundColor: "rgba(255,255,255,0.04)"
+borderColor: "rgba(201, 162, 39, 0.25)"
+borderWidth: "1px"
+borderStyle: "solid"
+rounded: "{rounded.md}"
+padding: "12px 16px"
+focusBorderColor: "{colors.primary}"
+focusBorderWidth: "1px"
+
 ---
 
 ## Overview
@@ -140,15 +143,18 @@ All interactive elements use rounded corners: `{rounded.md}` (8px) on inputs, `{
 ## Components
 
 ### Buttons
+
 - **Primary Button**: Gold background, dark text, 12px rounded corners, 12px 24px padding. Used for primary actions ("Generate," "Download").
 - **Secondary Button**: Transparent background, 1px gold border, gold text. Same sizing as primary.
 - **Tertiary Button**: Transparent background, 1px fuchsia border, fuchsia text. Used for accent/alternative actions.
 
 ### Cards
+
 - Dark surface background, 24px padding, 12px rounded corners, subtle shadow (0 2px 8px).
 - Used for display of generated coloring pages, story previews, and result containers.
 
 ### Inputs
+
 - Translucent dark background, 1px gold-tinted border (rgba(201, 162, 39, 0.25)), 8px rounded corners (`{rounded.md}`), 12px 16px padding.
 - Placeholder text in muted cream; focus state adds a thin 1px border in primary gold (`{colors.primary}`).
 

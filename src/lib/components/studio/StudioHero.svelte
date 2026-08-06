@@ -4,7 +4,10 @@ Why: Extracted from +page.svelte to reduce file size while keeping all state in 
 Info flow: Parent passes read-only mode data and callbacks; hero is purely presentational.
 -->
 <script lang="ts">
-	import type { StudioMode, StudioTextActionId } from '$lib/core/meechie-studio';
+	import type {
+		StudioMode,
+		StudioTextActionId
+	} from '$lib/core/meechie-studio';
 
 	let {
 		weeklyModes,
@@ -32,11 +35,13 @@ Info flow: Parent passes read-only mode data and callbacks; hero is purely prese
 	style={`background-image: linear-gradient(90deg, rgba(7, 7, 15, 0.94), rgba(7, 7, 15, 0.25)), url('/meechie/meechie-banner.png');`}
 >
 	<div class="hero-copy">
-		<p class="eyebrow">Meechies Coloring Book Generator</p>
-		<h1>Meechies Coloring Book</h1>
+		<p class="eyebrow">
+			Adult Relationship Verdict & Statement Line-Art Studio
+		</p>
+		<h1>Meechie's Coloring Book</h1>
 		<p>
-			Tell Meechie what happened, get the verdict and quote, then turn it into
-			a printable coloring page.
+			Tell Meechie what happened. Get the verdict, name who crossed the line,
+			and turn consequences into printable statement line-art coloring pages.
 		</p>
 		<button
 			type="button"

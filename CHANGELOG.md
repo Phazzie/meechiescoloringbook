@@ -3,11 +3,20 @@ Purpose: Record user-visible changes for this repo.
 Why: Provide a clear history of behavior changes and releases.
 Info flow: Changes -> entries -> release communication.
 -->
+
 # Changelog
 
 All notable user-visible changes for this repo.
 
 ## Unreleased
+
+- `[TICK-001i0]`: Made global `<meta name="description">` fallback route-aware in `src/routes/+layout.svelte` to prevent duplicate meta tag accumulation on target sub-page routes.
+- `[TICK-001i1]`: Added persona-aligned route meta descriptions to `src/routes/who-fucked-up/+page.svelte` and `src/routes/rate-his-excuse/+page.svelte` while retaining existing titles.
+- `[TICK-001i2]`: Added persona-aligned route meta descriptions to `src/routes/random/+page.svelte` and `src/routes/meechie/+page.svelte` while retaining existing titles.
+- `[TICK-001e]`: Reoriented home-page hero section copy in `src/lib/components/studio/StudioHero.svelte` around the Adult Cultural Verdict Persona.
+- `[TICK-001f]`: Aligned `design.md` visual tokens and `README.md` intro copy with the Adult Cultural Verdict Persona while preserving setup instructions and provider configs.
+- `[TICK-001h]`: Audited `src/lib/adapters/meechie-tool.adapter.ts` against the 5 locked canonical quotes; verified 0 code drift with clean contract tests.
+- `[TICK-002c]`: Verified deterministic mock and offline fallback behavior in `tests/contract/meechie-voice.test.ts` with zero live API calls.
 - `[TICK-001b]` & `[TICK-001d]`: Added global SEO, OpenGraph, and Twitter Card metadata tags in `src/routes/+layout.svelte` aligned with Adult Relationship Verdict Persona, and verified header navigation.
 - `[TICK-001a]`: Deferred Wig Try-On Studio section on Home Page (`src/routes/+page.svelte`) for Phase 1 MVP focus.
 - Re-oriented project documentation (`design.md`, `README.md`, reports) to accurately reflect Meechie's adult cultural verdict & high-glam statement coloring persona.

@@ -161,6 +161,10 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 
 <svelte:head>
 	<title>Who Fucked Up? — Meechie's Coloring Book</title>
+	<meta
+		name="description"
+		content="Tell Meechie what happened. She'll name who crossed the line, put the consequence on record, and turn the verdict into a printable adult coloring page."
+	/>
 </svelte:head>
 
 <div class="page">

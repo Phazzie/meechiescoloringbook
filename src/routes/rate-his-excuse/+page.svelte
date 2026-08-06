@@ -171,6 +171,10 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 
 <svelte:head>
 	<title>Rate His Excuse — Meechie's Coloring Book</title>
+	<meta
+		name="description"
+		content="Put his excuse on record and get it scored. Meechie rates the excuse, renders the verdict, and generates a printable statement coloring page."
+	/>
 </svelte:head>
 
 <div class="page">
