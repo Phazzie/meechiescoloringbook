@@ -1,56 +1,47 @@
 <!--
-Purpose: Provide an immediate resume snapshot after autonomous refactor/UI work.
-Why: Keep current branch state, blockers, and next commands clear when work resumes.
-Info flow: Latest local state -> blocker details -> exact next actions.
+Purpose: Formal Handoff Brief for transitioning to a new chat window.
+Why: Provide incoming AI agents with exact context, git commit status, persona rules, and ready sub-tickets.
+Info flow: Current Session -> HANDOFF.md -> New Session Prompt.
 -->
-# Handoff (2026-02-16)
+# Session Handoff & Turnover Brief
 
-## Current state
-- Branch: `main`
-- Remote delta: `main` is **ahead of `origin/main` by 3 commits**.
-- Latest local commits not on remote:
-  1. `3aae5aa` `feat(ui): redesign studio and meechie voice experience`
-  2. `5830466` `refactor(core): extract generation pipelines and align governance`
-  3. `00dd3c6` `refactor(core): retire legacy generation workflow path`
+**Repository Location**: `C:\Users\shiva\.gemini\antigravity-ide\scratch\meechiescoloringbook`  
+**Current Git State**: Branch `main`, Commit `0d2a00d` (*"docs: establish subagent ticket system, 5-quote lock, and persona rules"*), Working Tree Clean.  
+**Verification Status**: `cmd /c "npm run check"` passing with **0 errors and 0 warnings**.
 
-## Push blocker
-- `git push origin main` repeatedly fails **after hooks/tests pass** with:
-  - `error: RPC failed; HTTP 400 curl 22 The requested URL returned error: 400`
-  - `send-pack: unexpected disconnect while reading sideband packet`
-  - `fatal: the remote end hung up unexpectedly`
+---
 
-## Validation status
-- `npm run check`: pass
-- `npm test`: pass (`23 passed`, `1 skipped`)
-- `npm run verify`: pass locally before push handoff to remote transport
+## 🎭 Persona & Brand Rules (NON-NEGOTIABLE)
 
-## Working tree note
-- The pre-push hook refreshes evidence outputs, so these files are currently modified:
-  - `docs/evidence/2026-02-15/assumption-alarm.json`
-  - `docs/evidence/2026-02-15/chamber-lock.json`
-  - `docs/evidence/2026-02-15/cipher-gate.json`
-  - `docs/evidence/2026-02-15/clan-chain.json`
-  - `docs/evidence/2026-02-15/clan-chain.md`
-  - `docs/evidence/2026-02-15/proof-tape.json`
-  - `docs/evidence/2026-02-15/proof-tape.md`
-  - `docs/evidence/2026-02-15/seam-ledger.json`
-  - `docs/evidence/2026-02-15/seam-ledger.md`
-  - `docs/evidence/2026-02-15/shaolin-lint.json`
-  - `docs/evidence/2026-02-15/test.txt`
-  - `docs/evidence/2026-02-15/verify.txt`
+1. **Adult Cultural Verdict Persona**: Meechie's Coloring Book is an adult, witty, culturally authentic, sharp-tongued relationship verdict & statement line-art coloring page app (*"Who Fucked Up?"*, *"Rate His Excuse"*, Receipts Out, *Pretty & Petty*). NEVER flatten into a kids/family app or therapy-speak.
+2. **Locked 5 Canonical Quotes**: All quote pools, adapters, and LLM prompt exemplars are locked EXCLUSIVELY to these 5 canonical quotes:
+   1. *"As long as I'm alive, you bitches will have a place to live. Right here in my shadow."*
+   2. *"All I need to be a hoe is an area of control."*
+   3. *"Should've fucked the landlord, not the dopeman."*
+   4. *"Keep fucking with me and I'ma end up being your stepmama."*
+   5. *"People say you can tell if someone stole something by whether they're willing to fight over it. That's not true. I beat up plenty of bitches over their own shit."*
 
-## Fast resume commands
-1. Confirm ahead/behind:
-   - `git status -sb`
-   - `git log --oneline --decorate -5`
-2. Retry push (HTTPS):
-   - `git push origin main`
-3. If HTTPS still fails, switch to SSH remote and push:
-   - `git remote set-url origin git@github.com:phazzie/meechiescoloringbook.git`
-   - `git push origin main`
+---
 
-## Context summary
-- Requested sequence `3 then 1` is complete:
-  - Two-commit split completed first (UI/copy, then architecture/governance).
-  - Ghost workflow retirement completed after that.
-- Gemini finding #7 (ghost workflow) was moved from deferred to fixed in docs.
+## 🛠 Active Workspace Custom Skills (`.agents/skills/`)
+
+- 🎫 **`meechie-ticket-scoping`**: Scopes atomic 1–2 file sub-tickets for 5–15 min autonomous subagent execution.
+- 🎭 **`meechie-voice-audit`**: Audits LLM prompt templates and UI copy to enforce the adult verdict persona and 5 canonical quote lock.
+- 🎨 **`line-art-prompt-compiler`**: Enforces prompt engineering rules and negative prompt constraints for xAI Grok statement coloring page generation.
+
+---
+
+## 🚀 Immediate Next Workpack (Phase 1 Sub-Tickets)
+
+1. **`[TICK-001a]`**: Defer Wig Try-On Studio section on Home Page (`src/routes/+page.svelte` — 1 file).
+2. **`[TICK-001d]`**: Remove Wig Studio link from main layout header (`src/routes/+layout.svelte` — 1 file).
+3. **`[TICK-001b]`**: Update global `<title>` and `<meta>` tags to Adult Verdict Persona (`src/routes/+layout.svelte` — 1 file).
+
+---
+
+## 📜 Key Governance Documents
+
+- Source of Truth Rules: [AGENTS.md](file:///C:/Users/shiva/.gemini/antigravity-ide/scratch/meechiescoloringbook/AGENTS.md)
+- Gemini Agent Blueprint: [GEMINI.md](file:///C:/Users/shiva/.gemini/antigravity-ide/scratch/meechiescoloringbook/GEMINI.md)
+- Work Ticket System Specification: [docs/WORK_TICKET_SYSTEM.md](file:///C:/Users/shiva/.gemini/antigravity-ide/scratch/meechiescoloringbook/docs/WORK_TICKET_SYSTEM.md)
+- Master Implementation Plan: [implementation_plan.md](file:///C:/Users/shiva/.gemini/antigravity-ide/brain/3de9869e-c93d-4901-a500-1fbfb01e0802/implementation_plan.md)
