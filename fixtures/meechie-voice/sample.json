@@ -256,543 +256,84 @@
         },
         "quotes": [
           {
-            "text": "You fumbled ME? In THIS economy?",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "Should've fucked the landlord, not the dopeman.",
-            "category": "approved_keeper",
-            "rawness": "raw",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": false,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "If you don't want me to come in, don't open the door. Not even a little bit. Because if you open the door, I'm coming in.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "He can leave. I am still gonna be pretty tomorrow.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "I'm not crying over you. I'm crying because I wasted mascara on you.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "You picked HER? That's not my loss, that's your vision problem.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "Try me again and watch me be real pretty at your family reunion.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "One more lie and I'm showing up to Easter looking SAVED.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "Your phone died but your location was live at her apartment. Interesting.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "I will out-dress your mama at HER birthday party. Don't test me.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "As long as I am up, they still living in my shadow.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "He said no commitment but still wants access. That's a free trial, not a relationship.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "I'm not mad. I'm observing that you fumbled something irreplaceable.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "You don't have to like me. I already like me enough for both of us.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "The disrespect was bold. I respect the confidence. Not the choice.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "I don't chase. I close the door and let the draft do the work.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "He got a whole situation and still had time to text me at 1am. Make it make sense.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "My standards didn't go up. Your options just got smaller.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "I said what I said and I meant what I didn't say too.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "The audacity arrived before you did.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie seed quote",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "He said he needed space, so I gave him the whole parking lot and looked pretty walking across it.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie", "wwmd"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "He wanted humble. I came with cheekbones and documentation.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "I don't need revenge. I got cheekbones, timing, and his auntie still liking my pictures. But I'm still getting revenge.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "That excuse came in wearing slides and no socks. I'm not accepting it at the door.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie", "rate_excuse"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["boundaries"]
-          },
-          {
-            "text": "One more excuse and I'm in your mama's kitchen asking where she keeps the good plates.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie", "rate_excuse"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["boundaries", "glam"]
-          },
-          {
-            "text": "I'm one lie away from knowing which uncle drinks too much at cookouts.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["boundaries", "glam"]
-          },
-          {
-            "text": "Keep playing and I'm bringing a Bundt cake to your grandma's church picnic.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["boundaries", "glam"]
-          },
-          {
-            "text": "One more deleted message and I'm at the family reunion acting like I know the potato salad recipe.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["boundaries", "glam"]
-          },
-          {
-            "text": "Keep acting single and I'll be real pretty beside your mama's Christmas tree.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["boundaries", "glam"]
-          },
-          {
-            "text": "One more secret and I'm helping your sister zip her wedding dress.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["boundaries", "glam"]
-          },
-          {
-            "text": "Try me again and I'm wearing lashes to your cousin's baby shower like I got named on the invitation.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "She posted a subliminal. I posted a picture. Mine had better lighting and less begging.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie", "clapback"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "I'm not the other woman. I'm the woman other women start checking his phone about.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "He said he forgot. I believe him. He forgot I was me.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "sometimes",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "Hating me won't change what happened in your bathroom mirror.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie", "clapback"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "Keep playing and your brother gonna be calling me by my first name.",
-            "category": "approved_keeper",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "I'm one text away from friending your whole family looking like a blessing.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "If a bitch ain't got no edges, she ain't got no sense.",
+            "text": "As long as I'm alive, you bitches will have a place to live. Right here in my shadow.",
             "category": "raw_anchor",
             "rawness": "raw",
             "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": false,
-            "coloringPageReady": false,
-            "notes": "Meechie canon line — explicit",
-            "visualMotifs": ["glam"]
+            "modeFit": [
+              "random_meechie"
+            ],
+            "defaultMode": true,
+            "coloringPageReady": true,
+            "notes": "Canonical Meechie quote 1",
+            "visualMotifs": [
+              "glam",
+              "boundaries"
+            ]
           },
           {
             "text": "All I need to be a hoe is an area of control.",
             "category": "raw_anchor",
             "rawness": "raw",
             "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": false,
-            "coloringPageReady": false,
-            "notes": "Meechie canon line — explicit",
-            "visualMotifs": ["glam", "boundaries"]
+            "modeFit": [
+              "random_meechie"
+            ],
+            "defaultMode": true,
+            "coloringPageReady": true,
+            "notes": "Canonical Meechie quote 2",
+            "visualMotifs": [
+              "glam",
+              "boundaries"
+            ]
           },
           {
-            "text": "As long as I'm alive, you bitches will have a place to live. Right here in my shadow.",
+            "text": "Should've fucked the landlord, not the dopeman.",
             "category": "raw_anchor",
             "rawness": "raw",
             "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": false,
-            "coloringPageReady": false,
-            "notes": "Meechie canon line — explicit",
-            "visualMotifs": ["glam", "boundaries"]
+            "modeFit": [
+              "random_meechie"
+            ],
+            "defaultMode": true,
+            "coloringPageReady": true,
+            "notes": "Canonical Meechie quote 3",
+            "visualMotifs": [
+              "glam",
+              "boundaries"
+            ]
           },
           {
             "text": "Keep fucking with me and I'ma end up being your stepmama.",
             "category": "raw_anchor",
             "rawness": "raw",
             "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": false,
-            "coloringPageReady": false,
-            "notes": "Meechie canon line — explicit",
-            "visualMotifs": ["glam", "boundaries"]
+            "modeFit": [
+              "random_meechie"
+            ],
+            "defaultMode": true,
+            "coloringPageReady": true,
+            "notes": "Canonical Meechie quote 4",
+            "visualMotifs": [
+              "glam",
+              "boundaries"
+            ]
           },
           {
             "text": "People say you can tell if someone stole something by whether they're willing to fight over it. That's not true. I beat up plenty of bitches over their own shit.",
             "category": "raw_anchor",
             "rawness": "raw",
             "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": false,
-            "coloringPageReady": false,
-            "notes": "Meechie canon line — explicit",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "Call me insecure again and I'ma secure your daddy.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie", "clapback"],
+            "modeFit": [
+              "random_meechie"
+            ],
             "defaultMode": true,
             "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "He said I act like I run the place. I don't act.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "I don't need revenge. I need somewhere to sit where your mama can see me.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "Don't open the door. Not even a little bit. Because if you open the door even a little bit, I'm coming through.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "When our eyes locked after I said that, we both knew I was capable of it and there was nothing he could do to stop it.",
-            "category": "raw_anchor",
-            "rawness": "clean",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": true,
-            "coloringPageReady": true,
-            "notes": "Meechie canon line",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "So I told him if he didn't quit fucking with that bitch I was gonna fuck his brother. He tried to come at me all crazy. I told him he got off lucky. If he talks to her again I'ma fuck his daddy and he'll be calling me stepmama.",
-            "category": "raw_anchor",
-            "rawness": "raw",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": false,
-            "coloringPageReady": false,
-            "notes": "Meechie canon line — explicit, full stepmama narrative",
-            "visualMotifs": ["glam", "boundaries"]
-          },
-          {
-            "text": "The biggest nigga in this whole house, the one y'all scared of... he's running from me. So I just did whatever the fuck I wanted.",
-            "category": "raw_anchor",
-            "rawness": "raw",
-            "thirdPersonUsage": "none",
-            "modeFit": ["random_meechie"],
-            "defaultMode": false,
-            "coloringPageReady": false,
-            "notes": "Meechie canon line — explicit",
-            "visualMotifs": ["glam", "boundaries"]
+            "notes": "Canonical Meechie quote 5",
+            "visualMotifs": [
+              "glam",
+              "boundaries"
+            ]
           }
         ]
       }

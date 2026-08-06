@@ -25,6 +25,14 @@ Info flow: Layout renders children -> pages render within layout.
 
 
 <svelte:head>
+	<title>Meechie's Coloring Book | Adult Relationship Verdict & Statement Line-Art</title>
+	<meta name="description" content="Adult, witty, culturally authentic relationship verdicts & statement line-art coloring pages. Who Fucked Up? Rate His Excuse. Receipts Out. Pretty & Petty." />
+	<meta property="og:title" content="Meechie's Coloring Book | Adult Relationship Verdict & Statement Line-Art" />
+	<meta property="og:description" content="Adult, witty, culturally authentic relationship verdicts & statement line-art coloring pages. Who Fucked Up? Rate His Excuse. Receipts Out. Pretty & Petty." />
+	<meta property="og:type" content="website" />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content="Meechie's Coloring Book | Adult Relationship Verdict & Statement Line-Art" />
+	<meta name="twitter:description" content="Adult, witty, culturally authentic relationship verdicts & statement line-art coloring pages." />
 	<link rel="icon" href={favicon} />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />

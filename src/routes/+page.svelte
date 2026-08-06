@@ -11,7 +11,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	import StudioInputPanel from '$lib/components/studio/StudioInputPanel.svelte';
 	import StudioPreviewPanel from '$lib/components/studio/StudioPreviewPanel.svelte';
 	import StudioSettingsPanel from '$lib/components/studio/StudioSettingsPanel.svelte';
-	import WigTryOnStudio from '$lib/components/studio/WigTryOnStudio.svelte';
 	import VerdictRow from '$lib/components/studio/VerdictRow.svelte';
 	import SystemTrace from '$lib/components/studio/SystemTrace.svelte';
 
@@ -27,7 +26,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 </script>
 
 <svelte:head>
-	<title>Meechies Coloring Book Studio</title>
+	<title>Meechie's Coloring Book | Adult Relationship Verdict Studio</title>
 </svelte:head>
 
 <main class="studio" data-testid="studio-root" data-hydrated={studio.isBrowser ? 'true' : 'false'}>
@@ -89,20 +88,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			onSettingChange={studio.syncSpecFromCurrentText}
 		/>
 	</section>
-
-	<WigTryOnStudio
-		selectedWigId={studio.selectedWigId}
-		selectedWig={studio.selectedWig}
-		tryOnPortraitUrl={studio.tryOnPortraitUrl}
-		tryOnError={studio.tryOnError}
-		isTryingOn={studio.isTryingOn}
-		canTryOn={studio.canTryOn}
-		isGenerating={studio.isGenerating}
-		onWigSelect={studio.selectWigForTryOn}
-		onSelfieUpload={studio.setSelfieForTryOn}
-		onWigTryOn={studio.handleWigTryOn}
-		onGenerateTryOnPage={studio.handleGenerateTryOnPage}
-	/>
 
 	<VerdictRow
 		textOutput={studio.textOutput}

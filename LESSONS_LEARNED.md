@@ -176,4 +176,12 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Lesson: Complex feature work must be scoped into atomic 1–3 file sub-tickets designed for 5–15 minute subagent execution; workspace rules must be persisted in `.agents/AGENTS.md`.
 - Action: Created `.agents/skills/meechie-ticket-scoping/SKILL.md`, created workspace rule file `.agents/AGENTS.md`, and updated operational roadmap with atomic sub-tickets `[TICK-001a]`, `[TICK-001b]`, `[TICK-001c]`.
 
+## 2026-08-06
+- Date: 2026-08-06
+- Context: Execution of [TICK-001b] & [TICK-001d] - Global Layout Metadata & Header Nav Audit.
+- Lesson: Centralizing default SEO/Social meta tags (OG, Twitter cards) in root `+layout.svelte` establishes consistent branding and title hierarchy across all child routes.
+- Action: Updated `src/routes/+layout.svelte` and `src/routes/+page.svelte` title/meta tags and confirmed zero errors via `npm run check`.
+
+
+
 

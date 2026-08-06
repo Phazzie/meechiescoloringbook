@@ -8,6 +8,8 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- `[TICK-001b]` & `[TICK-001d]`: Added global SEO, OpenGraph, and Twitter Card metadata tags in `src/routes/+layout.svelte` aligned with Adult Relationship Verdict Persona, and verified header navigation.
+- `[TICK-001a]`: Deferred Wig Try-On Studio section on Home Page (`src/routes/+page.svelte`) for Phase 1 MVP focus.
 - Re-oriented project documentation (`design.md`, `README.md`, reports) to accurately reflect Meechie's adult cultural verdict & high-glam statement coloring persona.
 - Locked `meechieVoicePack` quote pools and sample fixtures **EXCLUSIVELY** to the 5 canonical Meechie quotes.
 - Established a 5-phase operational release roadmap deferring the Virtual Wig Try-On feature for MVP launch.
