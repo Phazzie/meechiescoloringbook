@@ -51,3 +51,13 @@ The voice adapter (`meechieVoicePack`), LLM prompt exemplars, and test fixtures 
 - Always say "Seam-Driven Development" in prose; **NEVER** output the acronym.
 - Zero `as any` type escapes or `!` non-null assertions allowed.
 - At the end of every response, provide **EXACTLY THREE concise next-step options**, each with a one-sentence reason.
+
+### 5. Svelte 5 Meta Description Accumulation & Route Fallback Rule
+- In Svelte 5 server rendering, `<meta name="description">` tags in `<svelte:head>` accumulate across layout and page boundaries.
+- Root layout fallback descriptions MUST be conditionally suppressed on sub-page routes that supply their own description.
+- Always normalize pathnames (`$page.url.pathname.replace(/\/$/, '') || '/'`) to prevent trailing-slash routing mismatches.
+
+### 6. Historical Brain Artifact Preservation Rule
+- Never overwrite an approved session `implementation_plan.md` artifact in the brain directory without preserving the previous version.
+- Save the prior plan as a versioned artifact (e.g. `implementation_plan_tick001b_001d.md`) inside the session brain folder before creating a new plan.
+- Never write active chat session plans into the repository root `plan.md`.

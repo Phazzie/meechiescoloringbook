@@ -18,6 +18,11 @@ To prevent context drift, hallucination, or multi-file breaks during subagent ex
 3. **Execution Time Ceiling**: Designed to complete in 5–15 minutes of autonomous execution.
 4. **Sub-Ticket Splitting (`a/b/c`)**: If a feature requires changes across multiple layers (contract → mock → adapter → route), split it into sequential atomic sub-tickets (e.g., `[TICK-001a]`, `[TICK-001b]`, `[TICK-001c]`).
 
+### 🔍 Ticket Identifier Uniqueness Audit
+- Before assigning a sub-ticket identifier (e.g., `[TICK-001c]`), inspect all existing `implementation_plan.md` artifacts in the brain directory.
+- Verify that the identifier is not already assigned or completed for a previous task.
+- If a collision is found, assign the next unallocated letter or sub-number (e.g., `[TICK-001i0]`).
+
 ---
 
 ## 📋 Standard Subagent Ticket Schema
