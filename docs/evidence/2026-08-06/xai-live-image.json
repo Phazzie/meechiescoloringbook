@@ -1,0 +1,33 @@
+{
+	"date": "2026-08-06",
+	"ticket": "TICK-002b1",
+	"status": "inconclusive",
+	"controlledProofRequestCount": 1,
+	"retryCount": 0,
+	"route": "/api/image-generation",
+	"elapsedMs": 8039,
+	"promptPreflight": {
+		"passed": true,
+		"length": 812,
+		"maximumLength": 1024,
+		"requiredPhrasesPresent": true,
+		"canonicalAlignmentLinePresent": true,
+		"negativePromptPresent": true,
+		"safetyKeywordsAbsent": true
+	},
+	"clientObservation": {
+		"httpStatusRecovered": false,
+		"applicationResultRecovered": false,
+		"error": "PowerShell client raised a null-reference while handling the response."
+	},
+	"contractValidImageProven": false,
+	"postProofTestIsolationIncident": {
+		"providerRequestInitiations": 2,
+		"cause": "A unit test imported the production generate route while the real credential was present.",
+		"observedOutcome": "Both test workers timed out after five seconds; billing and provider completion are unknown.",
+		"remediation": "The unit test now injects deterministic image and provider-config mocks, and the full suite passes without provider access."
+	},
+	"secretPersisted": false,
+	"imagePayloadPersisted": false,
+	"nextAction": "Do not retry without explicit approval; rerun one instrumented request with response status and body capture after approval."
+}

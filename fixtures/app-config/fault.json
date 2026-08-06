@@ -1,6 +1,6 @@
 {
 	"xaiApiKey": "",
-	"xaiTextModel": "grok-4-1-fast-reasoning",
+	"xaiTextModel": "grok-4.3",
 	"xaiImageModel": "grok-imagine-image",
 	"xaiBaseUrl": "https://api.x.ai",
 	"xaiImageEndpointPath": "/v1/images/generations",

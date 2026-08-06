@@ -7,8 +7,8 @@ Info flow: Current Session -> HANDOFF.md -> New Session Prompt.
 # Session Handoff & Turnover Brief for Codex
 
 **Repository Location**: `C:\Users\shiva\.gemini\antigravity-ide\scratch\meechiescoloringbook`  
-**Current Git State**: Branch `gemini/easy-medium-release-work` (feature branch based on `main`). Gemini created two local commits but did not push the branch; Codex preserved those commits and the generated 2026-08-06 evidence.
-**Verification Status**: Codex independently reran `npm run check` with **0 errors and 0 warnings** and `npm test` with **519 passed / 1 skipped across 63 files**. ESLint passes. Server-rendered and client-navigation probes show exactly one correct description on `/`, `/who-fucked-up`, `/rate-his-excuse`, `/random`, and `/meechie`. The repository-wide Prettier check remains red because of broad pre-existing formatting debt and is not represented as a release pass.
+**Current Git State**: Branch `gemini/easy-medium-release-work` (feature branch based on `main`). Gemini's two commits and Codex's audit commit are preserved locally; the branch has not reached the remote because Git Credential Manager stalled prior push attempts.
+**Verification Status**: The retired text model has been migrated to `grok-4.3`. Authenticated model discovery and one application-path text request passed. Focused line-art readiness tests passed, but the one authorized image request is inconclusive because its PowerShell client did not recover the HTTP response. Type checking is 0/0, ESLint passes, 519 tests pass with 1 intentional skip, and `npm run verify` passes. The application compiles, but local Vercel packaging still fails at the known Windows symlink `EPERM`. Production is not deployed.
 
 ---
 
@@ -44,13 +44,13 @@ Info flow: Current Session -> HANDOFF.md -> New Session Prompt.
 
 Codex reviewed Gemini's work, repaired the flattened `design.md` token hierarchy and remaining child/family language, corrected Random Meechie's interaction description, repaired `.env.example` into plain text, and verified metadata in server and browser navigation paths.
 
-Hard integration is currently blocked because Meechie and TarotOutMyHeart both contain the same known xAI placeholder rather than a credential. All three model-list requests returned HTTP 400. No text generation, image generation, or billable API request was made.
+The ignored Meechie `.env` now contains a structurally valid xAI credential. All three authenticated model-list requests returned HTTP 200. `grok-4.3` is the selected text model; `grok-imagine-image` remains the selected image model. Exactly one paid text request and one paid image request were attempted.
 
-Resume from this branch after a real xAI key is installed in the ignored Meechie `.env`:
+1. **`[TICK-002a]` complete**: `/api/chat-interpretation` returned HTTP 200 in 14,254 ms and passed the application result schema.
+2. **`[TICK-002b]` blocked**: the 812-character image prompt passed all local line-art, alignment, drift, and safety preflight checks, but the client failed to retain status/body evidence. No retry was made; one additional paid image call requires explicit approval.
+3. **`[TICK-003d]` blocked**: do not deploy until the image proof is conclusive, the branch is pushed, and final release gates pass.
 
-1. **`[TICK-002a]`**: Text-model discovery & live text generation migration (`grok-4-1-fast-reasoning` / xAI endpoints).
-2. **`[TICK-002b]`**: Live image-generation verification with real xAI provider credentials.
-3. **`[TICK-003d]`**: Final production deployment and live browser smoke testing.
+During the first full-suite run with the live key, a route-level unit test unexpectedly instantiated the real image adapter. Two timed-out test executions initiated provider requests; completion and billing are unknown. `tests/unit/api-generate.test.ts` now injects deterministic image/config mocks, and the full suite passes without external access.
 
 ---
 

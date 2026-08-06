@@ -97,7 +97,8 @@ const normalizeImageOutput = (payload) => {
 	const revisedPrompt =
 		payload?.revised_prompt ||
 		payload?.revisedPrompt ||
-		data.find((entry) => typeof entry?.revised_prompt === 'string')?.revised_prompt;
+		data.find((entry) => typeof entry?.revised_prompt === 'string')
+			?.revised_prompt;
 	return {
 		ok: true,
 		value: {
@@ -118,7 +119,7 @@ const run = async () => {
 	const baseUrl = process.env.XAI_BASE_URL || 'https://api.x.ai';
 
 	const chatInput = {
-		model: 'grok-4-1-fast-reasoning',
+		model: 'grok-4.3',
 		messages: [
 			{ role: 'system', content: 'Reply with the word OK.' },
 			{ role: 'user', content: 'Hello' }
@@ -179,7 +180,7 @@ const run = async () => {
 
 	const faultChatInput = {
 		...chatInput,
-		model: 'grok-4-1-fast-reasoning-bad'
+		model: 'grok-4.3-bad'
 	};
 	const faultImageInput = {
 		...imageInput,
@@ -240,7 +241,9 @@ const run = async () => {
 		imageOutput.ok && imageOutput.value.images[0]?.b64_json
 			? imageOutput.value.images[0].b64_json.length
 			: 0;
-	console.log(`Provider probe complete. Chat content length: ${sampleContentLength}.`);
+	console.log(
+		`Provider probe complete. Chat content length: ${sampleContentLength}.`
+	);
 	console.log(`Image base64 length: ${imageLength}.`);
 };
 

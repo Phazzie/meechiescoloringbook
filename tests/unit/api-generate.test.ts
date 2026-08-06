@@ -2,6 +2,27 @@
 // Why: Keep the main generation path on one server endpoint with contract-checked output.
 // Info flow: Generate request -> endpoint orchestration -> contract response.
 import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('$lib/adapters/image-generation-seam', () => ({
+	createImageGenerationSeam: vi.fn(() => ({
+		generate: vi.fn(async () => ({
+			ok: true,
+			value: {
+				images: [{ id: 'xai-1', b64: 'iVBORw0KGgoAAA' }],
+				rawModelInfo: {
+					model: 'grok-imagine-image',
+					revisedPrompt: 'black and white revised prompt'
+				},
+				timingMs: 1
+			}
+		}))
+	}))
+}));
+
+vi.mock('$lib/adapters/image-provider-config-seam', () => ({
+	createImageProviderConfigSeam: vi.fn(() => ({ getConfig: vi.fn() }))
+}));
+
 import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
 import { POST } from '../../src/routes/api/generate/+server';
 
@@ -66,7 +87,9 @@ const assembledPrompt = [
 ].join(' ');
 
 const buildPipelineDeps = (
-	generateImageImpl: (body: unknown) => Promise<{ status: number; body: unknown }>
+	generateImageImpl: (
+		body: unknown
+	) => Promise<{ status: number; body: unknown }>
 ): Parameters<typeof runGeneratePipeline>[1] & {
 	fetchImpl: ReturnType<typeof vi.fn>;
 	checkContentSafety: ReturnType<typeof vi.fn>;
@@ -282,7 +305,10 @@ describe('/api/generate', () => {
 			status: 503,
 			body: {
 				ok: false,
-				error: { code: 'IMAGE_CONFIG_ERROR', message: 'Missing image provider key' }
+				error: {
+					code: 'IMAGE_CONFIG_ERROR',
+					message: 'Missing image provider key'
+				}
 			}
 		}));
 
@@ -342,38 +368,41 @@ describe('/api/generate', () => {
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
 			expect(result.body.error.code).toBe('IMAGE_GENERATION_TIMEOUT');
-			expect(result.body.error.details?.reason).toBe('provider request timed out');
+			expect(result.body.error.details?.reason).toBe(
+				'provider request timed out'
+			);
 		}
 		expect(deps.fetchImpl).not.toHaveBeenCalled();
 	});
 
 	it('keeps the endpoint parse and input guards transport-thin', async () => {
-		const fetchMock = vi.fn(async () =>
-			new Response(
-				JSON.stringify({
-					ok: true,
-					value: {
-						images: [
-							{
-								id: 'image-1',
-								format: 'png',
-								mimeType: 'image/png',
-								data: 'abc123',
-								encoding: 'base64'
+		const fetchMock = vi.fn(
+			async () =>
+				new Response(
+					JSON.stringify({
+						ok: true,
+						value: {
+							images: [
+								{
+									id: 'image-1',
+									format: 'png',
+									mimeType: 'image/png',
+									data: 'abc123',
+									encoding: 'base64'
+								}
+							],
+							revisedPrompt: 'black and white revised prompt',
+							modelMetadata: {
+								provider: 'xai',
+								model: 'grok-imagine-image'
 							}
-						],
-						revisedPrompt: 'black and white revised prompt',
-						modelMetadata: {
-							provider: 'xai',
-							model: 'grok-imagine-image'
 						}
+					}),
+					{
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
 					}
-				}),
-				{
-					status: 200,
-					headers: { 'Content-Type': 'application/json' }
-				}
-			)
+				)
 		);
 
 		const response = await POST(

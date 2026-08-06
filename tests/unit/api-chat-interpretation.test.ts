@@ -79,7 +79,7 @@ describe('/api/chat-interpretation', () => {
 		vi.spyOn(providerAdapter, 'createChatCompletion').mockResolvedValue({
 			ok: true,
 			value: {
-				model: 'grok-4-1-fast-reasoning',
+				model: 'grok-4.3',
 				content: JSON.stringify(validSpec)
 			}
 		});

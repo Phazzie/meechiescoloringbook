@@ -1,76 +1,83 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-08-06T07:21:18.401Z",
+  "generatedAt": "2026-08-06T08:35:26.005Z",
   "evidenceDir": "docs\\evidence\\2026-08-06",
   "files": [
     {
       "name": "assumption-alarm.json",
       "path": "docs\\evidence\\2026-08-06\\assumption-alarm.json",
-      "sizeBytes": 4426,
-      "modifiedAt": "2026-08-06T07:21:17.186Z",
+      "sizeBytes": 5081,
+      "modifiedAt": "2026-08-06T08:35:24.719Z",
       "commands": []
     },
     {
       "name": "chamber-lock.json",
       "path": "docs\\evidence\\2026-08-06\\chamber-lock.json",
       "sizeBytes": 24795,
-      "modifiedAt": "2026-08-06T07:19:45.399Z",
+      "modifiedAt": "2026-08-06T08:33:33.170Z",
       "commands": []
     },
     {
       "name": "clan-chain.json",
       "path": "docs\\evidence\\2026-08-06\\clan-chain.json",
       "sizeBytes": 2249,
-      "modifiedAt": "2026-08-06T07:21:17.999Z",
+      "modifiedAt": "2026-08-06T08:35:25.620Z",
       "commands": []
     },
     {
       "name": "clan-chain.md",
       "path": "docs\\evidence\\2026-08-06\\clan-chain.md",
       "sizeBytes": 1418,
-      "modifiedAt": "2026-08-06T07:21:18.001Z",
+      "modifiedAt": "2026-08-06T08:35:25.622Z",
+      "commands": []
+    },
+    {
+      "name": "codex-metadata-smoke.json",
+      "path": "docs\\evidence\\2026-08-06\\codex-metadata-smoke.json",
+      "sizeBytes": 879,
+      "modifiedAt": "2026-08-06T07:21:39.615Z",
       "commands": []
     },
     {
       "name": "proof-tape.json",
       "path": "docs\\evidence\\2026-08-06\\proof-tape.json",
-      "sizeBytes": 2253,
-      "modifiedAt": "2026-08-06T05:12:15.172Z",
+      "sizeBytes": 2650,
+      "modifiedAt": "2026-08-06T07:21:18.404Z",
       "commands": []
     },
     {
       "name": "proof-tape.md",
       "path": "docs\\evidence\\2026-08-06\\proof-tape.md",
-      "sizeBytes": 840,
-      "modifiedAt": "2026-08-06T05:12:15.172Z",
+      "sizeBytes": 899,
+      "modifiedAt": "2026-08-06T07:21:18.405Z",
       "commands": []
     },
     {
       "name": "seam-ledger.json",
       "path": "docs\\evidence\\2026-08-06\\seam-ledger.json",
       "sizeBytes": 26323,
-      "modifiedAt": "2026-08-06T07:21:17.604Z",
+      "modifiedAt": "2026-08-06T08:35:25.189Z",
       "commands": []
     },
     {
       "name": "seam-ledger.md",
       "path": "docs\\evidence\\2026-08-06\\seam-ledger.md",
       "sizeBytes": 2168,
-      "modifiedAt": "2026-08-06T07:21:17.605Z",
+      "modifiedAt": "2026-08-06T08:35:25.191Z",
       "commands": []
     },
     {
       "name": "shaolin-lint.json",
       "path": "docs\\evidence\\2026-08-06\\shaolin-lint.json",
-      "sizeBytes": 517,
-      "modifiedAt": "2026-08-06T07:21:16.781Z",
+      "sizeBytes": 518,
+      "modifiedAt": "2026-08-06T08:35:24.326Z",
       "commands": []
     },
     {
       "name": "test.txt",
       "path": "docs\\evidence\\2026-08-06\\test.txt",
       "sizeBytes": 1066,
-      "modifiedAt": "2026-08-06T07:21:15.813Z",
+      "modifiedAt": "2026-08-06T08:35:23.328Z",
       "commands": [
         "meechies-coloringbook@0.1.0 test",
         "vitest run --pool=forks --maxWorkers=1"
@@ -80,13 +87,34 @@
       "name": "verify.txt",
       "path": "docs\\evidence\\2026-08-06\\verify.txt",
       "sizeBytes": 1335,
-      "modifiedAt": "2026-08-06T07:21:15.810Z",
+      "modifiedAt": "2026-08-06T08:35:23.325Z",
       "commands": [
         "meechies-coloringbook@0.1.0 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
         "meechies-coloringbook@0.1.0 test",
         "vitest run --pool=forks --maxWorkers=1"
       ]
+    },
+    {
+      "name": "xai-live-image.json",
+      "path": "docs\\evidence\\2026-08-06\\xai-live-image.json",
+      "sizeBytes": 853,
+      "modifiedAt": "2026-08-06T08:25:18.502Z",
+      "commands": []
+    },
+    {
+      "name": "xai-live-text.json",
+      "path": "docs\\evidence\\2026-08-06\\xai-live-text.json",
+      "sizeBytes": 442,
+      "modifiedAt": "2026-08-06T08:25:18.499Z",
+      "commands": []
+    },
+    {
+      "name": "xai-model-discovery.json",
+      "path": "docs\\evidence\\2026-08-06\\xai-model-discovery.json",
+      "sizeBytes": 1356,
+      "modifiedAt": "2026-08-06T08:25:18.492Z",
+      "commands": []
     }
   ]
 }

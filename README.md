@@ -70,7 +70,7 @@ Copy `.env.example` to `.env` and fill in your values.
 | Variable                    | Required | Default                   | Description                                                   |
 | --------------------------- | -------- | ------------------------- | ------------------------------------------------------------- |
 | `XAI_API_KEY`               | Yes      | —                         | Your xAI API key for Grok access                              |
-| `XAI_TEXT_MODEL`            | No       | `grok-4-1-fast-reasoning` | Grok model used for text/story generation                     |
+| `XAI_TEXT_MODEL`            | No       | `grok-4.3`                | Grok model used for text/story generation                     |
 | `XAI_IMAGE_MODEL`           | No       | `grok-imagine-image`      | Grok model used for coloring page image generation            |
 | `XAI_BASE_URL`              | No       | `https://api.x.ai`        | xAI API base URL                                              |
 | `XAI_IMAGE_ENDPOINT_PATH`   | No       | `/v1/images/generations`  | API path for image generation requests                        |

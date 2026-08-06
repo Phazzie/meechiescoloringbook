@@ -225,3 +225,13 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Auditing Gemini's low/medium workpack before hard integration.
 - Lesson: Green type checks and unit tests do not prove documentation structure, exact interaction copy, or browser head behavior; the design token hierarchy was flattened and Random Meechie said “draw” despite all automated tests passing.
 - Action: Review diffs semantically, scan for persona drift, inspect structured documentation, and test both server-rendered and client-navigation metadata before accepting an agent handoff.
+
+- Date: 2026-08-06
+- Context: Key-specific xAI migration and bounded live provider verification.
+- Lesson: A structurally plausible key still needs authenticated inventory, while a paid request without durable status/body capture can consume the one-call budget without proving the application contract.
+- Action: Select only key-exposed exact model IDs, persist sanitized inventory before migration, and make live-proof clients capture raw status and response text before parsing so client diagnostics cannot erase the provider result.
+
+- Date: 2026-08-06
+- Context: Running the full suite with a real provider credential installed.
+- Lesson: A route-level unit test that constructs production dependencies can silently become an integration test when `.env` changes; two timed-out test attempts initiated provider requests before this isolation defect was found.
+- Action: Mock every external adapter and provider-config seam before importing server routes in unit tests, and reserve real credentials for explicitly named, bounded integration probes.

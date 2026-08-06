@@ -1,38 +1,46 @@
 {
-  "date": "2026-08-06",
-  "ticket": "TICK-002a0",
-  "status": "blocked",
-  "baseUrl": "https://api.x.ai",
-  "credentialInspection": {
-    "valuePrinted": false,
-    "meechieLength": 21,
-    "tarotOutMyHeartLength": 21,
-    "startsWithExpectedPrefix": false,
-    "knownPlaceholder": true
-  },
-  "requests": [
-    {
-      "method": "GET",
-      "path": "/v1/language-models",
-      "status": 400,
-      "modelDataReturned": false
-    },
-    {
-      "method": "GET",
-      "path": "/v1/image-generation-models",
-      "status": 400,
-      "modelDataReturned": false
-    },
-    {
-      "method": "GET",
-      "path": "/v1/models",
-      "status": 400,
-      "modelDataReturned": false
-    }
-  ],
-  "selectedTextModel": null,
-  "selectedImageModel": null,
-  "paidGenerationRequests": 0,
-  "blocker": "A real xAI credential is not installed in either inspected project environment.",
-  "resumeCondition": "Install a non-placeholder XAI_API_KEY in the ignored Meechie .env and rerun key-specific inventory."
+	"date": "2026-08-06",
+	"ticket": "TICK-002a0",
+	"status": "passed",
+	"baseUrl": "https://api.x.ai",
+	"credentialInspection": {
+		"valuePrinted": false,
+		"length": 84,
+		"startsWithExpectedPrefix": true,
+		"knownPlaceholder": false,
+		"containsWhitespace": false
+	},
+	"requests": [
+		{
+			"method": "GET",
+			"path": "/v1/language-models",
+			"status": 200,
+			"modelIds": [
+				"grok-4.20-0309-non-reasoning",
+				"grok-4.20-0309-reasoning",
+				"grok-4.20-multi-agent-0309",
+				"grok-4.3",
+				"grok-4.5",
+				"grok-build-0.1"
+			]
+		},
+		{
+			"method": "GET",
+			"path": "/v1/image-generation-models",
+			"status": 200,
+			"modelIds": ["grok-imagine-image", "grok-imagine-image-quality"]
+		},
+		{
+			"method": "GET",
+			"path": "/v1/models",
+			"status": 200,
+			"modelCount": 10
+		}
+	],
+	"selectedTextModel": "grok-4.3",
+	"textSelectionRationale": "Use the exact stable key-accessible model identifier and xAI migration target instead of a latest alias.",
+	"selectedImageModel": "grok-imagine-image",
+	"imageSelectionRationale": "Retain the existing key-accessible standard image model; the quality variant is not required for the bounded release proof.",
+	"paidGenerationRequestsAtDiscovery": 0,
+	"secretPersisted": false
 }

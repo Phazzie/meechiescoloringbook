@@ -1,8 +1,19 @@
 {
   "tool": "assumption-alarm",
-  "generatedAt": "2026-08-06T07:21:17.184Z",
+  "generatedAt": "2026-08-06T08:35:24.716Z",
   "blockedSeams": [],
   "assumptions": [
+    {
+      "date": "2026-08-06",
+      "seams": "ImageGenerationSeam",
+      "statement": "An instrumented client that captures status and response text before deserialization will distinguish a provider/application error from a local PowerShell response-handling fault.",
+      "validation": "With explicit approval for one additional billable image call, invoke the existing application route once using robust response capture and validate `ImageGenerationResultSchema`.",
+      "status": "Blocked pending explicit approval for a second paid image request.",
+      "seamList": [
+        "ImageGenerationSeam"
+      ],
+      "missingFields": []
+    },
     {
       "date": "2026-08-06",
       "seams": "AppConfigSeam, ProviderAdapterSeam, ImageProviderConfigSeam, ImageGenerationSeam",

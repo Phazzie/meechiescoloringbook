@@ -7,6 +7,27 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-08-06 - Select grok-4.3 and complete the bounded live text proof
+
+- Date: 2026-08-06
+- Decision: Use `grok-4.3` as the active text model and retain `grok-imagine-image` as the image model. The key-specific inventory, configuration migration, and one-request live text proof are complete; production deployment remains blocked on a conclusive image proof.
+- Context: After a real credential was installed in the ignored `.env`, authenticated `GET /v1/language-models`, `GET /v1/image-generation-models`, and `GET /v1/models` requests all returned HTTP 200. One request through `/api/chat-interpretation` returned HTTP 200 in 14,254 ms and passed the application result schema with a title and four items.
+- Alternatives: Use `grok-4.3-latest`; rejected because the exact stable identifier is less susceptible to alias drift. Use `grok-4.5`; rejected because the approved migration only requires a supported replacement and `grok-4.3` is xAI's documented migration target for the retired model. Switch images to the quality model; deferred because the standard key-accessible model remains configured and is the lower-cost proof target.
+- Consequences: Active defaults, fixtures, probes, tests, `.env.example`, and current documentation now agree on `grok-4.3`. The credential remains ignored and was never printed or persisted in evidence. `[TICK-002a]` is complete. The earlier credential-block decision below is preserved as historical state and is now superseded.
+- Revisit criteria: Revisit the text selection if xAI removes `grok-4.3`, the key-specific inventory changes, or production quality evidence justifies `grok-4.5`.
+- Plan:
+  - Goal: Preserve the verified text migration, obtain one conclusive application-path image result only with explicit retry approval, then rerun release gates and deploy.
+  - Seams: AppConfigSeam, ProviderAdapterSeam, ChatInterpretationSeam, ImageProviderConfigSeam, ImageGenerationSeam, PromptCompilerSeam, DriftDetectionSeam, SafetyPolicySeam.
+  - Evidence: `docs/evidence/2026-08-06/xai-model-discovery.json`, `docs/evidence/2026-08-06/xai-live-text.json`, and `docs/evidence/2026-08-06/xai-live-image.json`.
+- Self-critique: The one authorized image request passed local prompt preflight but the PowerShell client raised a null-reference while handling the response, so no HTTP status or contract-shaped result was recovered. That is inconclusive rather than proof of an app or provider failure; no automatic retry was made. A subsequent full-suite run exposed that a route-level unit test instantiated the real image adapter when credentials were present; two timed-out test executions initiated provider requests before the test was corrected to inject deterministic mocks. Their provider completion and billing are unknown.
+
+- Assumption:
+  - Date: 2026-08-06
+  - Seams: ImageGenerationSeam
+  - Statement: An instrumented client that captures status and response text before deserialization will distinguish a provider/application error from a local PowerShell response-handling fault.
+  - Validation: With explicit approval for one additional billable image call, invoke the existing application route once using robust response capture and validate `ImageGenerationResultSchema`.
+  - Status: Blocked pending explicit approval for a second paid image request.
+
 ## 2026-08-06 - Block live xAI migration until a real credential is installed
 
 - Date: 2026-08-06

@@ -6,7 +6,7 @@ import { createAppConfigSeam } from '../../src/lib/adapters/app-config-seam';
 
 const baseEnv = {
 	XAI_API_KEY: 'test-key',
-	XAI_TEXT_MODEL: 'grok-4-1-fast-reasoning',
+	XAI_TEXT_MODEL: 'grok-4.3',
 	XAI_IMAGE_MODEL: 'grok-imaging-image',
 	XAI_BASE_URL: 'https://api.x.ai/v1',
 	XAI_IMAGE_ENDPOINT_PATH: '/images/generations',
@@ -30,37 +30,55 @@ describe('AppConfigSeam adapter', () => {
 		expect(() => seam.getConfig()).toThrow();
 	});
 
-	it('parses FEATURE_INTEGRATION_TESTS: \'true\' as boolean true', () => {
-		const seam = createAppConfigSeam({ ...baseEnv, FEATURE_INTEGRATION_TESTS: 'true' });
+	it("parses FEATURE_INTEGRATION_TESTS: 'true' as boolean true", () => {
+		const seam = createAppConfigSeam({
+			...baseEnv,
+			FEATURE_INTEGRATION_TESTS: 'true'
+		});
 		const config = seam.getConfig();
 		expect(config.featureIntegrationTests).toBe(true);
 	});
 
-	it('parses FEATURE_INTEGRATION_TESTS: \'false\' as boolean false', () => {
-		const seam = createAppConfigSeam({ ...baseEnv, FEATURE_INTEGRATION_TESTS: 'false' });
+	it("parses FEATURE_INTEGRATION_TESTS: 'false' as boolean false", () => {
+		const seam = createAppConfigSeam({
+			...baseEnv,
+			FEATURE_INTEGRATION_TESTS: 'false'
+		});
 		const config = seam.getConfig();
 		expect(config.featureIntegrationTests).toBe(false);
 	});
 
-	it('parses FEATURE_INTEGRATION_TESTS: any non-\'true\' string as boolean false', () => {
-		const seam = createAppConfigSeam({ ...baseEnv, FEATURE_INTEGRATION_TESTS: '1' });
+	it("parses FEATURE_INTEGRATION_TESTS: any non-'true' string as boolean false", () => {
+		const seam = createAppConfigSeam({
+			...baseEnv,
+			FEATURE_INTEGRATION_TESTS: '1'
+		});
 		const config = seam.getConfig();
 		expect(config.featureIntegrationTests).toBe(false);
 	});
 
 	it('parses MAX_IMAGES_PER_REQUEST string as a number', () => {
-		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '8' });
+		const seam = createAppConfigSeam({
+			...baseEnv,
+			MAX_IMAGES_PER_REQUEST: '8'
+		});
 		const config = seam.getConfig();
 		expect(config.maxImagesPerRequest).toBe(8);
 	});
 
 	it('throws when MAX_IMAGES_PER_REQUEST exceeds schema max of 10', () => {
-		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '11' });
+		const seam = createAppConfigSeam({
+			...baseEnv,
+			MAX_IMAGES_PER_REQUEST: '11'
+		});
 		expect(() => seam.getConfig()).toThrow();
 	});
 
 	it('throws when MAX_IMAGES_PER_REQUEST is 0 (below minimum)', () => {
-		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '0' });
+		const seam = createAppConfigSeam({
+			...baseEnv,
+			MAX_IMAGES_PER_REQUEST: '0'
+		});
 		expect(() => seam.getConfig()).toThrow();
 	});
 
@@ -72,25 +90,37 @@ describe('AppConfigSeam adapter', () => {
 	});
 
 	it('defaults maxImagesPerRequest to 4 when MAX_IMAGES_PER_REQUEST is empty string', () => {
-		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '' });
+		const seam = createAppConfigSeam({
+			...baseEnv,
+			MAX_IMAGES_PER_REQUEST: ''
+		});
 		const config = seam.getConfig();
 		expect(config.maxImagesPerRequest).toBe(4);
 	});
 
 	it('defaults maxImagesPerRequest to 4 when MAX_IMAGES_PER_REQUEST is whitespace only', () => {
-		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '   ' });
+		const seam = createAppConfigSeam({
+			...baseEnv,
+			MAX_IMAGES_PER_REQUEST: '   '
+		});
 		const config = seam.getConfig();
 		expect(config.maxImagesPerRequest).toBe(4);
 	});
 
 	it('defaults maxImagesPerRequest to 4 when MAX_IMAGES_PER_REQUEST is non-numeric', () => {
-		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: 'abc' });
+		const seam = createAppConfigSeam({
+			...baseEnv,
+			MAX_IMAGES_PER_REQUEST: 'abc'
+		});
 		const config = seam.getConfig();
 		expect(config.maxImagesPerRequest).toBe(4);
 	});
 
 	it('defaults maxImagesPerRequest to 4 instead of truncating float strings', () => {
-		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '3.5' });
+		const seam = createAppConfigSeam({
+			...baseEnv,
+			MAX_IMAGES_PER_REQUEST: '3.5'
+		});
 		const config = seam.getConfig();
 		expect(config.maxImagesPerRequest).toBe(4);
 	});

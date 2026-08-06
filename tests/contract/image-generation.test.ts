@@ -13,7 +13,7 @@ import {
 const mockConfigSeam: AppConfigSeam = {
 	getConfig: () => ({
 		xaiApiKey: 'test-key',
-		xaiTextModel: 'grok-4-1-fast-reasoning',
+		xaiTextModel: 'grok-4.3',
 		xaiImageModel: 'grok-imaging-image',
 		xaiBaseUrl: 'https://api.x.ai/v1',
 		xaiImageEndpointPath: '/images/generations',
@@ -105,7 +105,9 @@ describe('ImageGenerationSeam contract', () => {
 	});
 
 	it('adapter returns IMAGE_TIMEOUT_ERROR when xAI response body parsing times out', async () => {
-		const timeout = Object.assign(new Error('body read timed out'), { name: 'TimeoutError' });
+		const timeout = Object.assign(new Error('body read timed out'), {
+			name: 'TimeoutError'
+		});
 		fetchMock.mockResolvedValueOnce({
 			ok: true,
 			status: 200,

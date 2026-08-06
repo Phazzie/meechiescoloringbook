@@ -22,5 +22,5 @@ This document specifies the **exact 5 canonical Meechie quotes** selected for tr
 ## 💡 Transfer & Prompt Integration Instructions
 
 - **Character Persona Core**: These 5 lines represent the precise energy, raw unvarnished truth, and authority of Meechie's persona.
-- **LLM System Prompt Seed**: Use these exact 5 quotes as the core few-shot exemplars when prompting the text generation model (`grok-4-1-fast-reasoning` or `GPT-4o`).
+- **LLM System Prompt Seed**: Use these exact 5 quotes as the core few-shot exemplars when prompting the configured text generation model (`grok-4.3` or `GPT-4o`).
 - **Statement Coloring Page Prompts**: Use these 5 quotes as the canonical statement text for generating high-contrast line-art coloring sheets with crowns, diamonds, and bold borders.
