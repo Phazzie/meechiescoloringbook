@@ -7,8 +7,8 @@ Info flow: Current Session -> HANDOFF.md -> New Session Prompt.
 # Session Handoff & Turnover Brief for Codex
 
 **Repository Location**: `C:\Users\shiva\.gemini\antigravity-ide\scratch\meechiescoloringbook`  
-**Current Git State**: Branch `gemini/easy-medium-release-work` (Feature branch based on `main`), Working Tree Clean.  
-**Verification Status**: `cmd /c "npm run check"` passing with **0 errors and 0 warnings**; `cmd /c "npm test"` passing with **63 test files / 520 tests clean**.
+**Current Git State**: Branch `gemini/easy-medium-release-work` (feature branch based on `main`). Gemini created two local commits but did not push the branch; Codex preserved those commits and the generated 2026-08-06 evidence.
+**Verification Status**: Codex independently reran `npm run check` with **0 errors and 0 warnings** and `npm test` with **519 passed / 1 skipped across 63 files**. ESLint passes. Server-rendered and client-navigation probes show exactly one correct description on `/`, `/who-fucked-up`, `/rate-his-excuse`, `/random`, and `/meechie`. The repository-wide Prettier check remains red because of broad pre-existing formatting debt and is not represented as a release pass.
 
 ---
 
@@ -42,7 +42,11 @@ Info flow: Current Session -> HANDOFF.md -> New Session Prompt.
 
 ## 🚀 Recommended Starting Point for Codex (Hard Integration Workpack)
 
-The easy and medium release tasks are fully completed on branch `gemini/easy-medium-release-work`. Codex should start from this branch to execute the remaining hard integration tasks:
+Codex reviewed Gemini's work, repaired the flattened `design.md` token hierarchy and remaining child/family language, corrected Random Meechie's interaction description, repaired `.env.example` into plain text, and verified metadata in server and browser navigation paths.
+
+Hard integration is currently blocked because Meechie and TarotOutMyHeart both contain the same known xAI placeholder rather than a credential. All three model-list requests returned HTTP 400. No text generation, image generation, or billable API request was made.
+
+Resume from this branch after a real xAI key is installed in the ignored Meechie `.env`:
 
 1. **`[TICK-002a]`**: Text-model discovery & live text generation migration (`grok-4-1-fast-reasoning` / xAI endpoints).
 2. **`[TICK-002b]`**: Live image-generation verification with real xAI provider credentials.

@@ -1,0 +1,19 @@
+{
+  "date": "2026-08-06",
+  "status": "pass",
+  "serverRendered": [
+    { "path": "/", "status": 200, "descriptionCount": 1, "contentMatches": true },
+    { "path": "/who-fucked-up", "status": 200, "descriptionCount": 1, "contentMatches": true },
+    { "path": "/rate-his-excuse", "status": 200, "descriptionCount": 1, "contentMatches": true },
+    { "path": "/random", "status": 200, "descriptionCount": 1, "contentMatches": true },
+    { "path": "/meechie", "status": 200, "descriptionCount": 1, "contentMatches": true }
+  ],
+  "clientNavigation": {
+    "browser": "installed Google Chrome controlled through Playwright",
+    "sequence": ["/", "/who-fucked-up", "/rate-his-excuse", "/random", "/meechie", "/"],
+    "descriptionCountAtEveryStep": 1,
+    "titleMatchesAtEveryStep": true,
+    "descriptionMatchesAtEveryStep": true,
+    "staleOrDuplicateDescriptions": false
+  }
+}

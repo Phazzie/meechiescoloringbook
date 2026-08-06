@@ -10,6 +10,9 @@ All notable user-visible changes for this repo.
 
 ## Unreleased
 
+- `[TICK-001f1]`: Repaired the nested design-token structure and replaced the remaining child/family design language with the approved adult high-glam verdict direction.
+- `[TICK-001i5]`: Corrected Random Meechie's metadata to describe the actual one-tap interaction and verified exactly one description across server rendering and client navigation.
+- Repaired `.env.example` from an unusable base64 blob into plain placeholder-only environment documentation; the text-model value remains pending credential-backed migration.
 - `[TICK-001i0]`: Made global `<meta name="description">` fallback route-aware in `src/routes/+layout.svelte` to prevent duplicate meta tag accumulation on target sub-page routes.
 - `[TICK-001i1]`: Added persona-aligned route meta descriptions to `src/routes/who-fucked-up/+page.svelte` and `src/routes/rate-his-excuse/+page.svelte` while retaining existing titles.
 - `[TICK-001i2]`: Added persona-aligned route meta descriptions to `src/routes/random/+page.svelte` and `src/routes/meechie/+page.svelte` while retaining existing titles.

@@ -150,7 +150,7 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 	<title>Random Meechie — Meechie's Coloring Book</title>
 	<meta
 		name="description"
-		content="Draw a random Meechie relationship verdict. Get an unfiltered statement line-art coloring page on power, boundaries, and consequences."
+		content="One tap. One truth. Get a random Meechie verdict to print, color, and send to whoever needs to see it."
 	/>
 </svelte:head>
 

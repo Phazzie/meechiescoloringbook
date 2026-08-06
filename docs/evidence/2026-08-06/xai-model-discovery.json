@@ -1,0 +1,38 @@
+{
+  "date": "2026-08-06",
+  "ticket": "TICK-002a0",
+  "status": "blocked",
+  "baseUrl": "https://api.x.ai",
+  "credentialInspection": {
+    "valuePrinted": false,
+    "meechieLength": 21,
+    "tarotOutMyHeartLength": 21,
+    "startsWithExpectedPrefix": false,
+    "knownPlaceholder": true
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/v1/language-models",
+      "status": 400,
+      "modelDataReturned": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/image-generation-models",
+      "status": 400,
+      "modelDataReturned": false
+    },
+    {
+      "method": "GET",
+      "path": "/v1/models",
+      "status": 400,
+      "modelDataReturned": false
+    }
+  ],
+  "selectedTextModel": null,
+  "selectedImageModel": null,
+  "paidGenerationRequests": 0,
+  "blocker": "A real xAI credential is not installed in either inspected project environment.",
+  "resumeCondition": "Install a non-placeholder XAI_API_KEY in the ignored Meechie .env and rerun key-specific inventory."
+}

@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-08-06 - Block live xAI migration until a real credential is installed
+
+- Date: 2026-08-06
+- Decision: Do not select or claim a replacement text model, run billable generation probes, or deploy the release while both local project environments contain an xAI placeholder instead of a credential. Preserve the existing provider contracts and active model defaults until key-specific inventory and live runtime validation can be completed.
+- Context: `[TICK-002a0]` attempted read-only `GET /v1/language-models`, `GET /v1/image-generation-models`, and the official `GET /v1/models` fallback. All returned HTTP 400. A non-secret structural check then proved that both Meechie's `.env` and TarotOutMyHeart's `.env` contain the same 21-character known placeholder, do not start with the expected `xai-` prefix, and therefore cannot authenticate model discovery. No generation request was made and no API charge was incurred.
+- Alternatives: Guess `grok-4.5` or a `latest` alias from public documentation; rejected because the approved work requires model availability for this specific key. Continue with live text/image calls using the placeholder; rejected because they cannot authenticate and would create misleading evidence. Deploy with the retired default; rejected because the user already identified that model as unavailable.
+- Consequences: Gemini's low/medium work can be audited and corrected locally, `.env.example` can be repaired into usable plain text, and offline verification can continue. `[TICK-002a]`, `[TICK-002b]`, and `[TICK-003d]` remain incomplete until a real xAI key is installed in the ignored Meechie `.env`.
+- Revisit criteria: A non-placeholder `XAI_API_KEY` is installed locally without being printed or committed.
+- Plan:
+  - Goal: Resume key-specific model discovery, migrate active configuration and fixtures, execute one bounded live text proof and one bounded live image proof, then run all release gates before deployment.
+  - Seams: AppConfigSeam, ProviderAdapterSeam, ChatInterpretationSeam, MeechieStudioTextSeam, ImageProviderConfigSeam, ImageGenerationSeam, PromptCompilerSeam, DriftDetectionSeam, SafetyPolicySeam.
+  - Files: The atomic file scopes are recorded in the active hard-integration implementation plan; no provider source, fixture, probe, or contract changed during the blocked discovery attempt.
+  - Commands: model-list GET requests; `npm run check`; `npm test`; metadata server-rendered and client-navigation probes; `npm run lint`; `npm run format:check`; remaining release commands after credential installation.
+- Self-critique: Prefix and length checks do not prove that a future `xai-` string is valid; only authenticated inventory and bounded generation through runtime validation can do that. The HTTP 400 responses prove the current value cannot support this work, not which replacement model the account will expose.
+
+- Assumption:
+  - Date: 2026-08-06
+  - Seams: AppConfigSeam, ProviderAdapterSeam, ImageProviderConfigSeam, ImageGenerationSeam
+  - Statement: A real xAI credential with model-list, chat-completion, and image-generation access will be required to finish the hard integration workpack.
+  - Validation: Install the credential in the ignored Meechie `.env`; rerun `/v1/models`; then run one schema-validated application text request and one schema-validated application image request.
+  - Status: Blocked — both inspected project environments currently contain a known placeholder.
+
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 
 - Date: 2026-06-07

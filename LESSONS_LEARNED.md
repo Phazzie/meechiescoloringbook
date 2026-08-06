@@ -215,3 +215,13 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Execution of [TICK-001i0], [TICK-001i1], [TICK-001i2], [TICK-001e], [TICK-001f], [TICK-001h], [TICK-002c] - Low/Medium Release Workpack.
 - Lesson: In Svelte 5 server rendering, `<meta>` tags in `<svelte:head>` accumulate across layout and page boundaries, whereas `<title>` tags replace each other. Making layout `<meta name="description">` fallbacks route-aware prevents duplicate description tags on sub-pages with custom descriptions.
 - Action: Updated `+layout.svelte` fallback description logic, added custom descriptions to sub-page routes (`/who-fucked-up`, `/rate-his-excuse`, `/random`, `/meechie`), reoriented hero section copy, aligned design/readme docs, and verified offline mock behavior.
+
+- Date: 2026-08-06
+- Context: Beginning key-specific xAI model discovery after a credential was believed to have been copied from another project.
+- Lesson: A non-empty environment variable is not evidence of a usable credential; placeholders can satisfy naive presence checks and make every authenticated endpoint fail with an unhelpful HTTP status.
+- Action: Before external probes, verify credential structure without printing the value, distinguish placeholders from plausible keys, and require an authenticated model inventory before changing current provider defaults.
+
+- Date: 2026-08-06
+- Context: Auditing Gemini's low/medium workpack before hard integration.
+- Lesson: Green type checks and unit tests do not prove documentation structure, exact interaction copy, or browser head behavior; the design token hierarchy was flattened and Random Meechie said “draw” despite all automated tests passing.
+- Action: Review diffs semantically, scan for persona drift, inspect structured documentation, and test both server-rendered and client-navigation metadata before accepting an agent handoff.
