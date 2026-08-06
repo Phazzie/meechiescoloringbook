@@ -8,6 +8,9 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Re-oriented project documentation (`design.md`, `README.md`, reports) to accurately reflect Meechie's adult cultural verdict & high-glam statement coloring persona.
+- Locked `meechieVoicePack` quote pools and sample fixtures **EXCLUSIVELY** to the 5 canonical Meechie quotes.
+- Established a 5-phase operational release roadmap deferring the Virtual Wig Try-On feature for MVP launch.
 - Added a local PR backlog dry-run validation script (`scripts/validate-pr-backlog.js`) to automate checking out, testing, and verifying clean PR candidates.
 - Added a review-comment extraction script (`scripts/get-pr-todos.js`) to isolate and scope active review threads for a specific PR.
 - Added a real-time merge conflict analysis script (`scripts/analyze-merge-conflicts.js`) to test all open PR branches for merge conflicts and update the triage table.

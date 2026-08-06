@@ -163,3 +163,17 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-08-05
+- Date: 2026-08-05
+- Context: Brand persona alignment and quote pool governance.
+- Lesson: AI agents must avoid lazy defaults (e.g. flattening an adult cultural verdict app into a "kids app"); voice quotes across adapters and fixtures must be locked strictly to the user-approved canonical set.
+- Action: Purged generic copy from reports/docs, updated `voice-pack.ts` and `sample.json` to feature exclusively the 5 canonical quotes, and established a 5-phase operational release roadmap.
+
+## 2026-08-05
+- Date: 2026-08-05
+- Context: /learn command session - Subagent Ticket Scoping Skill & Workspace Rules.
+- Lesson: Complex feature work must be scoped into atomic 1–3 file sub-tickets designed for 5–15 minute subagent execution; workspace rules must be persisted in `.agents/AGENTS.md`.
+- Action: Created `.agents/skills/meechie-ticket-scoping/SKILL.md`, created workspace rule file `.agents/AGENTS.md`, and updated operational roadmap with atomic sub-tickets `[TICK-001a]`, `[TICK-001b]`, `[TICK-001c]`.
+
+

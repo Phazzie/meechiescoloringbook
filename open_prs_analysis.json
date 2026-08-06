@@ -1,0 +1,391 @@
+{
+  "cleanPrs": [],
+  "conflictPrs": [
+    {
+      "pr": 226,
+      "title": "feat(security): add RateLimitSeam to guard provider-billed API routes",
+      "conflictFiles": []
+    },
+    {
+      "pr": 225,
+      "title": "feat: add RateLimitSeam to guard metered AI-provider endpoints",
+      "conflictFiles": []
+    },
+    {
+      "pr": 224,
+      "title": "chore(deps): upgrade zod v3 to v4 and fix breaking call sites",
+      "conflictFiles": []
+    },
+    {
+      "pr": 223,
+      "title": "Audit PR #217 + PR #222's unaddressed review comments (top 2 by count)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 222,
+      "title": "feat: add RateLimitSeam to guard paid AI API routes",
+      "conflictFiles": []
+    },
+    {
+      "pr": 221,
+      "title": "fix: four quick wins (corrupted .env.example, README gap, vulnerable dev deps, throwing seam bug)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 220,
+      "title": "Audit PR #217 + PR #211's unaddressed review comments (top 2 by count)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 219,
+      "title": "chore(deps): upgrade zod v3 to v4 across the contract layer",
+      "conflictFiles": []
+    },
+    {
+      "pr": 218,
+      "title": "Four quick-win fixes: rating display, safety keyword parity, wig status, toggle label",
+      "conflictFiles": []
+    },
+    {
+      "pr": 217,
+      "title": "Merge PR #204 + PR #211, fix remaining ProviderAdapterSeam review findings",
+      "conflictFiles": []
+    },
+    {
+      "pr": 216,
+      "title": "Consolidate 5 duplicated legacy/self-contained seams",
+      "conflictFiles": []
+    },
+    {
+      "pr": 215,
+      "title": "fix: four small cleanups (a11y alt text, timeout dedup, dead console.warn, magic number)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 214,
+      "title": "Address remaining review threads on PR #202 and PR #204",
+      "conflictFiles": []
+    },
+    {
+      "pr": 213,
+      "title": "fix: four quick wins (gemini base url, README drift, redundant score label, download extension)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 212,
+      "title": "chore(deps): upgrade zod from v3 to v4",
+      "conflictFiles": []
+    },
+    {
+      "pr": 211,
+      "title": "feat(seams): add RateLimitSeam and gate paid-provider API routes",
+      "conflictFiles": []
+    },
+    {
+      "pr": 210,
+      "title": "fix: repair corrupted .env.example, fill README doc drift, reformat pipeline file",
+      "conflictFiles": []
+    },
+    {
+      "pr": 209,
+      "title": "Audit PR #202/#204 review threads: no live main bugs, fix seam-inventory drift",
+      "conflictFiles": []
+    },
+    {
+      "pr": 208,
+      "title": "Four quick wins: image ID gap, stale studio state, dead code, log noise",
+      "conflictFiles": []
+    },
+    {
+      "pr": 207,
+      "title": "Address unaddressed review comments from PR #202 and PR #204",
+      "conflictFiles": []
+    },
+    {
+      "pr": 206,
+      "title": "feat(telemetry): implement TelemetrySeam console adapter and wire into generate pipeline",
+      "conflictFiles": []
+    },
+    {
+      "pr": 205,
+      "title": "fix: four quick wins — console.warn removal, null safety, heading casing, fence stripping",
+      "conflictFiles": []
+    },
+    {
+      "pr": 204,
+      "title": "Address unresolved review comments from PR #198 and PR #202",
+      "conflictFiles": []
+    },
+    {
+      "pr": 203,
+      "title": "fix: four quick wins (webp detection, a11y alt text, stale docs, broken .env.example)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 202,
+      "title": "Address remaining review threads on PR #197 and PR #198",
+      "conflictFiles": []
+    },
+    {
+      "pr": 201,
+      "title": "feat: add RateLimitSeam — rate-limit all 6 public API routes",
+      "conflictFiles": []
+    },
+    {
+      "pr": 200,
+      "title": "fix: four quick wins — restore .env.example, fix doc drift, patch deps",
+      "conflictFiles": []
+    },
+    {
+      "pr": 199,
+      "title": "fix: four quick-win core logic fixes",
+      "conflictFiles": []
+    },
+    {
+      "pr": 198,
+      "title": "Add circuit breaker + fix Retry-After cap in ProviderAdapterSeam (hardest-fixes #3)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 197,
+      "title": "Close PR191's remaining review threads to supersede PR187/PR180's RateLimitSeam work",
+      "conflictFiles": []
+    },
+    {
+      "pr": 196,
+      "title": "Fix four small UI bugs (a11y labels, wrong field display)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 195,
+      "title": "fix(seams): add startup env-var diagnostics (#2 of top-10 hardest fixes)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 194,
+      "title": "test(WigTryOnSeam): cover pipeline error branches and MIME fallback",
+      "conflictFiles": []
+    },
+    {
+      "pr": 193,
+      "title": "fix(OutputPackagingSeam): lazy-load pdf-lib instead of eager bundle import",
+      "conflictFiles": []
+    },
+    {
+      "pr": 192,
+      "title": "fix: four quick-win correctness fixes (abort classification, draft save, doc drift)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 191,
+      "title": "RateLimitSeam: close final gaps from PR #187/#180 review threads",
+      "conflictFiles": []
+    },
+    {
+      "pr": 190,
+      "title": "Upgrade zod v3 -> v4 across all seams",
+      "conflictFiles": []
+    },
+    {
+      "pr": 189,
+      "title": "fix: corrupted .env.example, broken doc links, stale Vitest version",
+      "conflictFiles": []
+    },
+    {
+      "pr": 188,
+      "title": "fix: charge rate-limit quota only after cheap local guards pass",
+      "conflictFiles": []
+    },
+    {
+      "pr": 187,
+      "title": "Add RateLimitSeam: throttle all paid-AI-calling API routes",
+      "conflictFiles": []
+    },
+    {
+      "pr": 186,
+      "title": "fix: two quick wins — rating display bug, legacy Svelte event syntax",
+      "conflictFiles": []
+    },
+    {
+      "pr": 185,
+      "title": "fix: four quick wins — selfie wording, lineup a11y, redundant modulo, npm audit",
+      "conflictFiles": []
+    },
+    {
+      "pr": 184,
+      "title": "Add RateLimitSeam and SVG/WebP image-format detection to close unaddressed review threads",
+      "conflictFiles": []
+    },
+    {
+      "pr": 183,
+      "title": "fix: resolve dependency vulnerabilities, add audit gate to verify",
+      "conflictFiles": []
+    },
+    {
+      "pr": 182,
+      "title": "Add baseline HTTP security headers and CSP",
+      "conflictFiles": []
+    },
+    {
+      "pr": 181,
+      "title": "fix: four quick wins (env example, doc accuracy, a11y)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 180,
+      "title": "Add RateLimitSeam to close unaddressed review threads from PR #171 and #166",
+      "conflictFiles": []
+    },
+    {
+      "pr": 179,
+      "title": "Four quick wins: @eslint/js dependency, drop unused postcss/tslib, dead export",
+      "conflictFiles": []
+    },
+    {
+      "pr": 178,
+      "title": "chore(deps): upgrade zod v3 -> v4 and fix all resulting breaks",
+      "conflictFiles": []
+    },
+    {
+      "pr": 177,
+      "title": "Fix four quick wins: Rosentic CI bug, timeout constant dedup, magic number, legacy directive",
+      "conflictFiles": []
+    },
+    {
+      "pr": 176,
+      "title": "Fix Rosentic CI false positives, missing build/lint evidence, and a silently-broken assumption-alarm check",
+      "conflictFiles": []
+    },
+    {
+      "pr": 174,
+      "title": "chore(deps-dev): bump vite from 7.3.2 to 8.0.16 in the npm_and_yarn group across 1 directory",
+      "conflictFiles": []
+    },
+    {
+      "pr": 173,
+      "title": "Add RateLimitSeam to gate billable /api/* POST routes",
+      "conflictFiles": []
+    },
+    {
+      "pr": 172,
+      "title": "Four quick wins: drop dead exports, name a magic number",
+      "conflictFiles": []
+    },
+    {
+      "pr": 171,
+      "title": "fix: address remaining unresolved review threads from PR #160 and PR #166",
+      "conflictFiles": []
+    },
+    {
+      "pr": 170,
+      "title": "Four quick wins: dedupe pipeline errors, audit fix, cleanup",
+      "conflictFiles": []
+    },
+    {
+      "pr": 169,
+      "title": "fix: centralize timeout/abort error classification (502 vs 504)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 168,
+      "title": "fix: close RateLimitSeam idle-key eviction gap, consolidate PR #160/#166 review debt",
+      "conflictFiles": []
+    },
+    {
+      "pr": 167,
+      "title": "Four quick wins: dedupe scoring checks, dead handler, a11y, inline style",
+      "conflictFiles": []
+    },
+    {
+      "pr": 166,
+      "title": "feat: add RateLimitSeam and guard AI-provider routes against unbounded abuse",
+      "conflictFiles": []
+    },
+    {
+      "pr": 165,
+      "title": "Four small readability/drift-safety quick wins",
+      "conflictFiles": []
+    },
+    {
+      "pr": 164,
+      "title": "refactor: eliminate dual seam layout for 5 self-contained seams",
+      "conflictFiles": []
+    },
+    {
+      "pr": 163,
+      "title": "fix: address remaining review comments from PR #160 (supersedes #154)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 162,
+      "title": "fix: four quick wins — warn header, fixture cast, DRY provider check, named constant",
+      "conflictFiles": []
+    },
+    {
+      "pr": 161,
+      "title": "Remove 5 legacy flat-layout seams; migrate all imports to canonical self-contained paths",
+      "conflictFiles": []
+    },
+    {
+      "pr": 160,
+      "title": "fix: address 13 unresolved review threads from PR #154 and PR #157",
+      "conflictFiles": []
+    },
+    {
+      "pr": 159,
+      "title": "fix: consolidate dual seam layout — delete 5 legacy flat adapters",
+      "conflictFiles": []
+    },
+    {
+      "pr": 158,
+      "title": "Four quick wins: remove debug log, a11y, testid, DRY mime-type map",
+      "conflictFiles": []
+    },
+    {
+      "pr": 157,
+      "title": "fix: address review comments from PR #154 (7 threads) and PR #152 (3 threads)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 156,
+      "title": "Complete seam architecture migration: remove 5 duplicate flat-layout seams",
+      "conflictFiles": []
+    },
+    {
+      "pr": 155,
+      "title": "fix: four quick wins in image and generate pipelines",
+      "conflictFiles": []
+    },
+    {
+      "pr": 154,
+      "title": "fix: address unresolved review threads from PR #149 (17) and PR #150 (5)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 153,
+      "title": "fix: remove env-var coupling from chat-interpretation-pipeline core",
+      "conflictFiles": []
+    },
+    {
+      "pr": 152,
+      "title": "fix: address review comments from PR #149 (17 threads) and PR #150 (5 threads)",
+      "conflictFiles": []
+    },
+    {
+      "pr": 151,
+      "title": "refactor: complete flat-to-self-contained seam layout migration",
+      "conflictFiles": []
+    },
+    {
+      "pr": 150,
+      "title": "fix: four quick wins — console.warn, type cast, redundant check, silent catch",
+      "conflictFiles": []
+    },
+    {
+      "pr": 149,
+      "title": "fix: address unresolved review threads from PR #128 (11) and PR #138 (11)",
+      "conflictFiles": []
+    }
+  ],
+  "missingRefPrs": []
+}

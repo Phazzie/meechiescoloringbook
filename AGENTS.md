@@ -1,150 +1,106 @@
 <!--
-Purpose: Define Seam-Driven Development workflow, mandates, and governance for this repo.
-Why: Prevent assumptions, scope drift, and unproven changes.
+Purpose: Define Seam-Driven Development workflow, subagent delegation rules, mandates, and governance for this repo.
+Why: Prevent assumptions, scope drift, unproven changes, and context overflow.
 Info flow: This file -> planning/checklists -> seam docs -> implementation/tests.
 -->
 # AGENTS.md
 
-This repo uses Seam-Driven Development to keep behavior measurable and deterministic. These instructions adapt the master guide for this repo.
+This repo uses Seam-Driven Development to keep behavior measurable and deterministic. These instructions adapt the master guide for this repository.
 
-## Wu-Bob
-Current Wu-Bob roster: GZA, U-God, Method Man (update when it changes).
-Why Wu-Bob exists: It forces synthesis instead of pattern matching, gives non-coders a shared vocabulary to steer AI decisions, and adds Uncle Bob as the clean-code anchor to prevent shortcuts.
-When asked for Wu-Bob’s thoughts, respond in a single combined voice that blends the current Wu-Tang roster with Uncle Bob’s clean-code lens. Do not split into separate sections; keep synthesis integrated.
+---
 
-## Why Seam-Driven Development Here
-The common failure modes are assuming behavior, skipping probes, widening scope, and claiming compliance without evidence. Seam-Driven Development prevents that by forcing reality capture, fixture-backed mocks, and contract-first tests.
+## 🎭 Brand Persona & Audience Lock (NON-NEGOTIABLE)
 
-## Codex MCP Server & Programmatic Usage
-- **Direct MCP Integration:** Codex is configured as a direct stdio-based Model Context Protocol (MCP) server for Antigravity in `mcp_config.json`. This allows Antigravity to automatically call Codex tools (such as git operations, filesystem edits, and tool searches) without manual copy-paste.
-- **Programmatic Codex CLI Calls:** In scripts and background automation, Codex can be invoked programmatically via the command line:
-  - `codex exec "<instruction>"` for isolated task delegation.
-  - `codex run <skill>` to execute a structured, pre-defined skill workflow.
-- **When to Invoke Codex Programmatically:**
-  - **PR Conflict Resolution:** To delegate merging, conflict parsing, and resolution of specific stale branches.
-  - **Review Harvesting:** To query and compile open PR review comments into local Markdown checklists.
-  - **Automated Validation:** To coordinate checkout, test, and verification pipelines on isolated candidate branches.
-  - **Repetitive Refactoring:** For repetitive code updates or boilerplate changes across multiple files or seams.
+1. **NEVER flatten or sanitize this app into a kids/family app.**
+2. **Target Persona**: Meechie's Coloring Book is an adult, witty, culturally authentic, sharp-tongued, and high-glam verdict & statement coloring experience (*"Who Fucked Up?"*, *"Rate His Excuse"*, Receipts Out, *Pretty & Petty*).
+3. **Locked 5 Canonical Quotes**: All voice adapters, LLM prompts, and test fixtures are locked **EXCLUSIVELY** to these 5 canonical quotes:
+   1. *"As long as I'm alive, you bitches will have a place to live. Right here in my shadow."*
+   2. *"All I need to be a hoe is an area of control."*
+   3. *"Should've fucked the landlord, not the dopeman."*
+   4. *"Keep fucking with me and I'ma end up being your stepmama."*
+   5. *"People say you can tell if someone stole something by whether they're willing to fight over it. That's not true. I beat up plenty of bitches over their own shit."*
 
-## Core Principles (Keep These Intact)
-1. Reality first: probe real behavior for any seam that touches the world.
-2. Determinism: mocks load fixtures, not invented data.
-3. Contract first: adapters and mocks must match the contract.
-4. Red proof: fault fixture must fail before adapter work.
-5. Mechanical enforcement: rely on verify/tests, not claims.
+---
 
-## Workflow (Liquid Loop)
-Follow this order, no shortcuts:
-1. Contract: `contracts/<seam>.contract.ts` (schema + types + failures).
-2. Probe: `probes/<seam>.probe.ts` (capture real behavior).
-3. Fixtures: `fixtures/<seam>/sample.json` and `fixtures/<seam>/fault.json`.
-4. Mock: `src/lib/mocks/<seam>.mock.ts` (loads fixtures by scenario).
-5. Test: `tests/contract/<seam>.test.ts` (run against mock first).
-6. Adapter: `src/lib/adapters/<seam>.adapter.ts` (real I/O via JailedFs).
+## 🤖 Subagent Delegation Protocol & Rules
 
-## Governance
-- **Planning enforcement:** Plan + self-critique before code changes. List files and constraints; the plan must include the exact seam names (already listed in `docs/seams.md`), exact file paths to be touched, and exact commands that will be run.
-- For autonomous deep-work requests, create or update `plan.md` with explicit specs and self-checks for each major refactor before implementation.
-- Replace "locks" with a mandatory checklist gate (see below). Each checklist entry must be verifiable by a file path, a directory path, or concrete command output (no fuzzy claims).
-- When asked for evidence, provide actual command output.
-- Always keep track of who Wu-Bob consists of (which 1-3 Wu-Tang members are combined with Robert C. Martin).
-- When a seam changes, include exact command output for `npm run verify` and `npm test`.
-- Record significant tradeoffs in `DECISIONS.md`.
-- Use the full term "Seam-Driven Development" in prose; do not use the acronym.
-- Automation is required: `npm run verify` must be used for seam changes; it runs chamber lock, evidence capture, shaolin lint, seam ledger, clan chain, and proof tape.
-- Use `npm run rewind -- --seam <SeamName>` for seam-scoped contract verification when full verify is not required.
-- When introducing jargon or flags (for example: deterministic compressed provider prompt, CLI flags that start with `-`), define them briefly in plain language near their first mention so non-coders can follow along.
+### When to Use Subagents
+- **Atomic Sub-Tickets (`[TICK-000a]`)**: Delegate 1–3 file tasks that have explicit, locked boundary conditions.
+- **Isolated Component Refactors**: Split multi-layer work into subagent sub-tasks (e.g. UI layout, adapter update, fixture sync).
+- **Parallel Explorations & Probes**: Delegate independent diagnostic checks or browser verification steps.
 
-## Plan + Self-Critique Template
-- Plan: goal, exact seam names (must already exist in `docs/seams.md`), exact file paths to be touched, exact commands to run. No vague or aspirational language.
-- Self-critique: what could be wrong, what must be proven, the riskiest assumption, and the evidence that will prove or disprove it.
-- Cipher Gate: for seam changes, record a Cipher Gate entry in `DECISIONS.md` with Date, Seams, Evidence paths, Summary, and Risks.
-- Cipher Gate format (in `DECISIONS.md`):
-  - `- Cipher Gate:` followed by indented fields `Date`, `Seams`, `Evidence`, `Summary`, `Risks`.
-- Assumption Alarm: for blocked probes, record an Assumption entry in `DECISIONS.md` with Date, Seams, Statement, Validation, and Status.
-- Assumption format (in `DECISIONS.md`):
-  - `- Assumption:` followed by indented fields `Date`, `Seams`, `Statement`, `Validation`, `Status`.
+### Why to Use Subagents
+- **Context Protection**: Prevents main thread context overflow and token bloat during repetitive edits.
+- **Scope Containment**: Subagents operate inside strict file boundaries, preventing unintended side effects across unrelated seams.
+- **Deterministic Parallelism**: Allows multiple sub-tasks to run independently and report back verified CLI logs.
 
-## File Header Requirement
-- Every file must start with a top-level comment describing what it does, why it does it, and how information flows.
-- Use the comment syntax of the file type.
-- Example (Markdown):
-```md
-<!--
-Purpose: ...
-Why: ...
-Info flow: ...
--->
+### How to Launch Subagents
+When spawning a subagent, supply an explicit, actionable task prompt using this structure:
+```text
+Execute atomic ticket [TICK-001a]:
+- Files Allowed to Touch: src/routes/+page.svelte
+- Files Forbidden to Touch: contracts/, src/lib/adapters/
+- Action: Defer Wig Try-On section from main home layout.
+- Verification: Run cmd /c "npm run check" and return 0-error output.
 ```
 
-## Seam-Driven Development Is Always Required
-- Default to Seam-Driven Development for all code changes. No shortcuts.
-- Any change that touches a seam (filesystem, network, process execution, OS integration, clock/time, randomness) must follow the full workflow.
-- Any change under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, or `src/lib/adapters/` must follow the full workflow.
-- Any change that alters the contract or observable behavior across a seam boundary must follow the full workflow.
+### Subagent Do's and Don'ts
 
-## Only Exception (Must Be Explicitly Stated)
-- Docs/comments/formatting-only changes with zero behavioral impact. If there is any doubt, treat it as a seam change.
-- Governance-only doc changes (naming conventions, seam inventory format, enforcement rules) still require a micro Plan + Self-Critique that lists the seams (if any), files, commands, and how behavior stays unchanged.
+| ✅ DO | ❌ DON'T |
+|---|---|
+| **DO** specify exact file paths allowed (1–3 files max). | **DON'T** give vague prompts like "fix the layout" or "clean up". |
+| **DO** state explicit forbidden paths (`contracts/`, `src/lib/core/`). | **DON'T** allow subagents to edit `contracts/` without contract approval. |
+| **DO** mandate exact CLI verification (`cmd /c "npm run check"`). | **DON'T** accept completion claims without embedded CLI output evidence. |
+| **DO** enforce Seam-Driven Development rules (no acronyms, no `as any`, no `!`). | **DON'T** allow type assertions (`as any`) or non-null assertions (`!`). |
 
-## Non-Negotiable Mandates (Short)
-- Adapters must not import `fs` or `fs.promises` directly.
-- No sync I/O in adapters (`*Sync` is banned).
-- No `process.cwd()` in core logic; inject paths.
-- Core domain logic must not depend on third-party libraries; use Node.js built-ins only.
-- Adapters may depend on third-party libraries only behind seams.
-- All filesystem/network/process I/O must flow through approved seam adapters only (no helper I/O).
+---
 
-## Checklist Before Saying "Done"
-- Plan + self-critique completed.
-- Fixtures are fresh (<= 7 days) or waiver recorded in `DECISIONS.md` with the assumption being made, the assumption documented in `LESSONS_LEARNED.md`/`DECISIONS.md`, and a stated plan for later validation.
-- Mock loads fixtures by scenario (no logic shortcuts).
-- Fault fixture fails before adapter work (red proof).
-- Adapter uses JailedFs and async I/O only.
-- `npm run verify` and `npm test` are green.
-- The checklist gate has entries that can each be tied to an actual file path or command output (e.g., `docs/evidence/2026-01-27/npm-test-2026-01-27-0330.txt`).
+## 🛠 Available Custom Workspace Skills (`.agents/skills/`)
 
-## Anti-Laziness / Blocked
-- Primary failure modes: skipping steps, guessing instead of probing, declaring completion without evidence.
-- If required inputs, permissions, or probes are missing, STOP and declare “BLOCKED” with what is missing.
+1. 🎫 **`meechie-ticket-scoping`** ([SKILL.md](file:///C:/Users/shiva/.gemini/antigravity-ide/scratch/meechiescoloringbook/.agents/skills/meechie-ticket-scoping/SKILL.md)): Formats, sizes, and scopes atomic subagent-friendly work tickets (1–3 files max, 5–15 min execution).
+2. 🎭 **`meechie-voice-audit`** ([SKILL.md](file:///C:/Users/shiva/.gemini/antigravity-ide/scratch/meechiescoloringbook/.agents/skills/meechie-voice-audit/SKILL.md)): Audits LLM prompt templates and UI copy to enforce the adult verdict persona and 5 canonical quote lock.
+3. 🎨 **`line-art-prompt-compiler`** ([SKILL.md](file:///C:/Users/shiva/.gemini/antigravity-ide/scratch/meechiescoloringbook/.agents/skills/line-art-prompt-compiler/SKILL.md)): Enforces prompt engineering rules and negative prompt constraints for xAI Grok statement coloring page generation.
 
-## Project Docs
-- `LESSONS_LEARNED.md`: short, dated entries capturing pitfalls and fixes.
-- `DECISIONS.md`: decision log with context, alternatives, and consequences.
-- `CHANGELOG.md`: user-visible changes only.
-- `docs/seams.md`: inventory of seams and their owners/contracts.
-- `docs/SEAM_BLUEPRINT.md`: standard blueprint for new seams.
-- `docs/evidence/README.md`: evidence capture conventions and storage.
+---
 
-## AI Agent Reference Notes
-- Sources of truth: `AGENTS.md`, `DECISIONS.md`, `docs/seams.md`, and `contracts/`.
-- Seam names are exact PascalCase; file names are lower kebab-case.
-- Before touching a seam, confirm it exists in `docs/seams.md` and follow the full workflow.
-- Provider limits and external API specifics are locked in `DECISIONS.md` (do not infer or guess).
-- Evidence lives under `docs/evidence/YYYY-MM-DD/`; keep outputs traceable to commands.
-- Prefer `rg` for search and `apply_patch` for single-file edits.
-- At the end of every assistant message, provide exactly three concise next-step options, each with a one-sentence reason for why it is the best next move.
+## 🎤 Wu-Bob Synthesis Persona
+- **Wu-Bob Roster**: GZA, U-God, Method Man + Uncle Bob (Robert C. Martin).
+- **Purpose**: Combines Wu-Tang cultural authenticity and theatrical power with Uncle Bob's clean-code discipline.
+- **Rule**: Respond in a single combined synthesis voice. Do not split into separate sections.
 
-## Automation Tools
-- `npm run verify`: runs chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, and proof tape; required for seam changes.
-- `npm run chamber:lock`: checks seam artifact presence and writes `docs/evidence/YYYY-MM-DD/chamber-lock.json`.
-- `npm run verify:runner`: runs `npm run check` + `npm test` and captures evidence.
-- `npm run shaolin:lint`: enforces evidence freshness and writes `docs/evidence/YYYY-MM-DD/shaolin-lint.json`.
-- `npm run seam:ledger`: writes seam coverage ledger files under `docs/evidence/YYYY-MM-DD/`.
-- `npm run clan:chain`: writes clean/dirty seam summaries under `docs/evidence/YYYY-MM-DD/`.
-- `npm run proof:tape`: writes a plain-English evidence summary under `docs/evidence/YYYY-MM-DD/`.
-- `npm run cipher:gate`: enforces the Cipher Gate entry in `DECISIONS.md` and writes `docs/evidence/YYYY-MM-DD/cipher-gate.json`. Not part of the verify chain; run manually if needed.
-- `npm run assumption:alarm`: enforces Assumption entries for blocked probes and writes `docs/evidence/YYYY-MM-DD/assumption-alarm.json`.
-- `npm run rewind -- --seam <SeamName>`: runs a single seam contract test and captures seam evidence.
-- `npm run hooks:install`: configures local git hooks to run `npm run verify` on commit and push.
-- CI: `.github/workflows/verify.yml` runs `npm run verify` on push and pull request.
+---
 
-## If You Deviate Mid-Work
-1. Stop immediately.
-2. Restate the instruction and the law.
-3. Roll back the approach to contract/probe/fixture.
-4. Run `npm run verify` and `npm test`.
-5. Re-scope to one seam and continue.
+## 📜 Core Seam-Driven Development Rules
+1. **Reality First**: Probe real behavior for any seam touching external I/O.
+2. **Determinism**: Mocks load fixtures from `fixtures/`, not invented data.
+3. **Contract First**: Contracts in `contracts/` define schemas and failure cases before adapters are built.
+4. **Red Proof**: Fault fixtures must fail before adapter implementation.
+5. **Mechanical Enforcement**: Always verify changes via `npm run verify` or `cmd /c "npm run check"`.
+6. **No Acronyms**: Always use the full term "Seam-Driven Development" in prose.
 
-## Reference
-See `SDD_MASTER_GUIDE_COPY.md` for the full workflow and rationale.
+---
+
+## 🛠 Required Automation Commands
+```bash
+# Type & Svelte check (Must pass with 0 errors)
+cmd /c "npm run check"
+
+# Unit & contract tests
+npm test
+
+# Full seam verification suite
+npm run verify
+
+# Single-seam contract rewind
+npm run rewind -- --seam <SeamName>
+```
+
+---
+
+## 🏁 Pre-Completion Checklist
+- [ ] Plan + self-critique completed in `implementation_plan.md`.
+- [ ] Touched files strictly match allowed ticket paths.
+- [ ] Zero `as any` type escapes or `!` non-null assertions introduced.
+- [ ] `cmd /c "npm run check"` passes with 0 errors and 0 warnings.
+- [ ] `npm test` unit and contract tests pass cleanly.
+- [ ] Session changes logged in `CHANGELOG.md` and `LESSONS_LEARNED.md`.

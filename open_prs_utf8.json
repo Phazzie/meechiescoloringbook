@@ -1,0 +1,695 @@
+[
+  {
+    "number": 226,
+    "title": "feat(security): add RateLimitSeam to guard provider-billed API routes",
+    "branch": "claude/sweet-mendel-9rlnxf",
+    "user": "Phazzie",
+    "created_at": "2026-07-09T12:20:45Z",
+    "updated_at": "2026-07-09T12:35:06Z",
+    "body": "## Summary  This repo has no formal issue tracker, so as requested I audited the codebase for the hardest outstanding problems, then fixed the one I judged most impactful: **unauthenticated, unlimited access to the paid AI provider endpoints.**  ## The 10 hardest upgrades/fixes this repo needs  1. ~~**No authentication or rate limiting on any provider-billed API route.** `/api/generate`, `/api/ima"
+  },
+  {
+    "number": 225,
+    "title": "feat: add RateLimitSeam to guard metered AI-provider endpoints",
+    "branch": "claude/sweet-mendel-miz3or",
+    "user": "Phazzie",
+    "created_at": "2026-07-08T12:17:47Z",
+    "updated_at": "2026-07-08T13:18:06Z",
+    "body": "## Summary  Per request, I audited the repo for its hardest outstanding upgrades/fixes, then implemented the one I judged hardest/highest-impact.  ### 10 hardest upgrades/fixes this repo needs  1. ~~**No abuse/cost-control protection on paid AI endpoints.** `/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/meechie-studio-text`, `/api/wig-try-on`, and `/api/tools` all call"
+  },
+  {
+    "number": 224,
+    "title": "chore(deps): upgrade zod v3 to v4 and fix breaking call sites",
+    "branch": "claude/sweet-mendel-pxxxe8",
+    "user": "Phazzie",
+    "created_at": "2026-07-07T15:45:14Z",
+    "updated_at": "2026-07-07T16:20:11Z",
+    "body": "## Summary  This PR was produced by a task that asked for a list of the 10 hardest upgrades/fixes this repo needs, followed by performing the hardest one.  ### The 10 hardest upgrades/fixes  1. ~~**Zod v3 → v4 migration**~~ — 70 files import zod; the major bump breaks `z.record()` call signatures, error `issue.code` names (`invalid_string` removed), and `issue.path` typing across 7 files and 2 sea"
+  },
+  {
+    "number": 223,
+    "title": "Audit PR #217 + PR #222's unaddressed review comments (top 2 by count)",
+    "branch": "claude/keen-hypatia-15a43i",
+    "user": "Phazzie",
+    "created_at": "2026-07-07T09:52:31Z",
+    "updated_at": "2026-07-07T10:10:46Z",
+    "body": "## Summary  Among PRs opened in the last 5 days, **PR #217** (23 unresolved review threads) and **PR #222** (21 unresolved review threads) had the most unaddressed review comments by raw GitHub `is_resolved` count. This branch starts from PR #220's head (which already contains PR #217 + PR #211's history) and verifies every flagged finding against current code rather than trusting the stale `is_re"
+  },
+  {
+    "number": 222,
+    "title": "feat: add RateLimitSeam to guard paid AI API routes",
+    "branch": "claude/sweet-mendel-su8qit",
+    "user": "Phazzie",
+    "created_at": "2026-07-06T15:53:40Z",
+    "updated_at": "2026-07-06T16:44:57Z",
+    "body": "## Summary  Audited the repo end-to-end (architecture, `docs/seams.md`, `DECISIONS.md`/`LESSONS_LEARNED.md` history, `npm audit`, test/lint/build health, live code inspection) to find the 10 hardest outstanding upgrades/fixes, then implemented the hardest one.  ## The 10 hardest upgrades/fixes this repo needs  Ranked hardest → least hard. Nothing deleted — the item that was fixed in this PR is str"
+  },
+  {
+    "number": 221,
+    "title": "fix: four quick wins (corrupted .env.example, README gap, vulnerable dev deps, throwing seam bug)",
+    "branch": "claude/trusting-volta-g8a8b3",
+    "user": "Phazzie",
+    "created_at": "2026-07-06T12:12:31Z",
+    "updated_at": "2026-07-06T12:22:00Z",
+    "body": "## Summary - `.env.example` was committed as a base64-encoded blob instead of plain text, silently breaking the \"populate `.env` from `.env.example`\" setup step used by `npm run test:integration` and `AGENTS.md`/`CLAUDE.md` onboarding. Restored it to plain text. - README's Environment Variables table was missing `GEMINI_API_KEY` and `GEMINI_BASE_URL`, added to `.env.example` for the wig try-on fea"
+  },
+  {
+    "number": 220,
+    "title": "Audit PR #217 + PR #211's unaddressed review comments (top 2 by count)",
+    "branch": "claude/keen-hypatia-bfgc6f",
+    "user": "Phazzie",
+    "created_at": "2026-07-06T09:42:15Z",
+    "updated_at": "2026-07-06T10:28:55Z",
+    "body": "## Summary  Among the PRs opened in the last 5 days, **PR #217** (23 unresolved review threads) and **PR #211** (7 unresolved review threads) had the most unaddressed review comments. This branch starts from PR #217's head (which already contains PR #211's history, merged in per PR #217's own description) and audits every one of those 30 flagged threads against the current code — not against GitHu"
+  },
+  {
+    "number": 219,
+    "title": "chore(deps): upgrade zod v3 to v4 across the contract layer",
+    "branch": "claude/sweet-mendel-aw3k28",
+    "user": "Phazzie",
+    "created_at": "2026-07-05T13:35:23Z",
+    "updated_at": "2026-07-05T14:01:49Z",
+    "body": "## Summary  As requested, this PR starts with a ranked list of the 10 hardest outstanding upgrades/fixes in this repo (researched via `npm outdated`, `npm audit`, `docs/seams.md`, `DECISIONS.md`, and `LESSONS_LEARNED.md`), then completes the hardest one. Per instructions, nothing is deleted from the list — the completed item is struck through.  ### 10 hardest upgrades/fixes  1. ~~**Zod v3 → v4 maj"
+  },
+  {
+    "number": 218,
+    "title": "Four quick-win fixes: rating display, safety keyword parity, wig status, toggle label",
+    "branch": "claude/trusting-volta-r7xqzl",
+    "user": "Phazzie",
+    "created_at": "2026-07-05T12:16:14Z",
+    "updated_at": "2026-07-05T12:25:02Z",
+    "body": "## Summary - `rate-his-excuse` page rendered `result.headline` (already `\"N/10\"`) next to a static `\"out of 10\"` label, showing `\"7/10 out of 10\"` — now renders the plain `ratingScore` number. - `SafetyPolicySeam` appended `'suicide'`/`'extremist'` to its local copy of the disallowed-keyword list, so `/api/tools` and `/api/meechie-studio-text` (which call the shared `findDisallowedKeywords` helper"
+  },
+  {
+    "number": 217,
+    "title": "Merge PR #204 + PR #211, fix remaining ProviderAdapterSeam review findings",
+    "branch": "claude/keen-hypatia-rz6171",
+    "user": "Phazzie",
+    "created_at": "2026-07-05T09:48:10Z",
+    "updated_at": "2026-07-05T10:43:56Z",
+    "body": "## Summary  Among the PRs opened in the last 5 days, **PR #204** (19 unresolved review threads) and **PR #211** (8 unresolved review threads) had the most unaddressed review comments. This PR merges both branches and resolves what was still genuinely open.  ### Merge: PR #204 + PR #211  Both PRs branched from the same `main` commit and independently implemented `RateLimitSeam` from scratch, unawar"
+  },
+  {
+    "number": 216,
+    "title": "Consolidate 5 duplicated legacy/self-contained seams",
+    "branch": "claude/sweet-mendel-tnmuj7",
+    "user": "Phazzie",
+    "created_at": "2026-07-04T12:25:38Z",
+    "updated_at": "2026-07-04T12:37:14Z",
+    "body": "## Top 10 hardest upgrades/fixes this repo needs  Compiled by auditing `docs/seams.md`, `DECISIONS.md`, `plan.md`, `HANDOFF.md`, the seam consumer graph, `npm audit`, the API routes, and CI config. Ranked roughly by blast radius / risk / effort.  1. ~~**Consolidate 5 seams that exist in both the legacy flat layout and the self-contained layout** (PromptAssemblySeam, SpecValidationSeam, DriftDetect"
+  },
+  {
+    "number": 215,
+    "title": "fix: four small cleanups (a11y alt text, timeout dedup, dead console.warn, magic number)",
+    "branch": "claude/trusting-volta-5rivbz",
+    "user": "Phazzie",
+    "created_at": "2026-07-04T12:13:57Z",
+    "updated_at": "2026-07-04T12:16:51Z",
+    "body": "## Summary Four small, low-risk quick wins found while scanning the pure/UI code (no seams touched): - **Accessibility**: `StudioPreviewPanel.svelte` gave the active theme's preview image `alt=\"\"`, hiding which theme is selected from screen-reader users. Now uses `alt={activeTheme.label}`. - **Consolidation**: `generate-pipeline.ts` reimplemented timeout detection with a bespoke `/timeout/i` regex"
+  },
+  {
+    "number": 214,
+    "title": "Address remaining review threads on PR #202 and PR #204",
+    "branch": "claude/keen-hypatia-43jm09",
+    "user": "Phazzie",
+    "created_at": "2026-07-04T09:49:48Z",
+    "updated_at": "2026-07-04T10:20:38Z",
+    "body": "## Summary  Among the 12 PRs opened in the last 5 days, **PR #202** (\"Address remaining review threads on PR #197 and PR #198\", 23 unresolved review threads) and **PR #204** (\"Address unresolved review comments from PR #198 and PR #202\", 19 unresolved threads) had by far the most unaddressed review comments. PR #204's branch already contains PR #202's branch as a merged ancestor, so this PR builds"
+  },
+  {
+    "number": 213,
+    "title": "fix: four quick wins (gemini base url, README drift, redundant score label, download extension)",
+    "branch": "claude/trusting-volta-dyvqd5",
+    "user": "Phazzie",
+    "created_at": "2026-07-03T12:15:09Z",
+    "updated_at": "2026-07-03T12:23:37Z",
+    "body": "## Summary  Four small, independently-verified fixes found during a codebase sweep — no seam contracts changed, no new abstractions introduced.  1. **`WigTryOnSeam` ignored its own configured Gemini base URL.** `src/lib/adapters/wig-try-on-seam/index.ts` always called the hardcoded production Gemini host, even though `AppConfigSeam` already reads and validates `GEMINI_BASE_URL`. Setting that env v"
+  },
+  {
+    "number": 212,
+    "title": "chore(deps): upgrade zod from v3 to v4",
+    "branch": "claude/sweet-mendel-do86g6",
+    "user": "Phazzie",
+    "created_at": "2026-07-03T12:15:02Z",
+    "updated_at": "2026-07-03T12:17:40Z",
+    "body": "## Summary  As requested, here is a list of the 10 most difficult upgrades/fixes this repo needs, ranked hardest-first. I performed the hardest one (#1) in this PR.  ### 10 hardest upgrades/fixes  1. ~~**Zod v3 → v4 major upgrade.** `zod` is used in 57 files as the schema layer for every contract-first seam in this Seam-Driven Development codebase. v4 breaks `z.record()` (now requires an explicit "
+  },
+  {
+    "number": 211,
+    "title": "feat(seams): add RateLimitSeam and gate paid-provider API routes",
+    "branch": "claude/sweet-mendel-d53hov",
+    "user": "Phazzie",
+    "created_at": "2026-07-02T12:18:51Z",
+    "updated_at": "2026-07-02T12:43:06Z",
+    "body": "## Top 10 hardest upgrades/fixes in this repo  Audited via `npm run check`/`lint`/`test`/`build`/`audit`, `docs/seams.md`, `docs/todo-from-cleanup.md`, and a grep of every `+server.ts` route. Per instructions, nothing is deleted from this list — the one addressed in this PR is struck through.  1. ~~No rate limiting / abuse protection on paid AI API routes~~ — **fixed in this PR.** `generate`, `ima"
+  },
+  {
+    "number": 210,
+    "title": "fix: repair corrupted .env.example, fill README doc drift, reformat pipeline file",
+    "branch": "claude/trusting-volta-51zc3x",
+    "user": "Phazzie",
+    "created_at": "2026-07-02T12:08:07Z",
+    "updated_at": "2026-07-02T12:12:55Z",
+    "body": "## Summary - `.env.example` had been accidentally overwritten with a single base64-encoded blob of its own contents (regression from `d5f23ae`, the Gemini wig try-on commit). Restored the plaintext template so `cp .env.example .env` actually works. - README's Environment Variables table was missing `GEMINI_API_KEY` / `GEMINI_BASE_URL`, which the wig try-on feature requires (`src/lib/adapters/app-c"
+  },
+  {
+    "number": 209,
+    "title": "Audit PR #202/#204 review threads: no live main bugs, fix seam-inventory drift",
+    "branch": "claude/keen-hypatia-2ftzmn",
+    "user": "Phazzie",
+    "created_at": "2026-07-02T09:41:05Z",
+    "updated_at": "2026-07-02T09:45:38Z",
+    "body": "## Summary  Asked to fix the 23 unresolved review threads on PR #202 and 19 unresolved review threads on PR #204 (both open, unmerged, based on `main` at `29109f0`). Every thread was cross-referenced against current `main` before writing any code.  **Finding:** PR #202 and PR #204 are not incremental review fixes on top of existing `main` behavior. Per PR #204's own description, \"Both branches wer"
+  },
+  {
+    "number": 208,
+    "title": "Four quick wins: image ID gap, stale studio state, dead code, log noise",
+    "branch": "claude/trusting-volta-bb8mvr",
+    "user": "Phazzie",
+    "created_at": "2026-07-01T12:26:52Z",
+    "updated_at": "2026-07-01T12:37:54Z",
+    "body": "## Summary  Four small, self-contained fixes found while sweeping the codebase for quick wins. None touch adapters/mocks/contracts, so no seam-workflow evidence beyond a fresh `npm run verify` capture was needed.  - **`image-generation-pipeline.ts`**: image IDs were generated from the source array index, so skipping an image with no base64 data left a gap (the sole returned image was labeled `imag"
+  },
+  {
+    "number": 207,
+    "title": "Address unaddressed review comments from PR #202 and PR #204",
+    "branch": "claude/keen-hypatia-6hxm6m",
+    "user": "Phazzie",
+    "created_at": "2026-07-01T10:02:35Z",
+    "updated_at": "2026-07-01T10:37:23Z",
+    "body": "## Summary  Scheduled routine: surveyed the 12 PRs opened in the last 5 days and ranked them by unaddressed review-comment count. **PR #202** (\"Address remaining review threads on PR #197 and PR #198\", 23/23 unresolved) and **PR #204** (\"Address unresolved review comments from PR #198 and PR #202\", 14/19 unresolved) were the two highest. PR #204's branch is a strict superset of PR #202's (confirme"
+  },
+  {
+    "number": 206,
+    "title": "feat(telemetry): implement TelemetrySeam console adapter and wire into generate pipeline",
+    "branch": "claude/sweet-mendel-6gzn5j",
+    "user": "Phazzie",
+    "created_at": "2026-06-30T12:16:16Z",
+    "updated_at": "2026-06-30T12:35:00Z",
+    "body": "## Top 10 Hardest Upgrades / Fixes This Repo Needs  Audited across seam registry, pipelines, contracts, governance docs, and test coverage. Ranked by difficulty and cross-cutting impact.  1. ~~**TelemetrySeam is completely unwired: no adapter exists and no pipeline emits events** — Contract defines 4 event types; nothing emits them in production. Requires building a real adapter, threading optiona"
+  },
+  {
+    "number": 205,
+    "title": "fix: four quick wins — console.warn removal, null safety, heading casing, fence stripping",
+    "branch": "claude/trusting-volta-2acma2",
+    "user": "Phazzie",
+    "created_at": "2026-06-30T12:15:05Z",
+    "updated_at": "2026-06-30T12:23:40Z",
+    "body": "## Summary  Four independent, low-risk correctness and hygiene fixes:  - **Remove `console.warn` from `imageFormatFromBase64`** (`image-generation-pipeline.ts`) — there is no structured logger in this codebase; `console.warn` pollutes production server logs silently. The fallback to `png` is still the right behavior; the log line was just noise.  - **Defensive optional chaining on `data?.[0]`** (`"
+  },
+  {
+    "number": 204,
+    "title": "Address unresolved review comments from PR #198 and PR #202",
+    "branch": "claude/keen-hypatia-fo7yip",
+    "user": "Phazzie",
+    "created_at": "2026-06-30T09:42:50Z",
+    "updated_at": "2026-06-30T10:24:06Z",
+    "body": "## Summary  This PR addresses unresolved review comments from the two PRs opened in the last 5 days with the most pending threads: **PR #202** (23 unresolved threads) and **PR #198** (9 unresolved threads). Both branches were merged into this working branch; the commit here applies the remaining fixes.  ### `http-resilience.ts` — circuit breaker correctness  - **Reset `consecutiveFailures` on cool"
+  },
+  {
+    "number": 203,
+    "title": "fix: four quick wins (webp detection, a11y alt text, stale docs, broken .env.example)",
+    "branch": "claude/trusting-volta-1phmi3",
+    "user": "Phazzie",
+    "created_at": "2026-06-29T15:56:36Z",
+    "updated_at": "2026-06-29T16:09:33Z",
+    "body": "## Summary  Four small, independently verifiable fixes — none touch seam-restricted directories (`contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/`), so they're exempt from full SDD ceremony.  - **WebP image mislabeling bug** (`src/lib/core/image-generation-pipeline.ts`): `imageFormatFromBase64` only recognized JPEG (`/9j/`) and PNG (`iVBORw0KGgo`) magic"
+  },
+  {
+    "number": 202,
+    "title": "Address remaining review threads on PR #197 and PR #198",
+    "branch": "claude/keen-hypatia-aid2xi",
+    "user": "Phazzie",
+    "created_at": "2026-06-29T10:22:14Z",
+    "updated_at": "2026-06-29T10:39:08Z",
+    "body": "## Summary  Among PRs opened in the last 5 days, **PR #198** (\"Add circuit breaker + fix Retry-After cap in ProviderAdapterSeam\", 9 review threads) and **PR #197** (\"Close PR191's remaining review threads...\", 4 review threads) had the most unaddressed review comments. This PR builds on both branches (PR #197's `claude/keen-hypatia-el1omy` and PR #198's `claude/sweet-mendel-efx3o2`, already merged"
+  },
+  {
+    "number": 201,
+    "title": "feat: add RateLimitSeam — rate-limit all 6 public API routes",
+    "branch": "claude/sweet-mendel-6ctr6d",
+    "user": "Phazzie",
+    "created_at": "2026-06-28T12:34:35Z",
+    "updated_at": "2026-06-28T13:14:08Z",
+    "body": "## Top 10 hardest upgrades/fixes this repo needs  Per request: identify the 10 hardest fixes, perform the hardest one, list preserved below (completed item struck through, nothing deleted).  1. ~~**No authentication or rate limiting on any public API route.** All 6 routes (`/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/tools`, `/api/wig-try-on`, `/api/meechie-studio-te"
+  },
+  {
+    "number": 200,
+    "title": "fix: four quick wins — restore .env.example, fix doc drift, patch deps",
+    "branch": "claude/trusting-volta-hdrdbj",
+    "user": "Phazzie",
+    "created_at": "2026-06-28T12:20:12Z",
+    "updated_at": "2026-06-28T12:28:19Z",
+    "body": "## Summary  Four small, low-risk fixes found during a quick-wins sweep. None touch any seam contract/mock/adapter/test, so no Cipher Gate entry is needed per `AGENTS.md`'s docs/formatting exception — but a `LESSONS_LEARNED.md` entry is added for the `.env.example` finding.  - **Restore `.env.example`** — it was accidentally committed as a single base64-encoded line in the 2026-05-11 \"add GEMINI_AP"
+  },
+  {
+    "number": 199,
+    "title": "fix: four quick-win core logic fixes",
+    "branch": "claude/trusting-volta-u5ih3b",
+    "user": "Phazzie",
+    "created_at": "2026-06-27T16:00:07Z",
+    "updated_at": "2026-06-27T16:07:08Z",
+    "body": "## Summary  Four small, low-risk fixes found while sweeping `src/lib/core/` and `src/lib/utils/` for quick wins. All changes are pure logic (no seam contracts, mocks, fixtures, or adapters touched), so the full Liquid Loop / Cipher Gate ceremony does not apply per `AGENTS.md` scoping rules.  - **`http-resilience.ts`** — `parseRetryAfterMs` treated an empty-string `Retry-After` header as a valid `0"
+  },
+  {
+    "number": 198,
+    "title": "Add circuit breaker + fix Retry-After cap in ProviderAdapterSeam (hardest-fixes #3)",
+    "branch": "claude/sweet-mendel-efx3o2",
+    "user": "Phazzie",
+    "created_at": "2026-06-27T15:56:29Z",
+    "updated_at": "2026-06-27T16:36:18Z",
+    "body": "## Summary  As requested, I drew up a list of the 10 hardest upgrades/fixes this repo needs, then implemented the hardest non-duplicated one. The list lives permanently at `docs/top-10-hardest-fixes.md` (verbatim from PR #195/#121, strikethrough-only — nothing deleted).  **Implemented in this PR: item #3 — Retry Logic: No Circuit Breaker + Incorrect `Retry-After` Cap.**  - `fetchWithRetry` previou"
+  },
+  {
+    "number": 197,
+    "title": "Close PR191's remaining review threads to supersede PR187/PR180's RateLimitSeam work",
+    "branch": "claude/keen-hypatia-el1omy",
+    "user": "Phazzie",
+    "created_at": "2026-06-27T10:06:01Z",
+    "updated_at": "2026-06-27T11:43:55Z",
+    "body": "## Summary  Among PRs opened in the last 5 days, **PR #187** (13 unresolved review threads) and **PR #180** (8 unresolved review threads) have the most unaddressed review comments. Both are independent, now-superseded attempts at the same `RateLimitSeam` feature — one of several open PRs since 2026-06-17 reimplementing it with zero merges.  PR191's branch (`claude/keen-hypatia-96vtgc`) already con"
+  },
+  {
+    "number": 196,
+    "title": "Fix four small UI bugs (a11y labels, wrong field display)",
+    "branch": "claude/trusting-volta-agbtae",
+    "user": "Phazzie",
+    "created_at": "2026-06-26T12:28:19Z",
+    "updated_at": "2026-06-26T12:33:16Z",
+    "body": "## Summary  Four small, independently-verified, non-seam UI fixes found during a manual audit (lint/check/test were already all green, so these aren't caught by tooling):  - **`StudioPreviewPanel.svelte`** — the active-theme preview image had `alt=\"\"`, even though `StudioTheme` has a descriptive `label` (e.g. \"Crown Energy\"). Now uses `alt={`${activeTheme.label} theme preview`}`. - **`MeechieTools"
+  },
+  {
+    "number": 195,
+    "title": "fix(seams): add startup env-var diagnostics (#2 of top-10 hardest fixes)",
+    "branch": "claude/sweet-mendel-oo41s5",
+    "user": "Phazzie",
+    "created_at": "2026-06-26T12:24:12Z",
+    "updated_at": "2026-06-26T12:41:25Z",
+    "body": "## Top 10 Hardest Upgrades / Fixes (full audit — do not remove items, only strikethrough when done)  This list originated in #121 and now has a permanent home at `docs/top-10-hardest-fixes.md` so future sessions don't have to dig through closed PRs to find it. Every row below was re-verified against current `main`, not just trusted from the prior PR description — one row (#5) turned out to be only"
+  },
+  {
+    "number": 194,
+    "title": "test(WigTryOnSeam): cover pipeline error branches and MIME fallback",
+    "branch": "claude/sweet-mendel-m5cojt",
+    "user": "Phazzie",
+    "created_at": "2026-06-25T21:32:59Z",
+    "updated_at": "2026-06-25T21:41:49Z",
+    "body": "## What this PR does  Per request, I audited the repo for its 10 hardest outstanding fixes, then performed the hardest one I could complete **safely and without duplicating work already in flight**. Read the callout below before the list — it's the more important finding from this session.  ### ⚠️ The backlog this routine runs into has gotten worse, not better  Issue #175 (filed 2026-06-20) alread"
+  },
+  {
+    "number": 193,
+    "title": "fix(OutputPackagingSeam): lazy-load pdf-lib instead of eager bundle import",
+    "branch": "claude/sweet-mendel-6m67ws",
+    "user": "Phazzie",
+    "created_at": "2026-06-25T16:11:37Z",
+    "updated_at": "2026-06-25T16:16:13Z",
+    "body": "## What this PR does  Per request, I audited the repo for its 10 hardest outstanding fixes, then performed the hardest one I could complete safely. **Heads up before you read further: the PR backlog this repo is already tracking in issue #175 has gotten significantly worse since it was filed** — see the callout below.  ### The fix: lazy-load `pdf-lib` out of the eager client bundle  `src/lib/adapt"
+  },
+  {
+    "number": 192,
+    "title": "fix: four quick-win correctness fixes (abort classification, draft save, doc drift)",
+    "branch": "claude/trusting-volta-w9lzdw",
+    "user": "Phazzie",
+    "created_at": "2026-06-25T15:55:18Z",
+    "updated_at": "2026-06-25T16:14:58Z",
+    "body": "## Summary  Four independently-verified, low-risk fixes found via codebase sweep. Cross-checked against the 10 open \"quick wins grab-bag\" PRs (#150, #155, #158, #162, #165, #167, #170, #172, #177, #179) via live diff inspection — no file/logic overlap with any of them.  1. **`generate-pipeline.ts`** — `imageExceptionResponse` misclassified a caller-aborted image request as `502 IMAGE_GENERATION_FA"
+  },
+  {
+    "number": 191,
+    "title": "RateLimitSeam: close final gaps from PR #187/#180 review threads",
+    "branch": "claude/keen-hypatia-96vtgc",
+    "user": "Phazzie",
+    "created_at": "2026-06-25T09:49:02Z",
+    "updated_at": "2026-06-25T11:50:16Z",
+    "body": "## Summary  PR #187 (18 unresolved review threads) and PR #180 (12 unresolved review threads) are competing, unmerged implementations of the same `RateLimitSeam` feature, both branched from the same point on `main`. PR #188 already carried forward PR #187's implementation as the baseline and worked through most of both PRs' review feedback (0 unresolved threads of its own), but had not yet merged."
+  },
+  {
+    "number": 190,
+    "title": "Upgrade zod v3 -> v4 across all seams",
+    "branch": "claude/sweet-mendel-hredvc",
+    "user": "Phazzie",
+    "created_at": "2026-06-24T15:54:39Z",
+    "updated_at": "2026-06-24T16:01:21Z",
+    "body": "## Summary  Per request, here is the list of the 10 most difficult upgrades/fixes this repo needs, with the one I implemented struck through (not removed). Items 9 and 10 were added after research to bring the list to 10 (8 were confirmed solid before that point).  1. ~~Upgrade `zod` v3 -> v4 across every seam contract/validator/adapter that imports it (`z.record()` 2-arg requirement, `ZodIssue.pa"
+  },
+  {
+    "number": 189,
+    "title": "fix: corrupted .env.example, broken doc links, stale Vitest version",
+    "branch": "claude/trusting-volta-2seka5",
+    "user": "Phazzie",
+    "created_at": "2026-06-24T15:33:51Z",
+    "updated_at": "2026-06-24T15:40:17Z",
+    "body": "## Summary Three small, independently-verified fixes — none touch a seam (no `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, or `src/lib/adapters/` files), so the full Seam-Driven Development workflow doesn't apply per `AGENTS.md`.  1. **`.env.example` was base64-encoded garbage instead of plaintext.** The whole file was a single base64 blob — anyone following the README"
+  },
+  {
+    "number": 188,
+    "title": "fix: charge rate-limit quota only after cheap local guards pass",
+    "branch": "claude/keen-hypatia-kq14p7",
+    "user": "Phazzie",
+    "created_at": "2026-06-24T09:56:20Z",
+    "updated_at": "2026-06-24T11:38:09Z",
+    "body": "## Summary  PR #187 and PR #180 are two competing, still-unmerged implementations of the same `RateLimitSeam` feature, both opened against current `main` and both flagged with the highest number of unaddressed review comments of any PR opened in the last 5 days. Most of those \"unresolved\" threads on both PRs were actually already fixed by later self-correction commits on each branch but never mark"
+  },
+  {
+    "number": 187,
+    "title": "Add RateLimitSeam: throttle all paid-AI-calling API routes",
+    "branch": "claude/sweet-mendel-q4tqvo",
+    "user": "Phazzie",
+    "created_at": "2026-06-23T16:26:53Z",
+    "updated_at": "2026-06-23T17:43:16Z",
+    "body": "## The 10 most difficult upgrades/fixes this repo needs  1. ~~No rate limiting on the 6 paid-AI-calling API routes (`generate`, `image-generation`, `wig-try-on`, `chat-interpretation`, `meechie-studio-text`, `tools`), leaving unbounded billing/abuse exposure against metered xAI/Gemini calls~~ — **done in this PR** 2. No authentication/authorization on any paid-AI-calling route — only per-client-IP"
+  },
+  {
+    "number": 186,
+    "title": "fix: two quick wins — rating display bug, legacy Svelte event syntax",
+    "branch": "claude/trusting-volta-xfi14r",
+    "user": "Phazzie",
+    "created_at": "2026-06-23T16:22:51Z",
+    "updated_at": "2026-06-23T16:26:27Z",
+    "body": "## Summary - `rate-his-excuse/+page.svelte`: the rating panel rendered `result.headline` (server-built as `\"N/10\"`) right next to a `.score-label` reading `\"out of 10\"`, producing a redundant `\"N/10 OUT OF 10\"`. Display the already-computed `ratingScore` (the bare number) instead, matching the `.score-number` styling's clear intent (a giant numeral + small caption). - `random/+page.svelte`, `rate-"
+  },
+  {
+    "number": 185,
+    "title": "fix: four quick wins — selfie wording, lineup a11y, redundant modulo, npm audit",
+    "branch": "claude/trusting-volta-xmscoo",
+    "user": "Phazzie",
+    "created_at": "2026-06-23T12:20:31Z",
+    "updated_at": "2026-06-23T12:26:22Z",
+    "body": "## Summary - `SelfieUpload.svelte`: fix \"photo\" wording in two error messages to say \"selfie\", matching the rest of the component's copy (header, button text, alt text all already say \"selfie\"). - `MeechieTools.svelte`: add an `aria-label` to the lineup tool's \"Remove\" buttons so screen-reader users can tell the repeated buttons apart (e.g. \"Remove excuse 2\") instead of hearing identical \"Remove, "
+  },
+  {
+    "number": 184,
+    "title": "Add RateLimitSeam and SVG/WebP image-format detection to close unaddressed review threads",
+    "branch": "claude/keen-hypatia-0js0xk",
+    "user": "Phazzie",
+    "created_at": "2026-06-23T10:03:34Z",
+    "updated_at": "2026-06-23T10:22:13Z",
+    "body": "## Summary  Among the PRs opened in the last 5 days, **#171** and **#180** carried the most unaddressed review comments (both implementing the same rate-limiting feature as sibling branches off slightly different bases). This PR ports their converged, genuinely-still-valid fixes into one change against `main`:  - New self-contained **RateLimitSeam** (sliding-window limiter, throttled idle-key swee"
+  },
+  {
+    "number": 183,
+    "title": "fix: resolve dependency vulnerabilities, add audit gate to verify",
+    "branch": "claude/sweet-mendel-yv3l6h",
+    "user": "Phazzie",
+    "created_at": "2026-06-22T14:04:26Z",
+    "updated_at": "2026-06-22T14:22:29Z",
+    "body": "## Summary  This was a \"find the 10 hardest fixes, perform the hardest one\" sweep. The most important finding isn't a code defect — it's that **this repository has a runaway autonomous-PR backlog that has continued growing even after the repo owner explicitly asked for it to pause**, and this PR is being opened by an instance of that exact automation. I'm flagging that prominently below, and expla"
+  },
+  {
+    "number": 182,
+    "title": "Add baseline HTTP security headers and CSP",
+    "branch": "claude/sweet-mendel-nh905m",
+    "user": "Phazzie",
+    "created_at": "2026-06-22T12:24:55Z",
+    "updated_at": "2026-06-22T12:34:03Z",
+    "body": "## The 10 hardest upgrades/fixes this repo needs  1. ~~**No HTTP security headers or Content-Security-Policy anywhere in the app**~~ — **fixed in this PR.** There was no `hooks.server.ts` and no `kit.csp` config; every response went out with zero clickjacking/MIME-sniffing/referrer/permissions protection and no CSP at all. 2. **Runaway autonomous PR backlog / governance breakdown** — 31 open PRs, "
+  },
+  {
+    "number": 181,
+    "title": "fix: four quick wins (env example, doc accuracy, a11y)",
+    "branch": "claude/trusting-volta-w2v27r",
+    "user": "Phazzie",
+    "created_at": "2026-06-22T12:17:51Z",
+    "updated_at": "2026-06-22T12:23:31Z",
+    "body": "## Summary Four small, low-risk fixes found while sweeping the repo for quick wins. None touch a seam (contracts/probes/fixtures/mocks/adapters), so the full Seam-Driven Development workflow doesn't apply here — these are docs/config/a11y fixes with no behavioral impact on seam contracts.  - **Fix corrupted `.env.example`**: the file had been accidentally overwritten with a base64-encoded blob of "
+  },
+  {
+    "number": 180,
+    "title": "Add RateLimitSeam to close unaddressed review threads from PR #171 and #166",
+    "branch": "claude/keen-hypatia-8a9cb5",
+    "user": "Phazzie",
+    "created_at": "2026-06-22T09:49:19Z",
+    "updated_at": "2026-06-22T10:28:24Z",
+    "body": "## Summary  Among the PRs opened in the last 5 days, **#171** (11 unresolved review threads) and **#166** (9 unresolved review threads) had the most unaddressed review comments. Both implement the same sliding-window rate limiter as sibling branches off slightly different bases.  - Diffed each branch's tip against `main` and found most of the substantive review feedback (sweep throttling, a `reset"
+  },
+  {
+    "number": 179,
+    "title": "Four quick wins: @eslint/js dependency, drop unused postcss/tslib, dead export",
+    "branch": "claude/trusting-volta-jrag4e",
+    "user": "Phazzie",
+    "created_at": "2026-06-21T12:23:40Z",
+    "updated_at": "2026-06-21T12:25:38Z",
+    "body": "## Summary  Four small, independently-verified fixes, found via `npx knip` and cross-checked against the 10 other currently-open \"quick wins\" PRs (#150, #155, #158, #162, #165, #167, #170, #172, #176, #177) to avoid touching any file or line they already propose changing:  - Declare `@eslint/js` as an explicit devDependency — `eslint.config.js` imports it directly, but it was only present transiti"
+  },
+  {
+    "number": 178,
+    "title": "chore(deps): upgrade zod v3 -> v4 and fix all resulting breaks",
+    "branch": "claude/sweet-mendel-039bh8",
+    "user": "Phazzie",
+    "created_at": "2026-06-21T12:22:27Z",
+    "updated_at": "2026-06-21T12:31:55Z",
+    "body": "## The 10 hardest upgrades/fixes this repo needs  Surveyed via direct repo inspection (file/seam counts, `npm audit`, CI config, grep for auth/size-limit checks) plus the live GitHub PR/issue backlog. Ordered roughly by difficulty. Per instructions, nothing is deleted from this list — only struck through if later proven wrong, and the one I tackled is marked done rather than struck through.  1. **"
+  },
+  {
+    "number": 177,
+    "title": "Fix four quick wins: Rosentic CI bug, timeout constant dedup, magic number, legacy directive",
+    "branch": "claude/trusting-volta-2ey2zs",
+    "user": "Phazzie",
+    "created_at": "2026-06-20T12:21:44Z",
+    "updated_at": "2026-06-20T12:26:20Z",
+    "body": "## Summary  Four small, low-risk fixes found while sweeping the codebase for quick wins.  **1. Rosentic CI conflict-detection misconfiguration (highest value)**  `.github/workflows/rosentic.yml` never passed `GITHUB_TOKEN`/`GITHUB_REPOSITORY` to the `Rosentic/rosentic-action@v1` step. Without these, the action's `active-only` mode can't query the GitHub API to scope its scan to branches with open "
+  },
+  {
+    "number": 176,
+    "title": "Fix Rosentic CI false positives, missing build/lint evidence, and a silently-broken assumption-alarm check",
+    "branch": "claude/sweet-mendel-p5s5bt",
+    "user": "Phazzie",
+    "created_at": "2026-06-20T12:20:10Z",
+    "updated_at": "2026-06-20T12:55:58Z",
+    "body": "## Correction (2026-06-20, after first review pass)  An earlier version of this PR description claimed it shipped \"42 commits / 467 files\" of stalled PR-drain integration work. **That claim was false**, caught by a Codex review comment that diffed the actual head commit and found only 17 files changed. Verifying directly against `origin/main` (`git fetch origin main`, `git diff --shortstat origin/"
+  },
+  {
+    "number": 174,
+    "title": "chore(deps-dev): bump vite from 7.3.2 to 8.0.16 in the npm_and_yarn group across 1 directory",
+    "branch": "dependabot/npm_and_yarn/npm_and_yarn-bed0206944",
+    "user": "dependabot[bot]",
+    "created_at": "2026-06-19T22:43:21Z",
+    "updated_at": "2026-06-19T22:43:43Z",
+    "body": "Bumps the npm_and_yarn group with 1 update in the / directory: [vite](https://github.com/vitejs/vite/tree/HEAD/packages/vite).  Updates `vite` from 7.3.2 to 8.0.16 <details> <summary>Release notes</summary> <p><em>Sourced from <a href=\"https://github.com/vitejs/vite/releases\">vite's releases</a>.</em></p> <blockquote> <h2>v8.0.16</h2> <p>Please refer to <a href=\"https://github.com/vitejs/vite/blob"
+  },
+  {
+    "number": 173,
+    "title": "Add RateLimitSeam to gate billable /api/* POST routes",
+    "branch": "claude/sweet-mendel-kegj49",
+    "user": "Phazzie",
+    "created_at": "2026-06-19T12:31:24Z",
+    "updated_at": "2026-06-19T12:43:03Z",
+    "body": "## 10 hardest upgrades/fixes this repo needs  1. ~~**No rate limiting / abuse protection on billable AI endpoints** — any caller could trigger metered xAI/Gemini calls with no limit.~~ **Done in this PR.** 2. **Legacy + canonical seam duplication for 5 seams** (`PromptAssemblySeam`, `DriftDetectionSeam`, `MeechieVoiceSeam`, `MeechieToolSeam`, `SpecValidationSeam`) each have both a legacy flat-layo"
+  },
+  {
+    "number": 172,
+    "title": "Four quick wins: drop dead exports, name a magic number",
+    "branch": "claude/trusting-volta-cchaba",
+    "user": "Phazzie",
+    "created_at": "2026-06-19T12:24:27Z",
+    "updated_at": "2026-06-19T12:36:42Z",
+    "body": "## Summary  Started as four small `src/lib/core` cleanups; two were reverted after valid review feedback. Net result:  - `src/lib/core/meechie-studio.ts`: de-export `studioActions` — never imported elsewhere, and its element type is still exposed via the exported `StudioActionMetadata` type alias. - `src/lib/core/meechie-studio-text-pipeline.ts`: extract the magic number `4` in `schemaIssueHint`'s"
+  },
+  {
+    "number": 171,
+    "title": "fix: address remaining unresolved review threads from PR #160 and PR #166",
+    "branch": "claude/keen-hypatia-hii60c",
+    "user": "Phazzie",
+    "created_at": "2026-06-19T09:55:05Z",
+    "updated_at": "2026-06-19T10:26:21Z",
+    "body": "## Summary  Among PRs opened in the last 5 days, **#160** and **#166** had the most unaddressed review threads (9 unresolved each). This PR carries forward the already-fixed work from both branches and closes out the remaining threads.  ### PR #160 threads addressed - `studio-state`: use `image.mimeType` directly in `imagePreviews` (drops non-standard `image/jpg`) - `studio-state`: draft saves no "
+  },
+  {
+    "number": 170,
+    "title": "Four quick wins: dedupe pipeline errors, audit fix, cleanup",
+    "branch": "claude/trusting-volta-xjz305",
+    "user": "Phazzie",
+    "created_at": "2026-06-18T12:26:00Z",
+    "updated_at": "2026-06-18T12:27:29Z",
+    "body": "## Summary - Extract the duplicated `buildError()` helper from 6 core pipelines (`generate`, `image-generation`, `chat-interpretation`, `tools`, `meechie-studio-text`, `wig-try-on`) into a single shared `src/lib/core/pipeline-error.ts`. - Remove a redundant modulo in `getWeeklyModes` (`meechie-studio.ts`) — `offset` was already bounded by `% pool.length` on the prior line. - Run `npm audit fix` to"
+  },
+  {
+    "number": 169,
+    "title": "fix: centralize timeout/abort error classification (502 vs 504)",
+    "branch": "claude/sweet-mendel-3qogj3",
+    "user": "Phazzie",
+    "created_at": "2026-06-18T12:24:10Z",
+    "updated_at": "2026-06-18T12:38:52Z",
+    "body": "## Task  \"Make a list of the 10 most difficult upgrades or fixes this repo needs, then perform the hardest one, and open a PR when you're done.\"  ## ⚠️ Read this first: the open-PR backlog  Before listing anything else: **this repo already has 20 open PRs (#149–#168), all authored by this same automation, with 5 of them (#151, #156, #159, #161, #164) independently re-fixing the exact same dual-sea"
+  },
+  {
+    "number": 168,
+    "title": "fix: close RateLimitSeam idle-key eviction gap, consolidate PR #160/#166 review debt",
+    "branch": "claude/keen-hypatia-vy09ev",
+    "user": "Phazzie",
+    "created_at": "2026-06-18T09:51:27Z",
+    "updated_at": "2026-06-18T10:16:44Z",
+    "body": "## Summary  Task: \"amongst the PRs opened in the last 5 days, find the two with the most unaddressed review comments and address them in a new PR.\"  Surveyed every PR opened in the last 5 days for unresolved review threads. **PR #160** and **PR #166** tied at 9 unresolved threads each — the most of any PR in the window.  Reading each thread's diff context against its branch's current tip showed mo"
+  },
+  {
+    "number": 167,
+    "title": "Four quick wins: dedupe scoring checks, dead handler, a11y, inline style",
+    "branch": "claude/trusting-volta-4vqlnn",
+    "user": "Phazzie",
+    "created_at": "2026-06-17T12:35:17Z",
+    "updated_at": "2026-06-17T12:41:53Z",
+    "body": "## Summary  Four small, independent, zero-behavior-impact fixes:  - **`src/lib/core/meechie-quote-scoring.ts`** — `hasAny(text, bannedPhrases)` and `hasAny(text, genericEmpowermentPhrases)` were each computed twice (once for a subscore, once for a penalty) on the exact same `text`. Hoisted into `hasBannedPhrase`/`hasGenericEmpowermentDrift` booleans, following the same pattern the file already use"
+  },
+  {
+    "number": 166,
+    "title": "feat: add RateLimitSeam and guard AI-provider routes against unbounded abuse",
+    "branch": "claude/sweet-mendel-vrscej",
+    "user": "Phazzie",
+    "created_at": "2026-06-17T12:34:57Z",
+    "updated_at": "2026-06-17T13:03:01Z",
+    "body": "## Summary  The 5 API routes that proxy paid xAI/Gemini calls — `/api/generate`, `/api/image-generation`, `/api/chat-interpretation`, `/api/meechie-studio-text`, `/api/wig-try-on` — had **zero abuse or cost protection**. Any client could call them an unbounded number of times, driving real provider spend with no budget check.  This PR adds: - A new pure, dependency-injected **`RateLimitSeam`** (`s"
+  },
+  {
+    "number": 165,
+    "title": "Four small readability/drift-safety quick wins",
+    "branch": "claude/trusting-volta-nms4dp",
+    "user": "Phazzie",
+    "created_at": "2026-06-16T12:27:14Z",
+    "updated_at": "2026-06-16T12:31:00Z",
+    "body": "## Summary  Four small, isolated, behavior-preserving fixes. Chosen deliberately to avoid every file already touched by the 15 open PRs (#149-#163) currently sitting in this repo (see note below).  - **`src/lib/core/meechie-studio-text-pipeline.ts`**: `STUDIO_TEXT_REQUIRED_FIELDS` and `STUDIO_TEXT_REQUIRED_FIELD_GUIDANCE` were two hand-kept parallel arrays that had to stay in sync by convention on"
+  },
+  {
+    "number": 164,
+    "title": "refactor: eliminate dual seam layout for 5 self-contained seams",
+    "branch": "claude/sweet-mendel-n3gjq7",
+    "user": "Phazzie",
+    "created_at": "2026-06-16T12:24:34Z",
+    "updated_at": "2026-06-16T12:43:19Z",
+    "body": "## Top 10 hardest upgrades/fixes this repo needs  Audited the current `main` directly (not recycling stale claims from prior PRs — several earlier claims, like \"996 ESLint errors\" and \"unparsed integer env vars,\" turned out to already be fixed or never true). Every item below was confirmed against the current tree before listing it.  1. ~~**Eliminate dual seam layout** — `PromptAssemblySeam`, `Dri"
+  },
+  {
+    "number": 163,
+    "title": "fix: address remaining review comments from PR #160 (supersedes #154)",
+    "branch": "claude/fix-pr154-pr160-review-comments",
+    "user": "Phazzie",
+    "created_at": "2026-06-16T09:53:09Z",
+    "updated_at": "2026-06-17T09:36:09Z",
+    "body": "## Summary  Among PRs opened in the last 5 days, **#160** (9 unresolved review threads) and **#154** (7 unresolved review threads) had the most unaddressed review comments. Investigation showed #160's branch already builds on and supersedes #154 — its commit explicitly addresses #154's 7 threads plus #157's 6, and cross-checking #154's specific comments against #160's current code confirmed all of"
+  },
+  {
+    "number": 162,
+    "title": "fix: four quick wins — warn header, fixture cast, DRY provider check, named constant",
+    "branch": "claude/trusting-volta-ar4nrn",
+    "user": "Phazzie",
+    "created_at": "2026-06-15T12:19:52Z",
+    "updated_at": "2026-06-15T12:21:08Z",
+    "body": "## Summary  - **Actionable warn message** (`image-generation-pipeline.ts`): The unrecognized-format warning now includes the first 8 bytes of the base64 header, so the log actually tells you what was received instead of just that something was unexpected. - **Drop double cast in fixtures** (`image-provider-config-seam/fixtures.ts`): The `as unknown as ImageProviderConfig` was unnecessary — TypeScr"
+  },
+  {
+    "number": 161,
+    "title": "Remove 5 legacy flat-layout seams; migrate all imports to canonical self-contained paths",
+    "branch": "claude/sweet-mendel-3aaka9",
+    "user": "Phazzie",
+    "created_at": "2026-06-15T12:19:27Z",
+    "updated_at": "2026-06-15T12:29:21Z",
+    "body": "## Top 10 Hardest Upgrades/Fixes  1. ~~**Eliminate dual seam layout** — 5 seams (PromptAssembly, DriftDetection, MeechieVoice, MeechieTool, SpecValidation) had both legacy flat-layout files AND self-contained canonical files coexisting, creating dual sources of truth for core types like `ColoringPageSpec`, `MeechieToolIdSchema`, `Violation`, etc. across 20+ production files. (Done in this PR.)~~ 2"
+  },
+  {
+    "number": 160,
+    "title": "fix: address 13 unresolved review threads from PR #154 and PR #157",
+    "branch": "claude/keen-hypatia-xyr02m",
+    "user": "Phazzie",
+    "created_at": "2026-06-15T09:35:13Z",
+    "updated_at": "2026-06-17T09:36:32Z",
+    "body": "## Summary  Addresses the two PRs opened in the last 5 days with the most unaddressed review comments: **PR #154** (7 unresolved threads) and **PR #157** (6 unresolved threads), for a total of 13 threads across 4 files.  ---  ## PR #154 — 7 threads addressed  ### `src/routes/studio-state.svelte.ts`  - **Use `image.mimeType` directly** (PRRT_kwDOQ-oWbM6JUP1K) — `imagePreviews` was constructing `dat"
+  },
+  {
+    "number": 159,
+    "title": "fix: consolidate dual seam layout — delete 5 legacy flat adapters",
+    "branch": "claude/sweet-mendel-emjcyl",
+    "user": "Phazzie",
+    "created_at": "2026-06-14T12:18:27Z",
+    "updated_at": "2026-06-14T12:23:17Z",
+    "body": "## Top 10 Hardest Upgrades / Fixes This Repo Needs  1. ~~**Dual Seam Layout Consolidation** — Five legacy flat adapters (`drift-detection`, `prompt-assembly`, `meechie-voice`, `meechie-tool`, `spec-validation`) each had a functionally identical self-contained counterpart at `src/lib/adapters/<name>-seam/index.ts`. Production code was already wired to the self-contained adapters, but eight test fil"
+  },
+  {
+    "number": 158,
+    "title": "Four quick wins: remove debug log, a11y, testid, DRY mime-type map",
+    "branch": "claude/trusting-volta-sh5cri",
+    "user": "Phazzie",
+    "created_at": "2026-06-14T12:13:31Z",
+    "updated_at": "2026-06-14T12:18:44Z",
+    "body": "## Summary  - **Remove `console.warn`** from `imageFormatFromBase64` in `image-generation-pipeline.ts` — the PNG fallback already handles unknown headers; the log just pollutes production output - **Accessibility**: add `aria-describedby=\"evidence-help\"` to the evidence textarea, linking it programmatically to the existing help paragraph for screen-reader users - **Test consistency**: add `data-te"
+  },
+  {
+    "number": 157,
+    "title": "fix: address review comments from PR #154 (7 threads) and PR #152 (3 threads)",
+    "branch": "claude/keen-hypatia-gh9dys",
+    "user": "Phazzie",
+    "created_at": "2026-06-14T09:36:17Z",
+    "updated_at": "2026-06-14T09:41:52Z",
+    "body": "## Summary  Addresses the unresolved review threads from the two PRs opened in the last 5 days with the most unaddressed comments: **PR #154** (7 threads) and **PR #152** (3 threads).  ---  ## PR #154 — 7 unresolved threads addressed  ### `src/routes/studio-state.svelte.ts`  - **Fix `imagePreviews` MIME type** (PRRT_kwDOQ-oWbM6JUP1K) — replaced `data:image/${image.format}` with `data:${image.mimeT"
+  },
+  {
+    "number": 156,
+    "title": "Complete seam architecture migration: remove 5 duplicate flat-layout seams",
+    "branch": "claude/sweet-mendel-9vyy7t",
+    "user": "Phazzie",
+    "created_at": "2026-06-13T12:20:45Z",
+    "updated_at": "2026-06-13T12:24:21Z",
+    "body": "## Top 10 Hardest Upgrades/Fixes This Repo Needs  Audited the full codebase to find the hardest problems. This PR fixes #2 (~~strikethrough~~).  | # | Problem | Severity | Status | |---|---------|----------|--------| | 1 | **ImageGenerationSeam probe blocked** — xAI adapter has complex base64 detection, timeout logic, and error parsing that have never been validated against the real provider. Sile"
+  },
+  {
+    "number": 155,
+    "title": "fix: four quick wins in image and generate pipelines",
+    "branch": "claude/trusting-volta-dttmdd",
+    "user": "Phazzie",
+    "created_at": "2026-06-13T12:17:58Z",
+    "updated_at": "2026-06-13T12:21:20Z",
+    "body": "## Summary  - **Extract `STATUS_BY_ERROR_CODE` to module-level const** in `image-generation-pipeline.ts` — was re-creating an identical plain object on every seam-error path; now created once at import time - **Guard `console.warn` with `import.meta.env.DEV`** in `image-generation-pipeline.ts` — unrecognized base64 image headers were logging to production server output on every unrecognized image;"
+  },
+  {
+    "number": 154,
+    "title": "fix: address unresolved review threads from PR #149 (17) and PR #150 (5)",
+    "branch": "claude/keen-hypatia-vlqyr5",
+    "user": "Phazzie",
+    "created_at": "2026-06-13T09:36:26Z",
+    "updated_at": "2026-06-13T10:09:55Z",
+    "body": "## Summary  Addresses the two PRs opened in the last 5 days with the most unresolved review threads: **PR #149 (17 threads)** and **PR #150 (5 threads)**.  ---  ### PR #149 — 17 unresolved threads  **JSON documentation (16 coderabbitai threads across `docs/evidence/2026-06-05/hpr-pr-live-state/*.json`)**  All machine-generated evidence JSON files lacked top-level documentation. Created `docs/evide"
+  },
+  {
+    "number": 153,
+    "title": "fix: remove env-var coupling from chat-interpretation-pipeline core",
+    "branch": "claude/sweet-mendel-tcty6u",
+    "user": "Phazzie",
+    "created_at": "2026-06-09T15:42:07Z",
+    "updated_at": "2026-06-09T15:45:56Z",
+    "body": "## Top 10 Hardest Upgrades / Fixes in This Repo  A full audit was performed before this PR. The list below is preserved in full; the completed item is struck through.  1. **Dual seam layout migration** — 5 seams have parallel implementations in both the legacy flat layout (`contracts/` + `src/lib/adapters/*.adapter.ts`) and the canonical self-contained layout (`src/lib/seams/*/`). No lint rule enf"
+  },
+  {
+    "number": 152,
+    "title": "fix: address review comments from PR #149 (17 threads) and PR #150 (5 threads)",
+    "branch": "claude/keen-hypatia-bt08uj",
+    "user": "Phazzie",
+    "created_at": "2026-06-09T09:35:26Z",
+    "updated_at": "2026-06-09T09:45:29Z",
+    "body": "## Summary  Addresses all unresolved review threads from the two PRs opened in the last 5 days with the most unaddressed comments: **PR #149** (17 threads) and **PR #150** (5 threads).  ---  ## PR #149 — 17 unresolved threads addressed  ### `src/routes/studio-state.svelte.ts`  - **Fix SVG MIME type in `imagePreviews`** — base64-encoded SVGs were producing `data:image/svg;base64,...` (invalid MIME "
+  },
+  {
+    "number": 151,
+    "title": "refactor: complete flat-to-self-contained seam layout migration",
+    "branch": "claude/sweet-mendel-LJ9Iu",
+    "user": "Phazzie",
+    "created_at": "2026-06-08T12:23:31Z",
+    "updated_at": "2026-06-08T12:27:40Z",
+    "body": "## Top 10 Hardest Upgrades / Fixes (ranked by difficulty)  1. ~~**Eliminate dual seam layout** — 5 seams (DriftDetection, MeechieTool, MeechieVoice, PromptAssembly, SpecValidation) existed simultaneously in both the legacy flat layout (`contracts/`, `src/lib/mocks/`, `src/lib/adapters/*.adapter.ts`) AND the new self-contained layout (`src/lib/seams/*/`). Production code used the flat layout while "
+  },
+  {
+    "number": 150,
+    "title": "fix: four quick wins — console.warn, type cast, redundant check, silent catch",
+    "branch": "claude/trusting-volta-WG5jA",
+    "user": "Phazzie",
+    "created_at": "2026-06-08T12:11:08Z",
+    "updated_at": "2026-06-08T12:19:56Z",
+    "body": "## Summary  Four small code-quality fixes, each in a different file:  - **`image-generation-pipeline.ts`** — Remove `console.warn` from `imageFormatFromBase64`. Unrecognized base64 headers already default to PNG; the log leaks server-side noise without any actionable path for callers. - **`meechie-tool.adapter.ts`** — Fix the exhaustiveness cast in the `default` branch from the anonymous `{ toolId"
+  },
+  {
+    "number": 149,
+    "title": "fix: address unresolved review threads from PR #128 (11) and PR #138 (11)",
+    "branch": "claude/keen-hypatia-T5uqF",
+    "user": "Phazzie",
+    "created_at": "2026-06-08T09:35:27Z",
+    "updated_at": "2026-06-08T09:49:01Z",
+    "body": "## Summary  Addresses the two PRs opened in the last 5 days with the most unresolved review threads (11 each).  ### PR #128 — \"docs: add HPR baseline ledger\"  - **Strip UTF-8 BOM from 144 evidence files** in `docs/evidence/2026-06-05/` (96 JSON + 48 TXT). The files were written by PowerShell with default UTF-16/BOM encoding, making them unparseable by standard `JSON.parse` and grep tooling. Addres"
+  }
+]
