@@ -17,6 +17,7 @@ export const POST_JSON_TIMEOUTS_MS = {
 
 export type PostJsonOptions = {
 	timeoutMs?: number;
+	signal?: AbortSignal;
 };
 
 const formatTimeoutSeconds = (timeoutMs: number): string => {
@@ -32,7 +33,8 @@ export const postJson = async <T = unknown>(
 	const requestInit: RequestInit = {
 		method: 'POST',
 		headers: buildJsonHeaders(),
-		body: JSON.stringify(body)
+		body: JSON.stringify(body),
+		signal: options.signal
 	};
 	const response = await (async (): Promise<Response> => {
 		try {

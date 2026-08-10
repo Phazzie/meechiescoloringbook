@@ -7,69 +7,67 @@ import { getWeeklyModes } from '../../src/lib/core/meechie-studio';
 test.setTimeout(120000);
 test.describe.configure({ mode: 'serial' });
 
-const png1x1 =
-	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
-const textOutput = {
-	verdict: 'Meechie clocked the timeline.',
-	quote: 'The story folded before the receipt opened.',
-	pageTitle: 'Receipt Energy',
-	pageItems: [
-		{ number: 1, label: 'CHECK THE TIMELINE' },
-		{ number: 2, label: 'KEEP THE RECEIPT' }
-	],
-	rating: 2,
-	qualityState: 'ready',
-	revisionNote: 'Smoke fixture.',
-	modelMetadata: { provider: 'test', model: 'stub' }
-};
 
-const generatedPage = {
-	ok: true,
-	value: {
-		prompt: 'Stub coloring page prompt.',
-		templateVersion: 'v2',
-		images: [
-			{
-				id: 'image-1',
-				format: 'png',
-				mimeType: 'image/png',
-				data: png1x1,
-				encoding: 'base64'
-			}
-		],
-		revisedPrompt: 'Stub revised prompt.',
-		modelMetadata: { provider: 'test', model: 'stub-image' },
-		violations: [],
-		recommendedFixes: []
-	}
-};
-
-const toolPayload = (toolId: string) => ({
-	ok: true,
-	value: {
-		toolId,
-		headline: toolId === 'rate_excuse' ? '2/10' : 'Red flag',
-		response:
-			toolId === 'random_meechie'
-				? 'If the story keeps changing, the answer already arrived.'
-				: 'Fault: them. Consequence: access gets reduced until facts improve.',
-		rating: toolId === 'rate_excuse' ? 2 : undefined
-	}
-});
+import textOutput from '../../fixtures/meechie-studio-text/sample.json' with { type: 'json' };
 
 const stubApis = async (page: Page): Promise<void> => {
 	await page.route('**/api/meechie-studio-text', async (route) => {
-		await route.fulfill({ json: { ok: true, value: textOutput } });
+		await route.fulfill({ json: textOutput.output });
 	});
 
 	await page.route('**/api/generate', async (route) => {
-		await route.fulfill({ json: generatedPage });
+		await route.fulfill({ 
+            json: { 
+                ok: true, 
+                value: {
+                    prompt: 'Generated prompt for test',
+                    templateVersion: 'v1',
+                    images: [
+                        {
+                            id: 'test-img-1',
+                            format: 'png',
+                            mimeType: 'image/png',
+                            data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+                            encoding: 'base64'
+                        }
+                    ],
+                    modelMetadata: {
+                        provider: 'fixture',
+                        model: 'fixture-model'
+                    },
+                    violations: [],
+                    recommendedFixes: []
+                } 
+            } 
+        });
 	});
 
 	await page.route('**/api/tools', async (route) => {
 		const body = route.request().postDataJSON() as { toolId?: string };
-		await route.fulfill({ json: toolPayload(body.toolId ?? 'unknown') });
+		if (body.toolId === 'random_meechie') {
+			await route.fulfill({
+				json: {
+					ok: true,
+					value: {
+						toolId: 'random_meechie',
+						headline: 'Truth Bombs',
+						response: "Should have fucked the landlord, not the dopeman."
+					}
+				}
+			});
+		} else {
+			await route.fulfill({
+				json: {
+					ok: true,
+					value: {
+						toolId: body.toolId ?? 'rate_excuse',
+						headline: 'The Verdict',
+						response: "Why you asking me? I ain't his parole officer."
+					}
+				}
+			});
+		}
 	});
 };
 
@@ -91,19 +89,22 @@ test.beforeEach(async ({ page }) => {
 
 test('home mode switching and generation controls work', async ({ page }) => {
 	await gotoHydrated(page, '/');
-	await expect(page.getByTestId('home-mode-rate-excuse')).toBeVisible();
+	const weeklyModes = getWeeklyModes();
+	const initialMode = weeklyModes[0];
+	const secondMode = weeklyModes[1];
 
-	const initialMode = getWeeklyModes()[0];
+	await expect(page.getByTestId(`home-mode-${initialMode.id}`)).toBeVisible();
+
 	await expect(page.getByTestId('home-active-mode-heading')).toHaveText(
 		initialMode.label
 	);
-	await page.getByTestId('home-mode-rate-excuse').click();
+	await page.getByTestId(`home-mode-${secondMode.id}`).click();
 	await expect(page.getByTestId('home-active-mode-heading')).toHaveText(
-		'Rate His Excuse'
+		secondMode.label
 	);
 	await expect(page.getByTestId('home-evidence')).toHaveAttribute(
 		'placeholder',
-		/traffic made him/
+		secondMode.placeholder
 	);
 
 	await page
@@ -111,7 +112,7 @@ test('home mode switching and generation controls work', async ({ page }) => {
 		.fill('He said traffic made him late.');
 	await page.getByTestId('home-generate-verdict').click();
 	await expect(page.getByTestId('home-verdict-quote')).toContainText(
-		'The story folded before the receipt opened.'
+		'A dead phone with a live story'
 	);
 
 	await page.getByTestId('home-create-page').click();
@@ -133,18 +134,18 @@ test('home quote vault can save, load, pin, and delete creations', async ({
 		.fill('He changed the story after the receipt appeared.');
 	await page.getByTestId('home-generate-verdict').click();
 	await expect(page.getByTestId('home-verdict-quote')).toContainText(
-		'The story folded before the receipt opened.'
+		'A dead phone with a live story'
 	);
 	await page.getByTestId('home-save-vault').click();
 	await expect(page.getByTestId('home-status')).toContainText(
 		'Saved to the quote vault.'
 	);
 	await expect(page.getByTestId('home-vault-load')).toContainText(
-		'RECEIPT ENERGY'
+		'THE PHONE HAD SERVICE'
 	);
 	await page.getByTestId('home-vault-load').click();
 	await expect(page.getByTestId('home-verdict-quote')).toContainText(
-		'The story folded before the receipt opened.'
+		'A dead phone with a live story'
 	);
 
 	await page.getByTestId('home-vault-pin').click();
@@ -196,7 +197,7 @@ test('random route tap and page generation work', async ({ page }) => {
 		page.getByTestId('random-tap').click({ force: true })
 	]);
 	await expect(page.getByTestId('random-result')).toContainText(
-		'story keeps changing'
+		'Should have fucked the landlord'
 	);
 
 	await page.getByTestId('random-generate-page').click();
@@ -209,7 +210,7 @@ test('rate and who routes submit, reset, and generate pages', async ({
 	await gotoHydrated(page, '/rate-his-excuse');
 	await page.getByTestId('rate-excuse-input').fill('He forgot again.');
 	await page.getByTestId('rate-submit').click();
-	await expect(page.getByTestId('rate-result')).toContainText('Fault: them');
+	await expect(page.getByTestId('rate-result')).toContainText('Why you asking me?');
 	await page.getByTestId('rate-generate-page').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 	await page.getByTestId('rate-reset').click();
@@ -218,7 +219,7 @@ test('rate and who routes submit, reset, and generate pages', async ({
 	await gotoHydrated(page, '/who-fucked-up');
 	await page.getByTestId('who-situation-input').fill('Nobody owned the bug.');
 	await page.getByTestId('who-submit').click();
-	await expect(page.getByTestId('who-result')).toContainText('Fault: them');
+	await expect(page.getByTestId('who-result')).toContainText('Why you asking me?');
 	await page.getByTestId('who-generate-page').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 	await page.getByTestId('who-reset').click();
@@ -240,6 +241,6 @@ test('meechie toolkit tabs and lineup controls work', async ({ page }) => {
 	await page.getByTestId('meechie-tool-random_meechie').click();
 	await page.getByTestId('meechie-tool-generate').click();
 	await expect(page.getByTestId('meechie-tool-output')).toContainText(
-		'story keeps changing'
+		'Should have fucked the landlord'
 	);
 });

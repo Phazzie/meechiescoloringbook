@@ -10,6 +10,8 @@ All notable user-visible changes for this repo.
 
 ## Unreleased
 
+- `[TICK-002d]`: Replaced hardcoded E2E network stubs with strict SDD-compliant API routing and validated against contract fixtures to ensure full backend integration testing.
+- `[TICK-002e]`: Enforced robust UI error states and hydration handling during network failure/timeout events.
 - `[TICK-002a]`: Migrated the active xAI text configuration, fixtures, probes, tests, and current documentation from the retired model to the key-accessible `grok-4.3`; one real `/api/chat-interpretation` request returned HTTP 200 with a contract-valid result.
 - `[TICK-002b]`: Confirmed `grok-imagine-image` is exposed to the configured key and passed the line-art prompt/safety/drift preflight; the single authorized live image request remained inconclusive because the PowerShell client did not recover its response status or body, and no retry was made.
 - Isolated `/api/generate` unit coverage from the live image provider so installing a real `.env` key cannot turn the test suite into billable xAI traffic.

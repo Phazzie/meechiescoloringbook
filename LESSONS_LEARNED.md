@@ -235,3 +235,10 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Running the full suite with a real provider credential installed.
 - Lesson: A route-level unit test that constructs production dependencies can silently become an integration test when `.env` changes; two timed-out test attempts initiated provider requests before this isolation defect was found.
 - Action: Mock every external adapter and provider-config seam before importing server routes in unit tests, and reserve real credentials for explicitly named, bounded integration probes.
+
+## 2026-08-10
+
+- Date: 2026-08-10
+- Context: Porting E2E tests to Seam-Driven Development.
+- Lesson: When replacing inline Playwright `page.route` intercepts with deterministic fixture data, the mock must replicate the exact JSON structure emitted by the `+server.ts` layer (e.g. `{ ok: true, value: ... }`) because the client adapter uses Zod `safeParse` on the network boundary. Additionally, Svelte component testing requires explicit hydration checks (`data-hydrated` or `networkidle`) before dispatching DOM clicks to prevent race conditions.
+- Action: Updated `smoke.spec.ts` and `error-states.spec.ts` to use real SDD contract fixtures for network intercepts and integrated a `waitForLoadState` hydration check before user interactions.

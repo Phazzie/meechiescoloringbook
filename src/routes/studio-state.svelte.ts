@@ -163,6 +163,12 @@ export class StudioState {
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
+	private isDestroyed = false;
+	private abortControllers: {
+		textAction?: AbortController;
+		generate?: AbortController;
+		tryOn?: AbortController;
+	} = {};
 
 	// --- Private helpers ---
 	private buildOwner(sessionId: string): CreationOwner {
@@ -179,8 +185,9 @@ export class StudioState {
 	private encodeBase64(value: string): string {
 		const bytes = new TextEncoder().encode(value);
 		let binary = '';
-		for (const byte of bytes) {
-			binary += String.fromCharCode(byte);
+		const chunkSize = 8192;
+		for (let i = 0; i < bytes.length; i += chunkSize) {
+			binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
 		}
 		return btoa(binary);
 	}
@@ -199,6 +206,7 @@ export class StudioState {
 	}
 
 	private async saveDraft(): Promise<void> {
+		if (this.isDestroyed) return;
 		if (this.isSavingDraft) {
 			this.isDraftSavePending = true;
 			return;
@@ -318,7 +326,6 @@ export class StudioState {
 		} catch (error) {
 			this.draftSaveError =
 				error instanceof Error ? error.message : 'Page settings could not be saved.';
-			throw error;
 		}
 	};
 
@@ -383,6 +390,8 @@ export class StudioState {
 		}
 
 		this.isTextWorking = true;
+		if (this.abortControllers.textAction) this.abortControllers.textAction.abort();
+		this.abortControllers.textAction = new AbortController();
 		try {
 			const payload = await postJson(
 				'/api/meechie-studio-text',
@@ -396,7 +405,7 @@ export class StudioState {
 					voice: $state.snapshot(this.voice),
 					currentText: this.currentTextPayload()
 				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.studioText }
+				{ timeoutMs: POST_JSON_TIMEOUTS_MS.studioText, signal: this.abortControllers.textAction.signal }
 			);
 			const parsed = MeechieStudioTextResultSchema.safeParse(payload);
 			if (!parsed.success) {
@@ -432,13 +441,15 @@ export class StudioState {
 				this.generationError = 'Fix the page settings before generating.';
 				return;
 			}
+			if (this.abortControllers.generate) this.abortControllers.generate.abort();
+			this.abortControllers.generate = new AbortController();
 			const payload = await postJson(
 				'/api/generate',
 				{
 					spec: $state.snapshot(this.spec),
 					styleHint: this.currentStyleHint()
 				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
+				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate, signal: this.abortControllers.generate.signal }
 			);
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success) {
@@ -525,6 +536,8 @@ export class StudioState {
 		this.tryOnError = '';
 		this.tryOnPortraitUrl = '';
 		this.isTryingOn = true;
+		if (this.abortControllers.tryOn) this.abortControllers.tryOn.abort();
+		this.abortControllers.tryOn = new AbortController();
 		try {
 			const payload = await postJson(
 				'/api/wig-try-on',
@@ -533,7 +546,7 @@ export class StudioState {
 					selfieMimeType: this.selfieMimeType,
 					wigId: this.selectedWigId
 				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.wigTryOn }
+				{ timeoutMs: POST_JSON_TIMEOUTS_MS.wigTryOn, signal: this.abortControllers.tryOn.signal }
 			);
 			const parsed = WigTryOnResultSchema.safeParse(payload);
 			if (!parsed.success) {
@@ -664,8 +677,12 @@ export class StudioState {
 	}
 
 	destroy(): void {
+		this.isDestroyed = true;
 		if (this.draftTimer) {
 			globalThis.clearTimeout(this.draftTimer);
 		}
+		if (this.abortControllers.textAction) this.abortControllers.textAction.abort();
+		if (this.abortControllers.generate) this.abortControllers.generate.abort();
+		if (this.abortControllers.tryOn) this.abortControllers.tryOn.abort();
 	}
 }
