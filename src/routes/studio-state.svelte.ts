@@ -164,6 +164,7 @@ export class StudioState {
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
 	private isDestroyed = false;
+	private validateSpecCounter = 0;
 	private abortControllers: {
 		textAction?: AbortController;
 		generate?: AbortController;
@@ -179,7 +180,7 @@ export class StudioState {
 		if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
 			return crypto.randomUUID();
 		}
-		return `creation-${Date.now()}`;
+		return `creation-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 	}
 
 	private encodeBase64(value: string): string {
@@ -239,8 +240,11 @@ export class StudioState {
 	}
 
 	private async validateSpec(): Promise<boolean> {
+		const current = ++this.validateSpecCounter;
 		const validation = await specValidationAdapter.validate({ spec: $state.snapshot(this.spec) });
-		this.validationIssues = validation.issues;
+		if (this.validateSpecCounter === current) {
+			this.validationIssues = validation.issues;
+		}
 		return validation.ok;
 	}
 
@@ -275,17 +279,22 @@ export class StudioState {
 	}
 
 	private parseTryOnPortraitImage(): GeneratedImage | null {
-		const match = this.tryOnPortraitUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/);
+		const prefixEnd = this.tryOnPortraitUrl.indexOf(',');
+		if (prefixEnd === -1) return null;
+		
+		const prefix = this.tryOnPortraitUrl.slice(0, prefixEnd);
+		const data = this.tryOnPortraitUrl.slice(prefixEnd + 1);
+		
+		const match = prefix.match(/^data:image\/(png|jpeg|jpg|webp);base64$/);
 		if (!match) return null;
-		const mimeType = match[1];
-		const subtype = match[2];
-		const data = match[3];
-		const format = subtype === 'jpeg' ? 'jpg' : subtype;
+
+		const format = match[1] === 'jpeg' ? 'jpg' : match[1];
 		if (format !== 'png' && format !== 'jpg' && format !== 'webp') return null;
+
 		return {
 			id: 'try-on-portrait-1',
 			format,
-			mimeType,
+			mimeType: `image/${match[1]}`,
 			data,
 			encoding: 'base64'
 		};
@@ -391,7 +400,8 @@ export class StudioState {
 
 		this.isTextWorking = true;
 		if (this.abortControllers.textAction) this.abortControllers.textAction.abort();
-		this.abortControllers.textAction = new AbortController();
+		const currentAbort = new AbortController();
+		this.abortControllers.textAction = currentAbort;
 		try {
 			const payload = await postJson(
 				'/api/meechie-studio-text',
@@ -405,8 +415,10 @@ export class StudioState {
 					voice: $state.snapshot(this.voice),
 					currentText: this.currentTextPayload()
 				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.studioText, signal: this.abortControllers.textAction.signal }
+				{ timeoutMs: POST_JSON_TIMEOUTS_MS.studioText, signal: currentAbort.signal }
 			);
+			if (currentAbort.signal.aborted) return;
+			
 			const parsed = MeechieStudioTextResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.textError = 'Meechie sent back a line the studio could not read.';
@@ -421,10 +433,13 @@ export class StudioState {
 			this.resetGeneratedPage();
 			await this.applyTextToSpec(parsed.data.value);
 		} catch (error) {
+			if (currentAbort.signal.aborted) return;
 			this.textError =
 				error instanceof Error ? error.message : 'Meechie could not reach the AI text service.';
 		} finally {
-			this.isTextWorking = false;
+			if (!currentAbort.signal.aborted) {
+				this.isTextWorking = false;
+			}
 		}
 	};
 
@@ -435,22 +450,24 @@ export class StudioState {
 		}
 		this.resetGeneratedPage();
 		this.isGenerating = true;
+		if (this.abortControllers.generate) this.abortControllers.generate.abort();
+		const currentAbort = new AbortController();
+		this.abortControllers.generate = currentAbort;
 		try {
 			await this.applyTextToSpec(this.textOutput);
 			if (this.validationIssues.length > 0) {
 				this.generationError = 'Fix the page settings before generating.';
 				return;
 			}
-			if (this.abortControllers.generate) this.abortControllers.generate.abort();
-			this.abortControllers.generate = new AbortController();
 			const payload = await postJson(
 				'/api/generate',
 				{
 					spec: $state.snapshot(this.spec),
 					styleHint: this.currentStyleHint()
 				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate, signal: this.abortControllers.generate.signal }
+				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate, signal: currentAbort.signal }
 			);
+			if (currentAbort.signal.aborted) return;
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.generationError = 'Generate response did not match contract.';
@@ -480,10 +497,13 @@ export class StudioState {
 				this.generationError = packagingResult.error.message;
 			}
 		} catch (error) {
+			if (currentAbort.signal.aborted) return;
 			this.generationError =
 				error instanceof Error ? error.message : 'Coloring page generation failed.';
 		} finally {
-			this.isGenerating = false;
+			if (!currentAbort.signal.aborted) {
+				this.isGenerating = false;
+			}
 		}
 	};
 
@@ -537,7 +557,8 @@ export class StudioState {
 		this.tryOnPortraitUrl = '';
 		this.isTryingOn = true;
 		if (this.abortControllers.tryOn) this.abortControllers.tryOn.abort();
-		this.abortControllers.tryOn = new AbortController();
+		const currentAbort = new AbortController();
+		this.abortControllers.tryOn = currentAbort;
 		try {
 			const payload = await postJson(
 				'/api/wig-try-on',
@@ -546,8 +567,9 @@ export class StudioState {
 					selfieMimeType: this.selfieMimeType,
 					wigId: this.selectedWigId
 				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.wigTryOn, signal: this.abortControllers.tryOn.signal }
+				{ timeoutMs: POST_JSON_TIMEOUTS_MS.wigTryOn, signal: currentAbort.signal }
 			);
+			if (currentAbort.signal.aborted) return;
 			const parsed = WigTryOnResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.tryOnError = 'Try-on response did not match contract.';
@@ -559,9 +581,12 @@ export class StudioState {
 			}
 			this.tryOnPortraitUrl = `data:${parsed.data.value.portraitMimeType};base64,${parsed.data.value.portraitBase64}`;
 		} catch (error) {
+			if (currentAbort.signal.aborted) return;
 			this.tryOnError = error instanceof Error ? error.message : 'Wig try-on failed.';
 		} finally {
-			this.isTryingOn = false;
+			if (!currentAbort.signal.aborted) {
+				this.isTryingOn = false;
+			}
 		}
 	};
 

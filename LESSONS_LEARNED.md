@@ -242,3 +242,10 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Porting E2E tests to Seam-Driven Development.
 - Lesson: When replacing inline Playwright `page.route` intercepts with deterministic fixture data, the mock must replicate the exact JSON structure emitted by the `+server.ts` layer (e.g. `{ ok: true, value: ... }`) because the client adapter uses Zod `safeParse` on the network boundary. Additionally, Svelte component testing requires explicit hydration checks (`data-hydrated` or `networkidle`) before dispatching DOM clicks to prevent race conditions.
 - Action: Updated `smoke.spec.ts` and `error-states.spec.ts` to use real SDD contract fixtures for network intercepts and integrated a `waitForLoadState` hydration check before user interactions.
+
+## 2026-08-10
+
+- Date: 2026-08-10
+- Context: Zero-Trust Adversarial Audit of the main studio generation flow.
+- Lesson: Canceling network requests with `AbortController` throws an error that is caught locally, meaning `finally` blocks will execute. If multiple async functions overwrite the same loading state concurrently, an aborted request can prematurely clear the loading spinner of a still-active parallel request, causing catastrophic UI state corruption.
+- Action: Extracted all `AbortController` assignments to block-scoped `currentAbort` variables and explicitly checked `!currentAbort.signal.aborted` before mutating error or loading state.

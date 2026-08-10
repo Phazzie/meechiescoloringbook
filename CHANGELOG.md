@@ -10,6 +10,7 @@ All notable user-visible changes for this repo.
 
 ## Unreleased
 
+- `[TICK-003]`: Defused 4 critical zero-trust vulnerabilities identified during adversarial audit (async state leaks, validation race conditions, regex memory bomb, and silent retry DOS loops).
 - `[TICK-002d]`: Replaced hardcoded E2E network stubs with strict SDD-compliant API routing and validated against contract fixtures to ensure full backend integration testing.
 - `[TICK-002e]`: Enforced robust UI error states and hydration handling during network failure/timeout events.
 - `[TICK-002a]`: Migrated the active xAI text configuration, fixtures, probes, tests, and current documentation from the retired model to the key-accessible `grok-4.3`; one real `/api/chat-interpretation` request returned HTTP 200 with a contract-valid result.
