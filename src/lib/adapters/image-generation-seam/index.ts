@@ -90,6 +90,8 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
               model: config.xaiImageModel,
               prompt: buildPrompt(validated),
               n: validated.n,
+              aspect_ratio: validated.aspectRatio,
+              resolution: validated.resolution,
               response_format: validated.format
             }),
             signal
@@ -159,7 +161,8 @@ export const createImageGenerationSeam = (configSeam: ImageProviderConfigSeam): 
         rawModelInfo: {
           model: config.xaiImageModel,
           revisedPrompt: readResult.payload.data[0]?.revised_prompt,
-          requestedSize: validated.size,
+          aspectRatio: validated.aspectRatio,
+          resolution: validated.resolution,
           responseFormat: validated.format
         },
         timingMs: Date.now() - start

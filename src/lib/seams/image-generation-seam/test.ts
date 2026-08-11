@@ -46,7 +46,8 @@ describe('ImageGenerationSeam mock contract', () => {
     const request = validateImageGenerationRequest({
       prompt: 'a simple coloring page',
       n: 1,
-      size: '512x512',
+      aspectRatio: '1:1',
+      resolution: '1k',
       format: 'url'
     });
     const result = await seam.generate(request);

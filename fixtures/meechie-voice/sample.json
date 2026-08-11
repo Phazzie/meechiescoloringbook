@@ -16,7 +16,9 @@
           "I told him what would happen. He thought I was talking. I was scheduling.",
           "His mama knows my name. He never introduced us.",
           "I walked in and sat down. Nobody asked me to leave.",
-          "I don't raise my voice. I lower it. They all get quiet when I do."
+          "I don't raise my voice. I lower it. They all get quiet when I do.",
+          "Don't open the door. Not even a little bit. Cause if you open the door even a little bit, I'm comin through.",
+          "The biggest nigga in the house... the one y'all scared of? He's running from me."
         ],
         "donts": [
           "You deserve someone who chooses you every single day.",
@@ -31,7 +33,9 @@
           "All I need to be a hoe is an area of control.",
           "Should've fucked the landlord, not the dopeman.",
           "Keep fucking with me and I'ma end up being your stepmama.",
-          "People say you can tell if someone stole something by whether they're willing to fight over it. That's not true. I beat up plenty of bitches over their own shit."
+          "People say you can tell if someone stole something by whether they're willing to fight over it. That's not true. I beat up plenty of bitches over their own shit.",
+          "Don't open the door. Not even a little bit. Cause if you open the door even a little bit, I'm comin through.",
+          "The biggest nigga in the house... the one y'all scared of? He's running from me."
         ]
       },
       "responses": {
@@ -330,6 +334,38 @@
             "defaultMode": true,
             "coloringPageReady": true,
             "notes": "Canonical Meechie quote 5",
+            "visualMotifs": [
+              "glam",
+              "boundaries"
+            ]
+          },
+          {
+            "text": "Don't open the door. Not even a little bit. Cause if you open the door even a little bit, I'm comin through.",
+            "category": "raw_anchor",
+            "rawness": "raw",
+            "thirdPersonUsage": "none",
+            "modeFit": [
+              "random_meechie"
+            ],
+            "defaultMode": true,
+            "coloringPageReady": true,
+            "notes": "Canonical Meechie quote 6",
+            "visualMotifs": [
+              "glam",
+              "boundaries"
+            ]
+          },
+          {
+            "text": "The biggest nigga in the house... the one y'all scared of? He's running from me.",
+            "category": "raw_anchor",
+            "rawness": "raw",
+            "thirdPersonUsage": "none",
+            "modeFit": [
+              "random_meechie"
+            ],
+            "defaultMode": true,
+            "coloringPageReady": true,
+            "notes": "Canonical Meechie quote 7",
             "visualMotifs": [
               "glam",
               "boundaries"

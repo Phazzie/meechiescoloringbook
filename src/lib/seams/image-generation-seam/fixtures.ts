@@ -7,7 +7,8 @@ export const imageGenerationRequestFixture: ImageGenerationRequest = {
   prompt: 'a glam kitten wearing a bow',
   negativePrompt: 'color, shading, gradient',
   n: 2,
-  size: '512x512',
+  aspectRatio: '1:1',
+  resolution: '1k',
   format: 'url'
 };
 

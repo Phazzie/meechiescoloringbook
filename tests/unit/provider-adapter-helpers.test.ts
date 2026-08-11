@@ -442,7 +442,7 @@ describe('provider-adapter helpers', () => {
 				async () =>
 					new Response(
 						JSON.stringify({ error: { message: 'Custom API error' } }),
-						{ status: 429, statusText: 'Too Many Requests' }
+						{ status: 400, statusText: 'Bad Request' }
 					)
 			);
 			vi.stubGlobal('fetch', fetchMock);
@@ -459,7 +459,7 @@ describe('provider-adapter helpers', () => {
 			if (!result.ok) {
 				expect(result.error.code).toBe('PROVIDER_HTTP_ERROR');
 				expect(result.error.message).toBe('Custom API error');
-				expect(result.error.details?.status).toBe('429');
+				expect(result.error.details?.status).toBe('400');
 			}
 		});
 

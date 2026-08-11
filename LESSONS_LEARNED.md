@@ -8,6 +8,19 @@ Info flow: Experience -> lesson -> action applied to future changes.
 
 Short, dated entries capturing pitfalls, surprises, and fixes.
 
+## 2026-08-11
+
+- Date: 2026-08-11
+- Context: Zero-Trust Adversarial Audit of Codebase & AI Prompt Pipeline.
+- Lesson: 
+  1. System prompt quote exemplars can silently drift from canonical voice pack definitions over time; always bind prompt exemplars directly to the canonical quote set.
+  2. Unsanitized user fields (titles, dedications, labels) containing newlines can break markdown/structured prompt sections and inject synthetic prompt headings (`NEGATIVE PROMPT:`, `STYLE:`); always flatten multi-line input strings in prompt assembly adapters.
+  3. Relying on `err instanceof SyntaxError` in server JSON parsing allows non-syntax errors (e.g. stream consumption errors) to escalate to HTTP 500s unless explicitly re-thrown or handled.
+  4. Character-by-character string accumulation on large `Uint8Array` byte buffers (e.g. PDF generation) blocks the JS main thread and triggers mobile OOM crashes; always chunk or use `Buffer.from`.
+  5. Direct `.parse()` calls in storage adapters bypass seam `Result` error boundaries; always use `.safeParse()`.
+  6. Async methods in Svelte 5 rune state classes require `this.isDestroyed` unmount checks after every `await` point to avoid memory leaks and invalid state updates on unmounted components.
+- Action: Implemented prompt input newline sanitization, aligned system prompt exemplars to canonical quotes, implemented chunked base64 conversion, strict `safeParse` boundaries, teardown guards in `StudioState`, and updated contract validation tests.
+
 ## 2026-01-22
 
 - Date: 2026-01-22

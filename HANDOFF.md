@@ -15,12 +15,14 @@ Info flow: Current Session -> HANDOFF.md -> New Session Prompt.
 ## 🎭 Persona & Brand Rules (NON-NEGOTIABLE)
 
 1. **Adult Cultural Verdict Persona**: Meechie's Coloring Book is an adult, witty, culturally authentic, sharp-tongued relationship verdict & statement line-art coloring page app (_"Who Fucked Up?"_, _"Rate His Excuse"_, Receipts Out, _Pretty & Petty_). NEVER flatten into a kids/family app or therapy-speak.
-2. **Locked 5 Canonical Quotes**: All quote pools, adapters, and LLM prompt exemplars are locked EXCLUSIVELY to these 5 canonical quotes:
+2. **Locked 7 Canonical Quotes**: All quote pools, adapters, and LLM prompt exemplars are locked EXCLUSIVELY to these 7 canonical quotes:
    1. _"As long as I'm alive, you bitches will have a place to live. Right here in my shadow."_
    2. _"All I need to be a hoe is an area of control."_
    3. _"Should've fucked the landlord, not the dopeman."_
    4. _"Keep fucking with me and I'ma end up being your stepmama."_
    5. _"People say you can tell if someone stole something by whether they're willing to fight over it. That's not true. I beat up plenty of bitches over their own shit."_
+   6. _"Don't open the door. Not even a little bit. Cause if you open the door even a little bit, I'm comin through."_
+   7. _"The biggest nigga in the house... the one y'all scared of? He's running from me."_
 
 ---
 

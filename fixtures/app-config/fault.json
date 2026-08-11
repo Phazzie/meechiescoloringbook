@@ -6,5 +6,6 @@
 	"xaiImageEndpointPath": "/v1/images/generations",
 	"featureIntegrationTests": false,
 	"maxImagesPerRequest": 0,
-	"defaultImageSize": "1024x1024"
+	"defaultAspectRatio": "",
+	"defaultResolution": ""
 }

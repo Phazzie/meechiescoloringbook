@@ -42,15 +42,19 @@ const includesForbiddenToken = (styleHint: string): boolean => {
 	return PROMPT_FORBIDDEN_TOKENS.some((token) => lowered.includes(token));
 };
 
+const sanitizeLine = (text?: string): string => (text ? text.replace(/[\r\n]+/g, ' ').trim() : '');
+
 const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 	const { spec, styleHint } = input;
-	const listItems = formatListItems(spec.items);
+	const sanitizedItems = spec.items.map((item) => ({ ...item, label: sanitizeLine(item.label) }));
+	const listItems = formatListItems(sanitizedItems);
 	const colorLine = colorModeLine(spec.colorMode);
 	const styleLine = styleHint
 		? `Vibe: ${styleHint} ${OUTLINE_ONLY_PHRASE}, ${EASY_TO_COLOR_PHRASE}. ${colorLine}`
 		: `Vibe: clean worksheet clarity, ${OUTLINE_ONLY_PHRASE}, ${EASY_TO_COLOR_PHRASE}. ${colorLine}`;
 
-	const secondaryLine = spec.footerItem?.label;
+	const title = sanitizeLine(spec.title);
+	const secondaryLine = sanitizeLine(spec.footerItem?.label);
 	const alignmentLine = formatAlignmentLine(spec);
 
 	const listLine =
@@ -60,7 +64,7 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 	const textLines = [
 		'TEXT (exact):',
 		'[Main quote EXACT — do not alter text.]',
-		spec.title,
+		title,
 		'[Secondary line EXACT — omit if none.]',
 		...(secondaryLine ? [secondaryLine] : [])
 	];
@@ -75,7 +79,7 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 		'Keep generous whitespace; treat blank space intentional.',
 		listLine,
 		alignmentLine,
-		dedicationLine(spec.dedication)
+		dedicationLine(sanitizeLine(spec.dedication))
 	].filter((line) => line.length > 0);
 
 	const prompt = [

@@ -516,6 +516,7 @@ export class StudioState {
 		this.isGenerating = true;
 		try {
 			await this.syncSpecFromCurrentText();
+			if (this.isDestroyed) return;
 			const portraitImage = this.parseTryOnPortraitImage();
 			if (!portraitImage) {
 				this.generationError =
@@ -535,16 +536,20 @@ export class StudioState {
 				pageSize: this.spec.pageSize,
 				variants: ['print']
 			});
+			if (this.isDestroyed) return;
 			if (packagingResult.ok) {
 				this.packagedFiles = packagingResult.value.files;
 			} else {
 				this.generationError = packagingResult.error.message;
 			}
 		} catch (error) {
+			if (this.isDestroyed) return;
 			this.generationError =
 				error instanceof Error ? error.message : 'Try-on coloring page generation failed.';
 		} finally {
-			this.isGenerating = false;
+			if (!this.isDestroyed) {
+				this.isGenerating = false;
+			}
 		}
 	};
 
@@ -675,11 +680,13 @@ export class StudioState {
 			sessionAdapter.getSession(),
 			creationStoreAdapter.getDraft({})
 		]);
+		if (this.isDestroyed) return;
 		if (sessionResult.ok) {
 			this.owner = this.buildOwner(sessionResult.value.sessionId);
 			const authResult = await authContextAdapter.getAuthContext({
 				sessionId: sessionResult.value.sessionId
 			});
+			if (this.isDestroyed) return;
 			if (authResult.ok) {
 				this.authContext = authResult.value;
 			}
@@ -697,7 +704,9 @@ export class StudioState {
 				this.textOutput = buildStudioTextFromDraftRecord(draft.value);
 			}
 		}
+		if (this.isDestroyed) return;
 		await this.validateSpec();
+		if (this.isDestroyed) return;
 		await this.refreshCreations();
 	}
 

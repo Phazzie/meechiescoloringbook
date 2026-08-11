@@ -61,3 +61,11 @@ The voice adapter (`meechieVoicePack`), LLM prompt exemplars, and test fixtures 
 - Never overwrite an approved session `implementation_plan.md` artifact in the brain directory without preserving the previous version.
 - Save the prior plan as a versioned artifact (e.g. `implementation_plan_tick001b_001d.md`) inside the session brain folder before creating a new plan.
 - Never write active chat session plans into the repository root `plan.md`.
+
+### 7. AI Turnover Message Detail
+When asked to write a 'turnover message', 'handoff', or 'status update' for another AI agent (like Claude Code or Flash), NEVER write a high-level summary for a human. An AI turnover message MUST be treated as a highly structured system prompt. It must include:
+1. **Absolute File Paths**: Provide the exact absolute paths to the workspace, relevant artifacts, and key code files. Do not say 'in the artifacts folder'.
+2. **Literal Terminal Commands**: Provide the exact, copy-pasteable CLI commands to run (e.g., cmd /c "npm run test:unit").
+3. **Exact Code & Data Contracts**: Include brief, literal code snippets of relevant Zod schemas, data structures, or strict boundaries so the agent doesn't waste tokens searching for them.
+4. **Actionable Entry Points**: Explicitly name the exact file and line number where the work should begin (e.g., 'Execute Ticket 1.01 in implementation_plan.md').
+5. **Self-Contained Briefs**: If handing over multiple projects, create a completely self-contained markdown block for each project that includes all meta-rules, zero-trust constraints, and SDD protocols, so each brief can be used independently.

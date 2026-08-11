@@ -19,7 +19,8 @@ describe('ImageGenerationSeam integration', () => {
         prompt: 'a bow-wearing kitten in a glam setting',
         negativePrompt: 'color, shading, grayscale',
         n: 1,
-        size: '1024x1024',
+        aspectRatio: '1:1',
+        resolution: '1k',
         format: 'url'
       });
 

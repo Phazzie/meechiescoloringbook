@@ -21,7 +21,8 @@ const readConfig = (env: Record<string, string | undefined>): AppConfig => {
 		xaiImageEndpointPath: env.XAI_IMAGE_ENDPOINT_PATH,
 		featureIntegrationTests: env.FEATURE_INTEGRATION_TESTS === 'true',
 		maxImagesPerRequest: optionalInteger(env.MAX_IMAGES_PER_REQUEST),
-		defaultImageSize: env.DEFAULT_IMAGE_SIZE,
+		defaultAspectRatio: env.DEFAULT_ASPECT_RATIO ?? '3:4',
+		defaultResolution: env.DEFAULT_RESOLUTION ?? '2k',
 		geminiApiKey: env.GEMINI_API_KEY ?? '',
 		geminiBaseUrl: env.GEMINI_BASE_URL ?? 'https://generativelanguage.googleapis.com'
 	};

@@ -9,7 +9,8 @@ import { validateImageGenerationRequest } from '../../src/lib/seams/image-genera
 const validRequest = {
 	prompt: 'a glam kitten wearing a bow',
 	n: 2,
-	size: '512x512',
+	aspectRatio: '3:4',
+	resolution: '2k',
 	format: 'url'
 };
 
@@ -18,6 +19,8 @@ describe('validateImageGenerationRequest', () => {
 		const result = validateImageGenerationRequest(validRequest);
 		expect(result.prompt).toBe('a glam kitten wearing a bow');
 		expect(result.n).toBe(2);
+		expect(result.aspectRatio).toBe('3:4');
+		expect(result.resolution).toBe('2k');
 		expect(result.format).toBe('url');
 	});
 
@@ -64,9 +67,9 @@ describe('validateImageGenerationRequest', () => {
 		).toThrow();
 	});
 
-	it('throws when size is missing', () => {
-		const { size: _size, ...withoutSize } = validRequest;
-		expect(() => validateImageGenerationRequest(withoutSize)).toThrow();
+	it('throws when aspectRatio is missing', () => {
+		const { aspectRatio: _aspectRatio, ...withoutAspectRatio } = validRequest;
+		expect(() => validateImageGenerationRequest(withoutAspectRatio)).toThrow();
 	});
 
 	it('accepts format b64_json as a valid enum value', () => {

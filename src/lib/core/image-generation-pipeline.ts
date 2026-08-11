@@ -13,7 +13,8 @@ import type { PageSize } from '../../../contracts/spec-validation.contract';
 import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contract';
 
 const RESPONSE_FORMAT = 'b64_json' as const;
-const DEFAULT_IMAGE_SIZE = '1024x1024';
+const DEFAULT_ASPECT_RATIO = '3:4';
+const DEFAULT_RESOLUTION = '2k';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
 const imageFormatFromBase64 = (
@@ -92,7 +93,8 @@ export const runImageGenerationPipeline = async (
   const seamResult = await deps.imageGenerationSeam.generate({
     prompt,
     n: variations,
-    size: DEFAULT_IMAGE_SIZE,
+    aspectRatio: DEFAULT_ASPECT_RATIO,
+    resolution: DEFAULT_RESOLUTION,
     format: RESPONSE_FORMAT,
     signal: deps.signal
   });

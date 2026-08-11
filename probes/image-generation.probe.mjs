@@ -129,9 +129,11 @@ no extra words`;
 			'Content-Type': 'application/json'
 		},
 		body: JSON.stringify({
-			model: 'grok-imagine-image',
+			model: 'grok-imagine-image-quality',
 			prompt,
 			n: 1,
+			aspect_ratio: '3:4',
+			resolution: '1k',
 			response_format: 'b64_json'
 		})
 	});
@@ -184,7 +186,7 @@ no extra words`;
 				revisedPrompt,
 				modelMetadata: {
 					provider: 'xai',
-					model: 'grok-imagine-image'
+					model: 'grok-imagine-image-quality'
 				}
 			}
 		}

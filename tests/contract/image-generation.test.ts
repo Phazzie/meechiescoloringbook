@@ -19,7 +19,8 @@ const mockConfigSeam: AppConfigSeam = {
 		xaiImageEndpointPath: '/images/generations',
 		featureIntegrationTests: false,
 		maxImagesPerRequest: 4,
-		defaultImageSize: '1024x1024',
+		defaultAspectRatio: '1:1',
+		defaultResolution: '1k',
 		geminiApiKey: 'test-gemini-key',
 		geminiBaseUrl: 'https://generativelanguage.googleapis.com'
 	})

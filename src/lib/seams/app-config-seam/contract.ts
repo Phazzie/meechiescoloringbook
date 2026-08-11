@@ -9,7 +9,8 @@ export type AppConfig = {
 	xaiImageEndpointPath: string;
 	featureIntegrationTests: boolean;
 	maxImagesPerRequest: number;
-	defaultImageSize: string;
+	defaultAspectRatio: string;
+	defaultResolution: string;
 	geminiApiKey: string;
 	geminiBaseUrl: string;
 };

@@ -9,7 +9,8 @@ export type ImageGenerationRequest = {
   prompt: string;
   negativePrompt?: string;
   n: number;
-  size: string;
+  aspectRatio: string;
+  resolution: string;
   format: ImageFormat;
   seed?: number;
   userTag?: string;
