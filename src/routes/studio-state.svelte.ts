@@ -169,6 +169,7 @@ export class StudioState {
 		textAction?: AbortController;
 		generate?: AbortController;
 		tryOn?: AbortController;
+		refreshCreations?: AbortController;
 	} = {};
 
 	// --- Private helpers ---
@@ -314,7 +315,15 @@ export class StudioState {
 
 	private async refreshCreations(): Promise<void> {
 		if (!this.owner) return;
+		if (this.abortControllers.refreshCreations) {
+			this.abortControllers.refreshCreations.abort();
+		}
+		const currentAbort = new AbortController();
+		this.abortControllers.refreshCreations = currentAbort;
+
 		const result = await creationStoreAdapter.listCreations({ owner: this.owner });
+		if (currentAbort.signal.aborted) return;
+		
 		if (result.ok) {
 			this.creations = result.value;
 		}
@@ -514,9 +523,13 @@ export class StudioState {
 		}
 		this.resetGeneratedPage();
 		this.isGenerating = true;
+		if (this.abortControllers.generate) this.abortControllers.generate.abort();
+		const currentAbort = new AbortController();
+		this.abortControllers.generate = currentAbort;
+
 		try {
 			await this.syncSpecFromCurrentText();
-			if (this.isDestroyed) return;
+			if (currentAbort.signal.aborted || this.isDestroyed) return;
 			const portraitImage = this.parseTryOnPortraitImage();
 			if (!portraitImage) {
 				this.generationError =
@@ -536,18 +549,18 @@ export class StudioState {
 				pageSize: this.spec.pageSize,
 				variants: ['print']
 			});
-			if (this.isDestroyed) return;
+			if (currentAbort.signal.aborted || this.isDestroyed) return;
 			if (packagingResult.ok) {
 				this.packagedFiles = packagingResult.value.files;
 			} else {
 				this.generationError = packagingResult.error.message;
 			}
 		} catch (error) {
-			if (this.isDestroyed) return;
+			if (currentAbort.signal.aborted || this.isDestroyed) return;
 			this.generationError =
 				error instanceof Error ? error.message : 'Try-on coloring page generation failed.';
 		} finally {
-			if (!this.isDestroyed) {
+			if (!currentAbort.signal.aborted && !this.isDestroyed) {
 				this.isGenerating = false;
 			}
 		}

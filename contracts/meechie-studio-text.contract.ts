@@ -32,10 +32,18 @@ export const MeechieStudioTextInputSchema = z.object({
 	modeId: NonEmptyStringSchema,
 	modeLabel: NonEmptyStringSchema,
 	themeLabel: NonEmptyStringSchema,
-	evidence: NonEmptyStringSchema,
+	evidence: z.string(),
 	dedication: NonEmptyStringSchema.optional(),
 	voice: MeechieStudioVoiceSettingsSchema,
 	currentText: MeechieStudioCurrentTextSchema.optional()
+}).superRefine((data, ctx) => {
+	if (data.modeId !== 'random_meechie' && data.evidence.trim().length === 0) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Evidence is required unless mode is random_meechie',
+			path: ['evidence']
+		});
+	}
 });
 
 export const MeechieStudioQualityStateSchema = z.enum([
