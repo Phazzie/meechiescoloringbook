@@ -10,6 +10,20 @@ export const SYSTEM_CONSTANTS = {
 		'NEGATIVE PROMPT:'
 	],
 	DISALLOWED_KEYWORDS: ['minors', 'self-harm'],
+	THERAPY_SPEAK_BLACKLIST: [
+		'journey',
+		'healing',
+		'navigate',
+		'boundaries',
+		'unpack',
+		'hold space',
+		'toxic trait',
+		'closure',
+		'self-care',
+		'lean in',
+		'pivot',
+		'honor your feelings'
+	],
 	CHAT_SYSTEM_PROMPT: `You map user intent to a ColoringPageSpec JSON object. Output ONLY JSON.
 
 Rules:
@@ -41,3 +55,7 @@ export const findDisallowedKeywords = (input: unknown): string[] => {
 	}
 };
 
+export const containsTherapySpeak = (input: string): boolean => {
+	const lowered = input.toLowerCase();
+	return SYSTEM_CONSTANTS.THERAPY_SPEAK_BLACKLIST.some((phrase) => lowered.includes(phrase));
+};

@@ -49,6 +49,8 @@ export const MeechieStudioPageItemSchema = z.object({
 	label: NonEmptyStringSchema
 });
 
+import { containsTherapySpeak } from '../src/lib/core/constants';
+
 export const MeechieStudioTextOutputSchema = z.object({
 	verdict: NonEmptyStringSchema,
 	quote: NonEmptyStringSchema,
@@ -63,6 +65,21 @@ export const MeechieStudioTextOutputSchema = z.object({
 			model: NonEmptyStringSchema
 		})
 		.optional()
+}).superRefine((data, ctx) => {
+	if (containsTherapySpeak(data.verdict)) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Verdict contains forbidden therapy-speak (mush)',
+			path: ['verdict']
+		});
+	}
+	if (containsTherapySpeak(data.quote)) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Quote contains forbidden therapy-speak (mush)',
+			path: ['quote']
+		});
+	}
 });
 
 export const MeechieStudioTextResultSchema = resultSchema(MeechieStudioTextOutputSchema);

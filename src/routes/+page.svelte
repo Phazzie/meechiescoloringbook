@@ -12,6 +12,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	import StudioPreviewPanel from '$lib/components/studio/StudioPreviewPanel.svelte';
 	import StudioSettingsPanel from '$lib/components/studio/StudioSettingsPanel.svelte';
 	import VerdictRow from '$lib/components/studio/VerdictRow.svelte';
+	import CanonGallery from '$lib/components/studio/CanonGallery.svelte';
 	import SystemTrace from '$lib/components/studio/SystemTrace.svelte';
 
 	const studio = new StudioState();
@@ -88,6 +89,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			onSettingChange={studio.syncSpecFromCurrentText}
 		/>
 	</section>
+
+	<CanonGallery onSelect={studio.loadPreset} />
 
 	<VerdictRow
 		textOutput={studio.textOutput}

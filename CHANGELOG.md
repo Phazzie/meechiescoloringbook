@@ -10,6 +10,8 @@ All notable user-visible changes for this repo.
 
 ## Unreleased
 
+- `[TICK-006]`: Implemented zero-trust Tone Validation using Zod `.superRefine` to detect and block therapy-speak; added 7 pre-filled canonical Meechie quotes as default gallery options (`CanonGallery.svelte`) to instantly bypass generation; injected aggressive direct-framing rules into `meechie-studio-text-pipeline.ts` and raised verdict length to 35 words.
+
 - `[TICK-005]`: Executed a zero-trust audit on AI Prompt Systems and Prompt Assembly; eliminated persona prompt drift by aligning `MEECHIE_SYSTEM_PROMPT` exemplars strictly to the 5 locked canonical Meechie quotes, and added newline flattening sanitization across spec titles, dedications, and labels to prevent prompt injection and sectioning breaks.
 - `[TICK-004]`: Conducted a full zero-trust adversarial code audit across the codebase; remediated 5 structural vulnerabilities (server 500 error escalation in request body parsing, buffer memory spikes in PDF packaging base64 conversion, unhandled Zod exceptions in draft storage, post-unmount reactive state mutations, and trailing comma syntax errors in test JSON fixtures).
 - `[TICK-003]`: Defused 4 critical zero-trust vulnerabilities identified during adversarial audit (async state leaks, validation race conditions, regex memory bomb, and silent retry DOS loops).

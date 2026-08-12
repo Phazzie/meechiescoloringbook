@@ -656,6 +656,20 @@ export class StudioState {
 		this.scheduleDraftSave();
 	};
 
+	loadPreset = async (preset: import('$lib/core/canon-pages').CanonPagePreset): Promise<void> => {
+		this.evidence = preset.quote;
+		this.textOutput = {
+			verdict: preset.verdict,
+			quote: preset.quote,
+			pageTitle: preset.pageTitle,
+			pageItems: preset.pageItems.map((label: string, i: number) => ({ number: i + 1, label })),
+			rating: preset.rating,
+			qualityState: 'ready' as const
+		};
+		await this.validateSpec();
+		this.scheduleDraftSave();
+	};
+
 	deleteCreation = async (id: string): Promise<void> => {
 		const result = await creationStoreAdapter.deleteCreation({ id });
 		if (result.ok) {

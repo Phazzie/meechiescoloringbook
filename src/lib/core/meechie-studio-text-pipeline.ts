@@ -85,7 +85,7 @@ MEECHIE'S VOICE — study these 7 canonical quotes and internalize them:
 Meechie is specific, not general. She is funny, not trying to be funny. She says the thing other people are scared to say. She does not comfort — she witnesses and names. She uses profanity naturally, not for shock value. She sounds like a real woman, not a character.
 
 WHAT EACH FIELD MEANS:
-• verdict — The coloring-page headline. 4-8 words. Should hit like a slogan you'd put on a shirt. Printable but pointed.
+• verdict — The coloring-page headline. Up to 35 words max. THE VERDICT MUST NOT RHYME. It must NOT sound like a motivational poster. It must sound like something you would say while holding a drink and rolling your eyes. Printable but pointed.
 • quote — Meechie's full-voice take on the situation. 1-3 sentences. This is where she actually speaks. Say the real thing.
 • pageTitle — ALL CAPS title for the page itself. Punchy noun phrase. Could be the name of a chapter.
 • pageItems — 2-6 things to write in or color in. Short, specific, action-heavy labels. Not "My Feelings" — more like "The Last Text I Shouldn't Have Opened."
@@ -128,7 +128,7 @@ export type MeechieStudioTextPipelineDeps = {
 	isProduction?: boolean;
 };
 
-type ProviderTextFailureKind = 'json_syntax_error' | 'schema_error';
+type ProviderTextFailureKind = 'json_syntax_error' | 'schema_error' | 'therapy_speak';
 
 type ProviderTextParseOutcome = {
 	result: MeechieStudioTextResult;
@@ -174,18 +174,31 @@ const buildError = (
 	}
 });
 
-const actionInstruction = (actionId: string): string => {
+const actionInstruction = (actionId: string, modeId: string): string => {
+	const directFraming = 'THIS IS WHAT MEECHIE HAS ACTUALLY SAID. DO NOT SOFTEN DO NOT SANITIZE DO NOT EASE THE BLOW. DO NOT TRY TO SPARE FEELINGS OR BE PROPER OR ANY OF THAT. THESE ARE ACTUAL MEECHIE QUOTES. RESPOND LIKE HER TO:';
+	
+	let base = '';
+	if (modeId === 'rate-his-excuse') {
+		base = `${directFraming} THIS EXCUSE. Meechie does not buy this. Give me the raw truth. Provide a ruthless verdict and quote.`;
+	} else if (modeId === 'who-fucked-up' || modeId === 'receipts-out') {
+		base = `${directFraming} THIS SITUATION. Do not mediate. Who is at fault? Name exactly what they did wrong. Be brutal.`;
+	} else if (modeId === 'what-that-really-meant' || modeId === 'apology-translator') {
+		base = `${directFraming} THIS APOLOGY. Translate what this guilty man actually means. Be cynical. Do not give him the benefit of the doubt.`;
+	} else {
+		base = `${directFraming} THIS SITUATION. Generate the first verdict, quote, and coloring-page text from the evidence.`;
+	}
+
 	switch (actionId) {
 		case 'regenerate':
-			return 'Create a fresh alternate take. Do not copy the current wording.';
+			return `${base} Create a fresh alternate take. Do not copy the current wording.`;
 		case 'make_prettier':
-			return 'Make the wording more polished, glamorous, and printable without weakening the verdict.';
+			return `${base} Make the wording more polished, glamorous, and printable without weakening the verdict.`;
 		case 'make_meaner':
-			return 'Make the wording rawer, harder, and more direct. Use street language, profanity, and unfiltered Meechie attitude. Do not soften the message.';
+			return `${base} Make the wording rawer, harder, and more direct. Use street language, profanity, and unfiltered Meechie attitude. Do not soften the message.`;
 		case 'make_more_specific':
-			return 'Use more of the supplied evidence and avoid generic advice.';
+			return `${base} Use more of the supplied evidence and avoid generic advice.`;
 		default:
-			return 'Generate the first verdict, quote, and coloring-page text from the evidence.';
+			return base;
 	}
 };
 
@@ -198,7 +211,7 @@ const buildMessages = (input: z.infer<typeof MeechieStudioTextInputSchema>) => [
 		role: 'user' as const,
 		content: JSON.stringify({
 			action: input.actionId,
-			instruction: actionInstruction(input.actionId),
+			instruction: actionInstruction(input.actionId, input.modeId),
 			mode: { id: input.modeId, label: input.modeLabel },
 			theme: input.themeLabel,
 			evidence: input.evidence,
@@ -312,12 +325,14 @@ const parseProviderText = (
 	});
 	if (!output.success) {
 		const schemaHint = schemaIssueHint(output.error);
+		const isTherapySpeak = schemaHint.toLowerCase().includes('therapy-speak') || schemaHint.toLowerCase().includes('mush');
+		const failureKind: ProviderTextFailureKind = isTherapySpeak ? 'therapy_speak' : 'schema_error';
 		return {
 			result: invalidProviderTextResult(content, model, {
-				failureKind: 'schema_error',
+				failureKind,
 				schemaHint
 			}),
-			failureKind: 'schema_error',
+			failureKind,
 			schemaHint
 		};
 	}
@@ -336,6 +351,14 @@ const buildRetryMessage = (
 	failureKind: ProviderTextFailureKind,
 	schemaHint?: string
 ): string => {
+	if (failureKind === 'therapy_speak') {
+		return [
+			'SYSTEM: PREVIOUS RESPONSE REJECTED. YOU USED THERAPY-SPEAK OR MUSH.',
+			'BE RAW AND DIRECT. DO NOT SOFTEN THE VERDICT. DO NOT USE WORDS LIKE JOURNEY, HEALING, OR BOUNDARIES.',
+			'Respond with ONLY a JSON object.'
+		].join(' ');
+	}
+
 	if (failureKind === 'schema_error') {
 		const hint = schemaHint ? `: ${schemaHint}` : '.';
 		return [
