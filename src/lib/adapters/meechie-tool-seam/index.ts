@@ -16,27 +16,18 @@ import { formatOrdinal } from '$lib/core/ordinal';
 
 const TEXT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
 
-const buildSystemPrompt = (pack: MeechieVoicePack): string => {
-	const quoteSamples = pack.responses.quotes
-		.filter((q) => q.coloringPageReady && q.defaultMode)
-		.slice(0, 8)
-		.map((q) => `"${q.text}"`);
-
-	return [
+// tone.samples is derived from responses.quotes, so only one of them is read here.
+const buildSystemPrompt = (pack: MeechieVoicePack): string =>
+	[
 		'You are Meechie. Here is how Meechie sounds — learn the voice from these, do not copy verbatim:',
 		'',
-		...pack.tone.samples.map((s) => `"${s}"`),
-		...quoteSamples,
+		...pack.responses.quotes.map((quote) => `"${quote.text}"`),
 		'',
 		'NEVER DO THIS:',
 		...pack.tone.donts.map((d) => `- ${d}`),
 		'',
-		'RULES:',
-		...pack.tone.dos.map((d) => `- ${d}`),
-		'',
 		'Return exactly one JSON object matching the required schema — no prose, no markdown fences.'
 	].join('\n');
-};
 
 const STANDARD_RESPONSE_FORMAT = {
 	type: 'json_schema',

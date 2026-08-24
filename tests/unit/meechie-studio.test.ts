@@ -14,6 +14,7 @@ import {
 	getStudioTextAction,
 	studioModes
 } from '../../src/lib/core/meechie-studio';
+import { meechieVoicePack } from '../../src/lib/seams/meechie-voice-seam/voice-pack';
 
 describe('Meechie studio controls', () => {
 	it('starts the preview with canon Meechie quote text and no battery placeholder', () => {
@@ -24,8 +25,14 @@ describe('Meechie studio controls', () => {
 			...DEFAULT_STUDIO_TEXT_OUTPUT.pageItems.map((item) => item.label)
 		].join(' ');
 
-		expect(DEFAULT_STUDIO_TEXT_OUTPUT.quote).toBe('You fumbled ME? In THIS economy?');
-		expect(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle).toBe('IN THIS ECONOMY');
+		expect(DEFAULT_STUDIO_TEXT_OUTPUT.quote).toBe(
+			'He said I act like I run the place. I don\'t act.'
+		);
+		expect(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle).toBe('I DON\'T ACT');
+		// The preview must never show wording that was ruled out of the voice.
+		expect(meechieVoicePack.responses.quotes.map((quote) => quote.text)).toContain(
+			DEFAULT_STUDIO_TEXT_OUTPUT.quote
+		);
 		expect(previewText.toLowerCase()).not.toContain('phone');
 		expect(previewText.toLowerCase()).not.toContain('battery');
 	});

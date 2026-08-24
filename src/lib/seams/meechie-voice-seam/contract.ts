@@ -88,32 +88,16 @@ const ExcuseRatingFallbackSchema = z.object({
 	commentary: NonEmptyStringSchema
 });
 
-const MeechieQuoteCategorySchema = z.enum(['raw_anchor', 'approved_keeper']);
-const MeechieQuoteRawnessSchema = z.enum(['clean', 'mild', 'raw']);
-const MeechieQuoteThirdPersonUsageSchema = z.enum(['none', 'sometimes', 'forced']);
-
-const MeechieQuoteModeFitSchema = z.enum([
-	'random_meechie',
-	'rate_excuse',
-	'apology_translator',
-	'red_flag_or_run',
-	'wwmd',
-	'caption_this',
-	'clapback',
-	'receipts'
-]);
+const MeechieQuoteTierSchema = z.enum(['canon', 'approved']);
 
 const MeechieQuoteSchema = z
 	.object({
-		text: NonEmptyStringSchema,
-		category: MeechieQuoteCategorySchema,
-		rawness: MeechieQuoteRawnessSchema,
-		thirdPersonUsage: MeechieQuoteThirdPersonUsageSchema,
-		modeFit: z.array(MeechieQuoteModeFitSchema).min(1),
-		defaultMode: z.boolean(),
-		coloringPageReady: z.boolean(),
-		notes: NonEmptyStringSchema.optional(),
-		visualMotifs: z.array(NonEmptyStringSchema).min(1).optional()
+		// canon = verified original Meechie. approved = ruled in by the owner.
+		tier: MeechieQuoteTierSchema,
+		// Stable handle for a line. Never reused, never renamed.
+		id: NonEmptyStringSchema,
+		// The wording IS the line. Do not normalize, expand, or clean it up.
+		text: NonEmptyStringSchema
 	})
 	.strict();
 
@@ -147,10 +131,7 @@ export const MeechieVoiceInputSchema = z.object({
 export const MeechieVoiceResultSchema = resultSchema(MeechieVoicePackSchema);
 
 export type MeechieQuote = z.infer<typeof MeechieQuoteSchema>;
-export type MeechieQuoteCategory = z.infer<typeof MeechieQuoteCategorySchema>;
-export type MeechieQuoteRawness = z.infer<typeof MeechieQuoteRawnessSchema>;
-export type MeechieQuoteThirdPersonUsage = z.infer<typeof MeechieQuoteThirdPersonUsageSchema>;
-export type MeechieQuoteModeFit = z.infer<typeof MeechieQuoteModeFitSchema>;
+export type MeechieQuoteTier = z.infer<typeof MeechieQuoteTierSchema>;
 export type MeechieVoicePack = z.infer<typeof MeechieVoicePackSchema>;
 export type MeechieVoiceInput = z.infer<typeof MeechieVoiceInputSchema>;
 export type MeechieVoiceResult = z.infer<typeof MeechieVoiceResultSchema>;
