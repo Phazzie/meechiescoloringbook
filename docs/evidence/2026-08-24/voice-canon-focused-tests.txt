@@ -2,8 +2,8 @@
 [1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
 
 
-[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
-[2m      Tests [22m [1m[32m59 passed[39m[22m[90m (59)[39m
-[2m   Start at [22m 23:08:56
-[2m   Duration [22m 2.32s[2m (transform 800ms, setup 117ms, import 936ms, tests 69ms, environment 3.84s)[22m
+[2m Test Files [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m      Tests [22m [1m[32m61 passed[39m[22m[90m (61)[39m
+[2m   Start at [22m 23:15:55
+[2m   Duration [22m 2.44s[2m (transform 826ms, setup 157ms, import 923ms, tests 70ms, environment 4.86s)[22m
 

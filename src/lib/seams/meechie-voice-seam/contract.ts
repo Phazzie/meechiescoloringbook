@@ -2,6 +2,7 @@
 // Why: Centralize Meechie response copy and templates behind a deterministic seam.
 // Info flow: Voice request -> voice pack -> Meechie tool adapter.
 import { z } from 'zod';
+import { MeechieQuoteSchema } from '../../../../contracts/meechie-quote.contract';
 import { NonEmptyStringSchema, resultSchema } from '../../../../contracts/shared.contract';
 import type { Result } from '../../../../contracts/shared.contract';
 
@@ -88,19 +89,6 @@ const ExcuseRatingFallbackSchema = z.object({
 	commentary: NonEmptyStringSchema
 });
 
-const MeechieQuoteTierSchema = z.enum(['canon', 'approved']);
-
-const MeechieQuoteSchema = z
-	.object({
-		// canon = verified original Meechie. approved = ruled in by the owner.
-		tier: MeechieQuoteTierSchema,
-		// Stable handle for a line. Never reused, never renamed.
-		id: NonEmptyStringSchema,
-		// The wording IS the line. Do not normalize, expand, or clean it up.
-		text: NonEmptyStringSchema
-	})
-	.strict();
-
 const MeechieVoiceResponsesSchema = z.object({
 	headlines: HeadlineSchema,
 	apologyTranslator: ApologyTranslatorSchema,
@@ -130,8 +118,7 @@ export const MeechieVoiceInputSchema = z.object({
 
 export const MeechieVoiceResultSchema = resultSchema(MeechieVoicePackSchema);
 
-export type MeechieQuote = z.infer<typeof MeechieQuoteSchema>;
-export type MeechieQuoteTier = z.infer<typeof MeechieQuoteTierSchema>;
+export type { MeechieQuote, MeechieQuoteTier } from '../../../../contracts/meechie-quote.contract';
 export type MeechieVoicePack = z.infer<typeof MeechieVoicePackSchema>;
 export type MeechieVoiceInput = z.infer<typeof MeechieVoiceInputSchema>;
 export type MeechieVoiceResult = z.infer<typeof MeechieVoiceResultSchema>;

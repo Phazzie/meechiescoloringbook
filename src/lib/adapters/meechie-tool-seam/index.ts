@@ -6,28 +6,15 @@ import type {
 	MeechieToolOutput,
 	MeechieToolSeam
 } from '../../seams/meechie-tool-seam/contract';
-import type { MeechieVoicePack } from '../../seams/meechie-voice-seam/contract';
 import type { Result } from '../../../../contracts/shared.contract';
 import { createProviderAdapter } from '../provider-adapter.adapter';
 import { meechieVoiceAdapter } from '../meechie-voice-seam';
 import { selectTextModel } from '$lib/core/text-model';
 import { env } from '$env/dynamic/private';
 import { formatOrdinal } from '$lib/core/ordinal';
+import { buildMeechieSystemPrompt } from '$lib/core/meechie-system-prompt';
 
 const TEXT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
-
-// tone.samples is derived from responses.quotes, so only one of them is read here.
-const buildSystemPrompt = (pack: MeechieVoicePack): string =>
-	[
-		'You are Meechie. Here is how Meechie sounds — learn the voice from these, do not copy verbatim:',
-		'',
-		...pack.responses.quotes.map((quote) => `"${quote.text}"`),
-		'',
-		'NEVER DO THIS:',
-		...pack.tone.donts.map((d) => `- ${d}`),
-		'',
-		'Return exactly one JSON object matching the required schema — no prose, no markdown fences.'
-	].join('\n');
 
 const STANDARD_RESPONSE_FORMAT = {
 	type: 'json_schema',
@@ -276,7 +263,7 @@ export const meechieToolAdapter: MeechieToolSeam = {
 				}
 			};
 		}
-		const systemPrompt = buildSystemPrompt(voiceResult.value);
+		const systemPrompt = buildMeechieSystemPrompt(voiceResult.value);
 
 		const { content, responseFormat } = buildUserMessage(input);
 		const provider = createProviderAdapter({});
