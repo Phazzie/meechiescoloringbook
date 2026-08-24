@@ -1,135 +1,61 @@
-### RED PROOF: schema weakened (tier optional, .strict() removed)
-### Expectation: the MeechieQuoteSchema rejection tests must FAIL.
+Red proof for MeechieQuoteSchema — src/lib/seams/meechie-voice-seam/test.ts
 
+Two halves:
+  (a) direct schema cases (missing/unknown tier, missing/empty id, missing/empty
+      text, extra field on a .strict() object, retired pre-migration shape)
+  (b) the fixture-backed half required by src/lib/seams/AGENTS.md section 3:
+      fixtures/meechie-voice/malformed-pack.json is a checked-in pack whose
+      quotes still carry the retired shape, and createMalformedVoicePackMock()
+      serves it exactly as createMeechieVoiceMock() serves the good fixture.
+      The contract test runs the mock and requires the rejection.
 
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+The proof is that these fail when the schema is weakened, not merely that they
+pass when it is correct.
 
- [31m❯[39m src/lib/seams/meechie-voice-seam/test.ts [2m([22m[2m15 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 19[2mms[22m[39m
+### STAGE 0 — shipped schema. Expect all green.
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+
+### STAGE 1 — tier optional, .strict() dropped. Expect RED.
 [31m     [31m×[31m rejects a quote with missing tier[39m[32m 7[2mms[22m[39m
 [31m     [31m×[31m rejects a quote with extra field[39m[32m 1[2mms[22m[39m
-
 [31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
-
-[41m[1m FAIL [22m[49m src/lib/seams/meechie-voice-seam/test.ts[2m > [22mMeechieQuoteSchema rejects faulty quotes[2m > [22mrejects a quote with missing tier
-[41m[1m FAIL [22m[49m src/lib/seams/meechie-voice-seam/test.ts[2m > [22mMeechieQuoteSchema rejects faulty quotes[2m > [22mrejects a quote with extra field
-[31m[1mAssertionError[22m: expected true to be false // Object.is equality[39m
-
-[32m- Expected[39m
-[31m+ Received[39m
-
-[32m- false[39m
-[31m+ true[39m
-
-[36m [2m❯[22m src/lib/seams/meechie-voice-seam/test.ts:[2m55:55[22m[39m
-    [90m 53|[39m   [[32m'extra field'[39m[33m,[39m { [33m...[39mvalid[33m,[39m coloringPageReady[33m:[39m [35mtrue[39m }]
-    [90m 54|[39m  ])([32m'rejects a quote with %s'[39m[33m,[39m (_label[33m,[39m quote) [33m=>[39m {
-    [90m 55|[39m   [34mexpect[39m([33mMeechieQuoteSchema[39m[33m.[39m[34msafeParse[39m(quote)[33m.[39msuccess)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
-    [90m   |[39m                                                       [31m^[39m
-    [90m 56|[39m  })[33m;[39m
-    [90m 57|[39m
-
-[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
-
-
 [2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
-[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m13 passed[39m[22m[90m (15)[39m
-[2m   Start at [22m 23:19:02
-[2m   Duration [22m 1.11s[2m (transform 157ms, setup 54ms, import 161ms, tests 19ms, environment 679ms)[22m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m16 passed[39m[22m[90m (18)[39m
 
-
-### RED PROOF (2): additionally id optional and text allowed empty
-### Expectation: more rejection tests must FAIL, incl. the retired-shape guard.
-
-
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
-
- [31m❯[39m src/lib/seams/meechie-voice-seam/test.ts [2m([22m[2m15 tests[22m[2m | [22m[31m7 failed[39m[2m)[22m[32m 22[2mms[22m[39m
+### STAGE 2 — also id optional, empty text allowed. Expect MORE RED.
 [31m     [31m×[31m rejects a quote with missing tier[39m[32m 7[2mms[22m[39m
 [31m     [31m×[31m rejects a quote with missing id[39m[32m 1[2mms[22m[39m
 [31m     [31m×[31m rejects a quote with empty id[39m[32m 1[2mms[22m[39m
 [31m     [31m×[31m rejects a quote with empty text[39m[32m 1[2mms[22m[39m
 [31m     [31m×[31m rejects a quote with extra field[39m[32m 1[2mms[22m[39m
 [31m     [31m×[31m rejects the retired pre-migration quote shape[39m[32m 1[2mms[22m[39m
-[31m     [31m×[31m rejects a voice pack whose quotes do not match the schema[39m[32m 1[2mms[22m[39m
-
+[31m     [31m×[31m points at the offending quotes, not somewhere else in the pack[39m[32m 1[2mms[22m[39m
 [31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 7 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
-
-[41m[1m FAIL [22m[49m src/lib/seams/meechie-voice-seam/test.ts[2m > [22mMeechieQuoteSchema rejects faulty quotes[2m > [22mrejects a quote with missing tier
-[41m[1m FAIL [22m[49m src/lib/seams/meechie-voice-seam/test.ts[2m > [22mMeechieQuoteSchema rejects faulty quotes[2m > [22mrejects a quote with missing id
-[41m[1m FAIL [22m[49m src/lib/seams/meechie-voice-seam/test.ts[2m > [22mMeechieQuoteSchema rejects faulty quotes[2m > [22mrejects a quote with empty id
-[41m[1m FAIL [22m[49m src/lib/seams/meechie-voice-seam/test.ts[2m > [22mMeechieQuoteSchema rejects faulty quotes[2m > [22mrejects a quote with empty text
-[41m[1m FAIL [22m[49m src/lib/seams/meechie-voice-seam/test.ts[2m > [22mMeechieQuoteSchema rejects faulty quotes[2m > [22mrejects a quote with extra field
-[31m[1mAssertionError[22m: expected true to be false // Object.is equality[39m
-
-[32m- Expected[39m
-[31m+ Received[39m
-
-[32m- false[39m
-[31m+ true[39m
-
-[36m [2m❯[22m src/lib/seams/meechie-voice-seam/test.ts:[2m55:55[22m[39m
-    [90m 53|[39m   [[32m'extra field'[39m[33m,[39m { [33m...[39mvalid[33m,[39m coloringPageReady[33m:[39m [35mtrue[39m }]
-    [90m 54|[39m  ])([32m'rejects a quote with %s'[39m[33m,[39m (_label[33m,[39m quote) [33m=>[39m {
-    [90m 55|[39m   [34mexpect[39m([33mMeechieQuoteSchema[39m[33m.[39m[34msafeParse[39m(quote)[33m.[39msuccess)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
-    [90m   |[39m                                                       [31m^[39m
-    [90m 56|[39m  })[33m;[39m
-    [90m 57|[39m
-
-[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯[22m[39m
-
-[41m[1m FAIL [22m[49m src/lib/seams/meechie-voice-seam/test.ts[2m > [22mMeechieQuoteSchema rejects faulty quotes[2m > [22mrejects the retired pre-migration quote shape
-[31m[1mAssertionError[22m: expected true to be false // Object.is equality[39m
-
-[32m- Expected[39m
-[31m+ Received[39m
-
-[32m- false[39m
-[31m+ true[39m
-
-[36m [2m❯[22m src/lib/seams/meechie-voice-seam/test.ts:[2m70:57[22m[39m
-    [90m 68|[39m    visualMotifs[33m:[39m [[32m'glam'[39m]
-    [90m 69|[39m   }[33m;[39m
-    [90m 70|[39m   [34mexpect[39m([33mMeechieQuoteSchema[39m[33m.[39m[34msafeParse[39m(retired)[33m.[39msuccess)[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
-    [90m   |[39m                                                         [31m^[39m
-    [90m 71|[39m  })[33m;[39m
-    [90m 72|[39m
-
-[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯[22m[39m
-
-[41m[1m FAIL [22m[49m src/lib/seams/meechie-voice-seam/test.ts[2m > [22mMeechieQuoteSchema rejects faulty quotes[2m > [22mrejects a voice pack whose quotes do not match the schema
-[31m[1mAssertionError[22m: expected true to be false // Object.is equality[39m
-
-[32m- Expected[39m
-[31m+ Received[39m
-
-[32m- false[39m
-[31m+ true[39m
-
-[36m [2m❯[22m src/lib/seams/meechie-voice-seam/test.ts:[2m81:64[22m[39m
-    [90m 79|[39m    }
-    [90m 80|[39m   }[33m;[39m
-    [90m 81|[39m   expect(MeechieVoicePackSchema.safeParse(faultyPack).success).toBe(fa…
-    [90m   |[39m                                                                [31m^[39m
-    [90m 82|[39m  })[33m;[39m
-    [90m 83|[39m
-
-[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯[22m[39m
-
-
 [2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
-[2m      Tests [22m [1m[31m7 failed[39m[22m[2m | [22m[1m[32m8 passed[39m[22m[90m (15)[39m
-[2m   Start at [22m 23:19:24
-[2m   Duration [22m 1.10s[2m (transform 152ms, setup 49ms, import 159ms, tests 22ms, environment 656ms)[22m
+[2m      Tests [22m [1m[31m7 failed[39m[22m[2m | [22m[1m[32m11 passed[39m[22m[90m (18)[39m
 
-
-### GREEN: schema restored to the shipped version
-
-
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
-
-
+### STAGE 3 — schema restored. Expect green again.
 [2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
-[2m      Tests [22m [1m[32m15 passed[39m[22m[90m (15)[39m
-[2m   Start at [22m 23:19:38
-[2m   Duration [22m 1.04s[2m (transform 141ms, setup 48ms, import 141ms, tests 12ms, environment 648ms)[22m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m
 
+### STAGE 2b — tier enum widened to any string, so every quote in the
+### malformed fixture now parses. This is what proves the FIXTURE-BACKED
+### half bites: the mock-driven cases must go red here.
+[31m     [31m×[31m rejects a quote with missing tier[39m[32m 7[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with unknown tier[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with missing id[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with empty id[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with empty text[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with extra field[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects the retired pre-migration quote shape[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects the fixture file itself[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects what the mock returns when run against that fixture[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m points at the offending quotes, not somewhere else in the pack[39m[32m 1[2mms[22m[39m
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 10 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m10 failed[39m[22m[2m | [22m[1m[32m8 passed[39m[22m[90m (18)[39m
+
+### STAGE 3 — schema restored. Expect green again.
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m

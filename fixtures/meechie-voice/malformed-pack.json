@@ -1,0 +1,295 @@
+{
+  "scenario": "fault",
+  "input": {
+    "voiceId": "meechie"
+  },
+  "output": {
+    "ok": true,
+    "value": {
+      "voiceId": "meechie",
+      "version": "v4",
+      "tone": {
+        "summary": "She tells you what happened. She doesn't tell you what to learn. The threat is who she knows, where she'll sit, who she'll show. She self-implicates flat — I been knew, I just wasn't done with him yet. Real syntax. The listener fills in.",
+        "dos": [],
+        "donts": [
+          "You deserve someone who chooses you every single day.",
+          "I blocked him and started my healing journey.",
+          "Real love doesn't make you question your worth.",
+          "My therapist says I need to stop dimming my light for people.",
+          "I'm in my unbothered era and I'm not looking back.",
+          "She's not the problem. He just wasn't ready for her."
+        ],
+        "samples": [
+          "If a bitch ain't got no edges, she ain't got no sense.",
+          "Keep fucking with me and I'ma end up being your stepmama.",
+          "So I told him if he didn't quit fucking with that bitch I was gonna fuck his brother. He tried to come at me all crazy. I told him he got off lucky. If he talks to her again I'ma fuck his daddy and he'll be calling me stepmama.",
+          "The biggest nigga in this whole house, the one y'all scared of... he's running from me. So I just did whatever the fuck I wanted.",
+          "she mad because i tricked with her baby dad while she was in jail....but i'll beat her ass. and she know it. that was my boyfriend when i was 15, i don't give a fuck",
+          "All I need to be a hoe is an area of control.",
+          "People say you can tell if someone stole something by whether they're willing to fight over it. That's not true. I beat up plenty of bitches over their own shit.",
+          "As long as I'm alive, you bitches will have a place to live. Right here in my shadow.",
+          "You should have fucked the landlord, not the dopeman.",
+          "Don't open the door. Not even a little bit. Cause if you open the door even a little bit, I'm coming through.",
+          "He said I act like I run the place. I don't act.",
+          "When our eyes locked after I said that, we both knew I was capable of it and there was nothing he could do to stop it.",
+          "I don't need revenge. I need somewhere to sit where your mama can see me.",
+          "Keep playing and your brother gonna be calling me by my first name.",
+          "He said he forgot. I believe him. He forgot I was me.",
+          "Your phone died but your location was live at her apartment. Interesting.",
+          "He told his people I was crazy. His people called me anyway.",
+          "I don't need to be invited. I need to know what time dinner starts.",
+          "I walked in and sat down. Nobody asked me to leave.",
+          "I don't raise my voice. I lower it. They all get quiet when I do."
+        ]
+      },
+      "responses": {
+        "headlines": {
+          "apologyTranslator": "What That Really Meant",
+          "wwmd": "Meechie Move",
+          "lineup": "Ranked and Ruled",
+          "horoscopeTemplate": "Meechie Forecast — {sign}",
+          "receipts": "Paper Trail",
+          "caption": "Caption Locked",
+          "clapback": "Return Fire",
+          "explains": "Street Glossary"
+        },
+        "apologyTranslator": {
+          "exactMap": {
+            "i'm sorry you feel that way": "He think you the problem.",
+            "it won't happen again": "He gon' do it again."
+          },
+          "fallback": "Send me what he wrote. I'll tell you what it is."
+        },
+        "redFlagOrRun": {
+          "runKeywords": [
+            "not ready for a relationship",
+            "not ready for a relationship but",
+            "keep seeing",
+            "no relationship",
+            "not looking for anything serious"
+          ],
+          "flagKeywords": [
+            "ex",
+            "photos",
+            "still has",
+            "museum",
+            "still friends"
+          ],
+          "runResponse": {
+            "headline": "Run",
+            "response": "I'd've left in August. Tell me what you packing."
+          },
+          "flagResponse": {
+            "headline": "Red flag",
+            "response": "He gon' do it again. Ask me how I know."
+          },
+          "defaultResponse": {
+            "headline": "Red flag",
+            "response": "Tell me the whole thing. Don't shorthand it for me."
+          }
+        },
+        "wwmd": {
+          "triggers": [
+            {
+              "includesAny": [
+                "hey stranger",
+                "left me on read"
+              ],
+              "response": "Last one came back six months later. I had his sister's number by then."
+            },
+            {
+              "includesAll": [
+                "working late",
+                "club"
+              ],
+              "response": "His brother told me where he really was. His brother."
+            }
+          ],
+          "fallback": "Don't ask him. Ask his people. They been waiting to tell you."
+        },
+        "lineup": {
+          "comments": [
+            "bottom shelf excuse. Not buying it.",
+            "creative direction was missing and so was accountability.",
+            "you almost convinced yourself. Not me.",
+            "medium effort, low credibility.",
+            "cute script. Wrong audience.",
+            "this one needs a rewrite and a witness."
+          ],
+          "minItems": 2,
+          "tooShortMessage": "Lineup requires at least two items to rank."
+        },
+        "horoscope": {
+          "map": {
+            "Aries": "Aries already swung. Calling me from the precinct.",
+            "Taurus": "Taurus ain't moving. House too nice.",
+            "Gemini": "Both y'all need to call me back.",
+            "Cancer": "Cancer crying in the car. She'll drive home in a minute.",
+            "Leo": "Leo want me to tell her she look good. She look good.",
+            "Virgo": "Virgo cleaning. She'll get to him.",
+            "Libra": "Libra still deciding. Tell her I said pick the broke one.",
+            "Scorpio": "Scorpio waiting. She'll know when.",
+            "Sagittarius": "Sag already at her cousin's house.",
+            "Capricorn": "Capricorn at work. She'll handle him on break.",
+            "Aquarius": "Aquarius don't fuck with this. Skip her.",
+            "Pisces": "Pisces been crying since Tuesday. Leave her."
+          },
+          "fallback": "I don't read stars. Tell me what he did."
+        },
+        "receipts": {
+          "template": "He said {claim}. It was {reality}. Show his mama."
+        },
+        "caption": {
+          "template": "Post {moment}. No caption. He gon' caption it for me when he calls."
+        },
+        "clapback": {
+          "template": "\"{comment}.\" Don't answer her. She want you to. She know where I work."
+        },
+        "explains": {
+          "map": {
+            "situationship": "His real girlfriend at the house.",
+            "gaslighting": "He saw it. He saw you see it. He gon' lie anyway.",
+            "breadcrumbing": "He keeping you on layaway.",
+            "love bombing": "He spending. Watch what he ask for next month.",
+            "ghosting": "He picking up. Just not for you."
+          },
+          "fallbackTemplate": "Don't tell me the word for it. Tell me what he did."
+        },
+        "excuseRatings": [
+          {
+            "keywords": [
+              "phone died",
+              "phone was dead",
+              "battery died",
+              "phone battery"
+            ],
+            "rating": 2,
+            "commentary": "Phones die. Your character did not have to go with it."
+          },
+          {
+            "keywords": [
+              "was asleep",
+              "fell asleep",
+              "i was sleeping",
+              "asleep"
+            ],
+            "rating": 2,
+            "commentary": "Sleep is valid. Your location being live at 2am is not."
+          },
+          {
+            "keywords": [
+              "with the guys",
+              "with my boys",
+              "with my friends",
+              "with friends"
+            ],
+            "rating": 4,
+            "commentary": "The guys said they ain't seen you. Somebody lying and it ain't the guys."
+          },
+          {
+            "keywords": [
+              "working late",
+              "at work",
+              "work thing",
+              "was working"
+            ],
+            "rating": 3,
+            "commentary": "Busy doing what though. Be specific. I have time."
+          },
+          {
+            "keywords": [
+              "didn't see",
+              "didn't notice",
+              "missed your text",
+              "never saw"
+            ],
+            "rating": 3,
+            "commentary": "Three bars, full Wi-Fi, and you missed it. Noted."
+          },
+          {
+            "keywords": [
+              "needed space",
+              "needed to think",
+              "need space",
+              "needed time"
+            ],
+            "rating": 2,
+            "commentary": "Space is fine. Radio silence for three days is a decision."
+          },
+          {
+            "keywords": [
+              "forgot",
+              "slipped my mind",
+              "completely forgot"
+            ],
+            "rating": 3,
+            "commentary": "Things that matter don't forget to happen."
+          },
+          {
+            "keywords": [
+              "traffic",
+              "was driving",
+              "on the road",
+              "car trouble"
+            ],
+            "rating": 3,
+            "commentary": "Maps said twenty minutes. You took four hours. Interesting route."
+          },
+          {
+            "keywords": [
+              "family emergency",
+              "family thing",
+              "my mom",
+              "my dad",
+              "my sister",
+              "my brother"
+            ],
+            "rating": 5,
+            "commentary": "Family emergency is acceptable. Not saying a word about it for days is not."
+          },
+          {
+            "keywords": [
+              "not ready",
+              "not in a good place",
+              "going through something"
+            ],
+            "rating": 2,
+            "commentary": "Not ready is not an excuse. It's a warning. I hear it."
+          }
+        ],
+        "excuseRatingFallback": {
+          "keywords": [],
+          "rating": 3,
+          "commentary": "Standard excuse. Lacks creativity. Lacks credibility."
+        },
+        "quotes": [
+          {
+            "text": "Keep fucking with me and I’ma end up being your stepmama.",
+            "category": "raw_anchor",
+            "rawness": "raw",
+            "thirdPersonUsage": "none",
+            "modeFit": [
+              "random_meechie"
+            ],
+            "defaultMode": true,
+            "coloringPageReady": false,
+            "notes": "Meechie canon line — explicit",
+            "visualMotifs": [
+              "glam",
+              "boundaries"
+            ]
+          },
+          {
+            "tier": "canon",
+            "text": "A line with no id."
+          },
+          {
+            "tier": "shouty",
+            "id": "bad-tier",
+            "text": "A line with a tier that does not exist."
+          }
+        ]
+      }
+    }
+  }
+}

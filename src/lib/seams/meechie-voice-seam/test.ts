@@ -3,9 +3,10 @@
 // Info flow: Fixtures -> mock/adapter -> assertions.
 import { describe, expect, it } from 'vitest';
 import { meechieVoiceSampleFixture, meechieVoiceFaultFixture } from './fixtures';
-import { createMeechieVoiceMock } from './mock';
+import { createMeechieVoiceMock, createMalformedVoicePackMock } from './mock';
 import { meechieVoiceAdapter } from '../../adapters/meechie-voice-seam';
-import { MeechieVoicePackSchema } from './contract';
+import { MeechieVoicePackSchema, MeechieVoiceResultSchema } from './contract';
+import { meechieVoiceMalformedPackFixture } from './fixtures';
 import { MeechieQuoteSchema } from '../../../../contracts/meechie-quote.contract';
 import { meechieVoicePack } from './voice-pack';
 
@@ -70,18 +71,46 @@ describe('MeechieQuoteSchema rejects faulty quotes', () => {
 		expect(MeechieQuoteSchema.safeParse(retired).success).toBe(false);
 	});
 
-	it('rejects a voice pack whose quotes do not match the schema', () => {
-		const faultyPack = {
-			...meechieVoicePack,
-			responses: {
-				...meechieVoicePack.responses,
-				quotes: [{ text: 'No tier, no id.' }]
-			}
-		};
-		expect(MeechieVoicePackSchema.safeParse(faultyPack).success).toBe(false);
-	});
-
 	it('accepts the real voice pack', () => {
 		expect(MeechieVoicePackSchema.safeParse(meechieVoicePack).success).toBe(true);
+	});
+});
+
+// The fixture-backed half of the red proof. src/lib/seams/AGENTS.md section 3
+// asks for the contract test to fail when the MOCK is run against a FAULT
+// FIXTURE, so asserting on inline objects is not enough on its own:
+// fixtures/meechie-voice/malformed-pack.json is a checked-in pack whose quotes
+// still carry the retired pre-migration shape, and createMalformedVoicePackMock
+// serves it the same way createMeechieVoiceMock serves the good one.
+describe('MeechieVoiceSeam rejects the malformed-pack fault fixture', () => {
+	it('rejects the fixture file itself', () => {
+		const parsed = MeechieVoiceResultSchema.safeParse(
+			(meechieVoiceMalformedPackFixture as { output: unknown }).output
+		);
+		expect(parsed.success).toBe(false);
+	});
+
+	it('rejects what the mock returns when run against that fixture', async () => {
+		const mock = createMalformedVoicePackMock();
+		const output = await mock.getVoicePack({ voiceId: 'meechie' });
+		const parsed = MeechieVoiceResultSchema.safeParse(output);
+		expect(parsed.success).toBe(false);
+	});
+
+	it('points at the offending quotes, not somewhere else in the pack', async () => {
+		const mock = createMalformedVoicePackMock();
+		const output = await mock.getVoicePack({ voiceId: 'meechie' });
+		const parsed = MeechieVoiceResultSchema.safeParse(output);
+		if (parsed.success) throw new Error('malformed fixture unexpectedly parsed');
+		const paths = parsed.error.issues.map((issue) => issue.path.join('.'));
+		expect(paths.every((path) => path.includes('responses.quotes'))).toBe(true);
+		// One issue per bad quote: retired shape, missing id, unknown tier.
+		expect(new Set(paths).size).toBeGreaterThanOrEqual(3);
+	});
+
+	it('still accepts the good sample fixture through the normal mock', async () => {
+		const mock = createMeechieVoiceMock('sample');
+		const output = await mock.getVoicePack({ voiceId: 'meechie' });
+		expect(MeechieVoiceResultSchema.safeParse(output).success).toBe(true);
 	});
 });
