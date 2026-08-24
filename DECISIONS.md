@@ -19,15 +19,16 @@ Short, durable decisions with context and tradeoffs.
   - Goal: One list, one wording, every consumer reading from it.
   - Seams: MeechieVoiceSeam, MeechieToolSeam.
   - Files: `src/lib/seams/meechie-voice-seam/voice-pack.ts`, `src/lib/seams/meechie-voice-seam/contract.ts`, `contracts/meechie-voice.contract.ts`, `contracts/meechie-quote.contract.ts`, `src/lib/core/meechie-system-prompt.ts`, `src/lib/adapters/meechie-tool-seam/index.ts`, `src/lib/adapters/meechie-tool.adapter.ts`, `src/lib/core/meechie-studio-text-pipeline.ts`, `src/lib/core/meechie-studio.ts`, `fixtures/meechie-voice/sample.json`, `tests/unit/meechie-tool-adapter.test.ts`, `tests/unit/meechie-studio.test.ts`.
-  - Commands: `npm run check`, `npm run lint`, `npm test`.
+  - Commands: `npm run verify`, `npm test`, `npm run rewind -- --seam MeechieVoiceSeam`, `npm run rewind -- --seam MeechieToolSeam`, `npm run check`, `npm run lint`.
+- Red proof: The pre-existing fault fixture only exercises an unknown `voiceId`, so it could not show that the new quote schema rejects a malformed pack. `src/lib/seams/meechie-voice-seam/test.ts` now drives faulty quotes straight at `MeechieQuoteSchema` (missing/unknown tier, missing/empty id, missing/empty text, an extra field, and the retired pre-migration shape). Proven to bite by weakening the schema in two stages and capturing the failures: 15 pass -> tier optional and `.strict()` dropped -> 2 fail -> id optional and empty text allowed -> 7 fail -> schema restored -> 15 pass. See docs/evidence/2026-08-24/voice-canon-red-proof.txt.
 - Self-critique: The riskiest change is dropping from 49 example lines to 20, all of them in a narrower register. Every canon line is explicit, so the model sees a rawer average than before and may pull generations harder in that direction. That is the intended effect, but it is worth watching the first real generations. Regenerating `fixtures/meechie-voice/sample.json` from the pack rather than hand-editing means the fixture can no longer catch a mistake in the pack itself — the contract tests confirm adapter and mock agree, not that the content is right.
 
 - Cipher Gate:
   - Date: 2026-08-24
   - Seams: MeechieVoiceSeam, MeechieToolSeam
-  - Evidence: docs/evidence/2026-08-24/voice-canon-check.txt; docs/evidence/2026-08-24/voice-canon-lint.txt; docs/evidence/2026-08-24/voice-canon-focused-tests.txt
+  - Evidence: docs/evidence/2026-08-24/voice-canon-verify-ci.txt; docs/evidence/2026-08-24/voice-canon-verify.txt; docs/evidence/2026-08-24/voice-canon-full-tests.txt; docs/evidence/2026-08-24/voice-canon-red-proof.txt; docs/evidence/2026-08-24/voice-canon-rewind-MeechieVoiceSeam.txt; docs/evidence/2026-08-24/voice-canon-rewind-MeechieToolSeam.txt; docs/evidence/2026-08-24/voice-canon-check.txt; docs/evidence/2026-08-24/voice-canon-lint.txt; docs/evidence/2026-08-24/voice-canon-focused-tests.txt
   - Summary: Collapsed three drifted Meechie quote lists into one 20-line owner-ruled source and pointed every prompt builder at it.
-  - Risks: `tests/unit/api-generate.test.ts` fails on this branch, but it also fails on a clean checkout of the same commit — pre-existing and unrelated to this change. Full suite otherwise 519 passing.
+  - Risks: `npm run verify` passes on CI (both verify jobs green on head 91fae7f). It fails locally in the sandboxed dev container on `tests/unit/api-generate.test.ts`, which times out at the 5000ms default because that endpoint does HTTP with retry/backoff and this container routes outbound traffic through a proxy. The same test passes locally at `--testTimeout=60000` and fails identically on a clean checkout of the base commit, so it is environmental and pre-existing, not caused by this change. Full suite 530 passing.
 
 ## 2026-06-07 - Manually integrate PR #114 ordinal and AppConfig parsing cleanup
 

@@ -1,0 +1,34 @@
+
+> meechies-coloringbook@0.1.0 test
+> vitest run
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+ [31m❯[39m tests/unit/api-generate.test.ts [2m([22m[2m12 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 5038[2mms[22m[39m
+[31m     [31m×[31m keeps the endpoint parse and input guards transport-thin[39m[33m 5008[2mms[22m[39m
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/unit/api-generate.test.ts[2m > [22m/api/generate[2m > [22mkeeps the endpoint parse and input guards transport-thin
+[31m[1mError[22m: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".[39m
+[36m [2m❯[22m tests/unit/api-generate.test.ts:[2m350:2[22m[39m
+    [90m348|[39m  })[33m;[39m
+    [90m349|[39m
+    [90m350|[39m  it('keeps the endpoint parse and input guards transport-thin', async …
+    [90m   |[39m  [31m^[39m
+    [90m351|[39m   [35mconst[39m fetchMock [33m=[39m vi[33m.[39m[34mfn[39m([35masync[39m () [33m=>[39m
+    [90m352|[39m    [35mnew[39m [33mResponse[39m(
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m61 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (63)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m530 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (532)[39m
+[2m   Start at [22m 23:19:49
+[2m   Duration [22m 27.85s[2m (transform 3.32s, setup 726ms, import 5.60s, tests 14.87s, environment 48.49s)[22m
+
