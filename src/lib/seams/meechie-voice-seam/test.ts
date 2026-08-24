@@ -2,11 +2,14 @@
 // Why: Keep Meechie voice packs deterministic and editable.
 // Info flow: Fixtures -> mock/adapter -> assertions.
 import { describe, expect, it } from 'vitest';
-import { meechieVoiceSampleFixture, meechieVoiceFaultFixture } from './fixtures';
+import {
+	meechieVoiceSampleFixture,
+	meechieVoiceFaultFixture,
+	meechieVoiceMalformedPackFixture
+} from './fixtures';
 import { createMeechieVoiceMock, createMalformedVoicePackMock } from './mock';
 import { meechieVoiceAdapter } from '../../adapters/meechie-voice-seam';
 import { MeechieVoicePackSchema, MeechieVoiceResultSchema } from './contract';
-import { meechieVoiceMalformedPackFixture } from './fixtures';
 import { MeechieQuoteSchema } from '../../../../contracts/meechie-quote.contract';
 import { meechieVoicePack } from './voice-pack';
 
