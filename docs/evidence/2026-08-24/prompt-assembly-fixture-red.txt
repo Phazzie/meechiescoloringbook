@@ -1,0 +1,17 @@
+# Purpose: Store the mandatory fixture-backed PromptAssemblySeam red proof.
+# Why: Prove the checked-in semantic fault fails when served through the mock.
+# Info flow: title-only-marker-fault fixture -> fault mock -> execution validator -> failing contract test.
+
+$ ./node_modules/.bin/vitest run src/lib/seams/prompt-assembly-seam/test.ts --pool=forks --maxWorkers=1
+
+ RUN  v4.1.0 <REPO_ROOT>
+
+ ❯ src/lib/seams/prompt-assembly-seam/test.ts (7 tests | 1 failed)
+     × fault mock cannot satisfy the input/result boundary
+
+ FAIL  src/lib/seams/prompt-assembly-seam/test.ts > PromptAssemblySeam title-only boundary fault fixture > fault mock cannot satisfy the input/result boundary
+AssertionError: expected [Function] to not throw an error, but boundary validation threw:
+"A title-only prompt must not advertise a secondary exact-text line."
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)

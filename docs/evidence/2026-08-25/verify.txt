@@ -1,0 +1,51 @@
+# Purpose: Store the literal outer npm run verify transcript for evidence.
+# Why: Prove every ordered Seam-Driven Development gate ran through the repository command.
+# Info flow: npm run verify stdout/stderr -> evidence file -> review.
+
+$ npm run verify
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> meechies-coloringbook@0.1.0 verify
+> node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: <REPO_ROOT>
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v4.1.0 <REPO_ROOT>
+
+
+ Test Files  62 passed | 1 skipped (63)
+      Tests  538 passed | 1 skipped (539)
+   Start at  18:00:34
+   Duration  48.03s (transform 1.74s, setup 547ms, import 3.13s, tests 9.76s, environment 26.17s)
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice

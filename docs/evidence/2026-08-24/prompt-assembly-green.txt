@@ -1,0 +1,11 @@
+# Purpose: Capture the passing PromptAssemblySeam regression proof after adapter changes.
+# Why: Prove the canonical adapter and legacy compatibility export correctly bound optional secondary exact text.
+# Info flow: Canonical adapter -> legacy and self-contained contract tests -> green result.
+
+$ ./node_modules/.bin/vitest run tests/contract/prompt-assembly.test.ts src/lib/seams/prompt-assembly-seam/test.ts --pool=forks --maxWorkers=1
+
+ RUN  v4.1.0 <REPO_ROOT>
+
+ Test Files  2 passed (2)
+ Tests       14 passed (14)
+ Duration    1.28s
