@@ -9,6 +9,49 @@ Info flow: what shipped -> owner rulings not yet done -> open questions -> exact
 `claude/sharp-meitner-420dwc` → PR #228. Verify green: **577 passed, 1 skipped, 0 failed**,
 `npm run verify` exits 0.
 
+## READ THIS FIRST — reliability caveat on this handoff
+
+**This handoff was written at the end of a very long session with a full context window.**
+Treat it as a lead, not as truth. Verify anything before acting on it. Specific reasons to
+distrust parts of it:
+
+- Facts were corrected mid-session more than once. I stated the xAI key was unavailable when
+  it was present in the environment as a variable rather than a `.env` file; I reported a
+  duplicate Meechie quote list that had already been removed; and an earlier version of this
+  file said the `grok-4.6` assumption was closed while `DECISIONS.md` said it was open.
+- At least two other sessions pushed to this same branch during the session, once with a
+  force-push. Anything here may describe a tree that no longer exists. **`git fetch` first.**
+- This was merged **without waiting for CI**, at the owner's explicit instruction (see below).
+
+If something below contradicts the code, the code is right.
+
+## MERGED WITHOUT CI — deliberate
+
+The owner instructed: PR and merge without waiting for CI. That is what happened. The last
+CI run I personally saw green was `4c29e0f` (SonarCloud passed, duplication 2.8%, verify
+green with 539 passed / 0 failed). Commits after that — `58afc58` and this handoff commit —
+were **not** verified by me before merge.
+
+This deliberately bypasses the "Merge When The Gates Are Green" rule added to `AGENTS.md`
+this session. The rule stands; this was an owner override, not a precedent.
+
+If `main` is broken, the first suspect is `58afc58` (review-finding reconciliation, which
+added `src/lib/core/provider-message-redaction.js` and changed the probe, `.env.example`,
+and `DECISIONS.md`).
+
+## STATE AT MERGE
+
+Four Codex findings on `4c29e0f` were verified real and all appear fixed by `58afc58`:
+
+| Finding | Status in `58afc58` |
+|---|---|
+| P1 — `HANDOFF.md` said the assumption was closed while `DECISIONS.md` said open | Fixed — the overstatement is gone; `DECISIONS.md` keeps it open for the deployed full-payload path only |
+| P2 — probe would re-leak the xAI team UUID on its next refresh | Fixed — redaction added, shared via `src/lib/core/provider-message-redaction.js` |
+| P2 — `DECISIONS.md` said timeout retries were deferred while the code shipped `retryOnTimeout: false` | Believed fixed — re-read the timeout entry to confirm |
+| P2 — `MAX_IMAGES_PER_REQUEST` was an inert setting in `.env.example` | Fixed — removed |
+
+I did **not** re-run the suite after `58afc58`.
+
 ## OWNER RULINGS — NOT YET DONE
 
 ### 1. Cut voice pack lines 11–20
