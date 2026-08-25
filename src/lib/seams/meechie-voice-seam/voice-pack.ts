@@ -1,7 +1,8 @@
 // Purpose: Single source of truth for the Meechie Voice Pack.
 // Why: One list, one wording, no duplicates. Every consumer reads from here.
 // Info flow: MEECHIE_LINES -> voice pack tone.samples + responses.quotes -> prompts.
-import type { MeechieQuote, MeechieVoicePack } from './contract';
+import type { MeechieVoicePack } from './contract';
+import type { MeechieQuote } from '../../../../contracts/meechie-quote.contract';
 
 // The Meechie canon. Ten lines, ruled in by the owner. This is the only quote
 // source in the app: tone.samples and every prompt are built from this array.
