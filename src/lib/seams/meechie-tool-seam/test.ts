@@ -11,7 +11,11 @@ vi.mock('../../adapters/provider-adapter.adapter', () => ({
 	createProviderAdapter: () => ({
 		createChatCompletion: mockCreateChatCompletion,
 		createImageGeneration: vi.fn()
-	})
+	}),
+	providerAdapter: {
+		createChatCompletion: mockCreateChatCompletion,
+		createImageGeneration: vi.fn()
+	}
 }));
 
 const { meechieToolAdapter } = await import('../../adapters/meechie-tool-seam');

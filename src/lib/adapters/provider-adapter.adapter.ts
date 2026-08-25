@@ -10,7 +10,15 @@ import type {
 } from '../../../contracts/provider-adapter.contract';
 import type { Result, SeamError } from '../../../contracts/shared.contract';
 import { env } from '$env/dynamic/private';
-import { fetchWithTimeout, fetchWithRetry, isAbortError, isTimeoutError } from '$lib/core/http-resilience';
+import {
+	fetchWithTimeout,
+	fetchWithRetry,
+	isAbortError,
+	isTimeoutError,
+	isCircuitOpenError,
+	createCircuitBreaker,
+	RETRYABLE_STATUSES
+} from '$lib/core/http-resilience';
 
 export type ProviderAdapterConfig = {
 	apiKey?: string | null;
@@ -23,6 +31,11 @@ const IMAGE_PATH = '/v1/images/generations';
 const CHAT_TIMEOUT_MS = 60_000;
 const IMAGE_TIMEOUT_MS = 120_000;
 const RETRY_OPTIONS = { maxAttempts: 3, baseDelayMs: 1_000 } as const;
+// After 3 consecutive provider failures, fail fast for 30s instead of spending up to
+// maxAttempts * timeout on a request the provider is very unlikely to fulfill.
+const CIRCUIT_BREAKER_OPTIONS = { failureThreshold: 3, cooldownMs: 30_000 } as const;
+const CIRCUIT_OPEN_MESSAGE =
+	'Provider is temporarily unavailable after repeated errors; failing fast.';
 
 const normalizeBaseUrl = (baseUrl: string): string => {
 	const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -155,105 +168,136 @@ const normalizeImageOutput = (
 
 export const createProviderAdapter = (
 	config: ProviderAdapterConfig = {}
-): ProviderAdapterSeam => ({
-	createChatCompletion: async (
-		input: ProviderChatInput
-	): Promise<Result<ProviderChatOutput>> => {
-		const apiKey = getApiKey(config);
-		if (!apiKey) {
-			return {
-				ok: false,
-				error: buildError(
-					'PROVIDER_API_KEY_MISSING',
-					'XAI_API_KEY is required.'
-				)
-			};
-		}
-		const baseUrl = getBaseUrl(config);
-		try {
-			const url = `${baseUrl}${CHAT_PATH}`;
-			const requestInit: RequestInit = {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${apiKey}`,
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					model: input.model,
-					messages: input.messages,
-					...(input.responseFormat
-						? { response_format: input.responseFormat }
-						: {})
-				})
-			};
-			const response = await fetchWithRetry(
-				() => fetchWithTimeout(url, requestInit, CHAT_TIMEOUT_MS),
-				RETRY_OPTIONS
-			);
-			const payload = await readJson(response);
-			if (!response.ok) {
-				return buildHttpError(response, payload);
+): ProviderAdapterSeam => {
+	// Shared across chat and image calls: both hit the same provider, so a string of
+	// failures on one is meaningful evidence the other will fail too.
+	const breaker = createCircuitBreaker(CIRCUIT_BREAKER_OPTIONS);
+
+	return {
+		createChatCompletion: async (
+			input: ProviderChatInput
+		): Promise<Result<ProviderChatOutput>> => {
+			const apiKey = getApiKey(config);
+			if (!apiKey) {
+				return {
+					ok: false,
+					error: buildError(
+						'PROVIDER_API_KEY_MISSING',
+						'XAI_API_KEY is required.'
+					)
+				};
 			}
-			return normalizeChatOutput(payload, input.model);
-		} catch (error) {
-			return {
-				ok: false,
-				error: buildError(
-					'PROVIDER_NETWORK_ERROR',
-					isAbortError(error) || isTimeoutError(error)
-						? 'Chat completion request timed out.'
-						: error instanceof Error ? error.message : 'Provider request failed.'
-				)
-			};
-		}
-	},
-	createImageGeneration: async (
-		input: ProviderImageInput
-	): Promise<Result<ProviderImageOutput>> => {
-		const apiKey = getApiKey(config);
-		if (!apiKey) {
-			return {
-				ok: false,
-				error: buildError(
-					'PROVIDER_API_KEY_MISSING',
-					'XAI_API_KEY is required.'
-				)
-			};
-		}
-		const baseUrl = getBaseUrl(config);
-		try {
-			const url = `${baseUrl}${IMAGE_PATH}`;
-			const requestInit: RequestInit = {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${apiKey}`,
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					model: input.model,
-					prompt: input.prompt,
-					n: input.n,
-					response_format: input.responseFormat
-				})
-			};
-			const response = await fetchWithTimeout(url, requestInit, IMAGE_TIMEOUT_MS);
-			const payload = await readJson(response);
-			if (!response.ok) {
-				return buildHttpError(response, payload);
+			const baseUrl = getBaseUrl(config);
+			try {
+				const url = `${baseUrl}${CHAT_PATH}`;
+				const requestInit: RequestInit = {
+					method: 'POST',
+					headers: {
+						Authorization: `Bearer ${apiKey}`,
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						model: input.model,
+						messages: input.messages,
+						...(input.responseFormat
+							? { response_format: input.responseFormat }
+							: {})
+					})
+				};
+				const response = await fetchWithRetry(
+					() => fetchWithTimeout(url, requestInit, CHAT_TIMEOUT_MS),
+					{ ...RETRY_OPTIONS, breaker }
+				);
+				const payload = await readJson(response);
+				if (!response.ok) {
+					return buildHttpError(response, payload);
+				}
+				return normalizeChatOutput(payload, input.model);
+			} catch (error) {
+				if (isCircuitOpenError(error)) {
+					return {
+						ok: false,
+						error: buildError('PROVIDER_CIRCUIT_OPEN', CIRCUIT_OPEN_MESSAGE)
+					};
+				}
+				return {
+					ok: false,
+					error: buildError(
+						'PROVIDER_NETWORK_ERROR',
+						isAbortError(error) || isTimeoutError(error)
+							? 'Chat completion request timed out.'
+							: error instanceof Error ? error.message : 'Provider request failed.'
+					)
+				};
 			}
-			return normalizeImageOutput(payload);
-		} catch (error) {
-			return {
-				ok: false,
-				error: buildError(
-					'PROVIDER_NETWORK_ERROR',
-					isAbortError(error) || isTimeoutError(error)
-						? 'Image generation request timed out.'
-						: error instanceof Error ? error.message : 'Provider request failed.'
-				)
-			};
+		},
+		createImageGeneration: async (
+			input: ProviderImageInput
+		): Promise<Result<ProviderImageOutput>> => {
+			const apiKey = getApiKey(config);
+			if (!apiKey) {
+				return {
+					ok: false,
+					error: buildError(
+						'PROVIDER_API_KEY_MISSING',
+						'XAI_API_KEY is required.'
+					)
+				};
+			}
+			if (breaker.isOpen()) {
+				return {
+					ok: false,
+					error: buildError('PROVIDER_CIRCUIT_OPEN', CIRCUIT_OPEN_MESSAGE)
+				};
+			}
+			const baseUrl = getBaseUrl(config);
+			// Tracks whether the breaker was already updated from the HTTP response status, so the
+			// catch block below only records a failure for a genuine transport/timeout error — not
+			// for an exception thrown while parsing or normalizing an already-received response.
+			let breakerRecorded = false;
+			try {
+				const url = `${baseUrl}${IMAGE_PATH}`;
+				const requestInit: RequestInit = {
+					method: 'POST',
+					headers: {
+						Authorization: `Bearer ${apiKey}`,
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						model: input.model,
+						prompt: input.prompt,
+						n: input.n,
+						response_format: input.responseFormat
+					})
+				};
+				const response = await fetchWithTimeout(url, requestInit, IMAGE_TIMEOUT_MS);
+				if (RETRYABLE_STATUSES.has(response.status)) {
+					breaker.recordFailure();
+				} else {
+					breaker.recordSuccess();
+				}
+				breakerRecorded = true;
+				const payload = await readJson(response);
+				if (!response.ok) {
+					return buildHttpError(response, payload);
+				}
+				return normalizeImageOutput(payload);
+			} catch (error) {
+				if (!breakerRecorded && !isAbortError(error)) {
+					breaker.recordFailure();
+				}
+				return {
+					ok: false,
+					error: buildError(
+						'PROVIDER_NETWORK_ERROR',
+						isAbortError(error) || isTimeoutError(error)
+							? 'Image generation request timed out.'
+							: error instanceof Error ? error.message : 'Provider request failed.'
+					)
+				};
+			}
 		}
-	}
-});
+	};
+};
 
 export const providerAdapter = createProviderAdapter();

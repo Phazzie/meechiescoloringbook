@@ -1,0 +1,38 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-27T16:34:07.369Z",
+  "cipher": {
+    "date": "2026-06-27",
+    "seams": "MeechieToolSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-27/check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-27/lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-27/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-27/rewind-MeechieToolSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-27/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-27/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Fixed the live `/api/tools` call site (`meechie-tool-seam/index.ts`) to reuse the shared providerAdapter singleton instead of constructing a fresh breaker per request, per a re-flagged chatgpt-codex-connector finding on PR #198; left the dead-code legacy adapter unchanged.",
+    "risks": "Legacy `meechie-tool.adapter.ts` still recreates the breaker per call but has zero production callers (verified via grep); no live-traffic validation (no XAI_API_KEY in this environment); no dedicated test proves cross-request breaker persistence in a running server process."
+  },
+  "latestChangeMs": 1782577780418.023,
+  "status": "ok"
+}
