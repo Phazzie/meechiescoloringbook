@@ -8,7 +8,10 @@ import {
 	promptAssemblyTitleOnlyFixture,
 	promptAssemblyTitleOnlyMarkerFaultFixture
 } from './fixtures';
-import { createPromptAssemblyMock, createTitleOnlyMarkerFaultMock } from './mock';
+import {
+	createPromptAssemblyMock,
+	createTitleOnlyMarkerFaultMock
+} from './mock';
 import { promptAssemblyAdapter } from '../../adapters/prompt-assembly-seam';
 import { validatePromptAssemblyExecution } from './validators';
 import { PromptAssemblyInputSchema } from './contract';
@@ -27,7 +30,9 @@ describe('PromptAssemblySeam contract', () => {
 	});
 
 	it('adapter returns sample fixture output', async () => {
-		const output = await promptAssemblyAdapter.assemble(promptAssemblySampleFixture.input);
+		const output = await promptAssemblyAdapter.assemble(
+			promptAssemblySampleFixture.input
+		);
 		expect(output).toEqual(promptAssemblySampleFixture.output);
 		expect(() =>
 			validatePromptAssemblyExecution(promptAssemblySampleFixture.input, output)
@@ -35,27 +40,44 @@ describe('PromptAssemblySeam contract', () => {
 	});
 
 	it('adapter returns fault fixture output', async () => {
-		const output = await promptAssemblyAdapter.assemble(promptAssemblyFaultFixture.input);
+		const output = await promptAssemblyAdapter.assemble(
+			promptAssemblyFaultFixture.input
+		);
 		expect(output).toEqual(promptAssemblyFaultFixture.output);
 	});
 
 	it('adapter returns title-only fixture output', async () => {
-		const output = await promptAssemblyAdapter.assemble(promptAssemblyTitleOnlyFixture.input);
+		const output = await promptAssemblyAdapter.assemble(
+			promptAssemblyTitleOnlyFixture.input
+		);
 		expect(output).toEqual(promptAssemblyTitleOnlyFixture.output);
 		expect(() =>
-			validatePromptAssemblyExecution(promptAssemblyTitleOnlyFixture.input, output)
+			validatePromptAssemblyExecution(
+				promptAssemblyTitleOnlyFixture.input,
+				output
+			)
 		).not.toThrow();
 	});
 
-	it('places typography directly after a title with no secondary line', async () => {
-		const result = await promptAssemblyAdapter.assemble(promptAssemblyTitleOnlyFixture.input);
+	it('terminates drawable text before typography when there is no footer', async () => {
+		const result = await promptAssemblyAdapter.assemble(
+			promptAssemblyTitleOnlyFixture.input
+		);
 		if (!result.ok) {
 			throw new Error(result.error.message);
 		}
 		const promptLines = result.value.prompt.split('\n');
-		const titleIndex = promptLines.indexOf('Dream Big');
-		expect(promptLines.slice(titleIndex, titleIndex + 2)).toEqual(['Dream Big', 'TYPOGRAPHY:']);
-		expect(promptLines).not.toContain('[Secondary line EXACT — omit if none.]');
+		const headline =
+			'Headline, render these exact words and nothing else: "Dream Big"';
+		const headlineIndex = promptLines.indexOf(headline);
+		expect(promptLines.slice(headlineIndex, headlineIndex + 3)).toEqual([
+			headline,
+			'End of the headline block. Do not draw any section label.',
+			'TYPOGRAPHY:'
+		]);
+		expect(
+			promptLines.some((line) => line.startsWith('Second line, render'))
+		).toBe(false);
 	});
 });
 
@@ -66,8 +88,10 @@ describe('PromptAssemblySeam title-only boundary fault fixture', () => {
 	};
 
 	it('rejects the checked-in semantic fault', () => {
-		expect(() => validatePromptAssemblyExecution(fixture.input, fixture.output)).toThrow(
-			'A title-only prompt must not advertise a secondary exact-text line.'
+		expect(() =>
+			validatePromptAssemblyExecution(fixture.input, fixture.output)
+		).toThrow(
+			'Drawable text must match the headline/footer boundary and terminate before TYPOGRAPHY.'
 		);
 	});
 
@@ -76,7 +100,7 @@ describe('PromptAssemblySeam title-only boundary fault fixture', () => {
 		const input = PromptAssemblyInputSchema.parse(fixture.input);
 		const result = await mock.assemble(input);
 		expect(() => validatePromptAssemblyExecution(input, result)).toThrow(
-			'A title-only prompt must not advertise a secondary exact-text line.'
+			'Drawable text must match the headline/footer boundary and terminate before TYPOGRAPHY.'
 		);
 	});
 });

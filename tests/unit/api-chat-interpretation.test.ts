@@ -4,6 +4,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '../../src/routes/api/chat-interpretation/+server';
 import { providerAdapter } from '../../src/lib/adapters/provider-adapter.adapter';
+import { TEXT_MODEL } from '../../src/lib/core/models';
 
 const validSpec = {
 	title: 'Dream Big',
@@ -76,10 +77,10 @@ describe('/api/chat-interpretation', () => {
 	});
 
 	it('returns structured spec when provider returns valid JSON content', async () => {
-		vi.spyOn(providerAdapter, 'createChatCompletion').mockResolvedValue({
+		const providerSpy = vi.spyOn(providerAdapter, 'createChatCompletion').mockResolvedValue({
 			ok: true,
 			value: {
-				model: 'grok-4-1-fast-reasoning',
+				model: TEXT_MODEL,
 				content: JSON.stringify(validSpec)
 			}
 		});
@@ -92,5 +93,8 @@ describe('/api/chat-interpretation', () => {
 		expect(response.status).toBe(200);
 		expect(payload.ok).toBe(true);
 		expect(payload.value.spec).toEqual(validSpec);
+		expect(providerSpy).toHaveBeenCalledWith(
+			expect.objectContaining({ model: TEXT_MODEL })
+		);
 	});
 });

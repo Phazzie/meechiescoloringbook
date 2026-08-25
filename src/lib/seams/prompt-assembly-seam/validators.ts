@@ -2,9 +2,20 @@
 // Why: Keep runtime data aligned with the contract schema.
 // Info flow: adapter/mock -> validators -> errors.
 import { z } from 'zod';
-import { PromptAssemblyInputSchema, PromptAssemblyResultSchema } from './contract';
+import {
+	PromptAssemblyInputSchema,
+	PromptAssemblyResultSchema
+} from './contract';
 
-const SECONDARY_LINE_MARKER = '[Secondary line EXACT — omit if none.]';
+const TEXT_HEADING = 'TEXT (exact):';
+const TEXT_TERMINATOR =
+	'End of the headline block. Do not draw any section label.';
+const TYPOGRAPHY_HEADING = 'TYPOGRAPHY:';
+const SECONDARY_INSTRUCTION_PREFIX =
+	'Second line, render these exact words and nothing else: ';
+
+const countExactLines = (lines: string[], expected: string): number =>
+	lines.filter((line) => line === expected).length;
 
 export const PromptAssemblyExecutionSchema = z
 	.object({
@@ -15,27 +26,42 @@ export const PromptAssemblyExecutionSchema = z
 		if (!result.ok) return;
 
 		const promptLines = result.value.prompt.split('\n');
-		const markerIndexes = promptLines.flatMap((line, index) =>
-			line === SECONDARY_LINE_MARKER ? [index] : []
+		const headlineInstruction = `Headline, render these exact words and nothing else: "${input.spec.title}"`;
+		const secondaryLine = input.spec.footerItem?.label;
+		const secondaryInstruction = secondaryLine
+			? `Second line, render these exact words and nothing else: "${secondaryLine}"`
+			: undefined;
+		const expectedTextBlock = [
+			TEXT_HEADING,
+			headlineInstruction,
+			...(secondaryInstruction ? [secondaryInstruction] : []),
+			TEXT_TERMINATOR,
+			TYPOGRAPHY_HEADING
+		];
+		const textHeadingIndex = promptLines.indexOf(TEXT_HEADING);
+		const actualTextBlock = promptLines.slice(
+			textHeadingIndex,
+			textHeadingIndex + expectedTextBlock.length
 		);
-		const secondaryLine = input.spec.footerItem?.label.trim();
+		const secondaryInstructions = promptLines.filter((line) =>
+			line.startsWith(SECONDARY_INSTRUCTION_PREFIX)
+		);
+		const hasExactBoundary =
+			textHeadingIndex >= 0 &&
+			actualTextBlock.every(
+				(line, index) => line === expectedTextBlock[index]
+			) &&
+			actualTextBlock.length === expectedTextBlock.length &&
+			countExactLines(promptLines, headlineInstruction) === 1 &&
+			countExactLines(promptLines, TEXT_TERMINATOR) === 1 &&
+			secondaryInstructions.length === (secondaryInstruction ? 1 : 0);
 
-		if (!secondaryLine && markerIndexes.length > 0) {
+		if (!hasExactBoundary) {
 			context.addIssue({
 				code: 'custom',
 				path: ['result', 'value', 'prompt'],
-				message: 'A title-only prompt must not advertise a secondary exact-text line.'
-			});
-		}
-
-		if (
-			secondaryLine &&
-			(markerIndexes.length !== 1 || promptLines[markerIndexes[0] + 1] !== secondaryLine)
-		) {
-			context.addIssue({
-				code: 'custom',
-				path: ['result', 'value', 'prompt'],
-				message: 'The secondary exact-text marker must be followed by footerItem.'
+				message:
+					'Drawable text must match the headline/footer boundary and terminate before TYPOGRAPHY.'
 			});
 		}
 	});
@@ -46,5 +72,7 @@ export const validatePromptAssemblyInput = (input: unknown) =>
 export const validatePromptAssemblyResult = (result: unknown) =>
 	PromptAssemblyResultSchema.parse(result);
 
-export const validatePromptAssemblyExecution = (input: unknown, result: unknown) =>
-	PromptAssemblyExecutionSchema.parse({ input, result });
+export const validatePromptAssemblyExecution = (
+	input: unknown,
+	result: unknown
+) => PromptAssemblyExecutionSchema.parse({ input, result });

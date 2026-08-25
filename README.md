@@ -70,13 +70,18 @@ Copy `.env.example` to `.env` and fill in your values.
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `XAI_API_KEY` | Yes | — | Your xAI API key for Grok access |
-| `XAI_TEXT_MODEL` | No | `grok-4-1-fast-reasoning` | Grok model used for text/story generation |
-| `XAI_IMAGE_MODEL` | No | `grok-imagine-image` | Grok model used for coloring page image generation |
 | `XAI_BASE_URL` | No | `https://api.x.ai` | xAI API base URL |
 | `XAI_IMAGE_ENDPOINT_PATH` | No | `/v1/images/generations` | API path for image generation requests |
 | `FEATURE_INTEGRATION_TESTS` | No | `false` | Set to `true` to enable live API integration tests |
-| `MAX_IMAGES_PER_REQUEST` | No | `4` | Maximum coloring pages generated per request |
-| `DEFAULT_IMAGE_SIZE` | No | `1024x1024` | Default image resolution (future-facing; xAI may ignore this) |
+
+**Model ids are not environment variables.** They are pinned in `src/lib/core/models.js`
+(`TEXT_MODEL`, `IMAGE_MODEL`). A model id is not a secret and does not vary per environment,
+so it belongs in a reviewed diff rather than a dashboard. `XAI_TEXT_MODEL` and
+`XAI_IMAGE_MODEL` used to be read here; a stale value left in a deployment silently
+overrode the code and pinned production to a model xAI had retired, which returned HTTP 400
+on every text call. Any such variable still set in a deployment is now inert.
+
+To change a model, edit `src/lib/core/models.js` and open a pull request.
 
 > **Note:** Integration tests require both `FEATURE_INTEGRATION_TESTS=true` and a valid `XAI_API_KEY`.
 

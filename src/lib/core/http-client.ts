@@ -8,9 +8,11 @@ export const buildJsonHeaders = (): Record<string, string> => ({
 	'Content-Type': 'application/json'
 });
 
+// Browser budgets must remain above the 110s server-side chat-provider budget. Otherwise
+// the server can finish work after the browser has already reported a timeout to the user.
 export const POST_JSON_TIMEOUTS_MS = {
-	tools: 90_000,
-	studioText: 90_000,
+	tools: 120_000,
+	studioText: 150_000,
 	generate: 180_000,
 	wigTryOn: 150_000
 } as const;

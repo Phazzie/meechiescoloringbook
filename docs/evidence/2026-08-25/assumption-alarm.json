@@ -1,6 +1,6 @@
 {
   "tool": "assumption-alarm",
-  "generatedAt": "2026-08-25T01:01:23.271Z",
+  "generatedAt": "2026-08-25T01:46:59.446Z",
   "blockedSeams": [],
   "assumptions": [
     {
@@ -62,6 +62,21 @@
       "status": "Active for PR #70 because the seam reads environment values only and has no live provider call to probe.",
       "seamList": [
         "ImageProviderConfigSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-08-24",
+      "seams": "ProviderAdapterSeam, AppConfigSeam, MeechieStudioTextSeam, MeechieToolSeam, ChatInterpretationSeam",
+      "statement": "grok-4.6 answers POST /v1/chat/completions with the request shape this app sends, including the json_schema response_format.",
+      "validation": "Partially proven. The authenticated 2026-08-25 provider capture shows `grok-4.6` accepted the probe's strict `json_schema` request and returned `{\"status\":\"OK\"}`; `grok-imagine-image` also returned image data. The preview deployment is still behind Vercel SSO, so POST `/api/meechie-studio-text` with the full Meechie system prompt was not captured through the deployed app in this workspace.",
+      "status": "Open only for the deployed full-payload path — resolve by probing POST `/api/meechie-studio-text` on a reachable deployment and confirming `ok:true` with a non-empty verdict. If it fails, the response now carries xAI's real message rather than a bare \"Bad Request\", which names the next model to try. The separate image-model upgrade remains deferred: `grok-imagine-image` is now live-capture-proven, and any replacement belongs in its own authenticated probe-backed change.",
+      "seamList": [
+        "ProviderAdapterSeam",
+        "AppConfigSeam",
+        "MeechieStudioTextSeam",
+        "MeechieToolSeam",
+        "ChatInterpretationSeam"
       ],
       "missingFields": []
     }

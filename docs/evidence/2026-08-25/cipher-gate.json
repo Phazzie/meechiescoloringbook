@@ -1,34 +1,10 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-08-25T01:02:36.761Z",
+  "generatedAt": "2026-08-25T01:47:08.822Z",
   "cipher": {
     "date": "2026-08-25",
-    "seams": "PromptAssemblySeam",
+    "seams": "PromptAssemblySeam; DriftDetectionSeam; ImageGenerationSeam",
     "evidence": [
-      {
-        "path": "docs/evidence/2026-08-24/prompt-assembly-red.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-08-24/prompt-assembly-fixture-red.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-08-24/prompt-assembly-green.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-08-24/env-example-check.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-08-25/rewind-PromptAssemblySeam.txt",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-08-25/rewind-PromptAssemblySeam(self-contained).txt",
-        "exists": true
-      },
       {
         "path": "docs/evidence/2026-08-25/verify.txt",
         "exists": true
@@ -36,11 +12,19 @@
       {
         "path": "docs/evidence/2026-08-25/test.txt",
         "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/proof-tape.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/chamber-lock.json",
+        "exists": true
       }
     ],
-    "summary": "Made the optional secondary exact-text marker/value atomic in both PromptAssemblySeam adapters, versioned the changed prompt as `v3`, and restored the environment template as readable text.",
-    "risks": "Live wig try-on success remains unproven until the configured Gemini project has available quota; no code path can restore provider billing state."
+    "summary": "Stopped the prompt template leaking its own section labels onto generated coloring pages. Drawable text is now quoted and explicitly terminated, and the three bracketed author-facing notes are gone. Verified end to end against the live image endpoint, not just by unit test: POST /api/image-generation with the new canonical prompt returned ok:true and an image whose rendered text is the headline, second line, list items and dedication only, with no section label present. The previous prompt produced a page reading \"CROWN ENERGY / TYPOGRAPHY:\".",
+    "risks": "The canonical prompt is still duplicated in seven fixtures plus `probes/image-generation.probe.mjs`, so future template changes must regenerate every consumer. Required-phrase validation was not weakened to accommodate the fix, and the legacy import path now exercises the same canonical implementation rather than a copy. The generate-route test now stubs the global image-provider boundary with guaranteed cleanup, so it cannot issue a live request or turn provider retry latency into a false unit-test failure."
   },
-  "latestChangeMs": 1787619446721.9592,
+  "latestChangeMs": 1787622258794.5212,
   "status": "ok"
 }

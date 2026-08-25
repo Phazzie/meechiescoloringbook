@@ -4,6 +4,7 @@
 import type { AppConfig, AppConfigSeam } from '../../seams/app-config-seam/contract';
 import { validateAppConfig } from '../../seams/app-config-seam/validators';
 import { env as privateEnv } from '$env/dynamic/private';
+import { IMAGE_MODEL, TEXT_MODEL } from '$lib/core/models';
 
 // Use Record<string, string | undefined> to accept the shape of SvelteKit's private environment
 const optionalInteger = (value: string | undefined): number | undefined => {
@@ -15,8 +16,11 @@ const optionalInteger = (value: string | undefined): number | undefined => {
 const readConfig = (env: Record<string, string | undefined>): AppConfig => {
 	const config = {
 		xaiApiKey: env.XAI_API_KEY,
-		xaiTextModel: env.XAI_TEXT_MODEL,
-		xaiImageModel: env.XAI_IMAGE_MODEL,
+		// Pinned in code, not read from env: the schema requires both to be non-empty, so a
+		// deployment that dropped XAI_TEXT_MODEL/XAI_IMAGE_MODEL would fail AppConfig validation
+		// and 500 the wig try-on route, which is this seam's only consumer.
+		xaiTextModel: TEXT_MODEL,
+		xaiImageModel: IMAGE_MODEL,
 		xaiBaseUrl: env.XAI_BASE_URL,
 		xaiImageEndpointPath: env.XAI_IMAGE_ENDPOINT_PATH,
 		featureIntegrationTests: env.FEATURE_INTEGRATION_TESTS === 'true',

@@ -2,7 +2,7 @@
 // Why: Keep provider calls, JSON parsing, and contract validation testable.
 // Info flow: Request body -> ProviderAdapterSeam -> structured studio text result.
 import { findDisallowedKeywords } from '$lib/core/constants';
-import { selectTextModel } from '$lib/core/text-model';
+import { TEXT_MODEL } from '$lib/core/models';
 import { meechieVoicePack } from '$lib/seams/meechie-voice-seam/voice-pack';
 import {
 	MeechieStudioTextInputSchema,
@@ -415,7 +415,7 @@ export const runMeechieStudioTextPipeline = async (
 
 	const provider: ProviderAdapterSeam = deps.createProvider();
 	const messages = buildMessages(parsedInput.data);
-	const textModel = selectTextModel(deps.textModel);
+	const textModel = deps.textModel?.trim() || TEXT_MODEL;
 	const isProduction = deps.isProduction === true;
 	let providerResult = await provider.createChatCompletion({
 		model: textModel,

@@ -463,6 +463,41 @@ describe('provider-adapter helpers', () => {
 			}
 		});
 
+		// Regression: xAI returns `error` as a bare string, not the OpenAI-style
+		// `error.message` object. Reading only the nested shape discarded the provider's
+		// actual text and surfaced "Bad Request", hiding the retired-model outage.
+		it('extracts a string-shaped error field (xAI shape)', async () => {
+			const fetchMock = vi.fn(
+				async () =>
+					new Response(
+						JSON.stringify({
+							code: 'Client specified an invalid argument',
+							error: 'The model grok-4-1-fast-reasoning does not exist'
+						}),
+						{ status: 400, statusText: 'Bad Request' }
+					)
+			);
+			vi.stubGlobal('fetch', fetchMock);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+			const result = await adapter.createChatCompletion({
+				model: 'test',
+				messages: [{ role: 'user', content: 'hi' }]
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('PROVIDER_HTTP_ERROR');
+				expect(result.error.message).toBe(
+					'The model grok-4-1-fast-reasoning does not exist'
+				);
+				expect(result.error.message).not.toBe('Bad Request');
+				expect(result.error.details?.status).toBe('400');
+			}
+		});
+
 		it('uses statusText when response body has no message', async () => {
 			const fetchMock = vi.fn(
 				async () =>

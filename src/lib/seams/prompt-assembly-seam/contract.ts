@@ -3,7 +3,10 @@
 // Info flow: Spec -> prompt text -> downstream seams.
 import { z } from 'zod';
 import { ColoringPageSpecSchema } from '../spec-validation-seam/contract';
-import { NonEmptyStringSchema, resultSchema } from '../../../../contracts/shared.contract';
+import {
+	NonEmptyStringSchema,
+	resultSchema
+} from '../../../../contracts/shared.contract';
 import type { Result } from '../../../../contracts/shared.contract';
 
 export const PromptAssemblyInputSchema = z.object({
@@ -16,7 +19,9 @@ export const PromptAssemblyOutputSchema = z.object({
 	templateVersion: NonEmptyStringSchema
 });
 
-export const PromptAssemblyResultSchema = resultSchema(PromptAssemblyOutputSchema);
+export const PromptAssemblyResultSchema = resultSchema(
+	PromptAssemblyOutputSchema
+);
 
 export type PromptAssemblyInput = z.infer<typeof PromptAssemblyInputSchema>;
 export type PromptAssemblyOutput = z.infer<typeof PromptAssemblyOutputSchema>;

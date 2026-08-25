@@ -17,7 +17,7 @@ import {
 import { meechieVoicePack } from '../../src/lib/seams/meechie-voice-seam/voice-pack';
 
 describe('Meechie studio controls', () => {
-	it('starts the preview with canon Meechie quote text and no battery placeholder', () => {
+	it('starts the preview with owner-approved Meechie quote text and no battery placeholder', () => {
 		const previewText = [
 			DEFAULT_STUDIO_TEXT_OUTPUT.verdict,
 			DEFAULT_STUDIO_TEXT_OUTPUT.quote,

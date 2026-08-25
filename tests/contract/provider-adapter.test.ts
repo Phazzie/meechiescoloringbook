@@ -12,6 +12,7 @@ import {
 import { ScenarioSchema } from '../../contracts/shared.contract';
 import { createProviderAdapterMock } from '../../src/lib/mocks/provider-adapter.mock';
 import { createProviderAdapter } from '../../src/lib/adapters/provider-adapter.adapter';
+import { IMAGE_MODEL, TEXT_MODEL } from '../../src/lib/core/models';
 import sample from '../../fixtures/provider-adapter/sample.json';
 import fault from '../../fixtures/provider-adapter/fault.json';
 
@@ -32,7 +33,7 @@ const faultFixture = fixtureSchema.parse(fault);
 
 const buildChatPayload = (output: typeof sampleFixture.output.chat) => {
 	if (!output.ok) {
-		return { error: { message: output.error.message } };
+		return { error: output.error.message };
 	}
 	return {
 		model: output.value.model,
@@ -127,6 +128,11 @@ afterEach(() => {
 });
 
 describe('ProviderAdapterSeam contract', () => {
+	it('keeps fixture inputs aligned with pinned models', () => {
+		expect(sampleFixture.input.chat.model).toBe(TEXT_MODEL);
+		expect(sampleFixture.input.image.model).toBe(IMAGE_MODEL);
+	});
+
 	it('mock returns sample fixture output', async () => {
 		const mock = createProviderAdapterMock('sample');
 		const chatOutput = await mock.createChatCompletion(sampleFixture.input.chat);

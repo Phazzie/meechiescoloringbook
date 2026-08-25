@@ -11,10 +11,10 @@ $ npm test -- --pool=forks --maxWorkers=1
  RUN  v4.1.0 <REPO_ROOT>
 
 
- Test Files  62 passed | 1 skipped (63)
-      Tests  538 passed | 1 skipped (539)
-   Start at  18:00:34
-   Duration  48.03s (transform 1.74s, setup 547ms, import 3.13s, tests 9.76s, environment 26.17s)
+ Test Files  63 passed | 1 skipped (64)
+      Tests  548 passed | 1 skipped (549)
+   Start at  18:46:14
+   Duration  44.80s (transform 1.42s, setup 476ms, import 2.57s, tests 9.86s, environment 24.09s)
 
 npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

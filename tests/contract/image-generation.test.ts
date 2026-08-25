@@ -4,6 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockImageGenerationSeam } from '../../src/lib/seams/image-generation-seam/mock';
 import { createImageGenerationSeam } from '../../src/lib/adapters/image-generation-seam';
+import { IMAGE_MODEL, TEXT_MODEL } from '../../src/lib/core/models';
 import type { AppConfigSeam } from '../../src/lib/seams/app-config-seam/contract';
 import {
 	imageGenerationRequestFixture,
@@ -13,8 +14,8 @@ import {
 const mockConfigSeam: AppConfigSeam = {
 	getConfig: () => ({
 		xaiApiKey: 'test-key',
-		xaiTextModel: 'grok-4-1-fast-reasoning',
-		xaiImageModel: 'grok-imaging-image',
+		xaiTextModel: TEXT_MODEL,
+		xaiImageModel: IMAGE_MODEL,
 		xaiBaseUrl: 'https://api.x.ai/v1',
 		xaiImageEndpointPath: '/images/generations',
 		featureIntegrationTests: false,

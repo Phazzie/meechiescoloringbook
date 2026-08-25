@@ -18,7 +18,6 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (!parsed.ok) return parsed.response;
 	const deps: MeechieStudioTextPipelineDeps = {
 		createProvider: createProviderAdapter,
-		textModel: env.XAI_TEXT_MODEL,
 		isProduction: env.NODE_ENV === 'production'
 	};
 	const pipelineResult = await runMeechieStudioTextPipeline(parsed.body, deps);

@@ -9,12 +9,9 @@ import type {
 import type { Result } from '../../../contracts/shared.contract';
 import { createProviderAdapter } from './provider-adapter.adapter';
 import { meechieVoiceAdapter } from './meechie-voice.adapter';
-import { selectTextModel } from '$lib/core/text-model';
-import { env } from '$env/dynamic/private';
+import { TEXT_MODEL } from '$lib/core/models';
 import { formatOrdinal } from '$lib/core/ordinal';
 import { buildMeechieSystemPrompt } from '$lib/core/meechie-system-prompt';
-
-const TEXT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
 
 const STANDARD_RESPONSE_FORMAT = {
 	type: 'json_schema',

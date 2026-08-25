@@ -93,13 +93,11 @@ const run = async () => {
 
 	const prompt = `Black-and-white coloring book page for print.
 STYLE:
-[Describe the vibe. Include outline-only and easy to color.]
 Vibe: glam icons outline-only, easy to color. Color: black and white only.
 TEXT (exact):
-[Main quote EXACT — do not alter text.]
-Dream Big
-[Secondary line EXACT — omit if none.]
-YOU
+Headline, render these exact words and nothing else: "Dream Big"
+Second line, render these exact words and nothing else: "YOU"
+End of the headline block. Do not draw any section label.
 TYPOGRAPHY:
 Bold bubble letters; thick outlines.
 Glitter outline only (no shading).

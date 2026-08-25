@@ -52,13 +52,17 @@ describe('PromptAssemblySeam contract', () => {
 		expect(output).toEqual(titleOnlyFixture.output);
 	});
 
-	it('does not advertise an absent secondary exact-text line', async () => {
+	it('terminates title-only drawable text before the next template heading', async () => {
 		const output = await promptAssemblyAdapter.assemble(titleOnlyFixture.input);
 		expect(output.ok).toBe(true);
 		if (!output.ok) {
 			throw new Error(output.error.message);
 		}
-		expect(output.value.prompt).not.toContain('[Secondary line EXACT — omit if none.]');
-		expect(output.value.prompt).toContain('Dream Big\nTYPOGRAPHY:');
+		expect(output.value.prompt).not.toContain('Second line, render');
+		expect(output.value.prompt).toContain(
+			'Headline, render these exact words and nothing else: "Dream Big"\n' +
+				'End of the headline block. Do not draw any section label.\n' +
+				'TYPOGRAPHY:'
+		);
 	});
 });

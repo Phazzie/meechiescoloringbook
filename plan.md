@@ -8,6 +8,59 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## PR #228 Review Repair and PR #227 Integration (2026-08-24)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: resolve the outdated review threads because CI is green and merge the model-id change without checking the probes and fixture-backed mocks.
+2. Countermeasure: treat the current review comments as evidence, merge the already-reviewed PR #227 foundation into this branch, and prove that every documented probe, fixture, mock, and production consumer names the same pinned models.
+3. Lower-debt path: keep one production source of truth in the checked ESM module `src/lib/core/models.js`, import it from plain-Node-20-compatible probes, preserve PR #227's shared Meechie prompt builder, and mark the live-provider compatibility assumption open unless an authenticated probe actually closes it.
+
+### Plan
+
+- Goal: integrate merged PRs #227 and #229 into PR #228, fix all current review findings, and leave one truthful model configuration plus one canonical prompt implementation across production code, probes, fixtures, tests, governance, and release documentation.
+- Exact seams: ProviderAdapterSeam, AppConfigSeam, ImageProviderConfigSeam, MeechieStudioTextSeam, MeechieToolSeam, ChatInterpretationSeam, MeechieVoiceSeam, PromptAssemblySeam, DriftDetectionSeam, ImageGenerationSeam.
+- Exact production and probe paths:
+  - `src/lib/core/models.js`, `src/lib/core/meechie-studio-text-pipeline.ts`
+  - `src/lib/adapters/meechie-tool.adapter.ts`, `src/lib/adapters/meechie-tool-seam/index.ts`
+  - `src/lib/adapters/app-config-seam/index.ts`, `src/lib/adapters/provider-adapter.adapter.ts`
+  - `src/lib/adapters/prompt-assembly-seam/index.ts`, `src/lib/adapters/prompt-assembly.adapter.ts`
+  - `probes/provider-adapter.probe.mjs`, `probes/chat-interpretation.probe.mjs`
+- Exact fixture and test paths:
+  - `fixtures/provider-adapter/sample.json`, `fixtures/provider-adapter/fault.json`, `fixtures/provider-adapter/PROVENANCE.md`
+  - `fixtures/app-config/sample.json`, `fixtures/app-config/fault.json`
+  - `fixtures/prompt-assembly/sample.json`, `fixtures/prompt-assembly/title-only.json`, `fixtures/prompt-assembly/title-only-marker-fault.json`
+  - `src/lib/seams/prompt-assembly-seam/{contract,fixtures,mock,validators,test}.ts`
+  - `tests/contract/prompt-assembly.test.ts`
+  - `tests/unit/app-config-seam.test.ts`, `tests/unit/models.test.ts`, `tests/unit/provider-adapter-helpers.test.ts`, `tests/unit/probe-entrypoints.test.ts`, `tests/unit/api-generate.test.ts`
+- Exact governance and evidence paths:
+  - `plan.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `README.md`, `docs/release-smoke-checklist-2026-05-05.md`
+  - `docs/evidence/2026-08-25/` (UTC-dated output regenerated after integration; no fabricated live-provider capture)
+  - `.claude/settings.json` (remove the unrelated command allowlist from this PR)
+- Conflict rules:
+  - Preserve PR #227's `buildMeechieSystemPrompt` and voice-pack-derived studio examples.
+  - Preserve PR #228's `TEXT_MODEL` constant and optional dependency fallback; do not restore `selectTextModel` or runtime model env overrides.
+  - Preserve PR #229's typed legacy re-export and fixture-backed execution validator; apply the broader quoted-text/terminator repair only in the canonical adapter and identify the combined template as `v4`.
+  - Correct PR #227's decision narrative: the old tool prompt supplied 34 physical examples / 30 exact-distinct, including the eight filtered quotes through `tone.samples`; the owner-approved rewrite intentionally reduces that to 20 rather than merely restoring excluded lines.
+- Exact commands:
+  1. `npm test -- tests/unit/models.test.ts tests/unit/provider-adapter-helpers.test.ts tests/unit/probe-entrypoints.test.ts tests/unit/app-config-seam.test.ts tests/unit/meechie-studio-text-pipeline.test.ts tests/unit/meechie-tool-adapter.test.ts tests/unit/meechie-studio.test.ts tests/contract/provider-adapter.test.ts src/lib/seams/app-config-seam/test.ts src/lib/seams/meechie-tool-seam/test.ts src/lib/seams/meechie-voice-seam/test.ts --pool=forks --maxWorkers=1`
+  2. `npm run rewind -- --seam ProviderAdapterSeam`
+  3. `npm run rewind -- --seam AppConfigSeam`
+  4. `npm run rewind -- --seam ImageProviderConfigSeam`
+  5. `npm run rewind -- --seam MeechieStudioTextSeam`
+  6. `npm run rewind -- --seam \"MeechieToolSeam (self-contained)\"`
+  7. `npm run rewind -- --seam ChatInterpretationSeam`
+  8. `npm run rewind -- --seam \"MeechieVoiceSeam (self-contained)\"`
+  9. `npm run rewind -- --seam PromptAssemblySeam` and `npm run rewind -- --seam \"PromptAssemblySeam (self-contained)\"`
+  10. `npm run check`, `npm run lint`, `npm test`, `npm run verify`, `npm run cipher:gate`, `npm run assumption:alarm`, `git diff --check`
+
+### Self-Critique
+
+- What could be wrong: pinning a provider id removes an unsafe deployment override but makes the next provider retirement require a deploy. That tradeoff is intentional and must be visible in release operations.
+- Riskiest assumption: official model availability does not prove that `grok-4.6` accepts this app's exact `json_schema` payload with the configured account. No `XAI_API_KEY` is available in this workspace, so fixture files must not be presented as fresh live captures and the reachable-deployment smoke item must remain open.
+- What must be proven here: the pinned constants reach all production consumers, executable probes cannot overwrite fixtures with retired ids, mocks match the adapter, xAI's bare-string error is preserved, the merged Meechie prompt behavior survives, and all local/CI gates are green.
+- Evidence that would disprove it: a focused parity assertion showing a retired model, a probe diff that rewrites current fixtures, a non-hermetic generate-route test, a failed seam rewind/full verification, or an authenticated `/api/meechie-studio-text` response carrying `PROVIDER_HTTP_ERROR`.
+
 ## Prompt Text Boundary and Environment Example Repair (2026-08-24)
 
 ### Review correction addendum
@@ -67,6 +120,37 @@ Current active plan is listed first. Older dated entries remain below as histori
 3. Riskiest assumption: The 429 is solely provider quota state; the existing typed fixture and adapter already preserve a 429 response, but only restoring Gemini billing/quota can prove a live try-on succeeds again.
 4. Evidence to prove/disprove: Red/green legacy and self-contained PromptAssemblySeam tests, focused rewind output, a plain-text environment-file assertion, build/lint/full Seam-Driven Development verification, Cipher Gate output, CI, and post-PR review-thread inspection.
 5. Evidence-date note: the repository evidence scripts use UTC folder dates, so commands run during the evening of local 2026-08-24 write generated evidence under `docs/evidence/2026-08-25/`; the manually captured red/green/setup evidence remains under the local-date folder.
+
+## Retired xAI Model Outage: Pin Model Ids and Surface Provider Errors (2026-08-24)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: change the `DEFAULT_TEXT_MODEL` constant, see green tests, and declare the outage fixed.
+2. Countermeasure: that would not have fixed production. `XAI_TEXT_MODEL` was set in the deployment and overrode the code default, so the stale id would have survived the change. The env read itself has to go.
+3. Lower-debt path: pin model ids in code as the single source of truth, delete every runtime env read, and fix the error parsing that hid the failure — so the next provider retirement is visible in minutes rather than never.
+
+### Plan
+
+- Seams (all already registered in `docs/seams.md`): ProviderAdapterSeam, AppConfigSeam, ImageProviderConfigSeam, MeechieStudioTextSeam, MeechieToolSeam, ChatInterpretationSeam.
+- Exact files:
+  - `src/lib/core/models.js` (new checked ESM module; replaces `src/lib/core/text-model.ts` and remains directly importable by plain Node 20 probes)
+  - `src/lib/core/chat-interpretation-pipeline.ts`, `src/lib/core/meechie-studio-text-pipeline.ts`
+  - `src/lib/adapters/meechie-tool.adapter.ts`, `src/lib/adapters/meechie-tool-seam/index.ts`
+  - `src/lib/adapters/meechie-studio-text.adapter.ts`, `src/routes/api/meechie-studio-text/+server.ts`
+  - `src/lib/adapters/app-config-seam/index.ts`, `src/lib/adapters/image-provider-config-seam/index.ts`
+  - `src/lib/adapters/provider-adapter.adapter.ts`, `probes/provider-adapter.probe.mjs`
+  - `src/lib/seams/image-provider-config-seam/{fixtures,test}.ts`, `fixtures/provider-adapter/{sample,fault}.json`
+  - `tests/unit/models.test.ts`, `tests/unit/provider-adapter-helpers.test.ts`
+  - `.env.example`, `README.md`, `docs/release-smoke-checklist-2026-05-05.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`
+- Exact commands: `npm install`, `npm run check`, `npm test`, `npm run lint`, `npm run verify`, `npm run cipher:gate`, `npm run assumption:alarm`.
+- Constraint: no contract shape changes. `AppConfigSeam` keeps requiring non-empty `xaiTextModel`/`xaiImageModel`; the adapter supplies constants so the fields stay populated without env.
+
+### Self-Critique
+
+- What could be wrong: pinning ids trades dashboard hot-swapping for a deploy. That is deliberate — the hot-swap path is exactly what caused this outage — but it does mean the next model retirement needs a code change.
+- Riskiest assumption: that a replacement image model accepts the same request parameters. This was NOT provable — the preview deployment sits behind Vercel SSO, so no probe could reach it. Rather than ship an unverified change to the only path that was still working, `IMAGE_MODEL` stays at the confirmed-working `grok-imagine-image`; the upgrade is deferred to its own change.
+- What must be proven: that `grok-4.6` actually answers. Unit tests cannot prove it — every one of them mocks the provider, which is precisely why green tests never caught the outage. Only a probe against a reachable deployment closes this.
+- Evidence that would disprove it: a `PROVIDER_HTTP_ERROR` from `/api/meechie-studio-text` on a deployed build. Thanks to the error-parsing fix, that response would now carry xAI's real message instead of a bare "Bad Request".
 
 ## PR #114 Manual Integration: Ordinal and Config Parsing Cleanup (2026-06-07)
 

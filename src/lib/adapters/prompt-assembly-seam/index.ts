@@ -29,12 +29,14 @@ import {
 } from '$lib/core/prompt-template';
 import { formatAlignmentLine } from '$lib/utils/alignment-line';
 
-const TEMPLATE_VERSION = 'v3';
+const TEMPLATE_VERSION = 'v4';
 const MAX_PROMPT_LENGTH = 8000;
 
 const includesReservedHeading = (styleHint: string): boolean => {
 	const normalized = styleHint.toUpperCase();
-	return RESERVED_STYLE_HINT_HEADINGS.some((heading) => normalized.includes(heading));
+	return RESERVED_STYLE_HINT_HEADINGS.some((heading) =>
+		normalized.includes(heading)
+	);
 };
 
 const includesForbiddenToken = (styleHint: string): boolean => {
@@ -57,11 +59,24 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 		spec.listMode === 'list'
 			? `List items: ${listItems} (Gutter: ${spec.listGutter}).`
 			: 'No list.';
+	// The drawable text is quoted and explicitly terminated. Previously this block emitted
+	// '[Secondary line EXACT — omit if none.]' unconditionally while the value below it was
+	// conditional, so a spec with no footerItem left an empty slot and the image model drew
+	// the next physical line — the literal label 'TYPOGRAPHY:' — as the page's second line.
+	// The bracketed notes were addressed to a prompt author, not the model, and image models
+	// routinely render bracket contents, so they are gone. The terminator closes the block so a
+	// bare ALL-CAPS heading cannot read as page copy. It forbids only section labels, not words
+	// in general: the LAYOUT section legitimately asks for list items and a dedication further
+	// down, and an earlier draft that said "draw no other words" contradicted them.
 	const textLines = [
 		'TEXT (exact):',
-		'[Main quote EXACT — do not alter text.]',
-		spec.title,
-		...(secondaryLine ? ['[Secondary line EXACT — omit if none.]', secondaryLine] : [])
+		`Headline, render these exact words and nothing else: "${spec.title}"`,
+		...(secondaryLine
+			? [
+					`Second line, render these exact words and nothing else: "${secondaryLine}"`
+				]
+			: []),
+		'End of the headline block. Do not draw any section label.'
 	];
 
 	const alignmentSentence =
@@ -80,7 +95,6 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 	const prompt = [
 		`${BASE_PAGE_PHRASE} for print.`,
 		'STYLE:',
-		`[Describe the vibe. Include ${OUTLINE_ONLY_PHRASE} and ${EASY_TO_COLOR_PHRASE}.]`,
 		styleLine,
 		...textLines,
 		'TYPOGRAPHY:',
@@ -104,9 +118,14 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 };
 
 export const promptAssemblyAdapter: PromptAssemblySeam = {
-	assemble: async (input: PromptAssemblyInput): Promise<Result<PromptAssemblyOutput>> => {
+	assemble: async (
+		input: PromptAssemblyInput
+	): Promise<Result<PromptAssemblyOutput>> => {
 		const normalizedInput: PromptAssemblyInput = input.styleHint
-			? { ...input, styleHint: input.styleHint.replace(/\s+/g, ' ').trim() || undefined }
+			? {
+					...input,
+					styleHint: input.styleHint.replace(/\s+/g, ' ').trim() || undefined
+				}
 			: input;
 		if (normalizedInput.styleHint) {
 			if (includesReservedHeading(normalizedInput.styleHint)) {

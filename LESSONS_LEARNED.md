@@ -163,3 +163,21 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-08-24
+- Date: 2026-08-24
+- Context: Every AI text call in production returned HTTP 400 and no test or CI run caught it.
+- Lesson: Two failures compounded. First, a provider model id was configurable through a deployment environment variable, so a stale dashboard value silently overrode the code and outlived the model itself — a model id is not a secret and does not vary per environment, so it belongs in code where a diff shows the change. Second, the provider adapter only read the OpenAI-style nested `error.message`, so xAI's string-shaped `error` was discarded and callers saw a bare "Bad Request"; the provider had been naming the exact cause the whole time. Green unit tests proved nothing here because every one of them mocked the provider.
+- Action: Pin model ids in the plain-Node-compatible src/lib/core/models.js, delete the env reads, and read every known provider error shape in buildHttpError. When a seam's health depends on a third party, prove it with a probe against a real deployment — not with mocked tests.
+
+## 2026-08-25
+- Date: 2026-08-25
+- Context: Every generated coloring page rendered the template's own section label "TYPOGRAPHY:" as page text.
+- Lesson: The failure was positional, not lexical. A placeholder line was emitted unconditionally while the value beneath it was conditional, so an absent optional field left an empty slot that the next physical line fell into. Negative instructions did not save it: "no extra words" was already in the prompt and lost to the positive instruction "Secondary line EXACT". Anything addressed to a human author — bracketed notes, section labels — is drawable content as far as an image model is concerned.
+- Action: Emit drawable text as explicitly quoted, self-terminating lines, and never emit a placeholder whose value is conditional. Keep the terminator narrow enough that it does not contradict later list-item or dedication instructions. When changing the canonical prompt, remember it is duplicated across seven fixtures and a probe, and regenerate them from the adapter rather than by hand — with fault fixtures regenerated so their intentional defect survives.
+
+## 2026-08-25
+- Date: 2026-08-25
+- Context: A route unit test passed an event-scoped fetch mock, but the route discarded it and the provider adapter used global fetch.
+- Lesson: A mock proves isolation only when it replaces the boundary production actually calls; an unused dependency-shaped mock can leave a unit test making live provider requests and retrying until timeout.
+- Action: Stub global fetch for the generate-route test with guaranteed cleanup, keep the event fetch assertion, and test the core pipeline through explicit injected dependencies where possible.
