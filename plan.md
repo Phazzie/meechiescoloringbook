@@ -41,10 +41,11 @@ Current active plan is listed first. Older dated entries remain below as histori
   - `docs/evidence/2026-08-25/prompt-boundary-live-*`
   - `tests/unit/{http-resilience,provider-adapter-helpers,app-config-seam,probe-entrypoints}.test.ts`
   - `tests/contract/{image-generation,prompt-assembly,spec-validation}.test.ts`, `src/lib/seams/{prompt-assembly-seam,spec-validation-seam}/test.ts`
-  - `plan.md`, `DECISIONS.md`, and regenerated `docs/evidence/2026-08-25/*`
+  - `plan.md`, `DECISIONS.md`, `docs/seams.md`, and regenerated `docs/evidence/2026-08-25/*`
 - Constraints:
   - Preserve the concurrent own-line prompt representation because it accepts embedded quotes without ambiguous quote delimiters and is backed by a traceable live prompt/result/image record whose missing original transport envelope is stated explicitly.
   - Apply a single-line printable-text boundary and the established 96-character route-title limit so newlines/control characters cannot split the prompt while embedded quotes, slashes, and compact tool titles remain valid.
+  - Keep SpecValidation's root contract and flat adapter as compatibility re-exports of the self-contained canonical seam so review repairs have one implementation and do not fail duplication gates.
   - Disable all automatic provider chat retries, including delayed `429`/`5xx` responses, because a second 110-second billable attempt cannot be guaranteed to finish inside the shortest 120-second browser budget; shared retry behavior remains available to other callers.
   - Share provider-message identifier redaction with the plain-Node fixture probe so refreshing evidence cannot recommit account identifiers; preserve the `defaultImageSize` schema default and do not restore the unrelated inactive `MAX_IMAGES_PER_REQUEST` example.
   - Delete and gitignore `.claude/settings.local.json`, remove the broad auto-merge rule, and change the handoff to record the explicit merge hold.
@@ -53,11 +54,12 @@ Current active plan is listed first. Older dated entries remain below as histori
   1. `npm test -- tests/unit/http-resilience.test.ts tests/unit/provider-adapter-helpers.test.ts tests/unit/app-config-seam.test.ts tests/unit/probe-entrypoints.test.ts tests/contract/prompt-assembly.test.ts tests/contract/spec-validation.test.ts src/lib/seams/prompt-assembly-seam/test.ts src/lib/seams/spec-validation-seam/test.ts --pool=forks --maxWorkers=1`
   2. `npm run rewind -- --seam ProviderAdapterSeam`
   3. `npm run rewind -- --seam SpecValidationSeam`
-  4. `npm run rewind -- --seam AppConfigSeam`
-  5. `npm run rewind -- --seam PromptAssemblySeam`
-  6. `npm run rewind -- --seam "PromptAssemblySeam (self-contained)"`
-  7. `npm run rewind -- --seam ImageGenerationSeam`
-  8. `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`, `npm run cipher:gate`, `npm run assumption:alarm`, `git diff --check`
+  4. `npm run rewind -- --seam "SpecValidationSeam (self-contained)"`
+  5. `npm run rewind -- --seam AppConfigSeam`
+  6. `npm run rewind -- --seam PromptAssemblySeam`
+  7. `npm run rewind -- --seam "PromptAssemblySeam (self-contained)"`
+  8. `npm run rewind -- --seam ImageGenerationSeam`
+  9. `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`, `npm run cipher:gate`, `npm run assumption:alarm`, `git diff --check`
 
 ### Self-Critique
 

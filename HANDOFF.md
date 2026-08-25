@@ -6,7 +6,7 @@ Info flow: what shipped -> owner rulings not yet done -> open questions -> exact
 # Handoff (2026-08-25)
 
 ## Branch
-`claude/sharp-meitner-420dwc` → PR #228. Verify green: **577 passed, 1 skipped, 0 failed**,
+`claude/sharp-meitner-420dwc` → PR #228. Verify green: **570 passed, 1 skipped, 0 failed**,
 `npm run verify` exits 0.
 
 ## READ THIS FIRST — reliability caveat on this handoff
