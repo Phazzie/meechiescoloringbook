@@ -1,0 +1,28 @@
+npm run verify — GitHub Actions, PR #227
+
+Local `npm run verify` in the sandboxed dev container fails at verify:runner on a
+single test: tests/unit/api-generate.test.ts > "keeps the endpoint parse and input
+guards transport-thin", which times out at the 5000ms default.
+
+That test is not broken and the failure is not caused by this change:
+  - It fails identically on a clean checkout of the base commit (verified by
+    stashing this branch's changes and re-running).
+  - It passes locally when given more time:
+      npx vitest run tests/unit/api-generate.test.ts -t "transport-thin" --testTimeout=60000
+      -> Test Files 1 passed / Tests 1 passed
+    The endpoint performs HTTP with retry/backoff; this container routes outbound
+    traffic through a proxy, so the call exceeds 5s here but not on CI.
+  - CI runs the same `npm run verify` and it passes.
+
+GitHub Actions check runs on head 91fae7f (all 10 green):
+
+  verify                          success   .../actions/runs/32788605923/job/97625530961
+  verify                          success   .../actions/runs/32788601650/job/97625519192
+  SonarCloud Code Analysis        success   (quality gate passed after 91fae7f)
+  SonarCloud                      success
+  CodeQL                          success
+  Analyze (javascript-typescript) success
+  Analyze (actions)               success
+  Rosentic - Conflict Detection   success
+  Vercel Preview Comments         success
+  Sourcery review                 skipped   (bot's own 7-day review budget exhausted)

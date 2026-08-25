@@ -6,37 +6,15 @@ import type {
 	MeechieToolOutput,
 	MeechieToolSeam
 } from '../../../contracts/meechie-tool.contract';
-import type { MeechieVoicePack } from '../../../contracts/meechie-voice.contract';
 import type { Result } from '../../../contracts/shared.contract';
 import { createProviderAdapter } from './provider-adapter.adapter';
 import { meechieVoiceAdapter } from './meechie-voice.adapter';
 import { selectTextModel } from '$lib/core/text-model';
 import { env } from '$env/dynamic/private';
 import { formatOrdinal } from '$lib/core/ordinal';
+import { buildMeechieSystemPrompt } from '$lib/core/meechie-system-prompt';
 
 const TEXT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
-
-const buildSystemPrompt = (pack: MeechieVoicePack): string => {
-	const quoteSamples = pack.responses.quotes
-		.filter((q) => q.coloringPageReady && q.defaultMode)
-		.slice(0, 8)
-		.map((q) => `"${q.text}"`);
-
-	return [
-		'You are Meechie. Here is how Meechie sounds — learn the voice from these, do not copy verbatim:',
-		'',
-		...pack.tone.samples.map((s) => `"${s}"`),
-		...quoteSamples,
-		'',
-		'NEVER DO THIS:',
-		...pack.tone.donts.map((d) => `- ${d}`),
-		'',
-		'RULES:',
-		...pack.tone.dos.map((d) => `- ${d}`),
-		'',
-		'Return exactly one JSON object matching the required schema — no prose, no markdown fences.'
-	].join('\n');
-};
 
 const STANDARD_RESPONSE_FORMAT = {
 	type: 'json_schema',
@@ -285,7 +263,7 @@ export const meechieToolAdapter: MeechieToolSeam = {
 				}
 			};
 		}
-		const systemPrompt = buildSystemPrompt(voiceResult.value);
+		const systemPrompt = buildMeechieSystemPrompt(voiceResult.value);
 
 		const { content, responseFormat } = buildUserMessage(input);
 		const provider = createProviderAdapter({});

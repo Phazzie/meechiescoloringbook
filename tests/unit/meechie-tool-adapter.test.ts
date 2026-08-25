@@ -13,6 +13,7 @@ vi.mock('../../src/lib/adapters/provider-adapter.adapter', () => ({
 }));
 
 const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool.adapter');
+const { meechieVoicePack } = await import('../../src/lib/seams/meechie-voice-seam/voice-pack');
 
 const providerOk = (headline: string, response: string, extra?: Record<string, unknown>) => ({
 	ok: true as const,
@@ -369,7 +370,17 @@ describe('meechie-tool adapter', () => {
 			expect(call.messages[0].role).toBe('system');
 			expect(call.messages[0].content).toContain('You are Meechie');
 			expect(call.messages[0].content).toContain('NEVER DO THIS');
-			expect(call.messages[0].content).toContain('RULES:');
+		});
+
+		it('carries every voice-pack line into the prompt exactly once', async () => {
+			mockCreateChatCompletion.mockResolvedValue(
+				providerOk('Random Meechie', 'He forgot I was me.')
+			);
+			await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+			const prompt: string = mockCreateChatCompletion.mock.calls[0][0].messages[0].content;
+			for (const quote of meechieVoicePack.responses.quotes) {
+				expect(prompt.split(`"${quote.text}"`).length - 1).toBe(1);
+			}
 		});
 	});
 

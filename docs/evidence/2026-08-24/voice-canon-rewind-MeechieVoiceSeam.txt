@@ -1,0 +1,13 @@
+
+> meechies-coloringbook@0.1.0 rewind
+> node scripts/rewind.mjs --seam MeechieVoiceSeam
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m   Start at [22m 23:32:51
+[2m   Duration [22m 1.05s[2m (transform 147ms, setup 50ms, import 152ms, tests 7ms, environment 660ms)[22m
+

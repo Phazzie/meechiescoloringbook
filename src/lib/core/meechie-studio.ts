@@ -8,17 +8,21 @@ import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract'
 
 export const DEFAULT_REVISION_BUDGET = 3;
 
+// Placeholder shown on the page preview before anything is generated.
+// The quote and page items are drawn from approved voice-pack lines
+// (ids: i-dont-act, the-door, lower-my-voice) so the preview never shows
+// wording that was ruled out of the voice.
 export const DEFAULT_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	verdict: 'Meechie already clocked it.',
-	quote: 'You fumbled ME? In THIS economy?',
-	pageTitle: 'IN THIS ECONOMY',
+	quote: 'He said I act like I run the place. I don\'t act.',
+	pageTitle: 'I DON\'T ACT',
 	pageItems: [
-		{ number: 1, label: 'STAY PRETTY TOMORROW' },
-		{ number: 2, label: 'CLOSE THE DOOR' },
-		{ number: 3, label: 'LET THE DRAFT WORK' }
+		{ number: 1, label: 'RUN THE PLACE' },
+		{ number: 2, label: 'DO NOT OPEN THE DOOR' },
+		{ number: 3, label: 'LOWER MY VOICE' }
 	],
 	qualityState: 'ready',
-	revisionNote: 'Canon Meechie preview.'
+	revisionNote: 'Approved preview line. Generate to get yours.'
 };
 
 export type CostClass = 'free' | 'paid' | 'unclassified';

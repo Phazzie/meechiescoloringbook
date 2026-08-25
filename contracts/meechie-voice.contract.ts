@@ -2,6 +2,7 @@
 // Why: Centralize Meechie response copy and templates behind a deterministic seam.
 // Info flow: Voice request -> voice pack -> Meechie tool adapter.
 import { z } from 'zod';
+import { MeechieQuoteSchema } from './meechie-quote.contract';
 import { NonEmptyStringSchema, resultSchema } from './shared.contract';
 import type { Result } from './shared.contract';
 
@@ -88,37 +89,6 @@ const ExcuseRatingFallbackSchema = z.object({
 	commentary: NonEmptyStringSchema
 });
 
-const MeechieQuoteCategorySchema = z.enum(['raw_anchor', 'approved_keeper']);
-
-const MeechieQuoteRawnessSchema = z.enum(['clean', 'mild', 'raw']);
-
-const MeechieQuoteThirdPersonUsageSchema = z.enum(['none', 'sometimes', 'forced']);
-
-const MeechieQuoteModeFitSchema = z.enum([
-	'random_meechie',
-	'rate_excuse',
-	'apology_translator',
-	'red_flag_or_run',
-	'wwmd',
-	'caption_this',
-	'clapback',
-	'receipts'
-]);
-
-const MeechieQuoteSchema = z
-	.object({
-		text: NonEmptyStringSchema,
-		category: MeechieQuoteCategorySchema,
-		rawness: MeechieQuoteRawnessSchema,
-		thirdPersonUsage: MeechieQuoteThirdPersonUsageSchema,
-		modeFit: z.array(MeechieQuoteModeFitSchema).min(1),
-		defaultMode: z.boolean(),
-		coloringPageReady: z.boolean(),
-		notes: NonEmptyStringSchema.optional(),
-		visualMotifs: z.array(NonEmptyStringSchema).min(1).optional()
-	})
-	.strict();
-
 const MeechieVoiceResponsesSchema = z.object({
 	headlines: HeadlineSchema,
 	apologyTranslator: ApologyTranslatorSchema,
@@ -148,11 +118,7 @@ export const MeechieVoiceInputSchema = z.object({
 
 export const MeechieVoiceResultSchema = resultSchema(MeechieVoicePackSchema);
 
-export type MeechieQuote = z.infer<typeof MeechieQuoteSchema>;
-export type MeechieQuoteCategory = z.infer<typeof MeechieQuoteCategorySchema>;
-export type MeechieQuoteRawness = z.infer<typeof MeechieQuoteRawnessSchema>;
-export type MeechieQuoteThirdPersonUsage = z.infer<typeof MeechieQuoteThirdPersonUsageSchema>;
-export type MeechieQuoteModeFit = z.infer<typeof MeechieQuoteModeFitSchema>;
+export type { MeechieQuote, MeechieQuoteTier } from './meechie-quote.contract';
 export type MeechieVoicePack = z.infer<typeof MeechieVoicePackSchema>;
 export type MeechieVoiceInput = z.infer<typeof MeechieVoiceInputSchema>;
 export type MeechieVoiceResult = z.infer<typeof MeechieVoiceResultSchema>;

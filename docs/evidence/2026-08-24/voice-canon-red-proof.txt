@@ -1,0 +1,61 @@
+Red proof for MeechieQuoteSchema — src/lib/seams/meechie-voice-seam/test.ts
+
+Two halves:
+  (a) direct schema cases (missing/unknown tier, missing/empty id, missing/empty
+      text, extra field on a .strict() object, retired pre-migration shape)
+  (b) the fixture-backed half required by src/lib/seams/AGENTS.md section 3:
+      fixtures/meechie-voice/malformed-pack.json is a checked-in pack whose
+      quotes still carry the retired shape, and createMalformedVoicePackMock()
+      serves it exactly as createMeechieVoiceMock() serves the good fixture.
+      The contract test runs the mock and requires the rejection.
+
+The proof is that these fail when the schema is weakened, not merely that they
+pass when it is correct.
+
+### STAGE 0 — shipped schema. Expect all green.
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+
+### STAGE 1 — tier optional, .strict() dropped. Expect RED.
+[31m     [31m×[31m rejects a quote with missing tier[39m[32m 7[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with extra field[39m[32m 1[2mms[22m[39m
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m16 passed[39m[22m[90m (18)[39m
+
+### STAGE 2 — also id optional, empty text allowed. Expect MORE RED.
+[31m     [31m×[31m rejects a quote with missing tier[39m[32m 7[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with missing id[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with empty id[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with empty text[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with extra field[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects the retired pre-migration quote shape[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m points at the offending quotes, not somewhere else in the pack[39m[32m 1[2mms[22m[39m
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 7 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m7 failed[39m[22m[2m | [22m[1m[32m11 passed[39m[22m[90m (18)[39m
+
+### STAGE 3 — schema restored. Expect green again.
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+
+### STAGE 2b — tier enum widened to any string, so every quote in the
+### malformed fixture now parses. This is what proves the FIXTURE-BACKED
+### half bites: the mock-driven cases must go red here.
+[31m     [31m×[31m rejects a quote with missing tier[39m[32m 7[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with unknown tier[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with missing id[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with empty id[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with empty text[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects a quote with extra field[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects the retired pre-migration quote shape[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects the fixture file itself[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m rejects what the mock returns when run against that fixture[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m points at the offending quotes, not somewhere else in the pack[39m[32m 1[2mms[22m[39m
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 10 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m10 failed[39m[22m[2m | [22m[1m[32m8 passed[39m[22m[90m (18)[39m
+
+### STAGE 3 — schema restored. Expect green again.
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m
