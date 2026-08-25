@@ -1,0 +1,50 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-25T16:09:24.858Z",
+  "cipher": {
+    "date": "2026-06-25",
+    "seams": "OutputPackagingSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-25/pdf-lib-lazy-load-bundle-diff.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/pdf-lib-lazy-load-build-after.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/pdf-lib-lazy-load-focused-tests.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/pdf-lib-lazy-load-check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/pdf-lib-lazy-load-lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/pdf-lib-lazy-load-diff.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/pdf-lib-lazy-load-diff-check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/test.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Replaced OutputPackagingSeam's eager top-level `pdf-lib` import with a dynamic `import()` inside the PDF-generation branch, confirmed via before/after build manifest inspection that pdf-lib now ships in its own on-demand chunk (~177KB gzip) instead of every route's eager bundle, with zero contract or test changes.",
+    "risks": "This is a client-bundling optimization only; if a future change needs pdf-lib synchronously at module init (e.g. a top-level constant built from a pdf-lib export), the dynamic import would need to move back up or be awaited earlier."
+  },
+  "latestChangeMs": 1782403386320.6282,
+  "status": "ok"
+}

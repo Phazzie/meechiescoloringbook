@@ -1,7 +1,6 @@
 // Purpose: Adapter implementation for OutputPackagingSeam.
 // Why: Package generated images into downloadable PDF/PNG files client-side.
 // Info flow: Generated images -> packaged files -> UI downloads.
-import { PDFDocument } from 'pdf-lib';
 import type {
 	OutputPackagingInput,
 	OutputPackagingOutput,
@@ -324,6 +323,7 @@ export const outputPackagingAdapter: OutputPackagingSeam = {
 						dataBase64: pngResult.value
 					});
 				} else {
+					const { PDFDocument } = await import('pdf-lib');
 					const pageSize = PAGE_SIZES[input.pageSize];
 					const pdfDoc = await PDFDocument.create();
 					const page = pdfDoc.addPage([pageSize.width, pageSize.height]);

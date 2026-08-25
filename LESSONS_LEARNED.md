@@ -163,3 +163,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Creating stacked replacement PRs during the Handoff PR Resolution drain.
 - Lesson: Branch boundaries are easy to blur when several stacked PRs are active; catching the wrong base before commit avoids mixing unrelated workpacks.
 - Action: Check `git status --short --branch` and recent `git log --decorate` before committing each workpack, then push stacked PRs against the intended parent branch.
+
+## 2026-06-25
+- Date: 2026-06-25
+- Context: Auditing the repo for its hardest outstanding fixes before lazy-loading `pdf-lib` out of `OutputPackagingSeam`'s eager import path.
+- Lesson: A dynamic `import()` only proves a real bundle-size win if you confirm the build's chunk graph actually changed; otherwise the bundler may re-inline the dependency into the same eagerly-loaded chunk and the "fix" is cosmetic.
+- Action: Build before and after the change (`git stash`/`git stash pop` around `rm -rf .svelte-kit/output && npm run build`), then grep the output chunks for a literal symbol from the dependency (e.g. `PDFDocument`) and check `.vite/manifest.json`'s `dynamicImports` field to prove the dependency moved to its own on-demand chunk.
