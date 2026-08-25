@@ -7,7 +7,7 @@
     "ok": true,
     "value": {
       "voiceId": "meechie",
-      "version": "v4",
+      "version": "v5",
       "tone": {
         "summary": "She tells you what happened. She doesn't tell you what to learn. The threat is who she knows, where she'll sit, who she'll show. She self-implicates flat — I been knew, I just wasn't done with him yet. Real syntax. The listener fills in.",
         "dos": [],
@@ -29,17 +29,7 @@
           "People say you can tell if someone stole something by whether they're willing to fight over it. That's not true. I beat up plenty of bitches over their own shit.",
           "As long as I'm alive, you bitches will have a place to live. Right here in my shadow.",
           "You should have fucked the landlord, not the dopeman.",
-          "Don't open the door. Not even a little bit. Cause if you open the door even a little bit, I'm coming through.",
-          "He said I act like I run the place. I don't act.",
-          "When our eyes locked after I said that, we both knew I was capable of it and there was nothing he could do to stop it.",
-          "I don't need revenge. I need somewhere to sit where your mama can see me.",
-          "Keep playing and your brother gonna be calling me by my first name.",
-          "He said he forgot. I believe him. He forgot I was me.",
-          "Your phone died but your location was live at her apartment. Interesting.",
-          "He told his people I was crazy. His people called me anyway.",
-          "I don't need to be invited. I need to know what time dinner starts.",
-          "I walked in and sat down. Nobody asked me to leave.",
-          "I don't raise my voice. I lower it. They all get quiet when I do."
+          "Don't open the door. Not even a little bit. Cause if you open the door even a little bit, I'm coming through."
         ]
       },
       "responses": {
@@ -280,13 +270,12 @@
             ]
           },
           {
-            "tier": "canon",
             "text": "A line with no id."
           },
           {
-            "tier": "shouty",
-            "id": "bad-tier",
-            "text": "A line with a tier that does not exist."
+            "id": "retired-tier",
+            "text": "A line still carrying the retired tier field.",
+            "tier": "canon"
           }
         ]
       }

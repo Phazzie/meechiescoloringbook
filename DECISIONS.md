@@ -7,6 +7,29 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-08-25 - Cut the Meechie canon to ten lines and drop the tier field
+
+- Date: 2026-08-25
+- Decision: Reduce `MEECHIE_LINES` from 20 to the 10 the owner ruled canon, and remove `tier` from `MeechieQuoteSchema`, leaving `{ id, text }`.
+- Context: PR #227 shipped 20 lines split into `canon` (5) and `approved` (15). The owner then ruled that the canon is entries 1-10 and cut 11-20. That leaves every surviving line canon, so `tier` has exactly one possible value. Nothing in the app ever read `tier` — both tiers fed the prompt identically, in the same order — so it was a provenance label for humans, not behavior.
+- Alternatives: Keep `tier` with a single value; rejected because a field with one value that no code reads is the same dead-metadata pattern (`coloringPageReady`, `category`, `modeFit`, `defaultMode`, `visualMotifs`) that PR #227 existed to remove, and leaving one behind invites the next reader to attach meaning to it. Keep the cut lines in a secondary array; rejected because the owner's ruling was that the canon is these ten and the rest go.
+- Consequences: `MeechieQuoteSchema` is `{ id, text }`, still `.strict()`, so any retired field (including `tier` itself) is now a validation error. The prompt carries 10 examples instead of 20. `tone.samples` still derives from the same array. `DEFAULT_STUDIO_TEXT_OUTPUT` had to move: its quote was entry 11 (`i-dont-act`), which this cut removes, and two of its three page items derived from cut lines. It now uses `the-door`, which is the only canon line with no profanity in it and therefore the only one usable as visible placeholder copy.
+- Revisit criteria: Revisit if lines ever need provenance again (verified-original vs owner-approved), which is what `tier` recorded, or if the preview needs copy that is not drawn from the canon.
+- Plan:
+  - Goal: Ten canon lines, one flat shape, no field the code does not read.
+  - Seams: MeechieVoiceSeam, MeechieToolSeam.
+  - Files: `src/lib/seams/meechie-voice-seam/voice-pack.ts`, `contracts/meechie-quote.contract.ts`, `src/lib/seams/meechie-voice-seam/contract.ts`, `contracts/meechie-voice.contract.ts`, `src/lib/seams/meechie-voice-seam/test.ts`, `src/lib/core/meechie-studio.ts`, `tests/unit/meechie-studio.test.ts`, `fixtures/meechie-voice/sample.json`, `fixtures/meechie-voice/malformed-pack.json`.
+  - Commands: `npm run verify`, `npm test`, `npm run rewind -- --seam "MeechieVoiceSeam (self-contained)"`, `npm run rewind -- --seam "MeechieToolSeam (self-contained)"`, `npm run rewind -- --seam MeechieVoiceSeam`, `npm run rewind -- --seam MeechieToolSeam`, `npm run check`, `npm run lint`.
+- Red proof: Both halves kept and re-proved against the new shape. Direct cases now cover missing/empty id, missing/empty text, a retired `tier` field, a retired `coloringPageReady` field, and the full retired pre-migration shape. The fixture-backed half is unchanged in mechanism: `fixtures/meechie-voice/malformed-pack.json` regenerated so its quotes carry the retired shape, a missing id, and a retired `tier`, served through `createMalformedVoicePackMock()`. Staged weakening: 17 pass -> `.strict()` dropped -> 3 fail -> id optional and empty text allowed -> 9 fail, including all three fixture-backed cases -> schema restored -> 17 pass. See docs/evidence/2026-08-25/canon-ten-red-proof.txt.
+- Self-critique: The riskiest part is that the guard test which caught the stale preview only covers `DEFAULT_STUDIO_TEXT_OUTPUT.quote`, not `pageItems`. It failed correctly here because the quote was a cut line, but had only the page items derived from cut lines, nothing would have caught it — I found those by reading, not by a failing test. Second: with 10 examples instead of 20, and every one of them explicit, the model sees a narrower and rawer sample than before. That is the owner's intent, but the effect on generations is unmeasured.
+
+- Cipher Gate:
+  - Date: 2026-08-25
+  - Seams: MeechieVoiceSeam, MeechieToolSeam
+  - Evidence: docs/evidence/2026-08-25/canon-ten-red-proof.txt; docs/evidence/2026-08-25/canon-ten-full-tests.txt; docs/evidence/2026-08-25/canon-ten-check.txt; docs/evidence/2026-08-25/canon-ten-lint.txt; docs/evidence/2026-08-25/canon-ten-rewind-MeechieVoiceSeamself-contained.txt; docs/evidence/2026-08-25/canon-ten-rewind-MeechieToolSeamself-contained.txt; docs/evidence/2026-08-25/canon-ten-rewind-MeechieVoiceSeam.txt; docs/evidence/2026-08-25/canon-ten-rewind-MeechieToolSeam.txt
+  - Summary: Cut the voice pack to the ten owner-ruled canon lines and removed the now-single-valued `tier` field from the quote contract.
+  - Risks: `npm run verify` fails locally in the sandboxed dev container on `tests/unit/api-generate.test.ts`, which times out at the 5000ms default because that endpoint does HTTP with retry/backoff and the container proxies outbound traffic. It passes at `--testTimeout=60000` and passes on CI, and it is unrelated to this change. Full suite 532 passing. All four seam rewinds green: 17, 6, 4, 5.
+
 ## 2026-08-24 - Cut the Meechie voice to one owner-ruled list
 
 - Date: 2026-08-24

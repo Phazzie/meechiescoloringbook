@@ -25,10 +25,7 @@ describe('Meechie studio controls', () => {
 			...DEFAULT_STUDIO_TEXT_OUTPUT.pageItems.map((item) => item.label)
 		].join(' ');
 
-		expect(DEFAULT_STUDIO_TEXT_OUTPUT.quote).toBe(
-			'He said I act like I run the place. I don\'t act.'
-		);
-		expect(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle).toBe('I DON\'T ACT');
+		expect(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle).toBe('NOT EVEN A LITTLE BIT');
 		// The preview must never show wording that was ruled out of the voice.
 		expect(meechieVoicePack.responses.quotes.map((quote) => quote.text)).toContain(
 			DEFAULT_STUDIO_TEXT_OUTPUT.quote

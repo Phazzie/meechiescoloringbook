@@ -9,20 +9,24 @@ import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract'
 export const DEFAULT_REVISION_BUDGET = 3;
 
 // Placeholder shown on the page preview before anything is generated.
-// The quote and page items are drawn from approved voice-pack lines
-// (ids: i-dont-act, the-door, lower-my-voice) so the preview never shows
-// wording that was ruled out of the voice.
+// Drawn from canon voice-pack lines (ids: the-door, my-shadow,
+// area-of-control) so the preview never shows wording that is not in the
+// canon. `the-door` is the one canon line with no profanity in it, which is
+// what makes it usable as visible placeholder copy.
+// A test in tests/unit/meechie-studio.test.ts fails if this quote ever drifts
+// out of the voice pack.
 export const DEFAULT_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	verdict: 'Meechie already clocked it.',
-	quote: 'He said I act like I run the place. I don\'t act.',
-	pageTitle: 'I DON\'T ACT',
+	quote:
+		'Don\'t open the door. Not even a little bit. Cause if you open the door even a little bit, I\'m coming through.',
+	pageTitle: 'NOT EVEN A LITTLE BIT',
 	pageItems: [
-		{ number: 1, label: 'RUN THE PLACE' },
-		{ number: 2, label: 'DO NOT OPEN THE DOOR' },
-		{ number: 3, label: 'LOWER MY VOICE' }
+		{ number: 1, label: 'DO NOT OPEN THE DOOR' },
+		{ number: 2, label: 'RIGHT HERE IN MY SHADOW' },
+		{ number: 3, label: 'AN AREA OF CONTROL' }
 	],
 	qualityState: 'ready',
-	revisionNote: 'Approved preview line. Generate to get yours.'
+	revisionNote: 'Canon preview line. Generate to get yours.'
 };
 
 export type CostClass = 'free' | 'paid' | 'unclassified';
