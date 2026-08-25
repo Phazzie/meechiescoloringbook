@@ -9,6 +9,10 @@ import type { MeechieQuote, MeechieVoicePack } from './contract';
 // canon    = verified original Meechie, transcribed as spoken.
 // approved = ruled in by the owner. Same register, same rules.
 //
+// 2026-08-25: ten fabricated 'approved' lines were removed by owner ruling. They were
+// invented to pad the list, not spoken or ruled in. Padding this list is the failure mode
+// to avoid: an invented line teaches the model a voice Meechie does not have.
+//
 // Nothing is added to this list without an owner ruling. Do not reword an entry:
 // the wording IS the line. Earlier drafts of this file carried three overlapping
 // lists with six conflicting variants — that is what this replaces.
@@ -23,16 +27,6 @@ const MEECHIE_LINES: MeechieQuote[] = [
 	{ tier: 'approved', id: 'my-shadow', text: 'As long as I\'m alive, you bitches will have a place to live. Right here in my shadow.' },
 	{ tier: 'approved', id: 'landlord', text: 'You should have fucked the landlord, not the dopeman.' },
 	{ tier: 'approved', id: 'the-door', text: 'Don\'t open the door. Not even a little bit. Cause if you open the door even a little bit, I\'m coming through.' },
-	{ tier: 'approved', id: 'i-dont-act', text: 'He said I act like I run the place. I don\'t act.' },
-	{ tier: 'approved', id: 'eyes-locked', text: 'When our eyes locked after I said that, we both knew I was capable of it and there was nothing he could do to stop it.' },
-	{ tier: 'approved', id: 'somewhere-to-sit', text: 'I don\'t need revenge. I need somewhere to sit where your mama can see me.' },
-	{ tier: 'approved', id: 'first-name', text: 'Keep playing and your brother gonna be calling me by my first name.' },
-	{ tier: 'approved', id: 'he-forgot', text: 'He said he forgot. I believe him. He forgot I was me.' },
-	{ tier: 'approved', id: 'location-live', text: 'Your phone died but your location was live at her apartment. Interesting.' },
-	{ tier: 'approved', id: 'his-people', text: 'He told his people I was crazy. His people called me anyway.' },
-	{ tier: 'approved', id: 'not-invited', text: 'I don\'t need to be invited. I need to know what time dinner starts.' },
-	{ tier: 'approved', id: 'sat-down', text: 'I walked in and sat down. Nobody asked me to leave.' },
-	{ tier: 'approved', id: 'lower-my-voice', text: 'I don\'t raise my voice. I lower it. They all get quiet when I do.' }
 ];
 
 

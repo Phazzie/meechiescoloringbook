@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-08-25T03:19:02.084Z
+Generated at: 2026-08-25T06:07:22.859Z
 Evidence folder: docs/evidence/2026-08-25
 
 Files included:
@@ -15,6 +15,7 @@ Files included:
 - clan-chain.json (2247 bytes)
 - clan-chain.md (1418 bytes)
 - prompt-boundary-live-README.md (2476 bytes)
+- prompt-boundary-live-page.jpg (203160 bytes)
 - prompt-boundary-live-prompt.txt (1059 bytes)
 - prompt-boundary-live-request.json (1911 bytes)
 - prompt-boundary-live-response.json (423 bytes)
@@ -32,11 +33,11 @@ Files included:
 - rewind-PromptAssemblySeam(self-contained).txt (407 bytes)
 - rewind-PromptAssemblySeam.txt (405 bytes)
 - rewind-ProviderAdapterSeam.txt (405 bytes)
-- rewind-SpecValidationSeam.txt (408 bytes)
+- rewind-SpecValidationSeam.txt (407 bytes)
 - seam-ledger.json (26323 bytes)
 - seam-ledger.md (2168 bytes)
 - shaolin-lint.json (519 bytes)
-- test.txt (1136 bytes)
+- test.txt (1029 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify.txt (1768 bytes)
+- verify.txt (1354 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1

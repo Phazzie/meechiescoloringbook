@@ -14,12 +14,14 @@ export const DEFAULT_REVISION_BUDGET = 3;
 // wording that was ruled out of the voice.
 export const DEFAULT_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	verdict: 'Meechie already clocked it.',
-	quote: 'He said I act like I run the place. I don\'t act.',
-	pageTitle: 'I DON\'T ACT',
+	// The owner-ruled default. Must stay a line that exists in the voice pack — the previous
+	// default quoted a fabricated line that was removed on 2026-08-25.
+	quote: 'You should have fucked the landlord, not the dopeman.',
+	pageTitle: 'THE LANDLORD',
 	pageItems: [
-		{ number: 1, label: 'RUN THE PLACE' },
-		{ number: 2, label: 'DO NOT OPEN THE DOOR' },
-		{ number: 3, label: 'LOWER MY VOICE' }
+		{ number: 1, label: 'THE RENT' },
+		{ number: 2, label: 'THE DOPEMAN' },
+		{ number: 3, label: 'WHAT IT COST' }
 	],
 	qualityState: 'ready',
 	revisionNote: 'Approved preview line. Generate to get yours.'
