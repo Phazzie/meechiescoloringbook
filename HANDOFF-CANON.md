@@ -84,6 +84,39 @@ Fixed but unreplied, on head `bbfebe1`:
 4. P1 — CI evidence pinned a stale SHA. Fixed.
 5. P1 — DECISIONS.md scope incomplete. Fixed.
 
+### FOUR MORE FINDINGS ON `12baead` — arrived after the fixes, NOT yet addressed
+
+All four verified as correct by reading the cited code. Nothing has been done about
+them. They are the top of the next session's queue.
+
+1. **P2 — a test of mine reports FALSE GREEN.** In
+   `tests/integration/meechie-tool-seam.test.ts` the `it.each` cases use
+   `if (skipLive) return;` instead of `skipIf`. Without `FEATURE_INTEGRATION_TESTS`
+   or `XAI_API_KEY`, Vitest reports those three live probes as **passing**, not
+   skipped — an integration run with no credentials prints `3 passed | 4 skipped`.
+   A green count that is not provider verification. Fix: `skipIf` on those cases,
+   matching how the studio-text probe already does it.
+
+2. **P2 — the echo check misses user-visible fields.**
+   `tests/integration/meechie-studio-text-seam.test.ts` only checks `quote` and
+   `verdict` for verbatim canon copies. `pageTitle` and `pageItems[].label` are also
+   displayed in the studio preview and become coloring-page text. A canon line
+   copied into the page title passes the probe today.
+
+3. **P2 — studio probe timeout too small.** It is set to 200_000ms, derived from
+   3 × 60s + backoff. But `http-resilience.ts` honours `Retry-After` up to 30s per
+   retry (≈270s), AND `runMeechieStudioTextPipeline` can make a *second* provider
+   call after an invalid first response — so worst case is roughly double again.
+   Derive it from the pipeline's full retry budget, not one call's.
+
+4. **P1 — red-proof evidence is stale.**
+   `docs/evidence/2026-08-25/canon-ten-draft-migration-proof.txt` still describes the
+   superseded `PLACEHOLDER_PAGE_TITLES` / title-only fix and records only the two
+   historical-title failures. `DECISIONS.md` claims the *mirror* regression was
+   red-proved, and that output is not in the artifact. The red proof WAS re-run in
+   the terminal (19 pass → title-only → 2 fail → full-shape → 19 pass) but the file
+   was never regenerated. Either regenerate it or drop the claim.
+
 ---
 
 ## 4. REAL BUGS FOUND — do not reintroduce
