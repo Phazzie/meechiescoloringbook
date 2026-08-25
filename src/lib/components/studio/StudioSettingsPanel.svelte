@@ -37,7 +37,10 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange tri
 			<span class="eyebrow">Settings</span>
 			<strong>Page Controls</strong>
 		</span>
-		<span aria-hidden="true">Open</span>
+		<span aria-hidden="true" class="toggle-label">
+			<span class="when-closed">Open</span>
+			<span class="when-open">Close</span>
+		</span>
 	</summary>
 
 	<div class="settings-content">
@@ -122,3 +125,17 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange tri
 		</label>
 	</div>
 </details>
+
+<style>
+	.when-open {
+		display: none;
+	}
+
+	details[open] .when-closed {
+		display: none;
+	}
+
+	details[open] .when-open {
+		display: inline;
+	}
+</style>

@@ -14,10 +14,10 @@ type TextSegment = {
   text: unknown;
 };
 
-const disallowedKeywords = [...SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS, 'suicide', 'extremist'];
-
 const hasDisallowedContent = (text: string) =>
-  disallowedKeywords.some((keyword) => text.toLowerCase().includes(keyword));
+  SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS.some((keyword) =>
+    text.toLowerCase().includes(keyword.toLowerCase())
+  );
 
 const disallowedContent = (message: string, field: string): SafetyPolicyResult => ({
   ok: false,
