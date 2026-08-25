@@ -7,6 +7,7 @@ import { ScenarioSchema } from '../../../../contracts/shared.contract';
 import sampleJson from '../../../../fixtures/prompt-assembly/sample.json';
 import faultJson from '../../../../fixtures/prompt-assembly/fault.json';
 import titleOnlyJson from '../../../../fixtures/prompt-assembly/title-only.json';
+import titleOnlyMarkerFaultJson from '../../../../fixtures/prompt-assembly/title-only-marker-fault.json';
 
 const fixtureSchema = z.object({
 	scenario: ScenarioSchema,
@@ -17,3 +18,7 @@ const fixtureSchema = z.object({
 export const promptAssemblySampleFixture = fixtureSchema.parse(sampleJson);
 export const promptAssemblyFaultFixture = fixtureSchema.parse(faultJson);
 export const promptAssemblyTitleOnlyFixture = fixtureSchema.parse(titleOnlyJson);
+
+// Deliberately violates the relationship between a title-only input and its
+// otherwise schema-valid output. Boundary validation must reject it.
+export const promptAssemblyTitleOnlyMarkerFaultFixture: unknown = titleOnlyMarkerFaultJson;

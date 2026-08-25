@@ -1,0 +1,46 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-08-25T01:02:36.761Z",
+  "cipher": {
+    "date": "2026-08-25",
+    "seams": "PromptAssemblySeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-08-24/prompt-assembly-red.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-24/prompt-assembly-fixture-red.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-24/prompt-assembly-green.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-24/env-example-check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/rewind-PromptAssemblySeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/rewind-PromptAssemblySeam(self-contained).txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/test.txt",
+        "exists": true
+      }
+    ],
+    "summary": "Made the optional secondary exact-text marker/value atomic in both PromptAssemblySeam adapters, versioned the changed prompt as `v3`, and restored the environment template as readable text.",
+    "risks": "Live wig try-on success remains unproven until the configured Gemini project has available quota; no code path can restore provider billing state."
+  },
+  "latestChangeMs": 1787619446721.9592,
+  "status": "ok"
+}
