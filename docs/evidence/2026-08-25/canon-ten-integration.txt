@@ -1,0 +1,17 @@
+# Purpose: Store live integration output across all three provider-backed seams.
+# Why: The voice pack is the system prompt for MeechieToolSeam AND MeechieStudioTextSeam, so both need live evidence, not mocks.
+# Info flow: FEATURE_INTEGRATION_TESTS=true npm run test:integration -> live xAI -> evidence file -> review.
+
+
+> meechies-coloringbook@0.1.0 test:integration
+> vitest run --config vitest.integration.config.ts
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m   Start at [22m 01:59:52
+[2m   Duration [22m 44.08s[2m (transform 408ms, setup 0ms, import 529ms, tests 85.33s, environment 0ms)[22m
+

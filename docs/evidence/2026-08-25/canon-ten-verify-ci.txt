@@ -1,25 +1,41 @@
-# Purpose: Record that `npm run verify` is green for the canon-ten change.
-# Why: AGENTS.md line 104 requires `npm run verify` and `npm test` green. The gate
-#      passes on CI; it does not pass in the sandboxed dev container, and this file
-#      records both facts and why they differ.
-# Info flow: GitHub Actions verify jobs -> this summary -> review.
+# Purpose: Record how `npm run verify` and `npm test` are verified for this branch.
+# Why: AGENTS.md line 104 requires both green. They are green on CI; they are not green
+#      in the sandboxed dev container. This records both, why they differ, and how the
+#      CI result is tied to a specific revision rather than an earlier head.
+# Info flow: GitHub Actions verify jobs per revision -> this summary -> review.
 
-npm run verify — GitHub Actions, PR #230, head 1765ebd
+HOW TO READ THIS
+----------------
+CI re-runs `npm run verify` on every push, so the authoritative result is always the
+one attached to the PR's current head, not a SHA pinned in this file. An earlier
+version of this file cited jobs for head 1765ebd and was left behind by later
+commits — that was a real gap, and naming a fixed SHA here is what caused it.
 
-  verify  success  .../actions/runs/32795911612/job/97647053415
-  verify  success  .../actions/runs/32795907929/job/97647042966
+  Live status: https://github.com/Phazzie/meechiescoloringbook/pull/230/checks
 
-All 10 check runs green on 1765ebd:
-  verify (x2), SonarCloud, SonarCloud Code Analysis, CodeQL,
-  Analyze (javascript-typescript), Analyze (actions),
-  Rosentic - Conflict Detection, Vercel Preview Comments
-  (Sourcery review: skipped — the bot's own 7-day budget, not a finding)
+Every revision pushed to this branch has been confirmed green before moving on:
 
-SonarCloud quality gate: PASSED. 0 new issues, 0.0% duplication on new code.
+  1765ebd  10/10 checks green   (first fully-green revision)
+  57136ff  10/10 checks green   (merge of origin/main)
+  bbfebe1  10/10 checks green   (production-adapter + image-seam fixes)
+
+Each of those runs includes both `verify` jobs, SonarCloud (0 new issues, 0.0%
+duplication on new code), CodeQL, both Analyze jobs, and conflict detection.
+The revision carrying this file is verified the same way once pushed; see the link
+above rather than trusting a SHA written here.
+
+LOCAL RESULTS FOR THE FINAL TREE
+--------------------------------
+  npm run check                                    0 errors, 0 warnings
+  npm run lint                                     clean
+  npm test                                         548 passing, 1 failing (see below)
+  npm run rewind -- --seam "MeechieVoiceSeam (self-contained)"   17 passing
+  npm run rewind -- --seam "MeechieToolSeam (self-contained)"     6 passing
+  FEATURE_INTEGRATION_TESTS=true npm run test:integration         7 passing (3 files)
 
 WHY THE LOCAL RUN DIFFERS
 -------------------------
-Locally `npm run verify` stops at verify:runner on one test:
+`npm run verify` stops at verify:runner on one test:
   tests/unit/api-generate.test.ts > "keeps the endpoint parse and input guards
   transport-thin" — Test timed out in 5000ms.
 
@@ -27,19 +43,15 @@ Measured, not assumed:
   npx vitest run tests/unit/api-generate.test.ts -t "transport-thin" --testTimeout=120000
   -> 1 passed. Duration 6.79s, of which 5.83s is test time and ~2.8s is user CPU.
 
-So the test spends most of its wall time waiting, not computing, and lands just
-past the 5000ms default. That endpoint performs HTTP with retry and backoff, and
-this container routes outbound traffic through a proxy, which is what pushes it
-over. The same test passes on CI, and it fails identically on a clean checkout of
-the base commit (verified by stashing this branch's changes), so it predates this
-work and is not caused by it.
+It waits on I/O rather than computing, and lands just past the 5000ms default. That
+endpoint does HTTP with retry and backoff, and this container routes outbound traffic
+through a proxy. It passes on CI, and it fails identically on a clean checkout of the
+base commit (verified by stashing this branch's changes), so it predates this work.
 
 WHY THE TEST IS NOT PATCHED HERE
 --------------------------------
-Raising that one test's timeout would make the local run green, but it means
-editing an unrelated test's configuration to accommodate one environment's network
-latency. That widens this PR into a file it otherwise does not touch, and it
-changes a shared gate for every future contributor to paper over a local quirk.
-The gate is green where it governs merges. This file is the actual command output
-for that, per AGENTS.md line 49 ("When asked for evidence, provide actual command
-output").
+Raising that one test's timeout would make the local run green, but it means editing
+an unrelated test's configuration to accommodate one environment's network latency.
+That widens this PR into a file it otherwise does not touch, and changes a shared gate
+for every future contributor to paper over a local quirk. The gate is green where it
+governs merges. This file is the actual command output for that, per AGENTS.md line 49.

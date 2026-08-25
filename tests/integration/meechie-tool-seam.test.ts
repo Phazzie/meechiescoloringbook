@@ -18,29 +18,35 @@ const hasApiKey = Boolean(process.env.XAI_API_KEY);
 // and reads as an ignored test rather than a conditional one.
 const skipLive = !(featureEnabled && hasApiKey);
 
-describe('MeechieToolSeam integration', () => {
-	it.skipIf(skipLive)(
-		'returns contract-valid output for every prompt-driven tool',
-		async () => {
-			const inputs = [
-				{ toolId: 'random_meechie' } as const,
-				{
-					toolId: 'red_flag_or_run',
-					situation:
-						'He said he was working late but his location was live at her apartment.'
-				} as const,
-				{ toolId: 'rate_excuse', excuse: 'My alarm did not go off.' } as const
-			];
+// The provider adapter allows 3 attempts at a 60s timeout plus backoff, so a single
+// call can legitimately run past three minutes before returning
+// (provider-adapter.adapter.ts CHAT_TIMEOUT_MS / RETRY_OPTIONS). A timeout below that
+// turns valid retry behaviour into a false integration failure, so each tool gets its
+// own case with its own budget rather than three calls sharing one.
+const ADAPTER_WORST_CASE_MS = 200_000;
 
-			for (const input of inputs) {
-				const result = await meechieToolAdapter.respond(input);
-				expect(MeechieToolResultSchema.safeParse(result).success).toBe(true);
-				expect(result.ok).toBe(true);
-				if (!result.ok) continue;
-				expect(result.value.response.length).toBeGreaterThan(0);
-			}
+const TOOL_INPUTS = [
+	{ toolId: 'random_meechie' },
+	{
+		toolId: 'red_flag_or_run',
+		situation:
+			'He said he was working late but his location was live at her apartment.'
+	},
+	{ toolId: 'rate_excuse', excuse: 'My alarm did not go off.' }
+] as const;
+
+describe('MeechieToolSeam integration', () => {
+	it.each(TOOL_INPUTS.map((input) => [input.toolId, input] as const))(
+		'returns contract-valid output for %s',
+		async (_toolId, input) => {
+			if (skipLive) return;
+			const result = await meechieToolAdapter.respond(input);
+			expect(MeechieToolResultSchema.safeParse(result).success).toBe(true);
+			expect(result.ok).toBe(true);
+			if (!result.ok) return;
+			expect(result.value.response.length).toBeGreaterThan(0);
 		},
-		120_000
+		ADAPTER_WORST_CASE_MS
 	);
 
 	it.skipIf(skipLive)(
@@ -59,6 +65,6 @@ describe('MeechieToolSeam integration', () => {
 			);
 			expect(copied.map((quote) => quote.id)).toEqual([]);
 		},
-		120_000
+		ADAPTER_WORST_CASE_MS
 	);
 });

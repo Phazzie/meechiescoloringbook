@@ -32,10 +32,12 @@ describe('ImageGenerationSeam integration', () => {
       if (!result.ok) return;
       expect(result.value.images.length).toBeGreaterThan(0);
       expect(result.value.timingMs).toBeGreaterThan(0);
-      // Live image generation takes far longer than the 5000ms default. This test
-      // never carried a timeout because it could not load at all until the
+      // Live image generation takes far longer than the 5000ms default, and the
+      // provider adapter allows 3 attempts at a 120s image timeout plus backoff
+      // (provider-adapter.adapter.ts IMAGE_TIMEOUT_MS / RETRY_OPTIONS). This test
+      // never carried a timeout at all because it could not load until the
       // integration harness resolved its imports, so the gap was invisible.
-    }, 180_000);
+    }, 200_000);
   } else {
     it.skip('is skipped when integration flag or API key is missing', () => {
       expect(true).toBe(true);

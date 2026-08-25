@@ -1,4 +1,4 @@
-# Purpose: Store full `npm test` output as run in the sandboxed dev container.
+# Purpose: Store full `npm test` output for the final revision of this branch.
 # Why: Record the regression suite result, including the one environmental timeout explained in canon-ten-verify-ci.txt.
 # Info flow: npm test -> evidence file -> review.
 
@@ -11,8 +11,8 @@
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
- [31m❯[39m tests/unit/api-generate.test.ts [2m([22m[2m12 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 5037[2mms[22m[39m
-[31m     [31m×[31m keeps the endpoint parse and input guards transport-thin[39m[33m 5012[2mms[22m[39m
+ [31m❯[39m tests/unit/api-generate.test.ts [2m([22m[2m12 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 5026[2mms[22m[39m
+[31m     [31m×[31m keeps the endpoint parse and input guards transport-thin[39m[33m 5004[2mms[22m[39m
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 
 [31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
@@ -31,8 +31,8 @@ If this is a long-running test, pass a timeout value as the last argument or con
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
 
 
-[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m61 passed[39m[22m[2m | [22m[33m2 skipped[39m[90m (64)[39m
-[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m543 passed[39m[22m[2m | [22m[33m3 skipped[39m[90m (547)[39m
-[2m   Start at [22m 01:43:16
-[2m   Duration [22m 21.05s[2m (transform 2.73s, setup 548ms, import 4.51s, tests 13.85s, environment 33.74s)[22m
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m62 passed[39m[22m[2m | [22m[33m2 skipped[39m[90m (65)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m548 passed[39m[22m[2m | [22m[33m4 skipped[39m[90m (553)[39m
+[2m   Start at [22m 01:59:29
+[2m   Duration [22m 21.63s[2m (transform 2.82s, setup 567ms, import 4.76s, tests 15.16s, environment 33.90s)[22m
 

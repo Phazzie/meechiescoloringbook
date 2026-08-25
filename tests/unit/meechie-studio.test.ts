@@ -12,8 +12,8 @@ import {
 	consumeStudioActionBudget,
 	getStudioAction,
 	getStudioTextAction,
-	isPlaceholderPageTitle,
-	PLACEHOLDER_PAGE_TITLES,
+	isUntouchedPlaceholder,
+	PLACEHOLDER_SHAPES,
 	studioModes
 } from '../../src/lib/core/meechie-studio';
 import { meechieVoicePack } from '../../src/lib/seams/meechie-voice-seam/voice-pack';
@@ -208,32 +208,73 @@ describe('Meechie studio controls', () => {
 	});
 });
 
-// Regression guard for the placeholder-sentinel bug: the studio decides whether a
-// saved draft holds real generated wording by looking at its page title. If that
-// check compares against only the CURRENT placeholder, then every time the
-// placeholder changes, older untouched drafts start looking generated and the
-// studio restores retired wording as though the user had produced it.
-describe('placeholder page titles', () => {
-	it('recognises the current placeholder', () => {
-		expect(isPlaceholderPageTitle(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle)).toBe(true);
+// Regression guards for placeholder classification. The studio decides whether a
+// saved draft holds real generated wording by looking at its spec. Two errors are
+// possible and both have bitten: comparing against only the CURRENT placeholder
+// makes older untouched drafts look generated (retired wording comes back as the
+// user's own), and comparing on title alone makes genuine generated output that
+// happens to share a retired title look untouched (the user's preview vanishes).
+describe('placeholder classification', () => {
+	const asIntent = (shape: { title: string; items: readonly string[] }) => ({
+		title: shape.title,
+		items: shape.items.map((label, index) => ({ number: index + 1, label }))
 	});
 
-	it.each(PLACEHOLDER_PAGE_TITLES)('recognises the shipped placeholder %s', (title) => {
-		expect(isPlaceholderPageTitle(title)).toBe(true);
+	it('recognises the current placeholder', () => {
+		expect(
+			isUntouchedPlaceholder({
+				title: DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle,
+				items: DEFAULT_STUDIO_TEXT_OUTPUT.pageItems
+			})
+		).toBe(true);
 	});
+
+	it.each(PLACEHOLDER_SHAPES.map((shape) => [shape.title, shape] as const))(
+		'recognises the shipped placeholder %s',
+		(_title, shape) => {
+			expect(isUntouchedPlaceholder(asIntent(shape))).toBe(true);
+		}
+	);
 
 	it('does not treat generated wording as a placeholder', () => {
-		expect(isPlaceholderPageTitle('HE FUMBLED ME')).toBe(false);
+		expect(
+			isUntouchedPlaceholder({
+				title: 'HE FUMBLED ME',
+				items: [{ number: 1, label: 'IN THIS ECONOMY' }]
+			})
+		).toBe(false);
+	});
+
+	it('keeps a generated page that merely shares a retired title', () => {
+		// The mirror of the original bug: same title, different items. This is real
+		// generated output and must NOT be classified as an untouched placeholder,
+		// or the user's saved preview disappears and their actions stay disabled.
+		expect(
+			isUntouchedPlaceholder({
+				title: "I DON'T ACT",
+				items: [
+					{ number: 1, label: 'SOMETHING HE ACTUALLY DID' },
+					{ number: 2, label: 'WHAT IT COST HIM' }
+				]
+			})
+		).toBe(false);
+	});
+
+	it('does not match a placeholder title with the wrong number of items', () => {
+		expect(isUntouchedPlaceholder({ title: "I DON'T ACT", items: [] })).toBe(false);
 	});
 
 	it('keeps the current placeholder in the historical list', () => {
-		expect(PLACEHOLDER_PAGE_TITLES).toContain(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
+		expect(PLACEHOLDER_SHAPES.map((shape) => shape.title)).toContain(
+			DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+		);
 	});
 
-	it('retains every previously shipped placeholder title', () => {
-		// Dropping one of these silently reintroduces the bug for anyone whose
-		// autosaved draft predates the change.
-		expect(PLACEHOLDER_PAGE_TITLES).toContain("I DON'T ACT");
-		expect(PLACEHOLDER_PAGE_TITLES).toContain('IN THIS ECONOMY');
+	it('retains every previously shipped placeholder', () => {
+		// Dropping one silently reintroduces the bug for anyone whose autosaved
+		// draft predates the change.
+		const titles = PLACEHOLDER_SHAPES.map((shape) => shape.title);
+		expect(titles).toContain("I DON'T ACT");
+		expect(titles).toContain('IN THIS ECONOMY');
 	});
 });
