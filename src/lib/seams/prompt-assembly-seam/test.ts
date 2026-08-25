@@ -38,13 +38,14 @@ describe('PromptAssemblySeam contract', () => {
 		expect(output).toEqual(promptAssemblyTitleOnlyFixture.output);
 	});
 
-	it('does not advertise an absent secondary exact-text line', async () => {
-		const output = await promptAssemblyAdapter.assemble(promptAssemblyTitleOnlyFixture.input);
-		expect(output.ok).toBe(true);
-		if (!output.ok) {
-			throw new Error(output.error.message);
+	it('places typography directly after a title with no secondary line', async () => {
+		const result = await promptAssemblyAdapter.assemble(promptAssemblyTitleOnlyFixture.input);
+		if (!result.ok) {
+			throw new Error(result.error.message);
 		}
-		expect(output.value.prompt).not.toContain('[Secondary line EXACT — omit if none.]');
-		expect(output.value.prompt).toContain('Dream Big\nTYPOGRAPHY:');
+		const promptLines = result.value.prompt.split('\n');
+		const titleIndex = promptLines.indexOf('Dream Big');
+		expect(promptLines.slice(titleIndex, titleIndex + 2)).toEqual(['Dream Big', 'TYPOGRAPHY:']);
+		expect(promptLines).not.toContain('[Secondary line EXACT — omit if none.]');
 	});
 });

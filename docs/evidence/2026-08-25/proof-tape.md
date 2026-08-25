@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-08-25T00:36:01.306Z
+Generated at: 2026-08-25T00:43:19.231Z
 Evidence folder: docs/evidence/2026-08-25
 
 Files included:
@@ -16,7 +16,7 @@ Files included:
 - clan-chain.md (1418 bytes)
 - proof-tape.json (3040 bytes)
 - proof-tape.md (975 bytes)
-- rewind-PromptAssemblySeam.txt (374 bytes)
+- rewind-PromptAssemblySeam.txt (376 bytes)
 - seam-ledger.json (26323 bytes)
 - seam-ledger.md (2168 bytes)
 - shaolin-lint.json (519 bytes)
