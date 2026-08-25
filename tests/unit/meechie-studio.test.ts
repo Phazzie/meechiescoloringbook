@@ -17,6 +17,15 @@ import {
 import { meechieVoicePack } from '../../src/lib/seams/meechie-voice-seam/voice-pack';
 
 describe('Meechie studio controls', () => {
+	// The default preview used to quote a line that was never in the voice pack. When ten
+	// fabricated lines were removed by owner ruling on 2026-08-25, the default broke — it had
+	// been showing invented Meechie to every visitor before they generated anything. This
+	// binds the two together so a removed line can never silently become the shipped default.
+	it('default preview quote is a real line from the voice pack', () => {
+		const packLines = meechieVoicePack.responses.quotes.map((q) => q.text);
+		expect(packLines).toContain(DEFAULT_STUDIO_TEXT_OUTPUT.quote);
+	});
+
 	it('starts the preview with owner-approved Meechie quote text and no battery placeholder', () => {
 		const previewText = [
 			DEFAULT_STUDIO_TEXT_OUTPUT.verdict,
@@ -26,9 +35,9 @@ describe('Meechie studio controls', () => {
 		].join(' ');
 
 		expect(DEFAULT_STUDIO_TEXT_OUTPUT.quote).toBe(
-			'He said I act like I run the place. I don\'t act.'
+			'You should have fucked the landlord, not the dopeman.'
 		);
-		expect(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle).toBe('I DON\'T ACT');
+		expect(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle).toBe('THE LANDLORD');
 		// The preview must never show wording that was ruled out of the voice.
 		expect(meechieVoicePack.responses.quotes.map((quote) => quote.text)).toContain(
 			DEFAULT_STUDIO_TEXT_OUTPUT.quote

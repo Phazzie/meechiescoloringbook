@@ -13,12 +13,6 @@ Loading svelte-check in workspace: <REPO_ROOT>
 Getting Svelte diagnostics...
 
 svelte-check found 0 errors and 0 warnings
-npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
-npm notice
-npm notice New major version of npm available! 11.9.0 -> 12.0.2
-npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
-npm notice To update run: npm install -g npm@12.0.2
-npm notice
 
 $ npm test -- --pool=forks --maxWorkers=1
 
@@ -26,20 +20,14 @@ $ npm test -- --pool=forks --maxWorkers=1
 > vitest run --pool=forks --maxWorkers=1
 
 
- RUN  v4.1.0 <REPO_ROOT>
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
 
 
- Test Files  63 passed | 1 skipped (64)
-      Tests  577 passed | 1 skipped (578)
-   Start at  20:18:18
-   Duration  42.77s (transform 2.02s, setup 530ms, import 3.54s, tests 1.24s, environment 28.42s)
+[2m Test Files [22m [1m[32m63 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (64)[39m
+[2m      Tests [22m [1m[32m578 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (579)[39m
+[2m   Start at [22m 06:06:30
+[2m   Duration [22m 52.31s[2m (transform 2.16s, setup 578ms, import 3.95s, tests 1.45s, environment 36.14s)[22m
 
-npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
-npm notice
-npm notice New major version of npm available! 11.9.0 -> 12.0.2
-npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
-npm notice To update run: npm install -g npm@12.0.2
-npm notice
