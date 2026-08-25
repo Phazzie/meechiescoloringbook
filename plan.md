@@ -45,7 +45,7 @@ Current active plan is listed first. Older dated entries remain below as histori
 - Constraints:
   - Preserve the concurrent own-line prompt representation because it accepts embedded quotes without ambiguous quote delimiters and is backed by a traceable live prompt/result/image record whose missing original transport envelope is stated explicitly.
   - Apply a single-line printable-text boundary and the established 96-character route-title limit so newlines/control characters cannot split the prompt while embedded quotes, slashes, and compact tool titles remain valid.
-  - Keep SpecValidation's root contract and flat adapter as compatibility re-exports of the self-contained canonical seam so review repairs have one implementation and do not fail duplication gates.
+  - Keep the root SpecValidation contract authoritative; make the self-contained contract a compatibility re-export and the flat adapter an alias of the self-contained canonical adapter so layering stays outward and review repairs have one implementation.
   - Disable all automatic provider chat retries, including delayed `429`/`5xx` responses, because a second 110-second billable attempt cannot be guaranteed to finish inside the shortest 120-second browser budget; shared retry behavior remains available to other callers.
   - Share provider-message identifier redaction with the plain-Node fixture probe so refreshing evidence cannot recommit account identifiers; preserve the `defaultImageSize` schema default and do not restore the unrelated inactive `MAX_IMAGES_PER_REQUEST` example.
   - Delete and gitignore `.claude/settings.local.json`, remove the broad auto-merge rule, and change the handoff to record the explicit merge hold.

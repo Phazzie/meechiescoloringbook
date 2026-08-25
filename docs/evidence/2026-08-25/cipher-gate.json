@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-08-25T03:40:18.467Z",
+  "generatedAt": "2026-08-25T03:53:54.412Z",
   "cipher": {
     "date": "2026-08-25",
     "seams": "ProviderAdapterSeam, PromptAssemblySeam, SpecValidationSeam, AppConfigSeam, DriftDetectionSeam, ImageGenerationSeam",
@@ -102,9 +102,9 @@
         "exists": true
       }
     ],
-    "summary": "Reconciled every reviewed PR #228 repair on the concurrent head: one-attempt provider chat with shared identifier redaction, schema-defaulted image size, injection-safe exact-text prompt boundaries, strict nonblank/single-line title and label validation, a single canonical SpecValidation implementation behind legacy compatibility exports, regenerated prompt/drift/image fixtures, and truthful live/replay evidence, while removing unrelated permission and merge-authority changes.",
+    "summary": "Reconciled every reviewed PR #228 repair on the concurrent head: one-attempt provider chat with shared identifier redaction, schema-defaulted image size, injection-safe exact-text prompt boundaries, strict nonblank/single-line title and label validation, one root-layer SpecValidation contract plus one self-contained canonical adapter behind compatibility exports, regenerated prompt/drift/image fixtures, and truthful live/replay evidence, while removing unrelated permission and merge-authority changes.",
     "risks": "The authenticated strict-schema probe does not prove the deployed full Meechie payload, so that assumption remains open. The preserved live JPEG exists only in the current remote tree; publication must descend from head `4c29e0f`, preserve blob `834250d967273dc3ab61715bc94042cda8d114eb`, delete `.claude/settings.local.json`, pass current-head CI, and remain unmerged until the owner explicitly approves a merge."
   },
-  "latestChangeMs": 1787629034793.6233,
+  "latestChangeMs": 1787629897817.593,
   "status": "ok"
 }

@@ -8,5 +8,5 @@
 
  Test Files  1 passed (1)
       Tests  13 passed (13)
-   Start at  20:38:58
-   Duration  695ms (transform 101ms, setup 36ms, import 96ms, tests 9ms, environment 416ms)
+   Start at  20:52:42
+   Duration  691ms (transform 101ms, setup 50ms, import 85ms, tests 10ms, environment 419ms)

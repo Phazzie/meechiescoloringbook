@@ -14,11 +14,6 @@ Getting Svelte diagnostics...
 
 svelte-check found 0 errors and 0 warnings
 npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
-npm notice
-npm notice New major version of npm available! 11.9.0 -> 12.0.2
-npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
-npm notice To update run: npm install -g npm@12.0.2
-npm notice
 
 $ npm test -- --pool=forks --maxWorkers=1
 
@@ -31,8 +26,8 @@ $ npm test -- --pool=forks --maxWorkers=1
 
  Test Files  63 passed | 1 skipped (64)
       Tests  570 passed | 1 skipped (571)
-   Start at  20:39:27
-   Duration  39.66s (transform 1.69s, setup 458ms, import 3.01s, tests 1.28s, environment 26.64s)
+   Start at  20:53:05
+   Duration  40.71s (transform 2.38s, setup 454ms, import 4.18s, tests 1.25s, environment 26.61s)
 
 npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
