@@ -10,16 +10,20 @@ import { MeechieToolResultSchema } from '../../contracts/meechie-tool.contract';
 
 const featureEnabled = process.env.FEATURE_INTEGRATION_TESTS === 'true';
 const hasApiKey = Boolean(process.env.XAI_API_KEY);
-const runTest = featureEnabled && hasApiKey;
+// skipIf rather than an empty placeholder test: a bodyless it.skip has no assertion
+// and reads as an ignored test rather than a conditional one.
+const skipLive = !(featureEnabled && hasApiKey);
 
 describe('MeechieToolSeam integration', () => {
-	if (runTest) {
-		it('returns contract-valid output for every prompt-driven tool', async () => {
+	it.skipIf(skipLive)(
+		'returns contract-valid output for every prompt-driven tool',
+		async () => {
 			const inputs = [
 				{ toolId: 'random_meechie' } as const,
 				{
 					toolId: 'red_flag_or_run',
-					situation: 'He said he was working late but his location was live at her apartment.'
+					situation:
+						'He said he was working late but his location was live at her apartment.'
 				} as const,
 				{ toolId: 'rate_excuse', excuse: 'My alarm did not go off.' } as const
 			];
@@ -31,21 +35,26 @@ describe('MeechieToolSeam integration', () => {
 				if (!result.ok) continue;
 				expect(result.value.response.length).toBeGreaterThan(0);
 			}
-		}, 120_000);
+		},
+		120_000
+	);
 
-		it('does not echo a canon line back verbatim', async () => {
+	it.skipIf(skipLive)(
+		'does not echo a canon line back verbatim',
+		async () => {
 			// The prompt says to learn the voice from these lines, not copy them. With
 			// only ten examples left the pull toward quoting them directly is stronger,
 			// so this is worth asserting against the live provider rather than assuming.
-			const result = await meechieToolAdapter.respond({ toolId: 'random_meechie' });
+			const result = await meechieToolAdapter.respond({
+				toolId: 'random_meechie'
+			});
 			expect(result.ok).toBe(true);
 			if (!result.ok) return;
 			const copied = meechieVoicePack.responses.quotes.filter((quote) =>
 				result.value.response.includes(quote.text)
 			);
 			expect(copied.map((quote) => quote.id)).toEqual([]);
-		}, 120_000);
-	} else {
-		it.skip('skipped: set FEATURE_INTEGRATION_TESTS=true and XAI_API_KEY', () => {});
-	}
+		},
+		120_000
+	);
 });
