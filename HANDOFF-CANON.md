@@ -1,3 +1,10 @@
+<!--
+Purpose: Carry the Meechie canon work and the unstarted rebuild across a context reset.
+Why: The session that produced PR #227 and #230 ran out of context; without this a fresh
+     session re-derives the owner's rulings, the app inventory, and the known traps.
+Info flow: prior session findings -> this handoff -> next session's first actions.
+-->
+
 # Handoff — Meechie canon + rebuild
 
 Written 2026-08-25. Previous session hit context limits. Read this first.
@@ -59,12 +66,23 @@ The actual ask, from the top of the session. **None of this is done.**
 - **Base theme only** — no theme picker, keep the dark-glam look
 - Owner said "lets work on the current repo for a bit" (was going to be a new repo)
 
-On architecture, owner asked: "is there a way to keep the best parts of seam driven
-development without it being so cumbersome?" Answer given and accepted implicitly:
-keep typed boundaries + offline mocks + one-file-per-dependency; drop the ceremony
-(8 verify scripts, Cipher Gate entries, evidence freshness rules, 6-file seams).
-Rule of thumb offered: something is a seam only if it crosses a process boundary
-(network, disk, clock, randomness, browser storage).
+### PENDING PROPOSAL ON ARCHITECTURE — NOT APPROVED, DO NOT ACT ON IT
+
+The owner ASKED: "is there a way to keep the best parts of seam driven development
+without it being so cumbersome?" The previous session answered with a proposal and
+then wrote it into this handoff as "accepted implicitly." **It was not accepted.**
+The owner asked a question and never gave an answer. Recorded here as an open
+question only.
+
+The proposal: keep typed boundaries, offline mocks, and one-file-per-dependency;
+drop the ceremony (8 verify scripts, Cipher Gate entries, evidence-freshness
+rules, 6-file seam folders). Suggested rule: something is a seam only if it
+crosses a process boundary (network, disk, clock, randomness, browser storage).
+
+**Until the owner explicitly changes repo governance, AGENTS.md and
+src/lib/seams/AGENTS.md remain in force and the full workflow applies.** That
+matters immediately: the rebuild touches network, storage, and adapters. Ask the
+owner before following any of the above.
 
 **Features to strip in the rebuild:** wig try-on (+ catalog, selfie upload), the
 11-tool Meechie toolkit at `/meechie`, the 8-mode rotation, standalone mode pages
@@ -144,7 +162,12 @@ to the rebuild in §2; without it the next session has to re-derive it.
 
 ## 3. REPO STATE
 
-- Branch `claude/app-features-inventory-hrticr`, head `12baead`, **working tree clean**
+- Branch `claude/app-features-inventory-hrticr`
+- **Do NOT trust any commit SHA in this document.** The branch moved several times
+  while this file was being written, and a stale SHA can send you to validate the
+  wrong revision. Run `git log --oneline -5` and `git status`, and re-read PR
+  #230's CI and mergeable_state, before validating anything. Every SHA below is
+  historical context, not current state.
 - `origin/main` at `b8de819`
 - **PR #227 — MERGED.** Cut the voice to 20 lines, killed 3 drifted lists.
 - **PR #230 — OPEN, all 10 checks green, mergeable_state clean.** Cuts to the 10 above.
