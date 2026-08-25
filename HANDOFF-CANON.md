@@ -2,6 +2,16 @@
 
 Written 2026-08-25. Previous session hit context limits. Read this first.
 
+## >> FIRST ACTION: SHOW THE OWNER THE CANON LIST <<
+
+The owner's standing request across several turns was to see the voice lines,
+numbered, so they can verify them. They cut the list twice by referring to
+entries **by number**. Open the session by printing §1 as a numbered 1-10 list
+read from `voice-pack.ts` — not from this document, so it reflects the code.
+
+Then state plainly what has NOT been done: the rebuild in §2 has not been
+started, and the findings in §3 are unfixed.
+
 ---
 
 ## 1. THE CANON — 10 lines, ruled by the owner, wording is final
@@ -276,6 +286,52 @@ bit") without quoting it. Expected when 10 examples pull harder than 20. Watch i
   newer findings (§3) have no reply at all. Thread IDs are not recorded here —
   fetch them with `pull_request_read` method `get_review_comments` (use the
   `after` cursor for pagination; the `page` parameter is ignored).
+
+---
+
+## 6c. VERIFY THESE — do not take the previous session's word
+
+That session twice made claims its artifacts did not support (a stale red-proof
+file, a test that reported passing without running). Treat every number below as
+a claim to re-check, not a fact.
+
+- **Re-run the suite yourself.** "548 passing" and "7 live integration tests"
+  are reported, not re-verified after the last commits. `npm test`,
+  `npm run check`, `npm run lint`, and
+  `FEATURE_INTEGRATION_TESTS=true npm run test:integration`.
+- **Audit DECISIONS.md against the evidence files.** This is the exact pattern
+  that failed twice: a Cipher Gate claiming a red proof whose output is not in
+  the referenced artifact. Open each file named in an Evidence line and confirm
+  it contains what the entry says it does.
+- **Confirm the four §3 findings are still unfixed.** They were verified by
+  reading the cited code, NOT by running anything.
+- **Re-check PR #230 CI and mergeable_state.** main moved once mid-review
+  (#229) and left the PR dirty with no webhook warning. It can happen again.
+- **Verify `tone.samples` is genuinely derived** from `responses.quotes` in
+  `voice-pack.ts` rather than trusting this document.
+- **The api-generate timeout being environmental** was established by stashing
+  and re-running on a clean base checkout. Redo that before repeating the claim.
+
+## 6d. KNOWN-SHAKY — may need fixing, none of it started
+
+- The four findings in §3, including a test that reports FALSE GREEN.
+- **Mirrored contracts**: `contracts/*.contract.ts` and
+  `src/lib/seams/*/contract.ts` are byte-identical apart from import paths. Any
+  future change touching BOTH trips the SonarCloud duplication gate. Collapsing
+  the mirror is the real fix; the previous session judged it out of scope twice
+  and it remains undone.
+- **`probe.ts` files are `export {}` stubs.** `src/lib/seams/AGENTS.md` §1 lists
+  `probe.ts` as a required artifact holding "the real-world probe code". The
+  real probes now live in `tests/integration/` instead. The reviewer raised
+  this; the previous session proposed moving them but never got an answer.
+  Unresolved either way.
+- **`tests/unit/api-generate.test.ts` is not hermetic.** It asserts the endpoint
+  is transport-thin but reaches real network code to do it. Making it hermetic
+  was offered as a separate change and never opened. That is the root fix for
+  the timeout; raising the timeout was declined as scope-widening.
+- **`docs/evidence/2026-08-25/` holds both hand-written `canon-ten-*.txt` files
+  and script-generated `rewind-*.txt` files.** Four redundant copies were
+  deleted once; check for more before adding any.
 
 ---
 
