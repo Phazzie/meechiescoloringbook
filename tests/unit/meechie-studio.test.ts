@@ -12,6 +12,8 @@ import {
 	consumeStudioActionBudget,
 	getStudioAction,
 	getStudioTextAction,
+	isPlaceholderPageTitle,
+	PLACEHOLDER_PAGE_TITLES,
 	studioModes
 } from '../../src/lib/core/meechie-studio';
 import { meechieVoicePack } from '../../src/lib/seams/meechie-voice-seam/voice-pack';
@@ -203,5 +205,35 @@ describe('Meechie studio controls', () => {
 		expect(restored.pageTitle).toBe('LEGACY TITLE');
 		expect(restored.pageItems.map((item) => item.label)).toEqual(['LEGACY ITEM', 'SECOND ITEM']);
 		expect(restored.quote).toBe('LEGACY TITLE');
+	});
+});
+
+// Regression guard for the placeholder-sentinel bug: the studio decides whether a
+// saved draft holds real generated wording by looking at its page title. If that
+// check compares against only the CURRENT placeholder, then every time the
+// placeholder changes, older untouched drafts start looking generated and the
+// studio restores retired wording as though the user had produced it.
+describe('placeholder page titles', () => {
+	it('recognises the current placeholder', () => {
+		expect(isPlaceholderPageTitle(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle)).toBe(true);
+	});
+
+	it.each(PLACEHOLDER_PAGE_TITLES)('recognises the shipped placeholder %s', (title) => {
+		expect(isPlaceholderPageTitle(title)).toBe(true);
+	});
+
+	it('does not treat generated wording as a placeholder', () => {
+		expect(isPlaceholderPageTitle('HE FUMBLED ME')).toBe(false);
+	});
+
+	it('keeps the current placeholder in the historical list', () => {
+		expect(PLACEHOLDER_PAGE_TITLES).toContain(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
+	});
+
+	it('retains every previously shipped placeholder title', () => {
+		// Dropping one of these silently reintroduces the bug for anyone whose
+		// autosaved draft predates the change.
+		expect(PLACEHOLDER_PAGE_TITLES).toContain("I DON'T ACT");
+		expect(PLACEHOLDER_PAGE_TITLES).toContain('IN THIS ECONOMY');
 	});
 });

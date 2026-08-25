@@ -12,7 +12,7 @@
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
  [31m❯[39m tests/unit/api-generate.test.ts [2m([22m[2m12 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 5029[2mms[22m[39m
-[31m     [31m×[31m keeps the endpoint parse and input guards transport-thin[39m[33m 5006[2mms[22m[39m
+[31m     [31m×[31m keeps the endpoint parse and input guards transport-thin[39m[33m 5005[2mms[22m[39m
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 
 [31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
@@ -31,8 +31,8 @@ If this is a long-running test, pass a timeout value as the last argument or con
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
 
 
-[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m61 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (63)[39m
-[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m532 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (534)[39m
-[2m   Start at [22m 01:00:14
-[2m   Duration [22m 20.98s[2m (transform 2.42s, setup 528ms, import 4.13s, tests 15.55s, environment 32.32s)[22m
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m61 passed[39m[22m[2m | [22m[33m2 skipped[39m[90m (64)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m539 passed[39m[22m[2m | [22m[33m2 skipped[39m[90m (542)[39m
+[2m   Start at [22m 01:24:12
+[2m   Duration [22m 21.70s[2m (transform 2.70s, setup 587ms, import 4.52s, tests 14.77s, environment 34.47s)[22m
 

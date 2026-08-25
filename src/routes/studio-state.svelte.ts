@@ -16,6 +16,7 @@ import {
 	canRunStudioAction,
 	consumeStudioActionBudget,
 	getStudioTextAction,
+	isPlaceholderPageTitle,
 	getMonthlyMode,
 	getWeeklyModes,
 	studioThemes,
@@ -652,10 +653,11 @@ export class StudioState {
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;
 			this.border = draft.value.intent.border;
-			if (
-				draft.value.studioText ||
-				draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
-			) {
+			// Only restore textOutput when the draft holds real generated wording.
+			// Checked against every placeholder title we have ever shipped, not just
+			// the current one, so changing the placeholder does not make older
+			// untouched drafts look generated and resurrect retired wording.
+			if (draft.value.studioText || !isPlaceholderPageTitle(draft.value.intent.title)) {
 				this.textOutput = buildStudioTextFromDraftRecord(draft.value);
 			}
 		}

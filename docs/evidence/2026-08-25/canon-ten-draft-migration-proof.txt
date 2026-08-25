@@ -1,0 +1,43 @@
+# Purpose: Prove the placeholder-title regression guard actually fails when the bug is present.
+# Why: A guard that cannot go red proves nothing; this records the red state and the fix.
+# Info flow: isPlaceholderPageTitle narrowed to the current sentinel -> vitest red -> restored -> green.
+
+THE BUG (found by Codex review on 38f1069)
+------------------------------------------
+src/routes/studio-state.svelte.ts decided whether a saved draft held real
+generated wording with:
+
+    draft.value.studioText || draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+
+That compares against the CURRENT placeholder only. This PR changes the
+placeholder title from "I DON'T ACT" to "NOT EVEN A LITTLE BIT", so for any
+returning user holding an autosaved draft they never generated into, the
+comparison flips to true and the studio reconstructs textOutput from the draft's
+intent — surfacing "He said I act like I run the place. I don't act." and its
+page items as though the user had generated them, and letting them be exported.
+That is wording this PR removes from the canon.
+
+Not limited to this change: PR #227 moved the placeholder from "IN THIS ECONOMY"
+to "I DON'T ACT" and had the same latent flaw. Any future placeholder change
+would repeat it.
+
+THE FIX
+-------
+PLACEHOLDER_PAGE_TITLES lists every page title the placeholder has ever shipped
+with, and isPlaceholderPageTitle() tests membership instead of equality against
+the current one.
+
+RED PROOF
+---------
+Narrowed isPlaceholderPageTitle back to comparing only the current placeholder,
+which is the pre-fix behaviour. Expectation: the historical-title cases go red.
+
+     × recognises the shipped placeholder I DON'T ACT 5ms
+     × recognises the shipped placeholder IN THIS ECONOMY 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  2 failed | 15 passed (17)
+
+RESTORED — membership check back in place. Expectation: green.
+ Test Files  1 passed (1)
+      Tests  17 passed (17)

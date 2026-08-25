@@ -1,0 +1,67 @@
+# Purpose: Record a live xAI probe of the ten-line prompt for MeechieToolSeam.
+# Why: The voice pack IS the system prompt for every Meechie tool call, so halving it
+#      changes live provider behaviour. Contract tests use mocks and cannot see that.
+# Info flow: tool input -> live provider via meechieToolAdapter -> contract validation
+#            + verbatim-echo check -> this record.
+
+Command:
+  FEATURE_INTEGRATION_TESTS=true npm run test:integration
+Result:
+  Test Files  1 passed | 1 skipped (2)
+  Tests       2 passed | 1 skipped (3)     Duration 33.18s
+
+voice pack v5 — 10 lines in the system prompt
+
+--- random_meechie ---
+contract-valid: true
+headline: Random Meechie
+response: Your cousin keep posting about her new man for the holidays, but she know he
+          was mine first. One more picture and she gon' be spending New Year's learning
+          how to walk again.
+echoes a canon line verbatim: no
+
+--- red_flag_or_run ---
+contract-valid: true
+headline: Run. He's Lying.
+response: Fault: Lying about working late. Consequence: Location pins him at her
+          apartment so he's cheating. Access decision: don't open the door even a
+          little bit.
+echoes a canon line verbatim: no
+
+--- rate_excuse ---
+contract-valid: true
+headline: 2/10
+rating: 2/10
+response: My alarm didn't go off? Bitch you was up all night with that no-good nigga and
+          didn't set the shit. That weak excuse cost you your job and your last bit of
+          credibility.
+echoes a canon line verbatim: no
+
+READING THE RESULT
+------------------
+All three tools return contract-valid output against the shortened prompt, and none
+copies a canon line verbatim, which is what the prompt asks ("learn the voice from
+these, do not copy verbatim").
+
+One observation worth recording rather than glossing: the red_flag_or_run response
+ends "don't open the door even a little bit", which is the `the-door` line's phrasing
+without being that line. The verbatim check passes because it is not the full string.
+With ten examples instead of twenty, each one exerts more pull, and borrowed phrasing
+is the expected shape of that. It is not a defect and nothing here asserts against it,
+but it is the measurable effect of the cut and should be watched rather than assumed
+away.
+
+HARNESS NOTE
+------------
+`npm run test:integration` could not run at all before this change: every integration
+test failed at import because vitest.integration.config.ts has no SvelteKit plugin and
+so could not resolve `$env/dynamic/private`, which real adapters import. That was true
+on main, independent of this PR, and it meant the probe the seam rules require was not
+runnable. Fixed by aliasing `$env/dynamic/private` and `$lib` in that config.
+
+Un-blocking imports also made tests/integration/image-generation-seam.test.ts execute
+for the first time, where it failed with IMAGE_CONFIG_ERROR: it gated on XAI_API_KEY
+alone, but AppConfigSeam requires the full xAI config (text model, image model, base
+URL, endpoint path, default size), which is not set in this container. It now gates on
+all of them and skips when unconfigured instead of failing. Its ImageGenerationSeam
+behaviour is untouched and unverified here — that seam is outside this change.

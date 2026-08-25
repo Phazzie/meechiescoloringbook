@@ -6,10 +6,21 @@ import { createAppConfigSeam } from '../../src/lib/adapters/app-config-seam';
 import { createImageGenerationSeam } from '../../src/lib/adapters/image-generation-seam';
 
 const featureEnabled = process.env.FEATURE_INTEGRATION_TESTS === 'true';
-const hasApiKey = Boolean(process.env.XAI_API_KEY);
+// AppConfigSeam requires the full xAI config, not just the key. Gating on the key
+// alone let this test run half-configured and fail with IMAGE_CONFIG_ERROR instead
+// of skipping, which only became visible once the integration harness could resolve
+// its imports at all.
+const hasImageConfig = [
+	'XAI_API_KEY',
+	'XAI_TEXT_MODEL',
+	'XAI_IMAGE_MODEL',
+	'XAI_BASE_URL',
+	'XAI_IMAGE_ENDPOINT_PATH',
+	'DEFAULT_IMAGE_SIZE'
+].every((name) => Boolean(process.env[name]));
 
 describe('ImageGenerationSeam integration', () => {
-  const runTest = featureEnabled && hasApiKey;
+  const runTest = featureEnabled && hasImageConfig;
 
   if (runTest) {
     it('generates an image via xAI and returns a Result', async () => {
