@@ -174,7 +174,10 @@ describe('provider-adapter probe truthfulness', () => {
 									model: 'grok-4.6',
 									choices: [{ message: { content: '{"status":"OK"}' } }]
 								}
-							: { error: 'bad text model' }
+							: {
+									error:
+										'bad text model for team 3b93d791-c9bb-49e5-a6f7-da40d956241a'
+								}
 					);
 					return;
 				}
@@ -184,7 +187,7 @@ describe('provider-adapter probe truthfulness', () => {
 					imageCalls === 1 ? 200 : 400,
 					imageCalls === 1
 						? { data: [{ b64_json: 'image-bytes' }] }
-						: { error: 'bad image model' }
+						: { error: 'bad image model for key sk-1234567890abcdefghijkl' }
 				);
 			},
 			async (baseUrl) => {
@@ -222,6 +225,13 @@ describe('provider-adapter probe truthfulness', () => {
 					ok: false,
 					error: { code: 'PROVIDER_HTTP_ERROR' }
 				});
+				const serializedFault = JSON.stringify(fault);
+				expect(serializedFault).toContain('[redacted-id]');
+				expect(serializedFault).toContain('[redacted-key]');
+				expect(serializedFault).not.toContain(
+					'3b93d791-c9bb-49e5-a6f7-da40d956241a'
+				);
+				expect(serializedFault).not.toContain('sk-1234567890abcdefghijkl');
 			}
 		);
 	});

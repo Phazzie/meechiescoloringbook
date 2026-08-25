@@ -6,6 +6,7 @@ Info flow: xAI responses -> normalized seam outputs -> fixtures/provider-adapter
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { IMAGE_MODEL, TEXT_MODEL } from '../src/lib/core/models.js';
+import { redactProviderMessage } from '../src/lib/core/provider-message-redaction.js';
 
 const cwd = process.cwd();
 
@@ -91,10 +92,11 @@ const readProviderMessage = (payload) => {
 };
 
 const buildError = (response, payload) => {
-	const message =
+	const rawMessage =
 		readProviderMessage(payload) ||
 		response.statusText ||
 		`Request failed with status ${response.status}`;
+	const message = redactProviderMessage(rawMessage);
 	return {
 		ok: false,
 		error: {

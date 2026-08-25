@@ -43,16 +43,22 @@ export const PromptAssemblyExecutionSchema = z
 			textHeadingIndex,
 			textHeadingIndex + expectedTextBlock.length
 		);
-		const secondaryInstructions = countExactLines(promptLines, SECONDARY_INSTRUCTION);
+		const expectedControlLineCounts: Array<[string, number]> = [
+			[TEXT_HEADING, 1],
+			[HEADLINE_INSTRUCTION, 1],
+			[SECONDARY_INSTRUCTION, secondaryLine ? 1 : 0],
+			[TEXT_TERMINATOR, 1],
+			[TYPOGRAPHY_HEADING, 1]
+		];
 		const hasExactBoundary =
 			textHeadingIndex >= 0 &&
 			actualTextBlock.every(
 				(line, index) => line === expectedTextBlock[index]
 			) &&
 			actualTextBlock.length === expectedTextBlock.length &&
-			countExactLines(promptLines, HEADLINE_INSTRUCTION) === 1 &&
-			countExactLines(promptLines, TEXT_TERMINATOR) === 1 &&
-			secondaryInstructions === (secondaryLine ? 1 : 0);
+			expectedControlLineCounts.every(
+				([line, count]) => countExactLines(promptLines, line) === count
+			);
 
 		if (!hasExactBoundary) {
 			context.addIssue({

@@ -10,6 +10,8 @@ import {
 	imageGenerationRequestFixture,
 	imageGenerationFaultFixture
 } from '../../src/lib/seams/image-generation-seam/fixtures';
+import { ImageGenerationInputSchema } from '../../contracts/image-generation.contract';
+import promptBoundaryLiveRequest from '../../docs/evidence/2026-08-25/prompt-boundary-live-request.json';
 
 const mockConfigSeam: AppConfigSeam = {
 	getConfig: () => ({
@@ -54,6 +56,10 @@ afterEach(() => {
 });
 
 describe('ImageGenerationSeam contract', () => {
+	it('keeps the documented prompt-boundary replay request schema-valid', () => {
+		expect(() => ImageGenerationInputSchema.parse(promptBoundaryLiveRequest)).not.toThrow();
+	});
+
 	it('mock returns sample fixture output', async () => {
 		const mock = createMockImageGenerationSeam('sample');
 		const output = await mock.generate(imageGenerationRequestFixture);

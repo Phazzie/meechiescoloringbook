@@ -6,6 +6,7 @@ import type {
 	PromptAssemblyOutput,
 	PromptAssemblySeam
 } from '../../seams/prompt-assembly-seam/contract';
+import { PromptAssemblyInputSchema } from '../../seams/prompt-assembly-seam/contract';
 import type { Result } from '../../../../contracts/shared.contract';
 import {
 	BASE_PAGE_PHRASE,
@@ -59,7 +60,7 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 		spec.listMode === 'list'
 			? `List items: ${listItems} (Gutter: ${spec.listGutter}).`
 			: 'No list.';
-	// The drawable text is quoted and explicitly terminated. Previously this block emitted
+	// The drawable text is instruction-bound and explicitly terminated. Previously this block emitted
 	// '[Secondary line EXACT — omit if none.]' unconditionally while the value below it was
 	// conditional, so a spec with no footerItem left an empty slot and the image model drew
 	// the next physical line — the literal label 'TYPOGRAPHY:' — as the page's second line.
@@ -126,12 +127,22 @@ export const promptAssemblyAdapter: PromptAssemblySeam = {
 	assemble: async (
 		input: PromptAssemblyInput
 	): Promise<Result<PromptAssemblyOutput>> => {
-		const normalizedInput: PromptAssemblyInput = input.styleHint
-			? {
-					...input,
-					styleHint: input.styleHint.replace(/\s+/g, ' ').trim() || undefined
+		const parsedInput = PromptAssemblyInputSchema.safeParse(input);
+		if (!parsedInput.success) {
+			return {
+				ok: false,
+				error: {
+					code: 'PROMPT_INPUT_INVALID',
+					message: 'Prompt assembly input is invalid.'
 				}
-			: input;
+			};
+		}
+		const normalizedInput: PromptAssemblyInput = parsedInput.data.styleHint
+			? {
+					...parsedInput.data,
+					styleHint: parsedInput.data.styleHint.replace(/\s+/g, ' ').trim() || undefined
+				}
+			: parsedInput.data;
 		if (normalizedInput.styleHint) {
 			if (includesReservedHeading(normalizedInput.styleHint)) {
 				return {

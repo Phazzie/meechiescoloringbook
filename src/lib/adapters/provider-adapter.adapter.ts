@@ -11,6 +11,7 @@ import type {
 import type { Result, SeamError } from '../../../contracts/shared.contract';
 import { env } from '$env/dynamic/private';
 import { fetchWithTimeout, fetchWithRetry, isAbortError, isTimeoutError } from '$lib/core/http-resilience';
+import { redactProviderMessage } from '$lib/core/provider-message-redaction.js';
 
 export type ProviderAdapterConfig = {
 	apiKey?: string | null;
@@ -25,13 +26,10 @@ const IMAGE_PATH = '/v1/images/generations';
 // server budget allows a slow first attempt to finish. Browser budgets remain higher.
 const CHAT_TIMEOUT_MS = 110_000;
 const IMAGE_TIMEOUT_MS = 120_000;
-const RETRY_OPTIONS = { maxAttempts: 3, baseDelayMs: 1_000 } as const;
-// Chat generations are long and a timeout there means slow, not broken. Retrying one throws
-// away a request that was still running and doubles the wait: 110s + backoff + another
-// attempt overruns the client budget in http-client.ts, so the browser reports failure for
-// work the server would have finished. Transient network errors and retryable statuses are
-// still retried; only the timeout path opts out.
-const CHAT_RETRY_OPTIONS = { ...RETRY_OPTIONS, retryOnTimeout: false } as const;
+// A provider chat POST is billable and can occupy the entire 110s attempt budget. Any retry —
+// including after a late 429/5xx response — can outlive the 120s tools browser budget and keep
+// doing duplicate work after the user sees a failure, so provider chat gets one attempt.
+const CHAT_RETRY_OPTIONS = { maxAttempts: 1, baseDelayMs: 0, retryOnTimeout: false } as const;
 
 const normalizeBaseUrl = (baseUrl: string): string => {
 	const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -93,22 +91,6 @@ const readProviderMessage = (payload: unknown): string | undefined => {
 	}
 	return undefined;
 };
-
-// Provider messages are worth surfacing — they are what turned a bare "Bad Request" into
-// "Model not found: grok-4.6-bad" — but they are returned to API clients verbatim by the
-// studio, tool and chat pipelines, and xAI embeds account identifiers in some of them
-// ("...does not exist or your team <uuid> does not have access to it"). Identifier-shaped
-// tokens are stripped so the useful sentence survives without disclosing account metadata
-// or anything key-shaped that a future provider message might carry.
-const REDACTIONS: Array<[RegExp, string]> = [
-	[/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '[redacted-id]'],
-	[/\b(?:xai|sk|key)-[A-Za-z0-9_-]{16,}/gi, '[redacted-key]'],
-	[/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[redacted-email]'],
-	[/\b[A-Fa-f0-9]{32,}\b/g, '[redacted-id]']
-];
-
-export const redactProviderMessage = (message: string): string =>
-	REDACTIONS.reduce((acc, [pattern, replacement]) => acc.replace(pattern, replacement), message);
 
 const buildHttpError = (
 	response: Response,

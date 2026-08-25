@@ -1,10 +1,62 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-08-25T02:23:01.529Z",
+  "generatedAt": "2026-08-25T03:17:57.421Z",
   "cipher": {
     "date": "2026-08-25",
-    "seams": "PromptAssemblySeam; DriftDetectionSeam; ImageGenerationSeam",
+    "seams": "ProviderAdapterSeam, PromptAssemblySeam, SpecValidationSeam, AppConfigSeam, DriftDetectionSeam, ImageGenerationSeam",
     "evidence": [
+      {
+        "path": "plan.md",
+        "exists": true
+      },
+      {
+        "path": "HANDOFF.md",
+        "exists": true
+      },
+      {
+        "path": "fixtures/provider-adapter/PROVENANCE.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/prompt-boundary-live-README.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/prompt-boundary-live-request.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/prompt-boundary-live-prompt.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/prompt-boundary-live-response.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/rewind-ProviderAdapterSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/rewind-SpecValidationSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/rewind-AppConfigSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/rewind-PromptAssemblySeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/rewind-PromptAssemblySeam(self-contained).txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-25/rewind-ImageGenerationSeam.txt",
+        "exists": true
+      },
       {
         "path": "docs/evidence/2026-08-25/verify.txt",
         "exists": true
@@ -14,17 +66,41 @@
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-08-25/proof-tape.md",
+        "path": "tests/unit/http-resilience.test.ts",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-08-25/chamber-lock.json",
+        "path": "tests/unit/provider-adapter-helpers.test.ts",
+        "exists": true
+      },
+      {
+        "path": "tests/unit/app-config-seam.test.ts",
+        "exists": true
+      },
+      {
+        "path": "tests/unit/probe-entrypoints.test.ts",
+        "exists": true
+      },
+      {
+        "path": "tests/contract/prompt-assembly.test.ts",
+        "exists": true
+      },
+      {
+        "path": "tests/contract/spec-validation.test.ts",
+        "exists": true
+      },
+      {
+        "path": "src/lib/seams/prompt-assembly-seam/test.ts",
+        "exists": true
+      },
+      {
+        "path": "src/lib/seams/spec-validation-seam/test.ts",
         "exists": true
       }
     ],
-    "summary": "Stopped the prompt template leaking its own section labels onto generated coloring pages. Drawable text is now quoted and explicitly terminated, and the three bracketed author-facing notes are gone. Verified end to end against the live image endpoint, not just by unit test: POST /api/image-generation with the new canonical prompt returned ok:true and an image whose rendered text is the headline, second line, list items and dedication only, with no section label present. The previous prompt produced a page reading \"CROWN ENERGY / TYPOGRAPHY:\".",
-    "risks": "The canonical prompt is still duplicated in seven fixtures plus `probes/image-generation.probe.mjs`, so future template changes must regenerate every consumer. Required-phrase validation was not weakened to accommodate the fix, and the legacy import path now exercises the same canonical implementation rather than a copy. The generate-route test now stubs the global image-provider boundary with guaranteed cleanup, so it cannot issue a live request or turn provider retry latency into a false unit-test failure."
+    "summary": "Reconciled every reviewed PR #228 repair on the concurrent head: one-attempt provider chat with shared identifier redaction, schema-defaulted image size, injection-safe exact-text prompt boundaries, strict nonblank/single-line title and label validation, regenerated prompt/drift/image fixtures, and truthful live/replay evidence, while removing unrelated permission and merge-authority changes.",
+    "risks": "The authenticated strict-schema probe does not prove the deployed full Meechie payload, so that assumption remains open. The preserved live JPEG exists only in the current remote tree; publication must descend from head `4c29e0f`, preserve blob `834250d967273dc3ab61715bc94042cda8d114eb`, delete `.claude/settings.local.json`, pass current-head CI, and remain unmerged until the owner explicitly approves a merge."
   },
-  "latestChangeMs": 1787624368998.443,
+  "latestChangeMs": 1787627654233.6716,
   "status": "ok"
 }

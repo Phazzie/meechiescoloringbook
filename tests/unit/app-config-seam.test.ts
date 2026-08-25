@@ -88,6 +88,13 @@ describe('AppConfigSeam adapter', () => {
 		expect(config.maxImagesPerRequest).toBe(4);
 	});
 
+	it('defaults defaultImageSize when DEFAULT_IMAGE_SIZE is absent', () => {
+		const { DEFAULT_IMAGE_SIZE: _, ...envWithout } = baseEnv;
+		const seam = createAppConfigSeam(envWithout);
+		const config = seam.getConfig();
+		expect(config.defaultImageSize).toBe('1024x1024');
+	});
+
 	it('defaults maxImagesPerRequest to 4 when MAX_IMAGES_PER_REQUEST is empty string', () => {
 		const seam = createAppConfigSeam({ ...baseEnv, MAX_IMAGES_PER_REQUEST: '' });
 		const config = seam.getConfig();

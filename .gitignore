@@ -27,6 +27,9 @@ Thumbs.db
 # Local npm cache
 .npm-cache
 
+# Machine-local agent permissions
+/.claude/settings.local.json
+
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*

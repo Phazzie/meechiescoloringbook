@@ -8,6 +8,64 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## PR #228 Concurrent-Head Reconciliation (2026-08-25)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: overwrite the concurrently updated branch with the already-tested local commit, or accept its green CI without reviewing its unrelated governance changes.
+2. Countermeasure: treat remote head `4c29e0f` as the new base, preserve its evidence-backed review repairs, remove the committed permission bypass and auto-merge instruction, and publish only after a compare-and-swap head check.
+3. Lower-debt path: keep the prompt, timeout, redaction, and AppConfig repairs in their owning seams; keep repository authority unchanged; and honor the owner's explicit merge hold independently of CI state.
+
+### Plan
+
+- Goal: reconcile the current PR #228 head without losing concurrent work, close its remaining substantive review findings, remove unrelated repository-wide authority changes, and leave the branch verified but unmerged pending explicit owner approval.
+- Exact seams: ProviderAdapterSeam, PromptAssemblySeam, SpecValidationSeam, AppConfigSeam, DriftDetectionSeam, ImageGenerationSeam.
+- Exact production paths:
+
+  - `contracts/spec-validation.contract.ts`
+  - `src/lib/seams/spec-validation-seam/contract.ts`
+  - `src/lib/adapters/spec-validation.adapter.ts`
+  - `src/lib/adapters/spec-validation-seam/index.ts`
+  - `src/lib/core/http-resilience.ts`
+  - `src/lib/core/http-client.ts`
+  - `src/lib/core/provider-message-redaction.js`
+  - `src/lib/adapters/provider-adapter.adapter.ts`
+  - `src/lib/adapters/prompt-assembly-seam/index.ts`
+  - `src/lib/seams/app-config-seam/validators.ts`
+  - `src/lib/seams/prompt-assembly-seam/validators.ts`
+- Exact fixture, test, governance, and evidence paths:
+  - `.env.example`, `.gitignore`, `AGENTS.md`, `HANDOFF.md`, `.claude/settings.local.json`
+  - `fixtures/prompt-assembly/*.json`, `fixtures/provider-adapter/{fault.json,PROVENANCE.md}`, `fixtures/drift-detection/*.json`, `fixtures/image-generation/{sample,dense-scene}.json`
+  - `probes/provider-adapter.probe.mjs`, `probes/image-generation.probe.mjs`
+  - `scripts/verify-runner.mjs`
+  - `docs/evidence/2026-08-25/prompt-boundary-live-*`
+  - `tests/unit/{http-resilience,provider-adapter-helpers,app-config-seam,probe-entrypoints}.test.ts`
+  - `tests/contract/{image-generation,prompt-assembly,spec-validation}.test.ts`, `src/lib/seams/{prompt-assembly-seam,spec-validation-seam}/test.ts`
+  - `plan.md`, `DECISIONS.md`, and regenerated `docs/evidence/2026-08-25/*`
+- Constraints:
+  - Preserve the concurrent own-line prompt representation because it accepts embedded quotes without ambiguous quote delimiters and is backed by a traceable live prompt/result/image record whose missing original transport envelope is stated explicitly.
+  - Apply a single-line printable-text boundary and the established 96-character route-title limit so newlines/control characters cannot split the prompt while embedded quotes, slashes, and compact tool titles remain valid.
+  - Disable all automatic provider chat retries, including delayed `429`/`5xx` responses, because a second 110-second billable attempt cannot be guaranteed to finish inside the shortest 120-second browser budget; shared retry behavior remains available to other callers.
+  - Share provider-message identifier redaction with the plain-Node fixture probe so refreshing evidence cannot recommit account identifiers; preserve the `defaultImageSize` schema default and do not restore the unrelated inactive `MAX_IMAGES_PER_REQUEST` example.
+  - Delete and gitignore `.claude/settings.local.json`, remove the broad auto-merge rule, and change the handoff to record the explicit merge hold.
+  - Do not merge. Do not force-push. Re-read the remote head immediately before updating it, and stop if it moved.
+- Exact commands:
+  1. `npm test -- tests/unit/http-resilience.test.ts tests/unit/provider-adapter-helpers.test.ts tests/unit/app-config-seam.test.ts tests/unit/probe-entrypoints.test.ts tests/contract/prompt-assembly.test.ts tests/contract/spec-validation.test.ts src/lib/seams/prompt-assembly-seam/test.ts src/lib/seams/spec-validation-seam/test.ts --pool=forks --maxWorkers=1`
+  2. `npm run rewind -- --seam ProviderAdapterSeam`
+  3. `npm run rewind -- --seam SpecValidationSeam`
+  4. `npm run rewind -- --seam AppConfigSeam`
+  5. `npm run rewind -- --seam PromptAssemblySeam`
+  6. `npm run rewind -- --seam "PromptAssemblySeam (self-contained)"`
+  7. `npm run rewind -- --seam ImageGenerationSeam`
+  8. `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`, `npm run cipher:gate`, `npm run assumption:alarm`, `git diff --check`
+
+### Self-Critique
+
+- What could be wrong: a green concurrent commit can still contain high-impact repository policy changes outside the reviewed product seams, while reconstructing it locally risks omitting a file that CI exercised.
+- What must be proven: the local code/fixture blobs match the current remote head before reconciliation; provider chat performs one fetch after either a timeout or retryable response; probe refreshes redact sensitive identifiers; newlines are rejected from titles while embedded quotes remain accepted; the copied environment example validates without `MAX_IMAGES_PER_REQUEST`; and all full gates pass after governance cleanup.
+- Riskiest assumption: ten seconds between the single 110-second provider attempt and the shortest 120-second browser budget is enough route overhead. If measured production overhead disproves that, increase the client budget or introduce an end-to-end deadline in a separate change.
+- Evidence that would disprove it: a remote-head race, a second provider-chat fetch, a fixture/adapter mismatch, an unredacted provider identifier after a probe refresh, a newline-bearing title reaching prompt assembly, a missing live-evidence artifact, any permission-bypass file in the final tree, or any failed focused/full verification command.
+
 ## PR #228 Review Repair and PR #227 Integration (2026-08-24)
 
 ### Shortcut Check
@@ -65,9 +123,9 @@ Current active plan is listed first. Older dated entries remain below as histori
 
 ### Review correction addendum
 
-- Review findings: prove the title-only boundary through a checked-in fault fixture and fixture-backed mock; remove the inactive `MAX_IMAGES_PER_REQUEST` example rather than widen this repair into route validation; replace duplicated legacy PromptAssemblySeam implementation with a typed re-export of the canonical adapter; and capture the actual outer `npm run verify` transcript.
+- Review findings: prove the title-only boundary through a checked-in fault fixture and fixture-backed mock; remove the inactive `MAX_IMAGES_PER_REQUEST` example rather than widen this repair into route validation; replace duplicated legacy PromptAssemblySeam implementation with a typed re-export of the canonical adapter; and keep the inner check/test transcript distinct from the outer verify chain's separately generated artifacts.
 - Additional exact file paths: `fixtures/prompt-assembly/title-only-marker-fault.json`, `src/lib/seams/prompt-assembly-seam/contract.ts`, `src/lib/seams/prompt-assembly-seam/fixtures.ts`, `src/lib/seams/prompt-assembly-seam/mock.ts`, `src/lib/seams/prompt-assembly-seam/validators.ts`, `src/lib/seams/prompt-assembly-seam/test.ts`, `src/lib/adapters/prompt-assembly.adapter.ts`, `.env.example`, `package.json`, `DECISIONS.md`, `docs/evidence/2026-08-24/prompt-assembly-fixture-red.txt`, `docs/evidence/2026-08-25/rewind-PromptAssemblySeam(self-contained).txt`, and refreshed `docs/evidence/2026-08-25/*`.
-- Additional exact commands: run the new fault-mock assertion red before accepting the boundary validator; rerun focused Vitest, `node scripts/rewind.mjs --seam PromptAssemblySeam`, and `node scripts/rewind.mjs --seam "PromptAssemblySeam (self-contained)"`; run the literal outer `npm run verify` and store its sanitized complete stdout/stderr in `docs/evidence/2026-08-25/verify.txt`; run lint/build/Cipher Gate; then confirm GitHub verify, SonarQube, security scan, Vercel, and all review threads are green/resolved.
+- Additional exact commands: run the new fault-mock assertion red before accepting the boundary validator; rerun focused Vitest, `node scripts/rewind.mjs --seam PromptAssemblySeam`, and `node scripts/rewind.mjs --seam "PromptAssemblySeam (self-contained)"`; run the literal outer `npm run verify`, retain its inner check/test output in `docs/evidence/2026-08-25/verify.txt`, and rely on the separately generated chamber/shaolin/assumption/ledger/clan/proof artifacts plus the command exit for the remaining stages; run lint/build/Cipher Gate; then confirm GitHub verify, SonarQube, security scan, Vercel, and all review threads are green/resolved.
 - Addendum self-critique: a validator tested only against the adapter would repeat the original proof gap, while wiring request-limit behavior in this PR would be an unrelated production change. The fault fixture must remain deliberately contract-violating at the input/result relationship, be served by the mock, and be rejected by the boundary validator; the good title-only and footer-bearing fixtures must still pass it. The verify script may switch from nested npm aliases to their identical direct Node entrypoints only to make the outer command auditable; command order and failure short-circuiting must remain unchanged.
 
 ### Plan

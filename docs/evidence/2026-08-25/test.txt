@@ -8,14 +8,20 @@ $ npm test -- --pool=forks --maxWorkers=1
 > vitest run --pool=forks --maxWorkers=1
 
 
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+ RUN  v4.1.0 <REPO_ROOT>
 
 
-[2m Test Files [22m [1m[32m63 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (64)[39m
-[2m      Tests [22m [1m[32m551 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (552)[39m
-[2m   Start at [22m 02:21:58
-[2m   Duration [22m 62.48s[2m (transform 2.34s, setup 571ms, import 4.21s, tests 10.75s, environment 36.66s)[22m
+ Test Files  63 passed | 1 skipped (64)
+      Tests  577 passed | 1 skipped (578)
+   Start at  20:18:18
+   Duration  42.77s (transform 2.02s, setup 530ms, import 3.54s, tests 1.24s, environment 28.42s)
 
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice

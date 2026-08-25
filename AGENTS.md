@@ -104,25 +104,6 @@ Info flow: ...
 - `npm run verify` and `npm test` are green.
 - The checklist gate has entries that can each be tied to an actual file path or command output (e.g., `docs/evidence/2026-01-27/npm-test-2026-01-27-0330.txt`).
 
-### Merge When The Gates Are Green
-A pull request that meets every condition below is **merged without asking**. Merging is not a
-separate permission, and waiting for one is the failure mode this rule exists to prevent.
-
-1. CI is green on the PR's **current head** — every required check, not just the last one seen.
-2. Every review comment is addressed: fixed, or answered on the thread with why not.
-3. `npm run verify` and `npm test` are green, with committed evidence.
-4. No unpushed local work, and no merge conflict against the base branch.
-
-Do **not** auto-merge when any of the following holds. Say which one applies and why, then wait:
-
-- A human reviewer has requested changes and they are unresolved. Bot findings do not count — address those and merge.
-- The PR carries a schema, contract, or data migration.
-- An open Assumption in `DECISIONS.md` covers the behavior being shipped. Resolve it first, or state that the change is safe without it.
-- The owner has said to hold it.
-
-The Assumption carve-out is not hypothetical: it is the one that would have stopped an
-unverified model swap from reaching production on 2026-08-25.
-
 ## Anti-Laziness / Blocked
 - Primary failure modes: skipping steps, guessing instead of probing, declaring completion without evidence.
 - If required inputs, permissions, or probes are missing, STOP and declare “BLOCKED” with what is missing.
