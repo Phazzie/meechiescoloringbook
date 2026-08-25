@@ -29,7 +29,7 @@ import {
 } from '$lib/core/prompt-template';
 import { formatAlignmentLine } from '$lib/utils/alignment-line';
 
-const TEMPLATE_VERSION = 'v2';
+const TEMPLATE_VERSION = 'v3';
 const MAX_PROMPT_LENGTH = 8000;
 
 const includesReservedHeading = (styleHint: string): boolean => {
@@ -61,8 +61,7 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 		'TEXT (exact):',
 		'[Main quote EXACT — do not alter text.]',
 		spec.title,
-		'[Secondary line EXACT — omit if none.]',
-		...(secondaryLine ? [secondaryLine] : [])
+		...(secondaryLine ? ['[Secondary line EXACT — omit if none.]', secondaryLine] : [])
 	];
 
 	const alignmentSentence =

@@ -37,4 +37,14 @@ describe('PromptAssemblySeam contract', () => {
 		const output = await promptAssemblyAdapter.assemble(promptAssemblyTitleOnlyFixture.input);
 		expect(output).toEqual(promptAssemblyTitleOnlyFixture.output);
 	});
+
+	it('does not advertise an absent secondary exact-text line', async () => {
+		const output = await promptAssemblyAdapter.assemble(promptAssemblyTitleOnlyFixture.input);
+		expect(output.ok).toBe(true);
+		if (!output.ok) {
+			throw new Error(output.error.message);
+		}
+		expect(output.value.prompt).not.toContain('[Secondary line EXACT — omit if none.]');
+		expect(output.value.prompt).toContain('Dream Big\nTYPOGRAPHY:');
+	});
 });
