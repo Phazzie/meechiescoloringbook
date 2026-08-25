@@ -13,7 +13,7 @@ type PipelineResponse = {
 	body: WigTryOnResult;
 };
 
-type PipelineDeps = {
+export type PipelineDeps = {
 	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 	wigCatalogSeam: WigCatalogSeam;
 	wigTryOnSeam: WigTryOnSeam;
