@@ -53,4 +53,39 @@ describe('StudioState', () => {
 			encoding: 'base64'
 		});
 	});
+
+	it('clears stale errors, images, and wig try-on state when loading a saved creation', async () => {
+		const studio = new StudioState();
+		studio.generationError = 'Previous generation failed.';
+		studio.textError = 'Previous text error.';
+		studio.copyStatus = 'Quote copied.';
+		studio.vaultStatus = 'Saved to the quote vault.';
+		studio.images = [
+			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'stale', encoding: 'base64' }
+		];
+		studio.selectedWigId = 'wig-1';
+		studio.selectedWig = { id: 'wig-1' } as unknown as typeof studio.selectedWig;
+		studio.selfieBase64 = 'stale-selfie';
+		studio.tryOnPortraitUrl = 'data:image/png;base64,stale';
+		studio.tryOnError = 'Previous try-on error.';
+
+		await studio.loadCreation({
+			id: 'creation-1',
+			createdAtISO: new Date(0).toISOString(),
+			intent: studio.spec,
+			assembledPrompt: 'A saved prompt',
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+
+		expect(studio.generationError).toBe('');
+		expect(studio.textError).toBe('');
+		expect(studio.copyStatus).toBe('');
+		expect(studio.vaultStatus).toBe('');
+		expect(studio.images).toEqual([]);
+		expect(studio.selectedWigId).toBeNull();
+		expect(studio.selectedWig).toBeNull();
+		expect(studio.selfieBase64).toBe('');
+		expect(studio.tryOnPortraitUrl).toBe('');
+		expect(studio.tryOnError).toBe('');
+	});
 });

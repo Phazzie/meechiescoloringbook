@@ -21,7 +21,6 @@ const imageFormatFromBase64 = (
 ): Pick<GeneratedImage, 'format' | 'mimeType'> => {
   if (data.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg' };
   if (data.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png' };
-  console.warn('imageFormatFromBase64: unrecognized header, defaulting to png');
   return { format: 'png', mimeType: 'image/png' };
 };
 
@@ -114,13 +113,13 @@ export const runImageGenerationPipeline = async (
   }
 
   const images: GeneratedImage[] = [];
-  for (const [index, image] of seamResult.value.images.entries()) {
+  for (const image of seamResult.value.images) {
     if (!image.b64) {
       continue;
     }
     const format = imageFormatFromBase64(image.b64);
     images.push({
-      id: `image-${index + 1}`,
+      id: `image-${images.length + 1}`,
       ...format,
       data: image.b64,
       encoding: 'base64'
