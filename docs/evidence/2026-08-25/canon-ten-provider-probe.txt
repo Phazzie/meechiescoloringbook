@@ -1,14 +1,24 @@
-# Purpose: Record a live xAI probe of the ten-line prompt for MeechieToolSeam.
+# Purpose: Record a live xAI probe of the ten-line prompt through the PRODUCTION adapter.
 # Why: The voice pack IS the system prompt for every Meechie tool call, so halving it
-#      changes live provider behaviour. Contract tests use mocks and cannot see that.
-# Info flow: tool input -> live provider via meechieToolAdapter -> contract validation
-#            + verbatim-echo check -> this record.
+#      changes live provider behaviour that mocks cannot observe. Probing the wrong
+#      adapter would let this stay green while the deployed one diverged.
+# Info flow: tool input -> live provider via the adapter tools-pipeline.ts imports ->
+#            contract validation + verbatim-echo check -> this record.
 
 Command:
   FEATURE_INTEGRATION_TESTS=true npm run test:integration
 Result:
-  Test Files  1 passed | 1 skipped (2)
-  Tests       2 passed | 1 skipped (3)     Duration 33.18s
+  Test Files  2 passed (2)
+  Tests       3 passed (3)      Duration 32.51s
+
+ADAPTER UNDER TEST
+------------------
+src/lib/adapters/meechie-tool-seam — the self-contained adapter, which is what
+src/lib/core/tools-pipeline.ts imports and therefore what /api/tools runs.
+An earlier revision of this probe imported the flat compatibility adapter
+(src/lib/adapters/meechie-tool.adapter) instead. Both exist and both work, but only
+one is deployed, so that version could have stayed green while the deployed adapter
+diverged. Corrected after review.
 
 voice pack v5 — 10 lines in the system prompt
 
@@ -51,17 +61,24 @@ is the expected shape of that. It is not a defect and nothing here asserts again
 but it is the measurable effect of the cut and should be watched rather than assumed
 away.
 
-HARNESS NOTE
-------------
+HARNESS NOTES
+-------------
 `npm run test:integration` could not run at all before this change: every integration
 test failed at import because vitest.integration.config.ts has no SvelteKit plugin and
 so could not resolve `$env/dynamic/private`, which real adapters import. That was true
 on main, independent of this PR, and it meant the probe the seam rules require was not
 runnable. Fixed by aliasing `$env/dynamic/private` and `$lib` in that config.
 
-Un-blocking imports also made tests/integration/image-generation-seam.test.ts execute
-for the first time, where it failed with IMAGE_CONFIG_ERROR: it gated on XAI_API_KEY
-alone, but AppConfigSeam requires the full xAI config (text model, image model, base
-URL, endpoint path, default size), which is not set in this container. It now gates on
-all of them and skips when unconfigured instead of failing. Its ImageGenerationSeam
-behaviour is untouched and unverified here — that seam is outside this change.
+Un-blocking imports made tests/integration/image-generation-seam.test.ts execute for
+the first time, which exposed two problems in it, both now fixed:
+
+  1. It composed AppConfigSeam, but src/routes/api/image-generation/+server.ts
+     composes ImageProviderConfigSeam — a narrow seam needing only XAI_API_KEY, with
+     the model, base URL, and endpoint path defaulted. Gating on the full AppConfig
+     set would have silently skipped a supported production configuration. It now
+     composes the same seam production does and gates on XAI_API_KEY alone.
+  2. It carried no explicit timeout, so a live image generation ran against the
+     5000ms default and could never pass. Now 180_000ms.
+
+With both fixed, that test passes against the live xAI image endpoint — the first time
+it has ever actually executed.

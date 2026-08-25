@@ -2,9 +2,13 @@
 // Why: The voice pack is the system prompt for every Meechie tool call, so cutting it
 //      to ten lines changes live provider behavior. Contract tests use mocks and
 //      cannot observe that; this exercises the real adapter.
-// Info flow: tool input -> live provider via adapter -> contract validation + voice assertions.
+// Info flow: tool input -> live provider via the production adapter -> contract
+//            validation + voice assertions.
 import { describe, expect, it } from 'vitest';
-import { meechieToolAdapter } from '../../src/lib/adapters/meechie-tool.adapter';
+// The self-contained adapter, which is what src/lib/core/tools-pipeline.ts imports
+// and therefore what /api/tools actually runs. Probing the flat compatibility
+// adapter instead would let this stay green while the deployed one diverged.
+import { meechieToolAdapter } from '../../src/lib/adapters/meechie-tool-seam';
 import { meechieVoicePack } from '../../src/lib/seams/meechie-voice-seam/voice-pack';
 import { MeechieToolResultSchema } from '../../contracts/meechie-tool.contract';
 

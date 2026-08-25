@@ -2,29 +2,23 @@
 // Why: Validate live adapter behavior when integration tests are enabled.
 // Info flow: test -> seam adapter -> assertions.
 import { describe, expect, it } from 'vitest';
-import { createAppConfigSeam } from '../../src/lib/adapters/app-config-seam';
+import { createImageProviderConfigSeam } from '../../src/lib/adapters/image-provider-config-seam';
 import { createImageGenerationSeam } from '../../src/lib/adapters/image-generation-seam';
 
 const featureEnabled = process.env.FEATURE_INTEGRATION_TESTS === 'true';
-// AppConfigSeam requires the full xAI config, not just the key. Gating on the key
-// alone let this test run half-configured and fail with IMAGE_CONFIG_ERROR instead
-// of skipping, which only became visible once the integration harness could resolve
-// its imports at all.
-const hasImageConfig = [
-	'XAI_API_KEY',
-	'XAI_TEXT_MODEL',
-	'XAI_IMAGE_MODEL',
-	'XAI_BASE_URL',
-	'XAI_IMAGE_ENDPOINT_PATH',
-	'DEFAULT_IMAGE_SIZE'
-].every((name) => Boolean(process.env[name]));
+// src/routes/api/image-generation/+server.ts composes ImageProviderConfigSeam, not
+// AppConfigSeam: it needs XAI_API_KEY and defaults the model, base URL, and endpoint
+// path. Gating on the full AppConfig set would silently skip a supported production
+// configuration, and gating on the key alone (as this did before) let it run
+// half-configured against AppConfigSeam and fail with IMAGE_CONFIG_ERROR.
+const hasImageConfig = Boolean(process.env.XAI_API_KEY);
 
 describe('ImageGenerationSeam integration', () => {
   const runTest = featureEnabled && hasImageConfig;
 
   if (runTest) {
     it('generates an image via xAI and returns a Result', async () => {
-      const configSeam = createAppConfigSeam();
+      const configSeam = createImageProviderConfigSeam();
       const imageSeam = createImageGenerationSeam(configSeam);
       const result = await imageSeam.generate({
         prompt: 'a bow-wearing kitten in a glam setting',
@@ -38,7 +32,10 @@ describe('ImageGenerationSeam integration', () => {
       if (!result.ok) return;
       expect(result.value.images.length).toBeGreaterThan(0);
       expect(result.value.timingMs).toBeGreaterThan(0);
-    });
+      // Live image generation takes far longer than the 5000ms default. This test
+      // never carried a timeout because it could not load at all until the
+      // integration harness resolved its imports, so the gap was invisible.
+    }, 180_000);
   } else {
     it.skip('is skipped when integration flag or API key is missing', () => {
       expect(true).toBe(true);
