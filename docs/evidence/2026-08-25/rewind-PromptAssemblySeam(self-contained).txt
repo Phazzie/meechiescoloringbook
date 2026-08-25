@@ -3,10 +3,10 @@
 # Info flow: vitest output -> evidence file -> review.
 
 
- RUN  v4.1.0 <REPO_ROOT>
+ RUN  v4.1.0 /workspace/scratch/0e64d37283e7/repo228
 
 
  Test Files  1 passed (1)
-      Tests  8 passed (8)
-   Start at  18:00:21
-   Duration  760ms (transform 100ms, setup 36ms, import 101ms, tests 7ms, environment 431ms)
+      Tests  13 passed (13)
+   Start at  20:14:43
+   Duration  1.01s (transform 174ms, setup 62ms, import 154ms, tests 17ms, environment 486ms)

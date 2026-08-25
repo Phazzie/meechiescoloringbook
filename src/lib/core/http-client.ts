@@ -8,9 +8,12 @@ export const buildJsonHeaders = (): Record<string, string> => ({
 	'Content-Type': 'application/json'
 });
 
+// Browser budgets remain above the single 110s server-side chat-provider attempt. Provider
+// chats are not retried, so server work ends before the shortest client budget instead of
+// continuing after the browser has already reported failure.
 export const POST_JSON_TIMEOUTS_MS = {
-	tools: 90_000,
-	studioText: 90_000,
+	tools: 120_000,
+	studioText: 150_000,
 	generate: 180_000,
 	wigTryOn: 150_000
 } as const;

@@ -3,6 +3,7 @@
 // Info flow: tests -> mock -> contract assertions.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createWigTryOnSeam } from '../../adapters/wig-try-on-seam';
+import { IMAGE_MODEL, TEXT_MODEL } from '../../core/models';
 import type { AppConfigSeam } from '../app-config-seam/contract';
 import {
   wigTryOnRequestFixture,
@@ -15,8 +16,8 @@ import { validateWigTryOnRequest, validateWigTryOnResult } from './validators';
 const mockConfigSeam: AppConfigSeam = {
   getConfig: () => ({
     xaiApiKey: 'test-xai-key',
-    xaiTextModel: 'grok-4-1-fast-reasoning',
-    xaiImageModel: 'grok-imaging-image',
+    xaiTextModel: TEXT_MODEL,
+    xaiImageModel: IMAGE_MODEL,
     xaiBaseUrl: 'https://api.x.ai/v1',
     xaiImageEndpointPath: '/images/generations',
     featureIntegrationTests: false,

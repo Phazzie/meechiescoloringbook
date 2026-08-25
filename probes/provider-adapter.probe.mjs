@@ -5,8 +5,24 @@ Info flow: xAI responses -> normalized seam outputs -> fixtures/provider-adapter
 */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { IMAGE_MODEL, TEXT_MODEL } from '../src/lib/core/models.js';
+import { redactProviderMessage } from '../src/lib/core/provider-message-redaction.js';
 
 const cwd = process.cwd();
+
+const CHAT_RESPONSE_FORMAT = {
+	type: 'json_schema',
+	json_schema: {
+		name: 'provider_probe',
+		strict: true,
+		schema: {
+			type: 'object',
+			additionalProperties: false,
+			properties: { status: { type: 'string', enum: ['OK'] } },
+			required: ['status']
+		}
+	}
+};
 
 const loadEnvFile = async () => {
 	const envPath = path.join(cwd, '.env');
@@ -54,12 +70,33 @@ const readJson = async (response) => {
 	}
 };
 
+// Mirrors readProviderMessage in src/lib/adapters/provider-adapter.adapter.ts. xAI returns
+// `error` as a bare string, not the OpenAI-style nested `error.message`. Reading only the
+// nested form made the probe discard the provider's real text — the same defect that hid a
+// retired-model outage behind a bare "Bad Request".
+const readProviderMessage = (payload) => {
+	if (!payload) return undefined;
+	const candidates = [
+		typeof payload.error === 'object' && payload.error !== null
+			? payload.error.message
+			: undefined,
+		typeof payload.error === 'string' ? payload.error : undefined,
+		payload.message,
+		payload.detail
+	];
+	for (const candidate of candidates) {
+		if (typeof candidate === 'string' && candidate.trim().length > 0)
+			return candidate.trim();
+	}
+	return undefined;
+};
+
 const buildError = (response, payload) => {
-	const message =
-		payload?.error?.message ||
-		payload?.message ||
+	const rawMessage =
+		readProviderMessage(payload) ||
 		response.statusText ||
 		`Request failed with status ${response.status}`;
+	const message = redactProviderMessage(rawMessage);
 	return {
 		ok: false,
 		error: {
@@ -72,16 +109,27 @@ const buildError = (response, payload) => {
 	};
 };
 
+const buildLocalError = (code, message) => ({
+	ok: false,
+	error: { code, message }
+});
+
 const normalizeChatOutput = (payload, fallbackModel) => {
 	const content =
 		payload?.choices?.[0]?.message?.content ||
 		payload?.choices?.[0]?.text ||
 		'';
+	if (typeof content !== 'string' || content.trim().length === 0) {
+		return buildLocalError(
+			'PROVIDER_EMPTY_CHAT',
+			'Provider returned empty chat content.'
+		);
+	}
 	return {
 		ok: true,
 		value: {
 			model: payload?.model || fallbackModel,
-			content: typeof content === 'string' ? content.trim() : ''
+			content: content.trim()
 		}
 	};
 };
@@ -97,7 +145,14 @@ const normalizeImageOutput = (payload) => {
 	const revisedPrompt =
 		payload?.revised_prompt ||
 		payload?.revisedPrompt ||
-		data.find((entry) => typeof entry?.revised_prompt === 'string')?.revised_prompt;
+		data.find((entry) => typeof entry?.revised_prompt === 'string')
+			?.revised_prompt;
+	if (images.length === 0) {
+		return buildLocalError(
+			'PROVIDER_EMPTY_IMAGE',
+			'Provider returned no images.'
+		);
+	}
 	return {
 		ok: true,
 		value: {
@@ -105,6 +160,30 @@ const normalizeImageOutput = (payload) => {
 			revisedPrompt: revisedPrompt
 		}
 	};
+};
+
+const summarizeOutput = (label, output) => {
+	if (!output.ok) {
+		return `${label} ${output.error.code}: ${output.error.message}`;
+	}
+	if (label === 'chat') {
+		return `${label} ok (${output.value.content.length} content chars)`;
+	}
+	return `${label} ok (${output.value.images.length} image result(s))`;
+};
+
+const requireSampleSuccess = (chatOutput, imageOutput) => {
+	if (chatOutput.ok && imageOutput.ok) return;
+	throw new Error(
+		`Live sample validation failed; fixtures were left unchanged. ${summarizeOutput('chat', chatOutput)}; ${summarizeOutput('image', imageOutput)}.`
+	);
+};
+
+const requireFaultSuccess = (chatOutput, imageOutput) => {
+	if (!chatOutput.ok && !imageOutput.ok) return;
+	throw new Error(
+		`Fault validation unexpectedly succeeded; fixtures were left unchanged. ${summarizeOutput('chat', chatOutput)}; ${summarizeOutput('image', imageOutput)}.`
+	);
 };
 
 const writeFixture = async (name, value) => {
@@ -118,14 +197,15 @@ const run = async () => {
 	const baseUrl = process.env.XAI_BASE_URL || 'https://api.x.ai';
 
 	const chatInput = {
-		model: 'grok-4-1-fast-reasoning',
+		model: TEXT_MODEL,
 		messages: [
-			{ role: 'system', content: 'Reply with the word OK.' },
+			{ role: 'system', content: 'Return JSON with status set to OK.' },
 			{ role: 'user', content: 'Hello' }
-		]
+		],
+		responseFormat: CHAT_RESPONSE_FORMAT
 	};
 	const imageInput = {
-		model: 'grok-imagine-image',
+		model: IMAGE_MODEL,
 		prompt: 'A black-and-white coloring book page with clean outlines.',
 		n: 1,
 		responseFormat: 'b64_json'
@@ -139,7 +219,8 @@ const run = async () => {
 		},
 		body: JSON.stringify({
 			model: chatInput.model,
-			messages: chatInput.messages
+			messages: chatInput.messages,
+			response_format: chatInput.responseFormat
 		})
 	});
 	const chatPayload = await readJson(chatResponse);
@@ -165,8 +246,12 @@ const run = async () => {
 		? normalizeImageOutput(imagePayload.value)
 		: buildError(imageResponse, imagePayload.value);
 
-	await writeFixture('sample.json', {
+	const sampleFixture = {
 		scenario: 'sample',
+		provenance: {
+			kind: 'live-capture',
+			capturedAt: new Date().toISOString()
+		},
 		input: {
 			chat: chatInput,
 			image: imageInput
@@ -175,15 +260,17 @@ const run = async () => {
 			chat: chatOutput,
 			image: imageOutput
 		}
-	});
+	};
+
+	requireSampleSuccess(chatOutput, imageOutput);
 
 	const faultChatInput = {
 		...chatInput,
-		model: 'grok-4-1-fast-reasoning-bad'
+		model: `${TEXT_MODEL}-bad`
 	};
 	const faultImageInput = {
 		...imageInput,
-		model: 'grok-imagine-image-bad'
+		model: `${IMAGE_MODEL}-bad`
 	};
 
 	const faultChatResponse = await fetch(`${baseUrl}/v1/chat/completions`, {
@@ -194,7 +281,8 @@ const run = async () => {
 		},
 		body: JSON.stringify({
 			model: faultChatInput.model,
-			messages: faultChatInput.messages
+			messages: faultChatInput.messages,
+			response_format: faultChatInput.responseFormat
 		})
 	});
 	const faultChatPayload = await readJson(faultChatResponse);
@@ -220,8 +308,12 @@ const run = async () => {
 		? normalizeImageOutput(faultImagePayload.value)
 		: buildError(faultImageResponse, faultImagePayload.value);
 
-	await writeFixture('fault.json', {
+	const faultFixture = {
 		scenario: 'fault',
+		provenance: {
+			kind: 'live-capture',
+			capturedAt: new Date().toISOString()
+		},
 		input: {
 			chat: faultChatInput,
 			image: faultImageInput
@@ -230,18 +322,21 @@ const run = async () => {
 			chat: faultChatOutput,
 			image: faultImageOutput
 		}
-	});
+	};
+
+	requireFaultSuccess(faultChatOutput, faultImageOutput);
+	await writeFixture('sample.json', sampleFixture);
+	await writeFixture('fault.json', faultFixture);
 
 	const sampleContentLength =
 		chatOutput.ok && typeof chatOutput.value.content === 'string'
 			? chatOutput.value.content.length
 			: 0;
-	const imageLength =
-		imageOutput.ok && imageOutput.value.images[0]?.b64_json
-			? imageOutput.value.images[0].b64_json.length
-			: 0;
-	console.log(`Provider probe complete. Chat content length: ${sampleContentLength}.`);
-	console.log(`Image base64 length: ${imageLength}.`);
+	const imageCount = imageOutput.ok ? imageOutput.value.images.length : 0;
+	console.log(
+		`Provider probe complete. Chat content length: ${sampleContentLength}.`
+	);
+	console.log(`Image result count: ${imageCount}.`);
 };
 
 run().catch((error) => {

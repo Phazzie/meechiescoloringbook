@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
 
 import { createProviderAdapter } from '../../src/lib/adapters/provider-adapter.adapter';
+import { redactProviderMessage } from '../../src/lib/core/provider-message-redaction.js';
 
 const jsonResponse = (payload: unknown, status = 200): Response =>
 	new Response(JSON.stringify(payload), {
@@ -18,6 +19,16 @@ afterEach(() => {
 });
 
 describe('provider-adapter helpers', () => {
+	it('redacts every supported account-identifier shape through the shared helper', () => {
+		const raw =
+			'team 3b93d791-c9bb-49e5-a6f7-da40d956241a key sk-1234567890abcdefghijkl email owner@example.com token abcdef0123456789abcdef0123456789';
+		const redacted = redactProviderMessage(raw);
+
+		expect(redacted).toBe(
+			'team [redacted-id] key [redacted-key] email [redacted-email] token [redacted-id]'
+		);
+	});
+
 	describe('normalizeBaseUrl via adapter behavior', () => {
 		it('strips trailing slash from base URL', async () => {
 			const fetchMock = vi.fn(async () =>
@@ -461,6 +472,76 @@ describe('provider-adapter helpers', () => {
 				expect(result.error.message).toBe('Custom API error');
 				expect(result.error.details?.status).toBe('429');
 			}
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+		});
+
+		// Regression: xAI returns `error` as a bare string, not the OpenAI-style
+		// `error.message` object. Reading only the nested shape discarded the provider's
+		// actual text and surfaced "Bad Request", hiding the retired-model outage.
+		it('extracts a string-shaped error field (xAI shape)', async () => {
+			const fetchMock = vi.fn(
+				async () =>
+					new Response(
+						JSON.stringify({
+							code: 'Client specified an invalid argument',
+							error: 'The model grok-4-1-fast-reasoning does not exist'
+						}),
+						{ status: 400, statusText: 'Bad Request' }
+					)
+			);
+			vi.stubGlobal('fetch', fetchMock);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+			const result = await adapter.createChatCompletion({
+				model: 'test',
+				messages: [{ role: 'user', content: 'hi' }]
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('PROVIDER_HTTP_ERROR');
+				expect(result.error.message).toBe(
+					'The model grok-4-1-fast-reasoning does not exist'
+				);
+				expect(result.error.message).not.toBe('Bad Request');
+				expect(result.error.details?.status).toBe('400');
+			}
+		});
+
+		// Regression: provider messages reach API clients verbatim through the studio, tool and
+		// chat pipelines. xAI embeds the account's team id in access errors, so surfacing the raw
+		// text — the fix that made this outage visible — also disclosed account metadata.
+		it('redacts account identifiers from provider messages', async () => {
+			const fetchMock = vi.fn(
+				async () =>
+					new Response(
+						JSON.stringify({
+							error:
+								'The model grok-bad does not exist or your team 3b93d791-c9bb-49e5-a6f7-da40d956241a does not have access to it'
+						}),
+						{ status: 400, statusText: 'Bad Request' }
+					)
+			);
+			vi.stubGlobal('fetch', fetchMock);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+			const result = await adapter.createChatCompletion({
+				model: 'test',
+				messages: [{ role: 'user', content: 'hi' }]
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				// the diagnostic sentence survives...
+				expect(result.error.message).toContain('The model grok-bad does not exist');
+				// ...but the account identifier does not.
+				expect(result.error.message).not.toContain('3b93d791-c9bb-49e5-a6f7-da40d956241a');
+				expect(result.error.message).toContain('[redacted-id]');
+			}
 		});
 
 		it('uses statusText when response body has no message', async () => {
@@ -533,6 +614,43 @@ describe('provider-adapter helpers', () => {
 	});
 
 	describe('network error handling', () => {
+		it('does not retry a timed-out chat request beyond the client budget', async () => {
+			vi.useFakeTimers();
+			try {
+				const fetchMock = vi.fn(
+					(_url: string, init: RequestInit) =>
+						new Promise<Response>((_, reject) => {
+							init.signal?.addEventListener('abort', () => {
+								reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+							});
+						})
+				);
+				vi.stubGlobal('fetch', fetchMock);
+
+				const adapter = createProviderAdapter({
+					apiKey: 'test-key',
+					baseUrl: 'https://api.x.ai'
+				});
+				const pending = adapter.createChatCompletion({
+					model: 'test',
+					messages: [{ role: 'user', content: 'hi' }]
+				});
+				await vi.runAllTimersAsync();
+				const result = await pending;
+
+				expect(result).toEqual({
+					ok: false,
+					error: {
+						code: 'PROVIDER_NETWORK_ERROR',
+						message: 'Chat completion request timed out.'
+					}
+				});
+				expect(fetchMock).toHaveBeenCalledTimes(1);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
 		it('returns PROVIDER_NETWORK_ERROR for chat when fetch throws', async () => {
 			vi.stubGlobal(
 				'fetch',

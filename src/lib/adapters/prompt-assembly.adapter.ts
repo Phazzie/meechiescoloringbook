@@ -4,4 +4,5 @@
 import type { PromptAssemblySeam } from '../../../contracts/prompt-assembly.contract';
 import { promptAssemblyAdapter as canonicalPromptAssemblyAdapter } from './prompt-assembly-seam';
 
-export const promptAssemblyAdapter: PromptAssemblySeam = canonicalPromptAssemblyAdapter;
+export const promptAssemblyAdapter: PromptAssemblySeam =
+	canonicalPromptAssemblyAdapter;

@@ -11,6 +11,7 @@ import type {
 import type { Result, SeamError } from '../../../contracts/shared.contract';
 import { env } from '$env/dynamic/private';
 import { fetchWithTimeout, fetchWithRetry, isAbortError, isTimeoutError } from '$lib/core/http-resilience';
+import { redactProviderMessage } from '$lib/core/provider-message-redaction.js';
 
 export type ProviderAdapterConfig = {
 	apiKey?: string | null;
@@ -20,9 +21,15 @@ export type ProviderAdapterConfig = {
 const DEFAULT_BASE_URL = 'https://api.x.ai';
 const CHAT_PATH = '/v1/chat/completions';
 const IMAGE_PATH = '/v1/images/generations';
-const CHAT_TIMEOUT_MS = 60_000;
+// A real grok-4.6 studio generation completed near the former 60s boundary. A timeout retry
+// discarded that work and could push the total request beyond the browser budget, so the
+// server budget allows a slow first attempt to finish. Browser budgets remain higher.
+const CHAT_TIMEOUT_MS = 110_000;
 const IMAGE_TIMEOUT_MS = 120_000;
-const RETRY_OPTIONS = { maxAttempts: 3, baseDelayMs: 1_000 } as const;
+// A provider chat POST is billable and can occupy the entire 110s attempt budget. Any retry —
+// including after a late 429/5xx response — can outlive the 120s tools browser budget and keep
+// doing duplicate work after the user sees a failure, so provider chat gets one attempt.
+const CHAT_RETRY_OPTIONS = { maxAttempts: 1, baseDelayMs: 0, retryOnTimeout: false } as const;
 
 const normalizeBaseUrl = (baseUrl: string): string => {
 	const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -59,20 +66,40 @@ const readJson = async (response: Response): Promise<unknown | null> => {
 	}
 };
 
+// Providers disagree on error shape. xAI returns a bare string under `error`, while the
+// OpenAI-compatible shape nests `error.message`. Reading only the nested form silently
+// discarded xAI's actual text and surfaced a bare "Bad Request" instead — which is why the
+// retired-model outage (grok-4-1-fast-reasoning) was invisible until the model id was
+// checked by hand. Every known shape is read, in most-specific-first order.
+const readProviderMessage = (payload: unknown): string | undefined => {
+	const body = payload as {
+		error?: { message?: unknown } | string;
+		message?: unknown;
+		detail?: unknown;
+	} | null;
+	if (!body) return undefined;
+	const candidates: unknown[] = [
+		typeof body.error === 'object' && body.error !== null ? body.error.message : undefined,
+		typeof body.error === 'string' ? body.error : undefined,
+		body.message,
+		body.detail
+	];
+	for (const candidate of candidates) {
+		if (typeof candidate === 'string' && candidate.trim().length > 0) {
+			return candidate.trim();
+		}
+	}
+	return undefined;
+};
+
 const buildHttpError = (
 	response: Response,
 	payload: unknown
 ): Result<never> => {
-	const rawMessage =
-		typeof (payload as { error?: { message?: string } })?.error?.message ===
-		'string'
-			? (payload as { error?: { message?: string } })?.error?.message
-			: typeof (payload as { message?: string })?.message === 'string'
-				? (payload as { message?: string })?.message
-				: response.statusText;
+	const rawMessage = readProviderMessage(payload) ?? response.statusText;
 	const message =
 		rawMessage && rawMessage.length > 0
-			? rawMessage
+			? redactProviderMessage(rawMessage)
 			: `Request failed with status ${response.status}`;
 	return {
 		ok: false,
@@ -188,7 +215,7 @@ export const createProviderAdapter = (
 			};
 			const response = await fetchWithRetry(
 				() => fetchWithTimeout(url, requestInit, CHAT_TIMEOUT_MS),
-				RETRY_OPTIONS
+				CHAT_RETRY_OPTIONS
 			);
 			const payload = await readJson(response);
 			if (!response.ok) {

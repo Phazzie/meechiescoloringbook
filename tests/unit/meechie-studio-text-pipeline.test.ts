@@ -6,6 +6,8 @@
 import { describe, expect, it } from 'vitest';
 import { runMeechieStudioTextPipeline } from '../../src/lib/core/meechie-studio-text-pipeline';
 import type { MeechieStudioTextPipelineDeps } from '../../src/lib/core/meechie-studio-text-pipeline';
+import { TEXT_MODEL } from '../../src/lib/core/models';
+import { meechieVoicePack } from '../../src/lib/seams/meechie-voice-seam/voice-pack';
 import type {
 	ProviderAdapterSeam,
 	ProviderChatInput,
@@ -91,6 +93,23 @@ const lastUserMessage = (request: ProviderChatInput): string => {
 };
 
 describe('Meechie Studio Text Pipeline Resilience', () => {
+	it('sends the pinned model and every owner-approved voice line in the structured request', async () => {
+		const { deps, requests } = createDepsWithChatResults([
+			okChat(validStudioText())
+		]);
+
+		const response = await runMeechieStudioTextPipeline(studioInput, deps);
+
+		expect(response.status).toBe(200);
+		expect(requests).toHaveLength(1);
+		expect(requests[0].model).toBe(TEXT_MODEL);
+		expect(requests[0].responseFormat).toMatchObject({ type: 'json_schema' });
+		const systemPrompt = requests[0].messages[0].content;
+		for (const quote of meechieVoicePack.responses.quotes) {
+			expect(systemPrompt.split(`"${quote.text}"`).length - 1).toBe(1);
+		}
+	});
+
 	it('handles valid JSON correctly', async () => {
 		let callCount = 0;
 		const deps: MeechieStudioTextPipelineDeps = {

@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "modelMetadata": {
+    "provider": "xai",
+    "model": "grok-imagine-image"
+  },
+  "image": {
+    "id": "image-1",
+    "format": "jpg",
+    "mimeType": "image/jpeg",
+    "encoding": "base64",
+    "gitBlobSha": "834250d967273dc3ab61715bc94042cda8d114eb"
+  },
+  "imageBase64Characters": 270880,
+  "captureCommit": "4c29e0f404ca33e36557bf25ee8931b8138e758f",
+  "captureCommittedAt": "2026-08-25T02:23:53Z"
+}

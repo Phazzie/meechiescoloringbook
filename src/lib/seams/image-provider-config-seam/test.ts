@@ -43,6 +43,17 @@ describe('ImageProviderConfigSeam mock contract', () => {
     });
   });
 
+  // The model id is pinned in code, not read from env, so a stale deployment variable
+  // cannot silently override it — the failure mode that pinned production text generation
+  // to a retired model until it was found by hand.
+  it('ignores XAI_IMAGE_MODEL from the environment', () => {
+    const seam = createImageProviderConfigSeam({
+      XAI_API_KEY: 'test-key',
+      XAI_IMAGE_MODEL: 'stale-retired-model'
+    });
+    expect(seam.getConfig().xaiImageModel).toBe('grok-imagine-image');
+  });
+
   it('rejects malformed base URLs as config errors', () => {
     const seam = createImageProviderConfigSeam({
       XAI_API_KEY: 'test-key',

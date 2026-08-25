@@ -3,11 +3,13 @@
 // Info flow: test inputs -> validators -> assertions.
 import { describe, expect, it } from 'vitest';
 import { createAppConfigSeam } from '../../src/lib/adapters/app-config-seam';
+import { IMAGE_MODEL, TEXT_MODEL } from '../../src/lib/core/models';
+import { createMockAppConfigSeam } from '../../src/lib/seams/app-config-seam/mock';
 
 const baseEnv = {
 	XAI_API_KEY: 'test-key',
-	XAI_TEXT_MODEL: 'grok-4-1-fast-reasoning',
-	XAI_IMAGE_MODEL: 'grok-imaging-image',
+	XAI_TEXT_MODEL: 'stale-retired-text-model',
+	XAI_IMAGE_MODEL: 'stale-retired-image-model',
 	XAI_BASE_URL: 'https://api.x.ai/v1',
 	XAI_IMAGE_ENDPOINT_PATH: '/images/generations',
 	FEATURE_INTEGRATION_TESTS: 'false',
@@ -21,8 +23,23 @@ describe('AppConfigSeam adapter', () => {
 		const config = seam.getConfig();
 
 		expect(config.xaiApiKey).toBe('test-key');
+		expect(config.xaiTextModel).toBe(TEXT_MODEL);
+		expect(config.xaiImageModel).toBe(IMAGE_MODEL);
 		expect(config.featureIntegrationTests).toBe(false);
 		expect(config.maxImagesPerRequest).toBe(4);
+	});
+
+	it('keeps adapter and fixture-backed mock model ids in parity', () => {
+		const adapterConfig = createAppConfigSeam(baseEnv).getConfig();
+		const mockConfig = createMockAppConfigSeam('sample').getConfig();
+
+		expect({
+			text: adapterConfig.xaiTextModel,
+			image: adapterConfig.xaiImageModel
+		}).toEqual({
+			text: mockConfig.xaiTextModel,
+			image: mockConfig.xaiImageModel
+		});
 	});
 
 	it('throws when required env vars are missing', () => {
@@ -69,6 +86,13 @@ describe('AppConfigSeam adapter', () => {
 		const seam = createAppConfigSeam(envWithout);
 		const config = seam.getConfig();
 		expect(config.maxImagesPerRequest).toBe(4);
+	});
+
+	it('defaults defaultImageSize when DEFAULT_IMAGE_SIZE is absent', () => {
+		const { DEFAULT_IMAGE_SIZE: _, ...envWithout } = baseEnv;
+		const seam = createAppConfigSeam(envWithout);
+		const config = seam.getConfig();
+		expect(config.defaultImageSize).toBe('1024x1024');
 	});
 
 	it('defaults maxImagesPerRequest to 4 when MAX_IMAGES_PER_REQUEST is empty string', () => {

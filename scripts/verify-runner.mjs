@@ -48,9 +48,9 @@ const run = async () => {
 	const testPath = path.join(evidenceDir, 'test.txt');
 
 	const verifyHeader = [
-		'# Purpose: Store npm run verify output for evidence.',
-		'# Why: Provide an audit trail for Seam-Driven Development verification.',
-		'# Info flow: Command output -> evidence file -> review.',
+		'# Purpose: Store the verify runner\'s check and test stage output.',
+		'# Why: Keep this inner stage distinct from the outer verify chain and its separate artifacts.',
+		'# Info flow: check/test output -> evidence file -> outer verify chain.',
 		''
 	].join('\n');
 
@@ -65,7 +65,7 @@ const run = async () => {
 	const testResult = runCommand('npm', ['test', '--', '--pool=forks', '--maxWorkers=1']);
 
 	const verifyOutput = [
-		'$ npm run verify',
+		'$ node scripts/verify-runner.mjs',
 		'',
 		'$ npm run check',
 		checkResult.output,

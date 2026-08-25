@@ -5,6 +5,7 @@ Info flow: User message -> xAI chat -> JSON spec -> fixtures/chat-interpretation
 */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { TEXT_MODEL } from '../src/lib/core/models.js';
 
 const cwd = process.cwd();
 
@@ -73,6 +74,24 @@ const readJson = async (response) => {
 	}
 };
 
+const readProviderMessage = (payload) => {
+	if (!payload) return undefined;
+	const candidates = [
+		typeof payload.error === 'object' && payload.error !== null
+			? payload.error.message
+			: undefined,
+		typeof payload.error === 'string' ? payload.error : undefined,
+		payload.message,
+		payload.detail
+	];
+	return candidates
+		.find(
+			(candidate) =>
+				typeof candidate === 'string' && candidate.trim().length > 0
+		)
+		?.trim();
+};
+
 const writeFixture = async (name, value) => {
 	const target = path.join(cwd, 'fixtures', 'chat-interpretation', name);
 	await fs.writeFile(target, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
@@ -91,7 +110,7 @@ const run = async () => {
 			'Content-Type': 'application/json'
 		},
 		body: JSON.stringify({
-			model: 'grok-4-1-fast-reasoning',
+			model: TEXT_MODEL,
 			messages: [
 				{ role: 'system', content: SYSTEM_PROMPT },
 				{ role: 'user', content: message }
@@ -101,7 +120,11 @@ const run = async () => {
 
 	const payload = await readJson(response);
 	if (!response.ok) {
-		throw new Error(payload?.value?.error?.message || response.statusText);
+		throw new Error(
+			readProviderMessage(payload.value) ||
+				response.statusText ||
+				`Request failed with status ${response.status}`
+		);
 	}
 
 	const content = payload?.value?.choices?.[0]?.message?.content || '';

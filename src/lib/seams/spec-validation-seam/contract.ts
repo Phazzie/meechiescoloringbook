@@ -6,8 +6,31 @@ import { NonEmptyStringSchema } from '../../../../contracts/shared.contract';
 
 export const MAX_SPEC_ITEMS = 20;
 export const MAX_LABEL_LENGTH = 40;
+export const MAX_TITLE_LENGTH = 96;
 export const MAX_DEDICATION_LENGTH = 60;
 export const ALLOWED_TEXT_REGEX = /^[A-Za-z0-9 .,!?'":;\-()]+$/;
+
+const TITLE_STRUCTURAL_SEPARATOR_REGEX = /[\p{Cc}\p{Zl}\p{Zp}]/u;
+const RESERVED_PROMPT_CONTROL_LINES = new Set([
+	'STYLE:',
+	'TEXT (exact):',
+	'Headline, render these exact words and nothing else:',
+	'Second line, render these exact words and nothing else:',
+	'End of the headline block. Do not draw any section label.',
+	'TYPOGRAPHY:',
+	'LAYOUT:',
+	'DECORATIONS:',
+	'OUTPUT:',
+	'NEGATIVE PROMPT:'
+]);
+
+const isNotBlankText = (value: string): boolean => value.trim().length > 0;
+
+const isSingleLinePrintableTitle = (value: string): boolean =>
+	isNotBlankText(value) && !TITLE_STRUCTURAL_SEPARATOR_REGEX.test(value);
+
+const isNotReservedPromptControlLine = (value: string): boolean =>
+	!RESERVED_PROMPT_CONTROL_LINES.has(value.trim());
 
 export const AlignmentSchema = z.enum(['left', 'center']);
 export const NumberAlignmentSchema = z.enum(['strict', 'loose']);
@@ -27,13 +50,23 @@ export const LabelSchema = z
 	.string()
 	.min(1)
 	.max(MAX_LABEL_LENGTH)
-	.regex(ALLOWED_TEXT_REGEX);
+	.regex(ALLOWED_TEXT_REGEX)
+	.refine(isNotBlankText, 'Text must contain a non-whitespace character.')
+	.refine(isNotReservedPromptControlLine, 'Text collides with a reserved prompt control line.');
+
+export const TitleSchema = z
+	.string()
+	.min(1)
+	.max(MAX_TITLE_LENGTH)
+	.refine(isSingleLinePrintableTitle, 'Title contains invalid characters.')
+	.refine(isNotReservedPromptControlLine, 'Title collides with a reserved prompt control line.');
 
 export const DedicationSchema = z
 	.string()
 	.min(1)
 	.max(MAX_DEDICATION_LENGTH)
-	.regex(ALLOWED_TEXT_REGEX);
+	.regex(ALLOWED_TEXT_REGEX)
+	.refine(isNotBlankText, 'Text must contain a non-whitespace character.');
 
 export const ItemNumberSchema = z.number().int().min(1).max(999);
 
@@ -48,7 +81,7 @@ export const RawColoringPageItemSchema = z.object({
 });
 
 export const ColoringPageSpecSchema = z.object({
-	title: NonEmptyStringSchema,
+	title: TitleSchema,
 	items: z.array(ColoringPageItemSchema).max(MAX_SPEC_ITEMS),
 	footerItem: ColoringPageItemSchema.optional(),
 	dedication: DedicationSchema.optional(),

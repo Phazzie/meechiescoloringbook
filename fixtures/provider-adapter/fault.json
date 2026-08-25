@@ -1,18 +1,44 @@
 {
   "scenario": "fault",
+  "provenance": {
+    "kind": "live-capture",
+    "capturedAt": "2026-08-25T01:10:15.559Z"
+  },
   "input": {
     "chat": {
-      "model": "grok-4-1-fast-reasoning-bad",
+      "model": "grok-4.6-bad",
       "messages": [
         {
           "role": "system",
-          "content": "Reply with the word OK."
+          "content": "Return JSON with status set to OK."
         },
         {
           "role": "user",
           "content": "Hello"
         }
-      ]
+      ],
+      "responseFormat": {
+        "type": "json_schema",
+        "json_schema": {
+          "name": "provider_probe",
+          "strict": true,
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "OK"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          }
+        }
+      }
     },
     "image": {
       "model": "grok-imagine-image-bad",
@@ -26,9 +52,9 @@
       "ok": false,
       "error": {
         "code": "PROVIDER_HTTP_ERROR",
-        "message": "Not Found",
+        "message": "Model not found: grok-4.6-bad",
         "details": {
-          "status": "404"
+          "status": "400"
         }
       }
     },
@@ -36,7 +62,7 @@
       "ok": false,
       "error": {
         "code": "PROVIDER_HTTP_ERROR",
-        "message": "Not Found",
+        "message": "The model grok-imagine-image-bad does not exist or your team [redacted-id] does not have access to it. If you believe this is a mistake, please contact support and quote your team ID and the model name.",
         "details": {
           "status": "404"
         }

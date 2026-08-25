@@ -16,7 +16,6 @@ import type { Result } from '../../../contracts/shared.contract';
 
 const createDefaultDeps = (): MeechieStudioTextPipelineDeps => ({
 	createProvider: createProviderAdapter,
-	textModel: env.XAI_TEXT_MODEL,
 	isProduction: env.NODE_ENV === 'production'
 });
 

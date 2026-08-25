@@ -8,13 +8,124 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## PR #228 Concurrent-Head Reconciliation (2026-08-25)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: overwrite the concurrently updated branch with the already-tested local commit, or accept its green CI without reviewing its unrelated governance changes.
+2. Countermeasure: treat remote head `4c29e0f` as the new base, preserve its evidence-backed review repairs, remove the committed permission bypass and auto-merge instruction, and publish only after a compare-and-swap head check.
+3. Lower-debt path: keep the prompt, timeout, redaction, and AppConfig repairs in their owning seams; keep repository authority unchanged; and honor the owner's explicit merge hold independently of CI state.
+
+### Plan
+
+- Goal: reconcile the current PR #228 head without losing concurrent work, close its remaining substantive review findings, remove unrelated repository-wide authority changes, and leave the branch verified but unmerged pending explicit owner approval.
+- Exact seams: ProviderAdapterSeam, PromptAssemblySeam, SpecValidationSeam, AppConfigSeam, DriftDetectionSeam, ImageGenerationSeam.
+- Exact production paths:
+
+  - `contracts/spec-validation.contract.ts`
+  - `src/lib/seams/spec-validation-seam/contract.ts`
+  - `src/lib/adapters/spec-validation.adapter.ts`
+  - `src/lib/adapters/spec-validation-seam/index.ts`
+  - `src/lib/core/http-resilience.ts`
+  - `src/lib/core/http-client.ts`
+  - `src/lib/core/provider-message-redaction.js`
+  - `src/lib/adapters/provider-adapter.adapter.ts`
+  - `src/lib/adapters/prompt-assembly-seam/index.ts`
+  - `src/lib/seams/app-config-seam/validators.ts`
+  - `src/lib/seams/prompt-assembly-seam/validators.ts`
+- Exact fixture, test, governance, and evidence paths:
+  - `.env.example`, `.gitignore`, `AGENTS.md`, `HANDOFF.md`, `.claude/settings.local.json`
+  - `fixtures/prompt-assembly/*.json`, `fixtures/provider-adapter/{fault.json,PROVENANCE.md}`, `fixtures/drift-detection/*.json`, `fixtures/image-generation/{sample,dense-scene}.json`
+  - `probes/provider-adapter.probe.mjs`, `probes/image-generation.probe.mjs`
+  - `scripts/verify-runner.mjs`
+  - `docs/evidence/2026-08-25/prompt-boundary-live-*`
+  - `tests/unit/{http-resilience,provider-adapter-helpers,app-config-seam,probe-entrypoints}.test.ts`
+  - `tests/contract/{image-generation,prompt-assembly,spec-validation}.test.ts`, `src/lib/seams/{prompt-assembly-seam,spec-validation-seam}/test.ts`
+  - `plan.md`, `DECISIONS.md`, and regenerated `docs/evidence/2026-08-25/*`
+- Constraints:
+  - Preserve the concurrent own-line prompt representation because it accepts embedded quotes without ambiguous quote delimiters and is backed by a traceable live prompt/result/image record whose missing original transport envelope is stated explicitly.
+  - Apply a single-line printable-text boundary and the established 96-character route-title limit so newlines/control characters cannot split the prompt while embedded quotes, slashes, and compact tool titles remain valid.
+  - Disable all automatic provider chat retries, including delayed `429`/`5xx` responses, because a second 110-second billable attempt cannot be guaranteed to finish inside the shortest 120-second browser budget; shared retry behavior remains available to other callers.
+  - Share provider-message identifier redaction with the plain-Node fixture probe so refreshing evidence cannot recommit account identifiers; preserve the `defaultImageSize` schema default and do not restore the unrelated inactive `MAX_IMAGES_PER_REQUEST` example.
+  - Delete and gitignore `.claude/settings.local.json`, remove the broad auto-merge rule, and change the handoff to record the explicit merge hold.
+  - Do not merge. Do not force-push. Re-read the remote head immediately before updating it, and stop if it moved.
+- Exact commands:
+  1. `npm test -- tests/unit/http-resilience.test.ts tests/unit/provider-adapter-helpers.test.ts tests/unit/app-config-seam.test.ts tests/unit/probe-entrypoints.test.ts tests/contract/prompt-assembly.test.ts tests/contract/spec-validation.test.ts src/lib/seams/prompt-assembly-seam/test.ts src/lib/seams/spec-validation-seam/test.ts --pool=forks --maxWorkers=1`
+  2. `npm run rewind -- --seam ProviderAdapterSeam`
+  3. `npm run rewind -- --seam SpecValidationSeam`
+  4. `npm run rewind -- --seam AppConfigSeam`
+  5. `npm run rewind -- --seam PromptAssemblySeam`
+  6. `npm run rewind -- --seam "PromptAssemblySeam (self-contained)"`
+  7. `npm run rewind -- --seam ImageGenerationSeam`
+  8. `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`, `npm run cipher:gate`, `npm run assumption:alarm`, `git diff --check`
+
+### Self-Critique
+
+- What could be wrong: a green concurrent commit can still contain high-impact repository policy changes outside the reviewed product seams, while reconstructing it locally risks omitting a file that CI exercised.
+- What must be proven: the local code/fixture blobs match the current remote head before reconciliation; provider chat performs one fetch after either a timeout or retryable response; probe refreshes redact sensitive identifiers; newlines are rejected from titles while embedded quotes remain accepted; the copied environment example validates without `MAX_IMAGES_PER_REQUEST`; and all full gates pass after governance cleanup.
+- Riskiest assumption: ten seconds between the single 110-second provider attempt and the shortest 120-second browser budget is enough route overhead. If measured production overhead disproves that, increase the client budget or introduce an end-to-end deadline in a separate change.
+- Evidence that would disprove it: a remote-head race, a second provider-chat fetch, a fixture/adapter mismatch, an unredacted provider identifier after a probe refresh, a newline-bearing title reaching prompt assembly, a missing live-evidence artifact, any permission-bypass file in the final tree, or any failed focused/full verification command.
+
+## PR #228 Review Repair and PR #227 Integration (2026-08-24)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: resolve the outdated review threads because CI is green and merge the model-id change without checking the probes and fixture-backed mocks.
+2. Countermeasure: treat the current review comments as evidence, merge the already-reviewed PR #227 foundation into this branch, and prove that every documented probe, fixture, mock, and production consumer names the same pinned models.
+3. Lower-debt path: keep one production source of truth in the checked ESM module `src/lib/core/models.js`, import it from plain-Node-20-compatible probes, preserve PR #227's shared Meechie prompt builder, and mark the live-provider compatibility assumption open unless an authenticated probe actually closes it.
+
+### Plan
+
+- Goal: integrate merged PRs #227 and #229 into PR #228, fix all current review findings, and leave one truthful model configuration plus one canonical prompt implementation across production code, probes, fixtures, tests, governance, and release documentation.
+- Exact seams: ProviderAdapterSeam, AppConfigSeam, ImageProviderConfigSeam, MeechieStudioTextSeam, MeechieToolSeam, ChatInterpretationSeam, MeechieVoiceSeam, PromptAssemblySeam, DriftDetectionSeam, ImageGenerationSeam.
+- Exact production and probe paths:
+  - `src/lib/core/models.js`, `src/lib/core/meechie-studio-text-pipeline.ts`
+  - `src/lib/adapters/meechie-tool.adapter.ts`, `src/lib/adapters/meechie-tool-seam/index.ts`
+  - `src/lib/adapters/app-config-seam/index.ts`, `src/lib/adapters/provider-adapter.adapter.ts`
+  - `src/lib/adapters/prompt-assembly-seam/index.ts`, `src/lib/adapters/prompt-assembly.adapter.ts`
+  - `probes/provider-adapter.probe.mjs`, `probes/chat-interpretation.probe.mjs`
+- Exact fixture and test paths:
+  - `fixtures/provider-adapter/sample.json`, `fixtures/provider-adapter/fault.json`, `fixtures/provider-adapter/PROVENANCE.md`
+  - `fixtures/app-config/sample.json`, `fixtures/app-config/fault.json`
+  - `fixtures/prompt-assembly/sample.json`, `fixtures/prompt-assembly/title-only.json`, `fixtures/prompt-assembly/title-only-marker-fault.json`
+  - `src/lib/seams/prompt-assembly-seam/{contract,fixtures,mock,validators,test}.ts`
+  - `tests/contract/prompt-assembly.test.ts`
+  - `tests/unit/app-config-seam.test.ts`, `tests/unit/models.test.ts`, `tests/unit/provider-adapter-helpers.test.ts`, `tests/unit/probe-entrypoints.test.ts`, `tests/unit/api-generate.test.ts`
+- Exact governance and evidence paths:
+  - `plan.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `README.md`, `docs/release-smoke-checklist-2026-05-05.md`
+  - `docs/evidence/2026-08-25/` (UTC-dated output regenerated after integration; no fabricated live-provider capture)
+  - `.claude/settings.json` (remove the unrelated command allowlist from this PR)
+- Conflict rules:
+  - Preserve PR #227's `buildMeechieSystemPrompt` and voice-pack-derived studio examples.
+  - Preserve PR #228's `TEXT_MODEL` constant and optional dependency fallback; do not restore `selectTextModel` or runtime model env overrides.
+  - Preserve PR #229's typed legacy re-export and fixture-backed execution validator; apply the broader quoted-text/terminator repair only in the canonical adapter and identify the combined template as `v4`.
+  - Correct PR #227's decision narrative: the old tool prompt supplied 34 physical examples / 30 exact-distinct, including the eight filtered quotes through `tone.samples`; the owner-approved rewrite intentionally reduces that to 20 rather than merely restoring excluded lines.
+- Exact commands:
+  1. `npm test -- tests/unit/models.test.ts tests/unit/provider-adapter-helpers.test.ts tests/unit/probe-entrypoints.test.ts tests/unit/app-config-seam.test.ts tests/unit/meechie-studio-text-pipeline.test.ts tests/unit/meechie-tool-adapter.test.ts tests/unit/meechie-studio.test.ts tests/contract/provider-adapter.test.ts src/lib/seams/app-config-seam/test.ts src/lib/seams/meechie-tool-seam/test.ts src/lib/seams/meechie-voice-seam/test.ts --pool=forks --maxWorkers=1`
+  2. `npm run rewind -- --seam ProviderAdapterSeam`
+  3. `npm run rewind -- --seam AppConfigSeam`
+  4. `npm run rewind -- --seam ImageProviderConfigSeam`
+  5. `npm run rewind -- --seam MeechieStudioTextSeam`
+  6. `npm run rewind -- --seam \"MeechieToolSeam (self-contained)\"`
+  7. `npm run rewind -- --seam ChatInterpretationSeam`
+  8. `npm run rewind -- --seam \"MeechieVoiceSeam (self-contained)\"`
+  9. `npm run rewind -- --seam PromptAssemblySeam` and `npm run rewind -- --seam \"PromptAssemblySeam (self-contained)\"`
+  10. `npm run check`, `npm run lint`, `npm test`, `npm run verify`, `npm run cipher:gate`, `npm run assumption:alarm`, `git diff --check`
+
+### Self-Critique
+
+- What could be wrong: pinning a provider id removes an unsafe deployment override but makes the next provider retirement require a deploy. That tradeoff is intentional and must be visible in release operations.
+- Riskiest assumption: official model availability does not prove that `grok-4.6` accepts this app's exact `json_schema` payload with the configured account. No `XAI_API_KEY` is available in this workspace, so fixture files must not be presented as fresh live captures and the reachable-deployment smoke item must remain open.
+- What must be proven here: the pinned constants reach all production consumers, executable probes cannot overwrite fixtures with retired ids, mocks match the adapter, xAI's bare-string error is preserved, the merged Meechie prompt behavior survives, and all local/CI gates are green.
+- Evidence that would disprove it: a focused parity assertion showing a retired model, a probe diff that rewrites current fixtures, a non-hermetic generate-route test, a failed seam rewind/full verification, or an authenticated `/api/meechie-studio-text` response carrying `PROVIDER_HTTP_ERROR`.
+
 ## Prompt Text Boundary and Environment Example Repair (2026-08-24)
 
 ### Review correction addendum
 
-- Review findings: prove the title-only boundary through a checked-in fault fixture and fixture-backed mock; remove the inactive `MAX_IMAGES_PER_REQUEST` example rather than widen this repair into route validation; replace duplicated legacy PromptAssemblySeam implementation with a typed re-export of the canonical adapter; and capture the actual outer `npm run verify` transcript.
+- Review findings: prove the title-only boundary through a checked-in fault fixture and fixture-backed mock; remove the inactive `MAX_IMAGES_PER_REQUEST` example rather than widen this repair into route validation; replace duplicated legacy PromptAssemblySeam implementation with a typed re-export of the canonical adapter; and keep the inner check/test transcript distinct from the outer verify chain's separately generated artifacts.
 - Additional exact file paths: `fixtures/prompt-assembly/title-only-marker-fault.json`, `src/lib/seams/prompt-assembly-seam/contract.ts`, `src/lib/seams/prompt-assembly-seam/fixtures.ts`, `src/lib/seams/prompt-assembly-seam/mock.ts`, `src/lib/seams/prompt-assembly-seam/validators.ts`, `src/lib/seams/prompt-assembly-seam/test.ts`, `src/lib/adapters/prompt-assembly.adapter.ts`, `.env.example`, `package.json`, `DECISIONS.md`, `docs/evidence/2026-08-24/prompt-assembly-fixture-red.txt`, `docs/evidence/2026-08-25/rewind-PromptAssemblySeam(self-contained).txt`, and refreshed `docs/evidence/2026-08-25/*`.
-- Additional exact commands: run the new fault-mock assertion red before accepting the boundary validator; rerun focused Vitest, `node scripts/rewind.mjs --seam PromptAssemblySeam`, and `node scripts/rewind.mjs --seam "PromptAssemblySeam (self-contained)"`; run the literal outer `npm run verify` and store its sanitized complete stdout/stderr in `docs/evidence/2026-08-25/verify.txt`; run lint/build/Cipher Gate; then confirm GitHub verify, SonarQube, security scan, Vercel, and all review threads are green/resolved.
+- Additional exact commands: run the new fault-mock assertion red before accepting the boundary validator; rerun focused Vitest, `node scripts/rewind.mjs --seam PromptAssemblySeam`, and `node scripts/rewind.mjs --seam "PromptAssemblySeam (self-contained)"`; run the literal outer `npm run verify`, retain its inner check/test output in `docs/evidence/2026-08-25/verify.txt`, and rely on the separately generated chamber/shaolin/assumption/ledger/clan/proof artifacts plus the command exit for the remaining stages; run lint/build/Cipher Gate; then confirm GitHub verify, SonarQube, security scan, Vercel, and all review threads are green/resolved.
 - Addendum self-critique: a validator tested only against the adapter would repeat the original proof gap, while wiring request-limit behavior in this PR would be an unrelated production change. The fault fixture must remain deliberately contract-violating at the input/result relationship, be served by the mock, and be rejected by the boundary validator; the good title-only and footer-bearing fixtures must still pass it. The verify script may switch from nested npm aliases to their identical direct Node entrypoints only to make the outer command auditable; command order and failure short-circuiting must remain unchanged.
 
 ### Plan
@@ -67,6 +178,37 @@ Current active plan is listed first. Older dated entries remain below as histori
 3. Riskiest assumption: The 429 is solely provider quota state; the existing typed fixture and adapter already preserve a 429 response, but only restoring Gemini billing/quota can prove a live try-on succeeds again.
 4. Evidence to prove/disprove: Red/green legacy and self-contained PromptAssemblySeam tests, focused rewind output, a plain-text environment-file assertion, build/lint/full Seam-Driven Development verification, Cipher Gate output, CI, and post-PR review-thread inspection.
 5. Evidence-date note: the repository evidence scripts use UTC folder dates, so commands run during the evening of local 2026-08-24 write generated evidence under `docs/evidence/2026-08-25/`; the manually captured red/green/setup evidence remains under the local-date folder.
+
+## Retired xAI Model Outage: Pin Model Ids and Surface Provider Errors (2026-08-24)
+
+### Shortcut Check
+
+1. Shortcut a typical AI might take: change the `DEFAULT_TEXT_MODEL` constant, see green tests, and declare the outage fixed.
+2. Countermeasure: that would not have fixed production. `XAI_TEXT_MODEL` was set in the deployment and overrode the code default, so the stale id would have survived the change. The env read itself has to go.
+3. Lower-debt path: pin model ids in code as the single source of truth, delete every runtime env read, and fix the error parsing that hid the failure — so the next provider retirement is visible in minutes rather than never.
+
+### Plan
+
+- Seams (all already registered in `docs/seams.md`): ProviderAdapterSeam, AppConfigSeam, ImageProviderConfigSeam, MeechieStudioTextSeam, MeechieToolSeam, ChatInterpretationSeam.
+- Exact files:
+  - `src/lib/core/models.js` (new checked ESM module; replaces `src/lib/core/text-model.ts` and remains directly importable by plain Node 20 probes)
+  - `src/lib/core/chat-interpretation-pipeline.ts`, `src/lib/core/meechie-studio-text-pipeline.ts`
+  - `src/lib/adapters/meechie-tool.adapter.ts`, `src/lib/adapters/meechie-tool-seam/index.ts`
+  - `src/lib/adapters/meechie-studio-text.adapter.ts`, `src/routes/api/meechie-studio-text/+server.ts`
+  - `src/lib/adapters/app-config-seam/index.ts`, `src/lib/adapters/image-provider-config-seam/index.ts`
+  - `src/lib/adapters/provider-adapter.adapter.ts`, `probes/provider-adapter.probe.mjs`
+  - `src/lib/seams/image-provider-config-seam/{fixtures,test}.ts`, `fixtures/provider-adapter/{sample,fault}.json`
+  - `tests/unit/models.test.ts`, `tests/unit/provider-adapter-helpers.test.ts`
+  - `.env.example`, `README.md`, `docs/release-smoke-checklist-2026-05-05.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`
+- Exact commands: `npm install`, `npm run check`, `npm test`, `npm run lint`, `npm run verify`, `npm run cipher:gate`, `npm run assumption:alarm`.
+- Constraint: no contract shape changes. `AppConfigSeam` keeps requiring non-empty `xaiTextModel`/`xaiImageModel`; the adapter supplies constants so the fields stay populated without env.
+
+### Self-Critique
+
+- What could be wrong: pinning ids trades dashboard hot-swapping for a deploy. That is deliberate — the hot-swap path is exactly what caused this outage — but it does mean the next model retirement needs a code change.
+- Riskiest assumption: that a replacement image model accepts the same request parameters. This was NOT provable — the preview deployment sits behind Vercel SSO, so no probe could reach it. Rather than ship an unverified change to the only path that was still working, `IMAGE_MODEL` stays at the confirmed-working `grok-imagine-image`; the upgrade is deferred to its own change.
+- What must be proven: that `grok-4.6` actually answers. Unit tests cannot prove it — every one of them mocks the provider, which is precisely why green tests never caught the outage. Only a probe against a reachable deployment closes this.
+- Evidence that would disprove it: a `PROVIDER_HTTP_ERROR` from `/api/meechie-studio-text` on a deployed build. Thanks to the error-parsing fix, that response would now carry xAI's real message instead of a bare "Bad Request".
 
 ## PR #114 Manual Integration: Ordinal and Config Parsing Cleanup (2026-06-07)
 

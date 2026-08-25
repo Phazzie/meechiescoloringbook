@@ -46,8 +46,25 @@ const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] =
 		};
 	}
 
+	if (pathString === 'title') {
+		if (issue.code === 'invalid_string' || issue.code === 'custom') {
+			return {
+				code: 'TITLE_INVALID_CHARS',
+				field: 'title',
+				message: 'Title contains invalid characters.'
+			};
+		}
+		if (issue.code === 'too_small' || issue.code === 'too_big') {
+			return {
+				code: 'TITLE_LENGTH_OUT_OF_RANGE',
+				field: 'title',
+				message: 'Title must be between 1 and 96 characters.'
+			};
+		}
+	}
+
 	if (pathString.endsWith('label')) {
-		if (issue.code === 'invalid_string') {
+		if (issue.code === 'invalid_string' || issue.code === 'custom') {
 			return {
 				code: 'LABEL_INVALID_CHARS',
 				field: field || 'items.label',

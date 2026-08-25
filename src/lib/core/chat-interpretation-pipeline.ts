@@ -4,8 +4,7 @@
 import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
-import { selectTextModel } from '$lib/core/text-model';
-import { env } from '$env/dynamic/private';
+import { TEXT_MODEL } from '$lib/core/models';
 import {
 	ChatInterpretationInputSchema,
 	ChatInterpretationResultSchema
@@ -16,7 +15,7 @@ import {
 } from '../../../contracts/spec-validation.contract';
 import { z } from 'zod';
 
-const CHAT_MODEL = selectTextModel(env.XAI_TEXT_MODEL);
+const CHAT_MODEL = TEXT_MODEL;
 
 type ChatInterpretationResult = z.infer<typeof ChatInterpretationResultSchema>;
 

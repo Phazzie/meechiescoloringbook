@@ -1,7 +1,7 @@
 // Purpose: Verify /api/generate orchestrates prompt, image, and drift flow for the UI.
 // Why: Keep the main generation path on one server endpoint with contract-checked output.
 // Info flow: Generate request -> endpoint orchestration -> contract response.
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
 import { POST } from '../../src/routes/api/generate/+server';
 
@@ -99,6 +99,10 @@ const buildPipelineDeps = (
 };
 
 describe('/api/generate', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
 	it('rejects malformed JSON with INVALID_JSON code', async () => {
 		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
 		const response = await POST(buildRawEvent('{not: valid json}', fetchMock));
@@ -348,6 +352,15 @@ describe('/api/generate', () => {
 	});
 
 	it('keeps the endpoint parse and input guards transport-thin', async () => {
+		const providerFetchMock = vi.fn(async () =>
+			new Response(JSON.stringify({ data: [{ b64_json: 'aGVsbG8=' }] }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' }
+			})
+		);
+		// POST destructures only `request`; the image adapter uses global fetch. Stub that
+		// boundary so this unit test cannot issue a live xAI request and retry until timeout.
+		vi.stubGlobal('fetch', providerFetchMock);
 		const fetchMock = vi.fn(async () =>
 			new Response(
 				JSON.stringify({

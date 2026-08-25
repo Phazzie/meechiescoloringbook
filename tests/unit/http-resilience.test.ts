@@ -106,6 +106,40 @@ describe('fetchWithTimeout', () => {
 // ---------------------------------------------------------------------------
 
 describe('fetchWithRetry', () => {
+	// A timeout on a long generative call means the request was slow, not broken. Retrying it
+	// discards work already in flight and doubles the total wait past the caller's budget, so
+	// the browser reports failure for a request the server would have completed.
+	it('does not retry a timed-out attempt when retryOnTimeout is false', async () => {
+		const timeoutError = Object.assign(new Error('The operation timed out.'), {
+			name: 'TimeoutError'
+		});
+		const fetcher = vi.fn(async () => {
+			throw timeoutError;
+		});
+		await expect(
+			fetchWithRetry(fetcher, { maxAttempts: 3, baseDelayMs: 1, retryOnTimeout: false })
+		).rejects.toThrow(timeoutError);
+		expect(fetcher).toHaveBeenCalledTimes(1);
+	});
+
+	// Fake timers are active in this block, so the retry backoff must be advanced explicitly.
+	it('still retries a timed-out attempt by default', async () => {
+		const timeoutError = Object.assign(new Error('The operation timed out.'), {
+			name: 'TimeoutError'
+		});
+		let calls = 0;
+		const fetcher = vi.fn(async () => {
+			calls += 1;
+			if (calls < 2) throw timeoutError;
+			return new Response('{}', { status: 200 });
+		});
+		const pending = fetchWithRetry(fetcher, { maxAttempts: 3, baseDelayMs: 1 });
+		await vi.advanceTimersByTimeAsync(2_001);
+		const res = await pending;
+		expect(res.status).toBe(200);
+		expect(fetcher).toHaveBeenCalledTimes(2);
+	});
+
 	beforeEach(() => {
 		vi.useFakeTimers();
 	});

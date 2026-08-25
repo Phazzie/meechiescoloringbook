@@ -21,8 +21,9 @@ Purpose: Track the current smoke-test findings, deployment blockers, fixes, and 
 
 - [x] Confirm local dev loads `.env.local` or document the required startup command.
 - [ ] Confirm production has `XAI_API_KEY`.
-- [ ] Confirm optional production model vars: `XAI_TEXT_MODEL`, `XAI_IMAGE_MODEL`, `XAI_BASE_URL`, `XAI_IMAGE_ENDPOINT_PATH`.
-- [x] Confirm xAI chat request payload is accepted by the selected text model.
+- [ ] Confirm optional production env vars: `XAI_BASE_URL`, `XAI_IMAGE_ENDPOINT_PATH`.
+- [ ] Confirm the deployed commit's pinned model ids in `src/lib/core/models.js` (`TEXT_MODEL`, `IMAGE_MODEL`) are current with the provider. `XAI_TEXT_MODEL` and `XAI_IMAGE_MODEL` are NO LONGER read at runtime — any value still set in the dashboard is inert, so confirming it there proves nothing about what is deployed.
+- [ ] Confirm xAI chat request payload, including `json_schema`, is accepted by the selected text model on a reachable deployment.
 - [x] Confirm xAI image request payload is accepted by the selected image model.
 
 ## Missing Test IDs Or Unstable Selectors
