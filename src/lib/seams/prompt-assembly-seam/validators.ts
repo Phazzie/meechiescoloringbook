@@ -11,8 +11,8 @@ const TEXT_HEADING = 'TEXT (exact):';
 const TEXT_TERMINATOR =
 	'End of the headline block. Do not draw any section label.';
 const TYPOGRAPHY_HEADING = 'TYPOGRAPHY:';
-const SECONDARY_INSTRUCTION_PREFIX =
-	'Second line, render these exact words and nothing else: ';
+const HEADLINE_INSTRUCTION = 'Headline, render these exact words and nothing else:';
+const SECONDARY_INSTRUCTION = 'Second line, render these exact words and nothing else:';
 
 const countExactLines = (lines: string[], expected: string): number =>
 	lines.filter((line) => line === expected).length;
@@ -26,15 +26,15 @@ export const PromptAssemblyExecutionSchema = z
 		if (!result.ok) return;
 
 		const promptLines = result.value.prompt.split('\n');
-		const headlineInstruction = `Headline, render these exact words and nothing else: "${input.spec.title}"`;
+		// Each drawable value sits alone on the line after its instruction. It is deliberately
+		// NOT wrapped in quotes: ALLOWED_TEXT_REGEX permits a double quote inside a title or
+		// label, so a quote delimiter cannot be told apart from content for `He said "Go"`.
 		const secondaryLine = input.spec.footerItem?.label;
-		const secondaryInstruction = secondaryLine
-			? `Second line, render these exact words and nothing else: "${secondaryLine}"`
-			: undefined;
 		const expectedTextBlock = [
 			TEXT_HEADING,
-			headlineInstruction,
-			...(secondaryInstruction ? [secondaryInstruction] : []),
+			HEADLINE_INSTRUCTION,
+			input.spec.title,
+			...(secondaryLine ? [SECONDARY_INSTRUCTION, secondaryLine] : []),
 			TEXT_TERMINATOR,
 			TYPOGRAPHY_HEADING
 		];
@@ -43,18 +43,16 @@ export const PromptAssemblyExecutionSchema = z
 			textHeadingIndex,
 			textHeadingIndex + expectedTextBlock.length
 		);
-		const secondaryInstructions = promptLines.filter((line) =>
-			line.startsWith(SECONDARY_INSTRUCTION_PREFIX)
-		);
+		const secondaryInstructions = countExactLines(promptLines, SECONDARY_INSTRUCTION);
 		const hasExactBoundary =
 			textHeadingIndex >= 0 &&
 			actualTextBlock.every(
 				(line, index) => line === expectedTextBlock[index]
 			) &&
 			actualTextBlock.length === expectedTextBlock.length &&
-			countExactLines(promptLines, headlineInstruction) === 1 &&
+			countExactLines(promptLines, HEADLINE_INSTRUCTION) === 1 &&
 			countExactLines(promptLines, TEXT_TERMINATOR) === 1 &&
-			secondaryInstructions.length === (secondaryInstruction ? 1 : 0);
+			secondaryInstructions === (secondaryLine ? 1 : 0);
 
 		if (!hasExactBoundary) {
 			context.addIssue({

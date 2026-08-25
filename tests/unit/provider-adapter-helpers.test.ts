@@ -498,6 +498,40 @@ describe('provider-adapter helpers', () => {
 			}
 		});
 
+		// Regression: provider messages reach API clients verbatim through the studio, tool and
+		// chat pipelines. xAI embeds the account's team id in access errors, so surfacing the raw
+		// text — the fix that made this outage visible — also disclosed account metadata.
+		it('redacts account identifiers from provider messages', async () => {
+			const fetchMock = vi.fn(
+				async () =>
+					new Response(
+						JSON.stringify({
+							error:
+								'The model grok-bad does not exist or your team 3b93d791-c9bb-49e5-a6f7-da40d956241a does not have access to it'
+						}),
+						{ status: 400, statusText: 'Bad Request' }
+					)
+			);
+			vi.stubGlobal('fetch', fetchMock);
+
+			const adapter = createProviderAdapter({
+				apiKey: 'test-key',
+				baseUrl: 'https://api.x.ai'
+			});
+			const result = await adapter.createChatCompletion({
+				model: 'test',
+				messages: [{ role: 'user', content: 'hi' }]
+			});
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				// the diagnostic sentence survives...
+				expect(result.error.message).toContain('The model grok-bad does not exist');
+				// ...but the account identifier does not.
+				expect(result.error.message).not.toContain('3b93d791-c9bb-49e5-a6f7-da40d956241a');
+				expect(result.error.message).toContain('[redacted-id]');
+			}
+		});
+
 		it('uses statusText when response body has no message', async () => {
 			const fetchMock = vi.fn(
 				async () =>

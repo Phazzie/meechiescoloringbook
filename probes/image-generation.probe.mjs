@@ -95,8 +95,10 @@ const run = async () => {
 STYLE:
 Vibe: glam icons outline-only, easy to color. Color: black and white only.
 TEXT (exact):
-Headline, render these exact words and nothing else: "Dream Big"
-Second line, render these exact words and nothing else: "YOU"
+Headline, render these exact words and nothing else:
+Dream Big
+Second line, render these exact words and nothing else:
+YOU
 End of the headline block. Do not draw any section label.
 TYPOGRAPHY:
 Bold bubble letters; thick outlines.

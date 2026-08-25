@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "modelMetadata": {
+    "provider": "xai",
+    "model": "grok-imagine-image"
+  },
+  "image": {
+    "id": "image-1",
+    "format": "jpg",
+    "mimeType": "image/jpeg",
+    "encoding": "base64"
+  },
+  "imageBytesBase64": 270880
+}

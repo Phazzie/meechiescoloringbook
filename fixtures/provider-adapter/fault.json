@@ -62,7 +62,7 @@
       "ok": false,
       "error": {
         "code": "PROVIDER_HTTP_ERROR",
-        "message": "The model grok-imagine-image-bad does not exist or your team 3b93d791-c9bb-49e5-a6f7-da40d956241a does not have access to it. If you believe this is a mistake, please contact support and quote your team ID and the model name.",
+        "message": "The model grok-imagine-image-bad does not exist or your team [redacted-id] does not have access to it. If you believe this is a mistake, please contact support and quote your team ID and the model name.",
         "details": {
           "status": "404"
         }

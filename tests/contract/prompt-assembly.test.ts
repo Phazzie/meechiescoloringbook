@@ -59,8 +59,12 @@ describe('PromptAssemblySeam contract', () => {
 			throw new Error(output.error.message);
 		}
 		expect(output.value.prompt).not.toContain('Second line, render');
+		// The drawable value sits on its own line after its instruction rather than being
+		// wrapped in quotes: ALLOWED_TEXT_REGEX permits a double quote inside a title, so a
+		// quote delimiter is indistinguishable from content for an input like: He said "Go".
 		expect(output.value.prompt).toContain(
-			'Headline, render these exact words and nothing else: "Dream Big"\n' +
+			'Headline, render these exact words and nothing else:\n' +
+				'Dream Big\n' +
 				'End of the headline block. Do not draw any section label.\n' +
 				'TYPOGRAPHY:'
 		);

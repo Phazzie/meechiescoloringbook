@@ -1,0 +1,30 @@
+Black-and-white coloring book page for print.
+STYLE:
+Vibe: clean worksheet clarity, outline-only, easy to color. Color: black and white only.
+TEXT (exact):
+Headline, render these exact words and nothing else:
+He Said "Go"
+Second line, render these exact words and nothing else:
+Say It Again
+End of the headline block. Do not draw any section label.
+TYPOGRAPHY:
+Bold bubble letters; thick outlines.
+Glitter outline only (no shading).
+Font: rounded. Stroke: 6px.
+LAYOUT:
+US Letter 8.5x11 portrait. Left-align the quote. Line 1 headline; line 2 below.
+Keep generous whitespace; treat blank space intentional.
+List items: 1. Shine; 2. Grow (Gutter: normal).
+all numbers vertically aligned; all text left-aligned; treat blank space as intentional; do not fill empty space.
+Add dedication: "Dedicated to Jade".
+DECORATIONS:
+Decorations: none. Illustrations: none. Shading: none. Border: plain 8px.
+OUTPUT:
+Crisp vector-like linework. Black outlines on white. Printable.
+NEGATIVE PROMPT:
+no color
+no grayscale
+no shading
+no gradients
+no filled shapes
+no extra words

@@ -68,13 +68,18 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 	// bare ALL-CAPS heading cannot read as page copy. It forbids only section labels, not words
 	// in general: the LAYOUT section legitimately asks for list items and a dedication further
 	// down, and an earlier draft that said "draw no other words" contradicted them.
+	// Each drawable value sits alone on the line after its own instruction, and every
+	// instruction is emitted only when its value exists. No quoting: ALLOWED_TEXT_REGEX
+	// permits a double quote inside a title or label, so wrapping the value in quotes made
+	// the delimiter indistinguishable from content for an input like: He said "Go".
+	// The empty-slot bug this replaced came from emitting a placeholder whose value was
+	// conditional; pairing each instruction with its value makes that shape impossible.
 	const textLines = [
 		'TEXT (exact):',
-		`Headline, render these exact words and nothing else: "${spec.title}"`,
+		'Headline, render these exact words and nothing else:',
+		spec.title,
 		...(secondaryLine
-			? [
-					`Second line, render these exact words and nothing else: "${secondaryLine}"`
-				]
+			? ['Second line, render these exact words and nothing else:', secondaryLine]
 			: []),
 		'End of the headline block. Do not draw any section label.'
 	];

@@ -123,11 +123,19 @@ export type RetryOptions = {
 	baseDelayMs: number;
 	/** Optional caller cancellation signal; caller aborts are never retried. */
 	signal?: AbortSignal;
+	/**
+	 * Whether a timed-out attempt should be retried. Defaults to true, which suits short
+	 * requests where a timeout usually means a transient stall. Set false for long generative
+	 * calls: there a timeout means the request was slow, not broken, so retrying discards the
+	 * work already done and doubles the total wait — pushing it past the caller's own budget
+	 * and reporting failure for a request the server would have completed.
+	 */
+	retryOnTimeout?: boolean;
 };
 
 export const fetchWithRetry = async (
 	fetcher: () => Promise<Response>,
-	{ maxAttempts, baseDelayMs, signal }: RetryOptions
+	{ maxAttempts, baseDelayMs, signal, retryOnTimeout }: RetryOptions
 ): Promise<Response> => {
 	if (!Number.isFinite(maxAttempts) || !Number.isInteger(maxAttempts) || maxAttempts < 1) {
 		throw new Error('fetchWithRetry: maxAttempts must be a finite integer >= 1');
@@ -143,7 +151,11 @@ export const fetchWithRetry = async (
 			response = await fetcher();
 		} catch (error) {
 			const callerAborted = signal?.aborted ?? false;
-			if ((isAbortError(error) || isTimeoutError(error)) && !callerAborted && attempt < maxAttempts) {
+			const timedOut = isTimeoutError(error);
+			if (timedOut && retryOnTimeout === false) {
+				throw error;
+			}
+			if ((isAbortError(error) || timedOut) && !callerAborted && attempt < maxAttempts) {
 				await sleep(capDelayMs(withJitter(baseDelayMs * 2 ** (attempt - 1))), signal);
 				continue;
 			}

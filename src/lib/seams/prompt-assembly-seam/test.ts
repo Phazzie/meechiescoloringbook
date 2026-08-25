@@ -67,11 +67,14 @@ describe('PromptAssemblySeam contract', () => {
 			throw new Error(result.error.message);
 		}
 		const promptLines = result.value.prompt.split('\n');
-		const headline =
-			'Headline, render these exact words and nothing else: "Dream Big"';
-		const headlineIndex = promptLines.indexOf(headline);
-		expect(promptLines.slice(headlineIndex, headlineIndex + 3)).toEqual([
-			headline,
+		// The drawable value sits on its own line after its instruction rather than being
+		// wrapped in quotes: ALLOWED_TEXT_REGEX permits a double quote inside a title, so a
+		// quote delimiter is indistinguishable from content for an input like: He said "Go".
+		const instruction = 'Headline, render these exact words and nothing else:';
+		const instructionIndex = promptLines.indexOf(instruction);
+		expect(promptLines.slice(instructionIndex, instructionIndex + 4)).toEqual([
+			instruction,
+			'Dream Big',
 			'End of the headline block. Do not draw any section label.',
 			'TYPOGRAPHY:'
 		]);

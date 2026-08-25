@@ -1,11 +1,29 @@
 <!--
 Purpose: State the provenance of the ProviderAdapterSeam contract fixtures.
-Why: Record exactly what the checked-in live captures prove and what remains unverified.
-Info flow: Fixture origin -> reviewer expectations -> authenticated probe refresh.
+Why: A reviewer must be able to tell live provider evidence from synthetic fixture data.
+Info flow: capture origin -> reviewer expectations -> when to refresh.
 -->
 
 # Provider fixture provenance
 
-`sample.json` and `fault.json` are live captures produced by the authenticated provider probe on 2026-08-25. They prove that `grok-4.6` accepted the probe's strict `json_schema` request, that `grok-imagine-image` returned image data, and that both intentional bad-model requests returned normalized provider errors. They do not prove that a reachable deployment accepts the much larger Meechie studio system prompt end to end.
+`sample.json` and `fault.json` are **live captures**, taken 2026-08-25 by running
+`node probes/provider-adapter.probe.mjs` against xAI with an authorized key. Each file
+records this in its own `provenance` block with a timestamp, which is the authoritative
+source; this document only explains it.
 
-Run `node probes/provider-adapter.probe.mjs` with an authorized xAI key to refresh both captures. The probe imports `TEXT_MODEL` and `IMAGE_MODEL` from the Node-20-compatible `src/lib/core/models.js`, sends the studio path's strict `json_schema` shape, and records `provenance.kind` as `live-capture` with a timestamp. It exits nonzero and leaves these fixtures unchanged when either sample response is HTTP-failed or empty, or when either intentional fault request unexpectedly succeeds.
+They are therefore real evidence that the pinned models accept the requests this app sends:
+
+- `sample.json` — chat returned `ok:true` for `grok-4.6` using the studio path's strict
+  `json_schema` response format, and the image leg returned a payload for `grok-imagine-image`.
+- `fault.json` — deliberately bad model ids, capturing the provider's own error text. This is
+  what proves the adapter surfaces a real message (`Model not found: ...`) rather than the
+  bare `Bad Request` that hid a retired-model outage.
+
+**Account identifiers are redacted.** xAI embeds a team id in some access errors. The captured
+text is rewritten to `[redacted-id]` here and by `redactProviderMessage` in the adapter,
+because these messages are returned to API clients verbatim by the studio, tool and chat
+pipelines.
+
+To refresh, re-run the probe with an authorized `XAI_API_KEY`. It imports `TEXT_MODEL` and
+`IMAGE_MODEL` from `src/lib/core/models.ts`, so it always exercises the pinned ids, and it
+rewrites both files with a new `provenance.kind` of `live-capture` and a fresh timestamp.
