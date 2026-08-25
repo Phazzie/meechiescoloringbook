@@ -8,6 +8,59 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Prompt Text Boundary and Environment Example Repair (2026-08-24)
+
+### Plan
+
+- Goal: Stop title-only coloring-page prompts from presenting `TYPOGRAPHY:` as a secondary exact-text value, restore `.env.example` as directly copyable plain text, and distinguish the Gemini wig try-on quota incident from code-owned defects.
+- Exact seams: `PromptAssemblySeam`. `WigTryOnSeam` is verification-only in this work: the reported 429 is an exhausted provider quota and requires billing/quota restoration outside the repository, so its contract and adapter will not be changed.
+- Exact file paths to touch:
+  - `plan.md`
+  - `DECISIONS.md`
+  - `CHANGELOG.md`
+  - `.env.example`
+  - `fixtures/prompt-assembly/sample.json`
+  - `fixtures/prompt-assembly/title-only.json`
+  - `src/lib/adapters/prompt-assembly.adapter.ts`
+  - `src/lib/adapters/prompt-assembly-seam/index.ts`
+  - `tests/contract/prompt-assembly.test.ts`
+  - `src/lib/seams/prompt-assembly-seam/test.ts`
+  - `docs/evidence/2026-08-24/prompt-assembly-red.txt`
+  - `docs/evidence/2026-08-24/prompt-assembly-green.txt`
+  - `docs/evidence/2026-08-24/env-example-check.txt`
+  - `docs/evidence/2026-08-25/rewind-PromptAssemblySeam.txt`
+  - `docs/evidence/2026-08-25/verify.txt`
+  - `docs/evidence/2026-08-25/test.txt`
+  - `docs/evidence/2026-08-25/chamber-lock.json`
+  - `docs/evidence/2026-08-25/shaolin-lint.json`
+  - `docs/evidence/2026-08-25/assumption-alarm.json`
+  - `docs/evidence/2026-08-25/seam-ledger.json`
+  - `docs/evidence/2026-08-25/seam-ledger.md`
+  - `docs/evidence/2026-08-25/clan-chain.json`
+  - `docs/evidence/2026-08-25/clan-chain.md`
+  - `docs/evidence/2026-08-25/proof-tape.json`
+  - `docs/evidence/2026-08-25/proof-tape.md`
+  - `docs/evidence/2026-08-25/cipher-gate.json`
+- Exact commands to run:
+  1. `npm ci --cache /tmp/meechies-npm-cache` (the initial plain `npm ci` attempt could not create the sandboxed default `/root/.npm` cache, so the retry uses a task-local cache without changing dependency resolution).
+  2. `npm test -- tests/contract/prompt-assembly.test.ts src/lib/seams/prompt-assembly-seam/test.ts --pool=forks --maxWorkers=1` after changing the fixture/tests but before changing either adapter, capturing the expected red failure. If the work runner cannot return an expected nonzero npm-script result, run the equivalent `./node_modules/.bin/vitest run tests/contract/prompt-assembly.test.ts src/lib/seams/prompt-assembly-seam/test.ts --pool=forks --maxWorkers=1` directly for the evidence capture.
+  3. `npm test -- tests/contract/prompt-assembly.test.ts src/lib/seams/prompt-assembly-seam/test.ts --pool=forks --maxWorkers=1` after changing both adapters, capturing the green result. Use the equivalent direct Vitest command from step 2 if the npm-script wrapper cannot return through the work runner.
+  4. `npm run rewind -- --seam PromptAssemblySeam`; if the npm-script wrapper cannot return through the work runner, invoke the same repository script directly with `node scripts/rewind.mjs --seam PromptAssemblySeam`.
+  5. `node --input-type=module -e "import { readFile } from 'node:fs/promises'; const value = await readFile('.env.example', 'utf8'); if (!value.startsWith('# Purpose:') || !value.includes('XAI_API_KEY=') || !value.includes('GEMINI_API_KEY=')) process.exit(1); console.log('plain-text .env.example verified');"`.
+  6. `npm run lint`.
+  7. `npm run build`. If a repeat build reports an `EEXIST` symlink under generated `.vercel/output`, move only that derived directory to `/tmp/meechies-vercel-output-stale-20260824-1719` and rerun the build.
+  8. `npm run verify`. If the work runner drops the long-lived npm shell after `shaolin:lint`, confirm `verify.txt`, `test.txt`, and `shaolin-lint.json` are green, then complete the unchanged remaining chain with `node scripts/assumption-alarm.mjs`, `node scripts/seam-ledger.mjs`, `node scripts/clan-chain.mjs`, and `node scripts/proof-tape.mjs`. If self-review changes a watched source/fixture afterward, refresh the full evidence with `node scripts/chamber-lock.mjs`, `node scripts/verify-runner.mjs`, `node scripts/shaolin-lint.mjs`, and the same remaining direct scripts.
+  9. `npm run cipher:gate`; if the npm-script wrapper cannot return through the work runner, invoke the same repository script directly with `node scripts/cipher-gate.mjs`.
+  10. `git diff --check origin/main...HEAD` after commits are created.
+
+### Self-critique
+
+1. What could be wrong: Removing the secondary-line instruction unconditionally would break pages that do have `footerItem`; changing only the canonical adapter would leave the legacy contract suite inconsistent.
+2. What must be proven: Both adapters retain the instruction/value pair when a footer exists, both omit the entire pair when it does not, `TYPOGRAPHY:` immediately follows the title in title-only prompts, the changed prompt contract reports template `v3` in both fixtures, `.env.example` begins as readable configuration text, and all repository verification gates pass.
+3. Riskiest assumption: The 429 is solely provider quota state; the existing typed fixture and adapter already preserve a 429 response, but only restoring Gemini billing/quota can prove a live try-on succeeds again.
+4. Evidence to prove/disprove: Red/green legacy and self-contained PromptAssemblySeam tests, focused rewind output, a plain-text environment-file assertion, build/lint/full Seam-Driven Development verification, Cipher Gate output, CI, and post-PR review-thread inspection.
+5. Evidence-date note: the repository evidence scripts use UTC folder dates, so commands run during the evening of local 2026-08-24 write generated evidence under `docs/evidence/2026-08-25/`; the manually captured red/green/setup evidence remains under the local-date folder.
+
 ## PR #114 Manual Integration: Ordinal and Config Parsing Cleanup (2026-06-07)
 
 ### Shortcut Check

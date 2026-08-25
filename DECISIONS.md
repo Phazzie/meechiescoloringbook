@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-08-24 - Bind optional secondary prompt instructions to their value
+
+- Date: 2026-08-24
+- Decision: Emit the secondary exact-text instruction and `footerItem` label as one conditional pair in both PromptAssemblySeam adapter layouts, and version the changed prompt contract as `v3`. Keep `TYPOGRAPHY:` immediately after the title when no footer exists. Restore `.env.example` as plain text and document that Gemini 429 quota exhaustion is resolved through provider quota/billing, not an adapter change.
+- Context: The adapters always emitted `[Secondary line EXACT — omit if none.]` but conditionally emitted its value. Without a `footerItem`, the next physical line was `TYPOGRAPHY:`, which image generation could interpret as the requested secondary page text. Separately, `.env.example` was committed as a base64 payload, so the documented copy workflow produced unusable configuration. The live wig try-on failure is a provider 429 with an already modeled error path.
+- Alternatives: Remove the secondary instruction for every prompt; rejected because footer-bearing pages still need an explicit exact-text boundary. Add a blank placeholder; rejected because blank physical lines do not give the model a stronger boundary. Change WigTryOnSeam retry/error behavior; rejected because retries or wording cannot replenish exhausted quota and could repeat a billable request.
+- Consequences: Title-only prompts cannot shift `TYPOGRAPHY:` into the absent secondary slot, footer-bearing prompts retain their existing instruction/value pair, downstream results identify the changed prompt as template `v3`, local configuration can be copied from `.env.example`, and the operational quota repair remains outside repository code.
+- Revisit criteria: Revisit the prompt structure if a provider supports structured text/layout fields instead of a flat prompt, or revisit WigTryOnSeam only if a reproducible 429 occurs while the configured Gemini project has confirmed available quota.
+- Plan:
+  - Goal: Repair the prompt text boundary and plain-text environment example without disguising a billing incident as a code defect.
+  - Seams: PromptAssemblySeam. WigTryOnSeam is verification-only and unchanged.
+  - Files: `plan.md`, `DECISIONS.md`, `CHANGELOG.md`, `.env.example`, both prompt-assembly fixtures, both PromptAssemblySeam adapters/tests, `docs/evidence/2026-08-24/*`, and UTC-generated `docs/evidence/2026-08-25/*`.
+  - Commands: focused red/green Vitest, `npm run rewind -- --seam PromptAssemblySeam`, plain-text `.env.example` assertion, `npm run lint`, `npm run build`, `npm run verify`, `npm run cipher:gate`, and `git diff --check origin/main...HEAD`.
+- Self-critique: The main regression risk is accidentally removing secondary text from footer-bearing specs or fixing only one adapter layout. The unchanged sample fixture proves the pair remains, while the updated title-only fixture and explicit assertions prove both adapters omit it together.
+
+- Cipher Gate:
+  - Date: 2026-08-25
+  - Seams: PromptAssemblySeam
+  - Evidence: docs/evidence/2026-08-24/prompt-assembly-red.txt; docs/evidence/2026-08-24/prompt-assembly-green.txt; docs/evidence/2026-08-24/env-example-check.txt; docs/evidence/2026-08-25/rewind-PromptAssemblySeam.txt; docs/evidence/2026-08-25/verify.txt; docs/evidence/2026-08-25/test.txt
+  - Summary: Made the optional secondary exact-text marker/value atomic in both PromptAssemblySeam adapters, versioned the changed prompt as `v3`, and restored the environment template as readable text.
+  - Risks: Live wig try-on success remains unproven until the configured Gemini project has available quota; no code path can restore provider billing state.
+
 ## 2026-08-24 - Cut the Meechie voice to one owner-ruled list
 
 - Date: 2026-08-24
