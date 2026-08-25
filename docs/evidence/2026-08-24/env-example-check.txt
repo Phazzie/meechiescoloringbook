@@ -2,6 +2,6 @@
 # Why: Prevent a base64 payload from silently breaking the documented copy-to-.env workflow.
 # Info flow: .env.example -> Node text assertions -> verification result.
 
-$ node --input-type=module -e "import { readFile } from 'node:fs/promises'; const value = await readFile('.env.example', 'utf8'); if (!value.startsWith('# Purpose:') || !value.includes('XAI_API_KEY=') || !value.includes('GEMINI_API_KEY=')) process.exit(1); console.log('plain-text .env.example verified');"
+$ node --input-type=module -e "import { readFile } from 'node:fs/promises'; const value = await readFile('.env.example', 'utf8'); if (!value.startsWith('# Purpose:') || !value.includes('XAI_API_KEY=') || !value.includes('GEMINI_API_KEY=') || value.includes('MAX_IMAGES_PER_REQUEST=')) process.exit(1); console.log('plain-text .env.example verified without inactive request limit');"
 
-plain-text .env.example verified
+plain-text .env.example verified without inactive request limit

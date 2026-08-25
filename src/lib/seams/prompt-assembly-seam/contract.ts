@@ -20,6 +20,7 @@ export const PromptAssemblyResultSchema = resultSchema(PromptAssemblyOutputSchem
 
 export type PromptAssemblyInput = z.infer<typeof PromptAssemblyInputSchema>;
 export type PromptAssemblyOutput = z.infer<typeof PromptAssemblyOutputSchema>;
+export type PromptAssemblyResult = z.infer<typeof PromptAssemblyResultSchema>;
 
 export type PromptAssemblySeam = {
 	assemble(input: PromptAssemblyInput): Promise<Result<PromptAssemblyOutput>>;

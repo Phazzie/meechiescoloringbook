@@ -10,6 +10,13 @@ Current active plan is listed first. Older dated entries remain below as histori
 
 ## Prompt Text Boundary and Environment Example Repair (2026-08-24)
 
+### Review correction addendum
+
+- Review findings: prove the title-only boundary through a checked-in fault fixture and fixture-backed mock; remove the inactive `MAX_IMAGES_PER_REQUEST` example rather than widen this repair into route validation; replace duplicated legacy PromptAssemblySeam implementation with a typed re-export of the canonical adapter; and capture the actual outer `npm run verify` transcript.
+- Additional exact file paths: `fixtures/prompt-assembly/title-only-marker-fault.json`, `src/lib/seams/prompt-assembly-seam/contract.ts`, `src/lib/seams/prompt-assembly-seam/fixtures.ts`, `src/lib/seams/prompt-assembly-seam/mock.ts`, `src/lib/seams/prompt-assembly-seam/validators.ts`, `src/lib/seams/prompt-assembly-seam/test.ts`, `src/lib/adapters/prompt-assembly.adapter.ts`, `.env.example`, `package.json`, `DECISIONS.md`, `docs/evidence/2026-08-24/prompt-assembly-fixture-red.txt`, `docs/evidence/2026-08-25/rewind-PromptAssemblySeam(self-contained).txt`, and refreshed `docs/evidence/2026-08-25/*`.
+- Additional exact commands: run the new fault-mock assertion red before accepting the boundary validator; rerun focused Vitest, `node scripts/rewind.mjs --seam PromptAssemblySeam`, and `node scripts/rewind.mjs --seam "PromptAssemblySeam (self-contained)"`; run the literal outer `npm run verify` and store its sanitized complete stdout/stderr in `docs/evidence/2026-08-25/verify.txt`; run lint/build/Cipher Gate; then confirm GitHub verify, SonarQube, security scan, Vercel, and all review threads are green/resolved.
+- Addendum self-critique: a validator tested only against the adapter would repeat the original proof gap, while wiring request-limit behavior in this PR would be an unrelated production change. The fault fixture must remain deliberately contract-violating at the input/result relationship, be served by the mock, and be rejected by the boundary validator; the good title-only and footer-bearing fixtures must still pass it. The verify script may switch from nested npm aliases to their identical direct Node entrypoints only to make the outer command auditable; command order and failure short-circuiting must remain unchanged.
+
 ### Plan
 
 - Goal: Stop title-only coloring-page prompts from presenting `TYPOGRAPHY:` as a secondary exact-text value, restore `.env.example` as directly copyable plain text, and distinguish the Gemini wig try-on quota incident from code-owned defects.
