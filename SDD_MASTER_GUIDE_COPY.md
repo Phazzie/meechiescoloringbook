@@ -26,16 +26,17 @@ SDD prevents those failures by forcing reality capture (probes + fixtures), dete
 ## 4) The SDD Workflow (The Liquid Loop)
 Follow this order, no shortcuts:
 1. **Contract**: `contracts/<seam>.contract.ts` (Zod schema + types + failure modes).
-2. **Probe**: `probes/<seam>.probe.ts` (captures real behavior).
+2. **Probe**: `probes/<seam>.probe.mjs` (captures real behavior).
 3. **Fixture**: `fixtures/<seam>/sample.json` and `fixtures/<seam>/fault.json`.
 4. **Mock**: `src/lib/mocks/<seam>.mock.ts` (loads fixtures by `scenario`).
 5. **Test**: `tests/contract/<seam>.test.ts` (run against mock first).
 6. **Adapter**: `src/lib/adapters/<seam>.adapter.ts` (real I/O via JailedFs).
 
 ## 5) How To Use SDD In This Repo
+
 ### A) Start a New Seam
-1. Run the scaffolder:
-   - `npm run scaffold -- --seam <name> --spec <spec-file>`
+
+1. Use `docs/SEAM_BLUEPRINT.md` to plan the seam's files under `src/lib/seams/<name>/` (see `src/lib/seams/CLAUDE.md` for folder anatomy).
 2. Fill in the contract and failure modes.
 3. Write a probe and run it to capture fixtures.
 4. Implement mock + contract tests.
@@ -52,11 +53,12 @@ Follow this order, no shortcuts:
 - Compile: `npx tsc -p tsconfig.json`
 - Verify mandates: `npm run verify`
 - Contract tests: `npm test`
-- SDD audit: `node dist/scripts/sdd-check.js <seam>`
-- Fixture audit: `node dist/scripts/fixture-audit.js`
+- Single-seam check: `npm run rewind -- --seam <PascalCaseName>`
+- Seam coverage ledger: `npm run seam:ledger`
 
 ## 6) Non-Negotiable Mandates (Summary)
-Refer to `docs/LAW.md` and `docs/THE_LAW.md` for authoritative wording. This is a summary:
+
+Refer to `AGENTS.md` for authoritative wording. This is a summary:
 - **JailedFs Sovereignty:** Adapters must not import `fs`/`fs.promises` directly.
 - **Sharding Law:** Store updates write the shard first, manifest last.
 - **No Sync IO in Adapters:** `*Sync` calls are banned.

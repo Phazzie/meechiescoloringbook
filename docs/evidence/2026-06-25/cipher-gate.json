@@ -1,0 +1,58 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-06-25T16:12:46.929Z",
+  "cipher": {
+    "date": "2026-06-25",
+    "seams": "None (no contract/schema changes this round)",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-06-25/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/seam-ledger.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/seam-ledger.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/clan-chain.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/clan-chain.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/proof-tape.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/proof-tape.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-06-25/assumption-alarm.json",
+        "exists": true
+      }
+    ],
+    "summary": "Refactored `wig-try-on-pipeline.ts`'s internal `fetchImageAsBase64` to use the shared `Result<T, E>` pattern (Sourcery suggestion); fixed `docs/SEAM_BLUEPRINT.md` describing the legacy flat layout instead of the self-contained layout, plus the stale reference to it in `SDD_MASTER_GUIDE_COPY.md` (Codex finding); fixed two MD022 markdownlint heading-spacing violations in `SDD_MASTER_GUIDE_COPY.md` (CodeRabbit finding).",
+    "risks": "Behavior-preserving (internal refactor only, same external pipeline contract); doc-only changes carry no runtime risk. \"Rosentic - Conflict Detection\" CI check remains red on PR #192 but is confirmed unrelated to this PR's diff and out of scope to fix (tool configuration issue, not a code defect)."
+  },
+  "latestChangeMs": 1782402493138.6477,
+  "status": "ok"
+}

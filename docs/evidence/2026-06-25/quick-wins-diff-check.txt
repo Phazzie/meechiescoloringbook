@@ -1,0 +1,6 @@
+# Purpose: Store git diff --check output for evidence.
+# Why: Confirm the four-quick-wins fix slice introduced no whitespace errors.
+# Info flow: Command output -> evidence file -> review.
+
+$ git diff --check
+(no output = clean)
