@@ -1,3 +1,7 @@
+# Purpose: Store `npm run lint` output for the canon-ten change.
+# Why: Prove ESLint is clean before the Cipher Gate is claimed.
+# Info flow: npm run lint -> evidence file -> review.
+
 
 > meechies-coloringbook@0.1.0 lint
 > eslint .

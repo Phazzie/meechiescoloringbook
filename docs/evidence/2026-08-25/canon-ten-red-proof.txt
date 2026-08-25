@@ -1,3 +1,7 @@
+# Purpose: Store the staged red proof for MeechieQuoteSchema.
+# Why: Prove the rejection tests actually fail when the schema is weakened, per src/lib/seams/AGENTS.md section 3.
+# Info flow: schema weakened in stages -> vitest output per stage -> evidence file -> review.
+
 Red proof for MeechieQuoteSchema after the cut to ten canon lines and the
 removal of the `tier` field.
 

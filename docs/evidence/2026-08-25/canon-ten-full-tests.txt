@@ -1,3 +1,7 @@
+# Purpose: Store full `npm test` output as run in the sandboxed dev container.
+# Why: Record the regression suite result, including the one environmental timeout explained in canon-ten-verify-ci.txt.
+# Info flow: npm test -> evidence file -> review.
+
 
 > meechies-coloringbook@0.1.0 test
 > vitest run

@@ -1,3 +1,7 @@
+# Purpose: Store `npm run check` output for the canon-ten change.
+# Why: Prove svelte-check and TypeScript are clean before the Cipher Gate is claimed.
+# Info flow: npm run check -> evidence file -> review.
+
 
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json

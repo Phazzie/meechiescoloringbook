@@ -1,0 +1,45 @@
+# Purpose: Record that `npm run verify` is green for the canon-ten change.
+# Why: AGENTS.md line 104 requires `npm run verify` and `npm test` green. The gate
+#      passes on CI; it does not pass in the sandboxed dev container, and this file
+#      records both facts and why they differ.
+# Info flow: GitHub Actions verify jobs -> this summary -> review.
+
+npm run verify — GitHub Actions, PR #230, head 1765ebd
+
+  verify  success  .../actions/runs/32795911612/job/97647053415
+  verify  success  .../actions/runs/32795907929/job/97647042966
+
+All 10 check runs green on 1765ebd:
+  verify (x2), SonarCloud, SonarCloud Code Analysis, CodeQL,
+  Analyze (javascript-typescript), Analyze (actions),
+  Rosentic - Conflict Detection, Vercel Preview Comments
+  (Sourcery review: skipped — the bot's own 7-day budget, not a finding)
+
+SonarCloud quality gate: PASSED. 0 new issues, 0.0% duplication on new code.
+
+WHY THE LOCAL RUN DIFFERS
+-------------------------
+Locally `npm run verify` stops at verify:runner on one test:
+  tests/unit/api-generate.test.ts > "keeps the endpoint parse and input guards
+  transport-thin" — Test timed out in 5000ms.
+
+Measured, not assumed:
+  npx vitest run tests/unit/api-generate.test.ts -t "transport-thin" --testTimeout=120000
+  -> 1 passed. Duration 6.79s, of which 5.83s is test time and ~2.8s is user CPU.
+
+So the test spends most of its wall time waiting, not computing, and lands just
+past the 5000ms default. That endpoint performs HTTP with retry and backoff, and
+this container routes outbound traffic through a proxy, which is what pushes it
+over. The same test passes on CI, and it fails identically on a clean checkout of
+the base commit (verified by stashing this branch's changes), so it predates this
+work and is not caused by it.
+
+WHY THE TEST IS NOT PATCHED HERE
+--------------------------------
+Raising that one test's timeout would make the local run green, but it means
+editing an unrelated test's configuration to accommodate one environment's network
+latency. That widens this PR into a file it otherwise does not touch, and it
+changes a shared gate for every future contributor to paper over a local quirk.
+The gate is green where it governs merges. This file is the actual command output
+for that, per AGENTS.md line 49 ("When asked for evidence, provide actual command
+output").
