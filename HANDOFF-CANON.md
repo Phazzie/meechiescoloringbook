@@ -60,6 +60,76 @@ Rule of thumb offered: something is a seam only if it crosses a process boundary
 11-tool Meechie toolkit at `/meechie`, the 8-mode rotation, standalone mode pages
 (`/random`, `/who-fucked-up`, `/rate-his-excuse`, `/m/[mode]`), themes, voice sliders.
 
+### THE PROMPT ALSO SHIPS SIX ANTI-EXAMPLES — keep them
+
+`tone.donts` in `voice-pack.ts` holds six lines fed to the model under
+"NEVER DO THIS". They are NOT Meechie quotes — they are therapy-speak
+counter-examples that keep the model out of empowerment-poster voice:
+
+  "You deserve someone who chooses you every single day."
+  "I blocked him and started my healing journey."
+  "Real love doesn't make you question your worth."
+  "My therapist says I need to stop dimming my light for people."
+  "I'm in my unbothered era and I'm not looking back."
+  "She's not the problem. He just wasn't ready for her."
+
+`tone.dos` is now EMPTY (four of its six lines were promoted into the canon,
+two were cut), so the prompt no longer emits a "RULES:" section.
+`tone.samples` is DERIVED from the same array as `responses.quotes` — they
+cannot drift apart. Do not reintroduce a second hand-maintained list.
+
+---
+
+## 2b. REBUILD INVENTORY — what exists today, what to keep, what to cut
+
+Derived by reading the whole app at the start of the session. This is the input
+to the rebuild in §2; without it the next session has to re-derive it.
+
+### KEEP
+- `ColoringPageSpec` (`contracts/spec-validation.contract.ts`) — title, numbered
+  items (max 20, labels max 40 chars, charset-restricted), optional footerItem,
+  optional dedication (max 60), listMode list|title_only, alignment, whitespace,
+  text size/font/stroke, colorMode, decorations, illustrations, shading, border
+  + thickness, variations 1-4, outputFormat png|pdf, pageSize US_Letter|A4.
+  Owner said "generate coloring pages with the current spec" — this is it.
+- `/api/generate` -> `generate-pipeline.ts` (validation -> prompt -> image ->
+  drift -> packaging). The real generate path.
+- `/api/meechie-studio-text` -> `meechie-studio-text-pipeline.ts`. The PRIMARY
+  text flow. Its `MEECHIE_SYSTEM_PROMPT` interpolates VOICE_EXAMPLES from the
+  voice pack — this is the thing the canon actually feeds.
+- Output packaging (`output-packaging.adapter.ts`) — PDF via pdf-lib, PNG,
+  square/chat share variants. PDF download is the deliverable.
+- PWA manifest, icons, service worker (offline caching).
+- Anonymous per-device session + draft autosave, IF the vault survives.
+
+### CUT (owner said wigs out; toolkit/modes are not in the asked-for flow)
+- Wig try-on end to end: `/api/wig-try-on`, `wig-try-on-pipeline.ts`,
+  `wig-catalog-seam/`, `wig-try-on-seam/`, adapters for both,
+  `WigCarousel.svelte`, `SelfieUpload.svelte`, `WigTryOnStudio.svelte`,
+  `src/lib/data/wigs.json`, `static/wigs/*`, `selfie-upload.ts`.
+  Note: this is the ONLY Gemini dependency in the app — cutting it removes
+  `GEMINI_API_KEY` entirely.
+- Meechie toolkit: `/meechie` route, `MeechieTools.svelte`, `/api/tools`,
+  `tools-pipeline.ts`, `meechie-tool-seam/` + both tool adapters, and the
+  11 tools (apology_translator, red_flag_or_run, wwmd, lineup, horoscope,
+  receipts, caption_this, clapback, meechie_explains, rate_excuse,
+  random_meechie).
+- Mode system: `studioModes` (8 modes), weekly/monthly rotation helpers,
+  `/m/[mode]` route + `meechie-mode-config.ts`, `MeechieModePage.svelte`, and
+  standalone pages `/random`, `/who-fucked-up`, `/rate-his-excuse`.
+- `studioThemes` (8 themes) + the theme picker. Owner wants base theme only.
+- Voice sliders (intensity / rawness / thirdPerson) unless owner asks to keep.
+
+### ALREADY DEAD — do not resurrect
+- `/api/chat-interpretation` + adapter: fully built, no UI calls it.
+- `gallery-store-seam`, `telemetry-seam`: contracts/mocks only, no consumers.
+- Chat-sized share export: implemented in packaging, never requested by any UI.
+
+### DECIDE WITH THE OWNER
+- The Quote Vault (save/load/pin/delete creations). Not mentioned in the
+  rebuild ask. It is real user-facing value and it is also scope.
+- The revision budget (3 AI text actions per page).
+
 ---
 
 ## 3. REPO STATE
@@ -191,6 +261,21 @@ CI on 12baead                                     10/10 green
 Live probe result worth remembering: the model does NOT echo canon lines verbatim,
 but one response borrowed `the-door`'s phrasing ("don't open the door even a little
 bit") without quoting it. Expected when 10 examples pull harder than 20. Watch it.
+
+---
+
+## 6b. LIVE SESSION STATE — clean these up
+
+- **An armed scheduled trigger:** `trig_012H1RNS5FWZE7K7C9QYW1cy`, fires around
+  03:03Z, bound to the OLD session (`session_01W5YgHTimkyby1HwuUFKazN`). A new
+  window will not receive it, but it is still live. Delete it with
+  `mcp__Claude_Code_Remote__delete_trigger` if the old session is abandoned.
+- **PR #230 activity subscription** is on the old session too. A new session
+  that wants CI/review events must call `subscribe_pr_activity` for #230 itself.
+- Five earlier review threads on #230 are replied-to but UNRESOLVED, and four
+  newer findings (§3) have no reply at all. Thread IDs are not recorded here —
+  fetch them with `pull_request_read` method `get_review_comments` (use the
+  `after` cursor for pagination; the `page` parameter is ignored).
 
 ---
 
