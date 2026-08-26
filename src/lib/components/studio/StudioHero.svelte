@@ -29,7 +29,10 @@ Info flow: Parent passes read-only mode data and callbacks; hero is purely prese
 
 <section
 	class="hero"
-	style={`background-image: linear-gradient(90deg, rgba(7, 7, 15, 0.94), rgba(7, 7, 15, 0.25)), url('/meechie/meechie-banner.png');`}
+	style={`background-image:
+		linear-gradient(180deg, rgba(7, 7, 15, 0.1) 0%, rgba(7, 7, 15, 0.02) 34%, rgba(7, 7, 15, 0.78) 82%, rgba(7, 7, 15, 0.96) 100%),
+		linear-gradient(90deg, rgba(7, 7, 15, 0.62) 0%, rgba(7, 7, 15, 0.2) 34%, rgba(7, 7, 15, 0) 58%),
+		url('/meechie/meechie-banner.png');`}
 >
 	<div class="hero-copy">
 		<p class="eyebrow">Meechies Coloring Book Generator</p>

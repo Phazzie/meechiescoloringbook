@@ -146,14 +146,26 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		border-bottom: 1px solid rgba(201, 162, 39, 0.32);
 		background-position:
 			center,
+			center,
 			right center;
-		background-size: cover, cover;
+		background-size: cover, cover, cover;
 		box-shadow: 0 24px 56px rgba(0, 0, 0, 0.48);
 	}
 
 	:global(.studio .hero-copy) {
-		max-width: 600px;
+		max-width: 520px;
 		grid-column: 1;
+	}
+
+	/* The banner art already renders "Meechies Coloring Book" as neon type. A second
+	   copy of the same words at 8vw sat directly on Meechie's face, so the page said
+	   its own name twice and hid its subject to do it. The heading stays for semantics
+	   and for the case where the image fails to load, at a size that lets her be the
+	   thing you look at. */
+	:global(.studio .hero h1) {
+		font-size: clamp(1.9rem, 3.1vw, 2.9rem);
+		max-width: 15ch;
+		margin-bottom: 0.55rem;
 	}
 
 	:global(.studio .eyebrow),
@@ -217,16 +229,22 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	}
 
 	:global(.studio .mode-card) {
-		min-height: 158px;
+		min-height: 210px;
 		padding: 0.8rem;
 		border: 1px solid rgba(201, 162, 39, 0.22);
 		border-radius: 8px;
 		color: var(--cream);
 		background:
-			linear-gradient(180deg, rgba(7, 7, 15, 0.42), rgba(7, 7, 15, 0.92)),
+			linear-gradient(
+					180deg,
+					rgba(7, 7, 15, 0.06) 0%,
+					rgba(7, 7, 15, 0.04) 40%,
+					rgba(7, 7, 15, 0.68) 74%,
+					rgba(7, 7, 15, 0.95) 100%
+				),
 			var(--mode-image);
 		background-size: cover;
-		background-position: center;
+		background-position: 50% 26%;
 		cursor: pointer;
 		display: flex;
 		flex-direction: column;
@@ -716,7 +734,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			padding-block: 1.2rem;
 			background-position:
 				center,
-				68% center;
+				center,
+				62% center;
 		}
 
 		:global(.studio .mode-strip) {
@@ -724,7 +743,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 
 		:global(.studio .mode-card) {
-			min-height: 130px;
+			min-height: 170px;
 		}
 
 		:global(.studio .verdict-row),
@@ -739,13 +758,24 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	}
 
 	@media (max-width: 480px) {
+		/* This used to be a flat 82% black wash across the whole banner, which made the
+		   text legible by erasing the subject. Phone gets the same treatment as desktop
+		   instead: she reads in the upper half, the scrim ramps up only where the copy
+		   actually sits, and the frame is nudged left so she is in shot at this width. */
 		:global(.studio .hero) {
 			grid-template-columns: 1fr;
 			background-image:
-				linear-gradient(rgba(7, 7, 15, 0.82), rgba(7, 7, 15, 0.82)),
+				linear-gradient(
+					180deg,
+					rgba(7, 7, 15, 0.12) 0%,
+					rgba(7, 7, 15, 0.06) 28%,
+					rgba(7, 7, 15, 0.68) 58%,
+					rgba(7, 7, 15, 0.95) 100%
+				),
 				url('/meechie/meechie-banner.png') !important;
-			background-position: center !important;
-			min-height: 260px;
+			background-position: 8% center !important;
+			background-size: cover !important;
+			min-height: 420px;
 		}
 
 		:global(.studio .mode-strip) {
@@ -753,7 +783,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 
 		:global(.studio .mode-card) {
-			min-height: 110px;
+			min-height: 140px;
 			padding: 0.6rem;
 		}
 
