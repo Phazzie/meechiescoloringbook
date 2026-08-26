@@ -1,6 +1,6 @@
 // Purpose: Derive pseudonymous rate-limit identities from server-resolved client addresses.
 // Why: Durable quota keys must group IPv6 /64 networks without storing raw network addresses.
-// Info flow: client-address lookup + required secret -> normalized address -> HMAC-SHA256 key.
+// Info flow: client-address lookup -> leftmost forwarded hop -> normalized address -> HMAC-SHA256 key.
 import { createHmac } from 'node:crypto';
 import { isIP } from 'node:net';
 
@@ -69,8 +69,18 @@ const ipv4FromMappedParts = (parts: readonly number[]): string | null => {
 	return [high >> 8, high & 0xff, low >> 8, low & 0xff].join('.');
 };
 
+// SvelteKit's Vercel adapter returns `request.headers.get('x-forwarded-for')` verbatim,
+// behind a cast that claims it is a string. That header is a comma-separated chain whenever
+// the request passed through any proxy or CDN, e.g. "203.0.113.7, 70.41.3.18". Feeding the
+// whole chain to isIP() fails, which would send EVERY caller to the shared fallback bucket and
+// cap the entire site at one budget. The leftmost hop is the originating client by convention.
+const leftmostForwardedHop = (value: string): string => {
+	const separator = value.indexOf(',');
+	return separator < 0 ? value : value.slice(0, separator);
+};
+
 export const normalizeClientAddress = (value: string): string | null => {
-	let candidate = value.trim().toLowerCase();
+	let candidate = leftmostForwardedHop(value).trim().toLowerCase();
 	if (candidate.startsWith('[')) {
 		const closingBracket = candidate.indexOf(']');
 		if (closingBracket < 0) return null;

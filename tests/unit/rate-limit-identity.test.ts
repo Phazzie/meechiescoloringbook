@@ -154,3 +154,41 @@ describe('rate-limit identity', () => {
 		);
 	});
 });
+
+describe('x-forwarded-for proxy chains', () => {
+	// Regression: SvelteKit's Vercel adapter returns the raw x-forwarded-for header. Behind any
+	// proxy or CDN that header is a chain. Before this was handled, every chained request
+	// normalized to null and landed in the single shared fallback bucket, capping the whole
+	// site at one budget while every other test stayed green.
+	it('resolves the leftmost hop from a comma-separated chain', () => {
+		expect(normalizeClientAddress('203.0.113.7, 70.41.3.18')).toBe('203.0.113.7');
+		expect(normalizeClientAddress('203.0.113.7,70.41.3.18')).toBe('203.0.113.7');
+		expect(normalizeClientAddress('203.0.113.7, 70.41.3.18, 150.172.238.178')).toBe(
+			'203.0.113.7'
+		);
+	});
+
+	it('resolves an IPv6 leftmost hop to its /64 network', () => {
+		expect(normalizeClientAddress('2001:db8:85a3::8a2e:370:7334, 203.0.113.7')).toBe(
+			'2001:db8:85a3:0::/64'
+		);
+	});
+
+	it('keeps two clients behind the same proxy in different buckets', () => {
+		const first = normalizeClientAddress('203.0.113.7, 70.41.3.18');
+		const second = normalizeClientAddress('198.51.100.9, 70.41.3.18');
+		expect(first).not.toBe(second);
+		expect(first).not.toBeNull();
+		expect(second).not.toBeNull();
+	});
+
+	it('still falls back when no hop is a usable address', () => {
+		expect(normalizeClientAddress('')).toBeNull();
+		expect(normalizeClientAddress('not-an-address, 203.0.113.7')).toBeNull();
+	});
+
+	it('is a no-op for a single unchained address', () => {
+		expect(normalizeClientAddress('203.0.113.7')).toBe('203.0.113.7');
+		expect(normalizeClientAddress('2001:db8:85a3::8a2e:370:7334')).toBe('2001:db8:85a3:0::/64');
+	});
+});
