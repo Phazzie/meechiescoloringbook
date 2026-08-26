@@ -122,25 +122,54 @@ const imageExceptionResponse = (error: unknown): PipelineResponse => {
 	);
 };
 
-export const runGeneratePipeline = async (
+type GenerateRequestInput = z.infer<typeof GenerateRequestSchema>;
+
+type PreparedGenerateRequest = {
+	spec: GenerateRequestInput['spec'];
+	assembledPrompt: string;
+	assembledTemplateVersion: string;
+	imageRequest: {
+		spec: GenerateRequestInput['spec'];
+		prompt: string;
+		variations: number;
+		outputFormat: GenerateRequestInput['spec']['outputFormat'];
+	};
+};
+
+/**
+ * Everything that must hold before a single unit is charged: not aborted, structurally valid,
+ * safe content, a valid spec, and a prompt that actually assembles. Each rejection here costs
+ * the caller nothing. Split out of runGeneratePipeline because keeping this chain inline put
+ * that function over its cognitive-complexity budget once the quota charge was added.
+ */
+const prepareGenerateRequest = async (
 	body: unknown,
 	deps: GeneratePipelineDeps
-): Promise<PipelineResponse> => {
+): Promise<
+	| { ok: true; prepared: PreparedGenerateRequest }
+	| { ok: false; response: PipelineResponse }
+> => {
 	if (deps.signal?.aborted) {
-		return buildError(
-			499,
-			'GENERATE_ABORTED',
-			'Generate request was canceled by the caller.'
-		);
+		return {
+			ok: false,
+			response: buildError(
+				499,
+				'GENERATE_ABORTED',
+				'Generate request was canceled by the caller.'
+			)
+		};
 	}
 
 	const parsedInput = GenerateRequestSchema.safeParse(body);
 	if (!parsedInput.success) {
-		return buildError(
-			400,
-			'GENERATE_INPUT_INVALID',
-			'Generate request is invalid.'
-		);
+		return {
+			ok: false,
+			response: buildError(
+				400,
+				'GENERATE_INPUT_INVALID',
+				'Generate request is invalid.'
+			)
+		};
 	}
 
 	const safetyResult = deps.checkContentSafety({
@@ -148,23 +177,29 @@ export const runGeneratePipeline = async (
 		styleHint: parsedInput.data.styleHint
 	});
 	if (!safetyResult.ok) {
-		return buildError(
-			400,
-			'CONTENT_POLICY_VIOLATION',
-			safetyResult.error.message,
-			safetyErrorDetails(safetyResult.error)
-		);
+		return {
+			ok: false,
+			response: buildError(
+				400,
+				'CONTENT_POLICY_VIOLATION',
+				safetyResult.error.message,
+				safetyErrorDetails(safetyResult.error)
+			)
+		};
 	}
 
 	const validation = await deps.validateSpec({ spec: parsedInput.data.spec });
 	if (!validation.ok) {
 		const issue = validation.issues[0];
-		return buildError(
-			400,
-			'SPEC_INVALID',
-			issue ? issue.message : 'Spec validation failed.',
-			{ issueCount: String(validation.issues.length) }
-		);
+		return {
+			ok: false,
+			response: buildError(
+				400,
+				'SPEC_INVALID',
+				issue ? issue.message : 'Spec validation failed.',
+				{ issueCount: String(validation.issues.length) }
+			)
+		};
 	}
 
 	const promptResult = await deps.assemblePrompt({
@@ -173,21 +208,40 @@ export const runGeneratePipeline = async (
 	});
 	if (!promptResult.ok) {
 		return {
-			status: 400,
-			body: {
-				ok: false,
-				error: promptResult.error
+			ok: false,
+			response: {
+				status: 400,
+				body: { ok: false, error: promptResult.error }
 			}
 		};
 	}
 
-	let imageResult: ImagePipelineResponse;
-	const imageRequest = {
-		spec: parsedInput.data.spec,
-		prompt: promptResult.value.prompt,
-		variations: parsedInput.data.spec.variations,
-		outputFormat: parsedInput.data.spec.outputFormat
+	return {
+		ok: true,
+		prepared: {
+			spec: parsedInput.data.spec,
+			assembledPrompt: promptResult.value.prompt,
+			assembledTemplateVersion: promptResult.value.templateVersion,
+			imageRequest: {
+				spec: parsedInput.data.spec,
+				prompt: promptResult.value.prompt,
+				variations: parsedInput.data.spec.variations,
+				outputFormat: parsedInput.data.spec.outputFormat
+			}
+		}
 	};
+};
+
+export const runGeneratePipeline = async (
+	body: unknown,
+	deps: GeneratePipelineDeps
+): Promise<PipelineResponse> => {
+	const preparation = await prepareGenerateRequest(body, deps);
+	if (!preparation.ok) return preparation.response;
+	const { spec, assembledPrompt, assembledTemplateVersion, imageRequest } =
+		preparation.prepared;
+
+	let imageResult: ImagePipelineResponse;
 
 	// The one charge for this request. Everything above - bad input, unsafe content, an invalid
 	// spec, a prompt that would not assemble - rejects for free, and the image pipeline below is
@@ -250,16 +304,16 @@ export const runGeneratePipeline = async (
 	}
 
 	const driftResult = await deps.detectDrift({
-		spec: parsedInput.data.spec,
-		promptSent: promptResult.value.prompt,
+		spec,
+		promptSent: assembledPrompt,
 		revisedPrompt: parsedImageResult.data.value.revisedPrompt
 	});
 
 	const result: GenerateResult = {
 		ok: true,
 		value: {
-			prompt: promptResult.value.prompt,
-			templateVersion: promptResult.value.templateVersion,
+			prompt: assembledPrompt,
+			templateVersion: assembledTemplateVersion,
 			images: parsedImageResult.data.value.images,
 			revisedPrompt: parsedImageResult.data.value.revisedPrompt,
 			modelMetadata: parsedImageResult.data.value.modelMetadata,
