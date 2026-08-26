@@ -220,11 +220,10 @@ test('wig try-on demo works end to end without provider traffic', async ({
 	await page.getByRole('button', { name: 'Make It a Coloring Page' }).click();
 	const coloringPage = page.getByTestId('home-generated-image');
 	await expect(coloringPage).toBeVisible();
-	// The preview data URI is built from the 4-value `format` enum
-	// (`data:image/${image.format}` in src/routes/studio-state.svelte.ts), and JPEG's
-	// enum member is `jpg`, so the emitted token is the non-standard `image/jpg` rather
-	// than the `image/jpeg` held in `image.mimeType`. Pin what the product actually
-	// emits, and prove the bytes really are the stubbed portrait and really decode.
+	// The preview data URI maps the 4-value `format` enum to registered IANA media
+	// types (`IMAGE_MIME_TYPES` in src/routes/studio-state.svelte.ts), so JPEG's enum
+	// member `jpg` emits `image/jpeg` — not the non-standard `image/jpg` this used to
+	// pin. Prove the bytes really are the stubbed portrait and really decode.
 	// The payload is compared inside the page so a failure logs a short object instead
 	// of a 3 MB base64 string.
 	const portraitBase64 = await wigJpegBase64;
@@ -241,11 +240,20 @@ test('wig try-on demo works end to end without provider traffic', async ({
 			}, portraitBase64)
 		)
 		.toEqual({
-			header: 'data:image/jpg;base64',
+			header: 'data:image/jpeg;base64',
 			isPortraitBytes: true,
 			decoded: true
 		});
 	await expect(page.getByRole('link', { name: 'Download PDF' })).toBeVisible();
+	// The export link hands the browser a filename, so its extension has to match the
+	// bytes behind it. These are the stubbed JPEG portrait bytes, so the download is
+	// `.jpg` and the label names the format the user actually receives.
+	const exportLink = page.getByRole('link', { name: /^Export / });
+	await expect(exportLink).toHaveAttribute(
+		'download',
+		'meechie-coloring-page.jpg'
+	);
+	await expect(exportLink).toHaveText('Export JPG');
 
 	expect(providerRequests).toEqual([]);
 });

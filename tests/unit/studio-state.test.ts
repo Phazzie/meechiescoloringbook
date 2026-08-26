@@ -194,6 +194,20 @@ describe('StudioState', () => {
 		expect(scheduleDraftSave).toHaveBeenCalledOnce();
 	});
 
+	it('previews a JPEG try-on portrait with the IANA image/jpeg media type', async () => {
+		const studio = new StudioState();
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: { files: [] }
+		});
+		studio.tryOnPortraitUrl = 'data:image/jpeg;base64,/9j/4AAQ';
+
+		await studio.handleGenerateTryOnPage();
+
+		expect(studio.images[0]?.format).toBe('jpg');
+		expect(studio.imagePreviews[0]).toBe('data:image/jpeg;base64,/9j/4AAQ');
+	});
+
 	it('preserves WebP try-on portraits as WebP images for packaging', async () => {
 		const studio = new StudioState();
 		const packageSpy = vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
