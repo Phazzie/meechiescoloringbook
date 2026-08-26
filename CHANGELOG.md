@@ -8,6 +8,12 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Rate limiting now applies to every AI-backed endpoint. Requests are metered per client before any provider call, so a burst of traffic cannot run up provider spend. Limits are 20 requests/minute across the text features and 8/minute across the image features; exceeding one returns a clear "try again shortly" response with the wait time.
+- The landing page is dramatically faster to load. Packaged imagery dropped from 38 MB to 2.6 MB with no visible change to the artwork — the wig cards, banners and example pages are the same pictures at sizes a screen can actually use.
+- Saving a coloring page no longer produces a file named `.png` that contains JPEG data. The download now matches its real format.
+- Drafts left untouched from an older default page are correctly recognised as untouched instead of being restored as your own work.
+- A single corrupt entry in saved work no longer silently disappears on the next save.
+- The wig try-on feature runs on xAI rather than Gemini, so the exhausted-quota failure that made it unusable is resolved.
 - Fixed prompt text boundaries so template labels cannot become drawable page copy, consolidated prompt assembly into one canonical adapter, and versioned the combined contract as `v4`.
 - Added a local PR backlog dry-run validation script (`scripts/validate-pr-backlog.js`) to automate checking out, testing, and verifying clean PR candidates.
 - Added a review-comment extraction script (`scripts/get-pr-todos.js`) to isolate and scope active review threads for a specific PR.

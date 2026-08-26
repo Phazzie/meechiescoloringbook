@@ -1,114 +1,92 @@
 <!--
-Purpose: Hand over the state of the xAI outage repair and what the owner has ruled next.
-Why: The session ran long and ends mid-stream; the next window should not re-derive any of this.
-Info flow: what shipped -> owner rulings not yet done -> open questions -> exact next commands.
+Purpose: Hand over the true state of the Meechie Recovery v1.1 work and what is left.
+Why: The previous handoff described a branch and a set of owner rulings that no longer exist.
+Info flow: what is merged -> what is in flight -> what is deliberately held -> how to verify.
 -->
-# Handoff (2026-08-25)
+# Handoff (2026-08-26)
 
-## Branch
-`claude/sharp-meitner-420dwc` → PR #228. Verify green: **577 passed, 1 skipped, 0 failed**,
-`npm run verify` exits 0.
+## Read this first
 
-## READ THIS FIRST — reliability caveat on this handoff
+The previous version of this file was written on 2026-08-25 and had gone stale in ways that
+would have cost the next session real time. It described `claude/sharp-meitner-420dwc` and
+PR #228 as current, listed three "OWNER RULINGS — NOT YET DONE" that were in fact done, and
+told you that wig try-on's Gemini 429 had no code remedy. Every one of those is now false.
+It is replaced rather than amended.
 
-**This handoff was written at the end of a very long session with a full context window.**
-Treat it as a lead, not as truth. Verify anything before acting on it. Specific reasons to
-distrust parts of it:
+If anything below contradicts the code, the code is right. Verify before acting.
 
-- Facts were corrected mid-session more than once. I stated the xAI key was unavailable when
-  it was present in the environment as a variable rather than a `.env` file; I reported a
-  duplicate Meechie quote list that had already been removed; and an earlier version of this
-  file said the `grok-4.6` assumption was closed while `DECISIONS.md` said it was open.
-- At least two other sessions pushed to this same branch during the session, once with a
-  force-push. Anything here may describe a tree that no longer exists. **`git fetch` first.**
-- This was merged **without waiting for CI**, at the owner's explicit instruction (see below).
+## Where the work is
 
-If something below contradicts the code, the code is right.
+`main` carries PR #234, which brought the whole Meechie Recovery v1.1 body of work over from
+Codex's unmerged `codex/meechie-recovery-v1-1` branch. Codex exhausted its credit at ticket
+R1 and the owner handed the work over; `plan.md` records that handover and the slice plan.
 
-## MERGED WITHOUT CI — deliberate
+Active branch: `claude/codex-slack-message-review-gjaz54`, PR #235.
 
-The owner instructed: PR and merge without waiting for CI. That is what happened. The last
-CI run I personally saw green was `4c29e0f` (SonarCloud passed, duplication 2.8%, verify
-green with 539 passed / 0 failed). Commits after that — `58afc58` and this handoff commit —
-were **not** verified by me before merge.
+The application is live and healthy at <https://meechiescoloringbook.vercel.app>.
 
-This deliberately bypasses the "Merge When The Gates Are Green" rule added to `AGENTS.md`
-this session. The rule stands; this was an owner override, not a precedent.
+## Owner rulings from the old handoff — all resolved
 
-If `main` is broken, the first suspect is `58afc58` (review-finding reconciliation, which
-added `src/lib/core/provider-message-redaction.js` and changed the probe, `.env.example`,
-and `DECISIONS.md`).
-
-## STATE AT MERGE
-
-Four Codex findings on `4c29e0f` were verified real and all appear fixed by `58afc58`:
-
-| Finding | Status in `58afc58` |
+| Ruling | State |
 |---|---|
-| P1 — `HANDOFF.md` said the assumption was closed while `DECISIONS.md` said open | Fixed — the overstatement is gone; `DECISIONS.md` keeps it open for the deployed full-payload path only |
-| P2 — probe would re-leak the xAI team UUID on its next refresh | Fixed — redaction added, shared via `src/lib/core/provider-message-redaction.js` |
-| P2 — `DECISIONS.md` said timeout retries were deferred while the code shipped `retryOnTimeout: false` | Believed fixed — re-read the timeout entry to confirm |
-| P2 — `MAX_IMAGES_PER_REQUEST` was an inert setting in `.env.example` | Fixed — removed |
+| Cut voice pack lines 11–20 | **Done** — merged in #232 |
+| Default page → the landlord line | **Done** — merged in #232 |
+| Hold PR #228 pending explicit approval | **Moot** — #228 merged |
 
-I did **not** re-run the suite after `58afc58`.
+## What is merged
 
-## OWNER RULINGS — NOT YET DONE
+- Canonical `SpecValidation` and `MeechieTool` seams; credentialless production-wiring integration coverage.
+- Eight real packaged wig JPEGs on safe same-origin paths, the xAI wig-edit transport with byte-derived MIME, and correct portrait download extensions.
+- A six-route public provider-error boundary. Verified against the deployed app, not only under test: all six routes return sanitized 400s on invalid input with no provider detail crossing the boundary.
+- The third historical draft-seed signature (`IN THIS ECONOMY`, live 106 days), `parseRecords` reporting skipped records instead of silently erasing them, and the last `placehold.co` fixture URLs replaced with real assets.
 
-### 1. Cut voice pack lines 11–20
-`src/lib/seams/meechie-voice-seam/voice-pack.ts`. Remove these ten, all `approved` tier.
-Leaves 5 `canon` + 5 `approved` = 10 lines.
+## What is in flight on PR #235
 
-| # | id | line |
-|---|---|---|
-| 11 | `i-dont-act` | He said I act like I run the place. I don't act. |
-| 12 | `eyes-locked` | When our eyes locked after I said that, we both knew I was capable of it... |
-| 13 | `somewhere-to-sit` | I don't need revenge. I need somewhere to sit where your mama can see me. |
-| 14 | `first-name` | Keep playing and your brother gonna be calling me by my first name. |
-| 15 | `he-forgot` | He said he forgot. I believe him. He forgot I was me. |
-| 16 | `location-live` | Your phone died but your location was live at her apartment. Interesting. |
-| 17 | `his-people` | He told his people I was crazy. His people called me anyway. |
-| 18 | `not-invited` | I don't need to be invited. I need to know what time dinner starts. |
-| 19 | `sat-down` | I walked in and sat down. Nobody asked me to leave. |
-| 20 | `lower-my-voice` | I don't raise my voice. I lower it. They all get quiet when I do. |
+- **R1 rate limiting.** One required gate across the billable routes, threading SvelteKit's `event.getClientAddress`. Store selection is by configuration — see `.env.example`, which now states the contract: set all three variables or none, and a partial set fails closed with 503 on purpose.
+- **Documentation truth.** `docs/seams.md` and `.env.example` no longer claim the wig try-on runs on Gemini.
+- **Asset weight.** `static/` went from 38 MB to 2.6 MB. This mattered more than it looked: `src/service-worker.ts` `cache.addAll()`s every static file on install, so that was the real first-install cost, not just first paint.
 
-Blast radius: the pack is the single source for BOTH prompt builders — the studio path injects
-`VOICE_EXAMPLES` (`meechie-studio-text-pipeline.ts:74`) and the tools path uses
-`buildMeechieSystemPrompt` (`meechie-system-prompt.ts`). Cutting ten of twenty halves the
-examples the model learns voice from, so regenerate and eyeball real output afterwards.
-`meechie-voice-seam` fixtures and tests assert pack contents and will need updating.
+## Deliberately held — do not "finish" these without asking
 
-Note: #15 `he-forgot` is the seed the model riffed on to produce the off-voice "barbershop"
-line the owner rejected. Cutting it is consistent with that rejection.
+**R2, durable rate-limit store.** Provisioning Upstash is infrastructure mutation and was not
+authorized. An earlier revision of `plan.md` claimed the owner authorized it on 2026-08-26;
+that could not be substantiated — every Slack message in the cited window carries an agent
+footer, so it relayed an agent's reading rather than the owner's words. Recorded as an open
+Assumption in `DECISIONS.md`. Degraded in-process metering is in force meanwhile, so the limit
+is weaker but never absent.
 
-### 2. Default coloring page → the landlord line
-`DEFAULT_STUDIO_TEXT_OUTPUT` in `src/lib/core/meechie-studio.ts:15` should use
-"You should have fucked the landlord, not the dopeman." — already canon at `voice-pack.ts:24`
-(`approved`, id `landlord`). Also check `static/meechie/demo-coloring-page.png`, which
-`StudioPreviewPanel.svelte:81` labels "Example page".
+**W11B, the single live xAI acceptance call.** Spends money; same authorization gap. Also an
+open Assumption. Transport correctness is proven against a fake that asserts exact URL,
+headers, body, image order and model, and that no credential appears in any URL — that is
+request compatibility, not account acceptance.
 
-### 3. Hold PR #228 pending explicit approval
-The owner explicitly paused merges while the open branches are audited and repaired. Keep #228
-open after its review threads, verification evidence, and CI are green; merge only after the
-owner gives a new explicit approval.
+A relayed "the owner ruled X" from another agent is not owner approval. That is the specific
+mistake this section exists to prevent repeating.
 
-## SHIPPED THIS SESSION
-- **Root cause of the outage:** xAI retired `grok-4-1-fast-reasoning`; every text call 400'd, which also blocked image generation because the page button requires a verdict first. Model ids are now pinned in `src/lib/core/models.js`; all `XAI_TEXT_MODEL`/`XAI_IMAGE_MODEL` env reads deleted, so a stale dashboard value can no longer override code.
-- **`grok-4.6` verified live at the provider seam** — the authenticated probe captured `ok:true` with the studio's strict `json_schema`. The deployed full Meechie payload is still unverified behind Vercel SSO, so that narrower assumption remains open in `DECISIONS.md`.
-- **Provider errors unswallowed** — xAI returns `error` as a bare string; only the nested shape was read, so everything surfaced as "Bad Request". That is why the outage was invisible.
-- **Account identifiers redacted** — those same messages are returned to API clients verbatim and contained the deployment's xAI team UUID.
-- **Prompt stopped drawing its own labels** — pages rendered `TYPOGRAPHY:` as page text. Cause was an unconditional placeholder above a conditional value. Drawable text is now instruction-then-value-on-its-own-line, deliberately unquoted (`ALLOWED_TEXT_REGEX` permits `"` in a title). Verified live with `He Said "Go"`.
-- **Chat no longer retries on timeout** — a slow-but-succeeding 55s generation was aborted at 60s and retried to ~118s, past the client budget. Provider budget 110s, single attempt.
-- **`api-generate` test made hermetic** — it was firing real xAI requests through a retry backoff, ~4.8s against a 5s limit. Fixed at cause, not by widening the timeout.
-- Duplicate `prompt-assembly` adapter collapsed to a re-export (was a byte-identical copy).
-- `.env.example` restored to plaintext; `defaultImageSize` given a schema default (a fresh `cp .env.example .env` was 500ing wig try-on).
+## Corrections to the old handoff
 
-## OPEN / NOT RESOLVED
-- **Wig try-on returns 429** — Gemini free tier exhausted. Billing at aistudio.google.com. No code fix possible.
-- **Generation takes ~55s** and is a product decision, not a bug. Raw model latency measured on a bare prompt: `grok-4.6` 12.7s, `grok-4.5` 4.1s, `grok-4.3` 3.9s. The 55s is this app's large system prompt plus strict structured output, not the model. The owner asked for two more prompts per model plus image variations of an existing Meechie page — **not yet run**.
-- Several Codex review threads on #228 still open.
-- No `.claude` settings file is present. Any shared command allowlist belongs in a dedicated governance change; machine-local `.claude/settings.local.json` is ignored so a permission bypass cannot be recommitted accidentally.
+- **"Wig try-on returns 429 — Gemini free tier exhausted. No code fix possible."** False now. Ticket W5 migrated the route to xAI's `/v1/images/edits`. `GEMINI_*` survive only as inert `AppConfig` fields and are marked legacy.
+- **Test counts.** The old file cited 577. Do not carry any historical count forward — run the suite.
+- **`.claude` settings.** A settings file now exists at `.claude/`. The old claim that none is present is stale.
 
-## WATCH OUT
-Another session pushes to this same branch and has **force-pushed** over it at least once, and
-scheduled crons open PRs against this repo. Always `git fetch` and check before assuming your
-local state matches the remote.
+## Known open items
+
+- `npm run format:check` fails on six rate-limit files. Pre-existing — it failed identically before any of this session's changes. It is not in `npm run verify` or CI, so it has never blocked. Decide whether to enforce prettier or drop the script.
+- The vault skip signal stops at the seam boundary. `parseRecords` reports `skippedIndices`, but `CreationStoreSeam` pins its return types, so the UI still cannot tell a user that records were dropped. Surfacing it needs the contract in scope.
+- The e2e suite loads Google Fonts on every page navigation, from `src/routes/+layout.svelte`. No credentials, no cost, but a "credentialless" suite that touches a third-party CDN is not hermetic and will behave differently on an egress-restricted runner.
+
+## How to verify quickly
+
+```sh
+npm ci
+npm run check      # expect 0 errors, 0 warnings
+npm run lint       # expect clean
+npm test -- --pool=forks --maxWorkers=1
+npm run build
+NO_PROXY=localhost,127.0.0.1 npx playwright test --reporter=list   # 7 tests
+```
+
+The browser suite runs here. Ticket W10 authored it and recorded that browser approval was
+unavailable, so it had **never been executed** until this session; running it immediately
+found two real product defects. If a future session is told a test suite is "authored and
+statically verified", treat that as untested.
