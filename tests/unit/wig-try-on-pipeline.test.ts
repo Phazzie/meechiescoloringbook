@@ -108,6 +108,29 @@ describe('wig try-on image loading', () => {
 		}
 	);
 
+	it('hands the catalogue name and style to the provider seam, not just the image bytes', async () => {
+		// The wig photos are lit with pink neon; without this text the provider has no trustworthy
+		// signal for the real hair colour and returns the lighting colour instead.
+		const fetchImpl = vi.fn(
+			async () => new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), { status: 200 })
+		);
+		const { deps, tryOn } = buildDeps(fetchImpl);
+
+		const result = await runWigTryOnPipeline(requestBody, deps);
+
+		expect(result.status).toBe(200);
+		expect(tryOn).toHaveBeenCalledTimes(1);
+		expect(tryOn).toHaveBeenCalledWith(
+			expect.objectContaining({
+				wigName: wig.name,
+				wigStyle: `${wig.style}, ${wig.color}, ${wig.length} length`
+			})
+		);
+		const sent = tryOn.mock.calls[0][0];
+		expect(sent.wigName.length).toBeGreaterThan(0);
+		expect(sent.wigStyle).toContain(wig.color);
+	});
+
 	it.each([
 		{
 			name: 'a non-success response',

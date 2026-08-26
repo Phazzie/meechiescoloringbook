@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-08-26T16:33:03.109Z
+Generated at: 2026-08-26T21:14:35.199Z
 Evidence folder: docs/evidence/2026-08-26
 
 Files included:
@@ -13,12 +13,12 @@ Files included:
 - chamber-lock.json (25720 bytes)
 - clan-chain.json (2318 bytes)
 - clan-chain.md (1453 bytes)
-- proof-tape.json (4161 bytes)
-- proof-tape.md (1192 bytes)
+- proof-tape.json (4761 bytes)
+- proof-tape.md (1288 bytes)
 - r1-http-boundary.txt (2928 bytes)
 - rewind-RateLimitSeam.txt (540 bytes)
 - rewind-WigCatalogSeam.txt (542 bytes)
-- rewind-WigTryOnSeam.txt (400 bytes)
+- rewind-WigTryOnSeam.txt (542 bytes)
 - seam-ledger.json (27312 bytes)
 - seam-ledger.md (2228 bytes)
 - shaolin-lint.json (519 bytes)

@@ -7,6 +7,23 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-08-26 - The wig try-on asks for a try-on, and the generation model moves on evidence
+
+- Date: 2026-08-26
+- Decision: Rewrite the WigTryOnSeam prompt to request a photorealistic try-on rather than a coloring-book illustration, feed it the catalogue name and style that already crossed the seam, and explicitly discount the pink neon lighting in the product photography. Separately, move IMAGE_MODEL from `grok-imagine-image` to `grok-imagine-image-2.0` and set an explicit Vercel `maxDuration`.
+- Context: The owner confirmed the wig section was never meant to emit coloring pages - that is the separate studio flow, where a described situation becomes a Meechie response and then a page. The wig prompt asked for "one bold black-and-white coloring-book illustration", so the feature contradicted its own UI copy ("See what you look like walking in"). Four live calls established the fix: a photorealistic prompt alone returned rose-pink hair for a wig named Honey Blonde Bombshell, and adding "match the colour faithfully" did not correct it; naming the wig in words and telling the model to ignore the pink studio lighting did, in one shot. Every packaged wig photo is shot under magenta backlighting, and the model was reading that cast as hair colour.
+- Alternatives: Change the UI copy to admit it returns a coloring page; rejected because the owner stated the intended behaviour and the copy was right. Neutralise the neon in the packaged photography; rejected as more expensive than a sentence of prompt and it would discard product imagery the affiliate links depend on.
+- Consequences: `wigName` and `wigStyle` finally do something. They were on the contract, required by the validator, and populated by the pipeline since the seam's first commit, and the adapter had ignored them the whole time - a field can satisfy every schema in the codebase and still be dead. A pipeline test now asserts they reach `tryOn`, which is the check that was missing.
+- Revisit criteria: If a future catalogue ships neutrally-lit photography, the lighting sentence becomes unnecessary and should be removed rather than left as folklore.
+- Self-critique: The prompt now depends on catalogue text being accurate. A wig whose `name` and `color` disagree with its photograph will produce a confident wrong answer, and nothing in the app checks that they agree.
+
+- Cipher Gate:
+  - Date: 2026-08-26
+  - Seams: WigTryOnSeam, ImageGenerationSeam
+  - Evidence: docs/evidence/2026-08-26/rewind-WigTryOnSeam.txt; docs/evidence/2026-08-26/test.txt; docs/evidence/2026-08-26/verify.txt; docs/evidence/2026-08-26/proof-tape.md
+  - Summary: Replaced the wig try-on's coloring-book prompt with a photorealistic try-on prompt built from the catalogue name and style, discounting the product photography's neon cast; upgraded the image-generation pin to grok-imagine-image-2.0 after measuring both models against the live API; and set a function budget that matches the adapter's own 120s timeout.
+  - Risks: grok-imagine-image-2.0 is twelve to eighteen times slower than the model it replaces - 5.2s and 5.7s against 71.2s and 93.6s, measured twice each. That leaves roughly 26s of headroom under the 120s budget, so a slower-than-observed response will surface as a timeout rather than a page. The old model was replaced because it hallucinated the page's list text into near-misses of the title, which is unusable, so the trade was made knowingly. 2.0 also left the item list as blank write-in lines in one of two samples, which is usable but not what the prompt asked for; the image prompt gives no guidance on item content and should be strengthened before that is blamed on the model.
+
 ## 2026-08-26 - Meter every billable route, with a degraded store instead of an unauthorized one
 
 - Date: 2026-08-26

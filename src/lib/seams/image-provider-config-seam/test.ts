@@ -3,6 +3,7 @@
 // Info flow: tests -> mock -> contract assertions.
 import { describe, expect, it } from 'vitest';
 import { createImageProviderConfigSeam } from '../../adapters/image-provider-config-seam';
+import { IMAGE_MODEL } from '../../core/models';
 import { imageProviderConfigFixture, imageProviderConfigFaultFixture } from './fixtures';
 import { createMockImageProviderConfigSeam } from './mock';
 import { validateImageProviderConfig } from './validators';
@@ -37,7 +38,7 @@ describe('ImageProviderConfigSeam mock contract', () => {
     const seam = createImageProviderConfigSeam({ XAI_API_KEY: 'test-key' });
     expect(seam.getConfig()).toEqual({
       xaiApiKey: 'test-key',
-      xaiImageModel: 'grok-imagine-image',
+      xaiImageModel: IMAGE_MODEL,
       xaiBaseUrl: 'https://api.x.ai',
       xaiImageEndpointPath: '/v1/images/generations'
     });
@@ -51,7 +52,8 @@ describe('ImageProviderConfigSeam mock contract', () => {
       XAI_API_KEY: 'test-key',
       XAI_IMAGE_MODEL: 'stale-retired-model'
     });
-    expect(seam.getConfig().xaiImageModel).toBe('grok-imagine-image');
+    expect(seam.getConfig().xaiImageModel).toBe(IMAGE_MODEL);
+    expect(seam.getConfig().xaiImageModel).not.toBe('stale-retired-model');
   });
 
   it('rejects malformed base URLs as config errors', () => {

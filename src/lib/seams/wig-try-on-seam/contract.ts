@@ -10,7 +10,16 @@ export type WigTryOnRequest = {
   selfieMimeType: WigTryOnMimeType;
   wigImageBase64: string;
   wigImageMimeType: WigTryOnMimeType;
+  /**
+   * Catalogue display name, e.g. "Honey Blonde Bombshell". Carried across the seam because the
+   * wig photo alone is not enough: the product shots are lit with pink neon, and an image-edit
+   * model reads that cast as the hair colour unless the real colour is also stated in words.
+   */
   wigName: string;
+  /**
+   * Catalogue style descriptor in words, e.g. "Layered Lace Front, Honey Blonde, medium length".
+   * Same reason as `wigName` — it is the only colour and texture signal the model can trust.
+   */
   wigStyle: string;
   signal?: AbortSignal;
 };

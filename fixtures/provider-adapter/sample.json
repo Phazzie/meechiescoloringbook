@@ -41,7 +41,7 @@
       }
     },
     "image": {
-      "model": "grok-imagine-image",
+      "model": "grok-imagine-image-2.0",
       "prompt": "A black-and-white coloring book page with clean outlines.",
       "n": 1,
       "responseFormat": "b64_json"

@@ -1,0 +1,30 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-08-26T21:15:00.977Z",
+  "cipher": {
+    "date": "2026-08-26",
+    "seams": "WigTryOnSeam, ImageGenerationSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-08-26/rewind-WigTryOnSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-26/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-26/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-08-26/proof-tape.md",
+        "exists": true
+      }
+    ],
+    "summary": "Replaced the wig try-on's coloring-book prompt with a photorealistic try-on prompt built from the catalogue name and style, discounting the product photography's neon cast; upgraded the image-generation pin to grok-imagine-image-2.0 after measuring both models against the live API; and set a function budget that matches the adapter's own 120s timeout.",
+    "risks": "grok-imagine-image-2.0 is twelve to eighteen times slower than the model it replaces - 5.2s and 5.7s against 71.2s and 93.6s, measured twice each. That leaves roughly 26s of headroom under the 120s budget, so a slower-than-observed response will surface as a timeout rather than a page. The old model was replaced because it hallucinated the page's list text into near-misses of the title, which is unusable, so the trade was made knowingly. 2.0 also left the item list as blank write-in lines in one of two samples, which is usable but not what the prompt asked for; the image prompt gives no guidance on item content and should be strengthened before that is blamed on the model."
+  },
+  "latestChangeMs": 1787778723963.5415,
+  "status": "ok"
+}

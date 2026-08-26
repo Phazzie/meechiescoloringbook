@@ -1,6 +1,7 @@
 // Purpose: Implement WigTryOnSeam with xAI multi-image edit requests.
 // Why: Keep image-edit provider I/O, credential handling, and error redaction behind one seam.
-// Info flow: validated selfie + wig data URLs -> xAI image edit -> validated raster portrait Result.
+// Info flow: validated selfie + wig data URLs + catalogue wig name/style -> prompt builder ->
+//      xAI image edit -> validated raster portrait Result.
 import type { Result } from '../../../../contracts/shared.contract';
 import { IMAGE_EDIT_MODEL } from '../../core/models';
 import { isAbortError, isTimeoutError, runWithTimeoutSignal } from '../../core/http-resilience';
@@ -20,12 +21,65 @@ import { validateWigTryOnRequest } from '../../seams/wig-try-on-seam/validators'
 const WIG_TRY_ON_TIMEOUT_MS = 120_000;
 const XAI_IMAGE_EDIT_PATH = '/v1/images/edits';
 
-const WIG_TRY_ON_PROMPT = [
-	'Use the first image as the person and the second image as the wig reference.',
-	'Create a flattering, recognizable portrait of the person naturally wearing that exact wig.',
-	'Render one bold black-and-white coloring-book illustration with clean outlines, high contrast,',
-	'minimal fill, no background text, and no labels.'
-].join(' ');
+// Catalogue names and style descriptors arrive as free text, so a stray newline or a run of
+// spaces would otherwise land in the middle of a sentence the model has to read.
+const collapseWhitespace = (value: string): string => value.replace(/\s+/g, ' ').trim();
+
+/**
+ * Build the image-edit instruction for one try-on.
+ *
+ * Two things in here are load-bearing and were established by measurement, not taste:
+ *
+ * 1. This asks for a photorealistic portrait, not a coloring page. The section promises the user
+ *    "See what you look like walking in"; a black-and-white line drawing does not keep that
+ *    promise. Coloring pages are a separate feature with its own flow.
+ * 2. Every wig photo in `static/wigs/` is shot under hot pink neon backlighting, and the model
+ *    reads that cast as the hair colour — a run against `grok-imagine-image-2.0` returned
+ *    rose-pink hair for "Honey Blonde Bombshell". Telling it to match the colour faithfully did
+ *    not fix that on its own. Naming the wig in words *and* explicitly discounting the lighting
+ *    did. Both halves have to stay.
+ *
+ * The catalogue text is optional at this level: if it is missing the identity sentence is dropped
+ * whole rather than emitted half-written, and the surrounding instruction reworded so it never
+ * refers back to a sentence that is not there. The seam's own validator still requires both
+ * fields, so a real request cannot reach the provider without them.
+ */
+/**
+ * Names the wig for the model, using whatever catalogue text is actually present. Written as
+ * four explicit cases rather than a nested conditional because the empty-string outcomes are
+ * the interesting ones - they are what stops the prompt emitting "The wig is called '':" - and
+ * a reader should not have to unpick operator nesting to see them.
+ */
+const identitySentence = (name: string, style: string): string => {
+	if (name && style) return `The wig is called '${name}': ${style}.`;
+	if (name) return `The wig is called '${name}'.`;
+	if (style) return `The wig is described as: ${style}.`;
+	return '';
+};
+
+export const buildWigTryOnPrompt = (wigName: string, wigStyle: string): string => {
+	const name = collapseWhitespace(wigName);
+	const style = collapseWhitespace(wigStyle);
+
+	const identity = identitySentence(name, style);
+
+	const placement = identity
+		? 'Put that exact wig on that exact person in the colour and texture named above.'
+		: "Put that exact wig on that exact person, matching the wig's own colour and texture rather than the neon cast of the product photo.";
+
+	return [
+		'The first image is the person.',
+		'The second image is a wig product photo, shot under pink neon studio lighting -',
+		'ignore that lighting colour entirely, it is not the hair colour.',
+		identity,
+		placement,
+		"Keep the person's face, skin tone, features, tattoos and jewelry unchanged;",
+		'only the hair changes.',
+		'Photorealistic salon portrait, neutral daylight, clean background, no text and no watermarks.'
+	]
+		.filter((part) => part.length > 0)
+		.join(' ');
+};
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -127,7 +181,7 @@ export const createWigTryOnSeam = (
 		const endpoint = buildEditUrl(config.xaiBaseUrl);
 		const requestBody = {
 			model: IMAGE_EDIT_MODEL,
-			prompt: WIG_TRY_ON_PROMPT,
+			prompt: buildWigTryOnPrompt(validated.wigName, validated.wigStyle),
 			images: [
 				{
 					type: 'image_url',
