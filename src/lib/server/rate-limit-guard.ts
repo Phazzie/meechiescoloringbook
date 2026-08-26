@@ -1,6 +1,16 @@
 // Purpose: Apply shared text/image rate-limit policy before billable provider work.
 // Why: Every caller needs the same fail-closed status and reset-derived response headers.
-// Info flow: policy + client lookup -> pseudonymous identity -> RateLimitSeam -> HTTP-ready decision.
+// Info flow: policy + client lookup -> store selection -> pseudonymous identity -> RateLimitSeam -> HTTP-ready decision.
+//
+// Store selection (three states, never two):
+// 1. Every durable setting present and valid -> the durable Upstash-backed seam.
+// 2. UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN and RATE_LIMIT_IDENTITY_SECRET all blank ->
+//    degraded mode on the bounded in-process seam. Same 20/min and 8/min budgets, per process.
+// 3. Anything in between - one credential set, a typo'd URL, an unparseable timeout -> 503.
+//    Somebody tried to configure durable limiting and got it wrong; degrading silently would hide
+//    a production misconfiguration.
+// There is deliberately no flag, env var, or input that reaches a provider without a limiter.
+import { env as privateEnv } from '$env/dynamic/private';
 import { createRateLimitSeam } from '$lib/adapters/rate-limit-seam';
 import type {
 	RateLimitBucket,
@@ -22,11 +32,37 @@ import {
 	type RateLimitIdentity,
 	type RateLimitIdentityInput
 } from './rate-limit-identity';
+import {
+	getMemoryRateLimitSeam,
+	memoryRateLimitIdentitySecret
+} from './rate-limit-memory-store';
 
 export const RATE_LIMIT_POLICIES = {
 	text: { limit: TEXT_RATE_LIMIT, windowMs: RATE_LIMIT_WINDOW_MS },
 	image: { limit: IMAGE_RATE_LIMIT, windowMs: RATE_LIMIT_WINDOW_MS }
 } as const;
+
+/** Which store served a decision. Reported, never logged. */
+export type RateLimitStoreKind = 'durable' | 'memory';
+
+// Only these three decide "configured at all". RATE_LIMIT_OPERATION_TIMEOUT_MS is deliberately
+// excluded: .env.example ships it with a value while the credentials stay blank, so counting it
+// would classify a stock developer environment as a broken durable configuration.
+const DURABLE_RATE_LIMIT_KEYS = [
+	'UPSTASH_REDIS_REST_URL',
+	'UPSTASH_REDIS_REST_TOKEN',
+	'RATE_LIMIT_IDENTITY_SECRET'
+] as const;
+
+// Same emptiness test loadRateLimitConfig uses, so no value can be "present" to the loader and
+// "absent" to this classifier.
+const isBlank = (value: string | undefined): boolean =>
+	typeof value !== 'string' || value.trim().length === 0;
+
+/** True only when every durable setting is blank, i.e. nobody configured durable limiting at all. */
+export const isDurableRateLimitConfigAbsent = (
+	environment: Record<string, string | undefined>
+): boolean => DURABLE_RATE_LIMIT_KEYS.every((key) => isBlank(environment[key]));
 
 export type RateLimitGuardInput = {
 	bucket: RateLimitBucket;
@@ -45,6 +81,7 @@ export type RateLimitGuardResult =
 			status: 200;
 			headers: Record<string, string>;
 			identityKind: RateLimitIdentity['kind'];
+			store: RateLimitStoreKind;
 			limit: number;
 			remaining: number;
 			resetAtMs: number;
@@ -57,10 +94,23 @@ export type RateLimitGuardResult =
 	  };
 
 export type RateLimitGuardDependencies = {
-	loadConfig?: () => RateLimitConfig;
+	loadConfig?: (
+		environment: Record<string, string | undefined>
+	) => RateLimitConfig;
+	/** Read once per request; the same snapshot feeds loadConfig and the absence classifier. */
+	readEnvironment?: () => Record<string, string | undefined>;
 	createSeam?: (config: RateLimitConfig) => RateLimitSeam;
+	/** Must return one process-wide instance; a per-request instance would disable metering. */
+	createMemorySeam?: () => RateLimitSeam;
+	memoryIdentitySecret?: () => string;
 	resolveIdentity?: (input: RateLimitIdentityInput) => RateLimitIdentity;
 	now?: () => number;
+};
+
+type RateLimitStorePlan = {
+	store: RateLimitStoreKind;
+	identitySecret: string;
+	buildSeam: () => RateLimitSeam;
 };
 
 const unavailable = (): RateLimitGuardResult => ({
@@ -97,7 +147,8 @@ export const createRateLimitGuard = (
 	dependencies: RateLimitGuardDependencies = {}
 ) => {
 	const readConfig = dependencies.loadConfig ?? loadRateLimitConfig;
-	const buildSeam =
+	const readEnvironment = dependencies.readEnvironment ?? (() => privateEnv);
+	const buildDurableSeam =
 		dependencies.createSeam ??
 		((config: RateLimitConfig) =>
 			createRateLimitSeam({
@@ -105,20 +156,61 @@ export const createRateLimitGuard = (
 				restToken: config.upstashRestToken,
 				timeoutMs: config.operationTimeoutMs
 			}));
+	const buildMemorySeam = dependencies.createMemorySeam ?? getMemoryRateLimitSeam;
+	const memorySecret =
+		dependencies.memoryIdentitySecret ?? memoryRateLimitIdentitySecret;
 	const identify = dependencies.resolveIdentity ?? resolveRateLimitIdentity;
 	const now = dependencies.now ?? Date.now;
 
+	// Degraded mode is reachable only when loading the durable config failed AND every durable
+	// setting is blank. Either condition alone is not enough, so a partial or invalid
+	// configuration can never be mistaken for an unconfigured one.
+	const planStore = (): RateLimitStorePlan | null => {
+		// Read the environment once and hand the same snapshot to the loader and the
+		// classifier, so they can never disagree about what is configured.
+		let environment: Record<string, string | undefined>;
+		try {
+			environment = readEnvironment();
+		} catch {
+			return null;
+		}
+
+		try {
+			const config = readConfig(environment);
+			return {
+				store: 'durable',
+				identitySecret: config.identitySecret,
+				buildSeam: () => buildDurableSeam(config)
+			};
+		} catch {
+			// Durable limiting is not usable; classify why before degrading.
+		}
+
+		if (!isDurableRateLimitConfigAbsent(environment)) return null;
+
+		try {
+			return {
+				store: 'memory',
+				identitySecret: memorySecret(),
+				buildSeam: buildMemorySeam
+			};
+		} catch {
+			return null;
+		}
+	};
+
 	return async (input: RateLimitGuardInput): Promise<RateLimitGuardResult> => {
-		let config: RateLimitConfig;
+		const plan = planStore();
+		if (!plan) return unavailable();
+
 		let identity: RateLimitIdentity;
 		let seam: RateLimitSeam;
 		try {
-			config = readConfig();
 			identity = identify({
-				identitySecret: config.identitySecret,
+				identitySecret: plan.identitySecret,
 				getClientAddress: input.getClientAddress
 			});
-			seam = buildSeam(config);
+			seam = plan.buildSeam();
 		} catch {
 			return unavailable();
 		}
@@ -161,6 +253,7 @@ export const createRateLimitGuard = (
 				status: 200,
 				headers,
 				identityKind: identity.kind,
+				store: plan.store,
 				limit: decision.limit,
 				remaining: decision.remaining,
 				resetAtMs: decision.resetAtMs
