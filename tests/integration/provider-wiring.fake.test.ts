@@ -1,6 +1,6 @@
 // Purpose: Prove production image-provider wiring without making a live provider request.
 // Why: Exercise config, adapter, and pipeline composition through a strict credentialless transport.
-// Info flow: fake env -> production config/adapter/pipeline -> stubbed xAI response -> public result.
+// Info flow: fake env -> quota gate -> production config/adapter/pipeline -> stubbed xAI response -> public result.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createImageProviderConfigSeam } from '../../src/lib/adapters/image-provider-config-seam';
 import { createImageGenerationSeam } from '../../src/lib/adapters/image-generation-seam';
@@ -72,6 +72,15 @@ describe('credentialless production image-provider wiring', () => {
 		});
 		const imageGenerationSeam = createImageGenerationSeam(configSeam);
 
+		// R1 requires the quota gate to be consulted BEFORE any billable call. Capturing the
+		// fetch count at the moment the gate runs proves ordering without disturbing the strict
+		// fake, which is the thing actually under test here.
+		let fetchCallsWhenCharged = -1;
+		const consumeQuota = vi.fn(async (cost: number) => {
+			fetchCallsWhenCharged = strictFakeFetch.mock.calls.length;
+			return { ok: true as const, headers: { 'RateLimit-Remaining': '7' } };
+		});
+
 		const result = await runImageGenerationPipeline(
 			{
 				spec: makeBaseSpec(),
@@ -79,8 +88,13 @@ describe('credentialless production image-provider wiring', () => {
 				variations: 1,
 				outputFormat: 'pdf'
 			},
-			{ imageGenerationSeam }
+			{ imageGenerationSeam, quota: { mode: 'charge', consumeQuota } }
 		);
+
+		// The gate ran, charged exactly the requested variation count, and no provider request
+		// had gone out at that point.
+		expect(consumeQuota).toHaveBeenCalledExactlyOnceWith(1);
+		expect(fetchCallsWhenCharged).toBe(0);
 
 		expect(result.status).toBe(200);
 		expect(result.body.ok).toBe(true);

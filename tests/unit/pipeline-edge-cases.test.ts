@@ -362,6 +362,7 @@ describe('generate-pipeline edge cases', () => {
 	const buildGenerateDeps = (
 		overrides: Partial<GeneratePipelineDeps> = {}
 	): GeneratePipelineDeps => ({
+		consumeQuota: allowQuota(),
 		checkContentSafety: vi.fn().mockReturnValue({ ok: true as const }),
 		validateSpec: vi.fn().mockResolvedValue({ ok: true as const, issues: [] }),
 		assemblePrompt: vi.fn().mockResolvedValue({

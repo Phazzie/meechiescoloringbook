@@ -1,9 +1,11 @@
 // Purpose: Centralize image-generation endpoint orchestration in a reusable core pipeline.
 // Why: Keep route handlers thin and make validation/provider behavior easier to test.
-// Info flow: Raw request body -> validation -> ImageGenerationSeam -> contract-shaped response.
+// Info flow: Raw request body -> validation -> quota charge (or precharged headers) -> ImageGenerationSeam -> contract-shaped response.
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { pageSizeLine } from '$lib/core/prompt-template';
 import { toPublicProviderError } from '$lib/core/public-provider-error';
+// Type-only: erased at build time, so the deterministic core keeps no runtime edge into $lib/server.
+import type { QuotaDecision, QuotaGate } from '$lib/server/rate-limit-route';
 import { z } from 'zod';
 import {
   ImageGenerationInputSchema,
@@ -32,12 +34,39 @@ type ImageGenerationResult = z.infer<typeof ImageGenerationResultSchema>;
 type ImagePipelineResponse = {
   status: number;
   body: ImageGenerationResult;
+  /** Rate-limit headers from the guard, verbatim. Present on every post-charge response. */
+  headers?: Record<string, string>;
 };
+
+/**
+ * How this run pays for its images. Required and closed on purpose: `charge` meters the caller
+ * here, `precharged` means an outer pipeline already spent the units for this exact request and
+ * hands down the headers its own decision produced. There is deliberately no third case - no
+ * "skip", no optional gate - so an unmetered image call cannot be expressed at all, and
+ * /api/generate cannot bill one user request twice.
+ */
+export type ImageQuota =
+  | { mode: 'charge'; consumeQuota: QuotaGate }
+  | { mode: 'precharged'; headers: Record<string, string> };
 
 export type ImagePipelineDeps = {
   imageGenerationSeam: ImageGenerationSeam;
+  /** Required. A caller that forgets it fails to typecheck rather than generating for free. */
+  quota: ImageQuota;
   signal?: AbortSignal;
 };
+
+/**
+ * `charge` spends the units now; `precharged` reuses the outer decision without touching the
+ * store, so the second consumer of an already-paid-for request never double-charges.
+ */
+const resolveQuota = async (
+  quota: ImageQuota,
+  cost: number
+): Promise<QuotaDecision> =>
+  quota.mode === 'charge'
+    ? quota.consumeQuota(cost)
+    : { ok: true, headers: quota.headers };
 
 const missingRequiredPhrases = (
   prompt: string,
@@ -53,7 +82,8 @@ const missingRequiredPhrases = (
 const buildError = (
   status: number,
   code: string,
-  message: string
+  message: string,
+  headers?: Record<string, string>
 ): ImagePipelineResponse => ({
   status,
   body: {
@@ -62,7 +92,8 @@ const buildError = (
       code,
       message
     }
-  }
+  },
+  ...(headers ? { headers } : {})
 });
 
 export const runImageGenerationPipeline = async (
@@ -96,6 +127,23 @@ export const runImageGenerationPipeline = async (
     );
   }
 
+  // Charge here and nowhere else: the abort check, the schema parse and the required-phrase
+  // check above all reject for free, and nothing below reaches the provider unmetered. The cost
+  // is `variations` because that value is the provider's `n` on the very next line - a request
+  // for four images spends four units, not one.
+  const quota = await resolveQuota(deps.quota, variations);
+  // Verbatim from the gate. Retry-After and the reset window come from the store's own instant;
+  // recomputing them here would drift from the bucket that issued them.
+  const quotaHeaders = quota.headers;
+  if (!quota.ok) {
+    return { status: quota.status, body: quota.body, headers: quotaHeaders };
+  }
+
+  // Every response from here on is post-charge, so it advertises the caller's remaining quota.
+  const withQuotaHeaders = (
+    response: ImagePipelineResponse
+  ): ImagePipelineResponse => ({ ...response, headers: quotaHeaders });
+
   const seamResult = await deps.imageGenerationSeam.generate({
     prompt,
     n: variations,
@@ -115,13 +163,13 @@ export const runImageGenerationPipeline = async (
       code: 'IMAGE_GENERATION_FAILED',
       message: 'Image generation failed.'
     });
-    return {
+    return withQuotaHeaders({
       status: statusByCode[seamResult.error.code] ?? 502,
       body: {
         ok: false,
         error: publicError
       }
-    };
+    });
   }
 
   const images: GeneratedImage[] = [];
@@ -142,7 +190,8 @@ export const runImageGenerationPipeline = async (
     return buildError(
       502,
       'PROVIDER_EMPTY_IMAGE',
-      'Provider returned no images.'
+      'Provider returned no images.',
+      quotaHeaders
     );
   }
 
@@ -171,12 +220,14 @@ export const runImageGenerationPipeline = async (
     return buildError(
       500,
       'IMAGE_OUTPUT_INVALID',
-      'Image generation response did not match contract.'
+      'Image generation response did not match contract.',
+      quotaHeaders
     );
   }
 
   return {
     status: 200,
-    body: parsedResult.data
+    body: parsedResult.data,
+    headers: quotaHeaders
   };
 };

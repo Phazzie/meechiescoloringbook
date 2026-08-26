@@ -1,0 +1,33 @@
+# Purpose: Store the verify runner's check and test stage output.
+# Why: Keep this inner stage distinct from the outer verify chain and its separate artifacts.
+# Info flow: check/test output -> evidence file -> outer verify chain.
+
+$ node scripts/verify-runner.mjs
+
+$ npm run check
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: <REPO_ROOT>
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+$ npm test -- --pool=forks --maxWorkers=1
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+
+
+[2m Test Files [22m [1m[32m71 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (72)[39m
+[2m      Tests [22m [1m[32m798 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (799)[39m
+[2m   Start at [22m 16:32:01
+[2m   Duration [22m 61.26s[2m (transform 2.51s, setup 668ms, import 4.69s, tests 1.87s, environment 42.03s)[22m
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
