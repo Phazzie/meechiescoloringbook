@@ -37,7 +37,13 @@ describe('MeechieStudioTextSeam contract', () => {
 	});
 
 	it('adapter returns sample fixture output when provider supplies fixture JSON', async () => {
+		const charges: number[] = [];
 		const adapter = createMeechieStudioTextAdapter({
+			// The gate is a required dependency; this double records what the adapter charged.
+			consumeQuota: async (cost: number) => {
+				charges.push(cost);
+				return { ok: true as const, headers: { 'Cache-Control': 'no-store' } };
+			},
 			createProvider: () => ({
 				createChatCompletion: async () => ({
 					ok: true,
@@ -58,5 +64,7 @@ describe('MeechieStudioTextSeam contract', () => {
 			expect(output.value.verdict).toBe(sampleOutput?.verdict);
 			expect(output.value.pageItems).toHaveLength(3);
 		}
+		// One charge, worth the two provider calls a correction retry can cost.
+		expect(charges).toEqual([2]);
 	});
 });

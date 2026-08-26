@@ -1,6 +1,6 @@
-// Purpose: Orchestrate the wig try-on flow: catalog lookup, image validation, provider call.
+// Purpose: Orchestrate the wig try-on flow: catalog lookup, image validation, quota charge, provider call.
 // Why: Keep the route handler thin and the pipeline logic testable via injected seams.
-// Info flow: wigId + selfieBase64 -> WigCatalogSeam -> raster-byte sniff -> WigTryOnSeam -> portrait Result.
+// Info flow: wigId + selfieBase64 -> WigCatalogSeam -> raster-byte sniff -> image quota charge -> WigTryOnSeam -> portrait Result.
 import {
 	WigTryOnRequestSchema,
 	WigTryOnResultSchema
@@ -12,12 +12,18 @@ import type {
 	WigTryOnError,
 	WigTryOnSeam
 } from '../seams/wig-try-on-seam/contract';
+import type { QuotaGate } from '../server/rate-limit-route';
 
 type WigTryOnResult = z.infer<typeof WigTryOnResultSchema>;
 
 type PipelineResponse = {
 	status: number;
 	body: WigTryOnResult;
+	/**
+	 * Rate-limit headers exactly as the quota gate derived them. Absent on every response
+	 * decided before the charge, present on every response decided after it.
+	 */
+	headers?: Record<string, string>;
 };
 
 type PipelineDeps = {
@@ -27,47 +33,78 @@ type PipelineDeps = {
 	) => Promise<Response>;
 	wigCatalogSeam: WigCatalogSeam;
 	wigTryOnSeam: WigTryOnSeam;
+	/**
+	 * Required. An optional gate would be a production bypass: any caller reaching this pipeline
+	 * without one would spend a provider image credit unmetered.
+	 */
+	consumeQuota: QuotaGate;
 	signal?: AbortSignal;
 };
+
+/** One try-on is exactly one provider edit call, so it charges one image unit. */
+const WIG_TRY_ON_QUOTA_COST = 1;
 
 const buildError = (
 	status: number,
 	code: string,
-	message: string
+	message: string,
+	headers?: Record<string, string>
 ): PipelineResponse => ({
 	status,
-	body: { ok: false, error: { code, message } }
+	body: { ok: false, error: { code, message } },
+	...(headers ? { headers } : {})
 });
 
+// Only reachable before the charge; a provider-reported abort goes through mapTryOnError instead.
 const canceledResponse = (): PipelineResponse =>
 	buildError(499, 'WIG_TRY_ON_ABORTED', 'Wig try-on request was canceled.');
 
 const buildProviderError = (
 	status: number,
 	error: WigTryOnError,
-	message: string
+	message: string,
+	headers?: Record<string, string>
 ): PipelineResponse => {
 	const publicError = toPublicProviderError(error, {
 		code: error.code,
 		message
 	});
-	return buildError(status, publicError.code, publicError.message);
+	return buildError(status, publicError.code, publicError.message, headers);
 };
 
-const mapTryOnError = (error: WigTryOnError): PipelineResponse => {
+const mapTryOnError = (
+	error: WigTryOnError,
+	headers: Record<string, string>
+): PipelineResponse => {
 	switch (error.code) {
 		case 'WIG_TRY_ON_VALIDATION_ERROR':
-			return buildProviderError(400, error, 'Wig try-on request is invalid.');
+			return buildProviderError(
+				400,
+				error,
+				'Wig try-on request is invalid.',
+				headers
+			);
 		case 'WIG_TRY_ON_CONFIG_ERROR':
 			return buildProviderError(
 				503,
 				error,
-				'Wig try-on is temporarily unavailable.'
+				'Wig try-on is temporarily unavailable.',
+				headers
 			);
 		case 'WIG_TRY_ON_ABORTED':
-			return buildProviderError(499, error, 'Wig try-on request was canceled.');
+			return buildProviderError(
+				499,
+				error,
+				'Wig try-on request was canceled.',
+				headers
+			);
 		case 'WIG_TRY_ON_TIMEOUT_ERROR':
-			return buildProviderError(504, error, 'Wig try-on request timed out.');
+			return buildProviderError(
+				504,
+				error,
+				'Wig try-on request timed out.',
+				headers
+			);
 		case 'WIG_TRY_ON_HTTP_ERROR':
 		case 'WIG_TRY_ON_NETWORK_ERROR':
 		case 'WIG_TRY_ON_PARSE_ERROR':
@@ -75,7 +112,8 @@ const mapTryOnError = (error: WigTryOnError): PipelineResponse => {
 			return buildProviderError(
 				502,
 				error,
-				'Wig try-on could not create a portrait.'
+				'Wig try-on could not create a portrait.',
+				headers
 			);
 	}
 };
@@ -172,6 +210,17 @@ export const runWigTryOnPipeline = async (
 	}
 	if (deps.signal?.aborted) return canceledResponse();
 
+	// Everything above can reject without spending a provider credit: bad input, a wig that does
+	// not exist, an unreachable or non-raster wig image, a caller who already hung up. The charge
+	// belongs here, immediately before the one billable call, so none of those paths pays for it.
+	const quota = await deps.consumeQuota(WIG_TRY_ON_QUOTA_COST);
+	if (!quota.ok) {
+		// Verbatim from the gate. Retry-After and the reset window come from the store's own
+		// instant; recomputing them here would drift from the bucket that denied the request.
+		return { status: quota.status, body: quota.body, headers: quota.headers };
+	}
+	const quotaHeaders = quota.headers;
+
 	const tryOnResult = await deps.wigTryOnSeam.tryOn({
 		selfieBase64,
 		selfieMimeType,
@@ -183,7 +232,7 @@ export const runWigTryOnPipeline = async (
 	});
 
 	if (!tryOnResult.ok) {
-		return mapTryOnError(tryOnResult.error);
+		return mapTryOnError(tryOnResult.error, quotaHeaders);
 	}
 
 	const result: WigTryOnResult = {
@@ -199,9 +248,10 @@ export const runWigTryOnPipeline = async (
 		return buildError(
 			500,
 			'WIG_TRY_ON_OUTPUT_INVALID',
-			'Wig try-on response did not match contract.'
+			'Wig try-on response did not match contract.',
+			quotaHeaders
 		);
 	}
 
-	return { status: 200, body: validated.data };
+	return { status: 200, body: validated.data, headers: quotaHeaders };
 };
