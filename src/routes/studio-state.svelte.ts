@@ -60,6 +60,14 @@ const DRAFT_SEED_TEXT_SIGNATURES: readonly DraftSeedTextSignature[] = [
 		title: "I DON'T ACT",
 		itemLabels: ['RUN THE PLACE', 'DO NOT OPEN THE DOOR', 'LOWER MY VOICE'],
 		footerLabel: "I DON'T ACT"
+	},
+	// Shipped from the root commit 4c5660f (2026-05-10) until 05dede1 (2026-08-24)
+	// replaced it with the "I DON'T ACT" seed. Drafts saved in that window still carry
+	// this text, and it is seed text, not user work.
+	{
+		title: 'IN THIS ECONOMY',
+		itemLabels: ['STAY PRETTY TOMORROW', 'CLOSE THE DOOR', 'LET THE DRAFT WORK'],
+		footerLabel: 'IN THIS ECONOMY'
 	}
 ];
 

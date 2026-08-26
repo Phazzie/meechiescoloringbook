@@ -67,6 +67,22 @@ describe('WigCatalogSeam mock contract', () => {
     }
   });
 
+  it('no catalog fixture imageUrl points at an external placeholder host', () => {
+    const catalogFixtures = [sampleWigFixture, ...sampleWigCatalogFixture];
+
+    for (const wig of catalogFixtures) {
+      expect(wig.imageUrl).not.toContain('placehold.co');
+    }
+  });
+
+  it('every catalog fixture imageUrl is a packaged /wigs asset path', () => {
+    const catalogFixtures = [sampleWigFixture, ...sampleWigCatalogFixture];
+
+    for (const wig of catalogFixtures) {
+      expect(wig.imageUrl).toMatch(/^\/wigs\/[a-z0-9]+(?:-[a-z0-9]+)*\.(?:jpe?g|png|webp)$/);
+    }
+  });
+
   it.each(acceptedWigImageUrlFixtures)('accepts safe wig image URL %s', (imageUrl) => {
     expect(() => validateWig({ ...sampleWigFixture, imageUrl })).not.toThrow();
   });

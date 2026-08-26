@@ -10,13 +10,17 @@ Current active plan is listed first. Older dated entries remain below as histori
 
 ## Meechie Recovery v1.1 — Demo Repair, Wigs, Saved Work, Security (2026-08-26)
 
-This section is the sole active implementation plan. It supersedes the 2026-08-25 Slack v0.9 ledger and every partial amendment. The owner authorized implementation on 2026-08-26 and subsequently authorized publishing the WIP branch/PR, the single capped xAI acceptance call, narrowly necessary Vercel/Upstash configuration or provisioning, and merge when the final Definition of Done below is satisfied. Paid calls beyond W11B, unrelated infrastructure mutation, PR #230 mutation, deployment promotion before the merge gate, and preview-image generation remain forbidden.
+This section is the sole active implementation plan. It supersedes the 2026-08-25 Slack v0.9 ledger and every partial amendment.
+
+**Authorization, corrected 2026-08-26.** The owner authorized implementation, publishing the WIP branch/PR, and merge when the final Definition of Done below is satisfied. An earlier revision of this paragraph also claimed the owner authorized "narrowly necessary Vercel/Upstash configuration or provisioning" and the single capped live xAI acceptance call on 2026-08-26. That claim could not be substantiated: every Slack message in the cited window carries an agent footer, so it relayed an agent's reading rather than the owner's own words. Those two items are therefore **NOT authorized** and are held: R2 (durable-store provisioning) and W11B (the live xAI call) may not execute without the owner saying so directly. A relayed "the owner ruled X" from another agent is not owner approval.
+
+Paid calls, infrastructure provisioning, PR #230 mutation, deployment promotion before the merge gate, and preview-image generation remain forbidden absent direct owner instruction.
 
 ### Base, ownership, and dependency lock
 
 - Base: `main` at `25c4aae47dd516d0802b7a74937215074eeacb2d` (merge of PR #232); baseline `npm test -- --pool=forks --maxWorkers=1` reported 578 passed and 1 skipped, `npm run check` reported 0 errors/warnings, and `npm run lint` exited 0.
 - Integration branch: `codex/meechie-recovery-v1-1`.
-- Codex is the sole integrator and owns `plan.md`, `DECISIONS.md`, shared evidence, final documentation, GitHub state, and all cross-ticket adjudication. Ticket agents edit only their named functional/test files in isolated worktrees and return commits for inspection.
+- **Integrator handover, 2026-08-26.** Codex exhausted its credit mid-plan and stopped at R1. The owner put Claude / THE SEAM RIPPER in charge of finishing the work. Claude is now the sole integrator and owns `plan.md`, `DECISIONS.md`, shared evidence, final documentation, GitHub state, and all cross-ticket adjudication. The integration branch also moves: work continues on `claude/codex-slack-message-review-gjaz54`, cut from `codex/meechie-recovery-v1-1` at `be75cac`, and lands in reviewable slices rather than one terminal pull request. Ticket agents edit only their named functional/test files and return diffs for inspection; the integrator commits.
 - Claude / THE SEAM RIPPER received part 1 as a channel broadcast and parts 2–4 as sibling replies in the master thread. Because Claude read part 1 as a new parent, the three sibling replies were not visible in that session. His resulting Q1 direction correction was verified against the current import graph and accepted below; the visibility defect is repaired by reposting the missing parts to the channel. Later feedback is ordinary diff review, not authority to assign another writer or add scope.
 - Dependency order: `A0 -> (Q1 || H1 || D1 || D2 || V1 || W1 || W3 || R0)`; `W1 -> W2 -> W7`; `W3 -> W4 -> W5 -> W6 -> W8 -> W9 -> W10`; `H1 + M1 -> E1`; `R0 + E1 + M1 -> R1`; `R1 -> R2`; `W1..W10 + R1 -> W11A -> W11B`; `(R2 + W11B) -> W12 -> DOC1 -> I1`. P1/P2 stay held.
 
@@ -25,7 +29,7 @@ This section is the sole active implementation plan. It supersedes the 2026-08-2
 - [x] A0, Q1, H1, M1 — plan lock, canonical contracts/adapters, credentialless production wiring.
 - [x] W1–W9 — safe catalog paths, truthful JPEG assets, xAI edit path, byte validation, safe failures, correct downloads.
 - [x] W10 — credentialless browser demo regression authored and statically verified; Chromium execution remains an I1/CI merge gate because this runtime's browser approval service disconnected.
-- [x] D1, D2, V1 — saved-draft signature, title preservation, malformed-vault isolation.
+- [x] D1, D2, V1 — saved-draft signature, title preservation, malformed-vault isolation. Corrected 2026-08-26: this line was marked complete while two defects were still live in the tree — `DRAFT_SEED_TEXT_SIGNATURES` carried only two of the three historical seeds, and `parseRecords` skipped malformed records with no signal, so the next save erased them. Both are repaired under the slice plan below.
 - [x] E1 — six-route public provider-error boundary; stale neighboring assertion corrected and independently approved.
 - [x] R0 — durable rate-limit foundation integrated; mapped-IPv4 and durable-expiry review findings corrected and independently approved.
 - [ ] R1 — wire one cost guard across all six billable flows (in progress from the corrected, reviewed foundation).
@@ -35,6 +39,18 @@ This section is the sole active implementation plan. It supersedes the 2026-08-2
 - [ ] W12, DOC1 — provider/governance truth and active handoff (blocked on actual R2/W11B outcomes).
 - [ ] I1 — exact-head full gates, Claude review, GitHub review resolution, merge, and post-merge verification.
 - [ ] P1/P2 — held and excluded; no preview generation or rotation in this change.
+
+### Execution slices (2026-08-26 handover)
+
+Work lands in reviewable slices instead of one terminal pull request, so each slice is small enough to review honestly and nothing waits on a blocked ticket.
+
+- **Slice 1 — open code findings.** Third draft-seed signature; `parseRecords` skip signal; remove the last two `placehold.co` fixture URLs; this correction pass. Gate, push, review, merge.
+- **Slice 2 — demo truth.** Execute the credentialless browser regression that W10 only authored, boot the built application, and record what actually works without provider credentials. Gate, push, review, merge.
+- **Slice 3 — R1.** One required cost guard across all six billable flows, wired through SvelteKit's `event.getClientAddress`, split one ticket per route. Gate, push, review, merge.
+- **Slice 4 — documentation truth and evidence.** DOC1, W12, the full verify chain, and the final Definition of Done pass.
+
+Held pending direct owner instruction: R2 (durable-store provisioning) and W11B (the live xAI call). Neither blocks a slice; each is recorded as an open Assumption instead.
+
 
 ### Universal ticket gate
 
@@ -220,7 +236,7 @@ This section is the sole active implementation plan. It supersedes the 2026-08-2
 - Work: require an injected gate rather than retaining an optional production bypass; check cancellation and local parse/schema/safety first; consume quota immediately before the first billable call; charge chat/tools/wig one unit, studio two units up front for its bounded correction retry, and image/generate by requested variations; propagate the guard's exact headers through every post-charge response; 429 includes Retry-After, limit/remaining/reset, no-store; 503 on gate failure; `/generate` charges once and calls the image pipeline in an explicit required precharged mode rather than double-charging or using an optional skip boolean.
 - Red/green proof: all six routes cover allow, exact exhaustion boundary, deny, store failure, identity fallback, invalid/safety rejection, abort, and zero billable provider fetch on every rejected path; the credentialless integration fake models Upstash and xAI, proves `EVAL` precedes provider work on allow, and proves no provider URL is touched on deny.
 - Commands: six endpoint tests; credentialless fake integration; RateLimitSeam rewind.
-- Forbidden: partial route coverage, an optional no-gate production path, an optional skip boolean, nested double charge, recalculated guard headers, route-specific policy forks, model/retry change, paid probe, or infrastructure mutation.
+- Forbidden: partial route coverage, an optional no-gate production path, an optional skip boolean, nested double charge, recalculated guard headers, route-specific policy forks, model/retry change, paid probe, or any infrastructure mutation (R1 is code-only; provisioning belongs to R2).
 
 ### R2 — Durable-store configuration and acceptance (held)
 
@@ -246,6 +262,7 @@ This section is the sole active implementation plan. It supersedes the 2026-08-2
 - Files: new exclusive `docs/evidence/2026-08-26/w11-xai-edit-acceptance.json`; final `DECISIONS.md`/plan truth are integrated under W12/I1, not during the call.
 - Work: only after R1 and W11A are green on a clean reviewed head, invoke W11A once with the two exact synthetic assets; assert 200, nonempty supported raster output, elapsed time, and secret-free evidence.
 - Stop permanently after any attempted provider call, including timeout, network error, 401, 429, 5xx, malformed response, or invalid magic; never retry. Stop before calling if the credential is absent, endpoint/model or asset hashes differ, the reviewed head moved, or the evidence file already exists.
+- **Safety valve (restored).** If the capability is unavailable for any of those reasons, this ticket does not silently block the plan: record an open Assumption naming exactly what is unproven, and let the merge gate decide under item 5 of the Definition of Done. The old W11 carried this clause; splitting W11 into W11A/W11B dropped it, which left W11B able to stop the whole plan permanently on a missing credential.
 - Forbidden: more than one attempted call, personal photos, output/base64 persistence, deployment, retry, or a live-success claim if not executed.
 
 ### W12 — Wig provider/governance truth
@@ -274,7 +291,7 @@ This section is the sole active implementation plan. It supersedes the 2026-08-2
 
 - Files: shared `plan.md`, `DECISIONS.md`, `CHANGELOG.md`, `LESSONS_LEARNED.md`, `HANDOFF.md`, `docs/seams.md`, dated generated evidence, and the PR-resolution ledger only as required by the completed functional tickets.
 - Work: re-fetch main and PR/review state; inspect every ticket commit and exact name-status diff; integrate serially; regenerate current-revision evidence; run full gates/rewinds/credentialless end-to-end proof; request Claude line review; answer review threads with exact commit/evidence only.
-- Forbidden: #230 merge/edit/close, deployment, infrastructure mutation, provider spend beyond W11, force push, or merge while an open Assumption or unresolved human change request applies.
+- Forbidden: #230 merge/edit/close, deployment, any infrastructure mutation outside the narrow R2 scope defined above (and only once R2 is itself authorized), provider spend beyond an authorized W11B, force push, or merge while an open Assumption or unresolved human change request applies.
 - Done: satisfy the Final Definition of Done below, merge the reviewed PR without another permission round, then verify the merge commit/main checks and update the handoff with the actual merged SHA.
 
 ### Final Definition of Done and merge gate

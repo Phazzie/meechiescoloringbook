@@ -3,10 +3,11 @@
 # Info flow: vitest output -> evidence file -> review.
 
 
- RUN  v4.1.0 /workspace/scratch/472e65e13017/meechiescoloringbook
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
 
 
- Test Files  1 passed (1)
-      Tests  25 passed (25)
-   Start at  05:14:01
-   Duration  660ms (transform 77ms, setup 44ms, import 56ms, tests 12ms, environment 401ms)
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m27 passed[39m[22m[90m (27)[39m
+[2m   Start at [22m 14:25:27
+[2m   Duration [22m 1.03s[2m (transform 158ms, setup 58ms, import 146ms, tests 21ms, environment 629ms)[22m
+

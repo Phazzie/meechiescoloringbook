@@ -2,7 +2,10 @@
 // Why: Ensure localStorage operations, record parsing, and owner matching work correctly.
 // Info flow: Storage operations -> adapter methods -> verified results.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
+import {
+	creationStoreAdapter,
+	parseRecords
+} from '../../src/lib/adapters/creation-store.adapter';
 
 const validIntent = {
 	title: 'Test',
@@ -370,6 +373,29 @@ describe('creation-store adapter', () => {
 			);
 		});
 
+		it('keeps write failures hard when saving into mixed storage', async () => {
+			const storedRecords = [validRecord, { id: 'bad-record' }];
+			localStorage.setItem('cb_creations_v1', JSON.stringify(storedRecords));
+			const setItemSpy = vi
+				.spyOn(localStorage, 'setItem')
+				.mockImplementation(() => {
+					throw new Error('quota exceeded');
+				});
+
+			const result = await creationStoreAdapter.saveCreation({
+				record: { ...validRecord, id: 'creation-9' }
+			});
+			setItemSpy.mockRestore();
+
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('STORAGE_WRITE_FAILED');
+			}
+			expect(JSON.parse(localStorage.getItem('cb_creations_v1') ?? '[]')).toEqual(
+				storedRecords
+			);
+		});
+
 		it('returns schema error when stored draft fails validation', async () => {
 			localStorage.setItem('cb_drafts_v1', JSON.stringify({ invalid: true }));
 
@@ -377,6 +403,83 @@ describe('creation-store adapter', () => {
 			expect(result.ok).toBe(false);
 			if (!result.ok) {
 				expect(result.error.code).toBe('DRAFT_SCHEMA_MISMATCH');
+			}
+		});
+	});
+
+	describe('parseRecords skip signal', () => {
+		it('reports exactly one skipped record when the middle entry fails validation', () => {
+			const secondRecord = {
+				...validRecord,
+				id: 'creation-2',
+				intent: { ...validRecord.intent, title: 'Second creation' }
+			};
+
+			const result = parseRecords([
+				validRecord,
+				{ id: 'bad-record', invalid: true },
+				secondRecord
+			]);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.records).toEqual([validRecord, secondRecord]);
+				expect(result.value.skippedIndices).toEqual([1]);
+			}
+		});
+
+		it('reports zero skips for a fully valid stored list', () => {
+			const secondRecord = { ...validRecord, id: 'creation-2' };
+
+			const result = parseRecords([validRecord, secondRecord]);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.records).toEqual([validRecord, secondRecord]);
+				expect(result.value.skippedIndices).toEqual([]);
+			}
+		});
+
+		it('reports every index when all stored entries are bad', () => {
+			const result = parseRecords([
+				{ id: 'bad', invalid: true },
+				{ id: 'also-bad', owner: null }
+			]);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.records).toEqual([]);
+				expect(result.value.skippedIndices).toEqual([0, 1]);
+			}
+		});
+
+		it('reports zero skips for empty storage', () => {
+			const result = parseRecords(null);
+
+			expect(result).toEqual({
+				ok: true,
+				value: { records: [], skippedIndices: [] }
+			});
+		});
+
+		it('keeps a non-array root a hard failure with no skip signal', () => {
+			const result = parseRecords({ not: 'array' });
+
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('STORAGE_SCHEMA_MISMATCH');
+			}
+		});
+
+		it('does not leak skipped record contents into the signal', () => {
+			const result = parseRecords([{ id: 'bad', secret: 'do-not-leak' }]);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(JSON.stringify(result.value.skippedIndices)).not.toContain(
+					'do-not-leak'
+				);
+				expect(result.value.skippedIndices).toEqual([0]);
 			}
 		});
 	});

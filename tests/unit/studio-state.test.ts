@@ -24,6 +24,21 @@ const LEGACY_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	revisionNote: 'Approved preview line. Generate to get yours.'
 };
 
+// The original shipped seed: present from the root commit 4c5660f (2026-05-10) until
+// 05dede1 (2026-08-24) replaced it. Drafts saved in that window still carry this text.
+const ECONOMY_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
+	verdict: 'Meechie already clocked it.',
+	quote: 'You fumbled ME? In THIS economy?',
+	pageTitle: 'IN THIS ECONOMY',
+	pageItems: [
+		{ number: 1, label: 'STAY PRETTY TOMORROW' },
+		{ number: 2, label: 'CLOSE THE DOOR' },
+		{ number: 3, label: 'LET THE DRAFT WORK' }
+	],
+	qualityState: 'ready',
+	revisionNote: 'Canon Meechie preview.'
+};
+
 const buildSeedSpec = (output: MeechieStudioTextOutput) =>
 	buildColoringPageSpecFromMeechieText({
 		output,
@@ -46,7 +61,8 @@ afterEach(() => {
 describe('StudioState', () => {
 	it.each([
 		['current landlord seed', DEFAULT_STUDIO_TEXT_OUTPUT],
-		['pre-#232 I DON\'T ACT seed', LEGACY_STUDIO_TEXT_OUTPUT]
+		['pre-#232 I DON\'T ACT seed', LEGACY_STUDIO_TEXT_OUTPUT],
+		['pre-#227 IN THIS ECONOMY seed', ECONOMY_STUDIO_TEXT_OUTPUT]
 	])('does not restore %s as generated text', async (_label, output) => {
 		const studio = await initFromDraft({
 			updatedAtISO: '2026-08-26T00:00:00.000Z',
@@ -116,6 +132,22 @@ describe('StudioState', () => {
 
 			expect(studio.textOutput).not.toBeNull();
 		}
+	});
+
+	it('restores generated text when the IN THIS ECONOMY seed has a changed item', async () => {
+		const seedSpec = buildSeedSpec(ECONOMY_STUDIO_TEXT_OUTPUT);
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-08-26T00:00:00.000Z',
+			intent: {
+				...seedSpec,
+				items: seedSpec.items.map((item, index) =>
+					index === 1 ? { ...item, label: 'SLAM THE DOOR' } : item
+				)
+			}
+		});
+
+		expect(studio.textOutput).not.toBeNull();
+		expect(studio.textOutput?.pageItems[1].label).toBe('SLAM THE DOOR');
 	});
 
 	it('does not treat evidence or setting changes alone as generated text', async () => {
