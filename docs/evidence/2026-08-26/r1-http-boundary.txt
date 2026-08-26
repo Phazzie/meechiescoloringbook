@@ -1,0 +1,54 @@
+R1 acceptance — rate limiting over real HTTP against the production build
+=========================================================================
+
+Command:  npm run build && vite preview --port 5201
+Env:      XAI_API_KEY=fake-local-key  XAI_BASE_URL=http://127.0.0.1:9
+          (an unreachable local port, so the provider call fails instantly
+           and no real provider is contacted; zero spend)
+
+23 sequential POSTs to /api/tools with a valid apology_translator payload.
+Text bucket budget is 20 per minute.
+
+ 1) HTTP 502  remaining=19   MEECHIE_TOOL_PROVIDER_ERROR
+ 2) HTTP 502  remaining=18   MEECHIE_TOOL_PROVIDER_ERROR
+ 3) HTTP 502  remaining=17   MEECHIE_TOOL_PROVIDER_ERROR
+ 4) HTTP 502  remaining=16   MEECHIE_TOOL_PROVIDER_ERROR
+ 5) HTTP 502  remaining=15   MEECHIE_TOOL_PROVIDER_ERROR
+ 6) HTTP 502  remaining=14   MEECHIE_TOOL_PROVIDER_ERROR
+ 7) HTTP 502  remaining=13   MEECHIE_TOOL_PROVIDER_ERROR
+ 8) HTTP 502  remaining=12   MEECHIE_TOOL_PROVIDER_ERROR
+ 9) HTTP 502  remaining=11   MEECHIE_TOOL_PROVIDER_ERROR
+10) HTTP 502  remaining=10   MEECHIE_TOOL_PROVIDER_ERROR
+11) HTTP 502  remaining=9    MEECHIE_TOOL_PROVIDER_ERROR
+12) HTTP 502  remaining=8    MEECHIE_TOOL_PROVIDER_ERROR
+13) HTTP 502  remaining=7    MEECHIE_TOOL_PROVIDER_ERROR
+14) HTTP 502  remaining=6    MEECHIE_TOOL_PROVIDER_ERROR
+15) HTTP 502  remaining=5    MEECHIE_TOOL_PROVIDER_ERROR
+16) HTTP 502  remaining=4    MEECHIE_TOOL_PROVIDER_ERROR
+17) HTTP 502  remaining=3    MEECHIE_TOOL_PROVIDER_ERROR
+18) HTTP 502  remaining=2    MEECHIE_TOOL_PROVIDER_ERROR
+19) HTTP 502  remaining=1    MEECHIE_TOOL_PROVIDER_ERROR
+20) HTTP 502  remaining=0    MEECHIE_TOOL_PROVIDER_ERROR
+21) HTTP 429  remaining=0    RATE_LIMITED   Retry-After=27s
+22) HTTP 429  remaining=0    RATE_LIMITED   Retry-After=27s
+23) HTTP 429  remaining=0    RATE_LIMITED   Retry-After=27s
+
+What this proves that the unit tests cannot:
+
+1. The gate is reached through the real SvelteKit request path, not only
+   through an injected dependency in a test.
+2. RateLimit-Remaining decrements exactly once per request and the 21st
+   request in the window is denied — the budget is 20, enforced.
+3. Retry-After is present on denial and derived from the store's reset
+   rather than recomputed by the route.
+4. The charge happens BEFORE the provider call: every one of the first 20
+   requests was charged even though the provider then failed. A caller
+   cannot burn quota-free provider attempts by making the provider fail.
+5. E1's public provider-error boundary holds on the same path: the
+   provider failure surfaces as MEECHIE_TOOL_PROVIDER_ERROR with no
+   upstream message, URL, or credential crossing the boundary, and as a
+   502 rather than the 200 it used to return.
+
+Degraded (in-process) store was active, since no durable Upstash settings
+are configured in this environment. That is the documented behaviour for a
+fully-unconfigured deployment and is still metered.
