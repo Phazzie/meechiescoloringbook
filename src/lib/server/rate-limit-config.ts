@@ -23,7 +23,7 @@ const DEFAULT_OPERATION_TIMEOUT_MS = 1_500;
 // super-linearly on slash-heavy input.
 const stripTrailingSlashes = (value: string): string => {
 	let end = value.length;
-	while (end > 0 && value.charCodeAt(end - 1) === 47) {
+	while (end > 0 && value.codePointAt(end - 1) === 47) {
 		end -= 1;
 	}
 	return value.slice(0, end);

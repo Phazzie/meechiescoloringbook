@@ -55,7 +55,7 @@ const configError = (): Result<WigTryOnResult, WigTryOnError> =>
 // super-linearly on slash-heavy input.
 const stripTrailingSlashes = (value: string): string => {
 	let end = value.length;
-	while (end > 0 && value.charCodeAt(end - 1) === 47) {
+	while (end > 0 && value.codePointAt(end - 1) === 47) {
 		end -= 1;
 	}
 	return value.slice(0, end);
