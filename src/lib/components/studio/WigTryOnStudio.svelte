@@ -39,6 +39,13 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 			style: 'currency',
 			currency: 'USD'
 		}).format(value);
+
+	const portraitFileExtension = (dataUrl: string): 'jpg' | 'png' | 'webp' => {
+		const mimeType = /^data:([^;,]+)/i.exec(dataUrl)?.[1]?.toLowerCase();
+		if (mimeType === 'image/jpeg') return 'jpg';
+		if (mimeType === 'image/webp') return 'webp';
+		return 'png';
+	};
 </script>
 
 <section class="wig-studio" aria-label="Wig try-on studio">
@@ -93,7 +100,7 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 						<a
 							class="button-link"
 							href={tryOnPortraitUrl}
-							download={`meechie-try-on-${selectedWig.id}.png`}
+							download={`meechie-try-on-${selectedWig.id}.${portraitFileExtension(tryOnPortraitUrl)}`}
 						>
 							Save Portrait
 						</a>

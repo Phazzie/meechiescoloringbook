@@ -3,6 +3,8 @@
 // Info flow: tests -> mock -> contract assertions.
 import { describe, expect, it } from 'vitest';
 import {
+  acceptedWigImageUrlFixtures,
+  rejectedWigImageUrlFixtures,
   sampleWigFixture,
   sampleWigCatalogFixture,
   wigCatalogLoadFailedFixture,
@@ -63,5 +65,13 @@ describe('WigCatalogSeam mock contract', () => {
     for (const wig of sampleWigCatalogFixture) {
       expect(() => validateWig(wig)).not.toThrow();
     }
+  });
+
+  it.each(acceptedWigImageUrlFixtures)('accepts safe wig image URL %s', (imageUrl) => {
+    expect(() => validateWig({ ...sampleWigFixture, imageUrl })).not.toThrow();
+  });
+
+  it.each(rejectedWigImageUrlFixtures)('rejects unsafe wig image URL %s', (imageUrl) => {
+    expect(() => validateWig({ ...sampleWigFixture, imageUrl })).toThrow();
   });
 });

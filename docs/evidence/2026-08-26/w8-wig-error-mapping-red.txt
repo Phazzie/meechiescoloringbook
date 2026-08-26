@@ -1,0 +1,15 @@
+# Purpose: Record the pre-fix wig pipeline status and public-message failures.
+# Why: Prove adapter and catalog details crossed the endpoint while config, cancel, and timeout used wrong statuses.
+# Info flow: canary-bearing fake seam errors -> focused failures -> W8 stable error mapping.
+
+$ ./node_modules/.bin/vitest run tests/unit/wig-try-on-pipeline.test.ts --pool=forks --maxWorkers=1
+
+Test Files  1 failed (1)
+Tests       12 failed | 8 passed (20)
+
+All eight adapter-error cases exposed their injected message; configuration returned 502 instead of 503,
+cancel returned 502 instead of 499, and timeout returned 502 instead of 504. A pre-canceled request still
+fetched and called the provider. Catalog and wig-image failures also exposed internal details.
+
+Exit status: 1 (expected red proof)
+Base before implementation: e0e6a7d

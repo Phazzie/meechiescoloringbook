@@ -1,7 +1,7 @@
 // Purpose: Unit tests for creation-store adapter helper functions and edge cases.
 // Why: Ensure localStorage operations, record parsing, and owner matching work correctly.
 // Info flow: Storage operations -> adapter methods -> verified results.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
 
 const validIntent = {
@@ -236,6 +236,77 @@ describe('creation-store adapter', () => {
 	});
 
 	describe('corrupted storage', () => {
+		it('lists valid records in order when malformed records are interleaved', async () => {
+			const secondRecord = {
+				...validRecord,
+				id: 'creation-2',
+				intent: { ...validRecord.intent, title: 'Second creation' }
+			};
+			const storedRecords = [
+				validRecord,
+				{ id: 'bad-record', invalid: true },
+				secondRecord
+			];
+			localStorage.setItem('cb_creations_v1', JSON.stringify(storedRecords));
+
+			const result = await creationStoreAdapter.listCreations({
+				owner: validRecord.owner
+			});
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value).toEqual([validRecord, secondRecord]);
+			}
+			expect(JSON.parse(localStorage.getItem('cb_creations_v1') ?? '[]')).toEqual(
+				storedRecords
+			);
+		});
+
+		it('saves into mixed storage and rewrites only valid records plus the saved record', async () => {
+			const secondRecord = {
+				...validRecord,
+				id: 'creation-2',
+				intent: { ...validRecord.intent, title: 'Second creation' }
+			};
+			const newRecord = {
+				...validRecord,
+				id: 'creation-3',
+				intent: { ...validRecord.intent, title: 'Newest creation' }
+			};
+			localStorage.setItem(
+				'cb_creations_v1',
+				JSON.stringify([validRecord, { id: 'bad-record' }, secondRecord])
+			);
+
+			const result = await creationStoreAdapter.saveCreation({ record: newRecord });
+
+			expect(result).toEqual({ ok: true, value: newRecord });
+			expect(JSON.parse(localStorage.getItem('cb_creations_v1') ?? '[]')).toEqual([
+				newRecord,
+				validRecord,
+				secondRecord
+			]);
+		});
+
+		it('deletes from mixed storage and rewrites the surviving valid records', async () => {
+			const secondRecord = {
+				...validRecord,
+				id: 'creation-2',
+				intent: { ...validRecord.intent, title: 'Second creation' }
+			};
+			localStorage.setItem(
+				'cb_creations_v1',
+				JSON.stringify([validRecord, { id: 'bad-record' }, secondRecord])
+			);
+
+			const result = await creationStoreAdapter.deleteCreation({ id: validRecord.id });
+
+			expect(result).toEqual({ ok: true, value: true });
+			expect(JSON.parse(localStorage.getItem('cb_creations_v1') ?? '[]')).toEqual([
+				secondRecord
+			]);
+		});
+
 		it('returns parse error when stored creations are not valid JSON', async () => {
 			localStorage.setItem('cb_creations_v1', 'not-valid-json');
 
@@ -260,19 +331,43 @@ describe('creation-store adapter', () => {
 			}
 		});
 
-		it('returns schema error when stored creation record fails validation', async () => {
+		it('returns an empty list when every stored creation record fails validation', async () => {
 			localStorage.setItem(
 				'cb_creations_v1',
-				JSON.stringify([{ id: 'bad', invalid: true }])
+				JSON.stringify([
+					{ id: 'bad', invalid: true },
+					{ id: 'also-bad', owner: null }
+				])
 			);
 
 			const result = await creationStoreAdapter.listCreations({
 				owner: { kind: 'anonymous', sessionId: 'session-123' }
 			});
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value).toEqual([]);
+			}
+		});
+
+		it('keeps write failures hard when deleting from mixed storage', async () => {
+			const storedRecords = [validRecord, { id: 'bad-record' }];
+			localStorage.setItem('cb_creations_v1', JSON.stringify(storedRecords));
+			const setItemSpy = vi
+				.spyOn(localStorage, 'setItem')
+				.mockImplementation(() => {
+					throw new Error('quota exceeded');
+				});
+
+			const result = await creationStoreAdapter.deleteCreation({ id: validRecord.id });
+			setItemSpy.mockRestore();
+
 			expect(result.ok).toBe(false);
 			if (!result.ok) {
-				expect(result.error.code).toBe('STORAGE_SCHEMA_MISMATCH');
+				expect(result.error.code).toBe('STORAGE_WRITE_FAILED');
 			}
+			expect(JSON.parse(localStorage.getItem('cb_creations_v1') ?? '[]')).toEqual(
+				storedRecords
+			);
 		});
 
 		it('returns schema error when stored draft fails validation', async () => {

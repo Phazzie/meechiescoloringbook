@@ -1,6 +1,8 @@
 // Purpose: Browser smoke tests for release-critical user flows.
 // Why: Catch broken buttons, selectors, and API error states before deployment.
 // Info flow: Playwright route stubs -> UI interactions -> visible states.
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { getWeeklyModes } from '../../src/lib/core/meechie-studio';
 
@@ -9,6 +11,13 @@ test.describe.configure({ mode: 'serial' });
 
 const png1x1 =
 	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+const wigJpegPath = fileURLToPath(
+	new URL(
+		'../../static/wigs/wig-001-sleek-straight-goddess.jpg',
+		import.meta.url
+	)
+);
+const wigJpegBase64 = readFile(wigJpegPath, 'base64');
 
 const textOutput = {
 	verdict: 'Meechie clocked the timeline.',
@@ -71,6 +80,19 @@ const stubApis = async (page: Page): Promise<void> => {
 		const body = route.request().postDataJSON() as { toolId?: string };
 		await route.fulfill({ json: toolPayload(body.toolId ?? 'unknown') });
 	});
+
+	await page.route('**/api/wig-try-on', async (route) => {
+		await route.fulfill({
+			headers: { 'x-e2e-stub': 'wig-try-on' },
+			json: {
+				ok: true,
+				value: {
+					portraitBase64: await wigJpegBase64,
+					portraitMimeType: 'image/jpeg'
+				}
+			}
+		});
+	});
 };
 
 const gotoHydrated = async (page: Page, path: string): Promise<void> => {
@@ -79,7 +101,10 @@ const gotoHydrated = async (page: Page, path: string): Promise<void> => {
 		// Some asset pipelines keep a request open; hydration still completes.
 	});
 	if (path === '/') {
-		await expect(page.getByTestId('studio-root')).toHaveAttribute('data-hydrated', 'true');
+		await expect(page.getByTestId('studio-root')).toHaveAttribute(
+			'data-hydrated',
+			'true'
+		);
 	} else {
 		await page.waitForTimeout(250);
 	}
@@ -124,6 +149,80 @@ test('home mode switching and generation controls work', async ({ page }) => {
 	await expect(page.getByTestId('home-vault-empty')).toBeVisible();
 });
 
+test('wig try-on demo works end to end without provider traffic', async ({
+	page
+}) => {
+	const providerRequests: string[] = [];
+	page.on('request', (request) => {
+		const hostname = new URL(request.url()).hostname;
+		if (
+			hostname === 'api.x.ai' ||
+			hostname === 'generativelanguage.googleapis.com'
+		) {
+			providerRequests.push(request.url());
+		}
+	});
+
+	await gotoHydrated(page, '/');
+
+	const wigCards = page.locator('.wig-carousel .wig-card');
+	const wigImages = page.locator('.wig-carousel .wig-img');
+	await expect(wigCards).toHaveCount(8);
+	await expect(wigImages).toHaveCount(8);
+
+	for (const image of await wigImages.all()) {
+		await image.scrollIntoViewIfNeeded();
+		await expect
+			.poll(async () =>
+				image.evaluate((node) => {
+					const img = node as HTMLImageElement;
+					return img.complete && img.naturalWidth > 0;
+				})
+			)
+			.toBe(true);
+		await expect(image).toHaveAttribute('src', /^\/wigs\/[a-z0-9-]+\.jpg$/);
+	}
+
+	const firstWig = page.getByRole('button', {
+		name: 'Select Sleek Straight Goddess'
+	});
+	await firstWig.click();
+	await expect(firstWig).toHaveAttribute('aria-pressed', 'true');
+
+	await page.locator('#selfie-input').setInputFiles(wigJpegPath);
+	await expect(page.getByAltText('Your selfie preview')).toBeVisible();
+	await expect(page.getByTestId('home-try-on')).toBeEnabled();
+
+	const [tryOnResponse] = await Promise.all([
+		page.waitForResponse('**/api/wig-try-on'),
+		page.getByTestId('home-try-on').click()
+	]);
+	await expect
+		.poll(() => tryOnResponse.headerValue('x-e2e-stub'))
+		.toBe('wig-try-on');
+
+	const portrait = page.getByTestId('home-try-on-portrait');
+	await expect(portrait).toBeVisible();
+	await expect(portrait).toHaveAttribute(
+		'src',
+		/^data:image\/jpeg;base64,\/9j\//
+	);
+	await expect(
+		page.getByRole('link', { name: 'Save Portrait' })
+	).toHaveAttribute('download', 'meechie-try-on-wig-001.jpg');
+
+	await page.getByRole('button', { name: 'Make It a Coloring Page' }).click();
+	const coloringPage = page.getByTestId('home-generated-image');
+	await expect(coloringPage).toBeVisible();
+	await expect(coloringPage).toHaveAttribute(
+		'src',
+		/^data:image\/jpeg;base64,\/9j\//
+	);
+	await expect(page.getByRole('link', { name: 'Download PDF' })).toBeVisible();
+
+	expect(providerRequests).toEqual([]);
+});
+
 test('home quote vault can save, load, pin, and delete creations', async ({
 	page
 }) => {
@@ -158,16 +257,21 @@ test('home shoutout input debounces draft save and clears dedication', async ({
 }) => {
 	await gotoHydrated(page, '/');
 	await expect
-		.poll(async () => page.evaluate(() => localStorage.getItem('cb_session_id_v1')), {
-			timeout: 5000
-		})
+		.poll(
+			async () => page.evaluate(() => localStorage.getItem('cb_session_id_v1')),
+			{
+				timeout: 5000
+			}
+		)
 		.not.toBeNull();
 	await page.evaluate(() => {
 		localStorage.removeItem('cb_drafts_v1');
 	});
 
 	const readDraft = (): Promise<{ intent?: { dedication?: string } } | null> =>
-		page.evaluate(() => JSON.parse(localStorage.getItem('cb_drafts_v1') ?? 'null'));
+		page.evaluate(() =>
+			JSON.parse(localStorage.getItem('cb_drafts_v1') ?? 'null')
+		);
 
 	const shoutout = page.getByLabel('Shoutout');
 	await shoutout.fill('  Big Sis  ');

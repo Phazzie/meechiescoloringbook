@@ -38,6 +38,31 @@ export const sampleWigCatalogFixture: Wig[] = [
   }
 ];
 
+export const acceptedWigImageUrlFixtures = [
+  '/wigs/example.jpg',
+  '/wigs/example.jpeg',
+  '/wigs/example.png',
+  '/wigs/example.webp',
+  'https://cdn.example.com/wigs/example.jpg?version=1',
+  'http://cdn.example.com/wigs/example.jpg'
+] as const;
+
+export const rejectedWigImageUrlFixtures = [
+  '//evil.example/wig.jpg',
+  '/wigs/../secret.jpg',
+  '/wigs/%2e%2e/secret.jpg',
+  '/wigs/example.jpg?version=1',
+  '/wigs/example.jpg#preview',
+  '/wigs/nested/example.jpg',
+  '/wigs/example.svg',
+  '/assets/example.jpg',
+  'javascript:alert(1)',
+  'data:image/png;base64,AAAA',
+  'ftp://cdn.example.com/wigs/example.jpg',
+  'http:cdn.example.com/wigs/example.jpg',
+  ' https://cdn.example.com/wigs/example.jpg'
+] as const;
+
 export const wigCatalogLoadFailedFixture = {
   code: 'WIG_CATALOG_LOAD_FAILED' as const,
   message: 'Failed to load wig catalog data.'

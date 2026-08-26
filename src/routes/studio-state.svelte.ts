@@ -44,6 +44,37 @@ type BorderChoice = ColoringPageSpec['border'];
 
 const DRAFT_SAVE_DEBOUNCE_MS = 300;
 
+type DraftSeedTextSignature = {
+	title: string;
+	itemLabels: readonly string[];
+	footerLabel?: string;
+};
+
+const DRAFT_SEED_TEXT_SIGNATURES: readonly DraftSeedTextSignature[] = [
+	{
+		title: DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle,
+		itemLabels: DEFAULT_STUDIO_TEXT_OUTPUT.pageItems.map((item) => item.label),
+		footerLabel: DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+	},
+	{
+		title: "I DON'T ACT",
+		itemLabels: ['RUN THE PLACE', 'DO NOT OPEN THE DOOR', 'LOWER MY VOICE'],
+		footerLabel: "I DON'T ACT"
+	}
+];
+
+const matchesDraftSeedText = (
+	intent: ColoringPageSpec,
+	seed: DraftSeedTextSignature
+): boolean =>
+	intent.title === seed.title &&
+	intent.items.length === seed.itemLabels.length &&
+	intent.items.every((item, index) => item.label === seed.itemLabels[index]) &&
+	intent.footerItem?.label === seed.footerLabel;
+
+const isKnownDraftSeed = (intent: ColoringPageSpec): boolean =>
+	DRAFT_SEED_TEXT_SIGNATURES.some((seed) => matchesDraftSeedText(intent, seed));
+
 export class StudioState {
 	// Computed per-instance so week/month rotation stays fresh on each page mount.
 	readonly weeklyModes = getWeeklyModes();
@@ -652,10 +683,7 @@ export class StudioState {
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;
 			this.border = draft.value.intent.border;
-			if (
-				draft.value.studioText ||
-				draft.value.intent.title !== DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
-			) {
+			if (draft.value.studioText || !isKnownDraftSeed(draft.value.intent)) {
 				this.textOutput = buildStudioTextFromDraftRecord(draft.value);
 			}
 		}

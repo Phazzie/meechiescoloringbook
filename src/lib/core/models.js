@@ -1,4 +1,4 @@
-// Purpose: Pin the xAI model ids used across every provider-backed seam.
+// Purpose: Pin the xAI model ids used across every provider-backed text, image, and edit seam.
 // Why: A model id is not a secret and does not vary per environment, so it belongs in code
 //      where a diff shows the change and a grep finds it. Plain checked JavaScript keeps the
 //      same source directly importable by the repository's documented Node 20 probes.
@@ -11,3 +11,6 @@ export const TEXT_MODEL = 'grok-4.6';
 // working path would risk trading a partial outage for a total one. The upgrade belongs in
 // its own change, once a probe can actually reach a deployment.
 export const IMAGE_MODEL = 'grok-imagine-image';
+// Wig try-on is a multi-image edit path, so it uses the separately verified image-edit model
+// without changing the live-verified model used for ordinary coloring-page generation.
+export const IMAGE_EDIT_MODEL = 'grok-imagine-image-2.0';

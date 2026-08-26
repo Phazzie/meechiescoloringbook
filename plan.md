@@ -8,6 +8,274 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Meechie Recovery v1.1 — Demo Repair, Wigs, Saved Work, Security (2026-08-26)
+
+This section is the sole active implementation plan. It supersedes the 2026-08-25 Slack v0.9 ledger and every partial amendment. The owner authorized implementation on 2026-08-26 and subsequently authorized merge when the final Definition of Done below is satisfied. Deployment, paid calls without a hard cap, Upstash/Vercel mutation, PR #230 mutation, and preview-image generation remain separately gated.
+
+### Base, ownership, and dependency lock
+
+- Base: `main` at `25c4aae47dd516d0802b7a74937215074eeacb2d` (merge of PR #232); baseline `npm test -- --pool=forks --maxWorkers=1` reported 578 passed and 1 skipped, `npm run check` reported 0 errors/warnings, and `npm run lint` exited 0.
+- Integration branch: `codex/meechie-recovery-v1-1`.
+- Codex is the sole integrator and owns `plan.md`, `DECISIONS.md`, shared evidence, final documentation, GitHub state, and all cross-ticket adjudication. Ticket agents edit only their named functional/test files in isolated worktrees and return commits for inspection.
+- Claude / THE SEAM RIPPER received part 1 as a channel broadcast and parts 2–4 as sibling replies in the master thread. Because Claude read part 1 as a new parent, the three sibling replies were not visible in that session. His resulting Q1 direction correction was verified against the current import graph and accepted below; the visibility defect is repaired by reposting the missing parts to the channel. Later feedback is ordinary diff review, not authority to assign another writer or add scope.
+- Dependency order: `A0 -> (Q1 || H1 || D1 || D2 || V1 || W1 || W3 || R0)`; `W1 -> W2 -> W7`; `W3 -> W4 -> W5 -> W6 -> W8 -> W9 -> W10`; `H1 + M1 -> E1`; `R0 + E1 + M1 -> R1`; `W1..W10 + R1 -> W11 -> W12 -> DOC1 -> I1`. P1/P2 stay held.
+
+### Execution checklist
+
+- [x] A0, Q1, H1, M1 — plan lock, canonical contracts/adapters, credentialless production wiring.
+- [x] W1–W9 — safe catalog paths, truthful JPEG assets, xAI edit path, byte validation, safe failures, correct downloads.
+- [x] W10 — credentialless browser demo regression authored and statically verified; Chromium execution remains an I1/CI merge gate because this runtime's browser approval service disconnected.
+- [x] D1, D2, V1 — saved-draft signature, title preservation, malformed-vault isolation.
+- [ ] E1 — six-route public provider-error boundary (in progress).
+- [ ] R0 — durable rate-limit foundation (in progress).
+- [ ] R1 — wire one cost guard across all six billable flows (blocked on E1 and R0).
+- [ ] W11 — one capped live xAI acceptance call (held until W10 and R1 are green).
+- [ ] W12, DOC1 — provider/governance truth and active handoff (blocked on actual W11 outcome).
+- [ ] I1 — exact-head full gates, Claude review, GitHub review resolution, merge, and post-merge verification.
+- [ ] P1/P2 — held and excluded; no preview generation or rotation in this change.
+
+### Universal ticket gate
+
+1. Recheck base SHA, clean status, ticket file list, and forbidden scope before the first edit.
+2. Preserve or add each file's Purpose/Why/Info-flow header.
+3. For seam behavior, follow contract -> probe -> fixture -> mock -> test -> captured red -> adapter -> integration; fixture-backed behavior cannot be replaced by an invented mock.
+4. Capture a real focused failure before the implementation fix and retain the command/output in the handoff; Codex owns checked-in evidence integration.
+5. Run ticket-focused tests and affected rewinds, then run `npm run check`, `npm run lint`, `npm test`, `npm run build`, literal `npm run verify`, `npm run cipher:gate`, `npm run assumption:alarm`, and `git diff --check` on the integrated final revision.
+6. Stop on base movement, an unplanned file, a failing mandatory gate, an uncapped paid call, missing provider/store authority, secrets in output, or new scope.
+7. Do not deploy, enable paid public traffic, provision/configure Upstash or Vercel, edit/close PR #230, remove a feature, rebuild the application, or start P1/P2 under this plan. Merge only after the final Definition of Done is satisfied on the exact PR head.
+
+### A0 — Plan and base lock
+
+- Problem: prevent several sessions from working from contradictory ledgers.
+- Files: `plan.md` only.
+- Work: record this exact base, ownership model, dependency graph, tickets, files, commands, constraints, and self-critique before production edits.
+- Proof: `git status --short --branch`; `git rev-parse HEAD`; `git diff --check`.
+- Done: this section is first and explicitly sole-active; no other plan is treated as executable.
+
+### Q1 — SpecValidation consolidation recut from current main
+
+- Problem: remove duplicated SpecValidation implementation without changing behavior or making the non-runtime legacy twin authoritative.
+- Files: `contracts/spec-validation.contract.ts`; `src/lib/seams/spec-validation-seam/contract.ts`; `src/lib/adapters/spec-validation.adapter.ts`; `src/lib/adapters/spec-validation-seam/index.ts`; `tests/contract/spec-validation.test.ts`; `src/lib/seams/spec-validation-seam/test.ts`; `docs/seams.md`.
+- Work: re-cut from `25c4aae`; do not rebase/cherry-pick conflicted PR #231. Keep `src/lib/seams/spec-validation-seam/contract.ts` canonical because production wiring and `docs/seams.md` already identify the self-contained seam as canonical. Inline its only legacy dependency as `z.string().min(1)` for the three issue fields, so the self-contained contract has no back-edge to `contracts/`. Convert `contracts/spec-validation.contract.ts` to a compatibility re-export. Keep the self-contained adapter canonical and make the flat adapter a typed alias.
+- Red/green proof: prove both import paths initially contain duplicated behavior; after the change both suites exercise the same exported schemas/types with identical validation results, and all seven legacy `contracts/*.contract.ts` consumers still resolve.
+- Commands: `npm test -- tests/contract/spec-validation.test.ts src/lib/seams/spec-validation-seam/test.ts tests/unit/api-generate.test.ts tests/unit/api-chat-interpretation.test.ts --pool=forks --maxWorkers=1`; `npm run rewind -- --seam SpecValidationSeam`; `npm run rewind -- --seam "SpecValidationSeam (self-contained)"`.
+- Forbidden: schema/limit/validation behavior, fixtures, route/UI behavior, docs reversing the self-contained-canonical registry, or carrying #231's stale 570-test evidence.
+
+### H1 — Credentialless production-wiring integration harness
+
+- Problem: integration currently import-crashes or only skips, so it cannot prove production composition without provider spend.
+- Files: `vitest.integration.config.ts`; new `tests/setup/env-dynamic-private.ts`; new `tests/integration/provider-wiring.fake.test.ts`; `tests/integration/image-generation-seam.test.ts`.
+- Work: add URL-derived `$lib` and `$env/dynamic/private` aliases; expose a typed `process.env` shim; run real production config/adapter/pipeline composition through a strict fake fetch that rejects every unstubbed URL; use explicit conditional skips for optional paid tests and the narrow ImageProviderConfig seam.
+- Red/green proof: capture current import failure; then run credentialless integration with at least one passed test and zero network calls.
+- Command: `env -u XAI_API_KEY -u GEMINI_API_KEY FEATURE_INTEGRATION_TESTS=false npm run test:integration`.
+- Forbidden: production source, credentials, live calls, deleting optional live probes, or calling a skip proof.
+
+### M1 — MeechieTool canonical production/test target
+
+- Problem: production uses the self-contained adapter while some tests exercise a drifted flat twin.
+- Files: `src/lib/seams/meechie-tool-seam/contract.ts`; `src/lib/seams/meechie-tool-seam/fixtures.ts`; `src/lib/seams/meechie-tool-seam/mock.ts`; `src/lib/seams/meechie-tool-seam/test.ts`; `src/lib/adapters/meechie-tool-seam/index.ts`; `contracts/meechie-tool.contract.ts`; `src/lib/adapters/meechie-tool.adapter.ts`; `src/lib/mocks/meechie-tool.mock.ts`; `tests/contract/meechie-tool.test.ts`; `tests/unit/meechie-tool-adapter.test.ts`; `tests/unit/meechie-tool-adapter.responses.test.ts`; `tests/unit/meechie-tools-parity.test.ts`; `tests/unit/api-tools.test.ts`; `docs/seams.md`.
+- Work: retain self-contained contract/adapter/fixtures/mock/test as canonical; turn legacy contract/adapter/mock into typed compatibility exports; make all unit/contract/API coverage resolve to the production adapter.
+- Red/green proof: demonstrate a current production/flat mismatch; after the change prove object/behavior parity and all eleven live canonical tools (including `random_meechie`), error mapping, and ordinal behavior.
+- Commands: `npm test -- tests/contract/meechie-tool.test.ts src/lib/seams/meechie-tool-seam/test.ts tests/unit/meechie-tool-adapter.test.ts tests/unit/meechie-tool-adapter.responses.test.ts tests/unit/meechie-tools-parity.test.ts tests/unit/api-tools.test.ts --pool=forks --maxWorkers=1`; both MeechieTool rewinds.
+- Forbidden: prompt wording, voice pack, model, retry, public error, or UI changes.
+
+### W1 — Safe same-origin wig-catalog URLs
+
+- Problem: the catalog contract rejects packaged root-relative wig images.
+- Files: `src/lib/seams/wig-catalog-seam/validators.ts`; `src/lib/seams/wig-catalog-seam/fixtures.ts`; `src/lib/seams/wig-catalog-seam/test.ts`.
+- Work: accept absolute HTTP(S) URLs or exact safe `/wigs/<slug>.(jpg|jpeg|png|webp)` paths; keep affiliate URLs absolute; reject scheme-relative URLs, traversal, JavaScript URLs, and non-wig paths.
+- Red/green proof: a fixture using `/wigs/...jpg` fails current `z.string().url()` before the validator repair; malicious paths remain red while the real catalog validates after W2.
+- Commands: `npm test -- src/lib/seams/wig-catalog-seam/test.ts --pool=forks --maxWorkers=1`; `npm run rewind -- --seam WigCatalogSeam`.
+- Forbidden: data, assets, adapter, UI, affiliate, name, or price changes.
+
+### W2 — Truthful packaged wig assets
+
+- Problem: eight `.png` files contain JPEG bytes and all eight catalog cards point to placeholders.
+- Files: rename the eight existing `static/wigs/wig-001-*.png` through `wig-008-*.png` to matching `.jpg` paths; `src/lib/data/wigs.json`.
+- Work: rename without re-encoding; point every `imageUrl` to its exact `/wigs/<matching>.jpg`; change no other catalog field.
+- Red/green proof: `file static/wigs/*.png` reports JPEG and `rg 'placehold\.co'` finds eight before; after, JSON has eight unique paths, every file exists, and each has JPEG magic/type.
+- Commands: `file static/wigs/*`; deterministic Node JSON/path/JPEG-magic assertion; W1 tests and rewind.
+- Forbidden: product data, affiliate links, visual layout, regeneration, compression, or an unpaired merge before W1.
+
+### W3 — Separate xAI edit model pin
+
+- Problem: wig editing needs xAI's multi-image model without risking the working coloring-page model.
+- Files: `src/lib/core/models.js`; `tests/unit/models.test.ts`.
+- Work: export `IMAGE_EDIT_MODEL = 'grok-imagine-image-2.0'`; explicitly retain and test `IMAGE_MODEL = 'grok-imagine-image'` and current text model.
+- Red/green proof: missing edit export/test fails first; both exact IDs pass after.
+- Command: `npm test -- tests/unit/models.test.ts --pool=forks --maxWorkers=1`.
+- Forbidden: any existing model value, endpoint, runtime override, or provider call.
+
+### W4 — Provider-neutral, raster-valid WigTryOn contract
+
+- Problem: the seam artifacts encode Gemini assumptions and accept an SVG mock that the product download path does not support.
+- Files: `src/lib/seams/wig-try-on-seam/contract.ts`; `validators.ts`; `fixtures.ts`; `mock.ts`; `test.ts`; `probe.ts` in that folder.
+- Work: make descriptions provider-neutral; constrain portrait output to JPEG/PNG/WebP; replace SVG fixture/mock output with valid raster base64; cover success, missing config, HTTP, malformed/empty response, network, caller abort, and timeout as explicit contract scenarios; describe the xAI edit probe without executing it.
+- Red/green proof: new MIME/fixture assertions fail against the current SVG/Gemini artifacts, then all fixture-backed scenarios pass.
+- Commands: `npm test -- src/lib/seams/wig-try-on-seam/test.ts --pool=forks --maxWorkers=1`; `npm run rewind -- --seam WigTryOnSeam`.
+- Forbidden: adapter, route, UI, live network, and existing coloring-page seam.
+
+### W5 — xAI multi-image edit transport
+
+- Problem: the production adapter uses exhausted Gemini and puts its credential in a query URL.
+- Files: `src/lib/adapters/wig-try-on-seam/index.ts`; `src/lib/seams/wig-try-on-seam/test.ts`.
+- Work: consume ImageProviderConfig; bearer-auth JSON POST to `<xaiBaseUrl>/v1/images/edits`; use W3's edit model; order selfie then wig as data URLs; request one `b64_json` result; perform no automatic retry; preserve caller abort/120-second timeout; expose only stable messages.
+- Red/green proof: fake transport asserts exact URL/header/body/order/model and that no URL contains a key; test success, missing config, 401/429/500, malformed/empty response, caller abort, timeout/body timeout, and a thrown secret-bearing error whose secret never reaches the result.
+- Commands: W4 focused test and rewind.
+- Forbidden: paid call, existing ImageGenerationSeam/model, retry expansion, AppConfig cleanup, or raw upstream output.
+
+### W6 — Wire only the wig route to narrow xAI config
+
+- Problem: `/api/wig-try-on` currently loads unrelated full AppConfig and Gemini fields.
+- Files: `src/routes/api/wig-try-on/+server.ts`; `tests/unit/api-wig-try-on.test.ts`.
+- Work: instantiate ImageProviderConfig and the W5 adapter; preserve malformed-JSON short circuit and request signal.
+- Red/green proof: malformed JSON creates neither catalog/config/provider seam; a valid request creates narrow config and forwards signal.
+- Command: `npm test -- tests/unit/api-wig-try-on.test.ts --pool=forks --maxWorkers=1`.
+- Forbidden: deleting Gemini/AppConfig fields, other routes, UI, or provider calls.
+
+### W7 — Detect truthful packaged wig MIME
+
+- Problem: the pipeline trusts response Content-Type and can label JPEG bytes as PNG.
+- Files: `src/lib/core/wig-try-on-pipeline.ts`; new `tests/unit/wig-try-on-pipeline.test.ts`.
+- Work: require a successful nonempty wig fetch; sniff JPEG/PNG/WebP magic; pass detected MIME; reject missing/non-2xx/empty/unknown bytes before provider invocation.
+- Red/green proof: a fake `image/png` response containing JPEG currently reaches the seam as PNG; after, it reaches as JPEG, and every invalid byte case makes zero provider calls.
+- Command: `npm test -- tests/unit/wig-try-on-pipeline.test.ts --pool=forks --maxWorkers=1`.
+- Forbidden: provider transport, catalog, UI, or broad error mapping.
+
+### W8 — Exact user-safe wig error mapping
+
+- Problem: configuration, cancellation, timeout, fetch, provider, and contract failures are not distinguished safely.
+- Files: `src/lib/core/wig-try-on-pipeline.ts`; `tests/unit/wig-try-on-pipeline.test.ts`.
+- Work: map input 400, missing wig 404, config 503, caller abort 499, timeout 504, wig-fetch/provider network/HTTP/parse/empty 502, and impossible output-contract failure 500; return only stable generic text.
+- Red/green proof: current config/abort/timeout cases have wrong or indistinct statuses; table tests cover every code/status and prove secret/body/URL canaries absent.
+- Forbidden: other routes, adapter diagnostics, rate limiting, or global status normalization.
+
+### W9 — Correct saved portrait extension
+
+- Problem: the client always downloads `.png` even when the generated bytes are JPEG or WebP.
+- File: `src/lib/components/studio/WigTryOnStudio.svelte` only.
+- Work: derive `.jpg`, `.png`, or `.webp` from the result data-URL MIME with a safe fallback.
+- Proof: component behavior/browser assertion plus `npm run check` and `npm run build`.
+- Forbidden: layout, copy, assets, provider, catalog, or state changes.
+
+### W10 — Credentialless end-to-end wig demo regression
+
+- Problem: unit contracts alone do not prove the eight cards, upload, result, download, and downstream coloring-page action work together.
+- File: `tests/e2e/smoke.spec.ts` only.
+- Work: assert eight `/wigs/` cards load; choose one; upload a committed JPEG; intercept `/api/wig-try-on` with a valid JPEG result; assert portrait and downstream action; assert JPEG download naming.
+- Proof: focused Playwright smoke with zero external requests/credits.
+- Forbidden: production/UI change, live provider, or unrelated smoke flows.
+
+### D1 — Full-shape draft seed detection
+
+- Problem: title-only fallback can hide genuine generated drafts or restore historical seed text as user work.
+- Files: `src/routes/studio-state.svelte.ts`; `tests/unit/studio-state.test.ts`.
+- Work: when `studioText` is absent, compare exact text signature (title, ordered page-item labels, optional footer) against current landlord seed and pre-#232 `I DON'T ACT` seed; explicit `studioText` always wins; evidence/settings alone do not convert a seed.
+- Red/green proof: current seed, legacy seed, explicit text with seed title, same title/changed item, item order/footer changes, and evidence/settings-only cases.
+- Command: `npm test -- tests/unit/studio-state.test.ts --pool=forks --maxWorkers=1`.
+- Forbidden: storage contract/key/version, localStorage migration/clear, default text, vault, provider, or UI layout.
+
+### D2 — Preserve 96-character titles
+
+- Problem: contract-valid 41–96-character titles are silently truncated to the 40-character label limit during creation/restoration.
+- Files: `src/lib/core/meechie-studio.ts`; `tests/unit/meechie-studio.test.ts`.
+- Work: use `MAX_TITLE_LENGTH` for page titles in spec creation and legacy draft/vault fallback; keep item/footer labels at `MAX_LABEL_LENGTH`; correct stale seed-vs-idle comments.
+- Red/green proof: 41–96 survives, 97+ caps at 96, item/footer stay <=40, and explicit `studioText` remains preferred.
+- Commands: `npm test -- tests/unit/meechie-studio.test.ts tests/contract/spec-validation.test.ts --pool=forks --maxWorkers=1`; SpecValidation rewind.
+- Forbidden: contracts, prompts, provider, UI, label/footer limit, or broader Unicode policy.
+
+### V1 — Isolate malformed vault records
+
+- Problem: one invalid entry in an otherwise valid saved array bricks all vault operations.
+- Files: `src/lib/adapters/creation-store.adapter.ts`; `tests/unit/creation-store-helpers.test.ts`.
+- Work: parse array entries independently; preserve valid records; skip record-level schema failures; subsequent save/delete rewrites valid records plus the requested operation; retain hard failures for malformed JSON/non-array roots and all write errors.
+- Red/green proof: mixed valid/bad list, save, delete, all-bad empty list, malformed JSON, non-array, and write failure.
+- Commands: `npm test -- tests/unit/creation-store-helpers.test.ts --pool=forks --maxWorkers=1`; `npm run rewind -- --seam CreationStoreSeam`.
+- Forbidden: contract/schema/key/version, draft behavior, UI messaging, storage clear, or deletion of valid data.
+
+### E1 — Six-route public provider-error boundary
+
+- Problem: arbitrary upstream text can cross all six public provider-backed responses.
+- Files: new `src/lib/core/public-provider-error.ts`; `src/lib/core/chat-interpretation-pipeline.ts`; `generate-pipeline.ts`; `image-generation-pipeline.ts`; `meechie-studio-text-pipeline.ts`; `tools-pipeline.ts`; `wig-try-on-pipeline.ts`; route files under `src/routes/api/{chat-interpretation,generate,image-generation,meechie-studio-text,tools,wig-try-on}/+server.ts` only if status serialization requires them; new `tests/unit/public-provider-error.test.ts`; `tests/unit/api-chat-interpretation.test.ts`; `api-generate.test.ts`; `api-image-generation.test.ts`; `api-meechie-studio-text-endpoint.test.ts`; `api-tools.test.ts`; `api-wig-try-on.test.ts`; `image-generation-pipeline.test.ts`; `meechie-studio-text-pipeline.test.ts`.
+- Work: preserve approved stable app code/status and safe validation detail; remove arbitrary provider/network/config message/body/content/details, URLs, keys, UUID/account/team IDs; change provider-failed `/api/tools` from 200 to a failure status.
+- Red/green proof: inject raw-body, query-key URL, UUID, account/team, and secret canaries into every route; none may cross serialized JSON; safe schema-validation details remain.
+- Focused command: run helper, the six endpoint tests, and affected pipeline tests in one Vitest invocation.
+- Forbidden: five-route partial, adapter-internal diagnostics, retry/model, rate limiting, or wig-provider migration.
+
+### R0 — Durable RateLimitSeam foundation
+
+- Problem: no durable serverless-safe cost gate exists; the three closed attempts used unsafe scope or storage assumptions.
+- Files: `package.json`; `package-lock.json`; `.env.example`; new `src/lib/seams/rate-limit-seam/{contract,validators,fixtures,mock,probe,test}.ts`; new `src/lib/adapters/rate-limit-seam/index.ts`; new `src/lib/server/rate-limit-identity.ts`; `rate-limit-config.ts`; `rate-limit-guard.ts`; new `tests/unit/rate-limit-identity.test.ts`; `rate-limit-guard.test.ts`; `docs/seams.md`.
+- Work: implement async Upstash-backed atomic fixed/sliding-window behavior behind the seam; shared text budget 20/min for chat/studio/tools and image budget 8/min for generate/image/wig; normalize IPv6 to /64 before HMAC-SHA256; call identities pseudonymous; require secret; use one strict shared fallback bucket only when identity cannot be resolved; return 503 fail-closed for configuration/store/operation failure; derive retry/header values from reset.
+- Red/green proof: fixture fault fails contract before adapter; exact boundary, concurrent calls, reset, weighted cost primitive, IPv4, equivalent/different IPv6 /64, fallback, thrown client-address lookup, timeout/throw/store/config failure, and raw-address/secret absence.
+- Commands: focused seam/identity/guard tests; `npm run rewind -- --seam RateLimitSeam`.
+- Forbidden: production Map, raw IP keys/logs, claim of anonymity, active-bucket eviction, provisioning/config mutation, auth/UI/provider calls, or a `RATE_LIMIT_ENABLED`/equivalent fail-open switch that permits unmetered provider calls. A future maintenance switch may disable provider work fail-closed, but that is separate scope.
+
+### R1 — One rate-limit guard across six billable flows
+
+- Problem: every provider route must enforce the same durable policy without charging invalid work or double-charging nested generation.
+- Files: the six E1 pipeline files; the six E1 route files; the six E1 endpoint tests; `tests/integration/provider-wiring.fake.test.ts` if needed for zero-fetch proof.
+- Work: check cancellation and local parse/schema/safety first; consume quota immediately before the first billable call; propagate allow/limit headers through downstream responses; 429 includes Retry-After, limit/remaining/reset, no-store; 503 on gate failure; one incoming request has one top-level charge and explicitly accounts for variation/correction retry cost without nested `/generate` double charge.
+- Red/green proof: all six routes cover allow, exact exhaustion boundary, deny, store failure, identity fallback, invalid/safety rejection, abort, and zero provider fetch on every rejected path.
+- Commands: six endpoint tests; credentialless fake integration; RateLimitSeam rewind.
+- Forbidden: partial route coverage, route-specific policy forks, model/retry change, paid probe, or infrastructure mutation.
+
+### W11 — One-call live xAI acceptance probe (held)
+
+- Problem: official request compatibility does not prove the configured account accepts the exact two-image edit payload.
+- Files: `src/lib/seams/wig-try-on-seam/probe.ts` only if executable changes are required; dated `docs/evidence/2026-08-26/` capture and `DECISIONS.md` are owned by Codex.
+- Work: after W1–W10 and R1 gates, execute at most one request with no retry, a synthetic non-personal selfie, and one packaged wig; assert 200, nonempty base64, supported MIME/magic, elapsed time, and a secret-free capture.
+- Forbidden: more than one call, personal photos, automatic retry, deploy, or a live-success claim if not executed. If unavailable, record an open Assumption.
+
+### W12 — Wig provider/governance truth
+
+- Problem: active docs/config still say Gemini is the only path and the quota incident has no code fix.
+- Files: `DECISIONS.md`; `docs/seams.md`; `.env.example`; `CHANGELOG.md`; `HANDOFF.md`; final updates to this `plan.md`; generated dated evidence.
+- Work: record Gemini-to-xAI edit decision, official payload constraints, JPEG discovery, actual W11 status, Cipher Gate, risks, and unchanged coloring-page model; mark Gemini variables legacy/unused without broad AppConfig deletion.
+- Proof: targeted `rg` for runtime Gemini endpoints/query keys; docs match actual test/probe results.
+- Forbidden: rewriting historical decisions, AppConfig retirement, rebuild, preview rotation, or false live claims.
+
+### DOC1 — Truthful active handoff
+
+- Problem: the handoff still tells future sessions to redo merged #228/#232 work and misstates the idle PNG/provider remedy.
+- Files: `HANDOFF.md`; `CHANGELOG.md` only.
+- Work: state #228/#232 merged; ten-line voice pack and landlord seed are done; static idle PNG remains unchanged; remove hold/stale-count/stale-ruling text and the claim that Gemini quota has no code remedy now that the route is migrated.
+- Proof: targeted `rg` for stale PR/count/provider/preview phrases; `git diff --check`.
+- Forbidden: source/test/fixture/history rewrite or new product work.
+
+### P1/P2 — Held preview assets and idle rotation
+
+- P1 files if separately approved: replace `static/meechie/demo-coloring-page.png` and add `demo-coloring-page-02.png`, `-03.png`, `-04.png`; exact four owner-approved lines, 1024x1536, visual/text approval, paid generation authorization. No code.
+- P2 files after P1: `src/lib/components/studio/StudioPreviewPanel.svelte`; `tests/e2e/smoke.spec.ts`; SSR-stable CSS crossfade, reduced-motion pins first, generated result replaces idle. No clock/random/provider/state change.
+- Current status: HOLD; these files are excluded from implementation.
+
+### I1 — Final integration, adversarial review, and PR disposition
+
+- Files: shared `plan.md`, `DECISIONS.md`, `CHANGELOG.md`, `LESSONS_LEARNED.md`, `HANDOFF.md`, `docs/seams.md`, dated generated evidence, and the PR-resolution ledger only as required by the completed functional tickets.
+- Work: re-fetch main and PR/review state; inspect every ticket commit and exact name-status diff; integrate serially; regenerate current-revision evidence; run full gates/rewinds/credentialless end-to-end proof; request Claude line review; answer review threads with exact commit/evidence only.
+- Forbidden: #230 merge/edit/close, deployment, infrastructure mutation, provider spend beyond W11, force push, or merge while an open Assumption or unresolved human change request applies.
+- Done: satisfy the Final Definition of Done below, merge the reviewed PR without another permission round, then verify the merge commit/main checks and update the handoff with the actual merged SHA.
+
+### Final Definition of Done and merge gate
+
+The integrated pull request may be merged only when every item below is true on its exact current head:
+
+1. **Scope is exact:** every changed file maps to a ticket above; no rebuild, held preview work, #230 content, unrelated cleanup, secret, generated junk, or accidental dependency change is present.
+2. **Code is clean:** implementation is readable, typed, deduplicated where planned, uses the production seams, preserves file headers, passes `git diff --check`, and has no known material defect, unsafe fallback, credential leak, raw-provider leak, or paid-call bypass.
+3. **Behavior works:** the eight real wigs load, the credentialless wig flow completes end to end, saved drafts/titles/vault records survive the repaired cases, all six public provider routes sanitize failures, and all six rate-limit paths block cost before provider calls.
+4. **Tests prove the material:** each ticket has a relevant captured red failure and focused green test; every affected seam rewind passes; credentialless integration executes at least one real test rather than reporting skips only; the full test/check/lint/build/verify/Cipher Gate/Assumption Alarm chain is green.
+5. **External assumptions are closed:** the single capped xAI probe proves the configured edit request, and the authorized Upstash probe/provisioning evidence closes the durable-store assumption; if either remains open, merge stops unless the owner explicitly waives that named risk after seeing it.
+6. **Review is complete:** Claude reviews the final integrated diff adversarially; every bot/human review thread is either fixed and rechecked or answered with exact evidence and a defensible rejection; no unresolved human change request remains.
+7. **Documentation is truthful:** `plan.md`, `DECISIONS.md`, `CHANGELOG.md`, `HANDOFF.md`, `LESSONS_LEARNED.md`, `docs/seams.md`, and current evidence describe the actual head, tests, provider, limits, known risks, and rollback without stale counts or false-green claims.
+8. **GitHub is merge-ready:** CI and required checks are green on the current head, branch is conflict-free and fully pushed, working tree is clean, and the PR description lists exact files/tests/evidence. Then merge; do not wait from fear alone.
+
+### Self-critique
+
+- What could be wrong: xAI's documented edit request may still reject `b64_json` for the configured account; the local assets may be visually poor even after their transport is correct; a shared missing-identity bucket protects spend but can reduce availability; large security tickets can collide with wig pipeline work if integrated out of order.
+- What must be proven: two-image edit payload order/auth/response without leaking upstream text; all eight assets are served with truthful MIME; the demo works under fake transport; draft/title/vault repairs preserve real saved work; every one of six provider routes sanitizes and rate-limits before a billable call; no nested charge; full gates run on the final head.
+- Riskiest assumptions: current official xAI behavior matches this account; Upstash semantics and timeout behavior match the adapter; contract-direction Q1 still fits the repository's legacy-import graph after rebasing main.
+- Evidence that disproves the plan: a provider contract mismatch, a corrupt/nonmatching image, any secret/body canary in public JSON, any billable fetch after denial, a valid saved record lost, a zero-test/skipped-only integration run, an unplanned diff, a failed final gate, or a Claude code-review finding with a concrete reproduction.
+
 ## PR #228 Concurrent-Head Reconciliation (2026-08-25)
 
 ### Shortcut Check

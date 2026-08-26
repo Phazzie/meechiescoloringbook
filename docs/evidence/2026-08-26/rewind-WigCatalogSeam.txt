@@ -1,0 +1,12 @@
+# Purpose: Store seam-scoped contract test output for evidence.
+# Why: Provide a focused proof trail for the specified seam.
+# Info flow: vitest output -> evidence file -> review.
+
+
+ RUN  v4.1.0 /workspace/scratch/472e65e13017/meechiescoloringbook
+
+
+ Test Files  1 passed (1)
+      Tests  25 passed (25)
+   Start at  05:14:01
+   Duration  660ms (transform 77ms, setup 44ms, import 56ms, tests 12ms, environment 401ms)

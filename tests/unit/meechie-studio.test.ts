@@ -15,6 +15,10 @@ import {
 	studioModes
 } from '../../src/lib/core/meechie-studio';
 import { meechieVoicePack } from '../../src/lib/seams/meechie-voice-seam/voice-pack';
+import {
+	MAX_LABEL_LENGTH,
+	MAX_TITLE_LENGTH
+} from '../../contracts/spec-validation.contract';
 
 describe('Meechie studio controls', () => {
 	// The default preview used to quote a line that was never in the voice pack. When ten
@@ -117,19 +121,64 @@ describe('Meechie studio controls', () => {
 			styleHint: 'glam receipts'
 		});
 
-		expect(spec.title).toBe('RECEIPT EMOJI CHAOS THAT IS WAY TOO LONG');
-		expect(spec.title).toHaveLength(40);
+		expect(spec.title).toBe(
+			'RECEIPT EMOJI CHAOS THAT IS WAY TOO LONG FOR THE PRINTABLE LABEL FIELD'
+		);
 		expect(spec.items[0].label).toBe('CALL RESPONSE WITH GLITTER AND TOO MANY');
-		expect(spec.items[0].label.length).toBeLessThanOrEqual(40);
+		expect(spec.items[0].label.length).toBeLessThanOrEqual(MAX_LABEL_LENGTH);
 		expect(spec.items[1].label).toBe('KEEP IT CUTE!!!');
-		expect(spec.footerItem?.label).toBe(spec.title);
+		expect(spec.footerItem?.label).toBe('RECEIPT EMOJI CHAOS THAT IS WAY TOO LONG');
+		expect(spec.footerItem?.label.length).toBeLessThanOrEqual(MAX_LABEL_LENGTH);
+	});
+
+	it('preserves 41-96 character titles while keeping item and footer labels at 40', () => {
+		for (const titleLength of [MAX_LABEL_LENGTH + 1, MAX_TITLE_LENGTH]) {
+			const pageTitle = 'T'.repeat(titleLength);
+			const spec = buildColoringPageSpecFromMeechieText({
+				output: {
+					verdict: 'Meechie ruled.',
+					quote: 'Long titles still belong on the page.',
+					pageTitle,
+					pageItems: [{ number: 1, label: 'I'.repeat(MAX_TITLE_LENGTH) }],
+					qualityState: 'ready'
+				},
+				pageSize: 'US_Letter',
+				border: 'plain',
+				styleHint: 'simple'
+			});
+
+			expect(spec.title).toBe(pageTitle);
+			expect(spec.title).toHaveLength(titleLength);
+			expect(spec.items[0].label).toHaveLength(MAX_LABEL_LENGTH);
+			expect(spec.footerItem?.label).toHaveLength(MAX_LABEL_LENGTH);
+		}
+	});
+
+	it('caps titles above 96 characters without widening item or footer labels', () => {
+		const spec = buildColoringPageSpecFromMeechieText({
+			output: {
+				verdict: 'Meechie ruled.',
+				quote: 'The title has a hard ceiling.',
+				pageTitle: 'T'.repeat(MAX_TITLE_LENGTH + 1),
+				pageItems: [{ number: 1, label: 'I'.repeat(MAX_LABEL_LENGTH + 1) }],
+				qualityState: 'ready'
+			},
+			pageSize: 'US_Letter',
+			border: 'plain',
+			styleHint: 'simple'
+		});
+
+		expect(spec.title).toHaveLength(MAX_TITLE_LENGTH);
+		expect(spec.items[0].label).toHaveLength(MAX_LABEL_LENGTH);
+		expect(spec.footerItem?.label).toHaveLength(MAX_LABEL_LENGTH);
 	});
 
 	it('rehydrates draft records from persisted studio text', () => {
+		const storedPageTitle = 'S'.repeat(MAX_TITLE_LENGTH);
 		const studioText = {
 			verdict: 'Meechie already ruled.',
 			quote: 'That excuse needs crayons.',
-			pageTitle: 'EXCUSE NEEDS CRAYONS',
+			pageTitle: storedPageTitle,
 			pageItems: [
 				{ number: 1, label: 'TRACE THE RECEIPT' },
 				{ number: 2, label: 'COLOR THE ALIBI' }
@@ -149,6 +198,7 @@ describe('Meechie studio controls', () => {
 		});
 
 		expect(restored).toEqual(studioText);
+		expect(restored.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
 	});
 
 	it('rehydrates new vault records from studio text instead of the image prompt', () => {
@@ -215,5 +265,49 @@ describe('Meechie studio controls', () => {
 		expect(restored.pageTitle).toBe('LEGACY TITLE');
 		expect(restored.pageItems.map((item) => item.label)).toEqual(['LEGACY ITEM', 'SECOND ITEM']);
 		expect(restored.quote).toBe('LEGACY TITLE');
+	});
+
+	it('preserves long titles in legacy draft and vault fallbacks', () => {
+		const longTitle = 'L'.repeat(MAX_TITLE_LENGTH);
+		const intent = {
+			title: longTitle,
+			items: [{ number: 1, label: 'LEGACY ITEM' }],
+			footerItem: { number: 97, label: 'LEGACY FOOTER' },
+			listMode: 'list' as const,
+			alignment: 'left' as const,
+			numberAlignment: 'strict' as const,
+			listGutter: 'normal' as const,
+			whitespaceScale: 50,
+			textSize: 'small' as const,
+			fontStyle: 'rounded' as const,
+			textStrokeWidth: 6,
+			colorMode: 'black_and_white_only' as const,
+			decorations: 'minimal' as const,
+			illustrations: 'simple' as const,
+			shading: 'none' as const,
+			border: 'plain' as const,
+			borderThickness: 8,
+			variations: 1,
+			outputFormat: 'pdf' as const,
+			pageSize: 'US_Letter' as const
+		};
+
+		const draftText = buildStudioTextFromDraftRecord({
+			updatedAtISO: '2026-05-03T00:00:00.000Z',
+			intent,
+			chatMessage: 'Original evidence'
+		});
+		const vaultText = buildStudioTextFromCreationRecord({
+			id: 'creation-long-title',
+			createdAtISO: '2026-05-03T00:00:00.000Z',
+			intent,
+			assembledPrompt: 'Legacy assembled prompt.',
+			owner: { kind: 'anonymous', sessionId: 'session-123' }
+		});
+
+		expect(draftText.pageTitle).toBe(longTitle);
+		expect(vaultText.pageTitle).toBe(longTitle);
+		expect(draftText.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
+		expect(vaultText.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
 	});
 });

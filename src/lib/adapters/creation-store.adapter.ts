@@ -76,13 +76,7 @@ const parseRecords = (value: unknown): Result<CreationRecord[]> => {
 	for (const record of value) {
 		const parsed = CreationRecordSchema.safeParse(record);
 		if (!parsed.success) {
-			return {
-				ok: false,
-				error: {
-					code: 'STORAGE_SCHEMA_MISMATCH',
-					message: 'Stored creation record failed schema validation.'
-				}
-			};
+			continue;
 		}
 		records.push(parsed.data);
 	}

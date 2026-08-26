@@ -1,0 +1,14 @@
+# Purpose: Record the pre-fix mismatch between packaged wig filenames and catalog URLs.
+# Why: Prove all eight local `.png` names contained JPEG bytes while all eight cards used placeholders.
+# Info flow: `file` and `rg` inspection -> intended mismatch evidence -> W2 rename and catalog repair.
+
+$ file static/wigs/*
+
+All eight files, `wig-001-*.png` through `wig-008-*.png`, reported `JPEG image data`
+(1792x2400, JFIF 1.01) despite their `.png` suffixes.
+
+$ rg -n 'placehold\.co' src/lib/data/wigs.json
+
+Eight matches: one placeholder `imageUrl` for each catalog entry.
+
+Base before implementation: e0fff6b6d8904f46648e28890efc4b85aa9840d8

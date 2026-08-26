@@ -1,10 +1,13 @@
-// Purpose: Verify /api/wig-try-on rejects malformed JSON before seam instantiation.
-// Why: Ensure the INVALID_JSON guard fires before any expensive seam creation occurs.
-// Info flow: Raw request -> parseRequestBody -> INVALID_JSON response (no seam calls).
-import { describe, expect, it, vi } from 'vitest';
+// Purpose: Verify /api/wig-try-on parsing, narrow xAI configuration, and signal forwarding.
+// Why: Prevent malformed input from creating seams and keep valid requests off broad legacy config.
+// Info flow: Request -> parse guard -> catalog/config/provider seams -> pipeline response assertions.
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$lib/adapters/app-config-seam/index', () => ({
 	createAppConfigSeam: vi.fn()
+}));
+vi.mock('$lib/adapters/image-provider-config-seam/index', () => ({
+	createImageProviderConfigSeam: vi.fn()
 }));
 vi.mock('$lib/adapters/wig-catalog-seam/index', () => ({
 	createWigCatalogSeam: vi.fn()
@@ -14,6 +17,7 @@ vi.mock('$lib/adapters/wig-try-on-seam/index', () => ({
 }));
 
 import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
+import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam/index';
 import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import { POST } from '../../src/routes/api/wig-try-on/+server';
@@ -39,11 +43,14 @@ const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 	}) as unknown as Parameters<typeof POST>[0];
 
 describe('/api/wig-try-on', () => {
-	it('rejects malformed JSON with INVALID_JSON code before creating any seams', async () => {
+	beforeEach(() => {
 		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createImageProviderConfigSeam).mockReset();
 		vi.mocked(createWigCatalogSeam).mockReset();
 		vi.mocked(createWigTryOnSeam).mockReset();
+	});
 
+	it('rejects malformed JSON with INVALID_JSON code before creating any seams', async () => {
 		const response = await POST(buildRawEvent('{not: valid json}'));
 		const payload = await response.json();
 
@@ -51,12 +58,16 @@ describe('/api/wig-try-on', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('INVALID_JSON');
 		expect(createAppConfigSeam).not.toHaveBeenCalled();
+		expect(createImageProviderConfigSeam).not.toHaveBeenCalled();
 		expect(createWigCatalogSeam).not.toHaveBeenCalled();
 		expect(createWigTryOnSeam).not.toHaveBeenCalled();
 	});
 
 	it('rejects schema-invalid payload with WIG_TRY_ON_INPUT_INVALID (not INVALID_JSON)', async () => {
 		vi.mocked(createAppConfigSeam).mockReturnValue({} as ReturnType<typeof createAppConfigSeam>);
+		vi.mocked(createImageProviderConfigSeam).mockReturnValue(
+			{} as ReturnType<typeof createImageProviderConfigSeam>
+		);
 		vi.mocked(createWigCatalogSeam).mockReturnValue({
 			listWigs: vi.fn(),
 			getWigById: vi.fn()
@@ -71,8 +82,10 @@ describe('/api/wig-try-on', () => {
 		expect(payload.error.code).toBe('WIG_TRY_ON_INPUT_INVALID');
 	});
 
-	it('passes the request signal to wig image fetch and WigTryOnSeam', async () => {
+	it('creates narrow xAI config and passes the request signal to the wig pipeline seams', async () => {
 		vi.mocked(createAppConfigSeam).mockReturnValue({} as ReturnType<typeof createAppConfigSeam>);
+		const configSeam = { getConfig: vi.fn() };
+		vi.mocked(createImageProviderConfigSeam).mockReturnValue(configSeam);
 		const wig = {
 			id: 'wig-001',
 			name: 'Sleek Straight Goddess',
@@ -102,9 +115,9 @@ describe('/api/wig-try-on', () => {
 		}));
 		vi.mocked(createWigTryOnSeam).mockReturnValue({ tryOn });
 		const fetchImpl = vi.fn(async () =>
-			new Response(new Uint8Array([1, 2, 3]), {
+			new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
 				status: 200,
-				headers: { 'Content-Type': 'image/png' }
+				headers: { 'Content-Type': 'image/jpeg' }
 			})
 		);
 		const request = new Request('http://localhost/api/wig-try-on', {
@@ -123,6 +136,9 @@ describe('/api/wig-try-on', () => {
 		} as unknown as Parameters<typeof POST>[0]);
 
 		expect(response.status).toBe(200);
+		expect(createAppConfigSeam).not.toHaveBeenCalled();
+		expect(createImageProviderConfigSeam).toHaveBeenCalledOnce();
+		expect(createWigTryOnSeam).toHaveBeenCalledWith(configSeam);
 		expect(fetchImpl).toHaveBeenCalledWith(wig.imageUrl, { signal: request.signal });
 		expect(tryOn).toHaveBeenCalledWith(expect.objectContaining({ signal: request.signal }));
 	});
