@@ -1,7 +1,7 @@
 {
 	"xaiApiKey": "fixture-key",
 	"xaiTextModel": "grok-4.6",
-	"xaiImageModel": "grok-imagine-image",
+	"xaiImageModel": "grok-imagine-image-2.0",
 	"xaiBaseUrl": "https://api.x.ai",
 	"xaiImageEndpointPath": "/v1/images/generations",
 	"featureIntegrationTests": false,

@@ -2,7 +2,7 @@
 // Why: Enforce deterministic raster output and explicit failure modes before adapter work.
 // Info flow: fixture scenarios -> mock seam -> runtime contract assertions.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createWigTryOnSeam } from '../../adapters/wig-try-on-seam';
+import { buildWigTryOnPrompt, createWigTryOnSeam } from '../../adapters/wig-try-on-seam';
 import { IMAGE_EDIT_MODEL, IMAGE_MODEL } from '../../core/models';
 import type {
   ImageProviderConfig,
@@ -166,6 +166,50 @@ describe('WigTryOnSeam xAI adapter', () => {
     expect(result.value.portraitBase64).toBe(WIG_TRY_ON_PNG_BASE64);
   });
 
+  it('asks the provider for a photorealistic try-on that names the wig, not a coloring-book page', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse({ data: [{ b64_json: WIG_TRY_ON_PNG_BASE64 }] })
+    );
+    const seam = createWigTryOnSeam(createConfigSeam(), fetchImpl);
+
+    await seam.tryOn(wigTryOnRequestFixture);
+
+    const prompt = String(
+      JSON.parse(String(fetchImpl.mock.calls[0][1]?.body)).prompt
+    );
+    expect(prompt).toContain(wigTryOnRequestFixture.wigName);
+    expect(prompt.toLowerCase()).not.toMatch(/colou?ring[\s-]?book/);
+    expect(prompt.toLowerCase()).not.toContain('black-and-white');
+  });
+
+  it('sends the catalogue style descriptor and the pink-lighting correction to the provider', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse({ data: [{ b64_json: WIG_TRY_ON_PNG_BASE64 }] })
+    );
+    const seam = createWigTryOnSeam(createConfigSeam(), fetchImpl);
+
+    await seam.tryOn(wigTryOnRequestFixture);
+
+    const prompt = String(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body)).prompt);
+    expect(prompt).toContain(wigTryOnRequestFixture.wigStyle);
+    expect(prompt.toLowerCase()).toContain('pink neon studio lighting');
+    expect(prompt.toLowerCase()).toContain('photorealistic');
+    // Line-art vocabulary in any form would put the coloring-book bug straight back.
+    for (const banned of ['coloring', 'colouring', 'line art', 'line-art', 'illustration', 'outlines']) {
+      expect(prompt.toLowerCase()).not.toContain(banned);
+    }
+  });
+
+  it('does not reach the provider when the catalogue name is missing', async () => {
+    const fetchImpl = vi.fn();
+    const seam = createWigTryOnSeam(createConfigSeam(), fetchImpl);
+
+    const result = await seam.tryOn({ ...wigTryOnRequestFixture, wigName: '' });
+
+    expect(result).toEqual({ ok: false, error: wigTryOnValidationErrorFixture });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('returns a safe config error without fetching when the xAI key is missing', async () => {
     const fetchImpl = vi.fn();
     const seam = createWigTryOnSeam(createConfigSeam({ xaiApiKey: '' }), fetchImpl);
@@ -286,5 +330,73 @@ describe('WigTryOnSeam xAI adapter', () => {
 
     expect(result).toEqual({ ok: false, error: wigTryOnNetworkErrorFixture });
     expect(JSON.stringify(result)).not.toContain('SECRET_QUERY_KEY');
+  });
+});
+
+describe('WigTryOnSeam prompt builder', () => {
+  it('names the wig and its catalogue style so the neon product photo is not the colour source', () => {
+    const prompt = buildWigTryOnPrompt(
+      'Honey Blonde Bombshell',
+      'Layered Lace Front, Honey Blonde, medium length'
+    );
+
+    expect(prompt).toContain("The wig is called 'Honey Blonde Bombshell': Layered Lace Front, Honey Blonde, medium length.");
+    expect(prompt).toContain('pink neon studio lighting');
+    expect(prompt).toContain('it is not the hair colour');
+    expect(prompt).toContain('only the hair changes');
+    expect(prompt.toLowerCase()).toContain('photorealistic');
+    expect(prompt.toLowerCase()).toContain('no text and no watermarks');
+  });
+
+  it('preserves the person and asks for no line art whatever the catalogue says', () => {
+    const prompt = buildWigTryOnPrompt('Silver Fox', 'Straight Bob Lace Front, Silver Gray, medium length');
+
+    expect(prompt).toContain('Keep the person');
+    expect(prompt).toContain('skin tone');
+    expect(prompt).toContain('jewelry');
+    for (const banned of ['coloring', 'colouring', 'line art', 'line-art', 'illustration', 'outlines', 'black-and-white']) {
+      expect(prompt.toLowerCase()).not.toContain(banned);
+    }
+  });
+
+  const degradedCases = [
+    { name: 'both fields blank', wigName: '', wigStyle: '' },
+    { name: 'only whitespace', wigName: '   ', wigStyle: '\n\t' },
+    { name: 'a name with no style', wigName: 'Burgundy Royale', wigStyle: '' },
+    { name: 'a style with no name', wigName: '', wigStyle: 'Deep Wave 360 Lace, Burgundy, long length' }
+  ];
+
+  it.each(degradedCases)('degrades to a well-formed prompt for $name', ({ wigName, wigStyle }) => {
+    const prompt = buildWigTryOnPrompt(wigName, wigStyle);
+
+    // A half-written identity sentence is the failure this guards: empty quotes, a colon with
+    // nothing after it, or the gap left where a dropped clause used to be.
+    expect(prompt).not.toContain("''");
+    expect(prompt).not.toContain(': ,');
+    expect(prompt).not.toMatch(/:\s*$/);
+    expect(prompt).not.toMatch(/\s{2,}/);
+    expect(prompt.trim()).toBe(prompt);
+    // Whatever the catalogue withheld, the instruction that fixes the bug still ships.
+    expect(prompt).toContain('The first image is the person.');
+    expect(prompt).toContain('pink neon studio lighting');
+    expect(prompt.toLowerCase()).toContain('photorealistic');
+    expect(prompt).toContain('only the hair changes');
+    expect(prompt.toLowerCase()).not.toMatch(/colou?ring[\s-]?book/);
+  });
+
+  it('never refers back to an identity sentence it did not write', () => {
+    const withText = buildWigTryOnPrompt('Short Cut Boss', 'Pixie Cut Lace Front, Natural Black, short length');
+    const withoutText = buildWigTryOnPrompt('', '');
+
+    expect(withText).toContain('named above');
+    expect(withoutText).not.toContain('named above');
+    expect(withoutText).toContain("matching the wig's own colour and texture");
+  });
+
+  it('flattens newlines and repeated spaces in catalogue text', () => {
+    const prompt = buildWigTryOnPrompt('  Ombre\n Sunset   Curls ', ' Curly Ombre  Lace Front,\tBlack to Copper Ombre ');
+
+    expect(prompt).toContain("The wig is called 'Ombre Sunset Curls': Curly Ombre Lace Front, Black to Copper Ombre.");
+    expect(prompt).not.toMatch(/\s{2,}/);
   });
 });

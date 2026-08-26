@@ -76,7 +76,7 @@ describe('credentialless production image-provider wiring', () => {
 		// fetch count at the moment the gate runs proves ordering without disturbing the strict
 		// fake, which is the thing actually under test here.
 		let fetchCallsWhenCharged = -1;
-		const consumeQuota = vi.fn(async (cost: number) => {
+		const consumeQuota = vi.fn(async (_cost: number) => {
 			fetchCallsWhenCharged = strictFakeFetch.mock.calls.length;
 			return { ok: true as const, headers: { 'RateLimit-Remaining': '7' } };
 		});
