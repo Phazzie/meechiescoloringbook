@@ -44,17 +44,24 @@ const collapseWhitespace = (value: string): string => value.replace(/\s+/g, ' ')
  * refers back to a sentence that is not there. The seam's own validator still requires both
  * fields, so a real request cannot reach the provider without them.
  */
+/**
+ * Names the wig for the model, using whatever catalogue text is actually present. Written as
+ * four explicit cases rather than a nested conditional because the empty-string outcomes are
+ * the interesting ones - they are what stops the prompt emitting "The wig is called '':" - and
+ * a reader should not have to unpick operator nesting to see them.
+ */
+const identitySentence = (name: string, style: string): string => {
+	if (name && style) return `The wig is called '${name}': ${style}.`;
+	if (name) return `The wig is called '${name}'.`;
+	if (style) return `The wig is described as: ${style}.`;
+	return '';
+};
+
 export const buildWigTryOnPrompt = (wigName: string, wigStyle: string): string => {
 	const name = collapseWhitespace(wigName);
 	const style = collapseWhitespace(wigStyle);
 
-	const identity = name
-		? style
-			? `The wig is called '${name}': ${style}.`
-			: `The wig is called '${name}'.`
-		: style
-			? `The wig is described as: ${style}.`
-			: '';
+	const identity = identitySentence(name, style);
 
 	const placement = identity
 		? 'Put that exact wig on that exact person in the colour and texture named above.'
