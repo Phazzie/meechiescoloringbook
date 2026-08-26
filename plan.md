@@ -10,7 +10,7 @@ Current active plan is listed first. Older dated entries remain below as histori
 
 ## Meechie Recovery v1.1 — Demo Repair, Wigs, Saved Work, Security (2026-08-26)
 
-This section is the sole active implementation plan. It supersedes the 2026-08-25 Slack v0.9 ledger and every partial amendment. The owner authorized implementation on 2026-08-26 and subsequently authorized merge when the final Definition of Done below is satisfied. Deployment, paid calls without a hard cap, Upstash/Vercel mutation, PR #230 mutation, and preview-image generation remain separately gated.
+This section is the sole active implementation plan. It supersedes the 2026-08-25 Slack v0.9 ledger and every partial amendment. The owner authorized implementation on 2026-08-26 and subsequently authorized publishing the WIP branch/PR, the single capped xAI acceptance call, narrowly necessary Vercel/Upstash configuration or provisioning, and merge when the final Definition of Done below is satisfied. Paid calls beyond W11B, unrelated infrastructure mutation, PR #230 mutation, deployment promotion before the merge gate, and preview-image generation remain forbidden.
 
 ### Base, ownership, and dependency lock
 
@@ -18,7 +18,7 @@ This section is the sole active implementation plan. It supersedes the 2026-08-2
 - Integration branch: `codex/meechie-recovery-v1-1`.
 - Codex is the sole integrator and owns `plan.md`, `DECISIONS.md`, shared evidence, final documentation, GitHub state, and all cross-ticket adjudication. Ticket agents edit only their named functional/test files in isolated worktrees and return commits for inspection.
 - Claude / THE SEAM RIPPER received part 1 as a channel broadcast and parts 2–4 as sibling replies in the master thread. Because Claude read part 1 as a new parent, the three sibling replies were not visible in that session. His resulting Q1 direction correction was verified against the current import graph and accepted below; the visibility defect is repaired by reposting the missing parts to the channel. Later feedback is ordinary diff review, not authority to assign another writer or add scope.
-- Dependency order: `A0 -> (Q1 || H1 || D1 || D2 || V1 || W1 || W3 || R0)`; `W1 -> W2 -> W7`; `W3 -> W4 -> W5 -> W6 -> W8 -> W9 -> W10`; `H1 + M1 -> E1`; `R0 + E1 + M1 -> R1`; `W1..W10 + R1 -> W11 -> W12 -> DOC1 -> I1`. P1/P2 stay held.
+- Dependency order: `A0 -> (Q1 || H1 || D1 || D2 || V1 || W1 || W3 || R0)`; `W1 -> W2 -> W7`; `W3 -> W4 -> W5 -> W6 -> W8 -> W9 -> W10`; `H1 + M1 -> E1`; `R0 + E1 + M1 -> R1`; `R1 -> R2`; `W1..W10 + R1 -> W11A -> W11B`; `(R2 + W11B) -> W12 -> DOC1 -> I1`. P1/P2 stay held.
 
 ### Execution checklist
 
@@ -29,8 +29,10 @@ This section is the sole active implementation plan. It supersedes the 2026-08-2
 - [x] E1 — six-route public provider-error boundary; stale neighboring assertion corrected and independently approved.
 - [x] R0 — durable rate-limit foundation integrated; mapped-IPv4 and durable-expiry review findings corrected and independently approved.
 - [ ] R1 — wire one cost guard across all six billable flows (in progress from the corrected, reviewed foundation).
-- [ ] W11 — one capped live xAI acceptance call (held until W10 and R1 are green).
-- [ ] W12, DOC1 — provider/governance truth and active handoff (blocked on actual W11 outcome).
+- [ ] R2 — close the real durable-store/configuration assumption with a bounded acceptance check (held until R1 is green).
+- [ ] W11A — build and test the one-shot, redacting xAI acceptance runner (held until R1 is green).
+- [ ] W11B — execute exactly one capped live xAI acceptance call with no retry (held until W11A is reviewed and green).
+- [ ] W12, DOC1 — provider/governance truth and active handoff (blocked on actual R2/W11B outcomes).
 - [ ] I1 — exact-head full gates, Claude review, GitHub review resolution, merge, and post-merge verification.
 - [ ] P1/P2 — held and excluded; no preview generation or rotation in this change.
 
@@ -41,8 +43,8 @@ This section is the sole active implementation plan. It supersedes the 2026-08-2
 3. For seam behavior, follow contract -> probe -> fixture -> mock -> test -> captured red -> adapter -> integration; fixture-backed behavior cannot be replaced by an invented mock.
 4. Capture a real focused failure before the implementation fix and retain the command/output in the handoff; Codex owns checked-in evidence integration.
 5. Run ticket-focused tests and affected rewinds, then run `npm run check`, `npm run lint`, `npm test`, `npm run build`, literal `npm run verify`, `npm run cipher:gate`, `npm run assumption:alarm`, and `git diff --check` on the integrated final revision.
-6. Stop on base movement, an unplanned file, a failing mandatory gate, an uncapped paid call, missing provider/store authority, secrets in output, or new scope.
-7. Do not deploy, enable paid public traffic, provision/configure Upstash or Vercel, edit/close PR #230, remove a feature, rebuild the application, or start P1/P2 under this plan. Merge only after the final Definition of Done is satisfied on the exact PR head.
+6. Stop on base movement, an unplanned file, a failing mandatory gate, an uncapped paid call, missing provider/store capability, secrets in output, or new scope.
+7. Do not promote a deployment, enable paid public traffic, mutate infrastructure outside R2, edit/close PR #230, remove a feature, rebuild the application, or start P1/P2 under this plan. Merge only after the final Definition of Done is satisfied on the exact PR head.
 
 ### A0 — Plan and base lock
 
@@ -220,12 +222,31 @@ This section is the sole active implementation plan. It supersedes the 2026-08-2
 - Commands: six endpoint tests; credentialless fake integration; RateLimitSeam rewind.
 - Forbidden: partial route coverage, an optional no-gate production path, an optional skip boolean, nested double charge, recalculated guard headers, route-specific policy forks, model/retry change, paid probe, or infrastructure mutation.
 
-### W11 — One-call live xAI acceptance probe (held)
+### R2 — Durable-store configuration and acceptance (held)
+
+- Problem: R0/R1 can prove the adapter with fakes, but the showable application will fail closed unless the deployed runtime has a working, correctly scoped durable store and identity secret.
+- Repository files: dated `docs/evidence/2026-08-26/` capture plus final plan/decision/handoff truth only; no production source or dependency file.
+- External scope: inspect the existing Vercel project configuration without revealing values; reuse an already attached Upstash-compatible REST store if present, otherwise create only the smallest project-scoped store/configuration required by R0; set only the exact R0 variable names for the required environments; do not touch unrelated projects, domains, aliases, budgets, or provider settings.
+- Work: after R1 is green, execute one non-billable atomic allow/deny/reset acceptance sequence against a dedicated probe key; prove expiry is present, delete only that dedicated key if the provider supports deletion, and record redacted status/timing/TTL evidence with no URL, token, HMAC secret, IP, or key material.
+- Stop: no relevant Vercel/Upstash capability, ambiguous project/store ownership, an unexpected charge, secret-bearing output, a moved exact head, or any need to broaden infrastructure scope.
+- Done: the exact preview/runtime configuration required by R1 exists, the bounded acceptance sequence passes, no unrelated setting changed, and the redacted evidence names the environment and result truthfully.
+
+### W11A — Tested one-shot xAI acceptance runner (held)
 
 - Problem: official request compatibility does not prove the configured account accepts the exact two-image edit payload.
-- Files: `src/lib/seams/wig-try-on-seam/probe.ts` only if executable changes are required; dated `docs/evidence/2026-08-26/` capture and `DECISIONS.md` are owned by Codex.
-- Work: after W1–W10 and R1 gates, execute at most one request with no retry, a synthetic non-personal selfie, and one packaged wig; assert 200, nonempty base64, supported MIME/magic, elapsed time, and a secret-free capture.
-- Forbidden: more than one call, personal photos, automatic retry, deploy, or a live-success claim if not executed. If unavailable, record an open Assumption.
+- Files: `src/lib/seams/wig-try-on-seam/probe.ts`; `src/lib/seams/wig-try-on-seam/test.ts`.
+- Work: add a manual runner that requires the official xAI base URL and production config/adapter; validates exact magic and SHA-256 for synthetic `static/meechie/meechie-chosen.png` (`de67ba76d6b26bb6e52dc1c2a962c67b942d976ee2bbe35c1e6dd061eacba1be`) and packaged `static/wigs/wig-001-sleek-straight-goddess.jpg` (`ae4bcd02bca84be33d9f700714c761a4c4a9cd831b56c4938240f5bf1e722412`); exclusively creates the evidence path before network activity; wraps fetch with a counter that throws before a second request; returns/persists only status, elapsed milliseconds, detected MIME, and magic prefix; and suppresses all raw exception output.
+- Red/green proof: credentialless tests fail before the runner exists, then prove hash/magic rejection, exclusive evidence creation, one-call enforcement, supported output validation, and absence of credentials, URLs, bodies, and base64 from output/evidence.
+- Commands: focused WigTryOn seam test and rewind; type/lint/build.
+- Forbidden: a live call, new fixture, adapter/contract change, personal image, automatic retry, console/raw-error logging, or edits outside the two named files.
+
+### W11B — Exactly one live xAI acceptance call (held)
+
+- Problem: W11A remains synthetic until the configured account accepts the production two-image request.
+- Files: new exclusive `docs/evidence/2026-08-26/w11-xai-edit-acceptance.json`; final `DECISIONS.md`/plan truth are integrated under W12/I1, not during the call.
+- Work: only after R1 and W11A are green on a clean reviewed head, invoke W11A once with the two exact synthetic assets; assert 200, nonempty supported raster output, elapsed time, and secret-free evidence.
+- Stop permanently after any attempted provider call, including timeout, network error, 401, 429, 5xx, malformed response, or invalid magic; never retry. Stop before calling if the credential is absent, endpoint/model or asset hashes differ, the reviewed head moved, or the evidence file already exists.
+- Forbidden: more than one attempted call, personal photos, output/base64 persistence, deployment, retry, or a live-success claim if not executed.
 
 ### W12 — Wig provider/governance truth
 
