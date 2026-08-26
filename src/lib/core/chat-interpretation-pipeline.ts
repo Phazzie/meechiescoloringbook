@@ -5,6 +5,7 @@ import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { TEXT_MODEL } from '$lib/core/models';
+import { toPublicProviderError } from '$lib/core/public-provider-error';
 import {
 	ChatInterpretationInputSchema,
 	ChatInterpretationResultSchema
@@ -29,7 +30,9 @@ type ChatPipelineDeps = {
 	validateSpec: typeof specValidationAdapter.validate;
 };
 
-const extractSingleJsonObject = (content: string): Record<string, unknown> | null => {
+const extractSingleJsonObject = (
+	content: string
+): Record<string, unknown> | null => {
 	const trimmed = content.trim();
 	if (!trimmed.startsWith('{')) {
 		return null;
@@ -69,7 +72,11 @@ export const runChatInterpretationPipeline = async (
 ): Promise<ChatPipelineResponse> => {
 	const parsedInput = ChatInterpretationInputSchema.safeParse(body);
 	if (!parsedInput.success) {
-		return buildError(400, 'CHAT_INPUT_INVALID', 'Chat interpretation input is invalid.');
+		return buildError(
+			400,
+			'CHAT_INPUT_INVALID',
+			'Chat interpretation input is invalid.'
+		);
 	}
 
 	const chatResult = await deps.createChatCompletion({
@@ -80,17 +87,29 @@ export const runChatInterpretationPipeline = async (
 		]
 	});
 	if (!chatResult.ok) {
-		return buildError(502, chatResult.error.code, chatResult.error.message, chatResult.error.details);
+		const publicError = toPublicProviderError(chatResult.error, {
+			code: 'CHAT_PROVIDER_ERROR',
+			message: 'Chat interpretation provider request failed.'
+		});
+		return buildError(502, publicError.code, publicError.message);
 	}
 
 	const parsedSpec = extractSingleJsonObject(chatResult.value.content);
 	if (!parsedSpec) {
-		return buildError(502, 'CHAT_RESPONSE_INVALID', 'Chat response did not include JSON.');
+		return buildError(
+			502,
+			'CHAT_RESPONSE_INVALID',
+			'Chat response did not include JSON.'
+		);
 	}
 
 	const rawParse = RawColoringPageSpecSchema.safeParse(parsedSpec);
 	if (!rawParse.success) {
-		return buildError(502, 'CHAT_SPEC_INVALID', 'Chat response did not match the expected spec shape.');
+		return buildError(
+			502,
+			'CHAT_SPEC_INVALID',
+			'Chat response did not match the expected spec shape.'
+		);
 	}
 
 	const validation = await deps.validateSpec({ spec: rawParse.data });
@@ -106,7 +125,11 @@ export const runChatInterpretationPipeline = async (
 
 	const strictParse = ColoringPageSpecSchema.safeParse(rawParse.data);
 	if (!strictParse.success) {
-		return buildError(422, 'CHAT_SPEC_INVALID', 'Chat response did not satisfy the full spec constraints.');
+		return buildError(
+			422,
+			'CHAT_SPEC_INVALID',
+			'Chat response did not satisfy the full spec constraints.'
+		);
 	}
 
 	const result: ChatInterpretationResult = {
@@ -117,7 +140,11 @@ export const runChatInterpretationPipeline = async (
 	};
 	const parsedResult = ChatInterpretationResultSchema.safeParse(result);
 	if (!parsedResult.success) {
-		return buildError(500, 'CHAT_OUTPUT_INVALID', 'Chat interpretation output did not match contract.');
+		return buildError(
+			500,
+			'CHAT_OUTPUT_INVALID',
+			'Chat interpretation output did not match contract.'
+		);
 	}
 
 	return {

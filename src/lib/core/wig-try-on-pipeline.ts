@@ -1,10 +1,17 @@
 // Purpose: Orchestrate the wig try-on flow: catalog lookup, image validation, provider call.
 // Why: Keep the route handler thin and the pipeline logic testable via injected seams.
 // Info flow: wigId + selfieBase64 -> WigCatalogSeam -> raster-byte sniff -> WigTryOnSeam -> portrait Result.
-import { WigTryOnRequestSchema, WigTryOnResultSchema } from '../../../contracts/wig-try-on.contract';
+import {
+	WigTryOnRequestSchema,
+	WigTryOnResultSchema
+} from '../../../contracts/wig-try-on.contract';
 import { z } from 'zod';
+import { toPublicProviderError } from './public-provider-error';
 import type { WigCatalogSeam } from '../seams/wig-catalog-seam/contract';
-import type { WigTryOnError, WigTryOnSeam } from '../seams/wig-try-on-seam/contract';
+import type {
+	WigTryOnError,
+	WigTryOnSeam
+} from '../seams/wig-try-on-seam/contract';
 
 type WigTryOnResult = z.infer<typeof WigTryOnResultSchema>;
 
@@ -14,7 +21,10 @@ type PipelineResponse = {
 };
 
 type PipelineDeps = {
-	fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+	fetchImpl: (
+		input: RequestInfo | URL,
+		init?: RequestInit
+	) => Promise<Response>;
 	wigCatalogSeam: WigCatalogSeam;
 	wigTryOnSeam: WigTryOnSeam;
 	signal?: AbortSignal;
@@ -32,21 +42,41 @@ const buildError = (
 const canceledResponse = (): PipelineResponse =>
 	buildError(499, 'WIG_TRY_ON_ABORTED', 'Wig try-on request was canceled.');
 
+const buildProviderError = (
+	status: number,
+	error: WigTryOnError,
+	message: string
+): PipelineResponse => {
+	const publicError = toPublicProviderError(error, {
+		code: error.code,
+		message
+	});
+	return buildError(status, publicError.code, publicError.message);
+};
+
 const mapTryOnError = (error: WigTryOnError): PipelineResponse => {
 	switch (error.code) {
 		case 'WIG_TRY_ON_VALIDATION_ERROR':
-			return buildError(400, error.code, 'Wig try-on request is invalid.');
+			return buildProviderError(400, error, 'Wig try-on request is invalid.');
 		case 'WIG_TRY_ON_CONFIG_ERROR':
-			return buildError(503, error.code, 'Wig try-on is temporarily unavailable.');
+			return buildProviderError(
+				503,
+				error,
+				'Wig try-on is temporarily unavailable.'
+			);
 		case 'WIG_TRY_ON_ABORTED':
-			return canceledResponse();
+			return buildProviderError(499, error, 'Wig try-on request was canceled.');
 		case 'WIG_TRY_ON_TIMEOUT_ERROR':
-			return buildError(504, error.code, 'Wig try-on request timed out.');
+			return buildProviderError(504, error, 'Wig try-on request timed out.');
 		case 'WIG_TRY_ON_HTTP_ERROR':
 		case 'WIG_TRY_ON_NETWORK_ERROR':
 		case 'WIG_TRY_ON_PARSE_ERROR':
 		case 'WIG_TRY_ON_EMPTY_RESPONSE':
-			return buildError(502, error.code, 'Wig try-on could not create a portrait.');
+			return buildProviderError(
+				502,
+				error,
+				'Wig try-on could not create a portrait.'
+			);
 	}
 };
 
@@ -54,9 +84,14 @@ const fetchImageAsBase64 = async (
 	url: string,
 	fetchImpl: PipelineDeps['fetchImpl'],
 	signal?: AbortSignal
-): Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' | 'image/webp' } | null> => {
+): Promise<{
+	base64: string;
+	mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+} | null> => {
 	try {
-		const res = signal ? await fetchImpl(url, { signal }) : await fetchImpl(url);
+		const res = signal
+			? await fetchImpl(url, { signal })
+			: await fetchImpl(url);
 		if (!res.ok) return null;
 		const buffer = await res.arrayBuffer();
 		const bytes = new Uint8Array(buffer);
@@ -69,14 +104,18 @@ const fetchImageAsBase64 = async (
 	}
 };
 
-const startsWithBytes = (bytes: Uint8Array, signature: readonly number[]): boolean =>
-	signature.every((byte, index) => bytes[index] === byte);
+const startsWithBytes = (
+	bytes: Uint8Array,
+	signature: readonly number[]
+): boolean => signature.every((byte, index) => bytes[index] === byte);
 
 const detectRasterMimeType = (
 	bytes: Uint8Array
 ): 'image/jpeg' | 'image/png' | 'image/webp' | null => {
 	if (startsWithBytes(bytes, [0xff, 0xd8, 0xff])) return 'image/jpeg';
-	if (startsWithBytes(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
+	if (
+		startsWithBytes(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+	) {
 		return 'image/png';
 	}
 	if (
@@ -94,7 +133,11 @@ export const runWigTryOnPipeline = async (
 ): Promise<PipelineResponse> => {
 	const parsed = WigTryOnRequestSchema.safeParse(body);
 	if (!parsed.success) {
-		return buildError(400, 'WIG_TRY_ON_INPUT_INVALID', 'Wig try-on request is invalid.');
+		return buildError(
+			400,
+			'WIG_TRY_ON_INPUT_INVALID',
+			'Wig try-on request is invalid.'
+		);
 	}
 	if (deps.signal?.aborted) return canceledResponse();
 
@@ -103,17 +146,29 @@ export const runWigTryOnPipeline = async (
 	const wigResult = await deps.wigCatalogSeam.getWigById(wigId);
 	if (!wigResult.ok) {
 		if (wigResult.error.code === 'WIG_NOT_FOUND') {
-			return buildError(404, wigResult.error.code, 'Selected wig was not found.');
+			return buildError(
+				404,
+				wigResult.error.code,
+				'Selected wig was not found.'
+			);
 		}
 		return buildError(500, wigResult.error.code, 'Wig catalog is unavailable.');
 	}
 
 	const wig = wigResult.value;
 
-	const wigImage = await fetchImageAsBase64(wig.imageUrl, deps.fetchImpl, deps.signal);
+	const wigImage = await fetchImageAsBase64(
+		wig.imageUrl,
+		deps.fetchImpl,
+		deps.signal
+	);
 	if (!wigImage) {
 		if (deps.signal?.aborted) return canceledResponse();
-		return buildError(502, 'WIG_IMAGE_FETCH_FAILED', 'Could not load the selected wig image.');
+		return buildError(
+			502,
+			'WIG_IMAGE_FETCH_FAILED',
+			'Could not load the selected wig image.'
+		);
 	}
 	if (deps.signal?.aborted) return canceledResponse();
 
@@ -141,7 +196,11 @@ export const runWigTryOnPipeline = async (
 
 	const validated = WigTryOnResultSchema.safeParse(result);
 	if (!validated.success) {
-		return buildError(500, 'WIG_TRY_ON_OUTPUT_INVALID', 'Wig try-on response did not match contract.');
+		return buildError(
+			500,
+			'WIG_TRY_ON_OUTPUT_INVALID',
+			'Wig try-on response did not match contract.'
+		);
 	}
 
 	return { status: 200, body: validated.data };

@@ -3,6 +3,7 @@
 // Info flow: Raw request body -> validation -> ImageGenerationSeam -> contract-shaped response.
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { pageSizeLine } from '$lib/core/prompt-template';
+import { toPublicProviderError } from '$lib/core/public-provider-error';
 import { z } from 'zod';
 import {
   ImageGenerationInputSchema,
@@ -20,7 +21,8 @@ const imageFormatFromBase64 = (
   data: string
 ): Pick<GeneratedImage, 'format' | 'mimeType'> => {
   if (data.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg' };
-  if (data.startsWith('iVBORw0KGgo')) return { format: 'png', mimeType: 'image/png' };
+  if (data.startsWith('iVBORw0KGgo'))
+    return { format: 'png', mimeType: 'image/png' };
   console.warn('imageFormatFromBase64: unrecognized header, defaulting to png');
   return { format: 'png', mimeType: 'image/png' };
 };
@@ -37,10 +39,15 @@ export type ImagePipelineDeps = {
   signal?: AbortSignal;
 };
 
-const missingRequiredPhrases = (prompt: string, pageSize: PageSize): string[] => {
+const missingRequiredPhrases = (
+  prompt: string,
+  pageSize: PageSize
+): string[] => {
   const promptLower = prompt.toLowerCase();
   const phrases = [...REQUIRED_PHRASES, pageSizeLine(pageSize)];
-  return phrases.filter((phrase) => !promptLower.includes(phrase.toLowerCase()));
+  return phrases.filter(
+    (phrase) => !promptLower.includes(phrase.toLowerCase())
+  );
 };
 
 const buildError = (
@@ -104,11 +111,15 @@ export const runImageGenerationPipeline = async (
       IMAGE_CONFIG_ERROR: 503,
       IMAGE_VALIDATION_ERROR: 400
     };
+    const publicError = toPublicProviderError(seamResult.error, {
+      code: 'IMAGE_GENERATION_FAILED',
+      message: 'Image generation failed.'
+    });
     return {
       status: statusByCode[seamResult.error.code] ?? 502,
       body: {
         ok: false,
-        error: seamResult.error
+        error: publicError
       }
     };
   }

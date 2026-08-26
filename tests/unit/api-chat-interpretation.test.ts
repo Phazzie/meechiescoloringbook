@@ -31,6 +31,23 @@ const validSpec = {
 	pageSize: 'US_Letter'
 } as const;
 
+const providerLeakCanary =
+	'RAW_PROVIDER_BODY https://api.x.ai/v1/chat?key=xai-secret-canary 550e8400-e29b-41d4-a716-446655440000 account=acct-canary team=team-canary';
+
+const expectProviderLeakCanaryRedacted = (payload: unknown): void => {
+	const serialized = JSON.stringify(payload);
+	for (const token of [
+		'RAW_PROVIDER_BODY',
+		'https://api.x.ai/v1/chat?key=xai-secret-canary',
+		'xai-secret-canary',
+		'550e8400-e29b-41d4-a716-446655440000',
+		'acct-canary',
+		'team-canary'
+	]) {
+		expect(serialized).not.toContain(token);
+	}
+};
+
 const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/chat-interpretation', {
@@ -77,13 +94,15 @@ describe('/api/chat-interpretation', () => {
 	});
 
 	it('returns structured spec when provider returns valid JSON content', async () => {
-		const providerSpy = vi.spyOn(providerAdapter, 'createChatCompletion').mockResolvedValue({
-			ok: true,
-			value: {
-				model: TEXT_MODEL,
-				content: JSON.stringify(validSpec)
-			}
-		});
+		const providerSpy = vi
+			.spyOn(providerAdapter, 'createChatCompletion')
+			.mockResolvedValue({
+				ok: true,
+				value: {
+					model: TEXT_MODEL,
+					content: JSON.stringify(validSpec)
+				}
+			});
 
 		const response = await POST(
 			buildEvent({ message: 'build me a clean printable page' })
@@ -96,5 +115,27 @@ describe('/api/chat-interpretation', () => {
 		expect(providerSpy).toHaveBeenCalledWith(
 			expect.objectContaining({ model: TEXT_MODEL })
 		);
+	});
+
+	it('does not serialize upstream provider diagnostics', async () => {
+		vi.spyOn(providerAdapter, 'createChatCompletion').mockResolvedValue({
+			ok: false,
+			error: {
+				code: 'PROVIDER_HTTP_ERROR',
+				message: providerLeakCanary,
+				details: {
+					body: providerLeakCanary,
+					accountId: 'acct-canary',
+					teamId: 'team-canary'
+				}
+			}
+		});
+
+		const response = await POST(buildEvent({ message: 'Make me a page.' }));
+		const payload = await response.json();
+
+		expect(response.status).toBe(502);
+		expect(payload.error.code).toBe('PROVIDER_HTTP_ERROR');
+		expectProviderLeakCanaryRedacted(payload);
 	});
 });

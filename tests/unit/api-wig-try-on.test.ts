@@ -22,6 +22,37 @@ import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import { POST } from '../../src/routes/api/wig-try-on/+server';
 
+const providerLeakCanary =
+	'RAW_PROVIDER_BODY https://api.x.ai/v1/responses?key=xai-secret-canary 550e8400-e29b-41d4-a716-446655440000 account=acct-canary team=team-canary';
+
+const expectProviderLeakCanaryRedacted = (payload: unknown): void => {
+	const serialized = JSON.stringify(payload);
+	expect(serialized).not.toContain('RAW_PROVIDER_BODY');
+	expect(serialized).not.toContain(
+		'https://api.x.ai/v1/responses?key=xai-secret-canary'
+	);
+	expect(serialized).not.toContain('xai-secret-canary');
+	expect(serialized).not.toContain('550e8400-e29b-41d4-a716-446655440000');
+	expect(serialized).not.toContain('acct-canary');
+	expect(serialized).not.toContain('team-canary');
+};
+
+const wig = {
+	id: 'wig-001',
+	name: 'Sleek Straight Goddess',
+	brand: 'Beautyforever',
+	affiliateProgram: 'beautyforever' as const,
+	affiliateUrl: 'https://example.com/wig',
+	imageUrl: 'https://example.com/wig.png',
+	priceUsd: 89.99,
+	style: 'Straight Lace Front',
+	hairType: 'human' as const,
+	length: 'medium' as const,
+	color: 'Natural Black',
+	colorFamily: 'black' as const,
+	tags: ['sleek']
+};
+
 const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 	({
 		request: new Request('http://localhost/api/wig-try-on', {
@@ -64,7 +95,9 @@ describe('/api/wig-try-on', () => {
 	});
 
 	it('rejects schema-invalid payload with WIG_TRY_ON_INPUT_INVALID (not INVALID_JSON)', async () => {
-		vi.mocked(createAppConfigSeam).mockReturnValue({} as ReturnType<typeof createAppConfigSeam>);
+		vi.mocked(createAppConfigSeam).mockReturnValue(
+			{} as ReturnType<typeof createAppConfigSeam>
+		);
 		vi.mocked(createImageProviderConfigSeam).mockReturnValue(
 			{} as ReturnType<typeof createImageProviderConfigSeam>
 		);
@@ -83,24 +116,11 @@ describe('/api/wig-try-on', () => {
 	});
 
 	it('creates narrow xAI config and passes the request signal to the wig pipeline seams', async () => {
-		vi.mocked(createAppConfigSeam).mockReturnValue({} as ReturnType<typeof createAppConfigSeam>);
+		vi.mocked(createAppConfigSeam).mockReturnValue(
+			{} as ReturnType<typeof createAppConfigSeam>
+		);
 		const configSeam = { getConfig: vi.fn() };
 		vi.mocked(createImageProviderConfigSeam).mockReturnValue(configSeam);
-		const wig = {
-			id: 'wig-001',
-			name: 'Sleek Straight Goddess',
-			brand: 'Beautyforever',
-			affiliateProgram: 'beautyforever' as const,
-			affiliateUrl: 'https://example.com/wig',
-			imageUrl: 'https://example.com/wig.png',
-			priceUsd: 89.99,
-			style: 'Straight Lace Front',
-			hairType: 'human' as const,
-			length: 'medium' as const,
-			color: 'Natural Black',
-			colorFamily: 'black' as const,
-			tags: ['sleek']
-		};
 		vi.mocked(createWigCatalogSeam).mockReturnValue({
 			listWigs: vi.fn(),
 			getWigById: vi.fn(async () => ({ ok: true as const, value: wig }))
@@ -114,11 +134,12 @@ describe('/api/wig-try-on', () => {
 			}
 		}));
 		vi.mocked(createWigTryOnSeam).mockReturnValue({ tryOn });
-		const fetchImpl = vi.fn(async () =>
-			new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
-				status: 200,
-				headers: { 'Content-Type': 'image/jpeg' }
-			})
+		const fetchImpl = vi.fn(
+			async () =>
+				new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+					status: 200,
+					headers: { 'Content-Type': 'image/jpeg' }
+				})
 		);
 		const request = new Request('http://localhost/api/wig-try-on', {
 			method: 'POST',
@@ -139,7 +160,61 @@ describe('/api/wig-try-on', () => {
 		expect(createAppConfigSeam).not.toHaveBeenCalled();
 		expect(createImageProviderConfigSeam).toHaveBeenCalledOnce();
 		expect(createWigTryOnSeam).toHaveBeenCalledWith(configSeam);
-		expect(fetchImpl).toHaveBeenCalledWith(wig.imageUrl, { signal: request.signal });
-		expect(tryOn).toHaveBeenCalledWith(expect.objectContaining({ signal: request.signal }));
+		expect(fetchImpl).toHaveBeenCalledWith(wig.imageUrl, {
+			signal: request.signal
+		});
+		expect(tryOn).toHaveBeenCalledWith(
+			expect.objectContaining({ signal: request.signal })
+		);
+	});
+
+	it('does not serialize upstream provider diagnostics', async () => {
+		const configSeam = { getConfig: vi.fn() };
+		vi.mocked(createImageProviderConfigSeam).mockReturnValue(configSeam);
+		vi.mocked(createWigCatalogSeam).mockReturnValue({
+			listWigs: vi.fn(),
+			getWigById: vi.fn(async () => ({ ok: true as const, value: wig }))
+		});
+		vi.mocked(createWigTryOnSeam).mockReturnValue({
+			tryOn: vi.fn(async () => ({
+				ok: false as const,
+				error: {
+					code: 'WIG_TRY_ON_HTTP_ERROR' as const,
+					message: providerLeakCanary,
+					details: {
+						body: providerLeakCanary,
+						accountId: 'acct-canary',
+						teamId: 'team-canary'
+					}
+				}
+			}))
+		});
+		const fetchImpl = vi.fn(
+			async () =>
+				new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+					status: 200,
+					headers: { 'Content-Type': 'image/jpeg' }
+				})
+		);
+		const request = new Request('http://localhost/api/wig-try-on', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				selfieBase64: 'selfie-data',
+				selfieMimeType: 'image/jpeg',
+				wigId: wig.id
+			})
+		});
+
+		const response = await POST({
+			request,
+			fetch: fetchImpl
+		} as unknown as Parameters<typeof POST>[0]);
+		const payload = await response.json();
+
+		expect(response.status).toBe(502);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('WIG_TRY_ON_HTTP_ERROR');
+		expectProviderLeakCanaryRedacted(payload);
 	});
 });

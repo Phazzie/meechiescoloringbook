@@ -216,8 +216,7 @@ describe('Meechie Studio Text Pipeline Resilience', () => {
 			ok: false,
 			error: {
 				code: 'PROVIDER_API_KEY_MISSING',
-				message:
-					'AI text generation requires XAI_API_KEY to be set on the server.'
+				message: 'AI provider is not configured.'
 			}
 		});
 		expect(callCount).toBe(1);
@@ -362,14 +361,11 @@ Trailing {also not json}.`
 		);
 
 		expect(response.status).toBe(502);
-		expect(response.body).toMatchObject({
+		expect(response.body).toEqual({
 			ok: false,
 			error: {
 				code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID',
-				details: {
-					model: 'test-model',
-					contentPreview: 'Not JSON at all'
-				}
+				message: 'Provider text response did not match contract.'
 			}
 		});
 		expect(callCount).toBe(2); // Retried once
@@ -460,13 +456,12 @@ Trailing {also not json}.`
 			ok: false,
 			error: {
 				code: 'PROVIDER_API_KEY_MISSING',
-				message:
-					'AI text generation requires XAI_API_KEY to be set on the server.'
+				message: 'AI provider is not configured.'
 			}
 		});
 	});
 
-	it('preserves provider HTTP errors with a 502 status', async () => {
+	it('preserves provider HTTP codes with a 502 status while hiding diagnostics', async () => {
 		const { deps } = createDepsWithChatResults([
 			providerError('PROVIDER_HTTP_ERROR', 'Rate limited.', { status: '429' })
 		]);
@@ -474,12 +469,11 @@ Trailing {also not json}.`
 		const response = await runMeechieStudioTextPipeline(studioInput, deps);
 
 		expect(response.status).toBe(502);
-		expect(response.body).toMatchObject({
+		expect(response.body).toEqual({
 			ok: false,
 			error: {
 				code: 'PROVIDER_HTTP_ERROR',
-				message: 'Rate limited.',
-				details: { status: '429' }
+				message: 'AI provider request failed.'
 			}
 		});
 	});
@@ -506,6 +500,14 @@ Trailing {also not json}.`
 
 		expect(timeoutResponse.status).toBe(504);
 		expect(genericResponse.status).toBe(502);
+		expect(timeoutResponse.body).toEqual({
+			ok: false,
+			error: {
+				code: 'PROVIDER_NETWORK_ERROR',
+				message: 'AI provider request failed.'
+			}
+		});
+		expect(genericResponse.body).toEqual(timeoutResponse.body);
 	});
 
 	it('classifies provider errors returned during retry', async () => {
@@ -524,7 +526,7 @@ Trailing {also not json}.`
 			ok: false,
 			error: {
 				code: 'PROVIDER_NETWORK_ERROR',
-				message: 'Chat completion request timed out.'
+				message: 'AI provider request failed.'
 			}
 		});
 	});

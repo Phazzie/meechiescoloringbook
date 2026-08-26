@@ -4,6 +4,7 @@
 import { driftDetectionAdapter } from '$lib/adapters/drift-detection-seam';
 import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly-seam';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
+import { toPublicProviderError } from '$lib/core/public-provider-error';
 import type {
 	SafetyPolicyError,
 	SafetyPolicyGenerateInput,
@@ -38,7 +39,10 @@ export type GeneratePipelineDeps = {
 	validateSpec: typeof specValidationAdapter.validate;
 	assemblePrompt: typeof promptAssemblyAdapter.assemble;
 	detectDrift: typeof driftDetectionAdapter.detect;
-	generateImage: (body: ImageGenerationInput, signal?: AbortSignal) => Promise<ImagePipelineResponse>;
+	generateImage: (
+		body: ImageGenerationInput,
+		signal?: AbortSignal
+	) => Promise<ImagePipelineResponse>;
 	signal?: AbortSignal;
 };
 
@@ -77,11 +81,22 @@ const imageExceptionResponse = (error: unknown): PipelineResponse => {
 	const reason = error instanceof Error ? error.message : String(error);
 	const name = error instanceof Error ? error.name : '';
 	const isTimeout = name === 'TimeoutError' || /timeout/i.test(reason);
+	const publicError = toPublicProviderError(
+		{
+			code: isTimeout ? 'IMAGE_GENERATION_TIMEOUT' : 'IMAGE_GENERATION_FAILED',
+			message: reason
+		},
+		{
+			code: isTimeout ? 'IMAGE_GENERATION_TIMEOUT' : 'IMAGE_GENERATION_FAILED',
+			message: isTimeout
+				? 'Image generation timed out.'
+				: 'Image generation failed unexpectedly.'
+		}
+	);
 	return buildError(
 		isTimeout ? 504 : 502,
-		isTimeout ? 'IMAGE_GENERATION_TIMEOUT' : 'IMAGE_GENERATION_FAILED',
-		isTimeout ? 'Image generation timed out.' : 'Image generation failed unexpectedly.',
-		{ reason }
+		publicError.code,
+		publicError.message
 	);
 };
 
@@ -99,7 +114,11 @@ export const runGeneratePipeline = async (
 
 	const parsedInput = GenerateRequestSchema.safeParse(body);
 	if (!parsedInput.success) {
-		return buildError(400, 'GENERATE_INPUT_INVALID', 'Generate request is invalid.');
+		return buildError(
+			400,
+			'GENERATE_INPUT_INVALID',
+			'Generate request is invalid.'
+		);
 	}
 
 	const safetyResult = deps.checkContentSafety({
@@ -153,7 +172,9 @@ export const runGeneratePipeline = async (
 		return imageExceptionResponse(error);
 	}
 
-	const parsedImageResult = ImageGenerationResultSchema.safeParse(imageResult.body);
+	const parsedImageResult = ImageGenerationResultSchema.safeParse(
+		imageResult.body
+	);
 	if (!parsedImageResult.success) {
 		return buildError(
 			502,
@@ -162,10 +183,15 @@ export const runGeneratePipeline = async (
 		);
 	}
 	if (!parsedImageResult.data.ok) {
-		return {
-			status: imageResult.status >= 400 ? imageResult.status : 502,
-			body: parsedImageResult.data
-		};
+		const publicError = toPublicProviderError(parsedImageResult.data.error, {
+			code: 'IMAGE_GENERATION_FAILED',
+			message: 'Image generation failed.'
+		});
+		return buildError(
+			imageResult.status >= 400 ? imageResult.status : 502,
+			publicError.code,
+			publicError.message
+		);
 	}
 
 	const driftResult = await deps.detectDrift({
@@ -189,7 +215,11 @@ export const runGeneratePipeline = async (
 
 	const parsedResult = GenerateResultSchema.safeParse(result);
 	if (!parsedResult.success) {
-		return buildError(500, 'GENERATE_OUTPUT_INVALID', 'Generate response did not match contract.');
+		return buildError(
+			500,
+			'GENERATE_OUTPUT_INVALID',
+			'Generate response did not match contract.'
+		);
 	}
 
 	return {
