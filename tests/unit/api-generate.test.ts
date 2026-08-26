@@ -1,15 +1,51 @@
 // Purpose: Verify /api/generate orchestrates prompt, image, and drift flow for the UI.
 // Why: Keep the main generation path on one server endpoint with contract-checked output.
 // Info flow: Generate request -> endpoint orchestration -> contract response.
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$lib/adapters/image-generation-seam', () => ({
 	createImageGenerationSeam: vi.fn()
 }));
 
+vi.mock('$lib/server/rate-limit-route', () => ({
+	createQuotaGate: vi.fn()
+}));
+
+// Spy-wrapped, not replaced: the inner pipeline still runs for real, but the test can read the
+// quota mode the route handed it and prove the inner call was precharged rather than metered.
+vi.mock('$lib/core/image-generation-pipeline', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('$lib/core/image-generation-pipeline')>();
+	return {
+		...actual,
+		runImageGenerationPipeline: vi.fn(actual.runImageGenerationPipeline)
+	};
+});
+
 import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
+import { runImageGenerationPipeline } from '$lib/core/image-generation-pipeline';
+import { createQuotaGate } from '$lib/server/rate-limit-route';
+import type { QuotaDecision } from '$lib/server/rate-limit-route';
 import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
 import { POST } from '../../src/routes/api/generate/+server';
+
+const CLIENT_ADDRESS = '203.0.113.7';
+
+const ALLOWED_HEADERS = {
+	'Cache-Control': 'no-store',
+	'RateLimit-Limit': '8',
+	'RateLimit-Remaining': '4',
+	'RateLimit-Reset': '58'
+};
+
+const gateReturning = (decision: QuotaDecision) => {
+	const consumeQuota = vi.fn(async (_cost: number) => decision);
+	vi.mocked(createQuotaGate).mockReturnValue(consumeQuota);
+	return consumeQuota;
+};
+
+const allowingGate = (headers: Record<string, string> = ALLOWED_HEADERS) =>
+	gateReturning({ ok: true, headers });
 
 const providerLeakCanary =
 	'RAW_PROVIDER_BODY https://api.x.ai/v1/responses?key=xai-secret-canary 550e8400-e29b-41d4-a716-446655440000 account=acct-canary team=team-canary';
@@ -61,8 +97,9 @@ const buildEvent = (
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
 		}),
-		fetch: fetchImpl
-	}) as Parameters<typeof POST>[0];
+		fetch: fetchImpl,
+		getClientAddress: () => CLIENT_ADDRESS
+	}) as unknown as Parameters<typeof POST>[0];
 
 const buildRawEvent = (
 	rawBody: string,
@@ -74,8 +111,9 @@ const buildRawEvent = (
 			headers: { 'Content-Type': 'application/json' },
 			body: rawBody
 		}),
-		fetch: fetchImpl
-	}) as Parameters<typeof POST>[0];
+		fetch: fetchImpl,
+		getClientAddress: () => CLIENT_ADDRESS
+	}) as unknown as Parameters<typeof POST>[0];
 
 const assembledPrompt = [
 	'Black-and-white coloring book page',
@@ -94,17 +132,23 @@ const buildPipelineDeps = (
 	fetchImpl: ReturnType<typeof vi.fn>;
 	checkContentSafety: ReturnType<typeof vi.fn>;
 	generateImage: ReturnType<typeof vi.fn>;
+	consumeQuota: ReturnType<typeof vi.fn>;
 } => {
 	const fetchImpl = vi.fn(async () => {
 		throw new Error('internal image-generation fetch should not be used');
 	});
 	const checkContentSafety = vi.fn(() => ({ ok: true as const }));
 	const generateImage = vi.fn(generateImageImpl);
+	// The gate is a required dep, deliberately: an optional one is a production bypass. These
+	// tests cover orchestration, so they inject an allowing gate; the endpoint tests below cover
+	// allow, deny, store failure and the single-charge rule.
+	const consumeQuota = vi.fn(async () => ({ ok: true as const, headers: {} }));
 
 	return {
 		fetchImpl,
 		checkContentSafety,
 		generateImage,
+		consumeQuota,
 		validateSpec: vi.fn(async () => ({ ok: true, issues: [] })),
 		assemblePrompt: vi.fn(async () => ({
 			ok: true,
@@ -118,10 +162,17 @@ const buildPipelineDeps = (
 		fetchImpl: ReturnType<typeof vi.fn>;
 		checkContentSafety: ReturnType<typeof vi.fn>;
 		generateImage: ReturnType<typeof vi.fn>;
+		consumeQuota: ReturnType<typeof vi.fn>;
 	};
 };
 
 describe('/api/generate', () => {
+	beforeEach(() => {
+		vi.mocked(createQuotaGate).mockReset();
+		vi.mocked(runImageGenerationPipeline).mockClear();
+		allowingGate();
+	});
+
 	afterEach(() => {
 		vi.unstubAllGlobals();
 		vi.mocked(createImageGenerationSeam).mockReset();
@@ -136,9 +187,11 @@ describe('/api/generate', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('INVALID_JSON');
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(createQuotaGate).not.toHaveBeenCalled();
 	});
 
 	it('rejects invalid payloads', async () => {
+		const consumeQuota = allowingGate();
 		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
 		const response = await POST(buildEvent({ spec: {} }, fetchMock));
 		const payload = await response.json();
@@ -147,6 +200,9 @@ describe('/api/generate', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('GENERATE_INPUT_INVALID');
 		expect(fetchMock).not.toHaveBeenCalled();
+		// A rejected request is free, and it never advertises quota it did not spend.
+		expect(consumeQuota).not.toHaveBeenCalled();
+		expect(response.headers.get('RateLimit-Remaining')).toBeNull();
 	});
 
 	it('returns orchestrated generation output without fetching the sibling route', async () => {
@@ -229,6 +285,7 @@ describe('/api/generate', () => {
 		}
 		expect(deps.validateSpec).not.toHaveBeenCalled();
 		expect(deps.generateImage).not.toHaveBeenCalled();
+		expect(deps.consumeQuota).not.toHaveBeenCalled();
 	});
 
 	it('returns an aborted response before expensive seams when caller signal is already aborted', async () => {
@@ -257,6 +314,7 @@ describe('/api/generate', () => {
 		expect(deps.checkContentSafety).not.toHaveBeenCalled();
 		expect(deps.validateSpec).not.toHaveBeenCalled();
 		expect(deps.generateImage).not.toHaveBeenCalled();
+		expect(deps.consumeQuota).not.toHaveBeenCalled();
 	});
 
 	it('passes caller signal into the image-generation dependency', async () => {
@@ -301,6 +359,7 @@ describe('/api/generate', () => {
 				variations: validSpec.variations,
 				outputFormat: validSpec.outputFormat
 			},
+			{ mode: 'precharged', headers: {} },
 			controller.signal
 		);
 	});
@@ -455,6 +514,7 @@ describe('/api/generate', () => {
 	});
 
 	it('rejects unsafe style hints at the endpoint before image generation', async () => {
+		const consumeQuota = allowingGate();
 		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
 		const response = await POST(
 			buildEvent(
@@ -472,9 +532,12 @@ describe('/api/generate', () => {
 		expect(payload.error.code).toBe('CONTENT_POLICY_VIOLATION');
 		expect(payload.error.details.policyDetails).toContain('styleHint');
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(consumeQuota).not.toHaveBeenCalled();
+		expect(response.headers.get('RateLimit-Remaining')).toBeNull();
 	});
 
 	it('does not serialize upstream provider diagnostics at the endpoint', async () => {
+		const consumeQuota = allowingGate();
 		vi.mocked(createImageGenerationSeam).mockReturnValue({
 			generate: vi.fn(async () => ({
 				ok: false as const,
@@ -499,5 +562,154 @@ describe('/api/generate', () => {
 		expect(payload.error.code).toBe('IMAGE_HTTP_ERROR');
 		expectProviderLeakCanaryRedacted(payload);
 		expect(fetchMock).not.toHaveBeenCalled();
+		// Post-charge failure: the units are gone, so the response still reports them.
+		expect(consumeQuota).toHaveBeenCalledTimes(1);
+		expect(response.headers.get('RateLimit-Remaining')).toBe('4');
+		expect(response.headers.get('RateLimit-Reset')).toBe('58');
+		expect(response.headers.get('Cache-Control')).toBe('no-store');
+	});
+
+	it('charges the image bucket exactly once for the whole request and runs the inner image pipeline precharged', async () => {
+		const consumeQuota = allowingGate();
+		const generate = vi.fn(async () => ({
+			ok: true as const,
+			value: {
+				images: [
+					{ id: 'xai-1', b64: 'iVBORw0KGgo=' },
+					{ id: 'xai-2', b64: 'iVBORw0KGgo=' },
+					{ id: 'xai-3', b64: 'iVBORw0KGgo=' },
+					{ id: 'xai-4', b64: 'iVBORw0KGgo=' }
+				],
+				rawModelInfo: { model: 'grok-imagine-image' },
+				timingMs: 1
+			}
+		}));
+		vi.mocked(createImageGenerationSeam).mockReturnValue({ generate });
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+
+		const response = await POST(
+			buildEvent({ spec: { ...validSpec, variations: 4 } }, fetchMock)
+		);
+
+		// Control: the outer charge really happened, once, for the four images this request
+		// asks the provider for. Without it the "inner pipeline never charged" assertion below
+		// would pass trivially on an unmetered route.
+		expect(createQuotaGate).toHaveBeenCalledTimes(1);
+		expect(createQuotaGate).toHaveBeenCalledWith(
+			expect.objectContaining({ getClientAddress: expect.any(Function) }),
+			'image'
+		);
+		expect(consumeQuota).toHaveBeenCalledTimes(1);
+		expect(consumeQuota).toHaveBeenCalledWith(4);
+		// And the inner image pipeline spent nothing: it was handed the outer decision's
+		// headers, not a gate it could charge again.
+		expect(runImageGenerationPipeline).toHaveBeenCalledTimes(1);
+		expect(runImageGenerationPipeline).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.objectContaining({
+				quota: { mode: 'precharged', headers: ALLOWED_HEADERS }
+			})
+		);
+		expect(generate).toHaveBeenCalledTimes(1);
+		expect(generate).toHaveBeenCalledWith(expect.objectContaining({ n: 4 }));
+		expect(response.status).toBe(200);
+		expect(response.headers.get('RateLimit-Limit')).toBe('8');
+		expect(response.headers.get('RateLimit-Remaining')).toBe('4');
+		expect(response.headers.get('RateLimit-Reset')).toBe('58');
+		expect(response.headers.get('Cache-Control')).toBe('no-store');
+	});
+
+	it('returns the gate 429 with Retry-After and never calls the provider', async () => {
+		const consumeQuota = gateReturning({
+			ok: false,
+			status: 429,
+			headers: {
+				'Cache-Control': 'no-store',
+				'RateLimit-Limit': '8',
+				'RateLimit-Remaining': '1',
+				'RateLimit-Reset': '42',
+				'Retry-After': '42'
+			},
+			body: {
+				ok: false,
+				error: {
+					code: 'RATE_LIMITED',
+					message: 'Too many requests. Try again after the current window resets.'
+				}
+			}
+		});
+		// Resolves on purpose: if the gate is skipped the route returns 200 and the assertions
+		// below name the real defect instead of crashing on an unstubbed provider.
+		const generate = vi.fn(async () => ({
+			ok: true as const,
+			value: {
+				images: [{ id: 'xai-1', b64: 'iVBORw0KGgo=' }],
+				rawModelInfo: { model: 'grok-imagine-image' },
+				timingMs: 1
+			}
+		}));
+		vi.mocked(createImageGenerationSeam).mockReturnValue({ generate });
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+
+		const response = await POST(
+			buildEvent({ spec: { ...validSpec, variations: 4 } }, fetchMock)
+		);
+		const payload = await response.json();
+
+		expect(response.status).toBe(429);
+		expect(response.headers.get('Retry-After')).toBe('42');
+		expect(response.headers.get('RateLimit-Limit')).toBe('8');
+		expect(response.headers.get('RateLimit-Remaining')).toBe('1');
+		expect(response.headers.get('RateLimit-Reset')).toBe('42');
+		expect(response.headers.get('Cache-Control')).toBe('no-store');
+		expect(payload).toEqual({
+			ok: false,
+			error: {
+				code: 'RATE_LIMITED',
+				message: 'Too many requests. Try again after the current window resets.'
+			}
+		});
+		expect(consumeQuota).toHaveBeenCalledTimes(1);
+		expect(consumeQuota).toHaveBeenCalledWith(4);
+		expect(runImageGenerationPipeline).not.toHaveBeenCalled();
+		expect(generate).not.toHaveBeenCalled();
+	});
+
+	it('fails closed with the gate 503 and never calls the provider', async () => {
+		const consumeQuota = gateReturning({
+			ok: false,
+			status: 503,
+			headers: { 'Cache-Control': 'no-store' },
+			body: {
+				ok: false,
+				error: {
+					code: 'RATE_LIMIT_UNAVAILABLE',
+					message: 'Rate limiting is temporarily unavailable.'
+				}
+			}
+		});
+		const generate = vi.fn(async () => ({
+			ok: true as const,
+			value: {
+				images: [{ id: 'xai-1', b64: 'iVBORw0KGgo=' }],
+				rawModelInfo: { model: 'grok-imagine-image' },
+				timingMs: 1
+			}
+		}));
+		vi.mocked(createImageGenerationSeam).mockReturnValue({ generate });
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+
+		const response = await POST(buildEvent({ spec: validSpec }, fetchMock));
+		const payload = await response.json();
+
+		expect(response.status).toBe(503);
+		// Same status as a provider-config 503, told apart by the code.
+		expect(payload.error.code).toBe('RATE_LIMIT_UNAVAILABLE');
+		expect(payload.error.code).not.toBe('IMAGE_CONFIG_ERROR');
+		expect(response.headers.get('Cache-Control')).toBe('no-store');
+		expect(response.headers.get('Retry-After')).toBeNull();
+		expect(consumeQuota).toHaveBeenCalledWith(1);
+		expect(runImageGenerationPipeline).not.toHaveBeenCalled();
+		expect(generate).not.toHaveBeenCalled();
 	});
 });
