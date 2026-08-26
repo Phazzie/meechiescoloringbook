@@ -2,13 +2,13 @@
 // Why: Keep quota consumption atomic, provider-independent, and fail-closed.
 // Info flow: pseudonymous identity + policy cost -> durable store -> quota decision or stable error.
 import type { Result } from '../../../../contracts/shared.contract';
-import type {
+import type { RateLimitConsumeInput, RateLimitDecision } from './validators';
+
+export type {
 	RateLimitBucket,
 	RateLimitConsumeInput,
 	RateLimitDecision
 } from './validators';
-
-export type { RateLimitBucket, RateLimitConsumeInput, RateLimitDecision };
 
 export type RateLimitError =
 	| { code: 'RATE_LIMIT_VALIDATION_ERROR'; message: string }

@@ -51,8 +51,18 @@ const configError = (): Result<WigTryOnResult, WigTryOnError> =>
 		message: 'Image-edit provider configuration is unavailable.'
 	});
 
+// Strip trailing '/' (char code 47) linearly; a `/\/+$/` regex backtracks
+// super-linearly on slash-heavy input.
+const stripTrailingSlashes = (value: string): string => {
+	let end = value.length;
+	while (end > 0 && value.charCodeAt(end - 1) === 47) {
+		end -= 1;
+	}
+	return value.slice(0, end);
+};
+
 const buildEditUrl = (baseUrl: string): string =>
-	`${baseUrl.replace(/\/+$/, '')}${XAI_IMAGE_EDIT_PATH}`;
+	`${stripTrailingSlashes(baseUrl)}${XAI_IMAGE_EDIT_PATH}`;
 
 const toImageDataUrl = (mimeType: WigTryOnMimeType, base64: string): string =>
 	`data:${mimeType};base64,${base64}`;

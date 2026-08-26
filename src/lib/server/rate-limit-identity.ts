@@ -92,8 +92,10 @@ export const normalizeClientAddress = (value: string): string | null => {
 		.join(':')}::/64`;
 };
 
-const hmacKey = (secret: string, kind: 'client' | 'fallback', value: string): string =>
-	`rl:${kind}:${createHmac('sha256', secret).update(`${kind}:${value}`).digest('hex')}`;
+const hmacKey = (secret: string, kind: 'client' | 'fallback', value: string): string => {
+	const digest = createHmac('sha256', secret).update(`${kind}:${value}`).digest('hex');
+	return `rl:${kind}:${digest}`;
+};
 
 export const resolveRateLimitIdentity = (
 	input: RateLimitIdentityInput

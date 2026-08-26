@@ -118,4 +118,39 @@ describe('rate-limit identity', () => {
 			})
 		).toThrow('Rate limit identity configuration is invalid.');
 	});
+
+	it('derives byte-identical normalized addresses and identity keys (golden values)', () => {
+		// Locked against refactors: these keys ARE the durable rate-limit bucket names.
+		// A single changed byte silently repartitions every existing bucket in production.
+		const golden: ReadonlyArray<readonly [string, string | null, string]> = [
+			['192.0.2.44', '192.0.2.44', 'rl:client:56a3a23199091c9e65660176753124b8dfa1e0a90fca8534d6ca29c29199c856'],
+			['10.0.0.1', '10.0.0.1', 'rl:client:c87ca079831023b773ca1b9627268a25fd56495cbe76a0c1121b072132ce9fae'],
+			['255.255.255.255', '255.255.255.255', 'rl:client:f36f0686a54acff04766d7393675cb61e788083a65caf646a6b58f119ce8ea17'],
+			['2001:db8:abcd:12::1', '2001:db8:abcd:12::/64', 'rl:client:d991078db0acb58826878adcf5a7b5bb6358779815ff0fdf12b34704c9e2b721'],
+			['2001:0db8:abcd:0012:ffff::beef', '2001:db8:abcd:12::/64', 'rl:client:d991078db0acb58826878adcf5a7b5bb6358779815ff0fdf12b34704c9e2b721'],
+			['2001:DB8:ABCD:12::1', '2001:db8:abcd:12::/64', 'rl:client:d991078db0acb58826878adcf5a7b5bb6358779815ff0fdf12b34704c9e2b721'],
+			['2001:db8:abcd:13::1', '2001:db8:abcd:13::/64', 'rl:client:bae47d3520fdf858195d02a1fc5bb0cb3e086542c6567cac2aa4dec91ec890c9'],
+			['[2001:db8::1]:443', '2001:db8:0:0::/64', 'rl:client:42a811b3aeda116832c837df8983efb8c7c0bd0466f45ae3799a9e6c62f898f2'],
+			['fe80::1%eth0', 'fe80:0:0:0::/64', 'rl:client:74c60b762b586a22e9370bd09340674aaa56b7b9a062273480cab850a9a52171'],
+			['::1', '0:0:0:0::/64', 'rl:client:742112100f073e06574d07b524df1da937d1dbc3778a11d9eee44fd19c68ca8c'],
+			['::', '0:0:0:0::/64', 'rl:client:742112100f073e06574d07b524df1da937d1dbc3778a11d9eee44fd19c68ca8c'],
+			['::ffff:192.0.2.44', '192.0.2.44', 'rl:client:56a3a23199091c9e65660176753124b8dfa1e0a90fca8534d6ca29c29199c856'],
+			['::ffff:c000:022d', '192.0.2.45', 'rl:client:8f7f5cc1e0d47233b405b44623f0e0a89d493afeec8125a8ac9272b446ec5dd7'],
+			['not-an-address', null, 'rl:fallback:30243bb3dbe1aa70adfb5b75cd490a08ed80bcb4336ffbd4975c8e73e6f57c75']
+		];
+
+		for (const [address, normalized, key] of golden) {
+			expect(normalizeClientAddress(address)).toBe(normalized);
+			expect(
+				resolveRateLimitIdentity({
+					identitySecret: IDENTITY_SECRET,
+					getClientAddress: () => address
+				}).key
+			).toBe(key);
+		}
+
+		expect(resolveRateLimitIdentity({ identitySecret: IDENTITY_SECRET }).key).toBe(
+			'rl:fallback:30243bb3dbe1aa70adfb5b75cd490a08ed80bcb4336ffbd4975c8e73e6f57c75'
+		);
+	});
 });

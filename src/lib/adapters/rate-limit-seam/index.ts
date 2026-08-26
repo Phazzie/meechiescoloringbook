@@ -35,6 +35,16 @@ end
 return {used, tonumber(ARGV[2])}
 `.trim();
 
+// Strip trailing '/' (char code 47) linearly; a `/\/+$/` regex backtracks
+// super-linearly on slash-heavy input.
+const stripTrailingSlashes = (value: string): string => {
+	let end = value.length;
+	while (end > 0 && value.charCodeAt(end - 1) === 47) {
+		end -= 1;
+	}
+	return value.slice(0, end);
+};
+
 const errorResult = (
 	code: RateLimitError['code'],
 	message: string
@@ -70,7 +80,7 @@ export const createRateLimitSeam = (
 ): RateLimitSeam => {
 	const fetchImpl = dependencies.fetchImpl ?? fetch;
 	const now = dependencies.now ?? Date.now;
-	const restUrl = config.restUrl.replace(/\/+$/, '');
+	const restUrl = stripTrailingSlashes(config.restUrl);
 
 	return {
 		consume: async (input) => {
