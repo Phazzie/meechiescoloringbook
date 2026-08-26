@@ -3,13 +3,173 @@
 // Info flow: StudioState actions -> spec/images/package calls -> assertions.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging.adapter';
+import {
+	DEFAULT_STUDIO_TEXT_OUTPUT,
+	buildColoringPageSpecFromMeechieText
+} from '../../src/lib/core/meechie-studio';
 import { StudioState } from '../../src/routes/studio-state.svelte';
+import type { DraftRecord } from '../../contracts/creation-store.contract';
+import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-text.contract';
+
+const LEGACY_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
+	verdict: 'Meechie already clocked it.',
+	quote: "He said I act like I run the place. I don't act.",
+	pageTitle: "I DON'T ACT",
+	pageItems: [
+		{ number: 1, label: 'RUN THE PLACE' },
+		{ number: 2, label: 'DO NOT OPEN THE DOOR' },
+		{ number: 3, label: 'LOWER MY VOICE' }
+	],
+	qualityState: 'ready',
+	revisionNote: 'Approved preview line. Generate to get yours.'
+};
+
+// The original shipped seed: present from the root commit 4c5660f (2026-05-10) until
+// 05dede1 (2026-08-24) replaced it. Drafts saved in that window still carry this text.
+const ECONOMY_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
+	verdict: 'Meechie already clocked it.',
+	quote: 'You fumbled ME? In THIS economy?',
+	pageTitle: 'IN THIS ECONOMY',
+	pageItems: [
+		{ number: 1, label: 'STAY PRETTY TOMORROW' },
+		{ number: 2, label: 'CLOSE THE DOOR' },
+		{ number: 3, label: 'LET THE DRAFT WORK' }
+	],
+	qualityState: 'ready',
+	revisionNote: 'Canon Meechie preview.'
+};
+
+const buildSeedSpec = (output: MeechieStudioTextOutput) =>
+	buildColoringPageSpecFromMeechieText({
+		output,
+		pageSize: 'US_Letter',
+		border: 'decorative',
+		styleHint: 'gold crown ornaments'
+	});
+
+const initFromDraft = async (draft: DraftRecord): Promise<StudioState> => {
+	localStorage.setItem('cb_drafts_v1', JSON.stringify(draft));
+	const studio = new StudioState();
+	await studio.init();
+	return studio;
+};
 
 afterEach(() => {
 	vi.restoreAllMocks();
 });
 
 describe('StudioState', () => {
+	it.each([
+		['current landlord seed', DEFAULT_STUDIO_TEXT_OUTPUT],
+		['pre-#232 I DON\'T ACT seed', LEGACY_STUDIO_TEXT_OUTPUT],
+		['pre-#227 IN THIS ECONOMY seed', ECONOMY_STUDIO_TEXT_OUTPUT]
+	])('does not restore %s as generated text', async (_label, output) => {
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-08-26T00:00:00.000Z',
+			intent: buildSeedSpec(output)
+		});
+
+		expect(studio.textOutput).toBeNull();
+	});
+
+	it('always restores explicit studio text even when the intent has the seed title', async () => {
+		const explicitText: MeechieStudioTextOutput = {
+			verdict: 'Meechie made a new ruling.',
+			quote: 'The saved words belong to the user.',
+			pageTitle: DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle,
+			pageItems: [
+				{ number: 1, label: 'EXPLICIT SAVED ITEM' },
+				{ number: 2, label: 'SECOND SAVED ITEM' }
+			],
+			qualityState: 'ready'
+		};
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-08-26T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			studioText: explicitText
+		});
+
+		expect(studio.textOutput).toEqual(explicitText);
+	});
+
+	it('restores generated text when a seed title has a changed item', async () => {
+		const seedSpec = buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT);
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-08-26T00:00:00.000Z',
+			intent: {
+				...seedSpec,
+				items: seedSpec.items.map((item, index) =>
+					index === 0 ? { ...item, label: 'CHANGED SAVED ITEM' } : item
+				)
+			}
+		});
+
+		expect(studio.textOutput?.pageItems[0].label).toBe('CHANGED SAVED ITEM');
+	});
+
+	it('restores generated text when seed item order or footer text changes', async () => {
+		const seedSpec = buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT);
+		const changedSignatures = [
+			{
+				...seedSpec,
+				items: [...seedSpec.items].reverse()
+			},
+			{
+				...seedSpec,
+				footerItem: { number: 97, label: 'CHANGED SAVED FOOTER' }
+			},
+			{
+				...seedSpec,
+				footerItem: undefined
+			}
+		];
+
+		for (const intent of changedSignatures) {
+			const studio = await initFromDraft({
+				updatedAtISO: '2026-08-26T00:00:00.000Z',
+				intent
+			});
+
+			expect(studio.textOutput).not.toBeNull();
+		}
+	});
+
+	it('restores generated text when the IN THIS ECONOMY seed has a changed item', async () => {
+		const seedSpec = buildSeedSpec(ECONOMY_STUDIO_TEXT_OUTPUT);
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-08-26T00:00:00.000Z',
+			intent: {
+				...seedSpec,
+				items: seedSpec.items.map((item, index) =>
+					index === 1 ? { ...item, label: 'SLAM THE DOOR' } : item
+				)
+			}
+		});
+
+		expect(studio.textOutput).not.toBeNull();
+		expect(studio.textOutput?.pageItems[1].label).toBe('SLAM THE DOOR');
+	});
+
+	it('does not treat evidence or setting changes alone as generated text', async () => {
+		const seedSpec = buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT);
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-08-26T00:00:00.000Z',
+			intent: {
+				...seedSpec,
+				pageSize: 'A4',
+				border: 'plain',
+				dedication: 'For Big Sis'
+			},
+			chatMessage: 'Evidence was entered without generating text.'
+		});
+
+		expect(studio.textOutput).toBeNull();
+		expect(studio.evidence).toBe('Evidence was entered without generating text.');
+		expect(studio.pageSize).toBe('A4');
+		expect(studio.border).toBe('plain');
+		expect(studio.dedication).toBe('For Big Sis');
+	});
+
 	it('updates the active mode when a mode card is selected', () => {
 		const studio = new StudioState();
 		const targetMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);

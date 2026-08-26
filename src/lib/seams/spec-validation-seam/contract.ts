@@ -2,7 +2,6 @@
 // Why: Enforce input constraints before any generation or storage.
 // Info flow: User input -> validation -> downstream seams.
 import { z } from 'zod';
-import { NonEmptyStringSchema } from '../../../../contracts/shared.contract';
 
 export const MAX_SPEC_ITEMS = 20;
 export const MAX_LABEL_LENGTH = 40;
@@ -186,9 +185,9 @@ export const SpecValidationInputSchema = z.object({
 });
 
 export const SpecValidationIssueSchema = z.object({
-	code: NonEmptyStringSchema,
-	field: NonEmptyStringSchema,
-	message: NonEmptyStringSchema
+	code: z.string().min(1),
+	field: z.string().min(1),
+	message: z.string().min(1)
 });
 
 export const SpecValidationOutputSchema = z.object({

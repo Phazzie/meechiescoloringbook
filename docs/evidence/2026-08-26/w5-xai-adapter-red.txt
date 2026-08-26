@@ -1,0 +1,15 @@
+# Purpose: Record the pre-fix WigTryOnSeam xAI-adapter failures.
+# Why: Prove the Gemini adapter did not satisfy the xAI request, redaction, raster, and cancellation contract before W5.
+# Info flow: focused Vitest command -> intended adapter assertion failures -> W5 implementation.
+
+$ ./node_modules/.bin/vitest run src/lib/seams/wig-try-on-seam/test.ts --pool=forks --maxWorkers=1
+
+Test Files  1 failed (1)
+Tests       13 failed | 14 passed (27)
+
+The failures covered the xAI edit endpoint and bearer-auth request, provider-neutral config errors,
+HTTP-body redaction, malformed and empty responses, raster-byte validation, abort/timeout mapping,
+and stable network-error redaction. The then-current adapter still built a Gemini URL and error shape.
+
+Exit status: 1 (expected red proof)
+Base before implementation: 6e49ef6e3058c85978b3b3aef8c9a4a633e91072

@@ -6,9 +6,9 @@ import { z } from 'zod';
 import {
 	MeechieToolInputSchema,
 	MeechieToolResultSchema
-} from '../../contracts/meechie-tool.contract';
+} from '../../src/lib/seams/meechie-tool-seam/contract';
 import { ScenarioSchema } from '../../contracts/shared.contract';
-import { createMeechieToolMock } from '../../src/lib/mocks/meechie-tool.mock';
+import { createMeechieToolMock } from '../../src/lib/seams/meechie-tool-seam/mock';
 import sample from '../../fixtures/meechie-tool/sample.json';
 import fault from '../../fixtures/meechie-tool/fault.json';
 
@@ -21,7 +21,7 @@ vi.mock('../../src/lib/adapters/provider-adapter.adapter', () => ({
 	})
 }));
 
-const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool.adapter');
+const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool-seam');
 
 const fixtureSchema = z.object({
 	scenario: ScenarioSchema,

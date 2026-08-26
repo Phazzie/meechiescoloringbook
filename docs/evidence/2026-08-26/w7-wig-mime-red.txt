@@ -1,0 +1,15 @@
+# Purpose: Record the pre-fix wig-image MIME and byte-validation failures.
+# Why: Prove the pipeline trusted response headers and forwarded empty or unsupported bytes to the provider.
+# Info flow: focused fake-fetch tests -> intended pipeline failures -> W7 byte-sniff implementation.
+
+$ ./node_modules/.bin/vitest run tests/unit/wig-try-on-pipeline.test.ts --pool=forks --maxWorkers=1
+
+Test Files  1 failed (1)
+Tests       5 failed | 2 passed (7)
+
+The three JPEG/PNG/WebP cases forwarded the misleading response header instead of the byte-derived
+MIME type. Empty and unsupported bodies also reached WigTryOnSeam and returned 200 instead of a
+safe pre-provider 502. Non-success and thrown fetch cases already stopped before the provider.
+
+Exit status: 1 (expected red proof)
+Base before implementation: a827a6f

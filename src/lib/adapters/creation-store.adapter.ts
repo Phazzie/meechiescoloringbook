@@ -1,6 +1,7 @@
 // Purpose: Adapter implementation for CreationStoreSeam.
 // Why: Persist creations and drafts in browser storage without hidden I/O.
-// Info flow: Records -> localStorage -> retrieval by owner/id.
+// Info flow: Records -> localStorage -> parse (valid records + skipped indices)
+// -> retrieval by owner/id.
 import {
 	CreationRecordSchema,
 	DraftRecordSchema
@@ -59,9 +60,17 @@ const writeJson = (key: string, value: unknown): Result<boolean> => {
 	}
 };
 
-const parseRecords = (value: unknown): Result<CreationRecord[]> => {
+// Parsed creations plus the positions of entries dropped by schema validation.
+// skippedIndices carries both the count (its length) and the identity (stored
+// position) of every dropped entry, without carrying the entry contents.
+export type ParsedRecords = {
+	records: CreationRecord[];
+	skippedIndices: number[];
+};
+
+export const parseRecords = (value: unknown): Result<ParsedRecords> => {
 	if (value === null) {
-		return { ok: true, value: [] };
+		return { ok: true, value: { records: [], skippedIndices: [] } };
 	}
 	if (!Array.isArray(value)) {
 		return {
@@ -73,23 +82,19 @@ const parseRecords = (value: unknown): Result<CreationRecord[]> => {
 		};
 	}
 	const records: CreationRecord[] = [];
-	for (const record of value) {
+	const skippedIndices: number[] = [];
+	for (const [index, record] of value.entries()) {
 		const parsed = CreationRecordSchema.safeParse(record);
 		if (!parsed.success) {
-			return {
-				ok: false,
-				error: {
-					code: 'STORAGE_SCHEMA_MISMATCH',
-					message: 'Stored creation record failed schema validation.'
-				}
-			};
+			skippedIndices.push(index);
+			continue;
 		}
 		records.push(parsed.data);
 	}
-	return { ok: true, value: records };
+	return { ok: true, value: { records, skippedIndices } };
 };
 
-const loadRecords = (): Result<CreationRecord[]> => {
+const loadRecords = (): Result<ParsedRecords> => {
 	const raw = readJson(CREATIONS_KEY);
 	if (!raw.ok) {
 		return raw;
@@ -158,7 +163,7 @@ export const creationStoreAdapter: CreationStoreSeam = {
 		if (!existing.ok) {
 			return existing;
 		}
-		const updated = upsertRecord(existing.value, parsedRecord.data);
+		const updated = upsertRecord(existing.value.records, parsedRecord.data);
 		const stored = saveRecords(updated);
 		if (!stored.ok) {
 			return stored;
@@ -173,7 +178,7 @@ export const creationStoreAdapter: CreationStoreSeam = {
 		if (!existing.ok) {
 			return existing;
 		}
-		const filtered = existing.value.filter((record) =>
+		const filtered = existing.value.records.filter((record) =>
 			ownerMatches(record, input.owner)
 		);
 		return { ok: true, value: filtered };
@@ -187,7 +192,7 @@ export const creationStoreAdapter: CreationStoreSeam = {
 			return existing;
 		}
 		const found =
-			existing.value.find((record) => record.id === input.id) || null;
+			existing.value.records.find((record) => record.id === input.id) || null;
 		return { ok: true, value: found };
 	},
 	deleteCreation: async (input) => {
@@ -198,8 +203,10 @@ export const creationStoreAdapter: CreationStoreSeam = {
 		if (!existing.ok) {
 			return existing;
 		}
-		const beforeCount = existing.value.length;
-		const filtered = existing.value.filter((record) => record.id !== input.id);
+		const beforeCount = existing.value.records.length;
+		const filtered = existing.value.records.filter(
+			(record) => record.id !== input.id
+		);
 		const stored = saveRecords(filtered);
 		if (!stored.ok) {
 			return stored;

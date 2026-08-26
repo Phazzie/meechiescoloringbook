@@ -9,7 +9,7 @@ export const sampleWigFixture: Wig = {
   brand: 'Beautyforever',
   affiliateProgram: 'beautyforever',
   affiliateUrl: 'https://www.beautyforever.com/straight-lace-front-wigs.html?utm_source=meechie',
-  imageUrl: 'https://placehold.co/300x380/1a1a1a/ffffff?text=Sleek+Straight',
+  imageUrl: '/wigs/wig-001-sleek-straight-goddess.jpg',
   priceUsd: 89.99,
   style: 'Straight Lace Front',
   hairType: 'human',
@@ -27,7 +27,7 @@ export const sampleWigCatalogFixture: Wig[] = [
     brand: 'Beautyforever',
     affiliateProgram: 'beautyforever',
     affiliateUrl: 'https://www.beautyforever.com/body-wave-lace-front-wigs.html?utm_source=meechie',
-    imageUrl: 'https://placehold.co/300x380/2d1b00/ffffff?text=Body+Wave',
+    imageUrl: '/wigs/wig-002-big-body-wave-queen.jpg',
     priceUsd: 109.99,
     style: 'Body Wave Lace Front',
     hairType: 'human',
@@ -37,6 +37,31 @@ export const sampleWigCatalogFixture: Wig[] = [
     tags: ['voluminous', 'glamorous', 'wavy']
   }
 ];
+
+export const acceptedWigImageUrlFixtures = [
+  '/wigs/example.jpg',
+  '/wigs/example.jpeg',
+  '/wigs/example.png',
+  '/wigs/example.webp',
+  'https://cdn.example.com/wigs/example.jpg?version=1',
+  'http://cdn.example.com/wigs/example.jpg'
+] as const;
+
+export const rejectedWigImageUrlFixtures = [
+  '//evil.example/wig.jpg',
+  '/wigs/../secret.jpg',
+  '/wigs/%2e%2e/secret.jpg',
+  '/wigs/example.jpg?version=1',
+  '/wigs/example.jpg#preview',
+  '/wigs/nested/example.jpg',
+  '/wigs/example.svg',
+  '/assets/example.jpg',
+  'javascript:alert(1)',
+  'data:image/png;base64,AAAA',
+  'ftp://cdn.example.com/wigs/example.jpg',
+  'http:cdn.example.com/wigs/example.jpg',
+  ' https://cdn.example.com/wigs/example.jpg'
+] as const;
 
 export const wigCatalogLoadFailedFixture = {
   code: 'WIG_CATALOG_LOAD_FAILED' as const,

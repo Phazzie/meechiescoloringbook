@@ -3,6 +3,7 @@
 // Info flow: Request body -> ProviderAdapterSeam -> structured studio text result.
 import { findDisallowedKeywords } from '$lib/core/constants';
 import { TEXT_MODEL } from '$lib/core/models';
+import { toPublicProviderError } from '$lib/core/public-provider-error';
 import { meechieVoicePack } from '$lib/seams/meechie-voice-seam/voice-pack';
 import {
 	MeechieStudioTextInputSchema,
@@ -376,17 +377,15 @@ const providerErrorResponse = (
 	result: Extract<Result<unknown>, { ok: false }>,
 	isProduction: boolean
 ): PipelineResponse => {
-	const missingKey = result.error.code === 'PROVIDER_API_KEY_MISSING';
+	const publicError = toPublicProviderError(result.error, {
+		code: 'MEECHIE_STUDIO_TEXT_PROVIDER_ERROR',
+		message: 'Meechie studio text provider request failed.'
+	});
 	return {
 		status: providerErrorStatus(result.error, isProduction),
 		body: {
 			ok: false,
-			error: {
-				...result.error,
-				message: missingKey
-					? 'AI text generation requires XAI_API_KEY to be set on the server.'
-					: result.error.message
-			}
+			error: publicError
 		}
 	};
 };
@@ -464,8 +463,16 @@ export const runMeechieStudioTextPipeline = async (
 		);
 	}
 
-	return {
-		status: parseOutcome.result.ok ? 200 : 502,
-		body: parseOutcome.result
-	};
+	if (!parseOutcome.result.ok) {
+		const publicError = toPublicProviderError(parseOutcome.result.error, {
+			code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID',
+			message: 'Provider text response did not match contract.'
+		});
+		return {
+			status: 502,
+			body: { ok: false, error: publicError }
+		};
+	}
+
+	return { status: 200, body: parseOutcome.result };
 };

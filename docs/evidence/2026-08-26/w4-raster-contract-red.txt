@@ -1,0 +1,14 @@
+# Purpose: Record the pre-fix WigTryOnSeam raster-contract failure.
+# Why: Prove the fixture-backed mock returned an unsupported SVG before the W4 repair.
+# Info flow: focused Vitest command -> intended assertion failure -> W4 implementation.
+
+$ ./node_modules/.bin/vitest run src/lib/seams/wig-try-on-seam/test.ts --pool=forks --maxWorkers=1
+
+Test Files  1 failed (1)
+Tests       1 failed | 5 passed (6)
+
+FAIL src/lib/seams/wig-try-on-seam/test.ts > WigTryOnSeam mock contract > returns a supported raster portrait rather than an SVG placeholder
+AssertionError: expected [ 'image/jpeg', 'image/png', 'image/webp' ] to include 'image/svg+xml'
+
+Exit status: 1 (expected red proof)
+Base before implementation: 366016f59c879331b153ce595032ee073048530e

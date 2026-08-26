@@ -45,7 +45,9 @@ const makeDeps = (
   generateImpl: ImagePipelineDeps['imageGenerationSeam']['generate']
 ): ImagePipelineDeps => ({
   imageGenerationSeam: {
-    generate: vi.fn(generateImpl) as ImagePipelineDeps['imageGenerationSeam']['generate']
+    generate: vi.fn(
+      generateImpl
+    ) as ImagePipelineDeps['imageGenerationSeam']['generate']
   }
 });
 
@@ -53,7 +55,10 @@ describe('image-generation-pipeline edge cases', () => {
   it('rejects invalid input', async () => {
     const result = await runImageGenerationPipeline(
       { spec: {} },
-      makeDeps(async () => ({ ok: true, value: { images: [], rawModelInfo: {}, timingMs: 0 } }))
+      makeDeps(async () => ({
+        ok: true,
+        value: { images: [], rawModelInfo: {}, timingMs: 0 }
+      }))
     );
     expect(result.status).toBe(400);
     expect(result.body.ok).toBe(false);
@@ -70,7 +75,10 @@ describe('image-generation-pipeline edge cases', () => {
         variations: 1,
         outputFormat: 'pdf'
       },
-      makeDeps(async () => ({ ok: true, value: { images: [], rawModelInfo: {}, timingMs: 0 } }))
+      makeDeps(async () => ({
+        ok: true,
+        value: { images: [], rawModelInfo: {}, timingMs: 0 }
+      }))
     );
     expect(result.status).toBe(400);
     expect(result.body.ok).toBe(false);
@@ -94,6 +102,12 @@ describe('image-generation-pipeline edge cases', () => {
     );
     expect(result.status).toBe(502);
     expect(result.body.ok).toBe(false);
+    if (!result.body.ok) {
+      expect(result.body.error).toEqual({
+        code: 'IMAGE_NETWORK_ERROR',
+        message: 'Image generation provider request failed.'
+      });
+    }
   });
 
   it('returns 504 when seam returns a timeout error', async () => {
@@ -106,7 +120,10 @@ describe('image-generation-pipeline edge cases', () => {
       },
       makeDeps(async () => ({
         ok: false,
-        error: { code: 'IMAGE_TIMEOUT_ERROR', message: 'xAI image generation timed out.' } as never
+        error: {
+          code: 'IMAGE_TIMEOUT_ERROR',
+          message: 'xAI image generation timed out.'
+        } as never
       }))
     );
     expect(result.status).toBe(504);
@@ -217,6 +234,12 @@ describe('image-generation-pipeline edge cases', () => {
     );
     expect(result.status).toBe(502);
     expect(result.body.ok).toBe(false);
+    if (!result.body.ok) {
+      expect(result.body.error).toEqual({
+        code: 'IMAGE_HTTP_ERROR',
+        message: 'Image generation provider request failed.'
+      });
+    }
   });
 
   it('returns error when seam returns images without b64', async () => {
@@ -297,7 +320,9 @@ describe('image-generation-pipeline edge cases', () => {
       expect(result.body.value.images[0].format).toBe('png');
       expect(result.body.value.images[0].mimeType).toBe('image/png');
     }
-    expect(warn).toHaveBeenCalledWith('imageFormatFromBase64: unrecognized header, defaulting to png');
+    expect(warn).toHaveBeenCalledWith(
+      'imageFormatFromBase64: unrecognized header, defaulting to png'
+    );
     warn.mockRestore();
   });
 

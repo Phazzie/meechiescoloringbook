@@ -1,8 +1,8 @@
-// Purpose: Handle wig try-on requests by running the Gemini multi-image pipeline.
+// Purpose: Handle wig try-on requests through the xAI multi-image edit pipeline.
 // Why: Keep the endpoint thin and delegate orchestration to the pipeline.
 // Info flow: UI selfie + wigId -> pipeline -> WigCatalogSeam + WigTryOnSeam -> portrait JSON.
 import { json } from '@sveltejs/kit';
-import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
+import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam/index';
 import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import { runWigTryOnPipeline } from '$lib/core/wig-try-on-pipeline';
@@ -13,7 +13,7 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 
-	const configSeam = createAppConfigSeam();
+	const configSeam = createImageProviderConfigSeam();
 	const wigCatalogSeam = createWigCatalogSeam();
 	const wigTryOnSeam = createWigTryOnSeam(configSeam);
 

@@ -1,0 +1,10 @@
+# Purpose: Record the pre-fix portrait download filename behavior.
+# Why: Prove the component always named provider results `.png` regardless of their data-URL MIME.
+# Info flow: source inspection -> hard-coded suffix evidence -> W9 MIME-derived filename.
+
+$ rg -n 'download=.*\.png' src/lib/components/studio/WigTryOnStudio.svelte
+
+96: download={`meechie-try-on-${selectedWig.id}.png`}
+
+The download suffix was fixed to PNG even though the try-on contract permits JPEG, PNG, and WebP.
+Base before implementation: 220f8bb

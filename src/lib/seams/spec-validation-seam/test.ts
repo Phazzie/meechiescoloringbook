@@ -10,8 +10,23 @@ import {
 } from './fixtures';
 import { createSpecValidationMock } from './mock';
 import { specValidationAdapter } from '../../adapters/spec-validation-seam';
+import { SpecValidationIssueSchema } from './contract';
 
 describe('SpecValidationSeam contract', () => {
+	it.each(['code', 'field', 'message'] as const)(
+		'rejects an empty %s in normalized validation issues',
+		(field) => {
+			const issue = {
+				code: 'SPEC_INVALID',
+				field: 'spec',
+				message: 'Spec is invalid.',
+				[field]: ''
+			};
+
+			expect(SpecValidationIssueSchema.safeParse(issue).success).toBe(false);
+		}
+	);
+
 	it('mock returns sample fixture output', async () => {
 		const mock = createSpecValidationMock('sample');
 		const output = await mock.validate(specValidationSampleFixture.input);

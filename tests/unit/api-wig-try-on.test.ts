@@ -1,10 +1,13 @@
-// Purpose: Verify /api/wig-try-on rejects malformed JSON before seam instantiation.
-// Why: Ensure the INVALID_JSON guard fires before any expensive seam creation occurs.
-// Info flow: Raw request -> parseRequestBody -> INVALID_JSON response (no seam calls).
-import { describe, expect, it, vi } from 'vitest';
+// Purpose: Verify /api/wig-try-on parsing, narrow xAI configuration, and signal forwarding.
+// Why: Prevent malformed input from creating seams and keep valid requests off broad legacy config.
+// Info flow: Request -> parse guard -> catalog/config/provider seams -> pipeline response assertions.
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$lib/adapters/app-config-seam/index', () => ({
 	createAppConfigSeam: vi.fn()
+}));
+vi.mock('$lib/adapters/image-provider-config-seam/index', () => ({
+	createImageProviderConfigSeam: vi.fn()
 }));
 vi.mock('$lib/adapters/wig-catalog-seam/index', () => ({
 	createWigCatalogSeam: vi.fn()
@@ -14,9 +17,41 @@ vi.mock('$lib/adapters/wig-try-on-seam/index', () => ({
 }));
 
 import { createAppConfigSeam } from '$lib/adapters/app-config-seam/index';
+import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam/index';
 import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import { POST } from '../../src/routes/api/wig-try-on/+server';
+
+const providerLeakCanary =
+	'RAW_PROVIDER_BODY https://api.x.ai/v1/responses?key=xai-secret-canary 550e8400-e29b-41d4-a716-446655440000 account=acct-canary team=team-canary';
+
+const expectProviderLeakCanaryRedacted = (payload: unknown): void => {
+	const serialized = JSON.stringify(payload);
+	expect(serialized).not.toContain('RAW_PROVIDER_BODY');
+	expect(serialized).not.toContain(
+		'https://api.x.ai/v1/responses?key=xai-secret-canary'
+	);
+	expect(serialized).not.toContain('xai-secret-canary');
+	expect(serialized).not.toContain('550e8400-e29b-41d4-a716-446655440000');
+	expect(serialized).not.toContain('acct-canary');
+	expect(serialized).not.toContain('team-canary');
+};
+
+const wig = {
+	id: 'wig-001',
+	name: 'Sleek Straight Goddess',
+	brand: 'Beautyforever',
+	affiliateProgram: 'beautyforever' as const,
+	affiliateUrl: 'https://example.com/wig',
+	imageUrl: 'https://example.com/wig.png',
+	priceUsd: 89.99,
+	style: 'Straight Lace Front',
+	hairType: 'human' as const,
+	length: 'medium' as const,
+	color: 'Natural Black',
+	colorFamily: 'black' as const,
+	tags: ['sleek']
+};
 
 const buildRawEvent = (rawBody: string): Parameters<typeof POST>[0] =>
 	({
@@ -39,11 +74,14 @@ const buildEvent = (body: unknown): Parameters<typeof POST>[0] =>
 	}) as unknown as Parameters<typeof POST>[0];
 
 describe('/api/wig-try-on', () => {
-	it('rejects malformed JSON with INVALID_JSON code before creating any seams', async () => {
+	beforeEach(() => {
 		vi.mocked(createAppConfigSeam).mockReset();
+		vi.mocked(createImageProviderConfigSeam).mockReset();
 		vi.mocked(createWigCatalogSeam).mockReset();
 		vi.mocked(createWigTryOnSeam).mockReset();
+	});
 
+	it('rejects malformed JSON with INVALID_JSON code before creating any seams', async () => {
 		const response = await POST(buildRawEvent('{not: valid json}'));
 		const payload = await response.json();
 
@@ -51,12 +89,18 @@ describe('/api/wig-try-on', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('INVALID_JSON');
 		expect(createAppConfigSeam).not.toHaveBeenCalled();
+		expect(createImageProviderConfigSeam).not.toHaveBeenCalled();
 		expect(createWigCatalogSeam).not.toHaveBeenCalled();
 		expect(createWigTryOnSeam).not.toHaveBeenCalled();
 	});
 
 	it('rejects schema-invalid payload with WIG_TRY_ON_INPUT_INVALID (not INVALID_JSON)', async () => {
-		vi.mocked(createAppConfigSeam).mockReturnValue({} as ReturnType<typeof createAppConfigSeam>);
+		vi.mocked(createAppConfigSeam).mockReturnValue(
+			{} as ReturnType<typeof createAppConfigSeam>
+		);
+		vi.mocked(createImageProviderConfigSeam).mockReturnValue(
+			{} as ReturnType<typeof createImageProviderConfigSeam>
+		);
 		vi.mocked(createWigCatalogSeam).mockReturnValue({
 			listWigs: vi.fn(),
 			getWigById: vi.fn()
@@ -71,23 +115,12 @@ describe('/api/wig-try-on', () => {
 		expect(payload.error.code).toBe('WIG_TRY_ON_INPUT_INVALID');
 	});
 
-	it('passes the request signal to wig image fetch and WigTryOnSeam', async () => {
-		vi.mocked(createAppConfigSeam).mockReturnValue({} as ReturnType<typeof createAppConfigSeam>);
-		const wig = {
-			id: 'wig-001',
-			name: 'Sleek Straight Goddess',
-			brand: 'Beautyforever',
-			affiliateProgram: 'beautyforever' as const,
-			affiliateUrl: 'https://example.com/wig',
-			imageUrl: 'https://example.com/wig.png',
-			priceUsd: 89.99,
-			style: 'Straight Lace Front',
-			hairType: 'human' as const,
-			length: 'medium' as const,
-			color: 'Natural Black',
-			colorFamily: 'black' as const,
-			tags: ['sleek']
-		};
+	it('creates narrow xAI config and passes the request signal to the wig pipeline seams', async () => {
+		vi.mocked(createAppConfigSeam).mockReturnValue(
+			{} as ReturnType<typeof createAppConfigSeam>
+		);
+		const configSeam = { getConfig: vi.fn() };
+		vi.mocked(createImageProviderConfigSeam).mockReturnValue(configSeam);
 		vi.mocked(createWigCatalogSeam).mockReturnValue({
 			listWigs: vi.fn(),
 			getWigById: vi.fn(async () => ({ ok: true as const, value: wig }))
@@ -101,11 +134,12 @@ describe('/api/wig-try-on', () => {
 			}
 		}));
 		vi.mocked(createWigTryOnSeam).mockReturnValue({ tryOn });
-		const fetchImpl = vi.fn(async () =>
-			new Response(new Uint8Array([1, 2, 3]), {
-				status: 200,
-				headers: { 'Content-Type': 'image/png' }
-			})
+		const fetchImpl = vi.fn(
+			async () =>
+				new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+					status: 200,
+					headers: { 'Content-Type': 'image/jpeg' }
+				})
 		);
 		const request = new Request('http://localhost/api/wig-try-on', {
 			method: 'POST',
@@ -123,7 +157,64 @@ describe('/api/wig-try-on', () => {
 		} as unknown as Parameters<typeof POST>[0]);
 
 		expect(response.status).toBe(200);
-		expect(fetchImpl).toHaveBeenCalledWith(wig.imageUrl, { signal: request.signal });
-		expect(tryOn).toHaveBeenCalledWith(expect.objectContaining({ signal: request.signal }));
+		expect(createAppConfigSeam).not.toHaveBeenCalled();
+		expect(createImageProviderConfigSeam).toHaveBeenCalledOnce();
+		expect(createWigTryOnSeam).toHaveBeenCalledWith(configSeam);
+		expect(fetchImpl).toHaveBeenCalledWith(wig.imageUrl, {
+			signal: request.signal
+		});
+		expect(tryOn).toHaveBeenCalledWith(
+			expect.objectContaining({ signal: request.signal })
+		);
+	});
+
+	it('does not serialize upstream provider diagnostics', async () => {
+		const configSeam = { getConfig: vi.fn() };
+		vi.mocked(createImageProviderConfigSeam).mockReturnValue(configSeam);
+		vi.mocked(createWigCatalogSeam).mockReturnValue({
+			listWigs: vi.fn(),
+			getWigById: vi.fn(async () => ({ ok: true as const, value: wig }))
+		});
+		vi.mocked(createWigTryOnSeam).mockReturnValue({
+			tryOn: vi.fn(async () => ({
+				ok: false as const,
+				error: {
+					code: 'WIG_TRY_ON_HTTP_ERROR' as const,
+					message: providerLeakCanary,
+					details: {
+						body: providerLeakCanary,
+						accountId: 'acct-canary',
+						teamId: 'team-canary'
+					}
+				}
+			}))
+		});
+		const fetchImpl = vi.fn(
+			async () =>
+				new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+					status: 200,
+					headers: { 'Content-Type': 'image/jpeg' }
+				})
+		);
+		const request = new Request('http://localhost/api/wig-try-on', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				selfieBase64: 'selfie-data',
+				selfieMimeType: 'image/jpeg',
+				wigId: wig.id
+			})
+		});
+
+		const response = await POST({
+			request,
+			fetch: fetchImpl
+		} as unknown as Parameters<typeof POST>[0]);
+		const payload = await response.json();
+
+		expect(response.status).toBe(502);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('WIG_TRY_ON_HTTP_ERROR');
+		expectProviderLeakCanaryRedacted(payload);
 	});
 });

@@ -2,8 +2,29 @@
 // Why: Keep the main generation path on one server endpoint with contract-checked output.
 // Info flow: Generate request -> endpoint orchestration -> contract response.
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('$lib/adapters/image-generation-seam', () => ({
+	createImageGenerationSeam: vi.fn()
+}));
+
+import { createImageGenerationSeam } from '$lib/adapters/image-generation-seam';
 import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
 import { POST } from '../../src/routes/api/generate/+server';
+
+const providerLeakCanary =
+	'RAW_PROVIDER_BODY https://api.x.ai/v1/responses?key=xai-secret-canary 550e8400-e29b-41d4-a716-446655440000 account=acct-canary team=team-canary';
+
+const expectProviderLeakCanaryRedacted = (payload: unknown): void => {
+	const serialized = JSON.stringify(payload);
+	expect(serialized).not.toContain('RAW_PROVIDER_BODY');
+	expect(serialized).not.toContain(
+		'https://api.x.ai/v1/responses?key=xai-secret-canary'
+	);
+	expect(serialized).not.toContain('xai-secret-canary');
+	expect(serialized).not.toContain('550e8400-e29b-41d4-a716-446655440000');
+	expect(serialized).not.toContain('acct-canary');
+	expect(serialized).not.toContain('team-canary');
+};
 
 const validSpec = {
 	title: 'Dream Big',
@@ -66,7 +87,9 @@ const assembledPrompt = [
 ].join(' ');
 
 const buildPipelineDeps = (
-	generateImageImpl: (body: unknown) => Promise<{ status: number; body: unknown }>
+	generateImageImpl: (
+		body: unknown
+	) => Promise<{ status: number; body: unknown }>
 ): Parameters<typeof runGeneratePipeline>[1] & {
 	fetchImpl: ReturnType<typeof vi.fn>;
 	checkContentSafety: ReturnType<typeof vi.fn>;
@@ -101,6 +124,7 @@ const buildPipelineDeps = (
 describe('/api/generate', () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
+		vi.mocked(createImageGenerationSeam).mockReset();
 	});
 
 	it('rejects malformed JSON with INVALID_JSON code', async () => {
@@ -286,7 +310,10 @@ describe('/api/generate', () => {
 			status: 503,
 			body: {
 				ok: false,
-				error: { code: 'IMAGE_CONFIG_ERROR', message: 'Missing image provider key' }
+				error: {
+					code: 'IMAGE_CONFIG_ERROR',
+					message: 'Missing image provider key'
+				}
 			}
 		}));
 
@@ -296,7 +323,10 @@ describe('/api/generate', () => {
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
 			expect(result.body.error.code).toBe('IMAGE_CONFIG_ERROR');
-			expect(result.body.error.message).toBe('Missing image provider key');
+			expect(result.body.error.message).toBe(
+				'Image generation is temporarily unavailable.'
+			);
+			expect(result.body.error.details).toBeUndefined();
 		}
 		expect(deps.fetchImpl).not.toHaveBeenCalled();
 	});
@@ -328,7 +358,10 @@ describe('/api/generate', () => {
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
 			expect(result.body.error.code).toBe('IMAGE_GENERATION_FAILED');
-			expect(result.body.error.details?.reason).toBe('adapter exploded');
+			expect(result.body.error.message).toBe(
+				'Image generation failed unexpectedly.'
+			);
+			expect(result.body.error.details).toBeUndefined();
 		}
 		expect(deps.fetchImpl).not.toHaveBeenCalled();
 	});
@@ -346,47 +379,60 @@ describe('/api/generate', () => {
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
 			expect(result.body.error.code).toBe('IMAGE_GENERATION_TIMEOUT');
-			expect(result.body.error.details?.reason).toBe('provider request timed out');
+			expect(result.body.error.message).toBe('Image generation timed out.');
+			expect(result.body.error.details).toBeUndefined();
 		}
 		expect(deps.fetchImpl).not.toHaveBeenCalled();
 	});
 
 	it('keeps the endpoint parse and input guards transport-thin', async () => {
-		const providerFetchMock = vi.fn(async () =>
-			new Response(JSON.stringify({ data: [{ b64_json: 'aGVsbG8=' }] }), {
-				status: 200,
-				headers: { 'Content-Type': 'application/json' }
-			})
+		vi.mocked(createImageGenerationSeam).mockReturnValue({
+			generate: vi.fn(async () => ({
+				ok: true as const,
+				value: {
+					images: [{ id: 'xai-1', b64: 'iVBORw0KGgo=' }],
+					rawModelInfo: { model: 'grok-imagine-image' },
+					timingMs: 1
+				}
+			}))
+		});
+		const providerFetchMock = vi.fn(
+			async () =>
+				new Response(JSON.stringify({ data: [{ b64_json: 'aGVsbG8=' }] }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' }
+				})
 		);
 		// POST destructures only `request`; the image adapter uses global fetch. Stub that
 		// boundary so this unit test cannot issue a live xAI request and retry until timeout.
 		vi.stubGlobal('fetch', providerFetchMock);
-		const fetchMock = vi.fn(async () =>
-			new Response(
-				JSON.stringify({
-					ok: true,
-					value: {
-						images: [
-							{
-								id: 'image-1',
-								format: 'png',
-								mimeType: 'image/png',
-								data: 'abc123',
-								encoding: 'base64'
+		const fetchMock = vi.fn(
+			async () =>
+				new Response(
+					JSON.stringify({
+						ok: true,
+						value: {
+							images: [
+								{
+									id: 'image-1',
+									format: 'png',
+									mimeType: 'image/png',
+									data: 'abc123',
+									encoding: 'base64'
+								}
+							],
+							revisedPrompt: 'black and white revised prompt',
+							modelMetadata: {
+								provider: 'xai',
+								model: 'grok-imagine-image'
 							}
-						],
-						revisedPrompt: 'black and white revised prompt',
-						modelMetadata: {
-							provider: 'xai',
-							model: 'grok-imagine-image'
 						}
+					}),
+					{
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
 					}
-				}),
-				{
-					status: 200,
-					headers: { 'Content-Type': 'application/json' }
-				}
-			)
+				)
 		);
 
 		const response = await POST(
@@ -425,6 +471,33 @@ describe('/api/generate', () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.error.code).toBe('CONTENT_POLICY_VIOLATION');
 		expect(payload.error.details.policyDetails).toContain('styleHint');
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('does not serialize upstream provider diagnostics at the endpoint', async () => {
+		vi.mocked(createImageGenerationSeam).mockReturnValue({
+			generate: vi.fn(async () => ({
+				ok: false as const,
+				error: {
+					code: 'IMAGE_HTTP_ERROR' as const,
+					message: providerLeakCanary,
+					details: {
+						body: providerLeakCanary,
+						accountId: 'acct-canary',
+						teamId: 'team-canary'
+					}
+				}
+			}))
+		});
+		const fetchMock = vi.fn(async () => new Response('{}', { status: 500 }));
+
+		const response = await POST(buildEvent({ spec: validSpec }, fetchMock));
+		const payload = await response.json();
+
+		expect(response.status).toBe(502);
+		expect(payload.ok).toBe(false);
+		expect(payload.error.code).toBe('IMAGE_HTTP_ERROR');
+		expectProviderLeakCanaryRedacted(payload);
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });

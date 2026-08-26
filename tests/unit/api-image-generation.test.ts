@@ -50,6 +50,23 @@ const validPrompt = [
   'US Letter 8.5x11 portrait.'
 ].join(' ');
 
+const providerLeakCanary =
+  'RAW_PROVIDER_BODY https://api.x.ai/v1/images?key=xai-secret-canary 550e8400-e29b-41d4-a716-446655440000 account=acct-canary team=team-canary';
+
+const expectProviderLeakCanaryRedacted = (payload: unknown): void => {
+  const serialized = JSON.stringify(payload);
+  for (const token of [
+    'RAW_PROVIDER_BODY',
+    'https://api.x.ai/v1/images?key=xai-secret-canary',
+    'xai-secret-canary',
+    '550e8400-e29b-41d4-a716-446655440000',
+    'acct-canary',
+    'team-canary'
+  ]) {
+    expect(serialized).not.toContain(token);
+  }
+};
+
 const buildEvent = (body: unknown) =>
   ({
     request: new Request('http://localhost/api/image-generation', {
@@ -112,6 +129,37 @@ describe('/api/image-generation', () => {
 
     expect(response.status).toBe(502);
     expect(payload.ok).toBe(false);
+  });
+
+  it('does not serialize upstream provider diagnostics', async () => {
+    mockCreateSeam.mockReturnValue({
+      generate: vi.fn(async () => ({
+        ok: false as const,
+        error: {
+          code: 'IMAGE_HTTP_ERROR' as const,
+          message: providerLeakCanary,
+          details: {
+            body: providerLeakCanary,
+            accountId: 'acct-canary',
+            teamId: 'team-canary'
+          }
+        }
+      }))
+    });
+
+    const response = await POST(
+      buildEvent({
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(payload.error.code).toBe('IMAGE_HTTP_ERROR');
+    expectProviderLeakCanaryRedacted(payload);
   });
 
   it('returns 200 with images when seam succeeds', async () => {

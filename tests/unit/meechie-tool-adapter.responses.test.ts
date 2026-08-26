@@ -13,7 +13,7 @@ vi.mock('../../src/lib/adapters/provider-adapter.adapter', () => ({
 }));
 
 // Import after mock registration so the adapter picks up the mocked provider.
-const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool.adapter');
+const { meechieToolAdapter } = await import('../../src/lib/adapters/meechie-tool-seam');
 
 const okResponse = (headline: string, response: string, rating?: number) => ({
 	ok: true as const,

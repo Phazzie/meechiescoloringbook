@@ -7,9 +7,14 @@ import {
 	SpecValidationInputSchema,
 	SpecValidationOutputSchema
 } from '../../contracts/spec-validation.contract';
+import {
+	SpecValidationInputSchema as canonicalSpecValidationInputSchema,
+	SpecValidationOutputSchema as canonicalSpecValidationOutputSchema
+} from '../../src/lib/seams/spec-validation-seam/contract';
 import { ScenarioSchema } from '../../contracts/shared.contract';
 import { createSpecValidationMock } from '../../src/lib/mocks/spec-validation.mock';
 import { specValidationAdapter } from '../../src/lib/adapters/spec-validation.adapter';
+import { specValidationAdapter as canonicalSpecValidationAdapter } from '../../src/lib/adapters/spec-validation-seam';
 import sample from '../../fixtures/spec-validation/sample.json';
 import fault from '../../fixtures/spec-validation/fault.json';
 import titleOnly from '../../fixtures/spec-validation/title-only.json';
@@ -27,6 +32,14 @@ const titleOnlyFixture = fixtureSchema.parse(titleOnly);
 const maxItemsFixture = fixtureSchema.parse(maxItems);
 
 describe('SpecValidationSeam contract', () => {
+	it('keeps the legacy imports as exact aliases of the canonical seam', () => {
+		expect(SpecValidationInputSchema).toBe(canonicalSpecValidationInputSchema);
+		expect(SpecValidationOutputSchema).toBe(
+			canonicalSpecValidationOutputSchema
+		);
+		expect(specValidationAdapter).toBe(canonicalSpecValidationAdapter);
+	});
+
 	it('mock returns sample fixture output', async () => {
 		const mock = createSpecValidationMock('sample');
 		const output = await mock.validate(sampleFixture.input);

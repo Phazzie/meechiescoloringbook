@@ -1,17 +1,19 @@
 // Purpose: Centralize Meechie studio modes, control metadata, and spec mapping.
 // Why: Keep UI pricing/budget labels and page text generation deterministic.
 // Info flow: Metadata + AI text output -> UI controls -> ColoringPageSpec.
-import { MAX_LABEL_LENGTH, type ColoringPageSpec } from '../../../contracts/spec-validation.contract';
+import {
+	MAX_LABEL_LENGTH,
+	MAX_TITLE_LENGTH,
+	type ColoringPageSpec
+} from '../../../contracts/spec-validation.contract';
 import type { CreationRecord, DraftRecord } from '../../../contracts/creation-store.contract';
 import type { MeechieStudioTextAction, MeechieStudioTextOutput } from '../../../contracts/meechie-studio-text.contract';
 import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract';
 
 export const DEFAULT_REVISION_BUDGET = 3;
 
-// Placeholder shown on the page preview before anything is generated.
-// The quote and page items are drawn from approved voice-pack lines
-// (ids: i-dont-act, the-door, lower-my-voice) so the preview never shows
-// wording that was ruled out of the voice.
+// Seed and fallback used for the internal spec and legacy records. It is not the idle
+// on-screen preview: before generated text exists, the UI shows a static demo PNG.
 export const DEFAULT_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	verdict: 'Meechie already clocked it.',
 	// The owner-ruled default. Must stay a line that exists in the voice pack — the previous
@@ -340,7 +342,7 @@ export const canRunStudioAction = (
 	return true;
 };
 
-const normalizeSpecLabel = (value: string, fallback: string): string => {
+const normalizeSpecText = (value: string, fallback: string, maxLength: number): string => {
 	const normalized = value
 		.normalize('NFKD')
 		.replace(/&/g, ' ')
@@ -349,8 +351,14 @@ const normalizeSpecLabel = (value: string, fallback: string): string => {
 		.trim()
 		.toUpperCase();
 	const safe = normalized.length > 0 ? normalized : fallback;
-	return safe.slice(0, MAX_LABEL_LENGTH).trim();
+	return safe.slice(0, maxLength).trim();
 };
+
+const normalizeSpecLabel = (value: string, fallback: string): string =>
+	normalizeSpecText(value, fallback, MAX_LABEL_LENGTH);
+
+const normalizeSpecTitle = (value: string, fallback: string): string =>
+	normalizeSpecText(value, fallback, MAX_TITLE_LENGTH);
 
 const buildStudioTextFromSpec = (input: {
 	intent: ColoringPageSpec;
@@ -360,7 +368,7 @@ const buildStudioTextFromSpec = (input: {
 	if (input.studioText) {
 		return input.studioText;
 	}
-	const pageTitle = normalizeSpecLabel(input.intent.title, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
+	const pageTitle = normalizeSpecTitle(input.intent.title, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
 	return {
 		verdict: pageTitle,
 		quote: input.quoteFallback?.trim() || input.intent.footerItem?.label || pageTitle,
@@ -401,7 +409,7 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	styleHint: string;
 	dedication?: string;
 }): ColoringPageSpec => ({
-	title: normalizeSpecLabel(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle),
+	title: normalizeSpecTitle(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle),
 	items: input.output.pageItems.map((item) => ({
 		number: item.number,
 		label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
