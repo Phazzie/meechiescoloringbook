@@ -13,6 +13,19 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 	import { GenerateResultSchema } from '../../../contracts/generate.contract';
 	import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 
+	// `format` is the only image-type field the contract actually constrains: it is a
+	// closed four-value enum, while `mimeType` is `NonEmptyStringSchema`, so any non-empty
+	// string passes validation. Deriving the media type from the enum is therefore total
+	// (it can never emit `undefined`) and it cannot forward an unvalidated wire value. It
+	// also emits the registered `image/jpeg` and `image/svg+xml` names rather than the
+	// non-standard `image/jpg` and `image/svg` that interpolating the enum member produced.
+	const IMAGE_MIME_TYPES: Record<GeneratedImage['format'], string> = {
+		svg: 'image/svg+xml',
+		png: 'image/png',
+		jpg: 'image/jpeg',
+		webp: 'image/webp'
+	};
+
 	let excuse = '';
 	let result: MeechieToolOutput | null = null;
 	let isWorking = false;
@@ -119,10 +132,10 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 			imagePreviews = images
 				.map((img: GeneratedImage): string | null => {
 					if (img.format === 'svg' && img.encoding === 'utf8') {
-						return `data:image/svg+xml;utf8,${encodeURIComponent(img.data)}`;
+						return `data:${IMAGE_MIME_TYPES.svg};utf8,${encodeURIComponent(img.data)}`;
 					}
 					if (img.encoding === 'base64') {
-						return `data:image/${img.format};base64,${img.data}`;
+						return `data:${IMAGE_MIME_TYPES[img.format]};base64,${img.data}`;
 					}
 					return null;
 				})

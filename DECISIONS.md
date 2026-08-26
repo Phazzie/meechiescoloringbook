@@ -7,6 +7,30 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-08-26 - Meter every billable route, with a degraded store instead of an unauthorized one
+
+- Date: 2026-08-26
+- Decision: Wire one required rate-limit gate through all six billable routes, threading SvelteKit's own `event.getClientAddress`. Select the store by configuration: durable Upstash when all three settings are valid, a bounded in-process fixed window when all three are absent, and a fail-closed 503 when the set is partial or invalid. Charge after local validation and immediately before the first billable provider call, and give `/generate` an explicit required precharged mode rather than letting it and the image pipeline both charge.
+- Context: R0 built a complete, reviewed durable limiter and called it from no route, so production had no rate limiting at all — verified directly against the deployed application. Wiring it fail-closed with no durable store provisioned would have turned every AI request into a 503 and taken the live app down, and provisioning that store (ticket R2) is not authorized.
+- Alternatives: Fail closed with no fallback; rejected because it breaks a working deployment to satisfy a ticket. An enable/disable switch; rejected previously and again here, because it permits unmetered provider calls and is the exact bypass this work exists to prevent. Charging per variation inside a loop; rejected because a mid-request denial bills a caller for work already in flight.
+- Consequences: Degraded mode still meters every call at the same 20/min text and 8/min image budgets, and is weaker only in that N serverless instances allow at most N times the budget. No input can express "no quota" — the gate is a required dependency and the precharged mode is a discriminated union, so an unmetered path fails to typecheck rather than failing silently. Module-scope deps presets carry only the adapter half, because a preset has no event and therefore cannot carry a gate.
+- Revisit criteria: Replace degraded mode with the durable store as soon as R2 is authorized and the three settings are configured; no code change is required, only configuration.
+- Self-critique: The shared fallback bucket is a single global budget, so any future change that makes address resolution fail turns a partial degradation into a near-total outage. That risk is now pinned by tests rather than left to inspection.
+
+- Assumption:
+  - Date: 2026-08-26
+  - Seams: RateLimitSeam
+  - Statement: The durable Upstash-backed RateLimitSeam adapter behaves in production as its fixtures and fake-store tests describe. No live durable store has been provisioned or contacted, so atomic INCRBY/PEXPIREAT semantics, timeout behaviour, and cross-instance sharing are proven only against a fake that models them.
+  - Validation: Once R2 is authorized, configure UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN and RATE_LIMIT_IDENTITY_SECRET, then run the bounded non-billable allow/deny/reset acceptance sequence against a dedicated probe key and record redacted status, timing and TTL evidence.
+  - Status: Open. Provisioning a durable store is infrastructure mutation and was not authorized by the owner; the earlier claim that it had been could not be substantiated. Degraded in-process metering is in force meanwhile, so the absence of this store reduces the strength of the limit but never disables it.
+
+- Assumption:
+  - Date: 2026-08-26
+  - Seams: WigTryOnSeam
+  - Statement: The configured xAI account accepts the exact two-image edit payload the production adapter sends to /v1/images/edits and returns a supported raster image.
+  - Validation: Execute the single capped W11B acceptance call once, with no retry, and assert 200 plus non-empty supported raster output with secret-free evidence.
+  - Status: Open. A live provider call spends money and was not authorized by the owner. Transport correctness is proven against a fake that asserts exact URL, headers, body, image order and model, and that no credential appears in any URL — but that is request compatibility, not account acceptance.
+
 ## 2026-08-25 - Reconcile the concurrent PR #228 head without widening repository authority
 
 - Date: 2026-08-25

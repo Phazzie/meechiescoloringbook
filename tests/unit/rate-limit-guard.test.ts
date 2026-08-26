@@ -5,12 +5,18 @@ import { describe, expect, it, vi } from 'vitest';
 import type { RateLimitSeam } from '../../src/lib/seams/rate-limit-seam/contract';
 import {
 	RATE_LIMIT_POLICIES,
-	createRateLimitGuard
+	createRateLimitGuard,
+	isDurableRateLimitConfigAbsent
 } from '../../src/lib/server/rate-limit-guard';
 import {
 	loadRateLimitConfig,
 	type RateLimitConfig
 } from '../../src/lib/server/rate-limit-config';
+import {
+	createMemoryRateLimitSeam,
+	memoryRateLimitIdentitySecret
+} from '../../src/lib/server/rate-limit-memory-store';
+import { resolveRateLimitIdentity } from '../../src/lib/server/rate-limit-identity';
 
 const CONFIG: RateLimitConfig = {
 	upstashRestUrl: 'https://fixture-upstash.example',
@@ -19,11 +25,27 @@ const CONFIG: RateLimitConfig = {
 	operationTimeoutMs: 1_500
 };
 
+const FULL_ENVIRONMENT = {
+	UPSTASH_REDIS_REST_URL: 'https://fixture-upstash.example',
+	UPSTASH_REDIS_REST_TOKEN: 'fixture-store-token',
+	RATE_LIMIT_IDENTITY_SECRET: 'fixture-identity-secret'
+};
+
+// Somebody started configuring durable limiting and stopped halfway.
+const PARTIAL_ENVIRONMENT = {
+	UPSTASH_REDIS_REST_URL: 'https://fixture-upstash.example'
+};
+
 const createSeam = (
 	result: Awaited<ReturnType<RateLimitSeam['consume']>>
 ): RateLimitSeam => ({
 	consume: vi.fn().mockResolvedValue(result)
 });
+
+const allowedResult = {
+	ok: true as const,
+	value: { allowed: true, limit: 20, used: 1, remaining: 19, resetAtMs: 60_000 }
+};
 
 describe('rate-limit configuration and policies', () => {
 	it('defines the shared one-minute text and image budgets', () => {
@@ -100,6 +122,7 @@ describe('rate-limit guard', () => {
 				'RateLimit-Reset': '59'
 			},
 			identityKind: 'pseudonymous',
+			store: 'durable',
 			limit: 20,
 			remaining: 17,
 			resetAtMs: 60_000
@@ -175,6 +198,7 @@ describe('rate-limit guard', () => {
 		[
 			'configuration failure',
 			{
+				readEnvironment: () => PARTIAL_ENVIRONMENT,
 				loadConfig: () => {
 					throw new Error('config-secret=do-not-leak');
 				}
@@ -236,5 +260,171 @@ describe('rate-limit guard', () => {
 			}
 		});
 		expect(JSON.stringify(result)).not.toMatch(/192\.0\.2\.44|do-not-leak/);
+	});
+});
+
+describe('rate-limit store selection', () => {
+	const memorySeamFactory = () => {
+		const seam = createMemoryRateLimitSeam({ now: () => 0 });
+		const create = vi.fn(() => seam);
+		return { seam, create };
+	};
+
+	it('uses the durable store when every durable setting is present and valid', async () => {
+		const memory = memorySeamFactory();
+		const durable = createSeam(allowedResult);
+		const guard = createRateLimitGuard({
+			readEnvironment: () => FULL_ENVIRONMENT,
+			createSeam: () => durable,
+			createMemorySeam: memory.create,
+			now: () => 0
+		});
+
+		const result = await guard({ bucket: 'text', getClientAddress: () => '192.0.2.44' });
+
+		expect(result).toMatchObject({ ok: true, store: 'durable' });
+		expect(durable.consume).toHaveBeenCalledTimes(1);
+		expect(memory.create).not.toHaveBeenCalled();
+	});
+
+	it('degrades to the in-process store when no durable setting is present', async () => {
+		const memory = memorySeamFactory();
+		const durable = createSeam(allowedResult);
+		const guard = createRateLimitGuard({
+			readEnvironment: () => ({}),
+			createSeam: () => durable,
+			createMemorySeam: memory.create,
+			now: () => 0
+		});
+
+		const result = await guard({ bucket: 'text', getClientAddress: () => '192.0.2.44' });
+
+		expect(result).toMatchObject({
+			ok: true,
+			store: 'memory',
+			identityKind: 'pseudonymous',
+			limit: 20,
+			remaining: 19
+		});
+		expect(durable.consume).not.toHaveBeenCalled();
+		expect(memory.seam.trackedKeyCount()).toBe(1);
+	});
+
+	it('treats blank durable settings as absent', async () => {
+		const memory = memorySeamFactory();
+		const guard = createRateLimitGuard({
+			readEnvironment: () => ({
+				UPSTASH_REDIS_REST_URL: '',
+				UPSTASH_REDIS_REST_TOKEN: '   ',
+				RATE_LIMIT_IDENTITY_SECRET: undefined
+			}),
+			createMemorySeam: memory.create,
+			now: () => 0
+		});
+
+		const result = await guard({ bucket: 'text', getClientAddress: () => '192.0.2.44' });
+
+		expect(result).toMatchObject({ ok: true, store: 'memory' });
+	});
+
+	it('still enforces the exact budget in degraded mode', async () => {
+		const memory = memorySeamFactory();
+		const guard = createRateLimitGuard({
+			readEnvironment: () => ({}),
+			createMemorySeam: memory.create,
+			now: () => 0
+		});
+		const results = [];
+		for (let call = 0; call < 21; call += 1) {
+			results.push(await guard({ bucket: 'text', getClientAddress: () => '192.0.2.44' }));
+		}
+
+		expect(results.slice(0, 20).every((result) => result.ok)).toBe(true);
+		expect(results[20]).toMatchObject({
+			ok: false,
+			status: 429,
+			error: { code: 'RATE_LIMITED' }
+		});
+	});
+
+	it('derives degraded identities from the per-process secret, not the durable one', async () => {
+		const memory = memorySeamFactory();
+		const guard = createRateLimitGuard({
+			readEnvironment: () => ({}),
+			createMemorySeam: memory.create,
+			now: () => 0
+		});
+
+		const result = await guard({ bucket: 'text', getClientAddress: () => '192.0.2.44' });
+		const durableKey = resolveRateLimitIdentity({
+			identitySecret: CONFIG.identitySecret,
+			getClientAddress: () => '192.0.2.44'
+		}).key;
+		const degradedKey = resolveRateLimitIdentity({
+			identitySecret: memoryRateLimitIdentitySecret(),
+			getClientAddress: () => '192.0.2.44'
+		}).key;
+
+		expect(result).toMatchObject({ ok: true, identityKind: 'pseudonymous' });
+		expect(degradedKey).not.toBe(durableKey);
+		expect(JSON.stringify(result)).not.toMatch(/192\.0\.2\.44|[a-f0-9]{64}/);
+	});
+
+	it.each([
+		['store url only', { UPSTASH_REDIS_REST_URL: 'https://fixture-upstash.example' }],
+		['identity secret only', { RATE_LIMIT_IDENTITY_SECRET: 'identity-secret' }],
+		[
+			'store settings without an identity secret',
+			{
+				UPSTASH_REDIS_REST_URL: 'https://fixture-upstash.example',
+				UPSTASH_REDIS_REST_TOKEN: 'store-token'
+			}
+		],
+		[
+			'an insecure store url',
+			{ ...FULL_ENVIRONMENT, UPSTASH_REDIS_REST_URL: 'http://fixture-upstash.example' }
+		],
+		[
+			'an invalid operation timeout',
+			{ ...FULL_ENVIRONMENT, RATE_LIMIT_OPERATION_TIMEOUT_MS: 'soon' }
+		]
+	])('fails closed with 503 on %s and never reaches the memory store', async (
+		_label,
+		environment
+	) => {
+		const memory = memorySeamFactory();
+		const guard = createRateLimitGuard({
+			readEnvironment: () => environment,
+			createMemorySeam: memory.create,
+			now: () => 0
+		});
+
+		const result = await guard({ bucket: 'text', getClientAddress: () => '192.0.2.44' });
+
+		expect(result).toEqual({
+			ok: false,
+			status: 503,
+			headers: { 'Cache-Control': 'no-store' },
+			error: {
+				code: 'RATE_LIMIT_UNAVAILABLE',
+				message: 'Rate limiting is temporarily unavailable.'
+			}
+		});
+		expect(memory.create).not.toHaveBeenCalled();
+	});
+
+	it('classifies durable configuration presence without reading the timeout override', () => {
+		expect(isDurableRateLimitConfigAbsent({})).toBe(true);
+		expect(
+			isDurableRateLimitConfigAbsent({ RATE_LIMIT_OPERATION_TIMEOUT_MS: '1500' })
+		).toBe(true);
+		expect(isDurableRateLimitConfigAbsent(FULL_ENVIRONMENT)).toBe(false);
+		expect(isDurableRateLimitConfigAbsent(PARTIAL_ENVIRONMENT)).toBe(false);
+		expect(
+			isDurableRateLimitConfigAbsent({ UPSTASH_REDIS_REST_TOKEN: 'store-token' })
+		).toBe(false);
+		expect(
+			isDurableRateLimitConfigAbsent({ RATE_LIMIT_IDENTITY_SECRET: ' ' })
+		).toBe(true);
 	});
 });

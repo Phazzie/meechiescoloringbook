@@ -19,7 +19,35 @@ type FakeAtomicStore = {
 	fetchImpl: typeof fetch;
 	counts: Map<string, number>;
 	expiresAtMs: Map<string, number>;
-	requests: Array<{ url: string; init: RequestInit; command: unknown[] }>;
+	requests: Array<{ url: string; init: RequestInit; body: string; command: string[] }>;
+};
+
+type StoreRequest = FakeAtomicStore['requests'][number];
+
+const readRequestUrl = (input: RequestInfo | URL): string => {
+	if (typeof input === 'string') return input;
+	if (input instanceof URL) return input.href;
+	return input.url;
+};
+
+const readRequestBody = (body: BodyInit | null | undefined): string => {
+	if (typeof body !== 'string') {
+		throw new TypeError('Fake Upstash store expected a string request body.');
+	}
+	return body;
+};
+
+const readCommand = (body: string): string[] => {
+	const parsed: unknown = JSON.parse(body);
+	if (!Array.isArray(parsed) || parsed.some((part) => typeof part !== 'string')) {
+		throw new TypeError('Fake Upstash store expected string-only command parts.');
+	}
+	return parsed as string[];
+};
+
+const storageKeyOf = (request: StoreRequest | undefined): string => {
+	if (!request) throw new Error('Expected a recorded fake-store request.');
+	return request.command[3];
 };
 
 const createFakeAtomicStore = (now: () => number): FakeAtomicStore => {
@@ -27,16 +55,17 @@ const createFakeAtomicStore = (now: () => number): FakeAtomicStore => {
 	const expiresAtMs = new Map<string, number>();
 	const requests: FakeAtomicStore['requests'] = [];
 	const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-		const command = JSON.parse(String(init?.body)) as unknown[];
-		requests.push({ url: String(input), init: init ?? {}, command });
+		const body = readRequestBody(init?.body);
+		const command = readCommand(body);
+		requests.push({ url: readRequestUrl(input), init: init ?? {}, body, command });
 		for (const [storedKey, resetAtMs] of expiresAtMs) {
 			if (resetAtMs <= now()) {
 				counts.delete(storedKey);
 				expiresAtMs.delete(storedKey);
 			}
 		}
-		const script = String(command[1]);
-		const key = String(command[3]);
+		const script = command[1];
+		const key = command[3];
 		const cost = Number(command[4]);
 		const resetAtMs = Number(command[5]);
 		const isNewKey = !counts.has(key);
@@ -53,7 +82,8 @@ const createFakeAtomicStore = (now: () => number): FakeAtomicStore => {
 	return { fetchImpl, counts, expiresAtMs, requests };
 };
 
-const createAdapterHarness = (nowRef = { value: 0 }) => {
+const createAdapterHarness = (nowRefOverride?: { value: number }) => {
+	const nowRef = nowRefOverride ?? { value: 0 };
 	const store = createFakeAtomicStore(() => nowRef.value);
 	const seam = createRateLimitSeam(
 		{
@@ -107,9 +137,7 @@ describe('RateLimitSeam Upstash adapter', () => {
 			'Bearer fixture-store-token'
 		);
 		expect(request.command.slice(0, 3)).toEqual(['EVAL', expect.any(String), '1']);
-		expect(`${request.url}${String(request.init.body)}`).not.toContain(
-			'fixture-store-token'
-		);
+		expect(`${request.url}${request.body}`).not.toContain('fixture-store-token');
 	});
 
 	it('allows exactly the configured boundary and rejects the next concurrent cost', async () => {
@@ -131,10 +159,10 @@ describe('RateLimitSeam Upstash adapter', () => {
 		const nowRef = { value: 59_999 };
 		const { seam, store } = createAdapterHarness(nowRef);
 		const beforeReset = await seam.consume(rateLimitConsumeFixture);
-		const oldKey = String(store.requests[0]?.command[3]);
+		const oldKey = storageKeyOf(store.requests[0]);
 		nowRef.value = 60_000;
 		const afterReset = await seam.consume(rateLimitConsumeFixture);
-		const newKey = String(store.requests[1]?.command[3]);
+		const newKey = storageKeyOf(store.requests[1]);
 
 		expect(beforeReset).toMatchObject({
 			ok: true,

@@ -41,8 +41,12 @@ const parseSeams = (content) => {
 		if (cells[0].startsWith('---')) {
 			continue;
 		}
-		const [seam, , probe] = cells;
-		seams.push({ seam, probe });
+		// Columns: Seam | Contract | Probe | Fixtures | Mock | Tests | Adapter | Owner | Last probe | Notes
+		// `probe` is a file path; the blocked marker lives in `lastProbe`. Reading only the path
+		// meant a seam whose probe exists but has never been run against the real dependency was
+		// never flagged, so blockedSeams was empty and this gate passed vacuously.
+		const [seam, , probe, , , , , , lastProbe] = cells;
+		seams.push({ seam, probe, lastProbe });
 	}
 	return seams;
 };
@@ -92,9 +96,15 @@ const run = async () => {
 	const seams = parseSeams(seamsContent);
 	const assumptions = parseAssumptions(decisionsContent);
 
-	const blockedSeams = seams
-		.filter((seam) => (seam.probe ?? '').startsWith('TBD'))
-		.map((seam) => seam.seam);
+	const isBlocked = (seam) => {
+		// Legacy convention: 'TBD' written into the probe-path column.
+		if ((seam.probe ?? '').startsWith('TBD')) return true;
+		// Current convention: the Last probe column records 'TBD (blocked)'.
+		const lastProbe = (seam.lastProbe ?? '').toLowerCase();
+		return lastProbe.startsWith('tbd') || lastProbe.includes('blocked');
+	};
+
+	const blockedSeams = seams.filter(isBlocked).map((seam) => seam.seam);
 
 	const requiredFields = ['date', 'seams', 'statement', 'validation', 'status'];
 	const assumptionChecks = assumptions.map((assumption) => {

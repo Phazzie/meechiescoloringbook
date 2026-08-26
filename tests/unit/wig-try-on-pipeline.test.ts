@@ -3,6 +3,7 @@
 // Info flow: catalog wig + fake image response -> pipeline MIME sniff -> WigTryOnSeam request or safe 502.
 import { describe, expect, it, vi } from 'vitest';
 import { runWigTryOnPipeline } from '../../src/lib/core/wig-try-on-pipeline';
+import type { QuotaDecision } from '../../src/lib/server/rate-limit-route';
 import { sampleWigFixture } from '../../src/lib/seams/wig-catalog-seam/fixtures';
 import type { WigCatalogSeam } from '../../src/lib/seams/wig-catalog-seam/contract';
 import type {
@@ -22,6 +23,18 @@ const wig = {
 	imageUrl: '/wigs/wig-001-sleek-straight-goddess.jpg'
 };
 
+const ALLOWED_HEADERS = {
+	'Cache-Control': 'no-store',
+	'RateLimit-Limit': '8',
+	'RateLimit-Remaining': '7',
+	'RateLimit-Reset': '58'
+};
+
+const ALLOWED: QuotaDecision = { ok: true, headers: ALLOWED_HEADERS };
+
+/** A gate that always allows, so a test can count exactly when the image bucket is charged. */
+const allowingGate = () => vi.fn(async (_cost: number): Promise<QuotaDecision> => ALLOWED);
+
 const buildDeps = (fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) => {
 	const wigCatalogSeam: WigCatalogSeam = {
 		listWigs: vi.fn(),
@@ -38,9 +51,12 @@ const buildDeps = (fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => 
 	});
 	const wigTryOnSeam: WigTryOnSeam = { tryOn };
 
+	const consumeQuota = allowingGate();
+
 	return {
-		deps: { fetchImpl, wigCatalogSeam, wigTryOnSeam },
-		tryOn
+		deps: { fetchImpl, wigCatalogSeam, wigTryOnSeam, consumeQuota },
+		tryOn,
+		consumeQuota
 	};
 };
 
@@ -195,7 +211,9 @@ describe('wig try-on user-safe error mapping', () => {
 
 			expect(result).toEqual({
 				status,
-				body: { ok: false, error: { code: error.code, message } }
+				body: { ok: false, error: { code: error.code, message } },
+				// Charged already, so the caller is told what is left of the window.
+				headers: ALLOWED_HEADERS
 			});
 			expect(JSON.stringify(result)).not.toContain('SECRET');
 			expect(JSON.stringify(result)).not.toContain('provider.test');
@@ -253,7 +271,8 @@ describe('wig try-on user-safe error mapping', () => {
 		const result = await runWigTryOnPipeline(requestBody, {
 			fetchImpl,
 			wigCatalogSeam,
-			wigTryOnSeam: { tryOn }
+			wigTryOnSeam: { tryOn },
+			consumeQuota: allowingGate()
 		});
 
 		expect(result).toEqual({
@@ -301,7 +320,228 @@ describe('wig try-on user-safe error mapping', () => {
 					code: 'WIG_TRY_ON_OUTPUT_INVALID',
 					message: 'Wig try-on response did not match contract.'
 				}
+			},
+			headers: ALLOWED_HEADERS
+		});
+	});
+});
+
+describe('wig try-on quota charge placement', () => {
+	it('charges one image unit only once the provider call is actually reached', async () => {
+		// A wig that does not exist never reaches a provider, so it must never spend a credit.
+		const missingWigGate = allowingGate();
+		const missingWigFetch = validJpegFetch();
+		const missingWigTryOn = vi.fn<WigTryOnSeam['tryOn']>();
+		const missing = await runWigTryOnPipeline(requestBody, {
+			fetchImpl: missingWigFetch,
+			wigCatalogSeam: {
+				listWigs: vi.fn(),
+				getWigById: vi.fn(async () => ({
+					ok: false as const,
+					error: {
+						code: 'WIG_NOT_FOUND' as const,
+						message: 'no such wig',
+						details: { id: sampleWigFixture.id }
+					}
+				}))
+			},
+			wigTryOnSeam: { tryOn: missingWigTryOn },
+			consumeQuota: missingWigGate
+		});
+
+		expect(missing.status).toBe(404);
+		expect(missingWigTryOn).not.toHaveBeenCalled();
+		expect(missingWigGate).not.toHaveBeenCalled();
+
+		// W7/W8: a wig image that cannot be fetched fails before the provider, so it is free too.
+		const fetchFailureGate = allowingGate();
+		const failureDeps = buildDeps(
+			vi.fn(async () => new Response('nope', { status: 500 }))
+		);
+		const failed = await runWigTryOnPipeline(requestBody, {
+			...failureDeps.deps,
+			consumeQuota: fetchFailureGate
+		});
+
+		expect(failed.status).toBe(502);
+		expect(failureDeps.tryOn).not.toHaveBeenCalled();
+		expect(fetchFailureGate).not.toHaveBeenCalled();
+
+		// Control: the request that does reach the provider is charged exactly one image unit.
+		// Without this the two assertions above would pass against a pipeline with no gate at all.
+		const chargedGate = allowingGate();
+		const okDeps = buildDeps(validJpegFetch());
+		const allowed = await runWigTryOnPipeline(requestBody, {
+			...okDeps.deps,
+			consumeQuota: chargedGate
+		});
+
+		expect(allowed.status).toBe(200);
+		expect(okDeps.tryOn).toHaveBeenCalledTimes(1);
+		expect(chargedGate).toHaveBeenCalledTimes(1);
+		expect(chargedGate).toHaveBeenCalledWith(1);
+	});
+
+	it('advertises the allowed gate headers on a successful portrait', async () => {
+		const { deps, tryOn, consumeQuota } = buildDeps(validJpegFetch());
+
+		const result = await runWigTryOnPipeline(requestBody, deps);
+
+		expect(result.status).toBe(200);
+		expect(result.headers).toEqual(ALLOWED_HEADERS);
+		expect(tryOn).toHaveBeenCalledTimes(1);
+		expect(consumeQuota).toHaveBeenCalledTimes(1);
+	});
+
+	it('returns the gate 429 verbatim and makes no provider call', async () => {
+		const denialHeaders = {
+			'Cache-Control': 'no-store',
+			'RateLimit-Limit': '8',
+			'RateLimit-Remaining': '0',
+			'RateLimit-Reset': '37',
+			'Retry-After': '37'
+		};
+		const { deps, tryOn } = buildDeps(validJpegFetch());
+		const consumeQuota = vi.fn(
+			async (_cost: number): Promise<QuotaDecision> => ({
+				ok: false,
+				status: 429,
+				headers: denialHeaders,
+				body: {
+					ok: false,
+					error: {
+						code: 'RATE_LIMITED',
+						message: 'Too many requests. Try again after the current window resets.'
+					}
+				}
+			})
+		);
+
+		const result = await runWigTryOnPipeline(requestBody, { ...deps, consumeQuota });
+
+		expect(result).toEqual({
+			status: 429,
+			body: {
+				ok: false,
+				error: {
+					code: 'RATE_LIMITED',
+					message: 'Too many requests. Try again after the current window resets.'
+				}
+			},
+			// Same object the gate handed over: Retry-After is the store's, not a route clock's.
+			headers: denialHeaders
+		});
+		expect(result.headers).toBe(denialHeaders);
+		expect(tryOn).not.toHaveBeenCalled();
+	});
+
+	it('separates the gate 503 from the provider config 503 by error code', async () => {
+		const { deps: gateDeps, tryOn: gateTryOn } = buildDeps(validJpegFetch());
+		const consumeQuota = vi.fn(
+			async (_cost: number): Promise<QuotaDecision> => ({
+				ok: false,
+				status: 503,
+				headers: { 'Cache-Control': 'no-store' },
+				body: {
+					ok: false,
+					error: {
+						code: 'RATE_LIMIT_UNAVAILABLE',
+						message: 'Rate limiting is temporarily unavailable.'
+					}
+				}
+			})
+		);
+
+		const gateFailure = await runWigTryOnPipeline(requestBody, {
+			...gateDeps,
+			consumeQuota
+		});
+
+		expect(gateFailure).toEqual({
+			status: 503,
+			body: {
+				ok: false,
+				error: {
+					code: 'RATE_LIMIT_UNAVAILABLE',
+					message: 'Rate limiting is temporarily unavailable.'
+				}
+			},
+			headers: { 'Cache-Control': 'no-store' }
+		});
+		expect(gateTryOn).not.toHaveBeenCalled();
+
+		// W8's 503 is the provider being misconfigured, a different cause with the same status.
+		const { deps: configDeps, tryOn: configTryOn } = buildDeps(validJpegFetch());
+		configTryOn.mockResolvedValueOnce({
+			ok: false,
+			error: {
+				code: 'WIG_TRY_ON_CONFIG_ERROR',
+				message: 'SECRET_CONFIG_DETAIL'
 			}
 		});
+
+		const configFailure = await runWigTryOnPipeline(requestBody, configDeps);
+
+		expect(configFailure.status).toBe(503);
+		expect(configFailure.body).toEqual({
+			ok: false,
+			error: {
+				code: 'WIG_TRY_ON_CONFIG_ERROR',
+				message: 'Wig try-on is temporarily unavailable.'
+			}
+		});
+		expect(gateFailure.body).not.toEqual(configFailure.body);
+	});
+
+	it('never consults the gate for input the schema rejects', async () => {
+		const { deps, tryOn, consumeQuota } = buildDeps(validJpegFetch());
+
+		const result = await runWigTryOnPipeline({ nonsense: true }, deps);
+
+		expect(result).toEqual({
+			status: 400,
+			body: {
+				ok: false,
+				error: {
+					code: 'WIG_TRY_ON_INPUT_INVALID',
+					message: 'Wig try-on request is invalid.'
+				}
+			}
+		});
+		expect(result.headers).toBeUndefined();
+		expect(consumeQuota).not.toHaveBeenCalled();
+		expect(tryOn).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		{ name: 'before the wig image is fetched', abortDuringFetch: false },
+		{ name: 'while the wig image is being fetched', abortDuringFetch: true }
+	])('never charges a caller who canceled $name', async ({ abortDuringFetch }) => {
+		const controller = new AbortController();
+		if (!abortDuringFetch) controller.abort();
+		const fetchImpl = vi.fn(async () => {
+			// Cancels after the bytes arrive but before the pipeline could reach the provider.
+			controller.abort();
+			return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), { status: 200 });
+		});
+		const { deps, tryOn, consumeQuota } = buildDeps(fetchImpl);
+
+		const result = await runWigTryOnPipeline(requestBody, {
+			...deps,
+			signal: controller.signal
+		});
+
+		expect(result).toEqual({
+			status: 499,
+			body: {
+				ok: false,
+				error: {
+					code: 'WIG_TRY_ON_ABORTED',
+					message: 'Wig try-on request was canceled.'
+				}
+			}
+		});
+		expect(consumeQuota).not.toHaveBeenCalled();
+		expect(tryOn).not.toHaveBeenCalled();
 	});
 });

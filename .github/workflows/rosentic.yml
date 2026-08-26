@@ -24,3 +24,9 @@ jobs:
         with:
           fetch-depth: 0
       - uses: Rosentic/rosentic-action@v1
+        env:
+          # Without this the action logs "active-only requires GITHUB_TOKEN and
+          # GITHUB_REPOSITORY. Falling back to all branches." and scans all ~30
+          # branches in the repo, including long-abandoned ones. That reported
+          # breaking conflicts between dead branches on every unrelated PR.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

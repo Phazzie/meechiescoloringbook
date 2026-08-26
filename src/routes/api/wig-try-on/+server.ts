@@ -1,15 +1,19 @@
 // Purpose: Handle wig try-on requests through the xAI multi-image edit pipeline.
 // Why: Keep the endpoint thin and delegate orchestration to the pipeline.
-// Info flow: UI selfie + wigId -> pipeline -> WigCatalogSeam + WigTryOnSeam -> portrait JSON.
+// Info flow: UI selfie + wigId -> quota gate -> pipeline -> WigCatalogSeam + WigTryOnSeam -> portrait JSON.
 import { json } from '@sveltejs/kit';
 import { createImageProviderConfigSeam } from '$lib/adapters/image-provider-config-seam/index';
 import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam/index';
 import { createWigTryOnSeam } from '$lib/adapters/wig-try-on-seam/index';
 import { runWigTryOnPipeline } from '$lib/core/wig-try-on-pipeline';
 import { parseRequestBody } from '$lib/server/parse-request-body';
+import { createQuotaGate } from '$lib/server/rate-limit-route';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request, fetch }) => {
+export const POST: RequestHandler = async (event) => {
+	// `event` itself is threaded into the gate so the limiter meters this caller through
+	// SvelteKit's real getClientAddress; `fetch` stays destructured for the wig image load.
+	const { request, fetch } = event;
 	const parsed = await parseRequestBody(request);
 	if (!parsed.ok) return parsed.response;
 
@@ -21,8 +25,11 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 		fetchImpl: fetch,
 		wigCatalogSeam,
 		wigTryOnSeam,
+		// A try-on spends one provider image edit, so it charges the image bucket once.
+		consumeQuota: createQuotaGate(event, 'image'),
 		signal: request.signal
 	});
 
-	return json(result.body, { status: result.status });
+	// Headers are passed through exactly as the gate produced them, never recomputed here.
+	return json(result.body, { status: result.status, headers: result.headers });
 };

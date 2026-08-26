@@ -1,7 +1,8 @@
 /*
  * Purpose: Unit tests for runMeechieStudioTextPipeline.
- * Why: Ensure the pipeline rejects invalid input, disallowed content, and handles provider errors.
- * Info flow: Test inputs -> runMeechieStudioTextPipeline -> assertions.
+ * Why: Ensure the pipeline rejects invalid input and disallowed content, charges quota exactly once
+ *      for the worst case of its bounded correction retry, and handles provider errors.
+ * Info flow: Test inputs -> quota gate double -> runMeechieStudioTextPipeline -> assertions.
  */
 import { describe, expect, it } from 'vitest';
 import { runMeechieStudioTextPipeline } from '../../src/lib/core/meechie-studio-text-pipeline';
@@ -14,6 +15,10 @@ import type {
 	ProviderChatOutput
 } from '../../contracts/provider-adapter.contract';
 import type { Result } from '../../contracts/shared.contract';
+import type {
+	QuotaDecision,
+	QuotaGate
+} from '../../src/lib/server/rate-limit-route';
 
 const studioInput = {
 	actionId: 'generate',
@@ -27,6 +32,62 @@ const studioInput = {
 		thirdPerson: 'sometimes'
 	}
 } as const;
+
+// One request can make two provider calls, so the pipeline charges the worst case up front.
+const STUDIO_TEXT_COST = 2;
+
+const ALLOWED_HEADERS = {
+	'Cache-Control': 'no-store',
+	'RateLimit-Limit': '20',
+	'RateLimit-Remaining': '17',
+	'RateLimit-Reset': '42'
+} as const;
+
+const DENIED: QuotaDecision = {
+	ok: false,
+	status: 429,
+	headers: {
+		'Cache-Control': 'no-store',
+		'RateLimit-Limit': '20',
+		'RateLimit-Remaining': '0',
+		'RateLimit-Reset': '30',
+		'Retry-After': '30'
+	},
+	body: {
+		ok: false,
+		error: {
+			code: 'RATE_LIMITED',
+			message: 'Too many requests. Try again after the current window resets.'
+		}
+	}
+};
+
+const UNAVAILABLE: QuotaDecision = {
+	ok: false,
+	status: 503,
+	headers: { 'Cache-Control': 'no-store' },
+	body: {
+		ok: false,
+		error: {
+			code: 'RATE_LIMIT_UNAVAILABLE',
+			message: 'Rate limiting is temporarily unavailable.'
+		}
+	}
+};
+
+/** Quota gate double that records every charge, so a test can prove how often and how much. */
+const recordingGate = (
+	decision: QuotaDecision = { ok: true, headers: { ...ALLOWED_HEADERS } }
+): { gate: QuotaGate; costs: number[] } => {
+	const costs: number[] = [];
+	return {
+		gate: async (cost: number) => {
+			costs.push(cost);
+			return decision;
+		},
+		costs
+	};
+};
 
 const validStudioText = (overrides: Record<string, unknown> = {}): string =>
 	JSON.stringify({
@@ -63,7 +124,11 @@ const providerError = (
 const createDepsWithChatResults = (
 	results: Array<Result<ProviderChatOutput>>,
 	extras: Record<string, unknown> = {}
-): { deps: MeechieStudioTextPipelineDeps; requests: ProviderChatInput[] } => {
+): {
+	deps: MeechieStudioTextPipelineDeps;
+	requests: ProviderChatInput[];
+	costs: number[];
+} => {
 	const requests: ProviderChatInput[] = [];
 	let callIndex = 0;
 	const provider: ProviderAdapterSeam = {
@@ -78,12 +143,16 @@ const createDepsWithChatResults = (
 		}
 	};
 
+	const quota = recordingGate();
+
 	return {
 		deps: {
+			consumeQuota: quota.gate,
 			createProvider: () => provider,
 			...extras
 		} as unknown as MeechieStudioTextPipelineDeps,
-		requests
+		requests,
+		costs: quota.costs
 	};
 };
 
@@ -113,6 +182,7 @@ describe('Meechie Studio Text Pipeline Resilience', () => {
 	it('handles valid JSON correctly', async () => {
 		let callCount = 0;
 		const deps: MeechieStudioTextPipelineDeps = {
+			consumeQuota: recordingGate().gate,
 			createProvider: () => ({
 				createChatCompletion: async () => {
 					callCount++;
@@ -178,6 +248,7 @@ describe('Meechie Studio Text Pipeline Resilience', () => {
 	it('returns a browser-quiet structured error when the API key is missing', async () => {
 		let callCount = 0;
 		const deps: MeechieStudioTextPipelineDeps = {
+			consumeQuota: recordingGate().gate,
 			createProvider: () => ({
 				createChatCompletion: async () => {
 					callCount++;
@@ -225,6 +296,7 @@ describe('Meechie Studio Text Pipeline Resilience', () => {
 	it('extracts JSON from markdown fences and prose', async () => {
 		let callCount = 0;
 		const deps: MeechieStudioTextPipelineDeps = {
+			consumeQuota: recordingGate().gate,
 			createProvider: () => ({
 				createChatCompletion: async () => {
 					callCount++;
@@ -275,6 +347,7 @@ Hope that helps!`
 	it('extracts balanced JSON when prose contains extra braces', async () => {
 		let callCount = 0;
 		const deps: MeechieStudioTextPipelineDeps = {
+			consumeQuota: recordingGate().gate,
 			createProvider: () => ({
 				createChatCompletion: async () => {
 					callCount++;
@@ -327,6 +400,7 @@ Trailing {also not json}.`
 	it('retries once if JSON is malformed and fails gracefully', async () => {
 		let callCount = 0;
 		const deps: MeechieStudioTextPipelineDeps = {
+			consumeQuota: recordingGate().gate,
 			createProvider: () => ({
 				createChatCompletion: async () => {
 					callCount++;
@@ -534,6 +608,7 @@ Trailing {also not json}.`
 	it('rejects input containing a disallowed keyword and does not call the provider', async () => {
 		let callCount = 0;
 		const deps: MeechieStudioTextPipelineDeps = {
+			consumeQuota: recordingGate().gate,
 			createProvider: () => ({
 				createChatCompletion: async () => {
 					callCount++;
@@ -583,5 +658,118 @@ Trailing {also not json}.`
 		});
 		// Provider MUST NOT have been called
 		expect(callCount).toBe(0);
+	});
+});
+
+describe('Meechie Studio Text Pipeline quota gate', () => {
+	it('charges the bounded-retry worst case exactly once when the retry actually fires', async () => {
+		// First response is unparseable, so the pipeline makes its one correction retry.
+		// Two provider calls, still a single charge, and that charge is worth two calls.
+		const { deps, requests, costs } = createDepsWithChatResults([
+			okChat('Not JSON at all'),
+			okChat(validStudioText({ verdict: 'Retry Won' }))
+		]);
+
+		const response = await runMeechieStudioTextPipeline(studioInput, deps);
+
+		expect(response.status).toBe(200);
+		expect(requests).toHaveLength(2);
+		expect(costs).toEqual([STUDIO_TEXT_COST]);
+	});
+
+	it('charges the same worst case once when the first response parses', async () => {
+		const { deps, requests, costs } = createDepsWithChatResults([
+			okChat(validStudioText())
+		]);
+
+		const response = await runMeechieStudioTextPipeline(studioInput, deps);
+
+		expect(response.status).toBe(200);
+		expect(requests).toHaveLength(1);
+		expect(costs).toEqual([STUDIO_TEXT_COST]);
+	});
+
+	it('advertises the gate headers on a successful response', async () => {
+		const { deps } = createDepsWithChatResults([okChat(validStudioText())]);
+
+		const response = await runMeechieStudioTextPipeline(studioInput, deps);
+
+		expect(response.status).toBe(200);
+		expect(response.headers).toEqual({ ...ALLOWED_HEADERS });
+	});
+
+	it('propagates the gate headers on a post-charge provider failure', async () => {
+		const { deps } = createDepsWithChatResults([
+			providerError('PROVIDER_HTTP_ERROR', 'Rate limited.', { status: '429' })
+		]);
+
+		const response = await runMeechieStudioTextPipeline(studioInput, deps);
+
+		expect(response.status).toBe(502);
+		expect(response.headers).toEqual({ ...ALLOWED_HEADERS });
+	});
+
+	it('returns the gate denial verbatim and never calls the provider', async () => {
+		const quota = recordingGate(DENIED);
+		const { deps, requests } = createDepsWithChatResults(
+			[okChat(validStudioText())],
+			{ consumeQuota: quota.gate }
+		);
+
+		const response = await runMeechieStudioTextPipeline(studioInput, deps);
+
+		expect(response.status).toBe(429);
+		expect(response.body).toEqual(DENIED.ok === false ? DENIED.body : null);
+		// Verbatim: the headers are derived from the store's reset instant, not a pipeline clock.
+		expect(response.headers).toEqual(
+			DENIED.ok === false ? DENIED.headers : null
+		);
+		expect(requests).toHaveLength(0);
+		expect(quota.costs).toEqual([STUDIO_TEXT_COST]);
+	});
+
+	it('returns the gate 503 verbatim and never calls the provider when the limiter fails', async () => {
+		const quota = recordingGate(UNAVAILABLE);
+		const { deps, requests } = createDepsWithChatResults(
+			[okChat(validStudioText())],
+			{ consumeQuota: quota.gate }
+		);
+
+		const response = await runMeechieStudioTextPipeline(studioInput, deps);
+
+		expect(response.status).toBe(503);
+		expect(response.body).toEqual(
+			UNAVAILABLE.ok === false ? UNAVAILABLE.body : null
+		);
+		expect(response.headers).toEqual(
+			UNAVAILABLE.ok === false ? UNAVAILABLE.headers : null
+		);
+		expect(requests).toHaveLength(0);
+	});
+
+	it('never consults the gate for locally rejectable input', async () => {
+		const schemaInvalid = createDepsWithChatResults([
+			okChat(validStudioText())
+		]);
+		const disallowed = createDepsWithChatResults([okChat(validStudioText())]);
+
+		const schemaResponse = await runMeechieStudioTextPipeline(
+			{ invalid: 'payload' },
+			schemaInvalid.deps
+		);
+		const disallowedResponse = await runMeechieStudioTextPipeline(
+			{ ...studioInput, evidence: 'evidence mentioning minors' },
+			disallowed.deps
+		);
+
+		expect(schemaResponse.status).toBe(400);
+		expect(disallowedResponse.status).toBe(400);
+		expect(schemaInvalid.costs).toEqual([]);
+		expect(disallowed.costs).toEqual([]);
+		expect(schemaInvalid.requests).toHaveLength(0);
+		expect(disallowed.requests).toHaveLength(0);
+		// A locally rejected request never paid, so it must not advertise quota either.
+		expect(schemaResponse.headers).toBeUndefined();
+		expect(disallowedResponse.headers).toBeUndefined();
 	});
 });

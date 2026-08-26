@@ -44,6 +44,19 @@ type BorderChoice = ColoringPageSpec['border'];
 
 const DRAFT_SAVE_DEBOUNCE_MS = 300;
 
+// `format` is the only image-type field the contract actually constrains: it is a closed
+// four-value enum, while `mimeType` is `NonEmptyStringSchema`, so any non-empty string
+// passes validation. Deriving the media type from the enum is therefore total (it can
+// never emit `undefined`) and it cannot forward an unvalidated wire value. It also emits
+// the registered `image/jpeg` and `image/svg+xml` names rather than the non-standard
+// `image/jpg` and `image/svg` that interpolating the enum member produced.
+const IMAGE_MIME_TYPES: Record<GeneratedImage['format'], string> = {
+	svg: 'image/svg+xml',
+	png: 'image/png',
+	jpg: 'image/jpeg',
+	webp: 'image/webp'
+};
+
 type DraftSeedTextSignature = {
 	title: string;
 	itemLabels: readonly string[];
@@ -185,10 +198,10 @@ export class StudioState {
 	imagePreviews = $derived(
 		this.images.map((image) => {
 			if (image.format === 'svg' && image.encoding === 'utf8') {
-				return `data:image/svg+xml;utf8,${encodeURIComponent(image.data)}`;
+				return `data:${IMAGE_MIME_TYPES.svg};utf8,${encodeURIComponent(image.data)}`;
 			}
 			if (image.encoding === 'base64') {
-				return `data:image/${image.format};base64,${image.data}`;
+				return `data:${IMAGE_MIME_TYPES[image.format]};base64,${image.data}`;
 			}
 			return '';
 		})
@@ -308,15 +321,16 @@ export class StudioState {
 	private parseTryOnPortraitImage(): GeneratedImage | null {
 		const match = this.tryOnPortraitUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/);
 		if (!match) return null;
-		const mimeType = match[1];
 		const subtype = match[2];
 		const data = match[3];
 		const format = subtype === 'jpeg' ? 'jpg' : subtype;
 		if (format !== 'png' && format !== 'jpg' && format !== 'webp') return null;
+		// Not `match[1]`: the pattern accepts the non-standard `image/jpg` subtype, so
+		// copying the incoming token verbatim would put a bogus media type on the image.
 		return {
 			id: 'try-on-portrait-1',
 			format,
-			mimeType,
+			mimeType: IMAGE_MIME_TYPES[format],
 			data,
 			encoding: 'base64'
 		};

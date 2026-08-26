@@ -3,6 +3,24 @@ Purpose: Wig-catalog carousel, selfie upload, AI portrait generation, and result
 Why: Extracted from +page.svelte; all wig try-on state lives in the parent.
 Info flow: User selects wig + uploads photo → callbacks fire → parent calls /api/wig-try-on.
 -->
+<script module lang="ts">
+	/**
+	 * Maps a data-URL media type to the file extension that matches its bytes, so a
+	 * download link never hands the browser a filename that lies about its content.
+	 * Shared: the coloring-page export link in StudioPreviewPanel needs the same rule,
+	 * and one implementation is the only way both stay correct.
+	 */
+	export const imageFileExtension = (
+		dataUrl: string
+	): 'jpg' | 'png' | 'webp' | 'svg' => {
+		const mimeType = /^data:([^;,]+)/i.exec(dataUrl)?.[1]?.toLowerCase();
+		if (mimeType === 'image/jpeg') return 'jpg';
+		if (mimeType === 'image/webp') return 'webp';
+		if (mimeType === 'image/svg+xml') return 'svg';
+		return 'png';
+	};
+</script>
+
 <script lang="ts">
 	import WigCarousel from '$lib/components/WigCarousel.svelte';
 	import SelfieUpload from '$lib/components/SelfieUpload.svelte';
@@ -39,13 +57,6 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 			style: 'currency',
 			currency: 'USD'
 		}).format(value);
-
-	const portraitFileExtension = (dataUrl: string): 'jpg' | 'png' | 'webp' => {
-		const mimeType = /^data:([^;,]+)/i.exec(dataUrl)?.[1]?.toLowerCase();
-		if (mimeType === 'image/jpeg') return 'jpg';
-		if (mimeType === 'image/webp') return 'webp';
-		return 'png';
-	};
 </script>
 
 <section class="wig-studio" aria-label="Wig try-on studio">
@@ -100,7 +111,7 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 						<a
 							class="button-link"
 							href={tryOnPortraitUrl}
-							download={`meechie-try-on-${selectedWig.id}.${portraitFileExtension(tryOnPortraitUrl)}`}
+							download={`meechie-try-on-${selectedWig.id}.${imageFileExtension(tryOnPortraitUrl)}`}
 						>
 							Save Portrait
 						</a>

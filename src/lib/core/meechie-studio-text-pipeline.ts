@@ -1,10 +1,11 @@
 // Purpose: Centralize Meechie studio AI text endpoint orchestration.
-// Why: Keep provider calls, JSON parsing, and contract validation testable.
-// Info flow: Request body -> ProviderAdapterSeam -> structured studio text result.
+// Why: Keep provider calls, JSON parsing, contract validation, and quota metering testable.
+// Info flow: Request body -> local validation -> QuotaGate -> ProviderAdapterSeam -> structured studio text result.
 import { findDisallowedKeywords } from '$lib/core/constants';
 import { TEXT_MODEL } from '$lib/core/models';
 import { toPublicProviderError } from '$lib/core/public-provider-error';
 import { meechieVoicePack } from '$lib/seams/meechie-voice-seam/voice-pack';
+import type { QuotaGate } from '$lib/server/rate-limit-route';
 import {
 	MeechieStudioTextInputSchema,
 	MeechieStudioTextOutputSchema,
@@ -122,13 +123,34 @@ type MeechieStudioTextResult = z.infer<typeof MeechieStudioTextResultSchema>;
 type PipelineResponse = {
 	status: number;
 	body: MeechieStudioTextResult;
+	/**
+	 * Quota headers, verbatim from the gate. Present on every response the caller was charged
+	 * for - allowed and denied alike - and absent on the local rejections that never charge.
+	 * Never recompute these: they are derived from the store's own reset instant, so a value
+	 * recalculated from a pipeline clock drifts from the store and is wrong.
+	 */
+	headers?: Record<string, string>;
 };
 
 export type MeechieStudioTextPipelineDeps = {
 	createProvider: () => ProviderAdapterSeam;
+	/**
+	 * Required, never optional. An optional gate is a production bypass: any call site that
+	 * forgot to pass one would reach the provider unmetered while every test stayed green.
+	 * Routes build it from their own RequestEvent so the guard meters per caller.
+	 */
+	consumeQuota: QuotaGate;
 	textModel?: string;
 	isProduction?: boolean;
 };
+
+/**
+ * Worst-case billable provider calls for one request: the first call plus the single bounded
+ * correction retry in runProviderExchange. Charged once, up front, because charging 1 would let
+ * a caller burn double their quota's worth of spend, and charging again before the retry could
+ * be denied after the caller already paid for work in flight - worse than slightly overcharging.
+ */
+const STUDIO_TEXT_QUOTA_COST = 2;
 
 type ProviderTextFailureKind = 'json_syntax_error' | 'schema_error';
 
@@ -390,30 +412,16 @@ const providerErrorResponse = (
 	};
 };
 
-export const runMeechieStudioTextPipeline = async (
-	body: unknown,
+/**
+ * Everything the caller has already been charged for. Split out so a single wrapper can attach
+ * the quota headers to every one of its exits, instead of each return site remembering to.
+ */
+const runProviderExchange = async (
+	input: z.infer<typeof MeechieStudioTextInputSchema>,
 	deps: MeechieStudioTextPipelineDeps
 ): Promise<PipelineResponse> => {
-	const parsedInput = MeechieStudioTextInputSchema.safeParse(body);
-	if (!parsedInput.success) {
-		return buildError(
-			400,
-			'MEECHIE_STUDIO_TEXT_INPUT_INVALID',
-			'Meechie studio text input is invalid.'
-		);
-	}
-
-	const disallowedKeywords = findDisallowedKeywords(parsedInput.data);
-	if (disallowedKeywords.length > 0) {
-		return buildError(
-			400,
-			'DISALLOWED_CONTENT',
-			'Meechie studio text input contains disallowed content.'
-		);
-	}
-
 	const provider: ProviderAdapterSeam = deps.createProvider();
-	const messages = buildMessages(parsedInput.data);
+	const messages = buildMessages(input);
 	const textModel = deps.textModel?.trim() || TEXT_MODEL;
 	const isProduction = deps.isProduction === true;
 	let providerResult = await provider.createChatCompletion({
@@ -475,4 +483,40 @@ export const runMeechieStudioTextPipeline = async (
 	}
 
 	return { status: 200, body: parseOutcome.result };
+};
+
+export const runMeechieStudioTextPipeline = async (
+	body: unknown,
+	deps: MeechieStudioTextPipelineDeps
+): Promise<PipelineResponse> => {
+	const parsedInput = MeechieStudioTextInputSchema.safeParse(body);
+	if (!parsedInput.success) {
+		return buildError(
+			400,
+			'MEECHIE_STUDIO_TEXT_INPUT_INVALID',
+			'Meechie studio text input is invalid.'
+		);
+	}
+
+	const disallowedKeywords = findDisallowedKeywords(parsedInput.data);
+	if (disallowedKeywords.length > 0) {
+		return buildError(
+			400,
+			'DISALLOWED_CONTENT',
+			'Meechie studio text input contains disallowed content.'
+		);
+	}
+
+	// Every local rejection is behind us, so nothing below can be refused after the caller pays.
+	// This is the last statement before the first billable provider call.
+	const quota = await deps.consumeQuota(STUDIO_TEXT_QUOTA_COST);
+	if (!quota.ok) {
+		// Status, body and headers exactly as the gate produced them.
+		return { status: quota.status, body: quota.body, headers: quota.headers };
+	}
+
+	const response = await runProviderExchange(parsedInput.data, deps);
+	// The retry inside runProviderExchange is covered by the single charge above; it never
+	// charges again. Every post-charge response advertises the quota this caller just spent.
+	return { ...response, headers: quota.headers };
 };

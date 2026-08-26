@@ -19,6 +19,16 @@ export class RateLimitConfigError extends Error {
 
 const DEFAULT_OPERATION_TIMEOUT_MS = 1_500;
 
+// Strip trailing '/' (char code 47) linearly; a `/\/+$/` regex backtracks
+// super-linearly on slash-heavy input.
+const stripTrailingSlashes = (value: string): string => {
+	let end = value.length;
+	while (end > 0 && value.codePointAt(end - 1) === 47) {
+		end -= 1;
+	}
+	return value.slice(0, end);
+};
+
 const required = (value: string | undefined): string => {
 	if (typeof value !== 'string' || value.trim().length === 0) {
 		throw new RateLimitConfigError();
@@ -38,7 +48,7 @@ const validRestUrl = (value: string): string => {
 		) {
 			throw new RateLimitConfigError();
 		}
-		return parsed.toString().replace(/\/+$/, '');
+		return stripTrailingSlashes(parsed.toString());
 	} catch {
 		throw new RateLimitConfigError();
 	}

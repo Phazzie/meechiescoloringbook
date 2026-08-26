@@ -9,6 +9,13 @@ import {
 	type GeneratePipelineDeps
 } from '../../src/lib/core/generate-pipeline';
 
+// The quota gate is a required dependency on every billable pipeline, deliberately: an
+// optional gate is a production bypass. These tests are about error paths, not metering, so
+// they inject a gate that always allows and assert nothing about it. The routes' own tests
+// cover allow, deny, exhaustion and store failure.
+const allowQuota = () =>
+	vi.fn().mockResolvedValue({ ok: true as const, headers: {} });
+
 const validSpec = {
 	title: 'Dream Big',
 	items: [
@@ -43,6 +50,7 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		const result = await runChatInterpretationPipeline(
 			{ message: '' },
 			{
+				consumeQuota: allowQuota(),
 				createChatCompletion: vi.fn(),
 				validateSpec: vi.fn()
 			}
@@ -57,6 +65,7 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		const result = await runChatInterpretationPipeline(
 			{ message: 'Make me a cool page' },
 			{
+				consumeQuota: allowQuota(),
 				createChatCompletion: vi.fn().mockResolvedValue({
 					ok: false,
 					error: {
@@ -80,6 +89,7 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		const result = await runChatInterpretationPipeline(
 			{ message: 'Make me a cool page' },
 			{
+				consumeQuota: allowQuota(),
 				createChatCompletion: vi.fn().mockResolvedValue({
 					ok: true,
 					value: {
@@ -100,6 +110,7 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		const result = await runChatInterpretationPipeline(
 			{ message: 'Make me a cool page' },
 			{
+				consumeQuota: allowQuota(),
 				createChatCompletion: vi.fn().mockResolvedValue({
 					ok: true,
 					value: {
@@ -122,6 +133,7 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		const result = await runChatInterpretationPipeline(
 			{ message: 'Make me a cool page' },
 			{
+				consumeQuota: allowQuota(),
 				createChatCompletion: vi.fn().mockResolvedValue({
 					ok: true,
 					value: {
@@ -142,6 +154,7 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		const result = await runChatInterpretationPipeline(
 			{ message: 'Make me a cool page' },
 			{
+				consumeQuota: allowQuota(),
 				createChatCompletion: vi.fn().mockResolvedValue({
 					ok: true,
 					value: {
@@ -162,6 +175,7 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		const result = await runChatInterpretationPipeline(
 			{ message: 'Make me a cool page' },
 			{
+				consumeQuota: allowQuota(),
 				createChatCompletion: vi.fn().mockResolvedValue({
 					ok: true,
 					value: {
@@ -182,6 +196,7 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		const result = await runChatInterpretationPipeline(
 			{ message: 'Make me a cool page' },
 			{
+				consumeQuota: allowQuota(),
 				createChatCompletion: vi.fn().mockResolvedValue({
 					ok: true,
 					value: {
@@ -202,6 +217,7 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		const result = await runChatInterpretationPipeline(
 			{ message: 'Make me a cool page' },
 			{
+				consumeQuota: allowQuota(),
 				createChatCompletion: vi.fn().mockResolvedValue({
 					ok: true,
 					value: {
@@ -231,6 +247,7 @@ describe('chat-interpretation-pipeline edge cases', () => {
 		const result = await runChatInterpretationPipeline(
 			{ message: 'Make me a cool page' },
 			{
+				consumeQuota: allowQuota(),
 				createChatCompletion: vi.fn().mockResolvedValue({
 					ok: true,
 					value: {
@@ -255,7 +272,7 @@ describe('tools-pipeline edge cases', () => {
 	it('rejects invalid tool input', async () => {
 		const result = await runToolsPipeline(
 			{ toolId: 'nonexistent_tool' },
-			{ respond: vi.fn() }
+			{ respond: vi.fn(), consumeQuota: allowQuota() }
 		);
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {
@@ -269,7 +286,7 @@ describe('tools-pipeline edge cases', () => {
 				toolId: 'apology_translator',
 				apology: 'self-harm and minors content'
 			},
-			{ respond: vi.fn() }
+			{ respond: vi.fn(), consumeQuota: allowQuota() }
 		);
 		expect(result.status).toBe(400);
 		expect(result.body.ok).toBe(false);
@@ -294,7 +311,7 @@ describe('tools-pipeline edge cases', () => {
 				toolId: 'apology_translator',
 				apology: 'Sorry not sorry'
 			},
-			{ respond: mockRespond }
+			{ respond: mockRespond, consumeQuota: allowQuota() }
 		);
 		expect(result.status).toBe(200);
 		expect(result.body.ok).toBe(true);
@@ -315,7 +332,7 @@ describe('tools-pipeline edge cases', () => {
 				toolId: 'apology_translator',
 				apology: 'Sorry about that'
 			},
-			{ respond: mockRespond }
+			{ respond: mockRespond, consumeQuota: allowQuota() }
 		);
 		expect(result.body.ok).toBe(false);
 		if (!result.body.ok) {

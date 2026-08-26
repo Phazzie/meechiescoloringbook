@@ -6,6 +6,7 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 <script lang="ts">
 	import { getStudioAction } from '$lib/core/meechie-studio';
 	import type { StudioTheme } from '$lib/core/meechie-studio';
+	import { imageFileExtension } from './WigTryOnStudio.svelte';
 	import type { MeechieStudioTextOutput } from '../../../../contracts/meechie-studio-text.contract';
 	import type { PackagedFile } from '../../../../contracts/output-packaging.contract';
 
@@ -40,6 +41,13 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 		onCopyQuote: () => Promise<void>;
 		onSaveToVault: () => Promise<void>;
 	} = $props();
+
+	// The preview can be JPEG, PNG, WebP, or SVG depending on what the provider (or the
+	// wig try-on portrait) produced, so the export filename and its label both track the
+	// bytes actually behind the link instead of assuming PNG.
+	const exportExtension = $derived(
+		imagePreviews[0] ? imageFileExtension(imagePreviews[0]) : ''
+	);
 </script>
 
 <section class="preview-panel" aria-label="Meechie coloring-page preview">
@@ -118,9 +126,9 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 			<a
 				class="button-link"
 				href={imagePreviews[0]}
-				download="meechie-coloring-page.png"
+				download={`meechie-coloring-page.${exportExtension}`}
 			>
-				{getStudioAction('export_png').label}
+				Export {exportExtension.toUpperCase()}
 			</a>
 		{:else}
 			<button type="button" disabled

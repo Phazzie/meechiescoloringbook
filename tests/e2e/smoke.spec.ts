@@ -7,7 +7,10 @@ import { expect, test, type Page } from '@playwright/test';
 import { getWeeklyModes } from '../../src/lib/core/meechie-studio';
 
 test.setTimeout(120000);
-test.describe.configure({ mode: 'serial' });
+// Parallel, not serial: every test owns its own browser context (localStorage is the
+// only persistence), so they are independent. Under `serial` a single failure marks the
+// remaining tests "did not run", which hides the rest of the suite behind the first bug.
+test.describe.configure({ mode: 'parallel' });
 
 const png1x1 =
 	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
@@ -115,20 +118,23 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('home mode switching and generation controls work', async ({ page }) => {
-	await gotoHydrated(page, '/');
-	await expect(page.getByTestId('home-mode-rate-excuse')).toBeVisible();
+	// The mode strip is rotated by calendar week/month, so the visible ids change over
+	// time. Derive them from the same source the page renders from instead of hardcoding.
+	const [initialMode, switchedMode] = getWeeklyModes();
 
-	const initialMode = getWeeklyModes()[0];
+	await gotoHydrated(page, '/');
+	await expect(page.getByTestId(`home-mode-${switchedMode.id}`)).toBeVisible();
+
 	await expect(page.getByTestId('home-active-mode-heading')).toHaveText(
 		initialMode.label
 	);
-	await page.getByTestId('home-mode-rate-excuse').click();
+	await page.getByTestId(`home-mode-${switchedMode.id}`).click();
 	await expect(page.getByTestId('home-active-mode-heading')).toHaveText(
-		'Rate His Excuse'
+		switchedMode.label
 	);
 	await expect(page.getByTestId('home-evidence')).toHaveAttribute(
 		'placeholder',
-		/traffic made him/
+		switchedMode.placeholder
 	);
 
 	await page
@@ -214,11 +220,40 @@ test('wig try-on demo works end to end without provider traffic', async ({
 	await page.getByRole('button', { name: 'Make It a Coloring Page' }).click();
 	const coloringPage = page.getByTestId('home-generated-image');
 	await expect(coloringPage).toBeVisible();
-	await expect(coloringPage).toHaveAttribute(
-		'src',
-		/^data:image\/jpeg;base64,\/9j\//
-	);
+	// The preview data URI maps the 4-value `format` enum to registered IANA media
+	// types (`IMAGE_MIME_TYPES` in src/routes/studio-state.svelte.ts), so JPEG's enum
+	// member `jpg` emits `image/jpeg` — not the non-standard `image/jpg` this used to
+	// pin. Prove the bytes really are the stubbed portrait and really decode.
+	// The payload is compared inside the page so a failure logs a short object instead
+	// of a 3 MB base64 string.
+	const portraitBase64 = await wigJpegBase64;
+	await expect
+		.poll(() =>
+			coloringPage.evaluate((node, expected) => {
+				const img = node as HTMLImageElement;
+				const [header, payload = ''] = img.src.split(',');
+				return {
+					header,
+					isPortraitBytes: payload === expected,
+					decoded: img.complete && img.naturalWidth > 0
+				};
+			}, portraitBase64)
+		)
+		.toEqual({
+			header: 'data:image/jpeg;base64',
+			isPortraitBytes: true,
+			decoded: true
+		});
 	await expect(page.getByRole('link', { name: 'Download PDF' })).toBeVisible();
+	// The export link hands the browser a filename, so its extension has to match the
+	// bytes behind it. These are the stubbed JPEG portrait bytes, so the download is
+	// `.jpg` and the label names the format the user actually receives.
+	const exportLink = page.getByRole('link', { name: /^Export / });
+	await expect(exportLink).toHaveAttribute(
+		'download',
+		'meechie-coloring-page.jpg'
+	);
+	await expect(exportLink).toHaveText('Export JPG');
 
 	expect(providerRequests).toEqual([]);
 });
