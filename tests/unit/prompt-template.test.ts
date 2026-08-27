@@ -30,13 +30,17 @@ describe('prompt-template helpers', () => {
 			expect(formatListItems([{ number: 1, label: 'Apples' }])).toBe('1. Apples');
 		});
 
-		it('formats multiple items separated by semicolons', () => {
+		it('formats multiple items one per line with no separator punctuation', () => {
 			const items = [
 				{ number: 1, label: 'Apples' },
 				{ number: 2, label: 'Bananas' },
 				{ number: 3, label: 'Cherries' }
 			];
-			expect(formatListItems(items)).toBe('1. Apples; 2. Bananas; 3. Cherries');
+			// This previously asserted '1. Apples; 2. Bananas; 3. Cherries'. Three live
+			// generations showed the image model drawing that '; ' separator onto the page as
+			// visible lettering, so the contract is now one item per line, nothing trailing.
+			expect(formatListItems(items)).toBe('1. Apples\n2. Bananas\n3. Cherries');
+			expect(formatListItems(items)).not.toContain(';');
 		});
 
 		it('handles empty array', () => {
@@ -184,10 +188,27 @@ describe('prompt-template helpers', () => {
 	});
 
 	describe('listLineForSpec', () => {
-		it('returns list items line with gutter for list mode', () => {
+		it('returns list items block with gutter for list mode', () => {
 			const result = listLineForSpec(makeBaseSpec());
-			expect(result).toContain('List items: 1. Item one');
+			expect(result.split('\n')).toContain('1. Item one');
 			expect(result).toContain('Gutter: normal');
+		});
+
+		it('puts every item on its own line with no separator punctuation', () => {
+			const spec = makeBaseSpec({
+				items: [
+					{ number: 1, label: 'Item one' },
+					{ number: 2, label: 'Item two' },
+					{ number: 3, label: 'Item three' }
+				]
+			});
+			const lines = listLineForSpec(spec).split('\n');
+			expect(lines.slice(1)).toEqual([
+				'1. Item one',
+				'2. Item two',
+				'3. Item three'
+			]);
+			expect(lines.some((line) => line.includes(';'))).toBe(false);
 		});
 
 		it('returns "No list." for title_only mode', () => {

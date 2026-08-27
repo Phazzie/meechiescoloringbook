@@ -20,8 +20,8 @@ import {
 	dedicationLine,
 	decorationLine,
 	fontStyleLine,
-	formatListItems,
 	illustrationLine,
+	listLineForSpec,
 	negativeLinesForSpec,
 	outputLine,
 	pageSizeLine,
@@ -47,7 +47,6 @@ const includesForbiddenToken = (styleHint: string): boolean => {
 
 const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 	const { spec, styleHint } = input;
-	const listItems = formatListItems(spec.items);
 	const colorLine = colorModeLine(spec.colorMode);
 	const styleLine = styleHint
 		? `Vibe: ${styleHint} ${OUTLINE_ONLY_PHRASE}, ${EASY_TO_COLOR_PHRASE}. ${colorLine}`
@@ -56,10 +55,12 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 	const secondaryLine = spec.footerItem?.label;
 	const alignmentLine = formatAlignmentLine(spec);
 
-	const listLine =
-		spec.listMode === 'list'
-			? `List items: ${listItems} (Gutter: ${spec.listGutter}).`
-			: 'No list.';
+	// listLineForSpec is the single source for this block. DriftDetectionSeam checks the
+	// assembled prompt with `prompt.includes(listLineForSpec(spec))`, so building the same
+	// text a second time here is how the two silently drift apart; the helper is shared
+	// instead. The block spans several lines and still satisfies that substring check
+	// because the prompt is joined with the same '\n'.
+	const listLine = listLineForSpec(spec);
 	// The drawable text is instruction-bound and explicitly terminated. Previously this block emitted
 	// '[Secondary line EXACT — omit if none.]' unconditionally while the value below it was
 	// conditional, so a spec with no footerItem left an empty slot and the image model drew
