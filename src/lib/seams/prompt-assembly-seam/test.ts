@@ -59,6 +59,42 @@ describe('PromptAssemblySeam contract', () => {
 		).not.toThrow();
 	});
 
+	it('emits each list item on its own line with no separator punctuation', async () => {
+		// Live generations against grok-imagine-image-2.0 showed the model drawing the '; '
+		// separator from the old single-line list onto the printed page. The assembled prompt
+		// must present the items one per line, numbered, with nothing trailing the label.
+		const input = {
+			...promptAssemblySampleFixture.input,
+			spec: {
+				...promptAssemblySampleFixture.input.spec,
+				items: [
+					{ number: 1, label: 'NO TEXTS BACK' },
+					{ number: 2, label: 'LOCATION STILL LIVE' },
+					{ number: 3, label: 'THE STORY CHANGED TWICE' },
+					{ number: 4, label: 'I ALREADY KNEW' }
+				]
+			}
+		};
+		const result = await promptAssemblyAdapter.assemble(input);
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error(result.error.message);
+
+		const promptLines = result.value.prompt.split('\n');
+		const listHeadingIndex = promptLines.findIndex((line) =>
+			line.startsWith('List items')
+		);
+		expect(listHeadingIndex).toBeGreaterThan(-1);
+		expect(promptLines[listHeadingIndex]).not.toContain('; ');
+		expect(
+			promptLines.slice(listHeadingIndex + 1, listHeadingIndex + 5)
+		).toEqual([
+			'1. NO TEXTS BACK',
+			'2. LOCATION STILL LIVE',
+			'3. THE STORY CHANGED TWICE',
+			'4. I ALREADY KNEW'
+		]);
+	});
+
 	it('terminates drawable text before typography when there is no footer', async () => {
 		const result = await promptAssemblyAdapter.assemble(
 			promptAssemblyTitleOnlyFixture.input

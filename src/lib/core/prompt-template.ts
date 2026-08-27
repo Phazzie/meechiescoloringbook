@@ -32,9 +32,14 @@ export const RESERVED_STYLE_HINT_HEADINGS = [
 	NEGATIVE_PROMPT_HEADING
 ];
 
+// One item per line. This previously joined with '; ' and three live generations against
+// grok-imagine-image-2.0 came back with those semicolons drawn onto the page as visible
+// lettering, on a sheet a customer colours in. The image model treats the separator as
+// content, so the separator has to go: the newline carries the same grouping and is never
+// rendered as a glyph.
 export const formatListItems = (items: Array<{ number: number; label: string }>): string => {
 	const parts = items.map((item) => `${item.number}. ${item.label}`);
-	return parts.join('; ');
+	return parts.join('\n');
 };
 
 export const colorModeLine = (colorMode: ColoringPageSpec['colorMode']): string => {
@@ -115,10 +120,22 @@ export const outputLine = (colorMode: ColoringPageSpec['colorMode']): string => 
 export const dedicationLine = (dedication: ColoringPageSpec['dedication']): string =>
 	dedication ? `Add dedication: "Dedicated to ${dedication}".` : '';
 
-export const listLineForSpec = (spec: ColoringPageSpec): string =>
-	spec.listMode === 'list'
-		? `List items: ${formatListItems(spec.items)} (Gutter: ${spec.listGutter}).`
-		: 'No list.';
+// The instruction is spelled out for the model rather than left implicit: naming the
+// one-per-line, numbered shape and explicitly forbidding the separator is what the verified
+// generation used. The gutter keeps its existing inline-parenthetical treatment and sits
+// ahead of the instruction so nothing follows the item block - a trailing line after the
+// items is exactly the shape that gets mistaken for another item and drawn.
+const LIST_ITEMS_INSTRUCTION =
+	'(render each on its own line, numbered, without the separator punctuation)';
+
+export const listLineForSpec = (spec: ColoringPageSpec): string => {
+	if (spec.listMode !== 'list') {
+		return 'No list.';
+	}
+	const heading = `List items (Gutter: ${spec.listGutter}) ${LIST_ITEMS_INSTRUCTION}:`;
+	const itemLines = formatListItems(spec.items);
+	return itemLines ? `${heading}\n${itemLines}` : heading;
+};
 
 export const negativeLinesForSpec = (spec: ColoringPageSpec): string[] => {
 	const lines: string[] = [];
@@ -131,5 +148,10 @@ export const negativeLinesForSpec = (spec: ColoringPageSpec): string[] => {
 	if (spec.shading === 'none') {
 		lines.push('no shading');
 	}
-	return lines.concat(['no gradients', 'no filled shapes', 'no extra words']);
+	return lines.concat([
+		'no gradients',
+		'no filled shapes',
+		'no extra words',
+		'no semicolons or trailing punctuation after a list item'
+	]);
 };
