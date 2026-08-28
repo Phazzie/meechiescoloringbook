@@ -9,6 +9,7 @@ import {
 	fontStyleLine,
 	textStrokeLine,
 	decorationLine,
+	APPROVED_DECORATION_OBJECTS,
 	illustrationLine,
 	shadingLine,
 	borderLine,
@@ -108,6 +109,26 @@ describe('prompt-template helpers', () => {
 
 		it('returns none decoration line for default', () => {
 			expect(decorationLine('none')).toContain('none');
+		});
+
+		// The vocabulary is owner-approved and closed. Before this, 'minimal outline icons'
+		// named nothing at all and the model filled the page with whatever generic clip art it
+		// felt like. Naming the objects is the whole point of the line.
+		it.each(['minimal', 'dense'] as const)(
+			'names every approved decoration object at %s density',
+			(density) => {
+				const line = decorationLine(density);
+				for (const object of APPROVED_DECORATION_OBJECTS) {
+					expect(line).toContain(object);
+				}
+			}
+		);
+
+		it('names no decoration object when decorations are off', () => {
+			const line = decorationLine('none');
+			for (const object of APPROVED_DECORATION_OBJECTS) {
+				expect(line).not.toContain(object);
+			}
 		});
 	});
 

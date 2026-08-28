@@ -62,12 +62,32 @@ export const fontStyleLine = (fontStyle: ColoringPageSpec['fontStyle']): string 
 export const textStrokeLine = (strokeWidth: ColoringPageSpec['textStrokeWidth']): string =>
 	`Stroke: ${strokeWidth}px.`;
 
+// The owner-approved decoration vocabulary. Do not add to it without asking: the previous line
+// said only 'minimal outline icons', which named nothing, so the image model filled the page
+// with whatever generic clip art it reached for. These are the objects Meechie's audience
+// actually recognises. Cash, doors, receipts, hair tools and courthouses were proposed and
+// not taken up.
+export const APPROVED_DECORATION_OBJECTS = [
+	'lip gloss tube',
+	'perfume bottle',
+	'acrylic nail tips',
+	'gold hoop earrings',
+	'nameplate necklace reading MEECHIE',
+	'scattered rhinestones',
+	'crown',
+	'diamonds',
+	'pack of Newports',
+	'torch lighter'
+] as const;
+
+const DECORATION_VOCABULARY = APPROVED_DECORATION_OBJECTS.join(', ');
+
 export const decorationLine = (decorations: ColoringPageSpec['decorations']): string => {
 	switch (decorations) {
 		case 'minimal':
-			return 'Decorations: minimal outline icons.';
+			return `Decorations: a few minimal outline icons, drawn only from this set: ${DECORATION_VOCABULARY}.`;
 		case 'dense':
-			return 'Decorations: dense outline icons.';
+			return `Decorations: dense outline icons, drawn only from this set: ${DECORATION_VOCABULARY}.`;
 		default:
 			return 'Decorations: none.';
 	}
