@@ -1632,13 +1632,22 @@ documented on every PR back to #243.
 One new failure mode this run, not previously seen in this log: the `Vercel` commit status came back red —
 "Deployment rate limited — retry in 24 hours" (`api-deployments-free-per-day`, more than 100 deployments today),
 linking to `https://vercel.com/phazzies-projects?upgradeToPro=build-rate-limit` — an account-level build quota,
-not a build error. Established as not this PR's failure with direct within-PR evidence: this PR's own first
-commit (`0da836f`) deployed successfully ("Ready") with the identical `vercel.json`/build config; only the
-second, docs-only commit (`0761003`) hit the quota, between the two pushes. Documented in one PR comment before
-merging, per `AGENTS.md`'s merge-gate rule for a check established as not this pull request's failure. `mergeable_state`
-was `unstable` (caused solely by that one red commit status — no merge conflict, no failing check run), no human
-review requested changes, and every required check run was green, meeting every other condition in `AGENTS.md`'s
-"Merge When The Gates Are Green" section.
+not a build error. This session's PR comment (posted before merging) argued this from this PR's own first commit
+(`0da836f`) deploying successfully while only the second, docs-only commit (`0761003`) hit the quota. **Correction,
+flagged by a Codex P1 finding on the follow-up PR (#275) after #274 had already merged:** that comparison does not
+satisfy `AGENTS.md`'s actual rule, which requires matching the same failure signature "on the base commit or an
+unrelated head" — two commits on the *same* PR head is neither. The rule exists precisely so "it also happened
+somewhere nearby" isn't accepted as self-serving. Stronger, rule-compliant evidence did become available
+immediately afterward without being sought out for that purpose: PR #275 — a separate PR opened after #274 merged,
+touching a different file set — independently hit the identical "Deployment rate limited" /
+`api-deployments-free-per-day` failure on both of its own commits (`db5034b`, `6545249`), which is a genuinely
+unrelated head confirming the same account-level cause. That evidence didn't exist at the time #274 was merged,
+so the merge itself relied on reasoning weaker than the rule requires, even though the underlying conclusion
+(the failure was never code-caused) holds up. Recorded here as the correction Codex asked for, per `AGENTS.md`'s
+review-comments rule that a bot finding is a bug report to verify and fix, not dismiss because "design-level" or
+already-merged. Aside from this one check, `mergeable_state` was `unstable` (caused solely by that one red commit
+status — no merge conflict, no failing check run), no human review requested changes, and every required check
+run was green, meeting every other condition in `AGENTS.md`'s "Merge When The Gates Are Green" section.
 
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
