@@ -463,5 +463,25 @@ every prior entry's precedent.
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#169–#231 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
 
+**PR #250 activity:** the `verify` check failed on the first pushed head (`3ec3026`) — CI's own `npm install`
+(not `npm ci`, so it re-resolves against the live registry rather than strictly trusting the lockfile) pulled
+`eslint-visitor-keys@5.0.1`, which declares `engines.node: "^20.19.0 || ^22.13.0 || >=24"`. `.nvmrc` pinned
+`22.12.0` — one patch short of the `^22.13.0` floor — so `node-version-file: '.nvmrc'` handed CI a Node build
+that failed npm's engine check outright (`npm error engine Unsupported engine`), where the previous
+`node-version: 20` had passed because GitHub's Node 20 setup resolves to a recent 20.x patch that clears the
+`^20.19.0` branch. This is exactly the class of gap fix #2 exists to catch — the pinned version was stale
+relative to what the dependency tree now requires, and CI had been silently not exercising it. Fixed by bumping
+`.nvmrc` from `22.12.0` to `22.22.2` (the version this very session's sandbox runs, so every check in the
+"Verification" section above is direct evidence for it). Reproduced the exact CI failure locally with
+`npm install` (not `npm ci`) before the bump, confirmed it disappears after, and re-ran the full local
+`check`/`lint`/`test`/`verify` suite again post-bump — all still green, `package-lock.json` untouched by the
+reinstall. Pushed as a second commit. `Rosentic - Conflict Detection` also failed on the first head, but both
+its findings named branch pairs and files (`chat-interpretation.adapter.ts`, `rate-limit-seam/mock.ts` /
+`test.ts` / `validators.ts`) this PR's own diff never touches — confirmed directly against
+`git diff --name-only origin/main..HEAD`, the same pre-existing cross-branch-backlog scan failure mode
+documented on PRs #243/#245/#247/#248. Sourcery posted an informational reviewer's guide (no findings, its own
+review budget already exhausted for the week); CodeRabbit skipped (repo has fewer than 10 stars); SonarCloud's
+quality gate passed with 0 new issues.
+
 **Status:** PR #250 opened, subscribed for CI/review activity. If this entry is not followed by a "merged"
 note below, the merge did not complete and the reason should be recorded here by the session that stopped.
