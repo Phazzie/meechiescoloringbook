@@ -1510,3 +1510,99 @@ below, the merge did not complete and the reason should be recorded here by the 
 **Merged:** PR #272 merged into `main` at `ba24311` in this same session. A fresh open-PR listing afterward
 showed only the same pre-existing long-stale backlog (#151–#218 minus merges) — no PR from this session was left
 open.
+
+## 2026-09-03 — session_01NahBZoTTbCaDGnEFFz2UYp (scheduled run)
+
+**Housekeeping before the search:** started from `main` at `34ee3de` (PR #273 already merged, finalizing the
+prior run's log entry) on this session's designated branch (`claude/loving-babbage-27fdd9`), which was already a
+fresh branch off `main` at that exact commit — no reset needed. `git fetch origin main` confirmed `origin/main`
+matched. Listed all open PRs: none from this session's own branch lineage; the same long-stale backlog
+(#151–#218 minus merges) every prior run has noted, unchanged in kind, out of scope for this run. Ran `npm ci`,
+`npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green (845 passed / 1 skipped,
+matching the prior run's baseline).
+
+**Investigation:** This is run #23 on a codebase twenty-two prior runs have already scrubbed hard. Spawned two
+background Explore agents in parallel, each handed a condensed recap (grepped straight from this log's own
+"Found and fixed" headers) of every already-fixed bug class and already-deferred candidate, so neither would
+waste a sweep rediscovering them. One swept application code (`src/lib/core/*`, `src/lib/components/**`,
+`src/lib/server/*`, `src/routes/**`, `hooks.server.ts`, `service-worker.ts`, `studio-state.svelte.ts`), excluding
+seam-governed directories. It came back empty — after checking `MeechieModePage.svelte`'s still-correctly-deferred
+cross-mode staleness (still unreachable, only one in-app link into `/m/X` exists), the `rate-his-excuse` rating
+fallback (dead code — `parseResponse` in `meechie-tool-seam`'s adapter rejects any `rate_excuse` response missing
+a numeric `rating`, so the frontend's `?? result.headline` fallback can never fire), and `loadCreation` not
+resetting `selectedWig`/`tryOnPortraitUrl` (deliberate — consistent with `selectedThemeId` also being left alone
+as a "live styling control" independent of a loaded creation), it reported no new high-confidence bug in scope,
+honestly, rather than padding with a weak candidate. The other agent swept `scripts/*.mjs`, `tests/unit/**`/
+`tests/e2e/**`, root governance docs, and root config files, and confirmed the one still-open candidate this log
+already flagged as ready-to-go in the prior entry: `HANDOFF.md:74` claiming `npm run format:check` fails on "six
+rate-limit files."
+
+I verified that candidate myself and, while confirming it, found a second, related, previously-uncaught bug
+in the same command's output: `npm run format:check` doesn't just warn on those files — it hard-errors on four
+of them, because four `docs/evidence/2026-06-07/*.json` files are corrupted, encoded as UTF-16LE with CRLF line
+endings (a classic PowerShell `Out-File`-on-Windows artifact) inside a repo where every other evidence file is
+plain UTF-8/LF, so prettier's JSON parser can't even read them, let alone check their style. Confirmed nothing
+in the codebase reads these four files by path outside their own evidence bundle (`grep -rn "open-prs-after"`
+only matches `docs/evidence/2026-06-07/proof-tape.{json,md}`, which just list them as filenames), so re-encoding
+them is a zero-behavioral-impact fix. Verified their content survives the conversion intact: decoded each as
+UTF-16LE, parsed as JSON before *and* after normalizing to LF/UTF-8, and confirmed identical array lengths
+(50/56/48/48 records respectively) both times.
+
+**Found and fixed (`claude/loving-babbage-27fdd9`, this same branch):**
+
+1. **Four `docs/evidence/2026-06-07/*.json` files were UTF-16LE-with-CRLF instead of UTF-8/LF, causing
+   `npm run format:check` to hard-error instead of merely warn.** `open-prs-after-contained-close.json`,
+   `open-prs-after-main-push.json`, `open-prs-after-pr120-merge.json`, and `open-prs-after-recalc.json` all
+   failed with `SyntaxError: Unexpected character` at prettier's very first byte — worse than the ~700 other
+   evidence files that just need reformatting, since prettier can't parse these at all. Re-encoded all four to
+   UTF-8 with LF line endings via a small Node script that decoded each as `utf16le`, stripped the BOM,
+   `JSON.parse`d the content before writing to catch any corruption, normalized `\r\n` to `\n`, and re-parsed the
+   normalized text to confirm it stayed valid — deliberately did **not** run them through prettier's `--write`
+   formatter itself, since ~700 other evidence JSON files in the repo are also unformatted-by-design (per
+   `HANDOFF.md`'s own now-corrected note below) and reformatting only these four would be inconsistent with that
+   accepted status quo. Confirmed via `file` that all four are now `JSON text data` (was `Unicode text, UTF-16,
+   little-endian`), and confirmed `npm run format:check`'s tally dropped from "717 warn + hard error on 4 files"
+   to a clean "721 files need formatting" — no more parse errors, consistent with every other unformatted
+   evidence file's status.
+2. **`HANDOFF.md:74` claimed `npm run format:check` "fails on six rate-limit files" — stale by roughly two
+   orders of magnitude.** Flagged as a ready-to-go candidate in the prior entry (2026-09-03, PR #272) but not
+   picked that run. Running `npm run format:check` today (after fix #1 above) shows 721 files needing
+   reformatting repo-wide — driven mostly by auto-generated `docs/evidence/**` JSON/Markdown that has never been
+   run through prettier and grows every session a new dated evidence folder gets added — and even the
+   rate-limit-scoped subset alone is 13 files, not six (`src/lib/adapters/rate-limit-seam/index.ts`;
+   `src/lib/seams/rate-limit-seam/{fixtures,mock,test,validators}.ts`;
+   `src/lib/server/rate-limit-{config,guard,identity,memory-store}.ts`;
+   `tests/unit/rate-limit-{guard,identity,memory-store,route}.test.ts`). This file is explicitly a handoff
+   document meant to tell the next session the true state of open items, so a session trusting the old "six
+   files" claim would badly underestimate the script's real, still-growing failure surface. Fixed the line to
+   state the accurate 721/13 counts and name the `docs/evidence/**` growth pattern as the driver, while
+   preserving the original's framing (pre-existing, not in `npm run verify` or CI, decide whether to enforce or
+   drop the script) since that framing is still accurate and was not part of the stale claim.
+
+**Considered but not picked:** nothing else cleared the bar this run — both background agents' sweeps, plus my
+own verification pass while fixing the two picked items above, came back empty. Application code in particular
+looks close to exhausted for this scoping (excluding seam-governed directories): every candidate the app-code
+agent surfaced this run was either already fixed in a prior entry, unreachable in the current UI, or a
+deliberate design choice already consistent with a sibling field's behavior.
+
+**Verification:** `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (845 passed / 1
+skipped — unchanged from baseline; this run's fixes are a data-encoding correction and a doc-wording correction,
+neither needing new test coverage), `npm run build` (succeeds), and `npm run verify` (full chain green — audit
+gate, chamber-lock, check+test, shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape — evidence
+refreshed in place at `docs/evidence/2026-09-03/`, which already existed for today from all twenty-two prior
+runs; `lint.txt`/`build.txt`/`verify-chain.txt` re-captured post-edit with this run's actual command output,
+headers preserved, per the PR #254/#264/#266/#268/#270/#272 precedent for keeping those three manually-captured
+files current; `proof-tape.mjs` re-run a second time standalone after `verify-chain.txt` was rewritten, per that
+file's own documented note, so the tape inventories the final artifact rather than the mid-chain copy). Neither
+changed file is under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`, or
+`src/lib/seams/*`; the four re-encoded JSON files are inert historical evidence data with no code path reading
+them by path, and the `HANDOFF.md` edit is pure prose describing existing, unchanged tooling behavior — both fall
+under `AGENTS.md`'s own docs/comments-only exception with zero schema or logic impact, so the full Seam-Driven
+Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every prior entry's
+precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** PR #274 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
+below, the merge did not complete and the reason should be recorded here by the session that stopped.
