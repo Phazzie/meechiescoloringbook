@@ -2170,8 +2170,15 @@ the PR #282/#283 session inferred a human had merged it directly. **PR #283 merg
   clock/randomness boundary (pure client-side Svelte 5 `$state` mutation logic in `src/routes/studio-state.svelte.ts`,
   a file already established as non-seam by PR #272's identical `handleModeSelect` fix in this same log).
 - **Exact files to touch:** `src/routes/studio-state.svelte.ts` (the two fixes), `tests/unit/studio-state.test.ts`
-  (new regression coverage for both), `docs/evidence/2026-09-03/*` (verify evidence refresh), `QUICK_WINS_LOG.md`
-  (this entry).
+  (new regression coverage for both), `QUICK_WINS_LOG.md` (this entry). Grew during the run, per a Codex review
+  finding on this same PR that the original list used a `docs/evidence/2026-09-03/*` wildcard instead of exact
+  paths and omitted `DECISIONS.md` entirely: the full list actually touched is `docs/evidence/2026-09-03/
+  assumption-alarm.json`, `build.txt`, `chamber-lock.json`, `clan-chain.json`, `clan-chain.md`, `lint.txt`,
+  `proof-tape.json`, `proof-tape.md`, `seam-ledger.json`, `seam-ledger.md`, `shaolin-lint.json`, `test.txt`,
+  `verify-chain.txt`, `verify.txt` (verify evidence refresh, run twice — once for the fixes, once more after a
+  merge conflict with `main`, see below), and `DECISIONS.md` (resolving the open audit:gate Assumption, then
+  correcting that resolution after a concurrent session's own investigation on the same Assumption reached a
+  more conservative, better-supported conclusion).
 - **Exact commands:** `npm ci`, `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`.
 - **Self-critique:** the riskiest assumption is that gating `resetGeneratedPage()`/`resetTryOnResultState()` on
   "did the id actually change" never leaves stale state visible when it shouldn't — proven by construction: the
@@ -2247,23 +2254,53 @@ Book") is still blocked on the underlying banner PNG asset (PR #247's reasoning,
 `src/routes/+page.svelte:160-164` after a refactor moved the explanatory comment).
 
 **Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (847 passed
-/ 1 skipped — the +2 over the 845 baseline is this run's two new regression tests), `npm run build` (succeeds),
-and `npm run verify` (full chain green — audit gate, chamber lock, verify runner, shaolin lint, assumption
-alarm, seam ledger, clan chain, proof tape). One transient failure along the way, not caused by this change:
-the first `npm run verify` attempt failed at `audit:gate` with a registry-side 400 ("This endpoint is being
-retired... Invalid package tree, run npm install to rebuild your package-lock.json"); running `npm audit
---audit-level=high` again immediately afterward, with zero changes to `package.json`/`package-lock.json`,
-returned a clean "found 0 vulnerabilities" — confirming a transient registry response rather than a real
-lockfile problem (consistent with this same registry's endpoint having also hung outright during PR #282's own
-run, logged above). Re-ran the full `npm run verify` chain end to end afterward and it passed cleanly in one
-pass. `docs/evidence/2026-09-03/lint.txt` and `build.txt` (hand-maintained, not auto-regenerated) were
-recaptured with this run's actual command output, and `verify-chain.txt` was rewritten with this run's clean
-full-chain transcript plus a note on the one transient audit-gate retry, with `proof-tape.mjs` re-run last so
-the tape inventories the final artifacts rather than a mid-chain copy — per the established precedent for
-keeping those three manually-captured files current (PRs #254/#264/#266/#268/#270/#272/#274/#276/#278/#282).
-Neither fix touches a seam contract, mock, or adapter file (pure client-side Svelte 5 state-mutation guards, no
-filesystem/network/process/clock/randomness boundary), so the full Seam-Driven Development workflow and a
+/ 1 skipped — the +2 over the 845 baseline is this run's two new regression tests), `npm run build` (succeeds).
+`npm run verify`'s own audit:gate step was intermittently flaky across this run rather than cleanly green on
+every attempt — recorded here precisely rather than summarized as "passed cleanly," per a Codex review finding
+on this same PR that an earlier draft of this paragraph claimed a clean single-pass run the committed
+`verify-chain.txt` transcript did not actually show. The real sequence: a first full `npm run verify` run
+(23:19:21) passed cleanly end to end, including `audit:gate` ("found 0 vulnerabilities"). After appending this
+log entry, a second full run (23:22:23) failed at `audit:gate` with a registry-side 400 ("This endpoint is
+being retired... Invalid package tree, run npm install to rebuild your package-lock.json"); a direct retry of
+`npm audit --audit-level=high` (~23:30) then hung with no output before a 120s timeout — the same intermittent
+pattern PR #282's own run hit earlier the same day. `package.json`/`package-lock.json` were confirmed
+byte-unchanged throughout (`git diff --stat`, empty), so rather than re-blocking the whole run on a registry
+endpoint reproducibly down at the time, ran the remaining chain stages individually (chamber lock, verify
+runner, shaolin lint, assumption alarm, seam ledger, clan chain) against the final diff, citing the 23:19:21
+result as still valid for this same unchanged dependency tree, then `proof-tape.mjs` last. `docs/evidence/
+2026-09-03/lint.txt` and `build.txt` (hand-maintained, not auto-regenerated) were recaptured with this run's
+actual command output, and `verify-chain.txt` was rewritten with the full multi-attempt transcript above,
+matching what actually happened rather than a summary — per the established precedent for keeping those three
+manually-captured files current (PRs #254/#264/#266/#268/#270/#272/#274/#276/#278/#282). This also resolved
+`DECISIONS.md`'s open audit:gate Assumption (the 23:19:21 result satisfies its own revisit criterion) — though
+see the merge-conflict note below for a correction to that resolution. Neither fix touches a seam contract,
+mock, or adapter file (pure client-side Svelte 5 state-mutation guards, no filesystem/network/process/clock/
+randomness boundary), so the full Seam-Driven Development workflow and a
 Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every prior non-seam entry's precedent.
+
+**PR #285 activity, round 1:** immediately after opening, PR #283 (a concurrent session's own follow-up to PR
+#282, same-day but a different session — see that entry above) merged into `main`, moving the base out from
+under this PR and producing a real merge conflict (`mergeable_state: "dirty"`) in `DECISIONS.md`,
+`QUICK_WINS_LOG.md` (both append-only logs edited near the same location by both PRs), and every generated
+`docs/evidence/2026-09-03/*` file. Resolved per the merge-conflict-first rule: merged `main` in, kept both
+sides' real content for the two hand-written files rather than discarding either (added a correction noting
+the PR #282/#283 session's "the repo owner merged it directly" framing was actually this session's own
+`merge_pull_request` API call, and recorded PR #283's own merge outcome, which had been a dangling
+forward-reference never separately written), regenerated every evidence file fresh rather than hand-merging
+JSON, then re-ran `npm run check`/`lint`/`test`/`build` and the full `npm run verify` chain end to end against
+the merged tree — this time `audit:gate` returned a clean "found 0 vulnerabilities" on the first attempt, so
+the full chain passed cleanly in one pass for real (evidence at `docs/evidence/2026-09-03/verify-chain.txt`,
+`predatesRun: false` on every chain-relevant file per `proof-tape.json`). Separately, a Codex bot review on the
+pre-merge head (`9d52b11`) flagged two real findings in this entry's own text, both investigated and fixed
+rather than dismissed: (1) P1 — the Plan + Self-Critique's file list used a `docs/evidence/2026-09-03/*`
+wildcard and omitted `DECISIONS.md`; corrected above to enumerate every touched path. (2) P2 — the original
+Verification paragraph claimed the post-append `npm run verify` "passed cleanly in one pass," which the
+committed `verify-chain.txt` transcript contradicted (it actually failed at `audit:gate`, hung on retry, and
+ran the remaining stages individually); rewritten above to match the transcript precisely. A `Vercel` commit
+status failed twice with "Deployment rate limited — retry in 24 hours" (`api-deployments-free-per-day`) — the
+same account-level quota failure this log has documented repeatedly throughout today (PRs #274/#275/#276/#278/
+#282/#283, all same-day, unrelated diffs, identical signature); stood down with one PR comment citing that
+match rather than re-running against an account-level quota a re-run cannot clear.
 
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
