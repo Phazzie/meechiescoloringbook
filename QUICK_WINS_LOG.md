@@ -1187,3 +1187,19 @@ in `DECISIONS.md` do not apply, consistent with every prior entry's precedent.
 **Status:** PR #266 opened (commit `09c2729`) and subscribed for CI/review activity. If this line is not
 followed by a "Merged" note below, the merge did not complete and the reason should be recorded here by the
 session that stopped.
+
+All checks passed on the final head (`88ff158`): both `verify` runs, CodeQL, SonarCloud (quality gate passed,
+0 new issues), Rosentic Conflict Detection, and Vercel's preview deploy. Sourcery hit its own 7-day review
+budget and left no findings; CodeRabbit skipped (repo has fewer than 10 stars); Codex's review run reported
+"Failed" as a bot comment with no associated check and no findings attached — investigated and treated as an
+infra-side non-result rather than a code finding, since nothing in its comment named a file, line, or issue to
+act on. Rosentic's one PR-level comment named four cross-branch incompatibilities, all between other stale
+backlog branches (`claude/fix-pr154-pr160-review-comments`, `claude/sweet-mendel-*`, `claude/trusting-volta-*`)
+and none touching any file this PR's diff changes (confirmed via `git diff origin/main...HEAD --stat` against
+each named path) — the same long-stale cross-branch-backlog noise this log has documented on every PR back to
+#243. `mergeable_state` was `clean` and no human review requested changes, so this met every condition in
+`AGENTS.md`'s "Merge When The Gates Are Green" section.
+
+**Merged:** PR #266 merged into `main` at `41ce541` in this same session. A fresh open-PR listing afterward
+showed only the same pre-existing long-stale backlog (#193–#218 minus merges, the highest-numbered still-open
+PR being #218) — no PR from this session's branch lineage was left open.
