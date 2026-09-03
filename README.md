@@ -109,8 +109,10 @@ To change a model, edit `src/lib/core/models.js` and open a pull request.
 | `npm run format` | Format files with Prettier |
 | `npm run format:check` | Check formatting (CI) |
 | `npm run check` | SvelteKit type check |
-| `npm run verify` | Full verify pipeline (chamber lock + lint + type check + tests + seam ledger + proof tape) |
+| `npm run verify` | Full verify pipeline — see stage definitions below (audit gate, chamber lock, verify runner [check + test], shaolin lint, assumption alarm, seam ledger, clan chain, proof tape) |
 | `npm run hooks:install` | Install local git pre-commit/pre-push hooks |
+
+`npm run verify`'s stages, in plain language: **audit gate** fails the build on a known high-severity dependency vulnerability; **chamber lock** checks that every seam has its required contract, probe, sample/fault fixtures, mock, contract tests, and adapter files; **verify runner** runs `npm run check` + `npm test`; **shaolin lint** checks that evidence files are recent enough to trust; **assumption alarm** fails if a blocked probe's assumption isn't recorded in `DECISIONS.md`; **seam ledger** writes a seam coverage report; **clan chain** writes a clean/dirty summary per seam; **proof tape** writes a plain-English summary of all the above.
 
 ---
 

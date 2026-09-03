@@ -1663,3 +1663,69 @@ PR #274 arrived after that PR had already merged. Rather than reopen a merged PR
 `claude/loving-babbage-27fdd9-finalize` branch, which already had the log-finalization commit for #274 queued
 on its own open PR (#275). Verified with `wc -c` against the actual current file sizes and a repo-wide grep for
 the four stale byte counts (`29138|33058|28162|27986`) to confirm no other file still carried them.
+
+## 2026-09-03 — session_01NKkvQMfPJMuztVpeLZhsZE
+
+**Investigation:** Started from `main` at `278033b` (PR #275 already merged, finalizing the prior run's log entry
+— confirmed via `git fetch origin main` and `git diff origin/main..HEAD` showing zero drift). Ran `npm ci`,
+`npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green (845 passed / 1 skipped).
+Listed all open PRs repo-wide and confirmed none belong to this session's `claude/loving-babbage-*` lineage — the
+same long-stale backlog (#151–#218 minus merges) every prior run has noted, unchanged in kind, out of scope for
+this run. Spawned a background Explore agent, told to read this log in full first so it wouldn't re-surface any
+of the ~50 already-fixed/deferred items from the prior 25 runs (PRs #240–#275), to sweep `src/lib/core/*`, every
+studio/tool Svelte component, `src/lib/server/*`, `src/routes/**`, `scripts/*.{mjs,js}`, and the governance docs
+(`README.md`, `docs/CHECKLIST.md`, `docs/seams.md`, `CLAUDE.md`, `CHANGELOG.md`, `DECISIONS.md`,
+`LESSONS_LEARNED.md`). It came back with three ranked candidates plus one honestly-flagged design-judgment item
+it deliberately did not surface as a bug (a `Permissions-Policy`/HSTS header-parity gap between `hooks.server.ts`
+and `vercel.json` it couldn't rule out as an intentional scope choice). Verified its top two candidates myself
+against the actual `package.json` `verify` script and `src/routes/+page.svelte`'s current header comment/import
+tree before picking them; its third candidate (`docs/CHECKLIST.md` Phase 5's seam-rewind list covering 11 of 25
+registered seams) was real but a larger, more mechanical diff than a typical quick win, so left for a future run.
+
+**Found and fixed (PR #276, `claude/loving-babbage-410nvs`):**
+
+1. **`README.md`'s `npm run verify` table row was stale and actively misleading about what the chain runs.** It
+   read "chamber lock + lint + type check + tests + seam ledger + proof tape," but `package.json`'s real `verify`
+   script is `audit:gate && chamber-lock && verify-runner && shaolin-lint && assumption-alarm && seam-ledger &&
+   clan-chain && proof-tape` — the README row omitted **audit gate**, **assumption alarm**, and **clan chain**
+   entirely, and its "lint" word was wrong: confirmed by reading `scripts/verify-runner.mjs` that the chain's
+   `verify-runner` step only runs `npm run check` + `npm test`, never `npm run lint` (ESLint) — the chain's
+   actual "lint"-named step, `shaolin-lint.mjs`, is an evidence-freshness gate, a completely different thing,
+   which the README row didn't mention at all. This is the same "this doc's description of the verify chain is
+   stale" bug already caught and fixed three times before — `AGENTS.md:54`/`AGENTS.md:163` (PRs #268/#270) and
+   `docs/seam-driven-development-ai-guide.md:58` (PR #272) — but README's own copy of the sentence was missed by
+   all three. Corrected to match the real script's step list.
+2. **`docs/CHECKLIST.md`'s Phase 1 item described a UI that no longer exists.** It called
+   `src/routes/+page.svelte` a "manual builder, chat builder, validation gating, generation chain, debug panel,
+   saved creations" — a workflow `CHANGELOG.md` records as retired. Verified against the file itself: its own
+   header comment now reads "Main Meechie coloring-page studio with wig try-on," and its component tree is
+   `StudioHero` + `StudioInputPanel` + `StudioPreviewPanel` + `StudioSettingsPanel` + `WigTryOnStudio` +
+   `VerdictRow` + `SystemTrace` — no manual/chat builder split, no debug panel (that's now the `SystemTrace`
+   "System Trace" panel). `CLAUDE.md:68` calls this file the "Pre-ship checklist," meant to be followed
+   literally, not read as a historical snapshot of a retired feature. Corrected the line to describe the current
+   Meechie Studio flow (evidence input, AI verdict/quote generation, wig try-on, coloring-page preview/export,
+   Quote Vault).
+
+**Considered but not picked:** `docs/CHECKLIST.md` Phase 5's seam-rewind list (11 of the repo's 25 registered
+seams per `docs/seams.md`, missing newer billable-facing seams like `RateLimitSeam`/`WigTryOnSeam`/
+`MeechieStudioTextSeam`) — real, but the honest minimal fix is a ~14-line addition rather than a single-line
+correction, and it's plausible the list was deliberately scoped to the seams active when it was written rather
+than meant to be exhaustively maintained; left as a candidate for a future run rather than guessed at. Also
+explicitly not picked (per the Explore agent's own calibration, consistent with this log's standing "don't flag
+design-judgment items" rule): a `Permissions-Policy`/HSTS header gap between `hooks.server.ts` and `vercel.json`
+for filesystem-served static paths — `DECISIONS.md`'s 2026-09-03 Assumption entry reasons explicitly about HSTS's
+omission there but not `Permissions-Policy`'s, which is suggestive but not conclusive since `Permissions-Policy`
+is normally meaningless on non-document static assets.
+
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (845 passed /
+1 skipped, unchanged from baseline), and `npm run build` (succeeds) — all green. Neither change touches a seam
+(`contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/*`) or any
+filesystem/network/process/clock/randomness boundary — pure prose corrections to two existing docs, so the full
+Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every
+prior docs-only entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** PR #276 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
+below, the merge did not complete and the reason should be recorded here by the session that stopped.
