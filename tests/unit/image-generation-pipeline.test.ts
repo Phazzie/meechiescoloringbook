@@ -317,8 +317,9 @@ describe('image-generation-pipeline edge cases', () => {
     }
   });
 
-  it('defaults to png for unrecognized base64 headers', async () => {
-    const result = await runImageGenerationPipeline(
+  // Shared by every format-detection case below: only the b64 payload differs.
+  const runWithImageB64 = (b64: string) =>
+    runImageGenerationPipeline(
       {
         spec: validSpec,
         prompt: validPrompt,
@@ -328,12 +329,15 @@ describe('image-generation-pipeline edge cases', () => {
       makeDeps(async () => ({
         ok: true,
         value: {
-          images: [{ id: 'xai-1', b64: 'not-a-known-image-header' }],
+          images: [{ id: 'xai-1', b64 }],
           rawModelInfo: {},
           timingMs: 100
         }
       }))
     );
+
+  it('defaults to png for unrecognized base64 headers', async () => {
+    const result = await runWithImageB64('not-a-known-image-header');
 
     expect(result.status).toBe(200);
     expect(result.body.ok).toBe(true);
@@ -344,22 +348,7 @@ describe('image-generation-pipeline edge cases', () => {
   });
 
   it('marks JPEG base64 as jpg for downstream packaging', async () => {
-    const result = await runImageGenerationPipeline(
-      {
-        spec: validSpec,
-        prompt: validPrompt,
-        variations: 1,
-        outputFormat: 'pdf'
-      },
-      makeDeps(async () => ({
-        ok: true,
-        value: {
-          images: [{ id: 'xai-1', b64: '/9j/jpeg-data' }],
-          rawModelInfo: {},
-          timingMs: 100
-        }
-      }))
-    );
+    const result = await runWithImageB64('/9j/jpeg-data');
 
     expect(result.status).toBe(200);
     expect(result.body.ok).toBe(true);
@@ -371,23 +360,7 @@ describe('image-generation-pipeline edge cases', () => {
 
   it('marks WebP base64 as webp instead of defaulting to png', async () => {
     // RIFF....WEBP.... - a minimal, real WebP byte signature, base64-encoded.
-    const webpBase64 = 'UklGRhAAAABXRUJQVlA4IA==';
-    const result = await runImageGenerationPipeline(
-      {
-        spec: validSpec,
-        prompt: validPrompt,
-        variations: 1,
-        outputFormat: 'pdf'
-      },
-      makeDeps(async () => ({
-        ok: true,
-        value: {
-          images: [{ id: 'xai-1', b64: webpBase64 }],
-          rawModelInfo: {},
-          timingMs: 100
-        }
-      }))
-    );
+    const result = await runWithImageB64('UklGRhAAAABXRUJQVlA4IA==');
 
     expect(result.status).toBe(200);
     expect(result.body.ok).toBe(true);
