@@ -1876,3 +1876,82 @@ established both as pre-existing rather than this PR's fault.
 **Merged:** PR #280 merged into `main` at `7de8495` in this same session. A fresh open-PR listing afterward
 showed only the same pre-existing long-stale backlog (`#193`–`#218` minus merges) — no PR from this session was
 left open.
+
+## 2026-09-03 — session_0194ymy444rCM9kwbExpjbHD
+
+**Investigation:** Started from `main` at `532a997` (PR #281 already merged, finalizing the prior run's log
+entry — confirmed `origin/main` matched local `HEAD` exactly after a fresh `git fetch origin main`, no drift).
+Ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green (845 passed /
+1 skipped). Listed open PRs: the same long-stale backlog (`#151`–`#218`, minus merges), none from this session's
+`claude/loving-babbage-*` lineage — out of scope, not touched, consistent with every prior run's policy. Spawned
+a background Explore agent, pointed at this log in full (30+ prior fixes across PRs #240–#280) and at `AGENTS.md`'s
+seam-governance rules, told to sweep broadly and report honestly rather than pad the list. While it ran, did a
+parallel manual pass over `AGENTS.md`, `docs/seams.md`, `PROMPTING.md`, `test_plan.md`, `src/hooks.server.ts`,
+`vercel.json`, `src/service-worker.ts`, `src/lib/core/http-client.ts`, `src/lib/core/image-generation-pipeline.ts`,
+and `src/routes/api/wig-try-on/+server.ts`'s timeout-budget reasoning (which checked out as internally consistent,
+not a bug) — and, independently of the agent, found the `AGENTS.md` line 54/163 naming inconsistency described
+below. The agent's own sweep (208K tokens, 64 tool calls, ~4.5 CPU-minutes) read the full log plus a wide swath of
+`src/lib/core/*`, Svelte components, and docs not individually named in prior entries, and came back with one
+high-confidence candidate — explicitly re-confirming several near-misses (the `StudioHero` banner-art apostrophe,
+`SelfieUpload`'s British "cancelled," `meechie-quote-scoring.ts` dead code, an in-flight-generation race it
+investigated and ruled already-correct, `docs/CHECKLIST.md`'s Phase 5 seam-rewind gap) as still correctly deferred,
+and it independently re-flagged the same `AGENTS.md` line 54/163 item I'd found, again characterizing it as
+"stylistic" per the PR #280 entry's original judgment rather than a clear miss.
+
+**Found and fixed (PR #282, `claude/loving-babbage-b68vd6`):**
+
+1. **`README.md`'s "Each seam consists of" list named 4 of the self-contained layout's 6 files, and misstated
+   the adapter's location.** `README.md:123–127` listed only `contract.ts`, `fixtures.ts`, `mock.ts`, and
+   `adapter.ts` — omitting `probe.ts` and `test.ts` entirely, and claiming the real implementation lives at
+   `adapter.ts` inside the seam folder. Verified against the actual folder layout (`ls src/lib/seams/
+   rate-limit-seam/` → `contract.ts fixtures.ts mock.ts probe.ts test.ts validators.ts`, six files, no
+   `adapter.ts`) and against `src/lib/seams/CLAUDE.md`, which already states the correct six-file structure and
+   explicitly says "The adapter lives separately at `src/lib/adapters/<seam-name>/index.ts`." This is the same
+   doc-drift bug class this log has fixed repeatedly (PRs #248, #268, #270, #272, #276, #280) — a description of
+   repo structure going stale relative to reality and to a correct sibling description (README's own chamber-lock
+   paragraph two headings above already correctly names six categories: "contract, probe, sample/fault fixtures,
+   mock, contract tests, and adapter files") — just not caught in this specific paragraph until now. Fixed to
+   list all six files plus the adapter's real path, also noting the legacy flat-layout's `<seam-name>.adapter.ts`
+   naming for seams that haven't migrated.
+2. **`AGENTS.md` names the same `npm run verify` chain step two different ways in the same file.** Line 54 (the
+   Governance section) describes the chain as "...chamber lock, evidence capture, shaolin lint..."; line 163 (the
+   Automation Tools section) describes the identical chain as "...chamber lock, verify runner, shaolin lint...".
+   Verified against `package.json`, which defines `"verify:runner": "node scripts/verify-runner.mjs"` — line
+   163's wording matches the real script name, line 54's does not. The PR #280 entry above first surfaced this
+   exact pair of lines and judged it "stylistic variance rather than an objectively wrong claim...since the
+   [prior four fixed bugs] were about missing/extra *steps*, not a step's *name*," and this run's Explore agent
+   independently re-reached the same "stylistic" conclusion. Picked it anyway this round, for two reasons: first,
+   `AGENTS.md` itself is the one document in this repo that most depends on exact terminology — it requires
+   "exact seam names," "exact file paths," and "exact commands" from anyone planning a change, and a governance
+   document describing its own automation chain with two different names for the same step undercuts that
+   standard on its own terms, even though the step still gets run either way. Second, both this session's own
+   independent search and the Explore agent's 208K-token sweep, despite deliberately trying not to re-surface it,
+   could not find a second candidate that cleared a comparably high bar — after 30+ fixes across 12 prior runs,
+   the well is close to dry, and a real (if narrow) documentation-precision fix beats stretching for a weaker,
+   less-verified one. Changed line 54's "evidence capture" to "verify runner" to match line 163 and the real
+   script name.
+
+**Considered but not picked:** nothing else cleared a comparable bar. Re-confirmed as still correctly deferred:
+the `StudioHero.svelte` banner-art apostrophe (blocked on the underlying PNG asset, not code), `SelfieUpload.svelte`'s
+British-spelled "cancelled" (cosmetic style variance), `meechie-quote-scoring.ts` (confirmed dead code, but
+removing/wiring it is a design decision), `docs/CHECKLIST.md`'s Phase 5 seam-rewind list (curated example list,
+not meant to be exhaustive), and the `DEFAULT_IMAGE_SIZE` wiring gap (PR #248 — wiring it through would touch the
+`image-generation-seam` adapter, disproportionate for a quick win). The Explore agent also checked and ruled out
+as actually-correct-on-closer-inspection: `svelte.config.js`'s CSP comment's "four inline style attributes" claim,
+and `docs/CHECKLIST.md`'s evidence-artifact list.
+
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (845 passed /
+1 skipped, unchanged from baseline), `npm run build` (succeeds), and `npm run verify` (full chain green — audit
+gate, chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, proof tape — evidence
+refreshed in place at `docs/evidence/2026-09-03/`, which already existed for today from all twelve prior runs).
+Neither change touches a seam (`contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`,
+`src/lib/seams/*`) or any filesystem/network/process/clock/randomness boundary — pure prose corrections to two
+existing docs, so the full Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do not
+apply, consistent with every prior docs-only entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(`#151`–`#218` minus merges) every recent run has noted; still needs a separate, explicitly-scoped session to
+drain.
+
+**Status:** PR #282 opened and subscribed for CI/review activity. If this line is not followed by a "Merged"
+note below, the merge did not complete and the reason should be recorded here by the session that stopped.
