@@ -222,3 +222,12 @@ Not implemented: HTMLCanvasElement's getContext() method: without installing the
 (shaolin-lint, assumption-alarm, seam-ledger, clan-chain: no output; exit 0 for all four -
  assumption-alarm re-run after DECISIONS.md's Validation text was finalized, so
  assumption-alarm.json's copied field matches the committed source exactly)
+
+$ timeout 30 npm audit --audit-level=high   # (log-finalization commit, after PR #283 merged - succeeded)
+found 0 vulnerabilities
+
+$ timeout 110 npm run verify   # (via the full chain wrapper - hung again in audit:gate; same intermittent flakiness)
+[no further output before the 110s timeout]
+
+$ node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining chain stages, run individually)
+(check/test green, 845 passed / 1 skipped; shaolin-lint/assumption-alarm/seam-ledger/clan-chain: no output, exit 0 for all four)

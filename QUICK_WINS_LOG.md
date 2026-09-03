@@ -2149,3 +2149,26 @@ session) carries those four findings — its own CI/review activity and merge ou
 next entry below, per this log's append-only convention (a prior entry's own recorded lines are never rewritten,
 even within the same session; new information is appended as a new line or a new entry instead — a Codex review
 finding on PR #283 caught this entry's own violation of that rule and it is corrected here).
+
+**PR #283 activity (follow-up to PR #282, same session):** a Codex review round on the opening head (`a3f7047`)
+flagged four findings, all investigated and fixed rather than dismissed — see the "Merged" note above for the
+one that mattered most (this entry's own append-only violation). The other three, briefly: (1) the round-5
+README fix describing `probe.ts`/`fixtures.ts` behavior as a clean two-way split by pure-vs-external was still
+wrong — `drift-detection-seam`, `prompt-assembly-seam`, and `spec-validation-seam` (all pure) have literal
+`export {};` N/A probe stubs rather than calling the seam, and `wig-try-on-seam` (externally backed) uses an
+authored placeholder fixture rather than a real capture — reworded to say the exact strategy is seam-specific
+and defer to `docs/seams.md`, rather than keep guessing at a taxonomy that kept being wrong. (2) the committed
+`assumption-alarm.json` still carried an earlier revision of `DECISIONS.md`'s Validation text because the file
+was edited after the evidence was last generated; re-ran `assumption-alarm.mjs`/`proof-tape.mjs` once the source
+was final. (3) a genuine miscount — prose claimed a "seventh direct retry and an eighth via `npm run verify`"
+both hung after the sixth `npm audit` attempt succeeded, but the transcript only ever recorded one further
+attempt (the wrapper call, correctly labeled retry 7); corrected the count everywhere it appeared. `Rosentic -
+Conflict Detection`, `Vercel` (rate-limited on the first push, standard pre-existing signature, stood down with
+one comment), SonarCloud, CodeQL, and Sourcery (approved) all passed on the final head (`b93d58a`); `verify`
+passed on both required jobs after ~8 total `npm audit` attempts across this run and its follow-up, six of which
+hit the intermittently flaky registry endpoint (see `DECISIONS.md`'s still-open Assumption).
+
+**PR #283 merged** into `main` at `5eac399` in this same session — a fresh open-PR listing afterward showed
+nothing open from this session's `claude/loving-babbage-*` lineage. Both PR #282 (two quick wins plus the
+user-requested `AGENTS.md` routine documentation) and PR #283 (its follow-up) are closed and merged; this run is
+complete.
