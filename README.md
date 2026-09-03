@@ -128,7 +128,7 @@ Each self-contained seam folder (`src/lib/seams/<seam-name>/`, the layout new se
 - `test.ts` — contract tests (mock first, fault fixture must fail)
 - `validators.ts` — shared Zod validators for adapter and test reuse
 
-When an adapter exists, it lives separately, at `src/lib/adapters/<seam-name>/index.ts` — some seams are pure or dependency-injected and have no adapter at all. Legacy flat-layout seams (see `contracts/CLAUDE.md`) split these same artifacts across `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, and `tests/contract/` instead, with the adapter at `src/lib/adapters/<seam-name>.adapter.ts`, and have no `validators.ts`. `docs/seams.md` is the authoritative source for which layout and files a given seam actually has.
+When an adapter exists, it lives separately, at `src/lib/adapters/<seam-name>/index.ts` — some seams are pure or dependency-injected and have no adapter at all. Legacy flat-layout seams (see `contracts/CLAUDE.md`) split these same artifacts across `contracts/`, `probes/` (only when the seam requires a real-world probe — most legacy seams are pure and have none), `fixtures/`, `src/lib/mocks/`, and `tests/contract/` instead, with the adapter at `src/lib/adapters/<seam-name>.adapter.ts`, and have no `validators.ts`. `docs/seams.md` is the authoritative source for which layout and files a given seam actually has.
 
 **Key directories:**
 

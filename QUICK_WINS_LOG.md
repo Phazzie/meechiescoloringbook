@@ -1879,6 +1879,40 @@ left open.
 
 ## 2026-09-03 — session_0194ymy444rCM9kwbExpjbHD
 
+**Plan + Self-Critique (per `AGENTS.md`'s Planning enforcement/template):**
+- **Goal:** find and fix two small, low-risk, non-seam bugs per the scheduled task's standing
+  instructions; separately, the user asked mid-session to add documentation of this scheduled
+  routine itself to `AGENTS.md`.
+- **Seams:** none — both quick-win candidates (README's seam-file list, AGENTS.md's verify-chain
+  naming) and the routine-documentation addition are pure prose in governance/reference docs;
+  nothing touches `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`,
+  `src/lib/seams/*`, or any filesystem/network/process/clock/randomness boundary. No seam name
+  from `docs/seams.md` applies.
+- **Exact files to touch:** `README.md` (the "Each seam consists of" list and the paragraph after
+  it); `AGENTS.md` (line 54's verify-chain wording, plus a new "Scheduled Quick-Wins Routine"
+  section and one `QUICK_WINS_LOG.md` line added to Project Docs); `QUICK_WINS_LOG.md` (this
+  entry).
+- **Exact commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run
+  verify` (or its individual stages, when the live audit-gate registry endpoint hung mid-run —
+  see Verification below).
+- **Self-critique — what could be wrong:** (1) Riskiest assumption on the two quick wins: that
+  README's seam-file list and AGENTS.md's verify-chain naming are worth fixing at this granularity
+  rather than being cosmetic — the AGENTS.md item specifically was already flagged and deferred
+  twice by prior evaluations (PR #280's own entry, and this run's Explore agent) as "stylistic."
+  Picked it anyway because AGENTS.md's own standard is exact terminology, and because no
+  comparably strong second candidate turned up despite two independent thorough sweeps this run
+  (a manual pass and a 208K-token Explore agent) — reasoning recorded in "Found and fixed" below.
+  (2) Risk on the routine-documentation addition: that it duplicates or drifts from `CLAUDE.md`'s
+  existing navigation content instead of adding new information — checked against `CLAUDE.md`'s
+  File Map and AGENTS.md's own existing sections first; the new section describes operational
+  conventions specific to the scheduled task (log format, scope boundaries, established CI-noise
+  patterns) that exist nowhere else in either file, so it's additive, not duplicative. (3) A Codex
+  review on this PR's early heads correctly flagged that this Plan + Self-Critique step had been
+  skipped initially — the identical gap PR #254's entry (`QUICK_WINS_LOG.md:604-624`) already
+  established and fixed the same way. This section is that fix, added once the finding landed,
+  judged proportionate to three small doc changes rather than opening a `plan.md` entry reserved
+  for major refactors.
+
 **Investigation:** Started from `main` at `532a997` (PR #281 already merged, finalizing the prior run's log
 entry — confirmed `origin/main` matched local `HEAD` exactly after a fresh `git fetch origin main`, no drift).
 Ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green (845 passed /
@@ -1931,6 +1965,20 @@ and it independently re-flagged the same `AGENTS.md` line 54/163 item I'd found,
    less-verified one. Changed line 54's "evidence capture" to "verify runner" to match line 163 and the real
    script name.
 
+**Separately requested by the user mid-session (same PR, same branch):** the user asked directly (not through
+the scheduled task's own standing instructions) to document this scheduled quick-wins routine in `AGENTS.md` so
+future runs — and any human reading the file — have a canonical description of it. Added a new "## Scheduled
+Quick-Wins Routine" section covering: the log-every-run convention (`QUICK_WINS_LOG.md`, append-only), the scope
+boundary (two small non-seam fixes, seam-governed directories excluded), the established investigation pattern
+(baseline checks, Explore agent pointed at the full log), the never-touch-other-open-PRs rule, the verification
+bar, the two recurring CI-noise patterns this log has repeatedly reproduced and stood down on (`Rosentic -
+Conflict Detection`'s cross-branch backlog scans, Vercel's free-tier daily rate limit), and the requirement to
+record a blocker in the log rather than leave a PR open. Also added a `QUICK_WINS_LOG.md` line to the existing
+"Project Docs" list. Checked against `CLAUDE.md`'s File Map and every existing `AGENTS.md` section first to
+confirm this was additive, not duplicative — `CLAUDE.md` names `QUICK_WINS_LOG.md` nowhere at all (a
+pre-existing gap in that file's own File Map, out of scope for an `AGENTS.md`-only request), and nothing already
+in `AGENTS.md` described this specific automation's conventions.
+
 **Considered but not picked:** nothing else cleared a comparable bar. Re-confirmed as still correctly deferred:
 the `StudioHero.svelte` banner-art apostrophe (blocked on the underlying PNG asset, not code), `SelfieUpload.svelte`'s
 British-spelled "cancelled" (cosmetic style variance), `meechie-quote-scoring.ts` (confirmed dead code, but
@@ -1940,14 +1988,53 @@ not meant to be exhaustive), and the `DEFAULT_IMAGE_SIZE` wiring gap (PR #248 �
 as actually-correct-on-closer-inspection: `svelte.config.js`'s CSP comment's "four inline style attributes" claim,
 and `docs/CHECKLIST.md`'s evidence-artifact list.
 
-**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (845 passed /
-1 skipped, unchanged from baseline), `npm run build` (succeeds), and `npm run verify` (full chain green — audit
-gate, chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, proof tape — evidence
-refreshed in place at `docs/evidence/2026-09-03/`, which already existed for today from all twelve prior runs).
-Neither change touches a seam (`contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`,
-`src/lib/seams/*`) or any filesystem/network/process/clock/randomness boundary — pure prose corrections to two
-existing docs, so the full Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do not
-apply, consistent with every prior docs-only entry's precedent.
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean, also captured verbatim
+to `docs/evidence/2026-09-03/lint.txt`), `npm test` (845 passed / 1 skipped, unchanged from baseline), `npm run
+build` (succeeds, also captured verbatim to `docs/evidence/2026-09-03/build.txt`), and `npm run verify` — full
+chain green on the first two passes (audit gate, chamber lock, verify runner, shaolin lint, assumption alarm,
+seam ledger, clan chain, proof tape). On the third pass (after the AGENTS.md routine-documentation addition
+above), the registry's audit endpoint itself hung with zero output past a 90s timeout — reproduced three times
+(30s/60s/90s) directly via `npm audit --audit-level=high` outside the `verify` wrapper, while `npm ping` to the
+same registry succeeded in 150ms, isolating it to the audit endpoint specifically rather than a general
+connectivity or proxy problem. Since `package.json`/`package-lock.json` were unchanged since this same session's
+earlier successful audit (`found 0 vulnerabilities`, captured minutes earlier in the same evidence set), ran the
+remaining chain stages individually (chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger,
+clan chain, proof tape) rather than re-blocking the whole run on a registry endpoint that was — at the time of
+the check — reproducibly down; both the hang and the still-valid earlier result are recorded verbatim in
+`docs/evidence/2026-09-03/verify-chain.txt`, and `proof-tape.json` confirms `predatesRun: false` on every file
+this run touched (`verify-chain.txt`, `lint.txt`, `build.txt`, and the rest of the chain's own outputs). None of
+the three changes (README, AGENTS.md's line-54 fix, AGENTS.md's new routine section) touch a seam
+(`contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/*`) or any
+filesystem/network/process/clock/randomness boundary of their own — pure prose across two existing docs — so the
+full Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with
+every prior docs-only entry's precedent.
+
+**PR #282 activity:** a Codex bot review on the first head (`e13f615`) flagged three real findings, all
+investigated and fixed rather than dismissed. (1) P1 — `docs/evidence/2026-09-03/proof-tape.json` marked
+`verify-chain.txt` as `predatesRun: true`, because that file is hand-maintained (nothing auto-regenerates it,
+per its own header note) and had gone stale relative to that push's chamber-lock marker. Recaptured it with a
+fresh full `npm run verify` transcript and re-ran `proof-tape.mjs` afterward. (2) P2 — the README fix's new
+"When an adapter exists..." sentence still implied every legacy flat-layout seam has a real adapter file, when
+`docs/seams.md` lists several pure/dependency-injected legacy seams with none. Reworded to make the adapter
+conditional. (3) P2 — the same fix's seam-file list still read as universal, when legacy flat-layout seams split
+the artifacts differently (no `validators.ts`) — scoped the sentence to the self-contained layout specifically
+and pointed to `docs/seams.md` as authoritative. All three replied to and resolved. A second Codex review round
+on the next head (`f1b669a`) flagged three more: (1) P1 — no Plan + Self-Critique was recorded for this
+governance-only change, the identical gap PR #254's entry (`QUICK_WINS_LOG.md:604-624`) already established and
+fixed; addressed by adding the Plan + Self-Critique section at the top of this entry. (2) P2 — the just-fixed
+README wording still listed `probes/` as universal for legacy seams, when most legacy seams (`PromptAssemblySeam`,
+`DriftDetectionSeam`, `MeechieVoiceSeam`, `MeechieToolSeam`, `MeechieStudioTextSeam`, `OutputPackagingSeam`,
+`SpecValidationSeam`) are `N/A (pure)` per `docs/seams.md` and have no real probe file; qualified the sentence to
+"only when the seam requires a real-world probe." (3) P2 — the log's Verification section asserted `npm run
+lint`/`npm run build` succeeded with no captured evidence backing either claim, the identical gap PR #254's entry
+already established and fixed the same way; addressed by capturing both to `docs/evidence/2026-09-03/lint.txt`
+and `build.txt`. `Rosentic - Conflict Detection` passed outright on every head (no findings against this
+branch's actual diff, unlike the advisory-comment noise documented on most prior PRs in this log). `Vercel`
+failed with the same account-level "Deployment rate limited — retry in 24 hours" signature documented
+repeatedly throughout this log; reproduced directly against PR #280's already-merged head (`d20ede7`, same
+context/description/target URL, a completely unrelated docs-only diff from earlier the same day) before standing
+down with one PR comment. SonarCloud's quality gate, CodeQL, and CodeRabbit (skipped-success) all passed on
+every head; Sourcery skipped (own review budget exhausted, same as most prior PRs in this log).
 
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (`#151`–`#218` minus merges) every recent run has noted; still needs a separate, explicitly-scoped session to

@@ -142,10 +142,45 @@ conditions above are met is itself the defect. Merge, then report what was merge
 - Primary failure modes: skipping steps, guessing instead of probing, declaring completion without evidence.
 - If required inputs, permissions, or probes are missing, STOP and declare “BLOCKED” with what is missing.
 
+## Scheduled Quick-Wins Routine
+This repo runs a recurring scheduled task with no live human watching: find two small, low-risk,
+self-contained bugs, fix them, open a PR, drive it through review to merge, and never leave the PR
+open. If a run genuinely can't finish, it says so in the log with why and whether a future run
+should pick it up — it does not leave a PR open silently.
+
+- **Log every run** in `QUICK_WINS_LOG.md` (append-only — never edit or delete a prior entry, only
+  add a new one at the bottom). Read it in full before starting; it records every fix, every
+  deferred candidate with its reasoning, and every stood-down CI failure signature so a new run
+  doesn't re-derive or re-surface any of that.
+- **Scope:** two independently small, verifiable, non-seam fixes per run. A candidate is out of
+  scope for this routine if fixing it would touch `contracts/`, `probes/`, `fixtures/`,
+  `src/lib/mocks/`, `src/lib/adapters/`, or `src/lib/seams/*` — those need the full
+  Seam-Driven Development workflow, disproportionate here. Prefer `src/lib/core/*`,
+  `src/routes/**`, `src/lib/components/**`, and docs.
+- **Investigation:** run `npm ci`, `npm run check`, `npm run lint`, `npm test` on a clean checkout
+  first to establish a baseline. A background Explore agent (pointed at `QUICK_WINS_LOG.md` in
+  full so it doesn't re-surface fixed/deferred items) plus a manual pass is the established
+  pattern for finding candidates.
+- **Other open PRs:** never touch a PR or branch this run didn't create. A long-stale backlog of
+  unrelated open PRs is expected and out of scope; note it in the log, don't drain it.
+- **Verification:** `npm run check`, `npm run lint`, `npm test`, `npm run build` before every push;
+  run the full `npm run verify` chain and refresh `docs/evidence/YYYY-MM-DD/` even when no seam is
+  touched, to keep evidence current for the day.
+- **CI noise already established as pre-existing, not this routine's fault:**
+  `Rosentic - Conflict Detection`'s advisory comments scanning the whole open-PR backlog for
+  cross-branch incompatibilities the diff doesn't touch, and Vercel's free-tier daily
+  deployment-rate-limit failure. Stand down per the reproduction bar in "Merge When The Gates Are
+  Green" above (match the same failure signature on an unrelated or already-merged head, comment
+  once, don't block on it) rather than treating either as this run's problem to fix.
+- **If a run can't finish:** record in `QUICK_WINS_LOG.md` exactly what's blocking, and whether a
+  future run could or should pick it up. Don't leave the PR open without that note.
+
 ## Project Docs
 - `LESSONS_LEARNED.md`: short, dated entries capturing pitfalls and fixes.
 - `DECISIONS.md`: decision log with context, alternatives, and consequences.
 - `CHANGELOG.md`: user-visible changes only.
+- `QUICK_WINS_LOG.md`: append-only log of every scheduled quick-wins run — what was found, fixed,
+  deferred, and merged.
 - `docs/seams.md`: inventory of seams and their owners/contracts.
 - `docs/SEAM_BLUEPRINT.md`: standard blueprint for new seams.
 - `docs/evidence/README.md`: evidence capture conventions and storage.
