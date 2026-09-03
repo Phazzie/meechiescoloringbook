@@ -971,3 +971,17 @@ same PR correcting the log text and adding the actual `maxDuration: 150` fix (it
 above) rather than leaving the record wrong or spinning up a third PR for a one-line fix already fully understood.
 If this line is not followed by a "Merged" note below, the merge did not complete and the reason should be
 recorded here by the session that stopped.
+
+`verify`, Rosentic Scan, and SonarCloud's quality gate all passed on the final head; Vercel deployed a preview
+successfully; CodeRabbit skipped (repo has fewer than 10 stars). Replied to and resolved the Codex thread once
+the correction landed.
+
+**Merged:** PR #262 merged into `main` at `8ff3350` in this same session. No PRs from this session were left
+open (confirmed via a fresh open-PR listing after the merge — only the same pre-existing long-stale backlog,
+#151–#218, unchanged from before this run).
+
+**Correction (PR #263 review):** this finalization's first version made the exact append-only mistake this log's
+own precedent already warned about three times (`3617855`, `009bd69`, `64e1289`, see the PR #257/#260 entries
+above) — it deleted the "If this line is not followed..." conditional status sentence instead of preserving it and
+appending the activity/merge confirmation after it. Caught by a Codex review on this PR itself; fixed by restoring
+the original sentence and moving the new content below it, matching that same precedent's own fix a fourth time.
