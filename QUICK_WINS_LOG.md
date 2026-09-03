@@ -567,3 +567,34 @@ process/clock/randomness boundary), so the full Seam-Driven Development workflow
 
 **Status:** PR #252 opened and subscribed for CI/review activity. If this entry is not followed by a "merged"
 note below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
+**PR #252 activity:** `verify`, `CodeQL`, `SonarCloud`/`SonarCloud Code Analysis`, and both commit statuses
+(`CodeRabbit` skipped-success, `Vercel` deployed) all passed on the final head. CodeRabbit skipped (repo has
+fewer than 10 stars); Sourcery skipped (its own 7-day diff-character review budget already exhausted, same as
+PRs #245/#247/#250). `Rosentic - Conflict Detection` failed on all three pushed heads, each time naming this
+branch against `claude/fix-pr154-pr160-review-comments` (PR #163), a long-stale, never-merged branch from the
+pre-existing open-PR backlog. Stood down each time with a comment citing this PR's diff scope
+(`git diff --name-only origin/main..HEAD`: `src/lib/core/image-generation-pipeline.ts`, its test,
+`WigCarousel.svelte`, plus docs/evidence — 14 to 17 files across the three heads, not the "five" one reply
+understated it as) and confirming `imageFormatFromBase64`'s current signature matches `main`'s. A follow-up
+Codex review on the finalize PR (#253) correctly flagged that this reasoning falls short of the owner ruling's
+own illustrated bar for standing down on a red check: the ruling's PR #244 example required reproducing the
+*same* failure signature on the base branch or an unrelated head, not just confirming this PR's own diff
+doesn't touch the named files. That reproduction was not done for PR #252 — the stand-down rested on diff-scope
+reasoning and a code-read, which is weaker evidence than the ruling's own bar asks for, even though the
+underlying conclusion (this is `Rosentic`'s whole-open-branch pairwise scan noise, not a real conflict with
+`main`) is almost certainly still correct given every prior quick-wins PR back to #243 hit the identical failure
+class. Recorded as a gap rather than silently corrected after the fact: a future run auditing a Rosentic
+stand-down should reproduce the cited failure signature against an unrelated head or the base branch directly,
+not just prove the current PR's diff doesn't touch the named files. Separately, a Codex bot review on PR #252
+itself flagged the image-id fix as P1, arguing it changes client-visible response content and must go through
+the full seam/contract/probe/fixture/mock/adapter workflow. Investigated rather than dismissed: confirmed the
+diff touches no seam artifact, the contract only requires `GeneratedImage.id` to be a non-empty string (the
+numbering scheme was never a contracted invariant), the id is synthesized entirely inside the pipeline after
+`ImageGenerationSeam.generate()` returns (no filesystem/network/process/clock/randomness boundary), and no
+consumer reads the id's value. Recorded the reasoning as a Decision entry in `DECISIONS.md` ("Fix the image-id
+numbering gap in the pipeline, not the seam") rather than either dismissing the finding or doing disproportionate
+seam work for a one-line pure-function fix, mirroring PR #250's precedent for its own Codex `maxDuration`
+finding. Replied on and resolved all four review threads on PR #252 (one Codex, three Rosentic occurrences).
+
+**Status:** PR #252 merged into `main` at `4e25e2e` in this same session.
