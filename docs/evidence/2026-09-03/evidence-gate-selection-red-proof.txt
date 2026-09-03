@@ -1,0 +1,75 @@
+# Purpose: Red proof for two gates that reported success while describing the wrong thing.
+# Why: Both defects were invisible precisely because the gate exited 0. A green suite after
+#      the fix proves nothing on its own; these runs break each fix on purpose and record
+#      the failures, so the guard against regression is demonstrated rather than asserted.
+# Info flow: edit scripts/cipher-gate.mjs or scripts/proof-tape.mjs -> vitest -> this file.
+
+Command: npx vitest run tests/unit/evidence-gate-selection.test.ts
+
+--------------------------------------------------------------------------------
+BASELINE (both fixes in place)
+--------------------------------------------------------------------------------
+      Tests  8 passed (8)
+
+--------------------------------------------------------------------------------
+RED 1 — restore the original date-only selection in selectLatestCipherBlock
+  -  return dated.reduce(... tie-break on block.position ...)
+  +  const sorted = dated.sort((a, b) => a.date.localeCompare(b.date));
+  +  return sorted[sorted.length - 1];
+--------------------------------------------------------------------------------
+     x picks the newest entry when two share a date 15ms
+
+      Tests  1 failed | 7 passed (8)
+
+Reads: Array.prototype.sort is stable, so equal dates keep document order and the last
+element is the LAST same-date block. DECISIONS.md is newest-first, so that is the OLDEST
+entry. This is the defect: on a day with two Cipher Gate entries the gate validated the
+older entry's evidence paths and still wrote status: ok.
+
+--------------------------------------------------------------------------------
+RED 2 — make markArtifactsPredatingRun never flag anything
+  -  predatesRun: Number.isFinite(modified) ? modified < markerTime : null
+  +  predatesRun: false
+--------------------------------------------------------------------------------
+     x marks an artifact older than this run's chamber-lock.json 7ms
+     x reports unknown for an unparseable timestamp instead of calling it fresh 1ms
+
+      Tests  2 failed | 6 passed (8)
+
+Note: the run marker is chamber-lock.json, the first artifact `npm run verify` writes.
+Marking against verify.txt was tried first and was wrong — chamber-lock runs about a
+minute earlier in the same chain, so the run flagged its own chamber-lock.json.
+
+Reads: the second failure is the one worth naming. Returning false for an unparseable
+timestamp is not a smaller bug than returning false for a stale file — both assert the
+artifact belongs to this run when nothing established that. The helper reports null for
+"unknown" so the tape cannot silently claim freshness it never checked.
+
+--------------------------------------------------------------------------------
+RESTORED
+--------------------------------------------------------------------------------
+      Tests  8 passed (8)
+
+--------------------------------------------------------------------------------
+LIVE DEMONSTRATION — the real DECISIONS.md, which now carries two 2026-09-03
+Cipher Gate entries (this change's, newest and first in the file; and the
+security-header entry from earlier today, below it)
+--------------------------------------------------------------------------------
+Command: node scripts/cipher-gate.mjs
+         then read docs/evidence/2026-09-03/cipher-gate.json
+
+With the ORIGINAL date-only selection:
+  exit=0
+  certified summary: "Added repository-owned baseline security headers for server-
+                      rendered responses plus a scop..."
+
+  The gate passed while certifying the WRONG entry — the older, unrelated one —
+  and never checked this change's evidence paths at all.
+
+With the FIX:
+  exit=0
+  certified summary: "Cipher Gate selection now tie-breaks on document position so
+                      the newest same-date entry is..."
+
+Both runs exit 0. That is the whole point: the failure was never visible in the
+exit code, only in which entry the artifact named.

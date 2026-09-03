@@ -5,27 +5,33 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-03T09:14:48.245Z
+Generated at: 2026-09-03T09:57:54.462Z
 Evidence folder: docs/evidence/2026-09-03
 
 Files included:
 - assumption-alarm.json (9484 bytes)
-- build.txt (8867 bytes)
+- build.txt (8867 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (25720 bytes)
-- cipher-gate.json (1643 bytes)
+- cipher-gate.json (1586 bytes)
 - clan-chain.json (2318 bytes)
 - clan-chain.md (1453 bytes)
-- lint.txt (301 bytes)
+- evidence-gate-selection-red-proof.txt (3971 bytes) — PREDATES THIS VERIFY RUN
+- lint.txt (301 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
-- proof-tape.json (4182 bytes)
-- proof-tape.md (1704 bytes)
+- proof-tape.json (5100 bytes)
+- proof-tape.md (2319 bytes)
 - seam-ledger.json (27312 bytes)
 - seam-ledger.md (2228 bytes)
-- shaolin-lint.json (519 bytes)
+- shaolin-lint.json (515 bytes)
 - test.txt (1029 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify-chain.txt (1990 bytes)
+- verify-chain.txt (1940 bytes)
   Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (1354 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+
+Older than this run's chamber-lock.json: build.txt, evidence-gate-selection-red-proof.txt, lint.txt.
+These files were written by an earlier run, so they describe a different run than
+the one this tape summarizes. Regenerate them or read them as history, not as proof
+of the current change.

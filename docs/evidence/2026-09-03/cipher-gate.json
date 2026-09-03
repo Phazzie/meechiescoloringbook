@@ -1,10 +1,14 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-03T08:17:44.903Z",
+  "generatedAt": "2026-09-03T09:57:54.397Z",
   "cipher": {
     "date": "2026-09-03",
-    "seams": "None registered in docs/seams.md - this change adds HTTP response headers and a Content Security Policy at the transport boundary and a dependency-audit step, and creates no contract, adapter or mock",
+    "seams": "None registered in docs/seams.md - this change is verification tooling under scripts/ and creates no contract, adapter or mock",
     "evidence": [
+      {
+        "path": "docs/evidence/2026-09-03/evidence-gate-selection-red-proof.txt",
+        "exists": true
+      },
       {
         "path": "docs/evidence/2026-09-03/verify.txt",
         "exists": true
@@ -14,17 +18,13 @@
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-09-03/proof-tape.md",
-        "exists": true
-      },
-      {
-        "path": "docs/evidence/2026-09-03/chamber-lock.json",
+        "path": "docs/evidence/2026-09-03/verify-chain.txt",
         "exists": true
       }
     ],
-    "summary": "Added repository-owned baseline security headers for server-rendered responses plus a scoped vercel.json for filesystem-served paths, a SvelteKit-managed nonce-aware Content Security Policy verified in Chromium across all six routes with a positive enforcement control, resolution of all ten npm advisories within existing semver ranges, and an npm audit gate as the first step of the verify chain.",
-    "risks": "The audit gate can redden CI with no code change when a new advisory lands, and it puts a registry round-trip ahead of every local check, so a registry outage stops verify early. The baseline is now split between hooks.server.ts and vercel.json and the two can drift. vercel.json header application was not exercised locally. style-src-attr 'unsafe-inline' remains granted for four inline style attributes."
+    "summary": "Cipher Gate selection now tie-breaks on document position so the newest same-date entry is the one validated, instead of the stable sort silently certifying the oldest. Proof Tape marks evidence older than the current run's chamber-lock.json - the first artifact the verify chain writes - in both its JSON and Markdown output, reporting unknown rather than fresh when it cannot tell. Both scripts run only as entry points so importing them for tests no longer rewrites their artifacts.",
+    "risks": "The tie-break depends on DECISIONS.md staying newest-first, a convention nothing enforces; if an entry is ever appended at the bottom it will be treated as the oldest for its date. Stale evidence is flagged, not failed, so a reader who ignores the note still gets a tape listing an artifact from a different run."
   },
-  "latestChangeMs": 1788421919332.1438,
+  "latestChangeMs": 1788429379677.4958,
   "status": "ok"
 }
