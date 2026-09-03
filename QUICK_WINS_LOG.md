@@ -386,3 +386,82 @@ either wire `AppConfig.defaultImageSize` through the pipeline and adapter, or dr
 entirely.
 
 **Status:** PR #248 merged into `main` at `ce583fc` in this same session.
+
+## 2026-09-03 — session_01H6FRFmNKmQg9FN9tXrqeLG
+
+**Investigation:** Started from `main` at `b9b04e0` (PR #249 already merged, finalizing the prior run's log
+entry — confirmed via `git diff` that nothing under `src` changed since PR #248's `ce583fc`). Ran `npm ci`,
+`npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green (817 passed / 1 skipped).
+Confirmed no other open PRs exist on this session's branch lineage (`claude/loving-babbage-*`); listed all open
+PRs and found the same long-stale backlog every prior run has noted (#169–#231, minus merges), unchanged in
+kind, still out of scope for this run. Spawned a background Explore agent, pointed at this log in full so it
+wouldn't re-surface anything from PRs #240–#248, to sweep `src/lib/core/*`, `src/lib/components/**/*.svelte`,
+`src/routes/**/*.svelte`/`+server.ts`/`+page.ts`, and `src/lib/server/*`. This is run #9 on a codebase eight
+prior runs have already scrubbed hard; the agent came back with exactly one solid, independently-verified
+candidate rather than padding the list, after ruling out every item this log had already fixed or deferred
+(the `Meechies`/`Meechie's` class, singular/plural mismatches, `aria-label` overrides, `getBrand()` duplication,
+stale-Gemini comments, the `pool[offset % pool.length]` modulo, the heading-casing mismatch, the `StudioHero`
+banner-copy apostrophe, the `DEFAULT_IMAGE_SIZE` wiring gap). Verified its finding myself against the actual
+code and `DECISIONS.md` history rather than trusting the report, then searched independently for a second
+candidate once the agent's sweep came up with only one.
+
+**Found and fixed (PR #250, `claude/loving-babbage-ri18tb`):**
+
+1. **`/api/meechie-studio-text`'s Vercel function budget is shorter than its own documented worst-case
+   runtime, so PR #247's fix for exactly this scenario could never be reached in production.** The global
+   `maxDuration: 120` in `svelte.config.js` is explicitly sized for image generation (comment at line 12–16
+   cites `grok-imagine-image-2.0`'s measured 71–94s). But `meechie-studio-text-pipeline.ts`'s `runProviderExchange`
+   (read in full, lines 419–486) makes up to two sequential `provider.createChatCompletion` calls — the initial
+   attempt plus one bounded correction retry when the model's JSON doesn't parse or match schema — and each call
+   can legitimately run the full `CHAT_TIMEOUT_MS = 110_000` single-attempt budget in `provider-adapter.adapter.ts`
+   (confirmed `CHAT_RETRY_OPTIONS = { maxAttempts: 1, retryOnTimeout: false }`, so a slow call runs its full
+   budget rather than failing fast). True server-side worst case is therefore ~220s. `http-client.ts`'s
+   `POST_JSON_TIMEOUTS_MS.studioText` was already raised to `230_000` by PR #247
+   (`session_01KbetgYFPRBVmuPG6SrhydK`) for exactly this reason — but nothing had ever told the *platform*
+   about the longer budget, so a legitimately slow-but-succeeding two-attempt exchange would hit Vercel's
+   120s hard kill mid-second-call, before the raised client timeout could ever matter. Cross-checked against
+   `DECISIONS.md`'s 2026-08-25 entries (the `maxDuration`-setting decision was scoped to the image route only;
+   a separate entry pinned `CHAT_TIMEOUT_MS`/`studioText`'s *client* budget but never mentions `maxDuration` —
+   the two were never reconciled) and confirmed no per-route override existed anywhere in `src/routes` or
+   `vercel.json`. Fixed by adding `export const config = { maxDuration: 230 }` to
+   `src/routes/api/meechie-studio-text/+server.ts` — a documented `@sveltejs/adapter-vercel` per-route override
+   (confirmed against `node_modules/@sveltejs/adapter-vercel/index.d.ts`), leaving the global 120s (correct for
+   every other route) untouched. Verified in the actual built output, not just by reading code:
+   `.vercel/output/functions/api/meechie-studio-text.func/.vc-config.json` reports `"maxDuration": 230` after
+   `npm run build`, while `.../api/generate.func/.vc-config.json` stays at `120`.
+2. **CI has never tested the Node version the app actually runs on.** `.github/workflows/verify.yml` pinned
+   `node-version: 20`. `.nvmrc` (`22.12.0`, pins local dev) and `svelte.config.js`'s Vercel adapter `runtime:
+   'nodejs22.x'` (the deployed production runtime) have both been Node 22 since each file was introduced —
+   checked with `git log -p -S` on both to confirm this isn't recent drift, it's been true for the repo's
+   entire history. So every CI run to date validated the app on a Node major version one behind what ships to
+   production, silently. This session itself runs on Node 22.22.2 (confirmed via `node --version`), and every
+   check (`check`/`lint`/`test`/`build`/`verify`) passed on it, so the fix carries its own evidence that Node 22
+   is safe here. Fixed by switching `node-version: 20` to `node-version-file: '.nvmrc'` in
+   `actions/setup-node@v4` — this closes the drift permanently rather than just bumping the pinned number once,
+   since CI now always tracks whatever `.nvmrc` says.
+
+**Considered but not picked:** the Explore agent's sweep came back otherwise empty — an honest "the remaining
+surface is very clean" report after re-confirming every previously-deferred item from this log is still
+correctly deferred (wig catalog still has 8 entries with matching `brand`/`affiliateUrl` fields; no new
+`Meechies`-class typos; `StudioHero`'s banner-art apostrophe still blocked on the underlying PNG asset itself,
+not code). My own follow-up search (README/`.env.example` sync, `CHANGELOG.md`, `DECISIONS.md` tail,
+`LESSONS_LEARNED.md`, remaining studio components not individually named in prior entries, `generate`/`wig-try-on`
+routes' own timeout budgets against their actual single-call worst case) found nothing else at comparable
+confidence — `generate` (one image call, ≤120s) and `wig-try-on` (one image-edit call, ≤120s, plus a fast
+same-origin catalog-image fetch) both already fit inside the global `maxDuration: 120` with no gap analogous to
+`studioText`'s.
+
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (817
+passed / 1 skipped, unchanged from baseline), `npm run build` (confirmed the per-route `maxDuration` split in
+`.vercel/output/functions/**/.vc-config.json` as described above), and `npm run verify` (full chain green,
+evidence refreshed in place at `docs/evidence/2026-09-03/`, which already existed for today from all prior
+runs) — all green. Neither change touched a seam boundary (one route's platform-config export, one CI
+workflow's Node-version source — no filesystem/network/process/clock/randomness boundary of their own), so the
+full Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with
+every prior entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#169–#231 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** PR #250 opened, subscribed for CI/review activity. If this entry is not followed by a "merged"
+note below, the merge did not complete and the reason should be recorded here by the session that stopped.
