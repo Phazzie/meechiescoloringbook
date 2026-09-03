@@ -1,10 +1,19 @@
-# Purpose: Store the verify runner's check and test stage output.
-# Why: Keep this inner stage distinct from the outer verify chain and its separate artifacts.
-# Info flow: check/test output -> evidence file -> outer verify chain.
+# Purpose: Store the outer 'npm run verify' chain output, including the audit gate.
+# Why: verify.txt records only the inner verify-runner stage, by its own design, so it
+#      cannot show whether audit:gate or the later stages passed. This file can.
+# Info flow: npm run verify -> full chain stdout/stderr -> evidence file.
 
-$ node scripts/verify-runner.mjs
+$ npm run verify
 
-$ npm run check
+
+> meechies-coloringbook@0.1.0 verify
+> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
+
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
+found 0 vulnerabilities
 
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
@@ -14,13 +23,11 @@ Getting Svelte diagnostics...
 
 svelte-check found 0 errors and 0 warnings
 
-$ npm test -- --pool=forks --maxWorkers=1
-
 > meechies-coloringbook@0.1.0 test
 > vitest run --pool=forks --maxWorkers=1
 
 
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m<REPO_ROOT>[39m
 
 
 [2m Test Files [22m [1m[32m72 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (73)[39m
@@ -31,3 +38,8 @@ $ npm test -- --pool=forks --maxWorkers=1
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+$ echo "exit=$?"
+exit=0
+
+# The chain is && -joined, so exit=0 means every stage passed.
