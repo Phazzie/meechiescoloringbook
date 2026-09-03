@@ -1375,3 +1375,23 @@ Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every prior en
 
 **Status:** PR #270 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
 below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
+**PR #270 activity:** `verify` (both the `pull_request`- and `push`-triggered runs), CodeQL, SonarCloud/SonarCloud
+Code Analysis, and Vercel's preview deploy all passed on the pushed head (`64347e1`). CodeRabbit skipped (repo has
+fewer than 10 stars); Sourcery's own 7-day diff-character review budget was already exhausted (same as most prior
+PRs in this log); Codex's review run completed with no findings attached to its summary comment.
+`Rosentic - Conflict Detection`'s own check passed, but it left two informational comments naming cross-branch
+incompatibilities between other long-stale backlog branches (`claude/sweet-mendel-tcty6u`,
+`claude/fix-pr154-pr160-review-comments`, `claude/sweet-mendel-LJ9Iu`, `claude/sweet-mendel-efx3o2`,
+`claude/sweet-mendel-m5cojt`, `claude/trusting-volta-*`) over `src/lib/adapters/chat-interpretation.adapter.ts`,
+`src/lib/core/image-generation-pipeline.ts`, `src/lib/core/http-resilience.ts`, and
+`tests/unit/wig-try-on-pipeline.test.ts` — none of which this PR's diff touches (confirmed directly via
+`git diff --name-only origin/main..HEAD`: only `AGENTS.md`, `docs/CHECKLIST.md`, `QUICK_WINS_LOG.md`, and
+`docs/evidence/2026-09-03/*`). The same pre-existing, PR-independent cross-branch-backlog scan noise this log has
+documented on every PR back to #243. Stood down with one PR comment naming the diff-scope proof, per that
+precedent. `mergeable_state` was `clean`, no human review requested changes, and every required check was green,
+meeting every condition in `AGENTS.md`'s "Merge When The Gates Are Green" section.
+
+**Merged:** PR #270 merged into `main` at `5ead552` in this same session. A fresh open-PR listing afterward
+showed only the same pre-existing long-stale backlog (#151–#218 minus merges) — no PR from this session was left
+open.
