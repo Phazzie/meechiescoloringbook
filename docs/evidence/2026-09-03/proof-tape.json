@@ -1,6 +1,6 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-09-03T20:24:16.109Z",
+  "generatedAt": "2026-09-03T20:27:07.643Z",
   "evidenceDir": "docs/evidence/2026-09-03",
   "runMarker": "chamber-lock.json",
   "excludedFromInventory": [
@@ -123,8 +123,8 @@
     {
       "name": "verify-chain.txt",
       "path": "docs/evidence/2026-09-03/verify-chain.txt",
-      "sizeBytes": 1438,
-      "modifiedAt": "2026-09-03T20:24:13.316Z",
+      "sizeBytes": 1941,
+      "modifiedAt": "2026-09-03T20:27:05.094Z",
       "commands": [
         "meechies-coloringbook@0.1.0 verify",
         "npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs",
