@@ -1373,5 +1373,5 @@ Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every prior en
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
 
-**Status:** PR opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
+**Status:** PR #270 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
 below, the merge did not complete and the reason should be recorded here by the session that stopped.
