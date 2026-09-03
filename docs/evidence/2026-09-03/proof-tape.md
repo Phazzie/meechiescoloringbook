@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-03T20:18:29.073Z
+Generated at: 2026-09-03T20:24:16.109Z
 Evidence folder: docs/evidence/2026-09-03
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -26,12 +26,12 @@ after this inventory is taken, so they are not listed):
 - shaolin-lint.json (517 bytes)
 - test.txt (1029 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify-chain.txt (1941 bytes) — PREDATES THIS VERIFY RUN
+- verify-chain.txt (1438 bytes)
   Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (1354 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 
-Older than this run's chamber-lock.json: build.txt, cipher-gate.json, evidence-gate-selection-red-proof.txt, lint.txt, verify-chain.txt.
+Older than this run's chamber-lock.json: build.txt, cipher-gate.json, evidence-gate-selection-red-proof.txt, lint.txt.
 These files were written by an earlier run, so they describe a different run than
 the one this tape summarizes. Regenerate them or read them as history, not as proof
 of the current change.
