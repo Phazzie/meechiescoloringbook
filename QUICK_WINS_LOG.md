@@ -1295,3 +1295,83 @@ prior PR in this log. `mergeable_state` was `clean` and no human review requeste
 condition in `AGENTS.md`'s "Merge When The Gates Are Green" section.
 
 **Merged:** PR #268 merged into `main` at `f18392c` in this same session.
+
+## 2026-09-03 — session_01AqBTZuZQCQHJhrZ9UxM8Cb (scheduled run)
+
+**Housekeeping before the search:** started from `main` at `63bc109` (PR #269 already merged, finalizing the
+prior run's log entry) on this session's designated branch (`claude/loving-babbage-qvadwh`), which was already a
+fresh branch off `main` at that exact commit — no reset needed. `git fetch origin main` confirmed `origin/main`
+matched. Listed all open PRs: none from this session's own branch lineage (`claude/loving-babbage-*`); the same
+long-stale backlog (#151–#218 minus merges) every prior run has noted, unchanged in kind, out of scope for this
+run. Ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green (843
+passed / 1 skipped, matching the prior run's baseline).
+
+**Investigation:** This is run #21 on a codebase twenty prior runs have already scrubbed hard. Spawned a
+background Explore agent, pointed at this log in full (with an explicit condensed recap of already-fixed bug
+classes and already-deferred candidates baked into the prompt so it wouldn't waste a sweep re-discovering them)
+to sweep `src/lib/core/*`, `src/lib/server/*`, every route/component, `scripts/*.mjs`, and the governance/doc set
+(`README.md`, `.env.example`, `CHANGELOG.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `AGENTS.md`, `CLAUDE.md`,
+config files). It reported the vast majority of the codebase clean — pipelines, rate-limit code, http-resilience,
+every tool/mode page, and studio components all previously scrubbed and still correct — and came back with two
+related candidates rather than padding a longer list. Verified both myself against `package.json`'s actual
+`verify` script and the live `docs/evidence/2026-09-03/` contents before picking them up, rather than trusting
+the report at face value.
+
+**Found and fixed (`claude/loving-babbage-qvadwh`, this same branch):**
+
+1. **`AGENTS.md` line 54 gave a stale, incomplete description of `npm run verify`'s own chain, inconsistent with
+   the same file's own line 163.** Line 54 (in the Governance section) read "...it runs chamber lock, evidence
+   capture, shaolin lint, seam ledger, clan chain, and proof tape" — omitting **audit gate** (the chain's actual
+   first step) and **assumption alarm** (which runs between shaolin lint and seam ledger). Verified directly
+   against `package.json`'s `verify` script: `npm run audit:gate && chamber-lock.mjs && verify-runner.mjs &&
+   shaolin-lint.mjs && assumption-alarm.mjs && seam-ledger.mjs && clan-chain.mjs && proof-tape.mjs`. Line 163
+   (Automation Tools section, describing the identical command) already lists all 8 steps correctly — that line
+   was fixed by PR #268's own entry above ("`AGENTS.md`'s own description of `npm run verify` was stale... omitting
+   `audit:gate`"), but that fix touched only line 163 and missed this second, earlier description of the same
+   command elsewhere in the same file. This is the same bug class — one file describing one command inconsistently
+   in two places — that this log has repeatedly caught for stale "Gemini" references (PR #248 fixed two occurrences,
+   PR #259 found a third missed by the first fix). A reader following the Governance section alone would wrongly
+   believe `npm run verify` doesn't enforce Assumption entries or the dependency-vulnerability gate, both of which
+   are real, currently-enforced steps (confirmed `docs/evidence/2026-09-03/assumption-alarm.json` exists and
+   `npm audit --audit-level=high` genuinely runs first and would block the chain on a high-severity finding). Fixed
+   by adding "the audit gate (a check that fails the build if any dependency has a known high-severity security
+   vulnerability)" and "assumption alarm" to line 54's list, matching line 163's wording and definition.
+2. **`docs/CHECKLIST.md` line 59's evidence-file checklist was missing `assumption-alarm.json`.** The Phase 6 line
+   read "Confirm automation outputs exist under `docs/evidence/YYYY-MM-DD/` (chamber lock, shaolin lint, seam
+   ledger, clan chain, proof tape, cipher gate)" — `scripts/assumption-alarm.mjs` writes
+   `docs/evidence/YYYY-MM-DD/assumption-alarm.json` as a real, currently-produced verify-chain artifact (confirmed
+   present in this run's own evidence folder, refreshed at each of the twenty-one runs to date), but it was never
+   listed alongside the other six files this same checklist line already names. Likely the same root cause as
+   finding 1 (`assumption-alarm.mjs` was added to the chain at some point after these two doc lines were first
+   written, and the two enumerations of "what the chain produces" were updated inconsistently). Someone following
+   this checklist literally when preparing seam-change evidence would never think to confirm
+   `assumption-alarm.json` exists, even though `AGENTS.md`'s own Assumption Alarm rule treats its absence as a
+   real gate. Fixed by adding "assumption alarm" to the list, in chain order. (`audit:gate` was deliberately not
+   added to this line: it's `npm audit --audit-level=high` directly, with no dedicated evidence-writing script, so
+   it produces no `docs/evidence/*` artifact for this checklist to name — verified no `audit-gate.json` or similar
+   file exists anywhere in `docs/evidence/`.)
+
+**Considered but not picked:** the Explore agent's sweep found nothing else at comparable confidence — it
+explicitly re-confirmed every previously-deferred item from this log (the `StudioHero` banner-art apostrophe,
+`SelfieUpload`'s British "cancelled" spelling, `meechie-quote-scoring.ts` dead code, the in-flight-generation race
+in `studio-state.svelte.ts`, `DEFAULT_IMAGE_SIZE`'s non-wiring, the `TEXT (exact)`/`TEXT (EXACT)` heading-casing
+mismatch, the unexplained `intensity`/`rawness`/`thirdPerson` voice-setting semantics) is still present and still
+correctly out of scope for the reasons already recorded, without finding anything new to add to that list.
+
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (843 passed /
+1 skipped, unchanged from baseline — two pure-prose governance-doc edits with no logic or schema touched), `npm
+run build` (succeeds), and `npm run verify` (full chain green — audit gate, chamber-lock, check+test,
+shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape — evidence refreshed in place at
+`docs/evidence/2026-09-03/`, which already existed for today from all twenty prior runs; `lint.txt`/`build.txt`/
+`verify-chain.txt` re-captured post-edit with this run's actual command output, headers preserved, per the PR
+#254/#264/#266/#268 precedent for keeping those three manually-captured files current). Neither changed file is
+under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`, or `src/lib/seams/*`, and both
+changes are pure prose describing existing, unchanged automation behavior with zero schema or logic impact, so
+they fall under `AGENTS.md`'s own docs/comments-only exception; the full Seam-Driven Development workflow and a
+Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every prior entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** PR opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
+below, the merge did not complete and the reason should be recorded here by the session that stopped.

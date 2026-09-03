@@ -56,7 +56,7 @@ Info flow: Plan -> commands -> evidence -> decisions -> completion.
 ## Phase 6 - Full verification (required for seam changes)
 - [ ] Run `npm test` and save output to `docs/evidence/YYYY-MM-DD/npm-test.txt`.
 - [ ] Run `npm run verify` and save output to `docs/evidence/YYYY-MM-DD/npm-verify.txt`.
-- [ ] Confirm automation outputs exist under `docs/evidence/YYYY-MM-DD/` (chamber lock, shaolin lint, seam ledger, clan chain, proof tape, cipher gate).
+- [ ] Confirm automation outputs exist under `docs/evidence/YYYY-MM-DD/` (chamber lock, shaolin lint, assumption alarm, seam ledger, clan chain, proof tape, cipher gate).
 
 ## Phase 7 - PWA build validation
 - [ ] Run `npm run build` and save output to `docs/evidence/YYYY-MM-DD/npm-build.txt`.
