@@ -1273,3 +1273,25 @@ every prior run has noted; still needs a separate, explicitly-scoped session to 
 **Status:** PR #268 opened (commit `0081c6f`) and subscribed for CI/review activity. If this line is not
 followed by a "Merged" note below, the merge did not complete and the reason should be recorded here by the
 session that stopped.
+
+**PR #268 activity:** SonarCloud's quality gate failed on the opening commit (`C Maintainability Rating on New
+Code`, required ≥ A) — its own issues API pinned two findings on the new `analyze-merge-conflicts.js` code: a
+MAJOR "extract nested ternary operation" and a MINOR "prefer `String#replaceAll()` over `String#replace()`" (a
+global-regex `.replace()` call). Fixed by rewriting the ternary chain as an if/else and switching both
+sanitization calls to `.replaceAll()`; SonarCloud passed clean (0 new issues) on the next head. A Codex bot
+review then left three P1 findings on the fixed commit, all investigated rather than dismissed or blindly
+applied: (1) claimed the merge-conflict-analyzer fallback needed the full Seam-Driven Development workflow
+because it crosses process-execution/filesystem boundaries — false positive, answered by citing `docs/seams.md`
+(the file isn't a registered seam) and the direct on-point precedent in `DECISIONS.md`'s 2026-09-03 Cipher
+Gate/Proof Tape entry, which made a comparable fix to `cipher-gate.mjs`/`proof-tape.mjs` and recorded "Seams:
+None registered in `docs/seams.md`. This changes verification tooling under `scripts/` only." (2) Real finding:
+the new "audit gate" mention in `AGENTS.md` wasn't defined in plain language at first mention, per that file's
+own jargon rule (L53-56) — fixed by adding a short parenthetical explaining what the check does. (3) Claimed a
+`plan.md` entry was required — false positive, answered by citing `AGENTS.md`'s actual scoping ("for each major
+refactor") and this log's own prior run that answered the identical finding the same way. All three threads
+resolved. `verify`, CodeQL, Rosentic, and Vercel's preview deploy all passed on the final head (`b0a3cb8`);
+Sourcery hit its own 7-day review budget and CodeRabbit skipped (repo has fewer than 10 stars), same as every
+prior PR in this log. `mergeable_state` was `clean` and no human review requested changes, so this met every
+condition in `AGENTS.md`'s "Merge When The Gates Are Green" section.
+
+**Merged:** PR #268 merged into `main` at `f18392c` in this same session.
