@@ -14,6 +14,13 @@ import { parseRequestBody } from '$lib/server/parse-request-body';
 import { createQuotaGate } from '$lib/server/rate-limit-route';
 import type { RequestHandler } from './$types';
 
+// The global maxDuration in svelte.config.js (120s) is sized for image generation.
+// This route's own pipeline can make two sequential provider chat calls at up to 110s
+// each (see the STUDIO_TEXT_QUOTA_COST comment in meechie-studio-text-pipeline.ts and
+// the studioText budget in http-client.ts), so it needs its own, longer function budget
+// or the platform kills a legitimately slow-but-succeeding request before it can respond.
+export const config = { maxDuration: 230 };
+
 export const POST: RequestHandler = async (event) => {
 	const parsed = await parseRequestBody(event.request);
 	if (!parsed.ok) return parsed.response;
