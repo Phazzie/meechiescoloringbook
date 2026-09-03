@@ -109,7 +109,7 @@ To change a model, edit `src/lib/core/models.js` and open a pull request.
 | `npm run format` | Format files with Prettier |
 | `npm run format:check` | Check formatting (CI) |
 | `npm run check` | SvelteKit type check |
-| `npm run verify` | Full verify pipeline (chamber lock + lint + type check + tests + seam ledger + proof tape) |
+| `npm run verify` | Full verify pipeline (audit gate, chamber lock, verify runner [check + test], shaolin lint, assumption alarm, seam ledger, clan chain, proof tape) |
 | `npm run hooks:install` | Install local git pre-commit/pre-push hooks |
 
 ---

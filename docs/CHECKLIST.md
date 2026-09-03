@@ -13,7 +13,7 @@ Info flow: Plan -> commands -> evidence -> decisions -> completion.
 - [ ] Create today's evidence folder under `docs/evidence/YYYY-MM-DD/`.
 
 ## Phase 1 - Code inventory (confirm implementation exists)
-- [ ] UI flow is implemented in `src/routes/+page.svelte` (manual builder, chat builder, validation gating, generation chain, debug panel, saved creations).
+- [ ] UI flow is implemented in `src/routes/+page.svelte` (Meechie Studio: evidence input, AI verdict/quote generation, wig try-on, coloring-page preview/export, Quote Vault).
 - [ ] Server endpoints exist in `src/routes/api/chat-interpretation/+server.ts` and `src/routes/api/image-generation/+server.ts`.
 - [ ] Adapters exist for all seams under `src/lib/adapters/`.
 - [ ] Mocks exist for all seams under `src/lib/mocks/`.
