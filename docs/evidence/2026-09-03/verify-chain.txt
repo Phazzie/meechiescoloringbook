@@ -7,7 +7,6 @@
 
 $ npm run verify
 
-
 > meechies-coloringbook@0.1.0 verify
 > npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
 
@@ -29,13 +28,13 @@ svelte-check found 0 errors and 0 warnings
 > vitest run --pool=forks --maxWorkers=1
 
 
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
 
 
-[2m Test Files [22m [1m[32m74 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (75)[39m
-[2m      Tests [22m [1m[32m845 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (846)[39m
-[2m   Start at [22m 20:30:31
-[2m   Duration [22m 74.77s[2m (transform 2.71s, setup 797ms, import 5.20s, tests 2.14s, environment 52.20s)[22m
+[2m Test Files [22m [1m[32m74 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (75)[39m
+[2m      Tests [22m [1m[32m845 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (846)[39m
+[2m   Start at [22m 22:12:22
+[2m   Duration [22m 50.09s[2m (transform 2.15s, setup 576ms, import 4.03s, tests 1.57s, environment 34.00s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
