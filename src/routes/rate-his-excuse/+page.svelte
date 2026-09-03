@@ -209,7 +209,6 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				on:keydown={handleKeydown}
 				rows="4"
 				placeholder="My phone died. I was with the guys. I was working late..."
-				aria-label="Enter the excuse"
 			></textarea>
 			<p class="key-hint">Ctrl + Enter to submit</p>
 
@@ -234,7 +233,7 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 
 			<div class="score-display">
 				<span class="score-number" style="color: {ratingColor}"
-					>{result.headline}</span
+					>{ratingScore ?? result.headline}</span
 				>
 				<span class="score-label">out of 10</span>
 			</div>
