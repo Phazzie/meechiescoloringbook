@@ -55,7 +55,7 @@ Self-critique must include:
 
 ## Evidence and automation
 - For seam changes, you must run `npm run verify` and `npm test` and capture outputs under `docs/evidence/YYYY-MM-DD/`.
-- `npm run verify` runs chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, proof tape, and cipher gate.
+- `npm run verify` runs the audit gate, chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, and proof tape. (`npm run cipher:gate` is separate — not part of the verify chain; run manually if needed.)
 - Use `npm run rewind -- --seam <SeamName>` to run a single seam contract test when full verify is not required.
 
 ## Blocked probes
