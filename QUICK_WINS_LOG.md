@@ -2030,11 +2030,41 @@ lint`/`npm run build` succeeded with no captured evidence backing either claim, 
 already established and fixed the same way; addressed by capturing both to `docs/evidence/2026-09-03/lint.txt`
 and `build.txt`. `Rosentic - Conflict Detection` passed outright on every head (no findings against this
 branch's actual diff, unlike the advisory-comment noise documented on most prior PRs in this log). `Vercel`
-failed with the same account-level "Deployment rate limited — retry in 24 hours" signature documented
+failed once with the same account-level "Deployment rate limited — retry in 24 hours" signature documented
 repeatedly throughout this log; reproduced directly against PR #280's already-merged head (`d20ede7`, same
 context/description/target URL, a completely unrelated docs-only diff from earlier the same day) before standing
-down with one PR comment. SonarCloud's quality gate, CodeQL, and CodeRabbit (skipped-success) all passed on
-every head; Sourcery skipped (own review budget exhausted, same as most prior PRs in this log).
+down with one PR comment — it then passed cleanly on the next push, so the rate limit had cleared. SonarCloud's
+quality gate, CodeQL, and CodeRabbit (skipped-success) all passed on every head; Sourcery skipped (own review
+budget exhausted, same as most prior PRs in this log). A third Codex review round on the next head (`50e02fb`)
+flagged two more, both investigated and fixed. (1) P2 — README's new "self-contained layout... the layout new
+seams use" framing conflicted with `docs/SEAM_BLUEPRINT.md`, which `docs/AGENTS.md` (a separate governance file
+specific to the `docs/` directory, distinct from root `AGENTS.md`) explicitly designates as "the source of truth
+for new seam layouts," but which still only described the old flat layout with no mention of `validators.ts` or
+the self-contained folder structure at all — a real, pre-existing contradiction between two governance entry
+points, not something this PR's README wording invented but one it newly exposed. Rewrote
+`docs/SEAM_BLUEPRINT.md` to describe the self-contained layout as primary (matching `src/lib/seams/CLAUDE.md`'s
+file table exactly) with the legacy flat layout kept as a secondary section for un-migrated seams, resolving the
+contradiction rather than just softening the README claim. (2) P1 — this run's evidence explicitly narrated
+skipping the failing `audit:gate` step and reusing an earlier same-session result, which demonstrates the
+*rest* of the chain passed on the final diff but not that a full `npm run verify` — audit gate included — ever
+ran against it; the reviewer asked to either get a fresh full chain once the endpoint recovers or explicitly
+record the run as blocked rather than treat the reused result as equivalent to a fresh pass. Retried
+`npm audit --audit-level=high` directly once more (45s timeout) before responding — still hung, the fourth
+consecutive failure across roughly 15 minutes even after Vercel's own unrelated rate limit had separately
+cleared, which rules out "the whole outbound network recovered, just not this one call" as an explanation.
+Rather than either silently re-asserting the reused result or leaving the PR blocked on an outage tied to
+none of its actual content, added a Decision + Assumption entry to `DECISIONS.md` ("audit:gate's registry
+endpoint was unreachable during a scheduled quick-wins run") recording the four reproduced hangs, the `npm
+ping` control proving general connectivity was fine, the confirmed-unchanged dependency tree, and an open
+Assumption with a concrete validation trigger (re-run the audit the next time `package.json`/`package-lock.json`
+changes or a future run has spare capacity) — the exact mechanism `AGENTS.md`'s own Anti-Laziness section and
+this Assumption Alarm's own revisit criteria in the security-headers Decision above call for, rather than
+inventing new justification prose. Hit one self-inflicted snag while writing it: `scripts/assumption-alarm.mjs`
+failed on the first attempt (`missingFields: ['validation', 'status']`) because its parser only reads a field's
+first physical line and stops at the next line that doesn't start with `"  - "` — my `Statement`/`Validation`
+fields had been wrapped across multiple lines for readability, silently truncating the parse. Fixed by rewriting
+both as single (long) lines, matching every other Assumption entry's own existing convention in the file, and
+confirmed `assumption-alarm` passes clean afterward.
 
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (`#151`–`#218` minus merges) every recent run has noted; still needs a separate, explicitly-scoped session to
