@@ -1606,3 +1606,60 @@ precedent.
 
 **Status:** PR #274 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
 below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
+**PR #274 activity:** both `verify` runs (`pull_request`- and `push`-triggered), `CodeQL` (`Analyze (actions)` and
+`Analyze (javascript-typescript)`), `SonarCloud`/`SonarCloud Code Analysis` (quality gate passed, 0 new issues),
+and `Rosentic - Conflict Detection`'s own check all passed on the pushed head (`0761003`). CodeRabbit skipped
+(repo has fewer than 10 stars); Sourcery's own 7-day diff-character review budget was already exhausted (same as
+most prior PRs in this log). Codex's summary comment reported "Completed" with no findings listed in it, but a
+separate inline review comment landed moments later (after this PR was already merged, per its queued timestamp)
+with a real P2 finding: re-encoding the four `docs/evidence/2026-06-07/*.json` files roughly halved their byte
+sizes, but that same dated evidence bundle's own `proof-tape.json`/`proof-tape.md` still recorded the original,
+now-stale UTF-16 byte counts for those four files, contradicting the artifacts they were meant to inventory.
+Verified directly (`wc -c` on the four files vs. the recorded `sizeBytes`) — real, not a false positive. Since
+PR #274 was already merged by the time this arrived, per the standing PR-outcome rule this session did not
+reopen it; fixed as an additional commit on the still-open finalize branch/PR (#275) instead — see that PR's
+entry below.
+`Rosentic - Conflict Detection` left two informational comments naming cross-branch incompatibilities between
+other long-stale backlog branches (`claude/sweet-mendel-tcty6u`, `claude/fix-pr154-pr160-review-comments`,
+`claude/sweet-mendel-efx3o2`, `claude/sweet-mendel-m5cojt`, `claude/trusting-volta-*`) over
+`src/lib/adapters/chat-interpretation.adapter.ts`, `src/lib/core/image-generation-pipeline.ts`,
+`src/lib/core/http-resilience.ts`, and `tests/unit/wig-try-on-pipeline.test.ts` — none of which this PR's diff
+touches (confirmed via `git diff --name-only origin/main..HEAD`: only `HANDOFF.md`, `QUICK_WINS_LOG.md`, and
+`docs/evidence/**`). The same pre-existing, PR-independent cross-branch-backlog scan noise this log has
+documented on every PR back to #243.
+
+One new failure mode this run, not previously seen in this log: the `Vercel` commit status came back red —
+"Deployment rate limited — retry in 24 hours" (`api-deployments-free-per-day`, more than 100 deployments today),
+linking to `https://vercel.com/phazzies-projects?upgradeToPro=build-rate-limit` — an account-level build quota,
+not a build error. This session's PR comment (posted before merging) argued this from this PR's own first commit
+(`0da836f`) deploying successfully while only the second, docs-only commit (`0761003`) hit the quota. **Correction,
+flagged by a Codex P1 finding on the follow-up PR (#275) after #274 had already merged:** that comparison does not
+satisfy `AGENTS.md`'s actual rule, which requires matching the same failure signature "on the base commit or an
+unrelated head" — two commits on the *same* PR head is neither. The rule exists precisely so "it also happened
+somewhere nearby" isn't accepted as self-serving. Stronger, rule-compliant evidence did become available
+immediately afterward without being sought out for that purpose: PR #275 — a separate PR opened after #274 merged,
+touching a different file set — independently hit the identical "Deployment rate limited" /
+`api-deployments-free-per-day` failure on both of its own commits (`db5034b`, `6545249`), which is a genuinely
+unrelated head confirming the same account-level cause. That evidence didn't exist at the time #274 was merged,
+so the merge itself relied on reasoning weaker than the rule requires, even though the underlying conclusion
+(the failure was never code-caused) holds up. Recorded here as the correction Codex asked for, per `AGENTS.md`'s
+review-comments rule that a bot finding is a bug report to verify and fix, not dismiss because "design-level" or
+already-merged. Aside from this one check, `mergeable_state` was `unstable` (caused solely by that one red commit
+status — no merge conflict, no failing check run), no human review requested changes, and every required check
+run was green, meeting every other condition in `AGENTS.md`'s "Merge When The Gates Are Green" section.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Merged:** PR #274 merged into `main` at `30baadc` in this same session. A fresh open-PR listing afterward
+showed only the same pre-existing long-stale backlog (#151–#218 minus merges) — no PR from this session was left
+open.
+
+**Post-merge Codex finding, fixed on the finalize branch (PR #275):** as noted above, Codex's inline finding on
+PR #274 arrived after that PR had already merged. Rather than reopen a merged PR, the fix — correcting
+`docs/evidence/2026-06-07/proof-tape.json`'s four `sizeBytes` fields (29138→14595, 33058→16555, 28162→14105,
+27986→14017) and the matching four byte counts in `proof-tape.md` — was made as an additional commit on the
+`claude/loving-babbage-27fdd9-finalize` branch, which already had the log-finalization commit for #274 queued
+on its own open PR (#275). Verified with `wc -c` against the actual current file sizes and a repo-wide grep for
+the four stale byte counts (`29138|33058|28162|27986`) to confirm no other file still carried them.

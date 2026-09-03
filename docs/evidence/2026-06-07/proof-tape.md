@@ -24,10 +24,10 @@ Files included:
   Commands: meechies-coloringbook@0.1.0 test:e2e | playwright test
 - lint.txt (47 bytes)
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
-- open-prs-after-contained-close.json (29138 bytes)
-- open-prs-after-main-push.json (33058 bytes)
-- open-prs-after-pr120-merge.json (28162 bytes)
-- open-prs-after-recalc.json (27986 bytes)
+- open-prs-after-contained-close.json (14595 bytes)
+- open-prs-after-main-push.json (16555 bytes)
+- open-prs-after-pr120-merge.json (14105 bytes)
+- open-prs-after-recalc.json (14017 bytes)
 - open-prs-current.json (17625 bytes)
 - pr-117-check.txt (530 bytes)
 - pr-117-diff-check.txt (1688 bytes)
