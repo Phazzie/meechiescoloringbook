@@ -803,6 +803,9 @@ docs/comments-only exception applying regardless of the file's directory.
 (#151–#231 minus merges, including #189 noted above) every prior run has noted; still needs a separate,
 explicitly-scoped session to drain.
 
+**Status:** PR opened and subscribed for CI/review activity. If this entry is not followed by a "merged" note
+below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
 **PR #259 activity:** `verify` (both required-check runs), CodeQL, SonarCloud/SonarCloud Code Analysis, and
 `Rosentic - Conflict Detection` all passed on the pushed head; CodeRabbit skipped (repo has fewer than 10 stars);
 Sourcery's own 7-day diff-character review budget was already exhausted (same as PRs #245/#247/#250/#252/#254);
@@ -813,7 +816,14 @@ against an unrelated head (PR #257, merged just before this branch, whose diff a
 the second was a full-backlog scan comment that didn't name this session's branch in any of its four findings at
 all, so no response was needed. `mergeable_state` was `clean` once all checks landed.
 
-**Status:** PR #259 merged into `main` at `1cb9a4a` in this same session. Before opening this PR, this session
+**Merged:** PR #259 merged into `main` at `1cb9a4a` in this same session. Before opening this PR, this session
 also found PR #257 (the immediately prior session's log-finalization follow-up for PR #254) still open and
 green — merged it first (`5f7ae3c`) per `AGENTS.md`'s merge-when-green rule, so no open PRs are left behind from
 either this session or the one before it.
+
+**Correction (PR #260 review):** the first version of this finalization commit made the exact append-only
+mistake this log's own precedent already warned about (see the PR #257 entry above, where a Codex review caught
+the identical error on the analogous PR #254 finalization, commit `3617855`) — it replaced the "PR opened" status
+line above instead of preserving it and appending the activity/merge confirmation after it. Caught by a Codex
+review on PR #260 itself; fixed by restoring the original conditional status line and moving the PR #259
+activity/merge content below it, matching the PR #257 precedent's own fix.
