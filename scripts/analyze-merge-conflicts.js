@@ -113,11 +113,15 @@ async function main() {
 
     // Update row details
     const statusText = isClean ? 'CLEAN' : 'CONFLICT';
-    const notes = isClean
-      ? 'Merges cleanly against origin/main.'
-      : conflictFiles.length > 0
-        ? `Has conflicts: ${conflictFiles.join(', ')}.`
-        : `Merge failed for a non-conflict reason: ${mergeResult.output.trim().replace(/\s+/g, ' ').replace(/\|/g, '/')}`;
+    let notes;
+    if (isClean) {
+      notes = 'Merges cleanly against origin/main.';
+    } else if (conflictFiles.length > 0) {
+      notes = `Has conflicts: ${conflictFiles.join(', ')}.`;
+    } else {
+      const sanitizedError = mergeResult.output.trim().replaceAll(/\s+/g, ' ').replaceAll('|', '/');
+      notes = `Merge failed for a non-conflict reason: ${sanitizedError}`;
+    }
 
     // Reconstruct the table line
     // Format: | #PR | Title | Author | Merge Status | Target Bucket | Concrete Reason |
