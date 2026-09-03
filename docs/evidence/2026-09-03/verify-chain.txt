@@ -19,6 +19,12 @@
 #       ("found 0 vulnerabilities"), but a seventh attempt, via `npm run verify`'s own wrapper,
 #       hung again moments later - the endpoint is intermittently flaky, not durably recovered.
 #       See DECISIONS.md's Assumption, kept open rather than resolved on one transient success.
+# Note (final): the last full `npm run verify` invocation recorded below (bottom of this file)
+#       completed end-to-end with no fallback needed, audit:gate included. This confirms the CI
+#       `verify` check's own passing result for this exact commit, but does not resolve the open
+#       Assumption on its own - the endpoint is intermittent, and this file's own history shows a
+#       clean run does not predict the next one. Keep the Assumption open per its own validation
+#       criteria (two consecutive clean runs) rather than closing it on this single success.
 
 $ npm run verify   # (22:12:22 run this same session - includes a passing audit:gate)
 
@@ -231,3 +237,38 @@ $ timeout 110 npm run verify   # (via the full chain wrapper - hung again in aud
 
 $ node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining chain stages, run individually)
 (check/test green, 845 passed / 1 skipped; shaolin-lint/assumption-alarm/seam-ledger/clan-chain: no output, exit 0 for all four)
+
+$ npm run verify   # (truly final run: complete wrapper succeeded end-to-end, audit:gate included - no fallback needed)
+
+> meechies-coloringbook@0.1.0 verify
+> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
+
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
+found 0 vulnerabilities
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v4.1.0 /home/user/meechiescoloringbook
+
+
+ Test Files  74 passed | 1 skipped (75)
+      Tests  845 passed | 1 skipped (846)
+   Start at  23:36:05
+   Duration  46.91s (transform 1.97s, setup 533ms, import 3.69s, tests 1.46s, environment 31.69s)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

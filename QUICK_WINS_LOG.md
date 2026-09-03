@@ -2165,8 +2165,13 @@ both hung after the sixth `npm audit` attempt succeeded, but the transcript only
 attempt (the wrapper call, correctly labeled retry 7); corrected the count everywhere it appeared. `Rosentic -
 Conflict Detection`, `Vercel` (rate-limited on the first push, standard pre-existing signature, stood down with
 one comment), SonarCloud, CodeQL, and Sourcery (approved) all passed on the final head (`b93d58a`); `verify`
-passed on both required jobs after ~8 total `npm audit` attempts across this run and its follow-up, six of which
-hit the intermittently flaky registry endpoint (see `DECISIONS.md`'s still-open Assumption).
+passed on both required jobs. The exact `npm audit` attempt count is deliberately not repeated here as a
+snapshot number — `docs/evidence/2026-09-03/verify-chain.txt` is the growing, authoritative transcript of every
+attempt across this run and its follow-ups, and any prose total written into this log goes stale the moment the
+next commit makes another attempt (as happened twice already: this sentence originally said "eight... six of
+which" before this same commit's own two further attempts, and a Codex review round on this exact commit caught
+that the number needed correcting yet again before the commit had even merged). See `DECISIONS.md`'s still-open
+Assumption for the endpoint's status.
 
 **PR #283 merged** into `main` at `5eac399` in this same session — a fresh open-PR listing afterward showed
 nothing open from this session's `claude/loving-babbage-*` lineage. Both PR #282 (two quick wins plus the
