@@ -1395,3 +1395,98 @@ meeting every condition in `AGENTS.md`'s "Merge When The Gates Are Green" sectio
 **Merged:** PR #270 merged into `main` at `5ead552` in this same session. A fresh open-PR listing afterward
 showed only the same pre-existing long-stale backlog (#151–#218 minus merges) — no PR from this session was left
 open.
+
+## 2026-09-03 — session_015a6Ge3fJBqhhbbmHYEGXbW (scheduled run)
+
+**Housekeeping before the search:** started from `main` at `16a713b` (PR #271 already merged, finalizing the
+prior run's log entry) on this session's designated branch (`claude/loving-babbage-896gd2`), which was already a
+fresh branch off `main` at that exact commit — no reset needed. `git fetch origin main` confirmed `origin/main`
+matched. Listed all open PRs: none from this session's own branch lineage (`claude/loving-babbage-*`); the same
+long-stale backlog (#151–#218 minus merges) every prior run has noted, unchanged in kind, out of scope for this
+run. Ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green (843
+passed / 1 skipped, matching the prior run's baseline).
+
+**Investigation:** This is run #22 on a codebase twenty-one prior runs have already scrubbed hard (40+ bugs
+fixed). Spawned two background Explore agents in parallel, each handed a condensed recap of every already-fixed
+bug class and already-deferred candidate from this log so neither would waste a sweep rediscovering them. One
+swept application code (`src/lib/core/*`, `src/lib/components/**`, `src/lib/server/*`, `src/routes/**`,
+`hooks.server.ts`, `service-worker.ts`), excluding seam-governed directories. The other swept `scripts/*.mjs`,
+`tests/unit/**`/`tests/e2e/**`, root governance docs, root config files, and `.github/workflows/*.yml` — areas
+recent runs (PR #268, #270) found doc/tooling inconsistencies in. Both came back with genuine, independently
+verified candidates rather than padding: the app-code agent found one high-confidence functional bug; the
+docs/scripts agent found two doc-accuracy issues and flagged the second (a stale `HANDOFF.md` claim about
+`npm run format:check`'s failure scope) as a candidate for a future run rather than this run's second pick, since
+the app-code bug and the first doc fix together were the stronger pair. Verified all three findings myself
+against the actual current code/command output before picking two.
+
+**Found and fixed (`claude/loving-babbage-896gd2`, this same branch):**
+
+1. **`handleModeSelect` never cleared the previous mode's AI-generated verdict/quote, so switching Meechie modes
+   left stale text output visible and actionable under the new mode's heading.** `src/routes/studio-state.svelte.ts:386-391`
+   reset `textError` and the generated-page state (`resetGeneratedPage()`: images, assembled prompt, violations,
+   packaged files) on a mode-card click, but never touched `this.textOutput` — a separate field
+   (`studio-state.svelte.ts:118`) only cleared by `runTextAction` after a *new* successful generation, by
+   `loadCreation`, and by three other call sites this log already fixed for the identical gap (PR-documented
+   fixes to `loadCreation`, `handleWigTryOn`, and `resetTryOnResultState`, all of which explicitly used
+   `resetGeneratedPage()` as their template) — but none of those three fixes touched `handleModeSelect` itself,
+   which carried the same gap the whole time. Confirmed the user-visible consequence directly: `VerdictRow.svelte`
+   renders `textOutput.verdict`/`textOutput.quote` bound straight from `studio.textOutput` in `+page.svelte`,
+   while `StudioInputPanel.svelte`'s heading already updates to the new mode's label — so after generating a
+   verdict on one mode and clicking a different mode card, the panel heading changes but the Verdict card keeps
+   showing the previous mode's unrelated content underneath it. Confirmed it's not merely cosmetic:
+   `StudioPreviewPanel.svelte`'s "Create Coloring Page"/"Copy Quote"/"Save to Vault" buttons are gated on
+   `!!textOutput`, not on which mode produced it, so a user could act on a coloring-page generation seeded by the
+   wrong mode's leftover AI text with no evidence typed for the new mode at all. Fixed by adding
+   `this.textOutput = null;` to `handleModeSelect`, matching the pattern the three prior related fixes already
+   established. Extended the existing `'updates the active mode when a mode card is selected'` test in
+   `tests/unit/studio-state.test.ts` with a new sibling case that seeds `textOutput` before calling
+   `handleModeSelect` and asserts it's cleared afterward — no prior test covered this field for this call site.
+2. **`docs/seam-driven-development-ai-guide.md:58` described `npm run verify`'s chain wrong in two independent
+   ways — the same bug class this log has already caught and fixed at three other locations, but a fourth,
+   still-live one.** The line read "`npm run verify` runs chamber lock, verify runner, shaolin lint, assumption
+   alarm, seam ledger, clan chain, proof tape, and cipher gate" — verified against `package.json`'s actual
+   `verify` script (`npm run audit:gate && chamber-lock.mjs && verify-runner.mjs && shaolin-lint.mjs &&
+   assumption-alarm.mjs && seam-ledger.mjs && clan-chain.mjs && proof-tape.mjs`), this both (a) omits **audit
+   gate**, the chain's real first step — the identical omission PRs #268/#270 already fixed in `AGENTS.md` lines
+   163 and 54 respectively, this being a third, previously-uncaught location with the same gap — and (b) wrongly
+   **includes cipher gate**, which is not run by `npm run verify` at all; `AGENTS.md:170` and `CLAUDE.md:105`
+   both already correctly state cipher gate is "not part of the verify chain; run manually if needed." This file
+   is explicitly titled "Seam-Driven Development AI Assistant Guide" and written to tell AI assistants like this
+   session how to work in the repo, so an assistant trusting it would both skip checking for an audit-gate
+   failure and wrongly believe running `npm run verify` alone satisfies the Cipher Gate requirement. Confirmed
+   via `QUICK_WINS_LOG.md` grep that this specific file was never touched by the two prior verify-chain-wording
+   fixes. Fixed to: "`npm run verify` runs the audit gate, chamber lock, verify runner, shaolin lint, assumption
+   alarm, seam ledger, clan chain, and proof tape. (`npm run cipher:gate` is separate — not part of the verify
+   chain; run manually if needed.)" — matching `AGENTS.md`'s now-accurate wording.
+
+**Considered but not picked:** the docs/scripts agent's second finding — `HANDOFF.md:74` claims `npm run
+format:check` fails on "six rate-limit files," but running it today shows 717 files failing repo-wide (mostly
+auto-generated `docs/evidence/*/` JSON/Markdown never run through prettier, which has grown with every one of
+this log's 21 prior runs each adding a new dated evidence folder), with even the rate-limit-scoped subset at 13
+files, not six. Real and verified, but a close second to the two picked above rather than a clear top-two — left
+as a ready-to-go candidate for a future run: either correct `HANDOFF.md`'s claim to describe the real, growing
+repo-wide scope, or (bigger, riskier, not a "quick" fix) add `docs/evidence/**` to prettier's ignore pattern so
+the original "small number of hand-written files" framing becomes true again. The app-code agent's other
+candidate — `MeechieModePage.svelte` (backing `/m/[mode]`) has the identical `textOutput`-staleness gap as
+`handleModeSelect` if a user navigated directly between two different `/m/X` URLs — was not picked because no
+in-app link performs that navigation (only the root page links into `/m/X`, and `/m/[mode]` has no mode-switching
+nav of its own), the same unreachability reasoning this log already used to defer the `/m/[mode]` random-fallback
+item.
+
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (844 passed /
+1 skipped — the +1 over baseline is this run's new `handleModeSelect` test case), `npm run build` (succeeds), and
+`npm run verify` (full chain green — audit gate, chamber-lock, check+test, shaolin-lint, assumption-alarm,
+seam-ledger, clan-chain, proof-tape — evidence refreshed in place at `docs/evidence/2026-09-03/`, which already
+existed for today from all twenty-one prior runs; `lint.txt`/`build.txt`/`verify-chain.txt` re-captured post-edit
+with this run's actual command output, headers preserved, per the PR #254/#264/#266/#268/#270 precedent for
+keeping those three manually-captured files current). Neither changed source file touches a seam contract, mock,
+or adapter file (one pure client-side Svelte-5-runes state fix with its unit test, one doc-prose fix describing
+existing, unchanged tooling behavior — no filesystem/network/process/clock/randomness boundary), so the full
+Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every
+prior entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** opening PR next; this entry will be updated with the PR number and merge outcome (or, if the merge
+does not complete in this session, the reason and whether a future session should finish it).

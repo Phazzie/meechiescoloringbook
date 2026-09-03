@@ -386,6 +386,7 @@ export class StudioState {
 	handleModeSelect = (modeId: string): void => {
 		this.activeModeId = modeId;
 		this.textError = '';
+		this.textOutput = null;
 		this.resetGeneratedPage();
 		this.scheduleDraftSave();
 	};

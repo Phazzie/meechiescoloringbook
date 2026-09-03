@@ -181,6 +181,17 @@ describe('StudioState', () => {
 		expect(studio.activeMode.label).toBe(targetMode!.label);
 	});
 
+	it('clears the previous mode\'s AI text output when a different mode card is selected', () => {
+		const studio = new StudioState();
+		studio.textOutput = DEFAULT_STUDIO_TEXT_OUTPUT;
+		const targetMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
+		expect(targetMode).toBeDefined();
+
+		studio.handleModeSelect(targetMode!.id);
+
+		expect(studio.textOutput).toBeNull();
+	});
+
 	it('clears a previously generated page when a saved creation is loaded', async () => {
 		const studio = new StudioState();
 		studio.images = [
