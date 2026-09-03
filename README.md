@@ -107,7 +107,7 @@ To change a model, edit `src/lib/core/models.js` and open a pull request.
 | `npm run test:integration` | Run integration tests against real APIs (requires `FEATURE_INTEGRATION_TESTS=true`) |
 | `npm run lint` | Run ESLint |
 | `npm run format` | Format files with Prettier |
-| `npm run format:check` | Check formatting (CI) |
+| `npm run format:check` | Check formatting (not enforced in CI or `npm run verify`) |
 | `npm run check` | SvelteKit type check |
 | `npm run verify` | Full verify pipeline — see stage definitions below (audit gate, chamber lock, verify runner [check + test], shaolin lint, assumption alarm, seam ledger, clan chain, proof tape) |
 | `npm run hooks:install` | Install local git pre-commit/pre-push hooks |
