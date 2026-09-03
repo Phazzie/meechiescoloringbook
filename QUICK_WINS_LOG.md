@@ -1855,3 +1855,24 @@ drain.
 
 **Status:** PR #280 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
 below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
+**PR #280 activity:** `verify` (both `pull_request`- and `push`-triggered runs), CodeQL, `Rosentic Scan`, and
+`SonarCloud`/`SonarCloud Code Analysis` (quality gate passed, 0 new issues) all passed on the pushed head
+(`d20ede7`). CodeRabbit skipped (repo has fewer than 10 stars); Sourcery's own 7-day diff-character review budget
+was already exhausted, but it still posted an automated reviewer's guide (no findings); a Codex bot review
+completed with no findings listed. `Rosentic - Conflict Detection` (the separate cross-branch-backlog scan check)
+flagged findings naming `chat-interpretation.adapter.ts`/`+server.ts`, `image-generation-pipeline.ts`,
+`http-resilience.ts`, and `wig-try-on-pipeline.test.ts` across other long-stale, unmerged backlog branches
+(`claude/sweet-mendel-*`, `claude/trusting-volta-*`, `claude/fix-pr154-pr160-review-comments`) — confirmed none of
+those files are in this PR's own diff (`git diff --name-only origin/main..HEAD`: only `CLAUDE.md`,
+`QUICK_WINS_LOG.md`, `README.md`, `docs/evidence/2026-09-03/**`), the same pre-existing, PR-independent scan noise
+documented on every quick-wins PR back to #243. The `Vercel` commit status was red — "Deployment rate limited —
+retry in 24 hours" (`api-deployments-free-per-day`) — the same account-level quota failure documented repeatedly
+throughout this log; confirmed an unrelated-head match against PR #279 (merged, a completely different docs-only
+diff), which hit the identical failure signature ~30 minutes earlier the same day. Stood down on both checks with
+one PR comment each, per `AGENTS.md`'s bar; no re-run needed for either since diff-level/timestamp proof already
+established both as pre-existing rather than this PR's fault.
+
+**Merged:** PR #280 merged into `main` at `7de8495` in this same session. A fresh open-PR listing afterward
+showed only the same pre-existing long-stale backlog (`#193`–`#218` minus merges) — no PR from this session was
+left open.
