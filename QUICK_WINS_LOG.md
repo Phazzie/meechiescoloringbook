@@ -481,7 +481,16 @@ its findings named branch pairs and files (`chat-interpretation.adapter.ts`, `ra
 `git diff --name-only origin/main..HEAD`, the same pre-existing cross-branch-backlog scan failure mode
 documented on PRs #243/#245/#247/#248. Sourcery posted an informational reviewer's guide (no findings, its own
 review budget already exhausted for the week); CodeRabbit skipped (repo has fewer than 10 stars); SonarCloud's
-quality gate passed with 0 new issues.
+quality gate passed with 0 new issues. A Codex bot review also flagged the `maxDuration` override itself as P1
+"run the timeout change through the seam workflow," reasoning that it changes `MeechieStudioTextSeam`'s
+observable execution time. Verified and replied on the review thread: the change touches no seam artifact
+(no `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, or `src/lib/adapters/` file is in the diff) and
+`MeechieStudioTextSeam`'s contract is byte-for-byte unchanged — it's platform function-lifetime config, the
+infra mirror of PR #247's client-side `studioText` timeout constant, reasoned through the same way. Since it
+does change observable behavior (a request between 120s and 230s that used to be platform-killed now
+completes), added a `Decision` entry to `DECISIONS.md` recording the context, alternatives, and an explicit
+self-critique on why the full contract/probe/fixture/mock/adapter workflow doesn't apply, rather than either
+dismissing the finding or inventing unneeded fixture/contract work for a config number. Resolved the thread
+after the reply.
 
-**Status:** PR #250 opened, subscribed for CI/review activity. If this entry is not followed by a "merged"
-note below, the merge did not complete and the reason should be recorded here by the session that stopped.
+**Status:** PR #250 merged into `main` at `62f3a4e` in this same session.
