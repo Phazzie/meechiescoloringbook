@@ -120,11 +120,15 @@ To change a model, edit `src/lib/core/models.js` and open a pull request.
 
 This project uses **Seam-Driven Development (SDD)** — every external integration point is isolated behind a "seam" with a defined contract, deterministic mock, and real adapter. This prevents integration drift and keeps core logic testable without live API calls.
 
-Each seam consists of:
+Each self-contained seam folder (`src/lib/seams/<seam-name>/`, the layout new seams use) consists of:
 - `contract.ts` — TypeScript types and Zod schemas
+- `probe.ts` — captures real external behavior (run manually to refresh)
 - `fixtures.ts` — static test data captured from real API responses
 - `mock.ts` — deterministic test doubles (load fixtures by scenario, no invented data)
-- `adapter.ts` — real implementation behind the seam
+- `test.ts` — contract tests (mock first, fault fixture must fail)
+- `validators.ts` — shared Zod validators for adapter and test reuse
+
+When an adapter exists, it lives separately, at `src/lib/adapters/<seam-name>/index.ts` — some seams are pure or dependency-injected and have no adapter at all. Legacy flat-layout seams (see `contracts/CLAUDE.md`) split these same artifacts across `contracts/`, `probes/` (only when the seam requires a real-world probe — most legacy seams are pure and have none), `fixtures/`, `src/lib/mocks/`, and `tests/contract/` instead, with the adapter at `src/lib/adapters/<seam-name>.adapter.ts`, and have no `validators.ts`. `docs/seams.md` is the authoritative source for which layout and files a given seam actually has.
 
 **Key directories:**
 

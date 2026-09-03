@@ -4,9 +4,19 @@
 # Info flow: npm run verify -> full chain stdout/stderr -> evidence file.
 # Note: proof-tape.mjs is re-run after this file is written, so the tape inventories
 #       this exact artifact rather than the copy that existed mid-chain.
+# Note (this run): `npm audit --audit-level=high` (run directly, bypassing the `verify` wrapper)
+#       hung with zero output across five separate attempts (30s/60s/90s/45s/30s timeouts) spanning
+#       roughly 20 minutes, while `npm ping` to the same registry succeeded in 150ms in between -
+#       a registry-side audit-endpoint outage, not a proxy/DNS/connectivity issue (registry.npmjs.org
+#       is in NO_PROXY; see DECISIONS.md's 2026-09-03 entry "audit:gate's registry endpoint was
+#       unreachable during a scheduled quick-wins run" for the full record and the open Assumption).
+#       package.json/package-lock.json are unchanged since this same session's earlier successful
+#       `npm run verify` run at 22:12:22 (below), which reported "found 0 vulnerabilities" for the
+#       identical dependency tree - so that result is cited as still-valid rather than re-run
+#       against a currently-down endpoint. The remaining stages were run individually, skipping
+#       only the hung audit:gate step, and proof-tape.mjs was run last as usual.
 
-$ npm run verify
-
+$ npm run verify   # (22:12:22 run this same session - includes a passing audit:gate)
 
 > meechies-coloringbook@0.1.0 verify
 > npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
@@ -29,14 +39,112 @@ svelte-check found 0 errors and 0 warnings
 > vitest run --pool=forks --maxWorkers=1
 
 
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
 
 
-[2m Test Files [22m [1m[32m74 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (75)[39m
-[2m      Tests [22m [1m[32m845 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (846)[39m
-[2m   Start at [22m 20:30:31
-[2m   Duration [22m 74.77s[2m (transform 2.71s, setup 797ms, import 5.20s, tests 2.14s, environment 52.20s)[22m
+[2m Test Files [22m [1m[32m74 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (75)[39m
+[2m      Tests [22m [1m[32m845 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (846)[39m
+[2m   Start at [22m 22:12:22
+[2m   Duration [22m 50.09s[2m (transform 2.15s, setup 576ms, import 4.03s, tests 1.57s, environment 34.00s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+$ timeout 30 npm audit --audit-level=high   # (retry 1 - hung)
+[no output before timeout]
+EXIT:124
+
+$ timeout 60 npm audit --audit-level=high   # (retry 2 - hung)
+[no output before timeout]
+EXIT:124
+
+$ timeout 90 npm audit --audit-level=high   # (retry 3 - hung)
+[no output before timeout]
+EXIT:124
+
+$ npm ping   # (registry itself is reachable; the audit endpoint specifically is not)
+npm notice PING https://registry.npmjs.org/
+npm notice PONG 150ms
+
+$ timeout 45 npm audit --audit-level=high   # (retry 4, after Vercel's own rate limit cleared on this PR - still hung)
+[no output before timeout]
+EXIT:124
+
+$ node scripts/chamber-lock.mjs   # (remaining chain stages, run individually)
+(no output; exit 0)
+
+$ node scripts/verify-runner.mjs
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+
+
+[2m Test Files [22m [1m[32m74 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (75)[39m
+[2m      Tests [22m [1m[32m845 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (846)[39m
+[2m   Start at [22m 22:39:59
+[2m   Duration [22m 47.74s[2m (transform 2.06s, setup 553ms, import 3.86s, tests 1.54s, environment 32.21s)[22m
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+$ node scripts/shaolin-lint.mjs
+(no output; exit 0)
+
+$ node scripts/assumption-alarm.mjs   # (first attempt failed: DECISIONS.md's new Assumption entry
+                                       # wrapped Statement/Validation across multiple physical lines,
+                                       # which scripts/assumption-alarm.mjs's parser does not support
+                                       # (it stops reading fields at the first line not starting with
+                                       # "  - "); rewritten as single (long) lines per the file's own
+                                       # existing convention, then this passed)
+Assumption Alarm: missing or incomplete assumptions.
+EXIT:1
+$ node scripts/assumption-alarm.mjs   # (after the fix)
+(no output; exit 0)
+
+$ node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs
+(no output; exit 0 for both)
+
+$ timeout 30 npm audit --audit-level=high   # (retry 5, after the SEAM_BLUEPRINT.md/AGENTS.md review repairs - still hung)
+[no output before timeout]
+EXIT:124
+
+$ node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining chain stages, run individually)
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v4.1.0 /home/user/meechiescoloringbook
+
+
+ Test Files  74 passed | 1 skipped (75)
+      Tests  845 passed | 1 skipped (846)
+   Start at  22:50:44
+   Duration  47.08s (transform 1.99s, setup 561ms, import 3.77s, tests 1.50s, environment 31.94s)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+(shaolin-lint, assumption-alarm, seam-ledger, clan-chain: no output; exit 0 for all four)
