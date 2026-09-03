@@ -152,5 +152,6 @@ excluding #240/#241 which merged), most stale against old base commits from much
 scope stayed limited to its own two quick wins per the task instructions; that backlog is unchanged from prior
 runs' notes and still needs a separate, explicitly-scoped session to drain.
 
-**Status:** _(to be updated once the PR is opened and its outcome known — see the next line(s) in this entry or
-a follow-up note if a later session had to pick this up)._
+**Status:** PR #243 opened, subscribed for CI/review activity, and driven to merge in this same session (see
+commit history on `main` for the merge outcome — if this entry is not followed by a "merged" note below, the
+merge did not complete and the reason should be recorded here by the session that stopped).
