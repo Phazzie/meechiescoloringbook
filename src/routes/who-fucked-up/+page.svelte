@@ -197,7 +197,6 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 				on:keydown={handleKeydown}
 				rows="5"
 				placeholder="He said his phone died but I saw him active on Instagram at midnight..."
-				aria-label="Describe the situation"
 			></textarea>
 			<p class="key-hint">Ctrl + Enter to submit</p>
 

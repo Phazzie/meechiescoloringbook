@@ -52,3 +52,52 @@ separate, explicitly-scoped session.
 **Status:** PR #240 opened, subscribed for CI/review activity, and driven to merge in this same session
 (see commit history on `main` for the merge outcome — if this entry is not followed by a "merged" note below,
 the merge did not complete and the reason should be recorded here by the session that stopped).
+
+## 2026-09-03 — session_019Qad7B5vGksZhqeVfuRYwr
+
+**Investigation:** Started from `main`/PR #240's merge (`1569ad8`), which already covered the prior run's two
+quick wins. Ran `npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green (812
+passed / 1 skipped). Spawned a background Explore agent to re-scan `src/lib/core/*`, `src/routes/**/*.svelte`
+and `+server.ts`, and small utility files for small, self-contained bugs outside seam-governed directories,
+explicitly telling it to check `QUICK_WINS_LOG.md` and recent git history first so it wouldn't re-surface
+anything already fixed by PRs #169–#240.
+
+**Found and fixed (PR #241, `claude/loving-babbage-wh4dhm`):**
+
+1. **Missing possessive apostrophe, duplicated in two mode configs.** Both the `'meechie-move'` and
+   `'what-would-meechie-do'` mode configs in `src/routes/m/[mode]/+page.svelte` rendered the subhead as
+   `"Give the dilemma and get Meechies move."` instead of `"Meechie's move."` — a copy-pasted typo present in
+   both entries. Fixed both strings to use the possessive.
+2. **`aria-label` silently overriding the visible `<label for>` text on two textareas.** In
+   `src/routes/who-fucked-up/+page.svelte` and `src/routes/rate-his-excuse/+page.svelte`, each textarea has an
+   associated `<label for="...">` with the real on-screen copy ("What did they do?" / "What excuse did he give
+   you?"), but also carried a redundant `aria-label` ("Describe the situation" / "Enter the excuse"). Per the
+   accessible-name computation order, `aria-label` wins over an associated label, so screen-reader users heard
+   the generic placeholder text instead of the actual question. The prior run (PR #240) flagged this as
+   "plausible but arguably intentional" and deferred it; re-checked this run and confirmed it's a real
+   mismatch, not a deliberate design choice (the `aria-label` text is strictly less specific than the visible
+   label, with no comment or test suggesting intent). Fixed by deleting the redundant `aria-label` attribute
+   on both textareas, letting the existing `<label for>` provide the accessible name.
+
+**Considered but not picked:** a redundant `pool[offset % pool.length]` modulo in
+`src/lib/core/meechie-studio.ts` (`offset` is already reduced mod `pool.length` on the prior line) — this is
+the third run in a row to find this same item; still real but purely cosmetic/dead-computation with no
+observable effect, so still deprioritized behind bugs with user-visible impact. If a future run is short on
+candidates, this one is ready to go: `pool[offset]` for the first array element, keep the `% pool.length` wrap
+only on the `+1` index.
+
+**Verification:** `npm run check`, `npm run lint`, `npm test` (812 passed / 1 skipped, unchanged from
+baseline), `npm run build`, and `npm run verify` (full chain, evidence at `docs/evidence/2026-09-03/`, which
+already existed for today from the prior run and was refreshed in place) — all green. No seam was touched (pure
+UI text/attribute changes, no filesystem/network/process/clock/randomness boundary involved), so the full
+Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` did not apply, consistent with PR
+#240's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** as of this run there were
+29 other open PRs (#169–#231, excluding #240 which merged), most stale against old base commits from much
+earlier sessions. This run's scope stayed limited to its own two quick wins per the task instructions; that
+backlog is unchanged from the prior run's note and still needs a separate, explicitly-scoped session to drain.
+
+**Status:** PR #241 opened, subscribed for CI/review activity, and driven to merge in this same session (see
+commit history on `main` for the merge outcome — if this entry is not followed by a "merged" note below, the
+merge did not complete and the reason should be recorded here by the session that stopped).
