@@ -122,8 +122,8 @@ This project uses **Seam-Driven Development (SDD)** — every external integrati
 
 Each self-contained seam folder (`src/lib/seams/<seam-name>/`, the layout new seams use) consists of:
 - `contract.ts` — TypeScript types and Zod schemas
-- `probe.ts` — captures real external behavior (run manually to refresh)
-- `fixtures.ts` — static test data captured from real API responses
+- `probe.ts` — captures real external behavior (run manually to refresh); for pure/dependency-injected seams, calls the seam function directly instead
+- `fixtures.ts` — static test data; captured from real API responses for seams that call an external system, authored domain data for pure/dependency-injected seams
 - `mock.ts` — deterministic test doubles (load fixtures by scenario, no invented data)
 - `test.ts` — contract tests (mock first, fault fixture must fail)
 - `validators.ts` — shared Zod validators for adapter and test reuse

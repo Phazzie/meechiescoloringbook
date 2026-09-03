@@ -21,7 +21,9 @@ Short, durable decisions with context and tradeoffs.
   zero output each time; `npm ping` to the same `registry.npmjs.org` succeeded in 150ms in between
   retries, isolating the failure to the audit endpoint specifically rather than general
   connectivity, DNS, or the session's egress proxy (`registry.npmjs.org` is in `NO_PROXY`). A fourth
-  retry (45s) after Vercel's own rate-limit failure on the same PR separately cleared also hung.
+  retry (45s) after Vercel's own rate-limit failure on the same PR separately cleared also hung, and
+  a fifth (30s) after a further round of governance-doc repairs also hung — five attempts in total,
+  spanning roughly 20 minutes.
   `package.json`/`package-lock.json` are byte-identical to the tree the 22:12:22 run audited
   (confirmed via `git status --short package.json package-lock.json`, empty), so `npm audit`'s
   result is a deterministic function of a dependency tree that has not changed - only the ability
@@ -51,7 +53,7 @@ Short, durable decisions with context and tradeoffs.
   - Date: 2026-09-03
   - Seams: None - `audit:gate` is a dependency-vulnerability check, not a seam.
   - Statement: The dependency tree at this PR's final commit (`package.json`/`package-lock.json`, unchanged since 22:12:22 this same session) has 0 high-or-critical-severity vulnerabilities, matching the `found 0 vulnerabilities` result `npm audit --audit-level=high` reported at 22:12:22 against the identical tree.
-  - Validation: Not re-provable live during this run - the registry's audit endpoint hung with zero output across four separate attempts (30s/60s/90s/45s timeouts) spanning roughly 15 minutes, while `npm ping` to the same registry succeeded in 150ms in between, and `package.json`/`package-lock.json` are confirmed byte-unchanged since the 22:12:22 successful audit. Validate by re-running `npm audit --audit-level=high` once the endpoint is reachable again; if it reports anything other than 0 vulnerabilities, treat that as a regression to fix immediately, not as evidence this Assumption was wrong (the dependency tree has not changed since).
+  - Validation: The registry's audit endpoint hung with zero output across five separate attempts (30s/60s/90s/45s/30s timeouts) spanning roughly 20 minutes, while `npm ping` to the same registry succeeded in 150ms in between, isolating the failure to the audit endpoint specifically. A sixth attempt (after PR #282 merged and further Codex-review repairs were prepared) succeeded once (`found 0 vulnerabilities`, matching this Statement), but a seventh attempt moments later, and an eighth via `npm run verify`'s own wrapper, both hung again - the endpoint is intermittently flaky rather than durably recovered, so this Assumption stays open rather than being marked resolved on one transient success. `package.json`/`package-lock.json` remain byte-unchanged throughout. Validate definitively by getting two consecutive clean runs of `npm audit --audit-level=high`; if any run reports anything other than 0 vulnerabilities, treat that as a regression to fix immediately, not as evidence this Assumption was wrong (the dependency tree has not changed since 22:12:22).
   - Status: Open - pending the audit endpoint's recovery.
 
 ## 2026-09-03 - Make the Cipher Gate certify the right entry, and the Proof Tape admit stale evidence

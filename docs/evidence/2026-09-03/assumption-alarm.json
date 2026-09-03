@@ -1,6 +1,6 @@
 {
   "tool": "assumption-alarm",
-  "generatedAt": "2026-09-03T22:51:31.364Z",
+  "generatedAt": "2026-09-03T23:03:09.262Z",
   "blockedSeams": [
     "ImageGenerationSeam",
     "RateLimitSeam",
@@ -11,7 +11,7 @@
       "date": "2026-09-03",
       "seams": "None - `audit:gate` is a dependency-vulnerability check, not a seam.",
       "statement": "The dependency tree at this PR's final commit (`package.json`/`package-lock.json`, unchanged since 22:12:22 this same session) has 0 high-or-critical-severity vulnerabilities, matching the `found 0 vulnerabilities` result `npm audit --audit-level=high` reported at 22:12:22 against the identical tree.",
-      "validation": "Not re-provable live during this run - the registry's audit endpoint hung with zero output across four separate attempts (30s/60s/90s/45s timeouts) spanning roughly 15 minutes, while `npm ping` to the same registry succeeded in 150ms in between, and `package.json`/`package-lock.json` are confirmed byte-unchanged since the 22:12:22 successful audit. Validate by re-running `npm audit --audit-level=high` once the endpoint is reachable again; if it reports anything other than 0 vulnerabilities, treat that as a regression to fix immediately, not as evidence this Assumption was wrong (the dependency tree has not changed since).",
+      "validation": "Not re-provable live during this run - the registry's audit endpoint hung with zero output across five separate attempts (30s/60s/90s/45s/30s timeouts) spanning roughly 20 minutes, while `npm ping` to the same registry succeeded in 150ms in between, and `package.json`/`package-lock.json` are confirmed byte-unchanged since the 22:12:22 successful audit. Validate by re-running `npm audit --audit-level=high` once the endpoint is reachable again; if it reports anything other than 0 vulnerabilities, treat that as a regression to fix immediately, not as evidence this Assumption was wrong (the dependency tree has not changed since).",
       "status": "Open - pending the audit endpoint's recovery.",
       "seamList": [
         "None - `audit:gate` is a dependency-vulnerability check",

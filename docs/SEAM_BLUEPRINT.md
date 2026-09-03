@@ -7,7 +7,8 @@ Info flow: Blueprint -> contract/probe/fixtures -> mock/tests -> adapter.
 
 New seams use the self-contained layout below (see `CLAUDE.md`'s "Two seam layouts coexist" table and
 `src/lib/seams/CLAUDE.md`) — do not add flat-layout seams. The legacy flat layout at the bottom of this
-file documents the older convention still used by seams that have not migrated.
+file documents the older convention: still used directly by seams that have not migrated, and still
+retained for compatibility by some seams that have (see `docs/seams.md` for which is which).
 
 ## Summary
 - Goal:
@@ -56,7 +57,11 @@ All files live under `src/lib/seams/<seam-name>/`, except the adapter:
 - Attach outputs per `docs/evidence/README.md`.
 - Log decisions in `DECISIONS.md` if tradeoffs exist.
 
-## Legacy flat layout (existing un-migrated seams only)
+## Legacy flat layout (existing flat-layout artifacts, including retained compatibility paths)
+
+Covers seams that have not migrated at all, and seams that have a canonical self-contained version
+but still retain these flat-layout paths for compatibility (see `docs/seams.md` for which seams are
+which — several, e.g. `PromptAssemblySeam`, keep both).
 
 - Contract: `contracts/<seam>.contract.ts`
 - Probe: `probes/<seam>.probe.ts` (when required — most legacy seams are pure and have none)
