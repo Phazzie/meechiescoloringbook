@@ -85,6 +85,23 @@ const extractCommands = (content) =>
 		.map((line) => line.trim().slice(2));
 
 /**
+ * The suffix a file gets in the tape. Three states, not two: null means the run marker was
+ * missing so the age could not be established, which must not read the same as "current".
+ *
+ * @param {boolean | null} predatesRun
+ * @returns {string}
+ */
+const freshnessMarker = (predatesRun) => {
+	if (predatesRun === true) {
+		return ' — PREDATES THIS VERIFY RUN';
+	}
+	if (predatesRun === null) {
+		return ' — FRESHNESS UNKNOWN';
+	}
+	return '';
+};
+
+/**
  * Render the plain-English tape. Extracted from run() so the freshness wording — the part
  * a non-coder actually reads — is unit-testable without touching the filesystem.
  *
@@ -111,13 +128,7 @@ export const renderProofTapeLines = (report, markedFiles) => {
 		''
 	];
 	for (const file of markedFiles) {
-		const marker =
-			file.predatesRun === true
-				? ' — PREDATES THIS VERIFY RUN'
-				: file.predatesRun === null
-					? ' — FRESHNESS UNKNOWN'
-					: '';
-		lines.push(`- ${file.name} (${file.sizeBytes} bytes)${marker}`);
+		lines.push(`- ${file.name} (${file.sizeBytes} bytes)${freshnessMarker(file.predatesRun)}`);
 		if (file.commands.length > 0) {
 			lines.push(`  Commands: ${file.commands.join(' | ')}`);
 		}

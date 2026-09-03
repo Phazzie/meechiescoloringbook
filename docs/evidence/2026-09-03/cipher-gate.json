@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-03T10:13:16.235Z",
+  "generatedAt": "2026-09-03T10:15:55.816Z",
   "cipher": {
     "date": "2026-09-03",
     "seams": "None registered in docs/seams.md - this change is verification tooling under scripts/ and creates no contract, adapter or mock",
@@ -25,6 +25,6 @@
     "summary": "Cipher Gate selection now tie-breaks on document position so the newest same-date entry is the one validated, instead of the stable sort silently certifying the oldest. Proof Tape marks evidence older than the current run's chamber-lock.json - the first artifact the verify chain writes - in both its JSON and Markdown output, reporting unknown rather than fresh when it cannot tell. Both scripts run only as entry points so importing them for tests no longer rewrites their artifacts.",
     "risks": "The tie-break depends on DECISIONS.md staying newest-first, a convention nothing enforces; if an entry is ever appended at the bottom it will be treated as the oldest for its date. Stale evidence is flagged, not failed, so a reader who ignores the note still gets a tape listing an artifact from a different run. Nine scripts now share toDateFolder and fileExists from evidence-reporting.mjs, so a change there reaches every evidence gate at once - the copies were byte-identical, and each script was run standalone and through the full chain, but the blast radius is real."
   },
-  "latestChangeMs": 1788430307653.1296,
+  "latestChangeMs": 1788430467460.9517,
   "status": "ok"
 }
