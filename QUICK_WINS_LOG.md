@@ -2131,18 +2131,21 @@ byte-for-byte (`git diff origin/main 3cadcd7 --stat` empty) so the carried-over 
 cleanly, and opened a follow-up PR with just these four fixes.
 
 **Audit-gate endpoint update:** while preparing the follow-up, a sixth `npm audit --audit-level=high` attempt
-finally succeeded (`found 0 vulnerabilities`, matching the open Assumption's Statement) — but a seventh direct
-retry and an eighth via the full `npm run verify` wrapper both hung again minutes later. The endpoint is
-intermittently flaky, not durably recovered; kept `DECISIONS.md`'s Assumption open rather than marking it
-resolved on one transient success, and recorded all three additional attempts in `verify-chain.txt` and
-`DECISIONS.md`.
+finally succeeded (`found 0 vulnerabilities`, matching the open Assumption's Statement) — but a seventh attempt,
+via the full `npm run verify` wrapper, hung again minutes later. The endpoint is intermittently flaky, not
+durably recovered; kept `DECISIONS.md`'s Assumption open rather than marking it resolved on one transient
+success, and recorded both additional attempts in `verify-chain.txt` and `DECISIONS.md`.
 
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (`#151`–`#218` minus merges) every recent run has noted; still needs a separate, explicitly-scoped session to
 drain.
 
-**Status:** PR #282 merged into `main` at `929f070` by the repo owner. Follow-up PR #283 (branch
-`claude/loving-babbage-followup-r5`, same session) carries the four round-5 findings that were ready but
-unpushed at merge time — its own CI/review activity and merge outcome are appended below once it lands. If this
-line is not followed by a "Follow-up merged" note, the merge did not complete and the reason should be recorded
-here by the session that stopped.
+**Status:** PR #282 opened and subscribed for CI/review activity. If this line is not followed by a "Merged"
+note below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
+**Merged:** PR #282 merged into `main` at `929f070` by the repo owner, before this session had pushed the fixes
+for its 5th Codex review round (see above). Follow-up PR #283 (branch `claude/loving-babbage-followup-r5`, same
+session) carries those four findings — its own CI/review activity and merge outcome are recorded in this log's
+next entry below, per this log's append-only convention (a prior entry's own recorded lines are never rewritten,
+even within the same session; new information is appended as a new line or a new entry instead — a Codex review
+finding on PR #283 caught this entry's own violation of that rule and it is corrected here).
