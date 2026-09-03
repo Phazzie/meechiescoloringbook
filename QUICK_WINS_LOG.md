@@ -166,3 +166,72 @@ Cipher Gate applies, since there is no external clock behavior being introduced 
 that thread (bot findings don't block merge per `AGENTS.md`, but this one was verified rather than dismissed).
 
 **Status:** PR #243 merged into `main` at `ff893de` in this same session. Log entry finalized post-merge.
+
+## 2026-09-03 — session_01B9KoWPjWnXSn6gvS5AW9Df
+
+**Investigation:** Started from `main`'s merge of PR #243 (`64739cb`) after discovering a stale local `main`
+ref (a combined `git fetch origin main <branch>` had silently aborted before updating `main` because the second
+ref didn't exist yet — re-fetching `main` alone confirmed `origin/main` and this session's designated branch tip
+were already identical). Ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` on a clean checkout first
+— all green (812 passed / 1 skipped). Noted one other open PR (#244, "Security headers, a Content Security
+Policy, and an audit gate on the dependency tree") from a different session/branch — out of scope, not touched,
+consistent with prior runs' policy of leaving other sessions' work alone. Spawned a background Explore agent to
+scan `src/lib/core/*`, `src/lib/components/**/*.svelte`, `src/routes/**/*.svelte` for small, self-contained bugs
+outside seam-governed directories, explicitly telling it to read this log and recent git history first so it
+wouldn't re-surface anything from PRs #169–#243. Also did a manual pass over `src/routes/studio-state.svelte.ts`,
+`meechie-quote-scoring.ts`, `MeechieTools.svelte`, and the studio sub-components myself in parallel.
+
+**Found and fixed (PR #245, `claude/loving-babbage-xavj91`):**
+
+1. **Wrong title-tag copy on `/m/[mode]`.** `src/routes/m/[mode]/+page.svelte:136` rendered the browser tab
+   title as `` `${config.title} - Meechies Coloring Book` `` (plain hyphen, no apostrophe), while every other
+   tool page (`who-fucked-up`, `rate-his-excuse`, `random`, `meechie`) uses the established convention
+   `"— Meechie's Coloring Book"` (em dash, possessive) — confirmed by grepping every `<title>` tag under
+   `src/routes`. This is the same class of copy-paste apostrophe bug PR #241 fixed in this exact file's subhead
+   text (`"Meechies move"` → `"Meechie's move"`), just in a different string that run missed. Fixed to match.
+2. **Singular/plural mismatch in the revision-budget readout.** `src/lib/components/studio/StudioInputPanel.svelte:79`
+   always rendered `"{revisionBudget} AI text actions left"`, including when the budget is exactly `1` — a
+   normal, reachable state since `DEFAULT_REVISION_BUDGET = 3` counts down to `0` one action at a time. Verified
+   no test or e2e spec asserted the literal plural string (only a historical browser-smoke evidence JSON under
+   `docs/evidence/2026-05-02/` used it, which is a dated snapshot, not a live assertion). Added a ternary for the
+   singular case.
+
+**Considered but not picked:** the Explore agent's other candidates were weaker — a heading-token casing
+mismatch (`TEXT (exact):` vs `TEXT (EXACT):`) between `PROMPT_REQUIRED_HEADINGS` and
+`RESERVED_STYLE_HINT_HEADINGS` in `src/lib/core/prompt-template.ts` is real but feeds two seam-governed adapters
+(`drift-detection-seam`, `prompt-assembly-seam`), so it needs the full contract/probe workflow rather than a
+quick copy fix; and a flavor-text mismatch between `MeechieTools.svelte` and `MeechieModePage.svelte`'s default
+"Reality" placeholder for the `receipts` tool, which reads as intentional variety rather than a bug (both are
+editable example seed text, not fixed labels). My own manual review of `meechie-quote-scoring.ts` (subjective
+scoring weights, not incorrect) and `studio-state.svelte.ts` (already-documented `loadCreation` evidence
+fallback and dead `'jpg'` branch, both previously ruled not-a-bug) turned up nothing new.
+
+**Verification:** `npm ci`, `npm run check`, `npm run lint`, `npm test` (812 passed / 1 skipped, unchanged from
+baseline), `npm run build`, and `npm run verify` (full chain green, evidence refreshed in place at
+`docs/evidence/2026-09-03/`, which already existed for today from the three prior runs) — all green. No seam was
+touched (two UI copy strings, no filesystem/network/process/clock/randomness boundary), so the full
+Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with PR
+#240/#241/#243 precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** PR #244 (security
+headers/CSP, different session/branch) plus the same long-stale backlog (#169–#231 minus merges) noted by every
+prior run. Unchanged from prior notes; still needs a separate, explicitly-scoped session to drain.
+
+**PR #245 activity:** the required `verify` GitHub Actions check and Copilot Code Review both passed on every
+pushed head; SonarCloud's quality gate passed; CodeRabbit skipped (repo has fewer than 10 stars); Sourcery
+could not review (its own 7-day diff-character budget was exhausted, not a finding). `Rosentic - Conflict
+Detection` failed on both heads, but both reported findings named branch pairs (`claude/keen-hypatia-kq14p7` vs.
+`claude/sweet-mendel-tcty6u`/`claude/sweet-mendel-kegj49`, over `chat-interpretation` and `rate-limit-seam`
+files this PR never touched) that don't include this PR's diff at all. Confirmed pre-existing and PR-independent
+by checking that the identical workflow failed the same way on PR #243 (already merged, completely different
+diff) — a repo-wide cross-branch scan over the long-stale open-PR backlog, not scoped to any one PR. Stood down
+with one PR comment naming the check and why it isn't this PR's, per precedent. Copilot Code Review approved
+with one non-blocking suggestion that arrived after merge completed: `docs/evidence/2026-09-03/proof-tape.json`
+reports `modifiedAt` timestamps for its own `proof-tape.json`/`proof-tape.md` entries that predate `generatedAt`,
+because `scripts/proof-tape.mjs` scans the evidence directory (including its own prior output) before writing
+the new report. Real but pre-existing in the verify tooling itself (not introduced by this PR's two UI-copy
+edits) and out of this run's scope — `scripts/` changes need a plan per `CLAUDE.md`. Left as a candidate for a
+future run: either exclude `proof-tape.{json,md}` from the scanned entries in `scripts/proof-tape.mjs`, or
+rescan after writing.
+
+**Status:** PR #245 merged into `main` at `4cf7aea` in this same session.
