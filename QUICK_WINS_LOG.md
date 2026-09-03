@@ -716,4 +716,7 @@ commands had actually been run. Added `docs/evidence/2026-09-03/lint.txt` and `b
 command output. Replied to all three threads with this reasoning and resolved them once the evidence gaps (2
 and 3) were fixed and the plan+self-critique (1) was added.
 
-**Status:** PR #254 merged into `main` at `e442caa` in this same session.
+**Status:** PR #254 opened and subscribed for CI/review activity. If this entry is not followed by a "merged"
+note below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
+**Merged:** PR #254 merged into `main` at `e442caa` in this same session.
