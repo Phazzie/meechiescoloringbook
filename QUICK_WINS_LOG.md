@@ -827,3 +827,147 @@ the identical error on the analogous PR #254 finalization, commit `3617855`) —
 line above instead of preserving it and appending the activity/merge confirmation after it. Caught by a Codex
 review on PR #260 itself; fixed by restoring the original conditional status line and moving the PR #259
 activity/merge content below it, matching the PR #257 precedent's own fix.
+
+## 2026-09-03 — session_014NHoAywnUyRpjpYf6xFU2u (scheduled run)
+
+**Housekeeping before the search:** started from `main` at `1f97c02` (PR #258 already merged). A combined
+`git fetch origin main <branch>` silently skipped `main` because the designated branch didn't exist remotely yet —
+the same known failure mode this log has documented since the third entry — worked around by fetching `main`
+alone. No open PRs existed from this session's own branch lineage; the only open PRs were the same long-stale
+backlog every prior run has noted (#151–#218, none newer than July). Ran `npm ci`, `npm run check`, `npm run lint`,
+and `npm test` on a clean checkout first — all green (832 passed / 1 skipped, up from this log's 817 baseline —
+PR #258's verification-gate work and unrelated interim changes added tests).
+
+**Investigation:** This is run #14 on a codebase thirteen prior runs have already scrubbed hard. Spawned a
+background Explore agent, pointed at this log in full (summarized as an explicit fixed/deferred list rather than
+pasting the whole file) so it wouldn't re-surface anything from PRs #240–#259, to sweep the usual surface
+(`src/lib/core/*`, every Svelte component, every route/server file, `src/lib/server/*`, docs, CI/config files).
+It returned two candidates. The first — no `maxDuration` override on `/api/wig-try-on`, reasoning that the route's
+extra `fetchImageAsBase64` network hop plus the existing 120s provider-call budget could exceed the global 120s
+Vercel function budget — was initially dropped on the reasoning that PR #250's log entry had already considered
+and ruled out this exact scenario, since every current wig catalog fixture's `imageUrl` is a same-origin
+`/wigs/*.{jpg,png,webp}` static asset. **That dismissal was itself wrong, caught by a Codex review comment on this
+PR after it was first drafted:** `wigImageUrlSchema` in `src/lib/seams/wig-catalog-seam/validators.ts:25-30`
+accepts an absolute HTTP(S) URL as an alternative to the packaged path (`isAbsoluteHttpUrl`), and
+`fixtures.ts:41-48`'s own `acceptedWigImageUrlFixtures` explicitly tests `https://cdn.example.com/...` as valid —
+so the *schema* does not constrain `imageUrl` to same-origin at all, only today's *catalog data* happens to. PR
+#250's own conclusion was accurate for its own time (checked only the live data, correctly, for that run's
+narrower question) but does not generalize the way this run's first draft assumed. Re-opened the candidate, verified it against the corrected premise, and fixed it in this same PR (#262) alongside
+the log correction — PR #261 had already merged by the time this was caught, so there was no head left to push a
+targeted fix to, and opening a third PR for a one-line fix already fully understood and diffed here would only add
+PR churn — rather than leaving a documented false conclusion standing uncorrected. Spawned a second, narrower
+Explore agent (told
+explicitly to look past the wig-try-on candidate as already covered) which found the pair actually used, both in
+`src/routes/studio-state.svelte.ts`; both were independently re-verified against the actual code (reading the
+full call sites, the `resetGeneratedPage`/`resetTryOnResultState` helper definitions, and `+page.svelte`'s
+prop wiring to confirm the stale state is genuinely rendered) before being picked up.
+
+**Found and fixed (PR #261, `claude/loving-babbage-qw12-fix`):**
+
+1. **`loadCreation` didn't clear a previously generated coloring page.** `studio-state.svelte.ts:657-666` swaps
+   in a different saved creation's `spec`/`textOutput`/`dedication`/`pageSize`/`border` when the user loads it
+   from the Quote Vault, but never called `resetGeneratedPage()` — the same private helper `handleModeSelect`
+   already calls for the analogous "user switched to different content" case. So `images`/`packagedFiles`/
+   `assembledPrompt`/`revisedPrompt`/`violations`/`recommendedFixes`/`generationError` from whatever was
+   generated before stayed in state. Confirmed user-visible via `src/routes/+page.svelte`, which binds
+   `studio.packagedFiles`/`studio.imagePreviews`/`studio.generationError` directly into `StudioPreviewPanel` and
+   wires `onLoadCreation={studio.loadCreation}` into `VerdictRow` with no reset in between — a user who generates
+   a page, then loads a different saved creation from the vault, keeps seeing the old page's image/PDF download
+   mismatched with the newly loaded creation's title and text until they click "Create Coloring Page" again.
+   Fixed by calling `resetGeneratedPage()` at the top of `loadCreation`, mirroring `handleModeSelect`.
+2. **`handleWigTryOn` didn't clear a previously generated coloring page either — the mirror-image gap.**
+   `studio-state.svelte.ts:573-580` reset only `tryOnError`/`tryOnPortraitUrl` inline before firing a new
+   `/api/wig-try-on` request, not `images`/`packagedFiles`/`generationError` — even though the existing
+   `resetTryOnResultState()` private helper (already used by `selectWigForTryOn` and `setSelfieForTryOn`) clears
+   all of those together. `canTryOn` (`!!selectedWigId && !!selfieBase64 && !isTryingOn`) never checks whether a
+   coloring page was already generated from a prior portrait, so the "Try On" button stays enabled through a full
+   try-on → "Make It a Coloring Page" → try-on-again cycle, and `+page.svelte` renders `WigTryOnStudio`
+   (bound to `tryOnPortraitUrl`) beside `StudioPreviewPanel` (bound to `packagedFiles`/`images`) on the same
+   screen — so a second try-on shows the new portrait next to the first portrait's stale PDF download until the
+   user explicitly regenerates. Fixed by replacing the two inline resets with a call to the existing
+   `resetTryOnResultState()`, removing the duplication as well as the gap.
+
+**Found and fixed (PR #262, `claude/loving-babbage-log-entry`):**
+
+3. **No Vercel `maxDuration` override on `/api/wig-try-on`, even though the schema it validates against permits
+   the exact shape that needs one.** See the correction above: `wigImageUrlSchema` accepts an absolute HTTP(S)
+   `imageUrl`, not only a packaged `/wigs/*` path, so `fetchImageAsBase64` in `wig-try-on-pipeline.ts` could add a
+   real, non-trivial network fetch before the up-to-120s `WIG_TRY_ON_TIMEOUT_MS` provider call — inside the global
+   120s `maxDuration` from `svelte.config.js`, which its own comment states is sized for image generation's single
+   call, with no margin for a preceding fetch. No current catalog entry (`src/lib/data/wigs.json`) triggers this —
+   all 8 use packaged paths — so this isn't live-bug-today the way the two `studio-state.svelte.ts` fixes above
+   are; it's closing a schema-permitted gap defensively before catalog data ever exercises it, the same posture PR
+   #250 took for `meechie-studio-text`'s `maxDuration`. Fixed by adding `export const config = { maxDuration: 150 }`
+   to `src/routes/api/wig-try-on/+server.ts`, matching the route's own existing client-side timeout
+   (`POST_JSON_TIMEOUTS_MS.wigTryOn` in `http-client.ts`) rather than inventing a new number.
+
+**Considered but not picked:** nothing else from either Explore agent's sweep cleared the bar this run.
+
+**Verification:** `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (834 passed / 1 skipped
+— +2 over this run's own 832 baseline, one regression test per fix; fix 3 has no dedicated test since it's a
+platform-config export with no branching logic, consistent with how PR #250 verified the analogous
+`meechie-studio-text` override — via the built output, see below), `npm run build` (succeeds; confirmed
+`.vercel/output/functions/api/wig-try-on.func/.vc-config.json` reports `"maxDuration": 150` post-build, while
+`.../api/generate.func/.vc-config.json` stays at the global `120`), and `npm run verify` (full chain green —
+audit gate, chamber-lock, check+test, shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape —
+evidence refreshed in place at `docs/evidence/2026-09-03/`, which already existed for today from all thirteen
+prior runs). None of the three changes touch a seam contract, mock, or adapter file (two pure client-side Svelte
+state fixes, one platform function-lifetime config export — no filesystem/network/process/clock/randomness
+boundary of its own, the same reasoning PR #250 recorded for the identical class of change), so the full
+Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every
+prior entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#218 minus merges) every prior run has noted, now visibly older (newest is from July); still needs a
+separate, explicitly-scoped session to drain.
+
+**PR #261 activity:** `verify` (both the `pull_request`- and `push`-triggered runs on the final head), Rosentic
+Scan, and SonarCloud's quality gate all passed on the pushed head; Vercel deployed a preview successfully;
+CodeRabbit skipped (repo has fewer than 10 stars); Sourcery's own 7-day diff-character review budget was already
+exhausted (same as most prior PRs in this log). `Rosentic - Conflict Detection`'s own check passed this time
+(unlike most prior PRs in this log, where it failed outright) — but it still left one inline review comment and
+one PR-level comment naming ~30 hypothetical incompatibilities against long-stale, unrelated branches from the
+open-PR backlog (`claude/fix-pr154-pr160-review-comments`, `claude/trusting-volta-bb8mvr`, `claude/sweet-mendel-*`,
+etc.), none of which this PR's two-file diff touches or depends on — confirmed directly against
+`git diff origin/main..HEAD`, the same pre-existing cross-branch-backlog scan-noise class documented on PRs
+#243/#245/#247/#248/#250/#252/#254/#259. Replied on the one inline thread with that verification and resolved it;
+the PR-level comment needed no reply since resolving requires a thread, not a general comment, and its content
+added nothing beyond the inline finding already addressed.
+
+All CI/status checks were green and `mergeable_state` was `clean` at that point, matching every condition
+`AGENTS.md`'s merge-when-green rule requires, so the PR was merged into `main` at `df6e4f0`. Three Codex review
+comments landed within seconds of the merge (queued before the merge notification itself was delivered to this
+session) — too late to push a fix to, since the head they're anchored to no longer has an open PR:
+1. **P1, "follow the required workflow for the `WigTryOnSeam` change"** — investigated and replied that it's a
+   false positive: the diff touches no `WigTryOnSeam` contract/mock/adapter/probe file, and the request/response
+   crossing that seam is byte-for-byte unchanged; only the timing of a client-local state reset moved. Same class
+   of false positive already addressed on PRs #250 and #252. Resolved the thread after replying.
+2. **P1, "invalidate an in-flight generation when loading a creation"** — verified real: if `handleGeneratePage()`
+   or `handleGenerateTryOnPage()` is still in flight when the user calls `loadCreation()`, the reset this PR added
+   only clears state momentarily — the older async call resolves afterward and writes its `images`/`packagedFiles`
+   back into what is now a different creation's state. Confirmed this is not a regression this PR introduced but a
+   pre-existing race shape: `handleModeSelect` has had the identical fire-and-forget pattern (reset with no
+   cancellation of an in-flight generation) all along. Fixing it needs a generation token or `AbortController`
+   threaded through both generate handlers and every reset call site — a real but non-trivial refactor, not a
+   quick win. Replied with this reasoning; left as a candidate for a future run (left the thread open, unresolved,
+   since it wasn't acted on).
+3. **P2, "clear the complete generated-page state before try-on"** — verified real: `resetTryOnResultState()`
+   clears `images`/`packagedFiles`/`generationError`/`tryOnPortraitUrl`/`tryOnError` but not `assembledPrompt`/
+   `revisedPrompt`/`violations`/`recommendedFixes`, and `SystemTrace.svelte` renders those four independently of
+   `images`/`packagedFiles`. So a user who generates a normal page and then starts a try-on still sees the old
+   page's prompt/violations in System Trace beside the new portrait — a related but distinct staleness gap from
+   the one this PR closed, on the same call site. Replied with this reasoning; left as a candidate for a future
+   run (left the thread open, unresolved, since it wasn't acted on).
+
+**Status:** PR #261 opened, subscribed for CI/review activity, driven to green, and merged into `main` at
+`df6e4f0` in this same session. Two real, verified follow-up candidates (items 2 and 3 above) are recorded here
+for a future run to pick up; neither is a regression introduced by this PR, both are pre-existing gaps this PR's
+fix came close to but didn't fully close.
+
+**PR #262 activity:** opened docs-only to record PR #261's entry above. While in review, a Codex comment
+(P2, on `QUICK_WINS_LOG.md`) caught that the entry's own claim about `wig-try-on`'s `maxDuration` candidate was
+built on an incorrect premise (see the correction under "Investigation" above) — pushed a second commit to this
+same PR correcting the log text and adding the actual `maxDuration: 150` fix (item 3 under "Found and fixed"
+above) rather than leaving the record wrong or spinning up a third PR for a one-line fix already fully understood.
+If this line is not followed by a "Merged" note below, the merge did not complete and the reason should be
+recorded here by the session that stopped.

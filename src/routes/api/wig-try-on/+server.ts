@@ -10,6 +10,15 @@ import { parseRequestBody } from '$lib/server/parse-request-body';
 import { createQuotaGate } from '$lib/server/rate-limit-route';
 import type { RequestHandler } from './$types';
 
+// The global maxDuration in svelte.config.js (120s) matches WIG_TRY_ON_TIMEOUT_MS, the one
+// provider call this route makes — but wigImageUrlSchema (wig-catalog-seam/validators.ts)
+// also accepts absolute HTTP(S) image URLs, not just packaged /wigs paths, even though every
+// entry in the current catalog happens to use a packaged path today. If a catalog entry ever
+// does use an external URL, fetchImageAsBase64 adds an unbounded network fetch before the
+// provider call, inside the same 120s budget. This override gives that case headroom, matching
+// the client's own wigTryOn timeout in http-client.ts.
+export const config = { maxDuration: 150 };
+
 export const POST: RequestHandler = async (event) => {
 	// `event` itself is threaded into the gate so the limiter meters this caller through
 	// SvelteKit's real getClientAddress; `fetch` stays destructured for the wig image load.
