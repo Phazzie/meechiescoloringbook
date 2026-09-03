@@ -1727,6 +1727,9 @@ prior docs-only entry's precedent.
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
 
+**Status:** PR #276 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
+below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
 **PR #276 activity:** `verify` (x2), CodeQL (`Analyze (actions)`/`Analyze (javascript-typescript)`), and both
 `SonarCloud`/`SonarCloud Code Analysis` checks (quality gate passed, 0 new issues) all passed on the final head
 (`4af36f7`). `Rosentic - Conflict Detection` also passed outright on the final head — no findings against this
@@ -1758,3 +1761,27 @@ All four threads replied-to and resolved after each fix landed.
 **Merged:** PR #276 merged into `main` at `035dcf9` in this same session. A fresh open-PR listing afterward
 showed only the same pre-existing long-stale backlog (#151–#218 minus merges) — no PR from this session was left
 open.
+
+**PR #277 (finalize) merged, then two post-merge Codex findings, corrected here:** PR #277 (finalizing this
+entry) merged into `main` at `b321f2d`, also in this same session — `verify` (x2), CodeQL, SonarCloud (x2), and
+Rosentic all passed on its one head; `Vercel` hit the same account-level quota failure again, stood down on with
+one PR comment per precedent; no open review threads at merge time. Two Codex bot review comments then landed on
+the merged PR #277 moments later (queued-notification timing, same pattern PR #274's post-merge Codex finding
+hit) — both real, both bug reports per `AGENTS.md`'s own rule, neither dismissed:
+1. **This finalization had overwritten, rather than appended after, PR #276's original `**Status:**` paragraph**
+   — a direct violation of this file's own append-only rule (line 9: "Do not edit or delete prior entries") and
+   the exact mistake this repo has corrected five times before (commits `5c85720`, `f6376c1`, `64e1289`,
+   `009bd69`, `3617855`). Restored the original `**Status:** PR #276 opened and subscribed...` paragraph in place,
+   directly above the `**PR #276 activity:**` paragraph that had replaced it, rather than editing this or any
+   other already-written paragraph.
+2. **Neither PR #276 nor PR #277 ran `npm run verify` or committed its evidence before merging**, only
+   `check`/`lint`/`test`/`build` — a real gap against `AGENTS.md`'s "Merge When The Gates Are Green" condition 3
+   ("`npm run verify` and `npm test` are green, with committed evidence"), which is not scoped to seam changes the
+   way the Seam-Driven Development workflow and Cipher Gate are. Ran `npm run verify` on this branch (based on
+   `main` post-#277) as the fix: full chain green (audit gate, chamber lock, verify runner [`check`+`test`, 845
+   passed / 1 skipped], shaolin lint, assumption alarm, seam ledger, clan chain, proof tape), evidence refreshed
+   in place at `docs/evidence/2026-09-03/` and committed with this correction.
+
+Neither finding changes PR #276/#277's actual content (both were doc-text-accuracy and log-bookkeeping fixes with
+no seam touched), so no revert was warranted — this is a process-compliance correction, recorded per this log's
+own precedent of fixing a post-merge finding as an additional commit/PR rather than reopening a merged one.
