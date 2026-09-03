@@ -15,6 +15,10 @@
 #       identical dependency tree - so that result is cited as still-valid rather than re-run
 #       against a currently-down endpoint. The remaining stages were run individually, skipping
 #       only the hung audit:gate step, and proof-tape.mjs was run last as usual.
+# Note (follow-up, after PR #282 merged): a sixth `npm audit --audit-level=high` attempt succeeded
+#       ("found 0 vulnerabilities"), but a seventh attempt, via `npm run verify`'s own wrapper,
+#       hung again moments later - the endpoint is intermittently flaky, not durably recovered.
+#       See DECISIONS.md's Assumption, kept open rather than resolved on one transient success.
 
 $ npm run verify   # (22:12:22 run this same session - includes a passing audit:gate)
 
@@ -148,3 +152,73 @@ Not implemented: HTMLCanvasElement's getContext() method: without installing the
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 
 (shaolin-lint, assumption-alarm, seam-ledger, clan-chain: no output; exit 0 for all four)
+
+$ timeout 30 npm audit --audit-level=high   # (follow-up round: retry 6, after PR #282 merged - succeeded)
+found 0 vulnerabilities
+
+$ timeout 200 npm run verify   # (retry 7, via the full chain wrapper - hung again in audit:gate)
+[no further output before the 200s timeout]
+
+$ node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining chain stages, run individually)
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v4.1.0 /home/user/meechiescoloringbook
+
+
+ Test Files  74 passed | 1 skipped (75)
+      Tests  845 passed | 1 skipped (846)
+   Start at  23:02:21
+   Duration  47.92s (transform 2.07s, setup 554ms, import 3.88s, tests 1.48s, environment 32.50s)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+(shaolin-lint, assumption-alarm, seam-ledger, clan-chain: no output; exit 0 for all four)
+
+$ timeout 30 npm audit --audit-level=high   # (round-6 follow-up: retry 8, after fixing this round's 4 Codex findings - succeeded)
+found 0 vulnerabilities
+
+$ timeout 110 npm run verify   # (retry 9, via the full chain wrapper - hung again in audit:gate)
+[no further output before the 110s timeout]
+
+$ node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining chain stages, run individually)
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v4.1.0 /home/user/meechiescoloringbook
+
+
+ Test Files  74 passed | 1 skipped (75)
+      Tests  845 passed | 1 skipped (846)
+   Start at  23:15:06
+   Duration  48.02s (transform 2.07s, setup 561ms, import 3.89s, tests 1.47s, environment 32.51s)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+(shaolin-lint, assumption-alarm, seam-ledger, clan-chain: no output; exit 0 for all four -
+ assumption-alarm re-run after DECISIONS.md's Validation text was finalized, so
+ assumption-alarm.json's copied field matches the committed source exactly)
