@@ -1112,3 +1112,7 @@ SonarCloud-driven revisions above — this paragraph and the Verification sectio
 
 **Status:** PR #264 opened and subscribed for CI/review activity. If this entry is not followed by a "merged"
 note below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
+**Merged:** PR #264 merged into `main` at `d80d711` in this same session. No PRs from this session were left
+open (confirmed via a fresh open-PR listing after the merge — only the same pre-existing long-stale backlog,
+#151–#218, unchanged from before this run).
