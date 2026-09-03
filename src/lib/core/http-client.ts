@@ -8,12 +8,14 @@ export const buildJsonHeaders = (): Record<string, string> => ({
 	'Content-Type': 'application/json'
 });
 
-// Browser budgets remain above the single 110s server-side chat-provider attempt. Provider
-// chats are not retried, so server work ends before the shortest client budget instead of
-// continuing after the browser has already reported failure.
+// tools, generate, and wigTryOn each make one provider attempt, so their budgets only need to
+// clear the single 110s/120s server-side attempt. studioText is the exception: its pipeline
+// makes up to two provider attempts (the initial call plus its own bounded correction retry —
+// see meechie-studio-text-pipeline.ts), so its budget must clear roughly double the single
+// server attempt, not just exceed it once.
 export const POST_JSON_TIMEOUTS_MS = {
 	tools: 120_000,
-	studioText: 150_000,
+	studioText: 230_000,
 	generate: 180_000,
 	wigTryOn: 150_000
 } as const;
