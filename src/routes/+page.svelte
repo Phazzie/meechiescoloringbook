@@ -27,7 +27,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 </script>
 
 <svelte:head>
-	<title>Meechies Coloring Book Studio</title>
+	<title>Meechie's Coloring Book Studio</title>
 </svelte:head>
 
 <main class="studio" data-testid="studio-root" data-hydrated={studio.isBrowser ? 'true' : 'false'}>
