@@ -8,7 +8,7 @@ import {
 	buildColoringPageSpecFromMeechieText
 } from '../../src/lib/core/meechie-studio';
 import { StudioState } from '../../src/routes/studio-state.svelte';
-import type { DraftRecord } from '../../contracts/creation-store.contract';
+import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
 import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-text.contract';
 
 const LEGACY_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
@@ -181,6 +181,33 @@ describe('StudioState', () => {
 		expect(studio.activeMode.label).toBe(targetMode!.label);
 	});
 
+	it('clears a previously generated page when a saved creation is loaded', async () => {
+		const studio = new StudioState();
+		studio.images = [
+			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
+		];
+		studio.packagedFiles = [
+			{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
+		];
+		studio.assembledPrompt = 'stale assembled prompt';
+		studio.generationError = 'stale error';
+
+		const creation: CreationRecord = {
+			id: 'creation-1',
+			createdAtISO: '2026-09-03T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			assembledPrompt: 'a different creation entirely',
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		};
+
+		await studio.loadCreation(creation);
+
+		expect(studio.images).toEqual([]);
+		expect(studio.packagedFiles).toEqual([]);
+		expect(studio.assembledPrompt).toBe('');
+		expect(studio.generationError).toBe('');
+	});
+
 	it('applies the dedication input value before validation and schedules draft save', () => {
 		const studio = new StudioState();
 		const scheduleDraftSave = vi.fn();
@@ -192,6 +219,37 @@ describe('StudioState', () => {
 		expect(studio.dedication).toBe('  Big Sis  ');
 		expect(studio.spec.dedication).toBe('Big Sis');
 		expect(scheduleDraftSave).toHaveBeenCalledOnce();
+	});
+
+	it('clears a previously generated coloring page when a new try-on is requested', async () => {
+		const studio = new StudioState();
+		studio.selectedWigId = 'wig-1';
+		studio.selfieBase64 = 'selfie-bytes';
+		studio.images = [
+			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
+		];
+		studio.packagedFiles = [
+			{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
+		];
+		studio.generationError = 'stale error';
+
+		const mockResponse = new Response(
+			JSON.stringify({
+				ok: true,
+				value: { portraitBase64: 'ZmFrZQ==', portraitMimeType: 'image/png' }
+			}),
+			{ status: 200, statusText: 'OK' }
+		);
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
+
+		await studio.handleWigTryOn();
+
+		expect(studio.images).toEqual([]);
+		expect(studio.packagedFiles).toEqual([]);
+		expect(studio.generationError).toBe('');
+		expect(studio.tryOnPortraitUrl).toBe('data:image/png;base64,ZmFrZQ==');
+
+		vi.unstubAllGlobals();
 	});
 
 	it('previews a JPEG try-on portrait with the IANA image/jpeg media type', async () => {
