@@ -258,6 +258,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 							class="ghost"
 							type="button"
 							data-testid="meechie-lineup-remove"
+							disabled={lineupItems.length <= 1}
 							on:click={() => removeLineupItem(index)}
 						>
 							Remove
@@ -268,6 +269,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 					class="ghost"
 					type="button"
 					data-testid="meechie-lineup-add"
+					disabled={lineupItems.length >= 6}
 					on:click={addLineupItem}>Add item</button
 				>
 			</div>

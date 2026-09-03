@@ -1116,3 +1116,74 @@ note below, the merge did not complete and the reason should be recorded here by
 **Merged:** PR #264 merged into `main` at `d80d711` in this same session. No PRs from this session were left
 open (confirmed via a fresh open-PR listing after the merge — only the same pre-existing long-stale backlog,
 #151–#218, unchanged from before this run).
+
+## 2026-09-03 — session_01WWbtL5YKEsaNfhRwvyVQKW (scheduled run)
+
+**Housekeeping before the search:** started from `main` at `1c91398` (PR #265 already merged) on this session's
+designated branch (`claude/loving-babbage-4m6187`), which was already sitting at that exact commit (a fresh
+branch off `main`, no reset needed). `git ls-remote` confirmed the branch had no remote yet. Ran `npm ci`,
+`npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green (843 passed / 1 skipped,
+matching the prior run's post-merge baseline).
+
+**Investigation:** This is run #17 on a codebase sixteen prior runs have already scrubbed hard. Spawned a
+background Explore agent, handed the full `QUICK_WINS_LOG.md` history to read itself (rather than a condensed
+summary, so nothing already-fixed or already-deferred would resurface) and told to sweep `src/lib/core/*`,
+every route/`+server.ts`/`+page.ts`/`.svelte` file, and config/docs files, excluding anything under
+`contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/`, `tests/contract/`
+(seam-governed, out of scope for a quick win). It came back with one high-confidence candidate and one
+medium-confidence one, explicitly declining to pad the list further given how clean the sweep was. Verified
+both myself against the actual code before picking them up.
+
+**Found and fixed (`claude/loving-babbage-4m6187`, this same branch):**
+
+1. **Stale "Node 20" claim in a core module's own file-header comment.** `src/lib/core/models.js:4` read
+   "...the repository's documented Node 20 probes," asserting the repo's Node baseline is 20. It isn't:
+   `.nvmrc` pins `22.22.2`, `svelte.config.js`'s Vercel adapter targets `runtime: 'nodejs22.x'`,
+   `.github/workflows/verify.yml` reads its Node version from `.nvmrc` (fixed in an earlier PR, per this log,
+   specifically because CI was once wrongly pinned to 20 while the real baseline was already 22), and
+   `README.md` states "Node 22" twice. This is the same class of stale-reference bug already fixed repeatedly
+   in this log (old Gemini/Vitest-version claims) — just not caught in this file until now. Fixed by updating
+   the comment to say "Node 22," matching every other source of truth in the repo. Pure comment change, no
+   logic, no seam contact.
+2. **Lineup add/remove buttons silently no-op at their item-count boundaries with no disabled state.**
+   `src/lib/components/MeechieTools.svelte`: `addLineupItem` returns early once `lineupItems.length >= 6` and
+   `removeLineupItem` returns early once `lineupItems.length <= 1`, but neither the "Add item" button nor any
+   "Remove" button was ever disabled at those limits — a user at the boundary got no visual feedback and
+   nothing happened on click, which reads as a broken button rather than an intentional cap. Fixed by adding
+   `disabled={lineupItems.length >= 6}` to the add button and `disabled={lineupItems.length <= 1}` to each
+   remove button, so the UI now reflects the same limits the handlers already enforce. Extended the existing
+   Playwright test (`'meechie toolkit tabs and lineup controls work'` in `tests/e2e/smoke.spec.ts`) to add
+   items up to the 6-item cap and assert the add button is disabled there, then remove down to the 1-item
+   floor and assert the remaining remove button is disabled (and the add button re-enabled) — covering the
+   boundary this log's own prior runs never exercised, rather than only the interior add/remove already
+   covered.
+
+**Considered but not picked:** nothing else — the Explore agent's sweep re-confirmed every previously-deferred
+item (the `StudioHero` banner copy vs. the actual art, the `TEXT (exact):`/`TEXT (EXACT):` casing mismatch,
+`SelfieUpload`'s "cancelled" spelling, `meechie-quote-scoring.ts` dead code, `DEFAULT_IMAGE_SIZE` non-wiring)
+is still present and still correctly out of scope for the reasons already recorded earlier in this log, and
+found nothing new beyond the two items above.
+
+**Verification:** `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (843 passed / 1
+skipped, unchanged — neither fix is covered by the unit suite, only by the extended e2e test), `npm run build`
+(succeeds). The Playwright e2e suite needed a one-off local `executablePath` override to run at all in this
+container: the pinned `@playwright/test` (`^1.58.1`) wants `chromium_headless_shell-1208`, but the
+container's pre-installed browser is `chromium-1194`, so the default `npx playwright test` invocation failed
+every spec with "Executable doesn't exist" rather than exercising the app. Ran instead against a temporary,
+uncommitted local config pointing `use.launchOptions.executablePath` at
+`/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (created, used, then deleted before committing — `git
+status` confirmed a clean three-file source diff afterward) — all 7 e2e specs passed, including the newly
+extended lineup-boundary assertions. `npm run verify` (full chain, evidence refreshed at
+`docs/evidence/2026-09-03/`, which already existed for today from all sixteen prior runs; `lint.txt`/
+`build.txt`/`verify-chain.txt` re-captured post-edit with this run's actual command output, headers preserved,
+per the PR #254/#264 precedent for keeping those three manually-captured files current) — full chain green.
+Neither changed source file touches a seam contract, mock, or adapter file (one pure comment fix, one
+pure client-side Svelte template fix), so the full Seam-Driven Development workflow and a Cipher Gate entry
+in `DECISIONS.md` do not apply, consistent with every prior entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** PR #266 opened (commit `09c2729`) and subscribed for CI/review activity. If this line is not
+followed by a "Merged" note below, the merge did not complete and the reason should be recorded here by the
+session that stopped.
