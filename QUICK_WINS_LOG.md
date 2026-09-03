@@ -598,3 +598,72 @@ seam work for a one-line pure-function fix, mirroring PR #250's precedent for it
 finding. Replied on and resolved all four review threads on PR #252 (one Codex, three Rosentic occurrences).
 
 **Status:** PR #252 merged into `main` at `4e25e2e` in this same session.
+
+## 2026-09-03 — session_016kSzpLV5cVogqSno2ryiLY
+
+**Investigation:** Started from `main` at `a67761f` (PR #253 already merged, finalizing the prior run's log
+entry). Ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green
+(817 passed / 1 skipped, matching this log's baseline since PR #244). Listed all open PRs: the same long-stale
+backlog (#151–#231, minus merges), none from this session's lineage, unchanged in kind from every prior run's
+note — out of scope for this run. Spawned a background Explore agent, pointed at this log in full so it
+wouldn't re-surface anything from PRs #240–#253, to sweep `src/lib/core/*`, every `src/lib/components/**/
+*.svelte`, `src/routes/**/*.svelte`/`+server.ts`/`+page.ts`, `src/lib/server/*`, `README.md`, `.env.example`,
+`hooks.server.ts`, `service-worker.ts`, `CHANGELOG.md`, `DECISIONS.md`, and `LESSONS_LEARNED.md`. This is run
+#11 on a codebase ten prior runs have already scrubbed hard; the agent came back with two strong,
+independently-verified candidates plus one weaker one it explicitly flagged as not worth picking. Verified both
+picks myself against the actual code (README history via `git log -S`, the manifest, the system prompt, and a
+direct `Intl.NumberFormat` locale check) before committing to them, rather than trusting the report as-is.
+
+**Found and fixed (PR TBD, `claude/loving-babbage-h9j3ge`):**
+
+1. **README's opening description describes a different, no-longer-existing product.** `README.md` (present
+   since PR #69, confirmed via `git log -S "kids and families" -- README.md`) opened with "Meechie's Coloring
+   Book is an AI-powered web app that generates custom coloring book pages just for kids and families... Whether
+   you want a unicorn dancing in the rain or a robot baking cookies, Meechie makes it happen!" This is flatly
+   inconsistent with every other source of truth in the repo: the app's own system prompt
+   (`meechie-studio-text-pipeline.ts:83`) states it's "a real adult coloring book for street-hardened women who
+   have seen some shit"; every route is adult/relationship content (`/who-fucked-up`, `/rate-his-excuse`,
+   `/apology-autopsy`, `/receipt-check`, `/clapback`, `/meechie-move`), none "for kids"; and
+   `static/manifest.webmanifest` already correctly describes it as "glamorous coloring pages with Meechie's
+   savage wisdom." The "unicorn/robot" free-form example also describes the legacy chat-driven generation flow,
+   which `CHANGELOG.md` documents as retired and which no current route wires up (confirmed via
+   `grep -rn "chat-interpretation" src/routes` — only the endpoint/adapter/mock reference it, no page calls it).
+   Rewrote the paragraph to match the manifest's tone and the actual product (verdict/quote/receipts on a
+   printable page), dropping the stale example.
+2. **Wig price rendered in two different currency formats on the same screen for the same wig.**
+   `WigCarousel.svelte:39` always renders a hardcoded `$X.XX` (`` `$${wig.priceUsd.toFixed(2)}` ``).
+   `WigTryOnStudio.svelte` renders that exact `WigCarousel` directly above its own "Shop … — {price} ↗"
+   affiliate link for the same `selectedWig`, but formatted the price with
+   `new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' })` — passing `undefined` as the
+   locale means the string follows the visitor's browser language. Verified concretely with Node's
+   `Intl.NumberFormat`: `en-US` → `$89.99` (matches the carousel above), but `de-DE` → `89,99 $` and
+   `fr-FR` → `89,99 $US` — a non-English-locale visitor sees two disagreeing prices for the same wig on the same
+   screen. No test asserted the literal formatted string. Fixed by pinning `formatUsd`'s locale to `'en-US'` so
+   it always matches `WigCarousel`'s fixed format regardless of browser locale, with a comment explaining why the
+   locale is pinned rather than left to the browser.
+
+**Considered but not picked:** the Explore agent's third, weaker candidate — the `MEECHIE_SYSTEM_PROMPT` in
+`meechie-studio-text-pipeline.ts` never explicitly explains what the `intensity`/`rawness`/`thirdPerson` voice
+settings (surfaced as labeled controls in `StudioSettingsPanel.svelte`) should do to the model's output, even
+though the enum values sent are somewhat self-descriptive (`no_mercy`, `church_lady`, `raw`, `mild`). Not
+confirmed as an actual defect (the model may well infer intent from the field names/values without an explicit
+legend) and it touches `MeechieStudioTextSeam`'s prompt content, closer to seam-adjacent territory than a pure
+copy fix — left as a candidate for a future run if someone wants to investigate output quality directly rather
+than read the prompt in isolation. Also noted but ruled out as too low-severity to pick: `SelfieUpload.svelte`'s
+British-spelled `'File read was cancelled.'` vs. the rest of the codebase's American `'canceled'` — real
+inconsistency, purely cosmetic, borderline style opinion rather than a functional bug.
+
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (817
+passed / 1 skipped, unchanged from baseline), `npm run build` (succeeds), and `npm run verify` (full chain
+green — audit gate, chamber-lock, check+test, shaolin-lint, assumption-alarm, seam-ledger, clan-chain,
+proof-tape — evidence refreshed in place at `docs/evidence/2026-09-03/`, which already existed for today from
+all ten prior runs). Neither change touches a seam contract, mock, or adapter file (one README paragraph, one
+client-side formatting-locale fix in a Svelte component; no filesystem/network/process/clock/randomness
+boundary), so the full Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply,
+consistent with every prior entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#231 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** PR opened and subscribed for CI/review activity. If this entry is not followed by a "merged" note
+below, the merge did not complete and the reason should be recorded here by the session that stopped.

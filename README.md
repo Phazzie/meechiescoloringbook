@@ -6,7 +6,7 @@ Info flow: Intro -> features -> stack -> setup -> env vars -> scripts -> archite
 
 # Meechie's Coloring Book 🎨
 
-Meechie's Coloring Book is an AI-powered web app that generates custom coloring book pages just for kids and families. Using xAI (Grok) under the hood, it creates unique line-art illustrations and Meechie-voiced stories that you can print, color, and keep forever. Whether you want a unicorn dancing in the rain or a robot baking cookies, Meechie makes it happen!
+Meechie's Coloring Book is an AI-powered adult coloring book app. Tell Meechie what your man/friend/coworker did, and she turns her verdict, quote, and receipts into a printable, glamorous coloring page — with her signature savage, no-therapy-speak wisdom — that you can print, color, keep, or send to whoever needs to see it. Powered by xAI (Grok) under the hood.
 
 Live app: **https://meechiescoloringbook.vercel.app**
 
