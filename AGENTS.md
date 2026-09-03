@@ -160,7 +160,7 @@ conditions above are met is itself the defect. Merge, then report what was merge
 - At the end of every assistant message, provide exactly three concise next-step options, each with a one-sentence reason for why it is the best next move.
 
 ## Automation Tools
-- `npm run verify`: runs audit gate, chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, and proof tape; required for seam changes.
+- `npm run verify`: runs audit gate (a check that fails the build if any dependency has a known high-severity security vulnerability), chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, and proof tape; required for seam changes.
 - `npm run chamber:lock`: checks seam artifact presence and writes `docs/evidence/YYYY-MM-DD/chamber-lock.json`.
 - `npm run verify:runner`: runs `npm run check` + `npm test` and captures evidence.
 - `npm run shaolin:lint`: enforces evidence freshness and writes `docs/evidence/YYYY-MM-DD/shaolin-lint.json`.
