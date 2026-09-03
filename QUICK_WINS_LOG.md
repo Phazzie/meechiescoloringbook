@@ -369,6 +369,22 @@ workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#169–#231 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
 
+**PR #248 activity:** `Rosentic - Conflict Detection` failed on the first pushed head, but its findings named
+files this PR's diff never touches (`chat-interpretation.adapter.ts`, `rate-limit-seam/mock.ts`, `.../test.ts`,
+`.../validators.ts` — this PR only changes `README.md`, two `.svelte` header comments, and this log) — confirmed
+directly against `git diff --name-only origin/main..HEAD`, the same pre-existing cross-branch-backlog failure
+mode documented on PRs #243/#245/#247. SonarCloud's quality gate passed; Vercel deployed a preview successfully.
+A Codex bot review flagged a real issue in the README addition itself: the new `DEFAULT_IMAGE_SIZE` row implied
+it configures the generated image size, but verified against the code it does not — `image-generation-pipeline.ts`
+uses its own hard-coded `'1024x1024'` local constant instead of reading `AppConfig.defaultImageSize`, and even
+the `size` field the pipeline does pass to `ImageGenerationSeam.generate()` is dropped entirely by the real xAI
+adapter's request body (`image-generation-seam/index.ts`), which never includes a `size` key. Wiring the env var
+into an active seam boundary would need the full contract/probe/fixture/mock/adapter workflow, disproportionate
+for this PR, so took the reviewer's own suggested minimal fix: reworded the row to state plainly that the setting
+is parsed but not currently wired into generation and has no effect yet. Left as a candidate for a future run:
+either wire `AppConfig.defaultImageSize` through the pipeline and adapter, or drop the unused parsing/field
+entirely.
+
 **Status:** PR #248 opened, subscribed for CI/review activity, and will be driven to merge in this same session
 (see commit history on `main` for the merge outcome — if this entry is not followed by a "merged" note below,
 the merge did not complete and the reason should be recorded here by the session that stopped).

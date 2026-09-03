@@ -72,7 +72,7 @@ Copy `.env.example` to `.env` and fill in your values.
 | `XAI_API_KEY` | Yes | — | Your xAI API key for Grok access |
 | `XAI_BASE_URL` | No | `https://api.x.ai` | xAI API base URL |
 | `XAI_IMAGE_ENDPOINT_PATH` | No | `/v1/images/generations` | API path for image generation requests |
-| `DEFAULT_IMAGE_SIZE` | No | `1024x1024` | Default generated image size |
+| `DEFAULT_IMAGE_SIZE` | No | `1024x1024` | Parsed into `AppConfig` but not currently wired into generation — the image pipeline uses its own hard-coded `1024x1024` and the xAI adapter never sends a `size` field. Setting this has no effect yet |
 | `FEATURE_INTEGRATION_TESTS` | No | `false` | Set to `true` to enable live API integration tests |
 | `UPSTASH_REDIS_REST_URL` | No | — | Durable rate-limit store. Set together with the two vars below, or leave all three blank — see note |
 | `UPSTASH_REDIS_REST_TOKEN` | No | — | Durable rate-limit store credential; set together with `UPSTASH_REDIS_REST_URL` and `RATE_LIMIT_IDENTITY_SECRET` |
