@@ -115,7 +115,9 @@ async function main() {
     const statusText = isClean ? 'CLEAN' : 'CONFLICT';
     const notes = isClean
       ? 'Merges cleanly against origin/main.'
-      : `Has conflicts: ${conflictFiles.join(', ')}.`;
+      : conflictFiles.length > 0
+        ? `Has conflicts: ${conflictFiles.join(', ')}.`
+        : `Merge failed for a non-conflict reason: ${mergeResult.output.trim().replace(/\s+/g, ' ').replace(/\|/g, '/')}`;
 
     // Reconstruct the table line
     // Format: | #PR | Title | Author | Merge Status | Target Bucket | Concrete Reason |
