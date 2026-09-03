@@ -1,7 +1,7 @@
 // Purpose: Pin the xAI model ids used across every provider-backed text, image, and edit seam.
 // Why: A model id is not a secret and does not vary per environment, so it belongs in code
 //      where a diff shows the change and a grep finds it. Plain checked JavaScript keeps the
-//      same source directly importable by the repository's documented Node 20 probes.
+//      same source directly importable by the repository's documented Node 22 probes.
 // Info flow: these constants -> chat/tool/studio/image seams and probes -> provider request.
 export const TEXT_MODEL = 'grok-4.6';
 // Upgraded 2026-08-26 after the compatibility gap the previous note describes was finally

@@ -376,6 +376,21 @@ test('meechie toolkit tabs and lineup controls work', async ({ page }) => {
 	await page.getByTestId('meechie-lineup-remove').first().click();
 	await expect(page.locator('.lineup-row input')).toHaveCount(3);
 
+	// Add up to the 6-item cap; the add button disables instead of silently no-op'ing.
+	await page.getByTestId('meechie-lineup-add').click();
+	await page.getByTestId('meechie-lineup-add').click();
+	await page.getByTestId('meechie-lineup-add').click();
+	await expect(page.locator('.lineup-row input')).toHaveCount(6);
+	await expect(page.getByTestId('meechie-lineup-add')).toBeDisabled();
+
+	// Remove down to the 1-item floor; every remove button disables instead of silently no-op'ing.
+	for (let removed = 0; removed < 5; removed += 1) {
+		await page.getByTestId('meechie-lineup-remove').first().click();
+	}
+	await expect(page.locator('.lineup-row input')).toHaveCount(1);
+	await expect(page.getByTestId('meechie-lineup-remove')).toBeDisabled();
+	await expect(page.getByTestId('meechie-lineup-add')).toBeEnabled();
+
 	await page.getByTestId('meechie-tool-random_meechie').click();
 	await page.getByTestId('meechie-tool-generate').click();
 	await expect(page.getByTestId('meechie-tool-output')).toContainText(
