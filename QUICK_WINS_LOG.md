@@ -385,6 +385,4 @@ is parsed but not currently wired into generation and has no effect yet. Left as
 either wire `AppConfig.defaultImageSize` through the pipeline and adapter, or drop the unused parsing/field
 entirely.
 
-**Status:** PR #248 opened, subscribed for CI/review activity, and will be driven to merge in this same session
-(see commit history on `main` for the merge outcome — if this entry is not followed by a "merged" note below,
-the merge did not complete and the reason should be recorded here by the session that stopped).
+**Status:** PR #248 merged into `main` at `ce583fc` in this same session.
