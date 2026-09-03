@@ -369,6 +369,34 @@ describe('image-generation-pipeline edge cases', () => {
     }
   });
 
+  it('marks WebP base64 as webp instead of defaulting to png', async () => {
+    // RIFF....WEBP.... - a minimal, real WebP byte signature, base64-encoded.
+    const webpBase64 = 'UklGRhAAAABXRUJQVlA4IA==';
+    const result = await runImageGenerationPipeline(
+      {
+        spec: validSpec,
+        prompt: validPrompt,
+        variations: 1,
+        outputFormat: 'pdf'
+      },
+      makeDeps(async () => ({
+        ok: true,
+        value: {
+          images: [{ id: 'xai-1', b64: webpBase64 }],
+          rawModelInfo: {},
+          timingMs: 100
+        }
+      }))
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    if (result.body.ok) {
+      expect(result.body.value.images[0].format).toBe('webp');
+      expect(result.body.value.images[0].mimeType).toBe('image/webp');
+    }
+  });
+
   it('filters out images without b64 and keeps valid ones', async () => {
     const result = await runImageGenerationPipeline(
       {

@@ -1,13 +1,4 @@
-# Purpose: Capture raw npm run lint output as evidence.
-# Why: AGENTS.md requires evidence to be tied to actual command output, not narrative claims.
-# Info flow: npm run lint -> stdout/stderr -> evidence file.
-
-$ npm run lint
-
 
 > meechies-coloringbook@0.1.0 lint
 > eslint .
 
-
-$ echo "exit=$?"
-exit=0

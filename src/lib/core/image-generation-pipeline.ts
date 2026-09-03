@@ -19,12 +19,27 @@ const RESPONSE_FORMAT = 'b64_json' as const;
 const DEFAULT_IMAGE_SIZE = '1024x1024';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
+const startsWithBytes = (bytes: Uint8Array, signature: readonly number[]): boolean =>
+  signature.every((byte, index) => bytes[index] === byte);
+
+// Byte-level signature check (not a base64-string-prefix guess) so a genuine WebP
+// response is labeled correctly instead of silently defaulting to PNG - the same
+// mislabeling bug DECISIONS.md's 2026-06-07 entry documents fixing for wig-try-on
+// portraits, left unaddressed here until now.
 const imageFormatFromBase64 = (
   data: string
 ): Pick<GeneratedImage, 'format' | 'mimeType'> => {
-  if (data.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg' };
-  if (data.startsWith('iVBORw0KGgo'))
+  const bytes = Buffer.from(data, 'base64');
+  if (startsWithBytes(bytes, [0xff, 0xd8, 0xff])) return { format: 'jpg', mimeType: 'image/jpeg' };
+  if (startsWithBytes(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
     return { format: 'png', mimeType: 'image/png' };
+  }
+  if (
+    startsWithBytes(bytes, [0x52, 0x49, 0x46, 0x46]) &&
+    startsWithBytes(bytes.subarray(8), [0x57, 0x45, 0x42, 0x50])
+  ) {
+    return { format: 'webp', mimeType: 'image/webp' };
+  }
   return { format: 'png', mimeType: 'image/png' };
 };
 
