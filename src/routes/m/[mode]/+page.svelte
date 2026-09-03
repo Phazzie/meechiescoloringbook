@@ -133,7 +133,7 @@ Info flow: URL mode slug -> mode config -> MeechieModePage -> /api/tools respons
 </script>
 
 <svelte:head>
-	<title>{config.title} - Meechies Coloring Book</title>
+	<title>{config.title} — Meechie's Coloring Book</title>
 </svelte:head>
 
 <MeechieModePage {config} />
