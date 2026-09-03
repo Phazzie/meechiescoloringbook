@@ -1785,3 +1785,13 @@ hit) — both real, both bug reports per `AGENTS.md`'s own rule, neither dismiss
 Neither finding changes PR #276/#277's actual content (both were doc-text-accuracy and log-bookkeeping fixes with
 no seam touched), so no revert was warranted — this is a process-compliance correction, recorded per this log's
 own precedent of fixing a post-merge finding as an additional commit/PR rather than reopening a merged one.
+
+**PR #278 merged**, into `main` at `38ce357` in this same session — after two more real Codex findings on its own
+first two heads (both on the manually-captured `docs/evidence/2026-09-03/verify-chain.txt` transcript itself: a
+missed regeneration on the first push, then a second push's `tee` capture stripping the file's required Purpose/
+Why/Info-flow header, restored from the pre-overwrite git blob), all fixed and all threads resolved before the
+final head went green across `verify` (x2), CodeQL (x2), and SonarCloud (x2); `Rosentic - Conflict Detection`
+passed outright (no findings against this branch's actual diff); `Vercel` hit the same account-level quota
+failure on two of its three heads, stood down on once per the established same-day signature match, no second
+comment needed on the repeat. A fresh open-PR listing afterward showed only the same pre-existing long-stale
+backlog (#151–#218 minus merges) — no PR from this session was left open.
