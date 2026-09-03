@@ -716,6 +716,92 @@ commands had actually been run. Added `docs/evidence/2026-09-03/lint.txt` and `b
 command output. Replied to all three threads with this reasoning and resolved them once the evidence gaps (2
 and 3) were fixed and the plan+self-critique (1) was added.
 
-**Status:** PR #254 merged into `main` in this same session (see commit history on `main` for the merge SHA —
-if this entry is not followed by a "merged" note below, the merge did not complete and the reason should be
-recorded here by the session that stopped).
+**Status:** PR #254 opened and subscribed for CI/review activity. If this entry is not followed by a "merged"
+note below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
+**Merged:** PR #254 merged into `main` at `e442caa` in this same session.
+
+## 2026-09-03 — session_01JRpKyu1LKVJUSZHtaYQNVE
+
+**Housekeeping before the search:** started from `main` at `e442caa` (PR #254 already merged). A combined
+`git fetch origin main <branch>` silently skipped `main` because the designated branch didn't exist remotely yet
+— the same known failure mode this log has documented since the third entry — worked around by fetching `main`
+alone. Found one other open PR from this session's own lineage: #257, "docs: finalize quick-wins log entry for
+PR #254 (merged)" (a one-line follow-up from the immediately prior session, `session_016kSzpLV5cVogqSno2ryiLY`,
+opened same-day). Checked it against `AGENTS.md`'s merge-when-green rule before touching anything else: `verify`,
+CodeQL, SonarCloud, and Vercel all passed on its head; its one review thread (a Codex append-only-log finding)
+was already resolved with a fix; the pre-existing `Rosentic - Conflict Detection` failure was already stood down
+with a documented comment reproducing the same failure against an unrelated PR, per this log's established
+precedent. Met every merge-when-green condition, so merged it (`5f7ae3c`) rather than leaving it open, then reset
+this session's designated branch onto the new `main` tip and pushed it (the branch didn't exist on the remote
+until this point either). Re-ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` on the resulting clean
+checkout — all green (817 passed / 1 skipped, matching this log's baseline since PR #244).
+
+**Investigation:** This is run #12 on a codebase eleven prior runs have already scrubbed hard. Spawned a
+background Explore agent, pointed at this log in full so it wouldn't re-surface anything from PRs #240–#257, to
+sweep `src/lib/core/*`, every Svelte component, every route/server file, `src/lib/server/*`, and the usual doc
+set (`README.md`, `.env.example`, `CHANGELOG.md`, `DECISIONS.md` tail, `LESSONS_LEARNED.md`, CI workflow files).
+Explicitly told it that anything under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`,
+`src/lib/seams/*` was out of scope for a quick win. It came back with an honest "nothing new" report plus one
+real defect it had found but withheld because of that categorical exclusion: a third stale "Gemini" reference
+(`contracts/wig-try-on.contract.ts:3`'s info-flow header comment), missed by PR #248's fix of the same bug class
+in two other files. Reviewed that call myself: the exclusion in the agent's brief was written to keep it away
+from touching seam *contracts, mocks, or adapters* — i.e. schema/behavior — but `AGENTS.md`'s own "Only Exception"
+carve-out lets docs/comments-only changes with zero behavioral impact skip the full Seam-Driven Development
+workflow regardless of which directory they live in, and this is a one-line header comment with no schema or
+type change. Verified directly (read the file, confirmed the `WigTryOnRequestSchema`/`WigTryOnResponseValueSchema`
+types are untouched) before picking it up. Grepped the whole repo for every remaining `Gemini` occurrence to
+confirm no other live instance of this bug class exists — the rest are correctly-historical `DECISIONS.md`/
+`plan.md`/`HANDOFF.md` entries, the unrelated zodiac-sign string, or `docs/` files that already describe the
+migration accurately. Searched independently for a second candidate once the agent's sweep produced only the
+one it had withheld: read `package.json`, `.nvmrc`, `.github/workflows/verify.yml`, `vercel.json`,
+`static/manifest.webmanifest`, `static/robots.txt`, and `README.md` end to end looking for version/config drift
+of the kind PR #250 (stale CI Node version) and PR #254 (stale README copy) had already caught elsewhere in this
+repo.
+
+**Found and fixed (PR #259, `claude/loving-babbage-o0z2r7`):**
+
+1. **Stale "Gemini" reference in the wig-try-on contract's own header comment.** `contracts/wig-try-on.contract.ts:3`
+   read `` `// Info flow: UI selfie+wigId -> server Gemini call -> portrait base64 payload.` `` — the wig try-on
+   route has run on xAI's `/v1/images/edits` endpoint since PR #238 (2026-08-25-ish per commit history), and
+   `docs/seams.md`, `.env.example`, `HANDOFF.md`, and every other live doc already say so correctly; only this
+   one comment, inside the contract file itself, still named the retired provider. Fixed to say "xAI". No schema,
+   type, or contract shape touched.
+2. **README's Tech Stack table claims "Vitest 3"; the repo has run Vitest 4 since dependabot PR #148 merged
+   (`29109f0`, 2026-06-08).** `README.md`'s Tech Stack table (written 2026-06-05, three days before the bump, and
+   never updated after) still read `` `Vitest 3 (unit/integration) + Playwright (E2E)` ``. Confirmed via
+   `git log -p -S'"vitest":' -- package.json`: dependabot bumped `vitest` from `^3.2.4` to `^4.1.0` in commit
+   `29109f0` and it has stayed on the 4.x line ever since — `package.json` currently pins `^4.1.0`, and every
+   `npm test`/`npm run verify` run in this log (including this run's own baseline above) prints `RUN v4.1.0`
+   directly in its own output. Fixed the table to say "Vitest 4". Distinct from the already-merged-but-abandoned
+   `claude/trusting-volta-2seka5` branch (PR #189, "stale Vitest version" among other fixes, opened 2026-06-24 —
+   still open per this run's PR listing, apparently superseded by later work and never landed) — that PR's fix
+   was never merged, so the bug it targeted was still live in `main` regardless of that PR's fate; not touching
+   PR #189 itself, consistent with this log's standing policy of leaving the general stale-PR backlog alone.
+
+**Considered but not picked:** nothing else cleared the bar this run. `XAI_IMAGE_ENDPOINT_PATH`'s README/
+`.env.example` documentation was checked against the code that actually reads it (`image-provider-config-seam`,
+used only by image generation) and against the wig-try-on route's separate hardcoded `/v1/images/edits` constant
+(`XAI_IMAGE_EDIT_PATH` in `src/lib/adapters/wig-try-on-seam/index.ts`) — the two are deliberately independent, not
+a documentation gap. `static/manifest.webmanifest`, `static/robots.txt`, `vercel.json`'s header-path coverage
+against everything under `static/`, and `package.json`'s script list against `CLAUDE.md`'s command table were all
+read and found accurate. `SelfieUpload.svelte`'s British "cancelled" (already deferred as cosmetic style opinion
+in PR #254's entry) was re-confirmed still the only "cancel(l)ed" spelling outlier in the repo — no new
+information since that call, so left deferred rather than re-litigated.
+
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (817 passed /
+1 skipped, unchanged from baseline), `npm run build` (succeeds), and `npm run verify` (full chain green — audit
+gate, chamber-lock, check+test, shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape — evidence
+refreshed in place at `docs/evidence/2026-09-03/`, which already existed for today from all eleven prior runs;
+`lint.txt`/`build.txt` re-captured post-edit rather than left from the pre-edit baseline). Neither change touches
+a contract's schema, a mock, or an adapter's behavior (one header comment, one README table cell; no filesystem/
+network/process/clock/randomness boundary), so the full Seam-Driven Development workflow and a Cipher Gate entry
+in `DECISIONS.md` do not apply, consistent with every prior entry's precedent — including the `AGENTS.md`
+docs/comments-only exception applying regardless of the file's directory.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#231 minus merges, including #189 noted above) every prior run has noted; still needs a separate,
+explicitly-scoped session to drain.
+
+**Status:** PR opened and subscribed for CI/review activity. If this entry is not followed by a "merged" note
+below, the merge did not complete and the reason should be recorded here by the session that stopped.

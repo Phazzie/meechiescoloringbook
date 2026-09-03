@@ -1,6 +1,6 @@
 // Purpose: Define the /api/wig-try-on endpoint request and response contract.
 // Why: Keep client/server wig try-on shape deterministic and schema-validated.
-// Info flow: UI selfie+wigId -> server Gemini call -> portrait base64 payload.
+// Info flow: UI selfie+wigId -> server xAI call -> portrait base64 payload.
 import { z } from 'zod';
 import { resultSchema } from './shared.contract';
 
