@@ -1,10 +1,16 @@
-// Purpose: Attach baseline HTTP security headers to every response the app sends.
+// Purpose: Attach baseline HTTP security headers to every server-rendered response.
 // Why: The app shipped with no hooks.server.ts, so the only header protecting a
 //      visitor was the Strict-Transport-Security one Vercel adds at its edge.
 //      Nothing declared framing, MIME-sniffing, referrer or permissions policy,
 //      which left the site embeddable in any attacker's iframe. The Content
 //      Security Policy itself is configured separately, via `kit.csp` in
 //      svelte.config.js, so SvelteKit can manage its own inline-script nonces.
+// Scope: this hook only sees responses the SvelteKit function renders - pages and
+//      /api routes. Static files do not reach it: the adapter's generated route
+//      table places `{"handle":"filesystem"}` ahead of the SSR rewrites, so
+//      /_app/immutable assets, /service-worker.js and everything under static/
+//      are served before the function runs. `vercel.json` carries the headers for
+//      those paths; the two must be changed together.
 // Info flow: Request -> handle() -> resolve() -> headers attached -> response.
 import type { Handle } from '@sveltejs/kit';
 

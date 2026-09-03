@@ -1,0 +1,30 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-09-03T03:30:18.719Z",
+  "cipher": {
+    "date": "2026-09-03",
+    "seams": "None registered in docs/seams.md - this change adds HTTP response headers and a Content Security Policy at the transport boundary and a dependency-audit step, and creates no contract, adapter or mock",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-09-03/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-03/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-03/proof-tape.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-03/chamber-lock.json",
+        "exists": true
+      }
+    ],
+    "summary": "Added repository-owned baseline security headers for server-rendered responses plus a scoped vercel.json for filesystem-served paths, a SvelteKit-managed nonce-aware Content Security Policy verified in Chromium across all six routes with a positive enforcement control, resolution of all ten npm advisories within existing semver ranges, and an npm audit gate as the first step of the verify chain.",
+    "risks": "The audit gate can redden CI with no code change when a new advisory lands, and it puts a registry round-trip ahead of every local check, so a registry outage stops verify early. The baseline is now split between hooks.server.ts and vercel.json and the two can drift. vercel.json header application was not exercised locally. style-src-attr 'unsafe-inline' remains granted for four inline style attributes."
+  },
+  "latestChangeMs": 1788405551925.0679,
+  "status": "ok"
+}

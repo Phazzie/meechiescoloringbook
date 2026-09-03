@@ -8,7 +8,7 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
-- Every response now carries baseline security headers and a Content Security Policy. The site can no longer be embedded in someone else's page, which is the setup behind clickjacking, and the browser is told exactly which sources it may load from.
+- Pages now carry baseline security headers and a Content Security Policy, and the files served alongside them (scripts, images, the service worker) carry the same baseline. The site can no longer be embedded in someone else's page, which is the setup behind clickjacking, and the browser is told exactly which sources it may load from.
 - Resolved all ten outstanding dependency advisories (one critical, six high) and added an audit gate to `npm run verify`, so the build chain cannot quietly rot again.
 - Rate limiting now applies to every AI-backed endpoint. Requests are metered per client before any provider call, so a burst of traffic cannot run up provider spend. Limits are 20 requests/minute across the text features and 8/minute across the image features; exceeding one returns a clear "try again shortly" response with the wait time.
 - The landing page is dramatically faster to load. Packaged imagery dropped from 38 MB to 2.6 MB with no visible change to the artwork — the wig cards, banners and example pages are the same pictures at sizes a screen can actually use.

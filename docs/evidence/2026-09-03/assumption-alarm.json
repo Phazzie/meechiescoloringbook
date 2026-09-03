@@ -1,12 +1,34 @@
 {
   "tool": "assumption-alarm",
-  "generatedAt": "2026-09-03T03:21:59.619Z",
+  "generatedAt": "2026-09-03T03:32:18.798Z",
   "blockedSeams": [
     "ImageGenerationSeam",
     "RateLimitSeam",
     "WigTryOnSeam"
   ],
   "assumptions": [
+    {
+      "date": "2026-09-03",
+      "seams": "None registered - Content Security Policy font directives at the transport boundary",
+      "statement": "`style-src https://fonts.googleapis.com` and `font-src https://fonts.gstatic.com` admit the fonts the layout actually requests, so the site renders in its intended typefaces under the new policy.",
+      "validation": "The probe was blocked - every browser in the verification runtime returned ERR_CONNECTION_RESET for fonts.googleapis.com, and the same failure reproduced on an unmodified `main` worktree built and served identically, so it is that runtime's egress and not the policy. The directives are therefore proven only by reading the served header. Validate by loading the deployed site after this merges and confirming the Google Fonts stylesheet returns 200 with no securitypolicyviolation event.",
+      "status": "Open - pending first deploy.",
+      "seamList": [
+        "None registered - Content Security Policy font directives at the transport boundary"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-09-03",
+      "seams": "None registered - static-asset response headers served by the Vercel edge",
+      "statement": "The `headers` rules in `vercel.json` attach X-Content-Type-Options, X-Frame-Options and Referrer-Policy to the filesystem-served paths that `src/hooks.server.ts` never sees.",
+      "validation": "Not exercised locally - `vite preview` does not read `vercel.json`, so no local run can confirm it. The gap it closes was measured: against a production preview, `/service-worker.js` and `/_app/immutable/entry/start.*.js` returned 200 with none of the headers while document responses carried all of them. Validate by requesting `/service-worker.js` and an `/_app/immutable` asset from the deployed site and confirming the three headers are present.",
+      "status": "Open - pending first deploy.",
+      "seamList": [
+        "None registered - static-asset response headers served by the Vercel edge"
+      ],
+      "missingFields": []
+    },
     {
       "date": "2026-08-26",
       "seams": "RateLimitSeam",

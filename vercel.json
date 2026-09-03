@@ -1,0 +1,21 @@
+{
+	"//": "Purpose: Carry the baseline security headers for responses Vercel serves from the filesystem, which src/hooks.server.ts never sees. Why: the adapter's generated route table puts {\"handle\":\"filesystem\"} ahead of the SSR rewrites, so /_app assets, /service-worker.js and everything under static/ are returned before the SvelteKit function runs; measured against a production preview, those responses carried no security headers at all. Info flow: request -> Vercel edge matches source -> headers attached -> static file returned. Sources deliberately list only filesystem-served paths so these can never duplicate the headers hooks.server.ts already sets on documents - a repeated X-Frame-Options is ignored outright by some browsers. Strict-Transport-Security is omitted because Vercel's edge already sets it on every response, and Content-Security-Policy is omitted because it is document-scoped and nonce-managed by SvelteKit.",
+	"headers": [
+		{
+			"source": "/(_app|icons|meechie|wigs)/(.*)",
+			"headers": [
+				{ "key": "X-Content-Type-Options", "value": "nosniff" },
+				{ "key": "X-Frame-Options", "value": "DENY" },
+				{ "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+			]
+		},
+		{
+			"source": "/(service-worker.js|icon.svg|manifest.webmanifest|robots.txt)",
+			"headers": [
+				{ "key": "X-Content-Type-Options", "value": "nosniff" },
+				{ "key": "X-Frame-Options", "value": "DENY" },
+				{ "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+			]
+		}
+	]
+}

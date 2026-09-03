@@ -27,11 +27,13 @@ const config = {
 				'script-src': ['self'],
 				// The Google Fonts stylesheet is linked from src/routes/+layout.svelte.
 				'style-src': ['self', 'https://fonts.googleapis.com'],
-				// Two hand-written inline style attributes exist (the verdict colour in
-				// rate-his-excuse, a width in StudioPreviewPanel). An element attribute
-				// cannot carry a nonce, and once SvelteKit puts a nonce on 'style-src'
-				// browsers ignore 'unsafe-inline' there — so the allowance is isolated
-				// to the attribute directive instead of widening 'style-src' itself.
+				// Four hand-written inline style attributes exist: the verdict colour in
+				// rate-his-excuse, a width in StudioPreviewPanel, and the hero background
+				// and mode-card CSS variables in StudioHero (the last two use the
+				// style={...} expression form). An element attribute cannot carry a nonce,
+				// and once SvelteKit puts a nonce on 'style-src' browsers ignore
+				// 'unsafe-inline' there — so the allowance is isolated to the attribute
+				// directive instead of widening 'style-src' itself.
 				'style-src-attr': ['unsafe-inline'],
 				'font-src': ['self', 'https://fonts.gstatic.com'],
 				// data: and blob: carry generated output, not third-party content:
