@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-03T03:35:04.087Z
+Generated at: 2026-09-03T03:42:15.656Z
 Evidence folder: docs/evidence/2026-09-03
 
 Files included:
@@ -21,5 +21,7 @@ Files included:
 - shaolin-lint.json (519 bytes)
 - test.txt (1029 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+- verify-chain.txt (2068 bytes)
+  Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (1354 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1

@@ -11,6 +11,15 @@
 //      /_app/immutable assets, /service-worker.js and everything under static/
 //      are served before the function runs. `vercel.json` carries the headers for
 //      those paths; the two must be changed together.
+// Note: `vercel.json` has no header comment of its own because Vercel validates
+//      it against a strict schema that rejects any unknown property, a `"//"`
+//      documentation key included - that was tried and it failed the deployment.
+//      Its rationale therefore lives here and in DECISIONS.md: the sources name
+//      only filesystem-served prefixes rather than /(.*), because matching
+//      documents too would repeat the headers set below, and a duplicated
+//      X-Frame-Options is ignored outright by some browsers. HSTS is omitted
+//      there because Vercel's edge already sets it, and the Content Security
+//      Policy because it is document-scoped and nonce-managed by SvelteKit.
 // Info flow: Request -> handle() -> resolve() -> headers attached -> response.
 import type { Handle } from '@sveltejs/kit';
 
