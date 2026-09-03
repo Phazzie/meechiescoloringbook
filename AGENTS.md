@@ -109,6 +109,15 @@ A pull request that meets every condition below is **merged without asking**. Me
 separate permission, and waiting to be asked is the failure mode this rule exists to prevent.
 
 1. CI is green on the PR's **current head** — every required check, not just the last one seen.
+   Read **both** surfaces: check runs *and* commit statuses. A deployment reports as a commit
+   status, so a pull request can be red while every check run is green.
+   A check established as not this pull request's failure does **not** block the merge — but
+   the bar is the same failure *signature*, not the same check name. A check can be red on
+   two heads for two different reasons, and this pull request genuinely breaking it looks
+   identical from the outside. Establish it by matching the actual finding — the same error,
+   the same files, the same branch pair — on the base commit or an unrelated head, and write
+   that comparison in a comment on the pull request before merging. "It is red elsewhere too"
+   is not evidence.
 2. Every review comment is addressed: fixed, or answered on the thread with why not.
 3. `npm run verify` and `npm test` are green, with committed evidence.
 4. No unpushed local work, and no merge conflict against the base branch.
@@ -124,6 +133,10 @@ This rule was added on 2026-08-25 after a PR sat green and unmerged because merg
 treated as needing permission. It was then deleted the same day by a concurrent session
 restoring an older `AGENTS.md` blob. **Do not remove it without an owner ruling recorded in
 `DECISIONS.md`.**
+
+Reaffirmed by the owner on 2026-09-03, recorded in `DECISIONS.md`, after an agent held a
+green pull request waiting to be told to merge it. Asking "shall I merge this?" when the
+conditions above are met is itself the defect. Merge, then report what was merged.
 
 ## Anti-Laziness / Blocked
 - Primary failure modes: skipping steps, guessing instead of probing, declaring completion without evidence.
