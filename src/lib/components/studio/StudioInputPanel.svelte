@@ -76,7 +76,7 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 	/>
 
 	<div class="budget">
-		<span>{revisionBudget} AI text actions left</span>
+		<span>{revisionBudget} AI text action{revisionBudget === 1 ? '' : 's'} left</span>
 		{#if revisionBudget === 0}
 			<p>
 				You used the wording changes for this page. Export, copy, theme, and
