@@ -272,3 +272,10 @@ svelte-check found 0 errors and 0 warnings
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+$ timeout 30 npm audit --audit-level=high   # (post-review-fix commit - hung; same tracked intermittent flakiness)
+[no output before timeout]
+EXIT:124
+
+$ node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining stages, run individually)
+(check/test green, 845 passed / 1 skipped; remaining four scripts: no output, exit 0)
