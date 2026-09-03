@@ -5,19 +5,11 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
+import { fileExists } from './evidence-reporting.mjs';
 
 const ROOT = process.cwd();
 const HOOKS_DIR = path.join(ROOT, '.githooks');
 const REQUIRED_HOOKS = ['pre-commit', 'pre-push'];
-
-const fileExists = async (targetPath) => {
-	try {
-		await fs.access(targetPath);
-		return true;
-	} catch {
-		return false;
-	}
-};
 
 const run = async () => {
 	const gitDir = path.join(ROOT, '.git');

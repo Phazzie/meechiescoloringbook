@@ -4,12 +4,11 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { toDateFolder } from './evidence-reporting.mjs';
 
 const ROOT = process.cwd();
 const SEAMS_PATH = path.join(ROOT, 'docs', 'seams.md');
 const DECISIONS_PATH = path.join(ROOT, 'DECISIONS.md');
-
-const toDateFolder = (date) => date.toISOString().slice(0, 10);
 
 const parseSeams = (content) => {
 	const lines = content.split(/\r?\n/);

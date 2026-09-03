@@ -4,29 +4,10 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { pathToFileURL } from 'node:url';
+import { fileExists, isEntryPoint, toDateFolder } from './evidence-reporting.mjs';
 
 const ROOT = process.cwd();
 const DECISIONS_PATH = path.join(ROOT, 'DECISIONS.md');
-
-/**
- * @param {Date} date
- * @returns {string}
- */
-const toDateFolder = (date) => date.toISOString().slice(0, 10);
-
-/**
- * @param {string} targetPath
- * @returns {Promise<boolean>}
- */
-const fileExists = async (targetPath) => {
-	try {
-		await fs.access(targetPath);
-		return true;
-	} catch {
-		return false;
-	}
-};
 
 /**
  * @param {string} targetPath
@@ -106,12 +87,12 @@ export const selectLatestCipherBlock = (blocks) => {
 	if (dated.length === 0) {
 		return null;
 	}
-	return dated.reduce((best, block) => {
-		if (block.date !== best.date) {
-			return block.date > best.date ? block : best;
-		}
-		return block.position < best.position ? block : best;
-	});
+	// Newest date first; within a date, earliest document position first. Sorting a copy
+	// rather than reducing keeps the caller's array untouched and needs no seed value.
+	const [latest] = [...dated].sort((a, b) =>
+		a.date === b.date ? a.position - b.position : b.date.localeCompare(a.date)
+	);
+	return latest ?? null;
 };
 
 /**
@@ -219,10 +200,7 @@ const run = async () => {
 // Only run the gate when this file is the entry point. Without the guard, importing it
 // to unit-test its helpers executes the whole gate and rewrites cipher-gate.json as a
 // side effect of the test run.
-const isEntryPoint =
-	process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
-
-if (isEntryPoint) {
+if (isEntryPoint(import.meta.url)) {
 	run().catch((error) => {
 		process.stderr.write(`Cipher Gate failed: ${error.message}\n`);
 		process.exit(1);

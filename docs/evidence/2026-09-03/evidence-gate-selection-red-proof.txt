@@ -73,3 +73,24 @@ With the FIX:
 
 Both runs exit 0. That is the whole point: the failure was never visible in the
 exit code, only in which entry the artifact named.
+
+--------------------------------------------------------------------------------
+SONARCLOUD, first CI run on 40213bb — two failures, both this change's
+--------------------------------------------------------------------------------
+  C Reliability Rating on New Code (required >= A)
+    scripts/cipher-gate.mjs:109 [MAJOR] Add an initial value to this "reduce()" call.
+    -> replaced with an explicit [...dated].sort(...), which also stops the old code
+       mutating the caller's array.
+
+  7.0% Duplication on New Code (required <= 3%)
+    toDateFolder and fileExists were copy-pasted into nine and seven scripts, byte
+    identical in every one (verified: 9 identical toDateFolder lines; all 7 fileExists
+    bodies hash to 616c51987ea7). Old copies were never counted; adding JSDoc above two
+    of them made those lines new and the duplication finally registered.
+    -> both helpers, plus isEntryPoint, moved into scripts/evidence-reporting.mjs and
+       imported by all nine scripts. Deduplicating only the two files that tripped the
+       gate would have put the same block in a third place.
+
+Each migrated script was then run standalone and through the full chain.
+shaolin-lint exits 1 standalone — correctly, since editing scripts/ makes the evidence
+older than the code it attests to; the chain regenerates evidence before that stage.

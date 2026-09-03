@@ -4,29 +4,10 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { pathToFileURL } from 'node:url';
+import { fileExists, isEntryPoint, toDateFolder } from './evidence-reporting.mjs';
 
 const ROOT = process.cwd();
 const EVIDENCE_ROOT = path.join(ROOT, 'docs', 'evidence');
-
-/**
- * @param {Date} date
- * @returns {string}
- */
-const toDateFolder = (date) => date.toISOString().slice(0, 10);
-
-/**
- * @param {string} targetPath
- * @returns {Promise<boolean>}
- */
-const fileExists = async (targetPath) => {
-	try {
-		await fs.access(targetPath);
-		return true;
-	} catch {
-		return false;
-	}
-};
 
 /**
  * @returns {Promise<string | null>}
@@ -176,10 +157,7 @@ const run = async () => {
 
 // Only run when this file is the entry point, so importing it to unit-test its helpers
 // does not regenerate the proof tape as a side effect of the test run.
-const isEntryPoint =
-	process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
-
-if (isEntryPoint) {
+if (isEntryPoint(import.meta.url)) {
 	run().catch((error) => {
 		process.stderr.write(`Proof Tape failed: ${error.message}\n`);
 		process.exit(1);
