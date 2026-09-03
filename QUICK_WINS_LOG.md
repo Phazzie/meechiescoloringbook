@@ -315,3 +315,60 @@ down with one PR comment naming the check and why it isn't this PR's, per that p
 since the diff-level proof (not just "it also failed on another PR") already rules out this PR as the cause.
 
 **Status:** PR #247 merged into `main` at `769cf5d` in this same session.
+
+## 2026-09-03 — session_01ERKZKQ6hvNTHNSk7RDTjwW
+
+**Investigation:** Started from `main` at `895f5b5` (PR #247 already merged, plus PR #246 — unrelated
+governance/docs work recording the merge-on-green ruling — merged since this log's last entry; confirmed via
+`git diff 769cf5d..895f5b5 -- src` that no application source changed between those two points, only `AGENTS.md`
+and evidence files). Ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` on a clean checkout first —
+all green (817 passed / 1 skipped). Spawned a background Explore agent, explicitly pointed at this log in full
+so it wouldn't re-surface anything from PRs #240–#247, to sweep `src/lib/core/*`, every `src/lib/components/**/
+*.svelte` (including all studio sub-components), `src/routes/**/*.svelte`, `+server.ts`/`+page.ts`, and
+`src/lib/server/*`. It came back with **zero new candidates** — an honest "nothing new found" report rather than
+padded weak findings, after an exhaustive pass confirming every previously-deferred item (the `StudioHero.svelte`
+banner-art apostrophe, `WigCarousel.svelte`'s `getBrand()` duplication, `http-client.ts` timeout budgets) was
+still correctly deferred with no new information. Continued the search manually in parallel/afterward, widening
+scope per the agent's own suggestion into docs and less-obvious code paths: grepped the whole `src/` tree for
+leftover `console.log/debug/warn`, `TODO/FIXME`, and stale `Gemini` references (the wig try-on route moved to
+xAI in PR #238); read `README.md` end to end against `.env.example`; read `src/lib/server/rate-limit-guard.ts` in
+full (no bug found — store-selection logic is careful and already covered by tests, left untouched); and read
+the remaining studio sub-components (`StudioSettingsPanel.svelte`, `VerdictRow.svelte`, `SystemTrace.svelte`,
+`WigTryOnStudio.svelte`, `WigCarousel.svelte`, `SelfieUpload.svelte`) not individually named in prior entries.
+
+**Found and fixed (PR #248, `claude/loving-babbage-gt0lc7`):**
+
+1. **Two stale "Gemini" doc comments left over from the xAI migration.** `src/routes/+page.svelte`'s info-flow
+   header comment and `src/lib/components/SelfieUpload.svelte`'s purpose comment both still described the wig
+   try-on flow as going through "Gemini", but ticket W5 (per `HANDOFF.md`) migrated that route to xAI's
+   `/v1/images/edits` endpoint back in PR #238 — `.env.example` already documents `GEMINI_API_KEY`/
+   `GEMINI_BASE_URL` as "LEGACY / UNUSED". Grepped every remaining `Gemini` occurrence in `src/` before fixing to
+   confirm the other two (`HoroscopeSignSchema`'s `'Gemini'` zodiac entry in `meechie-tool-seam/contract.ts`, and
+   a voice-pack line keyed `Gemini:` in `voice-pack.ts`) are unrelated and correctly left alone. Updated both
+   comments to say "xAI".
+2. **README's Environment Variables table was missing five real, actively-read vars.** `.env.example` documents
+   and the app reads `DEFAULT_IMAGE_SIZE` (`image-generation-pipeline.ts`) and four rate-limit vars —
+   `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `RATE_LIMIT_IDENTITY_SECRET` (all three read together in
+   `rate-limit-config.ts`/`rate-limit-guard.ts`), and `RATE_LIMIT_OPERATION_TIMEOUT_MS` — none of which appeared
+   in README's table, and the table didn't note `GEMINI_API_KEY`/`GEMINI_BASE_URL`'s legacy/unused status either.
+   Added all five rows plus a short note capturing `.env.example`'s "set all three durable rate-limit vars or
+   none — a partial set fails closed with 503" contract, so a new contributor reading only README (not
+   `.env.example`) gets the accurate picture.
+
+**Considered but not picked:** nothing else cleared the bar this run. `meechie-quote-scoring.ts` is confirmed
+dead code (only imported by its own test, never wired into a pipeline) but removing/wiring it is a design
+decision, not an objectively-wrong bug. `docs/seams.md`'s `image-provider-config-seam` description mentioning
+"Gemini vars" in `src/lib/seams/CLAUDE.md` was checked and left alone — it's describing what that seam's config
+deliberately excludes, which is still accurate regardless of the migration.
+
+**Verification:** `npm ci`, `npm run check`, `npm run lint`, `npm test` (817 passed / 1 skipped, unchanged from
+baseline), and `npm run build` — all green. Neither change touched a seam boundary (four comment/doc-only edits
+across three files, no filesystem/network/process/clock/randomness boundary), so the full Seam-Driven Development
+workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every prior entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#169–#231 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** PR #248 opened, subscribed for CI/review activity, and will be driven to merge in this same session
+(see commit history on `main` for the merge outcome — if this entry is not followed by a "merged" note below,
+the merge did not complete and the reason should be recorded here by the session that stopped).
