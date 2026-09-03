@@ -101,3 +101,57 @@ backlog is unchanged from the prior run's note and still needs a separate, expli
 **Status:** PR #241 opened, subscribed for CI/review activity, and driven to merge in this same session (see
 commit history on `main` for the merge outcome — if this entry is not followed by a "merged" note below, the
 merge did not complete and the reason should be recorded here by the session that stopped).
+
+## 2026-09-03 — session_01CmupoAPCkruo43zcTJ5Uee
+
+**Investigation:** Started from `main`'s merge of PR #241 (`3c110d9`), which already covered both prior runs'
+quick wins. Ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green
+(812 passed / 1 skipped). Had one candidate carried over from the prior run's "considered but not picked" note
+(the redundant `pool[offset % pool.length]` modulo in `src/lib/core/meechie-studio.ts`, flagged as "ready to go"
+three runs running) and spawned a background Explore agent to find one more, telling it to read this log and
+recent git history first so it wouldn't re-surface anything from PRs #169–#241.
+
+**Found and fixed (branch `claude/loving-babbage-2lih45`):**
+
+1. **Redundant modulo in `getWeeklyModes`.** `src/lib/core/meechie-studio.ts:238` computed
+   `pool[offset % pool.length]` where `offset` is already `(getWeekNumber() * 2) % pool.length` on the line
+   above — the inner `% pool.length` on the first array access was always a no-op. Confirmed the surrounding
+   rotation math itself is correct (not a bug in the weekly-mode selection, just dead computation). Simplified
+   to `pool[offset]`; left the second element's `% pool.length` in place since `offset + 1` can legitimately
+   reach `pool.length`.
+2. **Singular/plural mismatch in the generic `/m/[mode]` validation-failure message.** Every mode page rendered
+   through `src/lib/components/MeechieModePage.svelte` shares one `MeechieToolInputSchema.safeParse` failure
+   path that read `"Please complete the required field before generating."` (singular), while the sibling
+   `src/lib/components/MeechieTools.svelte` — which validates the exact same `MeechieToolInput` shapes,
+   including the two-field `receipts`/`receipt-check` tool (`claim` + `reality`) — already used the correct
+   plural `"...required fields..."` for the identical failure condition. A user who left both fields blank on
+   `/m/receipt-check` got the grammatically wrong singular message from one entry point and the correct plural
+   one from the other. Changed `MeechieModePage.svelte` to match `MeechieTools.svelte`'s plural wording; no test
+   asserted the old singular string.
+
+**Considered but not picked:** nothing else surfaced with comparable confidence this run — the Explore agent
+did an exhaustive sweep of `src/lib/core/*`, `src/routes/**/*.svelte` and `+server.ts`/`+page.ts`, the studio
+sub-components, and `src/lib/server/*` (recently hardened by PRs #232–#236) and came back empty beyond the two
+above. Notable false leads it ruled out and documented so a future run doesn't re-walk them: the `getWeeklyModes`
+7-week rotation-fairness comment (math checks out, not a bug), `ratingColor` thresholds (subjective, not
+incorrect), the dev-only HTTP-200-on-missing-key asymmetry in `meechie-studio-text-pipeline.ts` (intentional,
+not client-observable), the dead `'jpg'` branch in `studio-state.svelte.ts`'s try-on mime parsing (unreachable
+per contract, already commented), and `loadCreation`'s evidence fallback (best-available approximation given
+`CreationRecordSchema` has no evidence field; fixing it would be a contract change, out of scope for a quick
+win).
+
+**Verification:** `npm ci`, `npm run check`, `npm run lint`, `npm test` (812 passed / 1 skipped, unchanged from
+baseline), `npm run build`, and `npm run verify` (full chain, evidence refreshed in place at
+`docs/evidence/2026-09-03/`, which already existed for today from the two prior runs) — all green. No seam was
+touched (one dead-computation removal in core logic, one UI copy string, no filesystem/network/process/clock/
+randomness boundary), so the full Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` did
+not apply, consistent with PR #240/#241 precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** ~30 other open PRs (#169–#231,
+excluding #240/#241 which merged), most stale against old base commits from much earlier sessions. This run's
+scope stayed limited to its own two quick wins per the task instructions; that backlog is unchanged from prior
+runs' notes and still needs a separate, explicitly-scoped session to drain.
+
+**Status:** PR #243 opened, subscribed for CI/review activity, and driven to merge in this same session (see
+commit history on `main` for the merge outcome — if this entry is not followed by a "merged" note below, the
+merge did not complete and the reason should be recorded here by the session that stopped).

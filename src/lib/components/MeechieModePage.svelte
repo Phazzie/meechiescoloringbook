@@ -35,7 +35,7 @@ Info flow: Mode config + user inputs -> MeechieToolInputSchema -> /api/tools -> 
 		const candidate = config.buildInput(fields);
 		const parsedInput = MeechieToolInputSchema.safeParse(candidate);
 		if (!parsedInput.success) {
-			error = 'Please complete the required field before generating.';
+			error = 'Please complete the required fields before generating.';
 			isWorking = false;
 			return;
 		}
