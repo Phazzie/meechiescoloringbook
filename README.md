@@ -122,9 +122,13 @@ This project uses **Seam-Driven Development (SDD)** — every external integrati
 
 Each seam consists of:
 - `contract.ts` — TypeScript types and Zod schemas
+- `probe.ts` — captures real external behavior (run manually to refresh)
 - `fixtures.ts` — static test data captured from real API responses
 - `mock.ts` — deterministic test doubles (load fixtures by scenario, no invented data)
-- `adapter.ts` — real implementation behind the seam
+- `test.ts` — contract tests (mock first, fault fixture must fail)
+- `validators.ts` — shared Zod validators for adapter and test reuse
+
+The real adapter lives separately, at `src/lib/adapters/<seam-name>/index.ts` (or `<seam-name>.adapter.ts` for legacy flat-layout seams).
 
 **Key directories:**
 

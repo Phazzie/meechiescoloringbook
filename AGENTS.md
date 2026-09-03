@@ -51,7 +51,7 @@ Follow this order, no shortcuts:
 - When a seam changes, include exact command output for `npm run verify` and `npm test`.
 - Record significant tradeoffs in `DECISIONS.md`.
 - Use the full term "Seam-Driven Development" in prose; do not use the acronym.
-- Automation is required: `npm run verify` must be used for seam changes; it runs the audit gate (a check that fails the build if any dependency has a known high-severity security vulnerability), chamber lock, evidence capture, shaolin lint, assumption alarm, seam ledger, clan chain, and proof tape.
+- Automation is required: `npm run verify` must be used for seam changes; it runs the audit gate (a check that fails the build if any dependency has a known high-severity security vulnerability), chamber lock, verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, and proof tape.
 - Use `npm run rewind -- --seam <SeamName>` for seam-scoped contract verification when full verify is not required.
 - When introducing jargon or flags (for example: deterministic compressed provider prompt, CLI flags that start with `-`), define them briefly in plain language near their first mention so non-coders can follow along.
 
