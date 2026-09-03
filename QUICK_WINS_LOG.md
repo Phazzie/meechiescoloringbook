@@ -1727,5 +1727,34 @@ prior docs-only entry's precedent.
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
 
-**Status:** PR #276 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
-below, the merge did not complete and the reason should be recorded here by the session that stopped.
+**PR #276 activity:** `verify` (x2), CodeQL (`Analyze (actions)`/`Analyze (javascript-typescript)`), and both
+`SonarCloud`/`SonarCloud Code Analysis` checks (quality gate passed, 0 new issues) all passed on the final head
+(`4af36f7`). `Rosentic - Conflict Detection` also passed outright on the final head — no findings against this
+branch. CodeRabbit skipped (repo has fewer than 10 stars); Sourcery's own review budget was already exhausted for
+the week (same as most prior PRs in this log), but it still posted an automated PR-description summary. The
+`Vercel` commit status was red — "Deployment rate limited — retry in 24 hours" (`api-deployments-free-per-day`)
+— on two of the three pushed heads (identical to the account-level quota failure documented on PRs #274/#275
+earlier this same day); stood down with one PR comment citing that same-day, unrelated-head match per
+`AGENTS.md`'s bar, no second comment needed when the identical signature recurred on the next push. (Vercel did
+succeed on the middle head, `b44c4c3` — the quota apparently has some slack — before failing again on the final
+push.)
+
+Four separate Codex bot review threads landed across two review passes (one per pushed commit), all four real and
+all four fixed rather than dismissed, consistent with `AGENTS.md`'s "bot findings are bug reports" rule:
+1. README's new verify-stage list used unglossed repo jargon ("shaolin lint," "assumption alarm," "clan chain,"
+   "proof tape") — added a one-line-per-stage plain-language definition under the table, per `AGENTS.md:56`'s own
+   instruction to define jargon near first mention (a rule this run's own fix had just violated).
+2. The `docs/CHECKLIST.md` Phase 1 rewrite dropped mention of validation gating and generation diagnostics, both
+   still active just relocated — restored them, pointing at `studio-state.svelte.ts`'s `handleGeneratePage` and
+   `SystemTrace.svelte`.
+3. A follow-up pass on the same README fix caught that the new chamber-lock definition only named 3 of the 6
+   artifact categories `scripts/chamber-lock.mjs` actually checks (missing probe, fixtures, tests) — expanded to
+   list all six.
+4. A follow-up pass on the same checklist fix caught that the new file references used bare filenames instead of
+   full repo paths, which `AGENTS.md`'s own checklist rule requires for mechanical verifiability — added the full
+   `src/routes/...`/`src/lib/components/studio/...` paths.
+All four threads replied-to and resolved after each fix landed.
+
+**Merged:** PR #276 merged into `main` at `035dcf9` in this same session. A fresh open-PR listing afterward
+showed only the same pre-existing long-stale backlog (#151–#218 minus merges) — no PR from this session was left
+open.
