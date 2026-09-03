@@ -898,16 +898,42 @@ separate, explicitly-scoped session to drain.
 **PR #261 activity:** `verify` (both the `pull_request`- and `push`-triggered runs on the final head), Rosentic
 Scan, and SonarCloud's quality gate all passed on the pushed head; Vercel deployed a preview successfully;
 CodeRabbit skipped (repo has fewer than 10 stars); Sourcery's own 7-day diff-character review budget was already
-exhausted (same as most prior PRs in this log); Codex review completed with no findings requiring action.
-`Rosentic - Conflict Detection`'s own check passed this time (unlike most prior PRs in this log, where it failed
-outright) — but it still left one inline review comment and one PR-level comment naming ~30 hypothetical
-incompatibilities against long-stale, unrelated branches from the open-PR backlog (`claude/fix-pr154-pr160-review-
-comments`, `claude/trusting-volta-bb8mvr`, `claude/sweet-mendel-*`, etc.), none of which this PR's two-file diff
-touches or depends on — confirmed directly against `git diff origin/main..HEAD`, the same pre-existing
-cross-branch-backlog scan-noise class documented on PRs #243/#245/#247/#248/#250/#252/#254/#259. Replied on the
-one inline thread with that verification and resolved it; the PR-level comment needed no reply since resolving
-requires a thread, not a general comment, and its content added nothing beyond the inline finding already
-addressed.
+exhausted (same as most prior PRs in this log). `Rosentic - Conflict Detection`'s own check passed this time
+(unlike most prior PRs in this log, where it failed outright) — but it still left one inline review comment and
+one PR-level comment naming ~30 hypothetical incompatibilities against long-stale, unrelated branches from the
+open-PR backlog (`claude/fix-pr154-pr160-review-comments`, `claude/trusting-volta-bb8mvr`, `claude/sweet-mendel-*`,
+etc.), none of which this PR's two-file diff touches or depends on — confirmed directly against
+`git diff origin/main..HEAD`, the same pre-existing cross-branch-backlog scan-noise class documented on PRs
+#243/#245/#247/#248/#250/#252/#254/#259. Replied on the one inline thread with that verification and resolved it;
+the PR-level comment needed no reply since resolving requires a thread, not a general comment, and its content
+added nothing beyond the inline finding already addressed.
+
+All CI/status checks were green and `mergeable_state` was `clean` at that point, matching every condition
+`AGENTS.md`'s merge-when-green rule requires, so the PR was merged into `main` at `df6e4f0`. Three Codex review
+comments landed within seconds of the merge (queued before the merge notification itself was delivered to this
+session) — too late to push a fix to, since the head they're anchored to no longer has an open PR:
+1. **P1, "follow the required workflow for the `WigTryOnSeam` change"** — investigated and replied that it's a
+   false positive: the diff touches no `WigTryOnSeam` contract/mock/adapter/probe file, and the request/response
+   crossing that seam is byte-for-byte unchanged; only the timing of a client-local state reset moved. Same class
+   of false positive already addressed on PRs #250 and #252. Resolved the thread after replying.
+2. **P1, "invalidate an in-flight generation when loading a creation"** — verified real: if `handleGeneratePage()`
+   or `handleGenerateTryOnPage()` is still in flight when the user calls `loadCreation()`, the reset this PR added
+   only clears state momentarily — the older async call resolves afterward and writes its `images`/`packagedFiles`
+   back into what is now a different creation's state. Confirmed this is not a regression this PR introduced but a
+   pre-existing race shape: `handleModeSelect` has had the identical fire-and-forget pattern (reset with no
+   cancellation of an in-flight generation) all along. Fixing it needs a generation token or `AbortController`
+   threaded through both generate handlers and every reset call site — a real but non-trivial refactor, not a
+   quick win. Replied with this reasoning; left as a candidate for a future run (left the thread open, unresolved,
+   since it wasn't acted on).
+3. **P2, "clear the complete generated-page state before try-on"** — verified real: `resetTryOnResultState()`
+   clears `images`/`packagedFiles`/`generationError`/`tryOnPortraitUrl`/`tryOnError` but not `assembledPrompt`/
+   `revisedPrompt`/`violations`/`recommendedFixes`, and `SystemTrace.svelte` renders those four independently of
+   `images`/`packagedFiles`. So a user who generates a normal page and then starts a try-on still sees the old
+   page's prompt/violations in System Trace beside the new portrait — a related but distinct staleness gap from
+   the one this PR closed, on the same call site. Replied with this reasoning; left as a candidate for a future
+   run (left the thread open, unresolved, since it wasn't acted on).
 
 **Status:** PR #261 opened, subscribed for CI/review activity, driven to green, and merged into `main` at
-`df6e4f0` in this same session. No PRs from this session were left open.
+`df6e4f0` in this same session. No PRs from this session were left open. Two real, verified follow-up candidates
+(items 2 and 3 above) are recorded here for a future run to pick up; neither is a regression introduced by this
+PR, both are pre-existing gaps this PR's fix came close to but didn't fully close.
