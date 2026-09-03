@@ -217,5 +217,14 @@ Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do no
 headers/CSP, different session/branch) plus the same long-stale backlog (#169–#231 minus merges) noted by every
 prior run. Unchanged from prior notes; still needs a separate, explicitly-scoped session to drain.
 
-**Status:** PR #245 opened and subscribed for CI/review activity. To be updated post-merge by this same
-session, or annotated with a blocker by whichever session picks this up if it does not complete.
+**PR #245 activity:** the required `verify` GitHub Actions check and Copilot Code Review both passed on every
+pushed head; SonarCloud's quality gate passed; CodeRabbit skipped (repo has fewer than 10 stars); Sourcery
+could not review (its own 7-day diff-character budget was exhausted, not a finding). `Rosentic - Conflict
+Detection` failed on both heads, but both reported findings named branch pairs (`claude/keen-hypatia-kq14p7` vs.
+`claude/sweet-mendel-tcty6u`/`claude/sweet-mendel-kegj49`, over `chat-interpretation` and `rate-limit-seam`
+files this PR never touched) that don't include this PR's diff at all. Confirmed pre-existing and PR-independent
+by checking that the identical workflow failed the same way on PR #243 (already merged, completely different
+diff) — a repo-wide cross-branch scan over the long-stale open-PR backlog, not scoped to any one PR. Stood down
+with one PR comment naming the check and why it isn't this PR's, per precedent.
+
+**Status:** PR #245 merged into `main` at `4cf7aea` in this same session.
