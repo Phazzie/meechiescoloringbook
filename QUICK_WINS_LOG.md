@@ -601,6 +601,28 @@ finding. Replied on and resolved all four review threads on PR #252 (one Codex, 
 
 ## 2026-09-03 — session_016kSzpLV5cVogqSno2ryiLY
 
+**Plan + Self-Critique (per `AGENTS.md`'s Planning enforcement/template):**
+- **Goal:** find and fix two small, low-risk, non-seam bugs per the scheduled task's standing instructions.
+- **Seams:** none — both candidates were pre-screened to exclude anything under `contracts/`, `probes/`,
+  `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/*`, and neither touches filesystem/network/
+  process/clock/randomness. No seam name from `docs/seams.md` applies.
+- **Exact files to touch:** `README.md` (one paragraph); `src/lib/components/studio/WigTryOnStudio.svelte`
+  (`formatUsd`'s locale argument, one line + a comment).
+- **Exact commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify` (all
+  before and after the edit, to diff against the clean baseline).
+- **Self-critique — what could be wrong:** (1) the README rewrite could be read as a "governance-only doc
+  change" requiring the full micro-plan treatment rather than an ordinary content fix — judged not applicable,
+  since it's product-description copy, not naming/seam-inventory/enforcement convention. (2) The riskiest
+  assumption is that pinning `formatUsd` to `'en-US'` is the *correct* fix rather than making `WigCarousel`
+  locale-aware instead — resolved in favor of pinning because `WigCarousel`'s format is unconditional today
+  (no locale awareness anywhere else in the codebase) and matching it is the smaller, more consistent change;
+  proven by the two components rendering identical output for every input after the fix (verified via a direct
+  `Intl.NumberFormat` check across `en-US`/`de-DE`/`fr-FR`). (3) Neither change is a "major refactor," so a
+  `plan.md` entry (reserved for that scale of work per `AGENTS.md`) was judged disproportionate; this section
+  is the plan+self-critique of record for these two changes instead, consistent with how the prior ten runs in
+  this log have documented their own investigation/rationale/verification without opening a `plan.md` entry —
+  raised as a Codex review finding on this PR and answered there with this same reasoning.
+
 **Investigation:** Started from `main` at `a67761f` (PR #253 already merged, finalizing the prior run's log
 entry). Ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green
 (817 passed / 1 skipped, matching this log's baseline since PR #244). Listed all open PRs: the same long-stale
@@ -614,7 +636,7 @@ independently-verified candidates plus one weaker one it explicitly flagged as n
 picks myself against the actual code (README history via `git log -S`, the manifest, the system prompt, and a
 direct `Intl.NumberFormat` locale check) before committing to them, rather than trusting the report as-is.
 
-**Found and fixed (PR TBD, `claude/loving-babbage-h9j3ge`):**
+**Found and fixed (PR #254, `claude/loving-babbage-h9j3ge`):**
 
 1. **README's opening description describes a different, no-longer-existing product.** `README.md` (present
    since PR #69, confirmed via `git log -S "kids and families" -- README.md`) opened with "Meechie's Coloring
@@ -665,5 +687,35 @@ consistent with every prior entry's precedent.
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#151–#231 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
 
-**Status:** PR opened and subscribed for CI/review activity. If this entry is not followed by a "merged" note
-below, the merge did not complete and the reason should be recorded here by the session that stopped.
+**PR #254 activity:** `verify`, `CodeQL`, `SonarCloud`/`SonarCloud Code Analysis`, and `Vercel` all passed on
+the pushed head (`b74d117`). CodeRabbit skipped (repo has fewer than 10 stars); Sourcery's own 7-day diff-budget
+was already exhausted (same as PRs #245/#247/#250/#252). `Rosentic - Conflict Detection` failed, naming
+`chat-interpretation.adapter.ts`/`rate-limit-seam/*` files this PR's own two-file-plus-docs diff never touches —
+confirmed directly against `git diff --name-only origin/main..HEAD`, and this run went one step further than
+prior runs' diff-scope-only reasoning (a gap PR #252's own entry flagged): pulled the last 30 completed
+`Rosentic Scan` workflow runs across recent PR history and found every one but a single cancelled run had
+failed, across entirely different branches/diffs (PR #252's and PR #250's own heads included) — reproducing
+the identical failure mode against unrelated heads, not just proving this PR's diff doesn't touch the named
+files. Stood down with one PR comment citing that reproduction.
+
+A Codex bot review left three P1 findings, all investigated rather than dismissed. (1) Flagged the absence of
+a formal Plan + Self-Critique for this change. Real gap under a strict reading of `AGENTS.md`'s Planning
+enforcement line, though every one of the ten prior runs in this log has the same gap and none were blocked on
+it; added a "Plan + Self-Critique" section to the top of this entry (above) as the plan+self-critique of record,
+judged proportionate to two small non-seam fixes rather than opening a `plan.md` entry reserved for major
+refactors. (2) Flagged that `docs/evidence/2026-09-03/verify-chain.txt` was stale — still showing a prior
+session's 05:10:54 test run instead of this run's. Verified: true, the file isn't written by any automated
+script (confirmed via `grep -rn "verify-chain" scripts/ package.json` — nothing), so it depends on being
+manually captured, which this run's first `npm run verify` pass hadn't done. Fixed by capturing a fresh
+`npm run verify` run directly into that file and re-running `proof-tape.mjs` afterward, per that file's own
+header note. (3) Flagged that no raw `npm run lint`/`npm run build` output was captured as evidence, despite the
+log's Verification section claiming both succeeded. Verified: true, and also true of all ten prior entries in
+this log (no `docs/evidence/*/lint.txt` or `build.txt` exists anywhere in this repo's history) — a pre-existing
+gap in this repo's evidence-capture convention, not something this PR introduced, but fixable cheaply since the
+commands had actually been run. Added `docs/evidence/2026-09-03/lint.txt` and `build.txt` capturing real
+command output. Replied to all three threads with this reasoning and resolved them once the evidence gaps (2
+and 3) were fixed and the plan+self-critique (1) was added.
+
+**Status:** PR #254 merged into `main` in this same session (see commit history on `main` for the merge SHA —
+if this entry is not followed by a "merged" note below, the merge did not complete and the reason should be
+recorded here by the session that stopped).
