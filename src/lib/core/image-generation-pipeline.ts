@@ -172,13 +172,16 @@ export const runImageGenerationPipeline = async (
   }
 
   const images: GeneratedImage[] = [];
-  for (const [index, image] of seamResult.value.images.entries()) {
+  for (const image of seamResult.value.images) {
     if (!image.b64) {
       continue;
     }
     const format = imageFormatFromBase64(image.b64);
     images.push({
-      id: `image-${index + 1}`,
+      // Numbered by position in this filtered, output-facing array, not the provider's
+      // original index — a provider entry dropped for missing b64 must not leave a gap
+      // (e.g. only "image-2" surviving with no "image-1" ever emitted).
+      id: `image-${images.length + 1}`,
       ...format,
       data: image.b64,
       encoding: 'base64'

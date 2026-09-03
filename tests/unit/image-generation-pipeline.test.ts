@@ -393,7 +393,9 @@ describe('image-generation-pipeline edge cases', () => {
     expect(result.body.ok).toBe(true);
     if (result.body.ok) {
       expect(result.body.value.images).toHaveLength(1);
-      expect(result.body.value.images[0].id).toBe('image-2');
+      // Numbered by position in the output array, not the provider's original index —
+      // the sole surviving image must be "image-1", not "image-2" with a phantom gap.
+      expect(result.body.value.images[0].id).toBe('image-1');
     }
   });
 
