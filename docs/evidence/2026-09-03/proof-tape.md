@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-03T03:45:18.008Z
+Generated at: 2026-09-03T04:42:29.387Z
 Evidence folder: docs/evidence/2026-09-03
 
 Files included:
@@ -14,8 +14,8 @@ Files included:
 - cipher-gate.json (1643 bytes)
 - clan-chain.json (2318 bytes)
 - clan-chain.md (1453 bytes)
-- proof-tape.json (3627 bytes)
-- proof-tape.md (1507 bytes)
+- proof-tape.json (3628 bytes)
+- proof-tape.md (1508 bytes)
 - seam-ledger.json (27312 bytes)
 - seam-ledger.md (2228 bytes)
 - shaolin-lint.json (519 bytes)
