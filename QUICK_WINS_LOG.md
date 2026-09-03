@@ -494,3 +494,76 @@ dismissing the finding or inventing unneeded fixture/contract work for a config 
 after the reply.
 
 **Status:** PR #250 merged into `main` at `62f3a4e` in this same session.
+
+## 2026-09-03 — session_01Pm3EuRXKHaiweSBdVX3ond
+
+**Investigation:** Started from `main` at `e44df67` (PR #251 already merged, finalizing the prior run's log
+entry — confirmed via `git diff` that nothing under `src` changed since PR #250's `62f3a4e`). Ran `npm ci`,
+`npm run check`, `npm run lint`, and `npm test` on a clean checkout first — all green (817 passed / 1 skipped).
+Listed all open PRs: the same long-stale backlog every prior run has noted (#169–#231, minus merges, none from
+this session's lineage), unchanged in kind, out of scope for this run. Spawned a background Explore agent,
+pointed at this log in full so it wouldn't re-surface anything from PRs #240–#250, to sweep `src/lib/core/*`,
+`src/lib/components/**/*.svelte`, `src/routes/**/*.svelte`/`+server.ts`/`+page.ts`, `src/lib/server/*`,
+`README.md`, `.env.example`, `hooks.server.ts`, and `service-worker.ts`. This is run #10 on a codebase nine
+prior runs have already scrubbed hard; the agent came back with three lower-confidence candidates rather than
+padding a stronger list, and was upfront that two of the three were weaker than typical prior finds. I verified
+each against the actual code myself before deciding, and continued a manual pass in parallel (`src/lib/core/
+meechie-studio.ts` in full, `docs/seams.md`, CI workflow files, `rate-limit-memory-store.ts`, `rate-limit-
+identity.ts`) that turned up nothing else at comparable confidence.
+
+**Found and fixed (PR #252, `claude/loving-babbage-kcpbhe`):**
+
+1. **`runImageGenerationPipeline` numbered surviving images by their position in the provider's original array,
+   not the filtered output array, so a dropped entry left a numbering gap.** In
+   `src/lib/core/image-generation-pipeline.ts`, the loop building the response's `images` array used
+   `id: \`image-${index + 1}\`` where `index` came from `seamResult.value.images.entries()` — the provider's
+   own array — while entries without a `b64` field are skipped via `continue`. So a provider response of
+   `[{ no b64 }, { b64: ... }]` produces exactly one output image, but that image is numbered `"image-2"`, with
+   no `"image-1"` ever emitted. Confirmed this wasn't just theoretical: an existing test in
+   `tests/unit/image-generation-pipeline.test.ts` (`'filters out images without b64 and keeps valid ones'`) had
+   already locked in `expect(result.body.value.images[0].id).toBe('image-2')` as the expected behavior — a prior
+   author wrote a test around whatever the code did rather than what the id scheme should mean, so the gap
+   shipped un-flagged. Verified `GeneratedImage.id` isn't consumed downstream (no keying/matching by id in any
+   route or component), so this was latent rather than user-visible, but it's a real correctness bug in the
+   response shape and would become user-visible the moment anything starts keying off `id`. Fixed by numbering
+   from the output array's own length at push time (`images.length + 1`) instead of the provider's index, and
+   corrected the test's expectation to `'image-1'`.
+2. **`WigCarousel.svelte` re-derived a brand label from `affiliateUrl` substring matching even though `Wig.brand`
+   already carries the identical, contract-required value.** This exact item has been raised as a candidate in
+   three prior runs (PRs #247, #248, #250's entries) and deferred each time with the same rationale: it produces
+   identical output to `wig.brand` for all 8 current catalog entries, so it was duplicated logic/drift-risk
+   rather than a live incorrect-output bug. Re-checked this run: still true today (verified programmatically —
+   all 8 `wigs.json` entries' derived and stored brand values match), but the risk that made it worth deferring
+   is exactly the risk worth closing now that it's been the same "ready to go" item three runs running: any
+   future wig whose `affiliateUrl` doesn't contain one of the three hardcoded substrings (`'beautyforever'`,
+   `'wigsbuy'`, `'luvmehair'` — e.g. a new affiliate program, or an existing one changing its URL format) would
+   silently render with no brand label at all, even though `wig.brand` would have the correct value sitting
+   right there. Removed the `getBrand()` helper and the `{@const brand = ...}` derivation entirely; the template
+   now reads `wig.brand` directly. No test referenced `getBrand` or brand rendering, so none needed updating.
+
+**Considered but not picked:** the Explore agent's other two candidates. `/m/[mode]/+page.svelte` falls back to
+the `Random Meechie` config for any URL slug not in its `modeConfigs` map with no not-found indication — real
+gap, but no internal link can ever produce an unrecognized slug today (verified by reading every `modeConfigs`
+key against every place the route is linked), and deciding what a "mode not found" UI should look like is a
+design call, not a pure bug fix — left as a candidate if a future run wants to make it a deliberate 404 state.
+A `CreationRecord` saved before `studioText` existed can show its full `assembledPrompt` (multi-sentence image
+prompt text) in the Quote Vault's quote slot via `buildStudioTextFromCreationRecord`'s fallback chain in
+`src/lib/core/meechie-studio.ts` — the agent itself flagged this as very likely the same root cause as the
+already-logged, already-deferred `loadCreation` evidence-fallback item from PR #248's entry (a `CreationRecordSchema`
+gap, not a bug in this code path specifically), so not treated as new information.
+
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (817
+passed / 1 skipped — same total as baseline; the one assertion touching the fixed behavior was corrected, not
+added or removed), `npm run build` (succeeds), and `npm run verify` (full chain green — audit gate,
+chamber-lock, check+test, shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape — evidence
+refreshed in place at `docs/evidence/2026-09-03/`, which already existed for today from all nine prior runs).
+Neither change touches a seam contract, mock, or adapter file (one pure-function fix inside an existing core
+pipeline, one UI component reading an already-validated field instead of re-deriving it; no filesystem/network/
+process/clock/randomness boundary), so the full Seam-Driven Development workflow and a Cipher Gate entry in
+`DECISIONS.md` do not apply, consistent with every prior entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#169–#231 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** PR #252 opened and subscribed for CI/review activity. If this entry is not followed by a "merged"
+note below, the merge did not complete and the reason should be recorded here by the session that stopped.
