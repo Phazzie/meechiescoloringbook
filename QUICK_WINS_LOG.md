@@ -235,3 +235,83 @@ future run: either exclude `proof-tape.{json,md}` from the scanned entries in `s
 rescan after writing.
 
 **Status:** PR #245 merged into `main` at `4cf7aea` in this same session.
+
+## 2026-09-03 — session_01KbetgYFPRBVmuPG6SrhydK
+
+**Investigation:** Started from `main`'s merge of PR #245 (`4cf7aea`). Discovered the same stale-`main`-ref
+issue the third session hit (a `git fetch origin main <branch>` for a not-yet-existent branch silently skipped
+`main`); worked around it by fetching `main` alone and confirming `origin/main` (`0e432aa`, already carrying
+PR #244 — security headers/CSP/audit gate, merged by a different session since this log's last entry) was an
+ancestor-safe rebase target for this branch. Ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` on a
+clean checkout first — all green (812 passed / 1 skipped, pre-#244; became 817/1 skipped once rebased onto
+`main`, which added tests for the security-headers work). Spawned two background Explore agents in sequence:
+one general sweep (explicitly told to read this log in full and not re-surface anything from PRs #240–#245),
+which found one repeat of the recurring "Meechies" vs. "Meechie's" apostrophe bug in a spot no prior sweep had
+checked; and a second, narrower sweep once the first only produced one independent candidate, aimed at files the
+prior four sessions' notes hadn't explicitly covered (`chat-interpretation-pipeline.ts`, `tools-pipeline.ts`,
+`http-client.ts`, remaining studio sub-components, `src/lib/server/*`), which found a second, unrelated bug.
+
+**Found and fixed (PR #247, `claude/loving-babbage-o35vzg`):**
+
+1. **Missing possessive apostrophe on the home page `<title>`.** `src/routes/+page.svelte:30` rendered the
+   browser tab title as `"Meechies Coloring Book Studio"` — the same class of copy-paste bug PR #241 fixed in
+   the `/m/[mode]` subhead and PR #245 fixed in the `/m/[mode]` `<title>` tag, just missed on the root route
+   (the app's default/primary page, so arguably the most-viewed instance of this bug class). Fixed to
+   `"Meechie's Coloring Book Studio"`. Note: the first Explore agent also flagged the same missing apostrophe in
+   `StudioHero.svelte`'s hero `eyebrow`/`h1` visible copy on the same page — deliberately **not** touched. That
+   component has an explicit comment (`StudioHero.svelte:160-164`) reasoning that the visible heading text
+   should avoid duplicating the neon banner art's own on-image text. Checked `static/meechie/meechie-banner.png`
+   directly: the banner's actual neon text reads **"Neechie's Coloring Book"** (a different name entirely, with
+   an N — evidently an AI-image-generation typo in the asset itself, not an intentional alternate spelling;
+   grepped the whole repo for "Neechie" and found zero other occurrences). So the comment's premise is now
+   false regardless of which way the h1/eyebrow apostrophe goes, and the real defect is the banner *image
+   asset*, not the code — fixing that needs regenerating/replacing a PNG, which is out of scope for a quick,
+   code-only win. Flagging here as a candidate for a future run (either regenerate the banner art with correct
+   "Meechie's" text, or reconsider whether the h1/eyebrow should render Meechie's name at all given the banner
+   image no longer says what the code comment claims).
+2. **`studioText` client-side timeout undershoots its own documented server-side worst case.**
+   `meechie-studio-text-pipeline.ts`'s `runProviderExchange` can make up to two provider chat calls (the initial
+   attempt plus a bounded correction retry — the function's own comment says as much: "Worst-case billable
+   provider calls for one request: the first call plus the single bounded correction retry"), and each call can
+   legitimately take the full `CHAT_TIMEOUT_MS = 110_000` single-attempt budget in `provider-adapter.adapter.ts`
+   (`CHAT_RETRY_OPTIONS = { maxAttempts: 1, retryOnTimeout: false }` — no server-side retry-on-timeout, so a slow
+   call runs the full budget rather than failing fast). True server-side worst case for this one route is
+   therefore ~220s, but `POST_JSON_TIMEOUTS_MS.studioText` in `src/lib/core/http-client.ts` was `150_000` — 70s
+   short — and its comment claimed "Provider chats are not retried," which is true for `tools`/`generate`/
+   `wigTryOn` (each genuinely single-attempt, confirmed by re-checking `image-generation-pipeline.ts`) but false
+   for `studioText`'s own pipeline. A legitimately slow-but-successful two-attempt exchange would abort
+   client-side with a false "Request timed out" error after the server had already spent both provider-call
+   quota units. Raised the budget to `230_000` and corrected the comment to state the real, asymmetric picture.
+   Verified no test locks the literal `150_000` value.
+
+**Considered but not picked:** the second Explore agent's weaker secondary finding — `WigCarousel.svelte`'s
+`getBrand()` re-derives a brand label from `affiliateUrl` substring matching even though `Wig.brand` already
+carries the identical value as a trusted field — currently produces identical output for all 8 catalog entries,
+so it's duplicated logic/drift-risk rather than a live incorrect-output bug; left for a future run if the
+catalog ever adds a wig where the two would disagree.
+
+**Verification:** `npm ci`, `npm run check`, `npm run lint`, `npm test` (817 passed / 1 skipped — the +5 over
+this log's earlier same-day baseline of 812 is PR #244's security-headers test additions, not this run's own
+two fixes), `npm run build`, and `npm run verify` (full chain green, evidence refreshed in place at
+`docs/evidence/2026-09-03/`, which already existed for today from all four prior runs) — all green. Neither
+change touched a seam boundary (one UI copy string, one client-side timeout constant with no filesystem/network/
+process/clock/randomness boundary of its own), so the full Seam-Driven Development workflow and a Cipher Gate
+entry in `DECISIONS.md` did not apply, consistent with PR #240/#241/#243/#245 precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#169–#231 minus merges) every prior run has noted, now joined by #231 and neighbors as the oldest entries; PR
+#244 (security headers/CSP) merged into `main` by a different session between this log's last entry and this
+run. Unchanged in kind from prior notes; still needs a separate, explicitly-scoped session to drain.
+
+**PR #247 activity:** `verify` and SonarCloud's quality gate both passed on the pushed head; Vercel deployed a
+preview successfully; CodeRabbit skipped (repo has fewer than 10 stars); Sourcery could not review (its own
+7-day diff-character budget was exhausted, not a finding — same as PR #245). `Rosentic - Conflict Detection`
+failed, but — verified directly against this PR's own diff (`git diff --name-only origin/main..HEAD`), not just
+by precedent — both reported findings named branch pairs (`claude/keen-hypatia-kq14p7` vs.
+`claude/sweet-mendel-tcty6u`/`claude/sweet-mendel-kegj49`, over `chat-interpretation.adapter.ts`/
+`chat-interpretation/+server.ts` and `rate-limit-seam/*` files) that this PR's two-file diff never touches at
+all — the same pre-existing, PR-independent backlog-scan failure mode documented on PRs #243 and #245. Stood
+down with one PR comment naming the check and why it isn't this PR's, per that precedent; no re-run was needed
+since the diff-level proof (not just "it also failed on another PR") already rules out this PR as the cause.
+
+**Status:** PR #247 merged into `main` at `769cf5d` in this same session.
