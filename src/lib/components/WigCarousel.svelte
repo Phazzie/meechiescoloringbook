@@ -10,13 +10,6 @@
 	// Validate shape at runtime; validators run at adapter layer, not here.
 	const wigs: Wig[] = Array.isArray(wigData) ? (wigData as unknown as Wig[]) : [];
 
-	const getBrand = (affiliateUrl: string): string => {
-		if (affiliateUrl.includes('beautyforever')) return 'Beautyforever';
-		if (affiliateUrl.includes('wigsbuy')) return 'Wigsbuy';
-		if (affiliateUrl.includes('luvmehair')) return 'Luvmehair';
-		return '';
-	};
-
 	let {
 		selectedWigId = null,
 		onSelect
@@ -28,7 +21,6 @@
 
 <div class="wig-carousel" role="list" aria-label="Wig catalog — pick one to try on">
 	{#each wigs as wig}
-		{@const brand = getBrand(wig.affiliateUrl)}
 		<article class="wig-card" class:selected={selectedWigId === wig.id} role="listitem">
 			<button
 				type="button"
@@ -39,8 +31,8 @@
 			>
 				<img src={wig.imageUrl} alt={wig.name} class="wig-img" loading="lazy" />
 				<div class="wig-info">
-					{#if brand}
-						<span class="wig-brand">{brand}</span>
+					{#if wig.brand}
+						<span class="wig-brand">{wig.brand}</span>
 					{/if}
 					<p class="wig-name">{wig.name}</p>
 					<p class="wig-meta">{wig.style}</p>
