@@ -52,8 +52,11 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 		onGenerateTryOnPage: () => Promise<void>;
 	} = $props();
 
+	// Fixed to 'en-US' so this always matches WigCarousel's `$X.XX` format, rendered on the
+	// same screen for the same wig — a browser-locale-derived format (`undefined` locale)
+	// would show e.g. "89,99 $" here while the carousel above still shows "$89.99".
 	const formatUsd = (value: number): string =>
-		new Intl.NumberFormat(undefined, {
+		new Intl.NumberFormat('en-US', {
 			style: 'currency',
 			currency: 'USD'
 		}).format(value);
