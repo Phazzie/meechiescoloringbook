@@ -565,5 +565,26 @@ process/clock/randomness boundary), so the full Seam-Driven Development workflow
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#169–#231 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
 
-**Status:** PR #252 opened and subscribed for CI/review activity. If this entry is not followed by a "merged"
-note below, the merge did not complete and the reason should be recorded here by the session that stopped.
+**PR #252 activity:** `verify`, `CodeQL`, `SonarCloud`/`SonarCloud Code Analysis`, and both commit statuses
+(`CodeRabbit` skipped-success, `Vercel` deployed) all passed on the final head. CodeRabbit skipped (repo has
+fewer than 10 stars); Sourcery skipped (its own 7-day diff-character review budget already exhausted, same as
+PRs #245/#247/#250). `Rosentic - Conflict Detection` failed on all three pushed heads with the identical
+finding each time — a hypothetical merge conflict between this branch and `claude/fix-pr154-pr160-review-comments`
+(PR #163), a long-stale, never-merged branch from the pre-existing open-PR backlog, not `main`. Verified directly
+against `git diff --name-only origin/main..HEAD` each time (only this PR's own five touched files), and confirmed
+`imageFormatFromBase64`'s signature on this branch still matches `main`'s — the same pre-existing cross-branch-
+backlog scan failure mode documented on PRs #243/#245/#247/#248/#250. Per the 2026-09-03 "merge on green, do not
+ask" owner ruling in `DECISIONS.md` (which explicitly names this exact check's whole-backlog scan as expected to
+fail on every PR), stood down with a comment on each of the three occurrences rather than treating it as
+blocking. A Codex bot review flagged the image-id fix itself as P1, arguing it changes client-visible response
+content and must go through the full seam/contract/probe/fixture/mock/adapter workflow. Investigated rather than
+dismissed: confirmed the diff touches no seam artifact, the contract only requires `GeneratedImage.id` to be a
+non-empty string (the numbering scheme was never a contracted invariant), the id is synthesized entirely inside
+the pipeline after `ImageGenerationSeam.generate()` returns (no filesystem/network/process/clock/randomness
+boundary), and no consumer reads the id's value. Recorded the reasoning as a Decision entry in `DECISIONS.md`
+("Fix the image-id numbering gap in the pipeline, not the seam") rather than either dismissing the finding or
+doing disproportionate seam work for a one-line pure-function fix, mirroring PR #250's precedent for its own
+Codex `maxDuration` finding. Replied on and resolved all four review threads (one Codex, three Rosentic
+occurrences).
+
+**Status:** PR #252 merged into `main` at `4e25e2e` in this same session.
