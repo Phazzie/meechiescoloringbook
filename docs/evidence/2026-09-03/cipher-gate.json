@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-03T04:42:29.503Z",
+  "generatedAt": "2026-09-03T04:51:20.271Z",
   "cipher": {
     "date": "2026-09-03",
     "seams": "None registered in docs/seams.md - this change adds HTTP response headers and a Content Security Policy at the transport boundary and a dependency-audit step, and creates no contract, adapter or mock",
