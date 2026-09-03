@@ -5,10 +5,12 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-03T10:06:06.757Z
+Generated at: 2026-09-03T10:10:15.734Z
 Evidence folder: docs/evidence/2026-09-03
 
-Files included:
+Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
+after this inventory is taken, so they are not listed):
+
 - assumption-alarm.json (9484 bytes)
 - build.txt (8867 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
@@ -16,14 +18,12 @@ Files included:
 - cipher-gate.json (1847 bytes)
 - clan-chain.json (2318 bytes)
 - clan-chain.md (1453 bytes)
-- evidence-gate-selection-red-proof.txt (5326 bytes) — PREDATES THIS VERIFY RUN
+- evidence-gate-selection-red-proof.txt (6976 bytes) — PREDATES THIS VERIFY RUN
 - lint.txt (301 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
-- proof-tape.json (5100 bytes)
-- proof-tape.md (2319 bytes)
 - seam-ledger.json (27312 bytes)
 - seam-ledger.md (2228 bytes)
-- shaolin-lint.json (519 bytes)
+- shaolin-lint.json (517 bytes)
 - test.txt (1029 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-chain.txt (1940 bytes)

@@ -10,7 +10,10 @@ import {
 	parseCipherBlocks,
 	selectLatestCipherBlock
 } from '../../scripts/cipher-gate.mjs';
-import { markArtifactsPredatingRun } from '../../scripts/proof-tape.mjs';
+import {
+	markArtifactsPredatingRun,
+	renderProofTapeLines
+} from '../../scripts/proof-tape.mjs';
 
 const cipherBlock = (date: string, summary: string) =>
 	[
@@ -133,5 +136,69 @@ describe('Proof Tape staleness marking', () => {
 		expect(
 			marked.find((entry) => entry.name === 'mystery.txt')?.predatesRun
 		).toBeNull();
+	});
+});
+
+describe('Proof Tape markdown freshness wording', () => {
+	const report = {
+		generatedAt: '2026-09-03T10:00:00.000Z',
+		evidenceDir: 'docs/evidence/2026-09-03'
+	};
+	const marked = (name: string, predatesRun: boolean | null) => ({
+		name,
+		path: `docs/evidence/2026-09-03/${name}`,
+		sizeBytes: 10,
+		modifiedAt: '2026-09-03T09:00:00.000Z',
+		commands: [],
+		predatesRun
+	});
+
+	test('says so in prose when a file predates the run, not just in the JSON', () => {
+		const text = renderProofTapeLines(report, [
+			marked('verify.txt', false),
+			marked('verify-chain.txt', true)
+		]).join('\n');
+
+		expect(text).toContain(
+			'verify-chain.txt (10 bytes) — PREDATES THIS VERIFY RUN'
+		);
+		expect(text).toContain(
+			"Older than this run's chamber-lock.json: verify-chain.txt."
+		);
+	});
+
+	test('warns when freshness is unknown, instead of reading like everything is current', () => {
+		// No chamber-lock.json in the folder: predatesRun is null for every file. Previously
+		// this rendered identically to the all-fresh case — the JSON said unknown and the
+		// Markdown, the half a non-coder reads, said nothing at all.
+		const text = renderProofTapeLines(report, [
+			marked('verify.txt', null),
+			marked('test.txt', null)
+		]).join('\n');
+
+		expect(text).toContain('— FRESHNESS UNKNOWN');
+		expect(text).toContain('No chamber-lock.json in this folder');
+		expect(text).not.toContain('PREDATES THIS VERIFY RUN');
+	});
+
+	test('stays quiet when every file belongs to the run', () => {
+		const text = renderProofTapeLines(report, [
+			marked('chamber-lock.json', false),
+			marked('verify.txt', false)
+		]).join('\n');
+
+		expect(text).not.toContain('PREDATES THIS VERIFY RUN');
+		expect(text).not.toContain('FRESHNESS UNKNOWN');
+		expect(text).not.toContain('No chamber-lock.json');
+	});
+
+	test('never lists its own outputs, which it overwrites after taking the inventory', () => {
+		const text = renderProofTapeLines(report, [
+			marked('verify.txt', false)
+		]).join('\n');
+
+		expect(text).toContain('are written');
+		expect(text).not.toContain('- proof-tape.json (');
+		expect(text).not.toContain('- proof-tape.md (');
 	});
 });

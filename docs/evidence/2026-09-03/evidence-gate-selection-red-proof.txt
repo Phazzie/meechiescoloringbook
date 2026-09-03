@@ -94,3 +94,33 @@ SONARCLOUD, first CI run on 40213bb — two failures, both this change's
 Each migrated script was then run standalone and through the full chain.
 shaolin-lint exits 1 standalone — correctly, since editing scripts/ makes the evidence
 older than the code it attests to; the chain regenerates evidence before that stage.
+
+--------------------------------------------------------------------------------
+CODEX REVIEW ON 40213bb — two P2 findings on proof-tape.mjs, both reproduced
+--------------------------------------------------------------------------------
+1. "Omit the Proof Tape's own outputs from stale marking"
+
+   Reproduced by ageing the previous run's outputs and re-running the tape:
+
+     $ touch -d "2026-09-03 05:00:00" docs/evidence/2026-09-03/proof-tape.{json,md}
+     $ node scripts/proof-tape.mjs
+
+     filesPredatingRun: [..., 'proof-tape.json', 'proof-tape.md']
+       proof-tape.json: predatesRun=True, sizeBytes=5012, modifiedAt=2026-09-03T05:00:00Z
+     actual size on disk after the write: 5054 bytes
+
+   The freshly written tape contained an entry calling ITSELF stale, at the previous
+   run's byte count. The stat is necessarily taken before the write, and re-stating
+   after writing changes the size again — there is no fixed point. Excluded instead,
+   and the exclusion is stated in both outputs rather than being a silent omission.
+
+2. "Report unknown freshness in the Markdown tape"
+
+   With no chamber-lock.json in the folder, predatesRun is null for every file, so
+   the filter for `=== true` was empty and the Markdown emitted no marker and no note
+   — identical output to the all-fresh case. The JSON said "unknown"; the half a
+   non-coder actually reads said nothing. Now renders "— FRESHNESS UNKNOWN" per file
+   plus an explicit note naming the missing marker.
+
+   The renderer was extracted as renderProofTapeLines() so this wording is covered by
+   tests rather than only by running the chain and reading the output.

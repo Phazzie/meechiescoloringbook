@@ -8,6 +8,14 @@ import { fileExists, isEntryPoint, toDateFolder } from './evidence-reporting.mjs
 
 const ROOT = process.cwd();
 const EVIDENCE_ROOT = path.join(ROOT, 'docs', 'evidence');
+const RUN_MARKER = 'chamber-lock.json';
+
+// This script writes these two into the folder it is inventorying, so any stat it takes
+// of them describes the PREVIOUS run: older mtime, and a size that changes the moment
+// this run writes them. Left in, the fresh proof-tape.json carried an entry calling
+// itself stale at the previous run's byte count. Excluded rather than re-stated after
+// writing, because writing changes the size again — there is no fixed point.
+const OWN_OUTPUTS = new Set(['proof-tape.json', 'proof-tape.md']);
 
 /**
  * @returns {Promise<string | null>}
@@ -76,6 +84,64 @@ const extractCommands = (content) =>
 		.filter((line) => line.trim().startsWith('> '))
 		.map((line) => line.trim().slice(2));
 
+/**
+ * Render the plain-English tape. Extracted from run() so the freshness wording — the part
+ * a non-coder actually reads — is unit-testable without touching the filesystem.
+ *
+ * @param {{ generatedAt: string, evidenceDir: string }} report
+ * @param {(EvidenceFile & { predatesRun: boolean | null })[]} markedFiles
+ * @returns {string[]}
+ */
+export const renderProofTapeLines = (report, markedFiles) => {
+	const predatingRun = markedFiles.filter((file) => file.predatesRun === true);
+	const freshnessUnknown = markedFiles.some((file) => file.predatesRun === null);
+	const lines = [
+		'<!--',
+		'Purpose: Summarize evidence artifacts in plain language.',
+		'Why: Help non-coders understand proof coverage without reading code.',
+		'Info flow: evidence files -> summary -> review.',
+		'-->',
+		'# Proof Tape',
+		'',
+		`Generated at: ${report.generatedAt}`,
+		`Evidence folder: ${report.evidenceDir}`,
+		'',
+		`Files included (this tape's own outputs, ${[...OWN_OUTPUTS].join(' and ')}, are written`,
+		'after this inventory is taken, so they are not listed):',
+		''
+	];
+	for (const file of markedFiles) {
+		const marker =
+			file.predatesRun === true
+				? ' — PREDATES THIS VERIFY RUN'
+				: file.predatesRun === null
+					? ' — FRESHNESS UNKNOWN'
+					: '';
+		lines.push(`- ${file.name} (${file.sizeBytes} bytes)${marker}`);
+		if (file.commands.length > 0) {
+			lines.push(`  Commands: ${file.commands.join(' | ')}`);
+		}
+	}
+	if (freshnessUnknown) {
+		lines.push(
+			'',
+			`No ${RUN_MARKER} in this folder, so nothing records when this run started and`,
+			'the age of every file above is unknown. Treat none of them as proof of the current',
+			'change until a full `npm run verify` regenerates this folder.'
+		);
+	}
+	if (predatingRun.length > 0) {
+		lines.push(
+			'',
+			`Older than this run's chamber-lock.json: ${predatingRun.map((file) => file.name).join(', ')}.`,
+			'These files were written by an earlier run, so they describe a different run than',
+			'the one this tape summarizes. Regenerate them or read them as history, not as proof',
+			'of the current change.'
+		);
+	}
+	return lines;
+};
+
 const run = async () => {
 	const evidenceDir = (await getLatestEvidenceDir()) ?? (await fs.mkdir(EVIDENCE_ROOT, { recursive: true }).then(() => null));
 	if (!evidenceDir) {
@@ -86,6 +152,9 @@ const run = async () => {
 	/** @type {EvidenceFile[]} */
 	const files = [];
 	for (const entry of entries) {
+		if (OWN_OUTPUTS.has(entry)) {
+			continue;
+		}
 		const filePath = path.join(evidenceDir, entry);
 		const stats = await fs.stat(filePath);
 		if (!stats.isFile()) {
@@ -101,14 +170,15 @@ const run = async () => {
 		});
 	}
 
-	const markedFiles = markArtifactsPredatingRun(files);
+	const markedFiles = markArtifactsPredatingRun(files, RUN_MARKER);
 	const predatingRun = markedFiles.filter((file) => file.predatesRun === true);
 
 	const report = {
 		tool: 'proof-tape',
 		generatedAt: new Date().toISOString(),
 		evidenceDir: path.relative(ROOT, evidenceDir),
-		runMarker: 'chamber-lock.json',
+		runMarker: RUN_MARKER,
+		excludedFromInventory: [...OWN_OUTPUTS],
 		filesPredatingRun: predatingRun.map((file) => file.name),
 		files: markedFiles
 	};
@@ -123,35 +193,7 @@ const run = async () => {
 		'utf8'
 	);
 
-	const lines = [
-		'<!--',
-		'Purpose: Summarize evidence artifacts in plain language.',
-		'Why: Help non-coders understand proof coverage without reading code.',
-		'Info flow: evidence files -> summary -> review.',
-		'-->',
-		'# Proof Tape',
-		'',
-		`Generated at: ${report.generatedAt}`,
-		`Evidence folder: ${report.evidenceDir}`,
-		'',
-		'Files included:'
-	];
-	for (const file of markedFiles) {
-		const marker = file.predatesRun === true ? ' — PREDATES THIS VERIFY RUN' : '';
-		lines.push(`- ${file.name} (${file.sizeBytes} bytes)${marker}`);
-		if (file.commands.length > 0) {
-			lines.push(`  Commands: ${file.commands.join(' | ')}`);
-		}
-	}
-	if (predatingRun.length > 0) {
-		lines.push(
-			'',
-			`Older than this run's chamber-lock.json: ${predatingRun.map((file) => file.name).join(', ')}.`,
-			'These files were written by an earlier run, so they describe a different run than',
-			'the one this tape summarizes. Regenerate them or read them as history, not as proof',
-			'of the current change.'
-		);
-	}
+	const lines = renderProofTapeLines(report, markedFiles);
 	await fs.writeFile(path.join(outputDir, 'proof-tape.md'), `${lines.join('\n')}\n`, 'utf8');
 };
 
