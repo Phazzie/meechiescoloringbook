@@ -598,3 +598,22 @@ seam work for a one-line pure-function fix, mirroring PR #250's precedent for it
 finding. Replied on and resolved all four review threads on PR #252 (one Codex, three Rosentic occurrences).
 
 **Status:** PR #252 merged into `main` at `4e25e2e` in this same session.
+
+**Addendum — the reproduction, and a correction to the branch attribution above.** Two things the paragraph
+above leaves open can be closed from this PR itself rather than deferred to a future run.
+
+*The unrelated-head reproduction.* PR #253 is that head. Its entire diff is this one markdown file, and it draws
+the same red `Rosentic - Conflict Detection` result, naming `src/lib/adapters/chat-interpretation.adapter.ts`
+and `src/lib/seams/rate-limit-seam/` — TypeScript it never edits. A markdown-only change failing a conflict
+check over code it does not touch establishes what the diff-scope reasoning could not: the check does not
+evaluate the PR's own diff. The gap logged above is closed, not carried forward.
+
+*The correction.* The paragraph above says the check named "this branch against
+`claude/fix-pr154-pr160-review-comments`". It did not. All three inline threads on PR #252 carried one finding
+between two *other* branches — `claude/fix-pr154-pr160-review-comments` changed `imageFormatFromBase64`, and
+`claude/loving-babbage-kcpbhe` calls it with one argument — with the check's own output naming the affected
+branch as `fix-pr154-pr160-review-comments`. PR #252's branch is not a party to the finding. The two findings in
+the separate `CONFLICT` comment ("741 of 741 pairs compared") were likewise between `claude/keen-hypatia-kq14p7`
+and `claude/sweet-mendel-kegj49`, over `src/lib/seams/rate-limit-seam/` — files PR #252 never touched. That the
+check pairs branches neither of which is the PR under test is the whole failure mode, and the earlier wording
+obscured it.
