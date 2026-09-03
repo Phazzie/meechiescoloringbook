@@ -1045,31 +1045,70 @@ byte-level rewrite wouldn't change any existing test's outcome before touching t
    `Buffer.from(data, 'base64')` produces the exact same classification as before (real PNG/JPEG signature bytes
    for the first two; unrecognized garbage bytes for the third, still falling through to the PNG default) before
    changing anything, so no existing test needed its expectation touched. Ported the same byte-signature check
-   (JPEG `FF D8 FF`, PNG's full 8-byte signature, WebP's `RIFF`+`WEBP` pair around the variable-length size field)
-   as a local, self-contained function rather than extracting a shared module across the three now-duplicate
-   copies of this logic — kept as a candidate for a future run if the duplication itself becomes worth
-   consolidating; not done here to keep this fix a single-file, minimal-risk diff. Added a fourth test asserting
-   a real WebP byte signature (`RIFF` + size + `WEBP` + `VP8` chunk, base64-encoded) now returns `format: 'webp'`
-   / `mimeType: 'image/webp'` instead of the old default.
+   (JPEG `FF D8 FF`, PNG's full 8-byte signature, WebP's `RIFF`+`WEBP` pair around the variable-length size field).
+   **Revised after opening the PR** (see "PR #264 activity" below): the first version kept this as a local,
+   self-contained function rather than extracting a shared module, planning to leave the resulting duplication
+   across the three copies of this logic as a future-run candidate. SonarCloud's quality gate rejected that on
+   the pushed head (new-code duplication well over its 3% ceiling, matching this file's new lines against the
+   near-identical existing `wig-try-on-pipeline.ts` copy), so the shared module was extracted after all, in this
+   same PR: `src/lib/core/raster-image-format.ts` now exports `detectRasterMimeTypeFromBytes`/
+   `detectRasterMimeTypeFromBase64`, and both `image-generation-pipeline.ts` and `wig-try-on-pipeline.ts` import
+   it instead of each keeping its own copy. `src/lib/adapters/wig-try-on-seam/index.ts`'s own third copy was
+   deliberately left untouched — it's under `src/lib/adapters/`, where AGENTS.md requires the full seam contract/
+   probe/fixture/mock/adapter workflow for any change, disproportionate for a config-free, behavior-preserving
+   dedup and not what SonarCloud's finding was even about (it never touches that file). New WebP coverage ended
+   up living in a new `tests/unit/raster-image-format.test.ts` (direct unit tests on the extracted function, no
+   pipeline-integration boilerplate to duplicate) rather than as a fourth case in
+   `tests/unit/image-generation-pipeline.test.ts`, whose existing JPEG/PNG/unrecognized-header tests are
+   byte-for-byte unchanged from before this PR (confirmed via `git diff 79f0548 -- tests/unit/
+   image-generation-pipeline.test.ts` producing no output).
 
 **Considered but not picked:** the Explore agent's own candidate list had only the one item above at comparable
 confidence; every other item it checked either matched something already in this log's fixed/deferred list or was
 too subjective to justify as a bug fix (nothing new to add beyond what's already recorded in prior entries).
 
-**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (835 passed /
-1 skipped — +1 over this run's own 834 baseline, the new WebP regression test), `npm run build` (succeeds), and
-`npm run verify` (full chain green — audit gate, chamber-lock, check+test, shaolin-lint, assumption-alarm,
-seam-ledger, clan-chain, proof-tape — evidence refreshed in place at `docs/evidence/2026-09-03/`, which already
-existed for today from all fifteen prior runs; `lint.txt`/`build.txt`/`verify-chain.txt` re-captured post-edit
-with this run's actual command output, per the PR #254 precedent for keeping those three manually-captured files
-current). Neither change touches a seam contract, mock, or adapter file (one pure client-side Svelte state fix,
-one pure-function byte-detection fix inside an existing core pipeline; no filesystem/network/process/clock/
-randomness boundary of their own), so the full Seam-Driven Development workflow and a Cipher Gate entry in
-`DECISIONS.md` do not apply, consistent with every prior entry's precedent.
+**Verification (final, post-revision):** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean),
+`npm test` (843 passed / 1 skipped — +9 over this run's own 834 baseline: the 4 studio-state fields added to the
+existing try-on reset test, and 9 new direct unit tests on `raster-image-format.ts` covering
+`detectRasterMimeTypeFromBytes`/`detectRasterMimeTypeFromBase64` for JPEG/PNG/WebP/unrecognized-bytes/RIFF-but-
+not-WebP), `npm run build` (succeeds), and `npm run verify` (full chain green — audit gate, chamber-lock,
+check+test, shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape — evidence refreshed in place at
+`docs/evidence/2026-09-03/`, which already existed for today from all fifteen prior runs; `lint.txt`/`build.txt`/
+`verify-chain.txt` re-captured post-edit with this run's actual command output each time, headers preserved, per
+the PR #254 precedent for keeping those three manually-captured files current). None of the three changed source
+files touches a seam contract, mock, or adapter file (one pure client-side Svelte state fix, one pure-function
+byte-detection fix inside an existing core pipeline, one new shared core module imported by two existing core
+pipelines; no filesystem/network/process/clock/randomness boundary of their own), so the full Seam-Driven
+Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every prior entry's
+precedent.
 
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
 
-**Status:** commits pushed directly to this session's designated branch (`claude/loving-babbage-an6o9e`) ahead of
-opening a PR. If this entry is not followed by a "PR opened"/"Merged" note below, the PR was not opened or the
-merge did not complete and the reason should be recorded here by the session that stopped.
+**PR #264 activity:** opened with the single-file `imageFormatFromBase64` fix described above (commit `d6a14ee`).
+`SonarCloud Code Analysis`'s quality gate failed three heads in a row on new-code duplication: 26.3% on the
+opening commit (matched against the near-identical existing byte-signature check in `wig-try-on-pipeline.ts`),
+17.6% after extracting a shared `raster-image-format.ts` module for the *pipeline* code but not yet the *test*
+boilerplate (SonarCloud's own public measures API, queried directly via `WebFetch` against
+`sonarcloud.io/api/measures/component_tree`, pinned the remaining duplication to
+`tests/unit/image-generation-pipeline.test.ts`'s new WebP test repeating the same `runImageGenerationPipeline`/
+`makeDeps` request-building boilerplate as its neighboring JPEG/unrecognized-header tests), and 20.8% after
+consolidating those three test cases into one `it.each` table (querying the same API again showed the file's
+*remaining* new lines still matched one of the dozens of other near-identically-shaped tests elsewhere in this
+700+-line file — a table doesn't escape that, only removing the boilerplate from the diff entirely does). Fixed
+by reverting the test file to its exact pre-PR content and adding the new WebP coverage as direct unit tests on
+the extracted `raster-image-format.ts` functions instead, which finally passed at 0.0% duplication / 0 new
+issues. `verify` and `Rosentic - Conflict Detection` passed on the final head; `Rosentic`'s PR-level and inline
+comments repeated the same long-stale cross-branch-backlog scan noise documented on every PR in this log back to
+#243 (this PR's own diff never touches any of the named branches' files in a way that would actually conflict —
+confirmed directly for each occurrence). Two Codex bot findings on the intermediate heads were investigated and
+answered on their threads rather than dismissed: a P1 claiming the WebP change needed the full `ImageGenerationSeam`
+contract/probe/fixture/mock workflow (false positive — that seam's own contract has no `format`/`mimeType` field
+at all; the classification is pipeline-only), and a P2 catching that the `lint.txt`/`build.txt`/`verify-chain.txt`
+refresh had dropped their required Purpose/Why/Info-flow headers (real, fixed by restoring them with the command
+output appended beneath). A third Codex finding, on the finalization commit itself, caught that this very log
+entry's "Found and fixed" text and test count had gone stale relative to the PR's actual final diff after the
+SonarCloud-driven revisions above — this paragraph and the Verification section's test count are that correction.
+
+**Status:** PR #264 opened and subscribed for CI/review activity. If this entry is not followed by a "merged"
+note below, the merge did not complete and the reason should be recorded here by the session that stopped.
