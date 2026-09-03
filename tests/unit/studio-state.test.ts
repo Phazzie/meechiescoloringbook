@@ -232,6 +232,10 @@ describe('StudioState', () => {
 			{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
 		];
 		studio.generationError = 'stale error';
+		studio.assembledPrompt = 'stale assembled prompt';
+		studio.revisedPrompt = 'stale revised prompt';
+		studio.violations = [{ code: 'stale-violation', message: 'stale', severity: 'warning' }];
+		studio.recommendedFixes = [{ code: 'stale-violation', message: 'stale fix' }];
 
 		const mockResponse = new Response(
 			JSON.stringify({
@@ -247,6 +251,10 @@ describe('StudioState', () => {
 		expect(studio.images).toEqual([]);
 		expect(studio.packagedFiles).toEqual([]);
 		expect(studio.generationError).toBe('');
+		expect(studio.assembledPrompt).toBe('');
+		expect(studio.revisedPrompt).toBe('');
+		expect(studio.violations).toEqual([]);
+		expect(studio.recommendedFixes).toEqual([]);
 		expect(studio.tryOnPortraitUrl).toBe('data:image/png;base64,ZmFrZQ==');
 
 		vi.unstubAllGlobals();

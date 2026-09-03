@@ -311,11 +311,12 @@ export class StudioState {
 	}
 
 	private resetTryOnResultState(): void {
+		// Delegates to resetGeneratedPage() so a fresh try-on also clears the assembled
+		// prompt/violations from any prior normal generation, not just the images/PDF —
+		// System Trace renders those independently of packagedFiles/images.
+		this.resetGeneratedPage();
 		this.tryOnPortraitUrl = '';
 		this.tryOnError = '';
-		this.generationError = '';
-		this.images = [];
-		this.packagedFiles = [];
 	}
 
 	private parseTryOnPortraitImage(): GeneratedImage | null {

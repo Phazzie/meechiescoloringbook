@@ -4,6 +4,7 @@
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { pageSizeLine } from '$lib/core/prompt-template';
 import { toPublicProviderError } from '$lib/core/public-provider-error';
+import { detectRasterMimeTypeFromBase64 } from '$lib/core/raster-image-format';
 // Type-only: erased at build time, so the deterministic core keeps no runtime edge into $lib/server.
 import type { QuotaDecision, QuotaGate } from '$lib/server/rate-limit-route';
 import { z } from 'zod';
@@ -19,12 +20,17 @@ const RESPONSE_FORMAT = 'b64_json' as const;
 const DEFAULT_IMAGE_SIZE = '1024x1024';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
+// Byte-level signature check (not a base64-string-prefix guess) so a genuine WebP
+// response is labeled correctly instead of silently defaulting to PNG - the same
+// mislabeling bug DECISIONS.md's 2026-06-07 entry documents fixing for wig-try-on
+// portraits. Shared with that pipeline/adapter via raster-image-format.ts instead of
+// duplicating the signature check a third time.
 const imageFormatFromBase64 = (
   data: string
 ): Pick<GeneratedImage, 'format' | 'mimeType'> => {
-  if (data.startsWith('/9j/')) return { format: 'jpg', mimeType: 'image/jpeg' };
-  if (data.startsWith('iVBORw0KGgo'))
-    return { format: 'png', mimeType: 'image/png' };
+  const mimeType = detectRasterMimeTypeFromBase64(data);
+  if (mimeType === 'image/jpeg') return { format: 'jpg', mimeType };
+  if (mimeType === 'image/webp') return { format: 'webp', mimeType };
   return { format: 'png', mimeType: 'image/png' };
 };
 

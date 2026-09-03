@@ -7,6 +7,7 @@ import {
 } from '../../../contracts/wig-try-on.contract';
 import { z } from 'zod';
 import { toPublicProviderError } from './public-provider-error';
+import { detectRasterMimeTypeFromBytes } from './raster-image-format';
 import type { WigCatalogSeam } from '../seams/wig-catalog-seam/contract';
 import type {
 	WigTryOnError,
@@ -134,35 +135,12 @@ const fetchImageAsBase64 = async (
 		const buffer = await res.arrayBuffer();
 		const bytes = new Uint8Array(buffer);
 		if (bytes.length === 0) return null;
-		const mimeType = detectRasterMimeType(bytes);
+		const mimeType = detectRasterMimeTypeFromBytes(bytes);
 		if (!mimeType) return null;
 		return { base64: Buffer.from(bytes).toString('base64'), mimeType };
 	} catch {
 		return null;
 	}
-};
-
-const startsWithBytes = (
-	bytes: Uint8Array,
-	signature: readonly number[]
-): boolean => signature.every((byte, index) => bytes[index] === byte);
-
-const detectRasterMimeType = (
-	bytes: Uint8Array
-): 'image/jpeg' | 'image/png' | 'image/webp' | null => {
-	if (startsWithBytes(bytes, [0xff, 0xd8, 0xff])) return 'image/jpeg';
-	if (
-		startsWithBytes(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-	) {
-		return 'image/png';
-	}
-	if (
-		startsWithBytes(bytes, [0x52, 0x49, 0x46, 0x46]) &&
-		startsWithBytes(bytes.subarray(8), [0x57, 0x45, 0x42, 0x50])
-	) {
-		return 'image/webp';
-	}
-	return null;
 };
 
 export const runWigTryOnPipeline = async (
