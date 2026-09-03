@@ -8,7 +8,7 @@ import {
 	buildColoringPageSpecFromMeechieText
 } from '../../src/lib/core/meechie-studio';
 import { StudioState } from '../../src/routes/studio-state.svelte';
-import type { DraftRecord } from '../../contracts/creation-store.contract';
+import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
 import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-text.contract';
 
 const LEGACY_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
@@ -179,6 +179,33 @@ describe('StudioState', () => {
 
 		expect(studio.activeModeId).toBe(targetMode!.id);
 		expect(studio.activeMode.label).toBe(targetMode!.label);
+	});
+
+	it('clears a previously generated page when a saved creation is loaded', async () => {
+		const studio = new StudioState();
+		studio.images = [
+			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
+		];
+		studio.packagedFiles = [
+			{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
+		];
+		studio.assembledPrompt = 'stale assembled prompt';
+		studio.generationError = 'stale error';
+
+		const creation: CreationRecord = {
+			id: 'creation-1',
+			createdAtISO: '2026-09-03T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			assembledPrompt: 'a different creation entirely',
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		};
+
+		await studio.loadCreation(creation);
+
+		expect(studio.images).toEqual([]);
+		expect(studio.packagedFiles).toEqual([]);
+		expect(studio.assembledPrompt).toBe('');
+		expect(studio.generationError).toBe('');
 	});
 
 	it('applies the dedication input value before validation and schedules draft save', () => {

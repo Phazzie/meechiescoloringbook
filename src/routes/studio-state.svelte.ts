@@ -656,6 +656,7 @@ export class StudioState {
 
 	loadCreation = async (creation: CreationRecord): Promise<void> => {
 		const restoredText = buildStudioTextFromCreationRecord(creation);
+		this.resetGeneratedPage();
 		this.spec = creation.intent;
 		this.evidence = creation.studioText?.quote ?? creation.assembledPrompt;
 		this.dedication = creation.intent.dedication ?? '';
