@@ -5,11 +5,9 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
-import { sanitizeEvidenceOutput } from './evidence-reporting.mjs';
+import { sanitizeEvidenceOutput, toDateFolder } from './evidence-reporting.mjs';
 
 const ROOT = process.cwd();
-
-const toDateFolder = (date) => date.toISOString().slice(0, 10);
 
 const ensureEvidenceDir = async (dateFolder) => {
 	const evidenceDir = path.join(ROOT, 'docs', 'evidence', dateFolder);

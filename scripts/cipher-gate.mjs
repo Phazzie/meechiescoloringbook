@@ -4,21 +4,15 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { fileExists, isEntryPoint, toDateFolder } from './evidence-reporting.mjs';
 
 const ROOT = process.cwd();
 const DECISIONS_PATH = path.join(ROOT, 'DECISIONS.md');
 
-const toDateFolder = (date) => date.toISOString().slice(0, 10);
-
-const fileExists = async (targetPath) => {
-	try {
-		await fs.access(targetPath);
-		return true;
-	} catch {
-		return false;
-	}
-};
-
+/**
+ * @param {string} targetPath
+ * @returns {Promise<number>}
+ */
 const getLatestMtime = async (targetPath) => {
 	try {
 		const stats = await fs.stat(targetPath);
@@ -40,13 +34,22 @@ const getLatestMtime = async (targetPath) => {
 	}
 };
 
-const parseCipherBlocks = (content) => {
+/**
+ * @typedef {{ position: number, date: string, seams: string, summary: string, risks: string, evidence: string }} CipherBlock
+ */
+
+/**
+ * @param {string} content
+ * @returns {CipherBlock[]}
+ */
+export const parseCipherBlocks = (content) => {
 	const lines = content.split(/\r?\n/);
 	const blocks = [];
 	for (let index = 0; index < lines.length; index += 1) {
 		if (lines[index].trim() !== '- Cipher Gate:') {
 			continue;
 		}
+		/** @type {Record<string, string>} */
 		const fields = {};
 		for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
 			const line = lines[cursor];
@@ -57,6 +60,7 @@ const parseCipherBlocks = (content) => {
 			fields[label.trim()] = rest.join(':').trim();
 		}
 		blocks.push({
+			position: index,
 			date: fields.Date ?? '',
 			seams: fields.Seams ?? '',
 			evidence: fields.Evidence ?? '',
@@ -67,12 +71,44 @@ const parseCipherBlocks = (content) => {
 	return blocks;
 };
 
+// DECISIONS.md is newest-first, so among blocks sharing a Date the newest is the one
+// that appears EARLIEST in the file. The previous selection sorted on date alone and
+// took the last element; Array.prototype.sort is stable, so equal dates kept document
+// order and that picked the LAST same-date block — the oldest. On a day with two Cipher
+// Gate entries the gate therefore validated the older entry's evidence paths and still
+// reported status: ok, without ever checking the new entry's. Tie-break on position so
+// the newest entry wins outright.
+/**
+ * @param {CipherBlock[]} blocks
+ * @returns {CipherBlock | null}
+ */
+export const selectLatestCipherBlock = (blocks) => {
+	const dated = blocks.filter((block) => /^\d{4}-\d{2}-\d{2}$/.test(block.date));
+	if (dated.length === 0) {
+		return null;
+	}
+	// Newest date first; within a date, earliest document position first. Sorting a copy
+	// rather than reducing keeps the caller's array untouched and needs no seed value.
+	const [latest] = [...dated].sort((a, b) =>
+		a.date === b.date ? a.position - b.position : b.date.localeCompare(a.date)
+	);
+	return latest ?? null;
+};
+
+/**
+ * @param {string} value
+ * @returns {string[]}
+ */
 const parseEvidencePaths = (value) =>
 	value
 		.split(/[,;]+/)
 		.map((entry) => entry.trim())
 		.filter((entry) => entry.length > 0);
 
+/**
+ * @param {string} dateFolder
+ * @returns {Promise<string>}
+ */
 const ensureEvidenceDir = async (dateFolder) => {
 	const evidenceDir = path.join(ROOT, 'docs', 'evidence', dateFolder);
 	await fs.mkdir(evidenceDir, { recursive: true });
@@ -86,15 +122,12 @@ const run = async () => {
 		process.stderr.write('Cipher Gate: missing Cipher Gate entry in DECISIONS.md.\n');
 		process.exit(1);
 	}
-	const sorted = blocks
-		.filter((block) => /^\d{4}-\d{2}-\d{2}$/.test(block.date))
-		.sort((a, b) => a.date.localeCompare(b.date));
-	const latest = sorted[sorted.length - 1];
+	const latest = selectLatestCipherBlock(blocks);
 	if (!latest) {
 		process.stderr.write('Cipher Gate: no valid Date field found.\n');
 		process.exit(1);
 	}
-	const requiredFields = ['date', 'seams', 'evidence', 'summary', 'risks'];
+	const requiredFields = /** @type {const} */ (['date', 'seams', 'evidence', 'summary', 'risks']);
 	const missingFields = requiredFields.filter((field) => !latest[field]);
 	if (missingFields.length > 0) {
 		process.stderr.write(`Cipher Gate: missing fields: ${missingFields.join(', ')}.\n`);
@@ -102,6 +135,7 @@ const run = async () => {
 	}
 
 	const evidencePaths = parseEvidencePaths(latest.evidence);
+	/** @type {{ path: string, exists: boolean }[]} */
 	const evidenceChecks = [];
 	for (const entry of evidencePaths) {
 		const resolved = path.resolve(ROOT, entry);
@@ -163,7 +197,12 @@ const run = async () => {
 	);
 };
 
-run().catch((error) => {
-	process.stderr.write(`Cipher Gate failed: ${error.message}\n`);
-	process.exit(1);
-});
+// Only run the gate when this file is the entry point. Without the guard, importing it
+// to unit-test its helpers executes the whole gate and rewrites cipher-gate.json as a
+// side effect of the test run.
+if (isEntryPoint(import.meta.url)) {
+	run().catch((error) => {
+		process.stderr.write(`Cipher Gate failed: ${error.message}\n`);
+		process.exit(1);
+	});
+}

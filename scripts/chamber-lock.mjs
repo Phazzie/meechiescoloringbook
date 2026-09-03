@@ -4,11 +4,10 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { fileExists, toDateFolder } from './evidence-reporting.mjs';
 
 const ROOT = process.cwd();
 const SEAMS_PATH = path.join(ROOT, 'docs', 'seams.md');
-
-const toDateFolder = (date) => date.toISOString().slice(0, 10);
 
 const isPlaceholder = (value) =>
 	value.startsWith('N/A') || value.startsWith('TBD') || value.length === 0;
@@ -21,15 +20,6 @@ const classifyPlaceholder = (value) => {
 		return 'blocked';
 	}
 	return 'missing';
-};
-
-const fileExists = async (targetPath) => {
-	try {
-		await fs.access(targetPath);
-		return true;
-	} catch {
-		return false;
-	}
 };
 
 const parseSeams = (content) => {

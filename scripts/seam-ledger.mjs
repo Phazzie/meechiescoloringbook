@@ -4,21 +4,10 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { toMarkdownTableRow, toSeamRollupStatus } from './evidence-reporting.mjs';
+import { fileExists, toDateFolder, toMarkdownTableRow, toSeamRollupStatus } from './evidence-reporting.mjs';
 
 const ROOT = process.cwd();
 const SEAMS_PATH = path.join(ROOT, 'docs', 'seams.md');
-
-const toDateFolder = (date) => date.toISOString().slice(0, 10);
-
-const fileExists = async (targetPath) => {
-	try {
-		await fs.access(targetPath);
-		return true;
-	} catch {
-		return false;
-	}
-};
 
 const parseSeams = (content) => {
 	const lines = content.split(/\r?\n/);

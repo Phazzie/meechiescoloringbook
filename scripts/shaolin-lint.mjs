@@ -4,21 +4,10 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { toRepoRelativePath } from './evidence-reporting.mjs';
+import { fileExists, toDateFolder, toRepoRelativePath } from './evidence-reporting.mjs';
 
 const ROOT = process.cwd();
 const EVIDENCE_ROOT = path.join(ROOT, 'docs', 'evidence');
-
-const toDateFolder = (date) => date.toISOString().slice(0, 10);
-
-const fileExists = async (targetPath) => {
-	try {
-		await fs.access(targetPath);
-		return true;
-	} catch {
-		return false;
-	}
-};
 
 const getLatestMtime = async (targetPath) => {
 	try {
