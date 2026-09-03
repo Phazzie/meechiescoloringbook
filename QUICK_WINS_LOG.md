@@ -1488,5 +1488,5 @@ prior entry's precedent.
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
 
-**Status:** opening PR next; this entry will be updated with the PR number and merge outcome (or, if the merge
-does not complete in this session, the reason and whether a future session should finish it).
+**Status:** PR #272 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
+below, the merge did not complete and the reason should be recorded here by the session that stopped.
