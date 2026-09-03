@@ -2105,3 +2105,122 @@ drain.
 
 **Status:** PR #282 opened and subscribed for CI/review activity. If this line is not followed by a "Merged"
 note below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
+**Merged (by a later session, `session_01C9GA2bo9c2ebAWTo3YsaNb`):** the session above stopped before merging.
+The next scheduled run found PR #282 still open on this same branch lineage, verified its final head
+(`3cadcd7`) had `mergeable_state: "clean"` with all ten check runs green (`verify` x2, CodeQL x2, SonarCloud x2,
+Sourcery, Rosentic, Vercel, CodeRabbit skip-success) and every one of its eleven Codex review threads already
+replied-to and marked resolved, then merged it into `main` at `929f070`. A fresh open-PR listing immediately
+after showed no PR left open from this session's `claude/loving-babbage-*` lineage.
+
+## 2026-09-03 — session_01C9GA2bo9c2ebAWTo3YsaNb (scheduled run)
+
+**Plan + Self-Critique (per `AGENTS.md`'s Planning enforcement/template):**
+- **Goal:** finish any unfinished business from a prior interrupted scheduled run, then find and fix two small,
+  low-risk, non-seam bugs of this run's own per the scheduled task's standing instructions.
+- **Seams:** none for the new fixes — pre-screened to exclude `contracts/`, `probes/`, `fixtures/`,
+  `src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/*`; the change touches no filesystem/network/process/
+  clock/randomness boundary (pure client-side Svelte 5 `$state` mutation logic in `src/routes/studio-state.svelte.ts`,
+  a file already established as non-seam by PR #272's identical `handleModeSelect` fix in this same log).
+- **Exact files to touch:** `src/routes/studio-state.svelte.ts` (the two fixes), `tests/unit/studio-state.test.ts`
+  (new regression coverage for both), `docs/evidence/2026-09-03/*` (verify evidence refresh), `QUICK_WINS_LOG.md`
+  (this entry).
+- **Exact commands:** `npm ci`, `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`.
+- **Self-critique:** the riskiest assumption is that gating `resetGeneratedPage()`/`resetTryOnResultState()` on
+  "did the id actually change" never leaves stale state visible when it shouldn't — proven by construction: the
+  guard only skips the reset when the id is unchanged, i.e. exactly the case where the state being reset was
+  produced by the same mode/wig the user just reselected, so nothing displayed becomes inconsistent with the
+  current selection. The other risk is duplicating PR #272's own `modeChanged` guard incorrectly; mitigated by
+  reusing that exact established variable-naming pattern (`modeChanged` / `wigChanged`) rather than inventing a
+  new one.
+
+**Housekeeping before the search:** started from `main` at `532a997` (PR #281 already merged) on this session's
+designated branch. Found PR #282 still open from an earlier scheduled run on this same `claude/loving-babbage-*`
+lineage — that run had completed two quick-win doc fixes, gone through four rounds of Codex review (all replied
+to and resolved), and left CI green, but stopped before merging. Verified the final head's status directly
+(`mergeable_state: "clean"`, all ten check runs `success`/`completed`) rather than trusting the stale "in
+progress" snapshot from when the PR was last touched, and merged it (see the "Merged" note above) — resolving
+this run's own "don't leave open PRs" mandate before starting fresh work. Re-fetched `main` (`929f070`), reset
+this session's branch onto it, and re-pushed (the branch's remote ref had gone stale at the old `532a997` tip
+from initial setup, which a stop-hook check caught immediately after the merge — pushed the seven commits
+forward to match). Ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` on the resulting clean
+checkout — all green (845 passed / 1 skipped). Listed open PRs repo-wide: none from this session's own lineage
+after the merge; the same long-stale backlog (#151–#218 minus merges) every prior run has noted, unchanged in
+kind, out of scope.
+
+**Investigation:** this is run #28 on a codebase twenty-seven prior runs (PRs #240–#282) have already scrubbed
+hard (~55 bugs fixed). Spawned a background Explore agent, handed a condensed recap of every already-fixed bug
+class and already-deferred candidate from this log so it wouldn't waste a sweep rediscovering them, to search
+`src/lib/core/*`, every studio/tool Svelte component, `src/lib/server/*`, `src/routes/**`, `scripts/*.mjs`, and
+the governance docs. It came back with one bug class present at two independent call sites in the same
+non-seam file, both previously unlogged, and an honest report that nothing else cleared the bar. Verified both
+directly against the live code myself (not just the agent's report) before picking them.
+
+**Found and fixed (`claude/loving-babbage-ebrqm2`, this same branch):**
+
+1. **`handleModeSelect` discarded an already-generated coloring page (images, assembled prompt, PDF) on a
+   same-mode reselect.** `src/routes/studio-state.svelte.ts:386-395` already had a `modeChanged` guard — added
+   by PR #272 in this same log, after a Codex review caught that unconditionally clearing `textOutput` fired
+   even on a same-mode reselect, since the mode-strip's cards have no `disabled` state
+   (`src/lib/components/studio/StudioHero.svelte`'s `onclick={() => onModeSelect(mode.id)}` runs on every click
+   regardless of which card is already active — confirmed by reading the template directly). That fix guarded
+   `textOutput` but left the very next line, `this.resetGeneratedPage()`, unconditional — the same gap PR #272
+   closed for one field, still open for six others (`generationError`, `assembledPrompt`, `revisedPrompt`,
+   `violations`, `recommendedFixes`, `images`, `packagedFiles`, per `resetGeneratedPage()`'s own body at
+   lines 303-311). Concretely: a user generates a verdict and a coloring page under one mode, then re-clicks
+   that same mode's own already-active card — a plausible accidental or confirming click — and the generated
+   image preview and PDF download silently vanish, even though nothing about the mode or the underlying text
+   changed. `tests/unit/studio-state.test.ts`'s existing same-mode-reselect test (added by PR #272) only
+   asserted `textOutput` survives, never `images`/`packagedFiles`/`assembledPrompt`, so this half of the gap
+   was untested. Fixed by moving `this.resetGeneratedPage()` inside the same `if (modeChanged)` block as the
+   `textOutput` clear, so both are gated on the same condition. Added a new test asserting `images`,
+   `packagedFiles`, and `assembledPrompt` all survive a same-mode reselect.
+2. **`selectWigForTryOn` discarded the try-on portrait and generated page on a same-wig reselect — the
+   identical bug class as #1, in a sibling method that PR #272 never touched.** `src/routes/studio-state.svelte.ts:397-402`
+   called `this.resetTryOnResultState()` unconditionally on every call, with no guard on whether the clicked
+   wig was already `selectedWigId`. Confirmed the UI wiring: `src/lib/components/WigCarousel.svelte`'s
+   `onclick={() => onSelect(wig)}` fires on every click including the already-`.selected` card (only a CSS
+   class toggles; the `<button>` itself is never disabled), routed through `src/routes/+page.svelte`'s
+   `onWigSelect={studio.selectWigForTryOn}`. `resetTryOnResultState()` delegates to `resetGeneratedPage()` and
+   additionally clears `tryOnPortraitUrl`/`tryOnError`. Concretely: a user tries on a wig, generates a try-on
+   coloring page, then re-clicks that same wig's card (to double-check the selection, or an accidental second
+   tap) and loses the try-on portrait plus the generated page/PDF, with no indication anything happened. Zero
+   prior test coverage existed for `selectWigForTryOn` at all (confirmed by grep), so this path was entirely
+   unverified before this fix. Fixed with the same pattern as #1: compute `wigChanged = wig.id !==
+   this.selectedWigId` before reassigning `selectedWigId`/`selectedWig` (reassignment stays unconditional since
+   re-setting to the same value is harmless), and gate `resetTryOnResultState()` on it. Added a new test
+   constructing a sample `Wig` fixture and asserting `tryOnPortraitUrl`, `images`, and `packagedFiles` all
+   survive a same-wig reselect.
+
+**Considered but not picked:** the Explore agent's sweep found no third candidate at comparable confidence
+after covering `src/lib/core/*`, the remaining studio sub-components, all API route handlers, `hooks.server.ts`,
+and `service-worker.ts` — an honest "nothing else found" rather than a padded list. It also re-confirmed one
+already-logged item is still correctly deferred, not new: `StudioHero`'s missing apostrophe ("Meechies Coloring
+Book") is still blocked on the underlying banner PNG asset (PR #247's reasoning, now living in
+`src/routes/+page.svelte:160-164` after a refactor moved the explanatory comment).
+
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (847 passed
+/ 1 skipped — the +2 over the 845 baseline is this run's two new regression tests), `npm run build` (succeeds),
+and `npm run verify` (full chain green — audit gate, chamber lock, verify runner, shaolin lint, assumption
+alarm, seam ledger, clan chain, proof tape). One transient failure along the way, not caused by this change:
+the first `npm run verify` attempt failed at `audit:gate` with a registry-side 400 ("This endpoint is being
+retired... Invalid package tree, run npm install to rebuild your package-lock.json"); running `npm audit
+--audit-level=high` again immediately afterward, with zero changes to `package.json`/`package-lock.json`,
+returned a clean "found 0 vulnerabilities" — confirming a transient registry response rather than a real
+lockfile problem (consistent with this same registry's endpoint having also hung outright during PR #282's own
+run, logged above). Re-ran the full `npm run verify` chain end to end afterward and it passed cleanly in one
+pass. `docs/evidence/2026-09-03/lint.txt` and `build.txt` (hand-maintained, not auto-regenerated) were
+recaptured with this run's actual command output, and `verify-chain.txt` was rewritten with this run's clean
+full-chain transcript plus a note on the one transient audit-gate retry, with `proof-tape.mjs` re-run last so
+the tape inventories the final artifacts rather than a mid-chain copy — per the established precedent for
+keeping those three manually-captured files current (PRs #254/#264/#266/#268/#270/#272/#274/#276/#278/#282).
+Neither fix touches a seam contract, mock, or adapter file (pure client-side Svelte 5 state-mutation guards, no
+filesystem/network/process/clock/randomness boundary), so the full Seam-Driven Development workflow and a
+Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every prior non-seam entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** opened as a PR from `claude/loving-babbage-ebrqm2`, subscribed for CI/review activity. If this line
+is not followed by a "Merged" note below, the merge did not complete and the reason should be recorded here by
+the session that stopped.
