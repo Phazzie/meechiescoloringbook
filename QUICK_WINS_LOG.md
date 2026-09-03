@@ -1203,3 +1203,73 @@ each named path) — the same long-stale cross-branch-backlog noise this log has
 **Merged:** PR #266 merged into `main` at `41ce541` in this same session. A fresh open-PR listing afterward
 showed only the same pre-existing long-stale backlog (#193–#218 minus merges, the highest-numbered still-open
 PR being #218) — no PR from this session's branch lineage was left open.
+
+## 2026-09-03 — session_019rRxCNyZNyefwdUB9nG6g3 (scheduled run)
+
+**Housekeeping before the search:** started from `main` at `9663a04` (PR #267 already merged) on this session's
+designated branch (`claude/loving-babbage-vrisnn`), which was already a fresh branch off `main` at that exact
+commit — no reset needed. `git fetch origin` confirmed `origin/main` matched. Ran `npm ci`, `npm run check`,
+`npm run lint`, and `npm test` on a clean checkout first — all green (843 passed / 1 skipped, matching the prior
+run's baseline). Confirmed no open PR existed yet for this session's branch.
+
+**Investigation:** This is run #19 on a codebase eighteen prior runs have already scrubbed hard. A first
+background Explore agent, handed the full `QUICK_WINS_LOG.md` history and told to sweep `src/lib/core/*`, every
+route/component, and root docs/config (excluding `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/`, `src/lib/seams/`, `tests/contract/`), came back empty — every candidate it found was
+already fixed or explicitly deferred in this log (the `StudioHero` apostrophe, `SelfieUpload`'s "cancelled"
+spelling, the `TEXT (exact):` casing mismatch, the `/m/[mode]` fallback, the in-flight-generation race,
+`meechie-quote-scoring.ts` dead code). Rather than pad the list, it reported honestly that it found nothing new.
+
+A second background agent was then sent after areas prior runs hadn't focused on: `scripts/*.mjs`/`*.js` (the
+`npm run verify` automation), `tests/unit/**` and `tests/e2e/**` (excluding `tests/contract/**`), root config
+files (`vite.config.ts`, `eslint.config.js`, `playwright.config.ts`, `tsconfig.json`,
+`vitest.integration.config.ts`, `svelte.config.js`), both `.github/workflows/*.yml` files, and a skim of
+`CHANGELOG.md`/`LESSONS_LEARNED.md`/`DECISIONS.md` for stale claims. It found the two items below and verified
+the rest of the automation chain clean (all prior-run-documented script bugs — proof-tape's own-output
+exclusion, cipher-gate's same-day tie-break — already fixed in current code). Verified both myself against the
+actual code and `docs/seams.md` before picking them up.
+
+**Found and fixed (`claude/loving-babbage-vrisnn`, this same branch):**
+
+1. **`AGENTS.md`'s own description of `npm run verify` was stale.** Line 163 read "runs chamber lock, verify
+   runner, shaolin lint, assumption alarm, seam ledger, clan chain, and proof tape" — omitting `audit:gate`,
+   which `package.json`'s actual `verify` script runs *first* (`npm run audit:gate && node scripts/chamber-
+   lock.mjs && ...`). `DECISIONS.md:63` documents `audit:gate` was deliberately added as the chain's first step
+   (2026-09-03, security-headers/CSP entry) but the automation-tools doc line was never updated to match. Fixed
+   by adding "audit gate" to the list, matching `package.json` exactly. Pure doc fix, no logic, no seam contact.
+2. **`scripts/analyze-merge-conflicts.js` produced an uninformative, misleading note on non-conflict merge
+   failures.** Lines 96-118: when `git merge --no-commit --no-ff` fails for *any* reason, the script sets
+   `isClean = false` and tries to list conflicting files via `git diff --name-only --diff-filter=U`. If the
+   merge failed for a reason other than an actual textual conflict (unrelated histories, a leftover dirty temp
+   branch, etc.), that diff returns nothing, so `conflictFiles` stays empty and the script wrote the literal
+   string `"Has conflicts: ."` into `docs/triage-table.md` — no files named, defeating the script's own stated
+   purpose ("Identify exactly which files are conflicting... to help developers plan conflict resolution"). Not
+   hypothetical: `docs/triage-table.md` currently has 45 rows with exactly this broken output. Fixed by falling
+   back to the actual git error output (`mergeResult.output`) when `conflictFiles.length === 0`, with whitespace
+   collapsed and `|` characters escaped to `/` so the error text can't corrupt the markdown table row it's
+   written into.
+
+**Considered but not picked:** nothing else — both background agents' sweeps came back with only these two
+candidates combined; no padding needed. `docs/triage-table.md`'s 45 pre-existing broken rows themselves were not
+regenerated as part of this fix (that requires actually running the analyzer against 45 live PR branches, which
+is a live-data refresh, not a code fix, and out of scope for a quick win — the fix here is that the *next* time
+the script runs, it will produce useful notes instead of the same broken string).
+
+**Verification:** `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (843 passed / 1
+skipped, unchanged — neither fix is covered by the unit suite; `scripts/analyze-merge-conflicts.js` has no
+existing test coverage, consistent with its sibling admin scripts), `npm run build` (succeeds), `node --check
+scripts/analyze-merge-conflicts.js` (syntax valid). `npm run verify` (full chain green — audit gate, chamber-
+lock, check+test, shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape — evidence refreshed at
+`docs/evidence/2026-09-03/`, which already existed for today from all eighteen prior runs; `lint.txt`/
+`build.txt`/`verify-chain.txt` re-captured post-edit with this run's actual command output, headers preserved,
+per the PR #254/#264/#266 precedent for keeping those three manually-captured files current). Neither changed
+file touches a seam contract, mock, or adapter (`docs/seams.md` confirmed `scripts/analyze-merge-conflicts.js`
+is not a registered seam; `AGENTS.md` is governance prose), so the full Seam-Driven Development workflow and a
+Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every prior entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** PR #268 opened (commit `0081c6f`) and subscribed for CI/review activity. If this line is not
+followed by a "Merged" note below, the merge did not complete and the reason should be recorded here by the
+session that stopped.
