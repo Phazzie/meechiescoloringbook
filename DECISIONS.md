@@ -7,6 +7,16 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-03 - Owner ruling: merge on green, do not ask
+
+- Date: 2026-09-03
+- Decision: The "Merge When The Gates Are Green" rule in `AGENTS.md` stands and is reaffirmed by the owner. A pull request meeting its four conditions is merged without asking. Two clarifications are added to condition 1, both drawn from failures on PR #244: CI status must be read on **both** surfaces - check runs and commit statuses - and a red check already established as not that pull request's failure does not block the merge.
+- Context: The owner said, in his own words, "go ahead and merge whats ready to be. can you add a note somewhere to always merge when ci is green and review comments are done." The rule he is asking for already existed, added 2026-08-25 for exactly this reason and deleted the same day by a concurrent session. It was not followed on PR #244: that pull request sat green, with every review comment answered, while the agent reported status and waited to be told to merge. Asking is the defect the rule exists to prevent, so the useful response was not a new note but an owner ruling recorded where `AGENTS.md` demands one before the rule can be removed again.
+- Alternatives: Add a fresh note in `CLAUDE.md`; rejected because `CLAUDE.md` states it does not repeat governance and defers it to `AGENTS.md`, so a copy there would be a second source of truth one edit from drifting. Add nothing and simply follow the existing rule; rejected because the rule has already been silently deleted once, and an owner ruling in `DECISIONS.md` is the specific thing `AGENTS.md` requires to make that harder.
+- Consequences: Future sessions merge without a permission round-trip, which is the point. The two clarifications close real gaps rather than hypothetical ones. On #244 every check run passed while the `Vercel` **commit status** was failing on two consecutive heads, and that failure was reported to the owner as green - reading one surface and not the other. Separately, `Rosentic - Conflict Detection` is red on every pull request in this repository because it compares the whole open-branch backlog pairwise; without the second clarification, that single check would block every merge indefinitely.
+- Revisit criteria: If a red check that is genuinely a pull request's own failure is ever waved through under the "not this pull request's" clause, tighten it to require the establishing comment to name the base-branch or unrelated-head run that reproduces it.
+- Self-critique: The riskiest part of this ruling is the second clarification - "established as not this pull request's failure" is a judgement, and a wrong judgement merges a genuinely broken change. The mitigation is that it demands the reasoning be written on the pull request first, where it can be checked afterwards, rather than being a private call. On #244 that meant a comment naming the failing check, the branch pairs it cited, the files this change does not touch, and two unrelated heads showing the identical failure.
+
 ## 2026-09-03 - Declare a security policy at the edge, and gate the dependency tree
 
 - Date: 2026-09-03
