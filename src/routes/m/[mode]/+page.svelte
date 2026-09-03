@@ -113,14 +113,14 @@ Info flow: URL mode slug -> mode config -> MeechieModePage -> /api/tools respons
 		},
 		'meechie-move': {
 			title: 'Meechie Move',
-			subhead: "Give the dilemma and get Meechie's move.",
+			subhead: 'Give the dilemma and get Meechie\'s move.',
 			button: 'Get Meechie Move',
 			fieldLabels: { dilemma: 'Dilemma' },
 			buildInput: (fields) => ({ toolId: 'wwmd', dilemma: fields.dilemma })
 		},
 		'what-would-meechie-do': {
 			title: 'What Would Meechie Do?',
-			subhead: "Give the dilemma and get Meechie's move.",
+			subhead: 'Give the dilemma and get Meechie\'s move.',
 			button: 'Get Meechie Move',
 			fieldLabels: { dilemma: 'Dilemma' },
 			buildInput: (fields) => ({ toolId: 'wwmd', dilemma: fields.dilemma })
