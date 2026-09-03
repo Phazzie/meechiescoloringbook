@@ -1606,3 +1606,35 @@ precedent.
 
 **Status:** PR #274 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
 below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
+**PR #274 activity:** both `verify` runs (`pull_request`- and `push`-triggered), `CodeQL` (`Analyze (actions)` and
+`Analyze (javascript-typescript)`), `SonarCloud`/`SonarCloud Code Analysis` (quality gate passed, 0 new issues),
+and `Rosentic - Conflict Detection`'s own check all passed on the pushed head (`0761003`). CodeRabbit skipped
+(repo has fewer than 10 stars); Sourcery's own 7-day diff-character review budget was already exhausted (same as
+most prior PRs in this log); Codex's review run completed with no findings attached to its summary comment.
+`Rosentic - Conflict Detection` left two informational comments naming cross-branch incompatibilities between
+other long-stale backlog branches (`claude/sweet-mendel-tcty6u`, `claude/fix-pr154-pr160-review-comments`,
+`claude/sweet-mendel-efx3o2`, `claude/sweet-mendel-m5cojt`, `claude/trusting-volta-*`) over
+`src/lib/adapters/chat-interpretation.adapter.ts`, `src/lib/core/image-generation-pipeline.ts`,
+`src/lib/core/http-resilience.ts`, and `tests/unit/wig-try-on-pipeline.test.ts` — none of which this PR's diff
+touches (confirmed via `git diff --name-only origin/main..HEAD`: only `HANDOFF.md`, `QUICK_WINS_LOG.md`, and
+`docs/evidence/**`). The same pre-existing, PR-independent cross-branch-backlog scan noise this log has
+documented on every PR back to #243.
+
+One new failure mode this run, not previously seen in this log: the `Vercel` commit status came back red —
+"Deployment rate limited — retry in 24 hours" (`api-deployments-free-per-day`, more than 100 deployments today),
+linking to `https://vercel.com/phazzies-projects?upgradeToPro=build-rate-limit` — an account-level build quota,
+not a build error. Established as not this PR's failure with direct within-PR evidence: this PR's own first
+commit (`0da836f`) deployed successfully ("Ready") with the identical `vercel.json`/build config; only the
+second, docs-only commit (`0761003`) hit the quota, between the two pushes. Documented in one PR comment before
+merging, per `AGENTS.md`'s merge-gate rule for a check established as not this pull request's failure. `mergeable_state`
+was `unstable` (caused solely by that one red commit status — no merge conflict, no failing check run), no human
+review requested changes, and every required check run was green, meeting every other condition in `AGENTS.md`'s
+"Merge When The Gates Are Green" section.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Merged:** PR #274 merged into `main` at `30baadc` in this same session. A fresh open-PR listing afterward
+showed only the same pre-existing long-stale backlog (#151–#218 minus merges) — no PR from this session was left
+open.
