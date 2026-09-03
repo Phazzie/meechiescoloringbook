@@ -1184,6 +1184,6 @@ in `DECISIONS.md` do not apply, consistent with every prior entry's precedent.
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
 
-**Status:** to be updated below once the PR for this run is opened and its outcome known. If this line is not
-followed by a "Merged" note, the merge did not complete and the reason should be recorded here by the session
-that stopped.
+**Status:** PR #266 opened (commit `09c2729`) and subscribed for CI/review activity. If this line is not
+followed by a "Merged" note below, the merge did not complete and the reason should be recorded here by the
+session that stopped.
