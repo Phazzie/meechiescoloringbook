@@ -2,7 +2,7 @@
 Purpose: Main Meechie coloring-page studio with wig try-on.
 Why: Generate AI-backed Meechie wording, printable coloring pages, and wig try-on portraits.
 Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/store seams.
-           Wig selection + selfie -> /api/wig-try-on -> Gemini portrait -> coloring page.
+           Wig selection + selfie -> /api/wig-try-on -> xAI portrait -> coloring page.
 -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';

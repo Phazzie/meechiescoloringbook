@@ -72,7 +72,15 @@ Copy `.env.example` to `.env` and fill in your values.
 | `XAI_API_KEY` | Yes | — | Your xAI API key for Grok access |
 | `XAI_BASE_URL` | No | `https://api.x.ai` | xAI API base URL |
 | `XAI_IMAGE_ENDPOINT_PATH` | No | `/v1/images/generations` | API path for image generation requests |
+| `DEFAULT_IMAGE_SIZE` | No | `1024x1024` | Default generated image size |
 | `FEATURE_INTEGRATION_TESTS` | No | `false` | Set to `true` to enable live API integration tests |
+| `UPSTASH_REDIS_REST_URL` | No | — | Durable rate-limit store. Set together with the two vars below, or leave all three blank — see note |
+| `UPSTASH_REDIS_REST_TOKEN` | No | — | Durable rate-limit store credential; set together with `UPSTASH_REDIS_REST_URL` and `RATE_LIMIT_IDENTITY_SECRET` |
+| `RATE_LIMIT_IDENTITY_SECRET` | No | — | HMAC secret for pseudonymous client identifiers; set together with the two vars above |
+| `RATE_LIMIT_OPERATION_TIMEOUT_MS` | No | `1500` | Timeout for a durable rate-limit store operation |
+| `GEMINI_API_KEY` / `GEMINI_BASE_URL` | No | — | Legacy/unused. Wig try-on now runs on xAI; safe to delete |
+
+> **Rate limiting:** set all three of `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, and `RATE_LIMIT_IDENTITY_SECRET`, or leave all three blank. Leaving all three blank falls back to a degraded per-instance in-process limiter (still enforced, just not shared across serverless instances) — there is no way to disable rate limiting entirely. Setting only some of the three fails every AI route closed with 503, on purpose: a half-configured limiter is treated as a misconfiguration, not a reason to silently degrade.
 
 **Model ids are not environment variables.** They are pinned in `src/lib/core/models.js`
 (`TEXT_MODEL`, `IMAGE_MODEL`). A model id is not a secret and does not vary per environment,

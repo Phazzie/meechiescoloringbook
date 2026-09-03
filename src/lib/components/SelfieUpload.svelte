@@ -1,6 +1,6 @@
 <!--
   Purpose: Handle selfie image upload and base64 conversion for the wig try-on feature.
-  Why: Provide a clean file-input interface that emits base64 data ready for the Gemini API.
+  Why: Provide a clean file-input interface that emits base64 data ready for the xAI API.
   Info flow: File input -> FileReader -> base64 string + mimeType -> onUpload callback -> parent page.
 -->
 <script lang="ts">
