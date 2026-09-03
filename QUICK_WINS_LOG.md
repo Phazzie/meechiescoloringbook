@@ -969,5 +969,10 @@ fix came close to but didn't fully close.
 built on an incorrect premise (see the correction under "Investigation" above) — pushed a second commit to this
 same PR correcting the log text and adding the actual `maxDuration: 150` fix (item 3 under "Found and fixed"
 above) rather than leaving the record wrong or spinning up a third PR for a one-line fix already fully understood.
-If this line is not followed by a "Merged" note below, the merge did not complete and the reason should be
-recorded here by the session that stopped.
+`verify`, Rosentic Scan, and SonarCloud's quality gate all passed on the final head; Vercel deployed a preview
+successfully; CodeRabbit skipped (repo has fewer than 10 stars). Replied to and resolved the Codex thread once
+the correction landed.
+
+**Merged:** PR #262 merged into `main` at `8ff3350` in this same session. No PRs from this session were left
+open (confirmed via a fresh open-PR listing after the merge — only the same pre-existing long-stale backlog,
+#151–#218, unchanged from before this run).
