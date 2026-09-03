@@ -1611,7 +1611,15 @@ below, the merge did not complete and the reason should be recorded here by the 
 `Analyze (javascript-typescript)`), `SonarCloud`/`SonarCloud Code Analysis` (quality gate passed, 0 new issues),
 and `Rosentic - Conflict Detection`'s own check all passed on the pushed head (`0761003`). CodeRabbit skipped
 (repo has fewer than 10 stars); Sourcery's own 7-day diff-character review budget was already exhausted (same as
-most prior PRs in this log); Codex's review run completed with no findings attached to its summary comment.
+most prior PRs in this log). Codex's summary comment reported "Completed" with no findings listed in it, but a
+separate inline review comment landed moments later (after this PR was already merged, per its queued timestamp)
+with a real P2 finding: re-encoding the four `docs/evidence/2026-06-07/*.json` files roughly halved their byte
+sizes, but that same dated evidence bundle's own `proof-tape.json`/`proof-tape.md` still recorded the original,
+now-stale UTF-16 byte counts for those four files, contradicting the artifacts they were meant to inventory.
+Verified directly (`wc -c` on the four files vs. the recorded `sizeBytes`) — real, not a false positive. Since
+PR #274 was already merged by the time this arrived, per the standing PR-outcome rule this session did not
+reopen it; fixed as an additional commit on the still-open finalize branch/PR (#275) instead — see that PR's
+entry below.
 `Rosentic - Conflict Detection` left two informational comments naming cross-branch incompatibilities between
 other long-stale backlog branches (`claude/sweet-mendel-tcty6u`, `claude/fix-pr154-pr160-review-comments`,
 `claude/sweet-mendel-efx3o2`, `claude/sweet-mendel-m5cojt`, `claude/trusting-volta-*`) over
@@ -1638,3 +1646,11 @@ review requested changes, and every required check run was green, meeting every 
 **Merged:** PR #274 merged into `main` at `30baadc` in this same session. A fresh open-PR listing afterward
 showed only the same pre-existing long-stale backlog (#151–#218 minus merges) — no PR from this session was left
 open.
+
+**Post-merge Codex finding, fixed on the finalize branch (PR #275):** as noted above, Codex's inline finding on
+PR #274 arrived after that PR had already merged. Rather than reopen a merged PR, the fix — correcting
+`docs/evidence/2026-06-07/proof-tape.json`'s four `sizeBytes` fields (29138→14595, 33058→16555, 28162→14105,
+27986→14017) and the matching four byte counts in `proof-tape.md` — was made as an additional commit on the
+`claude/loving-babbage-27fdd9-finalize` branch, which already had the log-finalization commit for #274 queued
+on its own open PR (#275). Verified with `wc -c` against the actual current file sizes and a repo-wide grep for
+the four stale byte counts (`29138|33058|28162|27986`) to confirm no other file still carried them.

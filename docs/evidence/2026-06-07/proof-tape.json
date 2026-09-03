@@ -92,28 +92,28 @@
     {
       "name": "open-prs-after-contained-close.json",
       "path": "docs\\evidence\\2026-06-07\\open-prs-after-contained-close.json",
-      "sizeBytes": 29138,
+      "sizeBytes": 14595,
       "modifiedAt": "2026-06-07T03:52:37.973Z",
       "commands": []
     },
     {
       "name": "open-prs-after-main-push.json",
       "path": "docs\\evidence\\2026-06-07\\open-prs-after-main-push.json",
-      "sizeBytes": 33058,
+      "sizeBytes": 16555,
       "modifiedAt": "2026-06-07T03:49:57.935Z",
       "commands": []
     },
     {
       "name": "open-prs-after-pr120-merge.json",
       "path": "docs\\evidence\\2026-06-07\\open-prs-after-pr120-merge.json",
-      "sizeBytes": 28162,
+      "sizeBytes": 14105,
       "modifiedAt": "2026-06-07T03:59:56.946Z",
       "commands": []
     },
     {
       "name": "open-prs-after-recalc.json",
       "path": "docs\\evidence\\2026-06-07\\open-prs-after-recalc.json",
-      "sizeBytes": 27986,
+      "sizeBytes": 14017,
       "modifiedAt": "2026-06-07T04:01:36.648Z",
       "commands": []
     },
