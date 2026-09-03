@@ -1795,3 +1795,63 @@ passed outright (no findings against this branch's actual diff); `Vercel` hit th
 failure on two of its three heads, stood down on once per the established same-day signature match, no second
 comment needed on the repeat. A fresh open-PR listing afterward showed only the same pre-existing long-stale
 backlog (#151–#218 minus merges) — no PR from this session was left open.
+
+## 2026-09-03 — session_015idijMV4e3du83PpzPgXWu
+
+**Investigation:** Started from `main` at `291e244` (PR #279 already merged, finalizing the prior run's log entry
+— confirmed local `main` history matched `origin/main` exactly, no drift). Ran `npm ci`, `npm run check`, `npm run
+lint`, and `npm test` on a clean checkout first — all green (845 passed / 1 skipped). Listed open PRs: the same
+long-stale backlog (`#193`–`#218`, minus merges), none from this session's `claude/loving-babbage-*` lineage —
+out of scope, not touched, consistent with every prior run's policy. Spawned a background Explore agent, pointed
+at this log in full (all 1797 lines / 29 prior fixes across PRs #240–#278) so it wouldn't re-surface anything
+already fixed or already explicitly deferred, and told to look at ground the log's many rounds hadn't individually
+named (root `CLAUDE.md`'s own File Map, config files, small `src/lib/core/*` utilities never called out before).
+Verified both of its top candidates myself against the actual files before picking them.
+
+**Found and fixed (PR #280, `claude/loving-babbage-b0va6h`):**
+
+1. **`README.md`'s Available Scripts table falsely labeled `npm run format:check` as `(CI)`.** Verified directly:
+   `.github/workflows/verify.yml` runs only `npm install` + `npm run verify`; `.github/workflows/rosentic.yml`
+   doesn't invoke formatting at all; `package.json`'s `verify` script chain (`audit:gate && chamber-lock &&
+   verify-runner && shaolin-lint && assumption-alarm && seam-ledger && clan-chain && proof-tape`) never calls
+   `format:check` either. `HANDOFF.md:74` (itself corrected by an earlier run) already states plainly that this
+   script is "Pre-existing — not in `npm run verify` or CI, so it has never blocked" and that 721 files repo-wide
+   currently fail it. README's own scripts table contradicted that same repo's accurate doc, which would mislead
+   a contributor into thinking formatting is CI-gated when it silently isn't. Changed the row's description to
+   "Check formatting (not enforced in CI or `npm run verify`)".
+2. **`CLAUDE.md`'s File Map described a retired UI and omitted two of six live API routes.** The `src/routes/`
+   table's `+page.svelte` row read "Main coloring page builder UI" — verified against the file's own header
+   comment, which now reads "Main Meechie coloring-page studio with wig try-on" (the manual/chat "builder" split
+   was retired; `docs/CHECKLIST.md`'s identical claim about this same file was already corrected once, in PR
+   #276, but `CLAUDE.md`'s own separate copy of the claim was missed). The `meechie/+page.svelte` row read
+   "Meechie assistant chat UI" — verified against both the file's header comment ("Provide a direct route to
+   Meechie tools while the main UI hosts the primary entry") and its actual component tree (`MeechieTools.svelte`,
+   a deterministic template-tool UI, not a chat interface). The table also listed only 4 of the 6 directories
+   under `src/routes/api/` (`generate`, `image-generation`, `chat-interpretation`, `tools`), omitting
+   `api/meechie-studio-text` and `api/wig-try-on` entirely, both confirmed to exist and be wired (`npm run build`
+   emits server bundles for both). Corrected both prose rows to match the files' own header comments and added
+   the two missing route rows.
+
+**Considered but not picked:** the Explore agent's third candidate — `AGENTS.md:54` calls the verify chain's
+second stage "evidence capture" while `AGENTS.md:163` calls the identical `verify-runner.mjs` step "verify
+runner" — is a same-file naming inconsistency for one step, but it's stylistic variance rather than an
+objectively wrong claim (unlike the four already-fixed verify-chain-description bugs in this log, which were
+about missing/extra *steps*, not a step's *name*), so left as a lower-confidence candidate for a future run
+rather than picked as a confirmed bug.
+
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (845 passed /
+1 skipped, unchanged from baseline), `npm run build` (succeeds, and directly confirms both previously-missing API
+routes exist as built server endpoints), and `npm run verify` (full chain green — audit gate, chamber lock,
+verify runner, shaolin lint, assumption alarm, seam ledger, clan chain, proof tape — evidence refreshed in place
+at `docs/evidence/2026-09-03/`, which already existed for today from all prior runs). Neither change touches a
+seam (`contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/*`) or any
+filesystem/network/process/clock/randomness boundary — pure prose corrections to two existing docs, so the full
+Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every
+prior docs-only entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(`#193`–`#218` minus merges) every recent run has noted; still needs a separate, explicitly-scoped session to
+drain.
+
+**Status:** PR #280 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
+below, the merge did not complete and the reason should be recorded here by the session that stopped.

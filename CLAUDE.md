@@ -84,12 +84,14 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 
 | File | Purpose |
 |------|---------|
-| `+page.svelte` | Main coloring page builder UI |
-| `meechie/+page.svelte` | Meechie assistant chat UI |
+| `+page.svelte` | Main Meechie coloring-page studio with wig try-on |
+| `meechie/+page.svelte` | Direct route to Meechie tools (hosts `MeechieTools.svelte`, not a chat UI) |
 | `api/generate/+server.ts` | Generation endpoint |
 | `api/image-generation/+server.ts` | Image provider endpoint |
 | `api/chat-interpretation/+server.ts` | Chat-to-spec endpoint |
 | `api/tools/+server.ts` | Meechie tool endpoint |
+| `api/meechie-studio-text/+server.ts` | Meechie Studio text (verdict/quote) endpoint |
+| `api/wig-try-on/+server.ts` | Wig try-on portrait endpoint |
 
 ### scripts/ — `npm run verify` automation (do not edit without a plan)
 
