@@ -221,6 +221,37 @@ describe('StudioState', () => {
 		expect(scheduleDraftSave).toHaveBeenCalledOnce();
 	});
 
+	it('clears a previously generated coloring page when a new try-on is requested', async () => {
+		const studio = new StudioState();
+		studio.selectedWigId = 'wig-1';
+		studio.selfieBase64 = 'selfie-bytes';
+		studio.images = [
+			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
+		];
+		studio.packagedFiles = [
+			{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
+		];
+		studio.generationError = 'stale error';
+
+		const mockResponse = new Response(
+			JSON.stringify({
+				ok: true,
+				value: { portraitBase64: 'ZmFrZQ==', portraitMimeType: 'image/png' }
+			}),
+			{ status: 200, statusText: 'OK' }
+		);
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
+
+		await studio.handleWigTryOn();
+
+		expect(studio.images).toEqual([]);
+		expect(studio.packagedFiles).toEqual([]);
+		expect(studio.generationError).toBe('');
+		expect(studio.tryOnPortraitUrl).toBe('data:image/png;base64,ZmFrZQ==');
+
+		vi.unstubAllGlobals();
+	});
+
 	it('previews a JPEG try-on portrait with the IANA image/jpeg media type', async () => {
 		const studio = new StudioState();
 		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({

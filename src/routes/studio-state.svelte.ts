@@ -575,8 +575,7 @@ export class StudioState {
 			this.tryOnError = 'Select a wig and upload your selfie first.';
 			return;
 		}
-		this.tryOnError = '';
-		this.tryOnPortraitUrl = '';
+		this.resetTryOnResultState();
 		this.isTryingOn = true;
 		try {
 			const payload = await postJson(
