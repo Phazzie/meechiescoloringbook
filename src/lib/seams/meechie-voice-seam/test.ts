@@ -41,20 +41,22 @@ describe('MeechieVoiceSeam contract', () => {
 // voiceId, so on its own it cannot show that a malformed voice pack is rejected.
 // These cases feed faulty packs straight at the schema and require a failure.
 describe('MeechieQuoteSchema rejects faulty quotes', () => {
-	const valid = { tier: 'canon', id: 'edges', text: 'A line.' };
+	const valid = { id: 'edges', text: 'A line.' };
 
 	it('accepts a well-formed quote', () => {
 		expect(MeechieQuoteSchema.safeParse(valid).success).toBe(true);
 	});
 
 	it.each([
-		['missing tier', { id: 'edges', text: 'A line.' }],
-		['unknown tier', { ...valid, tier: 'raw_anchor' }],
-		['missing id', { tier: 'canon', text: 'A line.' }],
+		['missing id', { text: 'A line.' }],
 		['empty id', { ...valid, id: '' }],
-		['missing text', { tier: 'canon', id: 'edges' }],
+		['missing text', { id: 'edges' }],
 		['empty text', { ...valid, text: '' }],
-		['extra field', { ...valid, coloringPageReady: true }]
+		['extra field', { ...valid, coloringPageReady: true }],
+		// The retired `tier` field is now just an unknown key. This case is the
+		// guard on its removal: if anyone re-adds it to the schema, this goes green
+		// and the failure says so.
+		['the retired tier field', { ...valid, tier: 'canon' }]
 	])('rejects a quote with %s', (_label, quote) => {
 		expect(MeechieQuoteSchema.safeParse(quote).success).toBe(false);
 	});
@@ -107,7 +109,7 @@ describe('MeechieVoiceSeam rejects the malformed-pack fault fixture', () => {
 		if (parsed.success) throw new Error('malformed fixture unexpectedly parsed');
 		const paths = parsed.error.issues.map((issue) => issue.path.join('.'));
 		expect(paths.every((path) => path.includes('responses.quotes'))).toBe(true);
-		// One issue per bad quote: retired shape, missing id, unknown tier.
+		// One issue per bad quote: retired shape, missing id, retired tier field.
 		expect(new Set(paths).size).toBeGreaterThanOrEqual(3);
 	});
 

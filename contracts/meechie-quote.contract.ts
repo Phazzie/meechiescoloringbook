@@ -5,12 +5,15 @@
 import { z } from 'zod';
 import { NonEmptyStringSchema } from './shared.contract';
 
-export const MeechieQuoteTierSchema = z.enum(['canon', 'approved']);
-
+// A quote is an id and its wording, nothing else. It carried a `tier`
+// ('canon' | 'approved') until 2026-09-03. Once the ten fabricated 'approved'
+// lines were cut, every surviving line was canon — one possible value, and no
+// code ever branched on it. Provenance is a note for humans, so it lives in the
+// voice pack's comments rather than in a field that reads like behavior.
+// `.strict()` below means a pack still carrying `tier` fails validation loudly
+// instead of being silently ignored.
 export const MeechieQuoteSchema = z
 	.object({
-		// canon = verified original Meechie. approved = ruled in by the owner.
-		tier: MeechieQuoteTierSchema,
 		// Stable handle for a line. Never reused, never renamed.
 		id: NonEmptyStringSchema,
 		// The wording IS the line. Do not normalize, expand, or clean it up.
@@ -18,5 +21,4 @@ export const MeechieQuoteSchema = z
 	})
 	.strict();
 
-export type MeechieQuoteTier = z.infer<typeof MeechieQuoteTierSchema>;
 export type MeechieQuote = z.infer<typeof MeechieQuoteSchema>;

@@ -280,13 +280,12 @@
             ]
           },
           {
-            "tier": "canon",
             "text": "A line with no id."
           },
           {
-            "tier": "shouty",
-            "id": "bad-tier",
-            "text": "A line with a tier that does not exist."
+            "tier": "canon",
+            "id": "retired-tier-field",
+            "text": "A line still carrying the retired tier field."
           }
         ]
       }

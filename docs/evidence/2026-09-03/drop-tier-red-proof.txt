@@ -1,0 +1,47 @@
+# Purpose: Red proof that MeechieQuoteSchema actually rejects the retired `tier` field.
+# Why: Removing a field is only real if the contract fails loudly when it comes back. A
+#      green suite proves the field is gone; it does not prove anything guards its return.
+#      These two runs break the guard on purpose and record the failures.
+# Info flow: edit contracts/meechie-quote.contract.ts -> vitest -> this file -> review.
+
+Seam: MeechieVoiceSeam (self-contained)
+Command: npx vitest run src/lib/seams/meechie-voice-seam/test.ts
+
+--------------------------------------------------------------------------------
+BASELINE (schema as shipped in this change)
+--------------------------------------------------------------------------------
+      Tests  17 passed (17)
+
+--------------------------------------------------------------------------------
+RED 1 — re-admit `tier` as an optional field
+  contracts/meechie-quote.contract.ts, inside MeechieQuoteSchema.object({ ... }):
+    + tier: z.enum(['canon','approved']).optional(),
+--------------------------------------------------------------------------------
+     x rejects a quote with the retired tier field 4ms
+
+ FAIL  src/lib/seams/meechie-voice-seam/test.ts > MeechieQuoteSchema rejects faulty
+       quotes > rejects a quote with the retired tier field
+     59|   ['the retired tier field', { ...valid, tier: 'canon' }]
+
+      Tests  1 failed | 16 passed (17)
+
+Reads: if anyone re-adds `tier` to the schema, the guard case goes red and names itself.
+
+--------------------------------------------------------------------------------
+RED 2 — drop .strict() from MeechieQuoteSchema
+--------------------------------------------------------------------------------
+     x rejects a quote with extra field 5ms
+     x rejects a quote with the retired tier field 1ms
+     x points at the offending quotes, not somewhere else in the pack 1ms
+
+      Tests  3 failed | 14 passed (17)
+
+Reads: .strict() is what turns the removed field into a validation error rather than a
+silently ignored one, and the third failure is the fixture-backed half — the malformed
+pack fixture's third bad quote is now a quote still carrying `tier`, so
+fixtures/meechie-voice/malformed-pack.json guards the removal too, not just inline objects.
+
+--------------------------------------------------------------------------------
+RESTORED
+--------------------------------------------------------------------------------
+      Tests  17 passed (17)

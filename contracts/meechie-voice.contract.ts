@@ -118,7 +118,7 @@ export const MeechieVoiceInputSchema = z.object({
 
 export const MeechieVoiceResultSchema = resultSchema(MeechieVoicePackSchema);
 
-export type { MeechieQuote, MeechieQuoteTier } from './meechie-quote.contract';
+export type { MeechieQuote } from './meechie-quote.contract';
 export type MeechieVoicePack = z.infer<typeof MeechieVoicePackSchema>;
 export type MeechieVoiceInput = z.infer<typeof MeechieVoiceInputSchema>;
 export type MeechieVoiceResult = z.infer<typeof MeechieVoiceResultSchema>;
