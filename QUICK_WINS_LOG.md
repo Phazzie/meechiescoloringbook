@@ -2141,7 +2141,7 @@ resolved on one transient success, and recorded all three additional attempts in
 (`#151`–`#218` minus merges) every recent run has noted; still needs a separate, explicitly-scoped session to
 drain.
 
-**Status:** PR #282 merged into `main` at `929f070` by the repo owner. A follow-up PR (branch
+**Status:** PR #282 merged into `main` at `929f070` by the repo owner. Follow-up PR #283 (branch
 `claude/loving-babbage-followup-r5`, same session) carries the four round-5 findings that were ready but
 unpushed at merge time — its own CI/review activity and merge outcome are appended below once it lands. If this
 line is not followed by a "Follow-up merged" note, the merge did not complete and the reason should be recorded
