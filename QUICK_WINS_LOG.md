@@ -1600,3 +1600,9 @@ them by path, and the `HANDOFF.md` edit is pure prose describing existing, uncha
 under `AGENTS.md`'s own docs/comments-only exception with zero schema or logic impact, so the full Seam-Driven
 Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every prior entry's
 precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** PR #274 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
+below, the merge did not complete and the reason should be recorded here by the session that stopped.
