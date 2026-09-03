@@ -1473,17 +1473,33 @@ in-app link performs that navigation (only the root page links into `/m/X`, and 
 nav of its own), the same unreachability reasoning this log already used to defer the `/m/[mode]` random-fallback
 item.
 
-**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (844 passed /
-1 skipped — the +1 over baseline is this run's new `handleModeSelect` test case), `npm run build` (succeeds), and
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (845 passed /
+1 skipped — the +2 over baseline is this run's two `handleModeSelect` test cases), `npm run build` (succeeds), and
 `npm run verify` (full chain green — audit gate, chamber-lock, check+test, shaolin-lint, assumption-alarm,
 seam-ledger, clan-chain, proof-tape — evidence refreshed in place at `docs/evidence/2026-09-03/`, which already
 existed for today from all twenty-one prior runs; `lint.txt`/`build.txt`/`verify-chain.txt` re-captured post-edit
 with this run's actual command output, headers preserved, per the PR #254/#264/#266/#268/#270 precedent for
 keeping those three manually-captured files current). Neither changed source file touches a seam contract, mock,
-or adapter file (one pure client-side Svelte-5-runes state fix with its unit test, one doc-prose fix describing
+or adapter file (one pure client-side Svelte-5-runes state fix with its unit tests, one doc-prose fix describing
 existing, unchanged tooling behavior — no filesystem/network/process/clock/randomness boundary), so the full
 Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every
 prior entry's precedent.
+
+**PR #272 activity:** a Codex bot review (P2) caught a real regression in the initial push: unconditionally
+clearing `textOutput` in `handleModeSelect` also fired on a same-mode reselect — the mode-strip's active card is
+never disabled, so `StudioHero.svelte:65`'s `onclick={() => onModeSelect(mode.id)}` still runs on a repeat click
+of the already-active card, which would have silently discarded a user's just-generated verdict on a pure no-op
+click. Fixed by guarding the clear on `modeId !== this.activeModeId`, added a second unit test for the
+same-mode-reselect case (`'preserves the current AI text output when the already-active mode card is
+reselected'`), and re-ran the full local suite before pushing the fix (initially caught one self-inflicted test
+bug in that same pass: `toBe(DEFAULT_STUDIO_TEXT_OUTPUT)` fails under Svelte 5's `$state` proxy wrapping even
+when the value is deep-equal — corrected to `toEqual`, matching this test file's own established pattern at line
+92). `SonarCloud`'s quality gate passed (0 new issues) and Vercel deployed a preview successfully on the first
+head; CodeRabbit skipped (repo has fewer than 10 stars); Sourcery's own 7-day review budget was already
+exhausted. `Rosentic - Conflict Detection` flagged eight "possible break" findings, all against other long-stale
+backlog branches (`claude/fix-pr154-pr160-review-comments`, `claude/sweet-mendel-*`, `claude/trusting-volta-*`)
+changing function signatures on their own branches, not against `main` — the same pre-existing cross-branch scan
+noise this log has documented on every PR back to #243.
 
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.

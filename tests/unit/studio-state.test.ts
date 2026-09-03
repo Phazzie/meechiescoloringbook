@@ -192,6 +192,15 @@ describe('StudioState', () => {
 		expect(studio.textOutput).toBeNull();
 	});
 
+	it('preserves the current AI text output when the already-active mode card is reselected', () => {
+		const studio = new StudioState();
+		studio.textOutput = DEFAULT_STUDIO_TEXT_OUTPUT;
+
+		studio.handleModeSelect(studio.activeModeId);
+
+		expect(studio.textOutput).toEqual(DEFAULT_STUDIO_TEXT_OUTPUT);
+	});
+
 	it('clears a previously generated page when a saved creation is loaded', async () => {
 		const studio = new StudioState();
 		studio.images = [
