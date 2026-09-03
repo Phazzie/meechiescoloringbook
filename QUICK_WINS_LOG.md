@@ -844,13 +844,20 @@ pasting the whole file) so it wouldn't re-surface anything from PRs #240–#259,
 (`src/lib/core/*`, every Svelte component, every route/server file, `src/lib/server/*`, docs, CI/config files).
 It returned two candidates. The first — no `maxDuration` override on `/api/wig-try-on`, reasoning that the route's
 extra `fetchImageAsBase64` network hop plus the existing 120s provider-call budget could exceed the global 120s
-Vercel function budget — did **not** survive independent verification: `docs/seams.md`/the wig catalog's own
-schema (`src/lib/seams/wig-catalog-seam/validators.ts`, enforced by `test.ts`) constrains every `Wig.imageUrl` to
-a same-origin `/wigs/*.{jpg,png,webp}` static asset, not an external fetch — exactly the scenario PR #250's log
-entry already explicitly considered and correctly ruled out ("wig-try-on... already fits inside the global
-maxDuration: 120 with no gap analogous to studioText's"). No new evidence changed that conclusion, so this
-candidate was dropped rather than re-litigated. Spawned a second, narrower Explore agent (told explicitly to
-avoid the rejected wig-try-on candidate) which found the pair actually used, both in
+Vercel function budget — was initially dropped on the reasoning that PR #250's log entry had already considered
+and ruled out this exact scenario, since every current wig catalog fixture's `imageUrl` is a same-origin
+`/wigs/*.{jpg,png,webp}` static asset. **That dismissal was itself wrong, caught by a Codex review comment on this
+PR after it was first drafted:** `wigImageUrlSchema` in `src/lib/seams/wig-catalog-seam/validators.ts:25-30`
+accepts an absolute HTTP(S) URL as an alternative to the packaged path (`isAbsoluteHttpUrl`), and
+`fixtures.ts:41-48`'s own `acceptedWigImageUrlFixtures` explicitly tests `https://cdn.example.com/...` as valid —
+so the *schema* does not constrain `imageUrl` to same-origin at all, only today's *catalog data* happens to. PR
+#250's own conclusion was accurate for its own time (checked only the live data, correctly, for that run's
+narrower question) but does not generalize the way this run's first draft assumed. Re-opened the candidate, verified it against the corrected premise, and fixed it in this same PR (#262) alongside
+the log correction — PR #261 had already merged by the time this was caught, so there was no head left to push a
+targeted fix to, and opening a third PR for a one-line fix already fully understood and diffed here would only add
+PR churn — rather than leaving a documented false conclusion standing uncorrected. Spawned a second, narrower
+Explore agent (told
+explicitly to look past the wig-try-on candidate as already covered) which found the pair actually used, both in
 `src/routes/studio-state.svelte.ts`; both were independently re-verified against the actual code (reading the
 full call sites, the `resetGeneratedPage`/`resetTryOnResultState` helper definitions, and `+page.svelte`'s
 prop wiring to confirm the stale state is genuinely rendered) before being picked up.
@@ -880,16 +887,35 @@ prop wiring to confirm the stale state is genuinely rendered) before being picke
    user explicitly regenerates. Fixed by replacing the two inline resets with a call to the existing
    `resetTryOnResultState()`, removing the duplication as well as the gap.
 
-**Considered but not picked:** the rejected wig-try-on `maxDuration` candidate (see above) — re-confirmed still
-correctly deferred, no new evidence. Nothing else from either Explore agent's sweep cleared the bar this run.
+**Found and fixed (PR #262, `claude/loving-babbage-log-entry`):**
+
+3. **No Vercel `maxDuration` override on `/api/wig-try-on`, even though the schema it validates against permits
+   the exact shape that needs one.** See the correction above: `wigImageUrlSchema` accepts an absolute HTTP(S)
+   `imageUrl`, not only a packaged `/wigs/*` path, so `fetchImageAsBase64` in `wig-try-on-pipeline.ts` could add a
+   real, non-trivial network fetch before the up-to-120s `WIG_TRY_ON_TIMEOUT_MS` provider call — inside the global
+   120s `maxDuration` from `svelte.config.js`, which its own comment states is sized for image generation's single
+   call, with no margin for a preceding fetch. No current catalog entry (`src/lib/data/wigs.json`) triggers this —
+   all 8 use packaged paths — so this isn't live-bug-today the way the two `studio-state.svelte.ts` fixes above
+   are; it's closing a schema-permitted gap defensively before catalog data ever exercises it, the same posture PR
+   #250 took for `meechie-studio-text`'s `maxDuration`. Fixed by adding `export const config = { maxDuration: 150 }`
+   to `src/routes/api/wig-try-on/+server.ts`, matching the route's own existing client-side timeout
+   (`POST_JSON_TIMEOUTS_MS.wigTryOn` in `http-client.ts`) rather than inventing a new number.
+
+**Considered but not picked:** nothing else from either Explore agent's sweep cleared the bar this run.
 
 **Verification:** `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (834 passed / 1 skipped
-— +2 over this run's own 832 baseline, one regression test per fix), `npm run build` (succeeds), and
-`npm run verify` (full chain green — audit gate, chamber-lock, check+test, shaolin-lint, assumption-alarm,
-seam-ledger, clan-chain, proof-tape — evidence refreshed in place at `docs/evidence/2026-09-03/`, which already
-existed for today from all thirteen prior runs). Neither change touches a seam boundary (pure client-side Svelte
-runes state class, no filesystem/network/process/clock/randomness boundary), so the full Seam-Driven Development
-workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every prior entry's precedent.
+— +2 over this run's own 832 baseline, one regression test per fix; fix 3 has no dedicated test since it's a
+platform-config export with no branching logic, consistent with how PR #250 verified the analogous
+`meechie-studio-text` override — via the built output, see below), `npm run build` (succeeds; confirmed
+`.vercel/output/functions/api/wig-try-on.func/.vc-config.json` reports `"maxDuration": 150` post-build, while
+`.../api/generate.func/.vc-config.json` stays at the global `120`), and `npm run verify` (full chain green —
+audit gate, chamber-lock, check+test, shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape —
+evidence refreshed in place at `docs/evidence/2026-09-03/`, which already existed for today from all thirteen
+prior runs). None of the three changes touch a seam contract, mock, or adapter file (two pure client-side Svelte
+state fixes, one platform function-lifetime config export — no filesystem/network/process/clock/randomness
+boundary of its own, the same reasoning PR #250 recorded for the identical class of change), so the full
+Seam-Driven Development workflow and a Cipher Gate entry in `DECISIONS.md` do not apply, consistent with every
+prior entry's precedent.
 
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#151–#218 minus merges) every prior run has noted, now visibly older (newest is from July); still needs a
@@ -934,6 +960,14 @@ session) — too late to push a fix to, since the head they're anchored to no lo
    run (left the thread open, unresolved, since it wasn't acted on).
 
 **Status:** PR #261 opened, subscribed for CI/review activity, driven to green, and merged into `main` at
-`df6e4f0` in this same session. No PRs from this session were left open. Two real, verified follow-up candidates
-(items 2 and 3 above) are recorded here for a future run to pick up; neither is a regression introduced by this
-PR, both are pre-existing gaps this PR's fix came close to but didn't fully close.
+`df6e4f0` in this same session. Two real, verified follow-up candidates (items 2 and 3 above) are recorded here
+for a future run to pick up; neither is a regression introduced by this PR, both are pre-existing gaps this PR's
+fix came close to but didn't fully close.
+
+**PR #262 activity:** opened docs-only to record PR #261's entry above. While in review, a Codex comment
+(P2, on `QUICK_WINS_LOG.md`) caught that the entry's own claim about `wig-try-on`'s `maxDuration` candidate was
+built on an incorrect premise (see the correction under "Investigation" above) — pushed a second commit to this
+same PR correcting the log text and adding the actual `maxDuration: 150` fix (item 3 under "Found and fixed"
+above) rather than leaving the record wrong or spinning up a third PR for a one-line fix already fully understood.
+If this line is not followed by a "Merged" note below, the merge did not complete and the reason should be
+recorded here by the session that stopped.
