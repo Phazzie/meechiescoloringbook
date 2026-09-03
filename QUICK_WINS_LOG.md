@@ -985,3 +985,91 @@ own precedent already warned about three times (`3617855`, `009bd69`, `64e1289`,
 above) — it deleted the "If this line is not followed..." conditional status sentence instead of preserving it and
 appending the activity/merge confirmation after it. Caught by a Codex review on this PR itself; fixed by restoring
 the original sentence and moving the new content below it, matching that same precedent's own fix a fourth time.
+
+## 2026-09-03 — session_01EucinKokdGRVY28Nrf67dt (scheduled run)
+
+**Housekeeping before the search:** started from `main` at `79f0548` (PR #263 already merged) — this session's
+designated branch (`claude/loving-babbage-an6o9e`) was already at that exact commit, so no reset/rebase was
+needed this time. Listed all open PRs: none from this session's own branch lineage; the same long-stale backlog
+(#151–#218, minus merges) every prior run has noted, unchanged in kind. Ran `npm ci`, `npm run check`, `npm run
+lint`, and `npm test` on a clean checkout first — all green (834 passed / 1 skipped).
+
+**Investigation:** This is run #16 on a codebase fifteen prior runs have already scrubbed hard. Found the first
+candidate myself by re-reading PR #261's own entry above: its Codex review finding #3 ("clear the complete
+generated-page state before try-on") was verified real at the time but left unresolved on that PR's already-merged
+head with no follow-up PR opened for it. Re-verified it against the current code before picking it up. Spawned a
+background Explore agent in parallel for a second candidate, given a condensed summary of every already-fixed and
+already-deferred item from this log (not the full file) so it wouldn't re-surface any of them, and told explicitly
+not to re-suggest the PR #261 finding I'd already claimed. It swept `src/lib/core/*`, `src/lib/server/*`, every
+route/`+server.ts`/`+page.ts` file, every Svelte component, and spot-checked docs/CI/config files, and came back
+with one solid candidate plus an honest "nothing else clears the bar" — re-confirming every previously-deferred
+item (including the `StudioHero` banner apostrophe, the heading-casing mismatch, and the `SelfieUpload` British
+spelling) is still correctly deferred. Verified its candidate myself against the actual code, `contracts/
+image-generation.contract.ts`, and `DECISIONS.md`'s history before picking it up, including running the exact
+base64 strings from the existing test suite through Node's own `Buffer.from(..., 'base64')` to confirm a
+byte-level rewrite wouldn't change any existing test's outcome before touching the code.
+
+**Found and fixed (`claude/loving-babbage-an6o9e`, this same branch):**
+
+1. **`resetTryOnResultState()` didn't clear a previously generated page's assembled prompt/violations, only its
+   images/PDF.** `src/routes/studio-state.svelte.ts:313-319` reset `tryOnPortraitUrl`/`tryOnError`/
+   `generationError`/`images`/`packagedFiles` when starting a new wig try-on, but not `assembledPrompt`/
+   `revisedPrompt`/`violations`/`recommendedFixes` — even though the sibling `resetGeneratedPage()` (used by
+   `handleModeSelect` and, since PR #261, `loadCreation`) clears all of those together for the exact same "user
+   is moving on from what was generated before" situation. `SystemTrace.svelte` renders `assembledPrompt`/
+   `revisedPrompt`/`violations` independently of `images`/`packagedFiles` (confirmed by reading its props and
+   template), so a user who generates a normal page, then starts a try-on, still saw the old page's prompt and
+   quality flags in System Trace beside the brand-new portrait. This is exactly Codex review finding #3 on PR
+   #261 (recorded in that PR's own log entry above as "P2 ... verified real ... left as a candidate for a future
+   run"), re-verified against today's code before fixing rather than trusted at face value. Fixed by having
+   `resetTryOnResultState()` delegate to `resetGeneratedPage()` for the fields they already share
+   (`generationError`/`images`/`packagedFiles`, now also `assembledPrompt`/`revisedPrompt`/`violations`/
+   `recommendedFixes`) instead of duplicating a subset of them, then setting only the two fields unique to a
+   try-on reset (`tryOnPortraitUrl`/`tryOnError`) — closing the gap and removing the duplication between the two
+   methods in the same change. Extended the existing `tests/unit/studio-state.test.ts` regression test (`'clears
+   a previously generated coloring page when a new try-on is requested'`) to also seed and assert on the four
+   previously-uncovered fields, rather than adding a separate test.
+2. **`imageFormatFromBase64` silently mislabeled anything that wasn't JPEG/PNG as PNG, with no WebP detection at
+   all.** `src/lib/core/image-generation-pipeline.ts:22-29` matched `/9j/` and `iVBORw0KGgo` as fixed
+   base64-string prefixes for JPEG/PNG and defaulted everything else — including a genuine WebP response — to
+   `format: 'png'` / `mimeType: 'image/png'`, producing a data URI whose declared MIME type doesn't match its
+   actual bytes; browsers refuse to decode that, so the generated coloring page would silently fail to render.
+   `GeneratedImage.format` is a 4-value enum (`contracts/image-generation.contract.ts:16`) that already includes
+   `'webp'`, and this exact mislabeling bug was already found and fixed once in this repo for the sibling
+   wig-try-on path — `DECISIONS.md`'s 2026-06-07 entry documents portraits being "accepted... in the data URL
+   regex but emitted as `format: 'jpg'`," fixed there with real byte-level magic-number detection
+   (`detectRasterMimeType`/`startsWithBytes` in both `src/lib/core/wig-try-on-pipeline.ts` and
+   `src/lib/adapters/wig-try-on-seam/index.ts`, covering JPEG/PNG/WebP via `RIFF....WEBP` byte matching). That
+   fix was never ported to this second, independent image path. Confirmed via Node that decoding this file's own
+   three existing test fixtures (`pngBase64`, `'/9j/jpeg-data'`, `'not-a-known-image-header'`) through
+   `Buffer.from(data, 'base64')` produces the exact same classification as before (real PNG/JPEG signature bytes
+   for the first two; unrecognized garbage bytes for the third, still falling through to the PNG default) before
+   changing anything, so no existing test needed its expectation touched. Ported the same byte-signature check
+   (JPEG `FF D8 FF`, PNG's full 8-byte signature, WebP's `RIFF`+`WEBP` pair around the variable-length size field)
+   as a local, self-contained function rather than extracting a shared module across the three now-duplicate
+   copies of this logic — kept as a candidate for a future run if the duplication itself becomes worth
+   consolidating; not done here to keep this fix a single-file, minimal-risk diff. Added a fourth test asserting
+   a real WebP byte signature (`RIFF` + size + `WEBP` + `VP8` chunk, base64-encoded) now returns `format: 'webp'`
+   / `mimeType: 'image/webp'` instead of the old default.
+
+**Considered but not picked:** the Explore agent's own candidate list had only the one item above at comparable
+confidence; every other item it checked either matched something already in this log's fixed/deferred list or was
+too subjective to justify as a bug fix (nothing new to add beyond what's already recorded in prior entries).
+
+**Verification:** `npm ci`, `npm run check` (0 errors/warnings), `npm run lint` (clean), `npm test` (835 passed /
+1 skipped — +1 over this run's own 834 baseline, the new WebP regression test), `npm run build` (succeeds), and
+`npm run verify` (full chain green — audit gate, chamber-lock, check+test, shaolin-lint, assumption-alarm,
+seam-ledger, clan-chain, proof-tape — evidence refreshed in place at `docs/evidence/2026-09-03/`, which already
+existed for today from all fifteen prior runs; `lint.txt`/`build.txt`/`verify-chain.txt` re-captured post-edit
+with this run's actual command output, per the PR #254 precedent for keeping those three manually-captured files
+current). Neither change touches a seam contract, mock, or adapter file (one pure client-side Svelte state fix,
+one pure-function byte-detection fix inside an existing core pipeline; no filesystem/network/process/clock/
+randomness boundary of their own), so the full Seam-Driven Development workflow and a Cipher Gate entry in
+`DECISIONS.md` do not apply, consistent with every prior entry's precedent.
+
+**Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
+(#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
+
+**Status:** commits pushed directly to this session's designated branch (`claude/loving-babbage-an6o9e`) ahead of
+opening a PR. If this entry is not followed by a "PR opened"/"Merged" note below, the PR was not opened or the
+merge did not complete and the reason should be recorded here by the session that stopped.
