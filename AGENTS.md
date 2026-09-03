@@ -34,7 +34,9 @@ The common failure modes are assuming behavior, skipping probes, widening scope,
 5. Mechanical enforcement: rely on verify/tests, not claims.
 
 ## Workflow (Liquid Loop)
-Follow this order, no shortcuts:
+Follow this order, no shortcuts. File paths below are the legacy flat layout; new seams use the
+self-contained layout instead — see `CLAUDE.md`'s "Two seam layouts coexist" table and
+`docs/SEAM_BLUEPRINT.md` for the equivalent self-contained paths (`src/lib/seams/<seam-name>/`).
 1. Contract: `contracts/<seam>.contract.ts` (schema + types + failures).
 2. Probe: `probes/<seam>.probe.ts` (capture real behavior).
 3. Fixtures: `fixtures/<seam>/sample.json` and `fixtures/<seam>/fault.json`.

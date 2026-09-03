@@ -25,8 +25,9 @@ All files live under `src/lib/seams/<seam-name>/`, except the adapter:
 
 ## Probe
 - File: `src/lib/seams/<seam-name>/probe.ts`
-- Capture real behavior and produce fixtures. Only needed when the seam requires a real-world
-  probe — pure or dependency-injected seams have none.
+- Capture real behavior and produce fixtures. Every self-contained seam has one, including pure or
+  dependency-injected seams — for those, the probe simply calls the seam directly, since "real
+  behavior" is the deterministic function itself rather than a live external system.
 
 ## Fixtures
 - File: `src/lib/seams/<seam-name>/fixtures.ts` (in-module, or backed by co-located JSON assets)

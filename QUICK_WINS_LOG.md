@@ -1889,9 +1889,16 @@ left open.
   `src/lib/seams/*`, or any filesystem/network/process/clock/randomness boundary. No seam name
   from `docs/seams.md` applies.
 - **Exact files to touch:** `README.md` (the "Each seam consists of" list and the paragraph after
-  it); `AGENTS.md` (line 54's verify-chain wording, plus a new "Scheduled Quick-Wins Routine"
-  section and one `QUICK_WINS_LOG.md` line added to Project Docs); `QUICK_WINS_LOG.md` (this
-  entry).
+  it); `AGENTS.md` (line 54's verify-chain wording, a new "Scheduled Quick-Wins Routine" section, a
+  `QUICK_WINS_LOG.md` line added to Project Docs, and — added during review repairs, see "Found and
+  fixed" below — a qualifying note on the Workflow section's flat-layout file paths);
+  `docs/SEAM_BLUEPRINT.md` (added during review repairs — rewritten to describe the self-contained
+  layout as primary); `DECISIONS.md` (added during review repairs — a Decision + Assumption entry
+  for the audit-gate registry outage); `docs/evidence/2026-09-03/*` (lint.txt/build.txt added,
+  verify-chain.txt recaptured multiple times); `QUICK_WINS_LOG.md` (this entry, updated in place as
+  review repairs landed rather than left describing only the original two-file plan). *Updated
+  after a Codex review finding correctly pointed out the original list above only named the first
+  three files, before review repairs widened it — see "Found and fixed" below.*
 - **Exact commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run
   verify` (or its individual stages, when the live audit-gate registry endpoint hung mid-run —
   see Verification below).
@@ -2065,6 +2072,32 @@ first physical line and stops at the next line that doesn't start with `"  - "` 
 fields had been wrapped across multiple lines for readability, silently truncating the parse. Fixed by rewriting
 both as single (long) lines, matching every other Assumption entry's own existing convention in the file, and
 confirmed `assumption-alarm` passes clean afterward.
+
+A fourth Codex review round on the next head flagged three more, all investigated and fixed. (1) P2 — the
+rewritten `docs/SEAM_BLUEPRINT.md`'s self-contained Probe section wrongly said pure/dependency-injected seams
+have no `probe.ts` — an error I introduced by conflating two different things in `docs/seams.md`: the Probe
+*column* (a file path, or literally `N/A (pure)` when no file exists — true for several legacy seams) versus the
+*Last probe* column (which reads `N/A` for pure seams that do have a probe file, meaning it was never run against
+live external behavior because there is none). Verified directly against the filesystem
+(`ls src/lib/seams/{prompt-compiler,safety-policy,gallery-store,telemetry}-seam/`): all four pure self-contained
+seams do have a `probe.ts`, and reading one (`prompt-compiler-seam/probe.ts`) confirmed it simply calls the seam
+function directly rather than being omitted. Fixed the wording to state probe.ts is always present in the
+self-contained layout, with pure seams' probes calling the seam directly instead of a live external system. The
+legacy-layout section's own "only when required" qualifier was correct and left unchanged — legacy pure seams
+(`PromptAssemblySeam`, etc.) genuinely have no `probes/<seam>.probe.ts` file, per `docs/seams.md`'s Probe column
+literally reading `N/A (pure)` for those rows. (2) P2 — the blueprint rewrite's new "do not add flat-layout
+seams" framing newly conflicted with `AGENTS.md`'s own canonical "Workflow (Liquid Loop)" section, which
+unconditionally lists only flat-layout file paths (`contracts/<seam>.contract.ts`, `probes/<seam>.probe.ts`,
+etc.) with no mention of the self-contained layout at all — a real, pre-existing gap in the single most
+load-bearing section of the repo's governance doc, exposed rather than created by making `SEAM_BLUEPRINT.md`
+internally consistent with `CLAUDE.md`. Judged full step-by-step file-path rewrites of the Workflow section too
+risky to make under review pressure (it's the most foundational part of `AGENTS.md`); instead added one
+qualifying sentence directly under "Follow this order, no shortcuts" noting the listed paths are the legacy
+layout and pointing to `CLAUDE.md`/`docs/SEAM_BLUEPRINT.md` for the self-contained equivalent, leaving the
+six-step ordering itself untouched. (3) P1 — this entry's own Plan + Self-Critique "Exact files to touch" list,
+written before any review-repair commits existed, had gone stale relative to what the PR actually ended up
+touching (`docs/SEAM_BLUEPRINT.md`, `DECISIONS.md`, more evidence files, and now this same `AGENTS.md` Workflow
+note) — updated the list in place to name everything actually touched, with a note explaining why it grew.
 
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (`#151`–`#218` minus merges) every recent run has noted; still needs a separate, explicitly-scoped session to

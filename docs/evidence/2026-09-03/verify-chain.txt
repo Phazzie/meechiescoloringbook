@@ -5,8 +5,8 @@
 # Note: proof-tape.mjs is re-run after this file is written, so the tape inventories
 #       this exact artifact rather than the copy that existed mid-chain.
 # Note (this run): `npm audit --audit-level=high` (run directly, bypassing the `verify` wrapper)
-#       hung with zero output across four separate attempts (30s/60s/90s/45s timeouts) spanning
-#       roughly 15 minutes, while `npm ping` to the same registry succeeded in 150ms in between -
+#       hung with zero output across five separate attempts (30s/60s/90s/45s/30s timeouts) spanning
+#       roughly 20 minutes, while `npm ping` to the same registry succeeded in 150ms in between -
 #       a registry-side audit-endpoint outage, not a proxy/DNS/connectivity issue (registry.npmjs.org
 #       is in NO_PROXY; see DECISIONS.md's 2026-09-03 entry "audit:gate's registry endpoint was
 #       unreachable during a scheduled quick-wins run" for the full record and the open Assumption).
@@ -116,3 +116,35 @@ $ node scripts/assumption-alarm.mjs   # (after the fix)
 
 $ node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs
 (no output; exit 0 for both)
+
+$ timeout 30 npm audit --audit-level=high   # (retry 5, after the SEAM_BLUEPRINT.md/AGENTS.md review repairs - still hung)
+[no output before timeout]
+EXIT:124
+
+$ node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining chain stages, run individually)
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v4.1.0 /home/user/meechiescoloringbook
+
+
+ Test Files  74 passed | 1 skipped (75)
+      Tests  845 passed | 1 skipped (846)
+   Start at  22:50:44
+   Duration  47.08s (transform 1.99s, setup 561ms, import 3.77s, tests 1.50s, environment 31.94s)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+(shaolin-lint, assumption-alarm, seam-ledger, clan-chain: no output; exit 0 for all four)
