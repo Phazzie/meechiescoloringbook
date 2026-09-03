@@ -1506,3 +1506,7 @@ noise this log has documented on every PR back to #243.
 
 **Status:** PR #272 opened and subscribed for CI/review activity. If this line is not followed by a "Merged" note
 below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
+**Merged:** PR #272 merged into `main` at `ba24311` in this same session. A fresh open-PR listing afterward
+showed only the same pre-existing long-stale backlog (#151–#218 minus merges) — no PR from this session was left
+open.
