@@ -225,6 +225,13 @@ Detection` failed on both heads, but both reported findings named branch pairs (
 files this PR never touched) that don't include this PR's diff at all. Confirmed pre-existing and PR-independent
 by checking that the identical workflow failed the same way on PR #243 (already merged, completely different
 diff) — a repo-wide cross-branch scan over the long-stale open-PR backlog, not scoped to any one PR. Stood down
-with one PR comment naming the check and why it isn't this PR's, per precedent.
+with one PR comment naming the check and why it isn't this PR's, per precedent. Copilot Code Review approved
+with one non-blocking suggestion that arrived after merge completed: `docs/evidence/2026-09-03/proof-tape.json`
+reports `modifiedAt` timestamps for its own `proof-tape.json`/`proof-tape.md` entries that predate `generatedAt`,
+because `scripts/proof-tape.mjs` scans the evidence directory (including its own prior output) before writing
+the new report. Real but pre-existing in the verify tooling itself (not introduced by this PR's two UI-copy
+edits) and out of this run's scope — `scripts/` changes need a plan per `CLAUDE.md`. Left as a candidate for a
+future run: either exclude `proof-tape.{json,md}` from the scanned entries in `scripts/proof-tape.mjs`, or
+rescan after writing.
 
 **Status:** PR #245 merged into `main` at `4cf7aea` in this same session.
