@@ -152,6 +152,17 @@ excluding #240/#241 which merged), most stale against old base commits from much
 scope stayed limited to its own two quick wins per the task instructions; that backlog is unchanged from prior
 runs' notes and still needs a separate, explicitly-scoped session to drain.
 
-**Status:** PR #243 opened, subscribed for CI/review activity, and driven to merge in this same session (see
-commit history on `main` for the merge outcome — if this entry is not followed by a "merged" note below, the
-merge did not complete and the reason should be recorded here by the session that stopped).
+**PR #243 activity:** CI ran clean (verify x2, CodeQL x2, SonarCloud, build/lint/test) except
+`Rosentic - Conflict Detection`, which failed with hypothetical cross-branch incompatibilities against ~15
+*other*, unrelated stale open branches (none of which this PR's two-line diff touches) — confirmed pre-existing
+and PR-independent by checking that the identical check failed the same way on the already-merged PR #241 with
+a completely different diff. Stood down with a PR comment naming the check and why it isn't this PR's; no fix
+applies (it clears only once the stale-branch backlog is drained). A Codex bot review also flagged the
+`getWeeklyModes()` modulo removal as P1 "apply the full clock-seam workflow" on the theory that the function
+reads `Date.now()`. Verified and replied on the review thread with a closed-form proof that the change is
+behaviorally identical for every possible input (including the `pool.length === 0` edge case) and never
+touches the two lines that actually read the clock — so no contract/probe/fixture/mock/adapter workflow or
+Cipher Gate applies, since there is no external clock behavior being introduced or altered to capture. Resolved
+that thread (bot findings don't block merge per `AGENTS.md`, but this one was verified rather than dismissed).
+
+**Status:** PR #243 merged into `main` at `ff893de` in this same session. Log entry finalized post-merge.
