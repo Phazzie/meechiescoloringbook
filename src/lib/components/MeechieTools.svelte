@@ -259,14 +259,24 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			}
 
 			const images = parsed.data.value.images;
-			// Packaging needs a browser canvas for some formats, so treat a failure as a missing
-			// download rather than a failed generation: the page still previews and still saves.
-			const packResult = await outputPackagingAdapter.package({
+			// Two calls, not one with `variants: ['print', 'square']`. The adapter builds the print
+			// file first and then returns the square failure *without* its accumulated files, so a
+			// browser that cannot encode the 1080px share canvas would take the printable PDF down
+			// with it. The PDF is the product; the square image is a nicety.
+			const fileBaseName = `meechie-${verdict.toolId}-${Date.now()}`;
+			const printResult = await outputPackagingAdapter.package({
 				images,
 				outputFormat: 'pdf',
-				fileBaseName: `meechie-${verdict.toolId}-${Date.now()}`,
+				fileBaseName,
 				pageSize: recipe.spec.pageSize,
-				variants: ['print', 'square']
+				variants: ['print']
+			});
+			const shareResult = await outputPackagingAdapter.package({
+				images,
+				outputFormat: 'pdf',
+				fileBaseName,
+				pageSize: recipe.spec.pageSize,
+				variants: ['square']
 			});
 			if (isStale()) return;
 
@@ -280,10 +290,14 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			imagePreviews = images
 				.map(previewUrl)
 				.filter((url): url is string => url !== null);
-			if (packResult.ok) {
-				packagedFiles = packResult.value.files;
-			} else {
-				generateError = `Page made, but the download could not be built: ${packResult.error.message}`;
+			packagedFiles = [
+				...(printResult.ok ? printResult.value.files : []),
+				...(shareResult.ok ? shareResult.value.files : [])
+			];
+			if (!printResult.ok) {
+				generateError = `Page made, but the printable download could not be built: ${printResult.error.message}`;
+			} else if (!shareResult.ok) {
+				generateError = `Page and PDF are ready; the square share image could not be built: ${shareResult.error.message}`;
 			}
 		} catch (requestError) {
 			if (isStale()) return;
@@ -333,7 +347,10 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 					// path falls back to `assembledPrompt` for the quote, which on a generated page
 					// is the image-generation prompt, and to the default landlord page items when
 					// the saved spec has none. See `buildToolStudioText`.
-					studioText: buildToolStudioText(pageVerdict, lastRecipe),
+					// `?? undefined`, not a cast: `buildToolStudioText` returns null when the verdict
+					// has no printable words to build a contract-valid record from, and omitting the
+					// field keeps the save itself valid rather than losing the page.
+					studioText: buildToolStudioText(pageVerdict, lastRecipe) ?? undefined,
 					violations,
 					fixesApplied: recommendedFixes.map((fix) => fix.code),
 					images: generatedImages.map((image) => ({

@@ -1294,3 +1294,60 @@ The colon is already required. The pattern is `/^(fault|consequence|move|verdict
 
 A test now pins that prose beginning with a prefix word falls back to the quote page, so if the
 pattern ever does loosen, the suite says so.
+
+---
+
+## Run 2, fourth close-out — 2026-09-04 — the Codex round on `7f8e77b`
+
+Three findings, all real, all accepted. The first is the most serious defect found in the whole run.
+
+### An unprintable verdict would have destroyed the save
+
+`MeechieToolOutputSchema` requires only that a headline and response be non-empty. It does not
+require them to contain a single printable character. An emoji-only verdict is therefore a valid
+tool output — and `toItems` drops anything that sanitizes away, so `buildToolStudioText` produced
+**zero** page items where `MeechieStudioTextOutputSchema` demands two.
+
+The consequence is not a degraded record. `creationStoreAdapter.saveCreation` validates the whole
+`CreationRecord`, so the entire vault write would have been rejected with
+`CREATION_SCHEMA_MISMATCH` — losing the page the user had just paid a generation for, with no
+partial save and nothing to retry.
+
+Probing it turned up a second defect nobody had reported: the same verdict produced the page title
+`"-"`. `compactColoringPageTitle` normalizes the emoji down to a lone hyphen, `TitleSchema` accepts
+it (non-empty, not reserved, no control characters), and the result is a valid title on a useless
+page. `toPageTitle` now requires at least one letter or digit before accepting a title.
+
+The studio-text fix has two parts. More fallbacks — the page title joins the headline and the
+response as a source, because `toPageTitle` guarantees *it* is printable even when the verdict is
+not. And the result is validated against `MeechieStudioTextOutputSchema` before it is returned, with
+`null` on failure. Returning null costs one record a degraded reopen; returning an invalid object
+costs the user the page. A test now sweeps every tool against five responses and three headlines and
+asserts the function returns either null or something the schema accepts — never anything else.
+
+### The layout flag cleared too early
+
+The third close-out scoped the reopened quote layout with `restoredPageLayout`. It was cleared at
+the *start* of `runTextAction` — so a text action that failed, timed out, or was rejected cleared it
+while the restored text was still the text on screen, and the next settings change converted the
+quote page into a numbered list anyway. It is now cleared only once a replacement verdict has been
+accepted. Red-proofed: moving the clear back to the start fails the new test.
+
+That is the fourth consecutive round in which a defect was introduced by the previous round's fix,
+and the second in a row on this exact flag. The scoping was right; the *lifetime* was a guess.
+
+### An optional share image could take the PDF with it
+
+`outputPackagingAdapter.package` builds the print file first, and then returns the square-variant
+error **without its accumulated files**. Asking for `['print', 'square']` in one call therefore
+meant a browser that could not encode the 1080px share canvas offered no download at all — not even
+the PDF that had already been built. The two variants are now packaged independently, the files are
+merged from whichever succeeded, and the message distinguishes "the printable download failed" from
+"the PDF is ready, the share image is not".
+
+### What these three have in common
+
+All three are the same shape: **a value that is valid at one boundary and invalid at the next.** A
+headline valid to the tool contract but not to the title schema. A studio-text object valid to build
+but not to store. A packaging call valid for one variant and fatal for the pair. None is reachable
+from the happy path, and none was caught by a suite that was green at every step.

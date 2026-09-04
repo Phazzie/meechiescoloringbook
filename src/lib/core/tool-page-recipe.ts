@@ -15,6 +15,8 @@ import {
 	TitleSchema
 } from '../seams/spec-validation-seam/contract';
 import { compactColoringPageTitle } from './coloring-page-title';
+import { MeechieStudioTextOutputSchema } from '../../../contracts/meechie-studio-text.contract';
+import type { MeechieStudioTextOutput } from '../../../contracts/meechie-studio-text.contract';
 
 /** A page recipe is exactly the two things `/api/generate` takes. */
 export type ToolPageRecipe = {
@@ -420,7 +422,10 @@ const LIST_PAGE_STYLE = { whitespaceScale: 45, listGutter: 'loose' } as const;
  */
 const toPageTitle = (parts: string[]): string => {
 	const title = compactColoringPageTitle(parts);
-	if (TitleSchema.safeParse(title).success) return title;
+	// `TitleSchema` accepts any non-empty, non-reserved line, so an emoji-only verdict survives
+	// normalization as the single character "-" and passes. That is a valid title and a useless
+	// page, so require at least one letter or digit before accepting it.
+	if (/[A-Za-z0-9]/.test(title) && TitleSchema.safeParse(title).success) return title;
 	const fallback = compactColoringPageTitle([]);
 	return TitleSchema.safeParse(fallback).success ? fallback : 'Meechie Said It';
 };
@@ -512,33 +517,37 @@ const MIN_STUDIO_PAGE_ITEMS = 2;
 export const buildToolStudioText = (
 	output: MeechieToolOutput,
 	recipe: ToolPageRecipe
-): {
-	verdict: string;
-	quote: string;
-	pageTitle: string;
-	pageItems: { number: number; label: string }[];
-	rating?: number;
-	qualityState: 'ready';
-} => {
+): MeechieStudioTextOutput | null => {
 	const printed = recipe.spec.items.map((item) => ({ number: item.number, label: item.label }));
 	// A list page already prints two or more of the verdict's own lines; reuse exactly those.
 	// Otherwise chop the response itself into printable lines, and if it is too short to yield the
 	// two the schema demands, lead with the headline — still her words, never a placeholder.
-	const fallbackSource =
-		printed.length >= MIN_STUDIO_PAGE_ITEMS
-			? []
-			: toItems(splitResponseLines(output.response));
-	let items = printed.length >= MIN_STUDIO_PAGE_ITEMS ? printed : fallbackSource;
-	if (items.length < MIN_STUDIO_PAGE_ITEMS) {
-		items = toItems([output.headline, output.response]);
+	let items = printed.length >= MIN_STUDIO_PAGE_ITEMS ? printed : [];
+	// Each fallback is still the verdict's own words; the page title is included because
+	// `toPageTitle` guarantees it is printable even when the verdict is not.
+	for (const source of [
+		() => toItems(splitResponseLines(output.response)),
+		() => toItems([output.headline, output.response]),
+		() => toItems([recipe.spec.title, output.response])
+	]) {
+		if (items.length >= MIN_STUDIO_PAGE_ITEMS) break;
+		items = source();
 	}
 
-	return {
+	const candidate = {
 		verdict: output.headline,
 		quote: output.response,
 		pageTitle: recipe.spec.title,
 		pageItems: items.slice(0, MAX_TOOL_PAGE_ITEMS),
 		...(typeof output.rating === 'number' ? { rating: output.rating } : {}),
-		qualityState: 'ready'
+		qualityState: 'ready' as const
 	};
+
+	// Validate before handing it to the store. `MeechieToolOutputSchema` accepts a verdict with no
+	// printable characters at all — an emoji-only response — and no fallback above can conjure the
+	// two page items the studio-text schema demands from it. Returning null there costs a degraded
+	// reopen for that one record; returning an invalid object would make `saveCreation` reject the
+	// whole save with `CREATION_SCHEMA_MISMATCH` and lose the page the user just paid to generate.
+	const parsed = MeechieStudioTextOutputSchema.safeParse(candidate);
+	return parsed.success ? parsed.data : null;
 };

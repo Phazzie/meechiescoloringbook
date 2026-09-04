@@ -330,7 +330,10 @@ describe('buildToolStudioText keeps a saved page faithful when reopened', () => 
 	const save = (toolId: MeechieToolOutput['toolId'], response: string, extra = {}) => {
 		const out = output(toolId, response, extra);
 		const recipe = buildToolPageRecipe(out);
-		return { out, recipe, studioText: buildToolStudioText(out, recipe) };
+		const studioText = buildToolStudioText(out, recipe);
+		// Every case in this block supplies printable words, so a null here is itself a failure.
+		expect(studioText, `no studio text for ${toolId} / "${response}"`).not.toBeNull();
+		return { out, recipe, studioText: studioText! };
 	};
 
 	it('satisfies the studio text contract for every tool, list page and quote page alike', () => {
@@ -480,8 +483,10 @@ describe('findings from the review rounds', () => {
 		const recipe = buildToolPageRecipe(out);
 		expect(recipe.spec.listMode).toBe('title_only');
 
+		const studioText = buildToolStudioText(out, recipe);
+		expect(studioText).not.toBeNull();
 		const rebuilt = buildColoringPageSpecFromMeechieText({
-			output: buildToolStudioText(out, recipe),
+			output: studioText!,
 			pageSize: recipe.spec.pageSize,
 			border: recipe.spec.border,
 			styleHint: recipe.styleHint,
@@ -567,5 +572,47 @@ describe('prose that merely starts with a prefix word is not a structured beat',
 			'Move: change the locks.',
 			'Fault: he had time.'
 		]);
+	});
+});
+
+describe('a verdict with no printable words cannot break the save', () => {
+	// `MeechieToolOutputSchema` accepts any non-empty headline and response, including text that
+	// sanitizes away entirely. Before this was handled, an emoji-only verdict produced zero page
+	// items — and `MeechieStudioTextOutputSchema` demands two, so `saveCreation` would have
+	// rejected the whole vault write with CREATION_SCHEMA_MISMATCH and lost the generated page.
+	const emojiOnly = output('caption_this', '\u{1F485}\u{1F485}', { headline: '\u{1F485}' });
+
+	it('still builds a page the generate contract accepts', () => {
+		const recipe = buildToolPageRecipe(emojiOnly);
+		expect(ColoringPageSpecSchema.safeParse(recipe.spec).success).toBe(true);
+	});
+
+	it('does not print a title made only of punctuation', () => {
+		const recipe = buildToolPageRecipe(emojiOnly);
+		// The old behaviour normalized the emoji to the single character "-", which `TitleSchema`
+		// accepts and no reader can use.
+		expect(recipe.spec.title).toMatch(/[A-Za-z0-9]/);
+		expect(recipe.spec.title).not.toBe('-');
+	});
+
+	it('returns null rather than studio text the store would reject', () => {
+		const recipe = buildToolPageRecipe(emojiOnly);
+		expect(buildToolStudioText(emojiOnly, recipe)).toBeNull();
+	});
+
+	it('always returns either null or a contract-valid record', () => {
+		for (const toolId of MeechieToolIdSchema.options) {
+			for (const response of ['\u{1F485}', '...', 'He had time.', 'Run.', '\u{1F485} \u{1F485}']) {
+				for (const headline of ['\u{1F485}', 'STYLE:', 'Verdict Delivered']) {
+					const out = output(toolId, response, { headline });
+					const studioText = buildToolStudioText(out, buildToolPageRecipe(out));
+					if (studioText === null) continue;
+					expect(
+						MeechieStudioTextOutputSchema.safeParse(studioText).success,
+						`${toolId} / "${headline}" / "${response}" produced invalid studio text`
+					).toBe(true);
+				}
+			}
+		}
 	});
 });

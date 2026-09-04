@@ -964,4 +964,42 @@ describe('StudioState quote vault', () => {
 		expect(studio.spec.listMode).toBe('list');
 		expect(studio.spec.items.length).toBeGreaterThan(0);
 	});
+
+	it('keeps a reopened quote page as a quote page when the replacement verdict fails', async () => {
+		// Clearing the restored layout when the action *started* converted the page the moment a
+		// text action failed, timed out, or was rejected — while its text was still on screen.
+		const studio = new StudioState();
+		const quoteSpec = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter' as const,
+			border: 'decorative' as const,
+			styleHint: 'crown',
+			listMode: 'title_only' as const
+		});
+
+		await studio.loadCreation({
+			id: 'creation-quote-fail',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: quoteSpec,
+			assembledPrompt: 'a saved toolkit quote page',
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+		expect(studio.spec.listMode).toBe('title_only');
+
+		// A failing text action must not take the layout with it.
+		const fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValue(new Error('provider unavailable'));
+		try {
+			studio.evidence = 'He said the phone died.';
+			await studio.runTextAction('generate_text');
+		} finally {
+			fetchSpy.mockRestore();
+		}
+		expect(studio.textError).not.toBe('');
+
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.listMode).toBe('title_only');
+	});
 });

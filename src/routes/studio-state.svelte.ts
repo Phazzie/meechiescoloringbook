@@ -548,10 +548,6 @@ export class StudioState {
 		this.textError = '';
 		this.copyStatus = '';
 		this.vaultStatus = '';
-		// Whatever this produces is the studio's own text, so a reopened page's layout no longer
-		// applies to it.
-		this.restoredPageLayout = false;
-
 		const trimmedEvidence = this.evidence.trim();
 		const safeEvidence =
 			trimmedEvidence.length > 0 || this.activeMode.toolId === 'random_meechie'
@@ -590,6 +586,11 @@ export class StudioState {
 			this.textOutput = parsed.data.value;
 			this.revisionBudget = consumeStudioActionBudget(this.revisionBudget, actionId);
 			this.resetGeneratedPage();
+			// Only now, with a replacement verdict accepted, does a reopened page's layout stop
+			// applying. Clearing it when the action *started* would convert the restored quote page
+			// into a numbered list whenever the action then failed, timed out, or was rejected —
+			// while its text was still the text on screen.
+			this.restoredPageLayout = false;
 			await this.applyTextToSpec(parsed.data.value);
 		} catch (error) {
 			this.textError =
