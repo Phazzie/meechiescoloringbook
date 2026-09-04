@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-04T06:49:15.277Z
+Generated at: 2026-09-04T06:56:17.420Z
 Evidence folder: docs/evidence/2026-09-04
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -18,7 +18,7 @@ after this inventory is taken, so they are not listed):
 - cipher-gate.json (3510 bytes) — PREDATES THIS VERIFY RUN
 - clan-chain.json (2532 bytes)
 - clan-chain.md (1559 bytes)
-- e2e.txt (1361 bytes) — PREDATES THIS VERIFY RUN
+- e2e.txt (1981 bytes) — PREDATES THIS VERIFY RUN
 - lint.txt (328 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - seam-ledger.json (30250 bytes)
