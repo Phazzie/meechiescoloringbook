@@ -1,11 +1,20 @@
+# Purpose: Record the whole verification sequence for this head in one place — the eight-stage
+#          chain, the standalone checks run around it, and what each artifact in this folder does
+#          and does not prove.
+# Why: The individual artifacts each show one command's output. Nothing else in the folder says in
+#      what order they were produced, which of them the chain wrote and which were run by hand, or
+#      why a file carries a freshness marker. Two wrong explanations of that marker have already
+#      shipped in this folder; this file is where the corrections live.
+# Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
+#
 # npm run verify — Run 3 (worst-feature routine), close-out head after the merge of PR #293
-# Chain run at 2026-09-04T15:37:14.689Z
+# Chain run at 2026-09-04T15:44:08.138Z
 #
 # This head is `main` at cccf0c2 (the merge of PR #293) plus documentation commits. The src/ and
 # tests/ trees are byte-identical to that merge commit; the only changes are WORST_TO_BEST_LOG.md
 # and the evidence artifacts in this folder.
 #
-# Change under test: the Run 3 close-out entry in WORST_TO_BEST_LOG.md, corrected across two
+# Change under test: the Run 3 close-out entry in WORST_TO_BEST_LOG.md, corrected across three
 # review rounds on the entry itself.
 #
 # Seams touched: none. No file under contracts/, probes/, fixtures/, src/lib/mocks/,
@@ -27,23 +36,28 @@ Run on this head after the chain, then `npm run proof:tape` once more so the tap
 
   npm run lint        exit 0, clean                  -> lint.txt
   npm run build       exit 0                         -> build.txt
+  npx playwright test 22 passed                      -> e2e.txt
 
 And by the chain itself:
 
   npm run check       0 errors, 0 warnings
   npm test            1173 passed | 1 skipped        -> test.txt
 
-## Why lint.txt and build.txt were re-run for a documentation-only commit
+## Why the standalone checks were re-run for a documentation-only commit
 
-The first push of this close-out left them as they were, on the argument that the src/ and tests/
-trees are byte-identical to the merge commit those artifacts already describe, and that a fresh
-timestamp over unchanged output is not evidence of anything.
+The first push of this close-out left lint.txt and build.txt as they were, on the argument that the
+src/ and tests/ trees are byte-identical to the merge commit those artifacts already describe, and
+that a fresh timestamp over unchanged output is not evidence of anything.
 
 Codex raised it as a P1 and is right, for a reason the argument missed. AGENTS.md requires
 `npm run check`, `npm run lint`, `npm test` and `npm run build` **before every push** — the rule is
 about the head being pushed, not about whether the inputs are believed to have changed. An artifact
 that predates the head cannot prove the head passed, however sound the reasoning is that it would.
-"I am sure it still passes" is a claim; running it is a measurement. Both were re-run and both pass.
+"I am sure it still passes" is a claim; running it is a measurement.
+
+The e2e suite is scoped by AGENTS.md to user-facing changes, and this one is not. It was run anyway
+rather than left describing an earlier head, because the argument for leaving it is the same
+argument that was already wrong once above.
 
 ## How to make proof-tape.md see them, and a correction to two earlier claims
 
@@ -59,16 +73,10 @@ this folder:
     `npm run proof:tape` on its own. chamber-lock.json keeps its stage-2 mtime, the standalone
     artifacts are newer than it, and the re-rendered tape reports them as current.
 
-That is the order used here, and lint.txt and build.txt now carry no marker.
+That is the order used here. cipher-gate.json is now the only marked file, and it is marked
+correctly: no seam artifact is in this diff, so no Cipher Gate entry was required or written.
 
 A note on the shape of that mistake, since this run's log entry is about exactly it: the first claim
 was inherited from the previous run's file and repeated without testing. The second was reasoned
 from the source and stated as an impossibility after one attempt. Reading the code is not the same
 as running it either.
-
-## Why e2e.txt still predates, legitimately
-
-`npx playwright test` is required by AGENTS.md "when the change is user-facing". This commit changes
-a log file and this folder; nothing it touches reaches a browser, so the suite was not re-run and
-e2e.txt is left describing the head it was produced from — cccf0c2, whose src/ tree is this one.
-The 22-passing result recorded there is the result for the code that ships.
