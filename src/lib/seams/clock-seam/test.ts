@@ -2,7 +2,7 @@
 // Why: Prove the mock is a faithful stand-in (so tests written against it mean something) and that
 //      the adapter really does track the host clock and timer.
 // Info flow: tests -> mock / adapter -> contract assertions.
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createClockSeam } from '../../adapters/clock-seam';
 import { DAY_MS, nextUtcDayBoundary } from './contract';
 import {
@@ -302,5 +302,43 @@ describe('ClockSeam fires an already-due instant without another advance', () =>
 		await nextTask();
 
 		expect(order).toEqual(['promise', 'timer']);
+	});
+});
+
+// A `setTimeout` measures elapsed time, not an instant, so a system clock adjustment desynchronises
+// the two. The adapter re-reads the wall clock at every expiry rather than trusting the delay it
+// computed when the timer was armed.
+describe('ClockSeam adapter re-reads the clock at each expiry', () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('does not fire early when the wall clock jumps backwards', async () => {
+		const realNow = Date.now();
+		const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(realNow);
+		const clock = createClockSeam();
+		const ran = vi.fn();
+
+		clock.scheduleAt(realNow + 5, ran);
+		// The timeout elapses, but the clock has been set back an hour in the meantime.
+		nowSpy.mockReturnValue(realNow - 3_600_000);
+		await new Promise((resolve) => setTimeout(resolve, 40));
+
+		expect(ran).not.toHaveBeenCalled();
+	});
+
+	it('fires once the clock reaches the instant after a backward jump is undone', async () => {
+		const realNow = Date.now();
+		const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(realNow);
+		const clock = createClockSeam();
+		const ran = vi.fn();
+
+		clock.scheduleAt(realNow + 5, ran);
+		nowSpy.mockReturnValue(realNow - 50);
+		await new Promise((resolve) => setTimeout(resolve, 30));
+		nowSpy.mockReturnValue(realNow + 1000);
+		await new Promise((resolve) => setTimeout(resolve, 60));
+
+		expect(ran).toHaveBeenCalledTimes(1);
 	});
 });

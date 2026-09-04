@@ -42,13 +42,18 @@ export type MockPageVisibilitySeam = PageVisibilitySeam & {
 export const createMockPageVisibilitySeam = (
 	scenario: PageVisibilityScenario = 'visible'
 ): MockPageVisibilitySeam => {
-	// Runs the fixture through the same validator the adapter uses, so a fault scenario resolves
-	// here exactly as it would in a browser.
-	let visible = isVisibleState(RAW_STATES[scenario]);
+	// The *raw* host state is kept, not the resolved boolean. Resolving at construction would erase
+	// a real transition: a host that starts at `prerender` resolves to visible, so a later move to
+	// `visible` would look like no change and announce nothing — while the adapter, which sees an
+	// actual `visibilitychange`, would announce it. Keeping the raw value makes the mock's notion of
+	// "something changed" the same as the browser's.
+	let rawState: unknown = RAW_STATES[scenario];
 	let subscribers: Array<() => void> = [];
 
 	return {
-		isVisible: () => visible,
+		// Resolved on read through the same validator the adapter uses, so a fault scenario reports
+		// exactly what it would in a browser.
+		isVisible: () => isVisibleState(rawState),
 
 		onVisible: (callback) => {
 			subscribers.push(callback);
@@ -58,9 +63,10 @@ export const createMockPageVisibilitySeam = (
 		},
 
 		setVisible: (next) => {
-			const becameVisible = next && !visible;
-			visible = next;
-			if (!becameVisible) return;
+			const nextState = next ? visibleState : hiddenState;
+			const changed = nextState !== rawState;
+			rawState = nextState;
+			if (!changed || !next) return;
 			// Snapshot for stable iteration — a subscriber may unsubscribe from inside its own
 			// callback, and iterating the live array would skip the one after it. But each snapshotted
 			// subscriber is re-checked against the live list before it runs, because `EventTarget`

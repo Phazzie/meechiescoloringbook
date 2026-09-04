@@ -7,6 +7,29 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-04 - Vault image completeness is checked at the edges, not by decoding
+
+- Date: 2026-09-04
+- Decision: `looksCompleteImage` in `src/lib/core/vault-gallery.ts` validates a stored image by its
+  signature and its format's terminator (PNG `IEND`, JPEG `FFD9`, WebP's RIFF declared size against
+  the actual byte length, a closed root for SVG) rather than by decoding or structurally walking the
+  payload.
+- Context: A review on PR #289 correctly observed that a PNG signature followed by arbitrary bytes
+  and a valid `IEND` trailer passes this check, and asked for the image structure or decoding to be
+  validated before the stored bytes are preferred over a fallback url. The observation is right; the
+  remedy is where this decision differs.
+- Tradeoff, and why the cheaper check was kept: `vaultImageSource` runs for every visible row inside
+  a `$derived`, so it re-runs on every keystroke in the vault search box, and a saved page can be a
+  megabyte of base64. Walking PNG chunk headers or decoding the payload turns a constant-cost check
+  into one proportional to total vault size per keystroke. The failure it would additionally catch —
+  bytes that are correctly framed at both ends but corrupt in the middle — is also much rarer than
+  the one the edge check already catches, since truncation is how stored base64 actually gets
+  damaged. Consequence: a middle-corrupt image still produces a broken thumbnail rather than falling
+  back to a url. Alternative rejected: full decode on every render. Alternative worth revisiting:
+  validating once at save time, or caching the verdict per record id, which would make a structural
+  walk affordable — that is a change to the save path or a new cache, and neither belongs in a
+  review-fix pull request.
+
 ## 2026-09-04 - Cipher Gate: ClockSeam, AppOriginSeam and PageVisibilitySeam
 
 - Cipher Gate:

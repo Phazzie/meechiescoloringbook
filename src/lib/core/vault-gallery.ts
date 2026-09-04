@@ -113,8 +113,12 @@ const decodedByteLength = (padded: string): number =>
 // slice decodes on its own, and `</svg>` may sit behind trailing whitespace or a newline.
 const TRAILER_CHARS = 64;
 
-const decodeTrailer = (padded: string): Uint8Array | null => {
-	const start = Math.max(0, padded.length - TRAILER_CHARS);
+// SVG needs a longer window than a raster trailer: a self-closing root has to be recognised as the
+// root, which means seeing its opening `<svg` in the same slice, and a root tag carries attributes.
+const SVG_TRAILER_CHARS = 512;
+
+const decodeTrailer = (padded: string, chars: number = TRAILER_CHARS): Uint8Array | null => {
+	const start = Math.max(0, padded.length - chars);
 	const aligned = start + ((4 - (start % 4)) % 4);
 	return decodeBase64ToBytes(padded.slice(aligned));
 };
@@ -162,10 +166,16 @@ const stripTrailingSvgNoise = (text: string): string => {
  * signature and still cannot render. Checking the tail catches exactly that, and it is checked by
  * decoding only the last few dozen bytes rather than the whole payload: a saved page can be a
  * megabyte, and this runs for every row on every keystroke in the vault search box.
+ *
+ * Deliberately an edge check, not a structural one. Bytes that are correctly framed at both ends
+ * but corrupt in the middle still pass, and would need a chunk walk or a full decode to catch —
+ * cost proportional to the whole vault on every keystroke, to catch a failure far rarer than the
+ * truncation this does catch. The tradeoff, and what would make the stronger check affordable, are
+ * recorded in `DECISIONS.md` (2026-09-04, "Vault image completeness is checked at the edges").
  */
 const looksCompleteImage = (padded: string, kind: VaultImageKind): boolean => {
 	if (kind.kind === 'svg') {
-		const bytes = decodeTrailer(padded);
+		const bytes = decodeTrailer(padded, SVG_TRAILER_CHARS);
 		if (!bytes) return false;
 		// Decoded as UTF-8 rather than assembled byte by byte: the slice can begin mid-character,
 		// and TextDecoder turns a broken leading sequence into a replacement character instead of
@@ -177,7 +187,14 @@ const looksCompleteImage = (padded: string, kind: VaultImageKind): boolean => {
 		// Two legal endings, not one: `</svg>` closes a root with content, and `/>` closes a
 		// self-closing root such as `<svg xmlns="..."/>`, which is a complete renderable document
 		// with no closing tag at all. Requiring `</svg>` alone rejected those outright.
-		return tail.endsWith('</svg>') || tail.endsWith('/>');
+		if (tail.endsWith('</svg>')) return true;
+		if (!tail.endsWith('/>')) return false;
+		// `/>` only counts when it closes the *root*. A document truncated after a self-closing
+		// child — `<svg ...><path/>` — also ends in `/>` while leaving the root open, and accepting
+		// it would let corrupt bytes beat a usable fallback url. The element being closed is the one
+		// the last unclosed `<` opened.
+		const lastOpen = tail.lastIndexOf('<');
+		return lastOpen !== -1 && tail.slice(lastOpen).startsWith('<svg');
 	}
 	if (kind.mimeType === 'image/webp') {
 		// RIFF stores its payload size in bytes 4-7, little-endian, counting everything after the

@@ -1,6 +1,6 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-09-04T04:11:12.557Z",
+  "generatedAt": "2026-09-04T04:28:01.739Z",
   "evidenceDir": "docs/evidence/2026-09-04",
   "runMarker": "chamber-lock.json",
   "excludedFromInventory": [
@@ -18,7 +18,7 @@
       "name": "assumption-alarm.json",
       "path": "docs/evidence/2026-09-04/assumption-alarm.json",
       "sizeBytes": 12123,
-      "modifiedAt": "2026-09-04T04:11:12.382Z",
+      "modifiedAt": "2026-09-04T04:28:01.574Z",
       "commands": [],
       "predatesRun": false
     },
@@ -38,15 +38,15 @@
       "name": "chamber-lock.json",
       "path": "docs/evidence/2026-09-04/chamber-lock.json",
       "sizeBytes": 28496,
-      "modifiedAt": "2026-09-04T04:10:03.594Z",
+      "modifiedAt": "2026-09-04T04:26:53.826Z",
       "commands": [],
       "predatesRun": false
     },
     {
       "name": "cipher-gate.json",
       "path": "docs/evidence/2026-09-04/cipher-gate.json",
-      "sizeBytes": 3510,
-      "modifiedAt": "2026-09-04T03:40:01.454Z",
+      "sizeBytes": 3509,
+      "modifiedAt": "2026-09-04T04:25:28.586Z",
       "commands": [],
       "predatesRun": true
     },
@@ -54,7 +54,7 @@
       "name": "clan-chain.json",
       "path": "docs/evidence/2026-09-04/clan-chain.json",
       "sizeBytes": 2532,
-      "modifiedAt": "2026-09-04T04:11:12.494Z",
+      "modifiedAt": "2026-09-04T04:28:01.674Z",
       "commands": [],
       "predatesRun": false
     },
@@ -62,7 +62,7 @@
       "name": "clan-chain.md",
       "path": "docs/evidence/2026-09-04/clan-chain.md",
       "sizeBytes": 1559,
-      "modifiedAt": "2026-09-04T04:11:12.498Z",
+      "modifiedAt": "2026-09-04T04:28:01.678Z",
       "commands": [],
       "predatesRun": false
     },
@@ -81,7 +81,7 @@
       "name": "seam-ledger.json",
       "path": "docs/evidence/2026-09-04/seam-ledger.json",
       "sizeBytes": 30250,
-      "modifiedAt": "2026-09-04T04:11:12.442Z",
+      "modifiedAt": "2026-09-04T04:28:01.630Z",
       "commands": [],
       "predatesRun": false
     },
@@ -89,7 +89,7 @@
       "name": "seam-ledger.md",
       "path": "docs/evidence/2026-09-04/seam-ledger.md",
       "sizeBytes": 2409,
-      "modifiedAt": "2026-09-04T04:11:12.446Z",
+      "modifiedAt": "2026-09-04T04:28:01.630Z",
       "commands": [],
       "predatesRun": false
     },
@@ -97,7 +97,7 @@
       "name": "shaolin-lint.json",
       "path": "docs/evidence/2026-09-04/shaolin-lint.json",
       "sizeBytes": 517,
-      "modifiedAt": "2026-09-04T04:11:12.306Z",
+      "modifiedAt": "2026-09-04T04:28:01.526Z",
       "commands": [],
       "predatesRun": false
     },
@@ -105,7 +105,7 @@
       "name": "test.txt",
       "path": "docs/evidence/2026-09-04/test.txt",
       "sizeBytes": 1031,
-      "modifiedAt": "2026-09-04T04:11:12.234Z",
+      "modifiedAt": "2026-09-04T04:28:01.458Z",
       "commands": [
         "meechies-coloringbook@0.1.0 test",
         "vitest run --pool=forks --maxWorkers=1"
@@ -141,7 +141,7 @@
       "name": "verify.txt",
       "path": "docs/evidence/2026-09-04/verify.txt",
       "sizeBytes": 1356,
-      "modifiedAt": "2026-09-04T04:11:12.234Z",
+      "modifiedAt": "2026-09-04T04:28:01.458Z",
       "commands": [
         "meechies-coloringbook@0.1.0 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

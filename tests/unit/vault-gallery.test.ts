@@ -203,6 +203,21 @@ describe('vaultImageSource', () => {
 
 	// A self-closing root is a complete, renderable SVG with no closing tag at all. Demanding
 	// `</svg>` would blank a perfectly good thumbnail.
+	// `/>` only counts when it closes the root. A document cut off after a self-closing child also
+	// ends in `/>` while leaving the root open.
+	it('falls back for an SVG truncated after a self-closing child', () => {
+		const truncated = btoa('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><path/>');
+
+		expect(detectVaultImageKind(truncated)).not.toBeNull();
+		expect(vaultImageSource({ b64: truncated, url: '/saved/page.svg' })).toBe('/saved/page.svg');
+	});
+
+	it('accepts a self-closing root that has a self-closing child before it', () => {
+		const complete = btoa('<svg xmlns="http://www.w3.org/2000/svg"><path/></svg>');
+
+		expect(vaultImageSource({ b64: complete })).toBe(`data:image/svg+xml;base64,${complete}`);
+	});
+
 	it('accepts a self-closing SVG root', () => {
 		const selfClosing = btoa('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"/>');
 

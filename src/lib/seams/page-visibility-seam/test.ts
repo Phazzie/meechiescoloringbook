@@ -109,6 +109,18 @@ describe('PageVisibilitySeam mock contract', () => {
 		expect(second).not.toHaveBeenCalled();
 	});
 
+	// A host that starts at `prerender` resolves to visible, but moving to a real `visible` state
+	// is still a transition the browser announces. Resolving at construction would have erased it.
+	it('announces the move out of a fault state into a real visible state', () => {
+		const visibility = createMockPageVisibilitySeam('prerender');
+		const returned = vi.fn();
+		visibility.onVisible(returned);
+
+		visibility.setVisible(true);
+
+		expect(returned).toHaveBeenCalledTimes(1);
+	});
+
 	// The fault fixtures must fail through the mock, not only through the validator: a host state
 	// outside the spec has to resolve to a definite answer rather than propagate as "unknown".
 	it.each(['prerender', 'nonsense', 'missing'] as const)(

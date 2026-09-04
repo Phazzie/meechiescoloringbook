@@ -545,3 +545,43 @@ becomes a regression.
 ### Still deferred after the tenth round
 
 - Everything listed above, unchanged.
+
+---
+
+## Run 1, eleventh close-out — 2026-09-04 — the review round on `e53a50e`
+
+Appended, not edited. Five findings: four fixed, **one declined with its tradeoff written down** —
+the first time in this run that pushing back was the right answer rather than a mistake.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | The probes documented `npx tsx <probe>`, which does not run on a clean `npm ci`: `tsx` is not a dependency, so npx reaches for an unpinned download that fails offline or behind a proxy. | `npm run probe -- <seam-name>`, backed by `scripts/run-probe.mjs`, which transpiles with the **already-installed** `esbuild` — no new dependency, no network. Every probe now exports a uniform `runProbe()` the runner calls, which also removes the last `process` reference from the probe modules and so completes the browser-import fix from two rounds earlier. |
+| P2 | The clock adapter trusted the delay it computed when arming. A `setTimeout` measures elapsed time, not an instant, so a system clock change desynchronises them: set the clock back and a midnight timer fires early; set it forward and midnight passes with labels stale. | Every expiry re-reads the wall clock and decides again. This also subsumes the chunking added last round — a delay past the 32-bit limit is simply another round. Two tests drive `Date.now` backwards and forwards. |
+| P2 | `/>` was accepted as a complete SVG without checking it closed the **root**. `<svg ...><path/>` ends in `/>` with the root still open. | The element being closed must be the one the last unclosed `<` opened. The SVG trailer window widened to 512 characters so a root tag with attributes is still visible in the slice. |
+| P2 | The visibility mock resolved its state at construction, so a host starting at `prerender` (which resolves to visible) treated a later real move to `visible` as no change and announced nothing — while the adapter, seeing an actual event, would announce it. | The mock keeps the **raw** host state and resolves on read, so its notion of "something changed" matches the browser's. |
+
+### The one declined
+
+Codex asked for the raster completeness check to validate image structure or decode the payload,
+because a PNG signature followed by arbitrary bytes and a valid `IEND` trailer passes. **The
+observation is correct.** The remedy is not, here: `vaultImageSource` runs for every visible row
+inside a `$derived`, so it re-runs on every keystroke in the vault search box, and a saved page can
+be a megabyte. A chunk walk or a decode turns a constant-cost check into one proportional to total
+vault size per keystroke — to catch bytes correctly framed at both ends but corrupt in the middle,
+which is far rarer than the truncation the edge check already catches.
+
+Declined, with the tradeoff recorded in `DECISIONS.md` and referenced from the code, including what
+*would* make the stronger check affordable: validating once at save time, or caching the verdict per
+record id. Both are changes to the save path or a new cache, and neither belongs in a review-fix
+pull request.
+
+**Why this one is different from the earlier pushbacks.** Three times this run I argued against a
+finding and was wrong — the clock seam twice, the origin read once. Each of those was a rule I did
+not want to follow. This one is a measurable cost against a rarer failure, with the alternative
+named and a route to it recorded. That is a tradeoff; those were excuses. The test is whether the
+objection would still read as honest to someone who disagreed with it.
+
+### Still deferred after the eleventh round
+
+- Structural validation of stored raster bytes, at save time or behind a per-record cache.
+- Everything else listed above, unchanged.

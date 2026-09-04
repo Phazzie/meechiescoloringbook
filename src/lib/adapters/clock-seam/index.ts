@@ -23,18 +23,27 @@ export const createClockSeam = (): ClockSeam => ({
 
 		let handle: ReturnType<typeof globalThis.setTimeout> | null = null;
 
-		const arm = (): void => {
-			// A boundary already past fires on the next turn rather than never: `setTimeout` treats a
-			// negative delay as 0 anyway, and clamping here makes that explicit instead of incidental.
-			const remainingMs = Math.max(0, epochMs - Date.now());
-			if (remainingMs > MAX_TIMEOUT_MS) {
-				handle = globalThis.setTimeout(arm, MAX_TIMEOUT_MS);
+		// Every expiry re-reads the wall clock and decides again, rather than trusting the delay
+		// computed when the timer was armed. A `setTimeout` measures elapsed time, not an instant,
+		// so a system clock adjustment desynchronises the two: set the clock back and a timer armed
+		// for midnight fires early, set it forward and midnight passes with the labels still stale.
+		// Re-deciding also gives the chunking for free — a delay past the host's 32-bit limit simply
+		// becomes another round.
+		const fireOrRearm = (): void => {
+			const remainingMs = epochMs - Date.now();
+			if (remainingMs <= 0) {
+				callback();
 				return;
 			}
-			handle = globalThis.setTimeout(callback, remainingMs);
+			handle = globalThis.setTimeout(fireOrRearm, Math.min(remainingMs, MAX_TIMEOUT_MS));
 		};
 
-		arm();
+		// The first hop always goes through a timeout, so an instant already past fires on the next
+		// turn rather than synchronously inside `scheduleAt`.
+		handle = globalThis.setTimeout(
+			fireOrRearm,
+			Math.min(Math.max(0, epochMs - Date.now()), MAX_TIMEOUT_MS)
+		);
 
 		return () => {
 			if (handle !== null) globalThis.clearTimeout(handle);

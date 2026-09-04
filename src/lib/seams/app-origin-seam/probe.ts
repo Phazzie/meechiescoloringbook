@@ -5,7 +5,7 @@
 //      "null"), and anything a future host invents. It is runnable code, not a note.
 // Info flow: probeAppOriginSeam() -> real adapter -> observations -> caller/console.
 //
-// Run it in Node: `npx tsx src/lib/seams/app-origin-seam/probe.ts` — expect `hostReported: null`
+// Run it in Node: `npm run probe -- app-origin-seam` — expect `hostReported: null`
 // and `seamReported: ''`, which is the server-render case.
 // Run it in a browser: paste the two calls into DevTools on a served page and compare.
 import { createAppOriginSeam } from '../../adapters/app-origin-seam';
@@ -35,8 +35,5 @@ export const probeAppOriginSeam = (): AppOriginProbeReport => {
 	};
 };
 
-// Guarded: these probes are meant to be imported and called from a browser console too, and
-// a bare `process` reference would throw on import where the bundler provides no Node globals.
-if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('probe.ts')) {
-	process.stdout.write(`${JSON.stringify(probeAppOriginSeam(), null, 2)}\n`);
-}
+/** Uniform entry point `npm run probe -- app-origin-seam` calls. Also safe from a browser. */
+export const runProbe = probeAppOriginSeam;

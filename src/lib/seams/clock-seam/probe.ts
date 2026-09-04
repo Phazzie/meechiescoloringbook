@@ -5,7 +5,7 @@
 //      when porting to a new host, or when a timer behaves oddly in a real browser.
 // Info flow: probeClockSeam() -> real adapter -> observations -> caller/console.
 //
-// Run it: `npx tsx src/lib/seams/clock-seam/probe.ts`
+// Run it: `npm run probe -- clock-seam`
 import { createClockSeam } from '../../adapters/clock-seam';
 import { DAY_MS } from './contract';
 
@@ -68,8 +68,5 @@ export const probeClockSeam = async (): Promise<ClockProbeReport> => {
 	};
 };
 
-// Guarded: these probes are meant to be imported and called from a browser console too, and
-// a bare `process` reference would throw on import where the bundler provides no Node globals.
-if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('probe.ts')) {
-	process.stdout.write(`${JSON.stringify(await probeClockSeam(), null, 2)}\n`);
-}
+/** Uniform entry point `npm run probe -- clock-seam` calls. Also safe to call from a browser. */
+export const runProbe = probeClockSeam;

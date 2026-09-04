@@ -6,7 +6,7 @@
 //      all. It is runnable code, not a note.
 // Info flow: probePageVisibilitySeam() -> real adapter -> observations -> caller/console.
 //
-// Run it in Node: `npx tsx src/lib/seams/page-visibility-seam/probe.ts` — expect
+// Run it in Node: `npm run probe -- page-visibility-seam` — expect
 // `hostReported: null`, `seamReported: true`, `subscribeWasNoOp: true`.
 // Run it in a browser: call it from DevTools, then switch tabs and come back; `announcedReturn`
 // flips to true when the host really does announce the transition.
@@ -43,21 +43,21 @@ export const probePageVisibilitySeam = (): PageVisibilityProbeReport => {
 	};
 };
 
-// Guarded: these probes are meant to be imported and called from a browser console too, and
-// a bare `process` reference would throw on import where the bundler provides no Node globals.
-if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('probe.ts')) {
+/**
+ * Uniform entry point `npm run probe -- page-visibility-seam` calls. Also safe from a browser,
+ * where `announcedReturn` is the interesting field: call `runProbe()`, switch tabs, come back, and
+ * read it again.
+ */
+export const runProbe = (): Omit<PageVisibilityProbeReport, 'announcedReturn' | 'stop'> & {
+	announcedReturn: boolean;
+} => {
 	const report = probePageVisibilitySeam();
-	process.stdout.write(
-		`${JSON.stringify(
-			{
-				hostReported: report.hostReported,
-				seamReported: report.seamReported,
-				subscribeWasNoOp: report.subscribeWasNoOp,
-				announcedReturn: report.announcedReturn()
-			},
-			null,
-			2
-		)}\n`
-	);
+	const snapshot = {
+		hostReported: report.hostReported,
+		seamReported: report.seamReported,
+		subscribeWasNoOp: report.subscribeWasNoOp,
+		announcedReturn: report.announcedReturn()
+	};
 	report.stop();
-}
+	return snapshot;
+};
