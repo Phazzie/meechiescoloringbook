@@ -1,24 +1,22 @@
-# Purpose: Capture raw npx playwright test output as evidence.
-# Why: AGENTS.md requires e2e when the change is user-facing.
-# Info flow: npx playwright test -> stdout/stderr -> evidence file.
-# Command: npx playwright test
-# Date (UTC): 2026-09-04T07:47:40Z
-# Note: pinned @playwright/test expects Chromium 1208; this container ships 1194. See
-#       WORST_TO_BEST_LOG.md, Run 2 for the symlink fix.
+
+> meechies-coloringbook@0.1.0 test:e2e
+> playwright test
 
 
-Running 11 tests using 2 workers
+Running 13 tests using 2 workers
 
-  ✓   2 [chromium] › tests/e2e/smoke.spec.ts:120:1 › home mode switching and generation controls work (2.3s)
-  ✓   1 [chromium] › tests/e2e/smoke.spec.ts:158:1 › wig try-on demo works end to end without provider traffic (2.7s)
+  ✓   1 [chromium] › tests/e2e/smoke.spec.ts:120:1 › home mode switching and generation controls work (2.5s)
+  ✓   2 [chromium] › tests/e2e/smoke.spec.ts:158:1 › wig try-on demo works end to end without provider traffic (3.0s)
   ✓   3 [chromium] › tests/e2e/smoke.spec.ts:261:1 › home quote vault can save, load, pin, and delete creations (2.0s)
-  ✓   4 [chromium] › tests/e2e/smoke.spec.ts:302:1 › home quote vault searches saved pages and reveals the ones past the preview (2.1s)
-  ✓   6 [chromium] › tests/e2e/smoke.spec.ts:374:1 › random route tap and page generation work (1.6s)
+  ✓   4 [chromium] › tests/e2e/smoke.spec.ts:302:1 › home quote vault searches saved pages and reveals the ones past the preview (2.2s)
   ✓   5 [chromium] › tests/e2e/smoke.spec.ts:335:1 › home shoutout input debounces draft save and clears dedication (2.3s)
-  ✓   8 [chromium] › tests/e2e/smoke.spec.ts:412:1 › meechie toolkit tabs and lineup controls work (2.5s)
+  ✓   6 [chromium] › tests/e2e/smoke.spec.ts:374:1 › random route tap and page generation work (1.7s)
+  ✓   8 [chromium] › tests/e2e/smoke.spec.ts:412:1 › meechie toolkit tabs and lineup controls work (2.3s)
   ✓   7 [chromium] › tests/e2e/smoke.spec.ts:390:1 › rate and who routes submit, reset, and generate pages (3.7s)
-  ✓   9 [chromium] › tests/e2e/smoke.spec.ts:446:1 › every toolkit verdict becomes a coloring page that downloads and saves (3.3s)
-  ✓  11 [chromium] › tests/e2e/smoke.spec.ts:532:1 › a structured verdict prints as a numbered list page, an unstructured one as a quote (1.9s)
-  ✓  10 [chromium] › tests/e2e/smoke.spec.ts:478:1 › a slow page generation cannot land under a different verdict (4.9s)
+  ✓   9 [chromium] › tests/e2e/smoke.spec.ts:446:1 › every toolkit verdict becomes a coloring page that downloads and saves (3.0s)
+  ✓  11 [chromium] › tests/e2e/smoke.spec.ts:532:1 › editing the dedication drops the page it was not generated with, and drift is surfaced (1.7s)
+  ✓  10 [chromium] › tests/e2e/smoke.spec.ts:478:1 › a slow page generation cannot land under a different verdict (4.8s)
+  ✓  12 [chromium] › tests/e2e/smoke.spec.ts:577:1 › switching tools during a pending verdict does not wedge the button (1.7s)
+  ✓  13 [chromium] › tests/e2e/smoke.spec.ts:612:1 › a structured verdict prints as a numbered list page, an unstructured one as a quote (1.8s)
 
-  11 passed (16.9s)
+  13 passed (19.4s)
