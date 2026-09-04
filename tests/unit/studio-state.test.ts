@@ -7,7 +7,8 @@ import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging.
 import { sessionAdapter } from '../../src/lib/adapters/session.adapter';
 import {
 	DEFAULT_STUDIO_TEXT_OUTPUT,
-	buildColoringPageSpecFromMeechieText
+	buildColoringPageSpecFromMeechieText,
+	studioThemes
 } from '../../src/lib/core/meechie-studio';
 import { createMockClockSeam } from '../../src/lib/seams/clock-seam/mock';
 import type { ClockSeam } from '../../src/lib/seams/clock-seam/contract';
@@ -1070,6 +1071,170 @@ describe('StudioState quote vault', () => {
 		studio.handleModeSelect(nextMode!.id);
 		await studio.syncSpecFromCurrentText();
 		expect(studio.spec.footerItem).toBeDefined();
+	});
+
+	it('keeps a reopened page looking like itself when a setting changes', async () => {
+		// A toolkit page is centered, large, stroke 9, loose gutter, 35 whitespace. Rebuilding
+		// dropped every one of those to the studio's own defaults, so changing something as narrow
+		// as page size handed back a visibly different page.
+		const studio = registerInitialized(new StudioState());
+		const toolkitSpec = {
+			...buildColoringPageSpecFromMeechieText({
+				output: DEFAULT_STUDIO_TEXT_OUTPUT,
+				pageSize: 'US_Letter',
+				border: 'decorative',
+				styleHint: 'crown',
+				listMode: 'title_only'
+			}),
+			alignment: 'center' as const,
+			textSize: 'large' as const,
+			textStrokeWidth: 9,
+			listGutter: 'loose' as const,
+			whitespaceScale: 35
+		};
+		await studio.loadCreation({
+			id: 'creation-presentation',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: toolkitSpec,
+			assembledPrompt: 'a saved toolkit quote page',
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.alignment).toBe('center');
+		expect(studio.spec.textSize).toBe('large');
+		expect(studio.spec.textStrokeWidth).toBe(9);
+		expect(studio.spec.listGutter).toBe('loose');
+		expect(studio.spec.whitespaceScale).toBe(35);
+
+		// And a fresh studio verdict goes back to the studio's own presentation.
+		const nextMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
+		studio.handleModeSelect(nextMode!.id);
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.alignment).toBe('left');
+		expect(studio.spec.textStrokeWidth).toBe(6);
+	});
+
+	it('keeps a restored page dense until the reader actually picks a theme', async () => {
+		// `loadCreation` cannot restore the page's own theme — nothing on the spec records it — so
+		// `selectedThemeId` sits at the default. Recomputing decorations on every settings change
+		// therefore turned a restored dense page minimal on a page-size change alone; preserving it
+		// unconditionally made the Theme control contradict itself. The caller says which happened.
+		//
+		// Comparing theme IDs was the third wrong answer to this and could not have been right: the
+		// theme chips fire on a click of the already-active chip, so an ID match does not mean the
+		// reader left the theme alone. The last case below is that one.
+		//
+		// The voice is moved off `receipts_out` first, because `styleHint` concatenates the theme
+		// *and* the voice and the density test is `includes('receipt')` — so the default voice makes
+		// every recomputation dense on its own and would hide what this test is measuring.
+		const studio = registerInitialized(new StudioState());
+		studio.voice = { ...studio.voice, intensity: 'no_mercy' };
+		const densePage = {
+			...buildColoringPageSpecFromMeechieText({
+				output: DEFAULT_STUDIO_TEXT_OUTPUT,
+				pageSize: 'US_Letter',
+				border: 'decorative',
+				styleHint: 'receipt ledger lines',
+				listMode: 'title_only'
+			}),
+			decorations: 'dense' as const
+		};
+		await studio.loadCreation({
+			id: 'creation-dense',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: densePage,
+			assembledPrompt: 'a saved receipts page',
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+
+		// A setting that has nothing to do with the theme must leave it dense.
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('dense');
+
+		// Choosing a theme is the one thing that recomputes it.
+		const restoreTimeTheme = studio.selectedThemeId;
+		const otherTheme = studioThemes.find((theme) => theme.id !== restoreTimeTheme);
+		studio.selectedThemeId = otherTheme!.id;
+		await studio.syncSpecFromCurrentText('theme');
+		expect(studio.spec.decorations).toBe('minimal');
+
+		// Coming back to the theme selected at restore time is still a selection. Comparing against
+		// a restore-time value read this as "no theme change" and kept the density computed for the
+		// theme in between.
+		studio.spec = { ...studio.spec, decorations: 'dense' };
+		studio.selectedThemeId = restoreTimeTheme;
+		await studio.syncSpecFromCurrentText('theme');
+		expect(studio.spec.decorations).toBe('minimal');
+
+		// And clicking the chip that is *already* active is a selection too. `StudioSettingsPanel`
+		// fires the handler on every chip click, active or not, so this reaches the state with the
+		// theme ID unchanged — which every ID-comparison version of this logic read as "the reader
+		// changed nothing" and left the restored density in place.
+		studio.spec = { ...studio.spec, decorations: 'dense' };
+		await studio.syncSpecFromCurrentText('theme');
+		expect(studio.spec.decorations).toBe('minimal');
+
+		// The theme is not the only control that moves the derivation. `currentStyleHint()`
+		// concatenates the theme's hint with the voice, and the density test is
+		// `includes('receipt')` — which `receipts_out` matches. So changing Intensity changes the
+		// derivation's input while leaving the theme alone, and the density has to follow.
+		studio.voice = { ...studio.voice, intensity: 'receipts_out' };
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('dense');
+
+		// And back off it again.
+		studio.voice = { ...studio.voice, intensity: 'no_mercy' };
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('minimal');
+	});
+
+	it('leaves a restored page alone for settings that do not drive density', async () => {
+		// The style hint carries Rawness, Third Person, Glitter and the wig as well as the theme and
+		// the intensity, but only `includes('receipt')` decides density. Comparing the whole hint
+		// string therefore recomputed on controls that do not govern it — and with the default
+		// `receipts_out` intensity the recomputation returns `dense`, so a restored *minimal* page
+		// turned dense when the reader touched Rawness.
+		//
+		// This case was written into the plan's self-critique and dismissed there as "recomputing
+		// yields the same value it preserved, so the extra work is invisible". That was wrong, and
+		// wrong in the one direction that shows: the values differ precisely when the default voice
+		// puts `receipt` in the hint. Hence this test rather than the note.
+		const studio = registerInitialized(new StudioState());
+		expect(studio.voice.intensity).toBe('receipts_out');
+		const minimalPage = {
+			...buildColoringPageSpecFromMeechieText({
+				output: DEFAULT_STUDIO_TEXT_OUTPUT,
+				pageSize: 'US_Letter',
+				border: 'decorative',
+				styleHint: 'crown polish',
+				listMode: 'title_only'
+			}),
+			decorations: 'minimal' as const
+		};
+		await studio.loadCreation({
+			id: 'creation-minimal',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: minimalPage,
+			assembledPrompt: 'a saved crown page',
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+
+		studio.voice = { ...studio.voice, rawness: 'raw' };
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('minimal');
+
+		studio.voice = { ...studio.voice, thirdPerson: 'always' };
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('minimal');
+
+		studio.glitter = true;
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('minimal');
 	});
 
 	it('never loads the image prompt into the evidence box', async () => {

@@ -229,8 +229,43 @@ const anyCase = (word: string): string =>
  * wrong here: a merged pair still reads as finished prose and simply fails the length check, while
  * a bad split prints a page with two characters on it.
  */
+/**
+ * A run of closing quotes and brackets, which may sit between the terminator and the space.
+ *
+ * A run rather than one, because they nest: `He said ("I was busy.") Then he left.` closes twice,
+ * and allowing only a single closer left that pair as one oversized sentence — which put the title
+ * straight back on the mid-sentence truncation this whole boundary exists to avoid.
+ */
+const SENTENCE_CLOSERS = `["'”’)\\]]*`;
+
+/**
+ * The punctuation a sentence may open with, as a run, for the same reason the closers are one.
+ *
+ * `He lied. ("Then she left.")` opens twice, and a single optional opener matched neither that nor
+ * a bracket at all — so the pair stayed one sentence and the title went back to cutting mid-phrase.
+ * The two sides of a quoted aside have to be spelled the same way or the boundary only works in
+ * one direction.
+ */
+const SENTENCE_OPENERS = `["'“‘(\\[]*`;
+
+/**
+ * A real sentence end, allowing for a closer.
+ *
+ * A verdict that quotes someone ends `He said "I was busy." Then he changed the story.`, and
+ * requiring the terminator immediately before the space missed it — the pair came back as one
+ * oversized sentence and the title cut mid-sentence.
+ *
+ * The abbreviation and initial guards are written twice, once for each shape. Every lookbehind is
+ * evaluated at the space, so with a closer present they see the closer rather than the period before
+ * it, and the abbreviation is never noticed: `He consulted "Dr." Smith yesterday.` split before
+ * `Smith`, and `"A." Then he left.` produced exactly the two-character title this guard exists to
+ * prevent. The second pair of lookbehinds spans the closer so the check reaches the word again.
+ */
 const SENTENCE_BOUNDARY = new RegExp(
-	`(?<=[.!?])(?<!\\b(?:${SENTENCE_ABBREVIATIONS.map(anyCase).join('|')})\\.)(?<![A-Z]\\.) (?=["'(]?[A-Z0-9])`
+	`(?<=[.!?]${SENTENCE_CLOSERS})` +
+		`(?<!\\b(?:${SENTENCE_ABBREVIATIONS.map(anyCase).join('|')})\\.${SENTENCE_CLOSERS})` +
+		`(?<![A-Z]\\.${SENTENCE_CLOSERS})` +
+		` (?=${SENTENCE_OPENERS}[A-Z0-9])`
 );
 
 /**

@@ -3,19 +3,12 @@
 #      nothing in the chain regenerates it (see scripts/proof-tape.mjs).
 # Info flow: verify chain stages -> stdout/stderr -> evidence file.
 # Command: npm run verify
-# Date (UTC): 2026-09-04T10:22:07Z
+# Date (UTC): 2026-09-04T13:16Z
 # Exit code: 0
 #
 # Stage order: audit:gate -> chamber-lock -> verify-runner (check + test) -> shaolin-lint ->
 #              assumption-alarm -> seam-ledger -> clan-chain -> proof-tape. All eight passed.
-#
-# Historical note kept deliberately: npm's audit endpoint
-# (POST https://registry.npmjs.org/-/npm/v1/security/audits/quick) has been flapping all morning on
-# an unchanged lockfile — 7 of 40 probes answered across one 22-minute measurement window, with 503
-# and one misleading 400 ("Invalid package tree") in between. The gate was never modified or skipped
-# to get past it; the unmodified chain was re-run until the endpoint answered, on probe 11 at
-# 10:20:30Z. This diff touches neither package.json nor package-lock.json, so the gate's outcome
-# cannot depend on it.
+
 
 > meechies-coloringbook@0.1.0 verify
 > npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
@@ -42,9 +35,9 @@ svelte-check found 0 errors and 0 warnings
 
 
 [2m Test Files [22m [1m[32m79 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (80)[39m
-[2m      Tests [22m [1m[32m1105 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1106)[39m
-[2m   Start at [22m 10:20:47
-[2m   Duration [22m 79.03s[2m (transform 2.92s, setup 800ms, import 5.45s, tests 2.93s, environment 54.70s)[22m
+[2m      Tests [22m [1m[32m1119 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1120)[39m
+[2m   Start at [22m 13:05:20
+[2m   Duration [22m 82.68s[2m (transform 3.23s, setup 841ms, import 5.93s, tests 3.11s, environment 56.91s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

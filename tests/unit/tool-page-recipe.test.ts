@@ -743,6 +743,29 @@ describe('sentence selection survives abbreviations', () => {
 			'The locks changed.'
 		]);
 	});
+
+	it('splits before a bracketed or nested sentence opening', () => {
+		// The closers were widened to a run and the openers were not, so the boundary only worked
+		// on one side of a quoted aside. A single optional opener matched neither `("` nor `[` at
+		// all, and the pair came back as one oversized sentence — the same mid-sentence title
+		// truncation this boundary exists to prevent, arriving from the other direction.
+		expect(splitResponseLines('He lied. ("Then she left.")')).toEqual([
+			'He lied.',
+			'("Then she left.")'
+		]);
+		expect(splitResponseLines('He lied. [Then she left.]')).toEqual([
+			'He lied.',
+			'[Then she left.]'
+		]);
+	});
+
+	it('does not split where the only period belongs to an abbreviation inside brackets', () => {
+		// Widening the openers must not reach past the abbreviation guards: there is no sentence
+		// end anywhere in this string, only `Dr.`
+		expect(splitResponseLines('He said ("Dr." Smith) Then he left.')).toEqual([
+			'He said ("Dr." Smith) Then he left.'
+		]);
+	});
 });
 
 describe('ranked entries keep quoted speech intact', () => {
@@ -772,5 +795,75 @@ describe('ranked entries keep quoted speech intact', () => {
 		// structured by its numbering rather than its sentences, so the fix is a placing-aware split
 		// for this caller — deliberately left for its own change rather than bolted on here.
 		expect(extractRankedEntries('1. "Long distance - no calls"')).toEqual([]);
+	});
+});
+
+describe('sentence boundaries see past a closing quote', () => {
+	it('splits after a quoted sentence', () => {
+		expect(splitResponseLines('He said "I was busy." Then he changed the story.')).toEqual([
+			'He said "I was busy."',
+			'Then he changed the story.'
+		]);
+		expect(splitResponseLines('He said (allegedly.) Then he left.')).toEqual([
+			'He said (allegedly.)',
+			'Then he left.'
+		]);
+	});
+
+	it('prints the whole first sentence of a long response that ends on a quote', () => {
+		const long =
+			'He said "I was busy." Then he changed the story twice more before the receipt turned up ' +
+			'on the counter.';
+		const recipe = buildToolPageRecipe(output('red_flag_or_run', long));
+		expect(recipe.spec.title).toContain('I was busy');
+		expect(recipe.spec.title.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
+	});
+
+	it('still refuses to split an abbreviation or a lowercase continuation', () => {
+		expect(splitResponseLines('Dr. Reyes lied. He filed it anyway.')).toEqual([
+			'Dr. Reyes lied.',
+			'He filed it anyway.'
+		]);
+		expect(splitResponseLines('He called at 9 p.m. and never showed up.')).toEqual([
+			'He called at 9 p.m. and never showed up.'
+		]);
+	});
+});
+
+describe('the closer does not hide an abbreviation from the guard', () => {
+	it('does not split a quoted title from the name it introduces', () => {
+		// Every lookbehind is evaluated at the space, so with a closer present they saw the closer
+		// rather than the period before it and the abbreviation went unnoticed.
+		expect(splitResponseLines('He consulted "Dr." Smith yesterday.')).toEqual([
+			'He consulted "Dr." Smith yesterday.'
+		]);
+	});
+
+	it('does not let a quoted initial produce a two-character sentence', () => {
+		expect(splitResponseLines('"A." Then he left.')).toEqual(['"A." Then he left.']);
+	});
+
+	it('still splits a genuinely quoted sentence', () => {
+		expect(splitResponseLines('He said "I was busy." Then he changed the story.')).toEqual([
+			'He said "I was busy."',
+			'Then he changed the story.'
+		]);
+	});
+});
+
+describe('closers nest', () => {
+	it('ends a sentence that closes twice', () => {
+		// Allowing only one closer left a nested pair as a single oversized sentence, which put the
+		// title straight back on the mid-sentence truncation this boundary exists to avoid.
+		expect(splitResponseLines('He said ("I was busy.") Then he left.')).toEqual([
+			'He said ("I was busy.")',
+			'Then he left.'
+		]);
+	});
+
+	it('still sees the abbreviation through a run of closers', () => {
+		expect(splitResponseLines('He said ("Dr." Smith) Then he left.')).toEqual([
+			'He said ("Dr." Smith) Then he left.'
+		]);
 	});
 });
