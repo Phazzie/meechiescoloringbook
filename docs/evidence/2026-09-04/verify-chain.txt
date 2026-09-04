@@ -9,16 +9,21 @@
 #       resolving a second merge conflict against `main` (PR #284 merged concurrently). This
 #       repo's evidence scripts key their output directory off the live system date with no
 #       override (confirmed in `scripts/chamber-lock.mjs`/`assumption-alarm.mjs`:
-#       `toDateFolder(new Date())`), so this final post-merge `npm run verify` run - needed to
-#       validate the merge commit itself, which touches only docs/evidence, not the underlying
-#       code fix - landed here rather than in `docs/evidence/2026-09-03/`. Rather than fight the
-#       tooling further (an earlier attempt to force a same-session, pre-midnight run back into
-#       2026-09-03 already needed a one-off script to work around `proof-tape.mjs`'s own
-#       `getLatestEvidenceDir()`/`toDateFolder(new Date())` logic - documented in
-#       `docs/evidence/2026-09-03/verify-chain.txt` and `QUICK_WINS_LOG.md`), this one is left
-#       honestly dated where it actually ran. The underlying code fix's own verification remains
-#       fully captured in `docs/evidence/2026-09-03/` (multiple genuine `npm run verify` passes,
-#       847/1 skipped, audit gate clean) from before the rollover.
+#       `toDateFolder(new Date())`), so this final post-merge verification - needed to validate
+#       the merge commit itself, which touches only docs/evidence, not the underlying code fix -
+#       landed here rather than in `docs/evidence/2026-09-03/`. The underlying code fix's own
+#       verification remains fully captured in `docs/evidence/2026-09-03/` (multiple genuine
+#       `npm run verify` passes, 847/1 skipped, audit gate clean) from before the rollover.
+# Note (second attempt): the first pass at this file used a standalone `chamber-lock.mjs`
+#       re-run before capturing lint.txt/build.txt, which reset the run marker later than this
+#       transcript's own genuine `npm run verify` content (a Codex review caught that
+#       `proof-tape.json` then reported `predatesRun: false` for a file whose recorded test run
+#       actually predated the marker - the same class of mistake as an earlier round on
+#       `docs/evidence/2026-09-03/`, this time from a redundant extra chamber-lock call rather
+#       than a bare touch). Fixed by not calling `chamber-lock.mjs` a second time at all: this
+#       transcript now documents the exact `npm run verify` invocation whose own internal
+#       chamber-lock run is the marker `proof-tape.json` checks everything else against, and
+#       lint.txt/build.txt/this file were all written after that single wrapper call completed.
 
 $ npm run verify
 
@@ -48,8 +53,8 @@ svelte-check found 0 errors and 0 warnings
 
  Test Files  74 passed | 1 skipped (75)
       Tests  847 passed | 1 skipped (848)
-   Start at  00:15:49
-   Duration  46.86s (transform 1.88s, setup 509ms, import 3.50s, tests 1.50s, environment 31.94s)
+   Start at  00:28:47
+   Duration  45.55s (transform 1.75s, setup 486ms, import 3.30s, tests 1.47s, environment 31.13s)
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

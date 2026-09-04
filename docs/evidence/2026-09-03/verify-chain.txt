@@ -19,22 +19,160 @@
 #       ("found 0 vulnerabilities"), but a seventh attempt, via `npm run verify`'s own wrapper,
 #       hung again moments later - the endpoint is intermittently flaky, not durably recovered.
 #       See DECISIONS.md's Assumption, kept open rather than resolved on one transient success.
-# Note (PR #285, a separate concurrent session): that session's own `npm run verify` attempts hit
-#       the identical intermittent pattern independently (clean at 23:19:21, a registry-side 400 at
-#       23:22:23, a hang at 23:30) against this same unchanged dependency tree - consistent with
-#       genuine flakiness rather than either session's own artifact. A Codex review on that PR
-#       (commit 10013a5) also correctly flagged that an intermediate fix round there documented
-#       individually-run stages while describing them as "the full chain passed cleanly" - the same
-#       imprecision this file's own history below shows on this side too (retries 7, 9, and the
-#       post-review-fix attempt below all fell back to individual stages after the wrapper hung).
-#       That session's own final, genuine `npm run verify` wrapper invocation is appended at the end
-#       of this transcript, run after merging this file's history in.
 # Note (final): the last full `npm run verify` invocation recorded below (bottom of this file)
 #       completed end-to-end with no fallback needed, audit:gate included. This confirms the CI
 #       `verify` check's own passing result for this exact commit, but does not resolve the open
 #       Assumption on its own - the endpoint is intermittent, and this file's own history shows a
 #       clean run does not predict the next one. Keep the Assumption open per its own validation
 #       criteria (two consecutive clean runs) rather than closing it on this single success.
+
+# Note (PR #285, a separate concurrent session): independently hit the identical intermittent
+#       pattern against this same unchanged dependency tree (clean at 23:19:21, a registry-side
+#       400 at 23:22:23, a hang at 23:30), consistent with genuine flakiness rather than either
+#       session's own artifact. Two of that session's own genuine `npm run verify` wrapper
+#       invocations are appended at the end of this transcript, run after merging this file's
+#       full history in (23:55:53 and, after a second merge conflict with `main` crossed midnight
+#       UTC, one more at 00:28:47 - both clean, audit:gate included). A Codex review on that PR
+#       caught two real mistakes in how this file was being maintained during that merge: first,
+#       an intermediate round described individually-run stages as "the full chain passed
+#       cleanly" (the same imprecision this file's own history already shows above - retries 7, 9,
+#       and the post-review-fix attempt all fell back to individual stages after the wrapper
+#       hung); second, a later round entirely replaced this file's content with just the new
+#       session's own runs, silently dropping the 22:12:22 run and retries 1-5 recorded above -
+#       restored here from git history (`929f070`) rather than left missing.
+
+$ npm run verify   # (22:12:22 run this same session - includes a passing audit:gate)
+
+> meechies-coloringbook@0.1.0 verify
+> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
+
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
+found 0 vulnerabilities
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+
+
+[2m Test Files [22m [1m[32m74 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (75)[39m
+[2m      Tests [22m [1m[32m845 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (846)[39m
+[2m   Start at [22m 22:12:22
+[2m   Duration [22m 50.09s[2m (transform 2.15s, setup 576ms, import 4.03s, tests 1.57s, environment 34.00s)[22m
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+$ timeout 30 npm audit --audit-level=high   # (retry 1 - hung)
+[no output before timeout]
+EXIT:124
+
+$ timeout 60 npm audit --audit-level=high   # (retry 2 - hung)
+[no output before timeout]
+EXIT:124
+
+$ timeout 90 npm audit --audit-level=high   # (retry 3 - hung)
+[no output before timeout]
+EXIT:124
+
+$ npm ping   # (registry itself is reachable; the audit endpoint specifically is not)
+npm notice PING https://registry.npmjs.org/
+npm notice PONG 150ms
+
+$ timeout 45 npm audit --audit-level=high   # (retry 4, after Vercel's own rate limit cleared on this PR - still hung)
+[no output before timeout]
+EXIT:124
+
+$ node scripts/chamber-lock.mjs   # (remaining chain stages, run individually)
+(no output; exit 0)
+
+$ node scripts/verify-runner.mjs
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+
+
+[2m Test Files [22m [1m[32m74 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (75)[39m
+[2m      Tests [22m [1m[32m845 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (846)[39m
+[2m   Start at [22m 22:39:59
+[2m   Duration [22m 47.74s[2m (transform 2.06s, setup 553ms, import 3.86s, tests 1.54s, environment 32.21s)[22m
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+$ node scripts/shaolin-lint.mjs
+(no output; exit 0)
+
+$ node scripts/assumption-alarm.mjs   # (first attempt failed: DECISIONS.md's new Assumption entry
+                                       # wrapped Statement/Validation across multiple physical lines,
+                                       # which scripts/assumption-alarm.mjs's parser does not support
+                                       # (it stops reading fields at the first line not starting with
+                                       # "  - "); rewritten as single (long) lines per the file's own
+                                       # existing convention, then this passed)
+Assumption Alarm: missing or incomplete assumptions.
+EXIT:1
+$ node scripts/assumption-alarm.mjs   # (after the fix)
+(no output; exit 0)
+
+$ node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs
+(no output; exit 0 for both)
+
+$ timeout 30 npm audit --audit-level=high   # (retry 5, after the SEAM_BLUEPRINT.md/AGENTS.md review repairs - still hung)
+[no output before timeout]
+EXIT:124
+
+$ node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining chain stages, run individually)
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v4.1.0 /home/user/meechiescoloringbook
+
+
+ Test Files  74 passed | 1 skipped (75)
+      Tests  845 passed | 1 skipped (846)
+   Start at  22:50:44
+   Duration  47.08s (transform 1.99s, setup 561ms, import 3.77s, tests 1.50s, environment 31.94s)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+(shaolin-lint, assumption-alarm, seam-ledger, clan-chain: no output; exit 0 for all four)
 
 $ timeout 30 npm audit --audit-level=high   # (follow-up round: retry 6, after PR #282 merged - succeeded)
 found 0 vulnerabilities
@@ -199,3 +337,43 @@ exit=0
 (chamber-lock, shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape ran inside
 this same `npm run verify` invocation above, chained with &&; no individual output beyond
 what's shown, and the command's own exit=0 confirms every stage in the chain succeeded)
+
+$ npm run verify   # (PR #285: second genuine wrapper invocation, after a second merge conflict
+                    #  with main crossed midnight UTC - this run's own fresh evidence for that
+                    #  merge commit is in docs/evidence/2026-09-04/, not appended here)
+
+> meechies-coloringbook@0.1.0 verify
+> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
+
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
+found 0 vulnerabilities
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v4.1.0 /home/user/meechiescoloringbook
+
+
+ Test Files  74 passed | 1 skipped (75)
+      Tests  847 passed | 1 skipped (848)
+   Start at  00:15:49
+   Duration  46.86s (transform 1.88s, setup 509ms, import 3.50s, tests 1.50s, environment 31.94s)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+$ echo "exit=$?"
+exit=0

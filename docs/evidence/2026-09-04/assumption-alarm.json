@@ -1,6 +1,6 @@
 {
   "tool": "assumption-alarm",
-  "generatedAt": "2026-09-04T00:18:19.544Z",
+  "generatedAt": "2026-09-04T00:34:09.483Z",
   "blockedSeams": [
     "ImageGenerationSeam",
     "RateLimitSeam",
@@ -12,7 +12,7 @@
       "seams": "None - `audit:gate` is a dependency-vulnerability check, not a seam.",
       "statement": "The dependency tree at this PR's final commit (`package.json`/`package-lock.json`, unchanged since 22:12:22 this same session) has 0 high-or-critical-severity vulnerabilities, matching the `found 0 vulnerabilities` result `npm audit --audit-level=high` reported at 22:12:22 against the identical tree.",
       "validation": "The registry's audit endpoint hung with zero output across five separate attempts (30s/60s/90s/45s/30s timeouts) spanning roughly 20 minutes, while `npm ping` to the same registry succeeded in 150ms in between, isolating the failure to the audit endpoint specifically. A sixth attempt (after PR #282 merged and further Codex-review repairs were prepared) succeeded once (`found 0 vulnerabilities`, matching this Statement), but a seventh attempt moments later, via `npm run verify`'s own wrapper, hung again - the endpoint is intermittently flaky rather than durably recovered, so this Assumption stays open rather than being marked resolved on one transient success. A separate, concurrent scheduled run (`session_01C9GA2bo9c2ebAWTo3YsaNb`) independently observed the identical pattern against this same unchanged tree: one clean pass at 23:19:21, then a registry-side 400 at 23:22:23, then another hang at 23:30 - consistent with genuine intermittent flakiness rather than a one-off. `package.json`/`package-lock.json` remain byte-unchanged throughout. Validate definitively by getting two consecutive clean runs of `npm audit --audit-level=high`; if any run reports anything other than 0 vulnerabilities, treat that as a regression to fix immediately, not as evidence this Assumption was wrong (the dependency tree has not changed since 22:12:22).",
-      "status": "Open - pending the audit endpoint's recovery.",
+      "status": "Resolved - this Assumption's own validation criterion (\"two consecutive clean runs of `npm audit --audit-level=high`\") is now met: the same concurrent session (`session_01C9GA2bo9c2ebAWTo3YsaNb`) recorded three consecutive clean `npm run verify` wrapper invocations with no intervening failure - 23:55:53, then 00:15:49 and 00:28:47 after midnight UTC - all against this same byte-unchanged dependency tree (see `docs/evidence/2026-09-03/verify-chain.txt` and `docs/evidence/2026-09-04/verify-chain.txt`). A Codex review on that session's own PR pointed out the criterion had been satisfied while this entry still read Open, prompting this update.",
       "seamList": [
         "None - `audit:gate` is a dependency-vulnerability check",
         "not a seam."

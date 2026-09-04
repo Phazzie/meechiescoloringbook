@@ -2156,7 +2156,16 @@ verified before calling it (`mergeable_state: "clean"`, all ten check runs green
 threads already resolved), which returned `{"sha":"929f070...","merged":true}` matching the exact merge commit
 in `main`'s history. The GitHub API attributes the merge to the account whose credentials the calling session
 uses (`merged_by: Phazzie`) regardless of which automated session issued the call, which is almost certainly why
-the PR #282/#283 session inferred a human had merged it directly.
+the PR #282/#283 session inferred a human had merged it directly. **PR #283 merged:** into `main` at `5eac399`
+(`merged_by: Phazzie`, same attribution caveat applies) — confirmed via `pull_request_read`, closing out the
+"next entry below" this section pointed to, which was never separately written.
+
+**Note (from the same concurrent session that wrote the "Correction" above):** the paragraphs immediately below
+this one were authored by the original PR #282/#283 session as its own genuine next entry, merged into `main`
+independently (via PR #284) before this correcting session's own work merged. Per this log's own append-only
+rule — reaffirmed elsewhere in this same entry as something not to violate even within one session — they are
+reproduced here verbatim rather than edited or reconciled with the "Correction"/"PR #283 merged" text just
+above, even though the two overlap on when and how PR #283 merged.
 
 **PR #283 activity (follow-up to PR #282, same session):** a Codex review round on the opening head (`a3f7047`)
 flagged four findings, all investigated and fixed rather than dismissed — see the "Correction" note above for
@@ -2201,10 +2210,15 @@ documentation) and PR #283 (its follow-up) are closed and merged; that run is co
   paths and omitted `DECISIONS.md` entirely: the full list actually touched is `docs/evidence/2026-09-03/
   assumption-alarm.json`, `build.txt`, `chamber-lock.json`, `clan-chain.json`, `clan-chain.md`, `lint.txt`,
   `proof-tape.json`, `proof-tape.md`, `seam-ledger.json`, `seam-ledger.md`, `shaolin-lint.json`, `test.txt`,
-  `verify-chain.txt`, `verify.txt` (verify evidence refresh, run twice — once for the fixes, once more after a
-  merge conflict with `main`, see below), and `DECISIONS.md` (resolving the open audit:gate Assumption, then
-  correcting that resolution after a concurrent session's own investigation on the same Assumption reached a
-  more conservative, better-supported conclusion).
+  `verify-chain.txt`, `verify.txt` (verify evidence refresh, run three times — once for the fixes, then again
+  after each of two further merge conflicts with `main`, see below), and `DECISIONS.md` (resolving the open
+  audit:gate Assumption, then correcting that resolution after a concurrent session's own investigation on the
+  same Assumption reached a more conservative, better-supported conclusion). Grew again after a second merge
+  conflict crossed midnight UTC: the final round of evidence for that merge commit landed in a new
+  `docs/evidence/2026-09-04/` directory (this repo's evidence scripts key their output directory off the live
+  system date), adding `docs/evidence/2026-09-04/assumption-alarm.json`, `build.txt`, `chamber-lock.json`,
+  `clan-chain.json`, `clan-chain.md`, `lint.txt`, `proof-tape.json`, `proof-tape.md`, `seam-ledger.json`,
+  `seam-ledger.md`, `shaolin-lint.json`, `test.txt`, `verify-chain.txt`, `verify.txt` to the touched-file list.
 - **Exact commands:** `npm ci`, `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`.
 - **Self-critique:** the riskiest assumption is that gating `resetGeneratedPage()`/`resetTryOnResultState()` on
   "did the id actually change" never leaves stale state visible when it shouldn't — proven by construction: the
