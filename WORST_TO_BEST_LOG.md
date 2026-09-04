@@ -3295,3 +3295,75 @@ clean. test **1173 passed, 1 skipped**. build exit 0. playwright **22 passed**.
 
 **Seventeen guards** proven by deletion, every mutation asserted to have applied before its result
 was believed.
+
+## Run 3, merged — 2026-09-04 — `cccf0c2`, and what eleven rounds actually cost
+
+PR #293 merged into `main` as `cccf0c2`. Thirteen commits, 32 files, +4,271 / −1,485.
+
+Codex reviewed eight heads. It found nothing on the ninth, `651be9e`, which is the first clean
+round this branch has had and the reason it was merged rather than pushed again.
+
+### The scoreboard, without rounding in my favour
+
+| | |
+|---|---|
+| Findings raised | 15 — 14 Codex, 1 SonarCloud |
+| Fixed | 14 |
+| Declined | 1, and its thread is **left open on purpose** |
+| Gate failures | 1 — SonarCloud Quality Gate, C Security Rating, on `564f24e` |
+| Guards proven by deletion | 17 |
+| Tests | 1105 → 1173 unit, 13 → 22 e2e |
+
+Of the 14 fixed, **six were defects created by an earlier fix in this same PR.** That is not a
+detail to bury in a table. Nearly half the review load on this change was spent cleaning up after
+its own repairs. The single id fallback took three rounds — clock-only, then a counter, then a
+counter plus a document token — each version correct about the collision in front of it and silent
+about the next one.
+
+### The one shape everything took
+
+Across every real finding in eleven rounds, not one was a **missing** guard. Every one was a guard
+that did not cover the whole of what it claimed:
+
+- `{ ok: false }` handled, a throw not — three separate times, in three different files.
+- `makePage` refuses while a verdict loads; `requestVerdict` did not refuse while a page generates.
+  The exact mirror, written six rounds apart, from one rule stated once and implemented in one
+  direction.
+- Save blocked while stale; not blocked while a *replacement* generated, which the fix for the
+  previous round had just made possible.
+
+A guard is a claim about a set of states. Writing one and testing the state you had in mind proves
+the guard fires — never that the set is closed. Every round here was someone else naming a member
+of the set I had not enumerated.
+
+### What is still open, deliberately
+
+The P1 arguing that consuming an existing adapter from a new screen triggers the full seam workflow
+is **declined and its thread is open**. Four measurements are on it. It is left unresolved rather
+than resolved-away because it is the only finding in this PR that was refused, and a human should
+see that decision sitting there rather than have to reconstruct it from a merged log.
+
+Applied as stated, that reading fires on every new screen in the app. The concrete half of the same
+concern — raw randomness and a raw wall clock inside the vault record — was correct when the
+reviewer restated it with evidence, and is fixed: `newCreationId()` and `ClockSeam`.
+
+### Follow-ups this run is handing forward
+
+1. `MeechieTools.svelte` still owns a fourth copy of the lifecycle. It shares the image helpers now
+   and nothing else. This is the last duplicate.
+2. `fixesApplied` is still written from `recommendedFixes` in `studio-state.svelte.ts` and
+   `MeechieTools.svelte`. Nothing reads the field back, which is why it was left; deciding what it
+   is *for* is a change of its own.
+3. `createdAtISO` crosses `ClockSeam` in one of three call sites. The other two should follow, in
+   one change that can carry a seam workflow if it needs one.
+
+### The correction this run owes the next one
+
+`/m/[mode]` is **not** an orphan. Run 2's log said it was, this run repeated it, and this run then
+promoted it into `CLAUDE.md` — the file whose whole job is telling the next session where things
+are — as a delete candidate. It is linked from the home page for every weekly mode. One `grep`
+would have caught it at any point in three runs, and nobody ran it because the claim arrived
+pre-believed.
+
+Every code claim in this PR was measured before it was written. The one claim that was not measured
+is the one that was inherited. **Copying a claim forward launders it into fact.**
