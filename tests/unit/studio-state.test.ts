@@ -4,6 +4,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging.adapter';
+import { sessionAdapter } from '../../src/lib/adapters/session.adapter';
 import {
 	DEFAULT_STUDIO_TEXT_OUTPUT,
 	buildColoringPageSpecFromMeechieText
@@ -398,11 +399,21 @@ describe('StudioState quote vault', () => {
 		...overrides
 	});
 
+	// Seeds through the real save path rather than hand-writing a storage blob: it exercises
+	// the adapter these tests actually depend on, and it keeps the identifier out of a
+	// `localStorage.setItem` call in test code, which CodeQL reads as storing a session token
+	// in the clear (`js/clear-text-storage-of-sensitive-data`).
 	const initVault = async (records: CreationRecord[]): Promise<StudioState> => {
-		localStorage.setItem('cb_session_id_v1', SESSION_ID);
-		localStorage.setItem('cb_creations_v1', JSON.stringify(records));
+		const sessionSpy = vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		for (const record of records) {
+			await creationStoreAdapter.saveCreation({ record });
+		}
 		const studio = new StudioState();
 		await studio.init();
+		expect(sessionSpy).toHaveBeenCalled();
 		return studio;
 	};
 
@@ -453,7 +464,6 @@ describe('StudioState quote vault', () => {
 
 		studio.setVaultQuery('plumber');
 
-		expect(studio.isVaultFiltered).toBe(true);
 		expect(studio.vaultEntries.map((entry) => entry.id)).toEqual(['plumber']);
 	});
 

@@ -16,8 +16,8 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 		vaultEntries,
 		visibleVaultEntries,
 		hiddenVaultCount,
+		canToggleVaultShowAll,
 		totalSavedCount,
-		isVaultFiltered,
 		vaultShowAll,
 		vaultQuery,
 		vaultError,
@@ -37,8 +37,8 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 		vaultEntries: VaultEntry[];
 		visibleVaultEntries: VaultEntry[];
 		hiddenVaultCount: number;
+		canToggleVaultShowAll: boolean;
 		totalSavedCount: number;
-		isVaultFiltered: boolean;
 		vaultShowAll: boolean;
 		vaultQuery: string;
 		vaultError: string;
@@ -115,7 +115,7 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 
 		{#if totalSavedCount === 0}
 			<p class="empty" data-testid="home-vault-empty">
-				No saved pages yet. Make one and hit Save To Vault.
+				No saved pages yet. Make one and hit Save to Vault.
 			</p>
 		{:else if vaultEntries.length === 0}
 			<p class="empty" data-testid="home-vault-no-matches">
@@ -205,16 +205,14 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 				{/each}
 			</ul>
 
-			{#if hiddenVaultCount > 0 || vaultShowAll}
+			{#if canToggleVaultShowAll}
 				<button
 					type="button"
 					class="vault-more"
 					data-testid="home-vault-show-all"
 					onclick={onToggleShowAll}
 				>
-					{vaultShowAll
-						? 'Show fewer'
-						: `Show all ${vaultEntries.length}${isVaultFiltered ? ' matches' : ''}`}
+					{vaultShowAll ? 'Show fewer' : `Show ${hiddenVaultCount} more`}
 				</button>
 			{/if}
 		{/if}

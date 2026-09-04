@@ -108,9 +108,22 @@ export const detectVaultImageKind = (base64: string): VaultImageKind | null => {
 	return null;
 };
 
-/** A `src`/`href` for a stored vault image, or '' when the bytes are unreadable. */
+// A stored `url` is whatever was in browser storage when the vault was read, and it now feeds an
+// `<a href>` as well as an `<img src>`. Anything but a plain http(s) absolute URL or a same-origin
+// path is refused, so a `javascript:` value in a record can never become a link the reader clicks.
+const isSafeStoredUrl = (url: string): boolean => {
+	if (url.startsWith('/') && !url.startsWith('//')) return true;
+	try {
+		const { protocol } = new URL(url);
+		return protocol === 'https:' || protocol === 'http:';
+	} catch {
+		return false;
+	}
+};
+
+/** A `src`/`href` for a stored vault image, or '' when it is unreadable or unsafe to link to. */
 export const vaultImageSource = (image: VaultImage): string => {
-	if (image.url) return image.url;
+	if (image.url) return isSafeStoredUrl(image.url) ? image.url : '';
 	if (!image.b64) return '';
 	const kind = detectVaultImageKind(image.b64);
 	if (!kind) return '';

@@ -113,6 +113,19 @@ describe('vaultImageSource', () => {
 		);
 	});
 
+	it('accepts a same-origin path', () => {
+		expect(vaultImageSource({ url: '/saved/page.png' })).toBe('/saved/page.png');
+	});
+
+	it.each([
+		['a javascript: url', 'javascript:alert(1)'],
+		['a data: url smuggled in as a stored url', 'data:text/html,<script>alert(1)</script>'],
+		['a protocol-relative url', '//evil.test/page.png'],
+		['a vbscript: url', 'vbscript:msgbox(1)']
+	])('refuses %s rather than turning it into a link', (_label, url) => {
+		expect(vaultImageSource({ url })).toBe('');
+	});
+
 	it('returns an empty source rather than a broken image for unreadable bytes', () => {
 		expect(vaultImageSource({ b64: btoa('still not an image') })).toBe('');
 	});

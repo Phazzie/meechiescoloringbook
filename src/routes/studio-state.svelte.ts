@@ -242,7 +242,10 @@ export class StudioState {
 	hiddenVaultCount = $derived(
 		Math.max(0, this.vaultEntries.length - this.visibleVaultEntries.length)
 	);
-	isVaultFiltered = $derived(this.vaultQuery.trim().length > 0);
+	// Keyed off the match count, not off what is currently on screen: once expanded there is
+	// nothing hidden, and the toggle still has to be there to collapse the list again. It stays
+	// away entirely when everything fits in the preview.
+	canToggleVaultShowAll = $derived(this.vaultEntries.length > VAULT_PREVIEW_COUNT);
 
 	// --- Non-reactive implementation details ---
 	owner: CreationOwner | null = null;

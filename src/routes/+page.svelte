@@ -109,8 +109,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		vaultEntries={studio.vaultEntries}
 		visibleVaultEntries={studio.visibleVaultEntries}
 		hiddenVaultCount={studio.hiddenVaultCount}
+		canToggleVaultShowAll={studio.canToggleVaultShowAll}
 		totalSavedCount={studio.creations.length}
-		isVaultFiltered={studio.isVaultFiltered}
 		vaultShowAll={studio.vaultShowAll}
 		vaultQuery={studio.vaultQuery}
 		vaultError={studio.vaultError}
