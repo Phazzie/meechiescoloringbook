@@ -3,6 +3,7 @@
 //      state module; the page component becomes a thin lifecycle wrapper.
 // Info flow: User actions -> StudioState methods -> reactive $state updates -> component props.
 import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
+import { clockSeam } from '$lib/adapters/clock-seam';
 import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 import { sessionAdapter } from '$lib/adapters/session.adapter';
@@ -44,6 +45,7 @@ import type {
 	ColoringPageSpec,
 	SpecValidationOutput
 } from '../../contracts/spec-validation.contract';
+import { nextUtcDayBoundary, type ClockSeam } from '$lib/seams/clock-seam/contract';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
 type PageSize = ColoringPageSpec['pageSize'];
@@ -144,22 +146,23 @@ export class StudioState {
 	vaultQuery = $state('');
 	vaultShowAll = $state(false);
 	vaultError = $state('');
+	// True only when the last vault *read* failed, so the UI can distinguish "your pages are still
+	// there, we could not see them" from any other error that happens to leave the list empty.
+	vaultReadFailed = $state(false);
 	// Delete is two-step and reversible: the first click arms `pendingDeleteId`, the second
 	// removes the record but keeps it in `undoableDeletion` so one click puts it back. A saved
 	// page costs a paid generation, so a single mis-tap must never be able to destroy one.
 	pendingDeleteId = $state<string | null>(null);
 	undoableDeletion = $state<CreationRecord | null>(null);
-	// Every clock read behind the "Saved today / 3 days ago" labels goes through this one function.
-	// `AGENTS.md` classifies clock/time as a seam, and this repository has no clock seam — the
-	// pre-existing reads in this file (creation ids, `createdAtISO`) call `Date.now()` directly.
-	// Rather than invent a seam for a date label, the vault's reads are funnelled through a single
-	// injectable so the UTC-midnight rollover is drivable from a test instead of depending on when
-	// the suite happens to run. Declared before `nowMs` so the field initializer below can use it.
-	readNow: () => number = () => Date.now();
-	// Clock reading behind the "Saved today / 3 days ago" labels. Held as state and refreshed
-	// whenever the vault reloads so the labels stay a pure function of an explicit instant
-	// instead of re-reading the clock inside a $derived on every keystroke.
-	nowMs = $state(this.readNow());
+	// The clock behind the "Saved today / 3 days ago" labels. `AGENTS.md` classifies clock/time as
+	// a seam, so both the reads and the day-boundary timer cross `ClockSeam` rather than calling
+	// `Date.now()` or `setTimeout` here. Injectable so a test drives the rollover instead of
+	// waiting for real midnight. Declared before `nowMs` so the field initializer below can use it.
+	clock: ClockSeam = clockSeam;
+	// Clock reading behind the labels. Held as state and refreshed at each day boundary and on each
+	// vault reload, so the labels stay a pure function of an explicit instant rather than
+	// re-reading the clock inside a $derived on every keystroke.
+	nowMs = $state(this.clock.now());
 	// Origin the app is served from, used to decide whether a stored absolute image URL is
 	// same-origin and therefore loadable under the app's `img-src 'self'` CSP. '' during server
 	// rendering, where no image is painted anyway.
@@ -272,6 +275,7 @@ export class StudioState {
 	isBrowser = $state(false);
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
 	private onVisibilityChange: (() => void) | null = null;
+	private cancelDayBoundaryRefresh: (() => void) | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
 
@@ -419,10 +423,16 @@ export class StudioState {
 			// Reads used to fail silently, so a browser with unreadable storage showed an empty
 			// vault and no reason for it. Say what happened and leave the last good list up.
 			this.vaultError = result.error.message;
+			// Tracked apart from `vaultError` because only a failed *read* means "your pages are
+			// still there, we just could not see them". A failed write — a restore that could not
+			// be saved, say — also sets `vaultError` and can also leave the list empty, and
+			// telling that reader their pages could not be read would be false.
+			this.vaultReadFailed = true;
 			return;
 		}
 		this.vaultError = '';
-		this.nowMs = this.readNow();
+		this.vaultReadFailed = false;
+		this.nowMs = this.clock.now();
 		this.creations = sortVaultCreations(result.value);
 	}
 
@@ -837,9 +847,16 @@ export class StudioState {
 		// Development workflow. It is tracked with the other deferred seam work in
 		// `WORST_TO_BEST_LOG.md` rather than widened into this fix.
 		if (this.creations.length >= VAULT_CAPACITY) {
+			// Deliberately does not say "delete a page, then undo". `deleteCreation` replaces
+			// `undoableDeletion` with whatever was deleted last, so following that instruction
+			// would discard this record and leave Undo holding the page just deleted to make room
+			// for it. Say what is true, and what it costs, instead of scripting a move that
+			// destroys the thing the reader is trying to save.
 			this.vaultError =
-				`The vault is full at ${VAULT_CAPACITY} pages, so "${record.intent.title}" cannot come ` +
-				'back without pushing another page out. Delete a page you do not want, then undo.';
+				`The vault is full at ${VAULT_CAPACITY} pages, so "${record.intent.title}" cannot ` +
+				'come back without pushing another page out. It is still held here for now — but ' +
+				'Undo only ever holds the most recent deletion, so deleting another page to make ' +
+				'room would replace it. Download the page you want to keep before freeing a slot.';
 			return;
 		}
 		const result = await creationStoreAdapter.saveCreation({ record });
@@ -902,23 +919,45 @@ export class StudioState {
 	}
 
 	// "Saved today" is computed against `nowMs`, which otherwise only advances when the vault is
-	// read or written. A studio left open across UTC midnight would keep showing yesterday's
-	// labels indefinitely. Re-reading the clock when the tab comes back to the foreground covers
-	// that without a polling timer: the labels are only wrong while nobody is looking at them.
+	// read or written, so a studio left open across UTC midnight keeps showing yesterday's labels.
+	// Two things move the clock forward, because the two cases are genuinely different:
+	//
+	//   - A timer armed at the next UTC day boundary, which re-arms itself for the boundary after
+	//     that. This is the case that matters most: a reader who leaves the tab in the foreground
+	//     is looking straight at the labels while they go stale, and no event would ever fire.
+	//   - `visibilitychange`, for the tab that was suspended in the background. A backgrounded
+	//     timer can be throttled or deferred, so the boundary timer alone cannot be relied on to
+	//     have fired on time; reading the clock on the way back in fixes the label immediately.
 	private startSavedLabelRefresh(): void {
+		this.scheduleNextDayBoundaryRefresh();
 		if (typeof document === 'undefined') return;
 		this.onVisibilityChange = () => {
 			if (document.visibilityState === 'visible') {
-				this.nowMs = this.readNow();
+				this.nowMs = this.clock.now();
+				// The boundary the old timer was waiting for may already be behind us.
+				this.scheduleNextDayBoundaryRefresh();
 			}
 		};
 		document.addEventListener('visibilitychange', this.onVisibilityChange);
+	}
+
+	private scheduleNextDayBoundaryRefresh(): void {
+		this.cancelDayBoundaryRefresh?.();
+		this.cancelDayBoundaryRefresh = this.clock.scheduleAt(
+			nextUtcDayBoundary(this.clock.now()),
+			() => {
+				this.nowMs = this.clock.now();
+				this.scheduleNextDayBoundaryRefresh();
+			}
+		);
 	}
 
 	destroy(): void {
 		if (this.draftTimer) {
 			globalThis.clearTimeout(this.draftTimer);
 		}
+		this.cancelDayBoundaryRefresh?.();
+		this.cancelDayBoundaryRefresh = null;
 		if (this.onVisibilityChange && typeof document !== 'undefined') {
 			document.removeEventListener('visibilitychange', this.onVisibilityChange);
 			this.onVisibilityChange = null;

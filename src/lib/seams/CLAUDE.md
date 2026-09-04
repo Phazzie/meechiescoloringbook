@@ -26,6 +26,7 @@ Some seams are pure or dependency-injected and have no separate adapter. When an
 | Folder | What it covers |
 |--------|----------------|
 | `app-config-seam/` | Reads env-var-based app configuration at runtime |
+| `clock-seam/` | Wall-clock reads and "run this when instant T arrives" scheduling; the only place permitted to call `Date.now()`/`setTimeout` for wall-clock purposes |
 | `prompt-compiler-seam/` | Deterministic canonical + compressed prompt compilation |
 | `safety-policy-seam/` | Content guardrail enforcement (pure, no external I/O) |
 | `gallery-store-seam/` | Saved generations, favorites, drafts |

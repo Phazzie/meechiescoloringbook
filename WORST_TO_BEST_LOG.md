@@ -284,7 +284,7 @@ run that waited for the review this time caught real defects it had just written
 
 | Severity | Finding | What it actually was | Fix |
 |---|---|---|---|
-| P1 | `undoDelete`'s capacity guard reads `this.creations`, which is owner-filtered, while the adapter caps the whole stored array. | Real. Records orphaned under a previous `cb_session_id_v1` occupy slots the guard cannot see, so it can pass and still evict. | The guard stays — it is a correct lower bound and covers every case reachable while the session id survives — but it no longer claims to be a store-wide guarantee. The sound fix needs `CreationStoreSeam` to own the decision, a contract change and so the full SDD workflow; deferred below rather than widened into a fix PR. |
+| P1 | `undoDelete`'s capacity guard reads `this.creations`, which is owner-filtered, while the adapter caps the whole stored array. | Real. Records orphaned under a previous `cb_session_id_v1` occupy slots the guard cannot see, so it can pass and still evict. | The guard stays — it is a correct lower bound and covers every case reachable while the session id survives — but it no longer claims to be a store-wide guarantee. The sound fix needs `CreationStoreSeam` to own the decision, a contract change and so the full Seam-Driven Development workflow; deferred below rather than widened into a fix PR. |
 | P1 | `Date.now()` in `startSavedLabelRefresh` reads the clock outside a seam. | Half real. `AGENTS.md` does classify clock/time as a seam, but this repository has **no** clock seam, and the same file already read `Date.now()` three times before this feature existed (creation ids, `createdAtISO`). | Rather than invent a seam for a date label, every vault clock read now goes through one injectable `readNow`. The UTC-midnight rollover became a real test instead of a path that depended on when the suite ran. |
 | P1 | Restoring Run 1's outcome line is itself an edit to an append-only file, so the appended claim "Appended, not edited into Run 1" was false for that diff. | Real, and worth conceding precisely. | The restore stays, because the point of "append only" is that the record stays true and a silently rewritten outcome defeats that harder than a disclosed undo does. The claim above it is now accurate about its own diff. |
 | P1 | The Vercel guidance told future runs a quota failure needs no per-PR reproduction, contradicting the merge gate. | Real, and the more dangerous of the two log findings: it was advice aimed straight at unattended successors. | Rewritten. Every red status earns the same check — match the actual failure signature, write the comparison down, then merge. |
@@ -301,3 +301,34 @@ both made something worse. A fix PR earns a full review, not a lighter one.
 - Store-wide capacity belongs inside `CreationStoreSeam`; the guard in `undoDelete` is a lower
   bound until then.
 - The four items listed at the end of the previous close-out, unchanged.
+
+---
+
+## Run 1, third close-out — 2026-09-04 — the review round on PR #289's second head
+
+Appended, not edited. `3b21b76` — the commit that fixed the seven findings above — drew **five
+more**. Three of them were defects in that very commit. This is now the pattern of the run: each
+round of fixes has introduced roughly two new defects, and only reviewing every head has caught
+them.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| P1 | The clock finding, returned. The previous round replaced `Date.now()` with an injectable that still *defaulted* to `Date.now()`, so the production path read the host clock outside any boundary. A test-overridable default is not a seam. | Conceded and done properly: `ClockSeam` now exists — contract, mock, fixtures, probe note, contract tests, adapter, `docs/seams.md` row, Cipher Gate entry in `DECISIONS.md`. It covers reading the instant *and* scheduling at one, because a timer is a clock read in disguise. |
+| P2 | Labels still would not roll over for a tab left in the **foreground** across UTC midnight — no `visibilitychange` fires, so nothing advanced the clock. The previous round's test only covered the background-and-return case. | A day-boundary timer through the seam, re-arming itself after each rollover. Both paths are kept and both are tested: a foregrounded tab needs the timer, and a backgrounded tab cannot trust a throttled timer, so it also refreshes on return. |
+| P1 | The vault-full undo message said "Delete a page you do not want, then undo" — but `deleteCreation` overwrites `undoableDeletion`, so obeying that instruction discards the page the reader is trying to rescue and leaves Undo holding the one just deleted. | The message no longer scripts a move that destroys its own subject. It states the situation, warns that Undo holds only the most recent deletion, and points at Download as the way to keep the page. |
+| P2 | The "your pages could not be read — they are not gone" state was keyed on `vaultError && totalSavedCount === 0`. A failed *write* into an emptied vault hits both conditions, and there the page really is gone. | A separate `vaultReadFailed` flag, set only by a failed read and cleared by a successful one. |
+| P1 | `WORST_TO_BEST_LOG.md` used the acronym "SDD", which `AGENTS.md` line 55 explicitly forbids in prose. | Spelled out. |
+
+**Why the clock seam got built after being argued against once.** The first answer — no clock seam
+exists, three pre-existing reads sit in the same file, building one widens a fix pull request — was
+all true and still the wrong call. `AGENTS.md` does not have an exemption for "the violation is
+already common here", and a repeated finding at P1 is a signal to fix the root cause rather than
+restate the objection. What *was* right in the original objection is preserved: the three
+pre-existing reads were left alone, because converting them really would be unrelated widening.
+
+### Still deferred after the third round
+
+- Convert the three pre-existing `Date.now()`/`new Date()` reads in `studio-state.svelte.ts`
+  (creation ids, `createdAtISO` on drafts and saves) to `ClockSeam`. Now that the seam exists this
+  is small and mechanical, but it is untouched by this pull request.
+- Everything listed above, unchanged.

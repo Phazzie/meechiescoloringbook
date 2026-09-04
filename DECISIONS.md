@@ -7,6 +7,40 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-04 - Introducing ClockSeam rather than a test-only clock injection
+
+- Date: 2026-09-04
+- Decision: Add `ClockSeam` (`src/lib/seams/clock-seam/`, adapter at
+  `src/lib/adapters/clock-seam/index.ts`) covering two operations — reading the current instant and
+  running a callback when a given instant arrives — and route the Quote Vault's saved-date labels
+  through it.
+- Context: The vault's "Saved today / 3 days ago" labels need to know the current instant and to
+  roll over at UTC midnight. The first attempt read `Date.now()` directly in
+  `src/routes/studio-state.svelte.ts`; the second replaced that with a plain injectable function
+  defaulting to `Date.now()`. A review on PR #289 flagged both, correctly: `AGENTS.md` classifies
+  clock/time as a seam, and a test-overridable default still leaves the production path reading the
+  host clock outside any boundary. The full workflow was done rather than argued with a second time.
+- Tradeoff 1, scheduling lives in the seam alongside reading: `scheduleAt` is part of the contract
+  rather than a bare `setTimeout` at the call site. A timer is a clock read in disguise — it asks
+  the host "tell me when it is T" — so leaving it outside would have reproduced the same problem one
+  layer along, and the mock could not then drive a rollover end to end. Consequence: the seam owns
+  two operations instead of one. Alternative rejected: a read-only clock seam plus a separate timer
+  seam, which splits one concern across two boundaries for no gain.
+- Tradeoff 2, the contract is synchronous and does not return `Result<>`: neither operation can
+  fail on any host this app runs on, and an async `now()` would report the instant it resolved
+  rather than the instant it was asked for. Consequence: `ClockSeam` does not match the `Promise<
+  Result<>>` shape most seams in this repository use. Judged the honest contract over the uniform
+  one — a `Result` whose error arm is unreachable is noise at every call site.
+- Tradeoff 3, the three pre-existing `Date.now()` reads in `studio-state.svelte.ts` (creation ids,
+  `createdAtISO` on drafts and saves) were **not** converted. They are untouched by this change, and
+  rewriting them would widen a review-fix pull request into unrelated code. Consequence: the file
+  temporarily has both styles. Converting them is a good small follow-up and is recorded as deferred
+  in `WORST_TO_BEST_LOG.md`.
+- Tradeoff 4, both a day-boundary timer and `visibilitychange` refresh the labels: the timer alone
+  is not enough because a backgrounded tab can have its timers throttled or deferred, and
+  `visibilitychange` alone is not enough because a tab left in the foreground across midnight never
+  fires one. Consequence: two paths to the same refresh, both tested.
+
 ## 2026-09-04 - Rebuilding the Quote Vault without touching a seam
 
 - Date: 2026-09-04

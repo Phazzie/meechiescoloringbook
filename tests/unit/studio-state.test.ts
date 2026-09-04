@@ -9,6 +9,8 @@ import {
 	DEFAULT_STUDIO_TEXT_OUTPUT,
 	buildColoringPageSpecFromMeechieText
 } from '../../src/lib/core/meechie-studio';
+import { createMockClockSeam } from '../../src/lib/seams/clock-seam/mock';
+import type { ClockSeam } from '../../src/lib/seams/clock-seam/contract';
 import { StudioState } from '../../src/routes/studio-state.svelte';
 import { VAULT_CAPACITY } from '../../src/lib/core/vault-gallery';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
@@ -514,7 +516,7 @@ describe('StudioState quote vault', () => {
 	// in the clear (`js/clear-text-storage-of-sensitive-data`).
 	const initVault = async (
 		records: CreationRecord[],
-		options: { readNow?: () => number } = {}
+		options: { clock?: ClockSeam } = {}
 	): Promise<StudioState> => {
 		const sessionSpy = vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
 			ok: true,
@@ -524,8 +526,8 @@ describe('StudioState quote vault', () => {
 			await creationStoreAdapter.saveCreation({ record });
 		}
 		const studio = new StudioState();
-		if (options.readNow) {
-			studio.readNow = options.readNow;
+		if (options.clock) {
+			studio.clock = options.clock;
 		}
 		await studio.init();
 		expect(sessionSpy).toHaveBeenCalled();
@@ -537,24 +539,110 @@ describe('StudioState quote vault', () => {
 	});
 
 	// A studio left open across UTC midnight kept rendering yesterday's labels, because `nowMs`
-	// only advanced when the vault was read or written. Driving the clock explicitly is why
-	// `readNow` exists: the rollover is a real code path, not something to leave to whenever the
-	// suite happens to run.
-	it('refreshes saved-date labels when the tab returns after UTC midnight', async () => {
-		const savedAt = '2026-09-03T23:00:00.000Z';
-		let currentMs = Date.parse('2026-09-03T23:30:00.000Z');
+	// only advanced when the vault was read or written. Both refresh paths are covered because
+	// they answer different failure modes: the foreground reader sees nothing without the timer,
+	// and the backgrounded tab cannot trust a throttled timer to have fired.
+	const OVERNIGHT_SAVE = '2026-09-03T23:00:00.000Z';
+	const BEFORE_MIDNIGHT = Date.parse('2026-09-03T23:30:00.000Z');
+	const AFTER_MIDNIGHT = Date.parse('2026-09-04T09:00:00.000Z');
 
-		const studio = await initVault([makeCreation('overnight', { createdAtISO: savedAt })], {
-			readNow: () => currentMs
+	it('rolls the saved-date label over at UTC midnight with the tab left in the foreground', async () => {
+		const clock = createMockClockSeam(BEFORE_MIDNIGHT);
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
+			clock
 		});
 
 		expect(studio.vaultEntries[0].savedLabel).toBe('Saved today');
 
-		// The tab sat in the background while the date rolled over.
-		currentMs = Date.parse('2026-09-04T09:00:00.000Z');
+		// No visibilitychange: nobody left the tab. Only the day-boundary timer can save this.
+		clock.advanceTo(Date.parse('2026-09-04T00:00:00.000Z'));
+
+		expect(studio.vaultEntries[0].savedLabel).toBe('Saved yesterday');
+	});
+
+	it('re-arms the day-boundary refresh so the label keeps rolling on later days', async () => {
+		const clock = createMockClockSeam(BEFORE_MIDNIGHT);
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
+			clock
+		});
+
+		clock.advanceTo(Date.parse('2026-09-04T00:00:00.000Z'));
+		clock.advanceTo(Date.parse('2026-09-05T00:00:00.000Z'));
+
+		expect(studio.vaultEntries[0].savedLabel).toBe('Saved 2 days ago');
+	});
+
+	it('refreshes saved-date labels when a backgrounded tab returns after UTC midnight', async () => {
+		const clock = createMockClockSeam(BEFORE_MIDNIGHT);
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
+			clock
+		});
+
+		expect(studio.vaultEntries[0].savedLabel).toBe('Saved today');
+
+		// A suspended tab: the clock moved on without the boundary timer being allowed to run.
+		clock.setInstantWithoutFiring(AFTER_MIDNIGHT);
 		document.dispatchEvent(new Event('visibilitychange'));
 
 		expect(studio.vaultEntries[0].savedLabel).toBe('Saved yesterday');
+	});
+
+	it('stops the day-boundary refresh when the studio is destroyed', async () => {
+		const clock = createMockClockSeam(BEFORE_MIDNIGHT);
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
+			clock
+		});
+
+		expect(clock.pendingCount()).toBe(1);
+
+		studio.destroy();
+
+		expect(clock.pendingCount()).toBe(0);
+	});
+
+	// The "your pages could not be read, they are not gone" state must be keyed on a failed read,
+	// not on "there is an error and the list is empty". A failed write into an empty vault hits
+	// both of those and the pages really are gone.
+	it('flags a read failure so the UI can say the pages are still there', async () => {
+		const studio = await initVault([makeCreation('only-page')]);
+		vi.spyOn(creationStoreAdapter, 'listCreations').mockResolvedValue({
+			ok: false,
+			error: { code: 'CREATIONS_READ_FAILED', message: 'Storage is unreadable.' }
+		});
+
+		await studio.toggleFavorite(studio.creations[0]);
+
+		expect(studio.vaultReadFailed).toBe(true);
+		expect(studio.vaultError).toBe('Storage is unreadable.');
+	});
+
+	it('does not flag a read failure when a write fails but the read succeeded', async () => {
+		const studio = await initVault([makeCreation('only-page')]);
+		vi.spyOn(creationStoreAdapter, 'saveCreation').mockResolvedValue({
+			ok: false,
+			error: { code: 'CREATIONS_WRITE_FAILED', message: 'Storage is full.' }
+		});
+
+		await studio.toggleFavorite(studio.creations[0]);
+
+		expect(studio.vaultError).toBe('Storage is full.');
+		expect(studio.vaultReadFailed).toBe(false);
+	});
+
+	it('clears the read-failure flag once a read succeeds again', async () => {
+		const studio = await initVault([makeCreation('only-page')]);
+		const listSpy = vi.spyOn(creationStoreAdapter, 'listCreations').mockResolvedValue({
+			ok: false,
+			error: { code: 'CREATIONS_READ_FAILED', message: 'Storage is unreadable.' }
+		});
+		await studio.toggleFavorite(studio.creations[0]);
+		expect(studio.vaultReadFailed).toBe(true);
+
+		listSpy.mockRestore();
+		await studio.toggleFavorite(studio.creations[0]);
+
+		expect(studio.vaultReadFailed).toBe(false);
+		expect(studio.vaultError).toBe('');
 	});
 
 	it('keeps every saved page reachable instead of stopping at four', async () => {

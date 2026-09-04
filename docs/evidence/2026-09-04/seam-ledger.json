@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-09-04T01:51:22.752Z",
+  "generatedAt": "2026-09-04T02:13:06.809Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -953,6 +953,44 @@
       ]
     },
     {
+      "seam": "ClockSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/clock-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/clock-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "na",
+          "path": "N/A (fixture module: src/lib/seams/clock-seam/fixtures.ts)"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/clock-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/clock-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/clock-seam/index.ts"
+        }
+      ]
+    },
+    {
       "seam": "WigCatalogSeam",
       "owner": "hbpheonix",
       "lastProbe": "N/A",
@@ -1068,7 +1106,7 @@
     }
   ],
   "summary": {
-    "ok": 28,
+    "ok": 29,
     "missing": 0,
     "blocked": 0,
     "overallStatus": "ok"

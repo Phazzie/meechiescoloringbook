@@ -21,6 +21,7 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 		vaultShowAll,
 		vaultQuery,
 		vaultError,
+		vaultReadFailed,
 		pendingDeleteId,
 		undoableDeletion,
 		onLoadCreation,
@@ -42,6 +43,7 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 		vaultShowAll: boolean;
 		vaultQuery: string;
 		vaultError: string;
+		vaultReadFailed: boolean;
 		pendingDeleteId: string | null;
 		undoableDeletion: CreationRecord | null;
 		onLoadCreation: (_creation: CreationRecord) => Promise<void>;
@@ -113,10 +115,12 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 			<p class="error" data-testid="home-vault-error">{vaultError}</p>
 		{/if}
 
-		{#if vaultError && totalSavedCount === 0}
+		{#if vaultReadFailed && totalSavedCount === 0}
 			<!-- A failed read leaves `creations` empty, so without this the storage error would sit
 			     directly above "No saved pages yet" — telling the reader their pages do not exist
-			     when the truth is the app could not read them. -->
+			     when the truth is the app could not read them. Keyed on the read specifically: a
+			     failed *write* into an empty vault also sets `vaultError`, and there the pages
+			     really are gone, so claiming otherwise would be the same lie in reverse. -->
 			<p class="empty" data-testid="home-vault-unreadable">
 				Your saved pages could not be read. They are not gone — see above.
 			</p>
