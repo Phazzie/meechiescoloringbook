@@ -585,3 +585,37 @@ objection would still read as honest to someone who disagreed with it.
 
 - Structural validation of stored raster bytes, at save time or behind a per-record cache.
 - Everything else listed above, unchanged.
+
+---
+
+## Run 1, twelfth close-out — 2026-09-04 — the probe runner had a path injection
+
+Appended, not edited. **SonarCloud's quality gate failed** for the first time in this run — not a
+warning, a blocked gate: `C Security Rating on New Code, required ≥ A`. The cause was in
+`scripts/run-probe.mjs`, added one commit earlier to fix a review finding.
+
+The script took a seam name from `process.argv` and passed it straight to
+`path.join(SEAMS_DIR, seamName, 'probe.ts')`. `npm run probe -- ../../../etc/passwd` escapes the
+seams directory. Sonar's rule names the case precisely — an agent running the command with a
+faulty argument walks out of the intended tree.
+
+Fixed with an **allowlist rather than a filter**: the script already reads the seam directories from
+disk to support `--list`, so that discovered set is now the only thing a CLI argument may match, and
+the name is never joined into a path until it has matched. A character filter can be outsmarted; a
+set of names that actually exist cannot. Verified by running `npm run probe -- ../../../etc`, which
+is refused, while all three real probes still run.
+
+**Two things worth carrying forward.**
+
+First: this is the **fifth** time in this run a fix introduced its own defect, and the first that a
+gate actually blocked. The pattern is now unmistakable — new code written to satisfy a review gets
+less adversarial scrutiny than the code it replaces, precisely because attention is on the finding
+rather than on the new lines.
+
+Second, and more specific: `scripts/` was the one directory this run had treated as plumbing rather
+than product. It is not exempt. A helper script that takes an argument is an input boundary like any
+other, and this one shipped a traversal on its first day.
+
+### Still deferred after the twelfth round
+
+- Everything listed above, unchanged.
