@@ -2015,3 +2015,51 @@ three route pages besides this component — and none carries a per-call-site co
 Reading the rule as Codex does would make every call-site error-handling change a full contract-first
 cycle, which is not how this repository is built. But it is a reading of the maintainer's own rule,
 so it is a call for the maintainer, and it is raised on the PR rather than settled by me.
+
+---
+
+## Run 2, correction 4 — 2026-09-04 — the over-correction, and what it exposed
+
+Codex caught the decorations fix swinging too far the other way. **Fifteen rounds, 61 findings, 27
+real user-visible defects.**
+
+### Neither "always preserve" nor "always recompute" was right
+
+Preserving `decorations` made the Theme control contradict itself. So I made it always recompute from
+`styleHint` — and that is wrong for the opposite reason: `loadCreation` does not restore the page's
+own theme, because nothing on the spec records it. `selectedThemeId` sits at the default. Every
+settings change runs through the same rebuild, so a page-size change alone turned a restored dense
+page minimal.
+
+The question is provenance, and only the caller can answer it: `restoredThemeId` pins whatever theme
+was selected when the page was restored, and a later mismatch is proof the reader chose one. The
+builder now honours a `decorations` it is given and derives only in its absence; `studio-state`
+decides which. The test fails against **both** wrong behaviours — `expected 'minimal' to be 'dense'`
+for the over-correction, `expected 'dense' to be 'minimal'` for the original.
+
+### Two hours of reasoning refuted by one console.log
+
+The test kept coming back `dense` when the theme said otherwise, and the code read correctly at every
+line. I checked the branch, the spread, the `??`, the core function in isolation — all correct. Then
+I logged the actual value.
+
+`currentStyleHint()` concatenates the theme **and the voice**, and the default voice intensity is
+`receipts_out`. The density test is `styleHint.includes('receipt')`. It was matching the *voice*, not
+the Receipt Check theme, so recomputation produced `dense` no matter which theme was selected.
+
+My test premise was wrong, not the fix. Two red-proofs and a test rewrite came out of finally
+measuring instead of re-reading.
+
+**Recorded as a follow-up, not fixed here:** `includes('receipt')` matching `receipts_out` means
+decoration density is driven by the voice as much as the theme, for every page the studio has ever
+built. Changing it changes output for existing users, so it wants its own change and its own thought
+about what the intended rule actually is.
+
+### One earlier test had to be rewritten, not deleted
+
+The unit test I wrote for "always recompute" encoded the behaviour I had just replaced, and it failed
+the moment the caller took over the decision. It now states the real contract — the builder honours a
+supplied `decorations` and derives in its absence — and the provenance decision is covered where it
+lives, in `studio-state`.
+
+A failing test after a fix is information about which of the two is wrong. This time it was the test.

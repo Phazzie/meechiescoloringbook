@@ -301,6 +301,10 @@ export class StudioState {
 	 * and image quota on an incomplete page.
 	 */
 	private restoredPageLayout = false;
+	// The theme selected at the moment a page was restored. `loadCreation` does not restore the
+	// page's own theme — there is nowhere on the spec that records it — so this pins whatever was
+	// selected then, and a later mismatch is proof the reader chose a theme themselves.
+	private restoredThemeId: string | null = null;
 	authContext: CreationRecord['authContext'] | null = null;
 	// Incremented whenever the displayed page is replaced; async work captures it and drops its
 	// result if the value moved on. Not $state: nothing renders it.
@@ -405,7 +409,16 @@ export class StudioState {
 			// And the rest of the reopened page's presentation, for the same reason and off the same
 			// flag. Preserving only the layout and the footer still handed back a visibly different
 			// page — left-aligned, small, stroke 6 — the moment any setting changed.
-			presentation: this.restoredPageLayout ? this.spec : undefined
+			//
+			// `decorations` is the one field that is derived from the theme rather than chosen, so it
+			// is dropped once the reader picks a theme and the builder recomputes it. Every setting
+			// change comes through here, so recomputing unconditionally would have turned a restored
+			// dense page minimal on a page-size change alone.
+			presentation: this.restoredPageLayout
+				? this.selectedThemeId === this.restoredThemeId
+					? this.spec
+					: { ...this.spec, decorations: undefined }
+				: undefined
 		});
 		await this.validateSpec();
 		this.scheduleDraftSave();
@@ -799,6 +812,7 @@ export class StudioState {
 		this.spec = creation.intent;
 		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
 		this.restoredPageLayout = true;
+		this.restoredThemeId = this.selectedThemeId;
 		// The evidence box is an editable field the reader's next Generate Verdict sends to the text
 		// provider as their own words, so what lands in it matters more than a display string does.
 		// This fell back to `assembledPrompt` — the image-generation prompt — for any record saved
@@ -979,6 +993,7 @@ export class StudioState {
 			// Setting it for a studio-authored draft costs nothing: such a spec is a `list` with a
 			// footer, so both derivations above return what the false branch would have.
 			this.restoredPageLayout = true;
+			this.restoredThemeId = this.selectedThemeId;
 			this.evidence = draft.value.chatMessage || '';
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;

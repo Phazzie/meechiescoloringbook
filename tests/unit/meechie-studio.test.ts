@@ -312,33 +312,42 @@ describe('Meechie studio controls', () => {
 	});
 });
 
-describe('theme changes always recompute decoration density', () => {
-	it('does not let a restored page freeze its decorations against the selected theme', () => {
-		// `decorations` is derived from the theme, not carried forward like the rest of the
-		// presentation. Production passes the whole restored spec as `presentation`, so that object
-		// carries a `decorations` value even though the accepted type omits the key — which is
-		// exactly how preserving it made the Theme control contradict itself.
-		const restoredDense = buildColoringPageSpecFromMeechieText({
+describe('decoration density follows the caller, not the builder', () => {
+	it('derives it from the theme when none is supplied, and carries one that is', () => {
+		// `decorations` is derived from the theme rather than chosen directly, so the builder cannot
+		// decide on its own whether to keep a restored value: a reopened page's theme is not restored
+		// with it, and the builder never learns whether the reader actually picked one. It therefore
+		// honours what the caller passes and derives only in its absence. `studio-state` owns the
+		// provenance, and its own test covers that decision.
+		const derived = buildColoringPageSpecFromMeechieText({
 			output: DEFAULT_STUDIO_TEXT_OUTPUT,
 			pageSize: 'US_Letter',
 			border: 'plain',
 			styleHint: 'receipt ledger lines',
 			presentation: { alignment: 'center', whitespaceScale: 35 }
 		});
-		expect(restoredDense.decorations).toBe('dense');
+		expect(derived.decorations).toBe('dense');
+		// The rest of the presentation is carried forward either way.
+		expect(derived.alignment).toBe('center');
+		expect(derived.whitespaceScale).toBe(35);
 
-		// Now move that same restored page off the Receipts theme, passing its full spec back in the
-		// way `applyTextToSpec` does.
-		const movedAway = buildColoringPageSpecFromMeechieText({
+		const carried = buildColoringPageSpecFromMeechieText({
 			output: DEFAULT_STUDIO_TEXT_OUTPUT,
 			pageSize: 'US_Letter',
 			border: 'plain',
 			styleHint: 'gold crown ornaments',
-			presentation: restoredDense
+			presentation: { alignment: 'center', decorations: 'dense' }
 		});
-		expect(movedAway.decorations).toBe('minimal');
-		// The rest of the presentation is still carried forward.
-		expect(movedAway.alignment).toBe('center');
-		expect(movedAway.whitespaceScale).toBe(35);
+		expect(carried.decorations).toBe('dense');
+
+		const dropped = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'plain',
+			styleHint: 'gold crown ornaments',
+			presentation: { alignment: 'center', decorations: undefined }
+		});
+		expect(dropped.decorations).toBe('minimal');
+		expect(dropped.alignment).toBe('center');
 	});
 });

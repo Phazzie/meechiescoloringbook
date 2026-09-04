@@ -452,6 +452,7 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 			| 'fontStyle'
 			| 'textStrokeWidth'
 			| 'colorMode'
+			| 'decorations'
 			| 'illustrations'
 			| 'shading'
 			| 'borderThickness'
@@ -488,11 +489,14 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	fontStyle: input.presentation?.fontStyle ?? 'rounded',
 	textStrokeWidth: input.presentation?.textStrokeWidth ?? 6,
 	colorMode: input.presentation?.colorMode ?? 'black_and_white_only',
-	// Not carried forward, unlike the rest of the presentation: this one is *derived* from the theme,
-	// and `styleHint` is the theme the reader has selected right now. Preserving it made the Theme
-	// control produce a spec that contradicted itself — picking Receipts on a restored minimal page
-	// stayed minimal, and moving off a restored Receipts page stayed dense.
-	decorations: input.styleHint.includes('receipt') ? 'dense' : 'minimal',
+	// Carried forward like the rest of the presentation, but the caller drops it when the reader
+	// picks a theme, because this one is *derived* from the theme rather than chosen directly.
+	// Preserving it unconditionally made the Theme control contradict itself; recomputing it
+	// unconditionally was no better, since a restored page's theme is not restored with it, so a
+	// page-size change alone turned a dense page minimal. Provenance lives with the caller, which is
+	// the only side that knows whether a theme was actually selected.
+	decorations:
+		input.presentation?.decorations ?? (input.styleHint.includes('receipt') ? 'dense' : 'minimal'),
 	illustrations: input.presentation?.illustrations ?? 'simple',
 	shading: input.presentation?.shading ?? 'none',
 	border: input.border,
