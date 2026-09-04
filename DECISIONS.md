@@ -7,6 +7,45 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-04 - The focused-mode catalog is derived from `studioModes`, and an unknown slug is a 404
+
+- Date: 2026-09-04
+- Seams: none changed. `MeechieToolSeam`, `SpecValidationSeam`, `OutputPackagingSeam`,
+  `CreationStoreSeam`, `SessionSeam` and `ClockSeam` are reached through `VerdictPageState`, which
+  already calls their existing adapters for the three standalone mode routes. No file under
+  `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or `src/lib/seams/`
+  was touched, so no Cipher Gate entry is required.
+- Decision 1: `/m/[mode]` delegates everything after the verdict to `VerdictPageState` +
+  `VerdictPageStudio`, exactly as `/who-fucked-up`, `/rate-his-excuse` and `/random` already do.
+  - Alternative rejected: give it its own lifecycle. That is the duplication run 3 removed, and it
+    is how all three standalone routes ended up each missing a different thing.
+  - Alternative rejected: delete `/m/[mode]` and redirect to the standalone routes. Only three of
+    the eight modes have a standalone route; the other five would lose their only page.
+- Decision 2: the mode catalog is derived from `studioModes` rather than restated beside it.
+  - Why: the home page renders a `/m/<id>` link for every studio mode, and the route resolved those
+    ids against a second hand-written map. The two had to agree for the links to work and nothing
+    checked that they did — a mode added to `studioModes` alone would have got a working home-page
+    link to a page that silently served Random Meechie.
+  - Consequence: adding a mode to `studioModes` gives it a mode card, a home-page link and a `/m/`
+    page in one edit. A mode whose tool has no field definition is left out of the catalog rather
+    than rendered with a dead button.
+- Decision 3: an unrecognised slug returns 404 instead of falling back to Random Meechie.
+  - Tradeoff: this is a behaviour change, and a fallback never 404s. But answering 200 with a
+    different mode's page under the requested address is worse than saying the address is wrong —
+    it is indistinguishable, from the reader's side, from the mode having been renamed.
+  - Every slug the previous hand-written map accepted is kept as an alias and asserted by test, so
+    the change reaches typos only, never a link that works today. Aliases resolve to the canonical
+    slug because the slug becomes the download filename stem.
+- Decision 4: `/m/[mode]` keys `MeechieModePage` on the slug.
+  - Why: SvelteKit reuses one component instance across parameter changes on the same route, and
+    the page owns a `VerdictPageState` built once per instance. Without the key, walking from one
+    mode to another leaves the first mode's verdict on screen under the second mode's title, and
+    the page it made still downloads under the first mode's filename.
+  - Proven by deleting the key and watching the end-to-end test fail. The first version of that
+    test used `page.goto`, which builds a new document, and so passed with the key deleted — the
+    navigation has to be client-side for the reuse to happen at all. The test now marks the
+    document and asserts the mark survives the click.
+
 ## 2026-09-04 - The standalone mode routes share one verdict-to-page lifecycle, and it needs two staleness tokens
 
 - Date: 2026-09-04

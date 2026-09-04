@@ -5,28 +5,28 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-04T15:45:48.510Z
+Generated at: 2026-09-04T18:55:55.518Z
 Evidence folder: docs/evidence/2026-09-04
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
 after this inventory is taken, so they are not listed):
 
 - assumption-alarm.json (12123 bytes)
-- build.txt (10517 bytes)
+- build.txt (11427 bytes)
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (28496 bytes)
 - cipher-gate.json (3509 bytes) — PREDATES THIS VERIFY RUN
 - clan-chain.json (2532 bytes)
 - clan-chain.md (1559 bytes)
-- e2e.txt (3452 bytes)
-- lint.txt (619 bytes)
+- e2e.txt (4635 bytes)
+- lint.txt (572 bytes)
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - seam-ledger.json (30250 bytes)
 - seam-ledger.md (2409 bytes)
-- shaolin-lint.json (519 bytes)
+- shaolin-lint.json (517 bytes)
 - test.txt (1031 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify-chain.txt (4712 bytes)
+- verify-chain.txt (8728 bytes)
 - verify.txt (1356 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 

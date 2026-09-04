@@ -115,6 +115,11 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 
 <style>
 	.page {
+		/* The ambient decoration sits 2rem past the page's right edge. Below the 680px maximum the
+		   page fills the viewport, so that overhang — plus its blur — became 32px of real document
+		   width, and every one of these pages could be panned sideways into blank space on a phone.
+		   `clip` rather than `hidden`: `hidden` would make this a scroll container on both axes. */
+		overflow-x: clip;
 		position: relative;
 		max-width: 680px;
 		margin: 0 auto;
