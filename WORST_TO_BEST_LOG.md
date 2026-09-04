@@ -3076,3 +3076,64 @@ And one mutation this round reported "MUTATION TARGET NOT FOUND" and refused to 
 wrapped the call across four lines after the patch string was written. That assertion is in the
 script because this run was caught by precisely that failure earlier and did not notice. It has now
 paid for itself twice.
+
+---
+
+## Run 3, eighth close-out — 2026-09-04 — the P1 that was right, after the P1 that was not
+
+Codex re-raised the seam argument, this time at P1 and with a concrete claim instead of a general
+one. The earlier version was refused with measurements; this one is **accepted**, and the
+difference between them is the whole point of the entry.
+
+### What made this one different
+
+The first version said: this change adds network, packaging, session and creation-store behaviour,
+therefore it crosses seam boundaries, therefore run the full workflow. That is an argument about
+categories, and it was answered with categories — no seam artifact in the diff, no contract shape
+changed, no new boundary crossed, and merged precedent for the identical classification.
+
+This version named a line and a consequence:
+
+> `crypto.randomUUID` is unavailable outside a secure context. The fallback is
+> `creation-${Date.now()}`. `upsertRecord` drops any existing record with a matching id. Two saves
+> in the same millisecond therefore destroy the first.
+
+Every step checkable, and every step true. `upsertRecord` really does
+`records.filter((existing) => existing.id !== record.id)`.
+
+**And it was not inherited.** The two older call sites were the defence used for deferring the
+clock/randomness question last time. That defence does not apply here: `session.adapter.ts` already
+mixes a random suffix into its clock-based fallback, and the version written for this class left it
+out. It was weaker than the precedent sitting next to it in the same repository.
+
+Fixed with `newCreationId()` — `randomUUID`, then `crypto.getRandomValues` (which is *not*
+secure-context gated, so it covers nearly everything `randomUUID` misses), then the session
+adapter's clock-plus-random shape. And `createdAtISO` now reads through `ClockSeam`, whose contract
+says in its own header that anything needing "now" must cross it.
+
+### What is still declined, and why that is not stubbornness
+
+The finding ends "complete the required workflow". That half stands refused, for the reason the
+first refusal gave: `ClockSeam`'s adapter already exists, and consuming an existing adapter touches
+no file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/` or `src/lib/adapters/`. A
+workflow whose trigger is "called an adapter" would fire on every new screen in the app.
+
+Accepting the defect and declining the process demand in the same breath is not a compromise. They
+are separate claims and they have separate answers.
+
+### The test was wrong first, again
+
+The first id test passed against the broken fallback. Two `withPage()` calls do real async work
+between them, so the wall clock advanced past the collision window and the ids differed for a reason
+unrelated to the fix. Caught by mutating the fallback back and watching the test still pass.
+
+That is **the third time in this run** a mutation has exposed a test proving less than it claimed —
+after the packaging-window race and the Prettier-rewrapped patch. The rule that keeps earning its
+place: a green test is a hypothesis until the thing it guards has been deleted and it has failed.
+
+Rewritten with `Date.now` frozen, which is the only way to reach the case the finding describes.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0/0. lint
+clean. test **1171 passed, 1 skipped**. build exit 0. playwright **22 passed**.

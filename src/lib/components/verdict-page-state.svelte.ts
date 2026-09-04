@@ -11,6 +11,8 @@
 import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 import { sessionAdapter } from '$lib/adapters/session.adapter';
+import { clockSeam } from '$lib/adapters/clock-seam';
+import type { ClockSeam } from '$lib/seams/clock-seam/contract';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 import {
 	generatedImageBase64,
@@ -128,6 +130,32 @@ const packageOneVariant = async (
 	}
 };
 
+/**
+ * A record id that cannot collide with another save.
+ *
+ * `crypto.randomUUID` is gated on a secure context, so it is simply absent over plain HTTP and in
+ * some embedded webviews. The previous fallback was `creation-${Date.now()}`, and
+ * `upsertRecord` in `creation-store.adapter.ts` drops any existing record sharing an id — so two
+ * saves landing in the same millisecond (two tabs on one vault) silently destroyed the first.
+ *
+ * `crypto.getRandomValues` is *not* secure-context gated, so it covers almost everything
+ * `randomUUID` misses. The last resort matches `session.adapter.ts`'s existing fallback, which
+ * mixes the clock with a random suffix rather than trusting the millisecond alone.
+ */
+const newCreationId = (): string => {
+	if (typeof crypto !== 'undefined') {
+		if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+		if (typeof crypto.getRandomValues === 'function') {
+			const bytes = crypto.getRandomValues(new Uint8Array(16));
+			const hex = Array.from(bytes, (byte) =>
+				byte.toString(16).padStart(2, '0')
+			).join('');
+			return `creation-${hex}`;
+		}
+	}
+	return `creation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
 export type VerdictPageStateOptions = {
 	/**
 	 * Slug for the downloaded filenames, e.g. `who-fucked-up` produces
@@ -190,6 +218,11 @@ export class VerdictPageState {
 	private pageVerdict: MeechieToolOutput | null = null;
 	private verdictToken = 0;
 	private pageToken = 0;
+	/**
+	 * The clock behind a saved page's `createdAtISO`. Injectable for the same reason `StudioState`
+	 * injects one: a test should be able to state the instant rather than observe it.
+	 */
+	clock: ClockSeam = clockSeam;
 	private owner: CreationOwner | null = null;
 	/** In-flight session resolve, so concurrent saves share one call rather than racing. */
 	private ownerPromise: Promise<CreationOwner | null> | null = null;
@@ -525,12 +558,12 @@ export class VerdictPageState {
 			}
 			const result = await creationStoreAdapter.saveCreation({
 				record: {
-					id:
-						typeof crypto !== 'undefined' &&
-						typeof crypto.randomUUID === 'function'
-							? crypto.randomUUID()
-							: `creation-${Date.now()}`,
-					createdAtISO: new Date().toISOString(),
+					id: newCreationId(),
+					// Through `ClockSeam`, not `new Date()`: `AGENTS.md` classifies clock/time as a
+					// seam, and the seam's own contract says anything needing "now" must cross it so
+					// the behaviour is drivable from a test rather than dependent on when the suite
+					// happens to run. The adapter already exists; consuming it changes no contract.
+					createdAtISO: new Date(this.clock.now()).toISOString(),
 					intent: recipe.spec,
 					assembledPrompt,
 					revisedPrompt: revisedPrompt || undefined,

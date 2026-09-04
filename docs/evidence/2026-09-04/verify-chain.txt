@@ -18,7 +18,7 @@ ALL EIGHT STAGES RAN. EXIT 0.
 
   1. npm run audit:gate      found 0 vulnerabilities
   2. chamber-lock.mjs        ok
-  3. verify-runner.mjs       check: 0 errors, 0 warnings | test: 1168 passed, 1 skipped
+  3. verify-runner.mjs       check: 0 errors, 0 warnings | test: 1171 passed, 1 skipped
   4. shaolin-lint.mjs        ok
   5. assumption-alarm.mjs    ok
   6. seam-ledger.mjs         ok
@@ -29,7 +29,7 @@ Recorded separately in this folder, and run after the chain so they postdate its
 
   npm run check       0 errors, 0 warnings
   npm run lint        exit 0, clean                  -> lint.txt
-  npm test            1168 passed | 1 skipped        -> test.txt
+  npm test            1171 passed | 1 skipped        -> test.txt
   npm run build       exit 0                         -> build.txt
   npx playwright test 22 passed                      -> e2e.txt
 
@@ -217,3 +217,42 @@ assertion exists because this run was caught by exactly that earlier and did not
 
 Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
 check 0/0, lint clean, test 1168 passed / 1 skipped, build exit 0, playwright 22 passed.
+
+## Codex P1 on 742d146 — a concrete collision, accepted; the workflow demand, still declined
+
+The earlier seam finding was refused as a general argument. This one is different: it names a
+specific data-loss path, and it is right.
+
+  `crypto.randomUUID` is gated on a secure context, so it is absent over plain HTTP and in some
+  embedded webviews. The fallback was `creation-${Date.now()}`. `upsertRecord` in
+  creation-store.adapter.ts filters by `existing.id !== record.id`, so two saves landing in the
+  same millisecond — two tabs on one vault — silently dropped the first.
+
+Worth stating plainly: this was not inherited. `session.adapter.ts` already mixes a random suffix
+into its own clock-based fallback; the version written here omitted it, so it was weaker than the
+precedent sitting next to it in the same repository.
+
+Fixed with `newCreationId()`: `randomUUID` where available, then `crypto.getRandomValues` (which is
+*not* secure-context gated, so it covers nearly everything `randomUUID` misses), then the session
+adapter's clock-plus-random shape as a last resort.
+
+`createdAtISO` now reads through `ClockSeam` rather than `new Date()`. The seam's own contract says
+anything needing "now" must cross it. Its adapter already exists, so consuming it changes no
+contract and touches no seam artifact — which is also why the second half of the finding, "complete
+the required workflow", is still declined: nothing under contracts/, probes/, fixtures/,
+src/lib/mocks/ or src/lib/adapters/ is modified by using an adapter that is already there.
+
+### The test for this was wrong on the first attempt
+
+The first version of the id test passed against the *broken* fallback. Two `withPage()` calls do
+real async work between them, so the wall clock advanced past the collision window and the ids
+differed for a reason that had nothing to do with the fix. Caught by mutating the fallback back and
+seeing the test still pass — the third time in this run that a mutation has exposed a test proving
+less than it claimed.
+
+Rewritten with `Date.now` frozen, which is the only way to reach the case the finding describes.
+Both branches are now pinned: restoring the clock-only fallback fails it, and disabling the
+`getRandomValues` branch fails it and the branch's own test.
+
+Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
+check 0/0, lint clean, test 1171 passed / 1 skipped, build exit 0, playwright 22 passed.

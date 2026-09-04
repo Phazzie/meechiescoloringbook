@@ -20,6 +20,7 @@ All notable user-visible changes for this repo.
 - A saved page no longer claims that drift corrections were applied when none were. The drift report itself is still stored.
 - Rate His Excuse can no longer show one ruling labelled with a different excuse. Abandoning a slow re-run and submitting a new excuse used to let the abandoned request relabel the newer ruling with the older excuse.
 - Saving to the vault recovers if the browser refused access to site data and then allowed it, instead of failing for the rest of the visit.
+- Two pages saved at the same moment from two tabs can no longer overwrite each other. On browsers without a secure context the saved-page id came from the clock alone, so two saves in the same millisecond shared an id and the first was silently dropped.
 - Pressing "Generate My Coloring Page" again no longer deletes the page you already have before the new one arrives. A timeout, a provider error or an unreadable image now leaves the existing page intact.
 - An unreadable image from the provider is caught before it becomes a page, instead of showing a broken preview with a working Save button.
 - A coloring page survives a failure while its downloads are being built. Previously a browser that could not render the square share image threw away the page, its preview and the printable PDF along with it.

@@ -241,3 +241,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: A fix needed a user-facing error string. The honest string was "The page on screen was kept" — and the code could not honour it, because the function destroyed that page on entry.
 - Lesson: Writing the message the user should see, and then checking the code can actually make it true, found a defect that no reviewer had reported and no test covered. A message is a claim about behaviour; an untrue one is a bug report you wrote yourself.
 - Action: When adding user-facing text that asserts what the system did, verify the assertion against the code path before shipping the string. Prefer writing the message first.
+
+## 2026-09-04
+- Date: 2026-09-04
+- Context: A reviewer raised the same concern twice — first as a category argument ("this crosses seam boundaries, run the workflow"), then as a named line with a named consequence (an id fallback that collides and silently drops a saved record).
+- Lesson: The first was refused with measurements and the second accepted, and that is not inconsistency. A finding that argues from categories is answered with categories; a finding that names a line is answered by reading that line. The concrete version also broke the defence used against the general one: "the two older call sites do the same thing" was true of the clock, and false of the id, because `session.adapter.ts` already mixed randomness into its fallback and this code had left it out.
+- Action: When refusing a finding, refuse the argument that was actually made, and record what would change the answer. When it comes back with evidence, re-check from scratch instead of reusing the earlier refusal — and check whether the defence still holds rather than assuming it does.
+
+## 2026-09-04
+- Date: 2026-09-04
+- Context: A test asserting that two saves get distinct ids passed against the broken clock-only fallback, because the awaits between the two saves advanced the real clock past the collision window.
+- Lesson: The test exercised a code path but not the *condition* the defect needs. Anything that depends on two events sharing a timestamp cannot be tested with a running clock; the collision window is smaller than the test's own overhead.
+- Action: Freeze the clock when testing a defect whose precondition is "in the same millisecond", and confirm by restoring the defect and watching the test fail. Third instance in one change of a mutation exposing a test that proved less than it claimed.

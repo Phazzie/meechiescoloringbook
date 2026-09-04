@@ -17,6 +17,7 @@ import type {
 	MeechieToolOutput
 } from '../../contracts/meechie-tool.contract';
 import type { CreationRecord } from '../../contracts/creation-store.contract';
+import type { ClockSeam } from '../../src/lib/seams/clock-seam/contract';
 
 /** A verdict that parses into printable structure — the case the old routes threw away. */
 const STRUCTURED_VERDICT: MeechieToolOutput = {
@@ -772,6 +773,64 @@ describe('saveToVault', () => {
 			.record as CreationRecord;
 		expect(record.fixesApplied).toBeUndefined();
 		expect(record.violations).toHaveLength(1);
+	});
+
+	it('gives two saves distinct ids even when the clock cannot separate them', async () => {
+		// The defect this covers: `crypto.randomUUID` is gated on a secure context, so it is absent
+		// over plain HTTP. The old fallback was `creation-${Date.now()}`, and `upsertRecord` drops
+		// any existing record with a matching id — so two saves in the same millisecond silently
+		// destroyed the first.
+		//
+		// `Date.now` is frozen deliberately. Without that this test passes against the *broken*
+		// fallback too, because the awaits between the two saves advance the real clock past the
+		// collision window — proving nothing. Confirmed by restoring the old fallback and watching
+		// this fail.
+		vi.stubGlobal('crypto', {});
+		const clock = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+		try {
+			const first = await withPage();
+			await first.saveToVault();
+			const second = await withPage();
+			await second.saveToVault();
+
+			const ids = vi
+				.mocked(creationStoreAdapter.saveCreation)
+				.mock.calls.map(([input]) => (input.record as CreationRecord).id);
+			expect(ids).toHaveLength(2);
+			expect(ids[0]).not.toEqual(ids[1]);
+		} finally {
+			clock.mockRestore();
+		}
+	});
+
+	it('uses crypto.getRandomValues when randomUUID is unavailable', async () => {
+		// `getRandomValues` is not secure-context gated, so it covers nearly everything
+		// `randomUUID` misses; the clock-mixing last resort should almost never be reached.
+		vi.stubGlobal('crypto', {
+			getRandomValues: (bytes: Uint8Array) => {
+				for (let i = 0; i < bytes.length; i += 1) bytes[i] = i;
+				return bytes;
+			}
+		});
+		const state = await withPage();
+		await state.saveToVault();
+
+		const record = vi.mocked(creationStoreAdapter.saveCreation).mock.calls[0][0]
+			.record as CreationRecord;
+		expect(record.id).toMatch(/^creation-[0-9a-f]{32}$/);
+	});
+
+	it('stamps createdAtISO from the injected clock, not the wall clock', async () => {
+		const state = await withPage();
+		state.clock = {
+			now: () => 1_700_000_000_000,
+			scheduleAt: () => () => {}
+		} as ClockSeam;
+		await state.saveToVault();
+
+		const record = vi.mocked(creationStoreAdapter.saveCreation).mock.calls[0][0]
+			.record as CreationRecord;
+		expect(record.createdAtISO).toBe(new Date(1_700_000_000_000).toISOString());
 	});
 
 	it('does nothing when there is no page to save', async () => {
