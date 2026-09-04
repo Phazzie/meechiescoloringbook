@@ -3,8 +3,11 @@
 //      state module; the page component becomes a thin lifecycle wrapper.
 // Info flow: User actions -> StudioState methods -> reactive $state updates -> component props.
 import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
+import { appOriginSeam } from '$lib/adapters/app-origin-seam';
+import { clockSeam } from '$lib/adapters/clock-seam';
 import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
+import { pageVisibilitySeam } from '$lib/adapters/page-visibility-seam';
 import { sessionAdapter } from '$lib/adapters/session.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
 import {
@@ -23,8 +26,10 @@ import {
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 import {
+	VAULT_CAPACITY,
 	VAULT_PREVIEW_COUNT,
 	buildVaultEntries,
+	buildVaultEntry,
 	restoreCreationImages,
 	sortVaultCreations
 } from '$lib/core/vault-gallery';
@@ -43,6 +48,9 @@ import type {
 	ColoringPageSpec,
 	SpecValidationOutput
 } from '../../contracts/spec-validation.contract';
+import type { AppOriginSeam } from '$lib/seams/app-origin-seam/contract';
+import { nextUtcDayBoundary, type ClockSeam } from '$lib/seams/clock-seam/contract';
+import type { PageVisibilitySeam } from '$lib/seams/page-visibility-seam/contract';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
 type PageSize = ColoringPageSpec['pageSize'];
@@ -143,15 +151,33 @@ export class StudioState {
 	vaultQuery = $state('');
 	vaultShowAll = $state(false);
 	vaultError = $state('');
+	// True only when the last vault *read* failed, so the UI can distinguish "your pages are still
+	// there, we could not see them" from any other error that happens to leave the list empty.
+	vaultReadFailed = $state(false);
 	// Delete is two-step and reversible: the first click arms `pendingDeleteId`, the second
 	// removes the record but keeps it in `undoableDeletion` so one click puts it back. A saved
 	// page costs a paid generation, so a single mis-tap must never be able to destroy one.
 	pendingDeleteId = $state<string | null>(null);
 	undoableDeletion = $state<CreationRecord | null>(null);
-	// Clock reading behind the "Saved today / 3 days ago" labels. Held as state and refreshed
-	// whenever the vault reloads so the labels stay a pure function of an explicit instant
-	// instead of re-reading the clock inside a $derived on every keystroke.
-	nowMs = $state(Date.now());
+	// The clock behind the "Saved today / 3 days ago" labels. `AGENTS.md` classifies clock/time as
+	// a seam, so both the reads and the day-boundary timer cross `ClockSeam` rather than calling
+	// `Date.now()` or `setTimeout` here. Injectable so a test drives the rollover instead of
+	// waiting for real midnight. Declared before `nowMs` so the field initializer below can use it.
+	clock: ClockSeam = clockSeam;
+	// Clock reading behind the labels. Held as state and refreshed at each day boundary and on each
+	// vault reload, so the labels stay a pure function of an explicit instant rather than
+	// re-reading the clock inside a $derived on every keystroke.
+	nowMs = $state(this.clock.now());
+	// Reads the origin the app is served from, used to decide whether a stored absolute image URL
+	// is same-origin and therefore loadable under the app's `img-src 'self'` CSP. Behind a seam for
+	// the same reason as the clock: reading `location` here would be an unseamed browser
+	// integration, and the same-origin decision could not be driven from a test.
+	origin: AppOriginSeam = appOriginSeam;
+	// Tells the studio when a backgrounded tab comes back. Behind a seam for the same reason as the
+	// clock: reading `document.visibilityState` and subscribing to `visibilitychange` here would be
+	// an unseamed browser integration, reachable from a test only by dispatching a real DOM event.
+	visibility: PageVisibilitySeam = pageVisibilitySeam;
+	appOrigin = $state(this.origin.getOrigin());
 
 	// --- Wig try-on state ---
 	selectedWigId = $state<string | null>(null);
@@ -232,7 +258,11 @@ export class StudioState {
 	// to be raw store order truncated to four, so a fifth save made the first one unreachable
 	// even though the store keeps fifty.
 	vaultEntries = $derived(
-		buildVaultEntries(this.creations, { query: this.vaultQuery, nowMs: this.nowMs })
+		buildVaultEntries(this.creations, {
+			query: this.vaultQuery,
+			nowMs: this.nowMs,
+			appOrigin: this.appOrigin
+		})
 	);
 	visibleVaultEntries = $derived(
 		this.vaultShowAll
@@ -247,11 +277,28 @@ export class StudioState {
 	// away entirely when everything fits in the preview.
 	canToggleVaultShowAll = $derived(this.vaultEntries.length > VAULT_PREVIEW_COUNT);
 
+	// The held record rendered the same way a saved row is, so the undo banner can offer a real
+	// Download for it. Without this the page waiting in Undo has no download anywhere — it is out
+	// of `creations`, so no row exists — and when the vault is full `undoDelete` tells the reader
+	// to "download the page you want to keep before freeing a slot" while giving them no way to do
+	// it. A reload then loses the only remaining copy. Telling someone to do something the screen
+	// does not let them do is the same defect this whole rebuild started from.
+	undoableDeletionEntry = $derived(
+		this.undoableDeletion === null
+			? null
+			: buildVaultEntry(this.undoableDeletion, this.nowMs, this.appOrigin)
+	);
+
 	// --- Non-reactive implementation details ---
 	owner: CreationOwner | null = null;
 	authContext: CreationRecord['authContext'] | null = null;
+	// Incremented whenever the displayed page is replaced; async work captures it and drops its
+	// result if the value moved on. Not $state: nothing renders it.
+	pageLoadToken = 0;
 	isBrowser = $state(false);
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
+	private stopVisibilityWatch: (() => void) | null = null;
+	private cancelDayBoundaryRefresh: (() => void) | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
 
@@ -340,6 +387,10 @@ export class StudioState {
 	}
 
 	private resetGeneratedPage(): void {
+		// Every path that replaces what is on the paper comes through here, so this is the one
+		// place the load token has to advance. Anything still in flight for the previous page
+		// compares its captured token against this and discards itself.
+		this.pageLoadToken += 1;
 		this.generationError = '';
 		this.assembledPrompt = '';
 		this.revisedPrompt = '';
@@ -395,10 +446,16 @@ export class StudioState {
 			// Reads used to fail silently, so a browser with unreadable storage showed an empty
 			// vault and no reason for it. Say what happened and leave the last good list up.
 			this.vaultError = result.error.message;
+			// Tracked apart from `vaultError` because only a failed *read* means "your pages are
+			// still there, we just could not see them". A failed write — a restore that could not
+			// be saved, say — also sets `vaultError` and can also leave the list empty, and
+			// telling that reader their pages could not be read would be false.
+			this.vaultReadFailed = true;
 			return;
 		}
 		this.vaultError = '';
-		this.nowMs = Date.now();
+		this.vaultReadFailed = false;
+		this.nowMs = this.clock.now();
 		this.creations = sortVaultCreations(result.value);
 	}
 
@@ -724,7 +781,7 @@ export class StudioState {
 		this.violations = creation.violations ?? [];
 		this.vaultStatus = `Reopened "${creation.intent.title}".`;
 		await this.validateSpec();
-		await this.repackageRestoredImages();
+		await this.repackageRestoredImages(this.pageLoadToken);
 		this.scheduleDraftSave();
 	};
 
@@ -732,7 +789,7 @@ export class StudioState {
 	// the packaging adapter needs a browser canvas for some formats, and a page that cannot be
 	// re-packaged still previews and still exports as an image, so a failure here is not an error
 	// worth putting in front of the reader.
-	private async repackageRestoredImages(): Promise<void> {
+	private async repackageRestoredImages(loadToken: number): Promise<void> {
 		if (this.images.length === 0) return;
 		try {
 			const packagingResult = await outputPackagingAdapter.package({
@@ -742,10 +799,16 @@ export class StudioState {
 				pageSize: this.spec.pageSize,
 				variants: ['print']
 			});
+			// Packaging is slow enough that the reader can open another page, or start a new
+			// generation, while it runs. Without this guard the late result would attach the
+			// previous page's PDF to whatever is on screen now, so Download PDF would hand back a
+			// different page than the one displayed.
+			if (loadToken !== this.pageLoadToken) return;
 			if (packagingResult.ok) {
 				this.packagedFiles = packagingResult.value.files;
 			}
 		} catch {
+			if (loadToken !== this.pageLoadToken) return;
 			this.packagedFiles = [];
 		}
 	}
@@ -758,6 +821,9 @@ export class StudioState {
 
 	toggleVaultShowAll = (): void => {
 		this.vaultShowAll = !this.vaultShowAll;
+		// Collapsing can hide the armed row exactly as a search can, and an armed delete left
+		// off-screen would still be primed when the list is expanded again.
+		this.pendingDeleteId = null;
 	};
 
 	requestDeleteCreation = (id: string): void => {
@@ -789,6 +855,33 @@ export class StudioState {
 	undoDelete = async (): Promise<void> => {
 		const record = this.undoableDeletion;
 		if (!record) return;
+		// The store keeps a fixed number of records and drops the oldest past that. If the slot
+		// freed by the delete has since been taken by a new save, restoring would push the list
+		// back over the cap and silently evict another page — the exact failure this whole feature
+		// exists to stop — while reporting only that this one came back. Refuse, and say why,
+		// rather than trading one lost page for another.
+		//
+		// This is a lower bound, not a store-wide guarantee. `creations` holds only the records
+		// matching the current owner, while the adapter applies its cap to the whole stored array.
+		// The two agree while `cb_session_id_v1` survives, since `buildOwner` derives the single
+		// owner from it; records orphaned under a previous session id still occupy slots this
+		// count cannot see. Closing that gap means deciding capacity inside `CreationStoreSeam` or
+		// exposing it through the contract — a contract change, and so the full Seam-Driven
+		// Development workflow. It is tracked with the other deferred seam work in
+		// `WORST_TO_BEST_LOG.md` rather than widened into this fix.
+		if (this.creations.length >= VAULT_CAPACITY) {
+			// Deliberately does not say "delete a page, then undo". `deleteCreation` replaces
+			// `undoableDeletion` with whatever was deleted last, so following that instruction
+			// would discard this record and leave Undo holding the page just deleted to make room
+			// for it. Say what is true, and what it costs, instead of scripting a move that
+			// destroys the thing the reader is trying to save.
+			this.vaultError =
+				`The vault is full at ${VAULT_CAPACITY} pages, so "${record.intent.title}" cannot ` +
+				'come back without pushing another page out. It is still held here for now — but ' +
+				'Undo only ever holds the most recent deletion, so deleting another page to make ' +
+				'room would replace it. Download the page you want to keep before freeing a slot.';
+			return;
+		}
 		const result = await creationStoreAdapter.saveCreation({ record });
 		if (!result.ok) {
 			this.vaultError = result.error.message;
@@ -820,6 +913,11 @@ export class StudioState {
 
 	async init(): Promise<void> {
 		this.isBrowser = true;
+		// Re-read rather than trusting the field initializer: a test or an alternate host may have
+		// replaced `origin` after construction, and the value captured then would be the default
+		// adapter's. The clock and visibility seams are consulted here for the same reason.
+		this.appOrigin = this.origin.getOrigin();
+		this.startSavedLabelRefresh();
 		const [sessionResult, draft] = await Promise.all([
 			sessionAdapter.getSession(),
 			creationStoreAdapter.getDraft({})
@@ -847,9 +945,43 @@ export class StudioState {
 		await this.refreshCreations();
 	}
 
+	// "Saved today" is computed against `nowMs`, which otherwise only advances when the vault is
+	// read or written, so a studio left open across UTC midnight keeps showing yesterday's labels.
+	// Two things move the clock forward, because the two cases are genuinely different:
+	//
+	//   - A timer armed at the next UTC day boundary, which re-arms itself for the boundary after
+	//     that. This is the case that matters most: a reader who leaves the tab in the foreground
+	//     is looking straight at the labels while they go stale, and no event would ever fire.
+	//   - `visibilitychange`, for the tab that was suspended in the background. A backgrounded
+	//     timer can be throttled or deferred, so the boundary timer alone cannot be relied on to
+	//     have fired on time; reading the clock on the way back in fixes the label immediately.
+	private startSavedLabelRefresh(): void {
+		this.scheduleNextDayBoundaryRefresh();
+		this.stopVisibilityWatch = this.visibility.onVisible(() => {
+			this.nowMs = this.clock.now();
+			// The boundary the old timer was waiting for may already be behind us.
+			this.scheduleNextDayBoundaryRefresh();
+		});
+	}
+
+	private scheduleNextDayBoundaryRefresh(): void {
+		this.cancelDayBoundaryRefresh?.();
+		this.cancelDayBoundaryRefresh = this.clock.scheduleAt(
+			nextUtcDayBoundary(this.clock.now()),
+			() => {
+				this.nowMs = this.clock.now();
+				this.scheduleNextDayBoundaryRefresh();
+			}
+		);
+	}
+
 	destroy(): void {
 		if (this.draftTimer) {
 			globalThis.clearTimeout(this.draftTimer);
 		}
+		this.cancelDayBoundaryRefresh?.();
+		this.cancelDayBoundaryRefresh = null;
+		this.stopVisibilityWatch?.();
+		this.stopVisibilityWatch = null;
 	}
 }

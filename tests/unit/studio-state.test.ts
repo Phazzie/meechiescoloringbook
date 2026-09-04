@@ -9,7 +9,14 @@ import {
 	DEFAULT_STUDIO_TEXT_OUTPUT,
 	buildColoringPageSpecFromMeechieText
 } from '../../src/lib/core/meechie-studio';
+import { createMockClockSeam } from '../../src/lib/seams/clock-seam/mock';
+import type { ClockSeam } from '../../src/lib/seams/clock-seam/contract';
+import { createMockAppOriginSeam } from '../../src/lib/seams/app-origin-seam/mock';
+import type { AppOriginSeam } from '../../src/lib/seams/app-origin-seam/contract';
+import { createMockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
+import type { MockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
 import { StudioState } from '../../src/routes/studio-state.svelte';
+import { VAULT_CAPACITY } from '../../src/lib/core/vault-gallery';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
 import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-text.contract';
 import type { Wig } from '../../src/lib/seams/wig-catalog-seam/contract';
@@ -71,14 +78,31 @@ const buildSeedSpec = (output: MeechieStudioTextOutput) =>
 		styleHint: 'gold crown ornaments'
 	});
 
+// Every initialized StudioState arms a real ClockSeam timer for the next UTC day boundary, and the
+// adapter re-arms it every fifteen minutes rather than sleeping until midnight. `restoreAllMocks`
+// does not clear a host timer, so an instance left undestroyed keeps its Vitest worker alive until
+// the runner forces it down. Initializing through these helpers registers the instance here, and
+// the shared teardown below destroys it.
+const initializedStudios: StudioState[] = [];
+
+const registerInitialized = (studio: StudioState): StudioState => {
+	initializedStudios.push(studio);
+	return studio;
+};
+
+const destroyInitializedStudios = (): void => {
+	while (initializedStudios.length > 0) initializedStudios.pop()?.destroy();
+};
+
 const initFromDraft = async (draft: DraftRecord): Promise<StudioState> => {
 	localStorage.setItem('cb_drafts_v1', JSON.stringify(draft));
 	const studio = new StudioState();
 	await studio.init();
-	return studio;
+	return registerInitialized(studio);
 };
 
 afterEach(() => {
+	destroyInitializedStudios();
 	vi.restoreAllMocks();
 });
 
@@ -312,6 +336,61 @@ describe('StudioState', () => {
 		]);
 	});
 
+	it('discards a stale packaging result when another page is opened first', async () => {
+		const studio = new StudioState();
+		let releaseFirstPackaging: (() => void) | null = null;
+		vi.spyOn(outputPackagingAdapter, 'package').mockImplementation(async () => {
+			if (!releaseFirstPackaging) {
+				await new Promise<void>((resolve) => {
+					releaseFirstPackaging = resolve;
+				});
+				return {
+					ok: true,
+					value: {
+						files: [
+							{ filename: 'first.pdf', mimeType: 'application/pdf', dataBase64: 'Zmlyc3Q=' }
+						]
+					}
+				};
+			}
+			return {
+				ok: true,
+				value: {
+					files: [
+						{ filename: 'second.pdf', mimeType: 'application/pdf', dataBase64: 'c2Vjb25k' }
+					]
+				}
+			};
+		});
+
+		const makeSaved = (id: string): CreationRecord => ({
+			id,
+			createdAtISO: '2026-09-03T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			assembledPrompt: `prompt for ${id}`,
+			images: [{ b64: ONE_PIXEL_PNG_BASE64 }],
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+
+		// First page's packaging is still in flight...
+		const firstLoad = studio.loadCreation(makeSaved('first-page'));
+		await vi.waitFor(() => expect(releaseFirstPackaging).not.toBeNull());
+
+		// ...when the reader opens a second page, which packages immediately.
+		await studio.loadCreation(makeSaved('second-page'));
+		expect(studio.packagedFiles).toEqual([
+			{ filename: 'second.pdf', mimeType: 'application/pdf', dataBase64: 'c2Vjb25k' }
+		]);
+
+		// The late first result must not replace what is now on screen.
+		releaseFirstPackaging!();
+		await firstLoad;
+
+		expect(studio.packagedFiles).toEqual([
+			{ filename: 'second.pdf', mimeType: 'application/pdf', dataBase64: 'c2Vjb25k' }
+		]);
+	});
+
 	it('leaves a reopened page usable when re-packaging the saved image fails', async () => {
 		const studio = new StudioState();
 		vi.spyOn(outputPackagingAdapter, 'package').mockRejectedValue(new Error('no canvas'));
@@ -456,7 +535,14 @@ describe('StudioState quote vault', () => {
 	// the adapter these tests actually depend on, and it keeps the identifier out of a
 	// `localStorage.setItem` call in test code, which CodeQL reads as storing a session token
 	// in the clear (`js/clear-text-storage-of-sensitive-data`).
-	const initVault = async (records: CreationRecord[]): Promise<StudioState> => {
+	const initVault = async (
+		records: CreationRecord[],
+		options: {
+			clock?: ClockSeam;
+			visibility?: MockPageVisibilitySeam;
+			origin?: AppOriginSeam;
+		} = {}
+	): Promise<StudioState> => {
 		const sessionSpy = vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
 			ok: true,
 			value: { sessionId: SESSION_ID }
@@ -465,13 +551,177 @@ describe('StudioState quote vault', () => {
 			await creationStoreAdapter.saveCreation({ record });
 		}
 		const studio = new StudioState();
+		if (options.clock) {
+			studio.clock = options.clock;
+		}
+		if (options.visibility) {
+			studio.visibility = options.visibility;
+		}
+		if (options.origin) {
+			studio.origin = options.origin;
+		}
 		await studio.init();
 		expect(sessionSpy).toHaveBeenCalled();
-		return studio;
+		return registerInitialized(studio);
 	};
 
 	afterEach(() => {
+		destroyInitializedStudios();
 		vi.restoreAllMocks();
+	});
+
+	// A studio left open across UTC midnight kept rendering yesterday's labels, because `nowMs`
+	// only advanced when the vault was read or written. Both refresh paths are covered because
+	// they answer different failure modes: the foreground reader sees nothing without the timer,
+	// and the backgrounded tab cannot trust a throttled timer to have fired.
+	const OVERNIGHT_SAVE = '2026-09-03T23:00:00.000Z';
+	const BEFORE_MIDNIGHT = Date.parse('2026-09-03T23:30:00.000Z');
+	const AFTER_MIDNIGHT = Date.parse('2026-09-04T09:00:00.000Z');
+
+	it('rolls the saved-date label over at UTC midnight with the tab left in the foreground', async () => {
+		const clock = createMockClockSeam(BEFORE_MIDNIGHT);
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
+			clock
+		});
+
+		expect(studio.vaultEntries[0].savedLabel).toBe('Saved today');
+
+		// No visibilitychange: nobody left the tab. Only the day-boundary timer can save this.
+		clock.advanceTo(Date.parse('2026-09-04T00:00:00.000Z'));
+
+		expect(studio.vaultEntries[0].savedLabel).toBe('Saved yesterday');
+	});
+
+	it('re-arms the day-boundary refresh so the label keeps rolling on later days', async () => {
+		const clock = createMockClockSeam(BEFORE_MIDNIGHT);
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
+			clock
+		});
+
+		clock.advanceTo(Date.parse('2026-09-04T00:00:00.000Z'));
+		clock.advanceTo(Date.parse('2026-09-05T00:00:00.000Z'));
+
+		expect(studio.vaultEntries[0].savedLabel).toBe('Saved 2 days ago');
+	});
+
+	it('refreshes saved-date labels when a backgrounded tab returns after UTC midnight', async () => {
+		const clock = createMockClockSeam(BEFORE_MIDNIGHT);
+		const visibility = createMockPageVisibilitySeam('visible');
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
+			clock,
+			visibility
+		});
+
+		expect(studio.vaultEntries[0].savedLabel).toBe('Saved today');
+
+		// A suspended tab: the clock moved on without the boundary timer being allowed to run.
+		visibility.setVisible(false);
+		clock.setInstantWithoutFiring(AFTER_MIDNIGHT);
+		visibility.setVisible(true);
+
+		expect(studio.vaultEntries[0].savedLabel).toBe('Saved yesterday');
+	});
+
+	it('detaches the visibility subscriber when the studio is destroyed', async () => {
+		const visibility = createMockPageVisibilitySeam('visible');
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
+			clock: createMockClockSeam(BEFORE_MIDNIGHT),
+			visibility
+		});
+
+		expect(visibility.subscriberCount()).toBe(1);
+
+		studio.destroy();
+
+		expect(visibility.subscriberCount()).toBe(0);
+	});
+
+	it('stops the day-boundary refresh when the studio is destroyed', async () => {
+		const clock = createMockClockSeam(BEFORE_MIDNIGHT);
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
+			clock
+		});
+
+		expect(clock.pendingCount()).toBe(1);
+
+		studio.destroy();
+
+		expect(clock.pendingCount()).toBe(0);
+	});
+
+	// The "your pages could not be read, they are not gone" state must be keyed on a failed read,
+	// not on "there is an error and the list is empty". A failed write into an empty vault hits
+	// both of those and the pages really are gone.
+	it('flags a read failure so the UI can say the pages are still there', async () => {
+		const studio = await initVault([makeCreation('only-page')]);
+		vi.spyOn(creationStoreAdapter, 'listCreations').mockResolvedValue({
+			ok: false,
+			error: { code: 'CREATIONS_READ_FAILED', message: 'Storage is unreadable.' }
+		});
+
+		await studio.toggleFavorite(studio.creations[0]);
+
+		expect(studio.vaultReadFailed).toBe(true);
+		expect(studio.vaultError).toBe('Storage is unreadable.');
+	});
+
+	it('does not flag a read failure when a write fails but the read succeeded', async () => {
+		const studio = await initVault([makeCreation('only-page')]);
+		vi.spyOn(creationStoreAdapter, 'saveCreation').mockResolvedValue({
+			ok: false,
+			error: { code: 'CREATIONS_WRITE_FAILED', message: 'Storage is full.' }
+		});
+
+		await studio.toggleFavorite(studio.creations[0]);
+
+		expect(studio.vaultError).toBe('Storage is full.');
+		expect(studio.vaultReadFailed).toBe(false);
+	});
+
+	it('clears the read-failure flag once a read succeeds again', async () => {
+		const studio = await initVault([makeCreation('only-page')]);
+		const listSpy = vi.spyOn(creationStoreAdapter, 'listCreations').mockResolvedValue({
+			ok: false,
+			error: { code: 'CREATIONS_READ_FAILED', message: 'Storage is unreadable.' }
+		});
+		await studio.toggleFavorite(studio.creations[0]);
+		expect(studio.vaultReadFailed).toBe(true);
+
+		listSpy.mockRestore();
+		await studio.toggleFavorite(studio.creations[0]);
+
+		expect(studio.vaultReadFailed).toBe(false);
+		expect(studio.vaultError).toBe('');
+	});
+
+	// The injected seam has to actually reach `vaultEntries`. Capturing the origin in a field
+	// initializer meant the default adapter's value won and the mock never drove this path — the
+	// seam existed but was not wired to anything a test could observe.
+	it('resolves stored image urls against the injected origin seam', async () => {
+		const studio = await initVault(
+			[
+				makeCreation('absolute-url', {
+					images: [{ url: 'https://meechie.test/saved/page.png' }]
+				})
+			],
+			{ origin: createMockAppOriginSeam('sample') }
+		);
+
+		expect(studio.appOrigin).toBe('https://meechie.test');
+		expect(studio.vaultEntries[0].imageSource).toBe('https://meechie.test/saved/page.png');
+	});
+
+	it('refuses the same url when the injected seam reports a different origin', async () => {
+		const studio = await initVault(
+			[
+				makeCreation('absolute-url', {
+					images: [{ url: 'https://meechie.test/saved/page.png' }]
+				})
+			],
+			{ origin: createMockAppOriginSeam('other') }
+		);
+
+		expect(studio.vaultEntries[0].imageSource).toBe('');
 	});
 
 	it('keeps every saved page reachable instead of stopping at four', async () => {
@@ -594,6 +844,71 @@ describe('StudioState quote vault', () => {
 		expect(studio.vaultError).toBe('Failed to write storage.');
 		expect(studio.creations).toHaveLength(1);
 		expect(studio.undoableDeletion).toBeNull();
+	});
+
+	it('refuses undo rather than evicting another page when the vault is full', async () => {
+		// The store caps at VAULT_CAPACITY and drops the oldest past it. Delete one, save a new
+		// page into the freed slot, then undo: restoring would push back over the cap and silently
+		// destroy a different saved page — the exact failure this feature exists to prevent.
+		const records = Array.from({ length: VAULT_CAPACITY }, (_value, index) =>
+			makeCreation(`capacity-${index}`, {
+				createdAtISO: `2026-08-${String((index % 28) + 1).padStart(2, '0')}T00:00:00.000Z`,
+				// The one that gets deleted carries real bytes, so the download offered for the held
+				// record is exercised rather than assumed.
+				...(index === 0 ? { images: [{ b64: ONE_PIXEL_PNG_BASE64 }] } : {})
+			})
+		);
+		const studio = await initVault(records);
+		expect(studio.creations).toHaveLength(VAULT_CAPACITY);
+
+		await studio.deleteCreation('capacity-0');
+		expect(studio.creations).toHaveLength(VAULT_CAPACITY - 1);
+		expect(studio.undoableDeletion?.id).toBe('capacity-0');
+
+		// A new save takes the freed slot, putting the vault back at capacity. Pinning an
+		// unrelated page is just a convenient real action that reloads the list without
+		// disturbing the pending undo.
+		await creationStoreAdapter.saveCreation({ record: makeCreation('brand-new') });
+		await studio.toggleFavorite(studio.creations[0]);
+		expect(studio.creations).toHaveLength(VAULT_CAPACITY);
+		expect(studio.undoableDeletion?.id).toBe('capacity-0');
+
+		await studio.undoDelete();
+
+		// Nothing evicted, nothing restored, and the reason is on screen.
+		expect(studio.creations).toHaveLength(VAULT_CAPACITY);
+		expect(studio.creations.some((creation) => creation.id === 'brand-new')).toBe(true);
+		expect(studio.undoableDeletion?.id).toBe('capacity-0');
+		expect(studio.vaultError).toContain('full');
+
+		// The refusal tells the reader to download the page before freeing a slot. That has to be
+		// possible: the held record is out of `creations`, so no vault row can offer it, and a
+		// reload drops the last copy. The banner's own entry is the only route to it.
+		expect(studio.undoableDeletionEntry?.id).toBe('capacity-0');
+		expect(studio.undoableDeletionEntry?.imageSource).not.toBe('');
+		expect(studio.undoableDeletionEntry?.downloadName).toBeTruthy();
+	});
+
+	it('has no undo entry to download when nothing is held', async () => {
+		const studio = await initVault([makeCreation('kept')]);
+
+		expect(studio.undoableDeletionEntry).toBeNull();
+	});
+
+	it('disarms a pending delete when collapsing hides its row', async () => {
+		const studio = await initVault(
+			Array.from({ length: 6 }, (_value, index) => makeCreation(`creation-${index}`))
+		);
+		studio.toggleVaultShowAll();
+		expect(studio.vaultShowAll).toBe(true);
+
+		studio.requestDeleteCreation(studio.vaultEntries[5].id);
+		expect(studio.pendingDeleteId).not.toBeNull();
+
+		studio.toggleVaultShowAll();
+
+		expect(studio.vaultShowAll).toBe(false);
+		expect(studio.pendingDeleteId).toBeNull();
 	});
 
 	it('surfaces a failed pin instead of leaving the button silently inert', async () => {

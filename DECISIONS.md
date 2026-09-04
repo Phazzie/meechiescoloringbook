@@ -7,6 +7,72 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-04 - Vault image completeness is checked at the edges, not by decoding
+
+- Date: 2026-09-04
+- Decision: `looksCompleteImage` in `src/lib/core/vault-gallery.ts` validates a stored image by its
+  signature and its format's terminator (PNG `IEND`, JPEG `FFD9`, WebP's RIFF declared size against
+  the actual byte length, a closed root for SVG) rather than by decoding or structurally walking the
+  payload.
+- Context: A review on PR #289 correctly observed that a PNG signature followed by arbitrary bytes
+  and a valid `IEND` trailer passes this check, and asked for the image structure or decoding to be
+  validated before the stored bytes are preferred over a fallback url. The observation is right; the
+  remedy is where this decision differs.
+- Tradeoff, and why the cheaper check was kept: `vaultImageSource` runs for every visible row inside
+  a `$derived`, so it re-runs on every keystroke in the vault search box, and a saved page can be a
+  megabyte of base64. Walking PNG chunk headers or decoding the payload turns a constant-cost check
+  into one proportional to total vault size per keystroke. The failure it would additionally catch —
+  bytes that are correctly framed at both ends but corrupt in the middle — is also much rarer than
+  the one the edge check already catches, since truncation is how stored base64 actually gets
+  damaged. Consequence: a middle-corrupt image still produces a broken thumbnail rather than falling
+  back to a url. Alternative rejected: full decode on every render. Alternative worth revisiting:
+  validating once at save time, or caching the verdict per record id, which would make a structural
+  walk affordable — that is a change to the save path or a new cache, and neither belongs in a
+  review-fix pull request.
+
+## 2026-09-04 - Cipher Gate: ClockSeam, AppOriginSeam and PageVisibilitySeam
+
+- Cipher Gate:
+  - Date: 2026-09-04
+  - Seams: ClockSeam (new), AppOriginSeam (new), PageVisibilitySeam (new). No existing seam contract changed.
+  - Evidence: docs/evidence/2026-09-04/chamber-lock.json, docs/evidence/2026-09-04/test.txt, docs/evidence/2026-09-04/verify.txt, docs/evidence/2026-09-04/seam-ledger.md, docs/evidence/2026-09-04/clan-chain.md, docs/evidence/2026-09-04/proof-tape.md, src/lib/seams/clock-seam/test.ts, src/lib/seams/clock-seam/probe.ts, src/lib/seams/app-origin-seam/test.ts, src/lib/seams/app-origin-seam/probe.ts, src/lib/seams/page-visibility-seam/test.ts, src/lib/seams/page-visibility-seam/probe.ts, docs/seams.md
+  - Summary: Three host-environment reads that the Quote Vault rebuild had left outside any seam are now behind one each. ClockSeam owns reading the current instant and running a callback when a given instant arrives, which is what makes the saved-date labels roll over at UTC midnight; its adapter re-arms long waits in chunks so a delay past setTimeout's 32-bit limit does not fire immediately. AppOriginSeam owns reading the origin the app is served from, which decides whether a stored absolute image URL is same-origin and therefore loadable under img-src 'self'. PageVisibilitySeam owns whether the page is being looked at and announcing when it comes back, which is the other half of the label refresh. All three ship with a validator, fault fixtures driven through the mock, and a runnable probe; every mock is deterministic - the clock only moves when a test moves it, the origin is fixed by scenario, and visibility changes only when a test changes it.
+  - Risks: ClockSeam and PageVisibilitySeam have synchronous contracts with no Result arm, unlike most seams here, so an invalid instant throws rather than returning an error - deliberate, because NaN would make setTimeout fire immediately and a self-re-arming timer spin, but it does differ from the house shape. Three pre-existing Date.now()/new Date() reads in src/routes/studio-state.svelte.ts are untouched, so that file currently mixes seamed and unseamed clock access; converting them is recorded as deferred in WORST_TO_BEST_LOG.md. AppOriginSeam degrades any unusable origin to the empty string rather than throwing, which makes the same-origin check refuse every absolute URL - a safe default, but one that hides a misconfigured host rather than reporting it. PageVisibilitySeam resolves any out-of-spec visibility state to "visible" for the same reason: a wrong visible costs one refresh nobody needed, a wrong hidden silently withholds one the reader is waiting on.
+
+## 2026-09-04 - Introducing ClockSeam rather than a test-only clock injection
+
+- Date: 2026-09-04
+- Decision: Add `ClockSeam` (`src/lib/seams/clock-seam/`, adapter at
+  `src/lib/adapters/clock-seam/index.ts`) covering two operations — reading the current instant and
+  running a callback when a given instant arrives — and route the Quote Vault's saved-date labels
+  through it.
+- Context: The vault's "Saved today / 3 days ago" labels need to know the current instant and to
+  roll over at UTC midnight. The first attempt read `Date.now()` directly in
+  `src/routes/studio-state.svelte.ts`; the second replaced that with a plain injectable function
+  defaulting to `Date.now()`. A review on PR #289 flagged both, correctly: `AGENTS.md` classifies
+  clock/time as a seam, and a test-overridable default still leaves the production path reading the
+  host clock outside any boundary. The full workflow was done rather than argued with a second time.
+- Tradeoff 1, scheduling lives in the seam alongside reading: `scheduleAt` is part of the contract
+  rather than a bare `setTimeout` at the call site. A timer is a clock read in disguise — it asks
+  the host "tell me when it is T" — so leaving it outside would have reproduced the same problem one
+  layer along, and the mock could not then drive a rollover end to end. Consequence: the seam owns
+  two operations instead of one. Alternative rejected: a read-only clock seam plus a separate timer
+  seam, which splits one concern across two boundaries for no gain.
+- Tradeoff 2, the contract is synchronous and does not return `Result<>`: neither operation can
+  fail on any host this app runs on, and an async `now()` would report the instant it resolved
+  rather than the instant it was asked for. Consequence: `ClockSeam` does not match the `Promise<
+  Result<>>` shape most seams in this repository use. Judged the honest contract over the uniform
+  one — a `Result` whose error arm is unreachable is noise at every call site.
+- Tradeoff 3, the three pre-existing `Date.now()` reads in `studio-state.svelte.ts` (creation ids,
+  `createdAtISO` on drafts and saves) were **not** converted. They are untouched by this change, and
+  rewriting them would widen a review-fix pull request into unrelated code. Consequence: the file
+  temporarily has both styles. Converting them is a good small follow-up and is recorded as deferred
+  in `WORST_TO_BEST_LOG.md`.
+- Tradeoff 4, both a day-boundary timer and `visibilitychange` refresh the labels: the timer alone
+  is not enough because a backgrounded tab can have its timers throttled or deferred, and
+  `visibilitychange` alone is not enough because a tab left in the foreground across midnight never
+  fires one. Consequence: two paths to the same refresh, both tested.
+
 ## 2026-09-04 - Rebuilding the Quote Vault without touching a seam
 
 - Date: 2026-09-04

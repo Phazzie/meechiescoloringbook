@@ -11,8 +11,11 @@ import {
 	restoreCreationImages,
 	sortVaultCreations,
 	vaultImageExtension,
-	vaultImageSource
+	vaultImageSource,
+	vaultQuote,
+	VAULT_CAPACITY
 } from '../../src/lib/core/vault-gallery';
+import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
 import { buildColoringPageSpecFromMeechieText } from '../../src/lib/core/meechie-studio';
 import type { CreationRecord } from '../../contracts/creation-store.contract';
 import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-text.contract';
@@ -20,9 +23,12 @@ import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-tex
 // Real byte signatures — the detector reads bytes, so a made-up string would prove nothing.
 const PNG_BASE64 =
 	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-const JPEG_BASE64 = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAg=';
-// "RIFF" + 4 size bytes + "WEBP" + "VP8 ".
-const WEBP_BASE64 = 'UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASo=';
+// Complete files, not signature stubs: `vaultImageSource` refuses bytes that lack the terminator
+// their own format requires, so a truncated fixture would prove the wrong thing.
+const JPEG_BASE64 =
+	'/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
+// "RIFF" + a size field that really does match the payload + "WEBP" + a VP8 chunk.
+const WEBP_BASE64 = 'UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAgA0JaQAA3AA/vv9UAA=';
 const SVG_MARKUP = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"></svg>';
 const SVG_BASE64 = btoa(SVG_MARKUP);
 const SVG_WITH_XML_DECLARATION_BASE64 = btoa(
@@ -101,12 +107,6 @@ describe('detectVaultImageKind', () => {
 });
 
 describe('vaultImageSource', () => {
-	it('prefers a stored url over sniffing bytes', () => {
-		expect(vaultImageSource({ url: 'https://example.test/page.png' })).toBe(
-			'https://example.test/page.png'
-		);
-	});
-
 	it('builds a data url with the media type the bytes actually are', () => {
 		expect(vaultImageSource({ b64: JPEG_BASE64 })).toBe(
 			`data:image/jpeg;base64,${JPEG_BASE64}`
@@ -121,9 +121,191 @@ describe('vaultImageSource', () => {
 		['a javascript: url', 'javascript:alert(1)'],
 		['a data: url smuggled in as a stored url', 'data:text/html,<script>alert(1)</script>'],
 		['a protocol-relative url', '//evil.test/page.png'],
-		['a vbscript: url', 'vbscript:msgbox(1)']
+		// One slash then a backslash. It passes any "does it start with //" test, but the WHATWG
+		// parser normalises the backslash for special schemes, so a browser resolves it to
+		// https://evil.test/page.png — off-origin, with a Download link that navigates away.
+		['a backslash-smuggled network path', '/\\evil.test/page.png'],
+		['a backslash network path with a trailing slash', '/\\/evil.test/page.png'],
+		['a vbscript: url', 'vbscript:msgbox(1)'],
+		// svelte.config.js sets img-src 'self' data: blob:, so an off-origin url can only ever
+		// render as a broken thumbnail with a dead download beside it.
+		['an off-origin https url the CSP blocks', 'https://example.test/page.png'],
+		['an off-origin http url the CSP blocks', 'http://example.test/page.png']
 	])('refuses %s rather than turning it into a link', (_label, url) => {
-		expect(vaultImageSource({ url })).toBe('');
+		expect(vaultImageSource({ url }, 'https://meechie.test')).toBe('');
+	});
+
+	// A record written before the vault existed may carry a fully qualified URL on the app's own
+	// host. `img-src 'self'` loads it, so blanking the thumbnail would be a regression.
+	it('accepts an absolute url on the running origin', () => {
+		expect(
+			vaultImageSource({ url: 'https://meechie.test/saved/page.png' }, 'https://meechie.test')
+		).toBe('https://meechie.test/saved/page.png');
+	});
+
+	it('refuses an absolute url on a different port of the same host', () => {
+		expect(
+			vaultImageSource({ url: 'https://meechie.test:8443/page.png' }, 'https://meechie.test')
+		).toBe('');
+	});
+
+	it('refuses an absolute url when no origin is known, as in a server render', () => {
+		expect(vaultImageSource({ url: 'https://meechie.test/page.png' })).toBe('');
+	});
+
+	it('accepts a same-origin path even when no origin is known', () => {
+		expect(vaultImageSource({ url: '/saved/page.png' })).toBe('/saved/page.png');
+	});
+
+	it('prefers the stored bytes when a record carries both bytes and a url', () => {
+		expect(vaultImageSource({ b64: PNG_BASE64, url: 'https://example.test/page.png' })).toBe(
+			`data:image/png;base64,${PNG_BASE64}`
+		);
+	});
+
+	// A truncated or corrupted blob can open with a perfectly good PNG header and still be
+	// undecodable. Preferring it on the strength of the signature alone would hand the reader a
+	// broken thumbnail and a dead download while a working url sat unused in the same record.
+	it('falls back to a usable url when signature-valid bytes are not decodable', () => {
+		const truncated = `${PNG_BASE64.slice(0, 20)}!!!`;
+
+		expect(detectVaultImageKind(truncated)).not.toBeNull();
+		expect(vaultImageSource({ b64: truncated, url: '/saved/page.png' })).toBe('/saved/page.png');
+	});
+
+	// The sharper case: a clean truncation is still valid base64 and still carries a valid PNG
+	// signature, so a syntax check alone lets it through. Only the missing IEND trailer gives it
+	// away.
+	it.each([
+		['PNG', PNG_BASE64, 20],
+		['JPEG', JPEG_BASE64, 16],
+		['WebP', WEBP_BASE64, 20],
+		['SVG', SVG_BASE64, 24]
+	])('falls back for a cleanly truncated %s that keeps its signature', (_label, base64, keep) => {
+		const truncated = base64.slice(0, keep);
+
+		expect(truncated.length % 4).toBe(0);
+		expect(detectVaultImageKind(truncated)).not.toBeNull();
+		expect(vaultImageSource({ b64: truncated, url: '/saved/page.png' })).toBe('/saved/page.png');
+	});
+
+	it.each([
+		['PNG', PNG_BASE64, 'image/png'],
+		['JPEG', JPEG_BASE64, 'image/jpeg'],
+		['WebP', WEBP_BASE64, 'image/webp'],
+		['SVG', SVG_BASE64, 'image/svg+xml']
+	])('still prefers a complete %s over a usable url', (_label, base64, mimeType) => {
+		expect(vaultImageSource({ b64: base64, url: '/saved/page.png' })).toBe(
+			`data:${mimeType};base64,${base64}`
+		);
+	});
+
+	it('falls back for an SVG whose closing tag was lost', () => {
+		const truncated = btoa(SVG_MARKUP.replace('</svg>', ''));
+
+		expect(vaultImageSource({ b64: truncated, url: '/saved/page.svg' })).toBe('/saved/page.svg');
+	});
+
+	// A self-closing root is a complete, renderable SVG with no closing tag at all. Demanding
+	// `</svg>` would blank a perfectly good thumbnail.
+	// `/>` only counts when it closes the root. A document cut off after a self-closing child also
+	// ends in `/>` while leaving the root open.
+	it('falls back for an SVG truncated after a self-closing child', () => {
+		const truncated = btoa('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><path/>');
+
+		expect(detectVaultImageKind(truncated)).not.toBeNull();
+		expect(vaultImageSource({ b64: truncated, url: '/saved/page.svg' })).toBe('/saved/page.svg');
+	});
+
+	it('accepts a self-closing root that has a self-closing child before it', () => {
+		const complete = btoa('<svg xmlns="http://www.w3.org/2000/svg"><path/></svg>');
+
+		expect(vaultImageSource({ b64: complete })).toBe(`data:image/svg+xml;base64,${complete}`);
+	});
+
+	it('accepts a self-closing SVG root', () => {
+		const selfClosing = btoa('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"/>');
+
+		expect(vaultImageSource({ b64: selfClosing, url: '/saved/page.svg' })).toBe(
+			`data:image/svg+xml;base64,${selfClosing}`
+		);
+	});
+
+	// The tail window is bounded so that searching does not decode a megabyte per keystroke, but a
+	// bound that is treated as the whole truth rejects valid files. Both of these are complete,
+	// renderable documents whose deciding bytes sit outside the initial window; the window has to
+	// widen rather than answer "incomplete".
+	it('accepts a self-closing root whose opening tag is longer than the tail window', () => {
+		const padding = 'a'.repeat(900);
+		const selfClosing = btoa(
+			`<svg xmlns="http://www.w3.org/2000/svg" data-note="${padding}" width="8" height="8"/>`
+		);
+
+		expect(vaultImageSource({ b64: selfClosing, url: '/saved/page.svg' })).toBe(
+			`data:image/svg+xml;base64,${selfClosing}`
+		);
+	});
+
+	it('accepts a trailing comment longer than the tail window', () => {
+		const encoded = btoa(`${SVG_MARKUP}<!-- ${'note '.repeat(300)} -->`);
+
+		expect(vaultImageSource({ b64: encoded, url: '/saved/page.svg' })).toBe(
+			`data:image/svg+xml;base64,${encoded}`
+		);
+	});
+
+	// Widening must not turn into accepting anything: a document genuinely cut off after a
+	// self-closing child stays rejected however far back the search goes.
+	it('still rejects a long SVG truncated after a self-closing child', () => {
+		const truncated = btoa(
+			`<svg xmlns="http://www.w3.org/2000/svg" data-note="${'a'.repeat(900)}"><path/>`
+		);
+
+		expect(vaultImageSource({ b64: truncated, url: '/saved/page.svg' })).toBe('/saved/page.svg');
+	});
+
+	// A long whitespace run that ultimately does not match is the input that made the previous
+	// regex super-linear. It must be both correct and fast.
+	it('rejects a long whitespace run after a truncated SVG without hanging', () => {
+		const truncated = btoa(`${SVG_MARKUP.replace('</svg>', '')}${' '.repeat(400)}`);
+
+		const startedAt = Date.now();
+		expect(vaultImageSource({ b64: truncated, url: '/saved/page.svg' })).toBe('/saved/page.svg');
+		expect(Date.now() - startedAt).toBeLessThan(1000);
+	});
+
+	it('accepts several stacked trailing comments', () => {
+		const encoded = btoa(`${SVG_MARKUP}<!-- one --> <!-- two -->\n`);
+
+		expect(vaultImageSource({ b64: encoded })).toBe(`data:image/svg+xml;base64,${encoded}`);
+	});
+
+	it.each([
+		['a trailing XML comment', `${SVG_MARKUP}<!-- exported by Meechie -->`],
+		['trailing whitespace and a newline', `${SVG_MARKUP}\n  `],
+		['a comment after a self-closing root', '<svg xmlns="http://www.w3.org/2000/svg"/><!-- x -->']
+	])('accepts an SVG with %s after the root element', (_label, markup) => {
+		const encoded = btoa(markup);
+
+		expect(vaultImageSource({ b64: encoded, url: '/saved/page.svg' })).toBe(
+			`data:image/svg+xml;base64,${encoded}`
+		);
+	});
+
+	it('falls back for bytes whose length is not a whole number of base64 groups', () => {
+		const misaligned = `${PNG_BASE64.slice(0, 21)}`;
+
+		expect(vaultImageSource({ b64: misaligned, url: '/saved/page.png' })).toBe('/saved/page.png');
+	});
+
+	it('returns no source when signature-valid bytes are undecodable and there is no url', () => {
+		expect(vaultImageSource({ b64: `${PNG_BASE64.slice(0, 20)}!!!` })).toBe('');
+	});
+
+	it('still prefers bytes that decode cleanly over a usable url', () => {
+		expect(vaultImageSource({ b64: PNG_BASE64, url: '/saved/page.png' })).toBe(
+			`data:image/png;base64,${PNG_BASE64}`
+		);
 	});
 
 	it('returns an empty source rather than a broken image for unreadable bytes', () => {
@@ -136,9 +318,9 @@ describe('vaultImageExtension', () => {
 		[`data:image/png;base64,${PNG_BASE64}`, 'png'],
 		[`data:image/jpeg;base64,${JPEG_BASE64}`, 'jpg'],
 		[`data:image/svg+xml;base64,${SVG_BASE64}`, 'svg'],
-		['https://example.test/saved.webp', 'webp'],
-		['https://example.test/saved.jpeg?v=2', 'jpg'],
-		['https://example.test/no-extension', 'png']
+		['/saved/page.webp', 'webp'],
+		['/saved/page.jpeg?v=2', 'jpg'],
+		['/saved/no-extension', 'png']
 	])('maps %s to .%s', (source, expected) => {
 		expect(vaultImageExtension(source)).toBe(expected);
 	});
@@ -338,5 +520,93 @@ describe('buildVaultEntries', () => {
 		);
 
 		expect(entry.downloadName).toBe('meechie-coloring-page.png');
+	});
+});
+
+describe('buildVaultEntry image selection', () => {
+	const now = Date.parse('2026-09-04T12:00:00.000Z');
+
+	it('skips past a leading unusable image to the first one that renders', () => {
+		const [entry] = buildVaultEntries(
+			[
+				makeRecord('later-image-wins', {
+					images: [
+						{ b64: btoa('not an image') },
+						{ url: 'https://example.test/blocked-by-csp.png' },
+						{ b64: PNG_BASE64 }
+					]
+				})
+			],
+			{ nowMs: now }
+		);
+
+		expect(entry.imageSource).toBe(`data:image/png;base64,${PNG_BASE64}`);
+		expect(entry.downloadName.endsWith('.png')).toBe(true);
+	});
+
+	it('falls back to no image when every stored entry is unusable', () => {
+		const [entry] = buildVaultEntries(
+			[makeRecord('all-bad', { images: [{ b64: btoa('nope') }] })],
+			{ nowMs: now }
+		);
+
+		expect(entry.imageSource).toBe('');
+	});
+});
+
+describe('vaultQuote', () => {
+	it('reads the saved quote when the record has one', () => {
+		const record = makeRecord('modern', { studioText: studioText('He had time to learn.') });
+
+		expect(vaultQuote(record)).toBe('He had time to learn.');
+	});
+
+	// On a generated page `assembledPrompt` holds the image-generation prompt `/api/generate`
+	// returned, not anything Meechie said. Showing it in quotation marks, or letting its
+	// boilerplate answer searches, is worse than showing no quote at all.
+	it('shows no quote for a legacy record rather than quoting its generation prompt', () => {
+		const legacy = makeRecord('legacy', {
+			assembledPrompt:
+				'Black and white line art coloring page, bold clean outlines, no shading,\n' +
+				'no solid fills, white background, US Letter portrait, decorative border.'
+		});
+
+		expect(legacy.studioText).toBeUndefined();
+		expect(vaultQuote(legacy)).toBe('');
+	});
+
+	it('does not answer a search with words that appear only in the generation prompt', () => {
+		const legacy = makeRecord('legacy', {
+			assembledPrompt: 'Black and white line art coloring page with a decorative border.'
+		});
+
+		expect(matchesVaultQuery(legacy, 'decorative')).toBe(false);
+	});
+
+	it('still finds a legacy record by the text it really stored', () => {
+		const legacy = makeRecord('legacy', {
+			assembledPrompt: 'Black and white line art coloring page.'
+		});
+
+		expect(matchesVaultQuery(legacy, legacy.intent.title)).toBe(true);
+	});
+});
+
+describe('VAULT_CAPACITY', () => {
+	// VAULT_CAPACITY mirrors the adapter's module-private MAX_CREATIONS. Drive the real store past
+	// it so the mirror cannot drift: if the adapter's cap changes, this fails rather than letting
+	// undoDelete's capacity guard quietly use a stale number.
+	it('matches the number of records the real store actually keeps', async () => {
+		const owner = { kind: 'anonymous', sessionId: 'capacity-probe' } as const;
+		for (let index = 0; index <= VAULT_CAPACITY; index += 1) {
+			await creationStoreAdapter.saveCreation({
+				record: makeRecord(`capacity-${index}`, { owner })
+			});
+		}
+
+		const listed = await creationStoreAdapter.listCreations({ owner });
+
+		expect(listed.ok).toBe(true);
+		if (listed.ok) expect(listed.value).toHaveLength(VAULT_CAPACITY);
 	});
 });

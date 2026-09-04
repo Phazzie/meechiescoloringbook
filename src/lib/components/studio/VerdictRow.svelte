@@ -21,8 +21,10 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 		vaultShowAll,
 		vaultQuery,
 		vaultError,
+		vaultReadFailed,
 		pendingDeleteId,
 		undoableDeletion,
+		undoableDeletionEntry,
 		onLoadCreation,
 		onRequestDelete,
 		onCancelDelete,
@@ -42,8 +44,10 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 		vaultShowAll: boolean;
 		vaultQuery: string;
 		vaultError: string;
+		vaultReadFailed: boolean;
 		pendingDeleteId: string | null;
 		undoableDeletion: CreationRecord | null;
+		undoableDeletionEntry: VaultEntry | null;
 		onLoadCreation: (_creation: CreationRecord) => Promise<void>;
 		onRequestDelete: (_id: string) => void;
 		onCancelDelete: () => void;
@@ -104,6 +108,17 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 						data-testid="home-vault-undo-restore"
 						onclick={onUndoDelete}>Put it back</button
 					>
+					<!-- The held page is out of the list, so this is the only place it can be saved
+					     from. When the vault is full "Put it back" refuses and says to download it
+					     first; that instruction needs somewhere to point. -->
+					{#if undoableDeletionEntry?.imageSource}
+						<a
+							class="link"
+							data-testid="home-vault-undo-download"
+							href={undoableDeletionEntry.imageSource}
+							download={undoableDeletionEntry.downloadName}>Download it</a
+						>
+					{/if}
 					<button type="button" class="link" onclick={onDismissUndo}>Dismiss</button>
 				</div>
 			</div>
@@ -113,7 +128,16 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 			<p class="error" data-testid="home-vault-error">{vaultError}</p>
 		{/if}
 
-		{#if totalSavedCount === 0}
+		{#if vaultReadFailed && totalSavedCount === 0}
+			<!-- A failed read leaves `creations` empty, so without this the storage error would sit
+			     directly above "No saved pages yet" — telling the reader their pages do not exist
+			     when the truth is the app could not read them. Keyed on the read specifically: a
+			     failed *write* into an empty vault also sets `vaultError`, and there the pages
+			     really are gone, so claiming otherwise would be the same lie in reverse. -->
+			<p class="empty" data-testid="home-vault-unreadable">
+				Your saved pages could not be read. They are not gone — see above.
+			</p>
+		{:else if totalSavedCount === 0}
 			<p class="empty" data-testid="home-vault-empty">
 				No saved pages yet. Make one and hit Save to Vault.
 			</p>

@@ -8,6 +8,68 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Quote Vault host-environment seams — ClockSeam, AppOriginSeam, PageVisibilitySeam (2026-09-04)
+
+This section is the active plan for the scheduled "worst feature -> best feature" run recorded in
+`WORST_TO_BEST_LOG.md`. It supersedes the 2026-08-26 recovery plan as the current active plan; that
+section remains below as historical context.
+
+**Why this plan exists at all.** The Quote Vault rebuild (PR #286) was scoped to touch no seam, and
+that was correct for the feature itself — every value it needed was already in `CreationRecord`.
+Review of the follow-up pull request (#289) established that two *host-environment reads* had come
+along with it anyway: the current instant, and the origin the app is served from. Both are seams
+under `AGENTS.md`. This plan is written after the finding and before the seam work, and it is
+recorded here because `AGENTS.md` requires a plan for a seam refactor rather than a decision record
+written afterwards.
+
+### Plan
+
+- Goal: no unseamed host-environment read in the Quote Vault path, and both behaviours drivable
+  from a test — the UTC-midnight label rollover, and the same-origin image-URL decision.
+- Exact seam names (now present in `docs/seams.md`): `ClockSeam`, `AppOriginSeam`,
+  `PageVisibilitySeam`.
+- Exact files:
+  - `src/lib/seams/clock-seam/{contract,validators,fixtures,mock,probe,test}.ts`
+  - `src/lib/adapters/clock-seam/index.ts`
+  - `src/lib/seams/app-origin-seam/{contract,validators,fixtures,mock,probe,test}.ts`
+  - `src/lib/adapters/app-origin-seam/index.ts`
+  - `src/lib/seams/page-visibility-seam/{contract,validators,fixtures,mock,probe,test}.ts`
+  - `src/lib/adapters/page-visibility-seam/index.ts`
+  - `src/routes/studio-state.svelte.ts` (inject all three; day-boundary refresh)
+  - `src/lib/core/vault-gallery.ts` (accept the origin as an argument; stay pure)
+  - `src/routes/+page.svelte`, `src/lib/components/studio/VerdictRow.svelte` (render the vault
+    entry the seams now feed)
+  - `scripts/run-probe.mjs` (new — repository-owned probe runner), `package.json` (register the
+    `probe` script)
+  - `tests/unit/studio-state.test.ts`, `tests/unit/vault-gallery.test.ts`,
+    `tests/e2e/smoke.spec.ts`
+  - `docs/seams.md`, `DECISIONS.md`, `plan.md`, `CHANGELOG.md`, `CLAUDE.md`, `AGENTS.md`,
+    `src/lib/seams/CLAUDE.md`, `WORST_TO_BEST_LOG.md`
+  - `docs/evidence/2026-09-04/*` — written by `npm run verify`, not edited by hand
+- Exact commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`,
+  `npm run cipher:gate`, `npm run verify`.
+- Explicitly out of scope: the three pre-existing `Date.now()`/`new Date()` reads in
+  `src/routes/studio-state.svelte.ts` (creation ids, `createdAtISO`). They are untouched by this
+  change and converting them would widen a review-fix pull request into unrelated code.
+
+### Self-critique
+
+- Riskiest assumption: that a clock seam is worth its weight for a date label. It is not obvious,
+  and it was argued against twice before being built. What settles it is not taste but the rule:
+  `AGENTS.md` names clock/time a seam with no exemption for reads that already exist nearby. The
+  evidence that it was right anyway is behavioural — the seam made the foreground-tab midnight
+  rollover testable, and writing that test is what exposed that the previous `visibilitychange`-only
+  refresh never fired for a reader who leaves the tab open.
+- What could be wrong: `ClockSeam.scheduleAt` wraps `setTimeout`, whose delay is capped near 24.8
+  days. **This was written as an accepted risk and it was not good enough** — a review found the
+  same hole and was right that documenting it is not closing it. The adapter now re-arms in bounded
+  chunks, so any instant is honoured however far ahead, and the probe checks it: a callback armed a
+  year out must still be pending after 200ms rather than having fired.
+- What must be proven: that the mock is a faithful stand-in. Both seams' contract tests assert the
+  adapter's real behaviour alongside the mock's, including that a fault fixture fails.
+- Self-check: `npm run cipher:gate` exits 0, `chamber-lock` reports both new seam folders complete,
+  and `docs/seams.md` has a row for each.
+
 ## Meechie Recovery v1.1 — Demo Repair, Wigs, Saved Work, Security (2026-08-26)
 
 This section is the sole active implementation plan. It supersedes the 2026-08-25 Slack v0.9 ledger and every partial amendment.

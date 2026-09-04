@@ -1,6 +1,6 @@
 {
   "tool": "clan-chain",
-  "generatedAt": "2026-09-04T01:08:19.150Z",
+  "generatedAt": "2026-09-04T06:00:40.042Z",
   "evidenceDir": "docs/evidence/2026-09-04",
   "clean": [
     {
@@ -101,6 +101,18 @@
     },
     {
       "seam": "SpecValidationSeam (self-contained)",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "AppOriginSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "PageVisibilitySeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "ClockSeam",
       "owner": "hbpheonix"
     },
     {
