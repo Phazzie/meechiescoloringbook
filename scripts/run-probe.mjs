@@ -51,8 +51,10 @@ const discoverProbes = async () => {
 		}
 		(EXPORTS_RUN_PROBE.test(source) ? runnable : manual).push(entry.name);
 	}
+	// `toSorted`, not `sort`: sorting in place inside the returned object literal mutates the arrays
+	// while they are being read, which reads as a side effect hiding in an expression.
 	const byName = (left, right) => left.localeCompare(right);
-	return { runnable: runnable.sort(byName), manual: manual.sort(byName) };
+	return { runnable: runnable.toSorted(byName), manual: manual.toSorted(byName) };
 };
 
 const write = (text) => process.stdout.write(`${text}\n`);
