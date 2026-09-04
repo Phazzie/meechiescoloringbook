@@ -458,10 +458,19 @@ export const buildVaultEntry = (
 	// The first image that actually resolves, not merely the first non-empty one: a record whose
 	// leading entry has unreadable bytes or an unusable url would otherwise show a placeholder and
 	// no download even though a later entry is perfectly renderable.
-	const imageSource =
-		(record.images ?? [])
-			.map((image) => vaultImageSource(image, appOrigin))
-			.find((source) => source.length > 0) ?? '';
+	//
+	// Resolved in a loop rather than `map().find()` so it stops at the first hit. `map` would build
+	// a data url for *every* stored image before `find` looked at any of them, and a record can hold
+	// several megabyte-sized variants while this whole function re-runs on each keystroke in the
+	// vault search box.
+	let imageSource = '';
+	for (const image of record.images ?? []) {
+		const source = vaultImageSource(image, appOrigin);
+		if (source.length > 0) {
+			imageSource = source;
+			break;
+		}
+	}
 	const title = record.intent.title;
 	return {
 		id: record.id,

@@ -11,6 +11,8 @@ import {
 } from '../../src/lib/core/meechie-studio';
 import { createMockClockSeam } from '../../src/lib/seams/clock-seam/mock';
 import type { ClockSeam } from '../../src/lib/seams/clock-seam/contract';
+import { createMockAppOriginSeam } from '../../src/lib/seams/app-origin-seam/mock';
+import type { AppOriginSeam } from '../../src/lib/seams/app-origin-seam/contract';
 import { createMockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
 import type { MockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
 import { StudioState } from '../../src/routes/studio-state.svelte';
@@ -518,7 +520,11 @@ describe('StudioState quote vault', () => {
 	// in the clear (`js/clear-text-storage-of-sensitive-data`).
 	const initVault = async (
 		records: CreationRecord[],
-		options: { clock?: ClockSeam; visibility?: MockPageVisibilitySeam } = {}
+		options: {
+			clock?: ClockSeam;
+			visibility?: MockPageVisibilitySeam;
+			origin?: AppOriginSeam;
+		} = {}
 	): Promise<StudioState> => {
 		const sessionSpy = vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
 			ok: true,
@@ -533,6 +539,9 @@ describe('StudioState quote vault', () => {
 		}
 		if (options.visibility) {
 			studio.visibility = options.visibility;
+		}
+		if (options.origin) {
+			studio.origin = options.origin;
 		}
 		await studio.init();
 		expect(sessionSpy).toHaveBeenCalled();
@@ -665,6 +674,36 @@ describe('StudioState quote vault', () => {
 
 		expect(studio.vaultReadFailed).toBe(false);
 		expect(studio.vaultError).toBe('');
+	});
+
+	// The injected seam has to actually reach `vaultEntries`. Capturing the origin in a field
+	// initializer meant the default adapter's value won and the mock never drove this path — the
+	// seam existed but was not wired to anything a test could observe.
+	it('resolves stored image urls against the injected origin seam', async () => {
+		const studio = await initVault(
+			[
+				makeCreation('absolute-url', {
+					images: [{ url: 'https://meechie.test/saved/page.png' }]
+				})
+			],
+			{ origin: createMockAppOriginSeam('sample') }
+		);
+
+		expect(studio.appOrigin).toBe('https://meechie.test');
+		expect(studio.vaultEntries[0].imageSource).toBe('https://meechie.test/saved/page.png');
+	});
+
+	it('refuses the same url when the injected seam reports a different origin', async () => {
+		const studio = await initVault(
+			[
+				makeCreation('absolute-url', {
+					images: [{ url: 'https://meechie.test/saved/page.png' }]
+				})
+			],
+			{ origin: createMockAppOriginSeam('other') }
+		);
+
+		expect(studio.vaultEntries[0].imageSource).toBe('');
 	});
 
 	it('keeps every saved page reachable instead of stopping at four', async () => {

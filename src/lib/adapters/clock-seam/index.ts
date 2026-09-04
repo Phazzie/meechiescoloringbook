@@ -6,11 +6,17 @@ import type { ClockSeam } from '../../seams/clock-seam/contract';
 import { validateEpochMs } from '../../seams/clock-seam/validators';
 
 /**
- * The largest delay `setTimeout` accepts. Past this a host does not wait longer — it overflows the
- * signed 32-bit delay and fires almost immediately, so a timer armed for a year ahead would run
- * now. Long waits are therefore re-armed in chunks of this size until the target instant arrives.
+ * The longest any single hop waits before re-reading the clock.
+ *
+ * This cap does two jobs at once. `setTimeout` overflows its signed 32-bit delay past roughly 24.8
+ * days and fires almost immediately, so a timer armed a year out would run now; and re-checking
+ * only when a timer expires misses a wall clock pushed *forward* past the target instant during an
+ * ordinary wait, leaving a label stale long after the boundary passed. Waking at least this often
+ * covers both: fifteen minutes bounds the staleness, and for a once-a-day boundary timer it costs
+ * fewer than a hundred wakeups a day — cheap against a label that would otherwise be wrong for
+ * hours.
  */
-const MAX_TIMEOUT_MS = 2_147_483_647;
+const MAX_HOP_MS = 900_000;
 
 export const createClockSeam = (): ClockSeam => ({
 	now: () => Date.now(),
@@ -35,14 +41,14 @@ export const createClockSeam = (): ClockSeam => ({
 				callback();
 				return;
 			}
-			handle = globalThis.setTimeout(fireOrRearm, Math.min(remainingMs, MAX_TIMEOUT_MS));
+			handle = globalThis.setTimeout(fireOrRearm, Math.min(remainingMs, MAX_HOP_MS));
 		};
 
 		// The first hop always goes through a timeout, so an instant already past fires on the next
 		// turn rather than synchronously inside `scheduleAt`.
 		handle = globalThis.setTimeout(
 			fireOrRearm,
-			Math.min(Math.max(0, epochMs - Date.now()), MAX_TIMEOUT_MS)
+			Math.min(Math.max(0, epochMs - Date.now()), MAX_HOP_MS)
 		);
 
 		return () => {

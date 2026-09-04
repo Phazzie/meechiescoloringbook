@@ -900,6 +900,10 @@ export class StudioState {
 
 	async init(): Promise<void> {
 		this.isBrowser = true;
+		// Re-read rather than trusting the field initializer: a test or an alternate host may have
+		// replaced `origin` after construction, and the value captured then would be the default
+		// adapter's. The clock and visibility seams are consulted here for the same reason.
+		this.appOrigin = this.origin.getOrigin();
 		this.startSavedLabelRefresh();
 		const [sessionResult, draft] = await Promise.all([
 			sessionAdapter.getSession(),

@@ -619,3 +619,32 @@ other, and this one shipped a traversal on its first day.
 ### Still deferred after the twelfth round
 
 - Everything listed above, unchanged.
+
+---
+
+## Run 1, thirteenth close-out — 2026-09-04 — the review round on `57527c2`
+
+Appended, not edited. Four findings, all P2, all accepted. Two of them are about seams that were
+*already* built and reviewed — which is the useful part.
+
+| Finding | Fix |
+|---|---|
+| `buildVaultEntry` used `map().find()`, so it built a data url for **every** stored image before looking at any of them. A record can hold several megabyte-sized variants and the whole function re-runs on each keystroke in the search box. | A loop that stops at the first usable source. This one dates back to the original rebuild and survived a dozen reviews. |
+| `appOrigin` was captured in a field initializer, so replacing `studio.origin` before `init()` had no effect — the default adapter's value won and the `AppOriginSeam` mock **could not drive `vaultEntries` at all**. | Re-read during `init()`, as the clock and visibility seams already were. Two tests now prove the injected seam decides whether a stored absolute url is used. |
+| A forward wall-clock jump during an ordinary sub-limit wait still waited out the original delay, so a label could stay stale for hours. Re-reading only on expiry did not cover it. | Each hop is capped at fifteen minutes, which also subsumes the 32-bit overflow cap — one constant now does both jobs. |
+| `npm run probe -- --list` advertised every seam with a `probe.ts`, but only the three new ones export `runProbe`; the rest exited 1. | The list is split into runnable and manual. Naming a manual seam now explains that its probe is a documented procedure and points at the file, instead of reporting a broken command. |
+
+**The finding that matters most here is the second one.** `AppOriginSeam` was built to satisfy a
+review, given a validator, fault fixtures, a probe, and a full contract test suite — and it was
+wired to production but **not actually reachable from a test through the studio**, because the value
+it produced was captured before injection could happen. Every one of its own tests passed. The seam
+was, from the studio's point of view, decorative.
+
+That is the same failure as "pin was persisted and never read", the defect that made the Quote Vault
+the worst feature in the first place. Built, tested, wired to nothing. It is worth noticing that a
+run which began by fixing exactly that mistake reproduced it thirteen rounds later, in the machinery
+built to prevent mistakes.
+
+### Still deferred after the thirteenth round
+
+- Everything listed above, unchanged.
