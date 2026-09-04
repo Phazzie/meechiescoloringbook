@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T21:38:02.353Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T21:50:28.360Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -307,15 +307,41 @@ follow-up in WORST_TO_BEST_LOG.md instead. The other file was two commits old an
     and adds 5, 6, 7; numbering the new one 10 invented two phantom items a later run would go
     looking for. Renumbered to 8 by an appended correction, since the log is append-only.
 
+## Round 10 — the Codex round on `234cc4c`: a validation plan that could not validate
+
+Two findings, and both are about proof that looks like proof.
+
+  - **P1: the fixture waiver's validation plan was unexecutable.** It said "refresh from a live
+    probe, then re-run the rewind and the contract tests". But `probes/image-generation.probe.mjs`
+    writes `fixtures/image-generation/sample.json` and `fault.json`, and **nothing reads them** —
+    `grep -rn "fixtures/image-generation" src/ tests/ scripts/ contracts/` returns zero hits, while
+    both suites import `src/lib/seams/image-generation-seam/fixtures.ts`. Following the plan would
+    have spent a billable live image call and produced a green rewind that never touched the
+    regenerated data: a validation that cannot fail for the reason it claims to test. Measured
+    across the whole tree rather than assumed for this one seam — of the fourteen directories under
+    `fixtures/`, `image-generation` is **the only one with no consumer**; the other thirteen have
+    one to four. The waiver's plan now has the transcription step that makes it work, and the
+    orphaned capture directory is recorded as a repository follow-up rather than fixed inside a
+    documentation change.
+  - **P2: `cipher:gate` exit 0 was cited as validating the waiver.** It does not.
+    `scripts/cipher-gate.mjs` selects a Cipher Gate block from DECISIONS.md; this close-out adds
+    none, so it selected the existing 2026-09-04 block for the Quote Vault's ClockSeam,
+    AppOriginSeam and PageVisibilitySeam, confirmed that block's evidence paths still exist, and
+    exited 0 — which `cipher-gate.json` on this head records plainly. **That is the third borrowed
+    authorization in this close-out and the first one wearing a green gate**, which is what makes it
+    worth recording: a passing check is only evidence for the thing it actually checked. The claim
+    is removed; what the run legitimately shows is that an unrelated earlier entry's evidence has
+    not gone missing.
+
 ## Ordering of this round's runs, recorded as they happened
 
-  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 21:38:02.353Z)
+  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 21:50:28.360Z)
   2. npm run lint              exit 0                     -> lint.txt
   3. npm run build             exit 0                     -> build.txt
   4. npx playwright test       28 passed                  -> e2e.txt
   5. 19 rewind runs, each exit code appended as that run finished
                                                           -> seam-rewind-exit-codes.md
-  6. npm run cipher:gate       exit 0    (not a chain stage; run standalone)
+  6. npm run cipher:gate       exit 0    (validates the Quote Vault block, not this change — above)
      npm run assumption:alarm  exit 0    (also chain stage 5; run standalone after the doc edits)
   7. this section
   8. npm run proof:tape        LAST, so the tape inventories every file including this one
@@ -326,7 +352,7 @@ This file therefore claims steps 1-6 only.
 
 Evidence on this head, read back from seam-rewind-exit-codes.md and an `ls` of the directory rather
 than recalled: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped, build exit 0,
-playwright 28 passed, verify exit 0 across all eight stages, cipher:gate exit 0, assumption:alarm
-exit 0, and 19 rewind rows recording exit code 0 against 19 files matching `rewind-*.txt`. No
-hand-typed timestamp closes this file; proof-tape.json's generatedAt against this file's mtime is
-the checkable record of the ordering.
+playwright 28 passed, verify exit 0 across all eight stages, cipher:gate exit 0 (scoped as above),
+assumption:alarm exit 0, and 19 rewind rows recording exit code 0 against 19 files matching
+`rewind-*.txt`. No hand-typed timestamp closes this file; proof-tape.json's generatedAt against this
+file's mtime is the checkable record of the ordering.

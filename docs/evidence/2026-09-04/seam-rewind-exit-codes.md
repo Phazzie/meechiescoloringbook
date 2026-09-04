@@ -22,7 +22,7 @@ Two naming decisions, both taken because a reviewer caught the alternative:
 The `--seam` column is quoted exactly as it must be typed: for the five canonical rows, dropping the
 quotes makes the shell split on the space and `rewind` silently resolves the legacy row instead.
 
-## 19 runs, started 2026-09-04T21:40:26Z
+## 19 runs, started 2026-09-04T21:52:46Z
 
 | exit | artifact | command argument |
 |---|---|---|
@@ -46,4 +46,4 @@ quotes makes the shell split on the space and `rewind` silently resolves the leg
 | 0 | `rewind-SpecValidationSeam(self-contained).txt` | `--seam "SpecValidationSeam (self-contained)"` |
 | 0 | `rewind-MeechieToolSeam(self-contained).txt` | `--seam "MeechieToolSeam (self-contained)"` |
 
-Finished 2026-09-04T21:41:02Z.
+Finished 2026-09-04T21:53:22Z.

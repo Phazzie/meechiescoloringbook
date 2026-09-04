@@ -4746,3 +4746,71 @@ worth it: **every finding has been real and none has been in the shipped code.**
 review have improved the accuracy of the record and changed nothing about what users get. That is
 either a very expensive way to write documentation or the correct price of a record that can be
 trusted — and which of those it is depends on whether anyone ever audits it.
+
+---
+
+## Run 4, correction 16 — 2026-09-04 — a validation plan that could not validate, and a green gate that proved someone else's work
+
+Appended, not edited. Two findings on `234cc4c`, one P1 and one P2, and they are the same mistake at
+two levels: **proof that looks like proof.**
+
+### 1. P1 — the fixture waiver's validation plan was unexecutable
+
+The waiver said: refresh from a live probe, then re-run the rewind and the contract tests against
+the regenerated fixtures. That reads like a plan. It is not one.
+
+- `probes/image-generation.probe.mjs` writes `fixtures/image-generation/sample.json` and
+  `fault.json`.
+- `grep -rn "fixtures/image-generation" src/ tests/ scripts/ contracts/` → **zero hits.**
+- Both suites — `src/lib/seams/image-generation-seam/test.ts` and
+  `tests/contract/image-generation.test.ts` — import
+  `src/lib/seams/image-generation-seam/fixtures.ts`.
+
+So following my plan would have spent a **billable live image-generation call** and produced a green
+rewind that never touched the regenerated data. The suite would pass exactly as it passes now, for
+exactly the reasons it passes now, and the waiver would have been recorded as validated. **A check
+that cannot fail for the reason it claims to test is not a check.**
+
+Measured across the tree rather than assumed for this one seam: of the fourteen directories under
+`fixtures/`, `image-generation` is **the only one with no consumer**. The other thirteen have one to
+four. So this is an isolated defect in the repository, not a general pattern — which is what makes it
+worth fixing rather than working around.
+
+The waiver's plan now carries the missing step: probe → **transcribe the captures into
+`fixtures.ts`, the file both suites actually import** → then run the rewind and both suites. Step
+two is a code change to a seam folder and gets the full workflow, so it is deliberately not folded
+into this documentation change. **Follow-up 9: wire the ImageGenerationSeam mock and tests to read
+`fixtures/image-generation/*.json`, or delete the orphaned capture path from the probe.** Doing that
+is the better end state — it makes the probe's output load-bearing instead of decorative — but it
+changes what the seam's mock consumes, which is more than a waiver should decide.
+
+### 2. P2 — `cipher:gate` exit 0 proved the Quote Vault's work, not mine
+
+I cited a green `npm run cipher:gate` as validation for the fixture waiver. `cipher-gate.json` on
+that head says what it actually validated:
+
+```
+"seams": "ClockSeam (new), AppOriginSeam (new), PageVisibilitySeam (new).
+          No existing seam contract changed."
+```
+
+That is the Quote Vault entry from an earlier run today. `scripts/cipher-gate.mjs` selects a Cipher
+Gate *block* from `DECISIONS.md`; this close-out adds none, so it picked the most recent existing
+block, confirmed its evidence paths still exist, and exited 0. It never looked at the waiver.
+
+**This is the third borrowed authorization in this close-out, and the first one wearing a passing
+gate.** The first cited the `WigTryOnSeam` Assumption for a text call it says nothing about; the
+second cited a May waiver written for different work; this one cited a green check that was checking
+something else. The first two at least required me to misread a document. This one required only
+that I see `exit 0` and stop reading — which is a worse habit, because a green check *feels* like
+evidence in a way a mis-cited paragraph does not. **A passing check is evidence for the thing it
+checked, and nothing else.**
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2 — **forty-six findings across sixteen rounds**, none
+in the application. But this round is the first since round 3 to find something that would have cost
+real money and produced a false record if acted on, rather than something that read badly. Fifteen
+rounds of "the prose is inaccurate" and then one that says "your plan would burn a live API call and
+prove nothing" — worth noting, because it argues against the conclusion I drew last round that the
+loop had stopped paying for itself.

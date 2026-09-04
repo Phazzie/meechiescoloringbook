@@ -56,13 +56,24 @@ concession the `ClockSeam` plan in run 1 had to make.
     `audit:gate && chamber-lock && verify-runner && shaolin-lint && assumption-alarm && seam-ledger
     && clan-chain && proof-tape` (`package.json:33`). **`cipher:gate` is not in that chain** — it is
     a separate script (`package.json:26`) — so a plan listing only `npm run verify` cannot reproduce
-    the close-out validation, which is exactly what `WORST_TO_BEST_LOG.md` claims was run for the
-    `ImageGenerationSeam` waiver. The literal invocations:
+    what was actually run. The literal invocations:
 
     ```sh
     npm run cipher:gate        # not in the verify chain; run on its own. exit 0
     npm run assumption:alarm   # also stage 5 of the chain; additionally run on its own. exit 0
     ```
+
+    **What `cipher:gate` exit 0 does and does not prove here, since an earlier draft of this plan
+    got it backwards.** It is not validation of the `ImageGenerationSeam` waiver and must not be
+    cited as such. `scripts/cipher-gate.mjs` selects a Cipher Gate *block* from `DECISIONS.md`, and
+    this close-out adds none — so it selected the existing 2026-09-04 block for the Quote Vault's
+    `ClockSeam (new), AppOriginSeam (new), PageVisibilitySeam (new)`, checked that block's evidence
+    paths still exist, and exited 0. `cipher-gate.json` on this head records exactly that. Citing
+    its green as the waiver's proof would be the **third** borrowed authorization in this close-out
+    and the first one wearing a passing gate: it revalidates an unrelated earlier change and makes
+    that older proof look current. What it legitimately shows is only that the prior entry's
+    evidence has not gone missing. The waiver's own validation is the plan recorded in
+    `DECISIONS.md`, and — per round 16 — that plan did not work either until it was rewritten.
 
     `assumption:alarm` is listed even though the chain already runs it, because the waiver's
     validation turns on it seeing the new entry *after* the entry was written, which the chain's
