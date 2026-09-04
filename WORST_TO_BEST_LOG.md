@@ -3717,3 +3717,91 @@ inherited without re-measuring would be exactly that mistake wearing a confident
 Both new guards proven by mutation: removing the dedication clear fails with
 `Received "For the group chat"`, and removing `overflow-x: clip` fails with
 `/m/who-fucked-up pans sideways by 32px`.
+
+---
+
+## Run 4, merged — 2026-09-04 — `1dab4cf`
+
+PR [#295](https://github.com/Phazzie/meechiescoloringbook/pull/295) merged into `main` as `1dab4cf`.
+Three commits, 32 files, +1,906 / −454.
+
+Codex reviewed two heads — `75b0017` (PR opened) and `f81802d` (new commits) — and returned nothing
+on the second. That is what made this mergeable rather than pushed again.
+
+### The scoreboard, counted rather than remembered
+
+| | |
+|---|---|
+| Findings raised | **4** — 3 Codex (1 P1, 2 P2), 1 SonarCloud gate failure |
+| Fixed | 3 |
+| Declined | 1, and its thread is **left open on purpose** |
+| Gate failures | 1 — SonarCloud Quality Gate, 4.5% duplication on new code, on `75b0017` |
+| Guards proven by deletion | 5 |
+| Tests | 1173 → **1187** unit, 22 → **28** e2e |
+
+The count is of *findings*, not of review threads: the SonarCloud duplication failure never became a
+thread, and run 3's close-out had to be corrected in review for making exactly that mistake — "a
+count taken from the threads is a count of the reviewer that files threads."
+
+Reviewers that produced nothing, so the four above are not four out of some larger pool: Sourcery
+was rate-limited (its 250,000-character weekly budget spent, so it posted a reviewer's guide and no
+review), CodeRabbit skips this repository automatically for having under ten stars, CodeQL passed
+clean on both analyses, and Rosentic's check passed — its advisory comment names
+`http-resilience.ts` and `wig-try-on-pipeline.test.ts` across four `sweet-mendel`/`trusting-volta`
+branches, none of which is this branch and neither of which is in this diff. That is the standing
+noise `AGENTS.md` records, and because the check itself was green it needed no stand-down comment.
+Vercel deployed cleanly on every head; the free-tier quota that bit runs 1 and 3 did not appear.
+
+### Zero of the fixes introduced a defect, and that claim needs its caveat
+
+Run 3 ended with five defects created by an earlier fix in the same pull request, and run 1's back
+half was the same shape. This run had none: `f81802d`, the commit that fixed the Codex round, drew
+no findings.
+
+**The caveat that makes the number honest: only one review round followed a fix commit here.** Run 3
+had eight reviewed heads and eleven rounds; this had three heads and two rounds. A streak of one is
+not evidence of a better method, and a future run should not read this line as "the pattern is
+broken". What can fairly be claimed is narrower: both accepted findings were *measured before being
+fixed* — `scrollWidth` 422 against a 390 viewport, and `/random`'s own comment stating the
+dedication rule — and both fixes were *mutated afterwards* rather than read. That is the practice
+worth copying; the clean round is one data point.
+
+### The three things this run should hand forward
+
+1. **A gate that reports a number and no location is an instruction to measure, not to reason.** The
+   duplication failure had no annotations and no file. The obvious suspect — CSS mirrored from three
+   standalone routes — was wrong, and acting on it would have meant a risky refactor of three
+   working routes that fixed nothing, because SonarCloud has no Svelte parser here. One n-gram scan
+   found the real twelve lines in a minute. Guessing had already put the wrong work on the table.
+2. **A test can exercise a guard's subject without reaching its precondition.** The `{#key}` test
+   passed with the key deleted, because `page.goto` builds a new document and the reuse it guards
+   against only happens on client-side navigation. Worse, the honest test had nowhere to click: no
+   link in the app went from one `/m/` page to another. When the failing input is unreachable
+   through the interface, that is a finding about the app, not a licence to simulate it.
+3. **Fixing only the file the reviewer named can leave the same proven defect next door.** The 32px
+   overflow was reported against `MeechieModePage.svelte`; the identical 32px measured on all three
+   standalone routes. "Keep the fix minimal" means do not widen the change, not decline to apply a
+   one-line fix where the same bug is already measured.
+
+### Follow-ups handed forward
+
+Run 3's four are untouched and still stand: `MeechieTools.svelte`'s private copy of the
+orchestration; `fixesApplied` written from `recommendedFixes` and never read; `createdAtISO`
+crossing `ClockSeam` in one of three call sites; and record-id generation crossing no seam anywhere.
+
+New from this run:
+
+5. **`/m/<slug>` and the three standalone routes are still two implementations of the same three
+   modes.** Both are now full factories sharing `VerdictPageState` and `VerdictPageStudio`, so the
+   duplication is down to hero copy and per-route art — but it is still two files per mode and two
+   navigations pointing at different URLs for the same thing. Consolidating carries a real question:
+   do the standalone routes keep their bespoke heroes, or does `/m/` grow per-mode art? That is a
+   design decision, not a refactor, which is why this run did not take it.
+6. **`getMonthKey` in `src/lib/core/meechie-studio.ts:224` reads `new Date()` outside `ClockSeam`**
+   and decides which mode is featured this month — so which modes the home page even shows is a
+   function of the unseamed host clock. Noticed while deriving the catalog from `studioModes`. It
+   belongs with follow-up 3.
+7. **The seam-workflow P1 is declined for the second time across two pull requests, and its thread
+   is open on #295.** If a future run disagrees, the thing to re-examine is whether the change
+   *creates or alters* a boundary — not whether the previous run declined it. And if a run ever
+   needs a seam that does not exist, that is a genuine seam change and gets the full workflow.
