@@ -38,8 +38,16 @@ concession the `ClockSeam` plan in run 1 had to make.
      PR #295, with its validation plan, is recorded in `DECISIONS.md` as part of this change.
 - **Seams:** none changed. No seam artifact is in the diff; the rulings are about whether existing
   open Assumptions block an already-merged change.
-- **Files:** `DECISIONS.md` (the ruling), `plan.md` (this section), `WORST_TO_BEST_LOG.md`
-  (append-only record), and the regenerated artifacts under `docs/evidence/2026-09-04/`.
+- **Files.** Governance: `DECISIONS.md` (the ruling), `plan.md` (this section),
+  `WORST_TO_BEST_LOG.md` (append-only record), `LESSONS_LEARNED.md` (the entry the fixture waiver
+  requires). Evidence under `docs/evidence/2026-09-04/`, enumerated rather than left as a directory
+  placeholder, since a plan that says `*` cannot be audited against what was actually touched:
+  - Hand-written summaries: `verify-chain.txt`, `seam-rewind-exit-codes.md`.
+  - Command captures: `lint.txt`, `build.txt`, `e2e.txt`, `verify.txt`, `test.txt`.
+  - Chain-generated: `chamber-lock.json`, `shaolin-lint.json`, `assumption-alarm.json`,
+    `seam-ledger.json`, `seam-ledger.md`, `clan-chain.json`, `clan-chain.md`, `proof-tape.json`,
+    `proof-tape.md`; plus `cipher-gate.json` from the standalone gate.
+  - The nineteen rewind artifacts, named individually in the command block below.
 - **Commands:** `npm run verify`, `npm run check`, `npm run lint`, `npm test`, `npm run build`,
   `npx playwright test`, `npm run cipher:gate`, `npm run assumption:alarm`, and
   `npm run rewind -- --seam <name>` for **every seam on the paths this

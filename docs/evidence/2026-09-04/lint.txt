@@ -1,4 +1,13 @@
-# npm run lint — started 2026-09-04T21:17:04Z
+# Purpose: Store npm run lint output for this head as evidence.
+# Why: AGENTS.md requires lint before every push; an artifact from an earlier head cannot
+#      prove the pushed head passed, and eslint prints nothing on success, so the recorded
+#      exit status is the only thing distinguishing a clean run from a run that never started.
+#      This header was destroyed by a refresh in 6de7232 and is restored here.
+# Info flow: eslint output -> this evidence file -> review and the proof tape.
+#
+# npm run lint — 2026-09-04T21:27:17Z
+# Run 4: /m/[mode] becomes a real mode page (PR #296 close-out).
+
 
 > meechies-coloringbook@0.1.0 lint
 > eslint .

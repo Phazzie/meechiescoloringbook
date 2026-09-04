@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T21:15:53.253Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T21:25:59.113Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -250,44 +250,59 @@ asserted one that had not happened.
   - **P2: the file was named into the pattern it was being counted against.** `rewind-exit-codes.txt`
     matches `rewind-*.txt`, so the directory held twenty files while this summary claimed nineteen —
     the artifact added to make the count checkable was the thing that falsified it. Renamed to
-    `seam-rewind-exit-codes.txt`, outside the pattern. `ls rewind-*.txt | wc -l` is 19 again.
+    `seam-rewind-exit-codes.md`, outside the pattern. `ls rewind-*.txt | wc -l` is 19 again.
   - **P2: the chronology predeclared the last command.** The paragraph said it was written at
     21:08:15Z "after every run above completed", listing `proof:tape` above it — but
     proof-tape.json's generatedAt was 21:08:36Z, twenty-one seconds later. The order is fixed below
     rather than the sentence reworded, because the sentence was describing an order that cannot
     exist: see the note after the list.
 
+## Round 8 — the Codex round on `6de7232`: three findings, one of them self-inflicted an hour ago
+
+  - **P1: the round-7 refresh destroyed the headers on lint.txt, build.txt and e2e.txt.** Those
+    three files carried full Purpose/Why/Info-flow prologues at `1dab4cf`. Re-capturing them with a
+    one-line `{ echo "# npm run lint — started ..."; npm run lint; }` overwrote the file, header
+    included, and I did not look at what I had replaced. **This happened in the same commit whose
+    second finding was a missing file header**, which is the clearest possible demonstration that
+    reading the rule is not the same as applying it to the file in front of you. Restored, with the
+    capture now writing the header explicitly so a refresh preserves it by construction rather than
+    by my remembering.
+  - **P1: the rewind summary was stored as .txt.** `docs/AGENTS.md` reserves `.txt` for raw terminal
+    dumps and requires summaries of validations to be Markdown. The file calls itself a summary in
+    its own header, so the rule applies by my own description of it. Now
+    `seam-rewind-exit-codes.md`, with the runs as a table and an HTML-comment header.
+  - **P2: the plan's Files entry collapsed all evidence into `docs/evidence/2026-09-04/`.** Every
+    path is now listed, split by what wrote it.
+
+**The consistency question this raises, stated rather than quietly skipped.** If a validation
+summary must be Markdown, this file — `verify-chain.txt` — is one too, and has been for every run in
+this directory and in 2026-09-03's. It is not renamed here, and the reason is not that the finding
+was scoped to the other file: `verify-chain.txt` is named in five `DECISIONS.md` entries, in a
+comment in `scripts/proof-tape.mjs`, and across dated evidence folders from earlier runs. Renaming
+it is a repository-wide convention change that would silently invalidate those references, which is
+a bigger decision than a close-out pull request should take on its own. It is recorded as a
+follow-up in WORST_TO_BEST_LOG.md instead. The other file was two commits old and mine alone.
+
 ## Ordering of this round's runs, recorded as they happened
 
-  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 21:15:53.253Z)
-  2. npm run lint              exit 0                     -> lint.txt
-  3. npm run build             exit 0                     -> build.txt
-  4. npx playwright test       28 passed                  -> e2e.txt
-  5. 19 rewind runs 21:18:11Z-21:18:47Z, each exit code appended as that run finished
-                                                          -> seam-rewind-exit-codes.txt
+  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 21:25:59.113Z)
+  2. npm run lint              exit 0, header restored    -> lint.txt
+  3. npm run build             exit 0, header restored    -> build.txt
+  4. npx playwright test       28 passed, header restored -> e2e.txt
+  5. 19 rewind runs, each exit code appended as that run finished
+                                                          -> seam-rewind-exit-codes.md
   6. npm run cipher:gate       exit 0    (not a chain stage; run standalone)
      npm run assumption:alarm  exit 0    (also chain stage 5; run standalone after the doc edits)
-  7. this section, including the evidence paragraph below
+  7. this section
   8. npm run proof:tape        LAST, so the tape inventories every file including this one
 
-**Why step 8 is last and why no sentence here claims to postdate it.** proof-tape inventories this
-directory, so it has to run after the files it lists — including this summary. That makes
-proof-tape.json's generatedAt necessarily *later* than this paragraph's timestamp, and there is no
-ordering in which a paragraph both postdates the tape and is seen by it. Round 6 tried to have it
-both ways and produced a false sentence. The rule that replaces it: **this file claims only steps
-1-6, each of which completed before it was written; step 8's own timestamp in proof-tape.json is the
-record that it ran, and it is supposed to be the newest thing in the folder.**
+Step 8 is last for the reason recorded under round 7: proof-tape inventories this directory, so it
+must run after the files it lists, and no paragraph here can both postdate it and be seen by it.
+This file therefore claims steps 1-6 only.
 
-Evidence on this head, read back from seam-rewind-exit-codes.txt and an `ls` of the directory rather
+Evidence on this head, read back from seam-rewind-exit-codes.md and an `ls` of the directory rather
 than recalled: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped, build exit 0,
 playwright 28 passed, verify exit 0 across all eight stages, cipher:gate exit 0, assumption:alarm
-exit 0, and 19 rewind runs recording exit code 0 against 19 files matching `rewind-*.txt`. Written
-after steps 1-6 and before step 8.
-
-**No hand-typed timestamp closes this file, and that is deliberate.** The first draft of the
-paragraph above ended "Written at 2026-09-04T21:19:30Z" — a time I typed while writing rather than
-read from a clock, and it landed *after* the proof-tape run it claimed to precede (generatedAt
-21:19:18.692Z). Three rounds of findings have now come from timestamps asserted instead of measured,
-so the ordering claim here is anchored to artifacts instead: proof-tape.json's generatedAt is the
-record of step 8, and because the tape inventories this file it is by construction later than this
-file's own mtime. Those two values are checkable with `stat` and `cat`; a sentence in prose is not.
+exit 0, and 19 rewind rows recording exit code 0 against 19 files matching `rewind-*.txt`. No
+hand-typed timestamp closes this file; proof-tape.json's generatedAt against this file's mtime is
+the checkable record of the ordering.

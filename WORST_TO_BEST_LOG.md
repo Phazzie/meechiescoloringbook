@@ -4630,3 +4630,63 @@ the application, which has been unchanged since `f81802d`. The shape has shifted
 naming: rounds 6-12 found stale claims about work already done, while three of these four are
 defects in the corrections themselves. Fixes need the same scrutiny as the things they fix, and I
 had been treating them as free.
+
+---
+
+## Run 4, correction 14 — 2026-09-04 — I destroyed three file headers in the commit that fixed a missing file header
+
+Appended, not edited. Three findings on `6de7232`: two P1, one P2.
+
+### 1. P1 — the round-13 refresh overwrote the headers on `lint.txt`, `build.txt` and `e2e.txt`
+
+Those three artifacts carried full Purpose/Why/Info-flow prologues at `1dab4cf`. I re-captured them
+with
+
+```sh
+{ echo "# npm run lint — started $(date -u ...)"; npm run lint; } > lint.txt
+```
+
+which replaces the file, header included. I never looked at what I was overwriting — `>` does not
+ask.
+
+**This happened in the same commit whose second finding was a missing file header.** I had just
+written, in the log, that AGENTS.md's File Header Requirement is unconditional; one command later I
+deleted three compliant headers to satisfy a freshness rule. Knowing a rule and applying it to the
+file under your cursor are different acts, and only the second one counts.
+
+Restored, and the capture now writes each header explicitly, so a future refresh preserves it by
+construction instead of by my remembering to.
+
+### 2. P1 — the rewind summary was `.txt` where `docs/AGENTS.md` requires Markdown
+
+`docs/AGENTS.md` reserves `.txt` for raw terminal dumps and requires summaries of validations to be
+Markdown. The file's own header calls it a summary, so the rule applies by my own description of it.
+It is now `seam-rewind-exit-codes.md`, the runs are a table, and the header uses Markdown comment
+syntax.
+
+### 3. P2 — the plan's Files entry was a directory placeholder
+
+`docs/evidence/2026-09-04/` is not a list of files, and `AGENTS.md` asks for exact paths so a plan
+can be audited against what was actually touched. Every artifact is now named, grouped by what wrote
+it: hand-written summaries, command captures, chain-generated outputs, and the nineteen rewind
+files.
+
+### The follow-up this raises, named rather than skipped
+
+If a validation summary must be Markdown, then `verify-chain.txt` is one too — and it has been
+`.txt` for every run in this evidence directory and in `2026-09-03/`. I did not rename it, and the
+reason is not that the finding was scoped elsewhere, which is the excuse the last two rounds were
+about. It is that `verify-chain.txt` is named in five `DECISIONS.md` entries, in a comment in
+`scripts/proof-tape.mjs`, and in earlier dated evidence folders; renaming it is a repository-wide
+convention change that would silently invalidate those references. **Follow-up 10: decide whether
+`verify-chain.txt` becomes `verify-chain.md` repo-wide, and if so update the DECISIONS.md
+references, the proof-tape comment, and the earlier folders in one deliberate change.** The other
+file was two commits old and mine alone, which is why it converted without ceremony.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3 — **forty-one findings across fourteen rounds**, none in
+the application, which has been unchanged since `f81802d`. Rounds 13 and 14 have both been mostly
+defects in the previous round's fixes. The pattern is now unmistakable: **I review the thing I am
+changing and not the change itself**, and a `>` redirect is exactly the kind of operation that
+destroys something you never read.
