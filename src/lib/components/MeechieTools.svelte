@@ -178,7 +178,13 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	 */
 	const resetPage = (): void => {
 		pageToken += 1;
+		// Both in-flight flags are released here, not just the page one. The staleness guards below
+		// deliberately stop an abandoned request from clearing a *newer* request's flag — which
+		// means the abandoned request clears nothing at all, so the reset has to do it. Without
+		// this, switching tools while `/api/tools` was pending left `isWorking` true forever and
+		// the verdict button disabled until a reload.
 		isGenerating = false;
+		isWorking = false;
 		generateError = '';
 		imagePreviews = [];
 		packagedFiles = [];

@@ -655,3 +655,29 @@ describe('findings from the review round on 9f4e503', () => {
 		expect(ColoringPageSpecSchema.safeParse(recipe.spec).success).toBe(true);
 	});
 });
+
+describe('beats split only where a beat actually starts', () => {
+	it('does not split at a prefix word occurring inside the prose', () => {
+		// `receipt:` here is part of the sentence, not the start of a beat. Splitting on it
+		// fragmented the verdict and relabelled the second half.
+		expect(
+			extractVerdictBeats('Fault: The receipt: proves he lied. Consequence: revoke access.')
+		).toEqual(['Fault: The receipt: proves he lied.', 'Consequence: revoke access.']);
+	});
+
+	it('still splits real beats, and still survives abbreviations', () => {
+		expect(
+			extractVerdictBeats('Fault: he lied. Consequence: no key. Move: change the locks.')
+		).toEqual(['Fault: he lied.', 'Consequence: no key.', 'Move: change the locks.']);
+		expect(extractVerdictBeats('Fault: Dr. Smith lied. Consequence: no access.')).toEqual([
+			'Fault: Dr. Smith lied.',
+			'Consequence: no access.'
+		]);
+	});
+
+	it('still splits beats given on their own lines', () => {
+		expect(
+			extractVerdictBeats('Fault: he lied.\nConsequence: no key.\nMove: change the locks.')
+		).toEqual(['Fault: he lied.', 'Consequence: no key.', 'Move: change the locks.']);
+	});
+});

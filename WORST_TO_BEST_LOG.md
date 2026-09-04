@@ -1419,3 +1419,50 @@ check on the selected tool.
 
 Six review rounds, 37 findings. Two refused with measurements, thirty-five fixed. Nine were real
 user-visible defects that a suite green at every step did not catch.
+
+---
+
+## Run 2, sixth close-out — 2026-09-04 — the Codex round on `5430fae`
+
+Three findings, all real. The first is the fifth time a fix in this run created the next defect, and
+it is the most user-visible of the lot.
+
+### The guard that locked the button
+
+The previous round added a staleness guard to `handleGenerate`'s `finally`, so an abandoned verdict
+request could not clear a *newer* request's `isWorking`. Correct as far as it goes — and it meant the
+abandoned request cleared **nothing**. `resetPage` released `isGenerating` but not `isWorking`, and
+the verdict button is `disabled={isWorking}`. So switching tools while `/api/tools` was in flight
+left the button disabled **forever**; the only recovery was reloading the page.
+
+The fix is one line in `resetPage`: release both flags there, because that is the code that knows
+the request has been abandoned. Red-proofed — removing it fails the new end-to-end test with
+`locator resolved to <button disabled ...>`.
+
+**Five rounds, five defects created by the preceding fix.** The through-line is not carelessness
+about the fix itself; each one was correct about the thing it was fixing. It is that a guard added
+in one place silently moves a responsibility somewhere else, and the somewhere else was never
+checked. "Who used to do this, and who does it now?" is the question that would have caught all
+five.
+
+### Footer provenance was gated on the wrong flag
+
+`includeFooter` was derived as `restoredPageLayout ? spec.footerItem !== undefined : true`. But a
+structured toolkit page saves as a **`list`** with no footer, and `restoredPageLayout` is only true
+for `title_only` — so after a refresh the gate read false and a duplicate-title footer was added to
+a page that never had one. Reading `spec.footerItem !== undefined` unconditionally is both simpler
+and correct for either origin, because every studio-authored spec has a footer and no toolkit list
+page does. The flag was never the right source for this.
+
+### The prefix split fired inside the prose
+
+Last round's prefix-boundary split was unanchored, so a recognized word plus a colon *inside* a beat
+started a new one: `Fault: The receipt: proves he lied. Consequence: revoke access.` split at
+`receipt:` and relabelled the second half. The lookahead is now anchored to a sentence end, which
+keeps both earlier cases working — the abbreviation case (`Fault: Dr. Smith lied.`) and multi-beat
+single lines — and stops the prose case.
+
+```
+before: ["Fault: The ", "receipt: proves he lied. ", "Consequence: revoke access."]
+after:  ["Fault: The receipt: proves he lied.", "Consequence: revoke access."]
+```

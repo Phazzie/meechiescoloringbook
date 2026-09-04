@@ -394,9 +394,12 @@ export class StudioState {
 			// Keep the layout only while this is still the reopened page. For anything the studio
 			// authored, and for every fresh verdict, this is 'list'.
 			listMode: this.restoredPageLayout ? this.spec.listMode : 'list',
-			// A toolkit page carries no footer; a studio page always does. Preserve whichever the
-			// page being edited actually has rather than re-adding one to a reopened list page.
-			includeFooter: this.restoredPageLayout ? this.spec.footerItem !== undefined : true
+			// Footer provenance comes from the spec itself, not from `restoredPageLayout`. A
+			// structured toolkit page is saved as a `list` with no footer, so gating this on the
+			// quote-layout flag missed it entirely after a refresh and re-added a duplicate-title
+			// footer the saved page never had. Every studio-authored spec has a footer, so reading
+			// the spec is both simpler and correct for both origins.
+			includeFooter: this.spec.footerItem !== undefined
 		});
 		await this.validateSpec();
 		this.scheduleDraftSave();

@@ -574,6 +574,41 @@ test('editing the dedication drops the page it was not generated with, and drift
 });
 
 
+test('switching tools during a pending verdict does not wedge the button', async ({ page }) => {
+	// The staleness guards stop an abandoned request from clearing a newer request's flag — which
+	// means the abandoned request clears nothing, so the tool switch has to release `isWorking`
+	// itself. Without that, the verdict button stayed disabled until a page reload.
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	let firstToolsCall = true;
+	await page.route('**/api/tools', async (route) => {
+		const body = route.request().postDataJSON() as { toolId?: string };
+		if (firstToolsCall) {
+			firstToolsCall = false;
+			await held;
+		}
+		await route.fulfill({ json: toolPayload(body.toolId ?? 'unknown') });
+	});
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-red_flag_or_run').click();
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-generate')).toBeDisabled();
+
+	// Switch tools while the first verdict request is still in flight.
+	await page.getByTestId('meechie-tool-clapback').click();
+	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
+
+	// The abandoned response must not re-disable it, and the new tool must still work.
+	release();
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-output')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
+});
+
+
 test('a structured verdict prints as a numbered list page, an unstructured one as a quote', async ({
 	page
 }) => {

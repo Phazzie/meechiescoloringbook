@@ -220,7 +220,13 @@ const splitBeatLines = (response: string): string[] => {
 		.map((line) => line.replace(/\s+/g, ' ').trim())
 		.filter((line) => line.length > 0);
 	return lines
-		.flatMap((line) => line.split(/(?=\b(?:fault|consequence|move|verdict|receipt) ?:)/i))
+		// Split only where a prefix *starts a beat*: at the beginning of the line, or after a
+		// sentence end. An unanchored lookahead also fired on a prefix word appearing inside the
+		// prose — `Fault: The receipt: proves he lied.` split at `receipt:` and relabelled the
+		// verdict — while still needing to avoid splitting at abbreviations like `Dr.`
+		.flatMap((line) =>
+			line.split(/(?<=[.!?] )(?=\b(?:fault|consequence|move|verdict|receipt) ?:)/i)
+		)
 		.map((part) => part.trim())
 		.filter((part) => part.length > 0);
 };
