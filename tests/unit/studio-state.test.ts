@@ -10,6 +10,23 @@ import {
 import { StudioState } from '../../src/routes/studio-state.svelte';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
 import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-text.contract';
+import type { Wig } from '../../src/lib/seams/wig-catalog-seam/contract';
+
+const SAMPLE_WIG: Wig = {
+	id: 'wig-1',
+	name: 'Sample Wig',
+	brand: 'Sample Brand',
+	affiliateProgram: 'beautyforever',
+	affiliateUrl: 'https://example.com/wig-1',
+	imageUrl: 'https://example.com/wig-1.jpg',
+	priceUsd: 100,
+	style: 'straight',
+	hairType: 'synthetic',
+	length: 'medium',
+	color: 'black',
+	colorFamily: 'black',
+	tags: []
+};
 
 const LEGACY_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	verdict: 'Meechie already clocked it.',
@@ -201,6 +218,23 @@ describe('StudioState', () => {
 		expect(studio.textOutput).toEqual(DEFAULT_STUDIO_TEXT_OUTPUT);
 	});
 
+	it('preserves a previously generated coloring page when the already-active mode card is reselected', () => {
+		const studio = new StudioState();
+		studio.images = [
+			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
+		];
+		studio.packagedFiles = [
+			{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
+		];
+		studio.assembledPrompt = 'assembled prompt';
+
+		studio.handleModeSelect(studio.activeModeId);
+
+		expect(studio.images).not.toEqual([]);
+		expect(studio.packagedFiles).not.toEqual([]);
+		expect(studio.assembledPrompt).toBe('assembled prompt');
+	});
+
 	it('clears a previously generated page when a saved creation is loaded', async () => {
 		const studio = new StudioState();
 		studio.images = [
@@ -278,6 +312,25 @@ describe('StudioState', () => {
 		expect(studio.tryOnPortraitUrl).toBe('data:image/png;base64,ZmFrZQ==');
 
 		vi.unstubAllGlobals();
+	});
+
+	it('preserves the current try-on portrait and coloring page when the already-selected wig card is reselected', async () => {
+		const studio = new StudioState();
+		studio.selectedWigId = SAMPLE_WIG.id;
+		studio.selectedWig = SAMPLE_WIG;
+		studio.tryOnPortraitUrl = 'data:image/png;base64,ZmFrZQ==';
+		studio.images = [
+			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
+		];
+		studio.packagedFiles = [
+			{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
+		];
+
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+
+		expect(studio.tryOnPortraitUrl).toBe('data:image/png;base64,ZmFrZQ==');
+		expect(studio.images).not.toEqual([]);
+		expect(studio.packagedFiles).not.toEqual([]);
 	});
 
 	it('previews a JPEG try-on portrait with the IANA image/jpeg media type', async () => {

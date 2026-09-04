@@ -389,15 +389,18 @@ export class StudioState {
 		this.textError = '';
 		if (modeChanged) {
 			this.textOutput = null;
+			this.resetGeneratedPage();
 		}
-		this.resetGeneratedPage();
 		this.scheduleDraftSave();
 	};
 
 	selectWigForTryOn = async (wig: Wig): Promise<void> => {
+		const wigChanged = wig.id !== this.selectedWigId;
 		this.selectedWigId = wig.id;
 		this.selectedWig = wig;
-		this.resetTryOnResultState();
+		if (wigChanged) {
+			this.resetTryOnResultState();
+		}
 		await this.syncSpecFromCurrentText();
 	};
 
