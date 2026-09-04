@@ -1466,3 +1466,103 @@ single lines — and stops the prose case.
 before: ["Fault: The ", "receipt: proves he lied. ", "Consequence: revoke access."]
 after:  ["Fault: The receipt: proves he lied.", "Consequence: revoke access."]
 ```
+
+---
+
+## Run 2, close-out — 2026-09-04 — the gate
+
+The code was finished at `758dc38`. What was left was proving it, and for a little over two hours
+that was not possible, for a reason that had nothing to do with this branch.
+
+### npm's audit endpoint went down, and it is the first stage of the chain
+
+`npm run verify` starts with `audit:gate` (`npm audit --audit-level=high`). From roughly 07:00Z it
+failed on every attempt:
+
+```
+npm warn audit 503 Service Unavailable - POST
+https://registry.npmjs.org/-/npm/v1/security/audits/quick - Service Unavailable
+```
+
+Everything about the shape of the failure said npm, not us. The registry root answered `200` in
+0.074s the whole time; only the audit endpoint was refusing. The same failure took down the `verify`
+check on CI, so it reproduced on both sides of the network. The strongest single piece of evidence
+was accidental: this repo's workflow runs `on: [push, pull_request]`, so every head gets two
+identical `verify` jobs — and on `9f4e503` those two **disagreed**, one `success` and one `failure`,
+on byte-identical code. A check that returns different answers for the same input is not measuring
+the input.
+
+### What I did not do
+
+I did not add `--no-audit`. I did not swap the gate for the bulk advisory endpoint. I did not raise
+`--audit-level` to squeeze past. Any of those would have produced a green chain and a committed
+evidence file describing a command the repo does not run, which is worse than no evidence, because
+it is evidence that lies. The failure mode `AGENTS.md` is built to prevent is exactly a proof that
+was easier to obtain than the thing it claims to prove.
+
+I also did not merge on the gate I could not run. The temptation was real — every other signal was
+green and had been for hours — but "everything else passed" is an argument for expecting the gate to
+pass, not a substitute for running it.
+
+### What I did instead
+
+Retrying the real command cost about seven minutes per attempt, almost all of it npm's internal
+fetch retries against a dead endpoint. So I separated the probe from the proof: a cheap poller with
+`npm_config_fetch_retries=0`, which fails in ~0s when the endpoint is down, checked every 10 seconds,
+and the moment it got an answer it fired the **unmodified** `npm run verify`. The probe was
+throwaway; the proof was the real command with the repo's real settings.
+
+The endpoint answered on probe 25 at **09:17:44Z**. The chain completed clean at **09:19:15Z**,
+exit 0, all eight stages.
+
+### The evidence, regenerated in gate order
+
+`proof-tape.mjs` marks any evidence file older than that run's `chamber-lock.json` as
+`PREDATES THIS VERIFY RUN`, and four of the files in the folder are hand-written — nothing in the
+chain regenerates `lint.txt`, `build.txt`, `e2e.txt` or `verify-chain.txt`. So order matters: the
+chain first, because it writes the run marker; then the hand-written files, so they are newer than
+it; then `npm run proof:tape` last, to take the inventory.
+
+```
+npm run verify    exit 0   audit gate: found 0 vulnerabilities; all eight stages
+npm run check     0 errors, 0 warnings
+npm run test      1094 passed | 1 skipped
+npm run lint      exit 0, clean
+npm run build     exit 0
+npm run test:e2e  13 passed
+```
+
+The tape now flags exactly one file, `cipher-gate.json`, and that is the correct answer: it sits
+outside the verify chain and no seam changed in this PR.
+
+### Rosentic, for the record
+
+Eighty-three findings across the run, all of one class: "branch X removed these parameters, and your
+branch calls with them, so a merge would break." Every named branch is unmerged and none is `main`.
+Merging this PR merges it into `main`, not into those branches. Several of the suggested fixes would
+have broken this branch on contact — `registerInitialized(new StudioState())` in
+`tests/unit/studio-state.test.ts` is called against the helper defined in that same file, on this
+branch, and removing the argument as instructed makes it fail to compile. The refutation each time
+was `git diff origin/main HEAD` producing no output for the calls in question. Rosentic's own check
+status is `success`, which is the tell: the prose is speculative, and the check knows it.
+
+### The final count
+
+Nine review rounds, 41 findings against the code. Two refused with measurements, thirty-nine fixed,
+eleven of them real user-visible defects. Plus five findings refused with cited precedent in the
+existing codebase, and the Rosentic class above.
+
+Three corrections I made to my own claims, each in the open rather than quietly:
+
+- I overstated a ReDoS finding twice — first the blowup itself (the initial probe used the wrong
+  input shape and measured 0ms; the real one needs a trailing character `.` cannot match, and hits
+  4473ms at n=2000), then its reachability (it was not reachable through the public entry point,
+  because `splitResponseLines` trims first).
+- An evidence block I wrote claimed `npm run verify` exit 0 while `verify-chain.txt` committed
+  beside it recorded the audit gate failing. Corrected in place.
+- Commit `758dc38`'s message says 1096 tests; the actual number is 1094. Corrected on the PR rather
+  than by rewriting history.
+
+The pattern worth keeping from this run is the one from the sixth close-out, and it explains the
+corrections too: a claim made from reading is a hypothesis, and the difference between a good run
+and a bad one is whether you measure it before you say it out loud.
