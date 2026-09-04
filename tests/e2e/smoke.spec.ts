@@ -983,3 +983,119 @@ test('an unreadable generated image does not replace the page already on screen'
 	await expectPageOnScreen(page);
 	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
 });
+
+test('a focused mode page turns its verdict into a coloring page', async ({
+	page
+}) => {
+	// The whole reason this page was rebuilt. `/m/<slug>` is the only page five of the eight modes
+	// have, and every focused-mode link on the home page lands here. It used to stop at the verdict:
+	// no page, no download, no vault, in an app whose one purpose is printable coloring pages.
+	await gotoHydrated(page, '/m/who-fucked-up');
+
+	// The fields start empty and the button stays refused until the reader writes something. The
+	// page used to ship every field pre-filled with invented drama, so this button was always live
+	// and always returned a real verdict about a fiction nobody had written.
+	await expect(page.getByTestId('mode-field-situation')).toHaveValue('');
+	await expect(page.getByTestId('mode-submit')).toBeDisabled();
+
+	await page.getByTestId('mode-field-situation').fill('He went quiet for a week.');
+	await expect(page.getByTestId('mode-submit')).toBeEnabled();
+	await page.getByTestId('mode-submit').click();
+	await expect(page.getByTestId('mode-result')).toContainText('Fault: them');
+
+	await page.getByTestId('verdict-page-dedication').fill('For the group chat');
+	await page.getByTestId('verdict-page-generate').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('verdict-page-download').first()).toBeVisible();
+
+	await page.getByTestId('verdict-page-save-vault').click();
+	await expect(page.getByTestId('verdict-page-vault-status')).toContainText(
+		'Saved to the vault'
+	);
+
+	// It reaches the same vault the home page reads, not a private one.
+	await gotoHydrated(page, '/');
+	await expect(page.getByTestId('home-vault-load')).toBeVisible();
+});
+
+test('a mode with no input, and a mode with two, both reach a page', async ({
+	page
+}) => {
+	// Random Meechie asks nothing, so its submit must be live on arrival; Receipt Check asks two
+	// questions and must not be satisfied by one. Both are shapes the single-field path would pass
+	// by accident.
+	await gotoHydrated(page, '/m/random');
+	await expect(page.getByTestId('mode-submit')).toBeEnabled();
+	await Promise.all([
+		page.waitForResponse('**/api/tools'),
+		page.getByTestId('mode-submit').click()
+	]);
+	await expect(page.getByTestId('mode-result')).toContainText(
+		'story keeps changing'
+	);
+	await page.getByTestId('verdict-page-generate').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+
+	await gotoHydrated(page, '/m/receipt-check');
+	await expect(page.getByTestId('mode-submit')).toBeDisabled();
+	await page.getByTestId('mode-field-claim').fill('I never said that.');
+	await expect(page.getByTestId('mode-submit')).toBeDisabled();
+	await page.getByTestId('mode-field-reality').fill('Said it in the group chat.');
+	await expect(page.getByTestId('mode-submit')).toBeEnabled();
+	await page.getByTestId('mode-submit').click();
+	await expect(page.getByTestId('mode-result')).toContainText('Fault: them');
+});
+
+test('walking from one mode to another does not carry the first verdict over', async ({
+	page
+}) => {
+	// SvelteKit reuses one component instance across parameter changes on the same route, and the
+	// mode page owns a `VerdictPageState` built once per instance. Without the `{#key}` in
+	// `/m/[mode]/+page.svelte` the clapback verdict stays on screen under Receipt Check's title and
+	// the page it made still downloads as `meechie-clapback-*.pdf`.
+	//
+	// The navigation has to be a *client-side* one for that reuse to happen at all: a fresh
+	// `page.goto` builds a new document and would pass with or without the key. So this walks the
+	// "Ask her something else" link, which is the real in-app route between two modes.
+	await gotoHydrated(page, '/m/clapback');
+	await page.getByTestId('mode-field-comment').fill("She said I'm doing too much.");
+	await page.getByTestId('mode-submit').click();
+	await expect(page.getByTestId('mode-result')).toContainText('Fault: them');
+
+	// Mark the document. If the click turns out to be a full page load the mark is gone, and this
+	// test would be proving nothing again — which is exactly how its first version passed with the
+	// key deleted.
+	await page.evaluate(() => {
+		(window as unknown as { __sameDocument?: true }).__sameDocument = true;
+	});
+
+	await page.getByTestId('mode-link-receipt-check').click();
+	await expect(page).toHaveURL(/\/m\/receipt-check$/);
+	expect(
+		await page.evaluate(
+			() => (window as unknown as { __sameDocument?: true }).__sameDocument
+		)
+	).toBe(true);
+
+	await expect(page.getByTestId('mode-result')).toHaveCount(0);
+	await expect(page.getByTestId('mode-field-claim')).toHaveValue('');
+	await expect(page.getByTestId('mode-submit')).toBeDisabled();
+});
+
+test('a slug that names no mode is a 404, not a different mode', async ({
+	page
+}) => {
+	// Every unrecognised slug used to render Random Meechie and answer 200, so a typo served a
+	// different mode's page under the requested URL with nothing on screen to say so.
+	const response = await page.goto('/m/not-a-real-mode', {
+		waitUntil: 'domcontentloaded'
+	});
+	expect(response?.status()).toBe(404);
+	await expect(page.getByTestId('error-message')).toContainText('not-a-real-mode');
+	// The error page offers the modes that do exist rather than dead-ending.
+	await expect(page.locator('a[href="/m/who-fucked-up"]')).toBeVisible();
+
+	// An older slug that used to work still works, and resolves to the canonical mode.
+	await gotoHydrated(page, '/m/rate-his-excuse');
+	await expect(page.getByTestId('mode-field-excuse')).toBeVisible();
+});

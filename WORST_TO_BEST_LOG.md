@@ -3430,3 +3430,169 @@ repository to state something unmeasured, because it is prose, it is about the p
 expects it to be checkable. It was checkable. It was checked, and it was wrong.
 
 The next run should assume its own close-out is the least-verified document it will write.
+
+---
+
+## Run 4 — 2026-09-04 — The focused mode pages (`/m/<slug>`)
+
+**Branch:** `claude/great-bell-sntvn9`
+
+### The feature, and why it was the worst
+
+`/m/[mode]` is the app's focused single-mode page. There is one for every mode in `studioModes`,
+and `StudioHero.svelte:79` renders a link to it for every weekly mode, inside
+`<nav class="focused-mode-links">` on the home page — the most-visited page in the app.
+
+It was the worst feature because of what it is the *only* route to. The site header links to
+`/who-fucked-up`, `/rate-his-excuse`, `/random` and `/meechie`. Three modes therefore have a
+standalone route, which run 3 rebuilt into full coloring-page factories. **The other five —
+Apology Autopsy, Receipt Check, Clapback Card, Caption Drop and Meechie Move — have no route but
+`/m/<slug>`.** For those five, this page was the whole feature, and it could not do the one thing
+the app exists to do.
+
+Concretely, on `main` at `210b301`:
+
+1. **It could not make a coloring page.** `MeechieModePage.svelte` ended at
+   `{#if output}<h2>{output.headline}</h2><pre>{output.response}</pre>{/if}`. No generation, no
+   preview, no download, no vault, no dedication, no drift report. The home page's own hero copy
+   promises "Tell Meechie what happened, get the verdict and quote, then turn it into a printable
+   coloring page." This page did the first half and structurally could not do the second — in an
+   app whose entire product is printable coloring pages.
+2. **It had no styling at all.** The 123-line component contained no `<style>` block and no class
+   that any other stylesheet targeted. In an app that sets a dark palette, three custom fonts and a
+   full glam treatment on `body`, this page rendered as raw browser defaults: an unstyled
+   `<textarea>`, an unstyled `<button>`, and the verdict in a monospace `<pre>` that does not wrap —
+   so on a phone a long verdict ran off the side of the screen with no way to read the end of it.
+3. **Every field arrived pre-filled with invented drama.** `fields` was initialised to eight
+   hardcoded strings: `situation: 'He said he was working late, but I saw him in the club.'`,
+   `apology: "I'm sorry you feel that way."`, and so on. Because every field was always non-empty,
+   `MeechieToolInputSchema.safeParse` could never fail, so the "Please complete the required fields"
+   branch was unreachable and the button was always live. A reader landing from the home page and
+   pressing it got a real, paid-for verdict about a fiction they had never written.
+4. **An unknown slug silently served a different mode.** `config = modeConfigs[data.mode] ?? randomConfig`.
+   `/m/typo`, `/m/who-fucked`, `/m/anything` all answered **200** with Random Meechie's page under
+   the address the reader had asked for, with nothing on screen saying so — indistinguishable, from
+   their side, from the mode having been renamed.
+5. **The route's mode map was a second hand-written copy of `studioModes`.** Thirteen entries
+   restating titles, sub-heads and button text that `src/lib/core/meechie-studio.ts` already owned.
+   The two lists had to agree for the home page's links to land on the right page, and **nothing
+   checked that they did.** They happened to agree on `main`; a mode added to `studioModes` alone
+   would have got a working-looking home-page link to a page silently showing Random Meechie.
+6. **It was the last Svelte 4 component in a Svelte 5 app** — `export let config`, `on:click`,
+   `$:`, plain `let` for reactive state — and it had **zero test coverage**, unit or end-to-end.
+
+Runners-up considered and passed over: the **wig try-on**, which run 1 also passed over, and
+correctly — it has its own styling, error surfacing, a download and a "Make It a Coloring Page"
+button, so it is a complete feature. And the **`/m/[mode]` versus standalone-route duplication**,
+which is real but is a consolidation, not a rebuild; see the follow-ups.
+
+### Plan (per `AGENTS.md` "Plan + Self-Critique")
+
+Recorded in `plan.md` as the current active plan before any code was written.
+
+- **Goal:** `/m/[mode]` becomes a full coloring-page factory equal to the three standalone routes.
+- **Seams touched: none.** `VerdictPageState` already reaches `MeechieToolSeam`,
+  `SpecValidationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`, `SessionSeam` and `ClockSeam`
+  through adapters that already exist, exactly as the three standalone routes do, and
+  `buildToolPageRecipe` already covers all eleven tool ids. Nothing under `contracts/`, `probes/`,
+  `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or `src/lib/seams/` is in the diff.
+- **Files:** `src/lib/core/mode-catalog.ts` (new), `src/lib/components/meechie-mode-config.ts`
+  (deleted), `src/lib/components/MeechieModePage.svelte`, `src/routes/m/[mode]/+page.svelte`,
+  `src/routes/m/[mode]/+page.ts`, `src/routes/+error.svelte` (new),
+  `tests/unit/mode-catalog.test.ts` (new), `tests/e2e/smoke.spec.ts`, plus the governance docs.
+
+### Self-critique, and what it changed
+
+- *Riskiest assumption:* that one generic component can serve eight modes without losing the
+  per-mode character. The answer was to stop hand-writing that character twice. The catalog is
+  **derived from `studioModes`** — title from `label`, sub-head from `help`, button from `cta` —
+  so the home page's links and the mode pages agree by construction rather than by coincidence, and
+  a test asserts every `studioModes` id resolves. Adding a mode now yields its card, its home-page
+  link and its `/m/` page in one edit.
+- *The 404 is a behaviour change, and behaviour changes break links.* Every slug the old
+  hand-written map accepted — `rate-his-excuse`, `apology-translator`, `receipts`, `caption-this`,
+  `what-would-meechie-do` — is kept as an alias and asserted by test, so the change reaches typos
+  only. Aliases resolve to the **canonical** slug, because the slug becomes the download filename
+  stem and an alias must not leak into it.
+- *The defect the rebuild would introduce that the old page could not have:* SvelteKit reuses one
+  component instance across parameter changes on the same route, and `MeechieModePage` owns a
+  `VerdictPageState` built once per instance. Walking between two modes would leave the first
+  mode's verdict on screen under the second mode's title, and the page it made would still download
+  as the first mode's filename. The old page had nothing worth carrying, so this is genuinely new.
+  Fixed with `{#key config.slug}` — and the test for it is the most instructive thing in this run;
+  see below.
+
+### What shipped
+
+- Every focused mode page makes a coloring page: dedication, generate, drift report, preview, PDF
+  and PNG downloads, and a save that reaches the same Quote Vault the home page reads. All of it by
+  sharing `VerdictPageState` and `VerdictPageStudio` with the three standalone routes, so a fix to
+  any of them still lands everywhere at once.
+- The page is styled to match the standalone mode routes, and the verdict renders as prose with
+  `white-space: pre-line` — which keeps the newline structure the tool prompts ask for
+  ("Fault:" / "Consequence:" / "Move:") while dropping the monospace and the refusal to wrap.
+- Fields start empty; the examples became placeholders; the button is refused until every question
+  the mode asks has been answered. Random Meechie, which asks nothing, is ready on arrival — stated
+  deliberately in `isModeInputComplete` rather than left to fall out of a vacuous `every`.
+- An unknown slug is a real 404 with a styled error page listing every mode that does exist. The
+  app had **no error page at all** before this, so every failure anywhere in it fell through to
+  SvelteKit's unstyled black-on-white default.
+- Each mode page links to the other modes, so finishing one no longer dead-ends at the home page.
+- 14 unit tests for the catalog, 4 end-to-end tests for the page.
+
+### The test that proved nothing, and how it was caught
+
+The `{#key}` guard was written, an end-to-end test was written for it, and the test was then run
+**with the key deleted**. It passed.
+
+The test navigated between modes with `page.goto`, which builds a fresh document — and component
+reuse across parameter changes only happens on *client-side* navigation. The test exercised the
+guard's subject without ever reaching its precondition, and would have certified the key as
+load-bearing while proving nothing about it.
+
+The honest version had nowhere to click: **no link anywhere in the app went from one `/m/` page to
+another**, so the failing input was not reachable through the interface at all. That is a finding
+about the app, not a licence to simulate the navigation — so the "Ask her something else" row of
+links exists, which the page wanted anyway for the five modes that have no other entry point. The
+test now walks a real link, marks the document, and asserts the mark survives the click, so it
+fails if the navigation ever stops being client-side. With the key deleted it now fails on
+`mode-result` count 1 — the clapback verdict surviving into Receipt Check.
+
+This is the fourth time in this repository that a mutation has exposed a test proving less than it
+claimed, and the first where the fix required adding a feature to make the defect reachable.
+
+### Evidence
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm run lint`: clean, exit 0.
+- `npm test`: **1187 passed, 1 skipped** (baseline on `main` at `210b301`: 1173 passed, 1 skipped).
+- `npm run build`: exit 0.
+- `npx playwright test`: **26 passed** (baseline: 22).
+- `npm run verify`: exit 0, all eight stages, audit gate found 0 vulnerabilities. Evidence refreshed
+  in `docs/evidence/2026-09-04/`; `cipher-gate.json` is the only file marked as predating the run,
+  which is correct — no seam artifact is in the diff.
+- Both guards proven by deletion, not by reading: removing a mode's field definition fails the
+  coverage test with `no mode page for clapback`, and restoring the old
+  `?? randomConfig` fallback fails the not-found test.
+
+**A note for a future run on the e2e browser here.** This container ships Chromium build 1194 while
+the pinned `@playwright/test` resolves 1208, and `npx playwright install` is not available. The
+suite runs after symlinking the 1208 headless-shell path to the installed 1194 binary.
+`playwright.config.ts` is deliberately **not** in the diff — the mismatch is an environment fact,
+not a repository defect, and CI resolves its own browser normally.
+
+### Deliberately not done (for a future run)
+
+- **`/m/<slug>` and the three standalone routes are still two implementations of the same three
+  modes.** After this change both are full factories sharing `VerdictPageState` and
+  `VerdictPageStudio`, so the duplication is down to hero copy and per-route art — but it is still
+  two files per mode and two nav paths to the same thing. Consolidating is a real change with a
+  real question inside it (do the standalone routes keep their bespoke heroes, or does `/m/` grow
+  per-mode art?), and it is a consolidation rather than a rebuild.
+- The four follow-ups run 3 handed forward are untouched and still stand: `MeechieTools.svelte`'s
+  private copy of the orchestration; `fixesApplied` written from `recommendedFixes` and never read;
+  `createdAtISO` crossing `ClockSeam` in only one of three call sites; and record-id generation
+  crossing no seam anywhere.
+- `src/lib/core/meechie-studio.ts` reads `new Date()` directly in `getMonthKey`, outside
+  `ClockSeam`, which decides which mode is featured. Noticed while deriving the catalog from
+  `studioModes`; out of scope for a run that touched no seam, and it belongs with follow-up 3 above.

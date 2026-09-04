@@ -8,6 +8,62 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## `/m/[mode]` becomes a real mode page (2026-09-04)
+
+Active plan for run 4 of the scheduled "worst feature -> best feature" task recorded in
+`WORST_TO_BEST_LOG.md`. Supersedes the plans below as the current active plan.
+
+### Plan
+
+- **Goal:** `/m/[mode]` — the only page five of the eight modes have, and the destination of every
+  focused-mode link on the home page — stops dead-ending at a verdict and becomes a full
+  coloring-page factory equal to the three standalone routes.
+- **Exact seam names: none changed.** `VerdictPageState` already consumes `CreationStoreSeam`,
+  `OutputPackagingSeam`, `SessionSeam` and `ClockSeam` through adapters that already exist, exactly
+  as `/who-fucked-up`, `/rate-his-excuse` and `/random` do. `buildToolPageRecipe` already covers all
+  eleven tool ids, so every mode has a recipe waiting for it. No contract, mock, fixture, probe or
+  adapter is touched.
+
+**Files:**
+- `src/lib/core/mode-catalog.ts` (new) — the pure mode catalog: field definitions and tool-input
+  builders keyed by `toolId`, the catalog derived from `studioModes`, alias slugs, and
+  `resolveModeSlug`.
+- `src/lib/components/meechie-mode-config.ts` — deleted; its two types move into the catalog.
+- `src/lib/components/MeechieModePage.svelte` — rebuilt on runes, `VerdictPageState` and
+  `VerdictPageStudio`.
+- `src/routes/m/[mode]/+page.svelte`, `src/routes/m/[mode]/+page.ts` — resolve the slug in `load`,
+  404 on an unknown one, and key the component on the slug.
+- `src/routes/+error.svelte` (new) — a styled error page, so the 404 is not SvelteKit's default.
+- `tests/unit/mode-catalog.test.ts` (new), `tests/e2e/smoke.spec.ts`.
+- `CHANGELOG.md`, `CLAUDE.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+`npx playwright test`.
+
+### Self-critique
+
+- *Riskiest assumption:* that one generic component can serve all eight modes without the
+  per-mode character the standalone routes have. It cannot be taken on trust, and the answer is to
+  stop hand-writing the character twice: `studioModes` already holds a label, help line, call to
+  action and placeholder for every mode, and the route map was a second hand-maintained copy of the
+  same strings. Deriving the catalog from `studioModes` makes the two agree by construction. This is
+  not cosmetic — the two lists must already agree for the home page's links to work, and nothing
+  checked that they did. A test asserts every `studioModes` id resolves.
+- *What must be proven, not assumed:* that navigating from `/m/a` to `/m/b` does not carry mode a's
+  verdict into mode b. SvelteKit reuses one component instance across parameter changes on the same
+  route, so `new VerdictPageState({ fileBaseSlug })` would keep the first mode's slug and its
+  verdict. This is the one defect the rebuild would *introduce* that the old page could not have,
+  because the old page had nothing worth carrying. Keyed on the slug, and covered by an end-to-end
+  test that walks between two modes.
+- *What could be wrong:* the 404. Today every unknown slug silently renders Random Meechie, so
+  `/m/typo` answers 200 with the wrong mode. Returning 404 is honest but is a behaviour change, so
+  every alias currently in the route map is kept in the catalog and asserted by test — the change
+  must reach typos only, never a link that works today.
+- *A hole I am not leaving open:* removing the pre-filled inputs is what makes the submit guard
+  matter. Today every field ships with fabricated drama already typed in, so validation never fails
+  and the button always returns a verdict about somebody else's fiction. Placeholders replace them,
+  and the button is disabled until the user has actually written something.
+
 ## Meechie's Tools becomes a page factory (2026-09-04)
 
 Active plan for run 2 of the scheduled "worst feature -> best feature" task recorded in
