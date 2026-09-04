@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T21:50:28.360Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T22:02:45.267Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -333,26 +333,58 @@ Two findings, and both are about proof that looks like proof.
     is removed; what the run legitimately shows is that an unrelated earlier entry's evidence has
     not gone missing.
 
+## Round 11 — the Codex round on `e8bb390`: the repaired validation plan was still unexecutable
+
+Three findings, two P1. The two P1s are both about the plan written *in response to round 10*, which
+means round 10's repair was itself wrong — the third round running in which a fix needed fixing.
+
+  - **No captured success can reach the mock.** `fixtures.ts` exports a *request* and a fault and
+    nothing else; `mock.ts:10` imports only the fault and its `sample` scenario synthesises an SVG
+    through `buildSvg` rather than replaying a provider response; `tests/contract/
+    image-generation.test.ts:32` uses its own hard-coded `xaiSampleResponse`. So "transcribe the
+    captures into fixtures.ts" — round 10's repair — had nowhere to put a captured success.
+  - **The probe cannot capture a live fault at all.** It throws on any non-2xx (`:138-148`), so a
+    real provider failure aborts the run rather than being recorded, and the `fault.json` it writes
+    afterwards on the *success* path is a hard-coded `PROMPT_MISSING_REQUIRED_PHRASES` (`:224`) —
+    a different code from the canonical `IMAGE_HTTP_ERROR` fixture (`fixtures.ts:15`).
+  - **P2: the command list omitted the standalone `npm run proof:tape`**, which is the
+    ordering-sensitive final step this very file documents. Added, with the reason.
+
+**The waiver's Validation field now says BLOCKED rather than offering a third plan.** Three review
+rounds produced three unexecutable plans; the honest reading is that no plan expressible in
+documentation can validate this waiver, because the seam's refresh path needs three code changes
+first. Those are enumerated in the entry and recorded as follow-up 9. The waiver rests on the
+diff-unchanged argument alone, which is a weaker position than it looked two rounds ago and is now
+stated as such.
+
+**One thing this round's edit broke, caught by the gate rather than by me.** Rewriting the Validation
+field as an indented list made `npm run verify` exit 1. `scripts/assumption-alarm.mjs:61-64` reads an
+Assumption block as consecutive lines starting with `  - ` and stops at the first line that is not,
+so a nested list truncated the block before `Status` and the entry parsed as incomplete. The field is
+one line again. Worth recording twice over: the gate did exactly its job, and a formatting choice in
+a governance document is a functional change to what the gate can read.
+
 ## Ordering of this round's runs, recorded as they happened
 
-  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 21:50:28.360Z)
+  1. npm run verify            exit 1 first, then exit 0 after the field was collapsed to one line
+                                                          (chamber-lock generatedAt 22:02:45.267Z)
   2. npm run lint              exit 0                     -> lint.txt
   3. npm run build             exit 0                     -> build.txt
   4. npx playwright test       28 passed                  -> e2e.txt
   5. 19 rewind runs, each exit code appended as that run finished
                                                           -> seam-rewind-exit-codes.md
-  6. npm run cipher:gate       exit 0    (validates the Quote Vault block, not this change — above)
+  6. npm run cipher:gate       exit 0    (validates the Quote Vault block, not this change)
      npm run assumption:alarm  exit 0    (also chain stage 5; run standalone after the doc edits)
   7. this section
   8. npm run proof:tape        LAST, so the tape inventories every file including this one
 
-Step 8 is last for the reason recorded under round 7: proof-tape inventories this directory, so it
-must run after the files it lists, and no paragraph here can both postdate it and be seen by it.
-This file therefore claims steps 1-6 only.
+The exit 1 in step 1 is recorded rather than quietly re-run into a green line, because a chain that
+failed and was fixed is a different history from a chain that passed, and the artifact should say
+which one happened.
 
 Evidence on this head, read back from seam-rewind-exit-codes.md and an `ls` of the directory rather
 than recalled: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped, build exit 0,
-playwright 28 passed, verify exit 0 across all eight stages, cipher:gate exit 0 (scoped as above),
-assumption:alarm exit 0, and 19 rewind rows recording exit code 0 against 19 files matching
-`rewind-*.txt`. No hand-typed timestamp closes this file; proof-tape.json's generatedAt against this
-file's mtime is the checkable record of the ordering.
+playwright 28 passed, verify exit 0 across all eight stages on the second run, cipher:gate exit 0
+(scoped as above), assumption:alarm exit 0, and 19 rewind rows recording exit code 0 against 19 files
+matching `rewind-*.txt`. No hand-typed timestamp closes this file; proof-tape.json's generatedAt
+against this file's mtime is the checkable record of the ordering.

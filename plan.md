@@ -61,7 +61,15 @@ concession the `ClockSeam` plan in run 1 had to make.
     ```sh
     npm run cipher:gate        # not in the verify chain; run on its own. exit 0
     npm run assumption:alarm   # also stage 5 of the chain; additionally run on its own. exit 0
+    npm run proof:tape         # LAST, after every artifact above. exit 0
     ```
+
+    **`proof:tape` is listed even though the chain's stage 8 already runs it, and the order is the
+    whole point.** `scripts/proof-tape.mjs` inventories the evidence directory, so the copy that runs
+    inside `npm run verify` sees only what exists at that moment — not lint, build, e2e, the nineteen
+    rewinds, the gate artifacts, or the hand-written summary, all of which are written afterwards.
+    Without the standalone rerun, the committed `proof-tape.md` would describe a directory that no
+    longer exists and the chronology in `verify-chain.txt` could not be reproduced from this list.
 
     **What `cipher:gate` exit 0 does and does not prove here, since an earlier draft of this plan
     got it backwards.** It is not validation of the `ImageGenerationSeam` waiver and must not be

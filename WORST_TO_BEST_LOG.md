@@ -4814,3 +4814,77 @@ real money and produced a false record if acted on, rather than something that r
 rounds of "the prose is inaccurate" and then one that says "your plan would burn a live API call and
 prove nothing" — worth noting, because it argues against the conclusion I drew last round that the
 loop had stopped paying for itself.
+
+---
+
+## Run 4, correction 17 — 2026-09-04 — three rounds, three unexecutable validation plans, and the honest answer was "blocked"
+
+Appended, not edited. Three findings on `e8bb390` — two P1, one P2. **Both P1s are about the plan I
+wrote in response to round 16**, which makes this the third consecutive round where the previous
+round's fix was the defect.
+
+### 1. P1 — a transcribed success has nowhere to land
+
+Round 16's repair said: probe, then transcribe the captures into `fixtures.ts`, then run the suites.
+Checked properly this time, one level deeper than last time:
+
+- `fixtures.ts` exports `imageGenerationRequestFixture` (a **request**) and
+  `imageGenerationFaultFixture`. There is no success fixture.
+- `mock.ts:10` imports only the fault. Its `sample` scenario calls `buildSvg` and **synthesises an
+  SVG** rather than replaying a provider response.
+- `tests/contract/image-generation.test.ts:32` uses its own hard-coded `xaiSampleResponse`.
+
+So a maintainer following my plan could pay for the live call, update the request fixture, and get a
+green rewind that exercised no captured provider output whatsoever. The plan was better than round
+15's and still could not do the thing it claimed.
+
+### 2. P1 — the probe cannot capture a live fault
+
+The plan's step 1 said "capture a live sample and a live fault". The probe throws on any non-2xx
+response (`:138-148`), so a real provider failure aborts the run instead of being recorded. The
+`fault.json` it writes afterwards — on the **success** path — is a hard-coded
+`PROMPT_MISSING_REQUIRED_PHRASES` (`:224`), which is not the canonical `IMAGE_HTTP_ERROR` shape
+(`fixtures.ts:15`) and could not be transcribed into it even if something read it.
+
+### The answer this forced: BLOCKED, not deferred
+
+Three rounds have now produced three unexecutable plans. The honest conclusion is not a fourth plan.
+**No validation for this waiver can be written in documentation at all**, because the seam's refresh
+path needs three code changes first — a captured-success export the mock's `sample` scenario loads,
+a bounded fault capture in the probe that records a real non-2xx in the canonical shape, and the
+contract test pointed at the shared fixture instead of its private response. Each is a seam-folder
+change owed the full workflow, not a line in a waiver.
+
+So the Validation field now reads **BLOCKED**, with those three enumerated as follow-up 9 and an
+explicit warning that a future run must not mark this Assumption validated on the strength of a
+green rewind — the rewind is green today, on fixtures nobody refreshed. **This makes the waiver
+weaker than it looked two rounds ago**: it rests on the diff-unchanged argument alone. That is worth
+saying plainly rather than leaving a plausible-sounding plan in place, because a plan that cannot run
+is worse than no plan — it stops anyone from noticing there isn't one.
+
+### 3. P2 — the command list omitted the final `proof:tape`
+
+The standalone rerun is the ordering-sensitive last step that `verify-chain.txt` spends a paragraph
+explaining, and it was missing from the exact-command list. Added, with the reason: the copy inside
+`npm run verify` runs at stage 8 and cannot see lint, build, e2e, the rewinds, the gates or the
+summary, all written afterwards.
+
+### The gate caught something I did not
+
+Rewriting the Validation field as an indented list made `npm run verify` **exit 1**.
+`scripts/assumption-alarm.mjs:61-64` reads an Assumption block as consecutive lines starting with
+`  - ` and breaks at the first line that is not — so a nested list truncated the block before
+`Status`, and the entry parsed as incomplete. The field is a single line again.
+
+Two things worth keeping. **A formatting choice in a governance document is a functional change**:
+Markdown that reads better can be unparseable to the tool that enforces it. And the failure is
+recorded in `verify-chain.txt` as "exit 1, then exit 0 after the fix" rather than smoothed into a
+green line, because a chain that failed and was repaired is a different history from one that passed.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3 — **forty-nine findings across seventeen rounds**,
+none in the application. Rounds 15, 16 and 17 each found the previous round's repair defective, and
+each went one level deeper: the plan is missing → the plan's file has no consumer → the plan's
+destination has no slot for the data. **That is what it takes to find out a validation plan is
+fiction: someone has to follow it further than you did.**
