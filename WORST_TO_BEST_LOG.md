@@ -1892,3 +1892,55 @@ budget doing it. Real, and I am not fixing it here: the honest fix stores the to
 which is a field on `CreationRecord` — a contract change, and contract changes take the full
 Seam-Driven Development workflow rather than a follow-up patch. Raised for a decision rather than
 worked around.
+
+---
+
+## Run 2, correction 2 — 2026-09-04 — the `/m/[mode]` entry was false, and dangerous
+
+Codex caught this on the close-out itself, and it is the worst thing I wrote today.
+
+Every close-out in this run has carried forward: *"`/m/[mode]` should be deleted — an orphaned,
+unlinked, unstyled third implementation of the same modes with invented pre-filled inputs and no
+generation."* It is also in PR #291's description, now merged.
+
+**The route is not orphaned and it is not unlinked.** Measured, not inferred:
+
+```
+src/routes/+page.svelte:34                  renders <StudioHero>
+src/lib/components/studio/StudioHero.svelte:77-80
+    <nav class="focused-mode-links" aria-label="Open a focused Meechie mode">
+      {#each weeklyModes as mode}
+        <a href={`/m/${mode.id}`}>{mode.shortLabel}</a>
+src/lib/components/MeechieModePage.svelte:44  await postJson('/api/tools', parsedInput.data, ...)
+```
+
+The home page renders visible links to it for every weekly mode, and the page behind them validates
+input and fetches a verdict. The only part of my claim that survives is that it cannot produce a
+**coloring page** — it never calls `/api/generate`, which `grep` confirms returns nothing in that
+file.
+
+**Why this one matters more than a wrong sentence.** `AGENTS.md` requires each scheduled run to read
+this log and pick work from its deferred items. A future run following that instruction would have
+deleted a route the home page links to and turned every focused-mode link into a 404. I did not just
+record something false; I left an armed instruction for someone else to act on.
+
+### The corrected entry, carried forward in its place
+
+`/m/[mode]` and `MeechieModePage.svelte` reach a verdict and stop there — no `/api/generate`, no
+download, no vault save. That is the same gap this run just closed in the tools hub, and the fix is
+the same: adopt `tool-page-recipe.ts`. It belongs with the three standalone mode routes already on
+the list, not on a deletion list. **Nothing here should be deleted.**
+
+### What went wrong, twice today
+
+This is the second false claim I have had to correct in this log in an hour. The other was reporting
+Codex's review as clean when I had read the review body and not its inline comments.
+
+Both are the same failure and it is not carelessness about the code — it is that I stated a
+conclusion I had inferred as though I had measured it. `grep -rn "/m/"` is four seconds of work and
+it refutes the entry outright. I never ran it, because "orphaned" was what I expected to find, and
+by the third close-out I was copying my own earlier sentence forward instead of re-checking it.
+
+A claim repeated from your own notes is not evidence. It is the same hypothesis it was the first
+time, and the log's own lesson — *measure it before you say it out loud* — applies hardest to the
+things already written down.
