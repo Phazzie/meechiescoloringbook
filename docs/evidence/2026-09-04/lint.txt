@@ -4,8 +4,8 @@
 #      exit status is the only thing distinguishing a clean run from a run that never started.
 # Info flow: eslint output -> this evidence file -> review and the proof tape.
 #
-# npm run lint — 2026-09-04T18:54:43Z
-# Run 4: /m/[mode] becomes a real mode page.
+# npm run lint — 2026-09-04T19:06:43Z
+# Run 4, close-out head: the merge entry for PR #295.
 
 
 

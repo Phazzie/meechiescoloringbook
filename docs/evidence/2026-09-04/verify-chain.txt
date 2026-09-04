@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain re-run at 2026-09-04T18:54Z on the third head (the Codex round on 75b0017)
+# Chain re-run at 2026-09-04T19:07Z on the Run 4 close-out head (PR #296)
 #
 # Change under test: the focused-mode pages behind /m/<slug> — the only page five of the eight
 # modes have, and where every focused-mode link on the home page lands — stop dead-ending at a
@@ -131,6 +131,29 @@ The evidence for the classification in this file's header is unchanged and is ch
 under contracts/, probes/, fixtures/, src/lib/mocks/, tests/contract/, src/lib/adapters/ or
 src/lib/seams/ is in the diff, and `verdict-page-state.svelte.ts` — the module that actually calls
 those adapters — is not modified by this pull request at all.
+
+Evidence on this head: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped,
+build exit 0, playwright 28 passed, `npm run verify` exit 0 across all eight stages.
+
+## Round 4 — the close-out head (PR #296), and why lint/build/e2e were re-run for a docs commit
+
+This head is `main` at `1dab4cf` (the merge of PR #295) plus one documentation commit. The `src/`
+and `tests/` trees are byte-identical to that merge, so lint, build and the e2e suite were always
+going to produce the same result they produced on `f81802d`.
+
+They were re-run anyway, and the reason is recorded rather than re-derived: run 3 took a P1 for
+leaving exactly these three artifacts describing an earlier head on exactly this argument.
+`AGENTS.md` requires `npm run check`, `npm run lint`, `npm test` and `npm run build` **before every
+push** — the rule is about the head being pushed, not about whether the inputs are believed to have
+changed. An artifact that predates the head cannot prove the head passed, however sound the
+reasoning is that it would. "I am sure it still passes" is a claim; running it is a measurement.
+
+The e2e suite is scoped by `AGENTS.md` to user-facing changes and this commit is not one. It was run
+regardless, because the argument for skipping it is the same argument that was already wrong once
+above.
+
+`proof-tape.json` was re-rendered after all three so the tape sees them; `cipher-gate.json` is again
+the only file it marks as predating the run, correctly — no seam artifact is in this diff either.
 
 Evidence on this head: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped,
 build exit 0, playwright 28 passed, `npm run verify` exit 0 across all eight stages.
