@@ -5071,3 +5071,65 @@ Six consecutive rounds on one waiver, ending at a place worth stating plainly: *
 probably never have been written by an autonomous run at all.** It was reached for to unblock a
 close-out, and each round of scrutiny found it resting on something weaker than the round before —
 until the last one found it standing on two gates nobody had waived.
+
+---
+
+## Run 4, correction 21 — 2026-09-04 — two claims in the Run 4 entry itself, and a miscounted Assumption set
+
+Appended, not edited. Three P2s on `f2de10e`. Two of them are against the **original Run 4 entry**
+from the start of this run — the first findings in twenty-one rounds to reach back that far.
+
+### 1. P2 — "the last Svelte 4 component" was not the last
+
+The Run 4 entry lists, among the reasons `/m/[mode]` was the worst feature: *"It was the last Svelte
+4 component in a Svelte 5 app."* Checked rather than remembered:
+`src/lib/components/MeechieTools.svelte` has **seven** `on:click` handlers and no runes anywhere —
+no `$state`, `$derived` or `$props` — so it is still in legacy mode today.
+
+**Read that claim as: `MeechieModePage.svelte` was the last legacy component *among the mode pages*.
+`MeechieTools.svelte` remains, and is the outstanding one.** It is already follow-up 1 (its private
+copy of the orchestration), and this is a second reason to take it.
+
+The claim was flattering to the change and I did not check it. It is the sort of line that reads as
+a fact and functions as a boast.
+
+### 2. P2 — "one edit adds a mode" is true only for already-supported tools
+
+The entry says a new mode needs one edit to `studioModes`. `mode-catalog.ts:196-212` says otherwise:
+
+```ts
+const fields = FIELDS_BY_TOOL[mode.toolId];
+const buildInput = BUILD_INPUT_BY_TOOL[mode.toolId];
+if (!fields || !buildInput) continue;
+```
+
+A mode whose `toolId` is absent from **both** maps is silently skipped by the catalog while
+`StudioHero.svelte` still renders its `/m/<id>` link — so the home page gains a link to a 404. Valid
+tool ids in that position today: **`lineup`, `horoscope`, `meechie_explains`**, none of which have
+entries in either map.
+
+Stated accurately: **one edit works for a mode whose tool already has `FIELDS_BY_TOOL` and
+`BUILD_INPUT_BY_TOOL` entries; any other tool needs three.** In fairness to the design, this cannot
+ship silently — the coverage test in `tests/unit/mode-catalog.test.ts` fails on such an addition,
+which is exactly what it is for. But a test that fails is not the same as a page that works, and the
+entry promised the second.
+
+### 3. P2 — "three open Assumptions" was two plus a waiver
+
+The micro plan's goal said it recorded merge-gate statements for "three **open** Assumptions".
+Only two have Status `Open` (2026-08-24 text provider; 2026-08-26 `RateLimitSeam`). The third item
+identified itself by the 2026-05-14 `ImageGenerationSeam` entry's date — and that entry is `Waived`,
+not open — while what this change actually adds is a *new* 2026-09-04 entry whose Status is "Waived
+for fixture freshness ONLY". A later merge-gate audit searching for open Assumptions would not find
+item 3 among them and would conclude the record was wrong. Corrected to "two open Assumptions plus
+one new PR-scoped fixture waiver", with the distinction spelled out.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3 — **fifty-eight findings across
+twenty-one rounds**, none in the application.
+
+Notable about this round: after twenty rounds of correcting corrections, the reviewer went back to
+the *original* entry and found two unchecked claims sitting there since the first commit. Both are
+the same species — **a sentence that made the work sound better than it was**, in a document whose
+whole purpose is to tell the next run what is actually true.

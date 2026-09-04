@@ -18,8 +18,14 @@ the ruling rather than before it — stated plainly rather than backdated, which
 concession the `ClockSeam` plan in run 1 had to make.
 
 - **Goal:** record the statements `AGENTS.md`'s merge gate requires ("resolve it first, or state why
-  the change is safe without it") for **three** open Assumptions that bear on PR #295 and were not
-  addressed before it merged, because the pre-merge check was truncated by a `head -10`:
+  the change is safe without it") for the `DECISIONS.md` entries bearing on PR #295 that were not
+  addressed before it merged, because the pre-merge check was truncated by a `head -10`. **Two open
+  Assumptions plus one new PR-scoped fixture waiver — not "three open Assumptions", which is what
+  this said and which points a later audit at the wrong records.** Items 1 and 2 below have
+  Status `Open`. Item 3 is neither: the 2026-05-14 `ImageGenerationSeam` entry it used to name is
+  itself `Waived`, and what this change adds is a *new* entry dated 2026-09-04 whose Status is
+  "Waived for fixture freshness ONLY". A merge-gate audit looking for open Assumptions will not find
+  item 3 among them, and should not:
   1. **2026-08-24, text provider** ("grok-4.6 answers POST /v1/chat/completions with the request
      shape this app sends"). Claim: `/m/<slug>` was already an `/api/tools` consumer, and no prompt
      template, model id, wrapper, `json_schema` or `response_format` is in the diff.

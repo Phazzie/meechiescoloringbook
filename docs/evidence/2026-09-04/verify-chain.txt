@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T22:34:19.035Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T22:48:52.883Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -440,9 +440,32 @@ is an owner decision. **This close-out therefore does not claim the completion g
 seam-workflow P1. Two rulings are now outstanding, and the second one bears directly on whether this
 run may call itself done.
 
+## Round 15 — the Codex round on `f2de10e`: back to the original entry
+
+Three P2s, and two of them are against the **Run 4 entry written at the start of this run** — the
+first findings in twenty-one rounds to reach that far back.
+
+  - **"The last Svelte 4 component" was not the last.** `MeechieTools.svelte` has seven `on:click`
+    handlers and no runes at all, so it is still in legacy mode. The true claim is narrower:
+    `MeechieModePage.svelte` was the last legacy component among the *mode pages*.
+  - **"One edit adds a mode" holds only for already-supported tools.** `mode-catalog.ts:199-201`
+    skips any mode whose `toolId` is missing from `FIELDS_BY_TOOL` or `BUILD_INPUT_BY_TOOL`, while
+    `StudioHero.svelte` still renders its link — so the home page gains a link to a 404. `lineup`,
+    `horoscope` and `meechie_explains` are valid tool ids in exactly that position. It cannot ship
+    silently, because `tests/unit/mode-catalog.test.ts` fails on such an addition, and that is worth
+    stating in the change's favour — but a failing test is not a working page, and the entry
+    promised the second.
+  - **"Three open Assumptions" was two plus a waiver.** Only the 2026-08-24 provider and 2026-08-26
+    `RateLimitSeam` entries have Status `Open`; the 2026-05-14 `ImageGenerationSeam` entry named as
+    the third is itself `Waived`, and what this change adds is a new 2026-09-04 entry marked "Waived
+    for fixture freshness ONLY". An audit searching for open Assumptions would not find the third.
+
+Both of the first two are the same species: **a sentence that made the work sound better than it
+was**, in the document whose purpose is to tell the next run what is true.
+
 ## Ordering of this round's runs, recorded as they happened
 
-  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 22:34:19.035Z)
+  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 22:48:52.883Z)
   2. npm run lint              exit 0                     -> lint.txt
   3. npm run build             exit 0                     -> build.txt
   4. npx playwright test       28 passed                  -> e2e.txt
@@ -453,15 +476,13 @@ run may call itself done.
   7. this section
   8. npm run proof:tape        LAST, so the tape inventories every file including this one
 
-**What a green chain does and does not mean here, stated because this round is exactly about that.**
-All eight stages exit 0 on this head, and `assumption:alarm` is green — but green means the
-Assumption entry is *well-formed and present*, not that the seam meets the completion checklist. The
-two failing items have no automated gate at all; they are checklist prose, which is why nineteen
-rounds of green chains never surfaced them and a reader had to.
-
 Evidence on this head, read back from seam-rewind-exit-codes.md and an `ls` of the directory rather
 than recalled: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped, build exit 0,
 playwright 28 passed, verify exit 0 across all eight stages, cipher:gate exit 0 (scoped as above),
 assumption:alarm exit 0, and 19 rewind rows recording exit code 0 against 19 files matching
 `rewind-*.txt`. No hand-typed timestamp closes this file; proof-tape.json's generatedAt against this
 file's mtime is the checkable record of the ordering.
+
+**The two rulings from round 14 remain outstanding and this head does not claim otherwise.** The
+completion gate for `ImageGenerationSeam` is not met, the freshness waiver covers one of its three
+items, and this close-out is not merging on its own judgement.
