@@ -544,16 +544,48 @@ describe('saveToVault', () => {
 		expect(creationStoreAdapter.saveCreation).not.toHaveBeenCalled();
 	});
 
-	it('explains itself when the session has not resolved yet', async () => {
+	it('says the session could not be opened, and does not attempt the write', async () => {
 		vi.mocked(sessionAdapter.getSession).mockResolvedValue({
 			ok: false,
 			error: { code: 'BROWSER_REQUIRED', message: 'no browser' }
 		});
 		const state = await withPage();
-		expect(state.isVaultReady).toBe(false);
 		await state.saveToVault();
-		expect(state.vaultStatus).toContain('Session is still connecting');
+		expect(state.vaultStatus).toContain('Could not open your session');
 		expect(creationStoreAdapter.saveCreation).not.toHaveBeenCalled();
+		expect(state.isSaving).toBe(false);
+	});
+
+	it('resolves the session lazily, not in the constructor', async () => {
+		// A constructor cannot report an async failure to its caller, so the load moved to the
+		// point of use. Nothing should have asked for a session until Save is pressed.
+		new VerdictPageState({ fileBaseSlug: 'who-fucked-up' });
+		await flush();
+		expect(sessionAdapter.getSession).not.toHaveBeenCalled();
+	});
+
+	it('retries a session that failed the first time instead of caching the failure', async () => {
+		// A browser with site data blocked, then unblocked, must not be stuck for the life of the
+		// page. Caching the rejected promise would make every later save repeat the first answer.
+		vi.mocked(sessionAdapter.getSession).mockResolvedValueOnce({
+			ok: false,
+			error: { code: 'BROWSER_REQUIRED', message: 'no browser' }
+		});
+		const state = await withPage();
+		await state.saveToVault();
+		expect(state.vaultStatus).toContain('Could not open your session');
+
+		await state.saveToVault();
+		expect(state.vaultStatus).toContain('Saved to the vault');
+		expect(creationStoreAdapter.saveCreation).toHaveBeenCalledTimes(1);
+	});
+
+	it('shares one session resolve between two saves fired back to back', async () => {
+		const state = await withPage();
+		await Promise.all([state.saveToVault(), state.saveToVault()]);
+		// The second call is refused by the `isSaving` guard, so exactly one resolve and one write.
+		expect(sessionAdapter.getSession).toHaveBeenCalledTimes(1);
+		expect(creationStoreAdapter.saveCreation).toHaveBeenCalledTimes(1);
 	});
 
 	it('surfaces a rejected save rather than reporting success', async () => {

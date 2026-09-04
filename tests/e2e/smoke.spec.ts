@@ -441,7 +441,7 @@ test('the mode routes print the structure a verdict came back in', async ({
 	await gotoHydrated(page, '/random');
 	await Promise.all([
 		page.waitForResponse('**/api/tools'),
-		page.getByTestId('random-tap').click({ force: true })
+		page.getByTestId('random-tap').click()
 	]);
 	await page.getByTestId('verdict-page-generate').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();

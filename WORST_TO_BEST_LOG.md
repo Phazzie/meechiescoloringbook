@@ -1905,3 +1905,90 @@ Recorded in full in `plan.md` under "The standalone mode routes become real page
    `{ id, format, mimeType, data, encoding }` — what `/api/generate` returns. Only the second has
    `format` and `encoding`. Reaching for the newer-looking layout by reflex is wrong; they are not
    two spellings of one type.
+
+---
+
+## Run 3, first close-out — 2026-09-04 — the SonarCloud round on `93e03f1`
+
+Three findings, all in code this run wrote, all accepted. The Quality Gate had already **passed**,
+so none of them blocked the merge — which is exactly why they are worth recording: a passing gate
+is not the same as nothing to fix, and two of the three turned out to be real improvements rather
+than style points.
+
+Read with the recipe from Run 1's sixth close-out (annotations on the **"SonarCloud Code Analysis"**
+check run via `api.github.com`, because `sonarcloud.io` itself is blocked by the egress proxy). It
+worked first time. That recipe has now paid for itself twice.
+
+| Finding | Level | Verdict |
+|---|---|---|
+| `verdict-page-state.svelte.ts:107` — "Refactor this asynchronous operation outside of the constructor." | failure | Accepted, and the fix is better than the finding asked for. |
+| `generated-image-preview.ts:66` — "Prefer `String.fromCodePoint()` over `String.fromCharCode()`." | warning | Accepted. Equivalent here, so free. |
+| `smoke.spec.ts:444` — "Remove this forced interaction and wait for the element to be actionable instead." | warning | Accepted. The `force: true` was cargo. |
+
+### The constructor finding was the real one
+
+`constructor()` called `void this.loadOwner()` — a fire-and-forget session read. The rule exists
+because a constructor cannot report an async failure to whoever called `new`, so such a load can
+only swallow its error or raise an unhandled rejection.
+
+The cheap fix would have been a try/catch. The right one was to notice the eager load bought
+nothing: the session id is not needed until someone presses Save. So resolution moved to the point
+of use — `resolveOwner()`, memoised on an in-flight promise so two quick saves make one call, and
+**cleared on failure so a failed resolve is never cached as the permanent answer.**
+
+That last clause is the part that matters, and it fixed a user-visible bug the finding did not
+mention. Under the old design, a browser with site data blocked resolved `owner` to null once, at
+construction, and stayed that way for the life of the page: every later save reported "Session is
+still connecting. Try again in a moment." — an invitation to retry against a condition that would
+never change on its own. Now the first save retries the resolve, and if it genuinely cannot open a
+session it says so honestly:
+
+> Could not open your session, so there is nowhere to save this page. Check that your browser
+> allows site data for this site.
+
+Pinned by a test that fails when the failed promise is cached again.
+
+### The other two
+
+`String.fromCharCode` → `String.fromCodePoint`. The two are identical for the 0–255 values a
+`Uint8Array` yields, so this is not a behaviour change and the existing non-ASCII round-trip test
+proves it. Taken because it costs nothing and the rule is right in general. Note the pre-existing
+`toBase64` in `output-packaging.adapter.ts` still uses `fromCharCode`; it was not touched, because
+widening the PR to silence a warning in code this run did not write is how a diff stops being
+reviewable.
+
+The `click({ force: true })` was copied from the pre-existing `/random` test without asking whether
+it was needed. It was not — the suite passes without it, so the forced click had been hiding
+nothing and could only ever have hidden something. Removed from the new test; the original was left
+alone for the same scope reason as above.
+
+### One thing removed that no reviewer asked about
+
+`isVaultReady` was a public reactive field on `VerdictPageState` that, after the change above, no
+component rendered — only tests read it. A public field on the class that is the shared contract
+for three routes, kept alive by its own tests, is dead weight. Deleted, and the tests now assert on
+what is actually observable: the vault status text and whether `getSession` was called at all.
+
+### Rosentic, again
+
+Four findings on the PR comment, thirteen in the full scan. Same class as Run 2's: "branch X
+removed these parameters, and your branch calls with them." Refuted the same way, by measurement
+rather than by precedent — `git diff origin/main..HEAD` shows this PR does not touch
+`matchesDraftSeedText`, `isKnownDraftSeed`, `normalizeSpecText`, `normalizeSpecTitle`, `capDelayMs`,
+`buildDeps`, or any of their call sites; `meechie-studio.ts`, `studio-state.test.ts`,
+`http-resilience.ts` and `wig-try-on-pipeline.test.ts` are not in the diff at all. Two further
+tells: one of the branches it compares against, `claude/great-bell-eeyqm2`, is Run 2's and is
+**already merged into main**, so it is being treated as an unmerged peer; and every finding asserts
+the target "requires no" arguments, which is false on this branch and on main. Rosentic's own check
+reports `success`.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0/0. lint
+clean. test **1144 passed, 1 skipped** (39 new against the `6826124` baseline of 1105). build exit
+0. playwright **18 passed**. `proof-tape.md` flags only `cipher-gate.json`, which is correct: no
+seam changed.
+
+Five guards are now proven by deletion rather than by reading — the two-token split, the split
+packaging call in both its forms, the post-packaging staleness check, and the uncached owner
+failure. Each was confirmed to fail when its guard is removed.

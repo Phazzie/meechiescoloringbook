@@ -199,3 +199,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: A test asserting that an abandoned generation is discarded passed even after the guard it existed to protect was deleted.
 - Lesson: The race had two windows — before `/api/generate` answered, and during the two packaging calls after it — and the test only ever opened the first. An earlier guard absorbed the mutation, so the suite stayed green with the later one gone. A staleness test proves only the specific await it suspends on.
 - Action: Suspend the test at each await in turn, not just the obvious one, and confirm by deleting the guard that the test is supposed to be protecting and watching it fail.
+
+## 2026-09-04
+- Date: 2026-09-04
+- Context: SonarCloud flagged `void this.loadOwner()` in a constructor. The Quality Gate had already passed, so nothing forced the fix.
+- Lesson: The finding was a style rule; obeying it properly exposed a real bug. Eagerly resolving the session in the constructor meant a browser with site data blocked resolved to null once and stayed that way for the life of the page, so every later save said "Session is still connecting. Try again in a moment." — inviting a retry against a condition that could never change. Moving the resolve to the point of use, memoised but **cleared on failure**, made the retry real and let the message tell the truth. A passing gate is not the same as nothing to fix.
+- Action: Never start async work in a constructor — it cannot report failure to its caller, and it usually is not needed that early. Resolve on demand, share the in-flight promise, and never cache a failed resolve as the permanent answer.

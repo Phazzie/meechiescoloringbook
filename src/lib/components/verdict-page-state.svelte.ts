@@ -87,8 +87,6 @@ export class VerdictPageState {
 	vaultStatus = $state('');
 	copyStatus = $state('');
 	isSaving = $state(false);
-	/** True once the session id needed for an owner-scoped vault write is in hand. */
-	isVaultReady = $state(false);
 
 	private generatedImages: GeneratedImage[] = [];
 	private lastRecipe: ToolPageRecipe | null = null;
@@ -100,11 +98,12 @@ export class VerdictPageState {
 	private verdictToken = 0;
 	private pageToken = 0;
 	private owner: CreationOwner | null = null;
+	/** In-flight session resolve, so concurrent saves share one call rather than racing. */
+	private ownerPromise: Promise<CreationOwner | null> | null = null;
 	private readonly fileBaseSlug: string;
 
 	constructor(options: VerdictPageStateOptions) {
 		this.fileBaseSlug = options.fileBaseSlug;
-		void this.loadOwner();
 	}
 
 	/** True once there is a generated page to download or save. */
@@ -118,16 +117,33 @@ export class VerdictPageState {
 	}
 
 	/**
-	 * The vault is owner-scoped, so the session id has to be in hand before a save is attempted.
-	 * Resolving it up front means the save button can say why it is unavailable rather than failing
-	 * at the click.
+	 * Resolve the session id an owner-scoped vault write needs, on demand.
+	 *
+	 * Deliberately *not* started from the constructor. A constructor cannot report an async failure
+	 * to whoever called `new`, so an eager fire-and-forget load could only either swallow the error
+	 * or surface it as an unhandled rejection — and it bought nothing, because the answer is not
+	 * needed until someone presses Save. Resolving here also means a session that was unavailable
+	 * on the first attempt (a browser that had site data blocked, and then did not) is retried on
+	 * the next save instead of being wrong for the life of the page.
+	 *
+	 * The in-flight promise is shared so two quick saves make one call, and it is cleared on failure
+	 * so a failed resolve is never cached as the permanent answer.
 	 */
-	private async loadOwner(): Promise<void> {
-		const result = await sessionAdapter.getSession();
-		if (result.ok) {
-			this.owner = { kind: 'anonymous', sessionId: result.value.sessionId };
-			this.isVaultReady = true;
+	private async resolveOwner(): Promise<CreationOwner | null> {
+		if (this.owner) return this.owner;
+		this.ownerPromise ??= (async (): Promise<CreationOwner | null> => {
+			const result = await sessionAdapter.getSession();
+			return result.ok
+				? { kind: 'anonymous', sessionId: result.value.sessionId }
+				: null;
+		})();
+		const owner = await this.ownerPromise;
+		if (owner) {
+			this.owner = owner;
+		} else {
+			this.ownerPromise = null;
 		}
+		return owner;
 	}
 
 	/**
@@ -332,17 +348,12 @@ export class VerdictPageState {
 	async saveToVault(): Promise<void> {
 		if (this.isSaving || !this.lastRecipe || !this.pageVerdict) return;
 		if (this.generatedImages.length === 0) return;
-		if (!this.owner) {
-			this.vaultStatus = 'Session is still connecting. Try again in a moment.';
-			return;
-		}
-		// Pinned before the await for the same reason the generation path pins its verdict: these
+		// Pinned before any await for the same reason the generation path pins its verdict: these
 		// fields are cleared by `resetPage()`, and the record must describe the page that was on
 		// screen when the button was pressed.
 		const recipe = this.lastRecipe;
 		const pageVerdict = this.pageVerdict;
 		const images = this.generatedImages;
-		const owner = this.owner;
 		const assembledPrompt = this.assembledPrompt;
 		const revisedPrompt = this.revisedPrompt;
 		const violations = this.violations;
@@ -351,6 +362,16 @@ export class VerdictPageState {
 		this.vaultStatus = 'Saving...';
 		const token = this.pageToken;
 		try {
+			const owner = await this.resolveOwner();
+			if (token !== this.pageToken) return;
+			if (!owner) {
+				// Not "still connecting": the session genuinely could not be opened, and the usual
+				// cause is a browser blocking site data. Saying so is actionable; inviting a retry
+				// against a condition that will not change on its own is not.
+				this.vaultStatus =
+					'Could not open your session, so there is nowhere to save this page. Check that your browser allows site data for this site.';
+				return;
+			}
 			const result = await creationStoreAdapter.saveCreation({
 				record: {
 					id:

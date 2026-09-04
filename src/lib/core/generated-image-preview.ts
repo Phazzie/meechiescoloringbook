@@ -57,13 +57,17 @@ export const generatedImageDataUrl = (image: GeneratedImage): string | null => {
  * from the vault as base64-decoded nonsense. Encoding per byte — `TextEncoder` first, then `btoa`
  * over the resulting latin1 string — is what makes a non-ASCII SVG survive; `btoa` alone throws on
  * any code point above 0xFF, which is every curly quote Meechie's voice puts in a page title.
+ *
+ * `fromCodePoint`, not `fromCharCode`: the two are identical for the 0-255 values a `Uint8Array`
+ * yields, so this is not a behaviour change, but `fromCodePoint` is the one that stays correct if
+ * this ever iterates something wider than bytes.
  */
 export const generatedImageBase64 = (image: GeneratedImage): string => {
 	if (image.encoding === 'base64') return image.data;
 	const bytes = new TextEncoder().encode(image.data);
 	let binary = '';
 	for (const byte of bytes) {
-		binary += String.fromCharCode(byte);
+		binary += String.fromCodePoint(byte);
 	}
 	return btoa(binary);
 };
