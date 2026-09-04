@@ -81,6 +81,7 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `http-client.ts` | Shared fetch helper for JSON POST requests (used by routes and UI components) |
 | `vault-gallery.ts` | Pure Quote Vault transforms — sort/search/label saved pages, and rebuild a saved page's image from its stored bytes |
 | `tool-page-recipe.ts` | Pure per-tool coloring page recipes — turns a Meechie tool verdict into the `ColoringPageSpec` + style hint it deserves (list page vs full-quote page) |
+| `generated-image-preview.ts` | Pure `GeneratedImage` conversions — `data:` URL for a preview, base64 bytes for the vault. Shared by the studio, the toolkit and the mode routes |
 
 ### src/routes/
 
@@ -88,12 +89,25 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 |------|---------|
 | `+page.svelte` | Main Meechie coloring-page studio with wig try-on |
 | `meechie/+page.svelte` | Direct route to Meechie tools (hosts `MeechieTools.svelte`, not a chat UI) |
+| `who-fucked-up/+page.svelte`, `rate-his-excuse/+page.svelte`, `random/+page.svelte` | The three standalone mode routes in the nav. Each owns its hero, input and verdict presentation, then hands off to `VerdictPageStudio` |
+| `m/[mode]/+page.svelte` | Orphaned fourth implementation of the same modes. Linked from nowhere, no generation. Delete candidate — see `WORST_TO_BEST_LOG.md` |
 | `api/generate/+server.ts` | Generation endpoint |
 | `api/image-generation/+server.ts` | Image provider endpoint |
 | `api/chat-interpretation/+server.ts` | Chat-to-spec endpoint |
 | `api/tools/+server.ts` | Meechie tool endpoint |
 | `api/meechie-studio-text/+server.ts` | Meechie Studio text (verdict/quote) endpoint |
 | `api/wig-try-on/+server.ts` | Wig try-on portrait endpoint |
+
+### src/lib/components/ — shared components
+
+| File | Purpose |
+|------|---------|
+| `MeechieTools.svelte` | The eleven-tool hub at `/meechie`; owns its own verdict-to-page lifecycle |
+| `VerdictPageStudio.svelte` | The "put it on paper" panel shared by the three mode routes — dedication, generate, drift report, preview, downloads, vault save |
+| `verdict-page-state.svelte.ts` | `VerdictPageState`: the runes state class behind `VerdictPageStudio`. Owns the verdict request, the page recipe, generation, packaging, and the vault write, with separate staleness tokens for the verdict and the page |
+| `SelfieUpload.svelte`, `WigCarousel.svelte` | Wig try-on inputs |
+| `MeechieModePage.svelte`, `meechie-mode-config.ts` | Used only by the orphaned `/m/[mode]` route |
+| `studio/` | The home studio's panels (hero, input, preview, settings, vault row, wig try-on) |
 
 ### scripts/ — `npm run verify` automation (do not edit without a plan)
 

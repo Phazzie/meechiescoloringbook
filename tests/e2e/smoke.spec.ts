@@ -296,7 +296,9 @@ test('home quote vault can save, load, pin, and delete creations', async ({
 
 	// ...and one click puts it back.
 	await page.getByTestId('home-vault-undo-restore').click();
-	await expect(page.getByTestId('home-vault-load')).toContainText('RECEIPT ENERGY');
+	await expect(page.getByTestId('home-vault-load')).toContainText(
+		'RECEIPT ENERGY'
+	);
 });
 
 test('home quote vault searches saved pages and reveals the ones past the preview', async ({
@@ -325,7 +327,9 @@ test('home quote vault searches saved pages and reveals the ones past the previe
 	await page.getByTestId('home-vault-search').fill('plumber');
 	await expect(page.getByTestId('home-vault-load')).toHaveCount(1);
 
-	await page.getByTestId('home-vault-search').fill('nothing matches this at all');
+	await page
+		.getByTestId('home-vault-search')
+		.fill('nothing matches this at all');
 	await expect(page.getByTestId('home-vault-no-matches')).toBeVisible();
 
 	await page.getByTestId('home-vault-search').fill('');
@@ -383,7 +387,7 @@ test('random route tap and page generation work', async ({ page }) => {
 		'story keeps changing'
 	);
 
-	await page.getByTestId('random-generate-page').click();
+	await page.getByTestId('verdict-page-generate').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 });
 
@@ -394,7 +398,7 @@ test('rate and who routes submit, reset, and generate pages', async ({
 	await page.getByTestId('rate-excuse-input').fill('He forgot again.');
 	await page.getByTestId('rate-submit').click();
 	await expect(page.getByTestId('rate-result')).toContainText('Fault: them');
-	await page.getByTestId('rate-generate-page').click();
+	await page.getByTestId('verdict-page-generate').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 	await page.getByTestId('rate-reset').click();
 	await expect(page.getByTestId('rate-submit')).toBeVisible();
@@ -403,10 +407,133 @@ test('rate and who routes submit, reset, and generate pages', async ({
 	await page.getByTestId('who-situation-input').fill('Nobody owned the bug.');
 	await page.getByTestId('who-submit').click();
 	await expect(page.getByTestId('who-result')).toContainText('Fault: them');
-	await page.getByTestId('who-generate-page').click();
+	await page.getByTestId('verdict-page-generate').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 	await page.getByTestId('who-reset').click();
 	await expect(page.getByTestId('who-submit')).toBeVisible();
+});
+
+test('the mode routes print the structure a verdict came back in', async ({
+	page
+}) => {
+	// The three standalone mode routes used to send `listMode: 'title_only'` for every verdict,
+	// throwing away the "Fault:"/"Consequence:" structure the tool prompts explicitly ask for and
+	// capping the whole thing at a 96-character title. They now share the studio's page recipe.
+	const specs: { listMode: string; items: unknown[] }[] = [];
+	await page.route('**/api/generate', async (route) => {
+		const body = route.request().postDataJSON() as {
+			spec: { listMode: string; items: unknown[] };
+		};
+		specs.push(body.spec);
+		await route.fulfill({ json: generatedPage });
+	});
+
+	await gotoHydrated(page, '/who-fucked-up');
+	await page
+		.getByTestId('who-situation-input')
+		.fill('He went quiet for a week.');
+	await page.getByTestId('who-submit').click();
+	await expect(page.getByTestId('who-result')).toContainText('Fault: them');
+	await page.getByTestId('verdict-page-generate').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+
+	// Random Meechie's stubbed saying has no structure, so it stays a full-quote page.
+	await gotoHydrated(page, '/random');
+	await Promise.all([
+		page.waitForResponse('**/api/tools'),
+		page.getByTestId('random-tap').click({ force: true })
+	]);
+	await page.getByTestId('verdict-page-generate').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+
+	expect(specs).toHaveLength(2);
+	expect(specs[0].listMode).toBe('list');
+	expect(specs[0].items.length).toBeGreaterThanOrEqual(2);
+	expect(specs[1].listMode).toBe('title_only');
+	expect(specs[1].items).toEqual([]);
+});
+
+test('a page made on a mode route can be saved and found in the home vault', async ({
+	page
+}) => {
+	// Before this, nothing outside the studio and the tools hub could write to the vault, so a page
+	// generated on one of the app's three most prominent nav destinations survived exactly as long
+	// as the tab did.
+	await gotoHydrated(page, '/rate-his-excuse');
+	await page.getByTestId('rate-excuse-input').fill('My alarm did not go off.');
+	await page.getByTestId('rate-submit').click();
+	await expect(page.getByTestId('rate-result')).toContainText('Fault: them');
+
+	await page.getByTestId('verdict-page-dedication').fill('For the group chat');
+	await page.getByTestId('verdict-page-generate').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('verdict-page-download').first()).toBeVisible();
+
+	await page.getByTestId('verdict-page-save-vault').click();
+	await expect(page.getByTestId('verdict-page-vault-status')).toContainText(
+		'Saved to the vault'
+	);
+
+	await gotoHydrated(page, '/');
+	await expect(page.getByTestId('home-vault-load')).toBeVisible();
+});
+
+test('editing the dedication drops the page it was not generated with', async ({
+	page
+}) => {
+	// The dedication is baked into the spec at generation time. Leaving the page on screen after an
+	// edit offers a download and a vault record carrying the previous value under the new one.
+	await gotoHydrated(page, '/who-fucked-up');
+	await page
+		.getByTestId('who-situation-input')
+		.fill('He read it and said nothing.');
+	await page.getByTestId('who-submit').click();
+	await expect(page.getByTestId('who-result')).toContainText('Fault: them');
+
+	await page.getByTestId('verdict-page-generate').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+
+	await page.getByTestId('verdict-page-dedication').fill('Second thoughts');
+	await expect(page.locator('.preview-grid img')).toHaveCount(0);
+	await expect(page.getByTestId('verdict-page-download')).toHaveCount(0);
+});
+
+test('a failed re-ask on a mode route does not destroy the page already on screen', async ({
+	page
+}) => {
+	// The same defect the tools hub was fixed for, on the routes that still had it: the old
+	// `handleSubmit` cleared the verdict and the previews before the request went out, so a
+	// timeout deleted a page the reader had already paid a generation for.
+	let toolsCalls = 0;
+	await page.route('**/api/tools', async (route) => {
+		toolsCalls += 1;
+		const body = route.request().postDataJSON() as { toolId?: string };
+		if (toolsCalls === 1) {
+			await route.fulfill({ json: toolPayload(body.toolId ?? 'unknown') });
+			return;
+		}
+		await route.fulfill({
+			status: 500,
+			json: { message: 'provider exploded' }
+		});
+	});
+
+	await gotoHydrated(page, '/who-fucked-up');
+	await page.getByTestId('who-situation-input').fill('He said he was working.');
+	await page.getByTestId('who-submit').click();
+	await expect(page.getByTestId('who-result')).toContainText('Fault: them');
+
+	await page.getByTestId('verdict-page-generate').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+
+	await page.getByTestId('who-again').click();
+	await expect(page.getByTestId('who-error')).toBeVisible();
+
+	// The verdict and the page it produced are both still there.
+	await expect(page.getByTestId('who-result')).toContainText('Fault: them');
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('verdict-page-download').first()).toBeVisible();
+	await expect(page.getByTestId('who-again')).toBeEnabled();
 });
 
 test('meechie toolkit tabs and lineup controls work', async ({ page }) => {
@@ -451,7 +578,9 @@ test('every toolkit verdict becomes a coloring page that downloads and saves', a
 	// The toolkit opens on Apology Autopsy; the page factory only exists once a verdict does.
 	await expect(page.getByTestId('meechie-tool-page-factory')).toBeHidden();
 	await page.getByTestId('meechie-tool-generate').click();
-	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
+	await expect(page.getByTestId('meechie-tool-output')).toContainText(
+		'Fault: them'
+	);
 	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
 
 	await page.getByTestId('meechie-tool-dedication').fill('For Ray');
@@ -475,7 +604,9 @@ test('every toolkit verdict becomes a coloring page that downloads and saves', a
 	await expect(page.getByTestId('home-vault-load')).toBeVisible();
 });
 
-test('a slow page generation cannot land under a different verdict', async ({ page }) => {
+test('a slow page generation cannot land under a different verdict', async ({
+	page
+}) => {
 	// Codex found this: `/api/generate` is slow enough to switch tools underneath, and the tool
 	// switch sets `output` to null. A late response used to repopulate the page state beneath the
 	// new verdict, and reading the old verdict's toolId after the await threw outright.
@@ -520,14 +651,15 @@ test('a slow page generation cannot land under a different verdict', async ({ pa
 	// Wait on an event rather than sleeping: this resolves only if the page raises an error, so a
 	// timeout is the passing outcome and a late error still fails. It also gives the discarded
 	// response a real window in which to paint — which is what the next assertion depends on.
-	await expect(page.waitForEvent('pageerror', { timeout: 3000 })).rejects.toThrow();
+	await expect(
+		page.waitForEvent('pageerror', { timeout: 3000 })
+	).rejects.toThrow();
 	expect(pageErrors).toEqual([]);
 
 	// The load-bearing assertion: tool A's page must not have appeared under tool B's verdict.
 	await expect(page.locator('.preview-grid img')).toHaveCount(0);
 	await expect(page.getByTestId('meechie-tool-download')).toHaveCount(0);
 });
-
 
 test('editing the dedication drops the page it was not generated with, and drift is surfaced', async ({
 	page
@@ -573,8 +705,9 @@ test('editing the dedication drops the page it was not generated with, and drift
 	await expect(page.getByTestId('meechie-tool-violations')).toHaveCount(0);
 });
 
-
-test('switching tools during a pending verdict does not wedge the button', async ({ page }) => {
+test('switching tools during a pending verdict does not wedge the button', async ({
+	page
+}) => {
 	// The staleness guards stop an abandoned request from clearing a newer request's flag — which
 	// means the abandoned request clears nothing, so the tool switch has to release `isWorking`
 	// itself. Without that, the verdict button stayed disabled until a page reload.
@@ -607,7 +740,6 @@ test('switching tools during a pending verdict does not wedge the button', async
 	await expect(page.getByTestId('meechie-tool-output')).toBeVisible();
 	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
 });
-
 
 test('a structured verdict prints as a numbered list page, an unstructured one as a quote', async ({
 	page
@@ -659,12 +791,17 @@ test('a failed replacement verdict does not destroy the page already on screen',
 			await route.fulfill({ json: toolPayload(body.toolId ?? 'unknown') });
 			return;
 		}
-		await route.fulfill({ status: 500, json: { message: 'provider exploded' } });
+		await route.fulfill({
+			status: 500,
+			json: { message: 'provider exploded' }
+		});
 	});
 
 	await gotoHydrated(page, '/meechie');
 	await page.getByTestId('meechie-tool-generate').click();
-	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
+	await expect(page.getByTestId('meechie-tool-output')).toContainText(
+		'Fault: them'
+	);
 
 	await page.getByTestId('meechie-tool-make-page').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
@@ -675,7 +812,9 @@ test('a failed replacement verdict does not destroy the page already on screen',
 	await expect(page.getByTestId('meechie-tool-error')).toBeVisible();
 
 	// The page the reader paid for is still there, and still downloadable.
-	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
+	await expect(page.getByTestId('meechie-tool-output')).toContainText(
+		'Fault: them'
+	);
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
 	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();

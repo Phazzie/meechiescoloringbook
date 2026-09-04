@@ -27,17 +27,10 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	import { sessionAdapter } from '$lib/adapters/session.adapter';
 	import { buildToolPageRecipe, buildToolStudioText } from '$lib/core/tool-page-recipe';
 	import type { ToolPageRecipe } from '$lib/core/tool-page-recipe';
-
-	// `format` is the only image-type field the contract actually constrains: it is a closed
-	// four-value enum, while `mimeType` is `NonEmptyStringSchema`, so any non-empty string passes
-	// validation. Deriving the media type from the enum is therefore total and cannot forward an
-	// unvalidated wire value.
-	const IMAGE_MIME_TYPES: Record<GeneratedImage['format'], string> = {
-		svg: 'image/svg+xml',
-		png: 'image/png',
-		jpg: 'image/jpeg',
-		webp: 'image/webp'
-	};
+	import {
+		generatedImageBase64,
+		generatedImageDataUrl
+	} from '$lib/core/generated-image-preview';
 
 	const tools = [
 		{
@@ -219,16 +212,6 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		resetPage();
 	};
 
-	const previewUrl = (image: GeneratedImage): string | null => {
-		if (image.format === 'svg' && image.encoding === 'utf8') {
-			return `data:${IMAGE_MIME_TYPES.svg};utf8,${encodeURIComponent(image.data)}`;
-		}
-		if (image.encoding === 'base64') {
-			return `data:${IMAGE_MIME_TYPES[image.format]};base64,${image.data}`;
-		}
-		return null;
-	};
-
 	const handleMakePage = async (): Promise<void> => {
 		if (!output || isGenerating) return;
 		// `resetPage` first: it bumps the token, so this run claims the value it leaves behind and
@@ -294,7 +277,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			violations = parsed.data.value.violations;
 			recommendedFixes = parsed.data.value.recommendedFixes;
 			imagePreviews = images
-				.map(previewUrl)
+				.map(generatedImageDataUrl)
 				.filter((url): url is string => url !== null);
 			packagedFiles = [
 				...(printResult.ok ? printResult.value.files : []),
@@ -314,16 +297,6 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		} finally {
 			if (!isStale()) isGenerating = false;
 		}
-	};
-
-	/** The vault stores image bytes as base64; utf8 SVG markup has to be encoded before it goes in. */
-	const encodeBase64 = (value: string): string => {
-		const bytes = new TextEncoder().encode(value);
-		let binary = '';
-		for (const byte of bytes) {
-			binary += String.fromCharCode(byte);
-		}
-		return btoa(binary);
 	};
 
 	const handleSaveToVault = async (): Promise<void> => {
@@ -360,7 +333,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 					violations,
 					fixesApplied: recommendedFixes.map((fix) => fix.code),
 					images: generatedImages.map((image) => ({
-						b64: image.encoding === 'base64' ? image.data : encodeBase64(image.data)
+						b64: generatedImageBase64(image)
 					})),
 					owner
 				}

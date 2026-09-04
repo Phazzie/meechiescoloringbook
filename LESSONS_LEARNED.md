@@ -181,3 +181,21 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: A route unit test passed an event-scoped fetch mock, but the route discarded it and the provider adapter used global fetch.
 - Lesson: A mock proves isolation only when it replaces the boundary production actually calls; an unused dependency-shaped mock can leave a unit test making live provider requests and retrying until timeout.
 - Action: Stub global fetch for the generate-route test with guaranteed cleanup, keep the event fetch assertion, and test the core pipeline through explicit injected dependencies where possible.
+
+## 2026-09-04
+- Date: 2026-09-04
+- Context: Rebuilding the three standalone mode routes onto a shared Svelte 5 runes state class. `svelte-check` reported "Cannot use 'state' as a store" on every `$state('')` in files that had a local `const state = new VerdictPageState(...)`.
+- Lesson: In runes mode, `$name` still means "subscribe to the store `name`". A local binding called `state` therefore turns every `$state(...)` in that file into a store subscription against it, and the file stops compiling — the error names the store, not the rune, so it reads as a type problem rather than a naming collision. Any local whose name collides with a rune (`state`, `derived`, `props`, `effect`) does this.
+- Action: Never name a local binding after a rune. The state instance is `studio`, not `state`. `npm run check` catches it; nothing else in the chain does, because the tests import the class directly and never hit the component.
+
+## 2026-09-04
+- Date: 2026-09-04
+- Context: A new core module imported `GeneratedImage` from `src/lib/seams/image-generation-seam/contract` and every property access failed to typecheck.
+- Lesson: This repo exports **two different types called `GeneratedImage`**. The seam's is `{ id, url?, b64? }` — what a provider hands back. The flat contract's (`contracts/image-generation.contract.ts`) is `{ id, format, mimeType, data, encoding }` — the decoded image `/api/generate` returns. Only the second carries `format` and `encoding`. Importing by name from the "newer-looking" layout is the wrong instinct; the two layouts are not two spellings of one type.
+- Action: When a type name resolves in both layouts, check which shape the value at hand actually has before picking the import, and say in a comment which one was chosen and why.
+
+## 2026-09-04
+- Date: 2026-09-04
+- Context: A test asserting that an abandoned generation is discarded passed even after the guard it existed to protect was deleted.
+- Lesson: The race had two windows — before `/api/generate` answered, and during the two packaging calls after it — and the test only ever opened the first. An earlier guard absorbed the mutation, so the suite stayed green with the later one gone. A staleness test proves only the specific await it suspends on.
+- Action: Suspend the test at each await in turn, not just the obvious one, and confirm by deleting the guard that the test is supposed to be protecting and watching it fail.

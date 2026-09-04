@@ -26,6 +26,10 @@ import {
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 import {
+	GENERATED_IMAGE_MIME_TYPES,
+	generatedImageDataUrl
+} from '$lib/core/generated-image-preview';
+import {
 	VAULT_CAPACITY,
 	VAULT_PREVIEW_COUNT,
 	buildVaultEntries,
@@ -57,19 +61,6 @@ type PageSize = ColoringPageSpec['pageSize'];
 type BorderChoice = ColoringPageSpec['border'];
 
 const DRAFT_SAVE_DEBOUNCE_MS = 300;
-
-// `format` is the only image-type field the contract actually constrains: it is a closed
-// four-value enum, while `mimeType` is `NonEmptyStringSchema`, so any non-empty string
-// passes validation. Deriving the media type from the enum is therefore total (it can
-// never emit `undefined`) and it cannot forward an unvalidated wire value. It also emits
-// the registered `image/jpeg` and `image/svg+xml` names rather than the non-standard
-// `image/jpg` and `image/svg` that interpolating the enum member produced.
-const IMAGE_MIME_TYPES: Record<GeneratedImage['format'], string> = {
-	svg: 'image/svg+xml',
-	png: 'image/png',
-	jpg: 'image/jpeg',
-	webp: 'image/webp'
-};
 
 type DraftSeedTextSignature = {
 	title: string;
@@ -241,16 +232,11 @@ export class StudioState {
 				isRunning: this.isTextWorking
 			})
 	);
+	// `?? ''` rather than dropping the entry: this array is indexed in parallel with `images`, so
+	// an unrepresentable image has to hold its slot instead of shifting every later preview onto
+	// the wrong image.
 	imagePreviews = $derived(
-		this.images.map((image) => {
-			if (image.format === 'svg' && image.encoding === 'utf8') {
-				return `data:${IMAGE_MIME_TYPES.svg};utf8,${encodeURIComponent(image.data)}`;
-			}
-			if (image.encoding === 'base64') {
-				return `data:${IMAGE_MIME_TYPES[image.format]};base64,${image.data}`;
-			}
-			return '';
-		})
+		this.images.map((image) => generatedImageDataUrl(image) ?? '')
 	);
 	canTryOn = $derived(!!this.selectedWigId && !!this.selfieBase64 && !this.isTryingOn);
 
@@ -442,7 +428,7 @@ export class StudioState {
 		return {
 			id: 'try-on-portrait-1',
 			format,
-			mimeType: IMAGE_MIME_TYPES[format],
+			mimeType: GENERATED_IMAGE_MIME_TYPES[format],
 			data,
 			encoding: 'base64'
 		};

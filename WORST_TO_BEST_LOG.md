@@ -1750,3 +1750,158 @@ npm run test:e2e 14 passed
 npm run verify   blocked at the audit gate; npm's endpoint answered 7 of 40 probes over 22 minutes
                  and has been down solidly since 09:59Z. Re-running the unmodified chain.
 ```
+
+---
+
+## Run 3 — 2026-09-04 — The three standalone mode routes (`/who-fucked-up`, `/rate-his-excuse`, `/random`)
+
+**Branch:** `claude/great-bell-c3fdmk`
+
+### The feature, and why it was the worst
+
+Three of the four links in the site nav go to these routes. They are, for most visitors, *the app* —
+the toolkit hub Run 2 rebuilt sits behind the fourth link, and the studio Run 1 rebuilt is the home
+page you have to already be on.
+
+They were the worst feature because **the app had already solved every one of their problems, in
+code they could not reach.** Run 1 built the Quote Vault. Run 2 built `tool-page-recipe.ts`, which
+turns a verdict into the page that verdict deserves. These three routes — the most prominent
+surfaces in the product — used neither, and each carried its own ~700-line copy of a worse version
+of the same flow.
+
+Concretely, on `main` at `6826124`:
+
+1. **Every verdict was flattened into a page title.** All three called
+   `compactColoringPageTitle([...])` and sent `listMode: 'title_only'`, `items: []`
+   (`who-fucked-up/+page.svelte:87-96`, `rate-his-excuse/+page.svelte:87-96`,
+   `random/+page.svelte:82-83`). The prompts in `src/lib/adapters/meechie-tool-seam/index.ts`
+   explicitly instruct `red_flag_or_run` to answer in `Fault:` / `Consequence:` / `Move:` beats —
+   and `/who-fucked-up` is the route for exactly that tool. It took the structure the app asked for
+   and threw it away, then cut what was left off at 96 characters.
+2. **Nothing could be kept.** `saveToVault` lived only in `studio-state.svelte.ts` and
+   `MeechieTools.svelte`. A page generated from the nav survived as long as the tab did. The user
+   paid a generation for it either way.
+3. **A failed retry destroyed the page you already had.** `handleSubmit` set `result = null;
+   imagePreviews = []; packagedFiles = []` *before* the request went out. A timeout, an empty field
+   or a provider error deleted a finished page with nothing to restore it from. This is the exact
+   defect Codex found in the toolkit during Run 2 and it was still sitting, unfixed, in three files.
+4. **A failed share image took the printable PDF with it.** One `package({ variants: ['print',
+   'square'] })` call. The adapter returns the square failure *without* its accumulated files, so a
+   browser that could not encode the 1080px canvas lost the PDF — the actual product — as well.
+   Also fixed in the toolkit during Run 2, also still here.
+5. **The drift report was discarded.** `parsed.data.value.violations` was never read. A page whose
+   printed title the provider had quietly reworded presented as clean.
+6. **Editing "Dedicated to" left a stale page on offer.** The dedication is baked into the spec at
+   generation time; the field was `bind:value` with nothing watching it, so the download and the
+   preview kept the old value while the form showed the new one.
+
+Runners-up considered and passed over:
+
+- **`/m/[mode]`** — still the orphan Run 2 flagged. Unlinked, unstyled, no generation. It costs a
+  real user nothing because no user can reach it. Still a deletion, not a rebuild.
+- **The wig try-on** — works, and was repaired in the v1.1 recovery.
+- **`.github/workflows/verify.yml` running `on: [push, pull_request]`** — still doubling every CI
+  run. Real, cheap, and still its own small PR.
+
+### Plan (per `AGENTS.md` "Plan + Self-Critique")
+
+Recorded in full in `plan.md` under "The standalone mode routes become real page factories
+(2026-09-04)".
+
+- **Goal:** all three routes produce the page the verdict deserves, report drift, download as
+  separate print and share files, and reach the Quote Vault — from one implementation, not three.
+- **Seams touched:** none. Every seam is consumed through its existing adapter exactly as
+  `+page.svelte` and `MeechieTools.svelte` already consume it. Nothing under `contracts/`,
+  `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or `src/lib/seams/` was modified, so
+  the full Seam-Driven Development workflow was not triggered and no Cipher Gate entry was required.
+- **Files:** `src/lib/core/generated-image-preview.ts` (new),
+  `src/lib/components/verdict-page-state.svelte.ts` (new),
+  `src/lib/components/VerdictPageStudio.svelte` (new), the three route files,
+  `src/routes/studio-state.svelte.ts` and `src/lib/components/MeechieTools.svelte` (dedup only),
+  `tests/unit/generated-image-preview.test.ts` (new), `tests/unit/verdict-page-state.test.ts` (new),
+  `tests/e2e/smoke.spec.ts`, plus `CHANGELOG.md`, `CLAUDE.md`, `DECISIONS.md`,
+  `LESSONS_LEARNED.md`, `plan.md`.
+
+### Self-critique, and what it changed
+
+- *Riskiest assumption:* that one shared lifecycle could serve three routes without flattening what
+  makes each one distinct. Partly wrong, and the design changed because of it. Rate His Excuse
+  echoes the excuse and leads with a coloured score ring; Random Meechie has no input at all and a
+  pulsing loading state. So the seam is the verdict boundary: each route keeps its hero, its input
+  and its verdict presentation, and only the identical half is shared.
+- *A defect I introduced and caught before pushing:* the first draft used one staleness token for
+  both lifecycles, copying the toolkit. That is wrong here. The toolkit clears its verdict on every
+  tool switch, so its dedication field is never on screen beside a loading verdict; on these routes
+  it is. With one token, typing a dedication while a replacement verdict was in flight cancelled
+  that request and re-enabled the button with nothing coming. Split into `verdictToken` and
+  `pageToken`, and pinned by a test that fails when they are collapsed again.
+- *What had to be proven, and how:* every guard here is invisible from the outside, so reading the
+  code proves nothing. Each was confirmed by deleting it and watching a test fail. That exercise
+  found a real hole: the race test passed with the post-packaging staleness check removed, because
+  it only ever suspended on the `/api/generate` fetch. Packaging is a *second*, slower window — it
+  rasterises in a browser canvas — and an earlier guard was absorbing the mutation. Added a test
+  that gates the packaging adapter instead, and it fails when that check goes.
+
+### What shipped
+
+- **All three routes print the structure the verdict came back in.** Driven in a real browser,
+  `/who-fucked-up` now sends `listMode: 'list'` with `Fault: he had time to answer`,
+  `Consequence: he lost the spare key`, `Move: stop explaining yourself` as numbered lines. It used
+  to send one truncated title.
+- **Save to the Quote Vault from any of the three**, into the same owner-scoped store, with the
+  verdict's own words stored as `studioText` so reopening does not print the image-generation
+  prompt as if Meechie had said it.
+- **The drift report is surfaced**, the print PDF and square share image are packaged separately,
+  and a failed share image no longer costs the PDF.
+- **A failed retry keeps the page you already have** — nothing on screen is cleared until a
+  replacement has actually arrived. Random Meechie keeps the saying you are reading while it fetches
+  the next one, and "Ask her again" / "Re-run the ruling" were added to the other two.
+- **Editing the dedication drops the page it was not generated with.**
+- **Rate His Excuse stopped lying about which excuse it ruled on.** The echo used to be bound to the
+  live input box, so editing it after the ruling arrived reattached Meechie's words to text she had
+  never seen. It now echoes the excuse actually submitted.
+- **Four copies of the image-conversion helpers became one.** `generated-image-preview.ts` is now
+  used by the three routes, the toolkit and the home studio. Its base64 path encodes per byte, so a
+  page title containing a curly apostrophe no longer throws in `btoa`.
+- The three routes moved off Svelte 4 event syntax onto runes, matching the rest of the app.
+
+### Deliberately not done (for a future run)
+
+- **`MeechieTools.svelte` still owns its own copy of the verdict-to-page lifecycle.** It now shares
+  the image helpers, but not `VerdictPageState`. Migrating it is the last duplicate and it is the
+  obvious next move — but it is a large diff on a file that was merged and heavily reviewed hours
+  ago, its behaviour is already correct, and folding it in would have doubled this PR's blast radius
+  for no user-visible gain. If it is migrated, re-check whether it still needs the tool-switch reset
+  that currently makes a single token sufficient there (see `DECISIONS.md`).
+- **`/m/[mode]` should still be deleted.** Unchanged from Run 2's entry.
+- **Everything deferred by Runs 1 and 2 remains deferred**, unchanged: `deleteCreation` ignoring
+  `owner`, `parseRecords`' unsurfaced `skippedIndices`, base64 images in `localStorage` against the
+  ~5 MB quota, and `verify.yml` running `on: [push, pull_request]`.
+
+### Evidence
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm run lint`: exit 0, clean.
+- `npm test`: 1141 passed, 1 skipped (baseline on `6826124`: 1105 passed, 1 skipped — 36 new).
+- `npm run build`: exit 0.
+- `npx playwright test`: 18 passed (baseline 13 — 5 new, covering the shared page factory, the
+  cross-route vault save, the structure assertion, the dedication invalidation, and the failed-retry
+  preservation).
+- All three routes driven in a real browser at 1280x900 and 390x844, with the spec actually sent to
+  `/api/generate` captured and read rather than inferred.
+- `npm run verify` and the refreshed `docs/evidence/2026-09-04/` are recorded below, at the head
+  this PR was opened from.
+
+### Two things a future run should know
+
+1. **Never name a local binding after a rune.** `const state = new VerdictPageState(...)` makes every
+   `$state(...)` in that file compile as a store subscription against it, and the error says
+   "Cannot use 'state' as a store" — which reads as a type problem, not a naming collision. Only
+   `npm run check` catches it; the unit tests import the class directly and never touch the
+   component. Recorded in `LESSONS_LEARNED.md`.
+2. **This repo exports two different types called `GeneratedImage`.** The seam's
+   (`src/lib/seams/image-generation-seam/contract`) is `{ id, url?, b64? }` — what a provider
+   returns. The flat contract's (`contracts/image-generation.contract.ts`) is
+   `{ id, format, mimeType, data, encoding }` — what `/api/generate` returns. Only the second has
+   `format` and `encoding`. Reaching for the newer-looking layout by reflex is wrong; they are not
+   two spellings of one type.
