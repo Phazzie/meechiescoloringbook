@@ -31,9 +31,12 @@
 #       400 at 23:22:23, a hang at 23:30), consistent with genuine flakiness rather than either
 #       session's own artifact. Two of that session's own genuine `npm run verify` wrapper
 #       invocations are appended at the end of this transcript, run after merging this file's
-#       full history in (23:55:53 and, after a second merge conflict with `main` crossed midnight
-#       UTC, one more at 00:28:47 - both clean, audit:gate included). A Codex review on that PR
-#       caught two real mistakes in how this file was being maintained during that merge: first,
+#       full history in: 23:55:53, then 00:15:49 after a second merge conflict with `main` - both
+#       clean, audit:gate included. A third genuine invocation, at 00:28:47 after that same
+#       conflict's midnight-UTC rollover put its own evidence in a separate dated directory, is
+#       recorded in `docs/evidence/2026-09-04/verify-chain.txt` instead, not appended here. A
+#       Codex review on that PR caught two real mistakes in how this file was being maintained
+#       during that merge: first,
 #       an intermediate round described individually-run stages as "the full chain passed
 #       cleanly" (the same imprecision this file's own history already shows above - retries 7, 9,
 #       and the post-review-fix attempt all fell back to individual stages after the wrapper
