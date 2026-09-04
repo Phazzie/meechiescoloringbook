@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T20:31:55.695Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T20:41:51.379Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -20,10 +20,12 @@
 #
 # Seams touched: none. No file under contracts/, probes/, fixtures/, src/lib/mocks/,
 # tests/contract/, src/lib/adapters/ or src/lib/seams/ is in the diff, and no contract shape
-# changed. Every seam the rebuilt page reaches — MeechieToolSeam, SpecValidationSeam,
-# OutputPackagingSeam, CreationStoreSeam, SessionSeam, ClockSeam — is called through the adapters
-# VerdictPageState already used for the three standalone routes. cipher-gate.json therefore
-# correctly predates this run.
+# changed. Every seam the rebuilt page reaches is called through adapters that already existed —
+# fourteen of them, not the six this header listed for most of this run. The authoritative
+# enumeration, its partition into browser / generate-path / nested, and the reason five of them are
+# additionally run under a canonical "(self-contained)" row all live in the Round 5 section below;
+# this header deliberately does not restate the list, because a second copy is a second thing to go
+# stale and that is exactly how it was wrong here. cipher-gate.json correctly predates this run.
 
 ALL EIGHT STAGES RAN. EXIT 0.
 
@@ -188,6 +190,8 @@ declined on new evidence.
     verification when full verify is not required.
 
 Evidence on this head: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped,
-build exit 0, playwright 28 passed, verify exit 0 across all eight stages, nineteen rewind runs
-exit 0 (fourteen bare + five canonical "(self-contained)"), matching the nineteen
-rewind-*.txt artifacts in this directory.
+build exit 0, playwright 28 passed, verify exit 0 across all eight stages, and 19 rewind runs
+whose recorded exit codes were all 0, matching the 19 rewind-*.txt artifacts in this
+directory. This sentence was written at 2026-09-04T20:44:47Z, after those runs completed — an earlier
+revision declared the rewind result in a paragraph saved a minute *before* the first rewind
+executed, which made it a prediction rather than a record.

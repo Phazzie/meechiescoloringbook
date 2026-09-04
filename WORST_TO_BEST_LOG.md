@@ -4385,3 +4385,49 @@ the smallest possible response and it is why corrections 6, 7 and 8 each produce
 
 Findings per round: 3, 3, 3, 2, 5, 2, 3, 2, 1 — **twenty-four across nine rounds**. Still none in
 the application, which has been untouched and green since `f81802d`.
+
+---
+
+## Run 4, correction 10 — 2026-09-04 — a result declared before the runs that produced it
+
+Appended, not edited. Three P2 findings on `c2f0845`. The middle one is the sharpest evidence
+finding of the close-out, because it is not about a stale number — it is about **the order in which
+a fact and its record were created.**
+
+### 1. The chain record announced a result a minute before producing it
+
+`proof-tape.json` records `verify-chain.txt` as modified at **20:33:05**, while the nineteen rewind
+artifacts were written from **20:34:04 to 20:34:40**. The sentence "nineteen rewind runs exit 0" was
+therefore saved *before the first rewind ran*. The runs did all pass, so the statement turned out
+true — but it was a prediction wearing the clothes of a record, and nothing in the file distinguished
+the two.
+
+That is the failure this whole close-out has been circling, in its purest form. Every other instance
+was a claim that had gone stale or was never checked; this one was written about the future and
+happened to come out right.
+
+Fixed in the procedure, not just the file. The refresh now runs in strict order — chain, then lint /
+build / e2e, then all nineteen rewinds with **each exit code captured to a log** — and only then
+writes the summary, with the counts and exit codes *read back from that log and from the artifact
+directory* rather than typed. The file now records when the sentence was written and says plainly
+that an earlier revision predeclared it. Chronology on this head: last rewind 20:44:33,
+`verify-chain.txt` 20:44:47.
+
+### 2. The header still listed six seams
+
+Lines 23–25 said "Every seam the rebuilt page reaches" and named six, contradicting the corrected
+Round 5 inventory further down the same file. Rather than paste fourteen names into a second place,
+the header now points at the Round 5 enumeration and says why: **a second copy of a list is a second
+thing to go stale, which is precisely how this one was wrong.** Three of this close-out's findings
+have been duplicate lists drifting apart.
+
+### 3. The e2e header undercounted its own additions
+
+It claimed four new tests and named four; the suite carries six against the 22-test baseline — the
+phone-width overflow measurement and the replacement-saying dedication split were added two rounds
+later and never made it into the header. Now names all six.
+
+### Running total
+
+Findings per round: 3, 3, 3, 2, 5, 2, 3, 2, 1, 3 — **twenty-seven across ten rounds**, none in the
+application. The trend is not monotonic and I have stopped predicting that it will be.
