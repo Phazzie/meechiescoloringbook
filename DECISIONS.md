@@ -39,13 +39,40 @@ Short, durable decisions with context and tradeoffs.
     request itself. The `/api/tools` exposure this Assumption covers is therefore not merely
     unwidened by the change; it is untouched by it.
   - The other four consumers — `/meechie`, `/who-fucked-up`, `/rate-his-excuse`, `/random` — are
-    unchanged too, and all five send inputs built by the same `MeechieToolInputSchema` through the
-    same request path. If the Assumption turns out false, every one of them fails identically, and
-    did so before this change as much as after it.
+    unchanged too. **Not that they all fail identically**, which an earlier draft claimed and which
+    is false: `meechie-tool-seam/index.ts` builds a different user message per `toolId`, and
+    `rate_excuse` uses `RATE_EXCUSE_RESPONSE_FORMAT` where the others use
+    `STANDARD_RESPONSE_FORMAT`, so the provider could reject one payload and accept another. The
+    accurate statement is narrower and sufficient: **each route already sent its own payload before
+    the rebuild, and still sends exactly that payload after it.** No route's request shape is in
+    this diff. A later audit must not read one tool's success as proof for the rest.
   - The Assumption's own resolution criterion — probe `POST /api/meechie-studio-text` on a reachable
-    deployment — is unreachable from this environment and was not attempted: the preview sits behind
-    Vercel SSO (recorded in the Assumption itself), and a live production call spends money against
-    a provider account, which a separate open Assumption records as unauthorized.
+    deployment — was not met, and the reason is stated directly rather than borrowed: the preview
+    sits behind Vercel SSO (recorded inside the Assumption itself), and **no owner authorization
+    exists in this repository for making a live billable text-provider call from an unattended
+    run.** An earlier draft attributed that restriction to the 2026-08-26 `WigTryOnSeam`
+    Assumption, which is wrong — that entry is scoped to one capped two-image `/v1/images/edits`
+    acceptance call and says nothing about chat completions or this endpoint. The constraint here is
+    the absence of a ruling, not the presence of one.
+
+- Second exposure, which the first draft of this entry did not address at all: **`/api/generate`.**
+  Unlike `/api/tools`, this genuinely is new from `/m/<slug>` — the old page could not generate
+  anything — and `/api/generate` calls `createQuotaGate(event, 'image')`, so it sits behind
+  `RateLimitSeam`, whose 2026-08-26 Assumption is also Open (the durable Upstash store is
+  unprovisioned; degraded in-process metering is in force). By this entry's own rule a genuinely new
+  caller owes its own argument, so here it is:
+  - The `image` quota bucket is keyed by **client identity** — `createQuotaGate` passes
+    `() => event.getClientAddress()` — and by bucket name, **not by route**. One identity's image
+    allowance is the same number whether it is spent from `/m/<slug>`, `/meechie`,
+    `/who-fucked-up`, `/rate-his-excuse`, `/random` or the home studio.
+  - `/api/generate` already had those callers before this change. Adding a sixth entry point to a
+    per-identity gate does not raise what any identity can spend, and does not touch the metering
+    mechanism the Assumption is about: the open question is durable cross-instance sharing versus
+    in-process metering, which is a property of the store, not of how many screens can reach it.
+  - The Assumption's own Status records that degraded metering "reduces the strength of the limit
+    but never disables it", so the gate is in force on this path exactly as it is on the others.
+  - What this does **not** clear: any change that raises a bucket limit, adds an ungated billable
+    call, or introduces a new bucket. Those are the cases the Assumption is for.
 - Consequences: the Assumption stays **Open** and unchanged. This entry clears exactly one thing —
   PR #295's rebuild of behaviour *downstream* of a verdict on `/m/<slug>`, a route that was already
   an `/api/tools` consumer before the change — and nothing else.
@@ -57,7 +84,8 @@ Short, durable decisions with context and tradeoffs.
     an auto-merge until that specific change explains why it is safe.
   - A future run that adds a new `/api/tools` consumer, or changes a prompt, a model id or the
     request shape, must make its own argument or resolve the Assumption. Citing this entry is not
-    that argument.
+    that argument. The same holds for the `RateLimitSeam` Assumption and anything that raises a
+    bucket limit, adds an ungated billable call, or introduces a new bucket.
 - Revisit criteria: when a deployment becomes reachable without SSO, or when a change touches the
   provider payload.
 

@@ -5,7 +5,7 @@
 #      modes, the client-side walk between two modes, and the 404 for an unknown slug.
 # Info flow: playwright output -> this evidence file -> review and the proof tape.
 #
-# npx playwright test — 2026-09-04T19:40:32Z (this command's own start time, not the chain's)
+# npx playwright test — 2026-09-04T19:53:47Z (this command's own start time, not the chain's)
 # Run 4, close-out head: the merge entry for PR #295.
 #
 # Note on the browser: this container ships Chromium build 1194 while the pinned
@@ -17,35 +17,35 @@
 
 Running 28 tests using 2 workers
 
-  ✓   2 [chromium] › tests/e2e/smoke.spec.ts:180:1 › home mode switching and generation controls work (2.5s)
-  ✓   1 [chromium] › tests/e2e/smoke.spec.ts:218:1 › wig try-on demo works end to end without provider traffic (3.0s)
+  ✓   1 [chromium] › tests/e2e/smoke.spec.ts:180:1 › home mode switching and generation controls work (2.8s)
+  ✓   2 [chromium] › tests/e2e/smoke.spec.ts:218:1 › wig try-on demo works end to end without provider traffic (3.2s)
   ✓   3 [chromium] › tests/e2e/smoke.spec.ts:321:1 › home quote vault can save, load, pin, and delete creations (2.2s)
-  ✓   4 [chromium] › tests/e2e/smoke.spec.ts:364:1 › home quote vault searches saved pages and reveals the ones past the preview (1.9s)
-  ✓   6 [chromium] › tests/e2e/smoke.spec.ts:438:1 › random route tap and page generation work (1.7s)
-  ✓   5 [chromium] › tests/e2e/smoke.spec.ts:399:1 › home shoutout input debounces draft save and clears dedication (2.2s)
-  ✓   7 [chromium] › tests/e2e/smoke.spec.ts:454:1 › rate and who routes submit, reset, and generate pages (3.3s)
-  ✓   8 [chromium] › tests/e2e/smoke.spec.ts:476:1 › the mode routes print the structure a verdict came back in (3.1s)
+  ✓   4 [chromium] › tests/e2e/smoke.spec.ts:364:1 › home quote vault searches saved pages and reveals the ones past the preview (2.0s)
+  ✓   5 [chromium] › tests/e2e/smoke.spec.ts:399:1 › home shoutout input debounces draft save and clears dedication (2.0s)
+  ✓   6 [chromium] › tests/e2e/smoke.spec.ts:438:1 › random route tap and page generation work (1.8s)
+  ✓   8 [chromium] › tests/e2e/smoke.spec.ts:476:1 › the mode routes print the structure a verdict came back in (3.4s)
+  ✓   7 [chromium] › tests/e2e/smoke.spec.ts:454:1 › rate and who routes submit, reset, and generate pages (3.5s)
   ✓  10 [chromium] › tests/e2e/smoke.spec.ts:530:1 › editing the dedication drops the page it was not generated with (1.8s)
   ✓   9 [chromium] › tests/e2e/smoke.spec.ts:516:1 › a page made on a mode route can be saved and found in the home vault (3.0s)
   ✓  11 [chromium] › tests/e2e/smoke.spec.ts:550:1 › Another one drops a dedication chosen for the previous saying (1.7s)
-  ✓  12 [chromium] › tests/e2e/smoke.spec.ts:572:1 › a failed re-ask on a mode route does not destroy the page already on screen (1.8s)
-  ✓  13 [chromium] › tests/e2e/smoke.spec.ts:610:1 › meechie toolkit tabs and lineup controls work (2.2s)
+  ✓  12 [chromium] › tests/e2e/smoke.spec.ts:572:1 › a failed re-ask on a mode route does not destroy the page already on screen (1.9s)
+  ✓  13 [chromium] › tests/e2e/smoke.spec.ts:610:1 › meechie toolkit tabs and lineup controls work (2.3s)
   ✓  14 [chromium] › tests/e2e/smoke.spec.ts:644:1 › every toolkit verdict becomes a coloring page that downloads and saves (3.0s)
   ✓  16 [chromium] › tests/e2e/smoke.spec.ts:735:1 › editing the dedication drops the page it was not generated with, and drift is surfaced (1.6s)
-  ✓  15 [chromium] › tests/e2e/smoke.spec.ts:678:1 › a slow page generation cannot land under a different verdict (5.1s)
-  ✓  17 [chromium] › tests/e2e/smoke.spec.ts:779:1 › switching tools during a pending verdict does not wedge the button (1.7s)
-  ✓  18 [chromium] › tests/e2e/smoke.spec.ts:815:1 › a structured verdict prints as a numbered list page, an unstructured one as a quote (1.8s)
-  ✓  19 [chromium] › tests/e2e/smoke.spec.ts:850:1 › a failed replacement verdict does not destroy the page already on screen (1.9s)
-  ✓  21 [chromium] › tests/e2e/smoke.spec.ts:913:1 › making a page does not cancel a verdict request nobody cancelled (1.8s)
-  ✓  20 [chromium] › tests/e2e/smoke.spec.ts:885:1 › a failed regeneration does not destroy the page already on screen (2.7s)
-  ✓  22 [chromium] › tests/e2e/smoke.spec.ts:942:1 › an unreadable generated image does not replace the page already on screen (2.9s)
-  ✓  23 [chromium] › tests/e2e/smoke.spec.ts:1000:1 › a focused mode page turns its verdict into a coloring page (3.1s)
-  ✓  25 [chromium] › tests/e2e/smoke.spec.ts:1051:1 › walking from one mode to another does not carry the first verdict over (1.6s)
-  ✓  24 [chromium] › tests/e2e/smoke.spec.ts:1023:1 › a mode with no input, and a mode with two, both reach a page (3.1s)
-  ✓  26 [chromium] › tests/e2e/smoke.spec.ts:1087:1 › a slug that names no mode is a 404, not a different mode (2.0s)
-  ✓  27 [chromium] › tests/e2e/smoke.spec.ts:1105:1 › a mode page does not pan sideways on a phone (4.2s)
+  ✓  15 [chromium] › tests/e2e/smoke.spec.ts:678:1 › a slow page generation cannot land under a different verdict (4.7s)
+  ✓  17 [chromium] › tests/e2e/smoke.spec.ts:779:1 › switching tools during a pending verdict does not wedge the button (1.6s)
+  ✓  18 [chromium] › tests/e2e/smoke.spec.ts:815:1 › a structured verdict prints as a numbered list page, an unstructured one as a quote (1.9s)
+  ✓  19 [chromium] › tests/e2e/smoke.spec.ts:850:1 › a failed replacement verdict does not destroy the page already on screen (1.8s)
+  ✓  21 [chromium] › tests/e2e/smoke.spec.ts:913:1 › making a page does not cancel a verdict request nobody cancelled (1.6s)
+  ✓  20 [chromium] › tests/e2e/smoke.spec.ts:885:1 › a failed regeneration does not destroy the page already on screen (2.5s)
+  ✓  22 [chromium] › tests/e2e/smoke.spec.ts:942:1 › an unreadable generated image does not replace the page already on screen (2.7s)
+  ✓  23 [chromium] › tests/e2e/smoke.spec.ts:1000:1 › a focused mode page turns its verdict into a coloring page (3.0s)
+  ✓  25 [chromium] › tests/e2e/smoke.spec.ts:1051:1 › walking from one mode to another does not carry the first verdict over (1.7s)
+  ✓  24 [chromium] › tests/e2e/smoke.spec.ts:1023:1 › a mode with no input, and a mode with two, both reach a page (3.0s)
+  ✓  26 [chromium] › tests/e2e/smoke.spec.ts:1087:1 › a slug that names no mode is a 404, not a different mode (1.8s)
+  ✓  27 [chromium] › tests/e2e/smoke.spec.ts:1105:1 › a mode page does not pan sideways on a phone (4.1s)
   ✓  28 [chromium] › tests/e2e/smoke.spec.ts:1122:1 › a replacement saying drops a dedication chosen for the previous one (3.0s)
 
-  28 passed (39.3s)
+  28 passed (39.6s)
 
 exit=0

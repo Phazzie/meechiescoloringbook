@@ -25,9 +25,18 @@ concession the `ClockSeam` plan in run 1 had to make.
 - **Files:** `DECISIONS.md` (the ruling), `plan.md` (this section), `WORST_TO_BEST_LOG.md`
   (append-only record), and the regenerated artifacts under `docs/evidence/2026-09-04/`.
 - **Commands:** `npm run verify`, `npm run check`, `npm run lint`, `npm test`, `npm run build`,
-  `npx playwright test`, and `npm run rewind -- --seam <name>` for `MeechieToolSeam`,
-  `SpecValidationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`, `SessionSeam` and `ClockSeam`
-  (evidence: `docs/evidence/2026-09-04/rewind-<SeamName>.txt`, six files).
+  `npx playwright test`, and `npm run rewind -- --seam <name>` for **every seam on the paths this
+  page reaches — twelve, not six.** Evidence: `docs/evidence/2026-09-04/rewind-<SeamName>.txt`.
+  - Reached from the browser, or directly by the request the page makes:
+    `MeechieToolSeam`, `SpecValidationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`,
+    `SessionSeam`, `ClockSeam`.
+  - Reached server-side inside `/api/generate`, which the rebuilt page can now call:
+    `PromptAssemblySeam`, `ImageGenerationSeam`, `ImageProviderConfigSeam`, `SafetyPolicySeam`,
+    `DriftDetectionSeam`, `RateLimitSeam` (via `createQuotaGate(event, 'image')`).
+  - The first list alone was what an earlier draft called "the six seams the page consumes", and it
+    was incoherent as well as short: `SpecValidationSeam` is itself server-side on that same
+    `/api/generate` path, so the list could not be defended as "browser-side only". Enumerating the
+    whole path is the only version of this claim that means anything.
 - **How behaviour stays unchanged:** nothing executable is touched. The ruling neither resolves nor
   edits the Assumption — it stays Open with its Status text unchanged — and adds no exemption to any
   automated gate. `npm run assumption:alarm` sees the same entries before and after.

@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-04T19:41:24.795Z
+Generated at: 2026-09-04T19:54:51.142Z
 Evidence folder: docs/evidence/2026-09-04
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -21,10 +21,16 @@ after this inventory is taken, so they are not listed):
 - e2e.txt (4693 bytes)
 - lint.txt (630 bytes)
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
-- rewind-ClockSeam.txt (543 bytes)
+- rewind-ClockSeam.txt (541 bytes)
 - rewind-CreationStoreSeam.txt (539 bytes)
+- rewind-DriftDetectionSeam.txt (539 bytes)
+- rewind-ImageGenerationSeam.txt (537 bytes)
+- rewind-ImageProviderConfigSeam.txt (537 bytes)
 - rewind-MeechieToolSeam.txt (539 bytes)
 - rewind-OutputPackagingSeam.txt (640 bytes)
+- rewind-PromptAssemblySeam.txt (539 bytes)
+- rewind-RateLimitSeam.txt (540 bytes)
+- rewind-SafetyPolicySeam.txt (541 bytes)
 - rewind-SessionSeam.txt (537 bytes)
 - rewind-SpecValidationSeam.txt (542 bytes)
 - seam-ledger.json (30250 bytes)

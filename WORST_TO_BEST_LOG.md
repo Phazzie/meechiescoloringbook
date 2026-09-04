@@ -4095,3 +4095,84 @@ read the original work got — and if this run had applied to its own prose the 
 
 `npm run verify` exit 0, all eight stages. check 0 errors / 0 warnings. lint exit 0. test **1187
 passed, 1 skipped**. build exit 0. playwright **28 passed**. Six `npm run rewind` runs, all exit 0.
+
+---
+
+## Run 4, correction 5 — 2026-09-04 — five findings, and the count went up
+
+Appended, not edited. Five findings on `255a67e`, against two on the head before it. The previous
+entry said the rounds were "converging"; that was a prediction stated as an observation, and it was
+wrong. Correcting it here rather than leaving it.
+
+Two of the five are substantive. Three are accuracy fixes to claims this run made about its own work.
+
+### 1. P1 — the ruling never addressed `/api/generate`, which *is* a new exposure
+
+The whole ruling reasoned about `/api/tools`, established that `/m/<slug>` was already a consumer of
+it, and stopped. But the rebuild's entire point is that the page can now reach **`/api/generate`**,
+which it could not before — and `/api/generate` calls `createQuotaGate(event, 'image')`, putting it
+behind `RateLimitSeam`, whose 2026-08-26 Assumption is **also Open**: the durable Upstash store is
+unprovisioned and degraded in-process metering is in force.
+
+So the entry's own rule — a genuinely new caller owes its own argument — applied to the entry, and
+it had not been made. The argument now recorded, and it is a real one rather than a patch:
+
+- The `image` bucket is keyed by **client identity** (`createQuotaGate` passes
+  `() => event.getClientAddress()`) and by bucket name, **not by route**. One identity's image
+  allowance is the same number whether spent from `/m/<slug>`, `/meechie`, the three standalone
+  routes or the home studio.
+- `/api/generate` already had those callers. A sixth entry point to a per-identity gate does not
+  raise what any identity can spend, and does not touch the mechanism the Assumption is about —
+  durable cross-instance sharing versus in-process metering is a property of the store, not of how
+  many screens reach it.
+- The Assumption's own Status says degraded metering "reduces the strength of the limit but never
+  disables it", so the gate is in force on this path exactly as on the others.
+
+**Why this one is worth more than its fix.** The correction two rounds ago established that
+`/m/<slug>` was already an `/api/tools` consumer — and that fact, which was true and which I was
+right to record, is what stopped me looking further. Having found the reassuring half of the answer,
+I stopped enumerating. The billable half was the half that mattered.
+
+### 2. P1 — the seam list was short *and* incoherent
+
+The evidence offered against the seam-workflow finding was "`rewind` passes for the six seams the
+page consumes". `/api/generate` also drives `PromptAssemblySeam`, `ImageGenerationSeam`,
+`ImageProviderConfigSeam`, `SafetyPolicySeam`, `DriftDetectionSeam` and `RateLimitSeam`.
+
+The list could not even be defended as "browser-side only", because `SpecValidationSeam` — which it
+did include — is server-side on that same path. It was not a principled subset; it was the set I
+happened to think of.
+
+All twelve now run, all exit 0, evidence in `docs/evidence/2026-09-04/rewind-<SeamName>.txt`.
+
+### 3–5. Three claims this run made about itself that were not true
+
+- **"Every one of them fails identically."** False. `meechie-tool-seam/index.ts` builds a different
+  user message per `toolId`, and `rate_excuse` uses `RATE_EXCUSE_RESPONSE_FORMAT` where the others
+  use `STANDARD_RESPONSE_FORMAT`, so the provider can reject one payload and accept another. The
+  narrower true statement is enough: each route already sent its own payload before the rebuild and
+  still sends exactly that payload after it.
+- **A borrowed authorization.** The ruling said a live provider call is "unauthorized" per a
+  separate open Assumption. That Assumption is the 2026-08-26 `WigTryOnSeam` entry, scoped to one
+  capped two-image `/v1/images/edits` call; it says nothing about chat completions. The real
+  constraint is the **absence** of an owner ruling covering a billable text call from an unattended
+  run — which is a weaker and more honest thing to say than citing a rule that does not exist.
+- **The merge-head gate.** The log recorded SonarCloud passing on `855b726` and Codex clean on
+  `f81802d`, which read as though the merge head's own gate was never established. It was: on
+  `f81802d`, ten check runs (SonarCloud Code Analysis, SonarCloud, CodeQL, Analyze
+  javascript-typescript, Analyze actions, verify ×2, Rosentic, Vercel Preview Comments; Sourcery
+  skipped) all reported success, the SonarCloud bot posted Quality Gate passed with 0 new issues and
+  0.0% duplication, and both commit statuses were green. Recorded here because "I checked it" and
+  "the record shows I checked it" are different claims, and only the second one survives me.
+
+### What five findings on a docs commit actually says
+
+Every one of these is prose. The app has not changed since `f81802d`, and no reviewer has found
+anything in it since. What keeps producing findings is this run writing about its own work — and the
+two P1s here have the same shape as each other and as most of the previous rounds: **a set asserted
+without being enumerated.** Six seams instead of twelve. One endpoint instead of two. Four callers
+instead of five, then five instead of "each with its own payload".
+
+Run 3's close-out named this exact failure — "a guard is a claim about a set; writing one and
+testing the state you had in mind proves the guard fires, never that the set is closed" — about
+code. It is the same error in prose, committed by the run that quoted it.
