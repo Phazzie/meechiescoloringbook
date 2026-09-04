@@ -454,14 +454,18 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	};
 
 	const handleGenerate = async (): Promise<void> => {
-		resetState();
-		isWorking = true;
+		// Only the stale error goes now. The verdict and the page it produced are what the reader is
+		// looking at, and they cost a paid generation: clearing them up front meant an empty required
+		// field, a timeout, a provider error or an off-contract response silently destroyed a page
+		// that was still perfectly good, with nothing to restore it from. Nothing on screen is
+		// replaced until a replacement has actually arrived.
+		error = '';
 		const parsedInput = MeechieToolInputSchema.safeParse(buildInput());
 		if (!parsedInput.success) {
 			error = 'Please complete the required fields before generating.';
-			isWorking = false;
 			return;
 		}
+		isWorking = true;
 
 		// The verdict fetch needs the same staleness guard as the page generation. `/api/tools` for
 		// tool A can still be in flight when the user switches to tool B: the tab handler clears
@@ -471,12 +475,19 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		const requestedTool = selectedTool;
 		const token = pageToken;
 		const isStale = (): boolean => token !== pageToken || selectedTool !== requestedTool;
+		// Recorded rather than recomputed at the end, because the success path calls `resetState()`,
+		// which bumps `pageToken` itself. Re-asking `isStale()` in the `finally` after that would
+		// read its own reset as someone else's and leave the button disabled forever.
+		let abandoned = false;
 
 		try {
 			const payload = await postJson('/api/tools', parsedInput.data, {
 				timeoutMs: POST_JSON_TIMEOUTS_MS.tools
 			});
-			if (isStale()) return;
+			if (isStale()) {
+				abandoned = true;
+				return;
+			}
 			const parsedResult = MeechieToolResultSchema.safeParse(payload);
 			if (!parsedResult.success) {
 				error = 'Tool response did not match contract.';
@@ -484,19 +495,25 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			}
 
 			if (parsedResult.data.ok) {
+				// Here, and only here, does what is on screen stop belonging to what is on screen.
+				resetState();
 				output = parsedResult.data.value;
 			} else {
 				error = parsedResult.data.error.message;
 			}
 		} catch (requestError) {
-			if (isStale()) return;
+			if (isStale()) {
+				abandoned = true;
+				return;
+			}
 			error =
 				requestError instanceof Error
 					? requestError.message
 					: 'Tool request failed.';
 		} finally {
-			// A stale request must not clear the flag a newer one is holding.
-			if (!isStale()) isWorking = false;
+			// A request the user abandoned must not clear the flag a newer one is holding; the
+			// abandoning reset released it already.
+			if (!abandoned) isWorking = false;
 		}
 	};
 </script>

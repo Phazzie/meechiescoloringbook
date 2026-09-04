@@ -177,9 +177,18 @@ const toDedication = (value: string | undefined): string | undefined => {
 const collapseWhitespace = (line: string): string => line.replace(/\s+/g, ' ').trim();
 
 /**
- * Abbreviations that end in a period without ending a sentence. Deliberately short: every entry
- * costs a merged sentence when a verdict genuinely ends on that word, so this covers the titles and
- * shorthand a verdict about a person or a place actually uses, and nothing speculative.
+ * Abbreviations that end in a period without ending a sentence.
+ *
+ * Every entry is a word that *introduces* what follows — a title before a name, `vs.` between two
+ * of them, `No.` before a number. That is what makes the lookbehind safe: the capital letter after
+ * the period belongs to the same sentence, so the uppercase lookahead cannot tell them apart on its
+ * own and the list has to.
+ *
+ * Abbreviations that *end* a phrase are deliberately absent — `p.m.`, `etc.`, `Inc.` and their kin.
+ * They can genuinely end a sentence, and suppressing the boundary there merged the sentence with
+ * the next one, which pushed a long response past 96 characters and cost the whole-sentence
+ * selection its first sentence. Mid-sentence they need no help: `at 9 p.m. and he left` continues
+ * in lowercase, which the uppercase lookahead already refuses to split.
  */
 const SENTENCE_ABBREVIATIONS = [
 	'mr',
@@ -199,15 +208,7 @@ const SENTENCE_ABBREVIATIONS = [
 	'gov',
 	'hon',
 	'vs',
-	'etc',
-	'inc',
-	'ltd',
-	'co',
-	'dept',
-	'approx',
-	'no',
-	'a.m',
-	'p.m'
+	'no'
 ];
 
 /** Match a word regardless of case without an `i` flag, which would also defeat `[A-Z]` below. */

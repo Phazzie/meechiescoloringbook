@@ -643,3 +643,40 @@ test('a structured verdict prints as a numbered list page, an unstructured one a
 	expect(specs[1].listMode).toBe('title_only');
 	expect(specs[1].items).toEqual([]);
 });
+
+test('a failed replacement verdict does not destroy the page already on screen', async ({
+	page
+}) => {
+	// Codex found this: `handleGenerate` cleared the verdict, the previews, the downloads and the
+	// save recipe before it had validated the input or heard back from `/api/tools`. A required
+	// field left empty, a timeout, or a provider error therefore deleted a page the reader had
+	// already paid to generate, with nothing left to restore it from.
+	let toolsCalls = 0;
+	await page.route('**/api/tools', async (route) => {
+		toolsCalls += 1;
+		const body = route.request().postDataJSON() as { toolId?: string };
+		if (toolsCalls === 1) {
+			await route.fulfill({ json: toolPayload(body.toolId ?? 'unknown') });
+			return;
+		}
+		await route.fulfill({ status: 500, json: { message: 'provider exploded' } });
+	});
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
+
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+
+	// A second verdict request on the same tool, this time failing.
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-error')).toBeVisible();
+
+	// The page the reader paid for is still there, and still downloadable.
+	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
+});

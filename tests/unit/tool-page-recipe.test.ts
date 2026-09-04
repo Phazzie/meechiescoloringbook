@@ -392,9 +392,10 @@ describe('buildToolStudioText keeps a saved page faithful when reopened', () => 
 		expect(restored.verdict).toBe(out.headline);
 	});
 
-	// The red proof for the two tests above: this is exactly what a toolkit save produced before
-	// `buildToolStudioText` existed, and it is why omitting the field was not a neutral choice.
-	it('shows the damage the omitted field caused', () => {
+	// Why omitting the field still is not a neutral choice, and what is no longer true about it.
+	// `buildToolStudioText` returns null for a verdict with no printable words at all, so a record
+	// can still be saved without this field and has to degrade honestly when reopened.
+	it('never puts the image prompt in Meechie\'s mouth when the field is missing', () => {
 		const { recipe } = save('caption_this', 'Diamond nails, no explanations.');
 		const withoutStudioText = buildStudioTextFromCreationRecord({
 			id: 'creation-1',
@@ -403,9 +404,14 @@ describe('buildToolStudioText keeps a saved page faithful when reopened', () => 
 			assembledPrompt: 'STYLE: bold outline art\nTEXT (exact):\nNEGATIVE PROMPT: no color',
 			owner: { kind: 'anonymous', sessionId: 'session-1' }
 		});
-		// The image prompt surfaced as Meechie's quote...
-		expect(withoutStudioText.quote).toContain('NEGATIVE PROMPT');
-		// ...and the default landlord lines were attached to the user's saved page.
+		// The quote is the page's own text now, never the image-generation prompt.
+		expect(withoutStudioText.quote).not.toContain('NEGATIVE PROMPT');
+		expect(withoutStudioText.quote).not.toContain('STYLE:');
+		// The page's own title, as the spec normalizes it for printing.
+		expect(withoutStudioText.quote).toBe(recipe.spec.title.toUpperCase());
+		// The remaining degradation, stated rather than hidden: a page with no printed items cannot
+		// supply the two the studio-text schema demands, so the defaults still stand in for them.
+		// They are only ever printed if the reader switches that page to a list layout by hand.
 		expect(withoutStudioText.pageItems).toEqual(DEFAULT_STUDIO_TEXT_OUTPUT.pageItems);
 	});
 
@@ -701,13 +707,33 @@ describe('sentence selection survives abbreviations', () => {
 			'Dr. Reyes lied.',
 			'He filed it anyway.'
 		]);
-		expect(splitResponseLines('He called at 9 p.m. She was already gone.')).toEqual([
-			'He called at 9 p.m. She was already gone.'
-		]);
 		expect(splitResponseLines('J. Reyes signed it. The date is wrong.')).toEqual([
 			'J. Reyes signed it.',
 			'The date is wrong.'
 		]);
+	});
+
+	it('still ends a sentence on a phrase-final abbreviation', () => {
+		// `p.m.` introduces nothing, so a capital after it starts a new sentence. Suppressing the
+		// boundary here merged the two, pushed the pair past 96 characters, and cost the title its
+		// whole first sentence.
+		expect(splitResponseLines('He waited until 9 p.m. She kept explaining.')).toEqual([
+			'He waited until 9 p.m.',
+			'She kept explaining.'
+		]);
+		// Mid-sentence it needs no special case: the continuation is lowercase.
+		expect(splitResponseLines('He called at 9 p.m. and never showed up.')).toEqual([
+			'He called at 9 p.m. and never showed up.'
+		]);
+	});
+
+	it('prints the whole first sentence of a long response that ends on a time', () => {
+		const long =
+			'He waited until 9 p.m. She kept explaining the delay in writing while the receipt sat ' +
+			'on the counter unread.';
+		const recipe = buildToolPageRecipe(output('red_flag_or_run', long));
+		expect(recipe.spec.title).toContain('He waited until 9 p.m.');
+		expect(recipe.spec.title.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
 	});
 
 	it('still splits ordinary sentences', () => {

@@ -362,7 +362,6 @@ const normalizeSpecTitle = (value: string, fallback: string): string =>
 
 const buildStudioTextFromSpec = (input: {
 	intent: ColoringPageSpec;
-	quoteFallback?: string;
 	studioText?: MeechieStudioTextOutput;
 }): MeechieStudioTextOutput => {
 	if (input.studioText) {
@@ -371,7 +370,13 @@ const buildStudioTextFromSpec = (input: {
 	const pageTitle = normalizeSpecTitle(input.intent.title, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
 	return {
 		verdict: pageTitle,
-		quote: input.quoteFallback?.trim() || input.intent.footerItem?.label || pageTitle,
+		// The page's own words only. This used to lead with the record's `assembledPrompt`, which on
+		// a generated page is the image-generation prompt — a machine instruction carrying
+		// composition directives, never anything Meechie said — and reopening put it in her mouth as
+		// the quote. A page with no printed items hit that every time: a toolkit quote page, where
+		// the title *is* the page, had nothing else to offer. There is no case where the prompt is
+		// the right answer here, so it is gone rather than demoted.
+		quote: input.intent.footerItem?.label || pageTitle,
 		pageTitle,
 		pageItems:
 			input.intent.items.length > 0
@@ -395,7 +400,6 @@ export const buildStudioTextFromCreationRecord = (
 ): MeechieStudioTextOutput =>
 	buildStudioTextFromSpec({
 		intent: creation.intent,
-		quoteFallback: creation.assembledPrompt,
 		studioText: creation.studioText
 	});
 

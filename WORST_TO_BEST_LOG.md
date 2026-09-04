@@ -1623,3 +1623,79 @@ prose and just fails the length check, where a bad split prints a page with two 
 npm run verify   exit 0   1099 passed | 1 skipped
 npm run test:e2e 13 passed
 ```
+
+---
+
+## Run 2, addendum 2 — 2026-09-04 — the Codex round on `7ff7d09`
+
+Four findings. Three real, one refused with the repository's own code as evidence. Running count:
+**eleven rounds, 47 findings, sixteen real user-visible defects.**
+
+### The page died before the request was even sent
+
+The worst one in the whole run, and it was in the very first line of `handleGenerate` from the day I
+wrote it. `resetState()` ran *before* the input was validated and before `/api/tools` was called. So
+an empty required field — or a timeout, or a provider 500, or an off-contract response — destroyed
+the verdict, the previews, the packaged downloads and the save recipe of a page the reader had
+already paid to generate. Nothing could restore it. Every review round had looked straight past it,
+including mine, because the reset reads as ordinary hygiene.
+
+The fix is to move the question from "am I about to try?" to "did it work?": clear only the stale
+error up front, validate, and replace what is on screen only where a replacement verdict has
+actually arrived.
+
+One trap on the way, and it is the same trap as the sixth close-out. `resetState()` bumps
+`pageToken`, so re-asking `isStale()` in the `finally` after a successful reset would read the
+request's own reset as somebody else's and leave the button disabled forever — the round-six defect,
+rebuilt from the other direction. Recording `abandoned` at each early return instead of recomputing
+staleness at the end is what keeps both properties: an abandoned request still clears nothing, and a
+successful one still releases the button.
+
+### `p.m.` is not a title
+
+The abbreviation guard I added an hour earlier was too broad. `p.m.` went in the same list as `Dr.`,
+so `He waited until 9 p.m. She kept explaining...` came back as one oversized item, both
+whole-sentence loops rejected it, and the title fell back to a mid-sentence cut — the exact failure
+the guard existed to prevent, reintroduced by the guard.
+
+The distinction I had missed is what the abbreviation *does*. `Dr.`, `Mr.`, `St.`, `vs.`, `No.`
+introduce what follows, so the capital after the period belongs to the same sentence and only a list
+can tell. `p.m.`, `etc.`, `Inc.` end a phrase; a capital after them really does start a new
+sentence, and mid-sentence they need no help at all because the continuation is lowercase, which the
+uppercase lookahead already refuses to split. So the list is now titles only, and it is shorter.
+
+### The image prompt in Meechie's mouth
+
+For a verdict with no printable words at all, `buildToolStudioText` returns null and the record saves
+without `studioText`. Codex is right that this is not neutral: the reopen path fell back to
+`assembledPrompt`, which on a generated page is the image-generation prompt, and printed it as the
+quote.
+
+Fixed at the loader, because there is no case where that prompt is the right answer — a saved page's
+quote should be the page's own words or nothing. It is gone rather than demoted.
+
+What I did not fix, stated plainly: a page with no printed items still cannot supply the two
+`MeechieStudioTextOutputSchema` demands, so the default items still stand in for them on that one
+record shape. Inventing two lines to fill the slot would be a placeholder wearing Meechie's voice,
+which is worse than a documented gap. The test now asserts the gap rather than hiding it.
+
+### Refused: read the toolkit timestamps through `ClockSeam`
+
+`ClockSeam` is real and I am not disputing that AGENTS.md lists clock/time as a seam. The evidence is
+about what this repository actually does with it. `src/routes/studio-state.svelte.ts` imports
+`ClockSeam` — for the daily budget rollover at line 164, the one thing that must be deterministic in
+a test — and then uses the host clock directly for exactly the three things the toolkit does:
+
+```
+src/routes/studio-state.svelte.ts:324   `creation-${Date.now()}`
+src/routes/studio-state.svelte.ts:359   new Date().toISOString()
+src/routes/studio-state.svelte.ts:771   new Date().toISOString()
+src/routes/random/+page.svelte:134      `meechie-random-${Date.now()}`
+src/routes/rate-his-excuse/+page.svelte:147
+src/routes/who-fucked-up/+page.svelte:147
+```
+
+Record identity and a download filename are not behaviour anything asserts. Routing them through the
+seam in one component would leave six other call sites doing it the old way, which makes the codebase
+less consistent, not more. The repo-wide change is worth doing; it belongs in its own PR, and it is
+recorded here as a follow-up.
