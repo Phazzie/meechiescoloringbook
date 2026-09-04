@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T23:10:45.100Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T23:21:24.890Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -502,9 +502,35 @@ each consumer loads its capture verbatim, with no reshaping at load time.
 This is the third consecutive round in which a repair needed repairing, and the second in which the
 half I did not edit contradicted the half I did.
 
+## Round 18 — the Codex round on `8355b6a`: the error path had no consumer and no validator
+
+Two P1s. Both are about the **fault** half of the criteria, which every previous round's attention
+had gone past — the success path got six rounds of scrutiny and the error path got none.
+
+  - **The live error capture would have had no reader.** Criterion D replaced only the *success*
+    `xaiSampleResponse`; the adapter's HTTP-failure test builds
+    `new Response('rate limited', { status: 429 })` inline at
+    `tests/contract/image-generation.test.ts:78-96`. So criterion B's real non-2xx response could be
+    recorded and then read by nothing, every test still green, with no check that the adapter maps
+    the provider's *actual* error body to the normalized fault. D now sends the wire-error capture
+    to that test, and B says plainly there are **three** captures — wire-success, wire-error,
+    normalized — not two.
+  - **The fault capture cannot be validated at all today.** Criterion C pointed the normalized
+    captures at `contract.ts:19-29`, which contains only `GeneratedImage` and
+    `ImageGenerationResult`; the `ImageGenerationError` union is at `:35-42`. And `validators.ts`
+    exports only request, image and result schemas — **there is no error validator in the seam.**
+    So "validate the fault capture" was unsatisfiable, against a line range that did not even hold
+    the type. C now names the right range and makes adding `imageGenerationErrorSchema` /
+    `validateImageGenerationError` part of the repair.
+
+Worth recording as a pattern rather than two more line-number fixes: **six rounds refined the
+success path and none touched the fault path**, because every previous finding happened to be
+phrased about a success case and I followed the reviewer's frame each time instead of walking both
+halves of the contract.
+
 ## Ordering of this round's runs, recorded as they happened
 
-  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 23:10:45.100Z)
+  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 23:21:24.890Z)
   2. npm run lint              exit 0                     -> lint.txt
   3. npm run build             exit 0                     -> build.txt
   4. npx playwright test       28 passed                  -> e2e.txt

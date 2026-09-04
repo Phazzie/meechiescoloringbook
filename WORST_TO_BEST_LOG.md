@@ -5215,3 +5215,54 @@ anchored to and treated the other as context.
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1 — **sixty-one findings across
 twenty-three rounds**, none in the application.
+
+---
+
+## Run 4, correction 24 — 2026-09-04 — six rounds on the success path, none on the fault path
+
+Appended, not edited. Two P1s on `8355b6a`, both about the **fault** half of the acceptance criteria.
+
+### 1. P1 — the live error capture would have had no reader
+
+Criterion D replaced only the *success* side: the contract test's private `xaiSampleResponse`. But
+the adapter's HTTP-failure test builds its own response inline —
+
+```ts
+// tests/contract/image-generation.test.ts:78-96
+fetchMock.mockResolvedValueOnce(new Response('rate limited', { status: 429, ... }));
+```
+
+— so criterion B's hard-won "record a real non-2xx response" could have been satisfied, the capture
+written, and **nothing would ever have read it.** Every test green, and still no evidence that the
+adapter maps the provider's actual error body into the normalized fault.
+
+D now sends the wire-error capture to that test, and B says outright that there are **three**
+captures — wire-success, wire-error, normalized — where I had been writing "both captures".
+
+### 2. P1 — the fault capture cannot be validated at all today
+
+Criterion C sent the normalized captures to `contract.ts:19-29` for validation. That range holds
+`GeneratedImage` and `ImageGenerationResult` and nothing else; the `ImageGenerationError` union is at
+`:35-42`. And `validators.ts` exports exactly three things — request, image, result schemas.
+**There is no error validator in this seam.**
+
+So "validate the fault capture against the contract" was unsatisfiable, and pointed at a line range
+that does not contain the type it names. C now names `:35-42` and makes adding
+`imageGenerationErrorSchema` and `validateImageGenerationError` part of the repair.
+
+### The pattern, which is worth more than the two fixes
+
+**Six rounds refined the success path and not one touched the fault path.** Every finding from round
+16 onward happened to be phrased around a success case — the sample fixture, the wire shape, the
+model, the normalized result — and I followed the reviewer's frame each time rather than walking both
+halves of the contract myself. The fault path had exactly the same defects the whole time; nobody
+looked, including me, and I had read those files repeatedly.
+
+That is a different failure from the ones catalogued so far. Not a claim outrunning its check, and
+not fixing only the quoted copy: **taking the reviewer's scope as the scope.** A finding is a place
+to start looking, not a description of the problem's extent.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2 — **sixty-three findings
+across twenty-four rounds**, none in the application.
