@@ -4563,3 +4563,70 @@ it is the third round running where it would have caught the finding before the 
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3 — **thirty-four findings across twelve rounds**, none in the
 application, which has been unchanged since `f81802d`.
+
+---
+
+## Run 4, correction 13 — 2026-09-04 — the fixes from last round were themselves the defects
+
+Appended, not edited. Four findings on `4e3e54c` — two P1, two P2 — and **three of them are in
+artifacts round 12 added yesterday's-hour ago to make its claims checkable.** That is the whole
+lesson of this round: a fix is a change, and a change is unreviewed until it is reviewed.
+
+### 1. P1 — the copyable command block was not copyable
+
+Round 12 listed all nineteen literal `rewind` invocations because quoting is load-bearing for the
+five canonical names. Three of those lines had no space before the inline `#`:
+
+```sh
+npm run rewind -- --seam "DriftDetectionSeam (self-contained)"# rewind-DriftDetectionSeam(...).txt
+```
+
+Reproduced rather than reasoned about — a shell parses that into
+`[--seam] [DriftDetectionSeam (self-contained)#] [rewind-DriftDetectionSeam.txt]`, so
+`scripts/rewind.mjs` looks up a seam name with a trailing `#` and its exact-row match fails.
+
+**The block exists to stop exactly this class of error and it reproduced it**, in the three lines
+where copying is most likely — nobody retypes a name with a space and parentheses. Fixed, and this
+time verified by parsing: all nineteen lines were run through a shell shim that prints its argv, and
+every one yields exactly `--seam` plus the seam name with its suffix intact.
+
+### 2. P1 — the new exit-code log had no file header
+
+`AGENTS.md`'s File Header Requirement is unconditional. I wrote a new evidence file with a bare
+`# 19 rewind runs — started ...` line and shipped it. Small, generated-adjacent and hand-built are
+none of them exemptions. It now carries purpose, why, and information flow.
+
+### 3. P2 — the artifact was named into the pattern it was being counted against
+
+`rewind-exit-codes.txt` matches `rewind-*.txt`. So the moment it existed, the directory held twenty
+files while the summary claimed nineteen — **the file added to make the count checkable was the
+thing that falsified it.** Renamed to `seam-rewind-exit-codes.txt`; `ls rewind-*.txt | wc -l` is 19
+again.
+
+### 4. P2 — the chronology predeclared its own last command
+
+The paragraph said it was written at 21:08:15Z "after every run above completed", with `proof:tape`
+listed above it. proof-tape.json's generatedAt was 21:08:36Z — twenty-one seconds later.
+
+This is the third round to turn on a timestamp, and the fix is structural rather than another
+careful sentence. proof-tape **inventories** this directory, so it must run after the files it
+lists, including the summary. There is no ordering where a paragraph both postdates the tape and is
+seen by it; round 12's sentence was describing an impossible sequence. The file now claims only
+steps 1-6 and says so explicitly, with step 8's timestamp in proof-tape.json as the record that it
+ran.
+
+And then it happened again, one layer down, inside this very fix: my replacement paragraph ended
+"Written at 2026-09-04T21:19:30Z" — a time I typed while composing rather than read from a clock —
+and the tape ran at 21:19:18.692Z, making the new sentence false in the same way as the old one. I
+caught it by reading the tape's generatedAt back afterwards. **The hand-typed timestamp is now gone
+entirely**, replaced by an anchor to two artifact values (`proof-tape.json`'s generatedAt and this
+file's mtime) that a reviewer can check with `stat`. Prose asserting a time is not evidence of that
+time, however sincerely it is written.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4 — **thirty-eight findings across thirteen rounds**, none in
+the application, which has been unchanged since `f81802d`. The shape has shifted, though, and worth
+naming: rounds 6-12 found stale claims about work already done, while three of these four are
+defects in the corrections themselves. Fixes need the same scrutiny as the things they fix, and I
+had been treating them as free.

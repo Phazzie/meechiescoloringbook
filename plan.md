@@ -121,9 +121,9 @@ concession the `ClockSeam` plan in run 1 had to make.
     npm run rewind -- --seam DriftDetectionSeam                   # rewind-DriftDetectionSeam.txt
     npm run rewind -- --seam MeechieVoiceSeam                     # rewind-MeechieVoiceSeam.txt
     npm run rewind -- --seam "MeechieVoiceSeam (self-contained)"  # rewind-MeechieVoiceSeam(self-contained).txt
-    npm run rewind -- --seam "DriftDetectionSeam (self-contained)"# rewind-DriftDetectionSeam(self-contained).txt
-    npm run rewind -- --seam "PromptAssemblySeam (self-contained)"# rewind-PromptAssemblySeam(self-contained).txt
-    npm run rewind -- --seam "SpecValidationSeam (self-contained)"# rewind-SpecValidationSeam(self-contained).txt
+    npm run rewind -- --seam "DriftDetectionSeam (self-contained)"  # rewind-DriftDetectionSeam(self-contained).txt
+    npm run rewind -- --seam "PromptAssemblySeam (self-contained)"  # rewind-PromptAssemblySeam(self-contained).txt
+    npm run rewind -- --seam "SpecValidationSeam (self-contained)"  # rewind-SpecValidationSeam(self-contained).txt
     npm run rewind -- --seam "MeechieToolSeam (self-contained)"   # rewind-MeechieToolSeam(self-contained).txt
     ```
 

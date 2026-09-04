@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T21:05:14.263Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T21:15:53.253Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -229,21 +229,65 @@ Accepted all three. None is in the application, which is byte-identical to the m
   - The "wrong seam" narrowing from round 5 was applied to plan.md and not to this file, which went
     on asserting the strong version at line 189. Fixed above, in place.
 
+## Round 7 — the Codex round on `4e3e54c`: four findings, two of them in evidence I had just added
+
+Accepted all four. Two are defects in the round-6 fixes themselves, which is the useful part: the
+artifact added to make a claim checkable broke the check, and the paragraph asserting an order
+asserted one that had not happened.
+
+  - **P1: the copyable command block was not copyable.** Three of the nineteen lines had no space
+    before the inline `#`, so a shell reading
+    `--seam "DriftDetectionSeam (self-contained)"# rewind-...` passes the seam name as
+    `DriftDetectionSeam (self-contained)#` and rewind's exact-row lookup fails. The block exists
+    *because* quoting is load-bearing for those five names, so the defect landed precisely where it
+    does the most damage. Fixed, and verified by parsing rather than by looking: every one of the
+    nineteen lines now yields exactly two arguments, `--seam` and the seam name with its
+    parenthesised suffix intact.
+  - **P1: the new exit-code log had no file header.** AGENTS.md's File Header Requirement is
+    unconditional and this file is not exempt for being small or hand-built. It now states what it
+    records, why (the per-seam artifacts carry a suite's output but not the command's exit status),
+    and how it flows into this summary.
+  - **P2: the file was named into the pattern it was being counted against.** `rewind-exit-codes.txt`
+    matches `rewind-*.txt`, so the directory held twenty files while this summary claimed nineteen —
+    the artifact added to make the count checkable was the thing that falsified it. Renamed to
+    `seam-rewind-exit-codes.txt`, outside the pattern. `ls rewind-*.txt | wc -l` is 19 again.
+  - **P2: the chronology predeclared the last command.** The paragraph said it was written at
+    21:08:15Z "after every run above completed", listing `proof:tape` above it — but
+    proof-tape.json's generatedAt was 21:08:36Z, twenty-one seconds later. The order is fixed below
+    rather than the sentence reworded, because the sentence was describing an order that cannot
+    exist: see the note after the list.
+
 ## Ordering of this round's runs, recorded as they happened
 
-  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 21:05:14.263Z)
+  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 21:15:53.253Z)
   2. npm run lint              exit 0                     -> lint.txt
   3. npm run build             exit 0                     -> build.txt
   4. npx playwright test       28 passed                  -> e2e.txt
-  5. 19 rewind runs 21:07:30Z-21:08:07Z, every exit code logged as it ran
-                                                          -> rewind-exit-codes.txt
-  6. npm run cipher:gate       exit 0    (not in the chain; run standalone)
-     npm run assumption:alarm  exit 0    (also chain stage 5; run standalone after the waiver edit)
-  7. npm run proof:tape        exit 0    so the tape sees steps 2-6
-  8. this paragraph
+  5. 19 rewind runs 21:18:11Z-21:18:47Z, each exit code appended as that run finished
+                                                          -> seam-rewind-exit-codes.txt
+  6. npm run cipher:gate       exit 0    (not a chain stage; run standalone)
+     npm run assumption:alarm  exit 0    (also chain stage 5; run standalone after the doc edits)
+  7. this section, including the evidence paragraph below
+  8. npm run proof:tape        LAST, so the tape inventories every file including this one
 
-Evidence on this head, read back from rewind-exit-codes.txt and the artifact listing rather than
-recalled: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped, build exit 0,
-playwright 28 passed, verify exit 0 across all eight stages, and 19 rewind runs recording exit code
-0, matching the 19 rewind-*.txt artifacts in this directory. Written at 2026-09-04T21:08:15Z, after
-every run above completed.
+**Why step 8 is last and why no sentence here claims to postdate it.** proof-tape inventories this
+directory, so it has to run after the files it lists — including this summary. That makes
+proof-tape.json's generatedAt necessarily *later* than this paragraph's timestamp, and there is no
+ordering in which a paragraph both postdates the tape and is seen by it. Round 6 tried to have it
+both ways and produced a false sentence. The rule that replaces it: **this file claims only steps
+1-6, each of which completed before it was written; step 8's own timestamp in proof-tape.json is the
+record that it ran, and it is supposed to be the newest thing in the folder.**
+
+Evidence on this head, read back from seam-rewind-exit-codes.txt and an `ls` of the directory rather
+than recalled: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped, build exit 0,
+playwright 28 passed, verify exit 0 across all eight stages, cipher:gate exit 0, assumption:alarm
+exit 0, and 19 rewind runs recording exit code 0 against 19 files matching `rewind-*.txt`. Written
+after steps 1-6 and before step 8.
+
+**No hand-typed timestamp closes this file, and that is deliberate.** The first draft of the
+paragraph above ended "Written at 2026-09-04T21:19:30Z" — a time I typed while writing rather than
+read from a clock, and it landed *after* the proof-tape run it claimed to precede (generatedAt
+21:19:18.692Z). Three rounds of findings have now come from timestamps asserted instead of measured,
+so the ordering claim here is anchored to artifacts instead: proof-tape.json's generatedAt is the
+record of step 8, and because the tape inventories this file it is by construction later than this
+file's own mtime. Those two values are checkable with `stat` and `cat`; a sentence in prose is not.
