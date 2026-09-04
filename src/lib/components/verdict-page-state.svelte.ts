@@ -144,6 +144,20 @@ const packageOneVariant = async (
  */
 let fallbackCounter = 0;
 
+/**
+ * A value that differs between two documents of the same origin, without a PRNG.
+ *
+ * `performance.timeOrigin` is the instant *this document* started, at sub-millisecond resolution,
+ * so two tabs almost never share one. It exists only to separate tabs in the last-resort id below;
+ * it is not a secret and nothing depends on it being unguessable.
+ */
+const documentToken = ((): string => {
+	if (typeof performance === 'undefined') return '0';
+	const origin =
+		typeof performance.timeOrigin === 'number' ? performance.timeOrigin : 0;
+	return Math.trunc((origin + performance.now()) * 1000).toString(36);
+})();
+
 const newCreationId = (): string => {
 	if (typeof crypto !== 'undefined') {
 		if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -155,16 +169,20 @@ const newCreationId = (): string => {
 			return `creation-${hex}`;
 		}
 	}
-	// Last resort: a monotonic counter, not `Math.random()`. Two things are wrong with a PRNG
-	// here. SonarCloud flags it — the id is not a secret, but reaching for a pseudorandom source
-	// when a cryptographic one is right above it is the habit the rule exists to break. And it is
-	// not even the better answer: a counter cannot repeat within a document, which is exactly the
-	// guarantee `Date.now()` alone was missing.
+	// Last resort, and deliberately not `Math.random()`: reaching for a pseudorandom source when a
+	// cryptographic one sits right above it is the habit SonarCloud's PRNG rule exists to break.
 	//
-	// This branch needs a browser with no Web Crypto at all — `getRandomValues`, unlike
-	// `randomUUID`, is not secure-context gated — so it is close to unreachable in practice.
+	// Uniqueness here needs two separate things, because the two collisions are different. The
+	// counter separates saves *within* one document, which is what `Date.now()` alone could not do.
+	// `documentToken` separates *documents*, which the counter alone could not do — two tabs each
+	// start their own counter at zero, so both would otherwise emit `-1` in the same millisecond.
+	//
+	// This is a bound, not a proof: two documents whose `timeOrigin` matches to the microsecond,
+	// saving in the same millisecond, would still collide. Reaching this branch at all requires a
+	// browser with no Web Crypto whatsoever — `getRandomValues`, unlike `randomUUID`, is not
+	// secure-context gated — which no browser able to run this app has been for over a decade.
 	fallbackCounter += 1;
-	return `creation-${Date.now()}-${fallbackCounter}`;
+	return `creation-${Date.now()}-${documentToken}-${fallbackCounter}`;
 };
 
 export type VerdictPageStateOptions = {

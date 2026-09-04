@@ -3190,3 +3190,61 @@ was green on the `Math.random()` version too. Tests proved the behaviour; the ga
 clean. test **1171 passed, 1 skipped**. build exit 0. playwright **22 passed**. The collision test
 still fails when the counter is removed, so the guarantee is pinned to behaviour, not to the shape
 of the expression.
+
+---
+
+## Run 3, tenth close-out — 2026-09-04 — a correction this log owes the next run
+
+Two findings on `4ef64dc`. The second one is a **correction to this log and to `CLAUDE.md`**, and it
+matters more than any code defect in the run.
+
+### `/m/[mode]` is not orphaned. This log said it was, twice, and was wrong.
+
+Run 2's entry described it as "an orphaned third implementation of the same modes. Reachable by URL,
+linked from nowhere". Run 3 repeated that in its own "deliberately not done" list, and then wrote it
+into `CLAUDE.md` — the file whose entire job is telling the next session where things are — as
+"Linked from nowhere, no generation. **Delete candidate**."
+
+It is linked from the home page:
+
+```
+src/lib/components/studio/StudioHero.svelte:79
+    <a href={`/m/${mode.id}`}>{mode.shortLabel}</a>
+```
+
+inside `<nav class="focused-mode-links" aria-label="Open a focused Meechie mode">`, rendered once per
+weekly mode — and `StudioHero` is mounted by `src/routes/+page.svelte`. It also calls `/api/tools`
+and renders a verdict, so "no generation" is true only of coloring pages.
+
+**Nobody verified it.** Run 2 asserted it, Run 3 inherited it, and Run 3 promoted it from a log entry
+to a navigation document, which is where an unchecked claim becomes dangerous. A future run following
+`CLAUDE.md` would have deleted the destination of live links on the app's most-visited page.
+
+Corrected in `CLAUDE.md` (both rows). This log is append-only, so Run 2's text and Run 3's repetition
+both stand as written; this entry supersedes them. **`/m/[mode]` is not a delete candidate.**
+
+The general lesson, and it is the sharpest one of the run: *an inherited claim is not evidence.* The
+whole method here has been "measure it before you say it", applied rigorously to code and not at all
+to a sentence copied from the previous run's notes. A claim in a log is exactly as unverified as the
+day someone wrote it, and copying it forward launders it into fact.
+
+### The counter separated saves, not tabs
+
+Also correct, and it means the previous close-out overstated its own fix. `fallbackCounter` is
+module-level, so each document starts at zero: two tabs saving in the same millisecond both emit
+`creation-<ms>-1` — the exact two-tab collision the original P1 described.
+
+Added `documentToken`, computed once per document from `performance.timeOrigin + performance.now()`.
+Two tabs almost never share one, and it is not a PRNG, so the security gate stays green. The code
+says plainly that this is a bound and not a proof, and that the branch needs a browser with no Web
+Crypto at all to be reached.
+
+Three rounds on one id, and each round's fix was correct about the collision in front of it and
+silent about the next one: clock-only (collides in a millisecond) → counter (collides across tabs) →
+counter plus document token. The pattern is the same one this run keeps meeting — a guard that did
+not cover the whole of what it claimed.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0/0. lint clean.
+test **1171 passed, 1 skipped**. build exit 0. playwright **22 passed**.

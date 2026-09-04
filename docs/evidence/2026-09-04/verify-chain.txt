@@ -287,3 +287,41 @@ guarantee is pinned to behaviour rather than to the shape of the expression.
 
 Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
 check 0/0, lint clean, test 1171 passed / 1 skipped, build exit 0, playwright 22 passed.
+
+## Codex round on 4ef64dc — two findings, and the documentation one is the serious one
+
+### The counter separated saves, not tabs
+
+Correct, and it means the previous close-out overstated the fix. `fallbackCounter` is module-level,
+so each document starts it at zero: two tabs saving in the same millisecond both emit
+`creation-<ms>-1`, which is the two-tab collision the original P1 named.
+
+Added `documentToken`, derived once per document from `performance.timeOrigin + performance.now()`
+at sub-millisecond resolution. Two tabs almost never share one, and it is not a PRNG so the security
+gate stays green. Stated in the code as a bound rather than a proof: two documents whose timeOrigin
+matches to the microsecond, saving in the same millisecond, would still collide — and reaching this
+branch at all needs a browser with no Web Crypto whatsoever.
+
+### `/m/[mode]` is NOT orphaned, and this repo's own docs said it was
+
+The more consequential finding, and it is a documentation defect rather than a code one.
+
+`CLAUDE.md` described `/m/[mode]` as "Orphaned fourth implementation of the same modes. Linked from
+nowhere, no generation. Delete candidate." Two of those three claims are false:
+
+  src/lib/components/studio/StudioHero.svelte:79
+      <a href={`/m/${mode.id}`}>{mode.shortLabel}</a>
+
+inside `<nav class="focused-mode-links">`, rendered for every weekly mode — and `StudioHero` is
+mounted by `src/routes/+page.svelte`, the home page. It also calls `/api/tools` and shows a verdict,
+so "no generation" is only true of coloring pages, not of the route doing nothing.
+
+The claim originated in Run 2's log and was copied into `CLAUDE.md` by this run without checking it.
+That is the damage a wrong note in a navigation file does: the next run reads "delete candidate" in
+the file whose whole job is orientation, and 404s a link on the most-visited page in the app.
+
+Corrected in `CLAUDE.md` (both rows), and the log carries a correction entry — it is append-only, so
+the original text stands and the correction supersedes it.
+
+Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
+check 0/0, lint clean, test 1171 passed / 1 skipped, build exit 0, playwright 22 passed.
