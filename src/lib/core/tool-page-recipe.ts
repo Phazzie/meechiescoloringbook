@@ -8,9 +8,11 @@ import type { MeechieToolOutput } from '../seams/meechie-tool-seam/contract';
 import type { ColoringPageSpec } from '../seams/spec-validation-seam/contract';
 import {
 	ALLOWED_TEXT_REGEX,
+	LabelSchema,
 	MAX_DEDICATION_LENGTH,
 	MAX_LABEL_LENGTH,
-	MAX_TITLE_LENGTH
+	MAX_TITLE_LENGTH,
+	TitleSchema
 } from '../seams/spec-validation-seam/contract';
 import { compactColoringPageTitle } from './coloring-page-title';
 
@@ -30,21 +32,6 @@ export type ToolPageRecipeOptions = {
  * list runs to twenty lines has no blank space left to colour, and blank space is the product.
  */
 export const MAX_TOOL_PAGE_ITEMS = 6;
-
-/**
- * Lines the prompt assembler reserves for its own control blocks. Both `LabelSchema` and
- * `TitleSchema` reject a value equal to one of these, so neither an item nor a title may be one.
- * Kept as a lowercase-compare list so "style:" cannot slip through on casing alone.
- */
-const RESERVED_PROMPT_TEXT = new Set([
-	'style:',
-	'text (exact):',
-	'typography:',
-	'layout:',
-	'decorations:',
-	'output:',
-	'negative prompt:'
-]);
 
 /**
  * Strip a string down to what `LabelSchema`/`DedicationSchema` actually accept
@@ -163,8 +150,10 @@ const truncateOnWord = (value: string, maxLength: number): string => {
 const toLabel = (value: string): string | null => {
 	const cleaned = truncateOnWord(toAllowedText(value), MAX_LABEL_LENGTH);
 	if (cleaned.length === 0) return null;
-	if (RESERVED_PROMPT_TEXT.has(cleaned.toLowerCase())) return null;
-	return cleaned;
+	// Ask the schema that owns the rule rather than re-stating it. A hand-kept copy of the prompt
+	// assembler's reserved control lines was missing three of the contract's ten, and would have
+	// drifted again the next time that list changed.
+	return LabelSchema.safeParse(cleaned).success ? cleaned : null;
 };
 
 const toDedication = (value: string | undefined): string | undefined => {
@@ -420,17 +409,20 @@ const LIST_PAGE_STYLE = { whitespaceScale: 45, listGutter: 'loose' } as const;
 /**
  * A title the spec contract will accept.
  *
- * `MeechieToolOutputSchema` accepts any non-empty headline, but `TitleSchema` rejects a value equal
- * to one of the prompt assembler's reserved control lines. A provider headline of `STYLE:` would
- * therefore pass `/api/tools` and then be rejected by `/api/generate` as `GENERATE_INPUT_INVALID`
- * — after the user had already asked for the page. Fall back to the fallback title rather than
- * emitting a spec that cannot be generated.
+ * `MeechieToolOutputSchema` accepts any non-empty headline, but `TitleSchema` does not: it rejects
+ * the prompt assembler's reserved control lines, structural separators, and anything over the
+ * length cap. A provider headline of `STYLE:` would therefore pass `/api/tools` and then be
+ * refused by `/api/generate` as `GENERATE_INPUT_INVALID` — after the user had asked for the page.
+ *
+ * This asks `TitleSchema` itself instead of re-stating its rules. The first version of this guard
+ * kept its own copy of the reserved list and was missing three of the contract's ten entries;
+ * deferring to the schema cannot drift from it, and covers every other reason a title is refused.
  */
 const toPageTitle = (parts: string[]): string => {
 	const title = compactColoringPageTitle(parts);
-	return RESERVED_PROMPT_TEXT.has(title.trim().toLowerCase())
-		? compactColoringPageTitle([])
-		: title;
+	if (TitleSchema.safeParse(title).success) return title;
+	const fallback = compactColoringPageTitle([]);
+	return TitleSchema.safeParse(fallback).success ? fallback : 'Meechie Said It';
 };
 
 const buildTitle = (output: MeechieToolOutput, forList: boolean): string => {

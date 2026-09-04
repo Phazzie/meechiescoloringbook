@@ -291,6 +291,16 @@ export class StudioState {
 
 	// --- Non-reactive implementation details ---
 	owner: CreationOwner | null = null;
+	/**
+	 * True only while the spec's layout belongs to a page reopened from the vault.
+	 *
+	 * The studio always authors list pages; a page saved from the Meechie tools hub can be
+	 * `title_only`. That layout must survive a settings change on the reopened page, but must not
+	 * outlive it: carried into a brand-new verdict it would make
+	 * `buildColoringPageSpecFromMeechieText` discard every new page item, spending revision budget
+	 * and image quota on an incomplete page.
+	 */
+	private restoredPageLayout = false;
 	authContext: CreationRecord['authContext'] | null = null;
 	// Incremented whenever the displayed page is replaced; async work captures it and drops its
 	// result if the value moved on. Not $state: nothing renders it.
@@ -381,10 +391,9 @@ export class StudioState {
 			border: this.border,
 			styleHint: this.currentStyleHint(),
 			dedication: this.currentDedication(),
-			// Keep the layout the current page is in. For anything the studio authored this is
-			// always 'list' and nothing changes; for a full-quote page reopened from the vault it
-			// stops a settings change from silently converting it into a numbered list.
-			listMode: this.spec.listMode
+			// Keep the layout only while this is still the reopened page. For anything the studio
+			// authored, and for every fresh verdict, this is 'list'.
+			listMode: this.restoredPageLayout ? this.spec.listMode : 'list'
 		});
 		await this.validateSpec();
 		this.scheduleDraftSave();
@@ -496,6 +505,7 @@ export class StudioState {
 		if (modeChanged) {
 			this.textOutput = null;
 			this.resetGeneratedPage();
+			this.restoredPageLayout = false;
 		}
 		this.scheduleDraftSave();
 	};
@@ -538,6 +548,9 @@ export class StudioState {
 		this.textError = '';
 		this.copyStatus = '';
 		this.vaultStatus = '';
+		// Whatever this produces is the studio's own text, so a reopened page's layout no longer
+		// applies to it.
+		this.restoredPageLayout = false;
 
 		const trimmedEvidence = this.evidence.trim();
 		const safeEvidence =
@@ -771,6 +784,8 @@ export class StudioState {
 		const restoredText = buildStudioTextFromCreationRecord(creation);
 		this.resetGeneratedPage();
 		this.spec = creation.intent;
+		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
+		this.restoredPageLayout = true;
 		this.evidence = creation.studioText?.quote ?? creation.assembledPrompt;
 		this.dedication = creation.intent.dedication ?? '';
 		this.pageSize = creation.intent.pageSize;

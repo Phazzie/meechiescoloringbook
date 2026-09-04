@@ -1230,3 +1230,67 @@ not meet is not evidence.
 **The rule this run keeps relearning:** evidence is written *after* the commands, from their actual
 output, and re-read against the artifacts committed beside it. Writing it from what the run expected
 to happen is how a green claim outlives the red result it describes.
+
+---
+
+## Run 2, third close-out — 2026-09-04 — the Codex round on `0be4dc2`
+
+Four findings. Three accepted, one refused with a measurement.
+
+### The same mistake, a third time
+
+`handleModeSelect` clears the text and the images but left `spec.listMode` alone. After reopening a
+toolkit quote page, starting a *new* verdict therefore carried `title_only` into it, and
+`buildColoringPageSpecFromMeechieText` discarded every page item the new verdict produced — after
+the action had spent revision budget, and before the user spent image quota on the incomplete page.
+
+That is the third round in a row where the defect was *created by the previous round's fix*:
+
+1. Omitting `studioText` corrupted the reopen path. Fixed by synthesizing `pageItems`.
+2. Those synthetic `pageItems` met a builder hardcoded to `listMode: 'list'`, so a reopened quote
+   page silently became a list. Fixed by threading `listMode` through.
+3. That threaded `listMode` outlived the page it belonged to, and poisoned the next verdict.
+
+Each fix introduced a value and each time the value's *other* readers went unchecked. The fix now
+scopes the layout explicitly with `restoredPageLayout`, true only between `loadCreation` and the
+next mode change or verdict — a flag with a stated lifetime rather than a value that leaks by
+default. Red-proofed: reverting the guard fails the new test with `"title_only"` where `"list"` is
+required.
+
+**The rule, written down properly this time:** when a fix introduces a new value, list every reader
+of it before calling the fix done. "It works for the case I was fixing" is where all three of these
+came from.
+
+### A duplicated list, deleted rather than completed
+
+The reserved-headline guard added last round kept its own copy of the prompt assembler's control
+lines — and was missing three of the contract's ten
+(`Headline, render these exact words and nothing else:` and two more). Codex asked for the set to be
+completed. Completing it would have left the same drift waiting to happen, so the set is **deleted**
+instead: `toPageTitle` now asks `TitleSchema` and `toLabel` asks `LabelSchema`. Deferring to the
+schema that owns the rule cannot drift from it, and it catches every other reason a title or label
+is refused, not just the reserved lines. Tested against all ten.
+
+### The in-flight case the first dedication fix missed
+
+The dedication guard checked for an installed recipe or preview. While `/api/generate` is still
+pending both are empty, so editing the field mid-flight returned early without bumping the token —
+and the page built for the old dedication landed under the new one. It now also invalidates while
+`isGenerating`.
+
+### Refused, with the measurement
+
+> *"Require a delimiter after verdict prefixes … `Moving on is healthy. Consequences follow.`
+> becomes the two labels `Move: ing on is healthy` and `Consequence: s follow`."*
+
+The colon is already required. The pattern is `/^(fault|consequence|move|verdict|receipt) ?: ?(.+)$/i`
+— ` ?` is an optional *space*, and `:` is mandatory. Run against the exact example:
+
+```
+"Moving on is healthy."   -> no match
+"Consequences follow."    -> no match
+"Move: change the locks." -> ["Move", "change the locks."]
+```
+
+A test now pins that prose beginning with a prefix word falls back to the quote page, so if the
+pattern ever does loosen, the suite says so.

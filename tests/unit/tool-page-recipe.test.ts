@@ -505,3 +505,67 @@ describe('findings from the review rounds', () => {
 		expect(rebuilt.footerItem).toBeDefined();
 	});
 });
+
+describe('titles and labels defer to the contract that rejects them', () => {
+	// The first version of this guard kept its own copy of the reserved control lines and was
+	// missing three of the contract's ten. Asking the schema cannot drift from it.
+	const everyReservedLine = [
+		'STYLE:',
+		'TEXT (exact):',
+		'Headline, render these exact words and nothing else:',
+		'Second line, render these exact words and nothing else:',
+		'End of the headline block. Do not draw any section label.',
+		'TYPOGRAPHY:',
+		'LAYOUT:',
+		'DECORATIONS:',
+		'OUTPUT:',
+		'NEGATIVE PROMPT:'
+	];
+
+	it('never emits a spec the contract refuses, for any reserved headline', () => {
+		for (const reserved of everyReservedLine) {
+			for (const response of [
+				'Fault: he lied.\nConsequence: he lost the key.',
+				'He had time to know better.'
+			]) {
+				const recipe = buildToolPageRecipe(output('red_flag_or_run', response, {
+					headline: reserved
+				}));
+				const parsed = ColoringPageSpecSchema.safeParse(recipe.spec);
+				expect(parsed.success, `headline "${reserved}" produced an invalid spec`).toBe(true);
+			}
+		}
+	});
+
+	it('never emits an item the contract refuses, for any reserved beat', () => {
+		for (const reserved of everyReservedLine) {
+			const recipe = buildToolPageRecipe(
+				output(
+					'red_flag_or_run',
+					`Fault: ${reserved}\nConsequence: he lost the key.\nMove: change the locks.`
+				)
+			);
+			expect(ColoringPageSpecSchema.safeParse(recipe.spec).success).toBe(true);
+		}
+	});
+});
+
+describe('prose that merely starts with a prefix word is not a structured beat', () => {
+	// A prefix only counts when it is followed by a colon. Without that, ordinary prose beginning
+	// "Moving on..." or "Consequences follow." would be chopped into mangled labels and printed as
+	// a numbered page instead of falling back to the quote page.
+	it('does not treat prefix-shaped prose as beats', () => {
+		expect(extractVerdictBeats('Moving on is healthy. Consequences follow.')).toEqual([]);
+		const recipe = buildToolPageRecipe(
+			output('wwmd', 'Moving on is healthy. Consequences follow.')
+		);
+		expect(recipe.spec.listMode).toBe('title_only');
+	});
+
+	it('still accepts a real beat with or without a space before the colon', () => {
+		expect(extractVerdictBeats('Move: change the locks.\nFault : he had time.')).toEqual([
+			'Move: change the locks.',
+			'Fault: he had time.'
+		]);
+	});
+});

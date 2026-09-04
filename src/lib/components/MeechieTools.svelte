@@ -205,7 +205,11 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	 * the new one. Drop the generated page instead, so the only thing on offer matches the field.
 	 */
 	const handleDedicationInput = (): void => {
-		if (lastRecipe === null && imagePreviews.length === 0) return;
+		// `isGenerating` matters as much as an installed page: while `/api/generate` or packaging
+		// is still pending, `lastRecipe` and `imagePreviews` are both empty, so checking only those
+		// would return without bumping the token — and the in-flight page, built with the previous
+		// dedication, would then land beneath the new one.
+		if (!isGenerating && lastRecipe === null && imagePreviews.length === 0) return;
 		resetPage();
 	};
 
