@@ -385,3 +385,51 @@ weakest assertion against it will quietly certify the next weak assertion too.
 ### Still deferred after the fifth round
 
 - Everything listed above, unchanged.
+
+---
+
+## Run 1, sixth close-out — 2026-09-04 — SonarCloud findings, finally readable
+
+Appended, not edited. Two SonarCloud issues appeared on `0c2c770`, both in code this run had just
+written, and both are fixed. The findings themselves are minor. **How they were read is not**, and
+it closes a gap this log has carried since run 1.
+
+| Finding | Fix |
+|---|---|
+| Nested ternary in `decodedByteLength` (`vault-gallery.ts:91`) | Extracted to `base64PaddingLength`. |
+| `String.fromCharCode()` in the SVG completeness check (`vault-gallery.ts:129`) | Replaced with `new TextDecoder().decode(bytes)`, which is also more correct here: the trailer slice can begin mid-character, and TextDecoder yields a replacement character rather than mojibake. |
+
+### How to read SonarCloud findings from this environment
+
+Run 1 recorded five SonarCloud findings as permanently unread, because `sonarcloud.io` is blocked
+by the egress proxy — `curl` to both the dashboard and `api/issues/search` returns
+`CONNECT tunnel failed, response 403`. That conclusion was right about the block and **wrong about
+the consequence**: the findings are readable, just not from SonarCloud.
+
+SonarCloud posts them as **annotations on its GitHub check run**, and `api.github.com` is
+reachable. The recipe:
+
+```sh
+# 1. Find the SonarCloud check run id on the head commit
+curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" \
+  "https://api.github.com/repos/<owner>/<repo>/commits/<sha>/check-runs?per_page=50"
+
+# 2. Read its annotations — path, line, level, and the rule message
+curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" \
+  "https://api.github.com/repos/<owner>/<repo>/check-runs/<id>/annotations"
+```
+
+Note there are two SonarCloud check runs; the one named **"SonarCloud Code Analysis"** carries the
+annotations and the one named "SonarCloud" does not. The same technique already worked for CodeQL
+in run 1, which is what makes the earlier "unreadable" verdict a miss rather than bad luck: the
+tool was already in hand and was not tried against this source.
+
+**The general lesson.** "A service is blocked" is a fact about one route, not about the
+information. Before recording a finding as unread, check whether whatever posted it also posted it
+somewhere reachable — a check run, an annotation, a PR comment.
+
+### Still deferred after the sixth round
+
+- The five SonarCloud findings from run 1 are no longer deferred *as unreadable*; a future run can
+  read them on the merged commit with the recipe above and fix anything still live.
+- Everything else listed above, unchanged.

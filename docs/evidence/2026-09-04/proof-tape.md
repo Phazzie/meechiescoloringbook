@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-04T03:21:58.470Z
+Generated at: 2026-09-04T03:28:00.432Z
 Evidence folder: docs/evidence/2026-09-04
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -22,7 +22,7 @@ after this inventory is taken, so they are not listed):
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - seam-ledger.json (29236 bytes)
 - seam-ledger.md (2344 bytes)
-- shaolin-lint.json (518 bytes)
+- shaolin-lint.json (516 bytes)
 - test.txt (1029 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-chain.txt (5291 bytes) — PREDATES THIS VERIFY RUN

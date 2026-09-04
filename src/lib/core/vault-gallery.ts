@@ -86,11 +86,14 @@ const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
 const isDecodableBase64 = (compact: string): boolean =>
 	compact.length > 0 && compact.length % 4 === 0 && BASE64_PATTERN.test(compact);
 
-/** Decoded byte length of a base64 string, without decoding it. */
-const decodedByteLength = (compact: string): number => {
-	const padding = compact.endsWith('==') ? 2 : compact.endsWith('=') ? 1 : 0;
-	return (compact.length / 4) * 3 - padding;
+const base64PaddingLength = (compact: string): number => {
+	if (compact.endsWith('==')) return 2;
+	return compact.endsWith('=') ? 1 : 0;
 };
+
+/** Decoded byte length of a base64 string, without decoding it. */
+const decodedByteLength = (compact: string): number =>
+	(compact.length / 4) * 3 - base64PaddingLength(compact);
 
 // Enough trailing base64 to cover every terminator checked below. Aligned to 4 characters so the
 // slice decodes on its own, and `</svg>` may sit behind trailing whitespace or a newline.
@@ -125,8 +128,10 @@ const looksCompleteImage = (compact: string, kind: VaultImageKind): boolean => {
 	if (kind.kind === 'svg') {
 		const bytes = decodeTrailer(compact);
 		if (!bytes) return false;
-		let text = '';
-		for (const byte of bytes) text += String.fromCharCode(byte);
+		// Decoded as UTF-8 rather than assembled byte by byte: the slice can begin mid-character,
+		// and TextDecoder turns a broken leading sequence into a replacement character instead of
+		// mojibake. `</svg>` is ASCII either way, so the check itself is unaffected.
+		const text = new TextDecoder().decode(bytes);
 		return text.toLowerCase().trimEnd().endsWith('</svg>');
 	}
 	if (kind.mimeType === 'image/webp') {
