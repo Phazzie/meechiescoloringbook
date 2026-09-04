@@ -4042,3 +4042,56 @@ in the app.
 
 `npm run verify` exit 0, all eight stages. check 0 errors / 0 warnings. lint exit 0. test **1187
 passed, 1 skipped**. build exit 0. playwright **28 passed**. Six `npm run rewind` runs, all exit 0.
+
+---
+
+## Run 4, correction 4 — 2026-09-04 — a merge-gate ruling that over-reached, and a governance change with no plan
+
+Appended, not edited. Two P1 findings on `252a1e8`. Both are in the `DECISIONS.md` entry written by
+correction 2, and the first is a defect **created by correction 3's own fix**.
+
+### 1. The ruling generalised itself into a standing exemption
+
+The Consequences line read: the Assumption "does not block a new consumer of an unchanged path."
+
+Two things wrong with that. It is too broad on its face — a genuinely *new* caller puts users and
+flows in front of the still-unverified deployed-provider behaviour that were not in front of it
+before, which is exactly what the Assumption exists to gate. And it is **no longer the argument this
+entry makes**: correction 3 established that `/m/<slug>` was already an `/api/tools` consumer, so
+the ruling now rests on "this route already called it", not on "a new caller is fine". Correcting
+the premise left a conclusion that no longer followed from it.
+
+The dangerous part is where it lives. `DECISIONS.md` is a source of truth future autonomous runs
+read when deciding whether to merge, so that sentence was a standing exemption any later run could
+cite against an Assumption that is still open and still unverified. Narrowed to the one change it
+covers, with an explicit line saying citing it is not an argument.
+
+### 2. A governance change with no micro plan
+
+`AGENTS.md` requires a micro Plan + Self-Critique for governance-only documentation changes, listing
+seams, files, commands, and how behaviour stays unchanged. `plan.md`'s active plan covers the
+`/m/[mode]` feature. It does not cover a retroactive merge-gate ruling, its risks, or the six rewind
+commands run for the close-out.
+
+Added, and honest about being late in the same way run 1's `ClockSeam` plan had to be: it documents
+the process failure rather than undoing it. Its self-critique names the scope problem above as the
+riskiest part — which is the check that should have caught finding 1 before a reviewer did.
+
+### The shape of the last four rounds
+
+Round 1 found defects in the feature. Rounds 2, 3 and 4 found defects **in the corrections**, and
+every one of those was in prose: a truncated gate check, a fabricated timestamp, a false claim about
+a file this run had read, a stale line citation, an over-broad rule, a missing plan. Not one was in
+the app, which has been green and unchanged since `f81802d`.
+
+The generalisable part, and it is uncomfortable: **each correction was written with more confidence
+and less scrutiny than the thing it corrected.** Fixing a finding feels like closing a question, so
+the fix gets read for whether it addresses the complaint rather than for whether it is true. Three
+of these six were introduced by the immediately preceding fix. A correction deserves the adversarial
+read the original work got — and if this run had applied to its own prose the standard it applied to
+`vault-gallery.ts`, most of these would not exist.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages. check 0 errors / 0 warnings. lint exit 0. test **1187
+passed, 1 skipped**. build exit 0. playwright **28 passed**. Six `npm run rewind` runs, all exit 0.

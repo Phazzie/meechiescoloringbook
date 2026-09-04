@@ -46,10 +46,18 @@ Short, durable decisions with context and tradeoffs.
     deployment — is unreachable from this environment and was not attempted: the preview sits behind
     Vercel SSO (recorded in the Assumption itself), and a live production call spends money against
     a provider account, which a separate open Assumption records as unauthorized.
-- Consequences: the Assumption stays **Open**, unchanged, and still blocks anything that alters the
-  deployed provider payload. It does not block a new consumer of an unchanged path. A future run
-  that changes a prompt, a model id, or the request shape must resolve it rather than cite this
-  entry.
+- Consequences: the Assumption stays **Open** and unchanged. This entry clears exactly one thing —
+  PR #295's rebuild of behaviour *downstream* of a verdict on `/m/<slug>`, a route that was already
+  an `/api/tools` consumer before the change — and nothing else.
+  - **It is not a standing exemption, and must not be cited as one.** An earlier draft of this line
+    read "it does not block a new consumer of an unchanged path", which was both too broad and, once
+    the consumer history above was corrected, no longer even the argument this entry makes. A
+    genuinely *new* caller puts users and flows in front of the still-unverified deployed-provider
+    behaviour that were not in front of it before, so it is covered by the Assumption and must stop
+    an auto-merge until that specific change explains why it is safe.
+  - A future run that adds a new `/api/tools` consumer, or changes a prompt, a model id or the
+    request shape, must make its own argument or resolve the Assumption. Citing this entry is not
+    that argument.
 - Revisit criteria: when a deployment becomes reachable without SSO, or when a change touches the
   provider payload.
 

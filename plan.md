@@ -8,6 +8,46 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Micro plan — the Run 4 close-out's merge-gate ruling (2026-09-04)
+
+`AGENTS.md` requires a micro Plan + Self-Critique for a governance-only documentation change. The
+feature plan below covers the `/m/[mode]` rebuild; it does not cover the retroactive Assumption
+ruling written into `DECISIONS.md` during the close-out, and that ruling is a change to a source of
+truth future autonomous runs read when deciding whether to merge. This is that plan, written after
+the ruling rather than before it — stated plainly rather than backdated, which is the same
+concession the `ClockSeam` plan in run 1 had to make.
+
+- **Goal:** record the statement `AGENTS.md`'s merge gate requires ("resolve it first, or state why
+  the change is safe without it") for the open Assumption dated 2026-08-24, which was never made
+  before PR #295 merged because the pre-merge check was truncated by a `head -10`.
+- **Seams:** none. No seam artifact is in the diff; the ruling is about whether an existing open
+  Assumption blocks an already-merged change.
+- **Files:** `DECISIONS.md` (the ruling), `plan.md` (this section), `WORST_TO_BEST_LOG.md`
+  (append-only record), and the regenerated artifacts under `docs/evidence/2026-09-04/`.
+- **Commands:** `npm run verify`, `npm run check`, `npm run lint`, `npm test`, `npm run build`,
+  `npx playwright test`, and `npm run rewind -- --seam <name>` for `MeechieToolSeam`,
+  `SpecValidationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`, `SessionSeam` and `ClockSeam`
+  (evidence: `docs/evidence/2026-09-04/rewind-<SeamName>.txt`, six files).
+- **How behaviour stays unchanged:** nothing executable is touched. The ruling neither resolves nor
+  edits the Assumption — it stays Open with its Status text unchanged — and adds no exemption to any
+  automated gate. `npm run assumption:alarm` sees the same entries before and after.
+
+**Self-critique.**
+
+- *The riskiest thing here is not the ruling, it is its scope.* A merge-gate decision recorded in a
+  source-of-truth file is a rule future runs will apply to changes I cannot see. The first draft
+  generalised it to "does not block a new consumer of an unchanged path", which would have handed
+  every later run a standing exemption from an Assumption that is still open and still unverified.
+  Narrowed to the single change it actually covers, with an explicit instruction that citing it is
+  not an argument.
+- *What could still be wrong:* the ruling rests on `/m/<slug>` having already been an `/api/tools`
+  consumer before PR #295. That is checkable — `MeechieModePage.svelte:44` at `210b301` — and was
+  checked only after a reviewer caught the first draft claiming the opposite. If it were false, the
+  ruling would need remaking rather than amending.
+- *What this plan cannot fix:* it is late. The gate check should have run before the merge, and the
+  statement should have existed before the ruling was needed. Writing the plan afterwards documents
+  the process failure; it does not undo it, and the log says so in those words.
+
 ## `/m/[mode]` becomes a real mode page (2026-09-04)
 
 Active plan for run 4 of the scheduled "worst feature -> best feature" task recorded in
