@@ -283,8 +283,53 @@ test('home quote vault can save, load, pin, and delete creations', async ({
 
 	await page.getByTestId('home-vault-pin').click();
 	await expect(page.getByTestId('home-vault-pin')).toHaveText('Unpin');
+
+	// Delete is armed first and only destroys the page on the second click.
 	await page.getByTestId('home-vault-delete').click();
+	await expect(page.getByTestId('home-vault-load')).toBeVisible();
+	await page.getByTestId('home-vault-delete-cancel').click();
+	await expect(page.getByTestId('home-vault-load')).toBeVisible();
+
+	await page.getByTestId('home-vault-delete').click();
+	await page.getByTestId('home-vault-delete-confirm').click();
 	await expect(page.getByTestId('home-vault-empty')).toBeVisible();
+
+	// ...and one click puts it back.
+	await page.getByTestId('home-vault-undo-restore').click();
+	await expect(page.getByTestId('home-vault-load')).toContainText('RECEIPT ENERGY');
+});
+
+test('home quote vault searches saved pages and reveals the ones past the preview', async ({
+	page
+}) => {
+	await gotoHydrated(page, '/');
+
+	// The demo provider returns the same verdict for any evidence, so the two saves are told
+	// apart by their shoutout — which the vault search covers along with the title and quote.
+	for (const shoutout of ['Big Sis', 'Plumber Lou']) {
+		await page
+			.getByTestId('home-evidence')
+			.fill('He changed the story after the receipt appeared.');
+		await page.getByTestId('home-generate-verdict').click();
+		await expect(page.getByTestId('home-verdict-quote')).not.toBeEmpty();
+		await page.getByLabel('Shoutout').fill(shoutout);
+		await page.getByTestId('home-save-vault').click();
+		await expect(page.getByTestId('home-status')).toContainText(
+			'Saved to the quote vault.'
+		);
+	}
+
+	await expect(page.getByTestId('home-vault-count')).toContainText('2 saved');
+	await expect(page.getByTestId('home-vault-load')).toHaveCount(2);
+
+	await page.getByTestId('home-vault-search').fill('plumber');
+	await expect(page.getByTestId('home-vault-load')).toHaveCount(1);
+
+	await page.getByTestId('home-vault-search').fill('nothing matches this at all');
+	await expect(page.getByTestId('home-vault-no-matches')).toBeVisible();
+
+	await page.getByTestId('home-vault-search').fill('');
+	await expect(page.getByTestId('home-vault-list')).toBeVisible();
 });
 
 test('home shoutout input debounces draft save and clears dedication', async ({

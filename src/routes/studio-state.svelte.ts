@@ -22,6 +22,12 @@ import {
 	type StudioTextActionId
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
+import {
+	VAULT_PREVIEW_COUNT,
+	buildVaultEntries,
+	restoreCreationImages,
+	sortVaultCreations
+} from '$lib/core/vault-gallery';
 import { GenerateResultSchema } from '../../contracts/generate.contract';
 import { WigTryOnResultSchema } from '../../contracts/wig-try-on.contract';
 import {
@@ -133,6 +139,20 @@ export class StudioState {
 	creations = $state<CreationRecord[]>([]);
 	isSaving = $state(false);
 
+	// --- Quote Vault state ---
+	vaultQuery = $state('');
+	vaultShowAll = $state(false);
+	vaultError = $state('');
+	// Delete is two-step and reversible: the first click arms `pendingDeleteId`, the second
+	// removes the record but keeps it in `undoableDeletion` so one click puts it back. A saved
+	// page costs a paid generation, so a single mis-tap must never be able to destroy one.
+	pendingDeleteId = $state<string | null>(null);
+	undoableDeletion = $state<CreationRecord | null>(null);
+	// Clock reading behind the "Saved today / 3 days ago" labels. Held as state and refreshed
+	// whenever the vault reloads so the labels stay a pure function of an explicit instant
+	// instead of re-reading the clock inside a $derived on every keystroke.
+	nowMs = $state(Date.now());
+
 	// --- Wig try-on state ---
 	selectedWigId = $state<string | null>(null);
 	selectedWig = $state<Wig | null>(null);
@@ -207,6 +227,22 @@ export class StudioState {
 		})
 	);
 	canTryOn = $derived(!!this.selectedWigId && !!this.selfieBase64 && !this.isTryingOn);
+
+	// Every saved page the current search matches, pinned first then newest first. The list used
+	// to be raw store order truncated to four, so a fifth save made the first one unreachable
+	// even though the store keeps fifty.
+	vaultEntries = $derived(
+		buildVaultEntries(this.creations, { query: this.vaultQuery, nowMs: this.nowMs })
+	);
+	visibleVaultEntries = $derived(
+		this.vaultShowAll
+			? this.vaultEntries
+			: this.vaultEntries.slice(0, VAULT_PREVIEW_COUNT)
+	);
+	hiddenVaultCount = $derived(
+		Math.max(0, this.vaultEntries.length - this.visibleVaultEntries.length)
+	);
+	isVaultFiltered = $derived(this.vaultQuery.trim().length > 0);
 
 	// --- Non-reactive implementation details ---
 	owner: CreationOwner | null = null;
@@ -352,9 +388,15 @@ export class StudioState {
 	private async refreshCreations(): Promise<void> {
 		if (!this.owner) return;
 		const result = await creationStoreAdapter.listCreations({ owner: this.owner });
-		if (result.ok) {
-			this.creations = result.value;
+		if (!result.ok) {
+			// Reads used to fail silently, so a browser with unreadable storage showed an empty
+			// vault and no reason for it. Say what happened and leave the last good list up.
+			this.vaultError = result.error.message;
+			return;
 		}
+		this.vaultError = '';
+		this.nowMs = Date.now();
+		this.creations = sortVaultCreations(result.value);
 	}
 
 	// --- Public action handlers ---
@@ -667,24 +709,105 @@ export class StudioState {
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;
 		this.textOutput = restoredText;
+		// Reopening a saved page used to hand back the words and drop the picture, so the only
+		// way to see your own page again was to pay for another generation. The record already
+		// carries the image bytes and the trace, so give all of it back.
+		this.images = restoreCreationImages(creation);
+		this.assembledPrompt = creation.assembledPrompt;
+		this.revisedPrompt = creation.revisedPrompt ?? '';
+		this.violations = creation.violations ?? [];
+		this.vaultStatus = `Reopened "${creation.intent.title}".`;
 		await this.validateSpec();
+		await this.repackageRestoredImages();
 		this.scheduleDraftSave();
 	};
 
-	deleteCreation = async (id: string): Promise<void> => {
-		const result = await creationStoreAdapter.deleteCreation({ id });
-		if (result.ok) {
-			await this.refreshCreations();
+	// Rebuild the printable PDF for a reopened page so Download PDF works on it. Best effort:
+	// the packaging adapter needs a browser canvas for some formats, and a page that cannot be
+	// re-packaged still previews and still exports as an image, so a failure here is not an error
+	// worth putting in front of the reader.
+	private async repackageRestoredImages(): Promise<void> {
+		if (this.images.length === 0) return;
+		try {
+			const packagingResult = await outputPackagingAdapter.package({
+				images: $state.snapshot(this.images),
+				outputFormat: 'pdf',
+				fileBaseName: `meechie-coloring-page-${this.generateCreationId()}`,
+				pageSize: this.spec.pageSize,
+				variants: ['print']
+			});
+			if (packagingResult.ok) {
+				this.packagedFiles = packagingResult.value.files;
+			}
+		} catch {
+			this.packagedFiles = [];
 		}
+	}
+
+	setVaultQuery = (value: string): void => {
+		this.vaultQuery = value;
+		// A search that hides the armed row would otherwise leave a delete primed off-screen.
+		this.pendingDeleteId = null;
+	};
+
+	toggleVaultShowAll = (): void => {
+		this.vaultShowAll = !this.vaultShowAll;
+	};
+
+	requestDeleteCreation = (id: string): void => {
+		this.pendingDeleteId = id;
+		this.vaultError = '';
+	};
+
+	cancelDeleteCreation = (): void => {
+		this.pendingDeleteId = null;
+	};
+
+	deleteCreation = async (id: string): Promise<void> => {
+		const removed = this.creations.find((creation) => creation.id === id) ?? null;
+		const result = await creationStoreAdapter.deleteCreation({ id });
+		this.pendingDeleteId = null;
+		if (!result.ok) {
+			this.vaultError = result.error.message;
+			return;
+		}
+		this.vaultError = '';
+		// Keep a full copy so Undo can put the exact record back, not a reconstruction of it.
+		this.undoableDeletion = removed ? $state.snapshot(removed) : null;
+		this.vaultStatus = removed
+			? `Deleted "${removed.intent.title}".`
+			: 'Deleted.';
+		await this.refreshCreations();
+	};
+
+	undoDelete = async (): Promise<void> => {
+		const record = this.undoableDeletion;
+		if (!record) return;
+		const result = await creationStoreAdapter.saveCreation({ record });
+		if (!result.ok) {
+			this.vaultError = result.error.message;
+			return;
+		}
+		this.vaultError = '';
+		this.undoableDeletion = null;
+		this.vaultStatus = `Restored "${record.intent.title}".`;
+		await this.refreshCreations();
+	};
+
+	dismissUndoDelete = (): void => {
+		this.undoableDeletion = null;
 	};
 
 	toggleFavorite = async (creation: CreationRecord): Promise<void> => {
 		const result = await creationStoreAdapter.saveCreation({
-			record: { ...creation, favorite: !creation.favorite }
+			record: { ...$state.snapshot(creation), favorite: !creation.favorite }
 		});
-		if (result.ok) {
-			await this.refreshCreations();
+		if (!result.ok) {
+			this.vaultError = result.error.message;
+			return;
 		}
+		this.vaultError = '';
+		await this.refreshCreations();
 	};
 
 	// --- Lifecycle ---

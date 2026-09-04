@@ -177,12 +177,33 @@ should pick it up — it does not leave a PR open silently.
 - **If a run can't finish:** record in `QUICK_WINS_LOG.md` exactly what's blocking, and whether a
   future run could or should pick it up. Don't leave the PR open without that note.
 
+## Scheduled Worst-Feature Routine
+A second recurring scheduled task with no live human watching: find the single worst feature in
+the app, rebuild it into the best one, open a PR, drive it through review to merge, and log the
+run. It is distinct from the quick-wins routine above — that one takes two small bug fixes; this
+one takes one feature end to end.
+
+- **Log every run** in `WORST_TO_BEST_LOG.md` (append-only). Read it in full before starting: it
+  records every feature already rebuilt, every candidate passed over with the reasoning, and
+  anything a future run should pick up.
+- **"Worst" means the widest gap between what a feature promises and what it does** — measured in
+  what it costs the user, not in how ugly the code is. State the case with file and line evidence.
+- **Scope:** prefer `src/lib/core/*`, `src/routes/**`, `src/lib/components/**`. If the rebuild has
+  to change `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`, or
+  `src/lib/seams/*`, do the full Seam-Driven Development workflow including a Cipher Gate entry —
+  or pick a rebuild that does not need it. Never half-do it.
+- **Verification:** `npm run check`, `npm run lint`, `npm test`, `npm run build` before every push,
+  the full `npm run verify` chain, and `npx playwright test` when the change is user-facing.
+- The pre-existing CI noise listed under the quick-wins routine applies here unchanged.
+
 ## Project Docs
 - `LESSONS_LEARNED.md`: short, dated entries capturing pitfalls and fixes.
 - `DECISIONS.md`: decision log with context, alternatives, and consequences.
 - `CHANGELOG.md`: user-visible changes only.
 - `QUICK_WINS_LOG.md`: append-only log of every scheduled quick-wins run — what was found, fixed,
   deferred, and merged.
+- `WORST_TO_BEST_LOG.md`: append-only log of every scheduled "worst feature -> best feature" run —
+  which feature was picked, the case against it, what shipped, and what was deferred.
 - `docs/seams.md`: inventory of seams and their owners/contracts.
 - `docs/SEAM_BLUEPRINT.md`: standard blueprint for new seams.
 - `docs/evidence/README.md`: evidence capture conventions and storage.

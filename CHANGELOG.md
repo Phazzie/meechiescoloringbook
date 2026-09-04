@@ -8,6 +8,10 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- The Quote Vault is a real gallery of your saved coloring pages instead of a four-row list of titles. Every saved page is reachable, each row shows the actual page as a thumbnail alongside its quote and when you saved it, and you can search the whole vault by title, quote, or any line printed on the page. Pin now genuinely pins a page to the top, and you can download a saved page straight from its row.
+- Reopening a saved page brings the page back, not just the words. The image, the prompt trace, and the printable PDF are all restored, so seeing your own saved page again no longer costs another generation.
+- Deleting a saved page now asks first and can be undone afterwards. A single mis-tap can no longer destroy a page you paid to generate.
+- Vault failures are visible. An unreadable browser store, a failed delete, or a failed pin now says what went wrong instead of showing an empty list or silently doing nothing.
 - Pages now carry baseline security headers and a Content Security Policy, and the files served alongside them (scripts, images, the service worker) carry the same baseline. The site can no longer be embedded in someone else's page, which is the setup behind clickjacking, and the browser is told exactly which sources it may load from.
 - Resolved all ten outstanding dependency advisories (one critical, six high) and added an audit gate to `npm run verify`, so the build chain cannot quietly rot again.
 - Rate limiting now applies to every AI-backed endpoint. Requests are metered per client before any provider call, so a burst of traffic cannot run up provider spend. Limits are 20 requests/minute across the text features and 8/minute across the image features; exceeding one returns a clear "try again shortly" response with the wait time.

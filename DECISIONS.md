@@ -7,6 +7,42 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-04 - Rebuilding the Quote Vault without touching a seam
+
+- Date: 2026-09-04
+- Decision: Rebuild the Quote Vault entirely in `src/lib/core/`, `src/routes/`, and
+  `src/lib/components/`, reading what it needs out of the existing `CreationRecord` rather than
+  changing `CreationStoreSeam`'s contract or adapter.
+- Context: The scheduled "worst feature -> best feature" run picked the Quote Vault (see
+  `WORST_TO_BEST_LOG.md` for the full case). Everything the rebuild needed — the saved image
+  bytes, `createdAtISO`, `favorite`, the studio text — was already persisted in the record and
+  simply never read. Changing the contract would have pulled in the full Seam-Driven Development
+  workflow for no behavioural gain.
+- Tradeoff 1, image format is recovered from bytes, not from storage: `saveToVault` writes
+  `{ b64 }` only, discarding the `format`/`encoding` the generator reported, and fixing *that*
+  would be a contract change. So `detectVaultImageKind` in `src/lib/core/vault-gallery.ts`
+  reads the real byte signature instead (reusing `detectRasterMimeTypeFromBytes`), and returns
+  null rather than guessing when it does not recognise the bytes. Consequence: an image in a
+  format the sniffer does not know renders as a placeholder rather than a broken thumbnail, and
+  is skipped on restore. Alternative rejected: storing the format in the record, which is the
+  cleaner fix and belongs in a seam-scoped change.
+- Tradeoff 2, save-date labels count calendar days in UTC: `formatVaultSavedLabel` uses UTC day
+  boundaries so the label is a pure function of the stored instant and never depends on the
+  runner's or the viewer's timezone. Consequence: a page saved within a few hours of UTC midnight
+  can read "yesterday" to someone whose local date still says today. Accepted because the
+  alternative — local-time formatting — is nondeterministic in tests and risks an SSR/hydration
+  mismatch, for a distinction that does not matter in a list of saved coloring pages.
+- Tradeoff 3, re-packaging a reopened page is best effort: reopening a saved page rebuilds its
+  printable PDF so Download PDF works, but the packaging adapter needs a browser canvas for some
+  formats. A failure there is swallowed rather than surfaced: the page still previews and still
+  exports as an image, so an error message would be noise about a capability the reader did not
+  ask for. Both paths are covered in `tests/unit/studio-state.test.ts`.
+- Known, deliberately not fixed here (all need the seam workflow, all recorded in
+  `WORST_TO_BEST_LOG.md`): `creationStoreAdapter.deleteCreation` ignores `owner` and deletes by
+  `id` across owners; `parseRecords`' `skippedIndices` is computed and never surfaced; and
+  `localStorage` will eventually reject a vault of fifty full-size base64 pages — that last one is
+  at least no longer silent, because this change surfaces `STORAGE_WRITE_FAILED`.
+
 ## 2026-09-03 - audit:gate's registry endpoint was unreachable during a scheduled quick-wins run
 
 - Date: 2026-09-03
