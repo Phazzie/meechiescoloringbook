@@ -117,6 +117,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		vaultReadFailed={studio.vaultReadFailed}
 		pendingDeleteId={studio.pendingDeleteId}
 		undoableDeletion={studio.undoableDeletion}
+		undoableDeletionEntry={studio.undoableDeletionEntry}
 		onLoadCreation={studio.loadCreation}
 		onRequestDelete={studio.requestDeleteCreation}
 		onCancelDelete={studio.cancelDeleteCreation}

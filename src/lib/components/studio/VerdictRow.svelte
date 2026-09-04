@@ -24,6 +24,7 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 		vaultReadFailed,
 		pendingDeleteId,
 		undoableDeletion,
+		undoableDeletionEntry,
 		onLoadCreation,
 		onRequestDelete,
 		onCancelDelete,
@@ -46,6 +47,7 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 		vaultReadFailed: boolean;
 		pendingDeleteId: string | null;
 		undoableDeletion: CreationRecord | null;
+		undoableDeletionEntry: VaultEntry | null;
 		onLoadCreation: (_creation: CreationRecord) => Promise<void>;
 		onRequestDelete: (_id: string) => void;
 		onCancelDelete: () => void;
@@ -106,6 +108,17 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 						data-testid="home-vault-undo-restore"
 						onclick={onUndoDelete}>Put it back</button
 					>
+					<!-- The held page is out of the list, so this is the only place it can be saved
+					     from. When the vault is full "Put it back" refuses and says to download it
+					     first; that instruction needs somewhere to point. -->
+					{#if undoableDeletionEntry?.imageSource}
+						<a
+							class="link"
+							data-testid="home-vault-undo-download"
+							href={undoableDeletionEntry.imageSource}
+							download={undoableDeletionEntry.downloadName}>Download it</a
+						>
+					{/if}
 					<button type="button" class="link" onclick={onDismissUndo}>Dismiss</button>
 				</div>
 			</div>

@@ -852,7 +852,10 @@ describe('StudioState quote vault', () => {
 		// destroy a different saved page — the exact failure this feature exists to prevent.
 		const records = Array.from({ length: VAULT_CAPACITY }, (_value, index) =>
 			makeCreation(`capacity-${index}`, {
-				createdAtISO: `2026-08-${String((index % 28) + 1).padStart(2, '0')}T00:00:00.000Z`
+				createdAtISO: `2026-08-${String((index % 28) + 1).padStart(2, '0')}T00:00:00.000Z`,
+				// The one that gets deleted carries real bytes, so the download offered for the held
+				// record is exercised rather than assumed.
+				...(index === 0 ? { images: [{ b64: ONE_PIXEL_PNG_BASE64 }] } : {})
 			})
 		);
 		const studio = await initVault(records);
@@ -877,6 +880,19 @@ describe('StudioState quote vault', () => {
 		expect(studio.creations.some((creation) => creation.id === 'brand-new')).toBe(true);
 		expect(studio.undoableDeletion?.id).toBe('capacity-0');
 		expect(studio.vaultError).toContain('full');
+
+		// The refusal tells the reader to download the page before freeing a slot. That has to be
+		// possible: the held record is out of `creations`, so no vault row can offer it, and a
+		// reload drops the last copy. The banner's own entry is the only route to it.
+		expect(studio.undoableDeletionEntry?.id).toBe('capacity-0');
+		expect(studio.undoableDeletionEntry?.imageSource).not.toBe('');
+		expect(studio.undoableDeletionEntry?.downloadName).toBeTruthy();
+	});
+
+	it('has no undo entry to download when nothing is held', async () => {
+		const studio = await initVault([makeCreation('kept')]);
+
+		expect(studio.undoableDeletionEntry).toBeNull();
 	});
 
 	it('disarms a pending delete when collapsing hides its row', async () => {

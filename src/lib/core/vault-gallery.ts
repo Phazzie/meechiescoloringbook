@@ -147,16 +147,45 @@ const WHITESPACE = new Set([' ', '\t', '\n', '\r', '\f', '\v']);
  * super-linear path on it even with the trailer capped at a few dozen bytes. This loop is linear
  * and does the same job.
  */
-const stripTrailingSvgNoise = (text: string): string => {
+const stripTrailingSvgNoise = (text: string, isWholeDocument: boolean): string | null => {
 	let end = text.length;
 	for (;;) {
 		while (end > 0 && WHITESPACE.has(text[end - 1])) end -= 1;
 		if (end < 3 || text.slice(end - 3, end) !== '-->') return text.slice(0, end);
 		const commentStart = text.lastIndexOf('<!--', end - 3);
-		// An unterminated comment means the tail window began inside one; stop rather than guess.
-		if (commentStart === -1) return text.slice(0, end);
+		if (commentStart === -1) {
+			// No opener in view. If this is the whole document the comment really is unterminated and
+			// the file is malformed; otherwise the window merely began inside a long comment, and
+			// `null` asks the caller for a wider one rather than rejecting a valid file.
+			return isWholeDocument ? text.slice(0, end) : null;
+		}
 		end = commentStart;
 	}
+};
+
+/**
+ * Whether a decoded SVG tail ends the root element: `true`, `false`, or `null` for "this window
+ * does not carry enough context to say", which asks the caller to widen it.
+ */
+const svgTailCompletesRoot = (text: string, isWholeDocument: boolean): boolean | null => {
+	// Trailing whitespace and XML comments are legal after the root element closes, so they are
+	// stripped before the ending is judged.
+	const tail = stripTrailingSvgNoise(text, isWholeDocument);
+	if (tail === null) return null;
+	// Two legal endings, not one: `</svg>` closes a root with content, and `/>` closes a
+	// self-closing root such as `<svg xmlns="..."/>`, which is a complete renderable document with
+	// no closing tag at all. Requiring `</svg>` alone rejected those outright.
+	if (tail.endsWith('</svg>')) return true;
+	if (!tail.endsWith('/>')) return false;
+	// `/>` only counts when it closes the *root*. A document truncated after a self-closing child —
+	// `<svg ...><path/>` — also ends in `/>` while leaving the root open, and accepting it would let
+	// corrupt bytes beat a usable fallback url. The element being closed is the one the last
+	// unclosed `<` opened. A `<` cannot appear inside an attribute value — XML requires `&lt;` — so
+	// finding one means finding a real element boundary.
+	const lastOpen = tail.lastIndexOf('<');
+	// No `<` at all means the window opened partway through a tag whose name is further back.
+	if (lastOpen === -1) return isWholeDocument ? false : null;
+	return tail.slice(lastOpen).startsWith('<svg');
 };
 
 /**
@@ -175,26 +204,26 @@ const stripTrailingSvgNoise = (text: string): string => {
  */
 const looksCompleteImage = (padded: string, kind: VaultImageKind): boolean => {
 	if (kind.kind === 'svg') {
-		const bytes = decodeTrailer(padded, SVG_TRAILER_CHARS);
-		if (!bytes) return false;
-		// Decoded as UTF-8 rather than assembled byte by byte: the slice can begin mid-character,
-		// and TextDecoder turns a broken leading sequence into a replacement character instead of
-		// mojibake. Everything matched below is ASCII either way.
-		const text = new TextDecoder().decode(bytes).toLowerCase();
-		// Trailing whitespace and XML comments are legal after the root element closes, so they are
-		// stripped before the ending is judged.
-		const tail = stripTrailingSvgNoise(text);
-		// Two legal endings, not one: `</svg>` closes a root with content, and `/>` closes a
-		// self-closing root such as `<svg xmlns="..."/>`, which is a complete renderable document
-		// with no closing tag at all. Requiring `</svg>` alone rejected those outright.
-		if (tail.endsWith('</svg>')) return true;
-		if (!tail.endsWith('/>')) return false;
-		// `/>` only counts when it closes the *root*. A document truncated after a self-closing
-		// child — `<svg ...><path/>` — also ends in `/>` while leaving the root open, and accepting
-		// it would let corrupt bytes beat a usable fallback url. The element being closed is the one
-		// the last unclosed `<` opened.
-		const lastOpen = tail.lastIndexOf('<');
-		return lastOpen !== -1 && tail.slice(lastOpen).startsWith('<svg');
+		// The window starts small and widens only when the bytes in view cannot settle the question:
+		// a root opening tag longer than the window (lengthy metadata attributes), or a trailing
+		// comment whose `<!--` sits further back. A fixed window answered "incomplete" for both, so
+		// a perfectly renderable saved page lost its thumbnail — the exact failure this whole check
+		// exists to prevent, arrived at from the other direction. Widening is geometric and stops at
+		// the whole payload, where the answer is always definite, so the common page still costs one
+		// small decode and a pathological one stays linear in its own size.
+		for (let windowChars = SVG_TRAILER_CHARS; ; windowChars *= 4) {
+			const isWholeDocument = windowChars >= padded.length;
+			const bytes = decodeTrailer(padded, windowChars);
+			if (!bytes) return false;
+			// Decoded as UTF-8 rather than assembled byte by byte: the slice can begin mid-character,
+			// and TextDecoder turns a broken leading sequence into a replacement character instead of
+			// mojibake. Everything matched is ASCII either way.
+			const verdict = svgTailCompletesRoot(
+				new TextDecoder().decode(bytes).toLowerCase(),
+				isWholeDocument
+			);
+			if (verdict !== null) return verdict;
+		}
 	}
 	if (kind.mimeType === 'image/webp') {
 		// RIFF stores its payload size in bytes 4-7, little-endian, counting everything after the

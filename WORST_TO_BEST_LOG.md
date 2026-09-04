@@ -713,3 +713,53 @@ prefix" and I did not ask it.
   registry 503 fails the whole `verify` chain. It has now done so on seven consecutive heads. A
   bounded retry that distinguishes transport failure from an actual advisory belongs in its own
   change; the proposal is written up on PR #289.
+
+---
+
+## Run 1, fifteenth close-out — 2026-09-04 — the review round on `e83bd06`
+
+Appended, not edited. Three findings, all accepted, all real.
+
+### The evidence gate was not actually met (P1)
+
+`AGENTS.md:195-196` requires lint, build, the full `verify` chain **and** `npx playwright test` when
+a change is user-facing. This run rebuilds the Quote Vault, which is as user-facing as it gets. The
+committed evidence said otherwise, in its own words: `proof-tape.md` listed `build.txt`, `lint.txt`
+and `verify-chain.txt` as **"PREDATES THIS VERIFY RUN"**, dated 01:31, and there was no Playwright
+artifact in the folder at all. Fourteen close-outs of careful stand-down reasoning about other
+people's red checks, and the gate this run is actually responsible for was reporting itself unmet
+on every one of them.
+
+All four commands were re-run on this head and captured: lint, build, `npm run verify`, and
+`npx playwright test` (8 passed), the last into a new `docs/evidence/2026-09-04/e2e.txt`.
+`proof-tape.md` now lists no stale file.
+
+Two things surfaced while fixing it, both worth recording because both are the same species of
+defect as the finding itself:
+
+- **The first capture wrote `# Exit code: 0` from a shell expansion that read the preceding
+  `echo`, not the command.** It would have stamped "0" on a failing run. The capture now records
+  the real status — which immediately proved its worth, because the next `npm run verify` exited
+  **1** on `npm audit`'s `400 Invalid package tree`. `npm install` rebuilt the tree with no
+  lockfile change and the re-capture exited 0. Had the hardcoded version shipped, the repository
+  would carry an evidence file asserting a pass that did not happen.
+- **Order matters and was wrong.** `proof-tape.mjs` measures staleness against the verify run's
+  `chamber-lock.json`, so evidence captured *before* `npm run verify` is stale the moment it is
+  written. The commands now run in an order where that cannot happen.
+
+### The other two
+
+| Finding | Fix |
+|---|---|
+| **The SVG completeness check read a fixed 512-char (384-byte) window and treated it as the whole truth.** A self-closing root whose opening tag is longer than the window has no `<svg` in view, and a trailing comment longer than the window leaves its `<!--` outside it. Both are complete, renderable files; both were rejected, discarding good bytes and blanking the thumbnail. | The window now widens geometrically, but only when the bytes in view genuinely cannot decide, and stops at the whole payload where the answer is always definite. The common page still costs one small decode. Three tests: both false-negative shapes, plus a long truncated file that must *stay* rejected so widening does not become accepting. |
+| **The capacity refusal told the reader to do something the screen did not allow.** When the vault is full, Undo refuses and says "Download the page you want to keep before freeing a slot" — but the held record is out of `creations`, so no row exists for it, the banner offered only Put it back and Dismiss, and a reload lost the last copy. | The banner now renders the held record as a vault entry and offers a real Download beside Put it back. |
+
+**That second one is the run's own defect, restated.** The Quote Vault was picked as the worst
+feature because it persisted things the reader could never get back — `favorite` written and never
+read. The refusal message I wrote *in this run*, congratulating itself in a code comment for
+refusing to script a move that destroys the record, then pointed at a Download that did not exist.
+Careful reasoning about the right thing to say, no check that the thing said was possible.
+
+### Still deferred after the fifteenth round
+
+- Everything listed above, unchanged.

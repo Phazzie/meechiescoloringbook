@@ -231,6 +231,39 @@ describe('vaultImageSource', () => {
 		);
 	});
 
+	// The tail window is bounded so that searching does not decode a megabyte per keystroke, but a
+	// bound that is treated as the whole truth rejects valid files. Both of these are complete,
+	// renderable documents whose deciding bytes sit outside the initial window; the window has to
+	// widen rather than answer "incomplete".
+	it('accepts a self-closing root whose opening tag is longer than the tail window', () => {
+		const padding = 'a'.repeat(900);
+		const selfClosing = btoa(
+			`<svg xmlns="http://www.w3.org/2000/svg" data-note="${padding}" width="8" height="8"/>`
+		);
+
+		expect(vaultImageSource({ b64: selfClosing, url: '/saved/page.svg' })).toBe(
+			`data:image/svg+xml;base64,${selfClosing}`
+		);
+	});
+
+	it('accepts a trailing comment longer than the tail window', () => {
+		const encoded = btoa(`${SVG_MARKUP}<!-- ${'note '.repeat(300)} -->`);
+
+		expect(vaultImageSource({ b64: encoded, url: '/saved/page.svg' })).toBe(
+			`data:image/svg+xml;base64,${encoded}`
+		);
+	});
+
+	// Widening must not turn into accepting anything: a document genuinely cut off after a
+	// self-closing child stays rejected however far back the search goes.
+	it('still rejects a long SVG truncated after a self-closing child', () => {
+		const truncated = btoa(
+			`<svg xmlns="http://www.w3.org/2000/svg" data-note="${'a'.repeat(900)}"><path/>`
+		);
+
+		expect(vaultImageSource({ b64: truncated, url: '/saved/page.svg' })).toBe('/saved/page.svg');
+	});
+
 	// A long whitespace run that ultimately does not match is the input that made the previous
 	// regex super-linear. It must be both correct and fast.
 	it('rejects a long whitespace run after a truncated SVG without hanging', () => {

@@ -29,6 +29,7 @@ import {
 	VAULT_CAPACITY,
 	VAULT_PREVIEW_COUNT,
 	buildVaultEntries,
+	buildVaultEntry,
 	restoreCreationImages,
 	sortVaultCreations
 } from '$lib/core/vault-gallery';
@@ -275,6 +276,18 @@ export class StudioState {
 	// nothing hidden, and the toggle still has to be there to collapse the list again. It stays
 	// away entirely when everything fits in the preview.
 	canToggleVaultShowAll = $derived(this.vaultEntries.length > VAULT_PREVIEW_COUNT);
+
+	// The held record rendered the same way a saved row is, so the undo banner can offer a real
+	// Download for it. Without this the page waiting in Undo has no download anywhere — it is out
+	// of `creations`, so no row exists — and when the vault is full `undoDelete` tells the reader
+	// to "download the page you want to keep before freeing a slot" while giving them no way to do
+	// it. A reload then loses the only remaining copy. Telling someone to do something the screen
+	// does not let them do is the same defect this whole rebuild started from.
+	undoableDeletionEntry = $derived(
+		this.undoableDeletion === null
+			? null
+			: buildVaultEntry(this.undoableDeletion, this.nowMs, this.appOrigin)
+	);
 
 	// --- Non-reactive implementation details ---
 	owner: CreationOwner | null = null;
