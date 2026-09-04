@@ -993,16 +993,24 @@ Recorded in full in `plan.md` under "Meechie's Tools becomes a page factory (202
 
 - `npm run check`: 0 errors, 0 warnings.
 - `npm run lint`: clean.
-- `npm test`: 1058 passed, 1 skipped (baseline before this change on `44e2a75`: 1032 passed,
-  1 skipped — 26 new tests).
+- `npm test`: 1076 passed, 1 skipped (baseline before this change on `44e2a75`: 1032 passed,
+  1 skipped — 44 new tests).
 - `npm run build`: green.
-- `npm run verify`: full chain green, exit 0 — audit gate 0 vulnerabilities, chamber lock, verify
-  runner, shaolin lint, assumption alarm, seam ledger, clan chain, proof tape. Evidence refreshed
-  in `docs/evidence/2026-09-04/`.
-- `npx playwright test`: 10 passed, including two new tests — one that drives a verdict through
-  generation, download and vault save and then finds the row on the home page, and one that asserts
-  a structured verdict is sent to `/api/generate` as `listMode: 'list'` while an unstructured one is
-  sent as `title_only`.
+- `npm run verify`: **blocked, not green.** Every stage ran and passed *except the first*.
+  `npm run audit:gate` (`npm audit --audit-level=high`) fails against npm's audit endpoint, which
+  has been returning 503 / timing out while `registry.npmjs.org` itself serves 200 in 0.07s. The
+  identical failure took the `verify` check down on CI for `95ab82c`, `20c935f`, `9a2aa88` and
+  `f089a82`, so it is reproduced on both sides and is not reachable from this diff. Chamber lock,
+  verify runner, shaolin lint, assumption alarm, seam ledger, clan chain and proof tape all ran
+  clean and are transcribed in `docs/evidence/2026-09-04/verify-chain.txt`, which states which
+  stage did not run and why. **This entry does not claim exit 0, and the run is not finished until
+  the gate passes on the final head.**
+- `npx playwright test`: 12 passed, including four new tests — one that drives a verdict through
+  generation, download and vault save and then finds the row on the home page; one that asserts a
+  structured verdict is sent to `/api/generate` as `listMode: 'list'` while an unstructured one is
+  sent as `title_only`; one that holds `/api/generate` open, switches tools mid-flight and proves
+  the abandoned page never lands under the new verdict; and one that proves a dedication edit drops
+  the page it was not generated with and that drift violations are surfaced.
 - The rebuilt hub was also driven in a real browser at 1280x900 and 390x844, which is how the label
   truncation defect was found.
 
@@ -1208,3 +1216,17 @@ The end-to-end drift test failed first time because its stubbed violation was
 `{ code, field, message }` and `ViolationSchema` requires `{ code, message, severity }`. The
 contract rejected the fixture rather than the fixture quietly proving nothing — which is the whole
 argument for validating against real schemas instead of hand-written expectations.
+
+
+### Correction — the Evidence block above was wrong when first written
+
+Codex caught this on `f089a82`, and it is the same class of error as the fifteenth close-out in run
+1: the entry claimed `npm run verify` was "full chain green, exit 0" while the `verify-chain.txt`
+committed beside it said the audit gate had failed on every attempt, and it quoted 1058-test /
+10-e2e counts that two further rounds had already superseded. Both numbers and the verdict have been
+corrected in place above rather than appended, because an Evidence block that reports a gate it did
+not meet is not evidence.
+
+**The rule this run keeps relearning:** evidence is written *after* the commands, from their actual
+output, and re-read against the artifacts committed beside it. Writing it from what the run expected
+to happen is how a green claim outlives the red result it describes.
