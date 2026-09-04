@@ -113,6 +113,42 @@ const gotoHydrated = async (page: Page, path: string): Promise<void> => {
 	}
 };
 
+/**
+ * Take the toolkit from a cold load to a page on screen: verdict, then generation.
+ *
+ * Every page-lifecycle test needs this exact opening, and repeating it inline tripped
+ * SonarCloud's duplication gate at 8.2% on new code.
+ */
+const makeToolkitPage = async (page: Page): Promise<void> => {
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-output')).toContainText(
+		'Fault: them'
+	);
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expectPageOnScreen(page);
+};
+
+/** The page, its preview and its download are all present. */
+const expectPageOnScreen = async (page: Page): Promise<void> => {
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+};
+
+/** Fulfil `/api/tools` normally, optionally holding the nth call open. */
+const routeTools = async (
+	page: Page,
+	options: { holdCall?: number; held?: Promise<void> } = {}
+): Promise<void> => {
+	let calls = 0;
+	await page.route('**/api/tools', async (route) => {
+		calls += 1;
+		const body = route.request().postDataJSON() as { toolId?: string };
+		if (options.holdCall === calls && options.held) await options.held;
+		await route.fulfill({ json: toolPayload(body.toolId ?? 'unknown') });
+	});
+};
+
 test.beforeEach(async ({ page }) => {
 	await stubApis(page);
 });
@@ -819,15 +855,7 @@ test('a failed replacement verdict does not destroy the page already on screen',
 		});
 	});
 
-	await gotoHydrated(page, '/meechie');
-	await page.getByTestId('meechie-tool-generate').click();
-	await expect(page.getByTestId('meechie-tool-output')).toContainText(
-		'Fault: them'
-	);
-
-	await page.getByTestId('meechie-tool-make-page').click();
-	await expect(page.locator('.preview-grid img')).toBeVisible();
-	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+	await makeToolkitPage(page);
 
 	// A second verdict request on the same tool, this time failing.
 	await page.getByTestId('meechie-tool-generate').click();
@@ -837,7 +865,121 @@ test('a failed replacement verdict does not destroy the page already on screen',
 	await expect(page.getByTestId('meechie-tool-output')).toContainText(
 		'Fault: them'
 	);
-	await expect(page.locator('.preview-grid img')).toBeVisible();
-	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+	await expectPageOnScreen(page);
 	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
+});
+
+test('a failed regeneration does not destroy the page already on screen', async ({
+	page
+}) => {
+	// The page path had the same defect the verdict path did: `handleMakePage` cleared the preview,
+	// the downloads, the images and the save recipe before `/api/generate` had returned, so a
+	// timeout or a provider error deleted a page the reader had already paid for.
+	let generateCalls = 0;
+	await page.route('**/api/generate', async (route) => {
+		generateCalls += 1;
+		if (generateCalls === 1) {
+			await route.fulfill({ json: generatedPage });
+			return;
+		}
+		await route.fulfill({
+			status: 500,
+			json: { message: 'provider exploded' }
+		});
+	});
+
+	await makeToolkitPage(page);
+
+	// Second attempt fails, and the paid page must survive it.
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.getByTestId('meechie-tool-generate-error')).toBeVisible();
+	await expectPageOnScreen(page);
+	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
+});
+
+test('making a page does not cancel a verdict request nobody cancelled', async ({
+	page
+}) => {
+	// Verdicts and pages are separate requests. They shared one token, so pressing Make Page (or
+	// editing the dedication) on the verdict already displayed advanced the token the pending
+	// `/api/tools` request had captured, and the good verdict was thrown away as stale.
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	await routeTools(page, { holdCall: 2, held });
+
+	// A page has to exist for the dedication handler to reset anything — that reset is what used to
+	// advance the shared token out from under the pending verdict request.
+	await makeToolkitPage(page);
+
+	// A second verdict request, held open, with a page-only action running underneath it.
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-generate')).toBeDisabled();
+	await page.getByTestId('meechie-tool-dedication').fill('For Ray');
+
+	// The held verdict was never cancelled, so it must still land and re-enable the button.
+	release();
+	await expect(page.getByTestId('meechie-tool-output')).toContainText(
+		'Fault: them'
+	);
+	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
+});
+
+test('an unreadable generated image does not replace the page already on screen', async ({
+	page
+}) => {
+	// A contract-valid response is not a usable page. `GeneratedImageSchema` types `data` as
+	// `NonEmptyStringSchema`, and `image-generation-pipeline.ts` labels bytes it cannot identify as
+	// `png`, so a provider returning nonempty garbage arrives as a well-formed PNG. Installing the
+	// page before packaging — the fix that stopped a packaging failure from discarding a finished
+	// PDF — meant that garbage replaced a good page with a broken tile, left Save enabled, and let
+	// the corrupt image reach the vault.
+	//
+	// The second payload is the sharper case: a real PNG signature followed by nothing. A
+	// byte-signature check passes it, and `pdf-lib` still throws — which is what a connection
+	// dropped mid-body actually produces. Only a real decode rejects both.
+	const TRUNCATED_PNG = 'iVBORw0KGgo=';
+	let generateCalls = 0;
+	await page.route('**/api/generate', async (route) => {
+		generateCalls += 1;
+		if (generateCalls === 1) {
+			await route.fulfill({ json: generatedPage });
+			return;
+		}
+		const data = generateCalls === 2 ? 'bm90LWFuLWltYWdl' : TRUNCATED_PNG;
+		await route.fulfill({
+			json: {
+				...generatedPage,
+				value: {
+					...generatedPage.value,
+					images: [
+						{
+							...generatedPage.value.images[0],
+							id: `image-${generateCalls}`,
+							data
+						}
+					]
+				}
+			}
+		});
+	});
+
+	await makeToolkitPage(page);
+
+	// Nonempty garbage: 200, schema-valid, unreadable bytes. The paid page must survive.
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.getByTestId('meechie-tool-generate-error')).toContainText(
+		'could not be read'
+	);
+	await expectPageOnScreen(page);
+	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
+
+	// A valid PNG signature with the image truncated away. Passes any signature test; still unusable.
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.getByTestId('meechie-tool-generate-error')).toContainText(
+		'could not be read'
+	);
+	await expectPageOnScreen(page);
+	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
 });

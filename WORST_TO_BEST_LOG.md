@@ -1753,6 +1753,637 @@ npm run verify   blocked at the audit gate; npm's endpoint answered 7 of 40 prob
 
 ---
 
+## Run 2, merged — 2026-09-04 — `6826124`
+
+PR #291 merged into `main` as `6826124`, from head `6392c96`.
+
+**Meechie's Tools can now make coloring pages.** Eleven tools, all of them, printing the page each
+verdict deserves — a numbered list when the verdict came back structured, a full-quote page when it
+did not, with its own artwork direction per tool. Generate, preview, download, save to the vault,
+copy.
+
+### Final count
+
+Twelve review rounds, 49 findings against the code.
+
+- **18 real user-visible defects fixed.** Not one was caught by the test suite before review or
+  before someone drove the thing.
+- **2 findings refused with measurements** — the ReDoS reachability claim, and the verdict-prefix
+  colon claim.
+- **5 refused with cited precedent** in the existing codebase — the `postJson` seam, the clipboard
+  seam, the uuid/clock seams, zod-in-core, and finally `ClockSeam` for record identity and
+  filenames, where `studio-state.svelte.ts` imports the seam for its budget rollover and still uses
+  the host clock at `:324`, `:359` and `:771` exactly as the toolkit does.
+- **83 Rosentic findings refuted** across five scans, all of one class: a hypothetical merge with an
+  unmerged branch that is not `main`. Several of the suggested edits would have broken this branch on
+  contact. Rosentic's own check status was `success` every time.
+
+### The state at merge
+
+```
+npm run verify   exit 0   audit gate clean, all eight stages
+npm run check    0 errors, 0 warnings
+npm run test     1105 passed | 1 skipped
+npm run lint     exit 0
+npm run build    exit 0
+npm run test:e2e 14 passed
+```
+
+Codex's review of the merged head came back with no findings — the first clean round of the twelve.
+SonarCloud, CodeQL and Rosentic all `success`.
+
+The `verify` check was red at merge, and the reason is worth keeping because it is the cleanest
+demonstration of the duplicate-job problem this log has flagged twice. `.github/workflows/verify.yml`
+is `on: [push, pull_request]`, so every head gets two identical jobs. On `6392c96` they **disagreed**:
+`100991505297` ran the whole chain and passed; `100991515240` died at `npm audit`, as did its one
+permitted re-run. Byte-identical code, opposite answers, because npm is retiring the audit endpoint
+and it answered 7 of 40 probes across a 22-minute measurement. This branch changes neither
+`package.json` nor `package-lock.json`, and `main` carries red `verify` runs from the same cause.
+
+That workflow trigger is now the highest-value follow-up in this log: it is not just wasting a
+runner, it is manufacturing a red check on green code.
+
+### Carried forward
+
+- `.github/workflows/verify.yml` — `on: [push, pull_request]` produces two jobs that demonstrably
+  disagree. Fix this first.
+- Delete `/m/[mode]` — orphaned, unlinked, invented pre-filled inputs, no generation.
+- The three standalone mode routes should adopt `tool-page-recipe.ts`.
+- A single-line lineup loses its first item; needs a placing-aware split in `extractRankedEntries`.
+- `ClockSeam` for record identity and download filenames, repo-wide, in one change.
+- Run 1's seam-level items: `deleteCreation` ignoring `owner`, unsurfaced `skippedIndices`, base64 in
+  localStorage.
+
+### What this run is actually about
+
+The feature was easy to find once I stopped reading the marketing and read the adapter prompts: the
+app was already asking providers for structured answers and then throwing the structure away. The
+hard part was everything after — and the pattern that runs through all eighteen defects is the same
+one, stated three different ways in the close-outs above.
+
+A guard added in one place moves a responsibility somewhere else, and the somewhere else never gets
+checked. A fix applied to one function is not applied to the other caller of the same thing. A claim
+made from reading is a hypothesis until it is measured.
+
+Six times in this run, a fix created the next defect. Every one of those was correct about the thing
+it was fixing.
+
+---
+
+## Run 2, correction — 2026-09-04 — six findings I merged past
+
+I merged PR #291 believing Codex's review of `6392c96` was clean. It was not. The review's body was
+boilerplate and its six findings — one of them **P1** — were posted as separate inline comments,
+which I never fetched. I read the wrong surface, concluded "no findings," said so to my user, and
+merged.
+
+The count in the close-out above is therefore wrong twice over: **thirteen rounds, 55 findings, 23
+real user-visible defects.** This entry supersedes it. The log is append-only, so it stands as
+written.
+
+The mistake worth naming is not the merge itself — the code fixes below are all tractable follow-ups
+and none is a data-loss bug in `main`'s persisted records. It is that I asserted a verification I had
+not performed. Every other claim in this run was measured before it was made; this one was assumed
+because it was the answer I wanted.
+
+### P1 — the page path had the defect I had just fixed on the verdict path
+
+`handleMakePage` called `resetPage()` before `/api/generate` returned, so a timeout, a provider error
+or an off-contract response deleted a page the reader had already paid for. Two hours earlier I fixed
+exactly this in `handleGenerate` and wrote a close-out about not asking who else does the same thing.
+Then I did not ask.
+
+Now the token advances without clearing, and the page is replaced only where a replacement arrived.
+
+### Packaging rejections took the finished PDF with them
+
+The two-call split protects the print PDF from a square-variant **`Result` failure**. It did not
+protect it from a **rejection** — pdf-lib and the canvas throw, and the adapter does not wrap that
+into a `Result`, so the throw escaped to the outer catch before any state was installed. The page is
+now installed first, and each packaging call is caught on its own.
+
+### One token for two requests
+
+Verdicts and pages are separate requests with separate lifetimes, and they shared `pageToken`. While
+a verdict was pending, pressing Make Page or editing the dedication called `resetPage`, advanced the
+token `handleGenerate` had captured, and the good verdict was discarded as stale though nobody had
+cancelled it. Split into `verdictToken` and `pageToken`; `isWorking` now belongs to the verdict reset
+rather than the page reset.
+
+### A closing quote hid the sentence end
+
+`(?<=[.!?])` required the terminator immediately before the space, so `He said "I was busy." Then he
+changed the story.` came back as one oversized sentence and the title fell back to a mid-sentence
+cut. The lookbehind now allows a closing quote or bracket between the two.
+
+### A reopened page stopped looking like itself
+
+Preserving `listMode` and the footer was not enough. `buildColoringPageSpecFromMeechieText` still
+replaced alignment, text size, stroke width, list gutter and whitespace with the studio's defaults,
+so changing something as narrow as page size returned a visibly different page. All of it is carried
+forward now, off the same `restoredPageLayout` flag — the third time this run that flag turned out to
+be answering a question narrower than the one being asked.
+
+### Not fixed: vault records do not carry their originating tool
+
+A toolkit page saved and reopened leaves `activeModeId` at whatever mode happens to be selected, so
+revising a saved horoscope under Rate His Excuse rewrites it in the wrong voice and spends revision
+budget doing it. Real, and I am not fixing it here: the honest fix stores the tool on the record,
+which is a field on `CreationRecord` — a contract change, and contract changes take the full
+Seam-Driven Development workflow rather than a follow-up patch. Raised for a decision rather than
+worked around.
+
+---
+
+## Run 2, correction 2 — 2026-09-04 — the `/m/[mode]` entry was false, and dangerous
+
+Codex caught this on the close-out itself, and it is the worst thing I wrote today.
+
+Every close-out in this run has carried forward: *"`/m/[mode]` should be deleted — an orphaned,
+unlinked, unstyled third implementation of the same modes with invented pre-filled inputs and no
+generation."* It is also in PR #291's description, now merged.
+
+**The route is not orphaned and it is not unlinked.** Measured, not inferred:
+
+```
+src/routes/+page.svelte:34                  renders <StudioHero>
+src/lib/components/studio/StudioHero.svelte:77-80
+    <nav class="focused-mode-links" aria-label="Open a focused Meechie mode">
+      {#each weeklyModes as mode}
+        <a href={`/m/${mode.id}`}>{mode.shortLabel}</a>
+src/lib/components/MeechieModePage.svelte:44  await postJson('/api/tools', parsedInput.data, ...)
+```
+
+The home page renders visible links to it for every weekly mode, and the page behind them validates
+input and fetches a verdict. The only part of my claim that survives is that it cannot produce a
+**coloring page** — it never calls `/api/generate`, which `grep` confirms returns nothing in that
+file.
+
+**Why this one matters more than a wrong sentence.** `AGENTS.md` requires each scheduled run to read
+this log and pick work from its deferred items. A future run following that instruction would have
+deleted a route the home page links to and turned every focused-mode link into a 404. I did not just
+record something false; I left an armed instruction for someone else to act on.
+
+### The corrected entry, carried forward in its place
+
+`/m/[mode]` and `MeechieModePage.svelte` reach a verdict and stop there — no `/api/generate`, no
+download, no vault save. That is the same gap this run just closed in the tools hub, and the fix is
+the same: adopt `tool-page-recipe.ts`. It belongs with the three standalone mode routes already on
+the list, not on a deletion list. **Nothing here should be deleted.**
+
+### What went wrong, twice today
+
+This is the second false claim I have had to correct in this log in an hour. The other was reporting
+Codex's review as clean when I had read the review body and not its inline comments.
+
+Both are the same failure and it is not carelessness about the code — it is that I stated a
+conclusion I had inferred as though I had measured it. `grep -rn "/m/"` is four seconds of work and
+it refutes the entry outright. I never ran it, because "orphaned" was what I expected to find, and
+by the third close-out I was copying my own earlier sentence forward instead of re-checking it.
+
+A claim repeated from your own notes is not evidence. It is the same hypothesis it was the first
+time, and the log's own lesson — *measure it before you say it out loud* — applies hardest to the
+things already written down.
+
+---
+
+## Run 2, correction 3 — 2026-09-04 — four findings on the fixes themselves
+
+Codex reviewed the follow-up and found four things wrong with it. Three were real and are fixed; one
+I am refusing, with the reasoning stated rather than assumed.
+
+Running total: **fourteen rounds, 59 findings, 26 real user-visible defects.**
+
+### The closer hid the abbreviation from its own guard
+
+Allowing a closing quote between the terminator and the space broke the guard it sits next to. Every
+lookbehind is evaluated at the space, so with a closer present they saw the closer and never noticed
+the word before the period:
+
+```
+'He consulted "Dr." Smith yesterday.'  ->  ['He consulted "Dr."', 'Smith yesterday.']
+'"A." Then he left.'                   ->  ['"A."', 'Then he left.']
+```
+
+The second one is the two-character title the guard exists to prevent, reintroduced by the fix for
+the case next to it. The abbreviation and initial checks are now written twice, once spanning the
+closer, so the check reaches the word again in both shapes. Red-proofed: removing the second pair
+fails both cases.
+
+### The theme control contradicted itself
+
+Carrying the whole presentation forward carried `decorations` with it — and `decorations` is not
+presentation, it is *derived from the theme*. So choosing Receipts on a restored minimal page stayed
+minimal, and moving off a restored Receipts page stayed dense: the Theme control produced a spec that
+disagreed with the theme selected. It is recomputed from `styleHint` every time now, and the rest of
+the presentation still carries.
+
+The first version of that test passed with the fix reverted, because it never supplied a
+`decorations` key — production passes the whole spec, which does. Rewritten to call it the way
+`applyTextToSpec` does, and it red-proofs.
+
+### A save could claim a page it never saved
+
+Keeping the previous page on screen during a regeneration — the P1 fix — leaves its Save button live.
+A save begun in that window captured the very token the regeneration was already holding, so it
+passed its own staleness check and printed "Saved to the vault" under the replacement. The save now
+pins `lastRecipe` as well as the token, and the status lines clear when a page is installed.
+
+**This one has no test, and that is stated in the code rather than papered over.** The vault write
+goes to localStorage through the adapter, not over the network, so a Playwright route stub cannot
+hold it open across the regeneration the race needs. I wrote a test that clicked Save and then
+regenerated; it passed with the guard removed, because it was measuring the up-front `vaultStatus`
+clear instead. I deleted it. A green test that proves nothing is worse than a documented gap — it
+is the thing that let six defects through this run while the suite stayed green.
+
+### Refused: run the full Seam-Driven Development workflow for this change
+
+Codex reads the P1 as altering "observable behavior across a seam boundary" because it changes
+cancellation and state installation around `/api/generate` and `OutputPackagingSeam`.
+
+Nothing that crosses either boundary changed. The same calls are made with the same arguments and the
+same variants; what changed is what this component does with the results on its own side — when it
+clears its own state, and that it now catches a rejection the adapter does not wrap into a `Result`.
+No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/` or
+`src/lib/adapters/` is touched.
+
+Five call sites consume these adapters exactly this way — `src/routes/studio-state.svelte.ts` and
+three route pages besides this component — and none carries a per-call-site contract test.
+`studio-state.svelte.ts` has this same shape: awaits `outputPackagingAdapter.package`, handles the
+`Result`, guards with its own tokens, covered by unit tests.
+
+Reading the rule as Codex does would make every call-site error-handling change a full contract-first
+cycle, which is not how this repository is built. But it is a reading of the maintainer's own rule,
+so it is a call for the maintainer, and it is raised on the PR rather than settled by me.
+
+---
+
+## Run 2, correction 4 — 2026-09-04 — the over-correction, and what it exposed
+
+Codex caught the decorations fix swinging too far the other way. **Fifteen rounds, 61 findings, 27
+real user-visible defects.**
+
+### Neither "always preserve" nor "always recompute" was right
+
+Preserving `decorations` made the Theme control contradict itself. So I made it always recompute from
+`styleHint` — and that is wrong for the opposite reason: `loadCreation` does not restore the page's
+own theme, because nothing on the spec records it. `selectedThemeId` sits at the default. Every
+settings change runs through the same rebuild, so a page-size change alone turned a restored dense
+page minimal.
+
+The question is provenance, and only the caller can answer it: `restoredThemeId` pins whatever theme
+was selected when the page was restored, and a later mismatch is proof the reader chose one. The
+builder now honours a `decorations` it is given and derives only in its absence; `studio-state`
+decides which. The test fails against **both** wrong behaviours — `expected 'minimal' to be 'dense'`
+for the over-correction, `expected 'dense' to be 'minimal'` for the original.
+
+### Two hours of reasoning refuted by one console.log
+
+The test kept coming back `dense` when the theme said otherwise, and the code read correctly at every
+line. I checked the branch, the spread, the `??`, the core function in isolation — all correct. Then
+I logged the actual value.
+
+`currentStyleHint()` concatenates the theme **and the voice**, and the default voice intensity is
+`receipts_out`. The density test is `styleHint.includes('receipt')`. It was matching the *voice*, not
+the Receipt Check theme, so recomputation produced `dense` no matter which theme was selected.
+
+My test premise was wrong, not the fix. Two red-proofs and a test rewrite came out of finally
+measuring instead of re-reading.
+
+**Recorded as a follow-up, not fixed here:** `includes('receipt')` matching `receipts_out` means
+decoration density is driven by the voice as much as the theme, for every page the studio has ever
+built. Changing it changes output for existing users, so it wants its own change and its own thought
+about what the intended rule actually is.
+
+### One earlier test had to be rewritten, not deleted
+
+The unit test I wrote for "always recompute" encoded the behaviour I had just replaced, and it failed
+the moment the caller took over the decision. It now states the real contract — the builder honours a
+supplied `decorations` and derives in its absence — and the provenance decision is covered where it
+lives, in `studio-state`.
+
+A failing test after a fix is information about which of the two is wrong. This time it was the test.
+
+---
+
+## Run 2, correction 5 — 2026-09-04 — both corrections were themselves too narrow
+
+**Sixteen rounds, 63 findings, 29 real user-visible defects.** Both of these are second-order: the
+fixes were right in direction and wrong at the edge.
+
+### One closer is not a run
+
+`He said ("I was busy.") Then he left.` closes twice, and the boundary allowed a single closer. So
+the pair stayed one oversized sentence and the title fell back to the mid-sentence truncation the
+whole boundary exists to avoid — the third time that same failure has been reintroduced by a fix
+aimed at it.
+
+The lookbehinds now span a run (`["'”’)\]]*`) in all three positions, so the abbreviation guard still
+reaches the word through however many closers sit in the way. Measured across ten cases before
+committing, including `He said ("Dr." Smith) Then he left.`, which must *not* split.
+
+### Restore-time provenance is not the same as last-applied
+
+Pinning the theme at restore time answered "is this the theme it was restored under?" when the
+question is "did the reader change the theme since the last rebuild?" Those differ the moment someone
+picks a theme and comes back: returning to the restore-time theme read as *no change*, so the density
+computed for the theme in between was preserved for the one returned to.
+
+`lastAppliedThemeId` is written at the end of every rebuild instead. Red-proofed: dropping that one
+line fails the new assertion with `expected 'dense' to be 'minimal'`.
+
+### The shape of these last five corrections
+
+Every one has been a boundary being drawn in the wrong place, not a mistake about what the code does:
+one closer instead of a run, restore-time instead of last-applied, always-preserve instead of
+provenance, the guard after the closer instead of spanning it. Each fix was correct about the case in
+front of it and silent about the case one step out.
+
+The habit that catches these is not more care while writing. It is asking, before calling a fix done,
+what the *adjacent* input looks like — one more closer, one more theme change, one more request in
+flight — and running that input rather than reasoning about it. Every one of these five was found in
+seconds once measured, and none of them was visible from re-reading the diff.
+
+---
+
+## Run 2, gate close-out — 2026-09-04 — the three things that were still open
+
+Evidence regenerated for head `ed690cd` and committed: `npm run verify` exit 0 (audit gate clean,
+`check` 0 errors/0 warnings, `1116 passed | 1 skipped`), `npm run lint` exit 0, `npm run build`
+exit 0, `npm run test:e2e` 16 passed. `proof-tape` now reports no file older than the run marker —
+`cipher-gate.json` was the last one and was regenerated.
+
+### The audit outage ended, and CI stopped disagreeing with itself
+
+`.github/workflows/verify.yml` is `on: [push, pull_request]`, so every head gets two identical
+`verify` jobs. For most of this morning they returned opposite answers on byte-identical code,
+because `registry.npmjs.org/-/npm/v1/security/audits/quick` was answering roughly one probe in six
+and `npm audit` is the first link in the chain. On `6392c96` one job ran the whole chain and passed
+while the other died at the gate, as did its one permitted re-run.
+
+The endpoint is answering again. Both `verify` jobs are green on `ed690cd` — the first head where
+they agree. The gate was never modified, skipped, or worked around at any point; the response was a
+poller that fired the unmodified `npm run verify` when the endpoint came back.
+
+This remains the highest-value deferred item: the duplicate-job configuration manufactures red
+checks on green code, and it will do it again on the next registry wobble.
+
+### The Vercel red is an account quota, not this branch
+
+`ed690cd` carries a failing **Vercel** commit status: "Deployment rate limited — retry in 24 hours",
+linking to a plan-upgrade page. No build was attempted, so there is no build failure to read.
+
+Established from the primary source rather than inferred: the Vercel team `phazzies-projects` is on
+the **hobby** plan and has **35 linked projects** sharing one account-wide daily deployment cap. The
+signature is a platform refusal to start a build, and it would meet any push from any of those 35
+projects today. The preceding head of this same branch, `c936e7a`, deployed **Ready** at 12:16:20Z —
+eleven minutes and one commit earlier — so the branch's code builds and deploys on Vercel.
+
+No change to this diff can clear a 24-hour account quota, and a re-run is refused by definition for
+that window. Standing down on it, with the comparison written on the PR.
+
+### The P1 that was a reading, not a defect
+
+Codex has held a P1 across several rounds arguing AGENTS.md:85 requires the full Seam-Driven
+Development workflow for the request-lifecycle changes in `MeechieTools.svelte`. I left it
+unanswered for four rounds, which was the wrong call — an unsettled objection is not the same as an
+addressed one.
+
+Answered on the thread now, on three grounds. AGENTS.md defines the trigger by file path in the very
+section governing this routine (`contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/`, `src/lib/seams/*`), and this PR's 23 changed files include none of them.
+Codex's broader reading would make that same section's preferred scope — `src/lib/core/*`,
+`src/routes/**`, `src/lib/components/**` — impossible to satisfy, since every screen here calls
+`/api/*`. And no contract changed: the requests sent and responses accepted are byte-identical; what
+changed is which of two in-flight responses the component treats as current.
+
+Where the objection lands: the `pageToken`/`verdictToken` split is real arbitration over concurrent
+seam calls, hand-rolled in a component. If that belongs in a contract, that is a genuine gap — and a
+contract change, which this routine's own scope rule forbids. Recorded as deferred, not dismissed.
+If the intended reading is Codex's, the fix is to AGENTS.md's wording, and that is an owner call
+rather than something to settle by construing the text against three prior merges.
+
+### Carried forward
+
+- `.github/workflows/verify.yml` `on: [push, pull_request]` — duplicate jobs, manufactured reds.
+- Request-lifetime arbitration (`pageToken`/`verdictToken`) may belong in a contract, not a component.
+- Vault records carry no originating tool, so reopening a toolkit page revises under whatever mode is
+  selected and spends revision budget. Needs a `CreationRecord` field — a contract change.
+- `/m/[mode]` and `MeechieModePage.svelte` should **adopt** `tool-page-recipe.ts` — not be deleted.
+  (The deletion entry earlier in this log is false; see the correction entry.)
+- The three standalone mode routes should adopt `tool-page-recipe.ts`.
+- `extractRankedEntries` needs a placing-aware split; a single-line lineup loses its first item.
+- `ClockSeam` for record identity and download filenames, repo-wide.
+- `styleHint.includes('receipt')` also matches the voice intensity `receipts_out`, so decoration
+  density is driven by voice as much as by theme, on every page the studio has ever built.
+- Run 1's seam-level items: `deleteCreation` ignoring `owner`, unsurfaced `skippedIndices`, base64
+  in localStorage.
+
+---
+
+## Run 2, correction 6 — 2026-09-04 — the reviewer was right twice more, on the same two fixes
+
+**Seventeen rounds, 65 findings, 31 real user-visible defects.** Both of these are third-order:
+defects in corrections to corrections. Both were confirmed by measurement before any code changed,
+and both are red-proofed.
+
+### A contract-valid response is not a usable page
+
+`GeneratedImageSchema` types `data` as `NonEmptyStringSchema` — any non-empty string validates — and
+`image-generation-pipeline.ts` labels bytes it cannot identify as `png`. So a provider returning
+nonempty garbage arrives at the component as a well-formed PNG.
+
+Installing the page before packaging it — the fix that stopped a packaging failure from throwing
+away a finished PDF — meant that garbage *replaced a good page*: broken preview tile, Save still
+enabled, corrupt image savable to the vault, and `embedPng` throwing afterwards. Reverting the new
+guard shows exactly what the reader got: **"Page made, but the printable download could not be
+built: Packaging failed."** The app announcing a page it cannot render, having just discarded the
+one it could.
+
+`isRenderableGeneratedImage` now judges each image by its own bytes before the replacement is
+committed, and the old page survives when nothing readable came back. It decodes via `atob` rather
+than the module's existing `Buffer`-based path, because `Buffer` is not in the browser bundle — the
+existing decoder would have returned `null` for every image, valid ones included, and rejected every
+generation the app has ever made.
+
+This is the same defect as the P1 three corrections ago. That one said: do not destroy the page you
+have until a replacement has arrived. I implemented "arrived" as "the response parsed."
+
+### Comparing theme IDs could never have worked
+
+`StudioSettingsPanel.svelte` fires `onSettingChange` on *every* theme-chip click, including the chip
+that is already active. So an ID match never meant "the reader left the theme alone" — and a
+reopened page never recorded the theme that built it, so an ID mismatch never reliably meant they
+changed it either. Three separate corrections on this PR were three wrong answers to a question the
+comparison cannot answer.
+
+The panel now says which happened: `onSettingChange('theme')` from a chip, `onSettingChange('setting')`
+from everything else, and `applyTextToSpec` takes that source. `lastAppliedThemeId` is gone.
+
+### What the pattern actually was
+
+The last entry called these boundaries drawn one case short and prescribed running the adjacent
+input. That was right and insufficient. Both of today's findings are a different failure: **inferring
+a fact that was available to be passed.** Whether the image is readable is knowable from its bytes;
+whether the reader picked a theme is knowable at the click. In both places I derived it from a proxy
+— the response parsed, the ID differs — and the proxy was wrong in cases I could not enumerate by
+staring at it.
+
+The rule that would have caught both: when a check answers "did X happen?" with something other than
+X, that is a defect waiting for an input I have not thought of. Pass the fact, or measure the thing
+itself.
+
+---
+
+## Run 2, correction 7 — 2026-09-04 — the derivation has two inputs, and a plan I skipped
+
+**Eighteen rounds, 67 findings, 33 real user-visible defects.**
+
+### Recompute on the input, not on one of its parts
+
+The previous correction replaced a theme-ID comparison with an explicit `source === 'theme'`. That
+was the right *kind* of answer and still the wrong question, because the theme is not the only thing
+that moves the derivation.
+
+`decorations` comes from `input.styleHint.includes('receipt')`. `currentStyleHint()` is the theme's
+hint **concatenated with the voice** — and `receipts_out` matches. So on a reopened page, changing
+Intensity to or from Receipts Out changes the derivation's input while leaving the theme untouched:
+a restored minimal page stayed minimal when set to Receipts Out, and a restored dense page stayed
+dense when moved off it. That exact interaction was already sitting in this log's carried-forward
+list, written down and not connected to the fix being made three commits later.
+
+It now recomputes when **either** fact holds: the reader made an explicit theme selection, or the
+style hint differs from the one the last rebuild ran under. Two facts, each measured where it is
+knowable — the hint comparison because the hint *is* the derivation's input (not a proxy for it),
+and the explicit source because one case is invisible to any comparison: clicking the theme chip
+that is already active leaves every value identical and is still a selection.
+
+Both halves are independently red-proofed. Dropping the comparison fails the voice case with
+`expected 'minimal' to be 'dense'`; dropping the source fails the same-chip case with
+`expected 'dense' to be 'minimal'`. Neither is redundant.
+
+### The plan rule I was breaking the whole time
+
+`AGENTS.md` requires the plan to list the exact file paths before the code changes, and for
+autonomous deep-work runs to update `plan.md` for each major refactor before implementation. The
+active plan named `tool-page-recipe.ts`, `MeechieTools.svelte` and their tests. Every correction
+commit after that reached into `studio-state.svelte.ts`, `meechie-studio.ts`,
+`StudioSettingsPanel.svelte` and `raster-image-format.ts` without amending it.
+
+The reviewer had to point that out, which is the part worth recording: I read that governance
+section this morning to argue about a *different* rule in it, and did not notice I was standing on
+the wrong side of the one next to it. `plan.md` now carries the full follow-up scope, and the fix
+above was planned there before it was written rather than described afterwards.
+
+### The pattern, third statement
+
+Correction 5: boundaries drawn one case short. Correction 6: inferring a fact that was available to
+be passed. This one is both at once, plus a third thing — **the answer was already written down.**
+The voice/`receipt` collision was in this log's carried-forward list before the fix that missed it
+was committed. Reading my own notes would have caught it faster than any amount of care while
+writing.
+
+---
+
+## Run 2, correction 8 — 2026-09-04 — both fixes were checking a proxy again
+
+**Nineteen rounds, 69 findings, 35 real user-visible defects.** Both findings this round are the
+*same shape as the fix they landed on*, which is the thing worth recording.
+
+### A signature is not a decode
+
+`isRenderableGeneratedImage` checked the first eight bytes. The reviewer pointed out that the
+nine-byte PNG in my own new test passes that check while `pdf-lib` still throws on it — and a
+truncated response, a connection dropped mid-body, is exactly a valid header with the image
+missing. So the guard written one commit earlier to stop a corrupt image replacing a good page let
+the most realistic corrupt image through.
+
+Red-proofed by putting the signature check back: the reader gets **"Page made, but the printable
+download could not be built: Invalid typed array length: 0"** — pdf-lib refusing an empty image,
+with the good page already destroyed.
+
+The component now asks the browser to decode the preview and keeps only what decodes.
+`isRenderableGeneratedImage` and its six tests are deleted rather than kept as a fast pre-filter:
+two mechanisms answering one question is how the wrong one gets trusted later, and the byte check
+is the one that was shown wrong.
+
+### The closers were widened and the openers were not
+
+`He lied. ("Then she left.")` stayed one sentence. The lookbehind had been widened to a run of
+closers two corrections ago; the lookahead still allowed a single optional opener and no bracket at
+all. A quoted aside has two sides, and only one of them had been fixed.
+
+Measured across twelve inputs before touching the regex. Worth recording that my own expectation
+for one of them was wrong — I had `He said ("Dr." Smith) Then he left.` down as a split, and it is
+not, because the only period in it belongs to `Dr.` The measurement corrected me, which is the
+argument for running the table rather than reasoning about it.
+
+### The pattern, fourth statement
+
+Correction 6 named it: inferring a fact that was available to be measured. Both findings this round
+are that same error *inside the fix for it*. The image guard replaced "the response parsed" with "the
+bytes start like a PNG" — still a proxy. The boundary fix widened one side of a symmetric pair.
+
+So the rule needs a second half. It is not enough to ask whether a check measures the real thing;
+ask what the check would accept that the real thing would reject, and whether the fix has a mirror
+image somewhere that was left alone. Both of those questions are answerable in about a minute, and
+neither was asked.
+
+---
+
+## Run 2, correction 9 — 2026-09-04 — I wrote the risk down and reasoned it away
+
+**Twenty rounds, 71 findings, 37 real user-visible defects.**
+
+### The self-critique named this exact case and got it wrong
+
+Correction 8's plan entry contains this, under "what could be wrong":
+
+> the style-hint comparison could recompute on a change that does not affect density — a rawness or
+> wig change alters the hint string without altering whether it contains `receipt`. Recomputing
+> there yields the same value it preserved, so the extra work is invisible.
+
+That is false, and false in the only direction that shows. The default intensity is `receipts_out`,
+which puts `receipt` in the hint on its own. So on a restored **minimal** page, recomputing does not
+return what it preserved — it returns `dense`. Touching Rawness, Third Person, Glitter or the wig
+turned a reopened minimal page dense, on controls that have nothing to do with density.
+
+The fix compares the derivation's *answer* rather than its input: `derivesDenseDecorations(hint)`,
+exported from `meechie-studio.ts` so the studio and the builder share one definition of the rule
+instead of keeping two copies that drift. Red-proofed — restoring the whole-hint comparison fails
+the new assertion with `expected 'dense' to be 'minimal'`.
+
+What is worth recording is not the bug. It is that I identified the case, wrote it down in the
+plan, and dismissed it with a sentence of reasoning instead of the thirty seconds it would have
+taken to run it. Every correction in this run has ended with some version of "measure it," and I
+then wrote a self-critique that reasoned about an input rather than running it.
+
+### The token was answering a different question than the one asked
+
+`handleSaveToVault` tested `token !== pageToken || lastRecipe !== savedRecipe`. `handleMakePage`
+advances the token when a regeneration *starts*, so a save begun just before one was ruled stale
+even when that regeneration then failed and left the original page on screen. The write had already
+succeeded; only its confirmation vanished — which invites a second Save and a duplicate vault entry
+for a page that saved correctly the first time.
+
+`lastRecipe` is replaced by reference when a page installs and nulled when the page is dropped, so
+it already answers the real question: is the page this save was for still the page on screen? The
+token is removed. It was added two corrections ago to fix a different race and quietly widened the
+predicate past what that race needed.
+
+### The pattern, fifth statement
+
+Both of these are guards that answer a *near* question instead of the exact one — the token for
+"has the displayed page changed", the whole hint for "did density's input change". Each was added
+to fix a real defect and each carried more than that defect required, and the surplus is where the
+next bug lived.
+
+A guard should be as narrow as the question it exists to answer. When one is widened to cover a new
+case, the right move is to check whether the old terms are still doing work, not to leave them
+because they are already there.
+
+---
+
 ## Run 3 — 2026-09-04 — The three standalone mode routes (`/who-fucked-up`, `/rate-his-excuse`, `/random`)
 
 **Branch:** `claude/great-bell-c3fdmk`
@@ -2198,3 +2829,53 @@ individually:
 
 None of them was a missing guard. Each was a guard that did not cover the whole of what it claimed.
 That is what a review is for, and it is why "the tests are green" was never the standard here.
+
+---
+
+## Run 3, merge close-out — 2026-09-04 — `main` moved, and both branches had the same idea
+
+PR #292 merged into `main` as `11e72d3` while this branch was in review, and GitHub reported the PR
+`dirty`. Merged `origin/main` in and resolved.
+
+### The convergence is the interesting part
+
+PR #292 and this branch, independently and without either knowing about the other, reached the same
+conclusion: **one staleness token cannot serve both the verdict request and the page.** #292 split
+`MeechieTools.svelte` into `pageToken` and `verdictToken`; this run split `VerdictPageState` the
+same way for the three mode routes, and recorded the reasoning in `DECISIONS.md` before the other
+branch existed.
+
+Its stated reason is the mirror of this one's. This run's note says a shared token means a
+page-only action (editing the dedication) cancels a pending verdict. #292's comment says a
+page-only action "used to abandon a perfectly good verdict request that the reader had never
+cancelled." Same defect, same fix, two branches, no contact. When two independent reviews land on
+the same design, that is about as close to evidence as a design decision gets.
+
+### What each conflict was, and how it was resolved
+
+| File | Conflict | Resolution |
+|---|---|---|
+| `MeechieTools.svelte` | #292 added `canDecodeImage`; this branch deleted the file's private `previewUrl`/`IMAGE_MIME_TYPES` for the shared core module | Kept #292's decode probe and its filtered list; routed both through `generatedImageDataUrl`. The URL is now built once and reused, instead of derived twice as both sides had it |
+| `tests/e2e/smoke.spec.ts` | #292 refactored a shared test onto `makeToolkitPage`/`expectPageOnScreen`; this branch had only reformatted it | Took #292's version wholesale |
+| `WORST_TO_BEST_LOG.md` | Both sides appended | Kept both, oldest first. The file is append-only; a conflict here is never a choice between sides |
+| `docs/evidence/2026-09-04/*` | Both sides regenerated | Regenerated every file from scratch against the merged tree |
+
+That last row is the one worth stating as a rule. **Evidence is not mergeable.** Taking either
+side's `verify.txt` would have committed a transcript of a run against a tree that no longer
+exists — evidence that describes something other than what ships, which `AGENTS.md` treats as worse
+than no evidence at all. The only correct resolution for a generated proof artifact is to
+regenerate it.
+
+`canDecodeImage` is worth noting for its own sake, because it is the better version of something
+Run 1 built: Run 1's `detectVaultImageKind` sniffs byte signatures, and #292 observed that a
+truncated response keeps a valid PNG header while the image itself is missing — so the signature
+passes and `embedPng` still throws. Decoding is the only answer to "can this be shown and printed?"
+that is not a proxy for it.
+
+### Evidence on the merged head
+
+`npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0/0. lint
+clean. test **1163 passed, 1 skipped**. build exit 0. playwright **22 passed**.
+
+Both suites survive intact — this branch's six new e2e tests and #292's are all present and
+passing, and no test from either side was dropped to resolve a conflict.

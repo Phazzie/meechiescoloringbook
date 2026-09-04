@@ -311,3 +311,43 @@ describe('Meechie studio controls', () => {
 		expect(vaultText.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
 	});
 });
+
+describe('decoration density follows the caller, not the builder', () => {
+	it('derives it from the theme when none is supplied, and carries one that is', () => {
+		// `decorations` is derived from the theme rather than chosen directly, so the builder cannot
+		// decide on its own whether to keep a restored value: a reopened page's theme is not restored
+		// with it, and the builder never learns whether the reader actually picked one. It therefore
+		// honours what the caller passes and derives only in its absence. `studio-state` owns the
+		// provenance, and its own test covers that decision.
+		const derived = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'plain',
+			styleHint: 'receipt ledger lines',
+			presentation: { alignment: 'center', whitespaceScale: 35 }
+		});
+		expect(derived.decorations).toBe('dense');
+		// The rest of the presentation is carried forward either way.
+		expect(derived.alignment).toBe('center');
+		expect(derived.whitespaceScale).toBe(35);
+
+		const carried = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'plain',
+			styleHint: 'gold crown ornaments',
+			presentation: { alignment: 'center', decorations: 'dense' }
+		});
+		expect(carried.decorations).toBe('dense');
+
+		const dropped = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'plain',
+			styleHint: 'gold crown ornaments',
+			presentation: { alignment: 'center', decorations: undefined }
+		});
+		expect(dropped.decorations).toBe('minimal');
+		expect(dropped.alignment).toBe('center');
+	});
+});

@@ -64,6 +64,61 @@ Active plan for run 2 of the scheduled "worst feature -> best feature" task reco
   reprint a reopened quote page as a numbered list. Full reasoning in `DECISIONS.md` under
   "Correction: a toolkit vault save must store `studioText`".
 
+### Follow-up scope: PR #292 review corrections (2026-09-04)
+
+Written after a review finding that the follow-up work on PR #292 had gone outside the file list
+above without amending this plan first. `AGENTS.md` requires the plan to carry every exact path
+before the change, and the correction commits on that pull request did not. That is the defect this
+subsection fixes, and the remaining item below is planned here before it is implemented.
+
+- Exact seam names: **none changed.** Same standing as the parent plan — `MeechieToolSeam`,
+  `CreationStoreSeam`, `SessionSeam`, `OutputPackagingSeam` and `MeechieStudioTextSeam` are consumed
+  through existing adapters. No file under `contracts/`, `probes/`, `fixtures/`,
+  `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` is modified, so the
+  full Seam-Driven Development workflow is not triggered.
+- Exact files, including every path the corrections have already touched:
+  - `src/lib/components/MeechieTools.svelte` — request lifetimes (`pageToken`/`verdictToken`),
+    install-before-packaging, per-variant packaging isolation, image-usability guard.
+  - `src/lib/components/studio/StudioSettingsPanel.svelte` — passes the setting-change source.
+  - `src/routes/studio-state.svelte.ts` — restored-page presentation, decoration provenance.
+  - `src/lib/core/meechie-studio.ts` — optional `presentation` input on the pure builder.
+  - `src/lib/core/tool-page-recipe.ts` — sentence boundary, quoted prefix, abbreviation guards.
+  - `src/lib/core/raster-image-format.ts` — `isRenderableGeneratedImage`, browser-safe decode.
+  - `tests/unit/studio-state.test.ts`, `tests/unit/meechie-studio.test.ts`,
+    `tests/unit/tool-page-recipe.test.ts`, `tests/unit/raster-image-format.test.ts`,
+    `tests/e2e/smoke.spec.ts`.
+  - `plan.md`, `WORST_TO_BEST_LOG.md`, `docs/evidence/2026-09-04/*`.
+- Exact commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`,
+  `npm run test:e2e`, `npm run verify`, `npm run cipher:gate`, `npm run proof:tape`.
+
+**Remaining item, planned before implementation.** Decoration density is derived from
+`styleHint.includes('receipt')` in `buildColoringPageSpecFromMeechieText`, and
+`currentStyleHint()` concatenates the theme's hint *with* `voice.intensity` — where `receipts_out`
+matches. So on a reopened page, changing Intensity to or from Receipts Out changes the derivation's
+input while leaving the theme untouched, and the density does not follow. Recomputing only on an
+explicit theme selection does not cover it.
+
+The fix recomputes when **either** fact holds: the reader made an explicit theme selection (passed
+from the settings panel), or the style hint itself differs from the one the last rebuild ran under
+(compared directly). Two facts, each measured where it is actually knowable.
+
+### Self-critique for the follow-up
+
+1. *What could be wrong:* the style-hint comparison could recompute on a change that does not
+   affect density — a rawness or wig change alters the hint string without altering whether it
+   contains `receipt`. Recomputing there yields the same value it preserved, so the extra work is
+   invisible; the failure mode is wasted derivation, not wrong output.
+2. *Why the comparison is not the same mistake as before:* the previous three attempts compared
+   *theme IDs*, a proxy for the derivation input. The style hint **is** the derivation input. The
+   explicit source is still needed alongside it for the one case the comparison cannot see — a
+   click on the already-active theme chip, which leaves the hint unchanged but is a real selection.
+3. *Riskiest assumption:* that seeding the recorded hint at restore time is right. If it were
+   seeded empty, the first unrelated setting change on a reopened page would read as a change and
+   recompute — the exact regression this whole sequence has been circling. Proven by a test that
+   changes page size on a restored dense page and asserts it stays dense.
+4. *Evidence:* red-proof each branch by reverting it and showing the specific assertion fail, then
+   `npm run verify`, `npm run test:e2e`, and committed evidence under `docs/evidence/2026-09-04/`.
+
 ## Quote Vault host-environment seams — ClockSeam, AppOriginSeam, PageVisibilitySeam (2026-09-04)
 
 This section is the active plan for the scheduled "worst feature -> best feature" run recorded in

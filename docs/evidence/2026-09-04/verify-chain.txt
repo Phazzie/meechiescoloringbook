@@ -1,9 +1,12 @@
-# npm run verify — Run 3 (worst-feature routine), fourth head, 2026-09-04T13:21:57Z
+# npm run verify — Run 3 (worst-feature routine), merge head, 2026-09-04T13:32:02Z
+#
+# This head merges origin/main (11e72d3, PR #292) into claude/great-bell-c3fdmk and resolves the
+# conflicts. Everything below was re-run against the merged tree, because evidence from either
+# side alone describes a tree that is no longer what ships.
 #
 # Change under test: /who-fucked-up, /rate-his-excuse and /random rebuilt onto one shared
-# verdict-to-coloring-page lifecycle (VerdictPageState + VerdictPageStudio). This head carries the
-# three SonarCloud findings on 93e03f1, three of four Codex findings on 93e03f1, and both Codex
-# findings on 546be58.
+# verdict-to-coloring-page lifecycle (VerdictPageState + VerdictPageStudio), plus every review
+# round on it — three SonarCloud findings, and five of six Codex findings across two rounds.
 #
 # Seams touched: none. Every seam is consumed through its existing adapter, exactly as
 # src/routes/+page.svelte and src/lib/components/MeechieTools.svelte already consume it. No file
@@ -15,7 +18,7 @@ ALL EIGHT STAGES RAN. EXIT 0.
 
   1. npm run audit:gate      found 0 vulnerabilities
   2. chamber-lock.mjs        ok
-  3. verify-runner.mjs       check: 0 errors, 0 warnings | test: 1149 passed, 1 skipped
+  3. verify-runner.mjs       check: 0 errors, 0 warnings | test: 1163 passed, 1 skipped
   4. shaolin-lint.mjs        ok
   5. assumption-alarm.mjs    ok
   6. seam-ledger.mjs         ok
@@ -26,32 +29,45 @@ Recorded separately in this folder, and run after the chain so they postdate its
 
   npm run check       0 errors, 0 warnings
   npm run lint        exit 0, clean                  -> lint.txt
-  npm test            1149 passed | 1 skipped        -> test.txt
-                      (baseline on 6826124: 1105 passed | 1 skipped — 44 new)
+  npm test            1163 passed | 1 skipped        -> test.txt
   npm run build       exit 0                         -> build.txt
-  npx playwright test 19 passed                      -> e2e.txt
-                      (baseline on 6826124: 13 passed — 6 new)
+  npx playwright test 22 passed                      -> e2e.txt
 
-All three routes were also driven in a real browser at 1280x900 and 390x844, with the spec actually
-POSTed to /api/generate captured and read.
+Both branches' suites survive the merge intact: this branch's 6 new e2e tests and PR #292's are
+all present and passing, and no test from either side was dropped to resolve a conflict.
 
-Ten guards are proven by deletion, not by reading. Each was confirmed to fail when its guard goes:
-  - "does not cancel an in-flight verdict request"        -> collapsing the two staleness tokens
-  - "packages print and share separately"                 -> a single two-variant packaging call
-  - "keeps the printable PDF when only the square fails"  -> the same
-  - "discards a page ... while it was being packaged"     -> the post-packaging isStale() check
-  - "retries a session that failed the first time"        -> caching the failed owner promise
-  - "retries after a session read that threw"             -> letting the rejection escape the memo
-  - "refuses to start a generation while a replacement"   -> the isWorking guard in makePage()
-  - "does not record recommended fixes as applied"        -> writing recommendedFixes to fixesApplied
-  - "returns null from a request a reset abandoned"       -> returning the current verdict instead
-  - "Another one drops a dedication" (e2e)                -> the setDedication('') on a new saying
+## What the merge had to reconcile
 
-Every mutation above was asserted to have applied before its result was read. That check is not
-ceremony: one mutation this run reported a pass purely because Prettier had rewrapped the target
-line and the patch string no longer matched, so nothing had been changed at all.
+PR #292 and this branch independently reached the same conclusion about MeechieTools.svelte — that
+one staleness token cannot serve both the verdict request and the page, and the two must be split.
+#292 implemented it there; this branch implemented the same split in VerdictPageState for the three
+mode routes. Neither knew about the other. That convergence is the most interesting thing about
+this merge and is recorded in the log.
+
+Conflicts and how each was resolved:
+
+  src/lib/components/MeechieTools.svelte
+    #292 added `canDecodeImage`, a real decode probe that drops an image a byte-signature test
+    would wrongly accept (a truncated PNG keeps a valid header). This branch had deleted the file's
+    private `previewUrl` and `IMAGE_MIME_TYPES` in favour of the shared core module. Kept #292's
+    probe and its decode-filtered list, and routed both through `generatedImageDataUrl`. The URL is
+    now built once and reused for the probe and the preview rather than derived twice.
+
+  tests/e2e/smoke.spec.ts
+    #292 refactored a shared test onto new helpers (`makeToolkitPage`, `expectPageOnScreen`); this
+    branch had only reformatted it. Took #292's version wholesale. This branch's own new tests were
+    untouched by the conflict and are all still present.
+
+  WORST_TO_BEST_LOG.md
+    Append-only, and both sides appended. Kept both, oldest first: Run 2's merge close-outs, then
+    Run 3's entries. Nothing was dropped.
+
+  docs/evidence/2026-09-04/*
+    Both sides regenerated them. Neither side's copy describes the merged tree, so every file here
+    was regenerated from scratch against this head rather than picked from one side.
 
 Known-failing, and not this PR's: the Vercel deployment status. The account hit Vercel's free-tier
 cap of 100 deployments per day ("api-deployments-free-per-day"), an account-level quota consumed by
 every push across every branch today, not anything reachable from this diff. It cannot be re-run
-for 24 hours. The GitHub Actions "verify" workflow is green on this head.
+for 24 hours, so the one permitted re-run is not being spent on a guaranteed failure. Commented on
+the PR. The GitHub Actions "verify" workflow is green.

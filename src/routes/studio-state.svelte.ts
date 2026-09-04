@@ -14,6 +14,7 @@ import {
 	DEFAULT_REVISION_BUDGET,
 	DEFAULT_STUDIO_TEXT_OUTPUT,
 	buildColoringPageSpecFromMeechieText,
+	derivesDenseDecorations,
 	buildStudioTextFromCreationRecord,
 	buildStudioTextFromDraftRecord,
 	canRunStudioAction,
@@ -59,6 +60,16 @@ import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
 type PageSize = ColoringPageSpec['pageSize'];
 type BorderChoice = ColoringPageSpec['border'];
+
+/**
+ * What caused a spec rebuild: the reader picking a theme, or anything else.
+ *
+ * This is not the whole answer to "should derived presentation be recomputed?" — the style hint
+ * carries the voice as well as the theme, so `applyTextToSpec` also compares the hint itself. What
+ * this flag adds is the one case no comparison can see: a click on the theme chip that is already
+ * active leaves every value identical, and is still the reader asking for that theme.
+ */
+export type SettingChangeSource = 'theme' | 'setting';
 
 const DRAFT_SAVE_DEBOUNCE_MS = 300;
 
@@ -287,6 +298,16 @@ export class StudioState {
 	 * and image quota on an incomplete page.
 	 */
 	private restoredPageLayout = false;
+	// Whether the last rebuild's style hint asked for dense decoration — the derivation's answer,
+	// not its input. Seeded at restore time so the first unrelated setting change on a reopened page
+	// compares equal and preserves what was restored.
+	//
+	// Comparing the whole hint string was the previous attempt and over-triggered: Rawness, Third
+	// Person, Glitter and the wig all appear in the hint without governing density, so changing any
+	// of them on a restored minimal page recomputed it — and with the default `receipts_out`
+	// intensity the recomputation returns `dense`, so the page changed on a control that has nothing
+	// to do with it.
+	private lastDerivesDense: boolean | null = null;
 	authContext: CreationRecord['authContext'] | null = null;
 	// Incremented whenever the displayed page is replaced; async work captures it and drops its
 	// result if the value moved on. Not $state: nothing renders it.
@@ -370,12 +391,30 @@ export class StudioState {
 		return validation.ok;
 	}
 
-	private async applyTextToSpec(output: MeechieStudioTextOutput): Promise<void> {
+	private async applyTextToSpec(
+		output: MeechieStudioTextOutput,
+		source: SettingChangeSource = 'setting'
+	): Promise<void> {
+		// `decorations` is derived from `styleHint.includes('receipt')`, and the style hint is the
+		// theme's hint concatenated with the voice — where `receipts_out` matches. So the theme is
+		// not the only control that moves the derivation, and asking only about the theme left a
+		// reopened page's density stuck when the reader changed Intensity.
+		//
+		// Two facts decide it, each measured where it is actually knowable. The style hint *is* the
+		// derivation's input, so comparing it against the last rebuild's answers "did the input
+		// change?" exactly rather than by proxy — that is what comparing theme IDs was standing in
+		// for, badly, three corrections running. And the panel passes `source`, because one case is
+		// invisible to any comparison: clicking the theme chip that is already active leaves the
+		// hint identical but is still the reader asking for that theme.
+		const styleHint = this.currentStyleHint();
+		const derivesDense = derivesDenseDecorations(styleHint);
+		const derivationChanged = source === 'theme' || derivesDense !== this.lastDerivesDense;
+		this.lastDerivesDense = derivesDense;
 		this.spec = buildColoringPageSpecFromMeechieText({
 			output,
 			pageSize: this.pageSize,
 			border: this.border,
-			styleHint: this.currentStyleHint(),
+			styleHint,
 			dedication: this.currentDedication(),
 			// Keep the layout only while this is still the reopened page. For anything the studio
 			// authored, and for every fresh verdict, this is 'list'.
@@ -387,7 +426,23 @@ export class StudioState {
 			// cleared the flag but left that spec in place, so the next studio-authored list was
 			// built without a footer, and every rebuild after that read the spec it had just built
 			// and kept the absence forever.
-			includeFooter: this.restoredPageLayout ? this.spec.footerItem !== undefined : true
+			includeFooter: this.restoredPageLayout ? this.spec.footerItem !== undefined : true,
+			// And the rest of the reopened page's presentation, for the same reason and off the same
+			// flag. Preserving only the layout and the footer still handed back a visibly different
+			// page — left-aligned, small, stroke 6 — the moment any setting changed.
+			//
+			// `decorations` is the one field that is derived from the theme rather than chosen, so it
+			// is dropped only when the reader actually picks a theme. Every setting change comes
+			// through here, so recomputing unconditionally would have turned a restored dense page
+			// minimal on a page-size change alone.
+			//
+			// See `derivationChanged` above for why it takes both an explicit source and a direct
+			// comparison of the style hint to decide this.
+			presentation: this.restoredPageLayout
+				? derivationChanged
+					? { ...this.spec, decorations: undefined }
+					: this.spec
+				: undefined
 		});
 		await this.validateSpec();
 		this.scheduleDraftSave();
@@ -475,9 +530,11 @@ export class StudioState {
 		this.draftTimer = setTimeout(() => void this.saveDraft(), DRAFT_SAVE_DEBOUNCE_MS);
 	};
 
-	syncSpecFromCurrentText = async (): Promise<void> => {
+	syncSpecFromCurrentText = async (
+		source: SettingChangeSource = 'setting'
+	): Promise<void> => {
 		try {
-			await this.applyTextToSpec(this.textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT);
+			await this.applyTextToSpec(this.textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT, source);
 		} catch (error) {
 			this.draftSaveError =
 				error instanceof Error ? error.message : 'Page settings could not be saved.';
@@ -781,6 +838,9 @@ export class StudioState {
 		this.spec = creation.intent;
 		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
 		this.restoredPageLayout = true;
+		// Seed the derivation input at restore time, so the first setting change that does not touch
+		// it compares equal and keeps the density the saved page was built with.
+		this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
 		// The evidence box is an editable field the reader's next Generate Verdict sends to the text
 		// provider as their own words, so what lands in it matters more than a display string does.
 		// This fell back to `assembledPrompt` — the image-generation prompt — for any record saved
@@ -961,6 +1021,7 @@ export class StudioState {
 			// Setting it for a studio-authored draft costs nothing: such a spec is a `list` with a
 			// footer, so both derivations above return what the false branch would have.
 			this.restoredPageLayout = true;
+			this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
 			this.evidence = draft.value.chatMessage || '';
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;
