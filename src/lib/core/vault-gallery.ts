@@ -79,14 +79,71 @@ const decodeBase64ToBytes = (base64: string): Uint8Array | null => {
 	}
 };
 
-// Whether the whole blob is well-formed base64, not merely a recognisable prefix. Checked by
-// syntax rather than by decoding, so a megabyte-sized page costs a regex rather than a megabyte of
-// allocation on every render: the alphabet, the 4-character grouping, and padding only at the end
-// are exactly what a decoder rejects.
+// Whether the whole blob is well-formed base64: the alphabet, the 4-character grouping, and
+// padding only at the end are exactly what a decoder rejects.
 const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
 
 const isDecodableBase64 = (compact: string): boolean =>
 	compact.length > 0 && compact.length % 4 === 0 && BASE64_PATTERN.test(compact);
+
+/** Decoded byte length of a base64 string, without decoding it. */
+const decodedByteLength = (compact: string): number => {
+	const padding = compact.endsWith('==') ? 2 : compact.endsWith('=') ? 1 : 0;
+	return (compact.length / 4) * 3 - padding;
+};
+
+// Enough trailing base64 to cover every terminator checked below. Aligned to 4 characters so the
+// slice decodes on its own, and `</svg>` may sit behind trailing whitespace or a newline.
+const TRAILER_CHARS = 64;
+
+const decodeTrailer = (compact: string): Uint8Array | null => {
+	const start = Math.max(0, compact.length - TRAILER_CHARS);
+	const aligned = start + ((4 - (start % 4)) % 4);
+	return decodeBase64ToBytes(compact.slice(aligned));
+};
+
+const endsWithBytes = (bytes: Uint8Array, terminator: readonly number[]): boolean => {
+	if (bytes.length < terminator.length) return false;
+	const offset = bytes.length - terminator.length;
+	return terminator.every((byte, index) => bytes[offset + index] === byte);
+};
+
+// IEND chunk type plus its CRC — the last eight bytes of every well-formed PNG.
+const PNG_TRAILER = [0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82] as const;
+// End-of-image marker.
+const JPEG_TRAILER = [0xff, 0xd9] as const;
+
+/**
+ * Whether the stored blob is a *complete* image, not merely one that starts like one.
+ *
+ * `detectVaultImageKind` reads the first 18 bytes, so a truncated page opens with a perfectly good
+ * signature and still cannot render. Checking the tail catches exactly that, and it is checked by
+ * decoding only the last few dozen bytes rather than the whole payload: a saved page can be a
+ * megabyte, and this runs for every row on every keystroke in the vault search box.
+ */
+const looksCompleteImage = (compact: string, kind: VaultImageKind): boolean => {
+	if (kind.kind === 'svg') {
+		const bytes = decodeTrailer(compact);
+		if (!bytes) return false;
+		let text = '';
+		for (const byte of bytes) text += String.fromCharCode(byte);
+		return text.toLowerCase().trimEnd().endsWith('</svg>');
+	}
+	if (kind.mimeType === 'image/webp') {
+		// RIFF stores its payload size in bytes 4-7, little-endian, counting everything after the
+		// 8-byte header. A truncated file keeps the original declared size and so fails this.
+		const header = decodeBase64ToBytes(compact.slice(0, 12));
+		if (!header || header.length < 8) return false;
+		const declared =
+			header[4] | (header[5] << 8) | (header[6] << 16) | (header[7] << 24);
+		return decodedByteLength(compact) === declared + 8;
+	}
+	const bytes = decodeTrailer(compact);
+	if (!bytes) return false;
+	return kind.mimeType === 'image/png'
+		? endsWithBytes(bytes, PNG_TRAILER)
+		: endsWithBytes(bytes, JPEG_TRAILER);
+};
 
 // An SVG saved to the vault was base64-encoded on the way in, so the raster signature check
 // cannot see it. Decoding the same 18-byte prefix as text catches both shapes a generated SVG
@@ -163,13 +220,15 @@ export const vaultImageSource = (image: VaultImage, appOrigin = ''): string => {
 	//
 	// Preferring the bytes requires more than a matching signature. `detectVaultImageKind` sniffs
 	// only the first 18 bytes, so a truncated or corrupted blob can open with a perfectly good PNG
-	// header and still be undecodable — and returning a data url built from it would hand the
-	// reader a broken thumbnail and a dead download while a working url sat unused in the same
-	// record. The whole payload is checked for base64 validity before it wins.
+	// header and still not render — and returning a data url built from it would hand the reader a
+	// broken thumbnail and a dead download while a working url sat unused in the same record. The
+	// blob must therefore be valid base64 *and* carry the terminator its own format requires.
 	if (image.b64) {
 		const compact = compactBase64(image.b64);
 		const kind = detectVaultImageKind(compact);
-		if (kind && isDecodableBase64(compact)) return `data:${kind.mimeType};base64,${compact}`;
+		if (kind && isDecodableBase64(compact) && looksCompleteImage(compact, kind)) {
+			return `data:${kind.mimeType};base64,${compact}`;
+		}
 	}
 	if (image.url && isSafeStoredUrl(image.url, appOrigin)) return image.url;
 	return '';

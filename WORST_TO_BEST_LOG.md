@@ -359,3 +359,29 @@ make it trustworthy. If a future run adds a seam, run `npm run cipher:gate` and 
 ### Still deferred after the fourth round
 
 - Everything listed above, unchanged.
+
+---
+
+## Run 1, fifth close-out — 2026-09-04 — the review round on `b145127`
+
+Appended, not edited. Four findings, all accepted, and all narrower than the round before — the
+first sign this is converging rather than diverging. Three were in the seams built one commit
+earlier.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| P1 | `AppOriginSeam`'s mock exposed only healthy scenarios, so the fault fixtures were asserted by calling the validator directly. That skips the mandatory proof that the **mock** fails on its fault fixture, and lets the mock drift from the adapter's degradation unnoticed. | The mock gained `withPath`, `trailingSlash`, `nonHttp` and `malformed` scenarios and now runs every fixture through the same validator the adapter uses, so a fault degrades identically in both. |
+| P2 | The clock mock used `queueMicrotask` for an already-due instant while the adapter uses `setTimeout`. A microtask runs *before* pending promise continuations and a macrotask after, so a test awaiting a promise between scheduling and firing would see the opposite order from a browser. | `setTimeout(..., 0)`, matching the adapter, with a test asserting the timer runs *after* a pending promise continuation. |
+| P2 | A real race introduced by the previous fix: if `advanceTo` ran before the deferred turn drained, both paths invoked the same callback. A day-boundary refresh would have done its rollover work twice. | One `claim()` choke point that every firing path goes through; whichever gets there first wins and the other becomes a no-op. Tested from both directions. |
+| P2 | The base64 *syntax* check was not enough. A cleanly truncated PNG is still valid base64, still divisible by four, and still carries a valid signature — so it produced a broken data URL while a working url sat unused. | Completeness is now checked by the format's own terminator: PNG's `IEND` chunk, JPEG's `FFD9`, WebP's RIFF declared size against the actual byte length, and `</svg>` for SVG. Only the last ~48 bytes are decoded, so it stays O(1) on a megabyte page rendered on every keystroke. |
+
+**The finding inside the finding.** Making that last check real broke three existing tests, and the
+reason is worth recording: the suite's `JPEG_BASE64` and `WEBP_BASE64` constants were **signature
+stubs, not complete files** — a handful of header bytes that had always been enough to satisfy a
+detector that only ever read the first eighteen. They are now real complete images, with a WebP
+whose RIFF size field genuinely matches its payload. A fixture that is only as complete as the
+weakest assertion against it will quietly certify the next weak assertion too.
+
+### Still deferred after the fifth round
+
+- Everything listed above, unchanged.

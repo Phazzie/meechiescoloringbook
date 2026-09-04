@@ -16,6 +16,9 @@ import {
 } from './fixtures';
 import { createMockClockSeam } from './mock';
 
+/** Yield a macrotask, which is where both the adapter and the mock fire an already-due callback. */
+const nextTask = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
 describe('nextUtcDayBoundary', () => {
 	it('returns the first instant of the following UTC day', () => {
 		expect(nextUtcDayBoundary(lateInstantMs)).toBe(nextDayBoundaryMs);
@@ -234,7 +237,7 @@ describe('ClockSeam fires an already-due instant without another advance', () =>
 
 		clock.scheduleAt(lateInstantMs, ran);
 		expect(ran).not.toHaveBeenCalled();
-		await Promise.resolve();
+		await nextTask();
 
 		expect(ran).toHaveBeenCalledTimes(1);
 		expect(clock.pendingCount()).toBe(0);
@@ -245,7 +248,7 @@ describe('ClockSeam fires an already-due instant without another advance', () =>
 		const ran = vi.fn();
 
 		clock.scheduleAt(nextDayBoundaryMs, ran);
-		await Promise.resolve();
+		await nextTask();
 
 		expect(ran).toHaveBeenCalledTimes(1);
 	});
@@ -256,7 +259,7 @@ describe('ClockSeam fires an already-due instant without another advance', () =>
 
 		const cancel = clock.scheduleAt(lateInstantMs, ran);
 		cancel();
-		await Promise.resolve();
+		await nextTask();
 
 		expect(ran).not.toHaveBeenCalled();
 	});
@@ -266,9 +269,38 @@ describe('ClockSeam fires an already-due instant without another advance', () =>
 		const ran = vi.fn();
 
 		clock.scheduleAt(lateInstantMs, ran);
-		await Promise.resolve();
+		await nextTask();
 		clock.advanceTo(nextDayBoundaryMs + DAY_MS);
 
 		expect(ran).toHaveBeenCalledTimes(1);
+	});
+
+	// The race the other way round: `advanceTo` claims the entry before the deferred turn drains.
+	// Without a single claim point both paths would run the same callback, and a day-boundary
+	// refresh would do its rollover work twice.
+	it('does not run it twice when advanceTo happens before the deferred turn', async () => {
+		const clock = createMockClockSeam(nextDayBoundaryMs);
+		const ran = vi.fn();
+
+		clock.scheduleAt(lateInstantMs, ran);
+		clock.advanceTo(nextDayBoundaryMs + DAY_MS);
+		expect(ran).toHaveBeenCalledTimes(1);
+		await nextTask();
+
+		expect(ran).toHaveBeenCalledTimes(1);
+		expect(clock.pendingCount()).toBe(0);
+	});
+
+	// The adapter schedules a macrotask, which runs after pending promise continuations. A mock
+	// using a microtask would run before them and report the opposite order.
+	it('runs after a pending promise continuation, as the adapter does', async () => {
+		const clock = createMockClockSeam(nextDayBoundaryMs);
+		const order: string[] = [];
+
+		clock.scheduleAt(lateInstantMs, () => order.push('timer'));
+		await Promise.resolve().then(() => order.push('promise'));
+		await nextTask();
+
+		expect(order).toEqual(['promise', 'timer']);
 	});
 });

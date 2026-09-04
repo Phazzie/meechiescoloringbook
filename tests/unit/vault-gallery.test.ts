@@ -23,9 +23,12 @@ import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-tex
 // Real byte signatures — the detector reads bytes, so a made-up string would prove nothing.
 const PNG_BASE64 =
 	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-const JPEG_BASE64 = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAg=';
-// "RIFF" + 4 size bytes + "WEBP" + "VP8 ".
-const WEBP_BASE64 = 'UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASo=';
+// Complete files, not signature stubs: `vaultImageSource` refuses bytes that lack the terminator
+// their own format requires, so a truncated fixture would prove the wrong thing.
+const JPEG_BASE64 =
+	'/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
+// "RIFF" + a size field that really does match the payload + "WEBP" + a VP8 chunk.
+const WEBP_BASE64 = 'UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAgA0JaQAA3AA/vv9UAA=';
 const SVG_MARKUP = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"></svg>';
 const SVG_BASE64 = btoa(SVG_MARKUP);
 const SVG_WITH_XML_DECLARATION_BASE64 = btoa(
@@ -163,6 +166,39 @@ describe('vaultImageSource', () => {
 
 		expect(detectVaultImageKind(truncated)).not.toBeNull();
 		expect(vaultImageSource({ b64: truncated, url: '/saved/page.png' })).toBe('/saved/page.png');
+	});
+
+	// The sharper case: a clean truncation is still valid base64 and still carries a valid PNG
+	// signature, so a syntax check alone lets it through. Only the missing IEND trailer gives it
+	// away.
+	it.each([
+		['PNG', PNG_BASE64, 20],
+		['JPEG', JPEG_BASE64, 16],
+		['WebP', WEBP_BASE64, 20],
+		['SVG', SVG_BASE64, 24]
+	])('falls back for a cleanly truncated %s that keeps its signature', (_label, base64, keep) => {
+		const truncated = base64.slice(0, keep);
+
+		expect(truncated.length % 4).toBe(0);
+		expect(detectVaultImageKind(truncated)).not.toBeNull();
+		expect(vaultImageSource({ b64: truncated, url: '/saved/page.png' })).toBe('/saved/page.png');
+	});
+
+	it.each([
+		['PNG', PNG_BASE64, 'image/png'],
+		['JPEG', JPEG_BASE64, 'image/jpeg'],
+		['WebP', WEBP_BASE64, 'image/webp'],
+		['SVG', SVG_BASE64, 'image/svg+xml']
+	])('still prefers a complete %s over a usable url', (_label, base64, mimeType) => {
+		expect(vaultImageSource({ b64: base64, url: '/saved/page.png' })).toBe(
+			`data:${mimeType};base64,${base64}`
+		);
+	});
+
+	it('falls back for an SVG whose closing tag was lost', () => {
+		const truncated = btoa(SVG_MARKUP.replace('</svg>', ''));
+
+		expect(vaultImageSource({ b64: truncated, url: '/saved/page.svg' })).toBe('/saved/page.svg');
 	});
 
 	it('falls back for bytes whose length is not a whole number of base64 groups', () => {

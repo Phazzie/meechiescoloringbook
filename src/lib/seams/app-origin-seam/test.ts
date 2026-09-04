@@ -33,6 +33,27 @@ describe('AppOriginSeam mock contract', () => {
 	it('reports no origin in the missing scenario', () => {
 		expect(createMockAppOriginSeam('missing').getOrigin()).toBe(missingOrigin);
 	});
+
+	// The mandatory red proof, driven through the mock rather than the validator directly: each
+	// fault fixture must degrade to "no origin" the same way it would in a browser. If the mock
+	// ever stopped mirroring the adapter's degradation these would go red.
+	it.each(['withPath', 'trailingSlash', 'nonHttp', 'malformed'] as const)(
+		'degrades the %s fault fixture to no origin',
+		(scenario) => {
+			expect(createMockAppOriginSeam(scenario).getOrigin()).toBe('');
+		}
+	);
+
+	// The consequence that actually matters: with no usable origin, no absolute URL can pass the
+	// same-origin check, so a malformed host value can never widen it.
+	it('never reports an origin an absolute url could match on a fault scenario', () => {
+		for (const scenario of ['withPath', 'trailingSlash', 'nonHttp', 'malformed'] as const) {
+			const origin = createMockAppOriginSeam(scenario).getOrigin();
+
+			expect(origin).toBe('');
+			expect(originWithPath.startsWith(origin) && origin.length > 0).toBe(false);
+		}
+	});
 });
 
 describe('AppOriginSeam validators', () => {

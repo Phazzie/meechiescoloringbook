@@ -7,7 +7,12 @@ import type { ClockSeam } from './contract';
 import { sampleInstantMs } from './fixtures';
 import { validateEpochMs } from './validators';
 
-type ScheduledCallback = { dueAtMs: number; callback: () => void; cancelled: boolean };
+type ScheduledCallback = {
+	dueAtMs: number;
+	callback: () => void;
+	/** Set the moment any path claims this entry, so no other path can run it again. */
+	settled: boolean;
+};
 
 export type MockClockSeam = ClockSeam & {
 	/**
@@ -29,31 +34,40 @@ export const createMockClockSeam = (startMs: number = sampleInstantMs): MockCloc
 	let currentMs = startMs;
 	let scheduled: ScheduledCallback[] = [];
 
+	// Every path that might run a callback claims it here first. `scheduleAt`'s deferred firing and
+	// `advanceTo` can both be holding the same entry — a test that advances the clock before the
+	// deferred turn drains would otherwise run one callback twice, which the contract forbids.
+	const claim = (entry: ScheduledCallback): boolean => {
+		if (entry.settled) return false;
+		entry.settled = true;
+		scheduled = scheduled.filter((candidate) => candidate !== entry);
+		return true;
+	};
+
 	return {
 		now: () => currentMs,
 
 		scheduleAt: (epochMs, callback) => {
 			validateEpochMs(epochMs);
-			const entry: ScheduledCallback = { dueAtMs: epochMs, callback, cancelled: false };
+			const entry: ScheduledCallback = { dueAtMs: epochMs, callback, settled: false };
 			scheduled.push(entry);
-			const cancel = (): void => {
-				entry.cancelled = true;
-				scheduled = scheduled.filter((candidate) => candidate !== entry);
-			};
 			// An instant already at or behind the clock has to fire on its own, exactly as the
 			// adapter's clamped `setTimeout` does. Queuing it until the next `advanceTo` would give
 			// the mock behaviour production does not have, and a test that never advances the clock
-			// would wait forever for a callback the real seam would already have run. A microtask
-			// keeps that deterministic: `await Promise.resolve()` is enough to observe it, and the
-			// cancelled flag is re-checked at fire time so cancelling first still wins.
+			// would wait forever for a callback the real seam would already have run.
+			//
+			// `setTimeout(..., 0)` rather than `queueMicrotask`, deliberately: the adapter schedules
+			// a macrotask, which runs *after* pending promise continuations. A microtask runs before
+			// them, so a test that awaits a promise between scheduling and firing would observe the
+			// opposite order here from the one the browser produces.
 			if (epochMs <= currentMs) {
-				queueMicrotask(() => {
-					if (entry.cancelled) return;
-					cancel();
-					entry.callback();
-				});
+				globalThis.setTimeout(() => {
+					if (claim(entry)) entry.callback();
+				}, 0);
 			}
-			return cancel;
+			return () => {
+				claim(entry);
+			};
 		},
 
 		advanceTo: (epochMs) => {
@@ -64,9 +78,8 @@ export const createMockClockSeam = (startMs: number = sampleInstantMs): MockCloc
 			const due = scheduled
 				.filter((entry) => entry.dueAtMs <= epochMs)
 				.sort((left, right) => left.dueAtMs - right.dueAtMs);
-			scheduled = scheduled.filter((entry) => entry.dueAtMs > epochMs);
 			for (const entry of due) {
-				if (!entry.cancelled) entry.callback();
+				if (claim(entry)) entry.callback();
 			}
 		},
 
