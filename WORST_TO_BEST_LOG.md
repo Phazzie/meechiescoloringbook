@@ -151,11 +151,7 @@ generation (real, but a one-line config defect, not a feature).
 ### Outcome
 
 - Pull request: [#286](https://github.com/Phazzie/meechiescoloringbook/pull/286), opened and merged
-  2026-09-04 as `04f1922`. All nine checks green on the merged head `6b8ea95`, both `verify` jobs
-  included. The one red signal at merge was Vercel's commit status, `api-deployments-free-per-day`
-  ("retry in 24 hours") — the account-wide free-tier quota `AGENTS.md` already records as
-  pre-existing noise; it also failed on this PR's very first head, before any of its content
-  could matter.
+  2026-09-04.
 - **Review rounds.**
   - *CodeQL, 2 high alerts* — `js/clear-text-storage-of-sensitive-data`, both tracing to this run's
     own new vault test helper, which hand-wrote a JSON blob containing `owner.sessionId` straight
@@ -192,3 +188,74 @@ generation (real, but a one-line config defect, not a feature).
    `on: push` to `branches: [main]`** so `pull_request` alone covers branch pushes — a
    `.github/workflows/` change, deliberately out of scope for a run that touched no CI config, and
    a good candidate for its own small PR. Budget extra wall-clock for this until it is fixed.
+
+---
+
+## Run 1, close-out — 2026-09-04 — corrections to the entry above
+
+Appended, not edited into Run 1: this file is append-only and the entry above is the record as it
+merged. Two of these corrections exist because the close-out itself broke that rule and had to be
+undone.
+
+**Outcome of PR #286.** Merged as `04f1922`; the log close-out that followed it merged as
+`2e488b8` (PR #288).
+
+**Correction 1 — the Vercel stand-down cited evidence that does not hold.** The close-out first
+argued Vercel's red status was not this PR's because "it also failed on this PR's very first head,
+before any of its content could matter." That is wrong: the first head was `c8c660d`, which already
+contained the entire feature rebuild, so its failure proves nothing about whether the PR caused it.
+The conclusion was still right but for a different reason, and this is the reason a future run
+should copy: `api-deployments-free-per-day` ("more than 100") is an **account-wide daily deployment
+quota**. It is a property of the Vercel account and the calendar day, not of any diff — no change
+to this repository can cause or avoid it — and `AGENTS.md` already records it as standing noise.
+A quota shared across every PR needs no per-PR reproduction; a *test* failure would.
+
+**Correction 2 — the close-out edited Run 1 in place.** PR #288 rewrote text inside the Run 1
+entry instead of appending. That is exactly what the "Append only" rule at the top of this file
+forbids, broken on the first run by the run that wrote the rule. Run 1's outcome line has been
+restored to what it said when it merged, and everything new lives here.
+
+**Correction 3 — thirteen review findings were merged unaddressed.** Codex reviewed PR #286 four
+times (`c8c660d`, `4204e99`, `3004e1a`, `6b8ea95`) and PR #288 once. Its first review landed at
+00:52, two minutes after the run's only check for review comments, and the run merged both PRs
+without looking again. Eleven of the findings were real defects in code this run wrote. They are
+fixed in the follow-up PR recorded below. **The process lesson: read review comments immediately
+before merging, not once early on.** Bots review each pushed head asynchronously, and on this repo
+Codex takes four to six minutes — longer than the gap between a push and a merge.
+
+### What the follow-up fixed
+
+| Severity | Finding | Fix |
+|---|---|---|
+| P1 | `undoDelete` at capacity silently evicted a different saved page — the store caps at 50 and drops the oldest, so restoring into a refilled vault destroyed someone else's page while reporting only a successful restore. The exact failure this feature exists to prevent. | Refuse the undo and say why, rather than trading one lost page for another. |
+| P1 | A late `package()` result from a previously opened page overwrote `packagedFiles`, so Download PDF could hand back a different page than the one displayed. | A load token bumped in `resetGeneratedPage()`; stale completions discard themselves. |
+| P1 | `Date.now()` inside `src/lib/core/vault-gallery.ts` — `AGENTS.md` classifies clock access as a seam. | Removed the fallback; `nowMs` is now a required argument, so core is pure and the caller owns the clock. |
+| P1 | `docs/evidence/2026-09-04/verify-chain.txt` reported 847 tests while `test.txt` reported 905, so the chain looked undemonstrated for the reviewed change. | Regenerated every file `npm run verify` owns from one clean run (916). See the note below on the three files it does not own. |
+| P2 | An external `url` was preferred over stored bytes, but `svelte.config.js` sets `img-src 'self' data: blob:`, so it could only ever render broken with a dead download beside it. | Bytes win; only same-origin paths are accepted as a url. |
+| P2 | Entry selection took the first *non-empty* image, so a leading unreadable entry hid a perfectly good later one. | Take the first image that actually resolves. |
+| P2 | Collapsing the list left an armed delete primed off-screen, unlike search which disarms. | Collapse disarms too. |
+| P2 | Legacy records without `studioText` searched and displayed as though they had no quote, though `buildStudioTextFromCreationRecord` reconstructs one. | Both display and search go through the reconstruction. |
+| P2 | The empty state rendered directly beneath a storage error, telling readers their pages did not exist when the app simply could not read them. | The two states are now mutually exclusive. |
+| P2 | "Saved today" never advanced across UTC midnight without a vault read. | The clock is re-read when the tab returns to the foreground. |
+
+`VAULT_CAPACITY` in core mirrors the adapter's private `MAX_CREATIONS`; a test drives the real
+store past it so the mirror cannot silently drift.
+
+**A note on `docs/evidence/<date>/` for future runs.** The directory is shared by every routine
+that runs on a given date, and `npm run verify` only writes some of what ends up in it:
+`assumption-alarm.json`, `chamber-lock.json`, `clan-chain.{json,md}`, `proof-tape.{json,md}`,
+`seam-ledger.{json,md}`, `shaolin-lint.json`, `test.txt`, `verify.txt`. The others present on
+2026-09-04 — `build.txt`, `lint.txt`, `verify-chain.txt` — come from a **different** routine and
+were **not** produced by this run. That is why `verify-chain.txt` reports a different test count:
+it is another run's transcript, not a stale copy of this one's. Resolving an evidence conflict
+with `git checkout --theirs` and then re-running `verify` therefore leaves those three files
+untouched, which is correct — deleting them would destroy another run's evidence. Do not delete
+them; just do not read them as this run's.
+
+### Still deferred
+
+- `creationStoreAdapter.deleteCreation` ignores `owner` (needs the seam workflow).
+- `parseRecords`' `skippedIndices` is computed and never surfaced (needs a contract change).
+- `localStorage` quota for fifty full-size pages (needs a different storage seam).
+- `.github/workflows/verify.yml` runs twice per push and one of the pair hangs; scope `on: push`
+  to `branches: [main]`. Worth its own PR.

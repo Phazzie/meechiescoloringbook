@@ -9,6 +9,7 @@
 //            and re-package.
 import type { CreationRecord } from '../../../contracts/creation-store.contract';
 import type { GeneratedImage } from '../../../contracts/image-generation.contract';
+import { buildStudioTextFromCreationRecord } from './meechie-studio';
 import {
 	detectRasterMimeTypeFromBytes,
 	type RasterMimeType
@@ -19,6 +20,15 @@ export type VaultImage = NonNullable<CreationRecord['images']>[number];
 
 /** How many saved pages the vault shows before the reader asks for the rest. */
 export const VAULT_PREVIEW_COUNT = 4;
+
+/**
+ * How many saved pages the store keeps before it drops the oldest. This mirrors `MAX_CREATIONS`
+ * in `src/lib/adapters/creation-store.adapter.ts`, which is module-private; exporting it would be
+ * an adapter change and so would need the full Seam-Driven Development workflow. The mirror is
+ * not taken on trust — `tests/unit/vault-gallery.test.ts` drives the real adapter past this
+ * number and fails if the store's actual cap ever stops matching.
+ */
+export const VAULT_CAPACITY = 50;
 
 // 24 base64 characters decode to exactly 18 bytes — more than every signature checked below
 // (WebP needs 12) and small enough that sniffing a megabyte-sized page costs nothing.
@@ -108,26 +118,24 @@ export const detectVaultImageKind = (base64: string): VaultImageKind | null => {
 	return null;
 };
 
-// A stored `url` is whatever was in browser storage when the vault was read, and it now feeds an
-// `<a href>` as well as an `<img src>`. Anything but a plain http(s) absolute URL or a same-origin
-// path is refused, so a `javascript:` value in a record can never become a link the reader clicks.
-const isSafeStoredUrl = (url: string): boolean => {
-	if (url.startsWith('/') && !url.startsWith('//')) return true;
-	try {
-		const { protocol } = new URL(url);
-		return protocol === 'https:' || protocol === 'http:';
-	} catch {
-		return false;
-	}
-};
+// A stored `url` is whatever was in browser storage when the vault was read, and it feeds an
+// `<a href>` as well as an `<img src>`. Only a same-origin path is accepted: `svelte.config.js`
+// sets `img-src 'self' data: blob:`, so an absolute http(s) URL is blocked by the app's own CSP
+// and could only ever render as a broken thumbnail with a dead download beside it — and a
+// `javascript:` value must never become a link the reader can click.
+const isSafeStoredUrl = (url: string): boolean =>
+	url.startsWith('/') && !url.startsWith('//');
 
 /** A `src`/`href` for a stored vault image, or '' when it is unreadable or unsafe to link to. */
 export const vaultImageSource = (image: VaultImage): string => {
-	if (image.url) return isSafeStoredUrl(image.url) ? image.url : '';
-	if (!image.b64) return '';
-	const kind = detectVaultImageKind(image.b64);
-	if (!kind) return '';
-	return `data:${kind.mimeType};base64,${compactBase64(image.b64)}`;
+	// Stored bytes win over a stored url. A contract-valid record may carry both, and the bytes
+	// always render under the CSP above while an external url never does.
+	if (image.b64) {
+		const kind = detectVaultImageKind(image.b64);
+		if (kind) return `data:${kind.mimeType};base64,${compactBase64(image.b64)}`;
+	}
+	if (image.url && isSafeStoredUrl(image.url)) return image.url;
+	return '';
 };
 
 /** The download extension that matches what `vaultImageSource` produced. */
@@ -200,12 +208,24 @@ export const sortVaultCreations = (
 		return left.id.localeCompare(right.id);
 	});
 
+/**
+ * The quote a row shows. Records saved before `studioText` existed carry none, but
+ * `buildStudioTextFromCreationRecord` reconstructs one from the spec and the assembled prompt —
+ * the same reconstruction `loadCreation` already performs. Without it a legacy page shows its
+ * quote once opened yet displays and searches as though it had none.
+ */
+export const vaultQuote = (record: CreationRecord): string =>
+	record.studioText?.quote ?? buildStudioTextFromCreationRecord(record).quote;
+
+const vaultVerdict = (record: CreationRecord): string =>
+	record.studioText?.verdict ?? buildStudioTextFromCreationRecord(record).verdict;
+
 /** Everything about a saved page a reader might type into the search box. */
 export const vaultSearchText = (record: CreationRecord): string =>
 	[
 		record.intent.title,
-		record.studioText?.quote ?? '',
-		record.studioText?.verdict ?? '',
+		vaultQuote(record),
+		vaultVerdict(record),
 		record.intent.dedication ?? '',
 		record.intent.footerItem?.label ?? '',
 		...record.intent.items.map((item) => item.label)
@@ -267,14 +287,18 @@ export const buildVaultEntry = (
 	record: CreationRecord,
 	nowMs: number
 ): VaultEntry => {
-	const storedImage =
-		(record.images ?? []).find((image) => !!image.url || !!image.b64) ?? null;
-	const imageSource = storedImage ? vaultImageSource(storedImage) : '';
+	// The first image that actually resolves, not merely the first non-empty one: a record whose
+	// leading entry has unreadable bytes or an unusable url would otherwise show a placeholder and
+	// no download even though a later entry is perfectly renderable.
+	const imageSource =
+		(record.images ?? [])
+			.map((image) => vaultImageSource(image))
+			.find((source) => source.length > 0) ?? '';
 	const title = record.intent.title;
 	return {
 		id: record.id,
 		title,
-		quote: record.studioText?.quote ?? '',
+		quote: vaultQuote(record),
 		savedLabel: formatVaultSavedLabel(record.createdAtISO, nowMs),
 		imageSource,
 		downloadName: `${slugify(title) || 'meechie-coloring-page'}.${vaultImageExtension(imageSource)}`,
@@ -284,12 +308,18 @@ export const buildVaultEntry = (
 	};
 };
 
-/** Sort, filter, and label the whole vault in one pass. */
+/**
+ * Sort, filter, and label the whole vault in one pass.
+ *
+ * `nowMs` is required, not defaulted: `AGENTS.md` classifies clock access as a seam, and reading
+ * the clock here would put an unseamed `Date.now()` inside core logic that is otherwise pure. The
+ * caller supplies the instant, which also makes every label a pure function of its inputs.
+ */
 export const buildVaultEntries = (
 	records: readonly CreationRecord[],
-	options: { query?: string; nowMs?: number } = {}
+	options: { query?: string; nowMs: number }
 ): VaultEntry[] => {
-	const nowMs = options.nowMs ?? Date.now();
+	const nowMs = options.nowMs;
 	const query = options.query ?? '';
 	return sortVaultCreations(records)
 		.filter((record) => matchesVaultQuery(record, query))

@@ -23,6 +23,7 @@ import {
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 import {
+	VAULT_CAPACITY,
 	VAULT_PREVIEW_COUNT,
 	buildVaultEntries,
 	restoreCreationImages,
@@ -250,8 +251,12 @@ export class StudioState {
 	// --- Non-reactive implementation details ---
 	owner: CreationOwner | null = null;
 	authContext: CreationRecord['authContext'] | null = null;
+	// Incremented whenever the displayed page is replaced; async work captures it and drops its
+	// result if the value moved on. Not $state: nothing renders it.
+	pageLoadToken = 0;
 	isBrowser = $state(false);
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
+	private onVisibilityChange: (() => void) | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
 
@@ -340,6 +345,10 @@ export class StudioState {
 	}
 
 	private resetGeneratedPage(): void {
+		// Every path that replaces what is on the paper comes through here, so this is the one
+		// place the load token has to advance. Anything still in flight for the previous page
+		// compares its captured token against this and discards itself.
+		this.pageLoadToken += 1;
 		this.generationError = '';
 		this.assembledPrompt = '';
 		this.revisedPrompt = '';
@@ -724,7 +733,7 @@ export class StudioState {
 		this.violations = creation.violations ?? [];
 		this.vaultStatus = `Reopened "${creation.intent.title}".`;
 		await this.validateSpec();
-		await this.repackageRestoredImages();
+		await this.repackageRestoredImages(this.pageLoadToken);
 		this.scheduleDraftSave();
 	};
 
@@ -732,7 +741,7 @@ export class StudioState {
 	// the packaging adapter needs a browser canvas for some formats, and a page that cannot be
 	// re-packaged still previews and still exports as an image, so a failure here is not an error
 	// worth putting in front of the reader.
-	private async repackageRestoredImages(): Promise<void> {
+	private async repackageRestoredImages(loadToken: number): Promise<void> {
 		if (this.images.length === 0) return;
 		try {
 			const packagingResult = await outputPackagingAdapter.package({
@@ -742,10 +751,16 @@ export class StudioState {
 				pageSize: this.spec.pageSize,
 				variants: ['print']
 			});
+			// Packaging is slow enough that the reader can open another page, or start a new
+			// generation, while it runs. Without this guard the late result would attach the
+			// previous page's PDF to whatever is on screen now, so Download PDF would hand back a
+			// different page than the one displayed.
+			if (loadToken !== this.pageLoadToken) return;
 			if (packagingResult.ok) {
 				this.packagedFiles = packagingResult.value.files;
 			}
 		} catch {
+			if (loadToken !== this.pageLoadToken) return;
 			this.packagedFiles = [];
 		}
 	}
@@ -758,6 +773,9 @@ export class StudioState {
 
 	toggleVaultShowAll = (): void => {
 		this.vaultShowAll = !this.vaultShowAll;
+		// Collapsing can hide the armed row exactly as a search can, and an armed delete left
+		// off-screen would still be primed when the list is expanded again.
+		this.pendingDeleteId = null;
 	};
 
 	requestDeleteCreation = (id: string): void => {
@@ -789,6 +807,17 @@ export class StudioState {
 	undoDelete = async (): Promise<void> => {
 		const record = this.undoableDeletion;
 		if (!record) return;
+		// The store keeps a fixed number of records and drops the oldest past that. If the slot
+		// freed by the delete has since been taken by a new save, restoring would push the list
+		// back over the cap and silently evict somebody else's page — the exact failure this
+		// whole feature exists to stop — while reporting only that this one came back. Refuse,
+		// and say why, rather than trading one lost page for another.
+		if (this.creations.length >= VAULT_CAPACITY) {
+			this.vaultError =
+				`The vault is full at ${VAULT_CAPACITY} pages, so "${record.intent.title}" cannot come ` +
+				'back without pushing another page out. Delete a page you do not want, then undo.';
+			return;
+		}
 		const result = await creationStoreAdapter.saveCreation({ record });
 		if (!result.ok) {
 			this.vaultError = result.error.message;
@@ -820,6 +849,7 @@ export class StudioState {
 
 	async init(): Promise<void> {
 		this.isBrowser = true;
+		this.startSavedLabelRefresh();
 		const [sessionResult, draft] = await Promise.all([
 			sessionAdapter.getSession(),
 			creationStoreAdapter.getDraft({})
@@ -847,9 +877,27 @@ export class StudioState {
 		await this.refreshCreations();
 	}
 
+	// "Saved today" is computed against `nowMs`, which otherwise only advances when the vault is
+	// read or written. A studio left open across UTC midnight would keep showing yesterday's
+	// labels indefinitely. Re-reading the clock when the tab comes back to the foreground covers
+	// that without a polling timer: the labels are only wrong while nobody is looking at them.
+	private startSavedLabelRefresh(): void {
+		if (typeof document === 'undefined') return;
+		this.onVisibilityChange = () => {
+			if (document.visibilityState === 'visible') {
+				this.nowMs = Date.now();
+			}
+		};
+		document.addEventListener('visibilitychange', this.onVisibilityChange);
+	}
+
 	destroy(): void {
 		if (this.draftTimer) {
 			globalThis.clearTimeout(this.draftTimer);
+		}
+		if (this.onVisibilityChange && typeof document !== 'undefined') {
+			document.removeEventListener('visibilitychange', this.onVisibilityChange);
+			this.onVisibilityChange = null;
 		}
 	}
 }

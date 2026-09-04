@@ -113,7 +113,14 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
 			<p class="error" data-testid="home-vault-error">{vaultError}</p>
 		{/if}
 
-		{#if totalSavedCount === 0}
+		{#if vaultError && totalSavedCount === 0}
+			<!-- A failed read leaves `creations` empty, so without this the storage error would sit
+			     directly above "No saved pages yet" — telling the reader their pages do not exist
+			     when the truth is the app could not read them. -->
+			<p class="empty" data-testid="home-vault-unreadable">
+				Your saved pages could not be read. They are not gone — see above.
+			</p>
+		{:else if totalSavedCount === 0}
 			<p class="empty" data-testid="home-vault-empty">
 				No saved pages yet. Make one and hit Save to Vault.
 			</p>

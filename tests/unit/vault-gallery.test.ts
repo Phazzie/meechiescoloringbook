@@ -11,8 +11,11 @@ import {
 	restoreCreationImages,
 	sortVaultCreations,
 	vaultImageExtension,
-	vaultImageSource
+	vaultImageSource,
+	vaultQuote,
+	VAULT_CAPACITY
 } from '../../src/lib/core/vault-gallery';
+import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
 import { buildColoringPageSpecFromMeechieText } from '../../src/lib/core/meechie-studio';
 import type { CreationRecord } from '../../contracts/creation-store.contract';
 import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-text.contract';
@@ -101,12 +104,6 @@ describe('detectVaultImageKind', () => {
 });
 
 describe('vaultImageSource', () => {
-	it('prefers a stored url over sniffing bytes', () => {
-		expect(vaultImageSource({ url: 'https://example.test/page.png' })).toBe(
-			'https://example.test/page.png'
-		);
-	});
-
 	it('builds a data url with the media type the bytes actually are', () => {
 		expect(vaultImageSource({ b64: JPEG_BASE64 })).toBe(
 			`data:image/jpeg;base64,${JPEG_BASE64}`
@@ -121,9 +118,19 @@ describe('vaultImageSource', () => {
 		['a javascript: url', 'javascript:alert(1)'],
 		['a data: url smuggled in as a stored url', 'data:text/html,<script>alert(1)</script>'],
 		['a protocol-relative url', '//evil.test/page.png'],
-		['a vbscript: url', 'vbscript:msgbox(1)']
+		['a vbscript: url', 'vbscript:msgbox(1)'],
+		// svelte.config.js sets img-src 'self' data: blob:, so an absolute url can only ever
+		// render as a broken thumbnail with a dead download beside it.
+		['an absolute https url the CSP blocks', 'https://example.test/page.png'],
+		['an absolute http url the CSP blocks', 'http://example.test/page.png']
 	])('refuses %s rather than turning it into a link', (_label, url) => {
 		expect(vaultImageSource({ url })).toBe('');
+	});
+
+	it('prefers the stored bytes when a record carries both bytes and a url', () => {
+		expect(vaultImageSource({ b64: PNG_BASE64, url: 'https://example.test/page.png' })).toBe(
+			`data:image/png;base64,${PNG_BASE64}`
+		);
 	});
 
 	it('returns an empty source rather than a broken image for unreadable bytes', () => {
@@ -136,9 +143,9 @@ describe('vaultImageExtension', () => {
 		[`data:image/png;base64,${PNG_BASE64}`, 'png'],
 		[`data:image/jpeg;base64,${JPEG_BASE64}`, 'jpg'],
 		[`data:image/svg+xml;base64,${SVG_BASE64}`, 'svg'],
-		['https://example.test/saved.webp', 'webp'],
-		['https://example.test/saved.jpeg?v=2', 'jpg'],
-		['https://example.test/no-extension', 'png']
+		['/saved/page.webp', 'webp'],
+		['/saved/page.jpeg?v=2', 'jpg'],
+		['/saved/no-extension', 'png']
 	])('maps %s to .%s', (source, expected) => {
 		expect(vaultImageExtension(source)).toBe(expected);
 	});
@@ -338,5 +345,78 @@ describe('buildVaultEntries', () => {
 		);
 
 		expect(entry.downloadName).toBe('meechie-coloring-page.png');
+	});
+});
+
+describe('buildVaultEntry image selection', () => {
+	const now = Date.parse('2026-09-04T12:00:00.000Z');
+
+	it('skips past a leading unusable image to the first one that renders', () => {
+		const [entry] = buildVaultEntries(
+			[
+				makeRecord('later-image-wins', {
+					images: [
+						{ b64: btoa('not an image') },
+						{ url: 'https://example.test/blocked-by-csp.png' },
+						{ b64: PNG_BASE64 }
+					]
+				})
+			],
+			{ nowMs: now }
+		);
+
+		expect(entry.imageSource).toBe(`data:image/png;base64,${PNG_BASE64}`);
+		expect(entry.downloadName.endsWith('.png')).toBe(true);
+	});
+
+	it('falls back to no image when every stored entry is unusable', () => {
+		const [entry] = buildVaultEntries(
+			[makeRecord('all-bad', { images: [{ b64: btoa('nope') }] })],
+			{ nowMs: now }
+		);
+
+		expect(entry.imageSource).toBe('');
+	});
+});
+
+describe('vaultQuote', () => {
+	it('reads the saved quote when the record has one', () => {
+		const record = makeRecord('modern', { studioText: studioText('He had time to learn.') });
+
+		expect(vaultQuote(record)).toBe('He had time to learn.');
+	});
+
+	it('reconstructs a quote for a legacy record saved before studioText existed', () => {
+		const legacy = makeRecord('legacy', { assembledPrompt: 'The receipts were already out.' });
+
+		const quote = vaultQuote(legacy);
+
+		expect(quote.length).toBeGreaterThan(0);
+		expect(legacy.studioText).toBeUndefined();
+	});
+
+	it('finds a legacy record by its reconstructed quote', () => {
+		const legacy = makeRecord('legacy', { assembledPrompt: 'The receipts were already out.' });
+
+		expect(matchesVaultQuery(legacy, 'receipts')).toBe(true);
+	});
+});
+
+describe('VAULT_CAPACITY', () => {
+	// VAULT_CAPACITY mirrors the adapter's module-private MAX_CREATIONS. Drive the real store past
+	// it so the mirror cannot drift: if the adapter's cap changes, this fails rather than letting
+	// undoDelete's capacity guard quietly use a stale number.
+	it('matches the number of records the real store actually keeps', async () => {
+		const owner = { kind: 'anonymous', sessionId: 'capacity-probe' } as const;
+		for (let index = 0; index <= VAULT_CAPACITY; index += 1) {
+			await creationStoreAdapter.saveCreation({
+				record: makeRecord(`capacity-${index}`, { owner })
+			});
+		}
+
+		const listed = await creationStoreAdapter.listCreations({ owner });
+
+		expect(listed.ok).toBe(true);
+		if (listed.ok) expect(listed.value).toHaveLength(VAULT_CAPACITY);
 	});
 });

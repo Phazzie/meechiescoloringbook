@@ -10,6 +10,7 @@ import {
 	buildColoringPageSpecFromMeechieText
 } from '../../src/lib/core/meechie-studio';
 import { StudioState } from '../../src/routes/studio-state.svelte';
+import { VAULT_CAPACITY } from '../../src/lib/core/vault-gallery';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
 import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-text.contract';
 import type { Wig } from '../../src/lib/seams/wig-catalog-seam/contract';
@@ -312,6 +313,61 @@ describe('StudioState', () => {
 		]);
 	});
 
+	it('discards a stale packaging result when another page is opened first', async () => {
+		const studio = new StudioState();
+		let releaseFirstPackaging: (() => void) | null = null;
+		vi.spyOn(outputPackagingAdapter, 'package').mockImplementation(async () => {
+			if (!releaseFirstPackaging) {
+				await new Promise<void>((resolve) => {
+					releaseFirstPackaging = resolve;
+				});
+				return {
+					ok: true,
+					value: {
+						files: [
+							{ filename: 'first.pdf', mimeType: 'application/pdf', dataBase64: 'Zmlyc3Q=' }
+						]
+					}
+				};
+			}
+			return {
+				ok: true,
+				value: {
+					files: [
+						{ filename: 'second.pdf', mimeType: 'application/pdf', dataBase64: 'c2Vjb25k' }
+					]
+				}
+			};
+		});
+
+		const makeSaved = (id: string): CreationRecord => ({
+			id,
+			createdAtISO: '2026-09-03T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			assembledPrompt: `prompt for ${id}`,
+			images: [{ b64: ONE_PIXEL_PNG_BASE64 }],
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+
+		// First page's packaging is still in flight...
+		const firstLoad = studio.loadCreation(makeSaved('first-page'));
+		await vi.waitFor(() => expect(releaseFirstPackaging).not.toBeNull());
+
+		// ...when the reader opens a second page, which packages immediately.
+		await studio.loadCreation(makeSaved('second-page'));
+		expect(studio.packagedFiles).toEqual([
+			{ filename: 'second.pdf', mimeType: 'application/pdf', dataBase64: 'c2Vjb25k' }
+		]);
+
+		// The late first result must not replace what is now on screen.
+		releaseFirstPackaging!();
+		await firstLoad;
+
+		expect(studio.packagedFiles).toEqual([
+			{ filename: 'second.pdf', mimeType: 'application/pdf', dataBase64: 'c2Vjb25k' }
+		]);
+	});
+
 	it('leaves a reopened page usable when re-packaging the saved image fails', async () => {
 		const studio = new StudioState();
 		vi.spyOn(outputPackagingAdapter, 'package').mockRejectedValue(new Error('no canvas'));
@@ -594,6 +650,55 @@ describe('StudioState quote vault', () => {
 		expect(studio.vaultError).toBe('Failed to write storage.');
 		expect(studio.creations).toHaveLength(1);
 		expect(studio.undoableDeletion).toBeNull();
+	});
+
+	it('refuses undo rather than evicting another page when the vault is full', async () => {
+		// The store caps at VAULT_CAPACITY and drops the oldest past it. Delete one, save a new
+		// page into the freed slot, then undo: restoring would push back over the cap and silently
+		// destroy a different saved page — the exact failure this feature exists to prevent.
+		const records = Array.from({ length: VAULT_CAPACITY }, (_value, index) =>
+			makeCreation(`capacity-${index}`, {
+				createdAtISO: `2026-08-${String((index % 28) + 1).padStart(2, '0')}T00:00:00.000Z`
+			})
+		);
+		const studio = await initVault(records);
+		expect(studio.creations).toHaveLength(VAULT_CAPACITY);
+
+		await studio.deleteCreation('capacity-0');
+		expect(studio.creations).toHaveLength(VAULT_CAPACITY - 1);
+		expect(studio.undoableDeletion?.id).toBe('capacity-0');
+
+		// A new save takes the freed slot, putting the vault back at capacity. Pinning an
+		// unrelated page is just a convenient real action that reloads the list without
+		// disturbing the pending undo.
+		await creationStoreAdapter.saveCreation({ record: makeCreation('brand-new') });
+		await studio.toggleFavorite(studio.creations[0]);
+		expect(studio.creations).toHaveLength(VAULT_CAPACITY);
+		expect(studio.undoableDeletion?.id).toBe('capacity-0');
+
+		await studio.undoDelete();
+
+		// Nothing evicted, nothing restored, and the reason is on screen.
+		expect(studio.creations).toHaveLength(VAULT_CAPACITY);
+		expect(studio.creations.some((creation) => creation.id === 'brand-new')).toBe(true);
+		expect(studio.undoableDeletion?.id).toBe('capacity-0');
+		expect(studio.vaultError).toContain('full');
+	});
+
+	it('disarms a pending delete when collapsing hides its row', async () => {
+		const studio = await initVault(
+			Array.from({ length: 6 }, (_value, index) => makeCreation(`creation-${index}`))
+		);
+		studio.toggleVaultShowAll();
+		expect(studio.vaultShowAll).toBe(true);
+
+		studio.requestDeleteCreation(studio.vaultEntries[5].id);
+		expect(studio.pendingDeleteId).not.toBeNull();
+
+		studio.toggleVaultShowAll();
+
+		expect(studio.vaultShowAll).toBe(false);
+		expect(studio.pendingDeleteId).toBeNull();
 	});
 
 	it('surfaces a failed pin instead of leaving the button silently inert', async () => {
