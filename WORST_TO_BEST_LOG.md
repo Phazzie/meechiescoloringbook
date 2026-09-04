@@ -3047,3 +3047,32 @@ that silently failed to apply.
 
 Evidence: verify exit 0, all eight stages, audit gate 0 vulnerabilities, check 0/0, lint clean,
 test **1168 passed, 1 skipped**, build exit 0, playwright **22 passed**.
+
+---
+
+## Run 3, seventh close-out — 2026-09-04 — the complexity finding needed a second attempt
+
+The first fix for SonarCloud's cognitive-complexity finding did not work, and the reason generalises.
+
+Extracting `decodableImages` and `packageOneVariant` moved a lot of *code* out of `makePage` and
+moved the number not at all: still 16 on `a5d5ebc`. Cognitive complexity counts branches and their
+nesting, not lines. Both extractions took statements while leaving every branch behind — the two
+`isStale()` guards around packaging and the print/share error ladder were still sitting inline.
+
+The second attempt extracts the **phase**: `attachDownloads` owns the packaging calls, both
+staleness checks and the error reporting. That takes four branches with it, which is what the
+measurement was actually asking for. `makePage` is down to nine branch-bearing constructs, about 13
+by Sonar's rules.
+
+**Counted rather than pushed.** The obvious move was to push and let SonarCloud say — but each push
+costs a CI cycle and one of the account's limited daily Vercel deployments, and this branch had
+already burned enough of both to make Vercel red on four heads. Counting the branches by hand
+against Sonar's documented rules is cheap and was right.
+
+Both guards that moved into the new method were re-mutated *there* to confirm they still fail: a
+refactor that relocates a guard is exactly as capable of disarming it as one that deletes it.
+
+And one mutation this round reported "MUTATION TARGET NOT FOUND" and refused to run — Prettier had
+wrapped the call across four lines after the patch string was written. That assertion is in the
+script because this run was caught by precisely that failure earlier and did not notice. It has now
+paid for itself twice.

@@ -180,3 +180,40 @@ tests still fail. A refactor that quietly disarmed a guard would look identical 
 
 Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
 check 0/0, lint clean, test 1168 passed / 1 skipped, build exit 0, playwright 22 passed.
+
+## The complexity finding, second attempt (a5d5ebc -> this head)
+
+The first attempt extracted `decodableImages` and `packageOneVariant` and did not move the number:
+SonarCloud still reported 16 on `a5d5ebc`. The reason is worth stating, because it is a general
+one. Those extractions moved *statements* out of `makePage`; cognitive complexity counts *branches*
+and their nesting, and the branches stayed behind — the two `isStale()` guards around packaging and
+the print/share error ladder were still inline.
+
+Second attempt extracts the phase rather than the statements: `attachDownloads` now owns the
+packaging calls, both staleness checks and the error reporting. `makePage`'s branch-bearing
+constructs are down to nine:
+
+  if (!this.verdict || this.isGenerating || this.isWorking)   entry guard + one || sequence
+  if (isStale())                                              after the generate call
+  if (!parsed.success)                                        off-contract response
+  if (!parsed.data.ok)                                        provider-reported failure
+  if (isStale())                                              after the decode probes
+  if (usable.length === 0)                                    nothing decodable
+  catch (requestError) + its ternary                          network failure
+  if (isStale())                                              inside the catch
+  if (!isStale())                                             inside the finally
+
+That is roughly 13 by Sonar's counting rules, against a limit of 15 — checked by counting rather
+than by pushing and waiting, because each push costs a CI cycle and one of the account's limited
+daily Vercel deployments.
+
+Both guards that moved into `attachDownloads` were re-mutated there to confirm they still fail the
+tests that cover them: dropping the pre-square `isStale()` fails "does not start the square render
+once the run is already stale", and removing `packageOneVariant`'s catch fails both throw tests.
+
+One mutation in this round reported "no target found" and was rejected by its own assertion rather
+than silently passing — Prettier had wrapped the call across four lines after it was written. That
+assertion exists because this run was caught by exactly that earlier and did not notice.
+
+Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
+check 0/0, lint clean, test 1168 passed / 1 skipped, build exit 0, playwright 22 passed.

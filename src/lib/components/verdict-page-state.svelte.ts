@@ -444,25 +444,7 @@ export class VerdictPageState {
 				.filter((url): url is string => url !== null);
 			this.packagedFiles = [];
 
-			const fileBaseName = `meechie-${this.fileBaseSlug}-${Date.now()}`;
-			const packageVariant = (
-				variant: 'print' | 'square'
-			): Promise<PackagedVariant> =>
-				packageOneVariant(variant, images, fileBaseName, recipe.spec.pageSize);
-			const print = await packageVariant('print');
-			// Checked here, not only after both: the square variant rasterises a 1080px canvas, and
-			// starting that for a page the user has already replaced burns time and memory on a
-			// result that is guaranteed to be discarded.
-			if (isStale()) return;
-			const share = await packageVariant('square');
-			if (isStale()) return;
-
-			this.packagedFiles = [...print.files, ...share.files];
-			if (print.error !== null) {
-				this.generateError = `Page made, but the printable download could not be built: ${print.error}`;
-			} else if (share.error !== null) {
-				this.generateError = `Page and PDF are ready; the square share image could not be built: ${share.error}`;
-			}
+			await this.attachDownloads(images, recipe.spec.pageSize, token);
 		} catch (requestError) {
 			if (isStale()) return;
 			this.generateError =
@@ -471,6 +453,46 @@ export class VerdictPageState {
 					: 'Network error. Try again.';
 		} finally {
 			if (!isStale()) this.isGenerating = false;
+		}
+	}
+
+	/**
+	 * Build the downloads for the page that is already installed, and report what could not be built.
+	 *
+	 * Separate from `makePage` because it is a distinct phase with its own failure rules: the page
+	 * exists and stays whatever happens here, so nothing in this method may clear it. Splitting it
+	 * out also keeps `makePage` readable as ask / validate / keep what decodes / install / package.
+	 */
+	private async attachDownloads(
+		images: GeneratedImage[],
+		pageSize: ToolPageRecipe['spec']['pageSize'],
+		token: number
+	): Promise<void> {
+		const isStale = (): boolean => token !== this.pageToken;
+		const fileBaseName = `meechie-${this.fileBaseSlug}-${Date.now()}`;
+		const print = await packageOneVariant(
+			'print',
+			images,
+			fileBaseName,
+			pageSize
+		);
+		// Checked here, not only after both: the square variant rasterises a 1080px canvas, and
+		// starting that for a page the user has already replaced burns time and memory on a result
+		// that is guaranteed to be discarded.
+		if (isStale()) return;
+		const share = await packageOneVariant(
+			'square',
+			images,
+			fileBaseName,
+			pageSize
+		);
+		if (isStale()) return;
+
+		this.packagedFiles = [...print.files, ...share.files];
+		if (print.error !== null) {
+			this.generateError = `Page made, but the printable download could not be built: ${print.error}`;
+		} else if (share.error !== null) {
+			this.generateError = `Page and PDF are ready; the square share image could not be built: ${share.error}`;
 		}
 	}
 
