@@ -3,14 +3,17 @@
 #      nothing in the chain regenerates it (see scripts/proof-tape.mjs).
 # Info flow: verify chain stages -> stdout/stderr -> evidence file.
 # Command: npm run verify
-# Date (UTC): 2026-09-04T12:06:59Z
+# Date (UTC): 2026-09-04T12:32:16Z
 # Exit code: 0
 #
 # Stage order: audit:gate -> chamber-lock -> verify-runner (check + test) -> shaolin-lint ->
 #              assumption-alarm -> seam-ledger -> clan-chain -> proof-tape. All eight passed.
 #
-# npm's audit endpoint has been flapping all morning; the gate was never modified or skipped, and
-# the unmodified chain was re-run until it answered. This diff touches no dependency file.
+# npm's audit endpoint flapped for most of this morning and split CI: two identical `verify` jobs
+# on the same head disagreed because one reached the registry and one did not. The gate was never
+# modified or skipped. It is answering again as of this run, and both CI `verify` jobs are green
+# on this head for the first time. This diff touches no dependency file.
+
 
 > meechies-coloringbook@0.1.0 verify
 > npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
@@ -37,9 +40,9 @@ svelte-check found 0 errors and 0 warnings
 
 
 [2m Test Files [22m [1m[32m79 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (80)[39m
-[2m      Tests [22m [1m[32m1114 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1115)[39m
-[2m   Start at [22m 12:05:37
-[2m   Duration [22m 82.01s[2m (transform 3.23s, setup 828ms, import 6.02s, tests 3.05s, environment 56.30s)[22m
+[2m      Tests [22m [1m[32m1116 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1117)[39m
+[2m   Start at [22m 12:30:56
+[2m   Duration [22m 80.17s[2m (transform 3.01s, setup 816ms, import 5.66s, tests 3.01s, environment 55.19s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

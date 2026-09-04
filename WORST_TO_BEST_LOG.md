@@ -2103,3 +2103,78 @@ The habit that catches these is not more care while writing. It is asking, befor
 what the *adjacent* input looks like — one more closer, one more theme change, one more request in
 flight — and running that input rather than reasoning about it. Every one of these five was found in
 seconds once measured, and none of them was visible from re-reading the diff.
+
+---
+
+## Run 2, gate close-out — 2026-09-04 — the three things that were still open
+
+Evidence regenerated for head `ed690cd` and committed: `npm run verify` exit 0 (audit gate clean,
+`check` 0 errors/0 warnings, `1116 passed | 1 skipped`), `npm run lint` exit 0, `npm run build`
+exit 0, `npm run test:e2e` 16 passed. `proof-tape` now reports no file older than the run marker —
+`cipher-gate.json` was the last one and was regenerated.
+
+### The audit outage ended, and CI stopped disagreeing with itself
+
+`.github/workflows/verify.yml` is `on: [push, pull_request]`, so every head gets two identical
+`verify` jobs. For most of this morning they returned opposite answers on byte-identical code,
+because `registry.npmjs.org/-/npm/v1/security/audits/quick` was answering roughly one probe in six
+and `npm audit` is the first link in the chain. On `6392c96` one job ran the whole chain and passed
+while the other died at the gate, as did its one permitted re-run.
+
+The endpoint is answering again. Both `verify` jobs are green on `ed690cd` — the first head where
+they agree. The gate was never modified, skipped, or worked around at any point; the response was a
+poller that fired the unmodified `npm run verify` when the endpoint came back.
+
+This remains the highest-value deferred item: the duplicate-job configuration manufactures red
+checks on green code, and it will do it again on the next registry wobble.
+
+### The Vercel red is an account quota, not this branch
+
+`ed690cd` carries a failing **Vercel** commit status: "Deployment rate limited — retry in 24 hours",
+linking to a plan-upgrade page. No build was attempted, so there is no build failure to read.
+
+Established from the primary source rather than inferred: the Vercel team `phazzies-projects` is on
+the **hobby** plan and has **35 linked projects** sharing one account-wide daily deployment cap. The
+signature is a platform refusal to start a build, and it would meet any push from any of those 35
+projects today. The preceding head of this same branch, `c936e7a`, deployed **Ready** at 12:16:20Z —
+eleven minutes and one commit earlier — so the branch's code builds and deploys on Vercel.
+
+No change to this diff can clear a 24-hour account quota, and a re-run is refused by definition for
+that window. Standing down on it, with the comparison written on the PR.
+
+### The P1 that was a reading, not a defect
+
+Codex has held a P1 across several rounds arguing AGENTS.md:85 requires the full Seam-Driven
+Development workflow for the request-lifecycle changes in `MeechieTools.svelte`. I left it
+unanswered for four rounds, which was the wrong call — an unsettled objection is not the same as an
+addressed one.
+
+Answered on the thread now, on three grounds. AGENTS.md defines the trigger by file path in the very
+section governing this routine (`contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/`, `src/lib/seams/*`), and this PR's 23 changed files include none of them.
+Codex's broader reading would make that same section's preferred scope — `src/lib/core/*`,
+`src/routes/**`, `src/lib/components/**` — impossible to satisfy, since every screen here calls
+`/api/*`. And no contract changed: the requests sent and responses accepted are byte-identical; what
+changed is which of two in-flight responses the component treats as current.
+
+Where the objection lands: the `pageToken`/`verdictToken` split is real arbitration over concurrent
+seam calls, hand-rolled in a component. If that belongs in a contract, that is a genuine gap — and a
+contract change, which this routine's own scope rule forbids. Recorded as deferred, not dismissed.
+If the intended reading is Codex's, the fix is to AGENTS.md's wording, and that is an owner call
+rather than something to settle by construing the text against three prior merges.
+
+### Carried forward
+
+- `.github/workflows/verify.yml` `on: [push, pull_request]` — duplicate jobs, manufactured reds.
+- Request-lifetime arbitration (`pageToken`/`verdictToken`) may belong in a contract, not a component.
+- Vault records carry no originating tool, so reopening a toolkit page revises under whatever mode is
+  selected and spends revision budget. Needs a `CreationRecord` field — a contract change.
+- `/m/[mode]` and `MeechieModePage.svelte` should **adopt** `tool-page-recipe.ts` — not be deleted.
+  (The deletion entry earlier in this log is false; see the correction entry.)
+- The three standalone mode routes should adopt `tool-page-recipe.ts`.
+- `extractRankedEntries` needs a placing-aware split; a single-line lineup loses its first item.
+- `ClockSeam` for record identity and download filenames, repo-wide.
+- `styleHint.includes('receipt')` also matches the voice intensity `receipts_out`, so decoration
+  density is driven by voice as much as by theme, on every page the studio has ever built.
+- Run 1's seam-level items: `deleteCreation` ignoring `owner`, unsurfaced `skippedIndices`, base64
+  in localStorage.
