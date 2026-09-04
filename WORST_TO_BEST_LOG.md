@@ -3024,3 +3024,26 @@ believed.
 It said Vercel's cap "cannot be re-run for 24 hours". Vercel's own message said 24 hours and that is
 what was reported, but it cleared sooner: `3e5fd74` deployed successfully. Corrected on the PR too,
 because a standing comment telling a reader to expect Vercel red would hide a real failure later.
+
+---
+
+## Run 3, sixth close-out — 2026-09-04 — SonarCloud on `d823963`
+
+One finding: `makePage` at cognitive complexity 16, one over the limit. The Quality Gate passed
+anyway, so nothing forced this — and it is fair. Across five review rounds that function had
+accumulated the generate fetch, two schema checks, the decode filter, the install, two packaging
+calls and their error branches.
+
+Fixed by extracting `decodableImages` and `packageOneVariant` as module-level helpers, not by
+arguing with the threshold. Both were already cohesive blocks carrying their own paragraph of
+reasoning; giving them names turned those comments into documentation of a named thing instead of
+an aside inside a long function. `makePage` now reads as ask, validate, keep what decodes, install,
+package, report.
+
+**The refactor was re-mutated, not trusted.** After extracting, the decode guard was removed again
+(drop the `.filter`) to confirm the same two tests still fail. A refactor that quietly disarms a
+guard looks exactly like one that does not, and this run has already been caught once by a mutation
+that silently failed to apply.
+
+Evidence: verify exit 0, all eight stages, audit gate 0 vulnerabilities, check 0/0, lint clean,
+test **1168 passed, 1 skipped**, build exit 0, playwright **22 passed**.

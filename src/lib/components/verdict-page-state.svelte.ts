@@ -58,6 +58,76 @@ const canDecodeImage = async (url: string | null): Promise<boolean> => {
 	});
 };
 
+/** One image, its preview URL, and whether the browser could actually decode it. */
+type DecodedImage = {
+	image: GeneratedImage;
+	preview: string | null;
+};
+
+/**
+ * Keep only the images the browser can decode.
+ *
+ * `GeneratedImageSchema` constrains `data` only to be non-empty, and the generation pipeline labels
+ * unrecognised bytes as PNG, so a truncated or corrupt response passes the contract intact.
+ * Installing it unchecked — and the install happens before packaging — would put a broken preview
+ * on screen and arm Save to persist bytes nothing can read.
+ */
+const decodableImages = async (
+	images: readonly GeneratedImage[]
+): Promise<DecodedImage[]> => {
+	const decoded = await Promise.all(
+		images.map(async (image) => {
+			// Built once: the decode probe and the preview must be the same URL, or a later edit can
+			// let them drift apart.
+			const preview = generatedImageDataUrl(image);
+			return { image, preview, usable: await canDecodeImage(preview) };
+		})
+	);
+	return decoded
+		.filter((entry) => entry.usable)
+		.map(({ image, preview }) => ({ image, preview }));
+};
+
+/** What one packaging variant produced, or why it produced nothing. */
+type PackagedVariant = { files: PackagedFile[]; error: string | null };
+
+/**
+ * Package one variant, turning every failure shape into a value.
+ *
+ * The adapter does not wrap every failure in a `Result`: `package()` has no try/catch, and
+ * pdf-lib's `embedPng`/`embedJpg`/`save` and the canvas in `imageToPngBase64` all throw. A
+ * rejection used to escape to the caller's outer catch and discard the print PDF that had already
+ * been built — so splitting print and square into two calls bought nothing against the failure
+ * shape most likely to occur.
+ */
+const packageOneVariant = async (
+	variant: 'print' | 'square',
+	images: GeneratedImage[],
+	fileBaseName: string,
+	pageSize: ToolPageRecipe['spec']['pageSize']
+): Promise<PackagedVariant> => {
+	try {
+		const result = await outputPackagingAdapter.package({
+			images,
+			outputFormat: 'pdf',
+			fileBaseName,
+			pageSize,
+			variants: [variant]
+		});
+		return result.ok
+			? { files: result.value.files, error: null }
+			: { files: [], error: result.error.message };
+	} catch (packagingError) {
+		return {
+			files: [],
+			error:
+				packagingError instanceof Error
+					? packagingError.message
+					: 'Packaging failed.'
+		};
+	}
+};
+
 export type VerdictPageStateOptions = {
 	/**
 	 * Slug for the downloaded filenames, e.g. `who-fucked-up` produces
@@ -347,25 +417,8 @@ export class VerdictPageState {
 				return;
 			}
 
-			// Decode the bytes before treating them as a page. `GeneratedImageSchema` constrains
-			// `data` only to be non-empty, and the generation pipeline labels unrecognised bytes as
-			// PNG, so a truncated or corrupt response passes the contract intact. Installing it
-			// unchecked — now that the install happens before packaging — would put a broken preview
-			// on screen and arm Save to persist bytes nothing can read.
-			//
-			// A byte-signature test is not enough: a response cut off mid-body keeps a valid PNG
-			// header while the image itself is missing, and both `<img>` and pdf-lib reject it.
-			// Asking the browser to decode answers "can this be shown and printed?" directly.
-			const decoded = await Promise.all(
-				parsed.data.value.images.map(async (image) => {
-					// Built once: the decode probe and the preview must be the same URL, or a later
-					// edit can let them drift apart.
-					const preview = generatedImageDataUrl(image);
-					return { image, preview, usable: await canDecodeImage(preview) };
-				})
-			);
+			const usable = await decodableImages(parsed.data.value.images);
 			if (isStale()) return;
-			const usable = decoded.filter((entry) => entry.usable);
 			if (usable.length === 0) {
 				// Keep whatever is already on screen. It cost a paid generation, and an unreadable
 				// replacement is not a reason to destroy it.
@@ -391,41 +444,11 @@ export class VerdictPageState {
 				.filter((url): url is string => url !== null);
 			this.packagedFiles = [];
 
-			// Two packaging calls, not one with `variants: ['print', 'square']`. The adapter builds
-			// the print file first and then returns the square failure *without* its accumulated
-			// files, so a browser that cannot encode the 1080px share canvas took the printable PDF
-			// down with it. The PDF is the product; the square image is a nicety.
-			//
-			// Each call is caught on its own, because the adapter does not wrap every failure in a
-			// `Result`: `package()` has no try/catch, and pdf-lib's `embedPng`/`embedJpg`/`save` and
-			// the canvas in `imageToPngBase64` all throw. A rejection from the square call escaped to
-			// the outer catch and discarded the print PDF that had already been built — so splitting
-			// the calls bought nothing against the failure shape most likely to occur.
 			const fileBaseName = `meechie-${this.fileBaseSlug}-${Date.now()}`;
-			const packageVariant = async (
+			const packageVariant = (
 				variant: 'print' | 'square'
-			): Promise<{ files: PackagedFile[]; error: string | null }> => {
-				try {
-					const result = await outputPackagingAdapter.package({
-						images,
-						outputFormat: 'pdf',
-						fileBaseName,
-						pageSize: recipe.spec.pageSize,
-						variants: [variant]
-					});
-					return result.ok
-						? { files: result.value.files, error: null }
-						: { files: [], error: result.error.message };
-				} catch (packagingError) {
-					return {
-						files: [],
-						error:
-							packagingError instanceof Error
-								? packagingError.message
-								: 'Packaging failed.'
-					};
-				}
-			};
+			): Promise<PackagedVariant> =>
+				packageOneVariant(variant, images, fileBaseName, recipe.spec.pageSize);
 			const print = await packageVariant('print');
 			// Checked here, not only after both: the square variant rasterises a 1080px canvas, and
 			// starting that for a page the user has already replaced burns time and memory on a

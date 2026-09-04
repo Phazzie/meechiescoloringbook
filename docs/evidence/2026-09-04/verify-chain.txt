@@ -158,3 +158,25 @@ Vercel, which failed on the four previous heads, deployed successfully on 3e5fd7
 daily cap freed up. The earlier standing-down comment said it could not be re-run for 24 hours;
 that was the documented reset window and it cleared sooner. Corrected on the PR rather than left
 standing, because a comment telling a reader to expect Vercel red would hide a genuine failure.
+
+## SonarCloud on d823963 — cognitive complexity 16 (limit 15), accepted
+
+The Quality Gate still passed, and the finding is fair: `makePage` had accumulated the generate
+fetch, two schema checks, the decode filter, the install, two packaging calls and their error
+branches. Sixteen is what that looks like.
+
+Fixed by extracting two module-level helpers rather than by loosening the rule:
+
+  decodableImages(images)        the decode-and-filter step, with the reason it exists
+  packageOneVariant(variant, …)  one packaging call with every failure shape turned into a value
+
+Both were already cohesive blocks with their own paragraph of reasoning; naming them made the
+comments into documentation of a named thing rather than an aside in a long function. `makePage`
+now reads as: ask, validate, keep what decodes, install, package, report.
+
+Behaviour-preserving, and checked as such rather than assumed: the full suite passes unchanged, and
+the decode guard was re-mutated after the extraction (drop the `.filter`) to confirm the same two
+tests still fail. A refactor that quietly disarmed a guard would look identical to one that did not.
+
+Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
+check 0/0, lint clean, test 1168 passed / 1 skipped, build exit 0, playwright 22 passed.
