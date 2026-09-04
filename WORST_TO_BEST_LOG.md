@@ -3307,25 +3307,36 @@ round this branch has had and the reason it was merged rather than pushed again.
 
 | | |
 |---|---|
-| Findings raised | 15 — 14 Codex, 1 SonarCloud |
-| Fixed | 14 |
+| Findings raised | 19 — 14 Codex, 5 SonarCloud |
+| Fixed | 18 |
 | Declined | 1, and its thread is **left open on purpose** |
 | Gate failures | 1 — SonarCloud Quality Gate, C Security Rating, on `564f24e` |
 | Guards proven by deletion | 17 |
 | Tests | 1105 → 1173 unit, 13 → 22 e2e |
 
-Of the 14 fixed, **six were defects created by an earlier fix in this same PR.** That is not a
-detail to bury in a table. Nearly half the review load on this change was spent cleaning up after
-its own repairs. The single id fallback took three rounds — clock-only, then a counter, then a
-counter plus a document token — each version correct about the collision in front of it and silent
-about the next one.
+The SonarCloud five are three on `93e03f1` (async work in a constructor, `fromCharCode`, a cargo
+`force: true`), the cognitive-complexity 16 on `d823963`, and the PRNG on `564f24e`. Only the last
+appeared as a GitHub review thread; the others were read off the check-run annotations, which is
+why the first draft of this table said "1" and had to be corrected in review. **A count taken from
+the threads is a count of the reviewer that files threads.**
 
-### The one shape everything took
+Of the 18 fixed, **six were defects created by an earlier fix in this same PR** — the corrupt-bytes
+window, the two id-fallback rounds, the PRNG, the complexity that accumulated across five rounds of
+patching one function, and the save-during-regeneration window. A third of the review load on this
+change was spent cleaning up after its own repairs. The id fallback alone took three rounds —
+clock-only, then a counter, then a counter plus a document token — each version correct about the
+collision in front of it and silent about the next one.
 
-Across every real finding in eleven rounds, not one was a **missing** guard. Every one was a guard
-that did not cover the whole of what it claimed:
+### The shape the state and race defects took
 
-- `{ ok: false }` handled, a throw not — three separate times, in three different files.
+Eight of the 19 are state or race defects — generation live during a verdict replacement, the
+memoised session read, print-versus-share packaging, corrupt bytes reaching the screen, the square
+variant rasterising for an abandoned page, a stale re-run relabelling a newer ruling, save live
+during a regeneration, and its mirror. Every one of those eight was a guard that did not cover the
+whole of what it claimed. Not one of them was a missing guard:
+
+- `{ ok: false }` handled, a throw not — twice: `resolveOwner`'s memoised session read, and the
+  print/share packaging calls. (`requestVerdict` is the near-miss that already had it.)
 - `makePage` refuses while a verdict loads; `requestVerdict` did not refuse while a page generates.
   The exact mirror, written six rounds apart, from one rule stated once and implemented in one
   direction.
@@ -3333,8 +3344,14 @@ that did not cover the whole of what it claimed:
   previous round had just made possible.
 
 A guard is a claim about a set of states. Writing one and testing the state you had in mind proves
-the guard fires — never that the set is closed. Every round here was someone else naming a member
-of the set I had not enumerated.
+the guard fires — never that the set is closed. Every one of those rounds was someone else naming a
+member of the set I had not enumerated.
+
+**The other eleven are not that shape and this entry originally said they were.** The
+`fromCharCode` swap, the cargo `force: true`, the cognitive-complexity ceiling and the false
+`/m/[mode]` documentation claim are not guards at all. The first draft of this section claimed the
+pattern held across *every* finding — a claim about a set, stated as closed, without enumerating it.
+The section is about that exact error. It was caught in review, on the entry describing it.
 
 ### What is still open, deliberately
 
@@ -3343,9 +3360,16 @@ is **declined and its thread is open**. Four measurements are on it. It is left 
 than resolved-away because it is the only finding in this PR that was refused, and a human should
 see that decision sitting there rather than have to reconstruct it from a merged log.
 
-Applied as stated, that reading fires on every new screen in the app. The concrete half of the same
-concern — raw randomness and a raw wall clock inside the vault record — was correct when the
-reviewer restated it with evidence, and is fixed: `newCreationId()` and `ClockSeam`.
+Applied as stated, that reading fires on every new screen in the app.
+
+**Two different things must not be run together here, and the first draft of this entry ran them
+together.** The reviewer's later, concrete version of the concern named a real *defect* — the id
+fallback collided, so a second save silently replaced the first — and that defect is fixed. It did
+**not** thereby settle the *seam* question: `newCreationId()` still reads `crypto.randomUUID`,
+`crypto.getRandomValues`, `performance.timeOrigin`/`now` and `Date.now` directly, none of them
+behind a seam. Only `createdAtISO` was moved onto `ClockSeam`. Saying "fixed: `newCreationId()` and
+`ClockSeam`" let a fixed collision stand in for an unanswered question, and would have dropped the
+remaining work out of the handoff. It is in the follow-ups below instead, where it belongs.
 
 ### Follow-ups this run is handing forward
 
@@ -3354,8 +3378,15 @@ reviewer restated it with evidence, and is fixed: `newCreationId()` and `ClockSe
 2. `fixesApplied` is still written from `recommendedFixes` in `studio-state.svelte.ts` and
    `MeechieTools.svelte`. Nothing reads the field back, which is why it was left; deciding what it
    is *for* is a change of its own.
-3. `createdAtISO` crosses `ClockSeam` in one of three call sites. The other two should follow, in
-   one change that can carry a seam workflow if it needs one.
+3. `createdAtISO` crosses `ClockSeam` in one of three call sites. The other two should follow.
+4. **Record-id generation crosses no seam anywhere.** `newCreationId()` in
+   `verdict-page-state.svelte.ts` reads `crypto.randomUUID`, `crypto.getRandomValues`,
+   `performance.timeOrigin`/`now` and `Date.now` directly, and `studio-state.svelte.ts` and
+   `MeechieTools.svelte` each read the clock and `randomUUID` directly for the same record. This is
+   the part of the seam argument that was **not** refused — the refusal was about consuming an
+   existing adapter, and there is no adapter here to consume. Decided once, for all three call
+   sites, in a change that can carry the seam workflow if it needs one. Items 3 and 4 are the same
+   change.
 
 ### The correction this run owes the next one
 
@@ -3367,3 +3398,18 @@ pre-believed.
 
 Every code claim in this PR was measured before it was written. The one claim that was not measured
 is the one that was inherited. **Copying a claim forward launders it into fact.**
+
+### And then this entry did it again
+
+The first draft of this close-out was reviewed and came back with four findings, three of which were
+unmeasured claims **in the entry itself**: a finding count taken from the review threads rather than
+from the findings, "three separate times" where the log four pages up says two and names the third a
+near-miss, and a universal "every finding was an incomplete guard" that the same log contradicts
+four times over. The fourth was a real gap in the evidence, below.
+
+None of those were about code. All three were about *this run's summary of itself*, written last,
+while congratulating itself for measuring things. A retrospective is the easiest place in a
+repository to state something unmeasured, because it is prose, it is about the past, and nobody
+expects it to be checkable. It was checkable. It was checked, and it was wrong.
+
+The next run should assume its own close-out is the least-verified document it will write.

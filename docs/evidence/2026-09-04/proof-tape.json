@@ -1,6 +1,6 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-09-04T15:13:49.623Z",
+  "generatedAt": "2026-09-04T15:27:12.918Z",
   "evidenceDir": "docs/evidence/2026-09-04",
   "runMarker": "chamber-lock.json",
   "excludedFromInventory": [
@@ -19,16 +19,18 @@
       "name": "assumption-alarm.json",
       "path": "docs/evidence/2026-09-04/assumption-alarm.json",
       "sizeBytes": 12123,
-      "modifiedAt": "2026-09-04T15:13:49.404Z",
+      "modifiedAt": "2026-09-04T15:27:12.696Z",
       "commands": [],
       "predatesRun": false
     },
     {
       "name": "build.txt",
       "path": "docs/evidence/2026-09-04/build.txt",
-      "sizeBytes": 1471,
-      "modifiedAt": "2026-09-04T15:02:43.932Z",
+      "sizeBytes": 10012,
+      "modifiedAt": "2026-09-04T15:25:33.232Z",
       "commands": [
+        "meechies-coloringbook@0.1.0 build",
+        "vite build",
         "Using @sveltejs/adapter-vercel"
       ],
       "predatesRun": true
@@ -37,7 +39,7 @@
       "name": "chamber-lock.json",
       "path": "docs/evidence/2026-09-04/chamber-lock.json",
       "sizeBytes": 28496,
-      "modifiedAt": "2026-09-04T15:12:11.448Z",
+      "modifiedAt": "2026-09-04T15:25:34.432Z",
       "commands": [],
       "predatesRun": false
     },
@@ -53,7 +55,7 @@
       "name": "clan-chain.json",
       "path": "docs/evidence/2026-09-04/clan-chain.json",
       "sizeBytes": 2532,
-      "modifiedAt": "2026-09-04T15:13:49.544Z",
+      "modifiedAt": "2026-09-04T15:27:12.836Z",
       "commands": [],
       "predatesRun": false
     },
@@ -61,7 +63,7 @@
       "name": "clan-chain.md",
       "path": "docs/evidence/2026-09-04/clan-chain.md",
       "sizeBytes": 1559,
-      "modifiedAt": "2026-09-04T15:13:49.544Z",
+      "modifiedAt": "2026-09-04T15:27:12.840Z",
       "commands": [],
       "predatesRun": false
     },
@@ -76,8 +78,8 @@
     {
       "name": "lint.txt",
       "path": "docs/evidence/2026-09-04/lint.txt",
-      "sizeBytes": 182,
-      "modifiedAt": "2026-09-04T15:02:31.792Z",
+      "sizeBytes": 48,
+      "modifiedAt": "2026-09-04T15:25:11.904Z",
       "commands": [
         "meechies-coloringbook@0.1.0 lint",
         "eslint ."
@@ -88,7 +90,7 @@
       "name": "seam-ledger.json",
       "path": "docs/evidence/2026-09-04/seam-ledger.json",
       "sizeBytes": 30250,
-      "modifiedAt": "2026-09-04T15:13:49.480Z",
+      "modifiedAt": "2026-09-04T15:27:12.772Z",
       "commands": [],
       "predatesRun": false
     },
@@ -96,7 +98,7 @@
       "name": "seam-ledger.md",
       "path": "docs/evidence/2026-09-04/seam-ledger.md",
       "sizeBytes": 2409,
-      "modifiedAt": "2026-09-04T15:13:49.484Z",
+      "modifiedAt": "2026-09-04T15:27:12.772Z",
       "commands": [],
       "predatesRun": false
     },
@@ -104,7 +106,7 @@
       "name": "shaolin-lint.json",
       "path": "docs/evidence/2026-09-04/shaolin-lint.json",
       "sizeBytes": 519,
-      "modifiedAt": "2026-09-04T15:13:49.336Z",
+      "modifiedAt": "2026-09-04T15:27:12.632Z",
       "commands": [],
       "predatesRun": false
     },
@@ -112,7 +114,7 @@
       "name": "test.txt",
       "path": "docs/evidence/2026-09-04/test.txt",
       "sizeBytes": 1031,
-      "modifiedAt": "2026-09-04T15:13:49.236Z",
+      "modifiedAt": "2026-09-04T15:27:12.512Z",
       "commands": [
         "meechies-coloringbook@0.1.0 test",
         "vitest run --pool=forks --maxWorkers=1"
@@ -122,8 +124,8 @@
     {
       "name": "verify-chain.txt",
       "path": "docs/evidence/2026-09-04/verify-chain.txt",
-      "sizeBytes": 22991,
-      "modifiedAt": "2026-09-04T15:03:21.820Z",
+      "sizeBytes": 2673,
+      "modifiedAt": "2026-09-04T15:24:54.920Z",
       "commands": [],
       "predatesRun": true
     },
@@ -131,7 +133,7 @@
       "name": "verify.txt",
       "path": "docs/evidence/2026-09-04/verify.txt",
       "sizeBytes": 1356,
-      "modifiedAt": "2026-09-04T15:13:49.236Z",
+      "modifiedAt": "2026-09-04T15:27:12.512Z",
       "commands": [
         "meechies-coloringbook@0.1.0 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
