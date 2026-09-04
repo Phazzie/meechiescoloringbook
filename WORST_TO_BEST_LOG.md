@@ -4176,3 +4176,57 @@ instead of five, then five instead of "each with its own payload".
 Run 3's close-out named this exact failure — "a guard is a claim about a set; writing one and
 testing the state you had in mind proves the guard fires, never that the set is closed" — about
 code. It is the same error in prose, committed by the run that quoted it.
+
+---
+
+## Run 4, correction 6 — 2026-09-04 — the seam count was wrong twice in the same direction
+
+Appended, not edited. Two P2 findings on `2afc49a`. Both are narrow, both are correct, and together
+they finish a pattern worth naming.
+
+### 1. Fourteen seams, not twelve — and this is the third count
+
+The previous correction replaced "the six seams the page consumes" with twelve, walked the
+`/api/generate` path, and called the result "every seam on the paths this page reaches". It still
+missed two, and they were not on a path I had failed to consider — they were **nested one call
+inside an adapter I had already listed**. `meechieToolAdapter.respond` calls
+`meechieVoiceAdapter.getVoicePack` (`MeechieVoiceSeam`) and `createProviderAdapter({})`
+(`ProviderAdapterSeam`), both in `src/lib/adapters/meechie-tool-seam/index.ts`.
+
+Six → twelve → fourteen, each time asserted as complete. The rule for a future run enumerating
+seams: **walk the call graph, not the list of adapters you can name.** A seam reached *by* an
+adapter is still a seam the change reaches, and "I listed the adapters this code imports" is not the
+same question as "what does this change reach".
+
+All fourteen now run, all exit 0.
+
+### 2. The payload is not byte-identical, because this run's own code trims it
+
+The ruling said each route "still sends exactly that payload after" the rebuild. False:
+`mode-catalog.ts`'s `buildInput` applies `.trim()` to every field, where the base route passed
+`fields.*` verbatim. For an answer with leading or trailing whitespace the bytes differ.
+
+This run **wrote that `.trim()` deliberately and has a unit test asserting it** — "trims the answers
+before sending them" — and then, four rounds later, asserted the payload was unchanged. The same
+shape as the `/api/tools` consumer error two corrections ago: a claim about this run's own diff,
+contradicted by code this run authored and tested.
+
+The argument survives and is now stated at the width it actually holds: the Assumption is about
+whether the deployed provider accepts this app's **request shape and `json_schema` response
+format**, and trimming a user-supplied string value changes neither the schema, the wrapper, the
+model id nor the `response_format`. "Byte-identical" was stronger than the evidence supported and
+stronger than the argument needed — the third time in this close-out that a claim was inflated past
+its own usefulness.
+
+### The count, for the next run's benefit
+
+Findings per round on this close-out: 3, 3, 2, 5, 2. It has not converged monotonically, and the
+previous prediction that it would was itself corrected. What has held steady is the *kind* of
+finding: **every single one has been in prose about the work, not in the work.** The app has been
+unchanged and green since `f81802d`, across six review rounds.
+
+If a future run takes one thing from Run 4, it should not be the feature. It should be this: the
+close-out is where this run made every one of its mistakes, and it made them because a retrospective
+feels like reporting rather than engineering. It is engineering. It has inputs that can be checked,
+claims that can be falsified, and a reader — the next run — who cannot tell a measured sentence from
+a confident one.

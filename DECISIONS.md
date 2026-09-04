@@ -43,9 +43,18 @@ Short, durable decisions with context and tradeoffs.
     is false: `meechie-tool-seam/index.ts` builds a different user message per `toolId`, and
     `rate_excuse` uses `RATE_EXCUSE_RESPONSE_FORMAT` where the others use
     `STANDARD_RESPONSE_FORMAT`, so the provider could reject one payload and accept another. The
-    accurate statement is narrower and sufficient: **each route already sent its own payload before
-    the rebuild, and still sends exactly that payload after it.** No route's request shape is in
-    this diff. A later audit must not read one tool's success as proof for the rest.
+    accurate statement is narrower: **each route already sent its own request shape before the
+    rebuild and still sends that shape after it.** A later audit must not read one tool's success as
+    proof for the rest.
+  - **One thing the rebuild does change about the payload, recorded rather than glossed:**
+    `mode-catalog.ts`'s `buildInput` applies `.trim()` to every field, where the base route passed
+    `fields.*` verbatim. For an answer with leading or trailing whitespace the bytes sent are
+    therefore *not* identical to before. An earlier draft of this entry said the route "still sends
+    exactly that payload", which is false for that case. It does not disturb the argument — the
+    Assumption is about whether the deployed provider accepts this app's **request shape and
+    `json_schema` response format**, and trimming a user-supplied string value changes neither the
+    schema, the wrapper, the model id, nor the `response_format` — but "byte-identical" was a
+    stronger claim than the evidence supports and than the argument needs.
   - The Assumption's own resolution criterion — probe `POST /api/meechie-studio-text` on a reachable
     deployment — was not met, and the reason is stated directly rather than borrowed: the preview
     sits behind Vercel SSO (recorded inside the Assumption itself), and **no owner authorization

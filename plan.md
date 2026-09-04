@@ -26,17 +26,23 @@ concession the `ClockSeam` plan in run 1 had to make.
   (append-only record), and the regenerated artifacts under `docs/evidence/2026-09-04/`.
 - **Commands:** `npm run verify`, `npm run check`, `npm run lint`, `npm test`, `npm run build`,
   `npx playwright test`, and `npm run rewind -- --seam <name>` for **every seam on the paths this
-  page reaches — twelve, not six.** Evidence: `docs/evidence/2026-09-04/rewind-<SeamName>.txt`.
+  page reaches — fourteen.** Evidence: `docs/evidence/2026-09-04/rewind-<SeamName>.txt`.
   - Reached from the browser, or directly by the request the page makes:
     `MeechieToolSeam`, `SpecValidationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`,
     `SessionSeam`, `ClockSeam`.
   - Reached server-side inside `/api/generate`, which the rebuilt page can now call:
     `PromptAssemblySeam`, `ImageGenerationSeam`, `ImageProviderConfigSeam`, `SafetyPolicySeam`,
     `DriftDetectionSeam`, `RateLimitSeam` (via `createQuotaGate(event, 'image')`).
-  - The first list alone was what an earlier draft called "the six seams the page consumes", and it
-    was incoherent as well as short: `SpecValidationSeam` is itself server-side on that same
-    `/api/generate` path, so the list could not be defended as "browser-side only". Enumerating the
-    whole path is the only version of this claim that means anything.
+  - Reached *inside* `/api/tools`, nested behind `meechieToolAdapter.respond`:
+    `MeechieVoiceSeam` (`meechieVoiceAdapter.getVoicePack`) and `ProviderAdapterSeam`
+    (`createProviderAdapter({})`), both in `src/lib/adapters/meechie-tool-seam/index.ts`.
+  - **This count has been wrong twice, in the same direction each time.** It was first written as
+    "the six seams the page consumes" — short, and incoherent too, since `SpecValidationSeam` is
+    itself server-side on the `/api/generate` path, so the set could not be defended as
+    "browser-side only". Corrected to twelve by walking the generate path, which still missed the
+    two seams nested one call *inside* an adapter the page already used. The lesson for a future
+    run enumerating seams: **walk the call graph, not the list of adapters you can name** — a seam
+    reached by an adapter is still a seam the change reaches.
 - **How behaviour stays unchanged:** nothing executable is touched. The ruling neither resolves nor
   edits the Assumption — it stays Open with its Status text unchanged — and adds no exemption to any
   automated gate. `npm run assumption:alarm` sees the same entries before and after.
