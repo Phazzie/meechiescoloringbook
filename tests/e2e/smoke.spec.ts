@@ -149,6 +149,30 @@ const routeTools = async (
 	});
 };
 
+/**
+ * Take the verdict already on screen through to a page kept in the vault: dedicate it, generate
+ * it, check the download exists, save it, then confirm it reached the same vault the home page
+ * reads rather than a private one.
+ *
+ * Shared rather than repeated. This is the identical closing sequence of every "a page made here
+ * can be kept" test, and repeating it inline tripped SonarCloud's duplication gate on new code —
+ * the same way the toolkit's opening sequence did before `makeToolkitPage` was extracted above.
+ */
+const makePageAndKeepIt = async (page: Page): Promise<void> => {
+	await page.getByTestId('verdict-page-dedication').fill('For the group chat');
+	await page.getByTestId('verdict-page-generate').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('verdict-page-download').first()).toBeVisible();
+
+	await page.getByTestId('verdict-page-save-vault').click();
+	await expect(page.getByTestId('verdict-page-vault-status')).toContainText(
+		'Saved to the vault'
+	);
+
+	await gotoHydrated(page, '/');
+	await expect(page.getByTestId('home-vault-load')).toBeVisible();
+};
+
 test.beforeEach(async ({ page }) => {
 	await stubApis(page);
 });
@@ -500,18 +524,7 @@ test('a page made on a mode route can be saved and found in the home vault', asy
 	await page.getByTestId('rate-submit').click();
 	await expect(page.getByTestId('rate-result')).toContainText('Fault: them');
 
-	await page.getByTestId('verdict-page-dedication').fill('For the group chat');
-	await page.getByTestId('verdict-page-generate').click();
-	await expect(page.locator('.preview-grid img')).toBeVisible();
-	await expect(page.getByTestId('verdict-page-download').first()).toBeVisible();
-
-	await page.getByTestId('verdict-page-save-vault').click();
-	await expect(page.getByTestId('verdict-page-vault-status')).toContainText(
-		'Saved to the vault'
-	);
-
-	await gotoHydrated(page, '/');
-	await expect(page.getByTestId('home-vault-load')).toBeVisible();
+	await makePageAndKeepIt(page);
 });
 
 test('editing the dedication drops the page it was not generated with', async ({
@@ -1003,19 +1016,8 @@ test('a focused mode page turns its verdict into a coloring page', async ({
 	await page.getByTestId('mode-submit').click();
 	await expect(page.getByTestId('mode-result')).toContainText('Fault: them');
 
-	await page.getByTestId('verdict-page-dedication').fill('For the group chat');
-	await page.getByTestId('verdict-page-generate').click();
-	await expect(page.locator('.preview-grid img')).toBeVisible();
-	await expect(page.getByTestId('verdict-page-download').first()).toBeVisible();
-
-	await page.getByTestId('verdict-page-save-vault').click();
-	await expect(page.getByTestId('verdict-page-vault-status')).toContainText(
-		'Saved to the vault'
-	);
-
-	// It reaches the same vault the home page reads, not a private one.
-	await gotoHydrated(page, '/');
-	await expect(page.getByTestId('home-vault-load')).toBeVisible();
+	// Generate, download and keep it — the half of this page that did not exist at all before.
+	await makePageAndKeepIt(page);
 });
 
 test('a mode with no input, and a mode with two, both reach a page', async ({

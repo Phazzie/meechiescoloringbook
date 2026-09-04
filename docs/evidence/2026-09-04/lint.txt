@@ -4,7 +4,7 @@
 #      exit status is the only thing distinguishing a clean run from a run that never started.
 # Info flow: eslint output -> this evidence file -> review and the proof tape.
 #
-# npm run lint — 2026-09-04T18:37:20Z
+# npm run lint — 2026-09-04T18:46:42Z
 # Run 4: /m/[mode] becomes a real mode page.
 
 

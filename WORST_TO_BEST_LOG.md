@@ -3596,3 +3596,59 @@ not a repository defect, and CI resolves its own browser normally.
 - `src/lib/core/meechie-studio.ts` reads `new Date()` directly in `getMonthKey`, outside
   `ClockSeam`, which decides which mode is featured. Noticed while deriving the catalog from
   `studioModes`; out of scope for a run that touched no seam, and it belongs with follow-up 3 above.
+
+---
+
+## Run 4, first close-out — 2026-09-04 — the SonarCloud duplication gate on `75b0017`
+
+Appended, not edited. One blocking finding on the first head: **Quality Gate failed, 4.5%
+Duplication on New Code, required ≤ 3%.** Not a warning — a failed gate.
+
+**The first guess was wrong, and that is the useful part.** The obvious suspect was the CSS in
+`MeechieModePage.svelte`. It genuinely does mirror the standalone mode routes: ten rule blocks are
+byte-identical to `who-fucked-up/+page.svelte` (`.page`, `.hero`, `.key-hint`, the whole `.cta`
+family, `.verdict-actions`, `.ghost-btn:disabled`, `.error`), and more are identical but for a
+`var()` fallback. Acting on that would have meant extracting a shared stylesheet across three
+working routes with no visual regression tests — a large, risky change.
+
+It would also have fixed nothing. **SonarCloud's automatic analysis has no Svelte parser.** There is
+no `sonar-project.properties` in this repository and no Sonar step in any workflow, so it runs the
+default automatic analysis — and every SonarCloud finding in this log's history is in a `.ts` file:
+`vault-gallery.ts`, `clock-seam/probe.ts`, `page-visibility-seam/mock.ts`, `scripts/run-probe.mjs`,
+and the cognitive-complexity finding in `verdict-page-state.svelte.ts`. Not one is in a `.svelte`
+file. The CSS was never being measured.
+
+The real duplication was **twelve byte-identical lines of TypeScript** between this run's new
+`a focused mode page turns its verdict into a coloring page` test and the existing
+`a page made on a mode route can be saved and found in the home vault` test — the same dedicate,
+generate, download, save, check-the-home-vault sequence, down to the `'For the group chat'`
+literal, because the new test was written by copying the old one. Extracted as `makePageAndKeepIt`,
+which both now call.
+
+That is the *same fix for the same gate* that `makeToolkitPage` already represents in that file —
+extracted in run 2 when repeating the toolkit's opening sequence inline tripped this gate at 8.2%.
+The precedent was in the file being edited, four hundred lines above the edit.
+
+### How to find a duplication finding, since it cannot be read
+
+A duplication failure is a **measure**, not an issue, so unlike every other SonarCloud finding it
+posts no check-run annotations — the recipe from run 1's sixth close-out returns an empty `output.text`.
+The gate names a percentage and nothing else. It has to be located by hand.
+
+What worked: an n-gram scan over the normalised lines (comments and blanks stripped) of every
+changed `.ts` file against the rest of `src/`, `tests/` and `contracts/`, reporting any run of eight
+or more identical lines. That found the twelve-line block immediately, and re-running it afterwards
+is what justifies the claim that nothing else is left — rather than fixing one block and hoping.
+The two internal repeats it still reports in `tests/e2e/smoke.spec.ts` (lines 573 and 851) are in
+tests that predate this pull request and are therefore not new code.
+
+**The lesson.** The percentage was believed and the location was guessed. Guessing put a
+three-route stylesheet refactor on the table before anything had been measured, and the measurement
+took one script and disproved it in a minute. A gate that reports a number and no location is an
+instruction to go measure, not an invitation to reason about which of your changes *feels* the most
+duplicated.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0 errors /
+0 warnings. lint exit 0. test **1187 passed, 1 skipped**. build exit 0. playwright **26 passed**.

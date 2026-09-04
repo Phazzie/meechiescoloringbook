@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain run at 2026-09-04T18:35:01Z
+# Chain re-run at 2026-09-04T18:52Z on the second head (SonarCloud duplication fix)
 #
 # Change under test: the focused-mode pages behind /m/<slug> — the only page five of the eight
 # modes have, and where every focused-mode link on the home page lands — stop dead-ending at a
@@ -75,3 +75,31 @@ the guard and watching the test fail rather than by reading the code:
     walks an in-app link, marks the document, and asserts the mark survives the click, so it fails
     if the navigation ever stops being client-side.
   - The 404 for an unknown slug, which is a response status and not a rendered value.
+
+## Round 2 — the SonarCloud duplication gate, and what it was actually pointing at
+
+SonarCloud's Quality Gate failed on the first head `75b0017`: **4.5% Duplication on New Code,
+required <= 3%**. It is a measure rather than an issue, so it posts no check-run annotations and the
+duplicated block has to be found by hand.
+
+The first guess was wrong and is worth recording. The obvious suspect was the CSS in
+`MeechieModePage.svelte`, which mirrors the three standalone mode routes — ten rule blocks are
+byte-identical to `who-fucked-up/+page.svelte`. But SonarCloud's automatic analysis has no Svelte
+parser: every SonarCloud finding in this repository's history is in a `.ts` file, and there is no
+`sonar-project.properties` widening that. Refactoring the stylesheets would have been a large,
+risky change to three working routes that fixed nothing.
+
+The real duplication was twelve byte-identical lines of TypeScript between the new
+`a focused mode page turns its verdict into a coloring page` test and the existing
+`a page made on a mode route can be saved and found in the home vault` test — the same closing
+sequence, down to the `'For the group chat'` literal, because the new test was written from the old
+one. Extracted as `makePageAndKeepIt`, which both now call. That is the same fix, for the same
+gate, that `makeToolkitPage` already represents in this file.
+
+Measured rather than assumed afterwards: an 8-line n-gram scan across the changed `.ts` files
+against the rest of `src/`, `tests/` and `contracts/` reports no remaining cross-file or internal
+duplication in new code. The two internal repeats it still finds in `tests/e2e/smoke.spec.ts`
+(lines 573 and 851) are in tests that predate this pull request, so they are not new code.
+
+Evidence on this head: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped,
+build exit 0, playwright 26 passed, `npm run verify` exit 0 across all eight stages.
