@@ -23,10 +23,10 @@ $ npm test -- --pool=forks --maxWorkers=1
 [1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
 
 
-[2m Test Files [22m [1m[32m78 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (79)[39m
-[2m      Tests [22m [1m[32m1032 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1033)[39m
-[2m   Start at [22m 05:59:38
-[2m   Duration [22m 60.98s[2m (transform 2.43s, setup 659ms, import 4.58s, tests 2.38s, environment 41.44s)[22m
+[2m Test Files [22m [1m[32m79 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (80)[39m
+[2m      Tests [22m [1m[32m1058 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1059)[39m
+[2m   Start at [22m 06:47:57
+[2m   Duration [22m 77.32s[2m (transform 2.87s, setup 788ms, import 5.27s, tests 2.78s, environment 53.71s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

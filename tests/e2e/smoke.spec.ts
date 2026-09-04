@@ -442,3 +442,70 @@ test('meechie toolkit tabs and lineup controls work', async ({ page }) => {
 		'story keeps changing'
 	);
 });
+
+test('every toolkit verdict becomes a coloring page that downloads and saves', async ({
+	page
+}) => {
+	await gotoHydrated(page, '/meechie');
+
+	// The toolkit opens on Apology Autopsy; the page factory only exists once a verdict does.
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeHidden();
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+
+	await page.getByTestId('meechie-tool-dedication').fill('For Ray');
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+
+	await page.getByTestId('meechie-tool-save-vault').click();
+	await expect(page.getByTestId('meechie-tool-vault-status')).toContainText(
+		'Saved to the vault'
+	);
+
+	// Switching tools drops the page built from the previous verdict, so a stale download can
+	// never be attributed to the tool now on screen.
+	await page.getByTestId('meechie-tool-clapback').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeHidden();
+
+	// The page saved from the toolkit is a real vault entry on the home page, not a local-only
+	// preview: same session, same store the studio writes to.
+	await gotoHydrated(page, '/');
+	await expect(page.getByTestId('home-vault-load')).toBeVisible();
+});
+
+test('a structured verdict prints as a numbered list page, an unstructured one as a quote', async ({
+	page
+}) => {
+	const specs: Array<{ listMode: string; items: unknown[] }> = [];
+	await page.route('**/api/generate', async (route) => {
+		const body = route.request().postDataJSON() as {
+			spec: { listMode: string; items: unknown[] };
+		};
+		specs.push({ listMode: body.spec.listMode, items: body.spec.items });
+		await route.fulfill({ json: generatedPage });
+	});
+
+	await gotoHydrated(page, '/meechie');
+
+	// Run Or Red Flag is prompted to answer in "Fault:"/"Consequence:" beats, and the stub does,
+	// so its page carries that structure as numbered lines instead of flattening it into a title.
+	await page.getByTestId('meechie-tool-red_flag_or_run').click();
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+
+	// Random Meechie's stubbed saying has no structure to print as a list.
+	await page.getByTestId('meechie-tool-random_meechie').click();
+	await page.getByTestId('meechie-tool-generate').click();
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+
+	expect(specs).toHaveLength(2);
+	expect(specs[0].listMode).toBe('list');
+	expect(specs[0].items.length).toBeGreaterThanOrEqual(2);
+	expect(specs[1].listMode).toBe('title_only');
+	expect(specs[1].items).toEqual([]);
+});

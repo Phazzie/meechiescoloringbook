@@ -763,3 +763,154 @@ Careful reasoning about the right thing to say, no check that the thing said was
 ### Still deferred after the fifteenth round
 
 - Everything listed above, unchanged.
+
+---
+
+## Run 2 — 2026-09-04 — Meechie's Tools (the eleven-tool hub at `/meechie`)
+
+**Branch:** `claude/great-bell-eeyqm2`
+
+### The feature, and why it was the worst
+
+Meechie's Tools is the app's whole content library. Eleven tools — Apology Autopsy, Run Or Red
+Flag, Meechie Move, Excuse Court, Meechie Forecast, Receipt Check, Caption Drop, Return Fire, Term
+Breakdown, Rate Excuse, Random Meechie — reachable from a nav link on every page, under a hero that
+reads "Meechie's Full Toolkit."
+
+It was the worst feature because **in a coloring book app, the toolkit could not make a coloring
+page.** Every one of the eleven ended at a headline and a paragraph of text in a card. There was no
+way to print it, download it, save it, or even copy it. Navigate away and the verdict was gone.
+
+Concretely, on `main` at `44e2a75`:
+
+1. **Eleven tools, zero pages.** `handleGenerate` in `MeechieTools.svelte` called `/api/tools`,
+   set `output`, and rendered `{output.headline}` and `{output.response}`. That was the entire
+   lifecycle. `/api/generate` — the endpoint the whole app exists to reach — was never called from
+   this component.
+2. **The capability existed and was simply not wired here.** Three of those eleven tools
+   (`red_flag_or_run`, `rate_excuse`, `random_meechie`) had bespoke standalone routes
+   (`/who-fucked-up`, `/rate-his-excuse`, `/random`) that *did* generate a page. The other eight had
+   no path to a page anywhere in the app. Whether your verdict could become a coloring page depended
+   on which of two screens you happened to reach it from.
+3. **Nothing survived.** `saveToVault` existed only in `src/routes/studio-state.svelte.ts` and was
+   wired only from `src/routes/+page.svelte`. Run 1 rebuilt the Quote Vault into a real gallery;
+   nothing outside the home page could put anything into it.
+4. **The tools that answered in structure had it thrown away.** This is the part that took reading
+   the adapter to see, and it is the most interesting finding of the run. The prompts in
+   `src/lib/adapters/meechie-tool-seam/index.ts` explicitly instruct `red_flag_or_run` and `wwmd` to
+   answer using `"Fault:"` and `"Consequence:"` and `"Move:"` prefixes, and instruct `lineup` to
+   answer as a ranked `Nth place:` list. The app deliberately asks for structure — and then the
+   three standalone pages flatten headline plus response into one `title_only` page title capped at
+   96 characters. The app's own list page format (`listMode: 'list'`, the "Type B" layout in the
+   design system, the format its reference coloring pages use) was used by nothing outside the
+   studio.
+
+Runners-up considered and passed over:
+
+- **`/m/[mode]`** — an orphaned third implementation of the same modes. Reachable by URL, linked
+  from nowhere, unstyled against the design system, renders output in a `<pre>`, no generation, and
+  its textareas ship pre-filled with invented answers ("He said he was working late, but I saw him
+  in the club."). Genuinely bad, but unreachable from the nav, so it costs a real user nothing. It
+  is dead code to delete, not a feature to rebuild.
+- **The three standalone mode pages** — ~2,000 lines of near-identical copy-paste that generate a
+  page you then cannot save. Real, and partly addressed by this run's core module, but the tools hub
+  covers eleven tools where these cover three.
+
+### Plan (per `AGENTS.md` "Plan + Self-Critique")
+
+Recorded in full in `plan.md` under "Meechie's Tools becomes a page factory (2026-09-04)".
+
+- **Goal:** every one of the eleven tools produces a coloring page that can be previewed,
+  downloaded and kept — shaped by the structure the verdict actually came back in.
+- **Seams touched:** none. `MeechieToolSeam`, `CreationStoreSeam`, `SessionSeam` and
+  `OutputPackagingSeam` are consumed through their existing adapters exactly as
+  `src/routes/+page.svelte` already consumes them. No file under `contracts/`, `probes/`,
+  `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or `src/lib/seams/` was modified, so the full
+  Seam-Driven Development workflow was not triggered and no Cipher Gate entry was required.
+- **Files:** `src/lib/core/tool-page-recipe.ts` (new), `src/lib/components/MeechieTools.svelte`,
+  `tests/unit/tool-page-recipe.test.ts` (new), `tests/unit/meechie-tools-parity.test.ts`,
+  `tests/e2e/smoke.spec.ts`, plus `CHANGELOG.md`, `CLAUDE.md`, `DECISIONS.md`, `plan.md`.
+
+### Self-critique, and what it changed
+
+- *Riskiest assumption:* that a verdict can be parsed into printable structure at all. Not taken on
+  trust — the tool prompts were read first, and they document the exact shapes. The parser reads a
+  documented format rather than guessing at prose, and the fallback is not a failure: an
+  unstructured answer is a perfectly good quote page. The threshold is **two** items, because a
+  one-item list is a quote wearing a list's clothes.
+- *What had to be proven:* that every recipe builds a spec the real contract accepts. Asserted
+  against `ColoringPageSpecSchema` itself for all eleven tools rather than against a hand-written
+  expectation of it — a spec rejected at `/api/generate` would fail *after* the user had already
+  paid for a generation.
+- *What was actually wrong, and how it was caught:* label truncation. The contract caps a list label
+  at 40 characters. Driving the rebuilt hub in a real browser — not reasoning about it — produced
+  the printed line `Fault: he had time to answer and used`, cut mid-phrase. Word-boundary
+  truncation alone was not enough. `trimDanglingTail` now drops a trailing conjunction or
+  preposition and the fragment it drags behind it, so the same verdict prints
+  `Fault: he had time to answer` / `Consequence: he lost the spare key`. This is the run's clearest
+  lesson: the tests were green before this was found.
+
+### What shipped
+
+- All eleven tools generate a coloring page, preview it, and offer it as PDF and PNG downloads.
+- **The page matches the verdict's shape.** A beats verdict prints as a numbered list page with the
+  `Fault:` / `Consequence:` / `Move:` lines intact; a ranked Excuse Court lineup prints as the
+  ranking; a one-line saying prints as a full-quote page. The app's list format is now used outside
+  the studio for the first time.
+- **Per-tool artwork direction** instead of one shared style hint — gavel and scales for Excuse
+  Court, paper and ledger lines for Receipt Check, stars and constellations for Meechie Forecast.
+  A test asserts all eleven hints are distinct.
+- **Save to the Quote Vault from the toolkit**, into the same owner-scoped store the studio writes
+  to. An e2e test saves from `/meechie` and then finds the row on `/`.
+- Rate Excuse pages lead with the score; any verdict can be copied to the clipboard.
+- Switching tools drops the page built from the previous verdict, so a stale download can never be
+  attributed to the tool now on screen. Covered by an e2e assertion.
+
+### Deliberately not done (for a future run)
+
+- **`/m/[mode]` should be deleted.** An orphaned, unstyled, unlinked third implementation of the
+  same modes, with invented pre-filled inputs and no generation. Deleting a route is a user-visible
+  removal and belongs in its own PR, not smuggled into a rebuild.
+- **The three standalone mode routes should adopt `tool-page-recipe.ts`.** They still flatten
+  structured verdicts into a 96-character title, and they still cannot save to the vault. The core
+  module this run added is exactly what they need; the change is mechanical but touches three
+  ~700-line files and would have tripled this diff.
+- **Everything deferred by Run 1 remains deferred**, unchanged: `deleteCreation` ignoring `owner`,
+  `parseRecords`' unsurfaced `skippedIndices`, and base64 images in `localStorage` against the ~5 MB
+  quota. All three need the full Seam-Driven Development workflow.
+- **`.github/workflows/verify.yml` is still `on: [push, pull_request]`**, so every push starts two
+  identical `verify` runs on one shared cache key. Run 1 recorded this as the cause of repeated
+  hangs. Still unfixed, still a good candidate for its own small PR.
+
+### Evidence
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm run lint`: clean.
+- `npm test`: 1058 passed, 1 skipped (baseline before this change on `44e2a75`: 1032 passed,
+  1 skipped — 26 new tests).
+- `npm run build`: green.
+- `npm run verify`: full chain green, exit 0 — audit gate 0 vulnerabilities, chamber lock, verify
+  runner, shaolin lint, assumption alarm, seam ledger, clan chain, proof tape. Evidence refreshed
+  in `docs/evidence/2026-09-04/`.
+- `npx playwright test`: 10 passed, including two new tests — one that drives a verdict through
+  generation, download and vault save and then finds the row on the home page, and one that asserts
+  a structured verdict is sent to `/api/generate` as `listMode: 'list'` while an unstructured one is
+  sent as `title_only`.
+- The rebuilt hub was also driven in a real browser at 1280x900 and 390x844, which is how the label
+  truncation defect was found.
+
+### Two things a future run should know
+
+1. **Read `src/lib/adapters/meechie-tool-seam/index.ts` before designing anything that renders a
+   tool verdict.** The prompts there are the specification for what each tool's output looks like.
+   The single best decision in this run came from reading them instead of assuming every tool
+   returns undifferentiated prose — and the app had been discarding that structure for its entire
+   history.
+2. **Playwright cannot launch in this container without a fix.** The pinned `@playwright/test` wants
+   Chromium build 1208; the image ships 1194, and the two use different directory layouts
+   (`chrome-linux/headless_shell` vs `chrome-headless-shell-linux64/chrome-headless-shell`).
+   `npx playwright install` is blocked. The fix that worked, and that touches no committed file:
+   symlink `/opt/pw-browsers/chromium-1208` to `chromium-1194`, then build
+   `/opt/pw-browsers/chromium_headless_shell-1208/chrome-headless-shell-linux64/` with a
+   `chrome-headless-shell` symlink pointing at `chromium_headless_shell-1194/chrome-linux/headless_shell`.
+   Without this, all ten e2e tests fail on a missing binary and look like a regression.

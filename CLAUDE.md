@@ -80,6 +80,7 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `constants.ts` | App-wide constants |
 | `http-client.ts` | Shared fetch helper for JSON POST requests (used by routes and UI components) |
 | `vault-gallery.ts` | Pure Quote Vault transforms — sort/search/label saved pages, and rebuild a saved page's image from its stored bytes |
+| `tool-page-recipe.ts` | Pure per-tool coloring page recipes — turns a Meechie tool verdict into the `ColoringPageSpec` + style hint it deserves (list page vs full-quote page) |
 
 ### src/routes/
 

@@ -1,7 +1,10 @@
 <!--
-Purpose: Embed Meechie tools inside the main app flow.
-Why: Keep non-technical users in one place while reusing seam-backed tools.
-Info flow: User inputs -> MeechieToolSeam -> response output.
+Purpose: Embed Meechie tools inside the main app flow, and turn any verdict into a coloring page.
+Why: Keep non-technical users in one place while reusing seam-backed tools. Every tool here used
+     to dead-end at a paragraph of text, which in a coloring book app is the whole product
+     missing, so each verdict now prints, downloads, and saves to the vault.
+Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api/generate ->
+           preview + packaged files -> CreationStoreSeam.
 -->
 <script lang="ts">
 	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
@@ -14,6 +17,26 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		MeechieToolInputSchema,
 		MeechieToolResultSchema
 	} from '../../../contracts/meechie-tool.contract';
+	import type { GeneratedImage } from '../../../contracts/image-generation.contract';
+	import type { PackagedFile } from '../../../contracts/output-packaging.contract';
+	import type { CreationOwner } from '../../../contracts/creation-store.contract';
+	import { GenerateResultSchema } from '../../../contracts/generate.contract';
+	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
+	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
+	import { sessionAdapter } from '$lib/adapters/session.adapter';
+	import { buildToolPageRecipe } from '$lib/core/tool-page-recipe';
+	import type { ToolPageRecipe } from '$lib/core/tool-page-recipe';
+
+	// `format` is the only image-type field the contract actually constrains: it is a closed
+	// four-value enum, while `mimeType` is `NonEmptyStringSchema`, so any non-empty string passes
+	// validation. Deriving the media type from the enum is therefore total and cannot forward an
+	// unvalidated wire value.
+	const IMAGE_MIME_TYPES: Record<GeneratedImage['format'], string> = {
+		svg: 'image/svg+xml',
+		png: 'image/png',
+		jpg: 'image/jpeg',
+		webp: 'image/webp'
+	};
 
 	const tools = [
 		{
@@ -106,9 +129,173 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	let explainsInput = 'Situationship';
 	let excuseInput = 'My alarm did not go off.';
 
+	// Everything below belongs to the page a verdict becomes, not to the verdict itself.
+	let isGenerating = false;
+	let generateError = '';
+	let imagePreviews: string[] = [];
+	let packagedFiles: PackagedFile[] = [];
+	let generatedImages: GeneratedImage[] = [];
+	let assembledPrompt = '';
+	let revisedPrompt = '';
+	let lastRecipe: ToolPageRecipe | null = null;
+	let dedicatedTo = '';
+	let copyStatus = '';
+	let vaultStatus = '';
+	let isSaving = false;
+	let owner: CreationOwner | null = null;
+
+	// The vault is owner-scoped, so the session id has to be in hand before a save can be
+	// attempted. Resolving it up front means the Save button can say why it is unavailable
+	// instead of failing at the click.
+	const loadOwner = async (): Promise<void> => {
+		const result = await sessionAdapter.getSession();
+		if (result.ok) {
+			owner = { kind: 'anonymous', sessionId: result.value.sessionId };
+		}
+	};
+	void loadOwner();
+
+	/** Drop the generated page. Called whenever the verdict it was built from stops being current. */
+	const resetPage = (): void => {
+		generateError = '';
+		imagePreviews = [];
+		packagedFiles = [];
+		generatedImages = [];
+		assembledPrompt = '';
+		revisedPrompt = '';
+		lastRecipe = null;
+		vaultStatus = '';
+		copyStatus = '';
+	};
+
 	const resetState = (): void => {
 		error = '';
 		output = null;
+		resetPage();
+	};
+
+	const previewUrl = (image: GeneratedImage): string | null => {
+		if (image.format === 'svg' && image.encoding === 'utf8') {
+			return `data:${IMAGE_MIME_TYPES.svg};utf8,${encodeURIComponent(image.data)}`;
+		}
+		if (image.encoding === 'base64') {
+			return `data:${IMAGE_MIME_TYPES[image.format]};base64,${image.data}`;
+		}
+		return null;
+	};
+
+	const handleMakePage = async (): Promise<void> => {
+		if (!output || isGenerating) return;
+		isGenerating = true;
+		resetPage();
+
+		const recipe = buildToolPageRecipe(output, { dedication: dedicatedTo });
+		try {
+			const payload = await postJson(
+				'/api/generate',
+				{ spec: recipe.spec, styleHint: recipe.styleHint },
+				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
+			);
+			const parsed = GenerateResultSchema.safeParse(payload);
+			if (!parsed.success) {
+				generateError = 'Generate response did not match contract.';
+				return;
+			}
+			if (!parsed.data.ok) {
+				generateError = parsed.data.error.message;
+				return;
+			}
+
+			lastRecipe = recipe;
+			generatedImages = parsed.data.value.images;
+			assembledPrompt = parsed.data.value.prompt;
+			revisedPrompt = parsed.data.value.revisedPrompt ?? '';
+			imagePreviews = generatedImages
+				.map(previewUrl)
+				.filter((url): url is string => url !== null);
+
+			// Packaging needs a browser canvas for some formats, so treat a failure as a missing
+			// download rather than a failed generation: the page still previews and still saves.
+			const packResult = await outputPackagingAdapter.package({
+				images: generatedImages,
+				outputFormat: 'pdf',
+				fileBaseName: `meechie-${output.toolId}-${Date.now()}`,
+				pageSize: recipe.spec.pageSize,
+				variants: ['print', 'square']
+			});
+			if (packResult.ok) {
+				packagedFiles = packResult.value.files;
+			} else {
+				generateError = `Page made, but the download could not be built: ${packResult.error.message}`;
+			}
+		} catch (requestError) {
+			generateError =
+				requestError instanceof Error
+					? requestError.message
+					: 'Network error. Try again.';
+		} finally {
+			isGenerating = false;
+		}
+	};
+
+	/** The vault stores image bytes as base64; utf8 SVG markup has to be encoded before it goes in. */
+	const encodeBase64 = (value: string): string => {
+		const bytes = new TextEncoder().encode(value);
+		let binary = '';
+		for (const byte of bytes) {
+			binary += String.fromCharCode(byte);
+		}
+		return btoa(binary);
+	};
+
+	const handleSaveToVault = async (): Promise<void> => {
+		if (isSaving || !lastRecipe || generatedImages.length === 0) return;
+		if (!owner) {
+			vaultStatus = 'Session is still connecting. Try again in a moment.';
+			return;
+		}
+		isSaving = true;
+		vaultStatus = 'Saving...';
+		try {
+			const result = await creationStoreAdapter.saveCreation({
+				record: {
+					id:
+						typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+							? crypto.randomUUID()
+							: `creation-${Date.now()}`,
+					createdAtISO: new Date().toISOString(),
+					intent: lastRecipe.spec,
+					assembledPrompt,
+					revisedPrompt: revisedPrompt || undefined,
+					// `studioText` stays unset on purpose. Its schema demands a verdict, a quote and
+					// two to six page items, and a tool verdict supplies none of those; inventing
+					// them to fill the field would put words in the vault that Meechie never said.
+					// `vault-gallery` already renders a row with no stored quote.
+					images: generatedImages.map((image) => ({
+						b64: image.encoding === 'base64' ? image.data : encodeBase64(image.data)
+					})),
+					owner
+				}
+			});
+			vaultStatus = result.ok
+				? 'Saved to the vault. Find it on the home page.'
+				: result.error.message;
+		} catch (saveError) {
+			vaultStatus =
+				saveError instanceof Error ? saveError.message : 'Failed to save to vault.';
+		} finally {
+			isSaving = false;
+		}
+	};
+
+	const handleCopyVerdict = async (): Promise<void> => {
+		if (!output) return;
+		try {
+			await navigator.clipboard.writeText(`${output.headline}\n\n${output.response}`);
+			copyStatus = 'Verdict copied.';
+		} catch {
+			copyStatus = 'Copy unavailable in this browser.';
+		}
 	};
 
 	const addLineupItem = (): void => {
@@ -333,6 +520,94 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 			</div>
 			<h3>{output.headline}</h3>
 			<p class="verdict-body">{output.response}</p>
+			<div class="verdict-actions">
+				<button
+					class="ghost"
+					type="button"
+					data-testid="meechie-tool-copy"
+					on:click={handleCopyVerdict}
+				>
+					Copy the verdict
+				</button>
+				{#if copyStatus}
+					<span class="status" data-testid="meechie-tool-copy-status">{copyStatus}</span>
+				{/if}
+			</div>
+		</section>
+
+		<section class="page-factory" data-testid="meechie-tool-page-factory">
+			<p class="eyebrow">Put It On Paper</p>
+			<h3>Make the coloring page</h3>
+			<p class="factory-sub">
+				Print it. Color it. Send it to whoever needs to see it.
+			</p>
+
+			<div class="field">
+				<label class="label" for="tool-dedication">Dedicated to (optional)</label>
+				<input
+					id="tool-dedication"
+					data-testid="meechie-tool-dedication"
+					bind:value={dedicatedTo}
+					maxlength="60"
+					placeholder="He had time to know better."
+				/>
+			</div>
+
+			{#if generateError}
+				<p class="error" data-testid="meechie-tool-generate-error">{generateError}</p>
+			{/if}
+
+			<button
+				class="primary"
+				type="button"
+				data-testid="meechie-tool-make-page"
+				on:click={handleMakePage}
+				disabled={isGenerating}
+			>
+				{#if isGenerating}
+					<span class="working-inner">
+						<span class="working-dot" aria-hidden="true"></span>
+						Printing the truth…
+					</span>
+				{:else}
+					Generate My Coloring Page
+				{/if}
+			</button>
+
+			{#if imagePreviews.length > 0}
+				<div class="preview-grid" data-testid="meechie-tool-preview">
+					{#each imagePreviews as preview}
+						<figure>
+							<img src={preview} alt="Meechie coloring page" />
+						</figure>
+					{/each}
+				</div>
+
+				<div class="page-actions">
+					{#each packagedFiles as file}
+						<a
+							class="download-link"
+							data-testid="meechie-tool-download"
+							href={`data:${file.mimeType};base64,${file.dataBase64}`}
+							download={file.filename}
+						>
+							{file.filename}
+						</a>
+					{/each}
+					<button
+						class="ghost"
+						type="button"
+						data-testid="meechie-tool-save-vault"
+						on:click={handleSaveToVault}
+						disabled={isSaving}
+					>
+						{isSaving ? 'Saving…' : 'Save to the vault'}
+					</button>
+				</div>
+				{#if vaultStatus}
+					<p class="status" data-testid="meechie-tool-vault-status">{vaultStatus}</p>
+				{/if}
+			{/if}
 		</section>
 	{/if}
 </section>
@@ -472,7 +747,7 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 	}
 
 	/* Primary action */
-	.actions .primary {
+	.primary {
 		align-self: flex-start;
 		padding: 0.78rem 1.6rem;
 		border-radius: 4px;
@@ -496,13 +771,13 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 			filter 0.2s ease;
 	}
 
-	.actions .primary:hover {
+	.primary:hover {
 		transform: translateY(-2px);
 		box-shadow: 0 12px 32px rgba(232, 0, 106, 0.38);
 		filter: saturate(1.1) brightness(1.06);
 	}
 
-	.actions .primary:disabled {
+	.primary:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
 		transform: none;
@@ -643,6 +918,123 @@ Info flow: User inputs -> MeechieToolSeam -> response output.
 		line-height: 1.65;
 		font-size: 0.97rem;
 		white-space: pre-wrap;
+	}
+
+	.verdict-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
+
+	.status {
+		margin: 0;
+		font-size: 0.83rem;
+		color: var(--emerald, #00c896);
+		font-weight: 600;
+	}
+
+	/* Page factory — the verdict becomes a printable page here */
+	.page-factory {
+		display: flex;
+		flex-direction: column;
+		gap: 0.9rem;
+		position: relative;
+		z-index: 1;
+		padding: 1.6rem;
+		border-radius: 6px;
+		background: var(--dark-card-alt, #1c1932);
+		border: 1px solid rgba(201, 162, 39, 0.22);
+	}
+
+	.eyebrow {
+		margin: 0;
+		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
+		text-transform: uppercase;
+		letter-spacing: 0.2em;
+		font-size: 0.72rem;
+		font-weight: 700;
+		color: var(--gold, #c9a227);
+	}
+
+	.page-factory h3 {
+		margin: 0;
+		font-family: var(--font-display, 'Fraunces', 'Times New Roman', serif);
+		font-style: italic;
+		font-weight: 800;
+		font-size: 1.5rem;
+		letter-spacing: -0.02em;
+		color: var(--cream, #fdf6e3);
+	}
+
+	.factory-sub {
+		margin: 0;
+		color: var(--lavender, #b8aacf);
+		font-size: 0.9rem;
+	}
+
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+
+	.preview-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: 0.9rem;
+	}
+
+	.preview-grid figure {
+		margin: 0;
+		padding: 0.5rem;
+		border-radius: 4px;
+		background: rgba(253, 246, 227, 0.06);
+		border: 1px solid rgba(201, 162, 39, 0.2);
+	}
+
+	.preview-grid img {
+		display: block;
+		width: 100%;
+		height: auto;
+		/* A coloring page is portrait US Letter. Uncapped, one preview pushes the download and
+		   save controls off the bottom of the screen, so bound it and letterbox instead. */
+		max-height: 60vh;
+		object-fit: contain;
+		border-radius: 2px;
+	}
+
+	.page-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		flex-wrap: wrap;
+	}
+
+	.download-link {
+		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
+		font-size: 0.82rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		text-decoration: none;
+		padding: 0.38rem 0.75rem;
+		border-radius: 4px;
+		border: 1px solid rgba(201, 162, 39, 0.3);
+		color: var(--gold-bright, #f0c44a);
+		transition:
+			border-color 0.15s ease,
+			background 0.15s ease;
+	}
+
+	.download-link:hover {
+		border-color: rgba(201, 162, 39, 0.6);
+		background: rgba(201, 162, 39, 0.07);
+	}
+
+	.ghost:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	@media (max-width: 680px) {

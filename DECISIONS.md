@@ -7,6 +7,44 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-04 - A tool page is shaped by the verdict's structure, and a page saved from the toolkit carries no `studioText`
+
+- Date: 2026-09-04
+- Seams: none changed. `MeechieToolSeam`, `CreationStoreSeam`, `SessionSeam` and
+  `OutputPackagingSeam` are called through their existing adapters; no contract was touched.
+- Decision 1: `src/lib/core/tool-page-recipe.ts` chooses the page type per verdict rather than per
+  tool. A verdict that parses into two or more structured lines — the `Fault:`/`Consequence:`/`Move:`
+  beats that `red_flag_or_run` and `wwmd` are prompted to emit, or the `Nth place:` entries
+  `lineup` is prompted to emit — becomes a numbered list page; everything else becomes a full-quote
+  page.
+- Context: the three standalone mode routes each flatten headline plus response into one
+  `title_only` page title capped at 96 characters, which discards the structure the tool prompt
+  deliberately asked for. The app already has a list page format (`listMode: 'list'`), and nothing
+  was using it outside the studio.
+- Tradeoff: parsing a provider's prose is not guaranteed. The mitigation is that the fallback is
+  not a failure — an unstructured answer is a perfectly good quote page — and the threshold is two
+  items, because a one-item list is a quote wearing a list's clothes. Alternative rejected: always
+  emitting a list page, which would print single-item lists whenever a provider ignored the format.
+- Decision 2: list labels are truncated to the contract's 40 characters and then trimmed back to
+  the last word that carries meaning (`trimDanglingTail`), dropping a trailing conjunction or
+  preposition and the fragment one drags behind it.
+- Context: proven necessary rather than assumed. Driving the rebuilt hub in a real browser produced
+  `Fault: he had time to answer and used` — a printed page line cut mid-phrase. The word-boundary
+  cut alone was not enough.
+- Tradeoff: the rule is a word list, so it is English-only and will not catch every awkward cut
+  (`Move: change the locks before he asks` survives). It is a readability improvement on a hard
+  40-character contract limit, not a grammar engine, and it is tested against the cases that
+  actually occurred.
+- Decision 3: a page saved to the vault from the toolkit stores no `studioText`.
+- Context: `MeechieStudioTextOutputSchema` requires a verdict, a quote, a page title, and between
+  two and six page items. A tool verdict supplies none of those fields, and manufacturing them
+  would put words in the vault that Meechie never said.
+- Tradeoff: the vault row for a toolkit page shows its title, thumbnail and save date but no quote
+  line, and vault search matches it on title rather than on quote. This is the behaviour
+  `vault-gallery.ts` already documents and handles for records saved before `studioText` existed
+  (`vaultQuote` returns `''` and `VerdictRow.svelte` omits the line), so no new path was added.
+  Alternative rejected: synthesizing `studioText` from the verdict.
+
 ## 2026-09-04 - Vault image completeness is checked at the edges, not by decoding
 
 - Date: 2026-09-04
