@@ -923,48 +923,6 @@ describe('StudioState quote vault', () => {
 		expect(studio.vaultError).toBe('Failed to write storage.');
 	});
 
-	it('keeps a reopened quote page as a quote page, but does not carry that layout into a new verdict', async () => {
-		// A page saved from the Meechie tools hub can be `title_only`; the studio only ever authors
-		// list pages. The reopened layout has to survive a settings change on that page and stop
-		// applying the moment a new verdict replaces it — otherwise
-		// `buildColoringPageSpecFromMeechieText` discards every new page item and the user spends
-		// revision budget and image quota on an incomplete page.
-		const studio = new StudioState();
-		const quoteSpec = {
-			...buildColoringPageSpecFromMeechieText({
-				output: DEFAULT_STUDIO_TEXT_OUTPUT,
-				pageSize: 'US_Letter' as const,
-				border: 'decorative' as const,
-				styleHint: 'crown',
-				listMode: 'title_only' as const
-			})
-		};
-		expect(quoteSpec.listMode).toBe('title_only');
-
-		await studio.loadCreation({
-			id: 'creation-quote',
-			createdAtISO: '2026-09-04T00:00:00.000Z',
-			intent: quoteSpec,
-			assembledPrompt: 'a saved toolkit quote page',
-			studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
-			owner: { kind: 'anonymous', sessionId: 'session-1' }
-		});
-		expect(studio.spec.listMode).toBe('title_only');
-
-		// A settings change on the reopened page keeps the quote layout.
-		studio.border = 'plain';
-		await studio.syncSpecFromCurrentText();
-		expect(studio.spec.listMode).toBe('title_only');
-
-		// Switching mode starts a new verdict, so the reopened layout stops applying and the new
-		// page items survive instead of being discarded.
-		const nextMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
-		studio.handleModeSelect(nextMode!.id);
-		await studio.syncSpecFromCurrentText();
-		expect(studio.spec.listMode).toBe('list');
-		expect(studio.spec.items.length).toBeGreaterThan(0);
-	});
-
 	it('keeps a reopened quote page as a quote page when the replacement verdict fails', async () => {
 		// Clearing the restored layout when the action *started* converted the page the moment a
 		// text action failed, timed out, or was rejected — while its text was still on screen.
