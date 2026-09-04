@@ -5266,3 +5266,69 @@ to start looking, not a description of the problem's extent.
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2 — **sixty-three findings
 across twenty-four rounds**, none in the application.
+
+---
+
+## Run 4, correction 25 — 2026-09-04 — a false synthesis about my own history, and four captures counted as three
+
+Appended, not edited. Three findings on `ef711f7` — two P1, one P2 — and the P2 is a correction to
+correction 24's closing lesson, which was itself wrong.
+
+### 1. P2 — "six rounds refined the success path and none touched the fault path" is false
+
+That was correction 24's synthesis, and this log disproves it three times over:
+
+- **Correction 17** (`:4841-4847`) — "the probe cannot capture a live fault": it throws on any
+  non-2xx, and the `fault.json` it writes is a hard-coded `PROMPT_MISSING_REQUIRED_PHRASES` rather
+  than the canonical `IMAGE_HTTP_ERROR`.
+- **Correction 19** (`:4969-4984`) — "the red proof cannot turn red, because the fault test cannot
+  fail": the test compares the mock's error against the fixture the mock returns.
+- **Correction 20** (`:5024-5028`) — the fault-fixture red-proof gate is one of the two checklist
+  items failing with no waiver.
+
+So the fault path was examined repeatedly. **The narrow, true statement:** what went unexamined for
+six rounds was specifically *who consumes the fault captures and what validates them* — the
+adapter's failure test building its own inline `Response`, and the absence of any error validator in
+`validators.ts`. The *existence* and *shape* of the fault path had been picked over; its **wiring**
+had not.
+
+Worth naming the failure mode, since it is new: **I wrote a sweeping self-critical generalisation
+and did not check it against the record I was writing it into.** Every previous correction here has
+been about a claim that flattered the work. This one is about a claim that condemned it — and it was
+false in the same way, for the same reason. Being hard on myself is not a substitute for being
+accurate, and it reads as insight while being just as unchecked.
+
+### 2. P1 — four capture values, counted as three
+
+Round 24 corrected "two captures" to "three". It is **four**, and each has exactly one consumer:
+
+| # | value | consumer |
+|---|---|---|
+| i | provider-wire **success** body | the contract test's successful `fetch` |
+| ii | provider-wire **error** body + status | the contract test's failing `fetch` |
+| iii | normalized `ImageGenerationResult` | the mock's `sample` scenario |
+| iv | normalized `ImageGenerationError` | the mock's `fault` scenario |
+
+(iii) and (iv) are disjoint arms of the contract's `Result<>`; one "normalized capture" cannot supply
+both. Collapsing them leaves a scenario without fixture-backed data while the stated count still
+looks satisfied — the same defect as the count itself, one level down.
+
+### 3. P1 — the full chain did not cover the final tree
+
+The chronology ran `npm run verify` at step 1 and wrote the summary at step 7. Only
+`assumption:alarm` and `proof:tape` ran afterwards — not `audit:gate`, `check`, `test`,
+`shaolin-lint`, `seam-ledger` or `clan-chain`. So the committed full-chain result was evidence for
+the tree *before* the summary was written, while `AGENTS.md:195-196` requires the complete set before
+every push.
+
+**The order is now:** all edits including this summary → `npm run verify` (the chain, on the final
+tree) → lint, build, e2e (after the chain, so they postdate `chamber-lock.json` per the freshness
+rule) → the nineteen rewinds → the standalone gates → `npm run proof:tape` last. The summary
+therefore no longer asserts the chain's result: it points at `verify.txt`, `test.txt` and
+`chamber-lock.json`, which are written after it. Same principle as dropping the hand-typed timestamp
+in round 13 — **the artifact is the claim; prose about the artifact is not.**
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3 — **sixty-six findings
+across twenty-five rounds**, none in the application.

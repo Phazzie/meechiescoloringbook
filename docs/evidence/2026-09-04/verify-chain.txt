@@ -528,25 +528,44 @@ success path and none touched the fault path**, because every previous finding h
 phrased about a success case and I followed the reviewer's frame each time instead of walking both
 halves of the contract.
 
-## Ordering of this round's runs, recorded as they happened
+## Round 19 — the Codex round on `ef711f7`, and a reordering that should have happened earlier
 
-  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 23:21:24.890Z)
-  2. npm run lint              exit 0                     -> lint.txt
-  3. npm run build             exit 0                     -> build.txt
-  4. npx playwright test       28 passed                  -> e2e.txt
-  5. 19 rewind runs, each exit code appended as that run finished
-                                                          -> seam-rewind-exit-codes.md
-  6. npm run cipher:gate       exit 0    (validates the Quote Vault block, not this change)
-     npm run assumption:alarm  exit 0    (also chain stage 5; run standalone after the doc edits)
-  7. this section
-  8. npm run proof:tape        LAST, so the tape inventories every file including this one
+Three findings: two P1, one P2.
 
-Evidence on this head, read back from seam-rewind-exit-codes.md and an `ls` of the directory rather
-than recalled: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped, build exit 0,
-playwright 28 passed, verify exit 0 across all eight stages, cipher:gate exit 0 (scoped as above),
-assumption:alarm exit 0, and 19 rewind rows recording exit code 0 against 19 files matching
-`rewind-*.txt`. No hand-typed timestamp closes this file; proof-tape.json's generatedAt against this
-file's mtime is the checkable record of the ordering.
+  - **P1: the full chain did not cover the final tree.** Every previous round ran `npm run verify`
+    first and wrote this summary afterwards, so the committed chain result was evidence for the tree
+    *before* the summary existed. Only `assumption:alarm` and `proof:tape` ran after it — not
+    `audit:gate`, `check`, `test`, `shaolin-lint`, `seam-ledger` or `clan-chain`.
+    `AGENTS.md:195-196` asks for the complete set before every push, and "complete" means on what is
+    being pushed.
+  - **P1: four capture values, counted as three.** Round 24 corrected "two" to "three"; it is four —
+    provider-wire success, provider-wire error, normalized result, normalized error — each with
+    exactly one consumer, and the two normalized ones are disjoint arms of `Result<>` that one
+    "normalized capture" cannot supply.
+  - **P2: correction 24's synthesis was false.** It claimed no round since 16 had examined the fault
+    path; corrections 17, 19 and 20 all did. The true statement is narrower: the fault path's
+    *wiring* — who consumes its captures, what validates them — went unexamined, not its existence.
+
+## The ordering, changed this round and stated before the runs it describes
+
+  1. every edit, **including this section**
+  2. npm run verify        — the eight-stage chain, on the final tree. Its result is in
+                             verify.txt, test.txt and chamber-lock.json, which are written after
+                             this paragraph. **This file no longer asserts that result**, for the
+                             same reason it carries no hand-typed timestamp: the artifact is the
+                             claim, and prose about an artifact written before it is a prediction.
+  3. npm run lint          -> lint.txt        ) after the chain, so they postdate chamber-lock.json
+  4. npm run build         -> build.txt       ) and are not marked as predating the run by
+  5. npx playwright test   -> e2e.txt         ) markArtifactsPredatingRun
+  6. 19 rewind runs        -> seam-rewind-exit-codes.md, each exit code appended as it finishes
+  7. npm run cipher:gate, npm run assumption:alarm   — the two standalone gates
+  8. npm run proof:tape    — LAST, so the tape inventories every file above, this one included
+
+Steps 3-8 all postdate step 2, which is the point: the chain runs on the tree being pushed, and
+everything after it is either an artifact the chain does not read or the tape that inventories them.
+Where to look for each result: `verify.txt` and `test.txt` for the chain, the `EXIT=` line at the
+foot of `lint.txt` / `build.txt` / `e2e.txt`, the exit column in `seam-rewind-exit-codes.md`, and
+`proof-tape.json`'s `generatedAt` for the tape.
 
 **The two rulings from round 14 remain outstanding.** The completion gate for `ImageGenerationSeam`
 is not met, the freshness waiver covers one of its three items, and this close-out is not merging on

@@ -5,13 +5,13 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-04T23:24:54.353Z
+Generated at: 2026-09-04T23:36:28.854Z
 Evidence folder: docs/evidence/2026-09-04
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
 after this inventory is taken, so they are not listed):
 
-- assumption-alarm.json (21526 bytes)
+- assumption-alarm.json (22212 bytes)
 - build.txt (11475 bytes)
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (28496 bytes)
@@ -36,7 +36,7 @@ after this inventory is taken, so they are not listed):
 - rewind-PromptAssemblySeam.txt (539 bytes)
 - rewind-ProviderAdapterSeam.txt (540 bytes)
 - rewind-RateLimitSeam.txt (540 bytes)
-- rewind-SafetyPolicySeam.txt (542 bytes)
+- rewind-SafetyPolicySeam.txt (540 bytes)
 - rewind-SessionSeam.txt (537 bytes)
 - rewind-SpecValidationSeam(self-contained).txt (542 bytes)
 - rewind-SpecValidationSeam.txt (542 bytes)
@@ -46,6 +46,11 @@ after this inventory is taken, so they are not listed):
 - shaolin-lint.json (519 bytes)
 - test.txt (1031 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify-chain.txt (40126 bytes)
+- verify-chain.txt (41604 bytes) — PREDATES THIS VERIFY RUN
 - verify.txt (1356 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+
+Older than this run's chamber-lock.json: verify-chain.txt.
+These files were written by an earlier run, so they describe a different run than
+the one this tape summarizes. Regenerate them or read them as history, not as proof
+of the current change.
