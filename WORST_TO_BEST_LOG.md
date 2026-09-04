@@ -4352,3 +4352,36 @@ Findings per round: 3, 3, 3, 2, 5, 2, 3, 2 — **twenty-three across eight round
 them in the application, which has been untouched and green since `f81802d`. The seam verification
 alone has now been wrong five times: six seams, twelve, fourteen, fourteen-with-two-canonical, and
 fourteen-with-five-canonical.
+
+---
+
+## Run 4, correction 9 — 2026-09-04 — the run count in the chain record was stale again
+
+Appended, not edited. One P2 finding on `c5c2b28`: `verify-chain.txt` said "sixteen rewind runs" in
+one place and "six rewind runs exit 0" in another, while the directory holds **nineteen**
+`rewind-*.txt` artifacts — fourteen bare names plus five canonical `(self-contained)` re-runs.
+
+Correct, and it is the fourth finding in this close-out about a summary drifting from what it
+summarizes.
+
+**What I did differently, and it is the only reason this entry is short.** Instead of fixing the
+line the reviewer pointed at, I grepped the file for *every* numeric claim about seams and rewinds
+and fixed all of them, then cross-checked the same pattern across `plan.md`, `DECISIONS.md` and this
+log. The remaining "six seams" hits in this file are all quotations of the historical error inside
+correction entries describing it — they are correct as written, and leaving them is the point of an
+append-only record.
+
+That check also caught a defect the reviewer had not seen and I had just introduced: my own
+replacement text left a stray `**` and duplicated a clause that already appeared two sentences
+below. Fixed before pushing, which is the first time in this close-out a correction's own defect was
+caught by me rather than by the next review round.
+
+**The lesson is the one the previous three rounds kept pointing at, finally applied:** when a
+reviewer finds a stale number, the finding is not "this number is stale" — it is "this document
+contains numbers that go stale, and you have not checked the others." Fixing the cited instance is
+the smallest possible response and it is why corrections 6, 7 and 8 each produced another round.
+
+### Running total
+
+Findings per round: 3, 3, 3, 2, 5, 2, 3, 2, 1 — **twenty-four across nine rounds**. Still none in
+the application, which has been untouched and green since `f81802d`.
