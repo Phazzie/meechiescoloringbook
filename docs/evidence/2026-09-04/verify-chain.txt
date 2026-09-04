@@ -1,11 +1,12 @@
 # npm run verify — Run 3 (worst-feature routine), close-out head after the merge of PR #293
-# 2026-09-04T15:27:12Z
+# Chain run at 2026-09-04T15:37:14.689Z
 #
-# This head is `main` at cccf0c2 (the merge of PR #293) plus one documentation commit. The src/
-# and tests/ trees are byte-identical to that merge commit; the only changes are
-# WORST_TO_BEST_LOG.md and the evidence artifacts in this folder.
+# This head is `main` at cccf0c2 (the merge of PR #293) plus documentation commits. The src/ and
+# tests/ trees are byte-identical to that merge commit; the only changes are WORST_TO_BEST_LOG.md
+# and the evidence artifacts in this folder.
 #
-# Change under test: the Run 3 close-out entry in WORST_TO_BEST_LOG.md, corrected after review.
+# Change under test: the Run 3 close-out entry in WORST_TO_BEST_LOG.md, corrected across two
+# review rounds on the entry itself.
 #
 # Seams touched: none. No file under contracts/, probes/, fixtures/, src/lib/mocks/,
 # tests/contract/, src/lib/adapters/ or src/lib/seams/ is in the diff. No contract shape changed.
@@ -22,7 +23,7 @@ ALL EIGHT STAGES RAN. EXIT 0.
   7. clan-chain.mjs          ok
   8. proof-tape.mjs          ok
 
-Run on this head immediately before the chain:
+Run on this head after the chain, then `npm run proof:tape` once more so the tape sees them:
 
   npm run lint        exit 0, clean                  -> lint.txt
   npm run build       exit 0                         -> build.txt
@@ -44,22 +45,28 @@ about the head being pushed, not about whether the inputs are believed to have c
 that predates the head cannot prove the head passed, however sound the reasoning is that it would.
 "I am sure it still passes" is a claim; running it is a measurement. Both were re-run and both pass.
 
-## Why proof-tape.md still marks lint.txt and build.txt as PREDATES THIS VERIFY RUN
-
-Because they always will be, and this corrects a claim the previous verify-chain.txt made.
+## How to make proof-tape.md see them, and a correction to two earlier claims
 
 `markArtifactsPredatingRun` in scripts/proof-tape.mjs takes its marker from the mtime of
-chamber-lock.json, which is written by **stage 2 of the chain**. lint and build are not stages of
-the chain, so whichever side of it they are run on they cannot come out fresh: run before, they
-predate the marker; run after, they postdate it but proof-tape.md was already rendered at stage 8
-and does not see them. The previous run's note — "run after the chain so they postdate its marker"
-— was wrong about the second half.
+chamber-lock.json, written at **stage 2** of the chain. Two claims about that have now been wrong in
+this folder:
 
-The marker means "not produced by this chain", not "stale". Their own content is the evidence:
-lint.txt and build.txt in this folder were produced from this exact head, minutes before the chain
-ran.
+  - The previous run's note said running lint and build *after* the chain makes them postdate the
+    marker. Half true: they do postdate it, but proof-tape.md was already rendered at stage 8 and
+    does not see them, so the tape still marks them.
+  - This file's own previous revision then concluded they can therefore **never** come out fresh.
+    That is also wrong, and Codex named the fix: run them after the chain and then invoke
+    `npm run proof:tape` on its own. chamber-lock.json keeps its stage-2 mtime, the standalone
+    artifacts are newer than it, and the re-rendered tape reports them as current.
 
-## Why e2e.txt does predate this run, in the ordinary sense
+That is the order used here, and lint.txt and build.txt now carry no marker.
+
+A note on the shape of that mistake, since this run's log entry is about exactly it: the first claim
+was inherited from the previous run's file and repeated without testing. The second was reasoned
+from the source and stated as an impossibility after one attempt. Reading the code is not the same
+as running it either.
+
+## Why e2e.txt still predates, legitimately
 
 `npx playwright test` is required by AGENTS.md "when the change is user-facing". This commit changes
 a log file and this folder; nothing it touches reaches a browser, so the suite was not re-run and

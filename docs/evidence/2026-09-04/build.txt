@@ -1,3 +1,7 @@
+# npm run build — 2026-09-04T15:37:23Z
+# Run 3, close-out head. Bundle sizes are unchanged from cccf0c2: this commit touches
+# WORST_TO_BEST_LOG.md and docs/evidence/ only, and no module under src/ is in the diff.
+
 
 > meechies-coloringbook@0.1.0 build
 > vite build
@@ -22,7 +26,7 @@ computing gzip size...
 .svelte-kit/output/client/_app/immutable/assets/2.wy7VGAY-.css                    15.71 kB │ gzip:   3.86 kB
 .svelte-kit/output/client/_app/immutable/chunks/Di2sHohB.js                        0.25 kB │ gzip:   0.21 kB
 .svelte-kit/output/client/_app/immutable/chunks/kEJdibpV.js                        0.37 kB │ gzip:   0.27 kB
-.svelte-kit/output/client/_app/immutable/nodes/1.Rx8m9Y01.js                       0.48 kB │ gzip:   0.31 kB
+.svelte-kit/output/client/_app/immutable/nodes/1.BpWBAaaT.js                       0.48 kB │ gzip:   0.31 kB
 .svelte-kit/output/client/_app/immutable/chunks/BurJKzmS.js                        0.50 kB │ gzip:   0.31 kB
 .svelte-kit/output/client/_app/immutable/chunks/CU9xDmGg.js                        0.53 kB │ gzip:   0.34 kB
 .svelte-kit/output/client/_app/immutable/chunks/B2IOKV3k.js                        1.00 kB │ gzip:   0.58 kB
@@ -38,24 +42,24 @@ computing gzip size...
 .svelte-kit/output/client/_app/immutable/nodes/0.DUSHrA26.js                       5.01 kB │ gzip:   2.07 kB
 .svelte-kit/output/client/_app/immutable/chunks/Bb_jzIN9.js                        5.29 kB │ gzip:   2.38 kB
 .svelte-kit/output/client/_app/immutable/chunks/BGWX71rM.js                        6.27 kB │ gzip:   2.71 kB
-.svelte-kit/output/client/_app/immutable/chunks/DJgEoZg6.js                        6.61 kB │ gzip:   3.05 kB
-.svelte-kit/output/client/_app/immutable/entry/app.DJk1zsTR.js                     7.37 kB │ gzip:   3.28 kB
+.svelte-kit/output/client/_app/immutable/chunks/Nr0D9eLI.js                        6.61 kB │ gzip:   3.04 kB
+.svelte-kit/output/client/_app/immutable/entry/app.Bq-HM7w6.js                     7.37 kB │ gzip:   3.28 kB
 .svelte-kit/output/client/_app/immutable/nodes/3.CJgYhKVy.js                       8.09 kB │ gzip:   2.64 kB
 .svelte-kit/output/client/_app/immutable/chunks/DThulA89.js                       11.97 kB │ gzip:   4.30 kB
 .svelte-kit/output/client/_app/immutable/nodes/4.BKeoZ4Fb.js                      16.17 kB │ gzip:   6.01 kB
-.svelte-kit/output/client/_app/immutable/entry/start.DYf5mALn.js                  23.13 kB │ gzip:   9.10 kB
+.svelte-kit/output/client/_app/immutable/entry/start.B-xlb-4R.js                  23.13 kB │ gzip:   9.11 kB
 .svelte-kit/output/client/_app/immutable/chunks/CLCkK1d4.js                       25.89 kB │ gzip:  10.09 kB
 .svelte-kit/output/client/_app/immutable/chunks/B7e0KK6w.js                       58.38 kB │ gzip:  14.01 kB
 .svelte-kit/output/client/_app/immutable/nodes/2.DiZJfimt.js                      68.61 kB │ gzip:  21.90 kB
 .svelte-kit/output/client/_app/immutable/chunks/CjxcmN2m.js                      448.52 kB │ gzip: 185.28 kB
-✓ built in 3.48s
+✓ built in 3.81s
 vite v7.3.6 building client environment for production...
 transforming...
 ✓ 4 modules transformed.
 rendering chunks...
 computing gzip size...
-.svelte-kit/output/client/service-worker.mjs  4.01 kB │ gzip: 1.50 kB
-✓ built in 28ms
+.svelte-kit/output/client/service-worker.mjs  4.01 kB │ gzip: 1.49 kB
+✓ built in 29ms
 .svelte-kit/output/server/.vite/manifest.json                                       11.79 kB
 .svelte-kit/output/server/_app/immutable/assets/_page.BxlzngBu.css                   3.47 kB
 .svelte-kit/output/server/_app/immutable/assets/_page.DJOJX25N.css                   3.66 kB
@@ -112,9 +116,11 @@ computing gzip size...
 .svelte-kit/output/server/chunks/root.js                                            86.50 kB
 .svelte-kit/output/server/entries/pages/_page.svelte.js                             95.36 kB
 .svelte-kit/output/server/index.js                                                 132.31 kB
-✓ built in 8.72s
+✓ built in 9.16s
 
 Run npm run preview to preview your production build locally.
 
 > Using @sveltejs/adapter-vercel
   ✔ done
+
+exit=0

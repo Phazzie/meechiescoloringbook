@@ -3320,12 +3320,22 @@ appeared as a GitHub review thread; the others were read off the check-run annot
 why the first draft of this table said "1" and had to be corrected in review. **A count taken from
 the threads is a count of the reviewer that files threads.**
 
-Of the 18 fixed, **six were defects created by an earlier fix in this same PR** — the corrupt-bytes
-window, the two id-fallback rounds, the PRNG, the complexity that accumulated across five rounds of
-patching one function, and the save-during-regeneration window. A third of the review load on this
-change was spent cleaning up after its own repairs. The id fallback alone took three rounds —
-clock-only, then a counter, then a counter plus a document token — each version correct about the
-collision in front of it and silent about the next one.
+Of the 18 fixed, **five were defects created by an earlier fix in this same PR.** Enumerated, because
+the first draft of this line said six and could not produce six without counting the id fallback
+twice:
+
+1. Corrupt bytes reached the screen with Save armed — opened by the previous round's fix that
+   installed the page *before* packaging.
+2. `Math.random()` in the id fallback — introduced by the fix for the id collision, and the only
+   Quality Gate failure in the run.
+3. The counter that replaced it collided across tabs — introduced by the fix for 2.
+4. Save stayed live while a replacement generated — opened by the fix that stopped `makePage`
+   destroying the page on entry.
+5. `makePage` at cognitive complexity 16 — accumulated across five rounds of patching one function.
+
+The id fallback itself is the clearest case, and note where it starts: the clock-only version came
+from the original feature commit, not from a repair. Rounds two and three of it were repairs of
+repairs — each correct about the collision in front of it and silent about the next one.
 
 ### The shape the state and race defects took
 
@@ -3373,8 +3383,15 @@ remaining work out of the handoff. It is in the follow-ups below instead, where 
 
 ### Follow-ups this run is handing forward
 
-1. `MeechieTools.svelte` still owns a fourth copy of the lifecycle. It shares the image helpers now
-   and nothing else. This is the last duplicate.
+1. `MeechieTools.svelte` still owns its own copy of the **orchestration** — the staleness tokens,
+   the request → generate → package sequencing, the guards on each, and the assembly of the vault
+   record. That is what is duplicated, and it is the last of it.
+
+   Not duplicated, so a future run must not go looking for it: both files already import the same
+   `http-client`, the same `tool-page-recipe`, the same `generated-image-preview`, the same
+   `outputPackagingAdapter` / `creationStoreAdapter` / `sessionAdapter`, and the same contracts.
+   The first draft of this item said "shares the image helpers now and nothing else", which would
+   have sent the next rebuild to consolidate modules that were consolidated before this run started.
 2. `fixesApplied` is still written from `recommendedFixes` in `studio-state.svelte.ts` and
    `MeechieTools.svelte`. Nothing reads the field back, which is why it was left; deciding what it
    is *for* is a change of its own.
