@@ -492,3 +492,30 @@ never to suppress the rule silently.
 ### Still deferred after the eighth round
 
 - Everything listed above, unchanged.
+
+---
+
+## Run 1, ninth close-out — 2026-09-04 — the review round on `beb00be`
+
+Appended, not edited. Four findings, all accepted, all narrow — the same converging shape as the
+round before. Three concern seam-artifact fidelity, which is the theme of the whole back half of
+this run.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| P2 | The SVG completeness check demanded `</svg>` as the final text, so a **self-closing root** — `<svg xmlns="..."/>`, a complete renderable document with no closing tag at all — was judged truncated, as was any SVG with a legal trailing XML comment. Byte-only legacy records would have lost their thumbnail and download. | Trailing whitespace and comments are stripped, then either `</svg>` or `/>` is accepted. |
+| P1 | `PageVisibilitySeam`'s mock took a raw state string and defaulted to an inline `'visible'`, so its fault tests passed literals like `'prerender'` rather than the recorded fixtures. Changing the canonical fault data would not have invalidated the mock contract. | Named scenarios backed by `fixtures.ts`, matching the `AppOriginSeam` mock. |
+| P1 | The probes' Node entry guard read `process.argv` at module scope. Their own instructions say to import them in a browser console — where `process` is undefined and the import would throw before the probe could observe anything. | Guarded with `typeof process !== 'undefined'` in all three. |
+| P2 | The visibility mock's subscriber snapshot invoked a subscriber that an *earlier* subscriber had removed during the same notification. `EventTarget` skips a listener removed before its turn, so a test could observe a callback production would never make. | Each snapshotted subscriber is re-checked against the live list before it runs. Both directions are now tested: a subscriber that removes *itself* must not skip the next one, and a subscriber removed by an earlier one must not run. |
+
+**The theme, stated once.** Four rounds running, the findings have been about whether the seam
+*artifacts* tell the truth — a mock that is not backed by its fixtures, a probe that cannot run
+where it says it runs, a mock whose notification order differs from the adapter's. None of these
+would have failed a test, because the tests were written against the same mistaken artifacts. That
+is the whole reason the workflow demands fixtures, a runnable probe, and a mock-first fault proof:
+they are the only things that check the checkers. A seam whose mock is subtly wrong is worse than
+no seam, because every test written against it inherits the error and reports green.
+
+### Still deferred after the ninth round
+
+- Everything listed above, unchanged.

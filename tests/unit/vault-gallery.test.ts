@@ -201,6 +201,28 @@ describe('vaultImageSource', () => {
 		expect(vaultImageSource({ b64: truncated, url: '/saved/page.svg' })).toBe('/saved/page.svg');
 	});
 
+	// A self-closing root is a complete, renderable SVG with no closing tag at all. Demanding
+	// `</svg>` would blank a perfectly good thumbnail.
+	it('accepts a self-closing SVG root', () => {
+		const selfClosing = btoa('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"/>');
+
+		expect(vaultImageSource({ b64: selfClosing, url: '/saved/page.svg' })).toBe(
+			`data:image/svg+xml;base64,${selfClosing}`
+		);
+	});
+
+	it.each([
+		['a trailing XML comment', `${SVG_MARKUP}<!-- exported by Meechie -->`],
+		['trailing whitespace and a newline', `${SVG_MARKUP}\n  `],
+		['a comment after a self-closing root', '<svg xmlns="http://www.w3.org/2000/svg"/><!-- x -->']
+	])('accepts an SVG with %s after the root element', (_label, markup) => {
+		const encoded = btoa(markup);
+
+		expect(vaultImageSource({ b64: encoded, url: '/saved/page.svg' })).toBe(
+			`data:image/svg+xml;base64,${encoded}`
+		);
+	});
+
 	it('falls back for bytes whose length is not a whole number of base64 groups', () => {
 		const misaligned = `${PNG_BASE64.slice(0, 21)}`;
 

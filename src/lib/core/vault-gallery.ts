@@ -144,9 +144,15 @@ const looksCompleteImage = (padded: string, kind: VaultImageKind): boolean => {
 		if (!bytes) return false;
 		// Decoded as UTF-8 rather than assembled byte by byte: the slice can begin mid-character,
 		// and TextDecoder turns a broken leading sequence into a replacement character instead of
-		// mojibake. `</svg>` is ASCII either way, so the check itself is unaffected.
-		const text = new TextDecoder().decode(bytes);
-		return text.toLowerCase().trimEnd().endsWith('</svg>');
+		// mojibake. Everything matched below is ASCII either way.
+		const text = new TextDecoder().decode(bytes).toLowerCase();
+		// Trailing whitespace and XML comments are legal after the root element closes, so they are
+		// stripped before the ending is judged.
+		const tail = text.replace(/(?:\s|<!--[\s\S]*?-->)*$/, '');
+		// Two legal endings, not one: `</svg>` closes a root with content, and `/>` closes a
+		// self-closing root such as `<svg xmlns="..."/>`, which is a complete renderable document
+		// with no closing tag at all. Requiring `</svg>` alone rejected those outright.
+		return tail.endsWith('</svg>') || tail.endsWith('/>');
 	}
 	if (kind.mimeType === 'image/webp') {
 		// RIFF stores its payload size in bytes 4-7, little-endian, counting everything after the

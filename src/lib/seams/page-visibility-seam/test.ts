@@ -20,13 +20,13 @@ afterEach(() => {
 });
 
 describe('PageVisibilitySeam mock contract', () => {
-	it('reports the state it was started in', () => {
-		expect(createMockPageVisibilitySeam(visibleState).isVisible()).toBe(true);
-		expect(createMockPageVisibilitySeam(hiddenState).isVisible()).toBe(false);
+	it('reports the state its scenario starts in', () => {
+		expect(createMockPageVisibilitySeam('visible').isVisible()).toBe(true);
+		expect(createMockPageVisibilitySeam('hidden').isVisible()).toBe(false);
 	});
 
 	it('announces a return to visibility', () => {
-		const visibility = createMockPageVisibilitySeam(hiddenState);
+		const visibility = createMockPageVisibilitySeam('hidden');
 		const returned = vi.fn();
 		visibility.onVisible(returned);
 
@@ -38,7 +38,7 @@ describe('PageVisibilitySeam mock contract', () => {
 
 	// The browser fires `visibilitychange` in both directions; only the return is a trigger here.
 	it('does not announce becoming hidden', () => {
-		const visibility = createMockPageVisibilitySeam(visibleState);
+		const visibility = createMockPageVisibilitySeam('visible');
 		const returned = vi.fn();
 		visibility.onVisible(returned);
 
@@ -48,7 +48,7 @@ describe('PageVisibilitySeam mock contract', () => {
 	});
 
 	it('does not announce a repeated visible state', () => {
-		const visibility = createMockPageVisibilitySeam(visibleState);
+		const visibility = createMockPageVisibilitySeam('visible');
 		const returned = vi.fn();
 		visibility.onVisible(returned);
 
@@ -58,7 +58,7 @@ describe('PageVisibilitySeam mock contract', () => {
 	});
 
 	it('announces every return, not only the first', () => {
-		const visibility = createMockPageVisibilitySeam(visibleState);
+		const visibility = createMockPageVisibilitySeam('visible');
 		const returned = vi.fn();
 		visibility.onVisible(returned);
 
@@ -71,7 +71,7 @@ describe('PageVisibilitySeam mock contract', () => {
 	});
 
 	it('stops announcing once unsubscribed', () => {
-		const visibility = createMockPageVisibilitySeam(hiddenState);
+		const visibility = createMockPageVisibilitySeam('hidden');
 		const returned = vi.fn();
 		const stop = visibility.onVisible(returned);
 
@@ -84,8 +84,8 @@ describe('PageVisibilitySeam mock contract', () => {
 
 	// A subscriber that tears itself down from inside its own callback must not cause the next
 	// subscriber to be skipped.
-	it('notifies every subscriber even when one unsubscribes mid-notification', () => {
-		const visibility = createMockPageVisibilitySeam(hiddenState);
+	it('notifies every subscriber even when one unsubscribes itself mid-notification', () => {
+		const visibility = createMockPageVisibilitySeam('hidden');
 		const second = vi.fn();
 		const stopFirst = visibility.onVisible(() => stopFirst());
 		visibility.onVisible(second);
@@ -95,18 +95,28 @@ describe('PageVisibilitySeam mock contract', () => {
 		expect(second).toHaveBeenCalledTimes(1);
 	});
 
+	// `EventTarget` does not call a listener removed before its turn came, so the mock must not
+	// either — otherwise a test could observe a callback production would have skipped.
+	it('skips a subscriber removed by an earlier subscriber during the same notification', () => {
+		const visibility = createMockPageVisibilitySeam('hidden');
+		const second = vi.fn();
+		let stopSecond = (): void => {};
+		visibility.onVisible(() => stopSecond());
+		stopSecond = visibility.onVisible(second);
+
+		visibility.setVisible(true);
+
+		expect(second).not.toHaveBeenCalled();
+	});
+
 	// The fault fixtures must fail through the mock, not only through the validator: a host state
 	// outside the spec has to resolve to a definite answer rather than propagate as "unknown".
-	it.each(['prerender', 'whenever'] as const)(
-		'resolves the out-of-spec state %s to visible',
-		(state) => {
-			expect(createMockPageVisibilitySeam(state).isVisible()).toBe(true);
+	it.each(['prerender', 'nonsense', 'missing'] as const)(
+		'resolves the %s fault scenario to visible',
+		(scenario) => {
+			expect(createMockPageVisibilitySeam(scenario).isVisible()).toBe(true);
 		}
 	);
-
-	it('resolves a missing state to visible', () => {
-		expect(createMockPageVisibilitySeam(missingState).isVisible()).toBe(true);
-	});
 });
 
 describe('PageVisibilitySeam validators', () => {

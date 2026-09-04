@@ -43,7 +43,9 @@ export const probePageVisibilitySeam = (): PageVisibilityProbeReport => {
 	};
 };
 
-if (process.argv[1]?.endsWith('probe.ts')) {
+// Guarded: these probes are meant to be imported and called from a browser console too, and
+// a bare `process` reference would throw on import where the bundler provides no Node globals.
+if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('probe.ts')) {
 	const report = probePageVisibilitySeam();
 	process.stdout.write(
 		`${JSON.stringify(
