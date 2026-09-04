@@ -1750,3 +1750,80 @@ npm run test:e2e 14 passed
 npm run verify   blocked at the audit gate; npm's endpoint answered 7 of 40 probes over 22 minutes
                  and has been down solidly since 09:59Z. Re-running the unmodified chain.
 ```
+
+---
+
+## Run 2, merged — 2026-09-04 — `6826124`
+
+PR #291 merged into `main` as `6826124`, from head `6392c96`.
+
+**Meechie's Tools can now make coloring pages.** Eleven tools, all of them, printing the page each
+verdict deserves — a numbered list when the verdict came back structured, a full-quote page when it
+did not, with its own artwork direction per tool. Generate, preview, download, save to the vault,
+copy.
+
+### Final count
+
+Twelve review rounds, 49 findings against the code.
+
+- **18 real user-visible defects fixed.** Not one was caught by the test suite before review or
+  before someone drove the thing.
+- **2 findings refused with measurements** — the ReDoS reachability claim, and the verdict-prefix
+  colon claim.
+- **5 refused with cited precedent** in the existing codebase — the `postJson` seam, the clipboard
+  seam, the uuid/clock seams, zod-in-core, and finally `ClockSeam` for record identity and
+  filenames, where `studio-state.svelte.ts` imports the seam for its budget rollover and still uses
+  the host clock at `:324`, `:359` and `:771` exactly as the toolkit does.
+- **83 Rosentic findings refuted** across five scans, all of one class: a hypothetical merge with an
+  unmerged branch that is not `main`. Several of the suggested edits would have broken this branch on
+  contact. Rosentic's own check status was `success` every time.
+
+### The state at merge
+
+```
+npm run verify   exit 0   audit gate clean, all eight stages
+npm run check    0 errors, 0 warnings
+npm run test     1105 passed | 1 skipped
+npm run lint     exit 0
+npm run build    exit 0
+npm run test:e2e 14 passed
+```
+
+Codex's review of the merged head came back with no findings — the first clean round of the twelve.
+SonarCloud, CodeQL and Rosentic all `success`.
+
+The `verify` check was red at merge, and the reason is worth keeping because it is the cleanest
+demonstration of the duplicate-job problem this log has flagged twice. `.github/workflows/verify.yml`
+is `on: [push, pull_request]`, so every head gets two identical jobs. On `6392c96` they **disagreed**:
+`100991505297` ran the whole chain and passed; `100991515240` died at `npm audit`, as did its one
+permitted re-run. Byte-identical code, opposite answers, because npm is retiring the audit endpoint
+and it answered 7 of 40 probes across a 22-minute measurement. This branch changes neither
+`package.json` nor `package-lock.json`, and `main` carries red `verify` runs from the same cause.
+
+That workflow trigger is now the highest-value follow-up in this log: it is not just wasting a
+runner, it is manufacturing a red check on green code.
+
+### Carried forward
+
+- `.github/workflows/verify.yml` — `on: [push, pull_request]` produces two jobs that demonstrably
+  disagree. Fix this first.
+- Delete `/m/[mode]` — orphaned, unlinked, invented pre-filled inputs, no generation.
+- The three standalone mode routes should adopt `tool-page-recipe.ts`.
+- A single-line lineup loses its first item; needs a placing-aware split in `extractRankedEntries`.
+- `ClockSeam` for record identity and download filenames, repo-wide, in one change.
+- Run 1's seam-level items: `deleteCreation` ignoring `owner`, unsurfaced `skippedIndices`, base64 in
+  localStorage.
+
+### What this run is actually about
+
+The feature was easy to find once I stopped reading the marketing and read the adapter prompts: the
+app was already asking providers for structured answers and then throwing the structure away. The
+hard part was everything after — and the pattern that runs through all eighteen defects is the same
+one, stated three different ways in the close-outs above.
+
+A guard added in one place moves a responsibility somewhere else, and the somewhere else never gets
+checked. A fix applied to one function is not applied to the other caller of the same thing. A claim
+made from reading is a hypothesis until it is measured.
+
+Six times in this run, a fix created the next defect. Every one of those was correct about the thing
+it was fixing.
