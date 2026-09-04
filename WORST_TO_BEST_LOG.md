@@ -4497,3 +4497,69 @@ error started. All nineteen literal invocations and their artifact filenames are
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4 — **thirty-one findings across eleven rounds**, none in the
 application. Two of the four here were gates this run never checked at all, which is a different and
 worse category than the stale summaries that dominated rounds six through ten.
+
+---
+
+## Run 4, correction 12 — 2026-09-04 — the same wrong count for the third time, and a correction that stopped one file short
+
+Appended, not edited. Three P2 findings on `0deb9b0`. All three are the same defect in different
+clothes: a claim written once, corrected in the place it was noticed, and left standing everywhere
+else.
+
+### 1. P2 — the fixture waiver said "fifth screen" where the rest of the file says "sixth"
+
+`DECISIONS.md`'s new `ImageGenerationSeam` waiver argued that PR #295 "adds a fifth screen that can
+reach an endpoint four others already reached". Wrong, and wrong in a file two entries below which
+already says **sixth** (line 87), and in a plan that already says **sixth** (`plan.md:28`).
+
+Counted from the base tree rather than from memory this time —
+`git grep -n "api/generate" 210b301 -- src/` finds three modules that POST to it:
+
+| screen | module |
+|---|---|
+| home studio `/` | `studio-state.svelte.ts:668` |
+| `/meechie` | `MeechieTools.svelte:283` |
+| `/who-fucked-up`, `/rate-his-excuse`, `/random` | `verdict-page-state.svelte.ts:480` |
+
+Five screens. `/m/<slug>` is the sixth.
+
+**This is the third wrong exposure count in this close-out**, and the mechanism is now clear enough
+to name rather than apologise for. Two endpoints have two different consumer sets, and I kept
+carrying a number from one to the other. `/api/tools` already counted `/m/<slug>` among its five
+consumers before the rebuild — that is the correction from round 5, and it is what makes the
+text-provider Assumption argument work. `/api/generate` did not. So "five" and "six" are both
+correct sentences about this PR and neither is portable. The waiver now enumerates the five and
+says which endpoint the count belongs to, because the fix for a number that keeps drifting is to
+make it checkable, not to write it more carefully.
+
+### 2. P2 — `npm run cipher:gate` was run, claimed, and absent from the plan
+
+Correction 11 recorded "`npm run assumption:alarm` and `npm run cipher:gate` both exit 0" as the
+validation for the fixture waiver. The micro plan's command list did not contain `cipher:gate`, and
+it is **not part of `npm run verify`** — the chain is `audit:gate && chamber-lock && verify-runner
+&& shaolin-lint && assumption-alarm && seam-ledger && clan-chain && proof-tape` (`package.json:33`),
+while `cipher:gate` is a separate script at `package.json:26`. A reader following the plan would
+have run everything it lists and still not reproduced the validation the log claims.
+
+Both standalone invocations are now in the plan, with the reason each is listed —
+`assumption:alarm` appears even though the chain runs it, because the waiver's validation depends on
+it seeing the entry *after* it was written, which the chain's earlier execution did not.
+
+### 3. P2 — the "wrong seam" correction was applied to the plan and not to the evidence
+
+Correction 11 narrowed "the bare `rewind` verifies a seam the code does not use" from five seams to
+two. It narrowed it in `plan.md`. `docs/evidence/2026-09-04/verify-chain.txt:189` went on asserting
+the strong version — so the plan and the evidence for the same nineteen runs disagreed about what
+three of them proved, and the evidence file is the one a later audit reads first.
+
+Fixed there too, with the shim-versus-implementation split stated in place rather than referenced.
+
+**The pattern across all three:** a correction is not finished when the sentence that was quoted at
+me is fixed. Every one of these findings is a place the *same* claim survived because nobody
+quoted that copy. `grep` for the claim, not for the line number — the check costs one command, and
+it is the third round running where it would have caught the finding before the reviewer did.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3 — **thirty-four findings across twelve rounds**, none in the
+application, which has been unchanged since `f81802d`.

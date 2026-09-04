@@ -41,8 +41,24 @@ concession the `ClockSeam` plan in run 1 had to make.
 - **Files:** `DECISIONS.md` (the ruling), `plan.md` (this section), `WORST_TO_BEST_LOG.md`
   (append-only record), and the regenerated artifacts under `docs/evidence/2026-09-04/`.
 - **Commands:** `npm run verify`, `npm run check`, `npm run lint`, `npm test`, `npm run build`,
-  `npx playwright test`, and `npm run rewind -- --seam <name>` for **every seam on the paths this
+  `npx playwright test`, `npm run cipher:gate`, `npm run assumption:alarm`, and
+  `npm run rewind -- --seam <name>` for **every seam on the paths this
   page reaches — fourteen.** Evidence: `docs/evidence/2026-09-04/rewind-<SeamName>.txt`.
+  - **The two standalone gate commands, and why they are listed separately.** `npm run verify` is
+    `audit:gate && chamber-lock && verify-runner && shaolin-lint && assumption-alarm && seam-ledger
+    && clan-chain && proof-tape` (`package.json:33`). **`cipher:gate` is not in that chain** — it is
+    a separate script (`package.json:26`) — so a plan listing only `npm run verify` cannot reproduce
+    the close-out validation, which is exactly what `WORST_TO_BEST_LOG.md` claims was run for the
+    `ImageGenerationSeam` waiver. The literal invocations:
+
+    ```sh
+    npm run cipher:gate        # not in the verify chain; run on its own. exit 0
+    npm run assumption:alarm   # also stage 5 of the chain; additionally run on its own. exit 0
+    ```
+
+    `assumption:alarm` is listed even though the chain already runs it, because the waiver's
+    validation turns on it seeing the new entry *after* the entry was written, which the chain's
+    earlier execution did not.
   - Reached from the browser, or directly by the request the page makes:
     `MeechieToolSeam`, `SpecValidationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`,
     `SessionSeam`, `ClockSeam`.

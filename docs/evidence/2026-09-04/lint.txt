@@ -1,16 +1,6 @@
-# Purpose: Store npm run lint output for this head as evidence.
-# Why: AGENTS.md requires lint before every push; an artifact from an earlier head cannot
-#      prove the pushed head passed, and eslint prints nothing on success, so the recorded
-#      exit status is the only thing distinguishing a clean run from a run that never started.
-# Info flow: eslint output -> this evidence file -> review and the proof tape.
-#
-# npm run lint — 2026-09-04T20:55:06Z (this command's own start time, not the chain's)
-# Run 4, close-out head: the merge entry for PR #295.
-
-
+# npm run lint — started 2026-09-04T21:06:23Z
 
 > meechies-coloringbook@0.1.0 lint
 > eslint .
 
-
-exit=0 (clean)
+EXIT=0

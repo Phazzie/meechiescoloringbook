@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T20:54:03.173Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T21:05:14.263Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -25,7 +25,14 @@
 # enumeration, its partition into browser / generate-path / nested, and the reason five of them are
 # additionally run under a canonical "(self-contained)" row all live in the Round 5 section below;
 # this header deliberately does not restate the list, because a second copy is a second thing to go
-# stale and that is exactly how it was wrong here. cipher-gate.json correctly predates this run.
+# stale and that is exactly how it was wrong here.
+#
+# cipher-gate.json no longer predates the run, and this line is the change. Through rounds 4 and 5
+# it was the one artifact proof-tape marked as older than the chain, correctly — cipher:gate is not
+# a chain stage and nothing had run it. Round 6 added `npm run cipher:gate` to the plan as a literal
+# command, so it was run, so the artifact is now current and proof-tape marks nothing as stale. The
+# header said the opposite for about three minutes; it is corrected here rather than left for the
+# next reviewer, which is the whole point of round 6's three findings.
 
 ALL EIGHT STAGES RAN. EXIT 0.
 
@@ -185,9 +192,17 @@ declined on new evidence.
     them are additionally run under their canonical "(self-contained)" rows, because rewind
     resolves the first matching row in docs/seams.md and a legacy row precedes the canonical one
     for MeechieVoiceSeam, PromptAssemblySeam, SpecValidationSeam, MeechieToolSeam and
-    DriftDetectionSeam — production imports the self-contained adapter in every one of those five,
-    so the bare command verifies a seam the code does not use. That is AGENTS.md's own instrument for seam-scoped
-    verification when full verify is not required.
+    DriftDetectionSeam — production imports the self-contained adapter in every one of those five.
+    **What the bare run costs differs by seam**, and saying "the bare command verifies a seam the
+    code does not use" of all five overstated it — that holds for two. MeechieVoiceSeam
+    (meechie-voice.adapter.ts builds its own adapter over seams/meechie-voice-seam/voice-pack) and
+    DriftDetectionSeam (drift-detection.adapter.ts is standalone) are genuinely separate
+    implementations. The other three are compatibility shims over the canonical adapter —
+    prompt-assembly.adapter.ts delegates to it, and spec-validation.adapter.ts and
+    meechie-tool.adapter.ts are one-line re-exports — so their bare runs exercise the same
+    production code through a narrower suite: incomplete canonical coverage, not the wrong seam.
+    The per-seam split with test counts is in plan.md. rewind is AGENTS.md's own instrument for
+    seam-scoped verification when full verify is not required.
 
 Evidence on this head: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped,
 build exit 0, playwright 28 passed, verify exit 0 across all eight stages, and 19 rewind runs
@@ -195,3 +210,40 @@ whose recorded exit codes were all 0, matching the 19 rewind-*.txt artifacts in 
 directory. This sentence was written at 2026-09-04T20:56:38Z, after those runs completed — an earlier
 revision declared the rewind result in a paragraph saved a minute *before* the first rewind
 executed, which made it a prediction rather than a record.
+
+## Round 6 — the Codex round on `0deb9b0`: three P2s, all "the correction stopped one file short"
+
+Accepted all three. None is in the application, which is byte-identical to the merge of PR #295.
+
+  - The ImageGenerationSeam fixture waiver in DECISIONS.md said "a fifth screen ... four others",
+    where the same file (line 87) and plan.md both say sixth. Counted from the base tree rather
+    than from memory: `git grep -n "api/generate" 210b301 -- src/` finds three modules that POST to
+    it — studio-state.svelte.ts:668 (home), MeechieTools.svelte:283 (/meechie), and
+    verdict-page-state.svelte.ts:480 (the three standalone mode routes). Five screens; /m/<slug> is
+    the sixth. Third wrong exposure count in this close-out; the waiver now enumerates the five and
+    names which endpoint the count belongs to, because /api/tools and /api/generate have different
+    consumer sets and I kept carrying a number between them.
+  - `npm run cipher:gate` was run and claimed as validation for that waiver but was missing from
+    the plan's command list — and it is NOT in the verify chain (package.json:33 vs :26), so the
+    plan as written could not reproduce the claim. Both standalone gates are now listed literally.
+  - The "wrong seam" narrowing from round 5 was applied to plan.md and not to this file, which went
+    on asserting the strong version at line 189. Fixed above, in place.
+
+## Ordering of this round's runs, recorded as they happened
+
+  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 21:05:14.263Z)
+  2. npm run lint              exit 0                     -> lint.txt
+  3. npm run build             exit 0                     -> build.txt
+  4. npx playwright test       28 passed                  -> e2e.txt
+  5. 19 rewind runs 21:07:30Z-21:08:07Z, every exit code logged as it ran
+                                                          -> rewind-exit-codes.txt
+  6. npm run cipher:gate       exit 0    (not in the chain; run standalone)
+     npm run assumption:alarm  exit 0    (also chain stage 5; run standalone after the waiver edit)
+  7. npm run proof:tape        exit 0    so the tape sees steps 2-6
+  8. this paragraph
+
+Evidence on this head, read back from rewind-exit-codes.txt and the artifact listing rather than
+recalled: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped, build exit 0,
+playwright 28 passed, verify exit 0 across all eight stages, and 19 rewind runs recording exit code
+0, matching the 19 rewind-*.txt artifacts in this directory. Written at 2026-09-04T21:08:15Z, after
+every run above completed.
