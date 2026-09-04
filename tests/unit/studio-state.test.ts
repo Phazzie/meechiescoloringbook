@@ -78,14 +78,31 @@ const buildSeedSpec = (output: MeechieStudioTextOutput) =>
 		styleHint: 'gold crown ornaments'
 	});
 
+// Every initialized StudioState arms a real ClockSeam timer for the next UTC day boundary, and the
+// adapter re-arms it every fifteen minutes rather than sleeping until midnight. `restoreAllMocks`
+// does not clear a host timer, so an instance left undestroyed keeps its Vitest worker alive until
+// the runner forces it down. Initializing through these helpers registers the instance here, and
+// the shared teardown below destroys it.
+const initializedStudios: StudioState[] = [];
+
+const registerInitialized = (studio: StudioState): StudioState => {
+	initializedStudios.push(studio);
+	return studio;
+};
+
+const destroyInitializedStudios = (): void => {
+	while (initializedStudios.length > 0) initializedStudios.pop()?.destroy();
+};
+
 const initFromDraft = async (draft: DraftRecord): Promise<StudioState> => {
 	localStorage.setItem('cb_drafts_v1', JSON.stringify(draft));
 	const studio = new StudioState();
 	await studio.init();
-	return studio;
+	return registerInitialized(studio);
 };
 
 afterEach(() => {
+	destroyInitializedStudios();
 	vi.restoreAllMocks();
 });
 
@@ -545,10 +562,11 @@ describe('StudioState quote vault', () => {
 		}
 		await studio.init();
 		expect(sessionSpy).toHaveBeenCalled();
-		return studio;
+		return registerInitialized(studio);
 	};
 
 	afterEach(() => {
+		destroyInitializedStudios();
 		vi.restoreAllMocks();
 	});
 

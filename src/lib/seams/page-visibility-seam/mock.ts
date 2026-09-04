@@ -48,7 +48,11 @@ export const createMockPageVisibilitySeam = (
 	// actual `visibilitychange`, would announce it. Keeping the raw value makes the mock's notion of
 	// "something changed" the same as the browser's.
 	let rawState: unknown = RAW_STATES[scenario];
-	let subscribers: Array<() => void> = [];
+	// Registrations, not bare callbacks. The adapter wraps each `onVisible` call in its own listener
+	// closure, so registering one callback twice really does attach two listeners and cancelling one
+	// leaves the other firing. Keyed on the callback, cancelling either would silently detach both —
+	// the mock would report a teardown the browser does not perform.
+	let subscriptions: Array<{ callback: () => void }> = [];
 
 	return {
 		// Resolved on read through the same validator the adapter uses, so a fault scenario reports
@@ -56,9 +60,10 @@ export const createMockPageVisibilitySeam = (
 		isVisible: () => isVisibleState(rawState),
 
 		onVisible: (callback) => {
-			subscribers.push(callback);
+			const subscription = { callback };
+			subscriptions.push(subscription);
 			return () => {
-				subscribers = subscribers.filter((candidate) => candidate !== callback);
+				subscriptions = subscriptions.filter((candidate) => candidate !== subscription);
 			};
 		},
 
@@ -72,12 +77,12 @@ export const createMockPageVisibilitySeam = (
 			// subscriber is re-checked against the live list before it runs, because `EventTarget`
 			// does not call a listener that was removed before its turn came. Without that check the
 			// mock would announce to a subscriber the real adapter would have skipped.
-			const notifying = subscribers.slice();
-			for (const subscriber of notifying) {
-				if (subscribers.includes(subscriber)) subscriber();
+			const notifying = subscriptions.slice();
+			for (const subscription of notifying) {
+				if (subscriptions.includes(subscription)) subscription.callback();
 			}
 		},
 
-		subscriberCount: () => subscribers.length
+		subscriberCount: () => subscriptions.length
 	};
 };

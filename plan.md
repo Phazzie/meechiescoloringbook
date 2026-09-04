@@ -35,10 +35,17 @@ written afterwards.
   - `src/lib/adapters/app-origin-seam/index.ts`
   - `src/lib/seams/page-visibility-seam/{contract,validators,fixtures,mock,probe,test}.ts`
   - `src/lib/adapters/page-visibility-seam/index.ts`
-  - `src/routes/studio-state.svelte.ts` (inject both; day-boundary refresh)
+  - `src/routes/studio-state.svelte.ts` (inject all three; day-boundary refresh)
   - `src/lib/core/vault-gallery.ts` (accept the origin as an argument; stay pure)
-  - `tests/unit/studio-state.test.ts`, `tests/unit/vault-gallery.test.ts`
-  - `docs/seams.md`, `DECISIONS.md`, `src/lib/seams/CLAUDE.md`, `WORST_TO_BEST_LOG.md`
+  - `src/routes/+page.svelte`, `src/lib/components/studio/VerdictRow.svelte` (render the vault
+    entry the seams now feed)
+  - `scripts/run-probe.mjs` (new — repository-owned probe runner), `package.json` (register the
+    `probe` script)
+  - `tests/unit/studio-state.test.ts`, `tests/unit/vault-gallery.test.ts`,
+    `tests/e2e/smoke.spec.ts`
+  - `docs/seams.md`, `DECISIONS.md`, `plan.md`, `CHANGELOG.md`, `CLAUDE.md`, `AGENTS.md`,
+    `src/lib/seams/CLAUDE.md`, `WORST_TO_BEST_LOG.md`
+  - `docs/evidence/2026-09-04/*` — written by `npm run verify`, not edited by hand
 - Exact commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`,
   `npm run cipher:gate`, `npm run verify`.
 - Explicitly out of scope: the three pre-existing `Date.now()`/`new Date()` reads in

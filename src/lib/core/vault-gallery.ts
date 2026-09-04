@@ -261,9 +261,24 @@ export const detectVaultImageKind = (base64: string): VaultImageKind | null => {
 // `CreationImageSchema` accepts any non-empty string, so records written before the vault existed
 // may well carry a fully qualified URL on the app's own host, and rejecting those outright would
 // blank a thumbnail the CSP would happily have loaded.
+// Resolving a relative value and comparing origins is the only reliable test; a prefix check is
+// not one. `//host/path` is protocol-relative, and `/\host/path` — a single slash then a backslash —
+// is normalised to exactly the same thing by the WHATWG parser every browser uses. Both escape the
+// app's origin while still starting with one `/`, so `!startsWith('//')` waved the second one
+// through. This placeholder stands in for the app's origin so the answer does not depend on whether
+// the caller knows it: a root-relative path resolves back to the placeholder, and anything that
+// escapes resolves somewhere else. It only has to be an https origin, because backslash
+// normalisation applies to special schemes, which is what the app is always served over.
+const RELATIVE_RESOLUTION_BASE = 'https://vault-relative-resolution.invalid';
+
 const isSafeStoredUrl = (url: string, appOrigin: string): boolean => {
-	// `//host/path` is protocol-relative: it looks path-like but resolves off-origin.
-	if (url.startsWith('/')) return !url.startsWith('//');
+	if (url.startsWith('/')) {
+		try {
+			return new URL(url, RELATIVE_RESOLUTION_BASE).origin === RELATIVE_RESOLUTION_BASE;
+		} catch {
+			return false;
+		}
+	}
 	if (appOrigin.length === 0) return false;
 	try {
 		const parsed = new URL(url);

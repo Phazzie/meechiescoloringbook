@@ -14,6 +14,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const ROOT = process.cwd();
 const SEAMS_DIR = path.join(ROOT, 'src', 'lib', 'seams');
@@ -80,7 +81,9 @@ const runProbeForSeam = async (probePath) => {
 		// Every probe exports `runProbe`, so the runner calls it rather than relying on a
 		// self-execution guard. That keeps the probe modules free of any `process` reference, which
 		// is what lets them also be imported from a browser console.
-		const probeModule = await import(`file://${outFile}`);
+		// `pathToFileURL`, not string interpolation: on Windows `outFile` is `C:\...\probe.mjs`, and
+		// `file://C:\...` parses `c` as the host, so every probe would fail to import.
+		const probeModule = await import(pathToFileURL(outFile).href);
 		if (typeof probeModule.runProbe !== 'function') {
 			fail(`${path.relative(ROOT, probePath)} does not export a runProbe() function.`);
 			return;

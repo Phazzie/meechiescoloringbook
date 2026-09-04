@@ -648,3 +648,68 @@ built to prevent mistakes.
 ### Still deferred after the thirteenth round
 
 - Everything listed above, unchanged.
+
+---
+
+## Run 1, fourteenth close-out — 2026-09-04 — the review round on `cc233b2`
+
+Appended, not edited. Ten findings: two SonarCloud, then eight from Codex, of which six were
+accepted and two were wrong on the facts. Both of the wrong ones are recorded here with the
+evidence that refuted them, because "the reviewer was mistaken" is the single easiest thing for a
+run like this to claim falsely, and the previous rounds show why the claim needs proof: of four
+push-backs in this run before today, **three were me protecting rules I did not want to follow.**
+
+### Accepted
+
+| Finding | Fix |
+|---|---|
+| **A stored url of the form `/\evil.example/page.png` was classified same-origin.** It starts with one `/`, so the `!startsWith('//')` guard waved it through — but the WHATWG parser normalises the backslash for special schemes, and a browser resolves it to `https://evil.example/page.png`. The vault would render an off-origin thumbnail and a Download link that navigates the reader away. | Resolve the value against a fixed placeholder origin and compare origins, instead of testing a prefix. A root-relative path resolves back to the placeholder; anything that escapes resolves elsewhere. Two fault cases added. |
+| `runProbe()` for `PageVisibilitySeam` snapshotted `announcedReturn` and unsubscribed on the same tick — while its own doc comment told a browser user to call it, switch tabs, come back and read the field again. The documented procedure could not work. | Under Node it still returns the flat snapshot the runner prints. In a browser it returns the live report, still subscribed, with `stop()` to detach. |
+| The mock's unsubscribe filtered by callback identity, so registering one callback twice and cancelling once detached **both**. The adapter wraps each `onVisible` call in its own listener closure, so the real seam leaves the second one firing. | Track registration objects rather than callbacks. |
+| `ClockSeam`'s contract said "neither operation can fail" and "any instant is accepted", while both implementations throw synchronously on the committed `NaN`, `Infinity` and fractional fault fixtures. | The precondition and the thrown failure are now declared on `scheduleAt`, with the reason (`setTimeout(fn, NaN)` fires immediately) and the instruction for callers doing date arithmetic. |
+| Every initialized `StudioState` arms a real day-boundary timer that re-arms every fifteen minutes, and almost no test destroyed its instance. Restoring mocks does not clear a host timer, so the workers stayed alive until Vitest forced them down. | Both init helpers register their instance; a shared `afterEach` destroys them. The same leak in the clock-seam backward-jump tests — where the discarded cancel left a fifteen-minute hop armed — is fixed the same way. `npm test` went from a run that hung on teardown to **24.7s**. |
+| `plan.md`'s "Exact files" list omitted `scripts/run-probe.mjs`, `package.json`, `+page.svelte`, `VerdictRow.svelte`, the e2e spec and the evidence directory, so it could not serve as the pre-change checklist `AGENTS.md` requires. | Enumerated. |
+| SonarCloud: both `sort` calls in `discoverProbes` mutated in place inside the returned object literal. | `toSorted`. |
+| `file://${outFile}` is not a valid URL on Windows — `C:\...` makes `c` the host, so every probe would fail to import. | `pathToFileURL(outFile).href`. |
+
+### Refused, with evidence
+
+**"Preserve the append-only run history" (P1) — the premise is inverted.** The finding says this
+branch deletes lines from the Run 1 entry. It restores them. `git show` on the two commits:
+
+- `04f1922`, the commit PR #286 merged as — the original entry — reads `2026-09-04.`
+- `2e488b8`, PR #288, overwrote that line **in place** with a longer claim about nine green checks.
+- This branch's text is `2026-09-04.` — the original, verbatim.
+
+Codex diffed against `main`, which carries #288's rewrite, and read the restoration as a deletion.
+The remedy it asks for — "restore the original text verbatim and place all corrections solely in
+the appended close-out" — is exactly what this branch does.
+
+**"Route the probe runner's filesystem I/O through a seam" (P1) — the rule does not reach
+`scripts/`.** `AGENTS.md:98` bans helper I/O outside approved adapters, and `run-probe.mjs` does
+read directories and write a temp file. But every one of the twelve scripts in `scripts/` imports
+`node:fs` directly, including `chamber-lock.mjs`, `verify-runner.mjs`, `seam-ledger.mjs` and the
+rest of the chain `npm run verify` is *defined as*. The enforcement tooling cannot route through
+the adapters it exists to check without becoming circular, and `run-probe.mjs` is the same category
+of file as its eleven siblings. Applying this finding means rewriting all twelve, which is a
+governance change to `AGENTS.md`, not a fix to this pull request.
+
+### What the round says about the work
+
+The backslash finding is the one worth sitting with. That guard was written *in this run*, as a
+security fix, with a comment explaining that `//host/path` is protocol-relative and must be caught —
+and a test asserting exactly that. The test confirmed the fix's intent and never attacked it. One
+character, a backslash instead of a second slash, walked straight past it.
+
+That is the sixth time in this run that a fix I wrote introduced its own defect, and the sixth time
+review caught it rather than my own tests. The pattern is now too consistent to keep describing as
+bad luck: **when I fix something, I write the test that proves I fixed it, not the test that tries
+to get around the fix.** A prefix check invites the question "what else does the parser treat as a
+prefix" and I did not ask it.
+
+### Still deferred after the fourteenth round
+
+- Everything listed above, unchanged, plus: `audit:gate` runs a bare `npm audit`, so a transient
+  registry 503 fails the whole `verify` chain. It has now done so on seven consecutive heads. A
+  bounded retry that distinguishes transport failure from an actual advisory belongs in its own
+  change; the proposal is written up on PR #289.

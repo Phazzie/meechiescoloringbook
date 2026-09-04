@@ -43,16 +43,29 @@ export const probePageVisibilitySeam = (): PageVisibilityProbeReport => {
 	};
 };
 
+/** What the Node runner prints: plain data, with the subscription already torn down. */
+export type PageVisibilityProbeSnapshot = Omit<
+	PageVisibilityProbeReport,
+	'announcedReturn' | 'stop'
+> & { announcedReturn: boolean };
+
 /**
- * Uniform entry point `npm run probe -- page-visibility-seam` calls. Also safe from a browser,
- * where `announcedReturn` is the interesting field: call `runProbe()`, switch tabs, come back, and
- * read it again.
+ * Uniform entry point `npm run probe -- page-visibility-seam` calls.
+ *
+ * What it returns depends on whether there is a host to observe, because the two callers need
+ * different things. Under Node there is no `document`, nothing can ever announce a return, and the
+ * runner wants JSON — so the subscription is torn down and a flat snapshot comes back.
+ *
+ * In a browser the whole point is the transition, and a snapshot cannot carry one: reading
+ * `announcedReturn` at the moment of the call always yields false, and unsubscribing straight
+ * afterwards guarantees it stays that way. So the live report is returned instead, still
+ * subscribed. Call `runProbe()`, switch tabs, come back, then read `announcedReturn()` — and call
+ * `stop()` when finished.
  */
-export const runProbe = (): Omit<PageVisibilityProbeReport, 'announcedReturn' | 'stop'> & {
-	announcedReturn: boolean;
-} => {
+export const runProbe = (): PageVisibilityProbeReport | PageVisibilityProbeSnapshot => {
 	const report = probePageVisibilitySeam();
-	const snapshot = {
+	if (!report.subscribeWasNoOp) return report;
+	const snapshot: PageVisibilityProbeSnapshot = {
 		hostReported: report.hostReported,
 		seamReported: report.seamReported,
 		subscribeWasNoOp: report.subscribeWasNoOp,

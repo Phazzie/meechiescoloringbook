@@ -121,6 +121,11 @@ describe('vaultImageSource', () => {
 		['a javascript: url', 'javascript:alert(1)'],
 		['a data: url smuggled in as a stored url', 'data:text/html,<script>alert(1)</script>'],
 		['a protocol-relative url', '//evil.test/page.png'],
+		// One slash then a backslash. It passes any "does it start with //" test, but the WHATWG
+		// parser normalises the backslash for special schemes, so a browser resolves it to
+		// https://evil.test/page.png — off-origin, with a Download link that navigates away.
+		['a backslash-smuggled network path', '/\\evil.test/page.png'],
+		['a backslash network path with a trailing slash', '/\\/evil.test/page.png'],
 		['a vbscript: url', 'vbscript:msgbox(1)'],
 		// svelte.config.js sets img-src 'self' data: blob:, so an off-origin url can only ever
 		// render as a broken thumbnail with a dead download beside it.

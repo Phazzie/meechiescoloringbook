@@ -6,19 +6,27 @@
 // Info flow: caller -> ClockSeam -> real host clock (adapter) or a controllable fake (mock).
 
 /**
- * Neither operation can fail: reading a clock and arming a timer are total on every host this app
- * runs on. The contract therefore returns plain values rather than `Result<>`, and is synchronous
- * — an async `now()` would report the instant it resolved, not the instant it was asked for.
+ * Reading the clock cannot fail, and neither operation is async — an async `now()` would report the
+ * instant it resolved, not the instant it was asked for. `scheduleAt` has exactly one failure mode,
+ * declared on it below; everything else returns a plain value rather than a `Result<>`.
  */
 export type ClockSeam = {
 	/** Milliseconds since the Unix epoch, UTC. */
 	now(): number;
 	/**
 	 * Run `callback` once, when the clock reaches `epochMs`. An instant already in the past runs on
-	 * the next turn of the event loop rather than never. Any instant is accepted, however far
-	 * ahead: the adapter re-arms in bounded chunks rather than handing a host timer a delay it
+	 * the next turn of the event loop rather than never. Any *valid* instant is accepted, however
+	 * far ahead: the adapter re-arms in bounded chunks rather than handing a host timer a delay it
 	 * would overflow and fire immediately. Returns a cancel function; calling it after the callback
 	 * has run, or more than once, is a no-op.
+	 *
+	 * **Failure mode — throws synchronously.** `epochMs` must be a finite integer. `NaN`,
+	 * `Infinity`, and fractional instants throw before anything is armed, and every implementation
+	 * of this contract must do so; `fixtures.ts` carries one of each as fault data. The
+	 * precondition is enforced rather than tolerated because `setTimeout(fn, NaN)` fires
+	 * immediately: silently accepting a bad instant would turn a midnight timer into an instant
+	 * one, and a self-re-arming timer into a spin. Callers doing date arithmetic that can produce
+	 * `NaN` — `new Date(userInput).getTime()`, say — must check before calling.
 	 */
 	scheduleAt(epochMs: number, callback: () => void): () => void;
 };

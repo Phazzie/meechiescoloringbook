@@ -4,7 +4,7 @@
 // Info flow: tests -> mock / adapter -> contract assertions.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createClockSeam } from '../../adapters/clock-seam';
-import { DAY_MS, nextUtcDayBoundary } from './contract';
+import { DAY_MS, nextUtcDayBoundary, type ClockSeam } from './contract';
 import {
 	fractionalInstant,
 	infiniteInstant,
@@ -309,7 +309,17 @@ describe('ClockSeam fires an already-due instant without another advance', () =>
 // the two. The adapter re-reads the wall clock at every expiry rather than trusting the delay it
 // computed when the timer was armed.
 describe('ClockSeam adapter re-reads the clock at each expiry', () => {
+	// A timer that has not fired is still armed, and these tests deliberately leave one that way:
+	// once the clock jumps backwards the adapter re-arms for a whole `MAX_HOP_MS` hop. Restoring the
+	// `Date.now` spy does not clear a real host timer, so an uncancelled one holds the Vitest worker
+	// open until the runner forcibly tears it down. Every cancel gets collected and called.
+	const cancels: Array<() => void> = [];
+	const scheduleAt = (clock: ClockSeam, epochMs: number, callback: () => void): void => {
+		cancels.push(clock.scheduleAt(epochMs, callback));
+	};
+
 	afterEach(() => {
+		while (cancels.length > 0) cancels.pop()?.();
 		vi.restoreAllMocks();
 	});
 
@@ -319,7 +329,7 @@ describe('ClockSeam adapter re-reads the clock at each expiry', () => {
 		const clock = createClockSeam();
 		const ran = vi.fn();
 
-		clock.scheduleAt(realNow + 5, ran);
+		scheduleAt(clock, realNow + 5, ran);
 		// The timeout elapses, but the clock has been set back an hour in the meantime.
 		nowSpy.mockReturnValue(realNow - 3_600_000);
 		await new Promise((resolve) => setTimeout(resolve, 40));
@@ -333,7 +343,7 @@ describe('ClockSeam adapter re-reads the clock at each expiry', () => {
 		const clock = createClockSeam();
 		const ran = vi.fn();
 
-		clock.scheduleAt(realNow + 5, ran);
+		scheduleAt(clock, realNow + 5, ran);
 		nowSpy.mockReturnValue(realNow - 50);
 		await new Promise((resolve) => setTimeout(resolve, 30));
 		nowSpy.mockReturnValue(realNow + 1000);

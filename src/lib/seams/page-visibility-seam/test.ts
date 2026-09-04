@@ -95,6 +95,21 @@ describe('PageVisibilitySeam mock contract', () => {
 		expect(second).toHaveBeenCalledTimes(1);
 	});
 
+	// The adapter wraps each `onVisible` call in its own listener closure, so the same callback
+	// registered twice really is two listeners; cancelling one must leave the other firing.
+	it('cancels only the registration whose unsubscribe was called', () => {
+		const visibility = createMockPageVisibilitySeam('hidden');
+		const returned = vi.fn();
+		const stopFirst = visibility.onVisible(returned);
+		visibility.onVisible(returned);
+
+		stopFirst();
+		visibility.setVisible(true);
+
+		expect(returned).toHaveBeenCalledTimes(1);
+		expect(visibility.subscriberCount()).toBe(1);
+	});
+
 	// `EventTarget` does not call a listener removed before its turn came, so the mock must not
 	// either — otherwise a test could observe a callback production would have skipped.
 	it('skips a subscriber removed by an earlier subscriber during the same notification', () => {
