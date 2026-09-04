@@ -150,5 +150,41 @@ generation (real, but a one-line config defect, not a feature).
 
 ### Outcome
 
-- Pull request: [#286](https://github.com/Phazzie/meechiescoloringbook/pull/286) — opened 2026-09-04.
-- Merge: recorded below once CI is green and review comments are addressed.
+- Pull request: [#286](https://github.com/Phazzie/meechiescoloringbook/pull/286), opened and merged
+  2026-09-04.
+- **Review rounds.**
+  - *CodeQL, 2 high alerts* — `js/clear-text-storage-of-sensitive-data`, both tracing to this run's
+    own new vault test helper, which hand-wrote a JSON blob containing `owner.sessionId` straight
+    into `localStorage`. CodeQL was green on the previously merged PR (#284), so the alert was this
+    PR's, not standing noise, and was fixed rather than stood down: the helper now seeds through
+    `creationStoreAdapter.saveCreation` with `sessionAdapter.getSession` stubbed. The same commit
+    hardened `vaultImageSource` to refuse a stored `url` that is not http(s) or a same-origin path,
+    because this run newly fed that value to an `<a href download>`.
+  - *Rosentic, 20 findings* — all cross-branch comparisons against other unmerged branches; two of
+    the six groups named files this PR does not touch. Answered in one comment with the `git diff`
+    evidence; the Rosentic check itself was green throughout. This is the noise `AGENTS.md` already
+    records.
+  - *Vercel* — first head hit the documented `api-deployments-free-per-day` free-tier limit and
+    cleared itself on the next head.
+  - *SonarCloud* — quality gate passed. It reported 5 non-blocking new issues that could not be
+    read from this environment (`sonarcloud.io` is blocked by the egress proxy); said so on the PR
+    rather than implying they were reviewed. **A future run with network access should read them.**
+  - *CodeRabbit* skipped (repo under 10 stars); *Codex* completed with no findings.
+
+### Two things a future run should know
+
+1. **`docs/evidence/YYYY-MM-DD/` conflicts constantly.** Main took two other agents' PRs (#285,
+   #287) during this run, roughly ten minutes apart, and each one re-conflicted the whole evidence
+   directory — never a source file. Resolve it the same way every time: `git checkout --theirs
+   docs/evidence/<date>/`, then re-run `npm run verify` to regenerate the directory. Never
+   hand-merge generated output. Commit and push immediately; the window between resolving and
+   pushing is when the next conflict lands.
+2. **`.github/workflows/verify.yml` is `on: [push, pull_request]`, so every push starts two
+   identical `verify` runs seconds apart on one shared npm cache key — and whichever loses the race
+   hangs.** It happened on all three heads of this PR, once on the push-triggered job and twice on
+   the pull_request-triggered one, hanging on `Install dependencies` twice and on `Verify` once.
+   Cancelling and re-running does not help (the re-run hung too). It did **not** reproduce on PR
+   #287, so it is intermittent contention rather than deterministic. **The real fix is scoping
+   `on: push` to `branches: [main]`** so `pull_request` alone covers branch pushes — a
+   `.github/workflows/` change, deliberately out of scope for a run that touched no CI config, and
+   a good candidate for its own small PR. Budget extra wall-clock for this until it is fixed.
