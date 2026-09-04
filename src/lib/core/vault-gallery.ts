@@ -79,6 +79,15 @@ const decodeBase64ToBytes = (base64: string): Uint8Array | null => {
 	}
 };
 
+// Whether the whole blob is well-formed base64, not merely a recognisable prefix. Checked by
+// syntax rather than by decoding, so a megabyte-sized page costs a regex rather than a megabyte of
+// allocation on every render: the alphabet, the 4-character grouping, and padding only at the end
+// are exactly what a decoder rejects.
+const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
+
+const isDecodableBase64 = (compact: string): boolean =>
+	compact.length > 0 && compact.length % 4 === 0 && BASE64_PATTERN.test(compact);
+
 // An SVG saved to the vault was base64-encoded on the way in, so the raster signature check
 // cannot see it. Decoding the same 18-byte prefix as text catches both shapes a generated SVG
 // arrives in: a bare `<svg` root, or an XML declaration ahead of it.
@@ -151,9 +160,16 @@ const isSafeStoredUrl = (url: string, appOrigin: string): boolean => {
 export const vaultImageSource = (image: VaultImage, appOrigin = ''): string => {
 	// Stored bytes win over a stored url. A contract-valid record may carry both, and the bytes
 	// always render under the CSP above while an off-origin url never does.
+	//
+	// Preferring the bytes requires more than a matching signature. `detectVaultImageKind` sniffs
+	// only the first 18 bytes, so a truncated or corrupted blob can open with a perfectly good PNG
+	// header and still be undecodable — and returning a data url built from it would hand the
+	// reader a broken thumbnail and a dead download while a working url sat unused in the same
+	// record. The whole payload is checked for base64 validity before it wins.
 	if (image.b64) {
-		const kind = detectVaultImageKind(image.b64);
-		if (kind) return `data:${kind.mimeType};base64,${compactBase64(image.b64)}`;
+		const compact = compactBase64(image.b64);
+		const kind = detectVaultImageKind(compact);
+		if (kind && isDecodableBase64(compact)) return `data:${kind.mimeType};base64,${compact}`;
 	}
 	if (image.url && isSafeStoredUrl(image.url, appOrigin)) return image.url;
 	return '';

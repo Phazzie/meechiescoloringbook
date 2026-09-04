@@ -5,7 +5,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createClockSeam } from '../../adapters/clock-seam';
 import { DAY_MS, nextUtcDayBoundary } from './contract';
-import { lateInstantMs, nextDayBoundaryMs, sampleInstantMs } from './fixtures';
+import {
+	fractionalInstant,
+	infiniteInstant,
+	invalidInstants,
+	lateInstantMs,
+	nextDayBoundaryMs,
+	notANumberInstant,
+	sampleInstantMs
+} from './fixtures';
 import { createMockClockSeam } from './mock';
 
 describe('nextUtcDayBoundary', () => {
@@ -178,5 +186,89 @@ describe('ClockSeam adapter against the real host clock', () => {
 		await new Promise((resolve) => setTimeout(resolve, 40));
 
 		expect(ran).not.toHaveBeenCalled();
+	});
+});
+
+// The fault fixtures must fail, in both implementations. An unchecked NaN is the dangerous case
+// rather than a harmless one: `setTimeout(fn, NaN)` fires immediately, so a timer meant for
+// midnight would run at once and a self-re-arming one would spin.
+describe('ClockSeam rejects invalid instants', () => {
+	it.each([
+		['NaN', notANumberInstant],
+		['Infinity', infiniteInstant],
+		['a fractional millisecond', fractionalInstant]
+	])('the mock refuses to schedule at %s', (_label, instant) => {
+		const clock = createMockClockSeam(sampleInstantMs);
+
+		expect(() => clock.scheduleAt(instant, vi.fn())).toThrow();
+		expect(clock.pendingCount()).toBe(0);
+	});
+
+	it.each([
+		['NaN', notANumberInstant],
+		['Infinity', infiniteInstant],
+		['a fractional millisecond', fractionalInstant]
+	])('the adapter refuses to schedule at %s', (_label, instant) => {
+		const clock = createClockSeam();
+
+		expect(() => clock.scheduleAt(instant, vi.fn())).toThrow();
+	});
+
+	it('arms nothing for any fault fixture', () => {
+		const clock = createMockClockSeam(sampleInstantMs);
+
+		for (const instant of invalidInstants) {
+			expect(() => clock.scheduleAt(instant, vi.fn())).toThrow();
+		}
+		expect(clock.pendingCount()).toBe(0);
+	});
+});
+
+// The mock has to match the adapter here or tests written against it mean nothing: an instant
+// already past must run on its own, not sit queued until some later `advanceTo` that a test may
+// never make.
+describe('ClockSeam fires an already-due instant without another advance', () => {
+	it('runs the callback on the next turn in the mock', async () => {
+		const clock = createMockClockSeam(nextDayBoundaryMs);
+		const ran = vi.fn();
+
+		clock.scheduleAt(lateInstantMs, ran);
+		expect(ran).not.toHaveBeenCalled();
+		await Promise.resolve();
+
+		expect(ran).toHaveBeenCalledTimes(1);
+		expect(clock.pendingCount()).toBe(0);
+	});
+
+	it('runs the callback for an instant exactly equal to now', async () => {
+		const clock = createMockClockSeam(nextDayBoundaryMs);
+		const ran = vi.fn();
+
+		clock.scheduleAt(nextDayBoundaryMs, ran);
+		await Promise.resolve();
+
+		expect(ran).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not run it when cancelled before the turn arrives', async () => {
+		const clock = createMockClockSeam(nextDayBoundaryMs);
+		const ran = vi.fn();
+
+		const cancel = clock.scheduleAt(lateInstantMs, ran);
+		cancel();
+		await Promise.resolve();
+
+		expect(ran).not.toHaveBeenCalled();
+	});
+
+	it('does not run it a second time on a later advance', async () => {
+		const clock = createMockClockSeam(nextDayBoundaryMs);
+		const ran = vi.fn();
+
+		clock.scheduleAt(lateInstantMs, ran);
+		await Promise.resolve();
+		clock.advanceTo(nextDayBoundaryMs + DAY_MS);
+
+		expect(ran).toHaveBeenCalledTimes(1);
 	});
 });

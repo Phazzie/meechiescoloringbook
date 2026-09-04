@@ -5,7 +5,7 @@ Info flow: seam checks -> ledger table -> review.
 -->
 # Seam Ledger
 
-Generated at: 2026-09-04T02:13:06.809Z
+Generated at: 2026-09-04T02:42:46.513Z
 
 | Seam | Status | Contract | Probe | Fixtures | Mock | Tests | Adapter |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -34,6 +34,7 @@ Generated at: 2026-09-04T02:13:06.809Z
 | SessionSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | SpecValidationSeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | SpecValidationSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
+| AppOriginSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | ClockSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | WigCatalogSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | WigTryOnSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |

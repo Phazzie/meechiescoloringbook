@@ -155,6 +155,32 @@ describe('vaultImageSource', () => {
 		);
 	});
 
+	// A truncated or corrupted blob can open with a perfectly good PNG header and still be
+	// undecodable. Preferring it on the strength of the signature alone would hand the reader a
+	// broken thumbnail and a dead download while a working url sat unused in the same record.
+	it('falls back to a usable url when signature-valid bytes are not decodable', () => {
+		const truncated = `${PNG_BASE64.slice(0, 20)}!!!`;
+
+		expect(detectVaultImageKind(truncated)).not.toBeNull();
+		expect(vaultImageSource({ b64: truncated, url: '/saved/page.png' })).toBe('/saved/page.png');
+	});
+
+	it('falls back for bytes whose length is not a whole number of base64 groups', () => {
+		const misaligned = `${PNG_BASE64.slice(0, 21)}`;
+
+		expect(vaultImageSource({ b64: misaligned, url: '/saved/page.png' })).toBe('/saved/page.png');
+	});
+
+	it('returns no source when signature-valid bytes are undecodable and there is no url', () => {
+		expect(vaultImageSource({ b64: `${PNG_BASE64.slice(0, 20)}!!!` })).toBe('');
+	});
+
+	it('still prefers bytes that decode cleanly over a usable url', () => {
+		expect(vaultImageSource({ b64: PNG_BASE64, url: '/saved/page.png' })).toBe(
+			`data:image/png;base64,${PNG_BASE64}`
+		);
+	});
+
 	it('returns an empty source rather than a broken image for unreadable bytes', () => {
 		expect(vaultImageSource({ b64: btoa('still not an image') })).toBe('');
 	});

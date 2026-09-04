@@ -3,6 +3,7 @@
 //      state module; the page component becomes a thin lifecycle wrapper.
 // Info flow: User actions -> StudioState methods -> reactive $state updates -> component props.
 import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
+import { appOriginSeam } from '$lib/adapters/app-origin-seam';
 import { clockSeam } from '$lib/adapters/clock-seam';
 import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
@@ -45,6 +46,7 @@ import type {
 	ColoringPageSpec,
 	SpecValidationOutput
 } from '../../contracts/spec-validation.contract';
+import type { AppOriginSeam } from '$lib/seams/app-origin-seam/contract';
 import { nextUtcDayBoundary, type ClockSeam } from '$lib/seams/clock-seam/contract';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
@@ -163,10 +165,12 @@ export class StudioState {
 	// vault reload, so the labels stay a pure function of an explicit instant rather than
 	// re-reading the clock inside a $derived on every keystroke.
 	nowMs = $state(this.clock.now());
-	// Origin the app is served from, used to decide whether a stored absolute image URL is
-	// same-origin and therefore loadable under the app's `img-src 'self'` CSP. '' during server
-	// rendering, where no image is painted anyway.
-	appOrigin = $state(typeof location === 'undefined' ? '' : location.origin);
+	// Reads the origin the app is served from, used to decide whether a stored absolute image URL
+	// is same-origin and therefore loadable under the app's `img-src 'self'` CSP. Behind a seam for
+	// the same reason as the clock: reading `location` here would be an unseamed browser
+	// integration, and the same-origin decision could not be driven from a test.
+	origin: AppOriginSeam = appOriginSeam;
+	appOrigin = $state(this.origin.getOrigin());
 
 	// --- Wig try-on state ---
 	selectedWigId = $state<string | null>(null);

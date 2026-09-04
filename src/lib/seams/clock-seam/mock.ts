@@ -5,6 +5,7 @@
 // Info flow: test -> createMockClockSeam().advanceTo(instant) -> due callbacks run.
 import type { ClockSeam } from './contract';
 import { sampleInstantMs } from './fixtures';
+import { validateEpochMs } from './validators';
 
 type ScheduledCallback = { dueAtMs: number; callback: () => void; cancelled: boolean };
 
@@ -32,12 +33,27 @@ export const createMockClockSeam = (startMs: number = sampleInstantMs): MockCloc
 		now: () => currentMs,
 
 		scheduleAt: (epochMs, callback) => {
+			validateEpochMs(epochMs);
 			const entry: ScheduledCallback = { dueAtMs: epochMs, callback, cancelled: false };
 			scheduled.push(entry);
-			return () => {
+			const cancel = (): void => {
 				entry.cancelled = true;
 				scheduled = scheduled.filter((candidate) => candidate !== entry);
 			};
+			// An instant already at or behind the clock has to fire on its own, exactly as the
+			// adapter's clamped `setTimeout` does. Queuing it until the next `advanceTo` would give
+			// the mock behaviour production does not have, and a test that never advances the clock
+			// would wait forever for a callback the real seam would already have run. A microtask
+			// keeps that deterministic: `await Promise.resolve()` is enough to observe it, and the
+			// cancelled flag is re-checked at fire time so cancelling first still wins.
+			if (epochMs <= currentMs) {
+				queueMicrotask(() => {
+					if (entry.cancelled) return;
+					cancel();
+					entry.callback();
+				});
+			}
+			return cancel;
 		},
 
 		advanceTo: (epochMs) => {

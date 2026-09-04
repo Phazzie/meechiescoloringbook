@@ -5,7 +5,7 @@ Info flow: seam ledger -> chain summary -> review.
 -->
 # Clan Chain
 
-Generated at: 2026-09-04T02:13:06.861Z
+Generated at: 2026-09-04T02:42:46.561Z
 Evidence folder: docs/evidence/2026-09-04
 
 Clean seams:
@@ -34,6 +34,7 @@ Clean seams:
 - SessionSeam (owner: hbpheonix)
 - SpecValidationSeam (owner: hbpheonix)
 - SpecValidationSeam (self-contained) (owner: hbpheonix)
+- AppOriginSeam (owner: hbpheonix)
 - ClockSeam (owner: hbpheonix)
 - WigCatalogSeam (owner: hbpheonix)
 - WigTryOnSeam (owner: hbpheonix)

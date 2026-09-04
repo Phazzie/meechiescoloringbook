@@ -1,0 +1,50 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-09-04T02:32:18.459Z",
+  "cipher": {
+    "date": "2026-09-04",
+    "seams": "ClockSeam (new), AppOriginSeam (new). No existing seam contract changed.",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-09-04/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-04/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-04/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-04/seam-ledger.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-04/clan-chain.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-04/proof-tape.md",
+        "exists": true
+      },
+      {
+        "path": "src/lib/seams/clock-seam/test.ts",
+        "exists": true
+      },
+      {
+        "path": "src/lib/seams/app-origin-seam/test.ts",
+        "exists": true
+      },
+      {
+        "path": "docs/seams.md",
+        "exists": true
+      }
+    ],
+    "summary": "Two host-environment reads that the Quote Vault rebuild had left outside any seam are now behind one. ClockSeam owns reading the current instant and running a callback when a given instant arrives, which is what makes the saved-date labels roll over at UTC midnight. AppOriginSeam owns reading the origin the app is served from, which decides whether a stored absolute image URL is same-origin and therefore loadable under img-src 'self'. Both ship with a fault fixture and a validator, and both mocks are deterministic - the clock only moves when a test moves it, and the origin is fixed by scenario.",
+    "risks": "ClockSeam's contract is synchronous with no Result arm, unlike most seams here, so an invalid instant throws rather than returning an error - deliberate, because NaN would make setTimeout fire immediately and a self-re-arming timer spin, but it does differ from the house shape. Three pre-existing Date.now()/new Date() reads in src/routes/studio-state.svelte.ts are untouched, so that file currently mixes seamed and unseamed clock access; converting them is recorded as deferred in WORST_TO_BEST_LOG.md. AppOriginSeam degrades any unusable origin to the empty string rather than throwing, which makes the same-origin check refuse every absolute URL - a safe default, but one that hides a misconfigured host rather than reporting it."
+  },
+  "latestChangeMs": 1788489076496.893,
+  "status": "ok"
+}

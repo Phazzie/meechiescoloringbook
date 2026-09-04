@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-09-04T02:13:06.809Z",
+  "generatedAt": "2026-09-04T02:42:46.513Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -953,6 +953,44 @@
       ]
     },
     {
+      "seam": "AppOriginSeam",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/app-origin-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/app-origin-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "na",
+          "path": "N/A (fixture module: src/lib/seams/app-origin-seam/fixtures.ts)"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/app-origin-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/app-origin-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/app-origin-seam/index.ts"
+        }
+      ]
+    },
+    {
       "seam": "ClockSeam",
       "owner": "hbpheonix",
       "lastProbe": "N/A",
@@ -1106,7 +1144,7 @@
     }
   ],
   "summary": {
-    "ok": 29,
+    "ok": 30,
     "missing": 0,
     "blocked": 0,
     "overallStatus": "ok"

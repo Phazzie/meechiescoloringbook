@@ -332,3 +332,30 @@ pre-existing reads were left alone, because converting them really would be unre
   (creation ids, `createdAtISO` on drafts and saves) to `ClockSeam`. Now that the seam exists this
   is small and mechanical, but it is untouched by this pull request.
 - Everything listed above, unchanged.
+
+---
+
+## Run 1, fourth close-out — 2026-09-04 — the review round on `2e9edd2`
+
+Appended, not edited. The commit that built `ClockSeam` drew **six more findings**, four of them
+about that seam. Three were governance requirements the seam genuinely failed, and reading them is
+the fastest way for a future run to learn what "the full workflow" actually means here.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| P1 | `validators.ts` missing. `src/lib/seams/AGENTS.md` lists it as a mandatory artifact, and a repo-wide check confirmed ClockSeam was the **only** seam of seventeen without one — alongside no fault fixture, so nothing proved failure behaviour before the adapter. | Both added, and the exercise found a real hazard rather than ticking a box: `setTimeout(fn, NaN)` fires *immediately*, so an unchecked bad instant turns a midnight timer into an instant one and a self-re-arming timer into a spin. `validateEpochMs` now rejects non-finite and fractional instants in both the mock and the adapter, with fault fixtures and table-driven tests. |
+| P1 | The Cipher Gate entry was a general decision record, not the `- Cipher Gate:` block with Date / Seams / Evidence / Summary / Risks that `AGENTS.md` specifies. | Written in the required format, and `npm run cipher:gate` now exits 0 — which it did not before. Two formatting facts worth knowing: the parser stops at the first line that does not begin with `  - `, so every field must be a **single line**; and `Evidence` is split on commas and each entry must be a path that exists, so it cannot contain prose. |
+| P1 | `plan.md` untouched. `AGENTS.md` requires a plan with exact seam names, file paths and commands *before* a seam refactor, not a decision record after it. | A plan section added, honest about its own lateness: it was written after the finding, and says so. |
+| P1 | `location.origin` read directly in `studio-state.svelte.ts` — the same class of unseamed host read as the clock, introduced by the round-two fix for same-origin URLs. | `AppOriginSeam`, built the same way. Its validator earns its place: it degrades anything that is not exactly an http(s) origin to '' — an origin carrying a path or a trailing slash would otherwise widen the same-origin comparison from "same origin" to "starts with this text". |
+| P2 | The mock queued an already-due callback until the next `advanceTo`, while the adapter fires it on the next turn. A test could hang waiting for a callback the real seam would already have run. | The mock fires an at-or-past instant on a microtask, re-checking the cancelled flag at fire time so cancelling first still wins. |
+| P2 | `vaultImageSource` preferred stored bytes on an 18-byte signature match alone, so a truncated blob with a valid PNG header produced a broken data URL and never fell back to a working same-origin url in the same record. | The whole payload is checked for base64 validity before bytes win. Checked by syntax rather than by decoding, so a megabyte page costs a regex rather than a megabyte of allocation on every render. |
+
+**What this round is really about.** Four of the six were the cost of doing a seam properly. The
+lesson is not "seams are expensive" — it is that a seam done to three-quarters is worse than
+useless, because it is recorded in `docs/seams.md` as complete while lacking the artifacts that
+make it trustworthy. If a future run adds a seam, run `npm run cipher:gate` and check
+`src/lib/seams/AGENTS.md`'s artifact list **before** claiming the workflow is done.
+
+### Still deferred after the fourth round
+
+- Everything listed above, unchanged.
