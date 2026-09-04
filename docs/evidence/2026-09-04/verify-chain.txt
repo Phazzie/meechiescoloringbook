@@ -1,357 +1,82 @@
-# npm run verify — Run 3 (worst-feature routine), merge head + Codex round on e31f918, 2026-09-04T13:32:02Z
+# Purpose: Record the whole verification sequence for this head in one place — the eight-stage
+#          chain, the standalone checks run around it, and what each artifact in this folder does
+#          and does not prove.
+# Why: The individual artifacts each show one command's output. Nothing else in the folder says in
+#      what order they were produced, which of them the chain wrote and which were run by hand, or
+#      why a file carries a freshness marker. Two wrong explanations of that marker have already
+#      shipped in this folder; this file is where the corrections live.
+# Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
-# This head merges origin/main (11e72d3, PR #292) into claude/great-bell-c3fdmk and resolves the
-# conflicts. Everything below was re-run against the merged tree, because evidence from either
-# side alone describes a tree that is no longer what ships.
+# npm run verify — Run 3 (worst-feature routine), close-out head after the merge of PR #293
+# Chain run at 2026-09-04T15:44:08.138Z
 #
-# Change under test: /who-fucked-up, /rate-his-excuse and /random rebuilt onto one shared
-# verdict-to-coloring-page lifecycle (VerdictPageState + VerdictPageStudio), plus every review
-# round on it — three SonarCloud findings, and five of six Codex findings across two rounds.
+# This head is `main` at cccf0c2 (the merge of PR #293) plus documentation commits. The src/ and
+# tests/ trees are byte-identical to that merge commit; the only changes are WORST_TO_BEST_LOG.md
+# and the evidence artifacts in this folder.
 #
-# Seams touched: none. Every seam is consumed through its existing adapter, exactly as
-# src/routes/+page.svelte and src/lib/components/MeechieTools.svelte already consume it. No file
-# under contracts/, probes/, fixtures/, src/lib/mocks/, tests/contract/, src/lib/adapters/ or
-# src/lib/seams/ is in the diff (verified: git diff --name-only origin/main..HEAD). No contract
-# shape changed. cipher-gate.json therefore correctly predates this run.
+# Change under test: the Run 3 close-out entry in WORST_TO_BEST_LOG.md, corrected across three
+# review rounds on the entry itself.
+#
+# Seams touched: none. No file under contracts/, probes/, fixtures/, src/lib/mocks/,
+# tests/contract/, src/lib/adapters/ or src/lib/seams/ is in the diff. No contract shape changed.
+# cipher-gate.json therefore correctly predates this run.
 
 ALL EIGHT STAGES RAN. EXIT 0.
 
   1. npm run audit:gate      found 0 vulnerabilities
   2. chamber-lock.mjs        ok
-  3. verify-runner.mjs       check: 0 errors, 0 warnings | test: 1171 passed, 1 skipped
-  4. shaolin-lint.mjs        ok
+  3. verify-runner.mjs       check: 0 errors, 0 warnings | test: 1173 passed, 1 skipped
+  4. shaolin-lint.mjs        ok (0 stale, 0 missing)
   5. assumption-alarm.mjs    ok
   6. seam-ledger.mjs         ok
   7. clan-chain.mjs          ok
   8. proof-tape.mjs          ok
 
-Recorded separately in this folder, and run after the chain so they postdate its marker:
+Run on this head after the chain, then `npm run proof:tape` once more so the tape sees them:
 
-  npm run check       0 errors, 0 warnings
   npm run lint        exit 0, clean                  -> lint.txt
-  npm test            1171 passed | 1 skipped        -> test.txt
   npm run build       exit 0                         -> build.txt
   npx playwright test 22 passed                      -> e2e.txt
 
-Both branches' suites survive the merge intact: this branch's 6 new e2e tests and PR #292's are
-all present and passing, and no test from either side was dropped to resolve a conflict.
-
-## What the merge had to reconcile
-
-PR #292 and this branch independently reached the same conclusion about MeechieTools.svelte — that
-one staleness token cannot serve both the verdict request and the page, and the two must be split.
-#292 implemented it there; this branch implemented the same split in VerdictPageState for the three
-mode routes. Neither knew about the other. That convergence is the most interesting thing about
-this merge and is recorded in the log.
-
-Conflicts and how each was resolved:
-
-  src/lib/components/MeechieTools.svelte
-    #292 added `canDecodeImage`, a real decode probe that drops an image a byte-signature test
-    would wrongly accept (a truncated PNG keeps a valid header). This branch had deleted the file's
-    private `previewUrl` and `IMAGE_MIME_TYPES` in favour of the shared core module. Kept #292's
-    probe and its decode-filtered list, and routed both through `generatedImageDataUrl`. The URL is
-    now built once and reused for the probe and the preview rather than derived twice.
-
-  tests/e2e/smoke.spec.ts
-    #292 refactored a shared test onto new helpers (`makeToolkitPage`, `expectPageOnScreen`); this
-    branch had only reformatted it. Took #292's version wholesale. This branch's own new tests were
-    untouched by the conflict and are all still present.
-
-  WORST_TO_BEST_LOG.md
-    Append-only, and both sides appended. Kept both, oldest first: Run 2's merge close-outs, then
-    Run 3's entries. Nothing was dropped.
-
-  docs/evidence/2026-09-04/*
-    Both sides regenerated them. Neither side's copy describes the merged tree, so every file here
-    was regenerated from scratch against this head rather than picked from one side.
-
-Known-failing, and not this PR's: the Vercel deployment status. The account hit Vercel's free-tier
-cap of 100 deployments per day ("api-deployments-free-per-day"), an account-level quota consumed by
-every push across every branch today, not anything reachable from this diff. It cannot be re-run
-for 24 hours, so the one permitted re-run is not being spent on a guaranteed failure. Commented on
-the PR. The GitHub Actions "verify" workflow is green.
-
-## Codex round on the merge head (e31f918)
-
-One finding, and it was right: on all three mode routes, a *rejection* from the square
-`outputPackagingAdapter.package()` call escaped to the outer catch, discarding the paid images and
-the print PDF the preceding call had already built. So splitting the two packaging calls — which
-this run had claimed, in the log and in three commit messages, gave failure isolation — bought
-nothing against the failure shape most likely to occur.
-
-Checked rather than assumed: `package()` in src/lib/adapters/output-packaging.adapter.ts has no
-try/catch anywhere in its body, and pdf-lib's embedPng/embedJpg/save plus the canvas work in
-imageToPngBase64 all throw. So the rejection path is real, not theoretical.
-
-Fixed by porting the pattern PR #292 had already landed in MeechieTools.svelte for the same defect:
-install the page *before* packaging it (the generation is the paid part and has already succeeded;
-packaging is a local render that can fail on its own), and catch each packaging call on its own.
-Ported rather than reinvented, so the two flows now fail the same way.
-
-This is the third time in this run that the same shape appeared: a Result-returning call whose
-`{ ok: false }` branch was handled and whose *throw* was not. The other two were the memoised
-session resolve and this. Recorded in LESSONS_LEARNED.md.
-
-Twelve guards are now proven by deletion rather than by reading, each confirmed to fail when its
-guard is removed — and every mutation was asserted to have applied before its result was believed:
-
-  - "does not cancel an in-flight verdict request"        -> collapsing the two staleness tokens
-  - "packages print and share separately"                 -> a single two-variant packaging call
-  - "keeps the printable PDF when only the square fails"  -> the same
-  - "keeps the page and the print PDF when square throws" -> the per-call packaging try/catch
-  - "keeps the page when the print call throws too"       -> the same
-  - "discards a page ... while it was being packaged"     -> the post-packaging isStale() check
-  - "retries a session that failed the first time"        -> caching the failed owner promise
-  - "retries after a session read that threw"             -> letting the rejection escape the memo
-  - "refuses to start a generation while a replacement"   -> the isWorking guard in makePage()
-  - "does not record recommended fixes as applied"        -> writing recommendedFixes to fixesApplied
-  - "returns null from a request a reset abandoned"       -> returning the current verdict instead
-  - "Another one drops a dedication" (e2e)                -> the setDedication('') on a new saying
-
-Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
-check 0/0, lint clean, test 1165 passed / 1 skipped, build exit 0, playwright 22 passed.
-
-## Codex round on 3e5fd74 — two findings, and a third they exposed
-
-Both findings were consequences of the previous round's fix, which installed the page before
-packaging. That was the right change; it was ported from PR #292 without the rest of #292's pattern.
-
-1. Corrupt bytes became a saveable page. `GeneratedImageSchema` constrains `data` only to be
-   non-empty, and the generation pipeline labels unrecognised bytes as PNG, so a truncated response
-   passes the contract intact. Installing before packaging meant it reached the screen and armed
-   Save before anything decoded it. Ported `canDecodeImage` from MeechieTools.svelte — a real
-   decode, not a byte-signature test, because a response cut off mid-body keeps a valid PNG header.
-
-2. The square variant was rasterised even when the run was already stale. A 1080px canvas render
-   for a page the user had replaced. Added an isStale() check between the two packaging calls.
-
-3. Found while writing the test for (1): `makePage()` opened with `resetPage()`, so pressing
-   Generate destroyed the page already on screen before the replacement existed. The new error
-   message for (1) — "The page on screen was kept" — would have been a lie. This is the same defect
-   the verdict path was fixed for, on the page path, and #292 had already fixed it in the sibling.
-   Now advances the token without clearing.
-
-Fifteen guards are proven by deletion, every mutation asserted to have applied first:
-
-  - "does not cancel an in-flight verdict request"        -> collapsing the two staleness tokens
-  - "packages print and share separately"                 -> a single two-variant packaging call
-  - "keeps the printable PDF when only the square fails"  -> the same
-  - "keeps the page and the print PDF when square throws" -> the per-call packaging try/catch
-  - "keeps the page when the print call throws too"       -> the same
-  - "drops an image the browser cannot decode"            -> the decode filter
-  - "keeps the page when nothing in the response decodes" -> the decode filter, and the non-
-                                                             destructive makePage entry
-  - "does not start the square render once stale"         -> the isStale() between packaging calls
-  - "discards a page ... while it was being packaged"     -> the post-packaging isStale() check
-  - "retries a session that failed the first time"        -> caching the failed owner promise
-  - "retries after a session read that threw"             -> letting the rejection escape the memo
-  - "refuses to start a generation while a replacement"   -> the isWorking guard in makePage()
-  - "does not record recommended fixes as applied"        -> writing recommendedFixes to fixesApplied
-  - "returns null from a request a reset abandoned"       -> returning the current verdict instead
-  - "Another one drops a dedication" (e2e)                -> the setDedication('') on a new saying
-
-Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
-check 0/0, lint clean, test 1168 passed / 1 skipped, build exit 0, playwright 22 passed.
-
-Vercel, which failed on the four previous heads, deployed successfully on 3e5fd74: the account's
-daily cap freed up. The earlier standing-down comment said it could not be re-run for 24 hours;
-that was the documented reset window and it cleared sooner. Corrected on the PR rather than left
-standing, because a comment telling a reader to expect Vercel red would hide a genuine failure.
-
-## SonarCloud on d823963 — cognitive complexity 16 (limit 15), accepted
-
-The Quality Gate still passed, and the finding is fair: `makePage` had accumulated the generate
-fetch, two schema checks, the decode filter, the install, two packaging calls and their error
-branches. Sixteen is what that looks like.
-
-Fixed by extracting two module-level helpers rather than by loosening the rule:
-
-  decodableImages(images)        the decode-and-filter step, with the reason it exists
-  packageOneVariant(variant, …)  one packaging call with every failure shape turned into a value
-
-Both were already cohesive blocks with their own paragraph of reasoning; naming them made the
-comments into documentation of a named thing rather than an aside in a long function. `makePage`
-now reads as: ask, validate, keep what decodes, install, package, report.
-
-Behaviour-preserving, and checked as such rather than assumed: the full suite passes unchanged, and
-the decode guard was re-mutated after the extraction (drop the `.filter`) to confirm the same two
-tests still fail. A refactor that quietly disarmed a guard would look identical to one that did not.
-
-Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
-check 0/0, lint clean, test 1168 passed / 1 skipped, build exit 0, playwright 22 passed.
-
-## The complexity finding, second attempt (a5d5ebc -> this head)
-
-The first attempt extracted `decodableImages` and `packageOneVariant` and did not move the number:
-SonarCloud still reported 16 on `a5d5ebc`. The reason is worth stating, because it is a general
-one. Those extractions moved *statements* out of `makePage`; cognitive complexity counts *branches*
-and their nesting, and the branches stayed behind — the two `isStale()` guards around packaging and
-the print/share error ladder were still inline.
-
-Second attempt extracts the phase rather than the statements: `attachDownloads` now owns the
-packaging calls, both staleness checks and the error reporting. `makePage`'s branch-bearing
-constructs are down to nine:
-
-  if (!this.verdict || this.isGenerating || this.isWorking)   entry guard + one || sequence
-  if (isStale())                                              after the generate call
-  if (!parsed.success)                                        off-contract response
-  if (!parsed.data.ok)                                        provider-reported failure
-  if (isStale())                                              after the decode probes
-  if (usable.length === 0)                                    nothing decodable
-  catch (requestError) + its ternary                          network failure
-  if (isStale())                                              inside the catch
-  if (!isStale())                                             inside the finally
-
-That is roughly 13 by Sonar's counting rules, against a limit of 15 — checked by counting rather
-than by pushing and waiting, because each push costs a CI cycle and one of the account's limited
-daily Vercel deployments.
-
-Both guards that moved into `attachDownloads` were re-mutated there to confirm they still fail the
-tests that cover them: dropping the pre-square `isStale()` fails "does not start the square render
-once the run is already stale", and removing `packageOneVariant`'s catch fails both throw tests.
-
-One mutation in this round reported "no target found" and was rejected by its own assertion rather
-than silently passing — Prettier had wrapped the call across four lines after it was written. That
-assertion exists because this run was caught by exactly that earlier and did not notice.
-
-Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
-check 0/0, lint clean, test 1168 passed / 1 skipped, build exit 0, playwright 22 passed.
-
-## Codex P1 on 742d146 — a concrete collision, accepted; the workflow demand, still declined
-
-The earlier seam finding was refused as a general argument. This one is different: it names a
-specific data-loss path, and it is right.
-
-  `crypto.randomUUID` is gated on a secure context, so it is absent over plain HTTP and in some
-  embedded webviews. The fallback was `creation-${Date.now()}`. `upsertRecord` in
-  creation-store.adapter.ts filters by `existing.id !== record.id`, so two saves landing in the
-  same millisecond — two tabs on one vault — silently dropped the first.
-
-Worth stating plainly: this was not inherited. `session.adapter.ts` already mixes a random suffix
-into its own clock-based fallback; the version written here omitted it, so it was weaker than the
-precedent sitting next to it in the same repository.
-
-Fixed with `newCreationId()`: `randomUUID` where available, then `crypto.getRandomValues` (which is
-*not* secure-context gated, so it covers nearly everything `randomUUID` misses), then the session
-adapter's clock-plus-random shape as a last resort.
-
-`createdAtISO` now reads through `ClockSeam` rather than `new Date()`. The seam's own contract says
-anything needing "now" must cross it. Its adapter already exists, so consuming it changes no
-contract and touches no seam artifact — which is also why the second half of the finding, "complete
-the required workflow", is still declined: nothing under contracts/, probes/, fixtures/,
-src/lib/mocks/ or src/lib/adapters/ is modified by using an adapter that is already there.
-
-### The test for this was wrong on the first attempt
-
-The first version of the id test passed against the *broken* fallback. Two `withPage()` calls do
-real async work between them, so the wall clock advanced past the collision window and the ids
-differed for a reason that had nothing to do with the fix. Caught by mutating the fallback back and
-seeing the test still pass — the third time in this run that a mutation has exposed a test proving
-less than it claimed.
-
-Rewritten with `Date.now` frozen, which is the only way to reach the case the finding describes.
-Both branches are now pinned: restoring the clock-only fallback fails it, and disabling the
-`getRandomValues` branch fails it and the branch's own test.
-
-Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
-check 0/0, lint clean, test 1171 passed / 1 skipped, build exit 0, playwright 22 passed.
-
-## SonarCloud Quality Gate FAILED on 564f24e — and it was mine
-
-The first actual Quality Gate failure of this run, on a required condition: "C Security Rating on
-New Code (required >= A)". The issue: "Pseudorandom number generators (PRNGs) should not be used in
-security contexts", on the `Math.random()` in the previous commit's id fallback.
-
-Every earlier SonarCloud finding here passed the gate and was fixed anyway. This one blocked, and
-the cause was the fix for the round before it — introduced while removing a collision.
-
-The rule's own framing is not quite right for this code: a vault record id is not a secret, and
-nothing downstream treats it as unguessable. But the finding is still correct, for a better reason
-than the rule states. `crypto.getRandomValues` — a cryptographic source — sits two lines above, and
-the code reached past it for a pseudorandom one. Arguing "the id is not a secret" would have been
-defending the habit rather than the code.
-
-Fixed by removing the PRNG rather than by justifying it, and the replacement is strictly better:
-
-  fallbackCounter += 1;
-  return `creation-${Date.now()}-${fallbackCounter}`;
-
-A monotonic counter cannot repeat within a document, which is exactly the guarantee `Date.now()`
-alone was missing — so it answers the original collision finding more directly than `Math.random()`
-did. And this branch needs a browser with no Web Crypto at all (`getRandomValues`, unlike
-`randomUUID`, is not secure-context gated), so it is close to unreachable in practice.
-
-The collision test still fails when the counter is removed and the clock-only id restored, so the
-guarantee is pinned to behaviour rather than to the shape of the expression.
-
-Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
-check 0/0, lint clean, test 1171 passed / 1 skipped, build exit 0, playwright 22 passed.
-
-## Codex round on 4ef64dc — two findings, and the documentation one is the serious one
-
-### The counter separated saves, not tabs
-
-Correct, and it means the previous close-out overstated the fix. `fallbackCounter` is module-level,
-so each document starts it at zero: two tabs saving in the same millisecond both emit
-`creation-<ms>-1`, which is the two-tab collision the original P1 named.
-
-Added `documentToken`, derived once per document from `performance.timeOrigin + performance.now()`
-at sub-millisecond resolution. Two tabs almost never share one, and it is not a PRNG so the security
-gate stays green. Stated in the code as a bound rather than a proof: two documents whose timeOrigin
-matches to the microsecond, saving in the same millisecond, would still collide — and reaching this
-branch at all needs a browser with no Web Crypto whatsoever.
-
-### `/m/[mode]` is NOT orphaned, and this repo's own docs said it was
-
-The more consequential finding, and it is a documentation defect rather than a code one.
-
-`CLAUDE.md` described `/m/[mode]` as "Orphaned fourth implementation of the same modes. Linked from
-nowhere, no generation. Delete candidate." Two of those three claims are false:
-
-  src/lib/components/studio/StudioHero.svelte:79
-      <a href={`/m/${mode.id}`}>{mode.shortLabel}</a>
-
-inside `<nav class="focused-mode-links">`, rendered for every weekly mode — and `StudioHero` is
-mounted by `src/routes/+page.svelte`, the home page. It also calls `/api/tools` and shows a verdict,
-so "no generation" is only true of coloring pages, not of the route doing nothing.
-
-The claim originated in Run 2's log and was copied into `CLAUDE.md` by this run without checking it.
-That is the damage a wrong note in a navigation file does: the next run reads "delete candidate" in
-the file whose whole job is orientation, and 404s a link on the most-visited page in the app.
-
-Corrected in `CLAUDE.md` (both rows), and the log carries a correction entry — it is append-only, so
-the original text stands and the correction supersedes it.
-
-Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
-check 0/0, lint clean, test 1171 passed / 1 skipped, build exit 0, playwright 22 passed.
-
-## Codex round on e7b7d77 — the two guards the non-destructive entry needed
-
-Both findings are consequences of the change that stopped `makePage` clearing the page on entry.
-That change was right; it opened a window that had not existed before, and neither guard covered it.
-
-1. Save was live while a replacement generated. Page A stays on screen while B builds, so the Save
-   button stayed enabled. A save started in that window pins A's recipe and images but captures B's
-   token — and installing B does not bump the token again, so the save's own staleness check passes
-   and it reports "Saved to the vault" beneath B, having persisted A. Blocked in `canSaveToVault`
-   and again in `saveToVault`, since this class is the shared contract for three routes.
-
-2. A replacement verdict could discard a paid generation. `requestVerdict` was guarded only by
-   `isWorking`, so "Another one" / "Ask her again" / "Re-run the ruling" during a generation would
-   succeed and call `resetPage()`, throwing away work already billed. This is the exact mirror of
-   the `isWorking` guard added to `makePage` earlier in this branch: one rule, two directions.
-   Guarded in the class and disabled on all three route buttons.
-
-### Two existing tests had to change, and that is the finding restated
-
-"discards a page whose verdict was replaced while it was generating" and its packaging twin both
-drove staleness by replacing the verdict mid-generation — which guard 2 now makes impossible. They
-were not deleted: the staleness they cover is still reachable through `reset()`, the reader walking
-away, so both now drive it that way and still fail when their guard is removed. A test that had to
-change because a new guard made its scenario unreachable is evidence the guard does something.
-
-Seventeen guards are proven by deletion, every mutation asserted to have applied first.
-
-Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
-check 0/0, lint clean, test 1173 passed / 1 skipped, build exit 0, playwright 22 passed.
+And by the chain itself:
+
+  npm run check       0 errors, 0 warnings
+  npm test            1173 passed | 1 skipped        -> test.txt
+
+## Why the standalone checks were re-run for a documentation-only commit
+
+The first push of this close-out left lint.txt and build.txt as they were, on the argument that the
+src/ and tests/ trees are byte-identical to the merge commit those artifacts already describe, and
+that a fresh timestamp over unchanged output is not evidence of anything.
+
+Codex raised it as a P1 and is right, for a reason the argument missed. AGENTS.md requires
+`npm run check`, `npm run lint`, `npm test` and `npm run build` **before every push** — the rule is
+about the head being pushed, not about whether the inputs are believed to have changed. An artifact
+that predates the head cannot prove the head passed, however sound the reasoning is that it would.
+"I am sure it still passes" is a claim; running it is a measurement.
+
+The e2e suite is scoped by AGENTS.md to user-facing changes, and this one is not. It was run anyway
+rather than left describing an earlier head, because the argument for leaving it is the same
+argument that was already wrong once above.
+
+## How to make proof-tape.md see them, and a correction to two earlier claims
+
+`markArtifactsPredatingRun` in scripts/proof-tape.mjs takes its marker from the mtime of
+chamber-lock.json, written at **stage 2** of the chain. Two claims about that have now been wrong in
+this folder:
+
+  - The previous run's note said running lint and build *after* the chain makes them postdate the
+    marker. Half true: they do postdate it, but proof-tape.md was already rendered at stage 8 and
+    does not see them, so the tape still marks them.
+  - This file's own previous revision then concluded they can therefore **never** come out fresh.
+    That is also wrong, and Codex named the fix: run them after the chain and then invoke
+    `npm run proof:tape` on its own. chamber-lock.json keeps its stage-2 mtime, the standalone
+    artifacts are newer than it, and the re-rendered tape reports them as current.
+
+That is the order used here. cipher-gate.json is now the only marked file, and it is marked
+correctly: no seam artifact is in this diff, so no Cipher Gate entry was required or written.
+
+A note on the shape of that mistake, since this run's log entry is about exactly it: the first claim
+was inherited from the previous run's file and repeated without testing. The second was reasoned
+from the source and stated as an impossibility after one attempt. Reading the code is not the same
+as running it either.
