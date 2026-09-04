@@ -229,8 +229,14 @@ const anyCase = (word: string): string =>
  * wrong here: a merged pair still reads as finished prose and simply fails the length check, while
  * a bad split prints a page with two characters on it.
  */
-/** A closing quote or bracket, which may sit between the terminator and the space. */
-const SENTENCE_CLOSER = `["'”’)\\]]`;
+/**
+ * A run of closing quotes and brackets, which may sit between the terminator and the space.
+ *
+ * A run rather than one, because they nest: `He said ("I was busy.") Then he left.` closes twice,
+ * and allowing only a single closer left that pair as one oversized sentence — which put the title
+ * straight back on the mid-sentence truncation this whole boundary exists to avoid.
+ */
+const SENTENCE_CLOSERS = `["'”’)\\]]*`;
 
 /**
  * A real sentence end, allowing for a closer.
@@ -246,10 +252,9 @@ const SENTENCE_CLOSER = `["'”’)\\]]`;
  * prevent. The second pair of lookbehinds spans the closer so the check reaches the word again.
  */
 const SENTENCE_BOUNDARY = new RegExp(
-	`(?<=[.!?]${SENTENCE_CLOSER}?)` +
-		`(?<!\\b(?:${SENTENCE_ABBREVIATIONS.map(anyCase).join('|')})\\.)(?<![A-Z]\\.)` +
-		`(?<!\\b(?:${SENTENCE_ABBREVIATIONS.map(anyCase).join('|')})\\.${SENTENCE_CLOSER})` +
-		`(?<![A-Z]\\.${SENTENCE_CLOSER})` +
+	`(?<=[.!?]${SENTENCE_CLOSERS})` +
+		`(?<!\\b(?:${SENTENCE_ABBREVIATIONS.map(anyCase).join('|')})\\.${SENTENCE_CLOSERS})` +
+		`(?<![A-Z]\\.${SENTENCE_CLOSERS})` +
 		` (?=["'“(]?[A-Z0-9])`
 );
 

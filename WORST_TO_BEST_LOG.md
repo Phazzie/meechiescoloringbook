@@ -2063,3 +2063,43 @@ supplied `decorations` and derives in its absence — and the provenance decisio
 lives, in `studio-state`.
 
 A failing test after a fix is information about which of the two is wrong. This time it was the test.
+
+---
+
+## Run 2, correction 5 — 2026-09-04 — both corrections were themselves too narrow
+
+**Sixteen rounds, 63 findings, 29 real user-visible defects.** Both of these are second-order: the
+fixes were right in direction and wrong at the edge.
+
+### One closer is not a run
+
+`He said ("I was busy.") Then he left.` closes twice, and the boundary allowed a single closer. So
+the pair stayed one oversized sentence and the title fell back to the mid-sentence truncation the
+whole boundary exists to avoid — the third time that same failure has been reintroduced by a fix
+aimed at it.
+
+The lookbehinds now span a run (`["'”’)\]]*`) in all three positions, so the abbreviation guard still
+reaches the word through however many closers sit in the way. Measured across ten cases before
+committing, including `He said ("Dr." Smith) Then he left.`, which must *not* split.
+
+### Restore-time provenance is not the same as last-applied
+
+Pinning the theme at restore time answered "is this the theme it was restored under?" when the
+question is "did the reader change the theme since the last rebuild?" Those differ the moment someone
+picks a theme and comes back: returning to the restore-time theme read as *no change*, so the density
+computed for the theme in between was preserved for the one returned to.
+
+`lastAppliedThemeId` is written at the end of every rebuild instead. Red-proofed: dropping that one
+line fails the new assertion with `expected 'dense' to be 'minimal'`.
+
+### The shape of these last five corrections
+
+Every one has been a boundary being drawn in the wrong place, not a mistake about what the code does:
+one closer instead of a run, restore-time instead of last-applied, always-preserve instead of
+provenance, the guard after the closer instead of spanning it. Each fix was correct about the case in
+front of it and silent about the case one step out.
+
+The habit that catches these is not more care while writing. It is asking, before calling a fix done,
+what the *adjacent* input looks like — one more closer, one more theme change, one more request in
+flight — and running that input rather than reasoning about it. Every one of these five was found in
+seconds once measured, and none of them was visible from re-reading the diff.

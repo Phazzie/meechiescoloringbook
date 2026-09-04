@@ -1152,8 +1152,17 @@ describe('StudioState quote vault', () => {
 		expect(studio.spec.decorations).toBe('dense');
 
 		// Choosing a theme is the one thing that recomputes it.
-		const otherTheme = studioThemes.find((theme) => theme.id !== studio.selectedThemeId);
+		const restoreTimeTheme = studio.selectedThemeId;
+		const otherTheme = studioThemes.find((theme) => theme.id !== restoreTimeTheme);
 		studio.selectedThemeId = otherTheme!.id;
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.decorations).toBe('minimal');
+
+		// And coming back to the theme that happened to be selected at restore time is still a
+		// change. Comparing against a restore-time value read this as "no theme change" and kept the
+		// density computed for the theme in between.
+		studio.spec = { ...studio.spec, decorations: 'dense' };
+		studio.selectedThemeId = restoreTimeTheme;
 		await studio.syncSpecFromCurrentText();
 		expect(studio.spec.decorations).toBe('minimal');
 	});

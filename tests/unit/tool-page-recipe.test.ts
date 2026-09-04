@@ -827,3 +827,20 @@ describe('the closer does not hide an abbreviation from the guard', () => {
 		]);
 	});
 });
+
+describe('closers nest', () => {
+	it('ends a sentence that closes twice', () => {
+		// Allowing only one closer left a nested pair as a single oversized sentence, which put the
+		// title straight back on the mid-sentence truncation this boundary exists to avoid.
+		expect(splitResponseLines('He said ("I was busy.") Then he left.')).toEqual([
+			'He said ("I was busy.")',
+			'Then he left.'
+		]);
+	});
+
+	it('still sees the abbreviation through a run of closers', () => {
+		expect(splitResponseLines('He said ("Dr." Smith) Then he left.')).toEqual([
+			'He said ("Dr." Smith) Then he left.'
+		]);
+	});
+});
