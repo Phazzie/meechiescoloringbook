@@ -393,7 +393,10 @@ export class StudioState {
 			dedication: this.currentDedication(),
 			// Keep the layout only while this is still the reopened page. For anything the studio
 			// authored, and for every fresh verdict, this is 'list'.
-			listMode: this.restoredPageLayout ? this.spec.listMode : 'list'
+			listMode: this.restoredPageLayout ? this.spec.listMode : 'list',
+			// A toolkit page carries no footer; a studio page always does. Preserve whichever the
+			// page being edited actually has rather than re-adding one to a reopened list page.
+			includeFooter: this.restoredPageLayout ? this.spec.footerItem !== undefined : true
 		});
 		await this.validateSpec();
 		this.scheduleDraftSave();
@@ -953,6 +956,11 @@ export class StudioState {
 		}
 		if (draft.ok && draft.value) {
 			this.spec = draft.value.intent;
+			// A persisted `title_only` spec can only have come from reopening a page saved by the
+			// Meechie tools hub — the studio never authors one. Without this, a browser refresh
+			// rebuilt the flag as false and the next settings change converted the restored quote
+			// page into a numbered list, spending image quota on a layout the user never chose.
+			this.restoredPageLayout = draft.value.intent.listMode === 'title_only';
 			this.evidence = draft.value.chatMessage || '';
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;

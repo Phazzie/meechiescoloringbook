@@ -457,10 +457,20 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			return;
 		}
 
+		// The verdict fetch needs the same staleness guard as the page generation. `/api/tools` for
+		// tool A can still be in flight when the user switches to tool B: the tab handler clears
+		// the state but cannot recall the request, so A's response would install itself as `output`
+		// under B's tab — and the next click would spend a paid generation on A's verdict while the
+		// screen showed B.
+		const requestedTool = selectedTool;
+		const token = pageToken;
+		const isStale = (): boolean => token !== pageToken || selectedTool !== requestedTool;
+
 		try {
 			const payload = await postJson('/api/tools', parsedInput.data, {
 				timeoutMs: POST_JSON_TIMEOUTS_MS.tools
 			});
+			if (isStale()) return;
 			const parsedResult = MeechieToolResultSchema.safeParse(payload);
 			if (!parsedResult.success) {
 				error = 'Tool response did not match contract.';
@@ -473,12 +483,14 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 				error = parsedResult.data.error.message;
 			}
 		} catch (requestError) {
+			if (isStale()) return;
 			error =
 				requestError instanceof Error
 					? requestError.message
 					: 'Tool request failed.';
 		} finally {
-			isWorking = false;
+			// A stale request must not clear the flag a newer one is holding.
+			if (!isStale()) isWorking = false;
 		}
 	};
 </script>

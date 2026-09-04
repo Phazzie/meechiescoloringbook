@@ -1002,4 +1002,83 @@ describe('StudioState quote vault', () => {
 		await studio.syncSpecFromCurrentText();
 		expect(studio.spec.listMode).toBe('title_only');
 	});
+
+	it('keeps a reopened quote page as a quote page, but does not carry that layout into a new verdict', async () => {
+		// A page saved from the Meechie tools hub can be `title_only`; the studio only ever authors
+		// list pages. The reopened layout has to survive a settings change on that page and stop
+		// applying the moment a new verdict replaces it.
+		const studio = registerInitialized(new StudioState());
+		const quoteSpec = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown',
+			listMode: 'title_only'
+		});
+		expect(quoteSpec.listMode).toBe('title_only');
+		expect(quoteSpec.footerItem).toBeUndefined();
+
+		await studio.loadCreation({
+			id: 'creation-quote',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: quoteSpec,
+			assembledPrompt: 'a saved toolkit quote page',
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+		expect(studio.spec.listMode).toBe('title_only');
+
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.listMode).toBe('title_only');
+
+		const nextMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
+		studio.handleModeSelect(nextMode!.id);
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.listMode).toBe('list');
+		expect(studio.spec.items.length).toBeGreaterThan(0);
+	});
+
+	it('restores the reopened quote layout after a browser refresh', async () => {
+		// A persisted `title_only` spec can only have come from a reopened toolkit page. Without
+		// restoring that provenance, a refresh rebuilt the flag as false and the next settings
+		// change converted the quote page, spending image quota on a layout nobody chose.
+		const quoteSpec = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown',
+			listMode: 'title_only'
+		});
+		const refreshed = await initFromDraft({
+			updatedAtISO: '2026-09-04T00:00:00.000Z',
+			intent: quoteSpec,
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT
+		});
+		await refreshed.syncSpecFromCurrentText();
+		expect(refreshed.spec.listMode).toBe('title_only');
+	});
+
+	it('does not add a footer when rebuilding a list page that never had one', () => {
+		// A toolkit list page carries no footer; the prompt assembler renders one as a second exact
+		// copy of the title, so rebuilding must not invent it.
+		const withoutFooter = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown',
+			includeFooter: false
+		});
+		expect(withoutFooter.footerItem).toBeUndefined();
+		expect(withoutFooter.listMode).toBe('list');
+
+		// The studio's own pages still get theirs.
+		expect(
+			buildColoringPageSpecFromMeechieText({
+				output: DEFAULT_STUDIO_TEXT_OUTPUT,
+				pageSize: 'US_Letter',
+				border: 'decorative',
+				styleHint: 'crown'
+			}).footerItem
+		).toBeDefined();
+	});
 });

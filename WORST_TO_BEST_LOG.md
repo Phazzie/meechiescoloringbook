@@ -1351,3 +1351,71 @@ All three are the same shape: **a value that is valid at one boundary and invali
 headline valid to the tool contract but not to the title schema. A studio-text object valid to build
 but not to store. A packaging call valid for one variant and fatal for the pair. None is reachable
 from the happy path, and none was caught by a suite that was green at every step.
+
+---
+
+## Run 2, fifth close-out — 2026-09-04 — the Codex round on `9f4e503`
+
+Five findings, all real. Two of them are the same flag, for the fourth and fifth time.
+
+### The flag, again — and why tracking it was the wrong shape
+
+`restoredPageLayout` has now been wrong in four distinct ways across four rounds:
+
+1. Not tracked at all — a reopened quote page became a numbered list on the next settings change.
+2. Tracked, but never cleared — the layout outlived its page and poisoned the next verdict.
+3. Cleared too early — a *failed* text action cleared it while the restored text was still on screen.
+4. Not restored from the draft — a browser refresh rebuilt `StudioState` with the flag false while
+   the persisted spec was still `title_only`, so the next settings change converted the page and
+   the next generation spent image quota on a layout nobody chose.
+
+The fourth fix is the one that should have been obvious first: **derive the flag from the persisted
+spec.** A `title_only` spec can only have come from a reopened toolkit page, because the studio has
+never authored one. `init()` now sets `restoredPageLayout = draft.intent.listMode === 'title_only'`.
+Red-proofed: removing that line fails the new test with `"list"` where `"title_only"` is required.
+
+The lesson is not "chase the readers" — that was the third close-out's and it was not enough. It is
+that **a piece of state with a lifetime needs its lifetime written down at every boundary it
+crosses**: created, cleared, *and restored*. Two of the four bugs were the boundaries nobody
+enumerated.
+
+### The footer nobody asked for
+
+`buildColoringPageSpecFromMeechieText` added a `footerItem` to every non-`title_only` page. A list
+page saved from the toolkit has no footer, and the prompt assembler renders one as a *second exact
+copy of the headline* — so reopening a structured toolkit page and changing any setting gave it a
+duplicate title. The builder now takes `includeFooter`, defaulting true so the studio is untouched.
+
+### Abbreviations broke the beat parser
+
+`splitResponseLines` breaks a single line after every `. `, so
+`Fault: Dr. Smith lied. Consequence: no access.` became `Fault: Dr.` / `Smith lied.` /
+`Consequence: no access.` — the middle fragment was dropped and the page printed **`Fault: Dr.`**
+
+Beats are now split on the prefixes themselves rather than on sentence ends, because the prefixes
+are the real boundaries and the prose between them is nobody's business:
+
+```
+sentence split: ["Fault: Dr.", "Smith lied.", "Consequence: no access."]
+prefix split:   ["Fault: Dr. Smith lied.", "Consequence: no access."]
+```
+
+### The score that fell off its own page
+
+`rate_excuse` returned its title early and skipped the whole-sentence logic added two rounds ago, so
+a two-sentence rating could end mid-thought. Routing it through the same path exposed a second
+mistake in the fix itself: the loop preferred a *longer* candidate over one carrying the score, so
+the rating — the entire point of that page — was the part dropped. The selection is now two passes,
+every length with the lead before any length without it. Caught by the test, not by reading.
+
+### The verdict fetch had the same race as the page
+
+`/api/tools` for tool A could still be in flight when the user switched to tool B; A's response then
+installed itself as `output` under B's tab, and the next click would have spent a paid generation on
+A's verdict while the screen showed B. Same token guard as the page generation, plus an identity
+check on the selected tool.
+
+### The count
+
+Six review rounds, 37 findings. Two refused with measurements, thirty-five fixed. Nine were real
+user-visible defects that a suite green at every step did not catch.

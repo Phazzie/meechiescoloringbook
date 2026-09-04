@@ -419,6 +419,15 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	 * spending a generation on the wrong layout.
 	 */
 	listMode?: ColoringPageSpec['listMode'];
+	/**
+	 * Whether to print the repeated-title footer. Defaults to true, which is what the studio has
+	 * always done.
+	 *
+	 * A list page saved from the Meechie tools hub carries no footer — the prompt assembler renders
+	 * one as a second exact headline line, so adding it on rebuild gives the reopened page a
+	 * duplicate of its own title.
+	 */
+	includeFooter?: boolean;
 }): ColoringPageSpec => ({
 	title: normalizeSpecTitle(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle),
 	// `title_only` forbids both items and a footer item, so a quote page carries neither.
@@ -429,7 +438,7 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 					number: item.number,
 					label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
 				})),
-	...(input.listMode === 'title_only'
+	...(input.listMode === 'title_only' || input.includeFooter === false
 		? {}
 		: {
 				footerItem: {

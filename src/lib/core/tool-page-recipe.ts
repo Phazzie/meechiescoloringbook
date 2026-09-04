@@ -206,9 +206,28 @@ export const splitResponseLines = (response: string): string[] => {
  * alone is not. Returns an empty array when the verdict came back unstructured, which is the
  * signal to fall back to a full-quote page.
  */
+/**
+ * Split a one-line verdict at its prefixes rather than at its sentence ends.
+ *
+ * `splitResponseLines` breaks a single line after every `. `, which corrupts a beat containing an
+ * abbreviation: `Fault: Dr. Smith lied. Consequence: no access.` became `Fault: Dr.` plus two
+ * fragments, and the page printed `Fault: Dr.`. The prefixes are the real boundaries, so split on
+ * them and leave the prose inside each beat alone.
+ */
+const splitBeatLines = (response: string): string[] => {
+	const lines = response
+		.split(/\r?\n/)
+		.map((line) => line.replace(/\s+/g, ' ').trim())
+		.filter((line) => line.length > 0);
+	return lines
+		.flatMap((line) => line.split(/(?=\b(?:fault|consequence|move|verdict|receipt) ?:)/i))
+		.map((part) => part.trim())
+		.filter((part) => part.length > 0);
+};
+
 export const extractVerdictBeats = (response: string): string[] => {
 	const beats: string[] = [];
-	for (const line of splitResponseLines(response)) {
+	for (const line of splitBeatLines(response)) {
 		// Lines arrive whitespace-collapsed, so a single optional space is all that can separate
 		// the prefix from its colon. Spelling that out keeps the pattern linear.
 		const match = /^(fault|consequence|move|verdict|receipt) ?: ?(.+)$/i.exec(line);
@@ -431,12 +450,17 @@ const toPageTitle = (parts: string[]): string => {
 };
 
 const buildTitle = (output: MeechieToolOutput, forList: boolean): string => {
-	if (output.toolId === 'rate_excuse' && typeof output.rating === 'number') {
-		return toPageTitle([`${output.rating}/10`, output.response]);
-	}
 	// A list page prints its payload as the items, so the title stays as the headline alone and
 	// does not repeat the first beat.
 	if (forList) return toPageTitle([output.headline]);
+
+	// The score leads a `rate_excuse` page, but it is still a quote page and gets the same
+	// whole-sentence treatment as the rest — a score-prefixed title used to skip the logic below
+	// and could end mid-sentence on `Then he changed the`.
+	const lead =
+		output.toolId === 'rate_excuse' && typeof output.rating === 'number'
+			? `${output.rating}/10`
+			: output.headline;
 
 	// A quote page has no items: the title is the whole printed page, and the spec contract caps
 	// it at 96 characters. The prompts ask for one to three sentences, so a response that does not
@@ -444,13 +468,20 @@ const buildTitle = (output: MeechieToolOutput, forList: boolean): string => {
 	// mid-sentence. Prefer the largest run of *whole* sentences that fits, so the page always
 	// prints a finished thought. The remainder is not lost: the verdict card shows the full
 	// response, Copy yields all of it, and a saved page stores it as `studioText.quote`.
-	const wholeTitle = toPageTitle([output.headline, output.response]);
+	const wholeTitle = toPageTitle([lead, output.response]);
 	const fits = (candidate: string): boolean =>
 		compactColoringPageTitle([candidate]).length <= MAX_TITLE_LENGTH &&
 		candidate.length <= MAX_TITLE_LENGTH;
-	if (fits(`${output.headline} - ${output.response}`)) return wholeTitle;
+	if (fits(`${lead} - ${output.response}`)) return wholeTitle;
 
 	const sentences = splitResponseLines(output.response);
+	// Two passes, and the order matters. Keeping the lead is worth more than keeping an extra
+	// sentence — dropping it would take the score off a `rate_excuse` page, which is the whole
+	// point of that page — so try every length *with* the lead before trying any without it.
+	for (let take = sentences.length; take > 0; take -= 1) {
+		const candidate = sentences.slice(0, take).join(' ');
+		if (fits(`${lead} - ${candidate}`)) return toPageTitle([lead, candidate]);
+	}
 	for (let take = sentences.length; take > 0; take -= 1) {
 		const candidate = sentences.slice(0, take).join(' ');
 		if (fits(candidate)) return toPageTitle([candidate]);

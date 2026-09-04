@@ -616,3 +616,42 @@ describe('a verdict with no printable words cannot break the save', () => {
 		}
 	});
 });
+
+describe('findings from the review round on 9f4e503', () => {
+	it('does not split a structured verdict at an abbreviation', () => {
+		// `Fault: Dr. Smith lied.` was split after "Dr." by the sentence splitter, the middle
+		// fragment was dropped, and the page printed `Fault: Dr.`
+		expect(extractVerdictBeats('Fault: Dr. Smith lied. Consequence: no access.')).toEqual([
+			'Fault: Dr. Smith lied.',
+			'Consequence: no access.'
+		]);
+		const recipe = buildToolPageRecipe(
+			output('red_flag_or_run', 'Fault: Dr. Smith lied. Consequence: no access.')
+		);
+		expect(recipe.spec.items.map((item) => item.label)).toEqual([
+			'Fault: Dr. Smith lied.',
+			'Consequence: no access.'
+		]);
+	});
+
+	it('still splits a one-line verdict that uses several prefixes without newlines', () => {
+		expect(
+			extractVerdictBeats('Fault: he lied. Consequence: no key. Move: change the locks.')
+		).toEqual(['Fault: he lied.', 'Consequence: no key.', 'Move: change the locks.']);
+	});
+
+	it('gives a rate_excuse title the same whole-sentence treatment as every other quote page', () => {
+		const recipe = buildToolPageRecipe(
+			output(
+				'rate_excuse',
+				'He said the alarm never went off that morning. Then he changed the story twice before lunch.',
+				{ headline: '2/10', rating: 2 }
+			)
+		);
+		expect(recipe.spec.title.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
+		// The score still leads, and the page does not end mid-sentence.
+		expect(recipe.spec.title.startsWith('2/10')).toBe(true);
+		expect(recipe.spec.title.endsWith('Then he changed the')).toBe(false);
+		expect(ColoringPageSpecSchema.safeParse(recipe.spec).success).toBe(true);
+	});
+});
