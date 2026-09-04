@@ -1566,3 +1566,60 @@ Three corrections I made to my own claims, each in the open rather than quietly:
 The pattern worth keeping from this run is the one from the sixth close-out, and it explains the
 corrections too: a claim made from reading is a hypothesis, and the difference between a good run
 and a bad one is whether you measure it before you say it out loud.
+
+---
+
+## Run 2, addendum — 2026-09-04 — the Codex round on `758dc38`
+
+Two findings arrived after I had written the close-out above. Both were real, so the count in it is
+wrong and this entry is the correction: **ten rounds, 43 findings, thirteen real user-visible
+defects.** The log is append-only, so the number above stands as written and this supersedes it.
+
+### The footer absence outlived the page it belonged to
+
+Last round I changed footer provenance from `restoredPageLayout ? spec.footerItem !== undefined :
+true` to reading the spec unconditionally, on the reasoning that "every studio-authored spec has a
+footer and no toolkit list page does." That reasoning is true of a spec's *origin* and useless as a
+*test*, because after the first rebuild the spec being read is the one the rebuild just wrote.
+
+So: reopen a footerless toolkit page, then switch modes. The flag clears, but the footerless spec is
+still on the paper. The fresh studio-authored list is built from it with `includeFooter: false` — and
+the next rebuild reads *that* spec, and the one after that, and the footer never comes back for the
+rest of the session.
+
+That is the **sixth** time in this run that a fix created the next defect, and the second time on
+these same eight lines. Which finally makes the actual shape of the mistake legible: I kept trying to
+infer provenance from the artifact instead of tracking it. Layout and footer are one question — "is
+this still the page that was reopened?" — and the answer is a fact about history, not something
+recoverable from the spec, because the spec gets overwritten by the very code asking.
+
+The fix is to make them read the same flag, and to fix the flag instead of routing around it. It was
+being rebuilt from a draft as `listMode === 'title_only'`, which recognised reopened quote pages and
+missed reopened structured ones — that mismatch is what made reading the spec look necessary last
+round. `loadCreation` had it right all along and sets it unconditionally; the draft path now does the
+same. For a studio-authored draft that costs nothing, because a `list` with a footer gets identical
+answers from either branch.
+
+### `Dr.` is not a sentence
+
+`splitResponseLines` split a single-line response after every `. `, and a quote title is trimmed to
+the largest run of whole sentences that fits 96 characters. So a long verdict opening `Dr. Reyes
+signed off on the inspection he never attended...` printed a coloring page whose entire text was
+`Verdict Delivered - Dr.` A finished-looking page with none of the verdict on it, and the same split
+made `Dr.` item 1 of a list page.
+
+I had fixed the abbreviation case for *beats* two rounds earlier, in `splitBeatLines`. I fixed it
+there and did not ask who else split on sentence ends — the same "who used to do this, and who does
+it now?" question from the sixth close-out, asked one function too narrowly. Fixed at the source this
+time, so both the title path and the list path get it.
+
+The boundary is now a terminator plus a space plus something that starts a sentence, with lookbehinds
+for a short abbreviation list and for a single-letter initial. That deliberately also blocks a
+sentence genuinely ending on a lone capital ("He got an A. Then he left."), merging two sentences
+instead of splitting them. That is the right way to be wrong: a merged pair still reads as finished
+prose and just fails the length check, where a bad split prints a page with two characters on it.
+
+```
+npm run verify   exit 0   1099 passed | 1 skipped
+npm run test:e2e 13 passed
+```

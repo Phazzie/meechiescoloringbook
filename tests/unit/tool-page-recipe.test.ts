@@ -681,3 +681,40 @@ describe('beats split only where a beat actually starts', () => {
 		).toEqual(['Fault: he lied.', 'Consequence: no key.', 'Move: change the locks.']);
 	});
 });
+
+describe('sentence selection survives abbreviations', () => {
+	it('does not treat an abbreviation as a whole sentence when trimming a quote title', () => {
+		// A response over 96 characters gets trimmed to the largest run of whole sentences that
+		// fits. Splitting after every `. ` made `Dr.` a sentence, so the longest run that fit was
+		// `Dr.` alone and the page printed the title `Verdict Delivered - Dr.` — a finished-looking
+		// page with none of the verdict on it.
+		const long =
+			'Dr. Reyes signed off on the inspection he never actually attended, and the report he ' +
+			'filed says otherwise in writing.';
+		const recipe = buildToolPageRecipe(output('red_flag_or_run', long));
+		expect(recipe.spec.title).not.toMatch(/Dr\.$/);
+		expect(recipe.spec.title.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
+	});
+
+	it('keeps an abbreviation attached to its sentence', () => {
+		expect(splitResponseLines('Dr. Reyes lied. He filed it anyway.')).toEqual([
+			'Dr. Reyes lied.',
+			'He filed it anyway.'
+		]);
+		expect(splitResponseLines('He called at 9 p.m. She was already gone.')).toEqual([
+			'He called at 9 p.m. She was already gone.'
+		]);
+		expect(splitResponseLines('J. Reyes signed it. The date is wrong.')).toEqual([
+			'J. Reyes signed it.',
+			'The date is wrong.'
+		]);
+	});
+
+	it('still splits ordinary sentences', () => {
+		expect(splitResponseLines('He lied. She left. The locks changed.')).toEqual([
+			'He lied.',
+			'She left.',
+			'The locks changed.'
+		]);
+	});
+});

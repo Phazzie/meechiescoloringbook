@@ -394,12 +394,14 @@ export class StudioState {
 			// Keep the layout only while this is still the reopened page. For anything the studio
 			// authored, and for every fresh verdict, this is 'list'.
 			listMode: this.restoredPageLayout ? this.spec.listMode : 'list',
-			// Footer provenance comes from the spec itself, not from `restoredPageLayout`. A
-			// structured toolkit page is saved as a `list` with no footer, so gating this on the
-			// quote-layout flag missed it entirely after a refresh and re-added a duplicate-title
-			// footer the saved page never had. Every studio-authored spec has a footer, so reading
-			// the spec is both simpler and correct for both origins.
-			includeFooter: this.spec.footerItem !== undefined
+			// Layout and footer are the same question — "is this still the page that was reopened?"
+			// — so they read the same flag. Reading the footer off `this.spec` unconditionally
+			// instead looked simpler and was wrong in one direction: once a footerless toolkit page
+			// had been reopened, its missing footer outlived it. A mode change or a new verdict
+			// cleared the flag but left that spec in place, so the next studio-authored list was
+			// built without a footer, and every rebuild after that read the spec it had just built
+			// and kept the absence forever.
+			includeFooter: this.restoredPageLayout ? this.spec.footerItem !== undefined : true
 		});
 		await this.validateSpec();
 		this.scheduleDraftSave();
@@ -959,11 +961,13 @@ export class StudioState {
 		}
 		if (draft.ok && draft.value) {
 			this.spec = draft.value.intent;
-			// A persisted `title_only` spec can only have come from reopening a page saved by the
-			// Meechie tools hub — the studio never authors one. Without this, a browser refresh
-			// rebuilt the flag as false and the next settings change converted the restored quote
-			// page into a numbered list, spending image quota on a layout the user never chose.
-			this.restoredPageLayout = draft.value.intent.listMode === 'title_only';
+			// A persisted spec carries its own provenance, exactly as `loadCreation` treats one it
+			// reads from the vault — so this is unconditionally true, for the same reason that one
+			// is. Deriving it from `listMode === 'title_only'` recognised only reopened *quote*
+			// pages and missed reopened structured toolkit pages, which are footerless `list`s.
+			// Setting it for a studio-authored draft costs nothing: such a spec is a `list` with a
+			// footer, so both derivations above return what the false branch would have.
+			this.restoredPageLayout = true;
 			this.evidence = draft.value.chatMessage || '';
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;

@@ -177,6 +177,62 @@ const toDedication = (value: string | undefined): string | undefined => {
 const collapseWhitespace = (line: string): string => line.replace(/\s+/g, ' ').trim();
 
 /**
+ * Abbreviations that end in a period without ending a sentence. Deliberately short: every entry
+ * costs a merged sentence when a verdict genuinely ends on that word, so this covers the titles and
+ * shorthand a verdict about a person or a place actually uses, and nothing speculative.
+ */
+const SENTENCE_ABBREVIATIONS = [
+	'mr',
+	'mrs',
+	'ms',
+	'dr',
+	'prof',
+	'rev',
+	'sr',
+	'jr',
+	'st',
+	'lt',
+	'sgt',
+	'capt',
+	'col',
+	'gen',
+	'gov',
+	'hon',
+	'vs',
+	'etc',
+	'inc',
+	'ltd',
+	'co',
+	'dept',
+	'approx',
+	'no',
+	'a.m',
+	'p.m'
+];
+
+/** Match a word regardless of case without an `i` flag, which would also defeat `[A-Z]` below. */
+const anyCase = (word: string): string =>
+	[...word].map((ch) => (/[a-z]/.test(ch) ? `[${ch.toUpperCase()}${ch}]` : ch)).join('');
+
+/**
+ * A real sentence end: a terminator, then a space, then something that starts a sentence — and not
+ * a period belonging to an abbreviation or an initial.
+ *
+ * The naive `(?<=[.!?]) ` split treated `Dr.` as a whole sentence. That mattered beyond looking
+ * wrong: a quote title trims to the largest run of whole sentences that fits 96 characters, so a
+ * long verdict opening with `Dr. Reyes ...` printed a page whose entire text was `Dr.`, and the
+ * same split made `Dr.` item 1 of a list page.
+ *
+ * `(?<![A-Z]\.)` also blocks a sentence that genuinely ends on a lone capital ("He got an A. Then
+ * he left."), which merges two sentences instead of splitting them. That is the right way to be
+ * wrong here: a merged pair still reads as finished prose and simply fails the length check, while
+ * a bad split prints a page with two characters on it.
+ */
+const SENTENCE_BOUNDARY = new RegExp(
+	`(?<=[.!?])(?<!\\b(?:${SENTENCE_ABBREVIATIONS.map(anyCase).join('|')})\\.)(?<![A-Z]\\.) (?=["'(]?[A-Z0-9])`
+);
+
+/**
  * Split a tool response into the lines it was actually written as. The tool prompts ask for
  * newline-separated structure ("Fault:" / "Consequence:" / "Move:", or a numbered lineup), but a
  * provider will sometimes return the same structure in one paragraph, so fall back to splitting on
@@ -192,7 +248,7 @@ export const splitResponseLines = (response: string): string[] => {
 	const single = byNewline[0] ?? '';
 	if (single.length === 0) return [];
 	return single
-		.split(/(?<=[.!?]) /)
+		.split(SENTENCE_BOUNDARY)
 		.map(collapseWhitespace)
 		.filter((part) => part.length > 0);
 };

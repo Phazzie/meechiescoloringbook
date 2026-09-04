@@ -1039,4 +1039,58 @@ describe('StudioState quote vault', () => {
 			}).footerItem
 		).toBeDefined();
 	});
+
+	it('gives a fresh studio page its footer back after a footerless toolkit page was reopened', async () => {
+		// Footer provenance belongs to the reopened page, not to the studio. Reading it straight off
+		// `this.spec` meant a footerless toolkit page left its absence behind: the next mode change
+		// rebuilt a studio-authored list with no footer, and every rebuild after that kept
+		// propagating the absence, because the spec it read was the one it had just built.
+		const studio = registerInitialized(new StudioState());
+		const toolkitSpec = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown',
+			includeFooter: false
+		});
+		expect(toolkitSpec.footerItem).toBeUndefined();
+
+		await studio.loadCreation({
+			id: 'creation-list',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: toolkitSpec,
+			assembledPrompt: 'a saved toolkit list page',
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.footerItem).toBeUndefined();
+
+		const nextMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
+		studio.handleModeSelect(nextMode!.id);
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.footerItem).toBeDefined();
+	});
+
+	it('keeps a reopened footerless list page footerless across a browser refresh', async () => {
+		// The other half of the same rule: a persisted spec carries its own provenance, whatever its
+		// layout. Deriving the flag from `listMode === 'title_only'` recognised only reopened quote
+		// pages, so a reopened *structured* toolkit page came back after a refresh and had a
+		// duplicate-title footer added to it.
+		const toolkitSpec = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown',
+			includeFooter: false
+		});
+		const refreshed = await initFromDraft({
+			updatedAtISO: '2026-09-04T00:00:00.000Z',
+			intent: toolkitSpec,
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT
+		});
+		await refreshed.syncSpecFromCurrentText();
+		expect(refreshed.spec.listMode).toBe('list');
+		expect(refreshed.spec.footerItem).toBeUndefined();
+	});
 });
