@@ -151,7 +151,11 @@ generation (real, but a one-line config defect, not a feature).
 ### Outcome
 
 - Pull request: [#286](https://github.com/Phazzie/meechiescoloringbook/pull/286), opened and merged
-  2026-09-04.
+  2026-09-04 as `04f1922`. All nine checks green on the merged head `6b8ea95`, both `verify` jobs
+  included. The one red signal at merge was Vercel's commit status, `api-deployments-free-per-day`
+  ("retry in 24 hours") — the account-wide free-tier quota `AGENTS.md` already records as
+  pre-existing noise; it also failed on this PR's very first head, before any of its content
+  could matter.
 - **Review rounds.**
   - *CodeQL, 2 high alerts* — `js/clear-text-storage-of-sensitive-data`, both tracing to this run's
     own new vault test helper, which hand-wrote a JSON blob containing `owner.sessionId` straight
