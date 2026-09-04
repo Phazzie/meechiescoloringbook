@@ -5399,3 +5399,62 @@ across twenty-six rounds**, none in the application.
 **The rulings now outstanding are three, not two:** the seam-workflow question; the two un-waived
 checklist items on `ImageGenerationSeam`; and now whether `SessionSeam` and `CreationStoreSeam` need
 waivers, refreshed fixtures, or nothing at all.
+
+---
+
+## Run 4, correction 27 — 2026-09-04 — the reorder's two remaining consequences
+
+Appended, not edited. Two findings on `5de1f03` — one P1, one P2. Both are consequences of round
+19's reordering that I had not followed through.
+
+### 1. P1 — the tape and the summary now contradict each other, and only a script change fixes it
+
+`proof-tape.md` prints, of `verify-chain.txt`:
+
+> These files were written by an earlier run, so they describe a different run than the one this
+> tape summarizes. Regenerate them or read them as history, not as proof of the current change.
+
+That is false for this file. It was written deliberately, minutes before the chain, *so that the
+chain would cover it* — which is what round 19 asked for. Meanwhile the header I wrote last round
+says the flag is expected. **Both readings are in the shipped evidence directory and they disagree.**
+
+Checked the mechanism rather than assuming: `markArtifactsPredatingRun`
+(`scripts/proof-tape.mjs:62-75`) is `modified < chamber-lock.json's mtime` and nothing else. So
+**any summary the chain covers is necessarily flagged** — the two properties cannot both hold, and
+the marker has no way to distinguish a deliberate pre-chain input from a leftover.
+
+I have **not** edited `scripts/proof-tape.mjs`. `CLAUDE.md` says the verify scripts are not to be
+edited without a plan, and doing it inside a documentation close-out is the scope expansion I have
+declined all run. The header now states the contradiction plainly instead of claiming the flag is
+fine, and **follow-up 11** records the real fix: give the marker a way to tell deliberate pre-chain
+inputs from stale leftovers — an explicit list, a manifest, or moving hand-written summaries out of
+the inventoried set.
+
+Worth noting what this means about round 26: I wrote "the tape flagging this file is now correct,
+not a defect." Half right. The *flag* is unavoidable; the tape's **sentence about it** is wrong, and
+I asserted the whole thing was fine because the part I had looked at was.
+
+### 2. P2 — a command kept for a reason that had expired
+
+`plan.md` still explained the standalone `npm run assumption:alarm` as needed because the chain's
+stage 5 ran before the `DECISIONS.md` entry existed. Round 19 inverted the order: every edit now
+precedes `npm run verify`, so stage 5 parses the final entry and the standalone run only overwrote
+its own artifact with an identical result.
+
+Removed rather than re-justified. **A command kept for an expired reason is a command the next run
+copies without knowing why** — and the whole point of listing exact commands was that a reader could
+reproduce the validation and understand it. `cipher:gate` stays (genuinely not a chain stage);
+`proof:tape` stays (the chain's stage-8 copy runs before lint, build, e2e and the rewinds exist).
+
+### The shape of these two together
+
+Round 19 changed the ordering and I updated the ordering. It also invalidated **a claim in the
+header**, **a rationale in the plan**, and **a label in a generated artifact** — three consequences
+in three files, found across rounds 26 and 27 by someone else. Changing a process does not just
+change the process; it changes every sentence that described the old one, and those sentences do not
+announce themselves.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2 — **seventy-one
+findings across twenty-seven rounds**, none in the application.

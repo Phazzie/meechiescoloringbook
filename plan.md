@@ -102,9 +102,18 @@ concession the `ClockSeam` plan in run 1 had to make.
 
     ```sh
     npm run cipher:gate        # not in the verify chain; run on its own. exit 0
-    npm run assumption:alarm   # also stage 5 of the chain; additionally run on its own. exit 0
     npm run proof:tape         # LAST, after every artifact above. exit 0
     ```
+
+    **`npm run assumption:alarm` used to be listed here and no longer is.** Its stated reason was
+    that the chain's stage 5 ran before the `DECISIONS.md` entry was written, so a standalone rerun
+    was needed to see it. **Round 19's reordering made that false**: every edit now precedes
+    `npm run verify`, so stage 5 parses the final entry and the standalone run only overwrote its
+    own artifact with an identical result. A command kept for a reason that has expired is a command
+    a future run will copy without knowing why — so it is removed rather than re-justified.
+    `cipher:gate` stays because it is genuinely not a chain stage (`package.json:26` against `:33`),
+    and `proof:tape` stays because the chain's stage-8 copy runs before lint, build, e2e and the
+    rewinds exist.
 
     **`proof:tape` is listed even though the chain's stage 8 already runs it, and the order is the
     whole point.** `scripts/proof-tape.mjs` inventories the evidence directory, so the copy that runs

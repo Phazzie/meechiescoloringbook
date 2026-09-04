@@ -28,17 +28,24 @@
 # this header deliberately does not restate the list, because a second copy is a second thing to go
 # stale and that is exactly how it was wrong here.
 #
-# **proof-tape marks THIS FILE as predating the run, and that is now correct rather than a defect.**
-# The reordering in round 19 writes verify-chain.txt before `npm run verify`, precisely so the chain
-# covers it — which necessarily makes it older than chamber-lock.json, which is what
-# markArtifactsPredatingRun keys on. The two properties cannot both hold: a summary the chain
-# verifies is a summary the tape flags. This run chooses the first, because "the chain ran on the
-# tree being pushed" is a stronger guarantee than "no artifact predates stage 2". Any other file
-# flagged stale is still worth investigating; this one is expected.
-# The history, since it was a claim in this header for several rounds: cipher-gate.json was the flagged
-# artifact through rounds 4 and 5 (correctly — cipher:gate is not a chain stage and nothing had run
-# it), stopped being flagged in round 6 when the standalone command was added, and the header's
-# "marks nothing as stale" line survived into round 19's reordering, where it became false.
+# **proof-tape flags THIS FILE, and its label for the flag is wrong here — but the fix is a script
+# change, not a wording change, so this run records it rather than papering over it.**
+# The tape prints "written by an earlier run ... read as history, not as proof of the current
+# change". That is false for this file: it was written deliberately, minutes before the chain, so
+# the chain would cover it (round 19's finding). But `markArtifactsPredatingRun` in
+# scripts/proof-tape.mjs is `modified < chamber-lock.json's mtime` and nothing else, so **any
+# summary the chain covers is necessarily flagged** — the two properties cannot both hold, and the
+# marker has no way to tell "input written before the chain on purpose" from "leftover from another
+# run". Both readings are in this directory right now and they contradict each other.
+# This run picks chain coverage and leaves the flag standing, because the alternative is editing
+# scripts/proof-tape.mjs inside a documentation close-out. **Follow-up 11: give the marker a way to
+# distinguish deliberate pre-chain inputs from stale leftovers** — an explicit list, a manifest, or
+# moving hand-written summaries out of the inventoried set. Until then: any *other* file flagged
+# here is worth investigating; this one is expected, and the tape's sentence about it is not.
+# The history, since this header asserted otherwise for several rounds: cipher-gate.json was the
+# flagged artifact through rounds 4 and 5 (correctly), stopped being flagged in round 6, and the
+# header's "marks nothing as stale" line survived into round 19's reordering, where it became
+# false.
 
 ALL EIGHT STAGES RAN. EXIT 0.
 
