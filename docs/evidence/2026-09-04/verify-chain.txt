@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T21:25:59.113Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T21:38:02.353Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -77,8 +77,9 @@ local evidence run only and nothing about how the suite executes in CI.
 
 ## What the e2e suite proves that the unit tests cannot
 
-Two of this change's guards are only observable in a browser, and both were confirmed by deleting
-the guard and watching the test fail rather than by reading the code:
+Three of this change's guards are only observable in a browser, and each was confirmed by deleting
+the guard and watching the test fail rather than by reading the code. This said "two" for most of
+this run and omitted the third, which is a coverage claim a later audit would have read as complete:
 
   - The `{#key config.slug}` in src/routes/m/[mode]/+page.svelte. SvelteKit reuses one component
     instance across parameter changes on the same route, so without the key the previous mode's
@@ -87,6 +88,14 @@ the guard and watching the test fail rather than by reading the code:
     walks an in-app link, marks the document, and asserts the mark survives the click, so it fails
     if the navigation ever stops being client-side.
   - The 404 for an unknown slug, which is a response status and not a rendered value.
+  - The 32px horizontal overflow at a 390px viewport. `document.documentElement.scrollWidth`
+    against `clientWidth` is a layout measurement, and jsdom does no layout, so no unit test can
+    make this assertion at all. Removing the `overflow-x: clip` fails with
+    "/m/who-fucked-up pans sideways by 32px".
+
+  The dedication-split test is deliberately **not** in this list. It is about component state after
+  a second verdict, which a component test with a DOM could assert; it runs in the e2e suite because
+  that is where the verdict flow is already stubbed, not because a browser is required for it.
 
 ## Round 2 — the SonarCloud duplication gate, and what it was actually pointing at
 
@@ -283,12 +292,27 @@ it is a repository-wide convention change that would silently invalidate those r
 a bigger decision than a close-out pull request should take on its own. It is recorded as a
 follow-up in WORST_TO_BEST_LOG.md instead. The other file was two commits old and mine alone.
 
+## Round 9 — the Codex round on `6cdd02d`: three P2s, all of them claims that were true-ish
+
+  - **The e2e header said two browser-only guards; there are three.** The 390px `scrollWidth`
+    measurement needs layout, and jsdom does none, so no unit test can make that assertion at all.
+    Corrected here and in the header of e2e.txt, since the same sentence lived in both — the
+    now-familiar failure of fixing one copy. The dedication-split test is deliberately still
+    excluded, with the reason stated: it is component state a DOM test could assert.
+  - **The plan claimed `assumption:alarm` "sees the same entries before and after".** False.
+    `blockedSeams` is byte-identical (`ImageGenerationSeam`, `RateLimitSeam`, `WigTryOnSeam` at
+    `1dab4cf` and here), but `assumptions` goes 11 -> 12, because the fixture waiver is itself a new
+    Assumption. The narrow claim is the true one and is what the plan now says.
+  - **A follow-up numbered 10 where the list ends at 7.** The close-out carries Run 3's four forward
+    and adds 5, 6, 7; numbering the new one 10 invented two phantom items a later run would go
+    looking for. Renumbered to 8 by an appended correction, since the log is append-only.
+
 ## Ordering of this round's runs, recorded as they happened
 
-  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 21:25:59.113Z)
-  2. npm run lint              exit 0, header restored    -> lint.txt
-  3. npm run build             exit 0, header restored    -> build.txt
-  4. npx playwright test       28 passed, header restored -> e2e.txt
+  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 21:38:02.353Z)
+  2. npm run lint              exit 0                     -> lint.txt
+  3. npm run build             exit 0                     -> build.txt
+  4. npx playwright test       28 passed                  -> e2e.txt
   5. 19 rewind runs, each exit code appended as that run finished
                                                           -> seam-rewind-exit-codes.md
   6. npm run cipher:gate       exit 0    (not a chain stage; run standalone)

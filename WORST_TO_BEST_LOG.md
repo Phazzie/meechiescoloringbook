@@ -4690,3 +4690,59 @@ the application, which has been unchanged since `f81802d`. Rounds 13 and 14 have
 defects in the previous round's fixes. The pattern is now unmistakable: **I review the thing I am
 changing and not the change itself**, and a `>` redirect is exactly the kind of operation that
 destroys something you never read.
+
+---
+
+## Run 4, correction 15 — 2026-09-04 — three claims that were true enough to survive fourteen rounds
+
+Appended, not edited. Three P2 findings on `6cdd02d`. None is dramatic; all three are the kind of
+sentence that reads fine and audits badly.
+
+### 1. P2 — Follow-up 10 was follow-up 8
+
+**Renumbering, stated first because it is the one a future run acts on: the item recorded as
+"Follow-up 10" in correction 14 is Follow-up 8. Read it as 8 wherever it appears.** The close-out
+carries Run 3's four items forward and adds 5, 6 and 7; there is no 8 or 9. Numbering the new one 10
+created two phantom entries a later run would go looking for and could not find — in the file that
+exists precisely so a later run knows what was left undone. Corrected by appending rather than by
+editing, because this log is append-only and that rule does not bend for my own mistakes.
+
+For the avoidance of any doubt, the current list is: 1-4 from Run 3 (MeechieTools' private
+orchestration copy; `fixesApplied` written and never read; `createdAtISO` crossing `ClockSeam` in one
+of three call sites; record-id generation crossing no seam), 5 (`/m/` and the standalone routes are
+still two implementations), 6 (`getMonthKey`/`getWeekNumber` reading the host clock outside
+`ClockSeam`), 7 (the seam-workflow P1, open for an owner ruling), and now **8** (whether
+`verify-chain.txt` should become `verify-chain.md` repo-wide).
+
+### 2. P2 — "the alarm sees the same entries before and after" was false
+
+The micro plan's behavioural-impact line claimed `npm run assumption:alarm` sees no change. Checked
+against the artifact instead of asserted:
+
+| | `1dab4cf` | this head |
+|---|---|---|
+| `blockedSeams` | `ImageGenerationSeam`, `RateLimitSeam`, `WigTryOnSeam` | identical |
+| `assumptions` | 11 | **12** |
+
+The waiver *is* a new Assumption, so of course the alarm reports one more. The true claim is the
+narrow one — no seam's blocked status changes, so nothing is unblocked and no gate is relaxed — and
+the loose version would have told a later audit the waiver never touched the gate's input at all.
+
+### 3. P2 — two browser-only guards where there are three
+
+The e2e evidence header named the `{#key}` walk and the 404 as the guards no unit test can make, and
+omitted the 390px overflow measurement — which is the most unit-testable-*looking* of the three and
+the least unit-testable in fact, since `scrollWidth` requires layout and jsdom does none. Corrected
+in both places the sentence lives (the header and `verify-chain.txt`), and the dedication-split test
+is now explicitly excluded with its reason, so the list reads as a decision rather than an oversight.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3 — **forty-four findings across fifteen rounds**, none in
+the application, which has been unchanged since `f81802d`.
+
+Worth recording plainly at this point, since a future run will want to know whether this loop was
+worth it: **every finding has been real and none has been in the shipped code.** Fifteen rounds of
+review have improved the accuracy of the record and changed nothing about what users get. That is
+either a very expensive way to write documentation or the correct price of a record that can be
+trusted — and which of those it is depends on whether anyone ever audits it.

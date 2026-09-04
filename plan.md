@@ -145,7 +145,14 @@ concession the `ClockSeam` plan in run 1 had to make.
     reached by an adapter is still a seam the change reaches.
 - **How behaviour stays unchanged:** nothing executable is touched. The ruling neither resolves nor
   edits the Assumption — it stays Open with its Status text unchanged — and adds no exemption to any
-  automated gate. `npm run assumption:alarm` sees the same entries before and after.
+  automated gate. **The precise claim, since the looser one was false:** `assumption-alarm.json`'s
+  `blockedSeams` list is byte-identical before and after — `["ImageGenerationSeam", "RateLimitSeam",
+  "WigTryOnSeam"]` at `1dab4cf` and on this head — so nothing this change does unblocks a seam or
+  relaxes the gate. Its `assumptions` array does grow, 11 entries to 12, because the fixture waiver
+  *is* a new Assumption and the alarm reads them all. Saying the alarm "sees the same entries before
+  and after" was therefore wrong in a way that mattered: it would have told a later audit the waiver
+  never touched the gate's input, when what is actually true is that it added an entry the gate
+  reports and changed no seam's blocked status.
 
 **Self-critique.**
 
