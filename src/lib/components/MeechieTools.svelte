@@ -25,7 +25,6 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 	import { sessionAdapter } from '$lib/adapters/session.adapter';
-	import { isRenderableGeneratedImage } from '$lib/core/raster-image-format';
 	import { buildToolPageRecipe, buildToolStudioText } from '$lib/core/tool-page-recipe';
 	import type { ToolPageRecipe } from '$lib/core/tool-page-recipe';
 
@@ -239,6 +238,25 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		resetPage();
 	};
 
+	/**
+	 * Whether the browser can actually decode this preview.
+	 *
+	 * A byte-signature check is not enough: a truncated response keeps a valid PNG header while the
+	 * image itself is missing, and both `<img>` and `pdf-lib` reject it. Decoding is the only answer
+	 * to "can this be shown and printed?" that is not a proxy for it. Outside a browser there is
+	 * nothing to decode with, so this does not block there.
+	 */
+	const canDecodeImage = async (url: string | null): Promise<boolean> => {
+		if (url === null) return false;
+		if (typeof Image === 'undefined') return true;
+		return await new Promise<boolean>((resolve) => {
+			const probe = new Image();
+			probe.onload = (): void => resolve(probe.naturalWidth > 0 && probe.naturalHeight > 0);
+			probe.onerror = (): void => resolve(false);
+			probe.src = url;
+		});
+	};
+
 	const previewUrl = (image: GeneratedImage): string | null => {
 		if (image.format === 'svg' && image.encoding === 'utf8') {
 			return `data:${IMAGE_MIME_TYPES.svg};utf8,${encodeURIComponent(image.data)}`;
@@ -295,14 +313,28 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			// `png`, so nonempty garbage arrives here as a well-formed PNG: it renders as a broken
 			// tile, `embedPng` throws on it, and it can be saved to the vault in that state.
 			// Installing it would destroy a good page for an unusable one — the same defect as
-			// clearing before the response arrived, one step further along. Drop the unreadable
-			// ones and keep the page on screen if nothing survives.
-			const images = parsed.data.value.images.filter(isRenderableGeneratedImage);
-			if (images.length === 0) {
+			// clearing before the response arrived, one step further along.
+			//
+			// The check is a real decode, not a byte-signature test. A signature test passes a
+			// truncated response — a PNG header with the image missing — which is exactly what a
+			// connection dropped mid-body produces, and `embedPng` still throws on it. Asking the
+			// browser to decode the bytes answers "can this be shown and printed?" directly instead
+			// of by proxy. Drop what will not decode and keep the page on screen if nothing does.
+			const decoded = await Promise.all(
+				parsed.data.value.images.map(async (image) => ({
+					image,
+					preview: previewUrl(image),
+					usable: await canDecodeImage(previewUrl(image))
+				}))
+			);
+			if (isStale()) return;
+			const usable = decoded.filter((entry) => entry.usable);
+			if (usable.length === 0) {
 				generateError =
 					'The provider returned an image that could not be read. The page on screen was kept.';
 				return;
 			}
+			const images = usable.map((entry) => entry.image);
 
 			// Install the page before packaging it. The generation is the paid part and it has
 			// already succeeded here; packaging is a local render that can fail on its own. Leaving
@@ -322,8 +354,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			revisedPrompt = parsed.data.value.revisedPrompt ?? '';
 			violations = parsed.data.value.violations;
 			recommendedFixes = parsed.data.value.recommendedFixes;
-			imagePreviews = images
-				.map(previewUrl)
+			imagePreviews = usable
+				.map((entry) => entry.preview)
 				.filter((url): url is string => url !== null);
 			packagedFiles = [];
 

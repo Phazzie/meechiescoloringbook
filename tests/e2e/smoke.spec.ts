@@ -765,6 +765,11 @@ test('an unreadable generated image does not replace the page already on screen'
 	// page before packaging — the fix that stopped a packaging failure from discarding a finished
 	// PDF — meant that garbage replaced a good page with a broken tile, left Save enabled, and let
 	// the corrupt image reach the vault.
+	//
+	// The second payload is the sharper case: a real PNG signature followed by nothing. A
+	// byte-signature check passes it, and `pdf-lib` still throws — which is what a connection
+	// dropped mid-body actually produces. Only a real decode rejects both.
+	const TRUNCATED_PNG = 'iVBORw0KGgo=';
 	let generateCalls = 0;
 	await page.route('**/api/generate', async (route) => {
 		generateCalls += 1;
@@ -772,12 +777,13 @@ test('an unreadable generated image does not replace the page already on screen'
 			await route.fulfill({ json: generatedPage });
 			return;
 		}
+		const data = generateCalls === 2 ? 'bm90LWFuLWltYWdl' : TRUNCATED_PNG;
 		await route.fulfill({
 			json: {
 				...generatedPage,
 				value: {
 					...generatedPage.value,
-					images: [{ ...generatedPage.value.images[0], id: 'image-2', data: 'bm90LWFuLWltYWdl' }]
+					images: [{ ...generatedPage.value.images[0], id: `image-${generateCalls}`, data }]
 				}
 			}
 		});
@@ -785,7 +791,13 @@ test('an unreadable generated image does not replace the page already on screen'
 
 	await makeToolkitPage(page);
 
-	// The response is 200 and schema-valid; only the bytes are unusable. The paid page must survive.
+	// Nonempty garbage: 200, schema-valid, unreadable bytes. The paid page must survive.
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.getByTestId('meechie-tool-generate-error')).toContainText('could not be read');
+	await expectPageOnScreen(page);
+	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
+
+	// A valid PNG signature with the image truncated away. Passes any signature test; still unusable.
 	await page.getByTestId('meechie-tool-make-page').click();
 	await expect(page.getByTestId('meechie-tool-generate-error')).toContainText('could not be read');
 	await expectPageOnScreen(page);

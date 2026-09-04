@@ -2282,3 +2282,49 @@ be passed. This one is both at once, plus a third thing — **the answer was alr
 The voice/`receipt` collision was in this log's carried-forward list before the fix that missed it
 was committed. Reading my own notes would have caught it faster than any amount of care while
 writing.
+
+---
+
+## Run 2, correction 8 — 2026-09-04 — both fixes were checking a proxy again
+
+**Nineteen rounds, 69 findings, 35 real user-visible defects.** Both findings this round are the
+*same shape as the fix they landed on*, which is the thing worth recording.
+
+### A signature is not a decode
+
+`isRenderableGeneratedImage` checked the first eight bytes. The reviewer pointed out that the
+nine-byte PNG in my own new test passes that check while `pdf-lib` still throws on it — and a
+truncated response, a connection dropped mid-body, is exactly a valid header with the image
+missing. So the guard written one commit earlier to stop a corrupt image replacing a good page let
+the most realistic corrupt image through.
+
+Red-proofed by putting the signature check back: the reader gets **"Page made, but the printable
+download could not be built: Invalid typed array length: 0"** — pdf-lib refusing an empty image,
+with the good page already destroyed.
+
+The component now asks the browser to decode the preview and keeps only what decodes.
+`isRenderableGeneratedImage` and its six tests are deleted rather than kept as a fast pre-filter:
+two mechanisms answering one question is how the wrong one gets trusted later, and the byte check
+is the one that was shown wrong.
+
+### The closers were widened and the openers were not
+
+`He lied. ("Then she left.")` stayed one sentence. The lookbehind had been widened to a run of
+closers two corrections ago; the lookahead still allowed a single optional opener and no bracket at
+all. A quoted aside has two sides, and only one of them had been fixed.
+
+Measured across twelve inputs before touching the regex. Worth recording that my own expectation
+for one of them was wrong — I had `He said ("Dr." Smith) Then he left.` down as a split, and it is
+not, because the only period in it belongs to `Dr.` The measurement corrected me, which is the
+argument for running the table rather than reasoning about it.
+
+### The pattern, fourth statement
+
+Correction 6 named it: inferring a fact that was available to be measured. Both findings this round
+are that same error *inside the fix for it*. The image guard replaced "the response parsed" with "the
+bytes start like a PNG" — still a proxy. The boundary fix widened one side of a symmetric pair.
+
+So the rule needs a second half. It is not enough to ask whether a check measures the real thing;
+ask what the check would accept that the real thing would reject, and whether the fix has a mirror
+image somewhere that was left alone. Both of those questions are answerable in about a minute, and
+neither was asked.

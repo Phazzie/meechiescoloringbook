@@ -743,6 +743,29 @@ describe('sentence selection survives abbreviations', () => {
 			'The locks changed.'
 		]);
 	});
+
+	it('splits before a bracketed or nested sentence opening', () => {
+		// The closers were widened to a run and the openers were not, so the boundary only worked
+		// on one side of a quoted aside. A single optional opener matched neither `("` nor `[` at
+		// all, and the pair came back as one oversized sentence — the same mid-sentence title
+		// truncation this boundary exists to prevent, arriving from the other direction.
+		expect(splitResponseLines('He lied. ("Then she left.")')).toEqual([
+			'He lied.',
+			'("Then she left.")'
+		]);
+		expect(splitResponseLines('He lied. [Then she left.]')).toEqual([
+			'He lied.',
+			'[Then she left.]'
+		]);
+	});
+
+	it('does not split where the only period belongs to an abbreviation inside brackets', () => {
+		// Widening the openers must not reach past the abbreviation guards: there is no sentence
+		// end anywhere in this string, only `Dr.`
+		expect(splitResponseLines('He said ("Dr." Smith) Then he left.')).toEqual([
+			'He said ("Dr." Smith) Then he left.'
+		]);
+	});
 });
 
 describe('ranked entries keep quoted speech intact', () => {

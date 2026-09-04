@@ -239,6 +239,16 @@ const anyCase = (word: string): string =>
 const SENTENCE_CLOSERS = `["'”’)\\]]*`;
 
 /**
+ * The punctuation a sentence may open with, as a run, for the same reason the closers are one.
+ *
+ * `He lied. ("Then she left.")` opens twice, and a single optional opener matched neither that nor
+ * a bracket at all — so the pair stayed one sentence and the title went back to cutting mid-phrase.
+ * The two sides of a quoted aside have to be spelled the same way or the boundary only works in
+ * one direction.
+ */
+const SENTENCE_OPENERS = `["'“‘(\\[]*`;
+
+/**
  * A real sentence end, allowing for a closer.
  *
  * A verdict that quotes someone ends `He said "I was busy." Then he changed the story.`, and
@@ -255,7 +265,7 @@ const SENTENCE_BOUNDARY = new RegExp(
 	`(?<=[.!?]${SENTENCE_CLOSERS})` +
 		`(?<!\\b(?:${SENTENCE_ABBREVIATIONS.map(anyCase).join('|')})\\.${SENTENCE_CLOSERS})` +
 		`(?<![A-Z]\\.${SENTENCE_CLOSERS})` +
-		` (?=["'“(]?[A-Z0-9])`
+		` (?=${SENTENCE_OPENERS}[A-Z0-9])`
 );
 
 /**
