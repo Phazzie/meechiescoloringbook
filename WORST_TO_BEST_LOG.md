@@ -4431,3 +4431,69 @@ later and never made it into the header. Now names all six.
 
 Findings per round: 3, 3, 3, 2, 5, 2, 3, 2, 1, 3 — **twenty-seven across ten rounds**, none in the
 application. The trend is not monotonic and I have stopped predicting that it will be.
+
+---
+
+## Run 4, correction 11 — 2026-09-04 — a gate I had not checked, and an overclaim inside the overclaim correction
+
+Appended, not edited. Four findings on `c3744f5`. Two are gate items this close-out never checked;
+one is a correction to the previous correction's own overreach.
+
+### 1. P1 — `ImageGenerationSeam` fixtures were never waived for this change
+
+`AGENTS.md`'s completion checklist requires fixtures fresh within seven days **or** a waiver in
+`DECISIONS.md` with the assumption, a `LESSONS_LEARNED.md` entry, and a stated validation plan.
+`assumption-alarm.json` lists `ImageGenerationSeam` under `blockedSeams`, and PR #295 newly lets
+`/m/<slug>` reach `/api/generate`, which constructs that seam. The only waiver on record is dated
+**2026-05-14** and its Status reads "Waived for this review-comment repair" — a different piece of
+work entirely.
+
+This is the **second** borrowed authorization in this close-out. The first cited the `WigTryOnSeam`
+Assumption as though it forbade a text-provider call it says nothing about. Both times the document
+existed, was real, and was about something else; both times the resemblance did the work evidence
+should have done.
+
+A waiver scoped to PR #295 is now recorded, with its validation plan, plus the `LESSONS_LEARNED.md`
+entry the checklist requires. `npm run assumption:alarm` and `npm run cipher:gate` both exit 0.
+
+### 2. P1 — the micro plan covered one ruling out of three
+
+The plan's goal named only the 2026-08-24 text-provider Assumption. By then `DECISIONS.md` also
+carried the `/api/generate` / `RateLimitSeam` ruling — added *in response to a review finding, after
+the plan was written* — and now the fixture waiver above. A governance plan that covers a third of
+the decisions it is supposed to govern is not a plan.
+
+All three are now enumerated in it with their claims, risks and evidence: the identity-keyed quota
+argument for `RateLimitSeam` includes the condition that would break it (a per-route bucket, or a
+new bucket), which is the part a future run needs.
+
+### 3. P2 — "the wrong seam" was true for two of five, not five
+
+The previous correction said the bare `rewind` name "verifies a seam the code does not use" for all
+five legacy rows. Checked properly this time:
+
+- **Genuinely different implementations** — `meechie-voice.adapter.ts` builds its own adapter from
+  `seams/meechie-voice-seam/voice-pack`; `drift-detection.adapter.ts` is standalone. For these two
+  the claim holds.
+- **Compatibility shims over the canonical adapter** — `prompt-assembly.adapter.ts` imports and
+  delegates to it; `spec-validation.adapter.ts` and `meechie-tool.adapter.ts` are one-line
+  re-exports. The bare run there exercises **the same production code** through a narrower suite. It
+  is incomplete coverage, not the wrong seam.
+
+The canonical reruns were still worth doing — larger suites, self-contained fixtures — but the
+defect was smaller than I described it. **I overclaimed in the correction whose entire subject was
+overclaiming**, and did it by generalising from the two cases I had actually inspected to the three
+I had not. Same shape, one level up, three rounds running.
+
+### 4. P2 — the plan used placeholders where `AGENTS.md` requires exact commands
+
+`npm run rewind -- --seam <name>` and `rewind-<SeamName>.txt` are not exact commands and paths,
+and for the five canonical names the difference is load-bearing: **without quotes the shell splits
+on the space and `rewind` never sees the `(self-contained)` row** — which is how the whole class of
+error started. All nineteen literal invocations and their artifact filenames are now listed.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4 — **thirty-one findings across eleven rounds**, none in the
+application. Two of the four here were gates this run never checked at all, which is a different and
+worse category than the stale summaries that dominated rounds six through ten.

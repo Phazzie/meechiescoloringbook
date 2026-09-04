@@ -7,6 +7,13 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+- Assumption:
+  - Date: 2026-09-04
+  - Seams: ImageGenerationSeam
+  - Statement: The checked-in ImageGenerationSeam sample and fault fixtures remain representative for PR #295, which newly lets `/m/<slug>` reach `/api/generate` and therefore construct this seam, even though the fixtures are older than the seven days `AGENTS.md` requires.
+  - Validation: Refresh from a live probe once xAI credentials are available to an interactive session, and re-run `npm run rewind -- --seam ImageGenerationSeam` plus the image-generation contract tests against the regenerated fixtures. Until then the seam is covered by its existing contract suite, which passes on this head, and by the end-to-end suite, which stubs `/api/generate` and so exercises the caller rather than the provider.
+  - Status: Waived for PR #295 and its close-out. Scoped deliberately: the earlier waiver dated 2026-05-14 covers "this review-comment repair" only, and citing it for a different change would be borrowing an authorization that was never given. PR #295 adds no new call shape, model id or provider request to this seam - it adds a fifth screen that can reach an endpoint four others already reached - so the fixtures' representativeness is unchanged by the diff. `assumption-alarm.json` continues to list ImageGenerationSeam under blockedSeams, which is correct and is why this entry exists.
+
 ## 2026-09-04 - Why the focused-mode rebuild was safe without resolving the deployed full-payload Assumption
 
 - Date: 2026-09-04

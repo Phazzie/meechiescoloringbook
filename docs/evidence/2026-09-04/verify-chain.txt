@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T20:41:51.379Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T20:54:03.173Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -192,6 +192,6 @@ declined on new evidence.
 Evidence on this head: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped,
 build exit 0, playwright 28 passed, verify exit 0 across all eight stages, and 19 rewind runs
 whose recorded exit codes were all 0, matching the 19 rewind-*.txt artifacts in this
-directory. This sentence was written at 2026-09-04T20:44:47Z, after those runs completed — an earlier
+directory. This sentence was written at 2026-09-04T20:56:38Z, after those runs completed — an earlier
 revision declared the rewind result in a paragraph saved a minute *before* the first rewind
 executed, which made it a prediction rather than a record.

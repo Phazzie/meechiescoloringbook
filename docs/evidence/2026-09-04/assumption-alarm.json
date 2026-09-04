@@ -1,12 +1,23 @@
 {
   "tool": "assumption-alarm",
-  "generatedAt": "2026-09-04T20:42:59.326Z",
+  "generatedAt": "2026-09-04T20:55:05.854Z",
   "blockedSeams": [
     "ImageGenerationSeam",
     "RateLimitSeam",
     "WigTryOnSeam"
   ],
   "assumptions": [
+    {
+      "date": "2026-09-04",
+      "seams": "ImageGenerationSeam",
+      "statement": "The checked-in ImageGenerationSeam sample and fault fixtures remain representative for PR #295, which newly lets `/m/<slug>` reach `/api/generate` and therefore construct this seam, even though the fixtures are older than the seven days `AGENTS.md` requires.",
+      "validation": "Refresh from a live probe once xAI credentials are available to an interactive session, and re-run `npm run rewind -- --seam ImageGenerationSeam` plus the image-generation contract tests against the regenerated fixtures. Until then the seam is covered by its existing contract suite, which passes on this head, and by the end-to-end suite, which stubs `/api/generate` and so exercises the caller rather than the provider.",
+      "status": "Waived for PR #295 and its close-out. Scoped deliberately: the earlier waiver dated 2026-05-14 covers \"this review-comment repair\" only, and citing it for a different change would be borrowing an authorization that was never given. PR #295 adds no new call shape, model id or provider request to this seam - it adds a fifth screen that can reach an endpoint four others already reached - so the fixtures' representativeness is unchanged by the diff. `assumption-alarm.json` continues to list ImageGenerationSeam under blockedSeams, which is correct and is why this entry exists.",
+      "seamList": [
+        "ImageGenerationSeam"
+      ],
+      "missingFields": []
+    },
     {
       "date": "2026-09-03",
       "seams": "None - `audit:gate` is a dependency-vulnerability check, not a seam.",

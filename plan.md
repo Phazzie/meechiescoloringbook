@@ -17,11 +17,27 @@ truth future autonomous runs read when deciding whether to merge. This is that p
 the ruling rather than before it — stated plainly rather than backdated, which is the same
 concession the `ClockSeam` plan in run 1 had to make.
 
-- **Goal:** record the statement `AGENTS.md`'s merge gate requires ("resolve it first, or state why
-  the change is safe without it") for the open Assumption dated 2026-08-24, which was never made
-  before PR #295 merged because the pre-merge check was truncated by a `head -10`.
-- **Seams:** none. No seam artifact is in the diff; the ruling is about whether an existing open
-  Assumption blocks an already-merged change.
+- **Goal:** record the statements `AGENTS.md`'s merge gate requires ("resolve it first, or state why
+  the change is safe without it") for **three** open Assumptions that bear on PR #295 and were not
+  addressed before it merged, because the pre-merge check was truncated by a `head -10`:
+  1. **2026-08-24, text provider** ("grok-4.6 answers POST /v1/chat/completions with the request
+     shape this app sends"). Claim: `/m/<slug>` was already an `/api/tools` consumer, and no prompt
+     template, model id, wrapper, `json_schema` or `response_format` is in the diff.
+  2. **2026-08-26, `RateLimitSeam`** (durable Upstash store unprovisioned; degraded in-process
+     metering in force). Claim: the rebuild *does* newly expose `/api/generate`, but the `image`
+     bucket is keyed by client identity and bucket name — not by route — so a sixth entry point
+     raises no identity's allowance, and durable-vs-in-process metering is a property of the store
+     rather than of how many screens reach it. **Risk:** if the bucket were ever keyed per route, or
+     a new bucket introduced, this reasoning fails and the Assumption blocks again. **Evidence:**
+     `createQuotaGate(event, 'image')` in `src/routes/api/generate/+server.ts`, and
+     `createQuotaGate` passing `() => event.getClientAddress()` in
+     `src/lib/server/rate-limit-route.ts`.
+  3. **2026-05-14, `ImageGenerationSeam` fixture freshness.** The rebuild newly reaches
+     `/api/generate`, which constructs that seam, and `assumption-alarm.json` still lists it under
+     `blockedSeams`. The only waiver was scoped to a May review-comment repair. A waiver scoped to
+     PR #295, with its validation plan, is recorded in `DECISIONS.md` as part of this change.
+- **Seams:** none changed. No seam artifact is in the diff; the rulings are about whether existing
+  open Assumptions block an already-merged change.
 - **Files:** `DECISIONS.md` (the ruling), `plan.md` (this section), `WORST_TO_BEST_LOG.md`
   (append-only record), and the regenerated artifacts under `docs/evidence/2026-09-04/`.
 - **Commands:** `npm run verify`, `npm run check`, `npm run lint`, `npm test`, `npm run build`,
@@ -40,8 +56,10 @@ concession the `ClockSeam` plan in run 1 had to make.
   - **Five of these must be named with their `(self-contained)` suffix, and running the bare name is
     a silent mis-verification.** `scripts/rewind.mjs` takes the *first* exact row match from
     `docs/seams.md`, and five seams have a legacy flat-layout row **above** their canonical
-    self-contained row. Production imports the self-contained adapter in every case, so the bare
-    command verifies a seam the code does not use:
+    self-contained row, and production imports the self-contained adapter in every case. **What the
+    bare run costs differs by seam, and an earlier draft of this plan got that wrong by calling all
+    five "a seam the code does not use".** Only two of the five legacy adapters are separate
+    implementations; the other three are compatibility shims over the canonical one:
 
     | seam | bare (legacy) | `(self-contained)` | production imports |
     |---|---|---|---|
@@ -51,11 +69,49 @@ concession the `ClockSeam` plan in run 1 had to make.
     | `MeechieToolSeam` | 5 | **6** | `$lib/adapters/meechie-tool-seam` |
     | `DriftDetectionSeam` | 5 | 5 | `$lib/adapters/drift-detection-seam` |
 
+    - **Genuinely different code — the bare run verifies an implementation production does not
+      use:** `MeechieVoiceSeam` (`meechie-voice.adapter.ts` builds its own adapter from
+      `seams/meechie-voice-seam/voice-pack`) and `DriftDetectionSeam`
+      (`drift-detection.adapter.ts` is a standalone implementation).
+    - **Compatibility shims — the bare run exercises the same production code through a
+      re-export, so it is *narrower coverage*, not the wrong seam:**
+      `prompt-assembly.adapter.ts` imports the canonical adapter and delegates to it;
+      `spec-validation.adapter.ts` and `meechie-tool.adapter.ts` are one-line re-exports of it.
+      The canonical rerun still adds real coverage — a larger suite and the self-contained
+      fixtures — but calling it "the wrong seam" overstated the defect.
+
     **The command exits 0 either way and the evidence file records only a pass count**, so nothing
-    in the output reveals that the wrong seam was verified — `DriftDetectionSeam` is the worst case,
-    where both suites happen to have five tests and even the number matches. All five canonical
-    entries are now run explicitly with their own artifacts,
+    in the output reveals which row was used — `DriftDetectionSeam` is the worst case, where the
+    implementations genuinely differ *and* both suites have five tests, so even the number matches.
+    All five canonical entries are now run explicitly with their own artifacts,
     `rewind-<SeamName>(self-contained).txt`.
+  - **The nineteen literal commands, and the artifact each writes.** Quoting matters for the five
+    canonical names: without quotes the shell splits on the space and `rewind` never sees the
+    `(self-contained)` row.
+
+    ```sh
+    npm run rewind -- --seam MeechieToolSeam                      # rewind-MeechieToolSeam.txt
+    npm run rewind -- --seam SpecValidationSeam                   # rewind-SpecValidationSeam.txt
+    npm run rewind -- --seam OutputPackagingSeam                  # rewind-OutputPackagingSeam.txt
+    npm run rewind -- --seam CreationStoreSeam                    # rewind-CreationStoreSeam.txt
+    npm run rewind -- --seam SessionSeam                          # rewind-SessionSeam.txt
+    npm run rewind -- --seam ClockSeam                            # rewind-ClockSeam.txt
+    npm run rewind -- --seam PromptAssemblySeam                   # rewind-PromptAssemblySeam.txt
+    npm run rewind -- --seam ImageGenerationSeam                  # rewind-ImageGenerationSeam.txt
+    npm run rewind -- --seam ImageProviderConfigSeam              # rewind-ImageProviderConfigSeam.txt
+    npm run rewind -- --seam SafetyPolicySeam                     # rewind-SafetyPolicySeam.txt
+    npm run rewind -- --seam RateLimitSeam                        # rewind-RateLimitSeam.txt
+    npm run rewind -- --seam ProviderAdapterSeam                  # rewind-ProviderAdapterSeam.txt
+    npm run rewind -- --seam DriftDetectionSeam                   # rewind-DriftDetectionSeam.txt
+    npm run rewind -- --seam MeechieVoiceSeam                     # rewind-MeechieVoiceSeam.txt
+    npm run rewind -- --seam "MeechieVoiceSeam (self-contained)"  # rewind-MeechieVoiceSeam(self-contained).txt
+    npm run rewind -- --seam "DriftDetectionSeam (self-contained)"# rewind-DriftDetectionSeam(self-contained).txt
+    npm run rewind -- --seam "PromptAssemblySeam (self-contained)"# rewind-PromptAssemblySeam(self-contained).txt
+    npm run rewind -- --seam "SpecValidationSeam (self-contained)"# rewind-SpecValidationSeam(self-contained).txt
+    npm run rewind -- --seam "MeechieToolSeam (self-contained)"   # rewind-MeechieToolSeam(self-contained).txt
+    ```
+
+    All paths are relative to `docs/evidence/2026-09-04/`.
   - **This count has been wrong twice, in the same direction each time.** It was first written as
     "the six seams the page consumes" — short, and incoherent too, since `SpecValidationSeam` is
     itself server-side on the `/api/generate` path, so the set could not be defended as

@@ -5,13 +5,13 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-04T20:44:47.204Z
+Generated at: 2026-09-04T20:56:38.606Z
 Evidence folder: docs/evidence/2026-09-04
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
 after this inventory is taken, so they are not listed):
 
-- assumption-alarm.json (12123 bytes)
+- assumption-alarm.json (13613 bytes)
 - build.txt (11485 bytes)
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (28496 bytes)
@@ -31,18 +31,18 @@ after this inventory is taken, so they are not listed):
 - rewind-MeechieToolSeam.txt (539 bytes)
 - rewind-MeechieVoiceSeam(self-contained).txt (542 bytes)
 - rewind-MeechieVoiceSeam.txt (539 bytes)
-- rewind-OutputPackagingSeam.txt (639 bytes)
+- rewind-OutputPackagingSeam.txt (640 bytes)
 - rewind-PromptAssemblySeam(self-contained).txt (542 bytes)
-- rewind-PromptAssemblySeam.txt (539 bytes)
+- rewind-PromptAssemblySeam.txt (540 bytes)
 - rewind-ProviderAdapterSeam.txt (540 bytes)
 - rewind-RateLimitSeam.txt (540 bytes)
 - rewind-SafetyPolicySeam.txt (542 bytes)
-- rewind-SessionSeam.txt (537 bytes)
+- rewind-SessionSeam.txt (538 bytes)
 - rewind-SpecValidationSeam(self-contained).txt (542 bytes)
 - rewind-SpecValidationSeam.txt (542 bytes)
 - seam-ledger.json (30250 bytes)
 - seam-ledger.md (2409 bytes)
-- shaolin-lint.json (517 bytes)
+- shaolin-lint.json (519 bytes)
 - test.txt (1031 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-chain.txt (13348 bytes)
