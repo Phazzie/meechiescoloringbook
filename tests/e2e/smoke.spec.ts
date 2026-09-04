@@ -755,3 +755,39 @@ test('making a page does not cancel a verdict request nobody cancelled', async (
 	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
 	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
 });
+
+test('an unreadable generated image does not replace the page already on screen', async ({
+	page
+}) => {
+	// A contract-valid response is not a usable page. `GeneratedImageSchema` types `data` as
+	// `NonEmptyStringSchema`, and `image-generation-pipeline.ts` labels bytes it cannot identify as
+	// `png`, so a provider returning nonempty garbage arrives as a well-formed PNG. Installing the
+	// page before packaging — the fix that stopped a packaging failure from discarding a finished
+	// PDF — meant that garbage replaced a good page with a broken tile, left Save enabled, and let
+	// the corrupt image reach the vault.
+	let generateCalls = 0;
+	await page.route('**/api/generate', async (route) => {
+		generateCalls += 1;
+		if (generateCalls === 1) {
+			await route.fulfill({ json: generatedPage });
+			return;
+		}
+		await route.fulfill({
+			json: {
+				...generatedPage,
+				value: {
+					...generatedPage.value,
+					images: [{ ...generatedPage.value.images[0], id: 'image-2', data: 'bm90LWFuLWltYWdl' }]
+				}
+			}
+		});
+	});
+
+	await makeToolkitPage(page);
+
+	// The response is 200 and schema-valid; only the bytes are unusable. The paid page must survive.
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.getByTestId('meechie-tool-generate-error')).toContainText('could not be read');
+	await expectPageOnScreen(page);
+	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
+});

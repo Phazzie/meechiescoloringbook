@@ -25,6 +25,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 	import { sessionAdapter } from '$lib/adapters/session.adapter';
+	import { isRenderableGeneratedImage } from '$lib/core/raster-image-format';
 	import { buildToolPageRecipe, buildToolStudioText } from '$lib/core/tool-page-recipe';
 	import type { ToolPageRecipe } from '$lib/core/tool-page-recipe';
 
@@ -289,7 +290,19 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 				return;
 			}
 
-			const images = parsed.data.value.images;
+			// A contract-valid response is not yet a usable page. `data` is only
+			// `NonEmptyStringSchema`, and the image pipeline labels bytes it cannot identify as
+			// `png`, so nonempty garbage arrives here as a well-formed PNG: it renders as a broken
+			// tile, `embedPng` throws on it, and it can be saved to the vault in that state.
+			// Installing it would destroy a good page for an unusable one — the same defect as
+			// clearing before the response arrived, one step further along. Drop the unreadable
+			// ones and keep the page on screen if nothing survives.
+			const images = parsed.data.value.images.filter(isRenderableGeneratedImage);
+			if (images.length === 0) {
+				generateError =
+					'The provider returned an image that could not be read. The page on screen was kept.';
+				return;
+			}
 
 			// Install the page before packaging it. The generation is the paid part and it has
 			// already succeeded here; packaging is a local render that can fail on its own. Leaving

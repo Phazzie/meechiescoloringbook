@@ -2178,3 +2178,57 @@ rather than something to settle by construing the text against three prior merge
   density is driven by voice as much as by theme, on every page the studio has ever built.
 - Run 1's seam-level items: `deleteCreation` ignoring `owner`, unsurfaced `skippedIndices`, base64
   in localStorage.
+
+---
+
+## Run 2, correction 6 — 2026-09-04 — the reviewer was right twice more, on the same two fixes
+
+**Seventeen rounds, 65 findings, 31 real user-visible defects.** Both of these are third-order:
+defects in corrections to corrections. Both were confirmed by measurement before any code changed,
+and both are red-proofed.
+
+### A contract-valid response is not a usable page
+
+`GeneratedImageSchema` types `data` as `NonEmptyStringSchema` — any non-empty string validates — and
+`image-generation-pipeline.ts` labels bytes it cannot identify as `png`. So a provider returning
+nonempty garbage arrives at the component as a well-formed PNG.
+
+Installing the page before packaging it — the fix that stopped a packaging failure from throwing
+away a finished PDF — meant that garbage *replaced a good page*: broken preview tile, Save still
+enabled, corrupt image savable to the vault, and `embedPng` throwing afterwards. Reverting the new
+guard shows exactly what the reader got: **"Page made, but the printable download could not be
+built: Packaging failed."** The app announcing a page it cannot render, having just discarded the
+one it could.
+
+`isRenderableGeneratedImage` now judges each image by its own bytes before the replacement is
+committed, and the old page survives when nothing readable came back. It decodes via `atob` rather
+than the module's existing `Buffer`-based path, because `Buffer` is not in the browser bundle — the
+existing decoder would have returned `null` for every image, valid ones included, and rejected every
+generation the app has ever made.
+
+This is the same defect as the P1 three corrections ago. That one said: do not destroy the page you
+have until a replacement has arrived. I implemented "arrived" as "the response parsed."
+
+### Comparing theme IDs could never have worked
+
+`StudioSettingsPanel.svelte` fires `onSettingChange` on *every* theme-chip click, including the chip
+that is already active. So an ID match never meant "the reader left the theme alone" — and a
+reopened page never recorded the theme that built it, so an ID mismatch never reliably meant they
+changed it either. Three separate corrections on this PR were three wrong answers to a question the
+comparison cannot answer.
+
+The panel now says which happened: `onSettingChange('theme')` from a chip, `onSettingChange('setting')`
+from everything else, and `applyTextToSpec` takes that source. `lastAppliedThemeId` is gone.
+
+### What the pattern actually was
+
+The last entry called these boundaries drawn one case short and prescribed running the adjacent
+input. That was right and insufficient. Both of today's findings are a different failure: **inferring
+a fact that was available to be passed.** Whether the image is readable is knowable from its bytes;
+whether the reader picked a theme is knowable at the click. In both places I derived it from a proxy
+— the response parsed, the ID differs — and the proxy was wrong in cases I could not enumerate by
+staring at it.
+
+The rule that would have caught both: when a check answers "did X happen?" with something other than
+X, that is a defect waiting for an input I have not thought of. Pass the fact, or measure the thing
+itself.

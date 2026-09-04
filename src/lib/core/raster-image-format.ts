@@ -5,6 +5,8 @@
 //      now lives in one place both can import.
 // Info flow: raw bytes or a base64 string -> byte-signature match -> a RasterMimeType, or null.
 
+import type { GeneratedImage } from '../../../contracts/image-generation.contract';
+
 export type RasterMimeType = 'image/jpeg' | 'image/png' | 'image/webp';
 
 const startsWithBytes = (bytes: Uint8Array, signature: readonly number[]): boolean =>
@@ -30,4 +32,40 @@ export const detectRasterMimeTypeFromBase64 = (base64: string): RasterMimeType |
 	} catch {
 		return null;
 	}
+};
+
+// `Buffer` is not in the browser bundle, so the decoder above returns `null` for every image when
+// called from a component — valid ones included. `atob` exists in both the browser and Node, so
+// anything that runs on the client side of a seam has to come through here instead.
+const decodeBase64ToBytes = (base64: string): Uint8Array | null => {
+	try {
+		const binary =
+			typeof atob === 'function'
+				? atob(base64)
+				: Buffer.from(base64, 'base64').toString('binary');
+		const bytes = new Uint8Array(binary.length);
+		for (let index = 0; index < binary.length; index += 1) {
+			bytes[index] = binary.charCodeAt(index);
+		}
+		return bytes;
+	} catch {
+		return null;
+	}
+};
+
+/**
+ * Whether a generated image can actually be drawn and embedded, judged from its own bytes.
+ *
+ * `GeneratedImageSchema` types `data` as `NonEmptyStringSchema`, so any non-empty string is a
+ * contract-valid image, and `image-generation-pipeline.ts` labels bytes it cannot identify as
+ * `png`. A provider returning nonempty garbage therefore reaches the UI as a well-formed PNG that
+ * renders as a broken tile and makes `embedPng` throw. Callers that are about to *replace* a
+ * working page need to know that before they discard it.
+ */
+export const isRenderableGeneratedImage = (image: GeneratedImage): boolean => {
+	if (image.encoding === 'utf8') {
+		return image.format === 'svg' && image.data.trim().length > 0;
+	}
+	const bytes = decodeBase64ToBytes(image.data);
+	return bytes !== null && detectRasterMimeTypeFromBytes(bytes) !== null;
 };

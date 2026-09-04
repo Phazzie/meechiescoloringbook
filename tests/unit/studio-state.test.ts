@@ -1120,7 +1120,11 @@ describe('StudioState quote vault', () => {
 		// `loadCreation` cannot restore the page's own theme — nothing on the spec records it — so
 		// `selectedThemeId` sits at the default. Recomputing decorations on every settings change
 		// therefore turned a restored dense page minimal on a page-size change alone; preserving it
-		// unconditionally made the Theme control contradict itself. Provenance decides.
+		// unconditionally made the Theme control contradict itself. The caller says which happened.
+		//
+		// Comparing theme IDs was the third wrong answer to this and could not have been right: the
+		// theme chips fire on a click of the already-active chip, so an ID match does not mean the
+		// reader left the theme alone. The last case below is that one.
 		//
 		// The voice is moved off `receipts_out` first, because `styleHint` concatenates the theme
 		// *and* the voice and the density test is `includes('receipt')` — so the default voice makes
@@ -1148,22 +1152,30 @@ describe('StudioState quote vault', () => {
 
 		// A setting that has nothing to do with the theme must leave it dense.
 		studio.pageSize = 'A4';
-		await studio.syncSpecFromCurrentText();
+		await studio.syncSpecFromCurrentText('setting');
 		expect(studio.spec.decorations).toBe('dense');
 
 		// Choosing a theme is the one thing that recomputes it.
 		const restoreTimeTheme = studio.selectedThemeId;
 		const otherTheme = studioThemes.find((theme) => theme.id !== restoreTimeTheme);
 		studio.selectedThemeId = otherTheme!.id;
-		await studio.syncSpecFromCurrentText();
+		await studio.syncSpecFromCurrentText('theme');
 		expect(studio.spec.decorations).toBe('minimal');
 
-		// And coming back to the theme that happened to be selected at restore time is still a
-		// change. Comparing against a restore-time value read this as "no theme change" and kept the
-		// density computed for the theme in between.
+		// Coming back to the theme selected at restore time is still a selection. Comparing against
+		// a restore-time value read this as "no theme change" and kept the density computed for the
+		// theme in between.
 		studio.spec = { ...studio.spec, decorations: 'dense' };
 		studio.selectedThemeId = restoreTimeTheme;
-		await studio.syncSpecFromCurrentText();
+		await studio.syncSpecFromCurrentText('theme');
+		expect(studio.spec.decorations).toBe('minimal');
+
+		// And clicking the chip that is *already* active is a selection too. `StudioSettingsPanel`
+		// fires the handler on every chip click, active or not, so this reaches the state with the
+		// theme ID unchanged — which every ID-comparison version of this logic read as "the reader
+		// changed nothing" and left the restored density in place.
+		studio.spec = { ...studio.spec, decorations: 'dense' };
+		await studio.syncSpecFromCurrentText('theme');
 		expect(studio.spec.decorations).toBe('minimal');
 	});
 

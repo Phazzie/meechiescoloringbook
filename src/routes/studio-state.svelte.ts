@@ -56,6 +56,16 @@ import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 type PageSize = ColoringPageSpec['pageSize'];
 type BorderChoice = ColoringPageSpec['border'];
 
+/**
+ * What caused a spec rebuild: the reader picking a theme, or anything else.
+ *
+ * Only the theme derives `decorations`, so only a theme selection may recompute it on a reopened
+ * page. The settings panel says which happened rather than leaving it to be inferred — a theme
+ * chip fires on a click of the already-active chip, and a reopened page never recorded the theme
+ * that built it, so no comparison of theme IDs can answer the question.
+ */
+export type SettingChangeSource = 'theme' | 'setting';
+
 const DRAFT_SAVE_DEBOUNCE_MS = 300;
 
 // `format` is the only image-type field the contract actually constrains: it is a closed
@@ -301,13 +311,6 @@ export class StudioState {
 	 * and image quota on an incomplete page.
 	 */
 	private restoredPageLayout = false;
-	// The theme in force at the last rebuild. `loadCreation` does not restore the page's own theme —
-	// there is nowhere on the spec that records it — so a mismatch against this is what proves the
-	// reader picked one. It has to track the *last applied* theme rather than the restore-time one:
-	// pinning the restore-time value meant selecting another theme and then coming back to it read
-	// as "no change", and the density from the intervening theme was preserved for the one returned
-	// to.
-	private lastAppliedThemeId: string | null = null;
 	authContext: CreationRecord['authContext'] | null = null;
 	// Incremented whenever the displayed page is replaced; async work captures it and drops its
 	// result if the value moved on. Not $state: nothing renders it.
@@ -391,7 +394,10 @@ export class StudioState {
 		return validation.ok;
 	}
 
-	private async applyTextToSpec(output: MeechieStudioTextOutput): Promise<void> {
+	private async applyTextToSpec(
+		output: MeechieStudioTextOutput,
+		source: SettingChangeSource = 'setting'
+	): Promise<void> {
 		this.spec = buildColoringPageSpecFromMeechieText({
 			output,
 			pageSize: this.pageSize,
@@ -414,18 +420,22 @@ export class StudioState {
 			// page — left-aligned, small, stroke 6 — the moment any setting changed.
 			//
 			// `decorations` is the one field that is derived from the theme rather than chosen, so it
-			// is dropped once the reader picks a theme and the builder recomputes it. Every setting
-			// change comes through here, so recomputing unconditionally would have turned a restored
-			// dense page minimal on a page-size change alone.
+			// is dropped only when the reader actually picks a theme. Every setting change comes
+			// through here, so recomputing unconditionally would have turned a restored dense page
+			// minimal on a page-size change alone.
+			//
+			// `source` is passed in rather than inferred from a theme-ID comparison, because the
+			// comparison cannot answer the question. The theme chips fire on a click of the chip
+			// that is already active, and a reopened page never recorded which theme built it — so
+			// an ID match meant "unchanged" when the reader had just asked for that theme, and an
+			// ID mismatch meant "changed" when they had touched something else entirely. Three
+			// separate corrections on this PR were versions of that same wrong question.
 			presentation: this.restoredPageLayout
-				? this.selectedThemeId === this.lastAppliedThemeId
-					? this.spec
-					: { ...this.spec, decorations: undefined }
+				? source === 'theme'
+					? { ...this.spec, decorations: undefined }
+					: this.spec
 				: undefined
 		});
-		// Record the theme this rebuild ran under, so the next one compares against what was actually
-		// applied rather than against a value frozen at restore time.
-		this.lastAppliedThemeId = this.selectedThemeId;
 		await this.validateSpec();
 		this.scheduleDraftSave();
 	}
@@ -512,9 +522,11 @@ export class StudioState {
 		this.draftTimer = setTimeout(() => void this.saveDraft(), DRAFT_SAVE_DEBOUNCE_MS);
 	};
 
-	syncSpecFromCurrentText = async (): Promise<void> => {
+	syncSpecFromCurrentText = async (
+		source: SettingChangeSource = 'setting'
+	): Promise<void> => {
 		try {
-			await this.applyTextToSpec(this.textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT);
+			await this.applyTextToSpec(this.textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT, source);
 		} catch (error) {
 			this.draftSaveError =
 				error instanceof Error ? error.message : 'Page settings could not be saved.';
@@ -818,7 +830,6 @@ export class StudioState {
 		this.spec = creation.intent;
 		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
 		this.restoredPageLayout = true;
-		this.lastAppliedThemeId = this.selectedThemeId;
 		// The evidence box is an editable field the reader's next Generate Verdict sends to the text
 		// provider as their own words, so what lands in it matters more than a display string does.
 		// This fell back to `assembledPrompt` — the image-generation prompt — for any record saved
@@ -999,7 +1010,6 @@ export class StudioState {
 			// Setting it for a studio-authored draft costs nothing: such a spec is a `list` with a
 			// footer, so both derivations above return what the false branch would have.
 			this.restoredPageLayout = true;
-			this.lastAppliedThemeId = this.selectedThemeId;
 			this.evidence = draft.value.chatMessage || '';
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;
