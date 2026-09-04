@@ -130,6 +130,31 @@ const PNG_TRAILER = [0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82] as const;
 // End-of-image marker.
 const JPEG_TRAILER = [0xff, 0xd9] as const;
 
+const WHITESPACE = new Set([' ', '\t', '\n', '\r', '\f', '\v']);
+
+/**
+ * Drop trailing whitespace and complete XML comments, both of which are legal after an SVG's root
+ * element closes.
+ *
+ * A scan rather than a regex on purpose. The obvious pattern for this — `(?:\s|<!--[\s\S]*?-->)*$`
+ * — is an anchored alternation under a star, the classic shape for catastrophic backtracking: on a
+ * long run of whitespace that does not ultimately match, the engine explores exponentially many
+ * splits. The input here is decoded from a stored record, so it is not worth leaving a
+ * super-linear path on it even with the trailer capped at a few dozen bytes. This loop is linear
+ * and does the same job.
+ */
+const stripTrailingSvgNoise = (text: string): string => {
+	let end = text.length;
+	for (;;) {
+		while (end > 0 && WHITESPACE.has(text[end - 1])) end -= 1;
+		if (end < 3 || text.slice(end - 3, end) !== '-->') return text.slice(0, end);
+		const commentStart = text.lastIndexOf('<!--', end - 3);
+		// An unterminated comment means the tail window began inside one; stop rather than guess.
+		if (commentStart === -1) return text.slice(0, end);
+		end = commentStart;
+	}
+};
+
 /**
  * Whether the stored blob is a *complete* image, not merely one that starts like one.
  *
@@ -148,7 +173,7 @@ const looksCompleteImage = (padded: string, kind: VaultImageKind): boolean => {
 		const text = new TextDecoder().decode(bytes).toLowerCase();
 		// Trailing whitespace and XML comments are legal after the root element closes, so they are
 		// stripped before the ending is judged.
-		const tail = text.replace(/(?:\s|<!--[\s\S]*?-->)*$/, '');
+		const tail = stripTrailingSvgNoise(text);
 		// Two legal endings, not one: `</svg>` closes a root with content, and `/>` closes a
 		// self-closing root such as `<svg xmlns="..."/>`, which is a complete renderable document
 		// with no closing tag at all. Requiring `</svg>` alone rejected those outright.

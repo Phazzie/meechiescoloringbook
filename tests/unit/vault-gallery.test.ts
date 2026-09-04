@@ -211,6 +211,22 @@ describe('vaultImageSource', () => {
 		);
 	});
 
+	// A long whitespace run that ultimately does not match is the input that made the previous
+	// regex super-linear. It must be both correct and fast.
+	it('rejects a long whitespace run after a truncated SVG without hanging', () => {
+		const truncated = btoa(`${SVG_MARKUP.replace('</svg>', '')}${' '.repeat(400)}`);
+
+		const startedAt = Date.now();
+		expect(vaultImageSource({ b64: truncated, url: '/saved/page.svg' })).toBe('/saved/page.svg');
+		expect(Date.now() - startedAt).toBeLessThan(1000);
+	});
+
+	it('accepts several stacked trailing comments', () => {
+		const encoded = btoa(`${SVG_MARKUP}<!-- one --> <!-- two -->\n`);
+
+		expect(vaultImageSource({ b64: encoded })).toBe(`data:image/svg+xml;base64,${encoded}`);
+	});
+
 	it.each([
 		['a trailing XML comment', `${SVG_MARKUP}<!-- exported by Meechie -->`],
 		['trailing whitespace and a newline', `${SVG_MARKUP}\n  `],

@@ -519,3 +519,29 @@ no seam, because every test written against it inherits the error and reports gr
 ### Still deferred after the ninth round
 
 - Everything listed above, unchanged.
+
+---
+
+## Run 1, tenth close-out — 2026-09-04 — a regex introduced one commit earlier
+
+Appended, not edited. One SonarCloud finding, and it is the good kind: the fix for the previous
+round's SVG finding introduced a **catastrophic-backtracking regex**.
+
+`(?:\s|<!--[\s\S]*?-->)*$` is the textbook shape — an anchored alternation under a star. On a long
+run of trailing whitespace that does not ultimately match, the engine explores exponentially many
+ways to split it. The input is decoded from a stored record, so it is not worth leaving a
+super-linear path there even with the trailer window capped at a few dozen bytes.
+
+Replaced with a linear scan that does the same job, plus two tests: a 400-character whitespace run
+after a truncated SVG must still be rejected quickly, and stacked trailing comments must still be
+accepted.
+
+**The pattern, again.** This is the fourth time in this run that a fix has introduced its own
+defect. Every one was caught by review rather than by the test suite, because each time the tests
+were written to confirm the fix's intent rather than to attack it. Writing a fix and writing the
+test that would break it are two different jobs, and doing only the first is how a correction
+becomes a regression.
+
+### Still deferred after the tenth round
+
+- Everything listed above, unchanged.
