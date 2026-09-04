@@ -150,4 +150,5 @@ generation (real, but a one-line config defect, not a feature).
 
 ### Outcome
 
-- Pull request: see the entry appended at merge time below.
+- Pull request: [#286](https://github.com/Phazzie/meechiescoloringbook/pull/286) — opened 2026-09-04.
+- Merge: recorded below once CI is green and review comments are addressed.
