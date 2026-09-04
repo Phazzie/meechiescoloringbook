@@ -5133,3 +5133,53 @@ Notable about this round: after twenty rounds of correcting corrections, the rev
 the *original* entry and found two unchecked claims sitting there since the first commit. Both are
 the same species — **a sentence that made the work sound better than it was**, in a document whose
 whole purpose is to tell the next run what is actually true.
+
+---
+
+## Run 4, correction 22 — 2026-09-04 — two criteria that contradicted each other, and the grep I told myself to run
+
+Appended, not edited. Two findings on `bdfe0cf`.
+
+### 1. P1 — acceptance criteria C and D could not both be satisfied
+
+Round 19 replaced my command sequences with acceptance criteria, on the reasoning that criteria
+describe a state and commands only predict one. That was right, and it did not make the criteria
+correct. Two of them contradicted each other:
+
+- **C:** captures are written in the canonical contract shapes, **loadable without transformation**.
+- **D:** the contract test loads them in place of its private `xaiSampleResponse`.
+
+But `tests/contract/image-generation.test.ts` stubs `fetch`. What it hands back must be the
+**provider-wire** shape — `{ data: [{ url, b64_json, revised_prompt }] }` — because
+`image-generation-seam/index.ts:17-20,145` parses `payload.data`. The mock and the seam contract
+want the **normalized** `{ images, rawModelInfo, timingMs }`. Give `fetch` a canonical seam result
+and the adapter reports an empty response; reshape it inside the test and you have done exactly the
+transformation C forbids.
+
+**There are two shapes in this seam, and I wrote criteria that assumed one.** Corrected: the probe
+captures both — the raw provider response as received, and the normalized result the adapter
+produces from it. The contract test loads the wire capture; the mock's `sample` and `fault`
+scenarios load the normalized ones. Nothing transforms anything, and the adapter remains the only
+thing mapping between them, which is the whole point of having a test for it.
+
+### 2. P2 — I corrected the one-edit claim in the log and left it standing in `DECISIONS.md`
+
+Correction 21 appended the scoped version to this log. `DECISIONS.md:131` went on saying a mode
+added to `studioModes` gets its page "in one edit", unqualified, in the entry that is the actual
+source of truth for that decision.
+
+**This is the identical failure named in rounds 12, 13 and 14** — fix the copy that was quoted,
+leave the others. What makes it worth writing down rather than just fixing: **correction 21's own
+closing lesson was "grep for the claim, not the line number", and I did not grep.** Writing the
+lesson down is not the same as applying it, and I have now demonstrated that inside a single round.
+
+Grepped this time. Two hits: the real claim at `:131`, and an unrelated idiom at `:444` ("one edit
+from drifting") that is not this claim. The entry now scopes the promise to tools already present in
+both maps, names the three unmapped tool ids, and records that
+`tests/unit/mode-catalog.test.ts` is what keeps a mis-added mode from reaching users — a real guard,
+and still not the same thing as a working page.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2 — **sixty findings across
+twenty-two rounds**, none in the application.

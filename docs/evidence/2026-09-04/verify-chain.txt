@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T22:48:52.883Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T23:00:45.460Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -463,9 +463,29 @@ first findings in twenty-one rounds to reach that far back.
 Both of the first two are the same species: **a sentence that made the work sound better than it
 was**, in the document whose purpose is to tell the next run what is true.
 
+## Round 16 — the Codex round on `bdfe0cf`: two acceptance criteria that contradicted each other
+
+  - **P1: criteria C and D could not both hold.** C requires captures "loadable without
+    transformation"; D said the contract test should load them in place of its private
+    `xaiSampleResponse`. But that test stubs `fetch`, so it must be handed the **provider-wire**
+    shape `{ data: [{ url, b64_json, revised_prompt }] }` that
+    `image-generation-seam/index.ts:17-20,145` parses — while the mock and the seam contract want the
+    **normalized** `{ images, rawModelInfo, timingMs }`. Handing a canonical seam result to `fetch`
+    makes the adapter report an empty response; reshaping it in the test is the transformation C
+    forbids. There are genuinely two shapes here, and one criterion was quietly assuming one shape.
+    Now: the probe captures **both** — the raw provider response as received, and the normalized
+    result the adapter produces from it — the contract test loads the wire capture, the mock loads
+    the normalized ones, and nothing transforms anything. The adapter is the only thing that maps
+    between them, which is precisely what its test exists to check.
+  - **P2: the one-edit promise was corrected in the log and left standing in `DECISIONS.md:131`.**
+    Correction 21 appended to `WORST_TO_BEST_LOG.md` only. This is the *same* fixed-only-the-quoted-
+    copy failure named in rounds 12 through 14 — in a correction whose own stated lesson was "grep
+    for the claim, not the line number", and I did not grep. Grepped this time: two hits, one the
+    real claim and one an unrelated idiom at `DECISIONS.md:444`.
+
 ## Ordering of this round's runs, recorded as they happened
 
-  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 22:48:52.883Z)
+  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 23:00:45.460Z)
   2. npm run lint              exit 0                     -> lint.txt
   3. npm run build             exit 0                     -> build.txt
   4. npx playwright test       28 passed                  -> e2e.txt
@@ -483,6 +503,6 @@ assumption:alarm exit 0, and 19 rewind rows recording exit code 0 against 19 fil
 `rewind-*.txt`. No hand-typed timestamp closes this file; proof-tape.json's generatedAt against this
 file's mtime is the checkable record of the ordering.
 
-**The two rulings from round 14 remain outstanding and this head does not claim otherwise.** The
-completion gate for `ImageGenerationSeam` is not met, the freshness waiver covers one of its three
-items, and this close-out is not merging on its own judgement.
+**The two rulings from round 14 remain outstanding.** The completion gate for `ImageGenerationSeam`
+is not met, the freshness waiver covers one of its three items, and this close-out is not merging on
+its own judgement.
