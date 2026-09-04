@@ -32,10 +32,21 @@ concession the `ClockSeam` plan in run 1 had to make.
     `SessionSeam`, `ClockSeam`.
   - Reached server-side inside `/api/generate`, which the rebuilt page can now call:
     `PromptAssemblySeam`, `ImageGenerationSeam`, `ImageProviderConfigSeam`, `SafetyPolicySeam`,
-    `DriftDetectionSeam`, `RateLimitSeam` (via `createQuotaGate(event, 'image')`).
+    **`DriftDetectionSeam (self-contained)`**, `RateLimitSeam` (via `createQuotaGate(event, 'image')`).
   - Reached *inside* `/api/tools`, nested behind `meechieToolAdapter.respond`:
-    `MeechieVoiceSeam` (`meechieVoiceAdapter.getVoicePack`) and `ProviderAdapterSeam`
-    (`createProviderAdapter({})`), both in `src/lib/adapters/meechie-tool-seam/index.ts`.
+    **`MeechieVoiceSeam (self-contained)`** (`meechieVoiceAdapter.getVoicePack`) and
+    `ProviderAdapterSeam` (`createProviderAdapter({})`), both in
+    `src/lib/adapters/meechie-tool-seam/index.ts`.
+  - **Two of these must be named with their `(self-contained)` suffix, and running the bare name is
+    a silent mis-verification.** `scripts/rewind.mjs` takes the *first* exact row match from
+    `docs/seams.md`, and `DriftDetectionSeam` and `MeechieVoiceSeam` each have a legacy flat-layout
+    row **above** their canonical self-contained row. `npm run rewind -- --seam MeechieVoiceSeam`
+    therefore runs the legacy suite — 4 tests — while the adapter the code actually imports
+    (`src/lib/adapters/meechie-voice-seam`, via `../meechie-voice-seam` in the tool adapter) is
+    covered by the canonical suite of **18**. The command exits 0 either way, and the evidence file
+    records only a pass count, so nothing about the output reveals that the wrong seam was verified.
+    Both canonical entries are now run explicitly, with evidence in
+    `rewind-MeechieVoiceSeam(self-contained).txt` and `rewind-DriftDetectionSeam(self-contained).txt`.
   - **This count has been wrong twice, in the same direction each time.** It was first written as
     "the six seams the page consumes" — short, and incoherent too, since `SpecValidationSeam` is
     itself server-side on the `/api/generate` path, so the set could not be defended as

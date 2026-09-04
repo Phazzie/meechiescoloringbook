@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T20:02:24.762Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T20:13:09.250Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -172,9 +172,17 @@ declined on new evidence.
   - The seam workflow, argued a third time. Declined again, but on two new measurements rather than
     a third restatement: every file the rebuild added or changed contains zero direct host access
     (no fetch/localStorage/Date.now/new Date/crypto/performance/document/window/navigator), and
-    `npm run rewind -- --seam <name>` exits 0 for all six seams the page consumes — MeechieToolSeam,
-    SpecValidationSeam, OutputPackagingSeam, CreationStoreSeam, SessionSeam, ClockSeam. That is
-    AGENTS.md's own instrument for seam-scoped verification when full verify is not required.
+    `npm run rewind -- --seam <name>` exits 0 for every seam on the paths the page reaches. That
+    list was wrong twice before it was right: first six, then twelve, now **sixteen rewind runs
+    covering fourteen seams** — the six the page touches directly (MeechieToolSeam,
+    SpecValidationSeam, OutputPackagingSeam, CreationStoreSeam, SessionSeam, ClockSeam), the six
+    reached server-side inside /api/generate (PromptAssemblySeam, ImageGenerationSeam,
+    ImageProviderConfigSeam, SafetyPolicySeam, DriftDetectionSeam, RateLimitSeam), and the two
+    nested inside meechieToolAdapter.respond (MeechieVoiceSeam, ProviderAdapterSeam). Two of them
+    are additionally run under their canonical "(self-contained)" rows, because rewind resolves the
+    first matching row in docs/seams.md and the legacy row precedes the canonical one for
+    DriftDetectionSeam and MeechieVoiceSeam. That is AGENTS.md's own instrument for seam-scoped
+    verification when full verify is not required.
 
 Evidence on this head: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped,
 build exit 0, playwright 28 passed, verify exit 0 across all eight stages, six rewind runs exit 0.

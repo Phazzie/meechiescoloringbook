@@ -4,7 +4,7 @@
 #      exit status is the only thing distinguishing a clean run from a run that never started.
 # Info flow: eslint output -> this evidence file -> review and the proof tape.
 #
-# npm run lint — 2026-09-04T20:03:31Z (this command's own start time, not the chain's)
+# npm run lint — 2026-09-04T20:14:13Z (this command's own start time, not the chain's)
 # Run 4, close-out head: the merge entry for PR #295.
 
 

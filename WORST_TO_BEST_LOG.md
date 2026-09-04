@@ -4220,7 +4220,7 @@ its own usefulness.
 
 ### The count, for the next run's benefit
 
-Findings per round on this close-out: 3, 3, 2, 5, 2. It has not converged monotonically, and the
+Findings per round on this close-out: 3, 3, 3, 2, 5, 2. It has not converged monotonically, and the
 previous prediction that it would was itself corrected. What has held steady is the *kind* of
 finding: **every single one has been in prose about the work, not in the work.** The app has been
 unchanged and green since `f81802d`, across six review rounds.
@@ -4230,3 +4230,71 @@ close-out is where this run made every one of its mistakes, and it made them bec
 feels like reporting rather than engineering. It is engineering. It has inputs that can be checked,
 claims that can be falsified, and a reader — the next run — who cannot tell a measured sentence from
 a confident one.
+
+---
+
+## Run 4, correction 7 — 2026-09-04 — the seam evidence verified the wrong seam, silently
+
+Appended, not edited. Three P2 findings on `38459a9`. The first is the most interesting failure in
+this entire close-out, because the command reported success and the evidence file looked right.
+
+### 1. `rewind` ran the legacy suite, and nothing said so
+
+`scripts/rewind.mjs` resolves a seam by taking the **first exact row match** in `docs/seams.md`. Two
+seams have a legacy flat-layout row *above* their canonical self-contained row:
+
+```
+docs/seams.md:36  | DriftDetectionSeam | contracts/… | legacy flat layout; canonical version: self-contained …
+docs/seams.md:37  | DriftDetectionSeam (self-contained) | src/lib/seams/… | canonical adapter
+docs/seams.md:38  | MeechieVoiceSeam | contracts/… | legacy flat layout; canonical version: self-contained …
+docs/seams.md:39  | MeechieVoiceSeam (self-contained) | src/lib/seams/… | canonical adapter
+```
+
+So `npm run rewind -- --seam MeechieVoiceSeam` ran the **legacy** suite — 4 tests — while the
+adapter the code actually imports is the self-contained one: `meechie-tool-seam/index.ts:11` reads
+`import { meechieVoiceAdapter } from '../meechie-voice-seam'`, whose canonical suite is **18 tests**.
+The same applies to `DriftDetectionSeam`, which `generate-pipeline.ts:4` imports from
+`$lib/adapters/drift-detection-seam`.
+
+**The command exits 0 either way, and the evidence file records only a pass count.** Nothing in the
+output — not the exit status, not the file, not the test count in isolation — reveals that a
+different seam was verified than the one named. I ran fourteen commands, read fourteen zeros, and
+presented it as proof of a path two of whose seams were never checked.
+
+Both canonical entries now run explicitly, with their own evidence
+(`rewind-MeechieVoiceSeam(self-contained).txt`, `rewind-DriftDetectionSeam(self-contained).txt`),
+and `plan.md` records that using the bare name is a silent mis-verification so the next run does not
+repeat it.
+
+This is the fourth revision of the seam list — six, twelve, fourteen, and now fourteen *verified
+against the right rows*. Each earlier version was not merely incomplete but **confidently wrong in a
+way its own output confirmed**, which is the property that makes it worth writing down: an exit code
+is evidence that a command ran, never evidence that it ran the right thing.
+
+### 2. The round count dropped a round
+
+Correction 6 recorded "3, 3, 2, 5, 2" for six rounds — five numbers for six rounds, dropping the
+three findings on `1d8ccf4`. Corrected in place *within that entry's own sentence* to 3, 3, 3, 2, 5,
+2, since the error is a miscount rather than a superseded claim and leaving it would make the
+handoff internally inconsistent about its own arithmetic.
+
+With this round the sequence is **3, 3, 3, 2, 5, 2, 3 — twenty-one findings across seven rounds, on
+a documentation-only pull request.**
+
+### 3. The chain record still said six seams
+
+`verify-chain.txt`'s Round 5 section still described "all six seams the page consumes" while the
+plan and the committed artifacts had moved to fourteen. Updated to state the full set, how it is
+partitioned, and why two entries carry the `(self-contained)` suffix.
+
+### What this close-out actually demonstrates
+
+Twenty-one findings, none of them in the application. The feature merged at `1dab4cf` has been
+green and untouched through all seven rounds. Every finding has been in the run's account of its own
+work: counts, timestamps, citations, scope, and now the verification evidence itself.
+
+The single most transferable lesson, and it is not about seams: **this run's errors were all in the
+direction of claiming more than it had checked, and every one of them was made while feeling
+careful.** The prose that accompanied each mistake was measured, hedged in places, and explicitly
+about the importance of measuring things. That tone is not evidence, and a reader — human or the
+next scheduled run — cannot distinguish it from the real thing without doing the check themselves.
