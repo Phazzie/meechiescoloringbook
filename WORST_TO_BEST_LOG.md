@@ -3805,3 +3805,89 @@ New from this run:
    is open on #295.** If a future run disagrees, the thing to re-examine is whether the change
    *creates or alters* a boundary — not whether the previous run declined it. And if a run ever
    needs a seam that does not exist, that is a genuine seam change and gets the full workflow.
+
+---
+
+## Run 4, correction — 2026-09-04 — the Codex round on the close-out itself
+
+Appended, not edited. The previous section is left exactly as it merged; everything below supersedes
+it where they disagree. Three findings on `9375e2b`, the close-out head. **All three are about this
+log or its evidence rather than about the app** — which is the shape run 3 warned about: a
+retrospective is the easiest place in a repository to state something unmeasured.
+
+### 1. P1 — lint and build described an earlier head. Correct, and already fixed.
+
+The proof tape on `9375e2b` marked `build.txt`, `e2e.txt`, `lint.txt` and `verify-chain.txt` as
+predating the run, because that commit ran only the verify chain. `AGENTS.md` requires check, lint,
+test and build **before every push**, and an artifact predating the head cannot prove the head
+passed.
+
+Fixed in `ad171be`, pushed before this review landed. Noted here because the interesting part is
+that the tempting excuse — the `src/` and `tests/` trees are byte-identical to `1dab4cf`, so the
+results could not differ — is *precisely* the excuse run 3 took a P1 for. The rule is about the head
+being pushed, not about whether the inputs are believed to have changed. This run caught it from the
+proof tape rather than from the reviewer, which is the only reason it is a footnote instead of a
+fourth finding.
+
+### 2. P2 — the clock follow-up named half the defect. Correct, and the log was wrong.
+
+Follow-up 6 above scoped the unseamed home-page clock to `getMonthKey()`. The reviewer pointed at
+the four lines below it:
+
+```
+src/lib/core/meechie-studio.ts:223  const getMonthKey = (): number => { const now = new Date(); ... }
+src/lib/core/meechie-studio.ts:229  const getWeekNumber = (): number => Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+```
+
+`getWeeklyModes()` calls **both**: `getMonthlyMode()` picks one mode from `getMonthKey()`, and
+`getWeekNumber()` picks the other two. So the handoff named the read that selects one of the three
+modes on the home page and missed the read that selects the other two. A future run following
+follow-up 6 as written would have moved the monthly choice onto `ClockSeam` and left weekly
+selection host-clock-dependent — a half-fix that would look complete.
+
+**Follow-up 6 is superseded: both reads belong in that change.** This is the same shape as the
+guards run 3 kept finding — a claim about a set, stated without enumerating the set — and it landed
+in a handoff note, where a future run inherits it as fact rather than as a hypothesis.
+
+### 3. P1 — the seam workflow, a third time. Still declined, but the entry above overstated its case.
+
+The finding argues that mounting `VerdictPageStudio` newly exposes generation, packaging, session
+lookup, clock-dependent records and vault writes from `/m/<slug>`, and that this is new observable
+behaviour across seam boundaries even though no adapter file was edited.
+
+Two new measurements, because a third repetition of the same argument deserves better than a third
+repetition of the same answer:
+
+- **Every file the rebuild added or changed contains zero direct host access.** Grepped for `fetch(`,
+  `localStorage`, `sessionStorage`, `Date.now`, `new Date`, `crypto.`, `performance.`, `document.`,
+  `window.` and `navigator.` across `MeechieModePage.svelte`, `mode-catalog.ts`, `+error.svelte` and
+  both `m/[mode]` route files: no hits in any of them. The rebuilt page reaches the world only
+  through `VerdictPageState`, which this pull request does not modify.
+- **`npm run rewind -- --seam <name>` passes for all six seams the page consumes** — `MeechieToolSeam`,
+  `SpecValidationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`, `SessionSeam`, `ClockSeam`, each
+  exit 0 on this head. That is `AGENTS.md`'s own instrument for "seam-scoped contract verification
+  when full verify is not required", and running it turns the classification from an argument into a
+  recorded check.
+
+**Where the reviewer is right, and the entry above is now corrected.** The concern that this log
+would teach future runs that "only creating a new seam qualifies" is fair, and follow-up 7 as
+written invited exactly that reading. It is too broad. The narrower and correct statement:
+
+> A change that adds a caller to an existing adapter, writes no host access of its own, and alters
+> no contract is not a seam change. A change that introduces a host read, alters a contract, or
+> changes what crosses a boundary is one — **regardless of whether an adapter file appears in the
+> diff.** The test is the behaviour at the boundary, not the file list.
+
+That last clause is the part the previous entry left out, and it is the part that matters: "no
+adapter file in the diff" is evidence, not proof. Here the two measurements above are what close the
+gap, and a future run reusing this reasoning must produce its own — not cite this one.
+
+The finding stays declined, and its thread on #295 stays open. But the honest summary is that it was
+declined on stronger evidence than the entry above claimed to have at the time, and that the entry's
+framing of the rule was wider than the rule.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages. check 0 errors / 0 warnings. lint exit 0. test **1187
+passed, 1 skipped**. build exit 0. playwright **28 passed**. Six `npm run rewind` seam runs, all
+exit 0.

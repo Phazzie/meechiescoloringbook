@@ -157,3 +157,21 @@ the only file it marks as predating the run, correctly — no seam artifact is i
 
 Evidence on this head: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped,
 build exit 0, playwright 28 passed, `npm run verify` exit 0 across all eight stages.
+
+## Round 5 — the Codex round on the close-out head `9375e2b`
+
+Three findings, all about this log or its evidence rather than about the app. Two accepted, one
+declined on new evidence.
+
+  - lint/build/e2e predating the head: already fixed in `ad171be`, pushed before the review landed.
+  - The clock follow-up named `getMonthKey()` only, while `getWeekNumber()` (meechie-studio.ts:229)
+    selects the other two of the three modes the home page shows. Superseded in the log.
+  - The seam workflow, argued a third time. Declined again, but on two new measurements rather than
+    a third restatement: every file the rebuild added or changed contains zero direct host access
+    (no fetch/localStorage/Date.now/new Date/crypto/performance/document/window/navigator), and
+    `npm run rewind -- --seam <name>` exits 0 for all six seams the page consumes — MeechieToolSeam,
+    SpecValidationSeam, OutputPackagingSeam, CreationStoreSeam, SessionSeam, ClockSeam. That is
+    AGENTS.md's own instrument for seam-scoped verification when full verify is not required.
+
+Evidence on this head: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped,
+build exit 0, playwright 28 passed, verify exit 0 across all eight stages, six rewind runs exit 0.

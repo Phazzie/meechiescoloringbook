@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-04T19:07:50.270Z
+Generated at: 2026-09-04T19:14:19.617Z
 Evidence folder: docs/evidence/2026-09-04
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -21,12 +21,18 @@ after this inventory is taken, so they are not listed):
 - e2e.txt (4644 bytes)
 - lint.txt (581 bytes)
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
+- rewind-ClockSeam.txt (543 bytes)
+- rewind-CreationStoreSeam.txt (539 bytes)
+- rewind-MeechieToolSeam.txt (539 bytes)
+- rewind-OutputPackagingSeam.txt (640 bytes)
+- rewind-SessionSeam.txt (537 bytes)
+- rewind-SpecValidationSeam.txt (542 bytes)
 - seam-ledger.json (30250 bytes)
 - seam-ledger.md (2409 bytes)
 - shaolin-lint.json (519 bytes)
 - test.txt (1031 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify-chain.txt (10245 bytes)
+- verify-chain.txt (11504 bytes)
 - verify.txt (1356 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 
