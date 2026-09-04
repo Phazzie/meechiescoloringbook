@@ -262,7 +262,11 @@ export class VerdictPageState {
 
 	/** Build the coloring page this verdict deserves, and package it for download. */
 	async makePage(): Promise<void> {
-		if (!this.verdict || this.isGenerating) return;
+		// `isWorking` matters as much as `isGenerating`. Keeping the previous verdict on screen while
+		// a replacement loads is deliberate, but it leaves this button live for a verdict that is
+		// about to be thrown away: the replacement's `resetPage()` discards whatever this produced,
+		// after the generation had already been billed. Refusing to start is the only free fix.
+		if (!this.verdict || this.isGenerating || this.isWorking) return;
 		// `resetPage` first: it bumps the token, so this run claims the value it leaves behind and
 		// any earlier in-flight run is already stale by the time this one starts.
 		this.resetPage();
@@ -357,7 +361,6 @@ export class VerdictPageState {
 		const assembledPrompt = this.assembledPrompt;
 		const revisedPrompt = this.revisedPrompt;
 		const violations = this.violations;
-		const fixesApplied = this.recommendedFixes.map((fix) => fix.code);
 		this.isSaving = true;
 		this.vaultStatus = 'Saving...';
 		const token = this.pageToken;
@@ -391,7 +394,15 @@ export class VerdictPageState {
 					// and omitting the field keeps the save valid rather than losing the page.
 					studioText: buildToolStudioText(pageVerdict, recipe) ?? undefined,
 					violations,
-					fixesApplied,
+					// `fixesApplied` is deliberately omitted, not filled from `recommendedFixes`.
+					// This flow never applies a recommendation and never regenerates with one, so
+					// writing them into a field named "applied" records a correction that did not
+					// happen — and a later reader could not tell a drifted page from a corrected
+					// one. `violations` above still carries the full drift evidence, which is the
+					// part that is actually true. The two older call sites
+					// (`studio-state.svelte.ts`, `MeechieTools.svelte`) still write recommendations
+					// here; that is a pre-existing defect in persisted-record semantics and fixing
+					// it belongs in its own change, not smuggled into this one.
 					images: images.map((image) => ({ b64: generatedImageBase64(image) })),
 					owner
 				}

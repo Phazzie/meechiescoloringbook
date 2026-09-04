@@ -205,3 +205,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: SonarCloud flagged `void this.loadOwner()` in a constructor. The Quality Gate had already passed, so nothing forced the fix.
 - Lesson: The finding was a style rule; obeying it properly exposed a real bug. Eagerly resolving the session in the constructor meant a browser with site data blocked resolved to null once and stayed that way for the life of the page, so every later save said "Session is still connecting. Try again in a moment." — inviting a retry against a condition that could never change. Moving the resolve to the point of use, memoised but **cleared on failure**, made the retry real and let the message tell the truth. A passing gate is not the same as nothing to fix.
 - Action: Never start async work in a constructor — it cannot report failure to its caller, and it usually is not needed that early. Resolve on demand, share the in-flight promise, and never cache a failed resolve as the permanent answer.
+
+## 2026-09-04
+- Date: 2026-09-04
+- Context: Mutation-testing a new guard — deleting it to confirm the test that covers it fails — reported a pass, which would have meant the test proved nothing.
+- Lesson: The guard was fine; the mutation had not applied. Prettier had wrapped the guarded line across two lines after it was written, so the scripted patch string no longer matched and the file was never changed. The tempting reading of a surviving mutation ("the guard is unnecessary, or the test is worthless") is the wrong one to reach for first.
+- Action: When a mutation survives, confirm it actually landed — diff the file, or make the patch script assert its target was found — before drawing any conclusion about the guard or the test.

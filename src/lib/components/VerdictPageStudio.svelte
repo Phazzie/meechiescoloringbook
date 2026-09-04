@@ -75,12 +75,15 @@ Info flow: VerdictPageState (props) -> user actions -> state methods -> reactive
 		</p>
 	{/if}
 
+	<!-- Disabled while a replacement verdict is loading too, not just while generating: the page
+	     this would produce belongs to the verdict about to be replaced, and would be discarded the
+	     moment the replacement lands — after the generation had been billed. -->
 	<button
 		class="cta"
 		type="button"
 		data-testid="verdict-page-generate"
 		onclick={() => studio.makePage()}
-		disabled={studio.isGenerating}
+		disabled={studio.isGenerating || studio.isWorking}
 	>
 		{studio.isGenerating ? 'Printing the truth…' : 'Generate My Coloring Page'}
 	</button>

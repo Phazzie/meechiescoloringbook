@@ -13,8 +13,18 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 
 	const studio = new VerdictPageState({ fileBaseSlug: 'random' });
 
-	const tap = (): void => {
-		void studio.requestVerdict({ toolId: 'random_meechie' });
+	const tap = async (): Promise<void> => {
+		const previous = studio.verdict;
+		await studio.requestVerdict({ toolId: 'random_meechie' });
+		// A new saying is a new subject, so a dedication chosen for the previous one must not ride
+		// along and end up printed on, downloaded with, or saved against a saying it was never meant
+		// for. Cleared only once a replacement has actually arrived: a failed tap keeps the saying
+		// and its page exactly as they were, dedication included.
+		//
+		// The two other mode routes deliberately do *not* do this. "Ask her again" and "Re-run the
+		// ruling" re-ask about the same situation, so the dedication still belongs to it.
+		if (studio.verdict !== null && studio.verdict !== previous)
+			studio.setDedication('');
 	};
 </script>
 
@@ -41,7 +51,7 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 				type="button"
 				class="tap-cta"
 				data-testid="random-tap"
-				onclick={tap}
+				onclick={() => void tap()}
 				aria-label="Get a Meechie saying"
 			>
 				Tap For Truth
@@ -66,7 +76,7 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 					type="button"
 					class="ghost-btn"
 					data-testid="random-another"
-					onclick={tap}
+					onclick={() => void tap()}
 					disabled={studio.isWorking}
 				>
 					{studio.isWorking ? 'Deciding…' : 'Another one'}

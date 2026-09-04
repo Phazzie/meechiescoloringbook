@@ -412,6 +412,31 @@ describe('makePage', () => {
 		expect(state.isGenerating).toBe(false);
 	});
 
+	it('refuses to start a generation while a replacement verdict is in flight', async () => {
+		// Keeping the old verdict on screen during a reload is deliberate, but it left this button
+		// live for a verdict about to be discarded — so the click billed a generation whose result
+		// the replacement then threw away.
+		const state = await withPage(PLAIN_VERDICT);
+		state.resetPage();
+		const gate = defer<Response>();
+		routes.tools = () => gate.promise;
+
+		const pending = state.requestVerdict({ toolId: 'random_meechie' });
+		expect(state.isWorking).toBe(true);
+
+		const generateCallsBefore = fetchCalls.filter(
+			(url) => url === '/api/generate'
+		).length;
+		await state.makePage();
+		expect(fetchCalls.filter((url) => url === '/api/generate')).toHaveLength(
+			generateCallsBefore
+		);
+		expect(state.isGenerating).toBe(false);
+
+		gate.resolve(jsonResponse({ ok: true, value: STRUCTURED_VERDICT }));
+		await pending;
+	});
+
 	it('discards a page whose verdict was replaced while it was being packaged', async () => {
 		// Packaging is a second, separate window after `/api/generate` has already answered, and it
 		// is the slow one — it rasterises the page in a browser canvas. A guard that only checks
@@ -536,6 +561,33 @@ describe('saveToVault', () => {
 		// Without studioText the reopen path prints the image-generation prompt as Meechie's quote.
 		expect(record.studioText?.quote).toBe(STRUCTURED_VERDICT.response);
 		expect(record.intent.listMode).toBe('list');
+	});
+
+	it('does not record recommended fixes as applied', async () => {
+		// The flow never applies a recommendation, so writing them into `fixesApplied` would claim a
+		// correction that did not happen. `violations` still carries the drift evidence.
+		const state = await readyState();
+		routes.tools = okTools(PLAIN_VERDICT);
+		routes.generate = okGenerate({
+			violations: [
+				{
+					code: 'EXACT_TEXT',
+					message: 'The title was reworded.',
+					severity: 'error'
+				}
+			],
+			recommendedFixes: [
+				{ code: 'RETRY_EXACT', message: 'Ask again with exact text.' }
+			]
+		});
+		await state.requestVerdict({ toolId: 'random_meechie' });
+		await state.makePage();
+		await state.saveToVault();
+
+		const record = vi.mocked(creationStoreAdapter.saveCreation).mock.calls[0][0]
+			.record as CreationRecord;
+		expect(record.fixesApplied).toBeUndefined();
+		expect(record.violations).toHaveLength(1);
 	});
 
 	it('does nothing when there is no page to save', async () => {

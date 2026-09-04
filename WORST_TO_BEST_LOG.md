@@ -1992,3 +1992,132 @@ seam changed.
 Five guards are now proven by deletion rather than by reading — the two-token split, the split
 packaging call in both its forms, the post-packaging staleness check, and the uncached owner
 failure. Each was confirmed to fail when its guard is removed.
+
+---
+
+## Run 3, second close-out — 2026-09-04 — the Codex round on `93e03f1`
+
+Four findings. **Three fixed, one refused with measurement.** Two of the three fixed are real
+user-visible defects; the third is a false record written into the vault.
+
+### P2 — a generation could be billed for a verdict about to be replaced (fixed)
+
+The best finding of the round, and it is a direct consequence of a decision this run is otherwise
+proud of. Keeping the previous verdict on screen while a replacement loads is deliberate — it is
+what stops a failed retry destroying a page you paid for. But it also left "Generate My Coloring
+Page" live for a verdict that was about to be thrown away: click it during an "Ask her again", and
+`/api/generate` is billed, then the replacement's `resetPage()` discards the result on arrival.
+
+The staleness machinery worked exactly as designed here. That is the point — it discarded the page
+*correctly*, and the money was already spent. Guarding against a race is not the same as not
+starting one.
+
+Fixed in both places: the button is disabled while `studio.isWorking`, and `makePage()` refuses to
+start while a verdict request is in flight. The state guard is not redundant with the button —
+`VerdictPageState` is the shared contract for three routes, and a future caller should not be able
+to reintroduce this by wiring its own button.
+
+### P2 — "Another one" carried a dedication onto an unrelated saying (fixed)
+
+The old `/random` handler cleared `dedicatedTo` when fetching another saying. The rewrite dropped
+that without noticing, so a page dedicated to one person left that name attached to the next,
+unrelated saying — ready to be generated, downloaded and saved against it.
+
+Restored, with the timing Codex suggested: cleared only once a replacement has actually arrived, so
+a failed tap still keeps the saying and its page intact. The two other routes deliberately do
+**not** do this, and the distinction is principled rather than incidental: "Ask her again" and
+"Re-run the ruling" re-ask about the same situation, so the dedication still belongs to it; a random
+saying is a new subject, so it does not.
+
+### P2 — recommended fixes were recorded as applied (fixed)
+
+`fixesApplied: recommendedFixes.map((fix) => fix.code)` writes drift *recommendations* into a field
+named "applied", on a flow that never applies one and never regenerates. A later reader of the vault
+could not tell a drifted page from a corrected one.
+
+Now omitted — the field is optional, and omitting it says the true thing. `violations` still carries
+the whole drift record, which is the part that is actually true.
+
+Worth stating plainly: **this is inherited, not invented.** `studio-state.svelte.ts` (predating all
+three runs) and `MeechieTools.svelte` (merged in Run 2) both do exactly this, and the new call site
+copied them. Fixing all three means deciding what the field means and touching two files outside
+this PR — so only the site this run introduced is fixed here, and the other two are recorded below
+as a follow-up. Consistency with a defect is not a reason to reproduce it a third time. (Mitigating
+fact, found while checking: `fixesApplied` is currently **write-only** — nothing in `src/` or
+`tests/` reads it back — so the false record has no consumer today.)
+
+### P1 — "run the required seam workflow" (refused, with measurement)
+
+Codex argued that adding network, output-packaging, session and creation-store *behaviour* to three
+routes — new vault writes especially — alters observable behaviour across seam boundaries even
+though no seam artifact was edited, so classifying the change as "seams: none" bypasses the
+mandated workflow.
+
+Investigated rather than waved off, in the shape `DECISIONS.md`'s 2026-09-03 entry established for
+exactly this argument:
+
+1. **No seam artifact is in the diff.** `git diff --name-only origin/main..HEAD` matches nothing
+   under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`,
+   `src/lib/adapters/` or `src/lib/seams/`.
+2. **No contract shape changed.** Every payload is validated by the existing schemas —
+   `MeechieToolInputSchema` on the way out, `ColoringPageSpecSchema` via `buildToolPageRecipe`,
+   `CreationRecordSchema` inside `saveCreation`. A spec these routes now send is one the studio and
+   the toolkit could already send.
+3. **No new boundary is crossed.** The old route code already called `postJson('/api/tools')`,
+   `postJson('/api/generate')` and `Date.now()`; the new code makes the same calls from a shared
+   place. The adapters behave identically — what changed is which screens reach them.
+4. **The repo has already settled this reading, twice.** Run 2 shipped and merged the identical
+   classification for the identical seams (`MeechieToolSeam`, `CreationStoreSeam`, `SessionSeam`,
+   `OutputPackagingSeam`), for the same kind of change: wiring a screen to adapters it could not
+   previously reach, new vault writes included.
+
+Applied consistently, Codex's reading would require a full contract → probe → fixtures → mock →
+adapter cycle plus a Cipher Gate for *any* new UI that calls an existing adapter. That is not what
+`AGENTS.md:L82-L86` means by "touches a seam", whose own parenthetical defines it as filesystem,
+network, process execution, OS integration, clock/time or randomness — a boundary this code crosses
+only through the adapters that already own it.
+
+**One thing Codex did not say, which is the strongest version of its argument, and which is real:**
+`saveToVault` builds the record with `crypto.randomUUID()` and `new Date().toISOString()` — raw
+randomness and raw clock, both of which `AGENTS.md` names as seams. That is a genuine unseamed
+crossing. It is also *exactly* what `studio-state.svelte.ts` and `MeechieTools.svelte` already do
+for the same record, and `studio-state` is the file that otherwise routes time through `ClockSeam`
+for its vault labels. So the inconsistency is real, pre-existing, and identical at all three call
+sites. Adding a clock seam dependency to one of the three would be divergence, not improvement; it
+should be decided once, for all of them. Recorded as a follow-up rather than quietly ignored.
+
+### Vercel is red, and it is not this PR's
+
+`Deployment rate limited — retry in 24 hours` /
+`Resource is limited - try again in 24 hours (more than 100, code: "api-deployments-free-per-day")`.
+
+An account-level free-tier cap of 100 deployments per day, consumed by every push on every branch
+today — Runs 1, 2 and 3 and all their review rounds. Nothing in this diff can reach it, and it
+cannot be re-run for 24 hours. The `verify` workflow is green on the head. Commented once on the PR
+rather than left silent.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0/0. lint
+clean. test **1146 passed, 1 skipped** (41 new against the `6826124` baseline of 1105). build exit
+0. playwright **19 passed** (6 new). `proof-tape.md` flags only `cipher-gate.json`, correctly.
+
+Eight guards are now proven by deletion rather than by reading.
+
+### The lesson from this round
+
+One of the three mutation runs reported a **pass**, which would have meant the test proved nothing —
+and the honest reading was not "the guard is unnecessary" but "check the mutation landed". Prettier
+had wrapped the guarded line across two lines after it was written, so the patch string no longer
+matched and nothing was mutated at all. Re-applied against the real text, the test failed as it
+should. **A mutation that survives is only evidence once you have confirmed the mutation applied.**
+
+### Follow-ups this round added
+
+- `studio-state.svelte.ts` and `MeechieTools.svelte` still write `recommendedFixes` into
+  `fixesApplied`. Fix all remaining sites together, and decide whether the recommendations are worth
+  persisting under a field whose name is honest about what they are.
+- All three vault call sites build `createdAtISO` from a raw `new Date()` and the record id from
+  raw `crypto.randomUUID()`, while `AGENTS.md` classifies clock and randomness as seams and
+  `studio-state.svelte.ts` already routes its vault *labels* through `ClockSeam`. Decide it once,
+  for all three, in a change that can carry the seam workflow if it needs one.

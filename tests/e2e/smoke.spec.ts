@@ -498,6 +498,28 @@ test('editing the dedication drops the page it was not generated with', async ({
 	await expect(page.getByTestId('verdict-page-download')).toHaveCount(0);
 });
 
+test('Another one drops a dedication chosen for the previous saying', async ({
+	page
+}) => {
+	// A new saying is a new subject. Carrying the previous dedication over means the next page is
+	// generated, downloaded and saved for a recipient the user never chose it for.
+	await gotoHydrated(page, '/random');
+	await Promise.all([
+		page.waitForResponse('**/api/tools'),
+		page.getByTestId('random-tap').click()
+	]);
+	await page.getByTestId('verdict-page-dedication').fill('For Andre');
+	await expect(page.getByTestId('verdict-page-dedication')).toHaveValue(
+		'For Andre'
+	);
+
+	await Promise.all([
+		page.waitForResponse('**/api/tools'),
+		page.getByTestId('random-another').click()
+	]);
+	await expect(page.getByTestId('verdict-page-dedication')).toHaveValue('');
+});
+
 test('a failed re-ask on a mode route does not destroy the page already on screen', async ({
 	page
 }) => {
