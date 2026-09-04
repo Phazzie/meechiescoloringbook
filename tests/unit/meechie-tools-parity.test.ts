@@ -43,4 +43,23 @@ describe('Meechie Tools Parity', () => {
 			expect(svelteFile).toMatch(toolCasePattern);
 		}
 	});
+
+	// Every tool in this hub used to dead-end at a paragraph of text, which in a coloring book
+	// app is the product missing. The page factory is the fix; this asserts it stays wired, since
+	// the tools themselves would keep passing every check above without it.
+	it('keeps the coloring page factory wired to the toolkit', () => {
+		const svelteFile = readFileSync(resolve(__dirname, '../../src/lib/components/MeechieTools.svelte'), 'utf-8');
+
+		expect(svelteFile).toContain('buildToolPageRecipe');
+		expect(svelteFile).toContain("postJson(\n\t\t\t\t'/api/generate'");
+		for (const testId of [
+			'meechie-tool-page-factory',
+			'meechie-tool-make-page',
+			'meechie-tool-download',
+			'meechie-tool-save-vault',
+			'meechie-tool-copy'
+		]) {
+			expect(svelteFile).toContain(testId);
+		}
+	});
 });

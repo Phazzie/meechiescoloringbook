@@ -362,7 +362,6 @@ const normalizeSpecTitle = (value: string, fallback: string): string =>
 
 const buildStudioTextFromSpec = (input: {
 	intent: ColoringPageSpec;
-	quoteFallback?: string;
 	studioText?: MeechieStudioTextOutput;
 }): MeechieStudioTextOutput => {
 	if (input.studioText) {
@@ -371,7 +370,13 @@ const buildStudioTextFromSpec = (input: {
 	const pageTitle = normalizeSpecTitle(input.intent.title, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
 	return {
 		verdict: pageTitle,
-		quote: input.quoteFallback?.trim() || input.intent.footerItem?.label || pageTitle,
+		// The page's own words only. This used to lead with the record's `assembledPrompt`, which on
+		// a generated page is the image-generation prompt — a machine instruction carrying
+		// composition directives, never anything Meechie said — and reopening put it in her mouth as
+		// the quote. A page with no printed items hit that every time: a toolkit quote page, where
+		// the title *is* the page, had nothing else to offer. There is no case where the prompt is
+		// the right answer here, so it is gone rather than demoted.
+		quote: input.intent.footerItem?.label || pageTitle,
 		pageTitle,
 		pageItems:
 			input.intent.items.length > 0
@@ -395,7 +400,6 @@ export const buildStudioTextFromCreationRecord = (
 ): MeechieStudioTextOutput =>
 	buildStudioTextFromSpec({
 		intent: creation.intent,
-		quoteFallback: creation.assembledPrompt,
 		studioText: creation.studioText
 	});
 
@@ -408,17 +412,48 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	border: ColoringPageSpec['border'];
 	styleHint: string;
 	dedication?: string;
+	/**
+	 * The layout to rebuild in. Defaults to `'list'`, which is what the studio has always
+	 * produced, so studio behaviour is unchanged.
+	 *
+	 * It exists for pages the studio did not author. A page saved from the Meechie tools hub can
+	 * be `title_only` — the quote *is* the page — and its stored `studioText.pageItems` are a
+	 * faithful record of the verdict rather than lines the page prints. Rebuilding such a page at
+	 * `'list'` would silently reprint it as a numbered list the next time a setting changed,
+	 * spending a generation on the wrong layout.
+	 */
+	listMode?: ColoringPageSpec['listMode'];
+	/**
+	 * Whether to print the repeated-title footer. Defaults to true, which is what the studio has
+	 * always done.
+	 *
+	 * A list page saved from the Meechie tools hub carries no footer — the prompt assembler renders
+	 * one as a second exact headline line, so adding it on rebuild gives the reopened page a
+	 * duplicate of its own title.
+	 */
+	includeFooter?: boolean;
 }): ColoringPageSpec => ({
 	title: normalizeSpecTitle(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle),
-	items: input.output.pageItems.map((item) => ({
-		number: item.number,
-		label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
-	})),
-	footerItem: {
-		number: 97,
-		label: normalizeSpecLabel(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle)
-	},
-	listMode: 'list',
+	// `title_only` forbids both items and a footer item, so a quote page carries neither.
+	items:
+		input.listMode === 'title_only'
+			? []
+			: input.output.pageItems.map((item) => ({
+					number: item.number,
+					label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
+				})),
+	...(input.listMode === 'title_only' || input.includeFooter === false
+		? {}
+		: {
+				footerItem: {
+					number: 97,
+					label: normalizeSpecLabel(
+						input.output.pageTitle,
+						DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+					)
+				}
+			}),
+	listMode: input.listMode ?? 'list',
 	alignment: 'left',
 	numberAlignment: 'strict',
 	listGutter: 'normal',

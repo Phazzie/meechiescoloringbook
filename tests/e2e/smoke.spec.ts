@@ -442,3 +442,241 @@ test('meechie toolkit tabs and lineup controls work', async ({ page }) => {
 		'story keeps changing'
 	);
 });
+
+test('every toolkit verdict becomes a coloring page that downloads and saves', async ({
+	page
+}) => {
+	await gotoHydrated(page, '/meechie');
+
+	// The toolkit opens on Apology Autopsy; the page factory only exists once a verdict does.
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeHidden();
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+
+	await page.getByTestId('meechie-tool-dedication').fill('For Ray');
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+
+	await page.getByTestId('meechie-tool-save-vault').click();
+	await expect(page.getByTestId('meechie-tool-vault-status')).toContainText(
+		'Saved to the vault'
+	);
+
+	// Switching tools drops the page built from the previous verdict, so a stale download can
+	// never be attributed to the tool now on screen.
+	await page.getByTestId('meechie-tool-clapback').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeHidden();
+
+	// The page saved from the toolkit is a real vault entry on the home page, not a local-only
+	// preview: same session, same store the studio writes to.
+	await gotoHydrated(page, '/');
+	await expect(page.getByTestId('home-vault-load')).toBeVisible();
+});
+
+test('a slow page generation cannot land under a different verdict', async ({ page }) => {
+	// Codex found this: `/api/generate` is slow enough to switch tools underneath, and the tool
+	// switch sets `output` to null. A late response used to repopulate the page state beneath the
+	// new verdict, and reading the old verdict's toolId after the await threw outright.
+	// Definite-assignment, not `| null`: the executor runs synchronously, but control-flow
+	// analysis cannot see that and narrows a nullable binding to `never` at the call site.
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	await page.route('**/api/generate', async (route) => {
+		await held;
+		await route.fulfill({ json: generatedPage });
+	});
+
+	const pageErrors: string[] = [];
+	page.on('pageerror', (error) => pageErrors.push(error.message));
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-red_flag_or_run').click();
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+
+	// Start the generation, then switch tools while it is still in flight.
+	await page.getByTestId('meechie-tool-make-page').click();
+	await page.getByTestId('meechie-tool-clapback').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeHidden();
+
+	// Take the new tool's own verdict, so the factory is on screen. This is what makes the stale
+	// response observable: with the page hidden, a discarded response and a wrongly-applied one
+	// look identical. The button being enabled here is already part of the fix — abandoning a
+	// generation releases `isGenerating` rather than wedging it.
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
+	await expect(page.locator('.preview-grid img')).toHaveCount(0);
+
+	// Now let the abandoned response arrive.
+	const abandoned = page.waitForResponse('**/api/generate');
+	release();
+	await abandoned;
+
+	// Wait on an event rather than sleeping: this resolves only if the page raises an error, so a
+	// timeout is the passing outcome and a late error still fails. It also gives the discarded
+	// response a real window in which to paint — which is what the next assertion depends on.
+	await expect(page.waitForEvent('pageerror', { timeout: 3000 })).rejects.toThrow();
+	expect(pageErrors).toEqual([]);
+
+	// The load-bearing assertion: tool A's page must not have appeared under tool B's verdict.
+	await expect(page.locator('.preview-grid img')).toHaveCount(0);
+	await expect(page.getByTestId('meechie-tool-download')).toHaveCount(0);
+});
+
+
+test('editing the dedication drops the page it was not generated with, and drift is surfaced', async ({
+	page
+}) => {
+	// The dedication is baked into the spec at generation time, so a page left on screen after the
+	// field changes carries the previous value while the form shows the new one.
+	const drifted = {
+		ok: true,
+		value: {
+			...generatedPage.value,
+			violations: [
+				{
+					code: 'TEXT_DRIFT',
+					message: 'The printed title lost a word.',
+					severity: 'warning'
+				}
+			]
+		}
+	};
+	await page.route('**/api/generate', async (route) => {
+		await route.fulfill({ json: drifted });
+	});
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+
+	await page.getByTestId('meechie-tool-dedication').fill('For Alice');
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+
+	// Drift diagnostics are shown rather than discarded behind a page that looks clean.
+	await expect(page.getByTestId('meechie-tool-violations')).toContainText(
+		'The printed title lost a word.'
+	);
+
+	// Changing the dedication invalidates the page generated for the previous one, so there is no
+	// download or save offering Alice's page under Bob's name.
+	await page.getByTestId('meechie-tool-dedication').fill('For Bob');
+	await expect(page.locator('.preview-grid img')).toHaveCount(0);
+	await expect(page.getByTestId('meechie-tool-download')).toHaveCount(0);
+	await expect(page.getByTestId('meechie-tool-save-vault')).toHaveCount(0);
+	await expect(page.getByTestId('meechie-tool-violations')).toHaveCount(0);
+});
+
+
+test('switching tools during a pending verdict does not wedge the button', async ({ page }) => {
+	// The staleness guards stop an abandoned request from clearing a newer request's flag — which
+	// means the abandoned request clears nothing, so the tool switch has to release `isWorking`
+	// itself. Without that, the verdict button stayed disabled until a page reload.
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	let firstToolsCall = true;
+	await page.route('**/api/tools', async (route) => {
+		const body = route.request().postDataJSON() as { toolId?: string };
+		if (firstToolsCall) {
+			firstToolsCall = false;
+			await held;
+		}
+		await route.fulfill({ json: toolPayload(body.toolId ?? 'unknown') });
+	});
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-red_flag_or_run').click();
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-generate')).toBeDisabled();
+
+	// Switch tools while the first verdict request is still in flight.
+	await page.getByTestId('meechie-tool-clapback').click();
+	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
+
+	// The abandoned response must not re-disable it, and the new tool must still work.
+	release();
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-output')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
+});
+
+
+test('a structured verdict prints as a numbered list page, an unstructured one as a quote', async ({
+	page
+}) => {
+	const specs: Array<{ listMode: string; items: unknown[] }> = [];
+	await page.route('**/api/generate', async (route) => {
+		const body = route.request().postDataJSON() as {
+			spec: { listMode: string; items: unknown[] };
+		};
+		specs.push({ listMode: body.spec.listMode, items: body.spec.items });
+		await route.fulfill({ json: generatedPage });
+	});
+
+	await gotoHydrated(page, '/meechie');
+
+	// Run Or Red Flag is prompted to answer in "Fault:"/"Consequence:" beats, and the stub does,
+	// so its page carries that structure as numbered lines instead of flattening it into a title.
+	await page.getByTestId('meechie-tool-red_flag_or_run').click();
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+
+	// Random Meechie's stubbed saying has no structure to print as a list.
+	await page.getByTestId('meechie-tool-random_meechie').click();
+	await page.getByTestId('meechie-tool-generate').click();
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+
+	expect(specs).toHaveLength(2);
+	expect(specs[0].listMode).toBe('list');
+	expect(specs[0].items.length).toBeGreaterThanOrEqual(2);
+	expect(specs[1].listMode).toBe('title_only');
+	expect(specs[1].items).toEqual([]);
+});
+
+test('a failed replacement verdict does not destroy the page already on screen', async ({
+	page
+}) => {
+	// Codex found this: `handleGenerate` cleared the verdict, the previews, the downloads and the
+	// save recipe before it had validated the input or heard back from `/api/tools`. A required
+	// field left empty, a timeout, or a provider error therefore deleted a page the reader had
+	// already paid to generate, with nothing left to restore it from.
+	let toolsCalls = 0;
+	await page.route('**/api/tools', async (route) => {
+		toolsCalls += 1;
+		const body = route.request().postDataJSON() as { toolId?: string };
+		if (toolsCalls === 1) {
+			await route.fulfill({ json: toolPayload(body.toolId ?? 'unknown') });
+			return;
+		}
+		await route.fulfill({ status: 500, json: { message: 'provider exploded' } });
+	});
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
+
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+
+	// A second verdict request on the same tool, this time failing.
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-error')).toBeVisible();
+
+	// The page the reader paid for is still there, and still downloadable.
+	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
+});

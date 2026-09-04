@@ -922,4 +922,200 @@ describe('StudioState quote vault', () => {
 
 		expect(studio.vaultError).toBe('Failed to write storage.');
 	});
+
+	it('keeps a reopened quote page as a quote page when the replacement verdict fails', async () => {
+		// Clearing the restored layout when the action *started* converted the page the moment a
+		// text action failed, timed out, or was rejected — while its text was still on screen.
+		const studio = new StudioState();
+		const quoteSpec = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter' as const,
+			border: 'decorative' as const,
+			styleHint: 'crown',
+			listMode: 'title_only' as const
+		});
+
+		await studio.loadCreation({
+			id: 'creation-quote-fail',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: quoteSpec,
+			assembledPrompt: 'a saved toolkit quote page',
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+		expect(studio.spec.listMode).toBe('title_only');
+
+		// A failing text action must not take the layout with it.
+		const fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValue(new Error('provider unavailable'));
+		try {
+			studio.evidence = 'He said the phone died.';
+			await studio.runTextAction('generate_text');
+		} finally {
+			fetchSpy.mockRestore();
+		}
+		expect(studio.textError).not.toBe('');
+
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.listMode).toBe('title_only');
+	});
+
+	it('keeps a reopened quote page as a quote page, but does not carry that layout into a new verdict', async () => {
+		// A page saved from the Meechie tools hub can be `title_only`; the studio only ever authors
+		// list pages. The reopened layout has to survive a settings change on that page and stop
+		// applying the moment a new verdict replaces it.
+		const studio = registerInitialized(new StudioState());
+		const quoteSpec = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown',
+			listMode: 'title_only'
+		});
+		expect(quoteSpec.listMode).toBe('title_only');
+		expect(quoteSpec.footerItem).toBeUndefined();
+
+		await studio.loadCreation({
+			id: 'creation-quote',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: quoteSpec,
+			assembledPrompt: 'a saved toolkit quote page',
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+		expect(studio.spec.listMode).toBe('title_only');
+
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.listMode).toBe('title_only');
+
+		const nextMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
+		studio.handleModeSelect(nextMode!.id);
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.listMode).toBe('list');
+		expect(studio.spec.items.length).toBeGreaterThan(0);
+	});
+
+	it('restores the reopened quote layout after a browser refresh', async () => {
+		// A persisted `title_only` spec can only have come from a reopened toolkit page. Without
+		// restoring that provenance, a refresh rebuilt the flag as false and the next settings
+		// change converted the quote page, spending image quota on a layout nobody chose.
+		const quoteSpec = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown',
+			listMode: 'title_only'
+		});
+		const refreshed = await initFromDraft({
+			updatedAtISO: '2026-09-04T00:00:00.000Z',
+			intent: quoteSpec,
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT
+		});
+		await refreshed.syncSpecFromCurrentText();
+		expect(refreshed.spec.listMode).toBe('title_only');
+	});
+
+	it('does not add a footer when rebuilding a list page that never had one', () => {
+		// A toolkit list page carries no footer; the prompt assembler renders one as a second exact
+		// copy of the title, so rebuilding must not invent it.
+		const withoutFooter = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown',
+			includeFooter: false
+		});
+		expect(withoutFooter.footerItem).toBeUndefined();
+		expect(withoutFooter.listMode).toBe('list');
+
+		// The studio's own pages still get theirs.
+		expect(
+			buildColoringPageSpecFromMeechieText({
+				output: DEFAULT_STUDIO_TEXT_OUTPUT,
+				pageSize: 'US_Letter',
+				border: 'decorative',
+				styleHint: 'crown'
+			}).footerItem
+		).toBeDefined();
+	});
+
+	it('gives a fresh studio page its footer back after a footerless toolkit page was reopened', async () => {
+		// Footer provenance belongs to the reopened page, not to the studio. Reading it straight off
+		// `this.spec` meant a footerless toolkit page left its absence behind: the next mode change
+		// rebuilt a studio-authored list with no footer, and every rebuild after that kept
+		// propagating the absence, because the spec it read was the one it had just built.
+		const studio = registerInitialized(new StudioState());
+		const toolkitSpec = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown',
+			includeFooter: false
+		});
+		expect(toolkitSpec.footerItem).toBeUndefined();
+
+		await studio.loadCreation({
+			id: 'creation-list',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: toolkitSpec,
+			assembledPrompt: 'a saved toolkit list page',
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.footerItem).toBeUndefined();
+
+		const nextMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
+		studio.handleModeSelect(nextMode!.id);
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.footerItem).toBeDefined();
+	});
+
+	it('never loads the image prompt into the evidence box', async () => {
+		// The evidence box is editable and the reader's next Generate Verdict sends it to the text
+		// provider as their own words. Falling back to `assembledPrompt` for a record saved without
+		// studio text put `STYLE: ... / NEGATIVE PROMPT: ...` in that box, so the next click shipped
+		// machine instructions to the provider as user facts.
+		const studio = registerInitialized(new StudioState());
+		const spec = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown',
+			listMode: 'title_only'
+		});
+		await studio.loadCreation({
+			id: 'creation-no-studio-text',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: spec,
+			assembledPrompt: 'STYLE: bold outline art\nTEXT (exact):\nNEGATIVE PROMPT: no color',
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+		expect(studio.evidence).not.toContain('NEGATIVE PROMPT');
+		expect(studio.evidence).not.toContain('STYLE:');
+		expect(studio.evidence.length).toBeGreaterThan(0);
+	});
+
+	it('keeps a reopened footerless list page footerless across a browser refresh', async () => {
+		// The other half of the same rule: a persisted spec carries its own provenance, whatever its
+		// layout. Deriving the flag from `listMode === 'title_only'` recognised only reopened quote
+		// pages, so a reopened *structured* toolkit page came back after a refresh and had a
+		// duplicate-title footer added to it.
+		const toolkitSpec = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown',
+			includeFooter: false
+		});
+		const refreshed = await initFromDraft({
+			updatedAtISO: '2026-09-04T00:00:00.000Z',
+			intent: toolkitSpec,
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT
+		});
+		await refreshed.syncSpecFromCurrentText();
+		expect(refreshed.spec.listMode).toBe('list');
+		expect(refreshed.spec.footerItem).toBeUndefined();
+	});
 });

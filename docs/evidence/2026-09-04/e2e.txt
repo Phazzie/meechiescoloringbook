@@ -1,20 +1,23 @@
-# Purpose: Capture raw npx playwright test output as evidence.
-# Why: AGENTS.md:195-196 requires 'npx playwright test' when the change is user-facing, and this run rebuilds the Quote Vault.
-# Info flow: npx playwright test -> stdout/stderr -> evidence file.
-# Command: npx playwright test
-# Date (UTC): 2026-09-04T06:01:14Z
-# Exit code: 0
+
+> meechies-coloringbook@0.1.0 test:e2e
+> playwright test
 
 
-Running 8 tests using 2 workers
+Running 14 tests using 2 workers
 
-  ✓  1 [chromium] › tests/e2e/smoke.spec.ts:120:1 › home mode switching and generation controls work (2.9s)
-  ✓  2 [chromium] › tests/e2e/smoke.spec.ts:158:1 › wig try-on demo works end to end without provider traffic (3.6s)
-  ✓  3 [chromium] › tests/e2e/smoke.spec.ts:261:1 › home quote vault can save, load, pin, and delete creations (2.1s)
-  ✓  4 [chromium] › tests/e2e/smoke.spec.ts:302:1 › home quote vault searches saved pages and reveals the ones past the preview (1.8s)
-  ✓  6 [chromium] › tests/e2e/smoke.spec.ts:374:1 › random route tap and page generation work (1.6s)
-  ✓  5 [chromium] › tests/e2e/smoke.spec.ts:335:1 › home shoutout input debounces draft save and clears dedication (2.1s)
-  ✓  8 [chromium] › tests/e2e/smoke.spec.ts:412:1 › meechie toolkit tabs and lineup controls work (2.1s)
-  ✓  7 [chromium] › tests/e2e/smoke.spec.ts:390:1 › rate and who routes submit, reset, and generate pages (3.6s)
+  ✓   1 [chromium] › tests/e2e/smoke.spec.ts:120:1 › home mode switching and generation controls work (2.2s)
+  ✓   2 [chromium] › tests/e2e/smoke.spec.ts:158:1 › wig try-on demo works end to end without provider traffic (3.0s)
+  ✓   3 [chromium] › tests/e2e/smoke.spec.ts:261:1 › home quote vault can save, load, pin, and delete creations (2.2s)
+  ✓   4 [chromium] › tests/e2e/smoke.spec.ts:302:1 › home quote vault searches saved pages and reveals the ones past the preview (2.4s)
+  ✓   5 [chromium] › tests/e2e/smoke.spec.ts:335:1 › home shoutout input debounces draft save and clears dedication (2.5s)
+  ✓   6 [chromium] › tests/e2e/smoke.spec.ts:374:1 › random route tap and page generation work (1.7s)
+  ✓   8 [chromium] › tests/e2e/smoke.spec.ts:412:1 › meechie toolkit tabs and lineup controls work (2.4s)
+  ✓   7 [chromium] › tests/e2e/smoke.spec.ts:390:1 › rate and who routes submit, reset, and generate pages (3.6s)
+  ✓   9 [chromium] › tests/e2e/smoke.spec.ts:446:1 › every toolkit verdict becomes a coloring page that downloads and saves (3.2s)
+  ✓  11 [chromium] › tests/e2e/smoke.spec.ts:532:1 › editing the dedication drops the page it was not generated with, and drift is surfaced (1.8s)
+  ✓  10 [chromium] › tests/e2e/smoke.spec.ts:478:1 › a slow page generation cannot land under a different verdict (4.9s)
+  ✓  12 [chromium] › tests/e2e/smoke.spec.ts:577:1 › switching tools during a pending verdict does not wedge the button (1.9s)
+  ✓  13 [chromium] › tests/e2e/smoke.spec.ts:612:1 › a structured verdict prints as a numbered list page, an unstructured one as a quote (2.0s)
+  ✓  14 [chromium] › tests/e2e/smoke.spec.ts:647:1 › a failed replacement verdict does not destroy the page already on screen (1.9s)
 
-  8 passed (15.7s)
+  14 passed (20.3s)

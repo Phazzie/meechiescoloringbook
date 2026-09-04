@@ -8,6 +8,62 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Meechie's Tools becomes a page factory (2026-09-04)
+
+Active plan for run 2 of the scheduled "worst feature -> best feature" task recorded in
+`WORST_TO_BEST_LOG.md`. Supersedes the Quote Vault seam plan below as the current active plan.
+
+### Plan
+
+- Goal: every one of the eleven tools in `/meechie` produces a coloring page that can be previewed,
+  downloaded and kept — and the page reflects the structure the verdict actually came back in.
+- Exact seam names: **none changed.** `MeechieToolSeam`, `CreationStoreSeam`, `SessionSeam` and
+  `OutputPackagingSeam` are consumed through their existing adapters, exactly as
+  `src/routes/+page.svelte` already consumes them. No file under `contracts/`, `probes/`,
+  `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or `src/lib/seams/` is modified, so the full
+  Seam-Driven Development workflow is not triggered and no Cipher Gate entry is required.
+- Exact files:
+  - `src/lib/core/tool-page-recipe.ts` (new) — pure verdict -> `ColoringPageSpec` + style hint.
+  - `src/lib/components/MeechieTools.svelte` — page factory UI, download, vault save, copy.
+  - `tests/unit/tool-page-recipe.test.ts` (new), `tests/unit/meechie-tools-parity.test.ts`,
+    `tests/e2e/smoke.spec.ts`.
+  - `CHANGELOG.md`, `CLAUDE.md`, `DECISIONS.md`, `plan.md`, `WORST_TO_BEST_LOG.md`.
+- Exact commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+  `npx playwright test`.
+
+### Self-critique
+
+- *Riskiest assumption:* that a tool verdict can be parsed into printable structure at all. It is
+  not taken on trust — the tool prompts in `src/lib/adapters/meechie-tool-seam/index.ts` were read
+  first, and they explicitly instruct `red_flag_or_run` and `wwmd` to answer with `Fault:` /
+  `Consequence:` / `Move:` prefixes and `lineup` to answer as `Nth place:` entries. The parser reads
+  a documented shape rather than guessing at prose, and falls back to a full-quote page whenever the
+  shape is absent.
+- *What must be proven:* that every recipe produces a spec the real contract accepts. Asserted
+  against `ColoringPageSpecSchema` itself for all eleven tools, not against a hand-written
+  expectation of it, because a spec rejected at `/api/generate` would fail after the user had
+  already paid for a generation.
+- *What could be wrong:* label truncation. The contract caps a list label at 40 characters, and a
+  cut that lands mid-phrase reads as a bug on a printed page. This was found by driving the rebuilt
+  hub in a real browser rather than by reasoning about it, and fixed with `trimDanglingTail` plus
+  tests for the cases that actually occurred.
+- *Tradeoff, and the correction that replaced it:* the first implementation saved a toolkit page
+  with **no** `studioText`, reasoning that the schema demands a quote and two to six page items a
+  tool verdict does not have. **That was wrong, and this plan must not be read as endorsing it** —
+  removing the field would reintroduce a live defect. `loadCreation` runs a record without
+  `studioText` through `buildStudioTextFromCreationRecord`, which falls back to `assembledPrompt`
+  for the quote (the image-generation prompt on a generated page) and to
+  `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` when the saved spec has no items, so reopening printed
+  rendering instructions as Meechie's words with the default landlord lines attached.
+  `buildToolStudioText` now supplies every field from text she actually produced: the headline as
+  the verdict, the response as the quote, the page's own title, and — for a full-quote page, which
+  prints no items — the response's own sentences rather than anything invented. Two constraints go
+  with it: `MeechieStudioTextOutputSchema` requires at least two `pageItems`, so a response too
+  short to yield two leads with the headline; and `buildColoringPageSpecFromMeechieText` now takes
+  the layout to rebuild in, because it otherwise hardcodes `listMode: 'list'` and would silently
+  reprint a reopened quote page as a numbered list. Full reasoning in `DECISIONS.md` under
+  "Correction: a toolkit vault save must store `studioText`".
+
 ## Quote Vault host-environment seams — ClockSeam, AppOriginSeam, PageVisibilitySeam (2026-09-04)
 
 This section is the active plan for the scheduled "worst feature -> best feature" run recorded in

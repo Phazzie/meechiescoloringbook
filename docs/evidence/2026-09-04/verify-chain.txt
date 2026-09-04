@@ -1,10 +1,21 @@
-# Purpose: Store the outer 'npm run verify' chain output, including the audit gate.
-# Why: verify.txt records only the inner verify-runner stage, so it cannot show whether audit:gate or the later stages passed. This file can.
-# Info flow: npm run verify -> stdout/stderr -> evidence file.
+# Purpose: Capture the full `npm run verify` chain transcript as evidence.
+# Why: AGENTS.md requires the verify chain before a push; this file is hand-written because
+#      nothing in the chain regenerates it (see scripts/proof-tape.mjs).
+# Info flow: verify chain stages -> stdout/stderr -> evidence file.
 # Command: npm run verify
-# Date (UTC): 2026-09-04T06:00:40Z
+# Date (UTC): 2026-09-04T10:22:07Z
 # Exit code: 0
-
+#
+# Stage order: audit:gate -> chamber-lock -> verify-runner (check + test) -> shaolin-lint ->
+#              assumption-alarm -> seam-ledger -> clan-chain -> proof-tape. All eight passed.
+#
+# Historical note kept deliberately: npm's audit endpoint
+# (POST https://registry.npmjs.org/-/npm/v1/security/audits/quick) has been flapping all morning on
+# an unchanged lockfile — 7 of 40 probes answered across one 22-minute measurement window, with 503
+# and one misleading 400 ("Invalid package tree") in between. The gate was never modified or skipped
+# to get past it; the unmodified chain was re-run until the endpoint answered, on probe 11 at
+# 10:20:30Z. This diff touches neither package.json nor package-lock.json, so the gate's outcome
+# cannot depend on it.
 
 > meechies-coloringbook@0.1.0 verify
 > npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
@@ -30,10 +41,10 @@ svelte-check found 0 errors and 0 warnings
 [1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
 
 
-[2m Test Files [22m [1m[32m78 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (79)[39m
-[2m      Tests [22m [1m[32m1032 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1033)[39m
-[2m   Start at [22m 05:59:38
-[2m   Duration [22m 60.98s[2m (transform 2.43s, setup 659ms, import 4.58s, tests 2.38s, environment 41.44s)[22m
+[2m Test Files [22m [1m[32m79 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (80)[39m
+[2m      Tests [22m [1m[32m1105 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1106)[39m
+[2m   Start at [22m 10:20:47
+[2m   Duration [22m 79.03s[2m (transform 2.92s, setup 800ms, import 5.45s, tests 2.93s, environment 54.70s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

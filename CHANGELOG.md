@@ -8,6 +8,11 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Every tool in Meechie's Tools now makes a coloring page. All eleven — Apology Autopsy, Run Or Red Flag, Meechie Move, Excuse Court, Meechie Forecast, Receipt Check, Caption Drop, Return Fire, Term Breakdown, Rate Excuse and Random Meechie — used to end at a paragraph of text you could not print, keep, or copy. Each verdict now generates the page, previews it, downloads as PDF and PNG, and saves to the Quote Vault.
+- A tool page is now shaped by what the tool actually said. A verdict that comes back in beats ("Fault:", "Consequence:", "Move:") prints as a numbered list page with those lines intact, and a ranked Excuse Court lineup prints as the ranking; a one-line saying prints as a full-quote page. Previously every mode flattened its whole answer into a single page title and lost the structure.
+- Each tool has its own artwork direction: a gavel and scales for Excuse Court, paper and ledger lines for Receipt Check, stars and constellations for Meechie Forecast, and so on, instead of one shared style for everything.
+- Rate Excuse pages lead with the score.
+- You can copy any verdict to the clipboard.
 - The Quote Vault is a real gallery of your saved coloring pages instead of a four-row list of titles. Every saved page is reachable, each row shows the actual page as a thumbnail alongside its quote and when you saved it, and you can search the whole vault by title, quote, or any line printed on the page. Pin now genuinely pins a page to the top, and you can download a saved page straight from its row.
 - Reopening a saved page brings the page back, not just the words. The image, the prompt trace, and the printable PDF are all restored, so seeing your own saved page again no longer costs another generation.
 - Deleting a saved page now asks first and can be undone afterwards. A single mis-tap can no longer destroy a page you paid to generate.

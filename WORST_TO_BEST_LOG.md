@@ -870,3 +870,883 @@ same signal:
 The evidence that does rule it out, and always did: `api-deployments-free-per-day` is a property of
 the account and the calendar day. No diff can move it, so no per-diff reproduction is meaningful.
 That is sufficient on its own and needs no claim about when the counter resets.
+
+---
+
+## Run 2 — 2026-09-04 — Meechie's Tools (the eleven-tool hub at `/meechie`)
+
+**Branch:** `claude/great-bell-eeyqm2`
+
+### The feature, and why it was the worst
+
+Meechie's Tools is the app's whole content library. Eleven tools — Apology Autopsy, Run Or Red
+Flag, Meechie Move, Excuse Court, Meechie Forecast, Receipt Check, Caption Drop, Return Fire, Term
+Breakdown, Rate Excuse, Random Meechie — reachable from a nav link on every page, under a hero that
+reads "Meechie's Full Toolkit."
+
+It was the worst feature because **in a coloring book app, the toolkit could not make a coloring
+page.** Every one of the eleven ended at a headline and a paragraph of text in a card. There was no
+way to print it, download it, save it, or even copy it. Navigate away and the verdict was gone.
+
+Concretely, on `main` at `44e2a75`:
+
+1. **Eleven tools, zero pages.** `handleGenerate` in `MeechieTools.svelte` called `/api/tools`,
+   set `output`, and rendered `{output.headline}` and `{output.response}`. That was the entire
+   lifecycle. `/api/generate` — the endpoint the whole app exists to reach — was never called from
+   this component.
+2. **The capability existed and was simply not wired here.** Three of those eleven tools
+   (`red_flag_or_run`, `rate_excuse`, `random_meechie`) had bespoke standalone routes
+   (`/who-fucked-up`, `/rate-his-excuse`, `/random`) that *did* generate a page. The other eight had
+   no path to a page anywhere in the app. Whether your verdict could become a coloring page depended
+   on which of two screens you happened to reach it from.
+3. **Nothing survived.** `saveToVault` existed only in `src/routes/studio-state.svelte.ts` and was
+   wired only from `src/routes/+page.svelte`. Run 1 rebuilt the Quote Vault into a real gallery;
+   nothing outside the home page could put anything into it.
+4. **The tools that answered in structure had it thrown away.** This is the part that took reading
+   the adapter to see, and it is the most interesting finding of the run. The prompts in
+   `src/lib/adapters/meechie-tool-seam/index.ts` explicitly instruct `red_flag_or_run` and `wwmd` to
+   answer using `"Fault:"` and `"Consequence:"` and `"Move:"` prefixes, and instruct `lineup` to
+   answer as a ranked `Nth place:` list. The app deliberately asks for structure — and then the
+   three standalone pages flatten headline plus response into one `title_only` page title capped at
+   96 characters. The app's own list page format (`listMode: 'list'`, the "Type B" layout in the
+   design system, the format its reference coloring pages use) was used by nothing outside the
+   studio.
+
+Runners-up considered and passed over:
+
+- **`/m/[mode]`** — an orphaned third implementation of the same modes. Reachable by URL, linked
+  from nowhere, unstyled against the design system, renders output in a `<pre>`, no generation, and
+  its textareas ship pre-filled with invented answers ("He said he was working late, but I saw him
+  in the club."). Genuinely bad, but unreachable from the nav, so it costs a real user nothing. It
+  is dead code to delete, not a feature to rebuild.
+- **The three standalone mode pages** — ~2,000 lines of near-identical copy-paste that generate a
+  page you then cannot save. Real, and partly addressed by this run's core module, but the tools hub
+  covers eleven tools where these cover three.
+
+### Plan (per `AGENTS.md` "Plan + Self-Critique")
+
+Recorded in full in `plan.md` under "Meechie's Tools becomes a page factory (2026-09-04)".
+
+- **Goal:** every one of the eleven tools produces a coloring page that can be previewed,
+  downloaded and kept — shaped by the structure the verdict actually came back in.
+- **Seams touched:** none. `MeechieToolSeam`, `CreationStoreSeam`, `SessionSeam` and
+  `OutputPackagingSeam` are consumed through their existing adapters exactly as
+  `src/routes/+page.svelte` already consumes them. No file under `contracts/`, `probes/`,
+  `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or `src/lib/seams/` was modified, so the full
+  Seam-Driven Development workflow was not triggered and no Cipher Gate entry was required.
+- **Files:** `src/lib/core/tool-page-recipe.ts` (new), `src/lib/components/MeechieTools.svelte`,
+  `tests/unit/tool-page-recipe.test.ts` (new), `tests/unit/meechie-tools-parity.test.ts`,
+  `tests/e2e/smoke.spec.ts`, plus `CHANGELOG.md`, `CLAUDE.md`, `DECISIONS.md`, `plan.md`.
+
+### Self-critique, and what it changed
+
+- *Riskiest assumption:* that a verdict can be parsed into printable structure at all. Not taken on
+  trust — the tool prompts were read first, and they document the exact shapes. The parser reads a
+  documented format rather than guessing at prose, and the fallback is not a failure: an
+  unstructured answer is a perfectly good quote page. The threshold is **two** items, because a
+  one-item list is a quote wearing a list's clothes.
+- *What had to be proven:* that every recipe builds a spec the real contract accepts. Asserted
+  against `ColoringPageSpecSchema` itself for all eleven tools rather than against a hand-written
+  expectation of it — a spec rejected at `/api/generate` would fail *after* the user had already
+  paid for a generation.
+- *What was actually wrong, and how it was caught:* label truncation. The contract caps a list label
+  at 40 characters. Driving the rebuilt hub in a real browser — not reasoning about it — produced
+  the printed line `Fault: he had time to answer and used`, cut mid-phrase. Word-boundary
+  truncation alone was not enough. `trimDanglingTail` now drops a trailing conjunction or
+  preposition and the fragment it drags behind it, so the same verdict prints
+  `Fault: he had time to answer` / `Consequence: he lost the spare key`. This is the run's clearest
+  lesson: the tests were green before this was found.
+
+### What shipped
+
+- All eleven tools generate a coloring page, preview it, and offer it as PDF and PNG downloads.
+- **The page matches the verdict's shape.** A beats verdict prints as a numbered list page with the
+  `Fault:` / `Consequence:` / `Move:` lines intact; a ranked Excuse Court lineup prints as the
+  ranking; a one-line saying prints as a full-quote page. The app's list format is now used outside
+  the studio for the first time.
+- **Per-tool artwork direction** instead of one shared style hint — gavel and scales for Excuse
+  Court, paper and ledger lines for Receipt Check, stars and constellations for Meechie Forecast.
+  A test asserts all eleven hints are distinct.
+- **Save to the Quote Vault from the toolkit**, into the same owner-scoped store the studio writes
+  to. An e2e test saves from `/meechie` and then finds the row on `/`.
+- Rate Excuse pages lead with the score; any verdict can be copied to the clipboard.
+- Switching tools drops the page built from the previous verdict, so a stale download can never be
+  attributed to the tool now on screen. Covered by an e2e assertion.
+
+### Deliberately not done (for a future run)
+
+- **`/m/[mode]` should be deleted.** An orphaned, unstyled, unlinked third implementation of the
+  same modes, with invented pre-filled inputs and no generation. Deleting a route is a user-visible
+  removal and belongs in its own PR, not smuggled into a rebuild.
+- **The three standalone mode routes should adopt `tool-page-recipe.ts`.** They still flatten
+  structured verdicts into a 96-character title, and they still cannot save to the vault. The core
+  module this run added is exactly what they need; the change is mechanical but touches three
+  ~700-line files and would have tripled this diff.
+- **Everything deferred by Run 1 remains deferred**, unchanged: `deleteCreation` ignoring `owner`,
+  `parseRecords`' unsurfaced `skippedIndices`, and base64 images in `localStorage` against the ~5 MB
+  quota. All three need the full Seam-Driven Development workflow.
+- **`.github/workflows/verify.yml` is still `on: [push, pull_request]`**, so every push starts two
+  identical `verify` runs on one shared cache key. Run 1 recorded this as the cause of repeated
+  hangs. Still unfixed, still a good candidate for its own small PR.
+
+### Evidence
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm run lint`: clean.
+- `npm test`: 1076 passed, 1 skipped (baseline before this change on `44e2a75`: 1032 passed,
+  1 skipped — 44 new tests).
+- `npm run build`: green.
+- `npm run verify`: **blocked, not green.** Every stage ran and passed *except the first*.
+  `npm run audit:gate` (`npm audit --audit-level=high`) fails against npm's audit endpoint, which
+  has been returning 503 / timing out while `registry.npmjs.org` itself serves 200 in 0.07s. The
+  identical failure took the `verify` check down on CI for `95ab82c`, `20c935f`, `9a2aa88` and
+  `f089a82`, so it is reproduced on both sides and is not reachable from this diff. Chamber lock,
+  verify runner, shaolin lint, assumption alarm, seam ledger, clan chain and proof tape all ran
+  clean and are transcribed in `docs/evidence/2026-09-04/verify-chain.txt`, which states which
+  stage did not run and why. **This entry does not claim exit 0, and the run is not finished until
+  the gate passes on the final head.**
+- `npx playwright test`: 12 passed, including four new tests — one that drives a verdict through
+  generation, download and vault save and then finds the row on the home page; one that asserts a
+  structured verdict is sent to `/api/generate` as `listMode: 'list'` while an unstructured one is
+  sent as `title_only`; one that holds `/api/generate` open, switches tools mid-flight and proves
+  the abandoned page never lands under the new verdict; and one that proves a dedication edit drops
+  the page it was not generated with and that drift violations are surfaced.
+- The rebuilt hub was also driven in a real browser at 1280x900 and 390x844, which is how the label
+  truncation defect was found.
+
+### Two things a future run should know
+
+1. **Read `src/lib/adapters/meechie-tool-seam/index.ts` before designing anything that renders a
+   tool verdict.** The prompts there are the specification for what each tool's output looks like.
+   The single best decision in this run came from reading them instead of assuming every tool
+   returns undifferentiated prose — and the app had been discarding that structure for its entire
+   history.
+2. **Playwright cannot launch in this container without a fix.** The pinned `@playwright/test` wants
+   Chromium build 1208; the image ships 1194, and the two use different directory layouts
+   (`chrome-linux/headless_shell` vs `chrome-headless-shell-linux64/chrome-headless-shell`).
+   `npx playwright install` is blocked. The fix that worked, and that touches no committed file:
+   symlink `/opt/pw-browsers/chromium-1208` to `chromium-1194`, then build
+   `/opt/pw-browsers/chromium_headless_shell-1208/chrome-headless-shell-linux64/` with a
+   `chrome-headless-shell` symlink pointing at `chromium_headless_shell-1194/chrome-linux/headless_shell`.
+   Without this, all ten e2e tests fail on a missing binary and look like a regression.
+
+---
+
+## Run 2, first close-out — 2026-09-04 — the review round on `95ab82c` and `20c935f`
+
+Appended, not edited. Two rounds landed close together: nine SonarCloud findings on the opening
+head, then eight Codex findings on the same head plus one remaining SonarCloud finding on the
+second.
+
+### Two real bugs, both mine, both missed by a green suite
+
+**1. A late generation could land under a different verdict (Codex, P1).** `/api/generate` is slow
+enough for a user to switch tools underneath it, and switching tools calls `resetState()`, which
+sets `output` to `null`. The in-flight response then repopulated the page state beneath the *new*
+verdict — showing and offering to save tool A's image under tool B's words — and the packaging step
+read `output.toolId` after the await, which threw outright once `output` had been cleared. Fixed
+with a generation token: `resetPage()` bumps it, an in-flight run compares its own token on arrival
+and discards itself if it lost the race, and `isGenerating` is released with the bump so abandoning
+a slow generation does not wedge the button. An end-to-end test holds `/api/generate` open, switches
+tools mid-flight, releases it, and asserts no preview renders and no page error fires.
+
+**2. Saving from the toolkit without `studioText` corrupted the reopen path (Codex, P1).** This one
+is worth reading twice, because the reasoning that produced it was recorded in `DECISIONS.md` as
+deliberate and was wrong.
+
+The original decision said: `MeechieStudioTextOutputSchema` demands a quote and two to six page
+items, a tool verdict has neither, so inventing them would put words in the vault Meechie never
+said — and `vault-gallery.ts` already documents that a record without `studioText` simply shows no
+quote. Every sentence of that is true. The conclusion did not follow, because the documented
+handling is in `vaultQuote`, which governs the **row**, and the **reopen** path is different code.
+`loadCreation` runs the record through `buildStudioTextFromCreationRecord`, which
+
+- falls back to `assembledPrompt` for the quote — on a generated page, the full image-generation
+  prompt — so reopening would print `STYLE:` and `NEGATIVE PROMPT:` instructions in quotation marks
+  as if Meechie had said them; and
+- falls back to `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` whenever the saved spec has no items, which
+  is every full-quote page, attaching the default landlord lines to the user's own saved page.
+
+Fixed with `buildToolStudioText`, where every field is text Meechie actually produced. A red-proof
+test keeps the old behaviour visible: without the field, the restored quote contains
+`NEGATIVE PROMPT` and the page items equal the defaults.
+
+**The lesson, stated plainly:** "an existing comment says this case is handled" is a claim about the
+code path that comment sits on, not about every path that reads the field. The comment was accurate
+and the inference from it was not. Chasing the field to *all* its readers would have caught this
+before review did.
+
+### SonarCloud: nine, then one
+
+All ten landed in this run's new core module, so all ten were this PR's. Read through the check-run
+annotations API using the recipe run 1 recorded — the sixth close-out's "a service is blocked is a
+fact about one route, not about the information" turned out to be immediately reusable.
+
+The regex findings were not a style nit, and the measurement is worth recording because the first
+read of it was wrong in both directions:
+
+- First probe showed 0 ms and suggested Sonar was being conservative. That probe used the wrong
+  input shape.
+- The real pathological shape is a whitespace run followed by a character `.` cannot match. On
+  `"1st" + " ".repeat(n) + "\n"` the original `[).:\s]+\s*(.+)$` took **4473 ms at n=2000** and
+  **did not terminate at n=10000**.
+- But it was **not reachable** through the public entry point, because `splitResponseLines` already
+  trimmed every line, so a newline could never sit inside one. A latent hazard in exported helpers,
+  not a live ReDoS — and the PR comment says exactly that rather than claiming a bigger fix.
+
+Narrowing the class to `[).: ]+` left it merely quadratic (2739 ms at n=50000), which is why
+SonarCloud flagged it again on the next head. The pattern is now anchored on the placing alone and
+the separator is walked by hand, which removes the ambiguity instead of shrinking it. The layer that
+actually protects the entry point is `collapseWhitespace`, one linear pass that deletes the input
+shape for all three flagged patterns at once.
+
+### Four findings refused, with the evidence
+
+Each of these asks this PR to adopt a pattern the merged codebase does not use anywhere. Each is a
+fair reading of `AGENTS.md` in isolation and wrong about which PR should carry the change.
+
+| Codex asks | Why it was refused |
+|---|---|
+| Route `/api/generate` through a seam adapter instead of `postJson` | `postJson` is the repo's documented shared helper (`CLAUDE.md`: "used by routes and UI components") and is how `studio-state.svelte.ts` and all three standalone mode routes already call this exact endpoint. |
+| Put `navigator.clipboard` behind an OS seam | `studio-state.svelte.ts:720` already calls `navigator.clipboard.writeText` directly. The new code matches existing precedent exactly. |
+| Take the creation id and timestamp from seams | `studio-state.svelte.ts:311-314, 349, 745` uses `crypto.randomUUID()` and `new Date().toISOString()` in the same save path. A `clock-seam` does exist, but it is used for the vault's day-rollover label, not for save timestamps. |
+| Keep the recipe core free of the Zod-backed contract | `src/lib/core/meechie-studio.ts:4-8` already value-imports `MAX_LABEL_LENGTH` and `MAX_TITLE_LENGTH` from the same contract module. |
+
+All four are real observations about the codebase and none is a defect this PR introduced. Making
+one path use a seam while the merged path beside it does not would create the inconsistency rather
+than remove it. They are recorded as deferred below.
+
+### The evidence gate, again
+
+Codex was right that the committed evidence did not meet the gate: `proof-tape.md` itself marked
+`verify-chain.txt`, `build.txt`, `lint.txt` and `e2e.txt` as **PREDATES THIS VERIFY RUN**. This is
+the same trap run 1 hit in its fifteenth close-out, and it has the same cause — those four files are
+hand-written, nothing in the chain regenerates them, and `proof-tape.mjs` marks anything older than
+`chamber-lock.json` (the run marker). Regenerating them requires running the chain *first* and
+writing the hand-made files *after*, which is the order this round used.
+
+`cipher-gate.json` is also older, and deliberately: it is not part of the verify chain, and this PR
+changes no seam, so no Cipher Gate entry is required. Refreshing it would mean fabricating a gate
+entry for a change that does not need one.
+
+### One thing the gate caught that review did not
+
+`npm run check` was green when the Codex fixes were written and red when the chain ran, because the
+new end-to-end race test declared `let release: (() => void) | null = null` and control-flow analysis
+narrows that to `never` at the call site. The lesson is small and repeats run 1's: run the gate
+after the last edit, not after the last edit you thought mattered.
+
+### One more round: the test that did not test anything
+
+SonarCloud flagged the new race test on `9a2aa88` for `await page.waitForTimeout(500)` — replace a
+fixed wait with synchronization on an observable condition. Fair, and acting on it exposed something
+worse than the smell.
+
+Replacing the sleep with `waitForResponse` + `waitForLoadState('networkidle')` made the test pass
+**with the guard deliberately removed**. Two separate reasons, both worth recording:
+
+1. The assertion ran before the discarded response had been processed, so "nothing rendered" was
+   trivially true.
+2. Even given time, the effect was invisible: the tool switch leaves `output` null, the factory is
+   hidden, and a stale response that *is* wrongly applied paints nothing anyone can see. A
+   discarded response and a wrongly-applied one looked identical.
+
+The rewritten test takes the new tool's own verdict first, so the factory is on screen and a stale
+page would appear under the wrong verdict, and it waits on `page.waitForEvent('pageerror')` — where
+the timeout is the passing outcome — instead of sleeping. Red-proofed both ways: with
+`isStale()` forced to `false` it fails on `locator resolved to 1 element`, and with the guard
+restored all eleven end-to-end tests pass.
+
+The related correction: the original crash (`output.toolId` read after the await) sat inside the
+existing `try`, so it never surfaced as an uncaught page error. The first attempt at a red proof
+assumed it would, and passed for the wrong reason. **A regression test is not finished until it has
+been watched to fail.**
+
+---
+
+## Run 2, second close-out — 2026-09-04 — the Codex rounds on `20c935f` and `9a2aa88`
+
+Seven more findings, all accepted. Two are worth reading; the rest are listed for completeness.
+
+### The one that came from fixing the previous one
+
+`buildToolStudioText` — the fix for the corrupted reopen path in the first close-out — manufactures
+two or more `pageItems` for a full-quote page, because `MeechieStudioTextOutputSchema` demands at
+least two. Codex followed that value one step further than the fix did:
+`buildColoringPageSpecFromMeechieText` hardcodes `listMode: 'list'`, so reopening a saved quote page
+and touching any setting rebuilt it as a **numbered list** — spending the next generation on a
+layout the user never chose.
+
+The fix is a `listMode` parameter on the builder, defaulted to `'list'` so the studio is untouched,
+passed from `this.spec.listMode` by `applyTextToSpec`. `title_only` also forbids a footer item, so
+the builder now omits both items and footer for that mode. Two tests pin it: a reopened quote page
+rebuilds as `title_only` with no items and no footer, and a studio page still rebuilds as a list.
+
+**The pattern to notice:** the previous close-out's lesson was "chase the field to all its readers."
+This is that lesson recurring one level down. The fix introduced a *new* value — synthetic
+`pageItems` — and the same discipline had to be applied to it, and was not. A fix is a change, and
+a change needs the same reader-chasing the original defect did.
+
+### The one that would have charged the user for nothing
+
+`MeechieToolOutputSchema` accepts any non-empty headline. `TitleSchema` rejects the prompt
+assembler's reserved control lines. A provider headline of `STYLE:` therefore passed `/api/tools`
+and produced a spec `/api/generate` refuses as `GENERATE_INPUT_INVALID` — a failure *after* the
+user asked for the page. The reserved-line set already existed in this module and was applied to
+labels only; titles now go through the same guard.
+
+### The other five
+
+| Finding | Resolution |
+|---|---|
+| A quoted lineup item containing its own dash (`"Long distance - no calls"`) was truncated at the dash | Read to the closing quote first; fall back to the dash split only when unquoted |
+| `violations` and `recommendedFixes` from `/api/generate` were discarded, presenting a drifted page as clean and losing the evidence on save | Both retained, violations surfaced under the preview, and persisted with the record as the studio does |
+| Editing the dedication after generating left a page, download and vault save carrying the old value | The dedication edit drops the generated page, so the only thing on offer matches the field |
+| A clipboard write delayed by a permission prompt could report "Verdict copied." under a newer verdict | Same token guard as generation, plus an identity check on the verdict |
+| `plan.md` still described the superseded no-`studioText` behaviour | Rewritten to describe the implemented fallback and both constraints that come with it |
+
+That last one deserves its own line even though the fix is a paragraph of prose. `plan.md` declares
+itself the active plan, and a later autonomous run reading it would have been told to remove the
+field whose absence corrupts every reopened page. **A superseded plan is not harmless history while
+it is still labelled current.**
+
+### A test stub caught by a schema
+
+The end-to-end drift test failed first time because its stubbed violation was
+`{ code, field, message }` and `ViolationSchema` requires `{ code, message, severity }`. The
+contract rejected the fixture rather than the fixture quietly proving nothing — which is the whole
+argument for validating against real schemas instead of hand-written expectations.
+
+
+### Correction — the Evidence block above was wrong when first written
+
+Codex caught this on `f089a82`, and it is the same class of error as the fifteenth close-out in run
+1: the entry claimed `npm run verify` was "full chain green, exit 0" while the `verify-chain.txt`
+committed beside it said the audit gate had failed on every attempt, and it quoted 1058-test /
+10-e2e counts that two further rounds had already superseded. Both numbers and the verdict have been
+corrected in place above rather than appended, because an Evidence block that reports a gate it did
+not meet is not evidence.
+
+**The rule this run keeps relearning:** evidence is written *after* the commands, from their actual
+output, and re-read against the artifacts committed beside it. Writing it from what the run expected
+to happen is how a green claim outlives the red result it describes.
+
+---
+
+## Run 2, third close-out — 2026-09-04 — the Codex round on `0be4dc2`
+
+Four findings. Three accepted, one refused with a measurement.
+
+### The same mistake, a third time
+
+`handleModeSelect` clears the text and the images but left `spec.listMode` alone. After reopening a
+toolkit quote page, starting a *new* verdict therefore carried `title_only` into it, and
+`buildColoringPageSpecFromMeechieText` discarded every page item the new verdict produced — after
+the action had spent revision budget, and before the user spent image quota on the incomplete page.
+
+That is the third round in a row where the defect was *created by the previous round's fix*:
+
+1. Omitting `studioText` corrupted the reopen path. Fixed by synthesizing `pageItems`.
+2. Those synthetic `pageItems` met a builder hardcoded to `listMode: 'list'`, so a reopened quote
+   page silently became a list. Fixed by threading `listMode` through.
+3. That threaded `listMode` outlived the page it belonged to, and poisoned the next verdict.
+
+Each fix introduced a value and each time the value's *other* readers went unchecked. The fix now
+scopes the layout explicitly with `restoredPageLayout`, true only between `loadCreation` and the
+next mode change or verdict — a flag with a stated lifetime rather than a value that leaks by
+default. Red-proofed: reverting the guard fails the new test with `"title_only"` where `"list"` is
+required.
+
+**The rule, written down properly this time:** when a fix introduces a new value, list every reader
+of it before calling the fix done. "It works for the case I was fixing" is where all three of these
+came from.
+
+### A duplicated list, deleted rather than completed
+
+The reserved-headline guard added last round kept its own copy of the prompt assembler's control
+lines — and was missing three of the contract's ten
+(`Headline, render these exact words and nothing else:` and two more). Codex asked for the set to be
+completed. Completing it would have left the same drift waiting to happen, so the set is **deleted**
+instead: `toPageTitle` now asks `TitleSchema` and `toLabel` asks `LabelSchema`. Deferring to the
+schema that owns the rule cannot drift from it, and it catches every other reason a title or label
+is refused, not just the reserved lines. Tested against all ten.
+
+### The in-flight case the first dedication fix missed
+
+The dedication guard checked for an installed recipe or preview. While `/api/generate` is still
+pending both are empty, so editing the field mid-flight returned early without bumping the token —
+and the page built for the old dedication landed under the new one. It now also invalidates while
+`isGenerating`.
+
+### Refused, with the measurement
+
+> *"Require a delimiter after verdict prefixes … `Moving on is healthy. Consequences follow.`
+> becomes the two labels `Move: ing on is healthy` and `Consequence: s follow`."*
+
+The colon is already required. The pattern is `/^(fault|consequence|move|verdict|receipt) ?: ?(.+)$/i`
+— ` ?` is an optional *space*, and `:` is mandatory. Run against the exact example:
+
+```
+"Moving on is healthy."   -> no match
+"Consequences follow."    -> no match
+"Move: change the locks." -> ["Move", "change the locks."]
+```
+
+A test now pins that prose beginning with a prefix word falls back to the quote page, so if the
+pattern ever does loosen, the suite says so.
+
+---
+
+## Run 2, fourth close-out — 2026-09-04 — the Codex round on `7f8e77b`
+
+Three findings, all real, all accepted. The first is the most serious defect found in the whole run.
+
+### An unprintable verdict would have destroyed the save
+
+`MeechieToolOutputSchema` requires only that a headline and response be non-empty. It does not
+require them to contain a single printable character. An emoji-only verdict is therefore a valid
+tool output — and `toItems` drops anything that sanitizes away, so `buildToolStudioText` produced
+**zero** page items where `MeechieStudioTextOutputSchema` demands two.
+
+The consequence is not a degraded record. `creationStoreAdapter.saveCreation` validates the whole
+`CreationRecord`, so the entire vault write would have been rejected with
+`CREATION_SCHEMA_MISMATCH` — losing the page the user had just paid a generation for, with no
+partial save and nothing to retry.
+
+Probing it turned up a second defect nobody had reported: the same verdict produced the page title
+`"-"`. `compactColoringPageTitle` normalizes the emoji down to a lone hyphen, `TitleSchema` accepts
+it (non-empty, not reserved, no control characters), and the result is a valid title on a useless
+page. `toPageTitle` now requires at least one letter or digit before accepting a title.
+
+The studio-text fix has two parts. More fallbacks — the page title joins the headline and the
+response as a source, because `toPageTitle` guarantees *it* is printable even when the verdict is
+not. And the result is validated against `MeechieStudioTextOutputSchema` before it is returned, with
+`null` on failure. Returning null costs one record a degraded reopen; returning an invalid object
+costs the user the page. A test now sweeps every tool against five responses and three headlines and
+asserts the function returns either null or something the schema accepts — never anything else.
+
+### The layout flag cleared too early
+
+The third close-out scoped the reopened quote layout with `restoredPageLayout`. It was cleared at
+the *start* of `runTextAction` — so a text action that failed, timed out, or was rejected cleared it
+while the restored text was still the text on screen, and the next settings change converted the
+quote page into a numbered list anyway. It is now cleared only once a replacement verdict has been
+accepted. Red-proofed: moving the clear back to the start fails the new test.
+
+That is the fourth consecutive round in which a defect was introduced by the previous round's fix,
+and the second in a row on this exact flag. The scoping was right; the *lifetime* was a guess.
+
+### An optional share image could take the PDF with it
+
+`outputPackagingAdapter.package` builds the print file first, and then returns the square-variant
+error **without its accumulated files**. Asking for `['print', 'square']` in one call therefore
+meant a browser that could not encode the 1080px share canvas offered no download at all — not even
+the PDF that had already been built. The two variants are now packaged independently, the files are
+merged from whichever succeeded, and the message distinguishes "the printable download failed" from
+"the PDF is ready, the share image is not".
+
+### What these three have in common
+
+All three are the same shape: **a value that is valid at one boundary and invalid at the next.** A
+headline valid to the tool contract but not to the title schema. A studio-text object valid to build
+but not to store. A packaging call valid for one variant and fatal for the pair. None is reachable
+from the happy path, and none was caught by a suite that was green at every step.
+
+---
+
+## Run 2, fifth close-out — 2026-09-04 — the Codex round on `9f4e503`
+
+Five findings, all real. Two of them are the same flag, for the fourth and fifth time.
+
+### The flag, again — and why tracking it was the wrong shape
+
+`restoredPageLayout` has now been wrong in four distinct ways across four rounds:
+
+1. Not tracked at all — a reopened quote page became a numbered list on the next settings change.
+2. Tracked, but never cleared — the layout outlived its page and poisoned the next verdict.
+3. Cleared too early — a *failed* text action cleared it while the restored text was still on screen.
+4. Not restored from the draft — a browser refresh rebuilt `StudioState` with the flag false while
+   the persisted spec was still `title_only`, so the next settings change converted the page and
+   the next generation spent image quota on a layout nobody chose.
+
+The fourth fix is the one that should have been obvious first: **derive the flag from the persisted
+spec.** A `title_only` spec can only have come from a reopened toolkit page, because the studio has
+never authored one. `init()` now sets `restoredPageLayout = draft.intent.listMode === 'title_only'`.
+Red-proofed: removing that line fails the new test with `"list"` where `"title_only"` is required.
+
+The lesson is not "chase the readers" — that was the third close-out's and it was not enough. It is
+that **a piece of state with a lifetime needs its lifetime written down at every boundary it
+crosses**: created, cleared, *and restored*. Two of the four bugs were the boundaries nobody
+enumerated.
+
+### The footer nobody asked for
+
+`buildColoringPageSpecFromMeechieText` added a `footerItem` to every non-`title_only` page. A list
+page saved from the toolkit has no footer, and the prompt assembler renders one as a *second exact
+copy of the headline* — so reopening a structured toolkit page and changing any setting gave it a
+duplicate title. The builder now takes `includeFooter`, defaulting true so the studio is untouched.
+
+### Abbreviations broke the beat parser
+
+`splitResponseLines` breaks a single line after every `. `, so
+`Fault: Dr. Smith lied. Consequence: no access.` became `Fault: Dr.` / `Smith lied.` /
+`Consequence: no access.` — the middle fragment was dropped and the page printed **`Fault: Dr.`**
+
+Beats are now split on the prefixes themselves rather than on sentence ends, because the prefixes
+are the real boundaries and the prose between them is nobody's business:
+
+```
+sentence split: ["Fault: Dr.", "Smith lied.", "Consequence: no access."]
+prefix split:   ["Fault: Dr. Smith lied.", "Consequence: no access."]
+```
+
+### The score that fell off its own page
+
+`rate_excuse` returned its title early and skipped the whole-sentence logic added two rounds ago, so
+a two-sentence rating could end mid-thought. Routing it through the same path exposed a second
+mistake in the fix itself: the loop preferred a *longer* candidate over one carrying the score, so
+the rating — the entire point of that page — was the part dropped. The selection is now two passes,
+every length with the lead before any length without it. Caught by the test, not by reading.
+
+### The verdict fetch had the same race as the page
+
+`/api/tools` for tool A could still be in flight when the user switched to tool B; A's response then
+installed itself as `output` under B's tab, and the next click would have spent a paid generation on
+A's verdict while the screen showed B. Same token guard as the page generation, plus an identity
+check on the selected tool.
+
+### The count
+
+Six review rounds, 37 findings. Two refused with measurements, thirty-five fixed. Nine were real
+user-visible defects that a suite green at every step did not catch.
+
+---
+
+## Run 2, sixth close-out — 2026-09-04 — the Codex round on `5430fae`
+
+Three findings, all real. The first is the fifth time a fix in this run created the next defect, and
+it is the most user-visible of the lot.
+
+### The guard that locked the button
+
+The previous round added a staleness guard to `handleGenerate`'s `finally`, so an abandoned verdict
+request could not clear a *newer* request's `isWorking`. Correct as far as it goes — and it meant the
+abandoned request cleared **nothing**. `resetPage` released `isGenerating` but not `isWorking`, and
+the verdict button is `disabled={isWorking}`. So switching tools while `/api/tools` was in flight
+left the button disabled **forever**; the only recovery was reloading the page.
+
+The fix is one line in `resetPage`: release both flags there, because that is the code that knows
+the request has been abandoned. Red-proofed — removing it fails the new end-to-end test with
+`locator resolved to <button disabled ...>`.
+
+**Five rounds, five defects created by the preceding fix.** The through-line is not carelessness
+about the fix itself; each one was correct about the thing it was fixing. It is that a guard added
+in one place silently moves a responsibility somewhere else, and the somewhere else was never
+checked. "Who used to do this, and who does it now?" is the question that would have caught all
+five.
+
+### Footer provenance was gated on the wrong flag
+
+`includeFooter` was derived as `restoredPageLayout ? spec.footerItem !== undefined : true`. But a
+structured toolkit page saves as a **`list`** with no footer, and `restoredPageLayout` is only true
+for `title_only` — so after a refresh the gate read false and a duplicate-title footer was added to
+a page that never had one. Reading `spec.footerItem !== undefined` unconditionally is both simpler
+and correct for either origin, because every studio-authored spec has a footer and no toolkit list
+page does. The flag was never the right source for this.
+
+### The prefix split fired inside the prose
+
+Last round's prefix-boundary split was unanchored, so a recognized word plus a colon *inside* a beat
+started a new one: `Fault: The receipt: proves he lied. Consequence: revoke access.` split at
+`receipt:` and relabelled the second half. The lookahead is now anchored to a sentence end, which
+keeps both earlier cases working — the abbreviation case (`Fault: Dr. Smith lied.`) and multi-beat
+single lines — and stops the prose case.
+
+```
+before: ["Fault: The ", "receipt: proves he lied. ", "Consequence: revoke access."]
+after:  ["Fault: The receipt: proves he lied.", "Consequence: revoke access."]
+```
+
+---
+
+## Run 2, close-out — 2026-09-04 — the gate
+
+The code was finished at `758dc38`. What was left was proving it, and for a little over two hours
+that was not possible, for a reason that had nothing to do with this branch.
+
+### npm's audit endpoint went down, and it is the first stage of the chain
+
+`npm run verify` starts with `audit:gate` (`npm audit --audit-level=high`). From roughly 07:00Z it
+failed on every attempt:
+
+```
+npm warn audit 503 Service Unavailable - POST
+https://registry.npmjs.org/-/npm/v1/security/audits/quick - Service Unavailable
+```
+
+Everything about the shape of the failure said npm, not us. The registry root answered `200` in
+0.074s the whole time; only the audit endpoint was refusing. The same failure took down the `verify`
+check on CI, so it reproduced on both sides of the network. The strongest single piece of evidence
+was accidental: this repo's workflow runs `on: [push, pull_request]`, so every head gets two
+identical `verify` jobs — and on `9f4e503` those two **disagreed**, one `success` and one `failure`,
+on byte-identical code. A check that returns different answers for the same input is not measuring
+the input.
+
+### What I did not do
+
+I did not add `--no-audit`. I did not swap the gate for the bulk advisory endpoint. I did not raise
+`--audit-level` to squeeze past. Any of those would have produced a green chain and a committed
+evidence file describing a command the repo does not run, which is worse than no evidence, because
+it is evidence that lies. The failure mode `AGENTS.md` is built to prevent is exactly a proof that
+was easier to obtain than the thing it claims to prove.
+
+I also did not merge on the gate I could not run. The temptation was real — every other signal was
+green and had been for hours — but "everything else passed" is an argument for expecting the gate to
+pass, not a substitute for running it.
+
+### What I did instead
+
+Retrying the real command cost about seven minutes per attempt, almost all of it npm's internal
+fetch retries against a dead endpoint. So I separated the probe from the proof: a cheap poller with
+`npm_config_fetch_retries=0`, which fails in ~0s when the endpoint is down, checked every 10 seconds,
+and the moment it got an answer it fired the **unmodified** `npm run verify`. The probe was
+throwaway; the proof was the real command with the repo's real settings.
+
+The endpoint answered on probe 25 at **09:17:44Z**. The chain completed clean at **09:19:15Z**,
+exit 0, all eight stages.
+
+### The evidence, regenerated in gate order
+
+`proof-tape.mjs` marks any evidence file older than that run's `chamber-lock.json` as
+`PREDATES THIS VERIFY RUN`, and four of the files in the folder are hand-written — nothing in the
+chain regenerates `lint.txt`, `build.txt`, `e2e.txt` or `verify-chain.txt`. So order matters: the
+chain first, because it writes the run marker; then the hand-written files, so they are newer than
+it; then `npm run proof:tape` last, to take the inventory.
+
+```
+npm run verify    exit 0   audit gate: found 0 vulnerabilities; all eight stages
+npm run check     0 errors, 0 warnings
+npm run test      1094 passed | 1 skipped
+npm run lint      exit 0, clean
+npm run build     exit 0
+npm run test:e2e  13 passed
+```
+
+The tape now flags exactly one file, `cipher-gate.json`, and that is the correct answer: it sits
+outside the verify chain and no seam changed in this PR.
+
+### Rosentic, for the record
+
+Eighty-three findings across the run, all of one class: "branch X removed these parameters, and your
+branch calls with them, so a merge would break." Every named branch is unmerged and none is `main`.
+Merging this PR merges it into `main`, not into those branches. Several of the suggested fixes would
+have broken this branch on contact — `registerInitialized(new StudioState())` in
+`tests/unit/studio-state.test.ts` is called against the helper defined in that same file, on this
+branch, and removing the argument as instructed makes it fail to compile. The refutation each time
+was `git diff origin/main HEAD` producing no output for the calls in question. Rosentic's own check
+status is `success`, which is the tell: the prose is speculative, and the check knows it.
+
+### The final count
+
+Nine review rounds, 41 findings against the code. Two refused with measurements, thirty-nine fixed,
+eleven of them real user-visible defects. Plus five findings refused with cited precedent in the
+existing codebase, and the Rosentic class above.
+
+Three corrections I made to my own claims, each in the open rather than quietly:
+
+- I overstated a ReDoS finding twice — first the blowup itself (the initial probe used the wrong
+  input shape and measured 0ms; the real one needs a trailing character `.` cannot match, and hits
+  4473ms at n=2000), then its reachability (it was not reachable through the public entry point,
+  because `splitResponseLines` trims first).
+- An evidence block I wrote claimed `npm run verify` exit 0 while `verify-chain.txt` committed
+  beside it recorded the audit gate failing. Corrected in place.
+- Commit `758dc38`'s message says 1096 tests; the actual number is 1094. Corrected on the PR rather
+  than by rewriting history.
+
+The pattern worth keeping from this run is the one from the sixth close-out, and it explains the
+corrections too: a claim made from reading is a hypothesis, and the difference between a good run
+and a bad one is whether you measure it before you say it out loud.
+
+---
+
+## Run 2, addendum — 2026-09-04 — the Codex round on `758dc38`
+
+Two findings arrived after I had written the close-out above. Both were real, so the count in it is
+wrong and this entry is the correction: **ten rounds, 43 findings, thirteen real user-visible
+defects.** The log is append-only, so the number above stands as written and this supersedes it.
+
+### The footer absence outlived the page it belonged to
+
+Last round I changed footer provenance from `restoredPageLayout ? spec.footerItem !== undefined :
+true` to reading the spec unconditionally, on the reasoning that "every studio-authored spec has a
+footer and no toolkit list page does." That reasoning is true of a spec's *origin* and useless as a
+*test*, because after the first rebuild the spec being read is the one the rebuild just wrote.
+
+So: reopen a footerless toolkit page, then switch modes. The flag clears, but the footerless spec is
+still on the paper. The fresh studio-authored list is built from it with `includeFooter: false` — and
+the next rebuild reads *that* spec, and the one after that, and the footer never comes back for the
+rest of the session.
+
+That is the **sixth** time in this run that a fix created the next defect, and the second time on
+these same eight lines. Which finally makes the actual shape of the mistake legible: I kept trying to
+infer provenance from the artifact instead of tracking it. Layout and footer are one question — "is
+this still the page that was reopened?" — and the answer is a fact about history, not something
+recoverable from the spec, because the spec gets overwritten by the very code asking.
+
+The fix is to make them read the same flag, and to fix the flag instead of routing around it. It was
+being rebuilt from a draft as `listMode === 'title_only'`, which recognised reopened quote pages and
+missed reopened structured ones — that mismatch is what made reading the spec look necessary last
+round. `loadCreation` had it right all along and sets it unconditionally; the draft path now does the
+same. For a studio-authored draft that costs nothing, because a `list` with a footer gets identical
+answers from either branch.
+
+### `Dr.` is not a sentence
+
+`splitResponseLines` split a single-line response after every `. `, and a quote title is trimmed to
+the largest run of whole sentences that fits 96 characters. So a long verdict opening `Dr. Reyes
+signed off on the inspection he never attended...` printed a coloring page whose entire text was
+`Verdict Delivered - Dr.` A finished-looking page with none of the verdict on it, and the same split
+made `Dr.` item 1 of a list page.
+
+I had fixed the abbreviation case for *beats* two rounds earlier, in `splitBeatLines`. I fixed it
+there and did not ask who else split on sentence ends — the same "who used to do this, and who does
+it now?" question from the sixth close-out, asked one function too narrowly. Fixed at the source this
+time, so both the title path and the list path get it.
+
+The boundary is now a terminator plus a space plus something that starts a sentence, with lookbehinds
+for a short abbreviation list and for a single-letter initial. That deliberately also blocks a
+sentence genuinely ending on a lone capital ("He got an A. Then he left."), merging two sentences
+instead of splitting them. That is the right way to be wrong: a merged pair still reads as finished
+prose and just fails the length check, where a bad split prints a page with two characters on it.
+
+```
+npm run verify   exit 0   1099 passed | 1 skipped
+npm run test:e2e 13 passed
+```
+
+---
+
+## Run 2, addendum 2 — 2026-09-04 — the Codex round on `7ff7d09`
+
+Four findings. Three real, one refused with the repository's own code as evidence. Running count:
+**eleven rounds, 47 findings, sixteen real user-visible defects.**
+
+### The page died before the request was even sent
+
+The worst one in the whole run, and it was in the very first line of `handleGenerate` from the day I
+wrote it. `resetState()` ran *before* the input was validated and before `/api/tools` was called. So
+an empty required field — or a timeout, or a provider 500, or an off-contract response — destroyed
+the verdict, the previews, the packaged downloads and the save recipe of a page the reader had
+already paid to generate. Nothing could restore it. Every review round had looked straight past it,
+including mine, because the reset reads as ordinary hygiene.
+
+The fix is to move the question from "am I about to try?" to "did it work?": clear only the stale
+error up front, validate, and replace what is on screen only where a replacement verdict has
+actually arrived.
+
+One trap on the way, and it is the same trap as the sixth close-out. `resetState()` bumps
+`pageToken`, so re-asking `isStale()` in the `finally` after a successful reset would read the
+request's own reset as somebody else's and leave the button disabled forever — the round-six defect,
+rebuilt from the other direction. Recording `abandoned` at each early return instead of recomputing
+staleness at the end is what keeps both properties: an abandoned request still clears nothing, and a
+successful one still releases the button.
+
+### `p.m.` is not a title
+
+The abbreviation guard I added an hour earlier was too broad. `p.m.` went in the same list as `Dr.`,
+so `He waited until 9 p.m. She kept explaining...` came back as one oversized item, both
+whole-sentence loops rejected it, and the title fell back to a mid-sentence cut — the exact failure
+the guard existed to prevent, reintroduced by the guard.
+
+The distinction I had missed is what the abbreviation *does*. `Dr.`, `Mr.`, `St.`, `vs.`, `No.`
+introduce what follows, so the capital after the period belongs to the same sentence and only a list
+can tell. `p.m.`, `etc.`, `Inc.` end a phrase; a capital after them really does start a new
+sentence, and mid-sentence they need no help at all because the continuation is lowercase, which the
+uppercase lookahead already refuses to split. So the list is now titles only, and it is shorter.
+
+### The image prompt in Meechie's mouth
+
+For a verdict with no printable words at all, `buildToolStudioText` returns null and the record saves
+without `studioText`. Codex is right that this is not neutral: the reopen path fell back to
+`assembledPrompt`, which on a generated page is the image-generation prompt, and printed it as the
+quote.
+
+Fixed at the loader, because there is no case where that prompt is the right answer — a saved page's
+quote should be the page's own words or nothing. It is gone rather than demoted.
+
+What I did not fix, stated plainly: a page with no printed items still cannot supply the two
+`MeechieStudioTextOutputSchema` demands, so the default items still stand in for them on that one
+record shape. Inventing two lines to fill the slot would be a placeholder wearing Meechie's voice,
+which is worse than a documented gap. The test now asserts the gap rather than hiding it.
+
+### Refused: read the toolkit timestamps through `ClockSeam`
+
+`ClockSeam` is real and I am not disputing that AGENTS.md lists clock/time as a seam. The evidence is
+about what this repository actually does with it. `src/routes/studio-state.svelte.ts` imports
+`ClockSeam` — for the daily budget rollover at line 164, the one thing that must be deterministic in
+a test — and then uses the host clock directly for exactly the three things the toolkit does:
+
+```
+src/routes/studio-state.svelte.ts:324   `creation-${Date.now()}`
+src/routes/studio-state.svelte.ts:359   new Date().toISOString()
+src/routes/studio-state.svelte.ts:771   new Date().toISOString()
+src/routes/random/+page.svelte:134      `meechie-random-${Date.now()}`
+src/routes/rate-his-excuse/+page.svelte:147
+src/routes/who-fucked-up/+page.svelte:147
+```
+
+Record identity and a download filename are not behaviour anything asserts. Routing them through the
+seam in one component would leave six other call sites doing it the old way, which makes the codebase
+less consistent, not more. The repo-wide change is worth doing; it belongs in its own PR, and it is
+recorded here as a follow-up.
+
+---
+
+## Run 2, addendum 3 — 2026-09-04 — the Codex round on `ace1d01`
+
+Two findings, both real. Running count: **twelve rounds, 49 findings, eighteen real user-visible
+defects.**
+
+### The image prompt reached the provider as the reader's own words
+
+Last round I took the image-generation prompt out of the reopen path's *quote*. Codex found the
+other half: `loadCreation` sets `this.evidence` on its own line, and it had the same fallback.
+
+That one is worse than a display bug. The evidence box is editable, and the reader's next Generate
+Verdict sends its contents to the text provider as their own account of what happened. So reopening
+a page saved without studio text filled the box with `STYLE: bold outline art / TEXT (exact): /
+NEGATIVE PROMPT: no color`, and one click shipped those machine instructions to the provider as user
+facts.
+
+The fix is one line, because `loadCreation` already computes `restoredText` two lines above and that
+value resolves the stored quote when there is one and the page's own words when there is not. The
+lesson is the same one this run keeps teaching: I fixed the function and did not ask who else made
+the same call. `assembledPrompt` had two consumers, and I had checked one.
+
+### The first closing quote is not the wrapper's
+
+The lineup prompt asks for `Nth place: "item" — commentary`, and a provider can follow that exactly
+while quoting someone inside the item: `1st place: "He said "trust me"" — and then he left`. Taking
+the first closing quote silently changed the printed item to `He said`. The scan now runs backwards
+for the closer that has nothing after it but the commentary delimiter.
+
+### A limit found while fixing it, and left honest
+
+Writing that test turned up something older: a lineup arriving as a **single line** loses its first
+item. `splitResponseLines` treats `1.` as a sentence end, so the placing and its entry land on
+opposite sides of the break and neither half parses as a ranked line. A lineup is structured by its
+numbering, not its sentences, so the fix is a placing-aware split for that one caller.
+
+I did not do it here. It is a parser change with its own failure modes, it arrived at the end of an
+already-large PR, and rushing it is exactly how the last six defects in this log got made. It is a
+test that asserts the current behaviour and says why, rather than a test that pretends the case
+works — and it is a follow-up, recorded here.
+
+```
+npm run check    0 errors, 0 warnings
+npm run lint     exit 0
+npm run test     1105 passed | 1 skipped
+npm run test:e2e 14 passed
+npm run verify   blocked at the audit gate; npm's endpoint answered 7 of 40 probes over 22 minutes
+                 and has been down solidly since 09:59Z. Re-running the unmodified chain.
+```

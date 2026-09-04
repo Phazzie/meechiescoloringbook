@@ -291,6 +291,16 @@ export class StudioState {
 
 	// --- Non-reactive implementation details ---
 	owner: CreationOwner | null = null;
+	/**
+	 * True only while the spec's layout belongs to a page reopened from the vault.
+	 *
+	 * The studio always authors list pages; a page saved from the Meechie tools hub can be
+	 * `title_only`. That layout must survive a settings change on the reopened page, but must not
+	 * outlive it: carried into a brand-new verdict it would make
+	 * `buildColoringPageSpecFromMeechieText` discard every new page item, spending revision budget
+	 * and image quota on an incomplete page.
+	 */
+	private restoredPageLayout = false;
 	authContext: CreationRecord['authContext'] | null = null;
 	// Incremented whenever the displayed page is replaced; async work captures it and drops its
 	// result if the value moved on. Not $state: nothing renders it.
@@ -380,7 +390,18 @@ export class StudioState {
 			pageSize: this.pageSize,
 			border: this.border,
 			styleHint: this.currentStyleHint(),
-			dedication: this.currentDedication()
+			dedication: this.currentDedication(),
+			// Keep the layout only while this is still the reopened page. For anything the studio
+			// authored, and for every fresh verdict, this is 'list'.
+			listMode: this.restoredPageLayout ? this.spec.listMode : 'list',
+			// Layout and footer are the same question — "is this still the page that was reopened?"
+			// — so they read the same flag. Reading the footer off `this.spec` unconditionally
+			// instead looked simpler and was wrong in one direction: once a footerless toolkit page
+			// had been reopened, its missing footer outlived it. A mode change or a new verdict
+			// cleared the flag but left that spec in place, so the next studio-authored list was
+			// built without a footer, and every rebuild after that read the spec it had just built
+			// and kept the absence forever.
+			includeFooter: this.restoredPageLayout ? this.spec.footerItem !== undefined : true
 		});
 		await this.validateSpec();
 		this.scheduleDraftSave();
@@ -492,6 +513,7 @@ export class StudioState {
 		if (modeChanged) {
 			this.textOutput = null;
 			this.resetGeneratedPage();
+			this.restoredPageLayout = false;
 		}
 		this.scheduleDraftSave();
 	};
@@ -534,7 +556,6 @@ export class StudioState {
 		this.textError = '';
 		this.copyStatus = '';
 		this.vaultStatus = '';
-
 		const trimmedEvidence = this.evidence.trim();
 		const safeEvidence =
 			trimmedEvidence.length > 0 || this.activeMode.toolId === 'random_meechie'
@@ -573,6 +594,11 @@ export class StudioState {
 			this.textOutput = parsed.data.value;
 			this.revisionBudget = consumeStudioActionBudget(this.revisionBudget, actionId);
 			this.resetGeneratedPage();
+			// Only now, with a replacement verdict accepted, does a reopened page's layout stop
+			// applying. Clearing it when the action *started* would convert the restored quote page
+			// into a numbered list whenever the action then failed, timed out, or was rejected —
+			// while its text was still the text on screen.
+			this.restoredPageLayout = false;
 			await this.applyTextToSpec(parsed.data.value);
 		} catch (error) {
 			this.textError =
@@ -767,7 +793,16 @@ export class StudioState {
 		const restoredText = buildStudioTextFromCreationRecord(creation);
 		this.resetGeneratedPage();
 		this.spec = creation.intent;
-		this.evidence = creation.studioText?.quote ?? creation.assembledPrompt;
+		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
+		this.restoredPageLayout = true;
+		// The evidence box is an editable field the reader's next Generate Verdict sends to the text
+		// provider as their own words, so what lands in it matters more than a display string does.
+		// This fell back to `assembledPrompt` — the image-generation prompt — for any record saved
+		// without studio text, which put `STYLE: bold outline art / NEGATIVE PROMPT: ...` in the box
+		// and shipped those machine instructions to the provider as user facts on the next click.
+		// `restoredText` already resolves the same `studioText.quote` when it exists and the page's
+		// own words when it does not, so read it from there and never from the prompt.
+		this.evidence = restoredText.quote;
 		this.dedication = creation.intent.dedication ?? '';
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;
@@ -933,6 +968,13 @@ export class StudioState {
 		}
 		if (draft.ok && draft.value) {
 			this.spec = draft.value.intent;
+			// A persisted spec carries its own provenance, exactly as `loadCreation` treats one it
+			// reads from the vault — so this is unconditionally true, for the same reason that one
+			// is. Deriving it from `listMode === 'title_only'` recognised only reopened *quote*
+			// pages and missed reopened structured toolkit pages, which are footerless `list`s.
+			// Setting it for a studio-authored draft costs nothing: such a spec is a `list` with a
+			// footer, so both derivations above return what the false branch would have.
+			this.restoredPageLayout = true;
 			this.evidence = draft.value.chatMessage || '';
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;
