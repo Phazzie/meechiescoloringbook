@@ -2409,3 +2409,19 @@ commit itself, which touches no application code.
 
 **Status:** PR #285 opened and subscribed for CI/review activity. If this line is not followed by a "Merged"
 note below, the merge did not complete and the reason should be recorded here by the session that stopped.
+
+**PR #285 activity, round 4 (post-merge):** on the final push (`95c5534`), the `verify` check failed once at
+`audit:gate` with the same registry-side 400 ("This endpoint is being retired... Invalid package tree")
+documented throughout this run — `package.json`/`package-lock.json` unchanged, and CI's own runner hitting the
+identical signature this session had already reproduced twice locally is itself further evidence the flakiness
+is registry-side, not local. Re-ran the failed job once (this run's one allotted re-run per `AGENTS.md`'s CI-red
+rule); it passed cleanly on retry. `Vercel`'s commit status stayed red with the same account-level
+"Deployment rate limited" signature documented repeatedly throughout today's runs; not re-commented on since the
+identical signature was already established earlier on this same PR. Every review thread was resolved, no human
+reviewer requested changes, and no merge conflict remained against `main` (`4f68400`) — meeting every condition
+in `AGENTS.md`'s "Merge When The Gates Are Green" section.
+
+**Merged:** PR #285 merged into `main` at `a7c7fe5` in this same session. A fresh open-PR listing afterward
+showed no PR from this session's `claude/loving-babbage-*` lineage still open (PR #286, `claude/great-bell-*`,
+is a different, unrelated task from a different branch family — noted, not touched, per this routine's own
+"never touch a PR this run didn't create" rule).
