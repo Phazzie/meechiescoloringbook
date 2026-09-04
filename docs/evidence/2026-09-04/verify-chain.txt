@@ -1,0 +1,63 @@
+# Purpose: Store the outer 'npm run verify' chain output, including the audit gate.
+# Why: verify.txt records only the inner verify-runner stage, by its own design, so it
+#      cannot show whether audit:gate or the later stages passed. This file can.
+# Info flow: npm run verify -> full chain stdout/stderr -> evidence file.
+# Note: proof-tape.mjs is re-run after this file is written, so the tape inventories
+#       this exact artifact rather than the copy that existed mid-chain.
+# Note (why this evidence is dated 2026-09-04 while PR #285's own work, log entries, and code
+#       changes are dated 2026-09-03): the session doing this work crossed midnight UTC while
+#       resolving a second merge conflict against `main` (PR #284 merged concurrently). This
+#       repo's evidence scripts key their output directory off the live system date with no
+#       override (confirmed in `scripts/chamber-lock.mjs`/`assumption-alarm.mjs`:
+#       `toDateFolder(new Date())`), so this final post-merge `npm run verify` run - needed to
+#       validate the merge commit itself, which touches only docs/evidence, not the underlying
+#       code fix - landed here rather than in `docs/evidence/2026-09-03/`. Rather than fight the
+#       tooling further (an earlier attempt to force a same-session, pre-midnight run back into
+#       2026-09-03 already needed a one-off script to work around `proof-tape.mjs`'s own
+#       `getLatestEvidenceDir()`/`toDateFolder(new Date())` logic - documented in
+#       `docs/evidence/2026-09-03/verify-chain.txt` and `QUICK_WINS_LOG.md`), this one is left
+#       honestly dated where it actually ran. The underlying code fix's own verification remains
+#       fully captured in `docs/evidence/2026-09-03/` (multiple genuine `npm run verify` passes,
+#       847/1 skipped, audit gate clean) from before the rollover.
+
+$ npm run verify
+
+> meechies-coloringbook@0.1.0 verify
+> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
+
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
+found 0 vulnerabilities
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v4.1.0 /home/user/meechiescoloringbook
+
+
+ Test Files  74 passed | 1 skipped (75)
+      Tests  847 passed | 1 skipped (848)
+   Start at  00:15:49
+   Duration  46.86s (transform 1.88s, setup 509ms, import 3.50s, tests 1.50s, environment 31.94s)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+$ echo "exit=$?"
+exit=0
+
+(chamber-lock, shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape ran inside
+this same `npm run verify` invocation above, chained with &&; no individual output beyond
+what's shown, and the command's own exit=0 confirms every stage in the chain succeeded)

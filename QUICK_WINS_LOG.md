@@ -2378,5 +2378,20 @@ for.
 **Outstanding open PRs on this repo (not created by this session, not touched):** the same long-stale backlog
 (#151–#218 minus merges) every prior run has noted; still needs a separate, explicitly-scoped session to drain.
 
+**PR #285 activity, round 3:** PR #284 (a log-finalization follow-up for PR #283, same concurrent session,
+merged into `main` while this PR was still open) produced a second merge conflict against `main` in
+`QUICK_WINS_LOG.md` and every generated `docs/evidence/2026-09-03/*` file (no code files this time —
+`DECISIONS.md` was untouched by PR #284). Resolved the same way as round 1: merged `main` in, and for
+`QUICK_WINS_LOG.md` specifically, inserted origin/main's "PR #283 activity"/"PR #283 merged" paragraphs (a
+chronologically-earlier continuation of the still-open PR #282/#283 entry) ahead of this session's own dated
+entry, rather than letting either side's content be discarded or duplicated. Regenerated every evidence file
+fresh, ran `npm run check`/`lint`/`test`/`build`, then `npm run verify` as one genuine wrapper invocation
+(exit 0) — which, because real time had by now crossed into 2026-09-04, landed in a fresh
+`docs/evidence/2026-09-04/` directory rather than `2026-09-03/` (this repo's evidence scripts key their output
+directory off the live system date with no override). Left it there rather than forcing it back, and said so
+plainly in that file's own header note: the underlying code fix's own verification is already fully captured
+in `docs/evidence/2026-09-03/` from before the rollover, and this final evidence set is for the merge-resolution
+commit itself, which touches no application code.
+
 **Status:** PR #285 opened and subscribed for CI/review activity. If this line is not followed by a "Merged"
 note below, the merge did not complete and the reason should be recorded here by the session that stopped.

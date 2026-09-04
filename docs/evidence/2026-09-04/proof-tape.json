@@ -1,0 +1,133 @@
+{
+  "tool": "proof-tape",
+  "generatedAt": "2026-09-04T00:18:19.680Z",
+  "evidenceDir": "docs/evidence/2026-09-04",
+  "runMarker": "chamber-lock.json",
+  "excludedFromInventory": [
+    "proof-tape.json",
+    "proof-tape.md"
+  ],
+  "filesPredatingRun": [],
+  "files": [
+    {
+      "name": "assumption-alarm.json",
+      "path": "docs/evidence/2026-09-04/assumption-alarm.json",
+      "sizeBytes": 11519,
+      "modifiedAt": "2026-09-04T00:18:19.540Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "build.txt",
+      "path": "docs/evidence/2026-09-04/build.txt",
+      "sizeBytes": 8866,
+      "modifiedAt": "2026-09-04T00:17:24.220Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 build",
+        "vite build",
+        "Using @sveltejs/adapter-vercel"
+      ],
+      "predatesRun": false
+    },
+    {
+      "name": "chamber-lock.json",
+      "path": "docs/evidence/2026-09-04/chamber-lock.json",
+      "sizeBytes": 25720,
+      "modifiedAt": "2026-09-04T00:17:24.216Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "clan-chain.json",
+      "path": "docs/evidence/2026-09-04/clan-chain.json",
+      "sizeBytes": 2318,
+      "modifiedAt": "2026-09-04T00:18:19.628Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "clan-chain.md",
+      "path": "docs/evidence/2026-09-04/clan-chain.md",
+      "sizeBytes": 1453,
+      "modifiedAt": "2026-09-04T00:18:19.628Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "lint.txt",
+      "path": "docs/evidence/2026-09-04/lint.txt",
+      "sizeBytes": 300,
+      "modifiedAt": "2026-09-04T00:17:24.220Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 lint",
+        "eslint ."
+      ],
+      "predatesRun": false
+    },
+    {
+      "name": "seam-ledger.json",
+      "path": "docs/evidence/2026-09-04/seam-ledger.json",
+      "sizeBytes": 27312,
+      "modifiedAt": "2026-09-04T00:18:19.588Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "seam-ledger.md",
+      "path": "docs/evidence/2026-09-04/seam-ledger.md",
+      "sizeBytes": 2228,
+      "modifiedAt": "2026-09-04T00:18:19.588Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "shaolin-lint.json",
+      "path": "docs/evidence/2026-09-04/shaolin-lint.json",
+      "sizeBytes": 519,
+      "modifiedAt": "2026-09-04T00:18:19.496Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "test.txt",
+      "path": "docs/evidence/2026-09-04/test.txt",
+      "sizeBytes": 1029,
+      "modifiedAt": "2026-09-04T00:18:19.432Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ],
+      "predatesRun": false
+    },
+    {
+      "name": "verify-chain.txt",
+      "path": "docs/evidence/2026-09-04/verify-chain.txt",
+      "sizeBytes": 3423,
+      "modifiedAt": "2026-09-04T00:17:24.220Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 verify",
+        "npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs",
+        "meechies-coloringbook@0.1.0 audit:gate",
+        "npm audit --audit-level=high",
+        "meechies-coloringbook@0.1.0 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ],
+      "predatesRun": false
+    },
+    {
+      "name": "verify.txt",
+      "path": "docs/evidence/2026-09-04/verify.txt",
+      "sizeBytes": 1354,
+      "modifiedAt": "2026-09-04T00:18:19.432Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ],
+      "predatesRun": false
+    }
+  ]
+}
