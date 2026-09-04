@@ -3,15 +3,14 @@
 #      nothing in the chain regenerates it (see scripts/proof-tape.mjs).
 # Info flow: verify chain stages -> stdout/stderr -> evidence file.
 # Command: npm run verify
-# Date (UTC): 2026-09-04T11:49:58Z
+# Date (UTC): 2026-09-04T12:06:59Z
 # Exit code: 0
 #
 # Stage order: audit:gate -> chamber-lock -> verify-runner (check + test) -> shaolin-lint ->
 #              assumption-alarm -> seam-ledger -> clan-chain -> proof-tape. All eight passed.
 #
-# npm's audit endpoint has been flapping since ~07:00Z; the gate was never modified or skipped.
-# The unmodified chain was re-run until the endpoint answered. This diff touches neither
-# package.json nor package-lock.json.
+# npm's audit endpoint has been flapping all morning; the gate was never modified or skipped, and
+# the unmodified chain was re-run until it answered. This diff touches no dependency file.
 
 > meechies-coloringbook@0.1.0 verify
 > npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
@@ -38,9 +37,9 @@ svelte-check found 0 errors and 0 warnings
 
 
 [2m Test Files [22m [1m[32m79 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (80)[39m
-[2m      Tests [22m [1m[32m1113 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1114)[39m
-[2m   Start at [22m 11:48:39
-[2m   Duration [22m 77.85s[2m (transform 2.86s, setup 788ms, import 5.37s, tests 2.93s, environment 53.84s)[22m
+[2m      Tests [22m [1m[32m1114 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1115)[39m
+[2m   Start at [22m 12:05:37
+[2m   Duration [22m 82.01s[2m (transform 3.23s, setup 828ms, import 6.02s, tests 3.05s, environment 56.30s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
