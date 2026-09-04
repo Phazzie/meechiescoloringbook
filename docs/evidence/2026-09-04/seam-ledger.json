@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-09-04T03:28:00.322Z",
+  "generatedAt": "2026-09-04T03:43:29.162Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -991,6 +991,44 @@
       ]
     },
     {
+      "seam": "PageVisibilitySeam",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/page-visibility-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/page-visibility-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "na",
+          "path": "N/A (fixture module: src/lib/seams/page-visibility-seam/fixtures.ts)"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/page-visibility-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/page-visibility-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/page-visibility-seam/index.ts"
+        }
+      ]
+    },
+    {
       "seam": "ClockSeam",
       "owner": "hbpheonix",
       "lastProbe": "N/A",
@@ -1144,7 +1182,7 @@
     }
   ],
   "summary": {
-    "ok": 30,
+    "ok": 31,
     "missing": 0,
     "blocked": 0,
     "overallStatus": "ok"

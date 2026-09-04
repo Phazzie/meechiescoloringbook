@@ -79,30 +79,44 @@ const decodeBase64ToBytes = (base64: string): Uint8Array | null => {
 	}
 };
 
-// Whether the whole blob is well-formed base64: the alphabet, the 4-character grouping, and
-// padding only at the end are exactly what a decoder rejects.
+// The alphabet and padding-only-at-the-end are exactly what a decoder rejects.
 const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
 
-const isDecodableBase64 = (compact: string): boolean =>
-	compact.length > 0 && compact.length % 4 === 0 && BASE64_PATTERN.test(compact);
-
-const base64PaddingLength = (compact: string): number => {
-	if (compact.endsWith('==')) return 2;
-	return compact.endsWith('=') ? 1 : 0;
+/**
+ * Restore omitted `=` padding.
+ *
+ * `atob` and a `data:` url both accept unpadded base64, and a stored record may well carry it —
+ * plenty of encoders drop the trailing `=`. Requiring a length divisible by four outright would
+ * reject a value that renders perfectly, costing a legacy record its thumbnail and its download.
+ * A remainder of 1 is the one length no base64 string can have, padded or not.
+ */
+const withBase64Padding = (compact: string): string | null => {
+	const remainder = compact.length % 4;
+	if (remainder === 0) return compact;
+	if (remainder === 1) return null;
+	return compact + '='.repeat(4 - remainder);
 };
 
-/** Decoded byte length of a base64 string, without decoding it. */
-const decodedByteLength = (compact: string): number =>
-	(compact.length / 4) * 3 - base64PaddingLength(compact);
+const isDecodableBase64 = (compact: string): boolean =>
+	compact.length > 0 && withBase64Padding(compact) !== null && BASE64_PATTERN.test(compact);
+
+const base64PaddingLength = (padded: string): number => {
+	if (padded.endsWith('==')) return 2;
+	return padded.endsWith('=') ? 1 : 0;
+};
+
+/** Decoded byte length of a base64 string, without decoding it. Takes an already-padded value. */
+const decodedByteLength = (padded: string): number =>
+	(padded.length / 4) * 3 - base64PaddingLength(padded);
 
 // Enough trailing base64 to cover every terminator checked below. Aligned to 4 characters so the
 // slice decodes on its own, and `</svg>` may sit behind trailing whitespace or a newline.
 const TRAILER_CHARS = 64;
 
-const decodeTrailer = (compact: string): Uint8Array | null => {
-	const start = Math.max(0, compact.length - TRAILER_CHARS);
+const decodeTrailer = (padded: string): Uint8Array | null => {
+	const start = Math.max(0, padded.length - TRAILER_CHARS);
 	const aligned = start + ((4 - (start % 4)) % 4);
-	return decodeBase64ToBytes(compact.slice(aligned));
+	return decodeBase64ToBytes(padded.slice(aligned));
 };
 
 const endsWithBytes = (bytes: Uint8Array, terminator: readonly number[]): boolean => {
@@ -124,9 +138,9 @@ const JPEG_TRAILER = [0xff, 0xd9] as const;
  * decoding only the last few dozen bytes rather than the whole payload: a saved page can be a
  * megabyte, and this runs for every row on every keystroke in the vault search box.
  */
-const looksCompleteImage = (compact: string, kind: VaultImageKind): boolean => {
+const looksCompleteImage = (padded: string, kind: VaultImageKind): boolean => {
 	if (kind.kind === 'svg') {
-		const bytes = decodeTrailer(compact);
+		const bytes = decodeTrailer(padded);
 		if (!bytes) return false;
 		// Decoded as UTF-8 rather than assembled byte by byte: the slice can begin mid-character,
 		// and TextDecoder turns a broken leading sequence into a replacement character instead of
@@ -137,13 +151,13 @@ const looksCompleteImage = (compact: string, kind: VaultImageKind): boolean => {
 	if (kind.mimeType === 'image/webp') {
 		// RIFF stores its payload size in bytes 4-7, little-endian, counting everything after the
 		// 8-byte header. A truncated file keeps the original declared size and so fails this.
-		const header = decodeBase64ToBytes(compact.slice(0, 12));
+		const header = decodeBase64ToBytes(padded.slice(0, 12));
 		if (!header || header.length < 8) return false;
 		const declared =
 			header[4] | (header[5] << 8) | (header[6] << 16) | (header[7] << 24);
-		return decodedByteLength(compact) === declared + 8;
+		return decodedByteLength(padded) === declared + 8;
 	}
-	const bytes = decodeTrailer(compact);
+	const bytes = decodeTrailer(padded);
 	if (!bytes) return false;
 	return kind.mimeType === 'image/png'
 		? endsWithBytes(bytes, PNG_TRAILER)
@@ -230,9 +244,10 @@ export const vaultImageSource = (image: VaultImage, appOrigin = ''): string => {
 	// blob must therefore be valid base64 *and* carry the terminator its own format requires.
 	if (image.b64) {
 		const compact = compactBase64(image.b64);
-		const kind = detectVaultImageKind(compact);
-		if (kind && isDecodableBase64(compact) && looksCompleteImage(compact, kind)) {
-			return `data:${kind.mimeType};base64,${compact}`;
+		const padded = isDecodableBase64(compact) ? withBase64Padding(compact) : null;
+		const kind = padded === null ? null : detectVaultImageKind(padded);
+		if (kind && padded !== null && looksCompleteImage(padded, kind)) {
+			return `data:${kind.mimeType};base64,${padded}`;
 		}
 	}
 	if (image.url && isSafeStoredUrl(image.url, appOrigin)) return image.url;

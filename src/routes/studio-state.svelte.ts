@@ -7,6 +7,7 @@ import { appOriginSeam } from '$lib/adapters/app-origin-seam';
 import { clockSeam } from '$lib/adapters/clock-seam';
 import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
+import { pageVisibilitySeam } from '$lib/adapters/page-visibility-seam';
 import { sessionAdapter } from '$lib/adapters/session.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
 import {
@@ -48,6 +49,7 @@ import type {
 } from '../../contracts/spec-validation.contract';
 import type { AppOriginSeam } from '$lib/seams/app-origin-seam/contract';
 import { nextUtcDayBoundary, type ClockSeam } from '$lib/seams/clock-seam/contract';
+import type { PageVisibilitySeam } from '$lib/seams/page-visibility-seam/contract';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
 type PageSize = ColoringPageSpec['pageSize'];
@@ -170,6 +172,10 @@ export class StudioState {
 	// the same reason as the clock: reading `location` here would be an unseamed browser
 	// integration, and the same-origin decision could not be driven from a test.
 	origin: AppOriginSeam = appOriginSeam;
+	// Tells the studio when a backgrounded tab comes back. Behind a seam for the same reason as the
+	// clock: reading `document.visibilityState` and subscribing to `visibilitychange` here would be
+	// an unseamed browser integration, reachable from a test only by dispatching a real DOM event.
+	visibility: PageVisibilitySeam = pageVisibilitySeam;
 	appOrigin = $state(this.origin.getOrigin());
 
 	// --- Wig try-on state ---
@@ -278,7 +284,7 @@ export class StudioState {
 	pageLoadToken = 0;
 	isBrowser = $state(false);
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
-	private onVisibilityChange: (() => void) | null = null;
+	private stopVisibilityWatch: (() => void) | null = null;
 	private cancelDayBoundaryRefresh: (() => void) | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
@@ -934,15 +940,11 @@ export class StudioState {
 	//     have fired on time; reading the clock on the way back in fixes the label immediately.
 	private startSavedLabelRefresh(): void {
 		this.scheduleNextDayBoundaryRefresh();
-		if (typeof document === 'undefined') return;
-		this.onVisibilityChange = () => {
-			if (document.visibilityState === 'visible') {
-				this.nowMs = this.clock.now();
-				// The boundary the old timer was waiting for may already be behind us.
-				this.scheduleNextDayBoundaryRefresh();
-			}
-		};
-		document.addEventListener('visibilitychange', this.onVisibilityChange);
+		this.stopVisibilityWatch = this.visibility.onVisible(() => {
+			this.nowMs = this.clock.now();
+			// The boundary the old timer was waiting for may already be behind us.
+			this.scheduleNextDayBoundaryRefresh();
+		});
 	}
 
 	private scheduleNextDayBoundaryRefresh(): void {
@@ -962,9 +964,7 @@ export class StudioState {
 		}
 		this.cancelDayBoundaryRefresh?.();
 		this.cancelDayBoundaryRefresh = null;
-		if (this.onVisibilityChange && typeof document !== 'undefined') {
-			document.removeEventListener('visibilitychange', this.onVisibilityChange);
-			this.onVisibilityChange = null;
-		}
+		this.stopVisibilityWatch?.();
+		this.stopVisibilityWatch = null;
 	}
 }

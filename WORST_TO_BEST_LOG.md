@@ -433,3 +433,34 @@ somewhere reachable — a check run, an annotation, a PR comment.
 - The five SonarCloud findings from run 1 are no longer deferred *as unreadable*; a future run can
   read them on the merged commit with the recipe above and fix anything still live.
 - Everything else listed above, unchanged.
+
+---
+
+## Run 1, seventh close-out — 2026-09-04 — the review round on `7f43166`
+
+Appended, not edited. Four findings, all accepted. One of them is the most instructive single item
+in this whole log.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| P2 | `ClockSeam.scheduleAt` accepts any finite instant but wraps `setTimeout`, whose delay overflows past 2,147,483,647 ms (~24.8 days) and fires *almost immediately* instead of later. The seam violated its own contract for otherwise-valid input. | The adapter re-arms in bounded chunks until the target instant. The probe checks it: a callback armed a year out must still be pending after 200 ms. |
+| P1 | `document.visibilityState` and `visibilitychange` were still read directly — the same class of unseamed host integration as the clock and the origin. | `PageVisibilitySeam`, built the same way. Its validator resolves any out-of-spec state to "visible", because a wrong *visible* costs one refresh nobody needed while a wrong *hidden* silently withholds one the reader is waiting on. |
+| P1 | All three `probe.ts` files contained documentation and `export {}` — nothing runnable. `src/lib/seams/AGENTS.md` says a probe contains real-world probe code, and moving the assertions into `test.ts` does not satisfy that; the artifact check was certifying file presence, not a probe. | Three real probes that execute and report what the host actually did. Run with `npx tsx src/lib/seams/<seam>/probe.ts`. |
+| P2 | Requiring base64 length divisible by four rejected valid **unpadded** base64, which `atob` and a `data:` url both accept and which the previous implementation accepted. A byte-only legacy record would have lost its thumbnail and download. | Padding is restored before the checks rather than demanded of the input. |
+
+### The one worth reading twice
+
+The `setTimeout` overflow was **already written down in this repository, by this run, as a known
+hole**. The `plan.md` self-critique added two rounds earlier said, in as many words: the cap "cannot
+be reached" by current callers, "but a future caller scheduling further out would hit it silently.
+Proven only by the constraint on current callers, not by the contract."
+
+That paragraph was honest, accurate, and completely useless — it identified a real defect and then
+shipped it. Writing a risk down is not mitigating it. A self-critique that names a hole and does
+not close it has converted a bug into a bug with a footnote. The rule to carry forward: **if a
+self-critique can state the failing input, fix it in the same change or delete the claim that it is
+acceptable.** The probe now proves the fix, which is what the plan should have demanded of itself.
+
+### Still deferred after the seventh round
+
+- Everything listed above, unchanged.

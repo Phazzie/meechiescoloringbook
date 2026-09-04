@@ -15,8 +15,10 @@ export type ClockSeam = {
 	now(): number;
 	/**
 	 * Run `callback` once, when the clock reaches `epochMs`. An instant already in the past runs on
-	 * the next turn of the event loop rather than never. Returns a cancel function; calling it
-	 * after the callback has run, or more than once, is a no-op.
+	 * the next turn of the event loop rather than never. Any instant is accepted, however far
+	 * ahead: the adapter re-arms in bounded chunks rather than handing a host timer a delay it
+	 * would overflow and fire immediately. Returns a cancel function; calling it after the callback
+	 * has run, or more than once, is a no-op.
 	 */
 	scheduleAt(epochMs: number, callback: () => void): () => void;
 };

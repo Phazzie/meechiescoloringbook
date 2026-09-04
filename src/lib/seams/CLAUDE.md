@@ -27,6 +27,7 @@ Some seams are pure or dependency-injected and have no separate adapter. When an
 |--------|----------------|
 | `app-config-seam/` | Reads env-var-based app configuration at runtime |
 | `app-origin-seam/` | The origin the app is served from; the only place permitted to read `location.origin` |
+| `page-visibility-seam/` | Whether the page is being looked at, and when it comes back; the only place permitted to read `document.visibilityState` |
 | `clock-seam/` | Wall-clock reads and "run this when instant T arrives" scheduling; the only place permitted to call `Date.now()`/`setTimeout` for wall-clock purposes |
 | `prompt-compiler-seam/` | Deterministic canonical + compressed prompt compilation |
 | `safety-policy-seam/` | Content guardrail enforcement (pure, no external I/O) |

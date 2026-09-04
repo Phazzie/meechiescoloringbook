@@ -8,7 +8,7 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
-## Quote Vault host-environment seams — ClockSeam and AppOriginSeam (2026-09-04)
+## Quote Vault host-environment seams — ClockSeam, AppOriginSeam, PageVisibilitySeam (2026-09-04)
 
 This section is the active plan for the scheduled "worst feature -> best feature" run recorded in
 `WORST_TO_BEST_LOG.md`. It supersedes the 2026-08-26 recovery plan as the current active plan; that
@@ -26,12 +26,15 @@ written afterwards.
 
 - Goal: no unseamed host-environment read in the Quote Vault path, and both behaviours drivable
   from a test — the UTC-midnight label rollover, and the same-origin image-URL decision.
-- Exact seam names (now present in `docs/seams.md`): `ClockSeam`, `AppOriginSeam`.
+- Exact seam names (now present in `docs/seams.md`): `ClockSeam`, `AppOriginSeam`,
+  `PageVisibilitySeam`.
 - Exact files:
   - `src/lib/seams/clock-seam/{contract,validators,fixtures,mock,probe,test}.ts`
   - `src/lib/adapters/clock-seam/index.ts`
   - `src/lib/seams/app-origin-seam/{contract,validators,fixtures,mock,probe,test}.ts`
   - `src/lib/adapters/app-origin-seam/index.ts`
+  - `src/lib/seams/page-visibility-seam/{contract,validators,fixtures,mock,probe,test}.ts`
+  - `src/lib/adapters/page-visibility-seam/index.ts`
   - `src/routes/studio-state.svelte.ts` (inject both; day-boundary refresh)
   - `src/lib/core/vault-gallery.ts` (accept the origin as an argument; stay pure)
   - `tests/unit/studio-state.test.ts`, `tests/unit/vault-gallery.test.ts`
@@ -51,9 +54,10 @@ written afterwards.
   rollover testable, and writing that test is what exposed that the previous `visibilitychange`-only
   refresh never fired for a reader who leaves the tab open.
 - What could be wrong: `ClockSeam.scheduleAt` wraps `setTimeout`, whose delay is capped near 24.8
-  days. A day boundary is always under 24 hours away, so the cap cannot be reached — but a future
-  caller scheduling further out would hit it silently. Proven only by the constraint on current
-  callers, not by the contract.
+  days. **This was written as an accepted risk and it was not good enough** — a review found the
+  same hole and was right that documenting it is not closing it. The adapter now re-arms in bounded
+  chunks, so any instant is honoured however far ahead, and the probe checks it: a callback armed a
+  year out must still be pending after 200ms rather than having fired.
 - What must be proven: that the mock is a faithful stand-in. Both seams' contract tests assert the
   adapter's real behaviour alongside the mock's, including that a fault fixture fails.
 - Self-check: `npm run cipher:gate` exits 0, `chamber-lock` reports both new seam folders complete,

@@ -11,6 +11,8 @@ import {
 } from '../../src/lib/core/meechie-studio';
 import { createMockClockSeam } from '../../src/lib/seams/clock-seam/mock';
 import type { ClockSeam } from '../../src/lib/seams/clock-seam/contract';
+import { createMockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
+import type { MockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
 import { StudioState } from '../../src/routes/studio-state.svelte';
 import { VAULT_CAPACITY } from '../../src/lib/core/vault-gallery';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
@@ -516,7 +518,7 @@ describe('StudioState quote vault', () => {
 	// in the clear (`js/clear-text-storage-of-sensitive-data`).
 	const initVault = async (
 		records: CreationRecord[],
-		options: { clock?: ClockSeam } = {}
+		options: { clock?: ClockSeam; visibility?: MockPageVisibilitySeam } = {}
 	): Promise<StudioState> => {
 		const sessionSpy = vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
 			ok: true,
@@ -528,6 +530,9 @@ describe('StudioState quote vault', () => {
 		const studio = new StudioState();
 		if (options.clock) {
 			studio.clock = options.clock;
+		}
+		if (options.visibility) {
+			studio.visibility = options.visibility;
 		}
 		await studio.init();
 		expect(sessionSpy).toHaveBeenCalled();
@@ -574,17 +579,34 @@ describe('StudioState quote vault', () => {
 
 	it('refreshes saved-date labels when a backgrounded tab returns after UTC midnight', async () => {
 		const clock = createMockClockSeam(BEFORE_MIDNIGHT);
+		const visibility = createMockPageVisibilitySeam('visible');
 		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
-			clock
+			clock,
+			visibility
 		});
 
 		expect(studio.vaultEntries[0].savedLabel).toBe('Saved today');
 
 		// A suspended tab: the clock moved on without the boundary timer being allowed to run.
+		visibility.setVisible(false);
 		clock.setInstantWithoutFiring(AFTER_MIDNIGHT);
-		document.dispatchEvent(new Event('visibilitychange'));
+		visibility.setVisible(true);
 
 		expect(studio.vaultEntries[0].savedLabel).toBe('Saved yesterday');
+	});
+
+	it('detaches the visibility subscriber when the studio is destroyed', async () => {
+		const visibility = createMockPageVisibilitySeam('visible');
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
+			clock: createMockClockSeam(BEFORE_MIDNIGHT),
+			visibility
+		});
+
+		expect(visibility.subscriberCount()).toBe(1);
+
+		studio.destroy();
+
+		expect(visibility.subscriberCount()).toBe(0);
 	});
 
 	it('stops the day-boundary refresh when the studio is destroyed', async () => {
