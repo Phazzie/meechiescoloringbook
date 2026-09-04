@@ -3137,3 +3137,56 @@ Rewritten with `Date.now` frozen, which is the only way to reach the case the fi
 
 `npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0/0. lint
 clean. test **1171 passed, 1 skipped**. build exit 0. playwright **22 passed**.
+
+---
+
+## Run 3, ninth close-out — 2026-09-04 — the fix for the fix, and the first real gate failure
+
+SonarCloud's Quality Gate **failed** on `564f24e` — the first time in this run it has done more than
+pass-with-findings. The failed condition was a required one: `C Security Rating on New Code`,
+required `>= A`. The cause was `Math.random()`, added one commit earlier while fixing the id
+collision.
+
+### The rule was wrong about why, and right about what
+
+"Pseudorandom number generators should not be used in security contexts" does not really describe
+this code. A vault record id is not a secret; nothing downstream treats it as unguessable, and
+predicting one buys an attacker nothing.
+
+Arguing that would have been defending the habit rather than the code. The actual problem is two
+lines up: **`crypto.getRandomValues` was already there**, and the fallback reached past a
+cryptographic source for a pseudorandom one. That is the thing the rule exists to catch, and the
+rule caught it.
+
+### The replacement is better than what it replaces
+
+```
+fallbackCounter += 1;
+return `creation-${Date.now()}-${fallbackCounter}`;
+```
+
+A monotonic counter cannot repeat within a document — which is precisely the guarantee `Date.now()`
+alone was missing, and therefore a *more direct* answer to the original collision finding than
+`Math.random()` was. The randomness was never the point; uniqueness was.
+
+The branch also needs a browser with no Web Crypto whatsoever, since `getRandomValues` is not
+secure-context gated. It is close to unreachable, and now correct anyway.
+
+### Three rounds, one defect, three shapes
+
+| Round | State of the id |
+|---|---|
+| Original | `creation-${Date.now()}` — collides in the same millisecond |
+| Codex P1 fix | `…-${Math.random()}` — no collision, trips the security gate |
+| This | `…-${counter}` — no collision, no PRNG, cannot repeat in a document |
+
+Each step was a real improvement and each was caught by a different reviewer looking at a different
+property. Worth recording because the intermediate state *passed every test* — the collision test
+was green on the `Math.random()` version too. Tests proved the behaviour; the gate caught the means.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0/0. lint
+clean. test **1171 passed, 1 skipped**. build exit 0. playwright **22 passed**. The collision test
+still fails when the counter is removed, so the guarantee is pinned to behaviour, not to the shape
+of the expression.

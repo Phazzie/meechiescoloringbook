@@ -253,3 +253,9 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: A test asserting that two saves get distinct ids passed against the broken clock-only fallback, because the awaits between the two saves advanced the real clock past the collision window.
 - Lesson: The test exercised a code path but not the *condition* the defect needs. Anything that depends on two events sharing a timestamp cannot be tested with a running clock; the collision window is smaller than the test's own overhead.
 - Action: Freeze the clock when testing a defect whose precondition is "in the same millisecond", and confirm by restoring the defect and watching the test fail. Third instance in one change of a mutation exposing a test that proved less than it claimed.
+
+## 2026-09-04
+- Date: 2026-09-04
+- Context: Fixed an id collision by appending `Math.random()`. The next SonarCloud run failed the Quality Gate on a required security condition: PRNG used in a security context.
+- Lesson: The rule's framing did not fit — a vault record id is not a secret — and arguing that would have defended the habit rather than the code. The real problem was that `crypto.getRandomValues` sat two lines above and the fallback reached past it. The better replacement was not a different random source but a monotonic counter, which cannot repeat within a document and therefore answers the original collision more directly than randomness did. The randomness was never the point; uniqueness was.
+- Action: When a security rule fires on code that is not security-sensitive, check what the rule is really pointing at before disputing its framing. And when reaching for randomness to get uniqueness, ask whether a counter would do — it is deterministic, testable, and cannot trip a PRNG rule.

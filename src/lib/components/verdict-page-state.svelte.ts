@@ -142,6 +142,8 @@ const packageOneVariant = async (
  * `randomUUID` misses. The last resort matches `session.adapter.ts`'s existing fallback, which
  * mixes the clock with a random suffix rather than trusting the millisecond alone.
  */
+let fallbackCounter = 0;
+
 const newCreationId = (): string => {
 	if (typeof crypto !== 'undefined') {
 		if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -153,7 +155,16 @@ const newCreationId = (): string => {
 			return `creation-${hex}`;
 		}
 	}
-	return `creation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+	// Last resort: a monotonic counter, not `Math.random()`. Two things are wrong with a PRNG
+	// here. SonarCloud flags it — the id is not a secret, but reaching for a pseudorandom source
+	// when a cryptographic one is right above it is the habit the rule exists to break. And it is
+	// not even the better answer: a counter cannot repeat within a document, which is exactly the
+	// guarantee `Date.now()` alone was missing.
+	//
+	// This branch needs a browser with no Web Crypto at all — `getRandomValues`, unlike
+	// `randomUUID`, is not secure-context gated — so it is close to unreachable in practice.
+	fallbackCounter += 1;
+	return `creation-${Date.now()}-${fallbackCounter}`;
 };
 
 export type VerdictPageStateOptions = {

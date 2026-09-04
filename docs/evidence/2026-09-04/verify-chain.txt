@@ -256,3 +256,34 @@ Both branches are now pinned: restoring the clock-only fallback fails it, and di
 
 Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
 check 0/0, lint clean, test 1171 passed / 1 skipped, build exit 0, playwright 22 passed.
+
+## SonarCloud Quality Gate FAILED on 564f24e — and it was mine
+
+The first actual Quality Gate failure of this run, on a required condition: "C Security Rating on
+New Code (required >= A)". The issue: "Pseudorandom number generators (PRNGs) should not be used in
+security contexts", on the `Math.random()` in the previous commit's id fallback.
+
+Every earlier SonarCloud finding here passed the gate and was fixed anyway. This one blocked, and
+the cause was the fix for the round before it — introduced while removing a collision.
+
+The rule's own framing is not quite right for this code: a vault record id is not a secret, and
+nothing downstream treats it as unguessable. But the finding is still correct, for a better reason
+than the rule states. `crypto.getRandomValues` — a cryptographic source — sits two lines above, and
+the code reached past it for a pseudorandom one. Arguing "the id is not a secret" would have been
+defending the habit rather than the code.
+
+Fixed by removing the PRNG rather than by justifying it, and the replacement is strictly better:
+
+  fallbackCounter += 1;
+  return `creation-${Date.now()}-${fallbackCounter}`;
+
+A monotonic counter cannot repeat within a document, which is exactly the guarantee `Date.now()`
+alone was missing — so it answers the original collision finding more directly than `Math.random()`
+did. And this branch needs a browser with no Web Crypto at all (`getRandomValues`, unlike
+`randomUUID`, is not secure-context gated), so it is close to unreachable in practice.
+
+The collision test still fails when the counter is removed and the clock-only id restored, so the
+guarantee is pinned to behaviour rather than to the shape of the expression.
+
+Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
+check 0/0, lint clean, test 1171 passed / 1 skipped, build exit 0, playwright 22 passed.
