@@ -4,21 +4,24 @@
 # Info flow: npm run verify -> full chain stdout/stderr -> evidence file.
 # Note: proof-tape.mjs is re-run after this file is written, so the tape inventories
 #       this exact artifact rather than the copy that existed mid-chain.
-# Note (this run): a merge conflict arose against `main` after PR #283 (a concurrent
-#       session's follow-up to PR #282) merged while this PR was open. Resolved the
-#       conflict (content merge in DECISIONS.md/QUICK_WINS_LOG.md, evidence files
-#       regenerated fresh rather than hand-merged) and re-ran the full chain end to end
-#       against the merged tree - this is that clean run's output. The audit:gate
-#       endpoint, intermittently flaky earlier in this run (see DECISIONS.md's open
-#       Assumption), returned a clean result this time.
+# Note (this run): a Codex review on this same PR (commit 10013a5) correctly flagged that
+#       the prior transcript below documented individually-run stages (audit:gate run
+#       standalone, then chamber-lock/verify-runner/etc. run one at a time) rather than an
+#       actual `npm run verify` wrapper invocation, even though the surrounding log text
+#       described it as "the full chain passed cleanly." This transcript replaces that one
+#       with a genuine single `npm run verify` command invocation, captured verbatim below,
+#       run after resolving the merge conflict with `main` (PR #283).
 
-$ npm audit --audit-level=high
+$ npm run verify
+
+> meechies-coloringbook@0.1.0 verify
+> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
+
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
 found 0 vulnerabilities
-
-$ node scripts/chamber-lock.mjs
-(no output; exit 0)
-
-$ node scripts/verify-runner.mjs
 
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
@@ -37,11 +40,16 @@ svelte-check found 0 errors and 0 warnings
 
  Test Files  74 passed | 1 skipped (75)
       Tests  847 passed | 1 skipped (848)
-   Start at  23:40:47
-   Duration  46.15s (transform 1.79s, setup 502ms, import 3.38s, tests 1.45s, environment 31.47s)
+   Start at  23:55:53
+   Duration  46.51s (transform 1.81s, setup 507ms, import 3.44s, tests 1.48s, environment 31.72s)
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 
-(shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape: no output; exit 0 for all five)
+$ echo "exit=$?"
+exit=0
+
+(chamber-lock, shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape ran inside
+this same `npm run verify` invocation above, chained with &&; no individual output beyond
+what's shown, and the command's own exit=0 confirms every stage in the chain succeeded)
