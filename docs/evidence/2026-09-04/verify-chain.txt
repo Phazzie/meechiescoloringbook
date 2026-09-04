@@ -7,10 +7,11 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T23:21:24.890Z on the Run 4 close-out head (PR #296)
-# Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
-# typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
-# executions and described artifacts it had not produced.
+# When the chain last ran: read chamber-lock.json's generatedAt. **This header no longer states it.**
+# It used to copy that value, and the copy went stale twice — once carrying a 19:07 run forward
+# through two later executions, and again in round 19, when the reordering moved this file's writing
+# *before* the chain and the copied timestamp silently became the previous run's. A value copied out
+# of an artifact is a claim about that artifact; the artifact is closer to hand than this sentence.
 #
 # Change under test: the focused-mode pages behind /m/<slug> — the only page five of the eight
 # modes have, and where every focused-mode link on the home page lands — stop dead-ending at a
@@ -27,12 +28,17 @@
 # this header deliberately does not restate the list, because a second copy is a second thing to go
 # stale and that is exactly how it was wrong here.
 #
-# cipher-gate.json no longer predates the run, and this line is the change. Through rounds 4 and 5
-# it was the one artifact proof-tape marked as older than the chain, correctly — cipher:gate is not
-# a chain stage and nothing had run it. Round 6 added `npm run cipher:gate` to the plan as a literal
-# command, so it was run, so the artifact is now current and proof-tape marks nothing as stale. The
-# header said the opposite for about three minutes; it is corrected here rather than left for the
-# next reviewer, which is the whole point of round 6's three findings.
+# **proof-tape marks THIS FILE as predating the run, and that is now correct rather than a defect.**
+# The reordering in round 19 writes verify-chain.txt before `npm run verify`, precisely so the chain
+# covers it — which necessarily makes it older than chamber-lock.json, which is what
+# markArtifactsPredatingRun keys on. The two properties cannot both hold: a summary the chain
+# verifies is a summary the tape flags. This run chooses the first, because "the chain ran on the
+# tree being pushed" is a stronger guarantee than "no artifact predates stage 2". Any other file
+# flagged stale is still worth investigating; this one is expected.
+# The history, since it was a claim in this header for several rounds: cipher-gate.json was the flagged
+# artifact through rounds 4 and 5 (correctly — cipher:gate is not a chain stage and nothing had run
+# it), stopped being flagged in round 6 when the standalone command was added, and the header's
+# "marks nothing as stale" line survived into round 19's reordering, where it became false.
 
 ALL EIGHT STAGES RAN. EXIT 0.
 

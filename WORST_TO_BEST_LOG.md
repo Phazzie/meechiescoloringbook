@@ -5332,3 +5332,70 @@ in round 13 — **the artifact is the claim; prose about the artifact is not.**
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3 — **sixty-six findings
 across twenty-five rounds**, none in the application.
+
+---
+
+## Run 4, correction 26 — 2026-09-04 — the reorder made the header lie, and the fixture audit was too narrow
+
+Appended, not edited. Three P1s on `3ecb4b9`.
+
+### 1. P1 — round 19's reorder falsified two claims in this evidence header
+
+Moving the summary to *before* the chain fixed the coverage problem and broke two carried-forward
+statements in the same file:
+
+- The header copied `chamber-lock.json`'s `generatedAt` — so once the summary was written first, the
+  copy was the **previous** run's value (`23:21:24.890Z` against the committed `23:33:33.754Z`).
+- The header claimed "proof-tape marks nothing as stale". `proof-tape.json` now marks
+  **verify-chain.txt itself** as `predatesRun: true`.
+
+Both fixed, and the second is worth stating properly rather than patching: **the tape flagging this
+file is now correct, not a defect.** A summary the chain verifies must be written before the chain,
+and `markArtifactsPredatingRun` keys on `chamber-lock.json` — so it is necessarily older. The two
+properties cannot both hold. This run picks "the chain ran on the tree being pushed" over "no
+artifact predates stage 2", and says so, because a future run will otherwise read the flag as
+something to fix. The header no longer copies the timestamp at all: **a value copied out of an
+artifact is a claim about that artifact, and the artifact is closer to hand than the sentence.**
+
+### 2. P1 — the fixture audit only looked at one seam
+
+The rebuilt page's vault flow calls `sessionAdapter.getSession()` and
+`creationStoreAdapter.saveCreation()`. `docs/seams.md` dates **`SessionSeam`** and
+**`CreationStoreSeam`** probes to **2026-02-05** — seven months old, both via
+`probes/browser-seams.probe.mjs`. Neither has a fresh capture; neither has a PR-scoped waiver. They
+fail the same freshness item `ImageGenerationSeam` was waived for.
+
+Why nothing caught it, including me: they are **not** in `assumption-alarm.json`'s `blockedSeams`,
+because that list is derived from `TBD (blocked)` markers and these rows carry real dates. A
+seven-month-old date passes the automated gate exactly as a seven-day-old one does. I audited the
+seam the gate named and stopped — the same "took the reviewer's scope as the scope" failure from
+correction 24, in its automated form: **I took the gate's scope as the scope.**
+
+**This run is not writing two more waivers.** Correction 20 established that reaching for a waiver to
+unblock a close-out is how the `ImageGenerationSeam` entry ended up standing on gates nobody had
+waived. Doing it twice more, quickly, to clear a review finding would be that same mistake with the
+lesson already written down three corrections earlier. It goes to the owner as a third ruling item.
+
+### 3. P1 — the criteria repair a probe the registry does not name
+
+Every criterion diagnoses `probes/image-generation.probe.mjs`. `docs/seams.md` names
+`src/lib/seams/image-generation-seam/probe.ts` as this seam's probe — and that file is four lines:
+
+```ts
+export const probeImageGenerationSeam = async (seam, request) => seam.generate(request);
+```
+
+It forwards an injected seam call, exports no runner, writes no capture. So follow-up 9 could satisfy
+criteria A through G by repairing the legacy script while the *authoritative* probe stays incapable
+of a refresh. New criterion H requires the repair to make the inventoried probe runnable and
+capture-backed, **or** update the registry and delete the split entrypoint — because two probes for
+one seam is itself the defect, and either resolution ends with one of them gone.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3 — **sixty-nine findings
+across twenty-six rounds**, none in the application.
+
+**The rulings now outstanding are three, not two:** the seam-workflow question; the two un-waived
+checklist items on `ImageGenerationSeam`; and now whether `SessionSeam` and `CreationStoreSeam` need
+waivers, refreshed fixtures, or nothing at all.

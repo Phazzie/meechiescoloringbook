@@ -65,6 +65,19 @@ concession the `ClockSeam` plan in run 1 had to make.
      "pre-existing" explains them and does not excuse them. Waiving those two is an owner
      decision, not mine, so this run escalates rather than self-certifies. **It joins the
      seam-workflow P1 as a ruling this close-out waits on.**
+
+     **And `ImageGenerationSeam` is not the only newly reached seam with stale fixtures — the audit
+     that produced this waiver was too narrow.** The rebuilt page's vault flow calls
+     `sessionAdapter.getSession()` and `creationStoreAdapter.saveCreation()`, and `docs/seams.md`
+     dates both `SessionSeam` and `CreationStoreSeam` probes to **2026-02-05** — seven months, via
+     `probes/browser-seams.probe.mjs`. Neither has a fresh capture and neither has a PR-scoped
+     waiver, so both fail the same freshness item `ImageGenerationSeam` was waived for. They are not
+     in `assumption-alarm.json`'s `blockedSeams`, because their rows carry real dates rather than
+     `TBD (blocked)` — which is exactly why no automated gate raised them and why I did not look.
+     **This run is not writing two more waivers.** Round 20 established that reaching for a waiver
+     to unblock a close-out is how this entry ended up standing on gates nobody had waived; doing it
+     twice more, faster, to clear a finding, would be the same mistake with the lesson already
+     written down. Recorded as a third item for the owner ruling.
 - **Seams:** none changed. No seam artifact is in the diff; the rulings are about whether existing
   open Assumptions block an already-merged change.
 - **Files.** Governance: `DECISIONS.md` (the ruling), `plan.md` (this section),

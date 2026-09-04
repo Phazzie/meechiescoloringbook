@@ -2,10 +2,9 @@
 # Why: AGENTS.md requires lint before every push; an artifact from an earlier head cannot
 #      prove the pushed head passed, and eslint prints nothing on success, so the recorded
 #      exit status is the only thing distinguishing a clean run from a run that never started.
-#      This header was destroyed by a refresh in 6de7232 and restored in 6cdd02d.
 # Info flow: eslint output -> this evidence file -> review and the proof tape.
 #
-# npm run lint — 2026-09-04T23:34:58Z
+# npm run lint — 2026-09-04T23:46:54Z
 # Run 4: /m/[mode] becomes a real mode page (PR #296 close-out).
 
 
