@@ -763,3 +763,78 @@ Careful reasoning about the right thing to say, no check that the thing said was
 ### Still deferred after the fifteenth round
 
 - Everything listed above, unchanged.
+
+---
+
+## Run 1, merge close-out — 2026-09-04 — PR #289 merged as `44e2a75`
+
+Appended, not edited.
+
+**Merged head `aca907d`, and for the first time in this run every check was actually green** — no
+stand-down, no signature comparison, nothing waved through:
+
+| Check | Result |
+|---|---|
+| `verify` (both duplicate jobs) | success |
+| CodeQL, Analyze (javascript-typescript), Analyze (actions) | success |
+| SonarCloud, SonarCloud Code Analysis | success — 0 new issues |
+| Vercel, Vercel Preview Comments | success |
+| Rosentic - Conflict Detection | success |
+| Sourcery review | skipped (rate-limited, standing) |
+
+Both red signals this run spent the most words on cleared themselves rather than being fixed, which
+is worth recording honestly:
+
+- **The npm `audits/quick` 503 broke its own streak.** It failed `verify` on seven consecutive
+  heads and passed on the eighth, untouched. The stand-down reasoning was sound each time — the
+  same job's `npm install` reported `found 0 vulnerabilities` seconds before the audit endpoint
+  timed out — but the thing that actually made the check green was the registry recovering. The
+  proposed `audit:gate` retry patch is still worth doing; it is the difference between a gate that
+  waits out an outage and one that fails the build during it.
+- **Vercel's rate limit reset with the calendar day.** Red on `e83bd06` at 05:24, green on
+  `aca907d` at 06:02, with no change in between that could touch an account-wide daily quota.
+
+**Codex stopped reviewing before the work ran out.** The final head, `aca907d`, was never reviewed:
+the account hit its code-review usage limit at 06:02. Every finding from the six heads it did
+review is addressed or refuted with evidence in the PR thread, but it is worth being plain that the
+last commit went in with SonarCloud, CodeQL and the test suite behind it and no Codex pass. Given
+that Codex found real defects on **every single head it looked at**, including two P1s and a
+genuine security hole on the head before this one, the honest expectation is that `aca907d` also
+has something in it.
+
+### What this run actually cost, and what it bought
+
+Sixteen commits, six review rounds, fifteen close-outs. The feature works: the Quote Vault shows
+every saved page with its thumbnail, quote and date, searchable, pinnable, recoverable, and it no
+longer persists anything the reader cannot get back. Three new seams — `ClockSeam`,
+`AppOriginSeam`, `PageVisibilitySeam` — with full contracts, fault fixtures and runnable probes,
+plus a repository-owned `npm run probe` that works on a clean `npm ci` checkout.
+
+The pattern the run should be remembered for is less flattering. **Six times a fix I wrote
+introduced its own defect, and review caught all six — my own tests caught none of them.** The
+cause is consistent enough to name as a rule for the next run:
+
+> When you fix something, you write the test that proves the fix works. Write the test that tries
+> to get around it instead.
+
+The clearest example: a same-origin guard, added *as a security fix*, with a comment explaining
+that `//host/path` is protocol-relative and must be caught, and a test asserting exactly that.
+`/\host/path` — one character different — walked straight through it. The test confirmed my
+intent; it never attacked my reasoning.
+
+The second clearest: the capacity refusal that carefully explained why it would not destroy the
+reader's page, then told them to download that page from a screen that offered no download.
+
+### Carried forward to the next run
+
+- `audit:gate` runs a bare `npm audit`, so a registry outage fails the whole `verify` chain.
+  Bounded retry that distinguishes transport failure from a real advisory. Proposal on PR #289.
+- `.github/workflows/verify.yml` should scope `on: push` to `branches: [main]` — the duplicate
+  `verify` jobs on every head come from `push` and `pull_request` both firing.
+- `creationStoreAdapter.deleteCreation` ignores `owner`; store-wide capacity belongs inside
+  `CreationStoreSeam`. Contract change, so the full workflow.
+- `parseRecords` computes `skippedIndices` and surfaces them nowhere.
+- `localStorage` quota for fifty base64 pages is unmodelled.
+- Structural validation of stored raster bytes — at save time, or behind a per-record cache.
+- The three pre-existing `Date.now()`/`new Date()` reads left in `studio-state.svelte.ts`.
+- **Assume `aca907d` has an unreviewed defect** and start there.
