@@ -1177,6 +1177,19 @@ describe('StudioState quote vault', () => {
 		studio.spec = { ...studio.spec, decorations: 'dense' };
 		await studio.syncSpecFromCurrentText('theme');
 		expect(studio.spec.decorations).toBe('minimal');
+
+		// The theme is not the only control that moves the derivation. `currentStyleHint()`
+		// concatenates the theme's hint with the voice, and the density test is
+		// `includes('receipt')` — which `receipts_out` matches. So changing Intensity changes the
+		// derivation's input while leaving the theme alone, and the density has to follow.
+		studio.voice = { ...studio.voice, intensity: 'receipts_out' };
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('dense');
+
+		// And back off it again.
+		studio.voice = { ...studio.voice, intensity: 'no_mercy' };
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('minimal');
 	});
 
 	it('never loads the image prompt into the evidence box', async () => {

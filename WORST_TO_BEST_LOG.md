@@ -2232,3 +2232,53 @@ staring at it.
 The rule that would have caught both: when a check answers "did X happen?" with something other than
 X, that is a defect waiting for an input I have not thought of. Pass the fact, or measure the thing
 itself.
+
+---
+
+## Run 2, correction 7 — 2026-09-04 — the derivation has two inputs, and a plan I skipped
+
+**Eighteen rounds, 67 findings, 33 real user-visible defects.**
+
+### Recompute on the input, not on one of its parts
+
+The previous correction replaced a theme-ID comparison with an explicit `source === 'theme'`. That
+was the right *kind* of answer and still the wrong question, because the theme is not the only thing
+that moves the derivation.
+
+`decorations` comes from `input.styleHint.includes('receipt')`. `currentStyleHint()` is the theme's
+hint **concatenated with the voice** — and `receipts_out` matches. So on a reopened page, changing
+Intensity to or from Receipts Out changes the derivation's input while leaving the theme untouched:
+a restored minimal page stayed minimal when set to Receipts Out, and a restored dense page stayed
+dense when moved off it. That exact interaction was already sitting in this log's carried-forward
+list, written down and not connected to the fix being made three commits later.
+
+It now recomputes when **either** fact holds: the reader made an explicit theme selection, or the
+style hint differs from the one the last rebuild ran under. Two facts, each measured where it is
+knowable — the hint comparison because the hint *is* the derivation's input (not a proxy for it),
+and the explicit source because one case is invisible to any comparison: clicking the theme chip
+that is already active leaves every value identical and is still a selection.
+
+Both halves are independently red-proofed. Dropping the comparison fails the voice case with
+`expected 'minimal' to be 'dense'`; dropping the source fails the same-chip case with
+`expected 'dense' to be 'minimal'`. Neither is redundant.
+
+### The plan rule I was breaking the whole time
+
+`AGENTS.md` requires the plan to list the exact file paths before the code changes, and for
+autonomous deep-work runs to update `plan.md` for each major refactor before implementation. The
+active plan named `tool-page-recipe.ts`, `MeechieTools.svelte` and their tests. Every correction
+commit after that reached into `studio-state.svelte.ts`, `meechie-studio.ts`,
+`StudioSettingsPanel.svelte` and `raster-image-format.ts` without amending it.
+
+The reviewer had to point that out, which is the part worth recording: I read that governance
+section this morning to argue about a *different* rule in it, and did not notice I was standing on
+the wrong side of the one next to it. `plan.md` now carries the full follow-up scope, and the fix
+above was planned there before it was written rather than described afterwards.
+
+### The pattern, third statement
+
+Correction 5: boundaries drawn one case short. Correction 6: inferring a fact that was available to
+be passed. This one is both at once, plus a third thing — **the answer was already written down.**
+The voice/`receipt` collision was in this log's carried-forward list before the fix that missed it
+was committed. Reading my own notes would have caught it faster than any amount of care while
+writing.

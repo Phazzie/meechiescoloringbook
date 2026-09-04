@@ -59,10 +59,10 @@ type BorderChoice = ColoringPageSpec['border'];
 /**
  * What caused a spec rebuild: the reader picking a theme, or anything else.
  *
- * Only the theme derives `decorations`, so only a theme selection may recompute it on a reopened
- * page. The settings panel says which happened rather than leaving it to be inferred — a theme
- * chip fires on a click of the already-active chip, and a reopened page never recorded the theme
- * that built it, so no comparison of theme IDs can answer the question.
+ * This is not the whole answer to "should derived presentation be recomputed?" — the style hint
+ * carries the voice as well as the theme, so `applyTextToSpec` also compares the hint itself. What
+ * this flag adds is the one case no comparison can see: a click on the theme chip that is already
+ * active leaves every value identical, and is still the reader asking for that theme.
  */
 export type SettingChangeSource = 'theme' | 'setting';
 
@@ -311,6 +311,11 @@ export class StudioState {
 	 * and image quota on an incomplete page.
 	 */
 	private restoredPageLayout = false;
+	// The style hint the current spec's derived fields were built from. Seeded at restore time so
+	// the first unrelated setting change on a reopened page compares equal and preserves what was
+	// restored — seeding it empty would make every reopened page recompute on the first touch,
+	// which is the regression this whole sequence has been circling.
+	private lastStyleHint: string | null = null;
 	authContext: CreationRecord['authContext'] | null = null;
 	// Incremented whenever the displayed page is replaced; async work captures it and drops its
 	// result if the value moved on. Not $state: nothing renders it.
@@ -398,11 +403,25 @@ export class StudioState {
 		output: MeechieStudioTextOutput,
 		source: SettingChangeSource = 'setting'
 	): Promise<void> {
+		// `decorations` is derived from `styleHint.includes('receipt')`, and the style hint is the
+		// theme's hint concatenated with the voice — where `receipts_out` matches. So the theme is
+		// not the only control that moves the derivation, and asking only about the theme left a
+		// reopened page's density stuck when the reader changed Intensity.
+		//
+		// Two facts decide it, each measured where it is actually knowable. The style hint *is* the
+		// derivation's input, so comparing it against the last rebuild's answers "did the input
+		// change?" exactly rather than by proxy — that is what comparing theme IDs was standing in
+		// for, badly, three corrections running. And the panel passes `source`, because one case is
+		// invisible to any comparison: clicking the theme chip that is already active leaves the
+		// hint identical but is still the reader asking for that theme.
+		const styleHint = this.currentStyleHint();
+		const derivationChanged = source === 'theme' || styleHint !== this.lastStyleHint;
+		this.lastStyleHint = styleHint;
 		this.spec = buildColoringPageSpecFromMeechieText({
 			output,
 			pageSize: this.pageSize,
 			border: this.border,
-			styleHint: this.currentStyleHint(),
+			styleHint,
 			dedication: this.currentDedication(),
 			// Keep the layout only while this is still the reopened page. For anything the studio
 			// authored, and for every fresh verdict, this is 'list'.
@@ -424,14 +443,10 @@ export class StudioState {
 			// through here, so recomputing unconditionally would have turned a restored dense page
 			// minimal on a page-size change alone.
 			//
-			// `source` is passed in rather than inferred from a theme-ID comparison, because the
-			// comparison cannot answer the question. The theme chips fire on a click of the chip
-			// that is already active, and a reopened page never recorded which theme built it — so
-			// an ID match meant "unchanged" when the reader had just asked for that theme, and an
-			// ID mismatch meant "changed" when they had touched something else entirely. Three
-			// separate corrections on this PR were versions of that same wrong question.
+			// See `derivationChanged` above for why it takes both an explicit source and a direct
+			// comparison of the style hint to decide this.
 			presentation: this.restoredPageLayout
-				? source === 'theme'
+				? derivationChanged
 					? { ...this.spec, decorations: undefined }
 					: this.spec
 				: undefined
@@ -830,6 +845,9 @@ export class StudioState {
 		this.spec = creation.intent;
 		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
 		this.restoredPageLayout = true;
+		// Seed the derivation input at restore time, so the first setting change that does not touch
+		// it compares equal and keeps the density the saved page was built with.
+		this.lastStyleHint = this.currentStyleHint();
 		// The evidence box is an editable field the reader's next Generate Verdict sends to the text
 		// provider as their own words, so what lands in it matters more than a display string does.
 		// This fell back to `assembledPrompt` — the image-generation prompt — for any record saved
@@ -1010,6 +1028,7 @@ export class StudioState {
 			// Setting it for a studio-authored draft costs nothing: such a spec is a `list` with a
 			// footer, so both derivations above return what the false branch would have.
 			this.restoredPageLayout = true;
+			this.lastStyleHint = this.currentStyleHint();
 			this.evidence = draft.value.chatMessage || '';
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;
