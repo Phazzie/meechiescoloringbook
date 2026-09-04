@@ -22,6 +22,7 @@ import {
 import { MeechieStudioTextOutputSchema } from '../../contracts/meechie-studio-text.contract';
 import {
 	DEFAULT_STUDIO_TEXT_OUTPUT,
+	buildColoringPageSpecFromMeechieText,
 	buildStudioTextFromCreationRecord
 } from '../../src/lib/core/meechie-studio';
 
@@ -435,5 +436,72 @@ describe('a quote page prints a finished thought', () => {
 		const recipe = buildToolPageRecipe(output('caption_this', 'Diamond nails, no answers.'));
 		expect(recipe.spec.title).toContain('Verdict Delivered');
 		expect(recipe.spec.title).toContain('Diamond nails');
+	});
+});
+
+describe('findings from the review rounds', () => {
+	it('keeps a ranked item that contains its own dash', () => {
+		// `1st place: "Long distance - no calls" — commentary`. Splitting at the first spaced dash
+		// truncated this to "Long distance", silently changing what the user submitted.
+		expect(
+			extractRankedEntries(
+				'1st place: "Long distance - no calls" — he called once in March.\n' +
+					'2nd place: "I was asleep" — he posted at 3am.'
+			)
+		).toEqual(['Long distance - no calls', 'I was asleep']);
+	});
+
+	it('still cuts commentary from an unquoted ranked item', () => {
+		expect(extractRankedEntries('1st place: My phone died — the location was live\n2. Asleep')).toEqual(
+			['My phone died', 'Asleep']
+		);
+	});
+
+	it('never emits a title the spec contract reserves', () => {
+		// `MeechieToolOutputSchema` accepts any non-empty headline, but `TitleSchema` rejects a
+		// reserved control line — so this would have passed /api/tools and then been refused by
+		// /api/generate, after the user asked for the page.
+		for (const reserved of ['STYLE:', 'style:', 'Negative Prompt:', 'LAYOUT:']) {
+			const recipe = buildToolPageRecipe(
+				output('red_flag_or_run', 'Fault: he lied.\nConsequence: he lost the key.', {
+					headline: reserved
+				})
+			);
+			const parsed = ColoringPageSpecSchema.safeParse(recipe.spec);
+			expect(parsed.success, `headline "${reserved}" produced an invalid spec`).toBe(true);
+		}
+	});
+
+	it('rebuilds a reopened quote page as a quote page, not a numbered list', () => {
+		// `buildColoringPageSpecFromMeechieText` hardcoded `listMode: 'list'`, so changing any
+		// setting on a reopened full-quote page silently converted it and spent the next
+		// generation on the wrong layout.
+		const out = output('caption_this', 'Diamond nails, no explanations.');
+		const recipe = buildToolPageRecipe(out);
+		expect(recipe.spec.listMode).toBe('title_only');
+
+		const rebuilt = buildColoringPageSpecFromMeechieText({
+			output: buildToolStudioText(out, recipe),
+			pageSize: recipe.spec.pageSize,
+			border: recipe.spec.border,
+			styleHint: recipe.styleHint,
+			listMode: recipe.spec.listMode
+		});
+		expect(rebuilt.listMode).toBe('title_only');
+		expect(rebuilt.items).toEqual([]);
+		expect(rebuilt.footerItem).toBeUndefined();
+		expect(ColoringPageSpecSchema.safeParse(rebuilt).success).toBe(true);
+	});
+
+	it('still rebuilds a studio page as a list page by default', () => {
+		const rebuilt = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown'
+		});
+		expect(rebuilt.listMode).toBe('list');
+		expect(rebuilt.items.length).toBeGreaterThan(0);
+		expect(rebuilt.footerItem).toBeDefined();
 	});
 });

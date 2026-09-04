@@ -408,17 +408,39 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	border: ColoringPageSpec['border'];
 	styleHint: string;
 	dedication?: string;
+	/**
+	 * The layout to rebuild in. Defaults to `'list'`, which is what the studio has always
+	 * produced, so studio behaviour is unchanged.
+	 *
+	 * It exists for pages the studio did not author. A page saved from the Meechie tools hub can
+	 * be `title_only` — the quote *is* the page — and its stored `studioText.pageItems` are a
+	 * faithful record of the verdict rather than lines the page prints. Rebuilding such a page at
+	 * `'list'` would silently reprint it as a numbered list the next time a setting changed,
+	 * spending a generation on the wrong layout.
+	 */
+	listMode?: ColoringPageSpec['listMode'];
 }): ColoringPageSpec => ({
 	title: normalizeSpecTitle(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle),
-	items: input.output.pageItems.map((item) => ({
-		number: item.number,
-		label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
-	})),
-	footerItem: {
-		number: 97,
-		label: normalizeSpecLabel(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle)
-	},
-	listMode: 'list',
+	// `title_only` forbids both items and a footer item, so a quote page carries neither.
+	items:
+		input.listMode === 'title_only'
+			? []
+			: input.output.pageItems.map((item) => ({
+					number: item.number,
+					label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
+				})),
+	...(input.listMode === 'title_only'
+		? {}
+		: {
+				footerItem: {
+					number: 97,
+					label: normalizeSpecLabel(
+						input.output.pageTitle,
+						DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+					)
+				}
+			}),
+	listMode: input.listMode ?? 'list',
 	alignment: 'left',
 	numberAlignment: 'strict',
 	listGutter: 'normal',

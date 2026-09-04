@@ -47,8 +47,22 @@ Active plan for run 2 of the scheduled "worst feature -> best feature" task reco
   cut that lands mid-phrase reads as a bug on a printed page. This was found by driving the rebuilt
   hub in a real browser rather than by reasoning about it, and fixed with `trimDanglingTail` plus
   tests for the cases that actually occurred.
-- *Tradeoff:* a page saved from the toolkit stores no `studioText`, because that schema demands a
-  quote and two to six page items a tool verdict does not have. Recorded in `DECISIONS.md`.
+- *Tradeoff, and the correction that replaced it:* the first implementation saved a toolkit page
+  with **no** `studioText`, reasoning that the schema demands a quote and two to six page items a
+  tool verdict does not have. **That was wrong, and this plan must not be read as endorsing it** —
+  removing the field would reintroduce a live defect. `loadCreation` runs a record without
+  `studioText` through `buildStudioTextFromCreationRecord`, which falls back to `assembledPrompt`
+  for the quote (the image-generation prompt on a generated page) and to
+  `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` when the saved spec has no items, so reopening printed
+  rendering instructions as Meechie's words with the default landlord lines attached.
+  `buildToolStudioText` now supplies every field from text she actually produced: the headline as
+  the verdict, the response as the quote, the page's own title, and — for a full-quote page, which
+  prints no items — the response's own sentences rather than anything invented. Two constraints go
+  with it: `MeechieStudioTextOutputSchema` requires at least two `pageItems`, so a response too
+  short to yield two leads with the headline; and `buildColoringPageSpecFromMeechieText` now takes
+  the layout to rebuild in, because it otherwise hardcodes `listMode: 'list'` and would silently
+  reprint a reopened quote page as a numbered list. Full reasoning in `DECISIONS.md` under
+  "Correction: a toolkit vault save must store `studioText`".
 
 ## Quote Vault host-environment seams — ClockSeam, AppOriginSeam, PageVisibilitySeam (2026-09-04)
 

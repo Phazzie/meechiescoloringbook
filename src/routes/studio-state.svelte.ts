@@ -380,7 +380,11 @@ export class StudioState {
 			pageSize: this.pageSize,
 			border: this.border,
 			styleHint: this.currentStyleHint(),
-			dedication: this.currentDedication()
+			dedication: this.currentDedication(),
+			// Keep the layout the current page is in. For anything the studio authored this is
+			// always 'list' and nothing changes; for a full-quote page reopened from the vault it
+			// stops a settings change from silently converting it into a numbered list.
+			listMode: this.spec.listMode
 		});
 		await this.validateSpec();
 		this.scheduleDraftSave();

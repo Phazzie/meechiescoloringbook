@@ -1153,3 +1153,58 @@ The related correction: the original crash (`output.toolId` read after the await
 existing `try`, so it never surfaced as an uncaught page error. The first attempt at a red proof
 assumed it would, and passed for the wrong reason. **A regression test is not finished until it has
 been watched to fail.**
+
+---
+
+## Run 2, second close-out — 2026-09-04 — the Codex rounds on `20c935f` and `9a2aa88`
+
+Seven more findings, all accepted. Two are worth reading; the rest are listed for completeness.
+
+### The one that came from fixing the previous one
+
+`buildToolStudioText` — the fix for the corrupted reopen path in the first close-out — manufactures
+two or more `pageItems` for a full-quote page, because `MeechieStudioTextOutputSchema` demands at
+least two. Codex followed that value one step further than the fix did:
+`buildColoringPageSpecFromMeechieText` hardcodes `listMode: 'list'`, so reopening a saved quote page
+and touching any setting rebuilt it as a **numbered list** — spending the next generation on a
+layout the user never chose.
+
+The fix is a `listMode` parameter on the builder, defaulted to `'list'` so the studio is untouched,
+passed from `this.spec.listMode` by `applyTextToSpec`. `title_only` also forbids a footer item, so
+the builder now omits both items and footer for that mode. Two tests pin it: a reopened quote page
+rebuilds as `title_only` with no items and no footer, and a studio page still rebuilds as a list.
+
+**The pattern to notice:** the previous close-out's lesson was "chase the field to all its readers."
+This is that lesson recurring one level down. The fix introduced a *new* value — synthetic
+`pageItems` — and the same discipline had to be applied to it, and was not. A fix is a change, and
+a change needs the same reader-chasing the original defect did.
+
+### The one that would have charged the user for nothing
+
+`MeechieToolOutputSchema` accepts any non-empty headline. `TitleSchema` rejects the prompt
+assembler's reserved control lines. A provider headline of `STYLE:` therefore passed `/api/tools`
+and produced a spec `/api/generate` refuses as `GENERATE_INPUT_INVALID` — a failure *after* the
+user asked for the page. The reserved-line set already existed in this module and was applied to
+labels only; titles now go through the same guard.
+
+### The other five
+
+| Finding | Resolution |
+|---|---|
+| A quoted lineup item containing its own dash (`"Long distance - no calls"`) was truncated at the dash | Read to the closing quote first; fall back to the dash split only when unquoted |
+| `violations` and `recommendedFixes` from `/api/generate` were discarded, presenting a drifted page as clean and losing the evidence on save | Both retained, violations surfaced under the preview, and persisted with the record as the studio does |
+| Editing the dedication after generating left a page, download and vault save carrying the old value | The dedication edit drops the generated page, so the only thing on offer matches the field |
+| A clipboard write delayed by a permission prompt could report "Verdict copied." under a newer verdict | Same token guard as generation, plus an identity check on the verdict |
+| `plan.md` still described the superseded no-`studioText` behaviour | Rewritten to describe the implemented fallback and both constraints that come with it |
+
+That last one deserves its own line even though the fix is a paragraph of prose. `plan.md` declares
+itself the active plan, and a later autonomous run reading it would have been told to remove the
+field whose absence corrupts every reopened page. **A superseded plan is not harmless history while
+it is still labelled current.**
+
+### A test stub caught by a schema
+
+The end-to-end drift test failed first time because its stubbed violation was
+`{ code, field, message }` and `ViolationSchema` requires `{ code, message, severity }`. The
+contract rejected the fixture rather than the fixture quietly proving nothing — which is the whole
+argument for validating against real schemas instead of hand-written expectations.

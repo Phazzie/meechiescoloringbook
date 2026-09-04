@@ -32,11 +32,11 @@ export type ToolPageRecipeOptions = {
 export const MAX_TOOL_PAGE_ITEMS = 6;
 
 /**
- * Lines the prompt assembler reserves for its own control blocks. A label equal to one of these is
- * rejected by `LabelSchema`, so a verdict that happens to contain one must not become an item.
+ * Lines the prompt assembler reserves for its own control blocks. Both `LabelSchema` and
+ * `TitleSchema` reject a value equal to one of these, so neither an item nor a title may be one.
  * Kept as a lowercase-compare list so "style:" cannot slip through on casing alone.
  */
-const RESERVED_LABEL_TEXT = new Set([
+const RESERVED_PROMPT_TEXT = new Set([
 	'style:',
 	'text (exact):',
 	'typography:',
@@ -163,7 +163,7 @@ const truncateOnWord = (value: string, maxLength: number): string => {
 const toLabel = (value: string): string | null => {
 	const cleaned = truncateOnWord(toAllowedText(value), MAX_LABEL_LENGTH);
 	if (cleaned.length === 0) return null;
-	if (RESERVED_LABEL_TEXT.has(cleaned.toLowerCase())) return null;
+	if (RESERVED_PROMPT_TEXT.has(cleaned.toLowerCase())) return null;
 	return cleaned;
 };
 
@@ -233,6 +233,23 @@ export const extractVerdictBeats = (response: string): string[] => {
 	return beats;
 };
 
+/**
+ * If the text opens with a quote, return everything up to its matching close.
+ *
+ * This is what lets a ranked item keep a dash of its own: the lineup prompt wraps the item in
+ * quotes and puts its commentary after an em dash, so the closing quote — not the first spaced
+ * dash — is the boundary. Returns null when the text is not quoted or the quote never closes, so
+ * the caller can fall back to the dash split.
+ */
+const readQuotedPrefix = (value: string): string | null => {
+	const openers: Record<string, string> = { '"': '"', "'": "'", '“': '”' };
+	const closer = openers[value[0]];
+	if (!closer) return null;
+	const end = value.indexOf(closer, 1);
+	if (end <= 0) return null;
+	return value.slice(1, end);
+};
+
 /** Strip one layer of wrapping quotes from a ranked entry, which the lineup prompt asks for. */
 const trimQuotes = (value: string): string => {
 	const opening = new Set(['"', "'", '“']);
@@ -268,13 +285,19 @@ export const extractRankedEntries = (response: string): string[] => {
 		while (cursor < line.length && ').: '.includes(line[cursor])) cursor += 1;
 		// A placing has to be followed by a separator; "3rd" alone, or "12x", is not a ranked line.
 		if (cursor === match[0].length || cursor === line.length) continue;
-		const rest = trimQuotes(
-			line
-				.slice(cursor)
-				.replace(/^place ?[:\-—]? ?/i, '')
-				// Cut the trailing Meechie commentary at the dash the prompt asks for.
-				.split(/ [–—-] /)[0]
-				.trim()
+		const body = line
+			.slice(cursor)
+			.replace(/^place ?[:\-—]? ?/i, '')
+			.trim();
+		// The prompt asks for `Nth place: "item" — commentary`, so when the item is quoted, the
+		// closing quote is the real boundary. Splitting on the first spaced dash instead would
+		// truncate an item that contains one — `"Long distance - no calls"` became
+		// `Long distance`, silently changing what the user submitted.
+		const quoted = readQuotedPrefix(body);
+		const rest = (
+			quoted ??
+			// Unquoted: fall back to cutting the commentary at the dash the prompt asks for.
+			trimQuotes(body.split(/ [–—-] /)[0].trim())
 		).trim();
 		if (rest.length > 0) entries.push(rest);
 	}
@@ -394,13 +417,29 @@ const LIST_PAGE_STYLE = { whitespaceScale: 45, listGutter: 'loose' } as const;
  * Build the page title. `rate_excuse` is the one tool with a numeric verdict, and the score is the
  * whole point of that page, so lead with it rather than burying it in the commentary.
  */
+/**
+ * A title the spec contract will accept.
+ *
+ * `MeechieToolOutputSchema` accepts any non-empty headline, but `TitleSchema` rejects a value equal
+ * to one of the prompt assembler's reserved control lines. A provider headline of `STYLE:` would
+ * therefore pass `/api/tools` and then be rejected by `/api/generate` as `GENERATE_INPUT_INVALID`
+ * — after the user had already asked for the page. Fall back to the fallback title rather than
+ * emitting a spec that cannot be generated.
+ */
+const toPageTitle = (parts: string[]): string => {
+	const title = compactColoringPageTitle(parts);
+	return RESERVED_PROMPT_TEXT.has(title.trim().toLowerCase())
+		? compactColoringPageTitle([])
+		: title;
+};
+
 const buildTitle = (output: MeechieToolOutput, forList: boolean): string => {
 	if (output.toolId === 'rate_excuse' && typeof output.rating === 'number') {
-		return compactColoringPageTitle([`${output.rating}/10`, output.response]);
+		return toPageTitle([`${output.rating}/10`, output.response]);
 	}
 	// A list page prints its payload as the items, so the title stays as the headline alone and
 	// does not repeat the first beat.
-	if (forList) return compactColoringPageTitle([output.headline]);
+	if (forList) return toPageTitle([output.headline]);
 
 	// A quote page has no items: the title is the whole printed page, and the spec contract caps
 	// it at 96 characters. The prompts ask for one to three sentences, so a response that does not
@@ -408,7 +447,7 @@ const buildTitle = (output: MeechieToolOutput, forList: boolean): string => {
 	// mid-sentence. Prefer the largest run of *whole* sentences that fits, so the page always
 	// prints a finished thought. The remainder is not lost: the verdict card shows the full
 	// response, Copy yields all of it, and a saved page stores it as `studioText.quote`.
-	const wholeTitle = compactColoringPageTitle([output.headline, output.response]);
+	const wholeTitle = toPageTitle([output.headline, output.response]);
 	const fits = (candidate: string): boolean =>
 		compactColoringPageTitle([candidate]).length <= MAX_TITLE_LENGTH &&
 		candidate.length <= MAX_TITLE_LENGTH;
@@ -417,7 +456,7 @@ const buildTitle = (output: MeechieToolOutput, forList: boolean): string => {
 	const sentences = splitResponseLines(output.response);
 	for (let take = sentences.length; take > 0; take -= 1) {
 		const candidate = sentences.slice(0, take).join(' ');
-		if (fits(candidate)) return compactColoringPageTitle([candidate]);
+		if (fits(candidate)) return toPageTitle([candidate]);
 	}
 	// Not even the first sentence fits; fall back to the shared compaction, which cuts on a word
 	// boundary rather than mid-word.

@@ -21,6 +21,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	import type { PackagedFile } from '../../../contracts/output-packaging.contract';
 	import type { CreationOwner } from '../../../contracts/creation-store.contract';
 	import { GenerateResultSchema } from '../../../contracts/generate.contract';
+	import type { GenerateResponseValue } from '../../../contracts/generate.contract';
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 	import { sessionAdapter } from '$lib/adapters/session.adapter';
@@ -137,6 +138,12 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	let generatedImages: GeneratedImage[] = [];
 	let assembledPrompt = '';
 	let revisedPrompt = '';
+	// Drift diagnostics from `/api/generate`. The provider's revised prompt can drop an exact-text
+	// or layout requirement; discarding these would present a drifted page as a clean one and lose
+	// the evidence for good. Surfaced below the preview and persisted with the saved page, which is
+	// what the studio flow does.
+	let violations: GenerateResponseValue['violations'] = [];
+	let recommendedFixes: GenerateResponseValue['recommendedFixes'] = [];
 	let lastRecipe: ToolPageRecipe | null = null;
 	// The verdict the currently displayed page was built from. Kept separate from `output`, which
 	// changes the moment the user switches tools or asks for a new take.
@@ -178,6 +185,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		generatedImages = [];
 		assembledPrompt = '';
 		revisedPrompt = '';
+		violations = [];
+		recommendedFixes = [];
 		lastRecipe = null;
 		pageVerdict = null;
 		vaultStatus = '';
@@ -187,6 +196,16 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	const resetState = (): void => {
 		error = '';
 		output = null;
+		resetPage();
+	};
+
+	/**
+	 * The dedication is baked into the spec at generation time, so editing it after a page exists
+	 * leaves a page, a download and a vault record carrying the previous value while the form shows
+	 * the new one. Drop the generated page instead, so the only thing on offer matches the field.
+	 */
+	const handleDedicationInput = (): void => {
+		if (lastRecipe === null && imagePreviews.length === 0) return;
 		resetPage();
 	};
 
@@ -252,6 +271,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			generatedImages = images;
 			assembledPrompt = parsed.data.value.prompt;
 			revisedPrompt = parsed.data.value.revisedPrompt ?? '';
+			violations = parsed.data.value.violations;
+			recommendedFixes = parsed.data.value.recommendedFixes;
 			imagePreviews = images
 				.map(previewUrl)
 				.filter((url): url is string => url !== null);
@@ -309,6 +330,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 					// is the image-generation prompt, and to the default landlord page items when
 					// the saved spec has none. See `buildToolStudioText`.
 					studioText: buildToolStudioText(pageVerdict, lastRecipe),
+					violations,
+					fixesApplied: recommendedFixes.map((fix) => fix.code),
 					images: generatedImages.map((image) => ({
 						b64: image.encoding === 'base64' ? image.data : encodeBase64(image.data)
 					})),
@@ -330,10 +353,16 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 
 	const handleCopyVerdict = async (): Promise<void> => {
 		if (!output) return;
+		// A permission prompt can hold this open long enough for the user to move on. Reporting
+		// "Verdict copied." under a newer verdict would invite them to paste the previous one.
+		const verdict = output;
+		const token = pageToken;
 		try {
-			await navigator.clipboard.writeText(`${output.headline}\n\n${output.response}`);
+			await navigator.clipboard.writeText(`${verdict.headline}\n\n${verdict.response}`);
+			if (token !== pageToken || output !== verdict) return;
 			copyStatus = 'Verdict copied.';
 		} catch {
+			if (token !== pageToken || output !== verdict) return;
 			copyStatus = 'Copy unavailable in this browser.';
 		}
 	};
@@ -588,6 +617,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 					id="tool-dedication"
 					data-testid="meechie-tool-dedication"
 					bind:value={dedicatedTo}
+					on:input={handleDedicationInput}
 					maxlength="60"
 					placeholder="He had time to know better."
 				/>
@@ -613,6 +643,17 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 					Generate My Coloring Page
 				{/if}
 			</button>
+
+			{#if violations.length > 0}
+				<div class="drift" data-testid="meechie-tool-violations">
+					<p class="drift-title">The page drifted from what was asked for</p>
+					<ul>
+						{#each violations as violation}
+							<li>{violation.message}</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
 
 			{#if imagePreviews.length > 0}
 				<div class="preview-grid" data-testid="meechie-tool-preview">
@@ -1042,6 +1083,31 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		max-height: 60vh;
 		object-fit: contain;
 		border-radius: 2px;
+	}
+
+	.drift {
+		border-radius: 4px;
+		padding: 0.7rem 0.9rem;
+		background: rgba(201, 162, 39, 0.09);
+		border: 1px solid rgba(201, 162, 39, 0.35);
+		color: rgba(253, 246, 227, 0.88);
+		font-size: 0.87rem;
+	}
+
+	.drift-title {
+		margin: 0 0 0.35rem;
+		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		font-size: 0.78rem;
+		color: var(--gold-bright, #f0c44a);
+	}
+
+	.drift ul {
+		margin: 0;
+		padding-left: 1.1rem;
+		line-height: 1.5;
 	}
 
 	.page-actions {

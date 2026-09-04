@@ -529,6 +529,51 @@ test('a slow page generation cannot land under a different verdict', async ({ pa
 });
 
 
+test('editing the dedication drops the page it was not generated with, and drift is surfaced', async ({
+	page
+}) => {
+	// The dedication is baked into the spec at generation time, so a page left on screen after the
+	// field changes carries the previous value while the form shows the new one.
+	const drifted = {
+		ok: true,
+		value: {
+			...generatedPage.value,
+			violations: [
+				{
+					code: 'TEXT_DRIFT',
+					message: 'The printed title lost a word.',
+					severity: 'warning'
+				}
+			]
+		}
+	};
+	await page.route('**/api/generate', async (route) => {
+		await route.fulfill({ json: drifted });
+	});
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+
+	await page.getByTestId('meechie-tool-dedication').fill('For Alice');
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+
+	// Drift diagnostics are shown rather than discarded behind a page that looks clean.
+	await expect(page.getByTestId('meechie-tool-violations')).toContainText(
+		'The printed title lost a word.'
+	);
+
+	// Changing the dedication invalidates the page generated for the previous one, so there is no
+	// download or save offering Alice's page under Bob's name.
+	await page.getByTestId('meechie-tool-dedication').fill('For Bob');
+	await expect(page.locator('.preview-grid img')).toHaveCount(0);
+	await expect(page.getByTestId('meechie-tool-download')).toHaveCount(0);
+	await expect(page.getByTestId('meechie-tool-save-vault')).toHaveCount(0);
+	await expect(page.getByTestId('meechie-tool-violations')).toHaveCount(0);
+});
+
+
 test('a structured verdict prints as a numbered list page, an unstructured one as a quote', async ({
 	page
 }) => {
