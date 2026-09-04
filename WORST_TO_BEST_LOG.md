@@ -4936,3 +4936,76 @@ immediately. The pattern is not carelessness about facts — every claim was che
 something — it is **confidence outrunning the check**: I verify the thing I just looked at and then
 write one sentence more than I verified. That last sentence is where every one of these findings
 lives.
+
+---
+
+## Run 4, correction 19 — 2026-09-04 — five command sequences, five falsifications, and a fault test that cannot fail
+
+Appended, not edited. Four P1s on `15c6e22`, all against the seven-step validation plan written one
+round earlier. Each was checked in the code before being accepted.
+
+### 1. P1 — the probe requests a model production does not use
+
+`probes/image-generation.probe.mjs:132` hard-codes `model: 'grok-imagine-image'`. Production resolves
+`grok-imagine-image-2.0` through `ImageProviderConfigSeam`
+(`image-provider-config-seam/fixtures.ts:10`). So step 1 of my plan would have spent a live call
+characterising a model the shipped adapter never receives — and the resulting fixtures would describe
+behaviour nothing in production produces.
+
+### 2. P1 — the capture has the wrong contract shape
+
+The probe writes `format`, `mimeType`, `data`, `encoding` and `modelMetadata` (`:157-190`).
+`contract.ts:19-29` requires `{ images: [{ id, url?, b64? }], rawModelInfo, timingMs }`. Step 2 said
+"refresh `fixtures.ts` from those captures" — which cannot be done without inventing the missing
+fields, i.e. without fabricating the very data the refresh exists to stop fabricating.
+
+### 3. P1 — the gates would certify the pre-resolution tree
+
+Steps 6 and 7 ran `verify` and `cipher:gate` **before** updating `docs/seams.md` and the Assumption's
+Status. `scripts/assumption-alarm.mjs:93-106` computes `blockedSeams` by reading exactly those two
+files, so the committed evidence would describe the tree as it was before the resolution it was
+supposed to evidence.
+
+### 4. P1 — the red proof cannot turn red, because the fault test cannot fail
+
+This is the one that matters beyond this pull request. `image-generation-seam/test.ts:32-41` does:
+
+```ts
+const seam = createMockImageGenerationSeam('fault');
+const result = await seam.generate(request);
+expect(result.error.code).toBe(imageGenerationFaultFixture.code);
+```
+
+and `mock.ts:21-25` returns `{ ok: false, error: imageGenerationFaultFixture }`. **The test asserts
+that the mock returns the object the mock returns.** It is green by construction; refreshing the
+fixture changes both sides of the comparison at once and it stays green. So "point the fault scenario
+at the refreshed fixture and watch it fail" was never going to fail, and the seam's fault coverage is
+a tautology — which `AGENTS.md`'s "fault fixture fails before adapter work (red proof)" rule exists
+specifically to prevent.
+
+### What actually changed: no more command sequences
+
+Five rounds, five command sequences, five falsifications — wrong destination, wrong fault, wrong
+model, wrong shape, wrong ordering. Each time I checked what the reviewer had quoted and wrote the
+next step confidently; each time the next reviewer read one file further than I had.
+
+The common factor is not any one file. **A command sequence is a prediction about the tree it will
+run in, and that tree does not exist yet.** Every step I wrote asserted something about code the
+repair has not written. So the Validation field no longer contains commands. It contains six measured
+defects and seven acceptance criteria — properties that must hold in whatever tree the repair
+produces: the probe reads the model from config, records a real non-2xx, writes canonical shapes,
+something loads them, **the fault test is shown able to fail against a deliberately non-conforming
+fixture**, the seam state is updated before the gates rather than after, and the repair takes the
+full seam workflow.
+
+Criteria can be checked against a future state. Commands only look like they can.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4 — **fifty-four findings across nineteen
+rounds**, none in the application.
+
+Five consecutive rounds on one waiver. The honest summary is that a two-sentence fixture waiver
+turned out to be resting on a seam whose refresh path is broken in six places and whose fault test
+cannot fail, and it took a reviewer refusing to accept five successive plausible plans to establish
+that. **I would have shipped the first one.**

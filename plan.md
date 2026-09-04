@@ -39,12 +39,16 @@ concession the `ClockSeam` plan in run 1 had to make.
      and the distinction matters:** no validation can run *today*, because the seam's refresh path
      needs three code changes first (the probe's captures have no consumer, the mock synthesises its
      success rather than loading one, and the probe throws on the failure it claims to capture).
-     The entry states those prerequisites, then the post-repair sequence the completion checklist
-     requires — probe, refresh, **red proof on the fault fixture**, both suites, the rewind, verify
-     plus a Cipher Gate for the repairs, the `docs/seams.md` probe date, and finally marking the
-     Assumption Resolved. Three review rounds went by before this field said any of that, and one
-     of my drafts overcorrected into "no plan can be written", which is not the same claim.
-     `npm run assumption:alarm` exits 0 with the entry as written.
+     The entry enumerates **six** measured defects in the seam's refresh path and states the
+     validation as **scope plus acceptance criteria**, not as a command sequence. That change is the
+     product of five rounds in which I wrote five command sequences and a reviewer falsified each by
+     reading one file further: wrong destination, wrong fault, wrong model, wrong shape, wrong
+     ordering. **Commands predict the tree they will run in; criteria describe the state that must
+     hold in whatever tree exists.** For a repair not yet designed, only the second is checkable.
+     The criteria include the one that indicts the current suite: the fault test compares the mock's
+     error against the fixture the mock returns, so it is green by construction and a red proof must
+     use a deliberately non-conforming fixture. `npm run assumption:alarm` exits 0 with the entry as
+     written.
 - **Seams:** none changed. No seam artifact is in the diff; the rulings are about whether existing
   open Assumptions block an already-merged change.
 - **Files.** Governance: `DECISIONS.md` (the ruling), `plan.md` (this section),

@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T22:12:43.273Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T22:23:00.305Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -384,9 +384,37 @@ refreshed fault can fail), both suites, the rewind, `verify` plus a Cipher Gate 
 `docs/seams.md` probe date, and finally marking the Assumption Resolved with its evidence paths.
 `plan.md` no longer claims a plan exists unconditionally; it states the condition.
 
+## Round 13 — the Codex round on `15c6e22`: four P1s, and the end of writing command sequences
+
+All four are against the seven-step validation plan written one round earlier. Each was verified in
+the code before being accepted:
+
+  - **Wrong model.** The probe hard-codes `model: 'grok-imagine-image'` (`:132`); production resolves
+    `grok-imagine-image-2.0` through `ImageProviderConfigSeam`
+    (`image-provider-config-seam/fixtures.ts:10`). A live call would characterise a model the shipped
+    adapter never uses.
+  - **Wrong shape.** The probe writes `format`/`mimeType`/`data`/`encoding`/`modelMetadata`
+    (`:157-190`); `contract.ts:19-29` requires `{ images: [{ id, url?, b64? }], rawModelInfo,
+    timingMs }`. A capture cannot be loaded without inventing fields.
+  - **Wrong order.** Steps 6 and 7 ran the gates before updating `docs/seams.md` and the Status;
+    `scripts/assumption-alarm.mjs:93-106` computes `blockedSeams` from exactly those two files, so
+    the committed evidence would certify the pre-resolution tree.
+  - **A red proof that cannot turn red.** `image-generation-seam/test.ts:32-41` compares
+    `result.error` against the same `imageGenerationFaultFixture` that `mock.ts:21-25` returns. It is
+    **green by construction**, and pointing it at a refreshed fixture keeps it green. This is the
+    finding with teeth beyond this PR: the seam has a fault test that cannot fail.
+
+**What changed structurally.** Five rounds produced five command sequences and a reviewer falsified
+each by reading one file further — wrong destination, wrong fault, wrong model, wrong shape, wrong
+ordering. The common factor is not carelessness about any one file: **a command sequence predicts the
+tree it will run in, and this one does not exist yet.** The Validation field now states six measured
+defects and seven acceptance criteria — properties that must hold in whatever tree the repair
+produces — instead of commands. Criteria are checkable against a future state; commands only look
+like they are.
+
 ## Ordering of this round's runs, recorded as they happened
 
-  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 22:12:43.273Z)
+  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 22:23:00.305Z)
   2. npm run lint              exit 0                     -> lint.txt
   3. npm run build             exit 0                     -> build.txt
   4. npx playwright test       28 passed                  -> e2e.txt
