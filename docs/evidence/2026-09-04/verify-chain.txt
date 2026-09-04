@@ -1,19 +1,23 @@
-# Purpose: Store the outer 'npm run verify' chain output, including the audit gate.
-# Why: verify.txt records only the inner verify-runner stage, so it cannot show whether audit:gate or the later stages passed. This file can.
-# Info flow: npm run verify -> stdout/stderr -> evidence file.
+# Purpose: Capture the full `npm run verify` chain transcript as evidence.
+# Why: AGENTS.md requires the verify chain before a push; this file is hand-written because
+#      nothing in the chain regenerates it (see scripts/proof-tape.mjs).
+# Info flow: verify chain stages -> stdout/stderr -> evidence file.
 # Command: npm run verify
-# Date (UTC): 2026-09-04T06:00:40Z
-# Exit code: 0
+# Date (UTC): 2026-09-04T07:40:44Z
+#
+# IMPORTANT — one stage of the chain could not run, and this file does not pretend otherwise.
+# `npm run audit:gate` (`npm audit --audit-level=high`) is the first stage. It failed against
+# npm every attempt with:
+#     npm warn audit 503 Service Unavailable - POST
+#     https://registry.npmjs.org/-/npm/v1/security/audits/quick - Service Unavailable
+# This is an npm-side outage of the audit endpoint only, not a finding and not reachable from
+# this diff. Evidence that it is the endpoint and not the network or the registry:
+#     curl https://registry.npmjs.org/            -> 200 in 0.074s
+#     curl -X POST .../security/audits/quick      -> timeout, no bytes received
+# The identical failure took down the `verify` check on CI for commit 95ab82c at 07:03:48Z.
+# Every other stage of the chain ran, in order, and is transcribed below. The audit gate will be
+# re-run and this file regenerated once npm restores the endpoint.
 
-
-> meechies-coloringbook@0.1.0 verify
-> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
-
-
-> meechies-coloringbook@0.1.0 audit:gate
-> npm audit --audit-level=high
-
-found 0 vulnerabilities
 
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
@@ -30,10 +34,10 @@ svelte-check found 0 errors and 0 warnings
 [1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
 
 
-[2m Test Files [22m [1m[32m78 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (79)[39m
-[2m      Tests [22m [1m[32m1032 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1033)[39m
-[2m   Start at [22m 05:59:38
-[2m   Duration [22m 60.98s[2m (transform 2.43s, setup 659ms, import 4.58s, tests 2.38s, environment 41.44s)[22m
+[2m Test Files [22m [1m[32m79 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (80)[39m
+[2m      Tests [22m [1m[32m1071 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1072)[39m
+[2m   Start at [22m 07:38:27
+[2m   Duration [22m 77.77s[2m (transform 2.90s, setup 794ms, import 5.35s, tests 2.80s, environment 53.81s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

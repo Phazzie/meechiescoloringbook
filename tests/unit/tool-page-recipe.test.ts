@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	MAX_TOOL_PAGE_ITEMS,
 	buildToolPageRecipe,
+	buildToolStudioText,
 	extractRankedEntries,
 	extractVerdictBeats,
 	splitResponseLines
@@ -18,6 +19,11 @@ import {
 	MAX_LABEL_LENGTH,
 	MAX_TITLE_LENGTH
 } from '../../src/lib/seams/spec-validation-seam/contract';
+import { MeechieStudioTextOutputSchema } from '../../contracts/meechie-studio-text.contract';
+import {
+	DEFAULT_STUDIO_TEXT_OUTPUT,
+	buildStudioTextFromCreationRecord
+} from '../../src/lib/core/meechie-studio';
 
 const output = (
 	toolId: MeechieToolOutput['toolId'],
@@ -312,5 +318,122 @@ describe('parsing survives hostile provider output', () => {
 		expect(
 			extractRankedEntries('1st place:   "My phone died"   —   the location was live')
 		).toEqual(['My phone died']);
+	});
+});
+
+describe('buildToolStudioText keeps a saved page faithful when reopened', () => {
+	// Omitting `studioText` is not neutral. `buildStudioTextFromCreationRecord` falls back to
+	// `assembledPrompt` for the quote — the image-generation prompt on a generated page — and to
+	// `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` when the saved spec has no items, which is every
+	// full-quote page. These assert against the real schema and the real loader.
+	const save = (toolId: MeechieToolOutput['toolId'], response: string, extra = {}) => {
+		const out = output(toolId, response, extra);
+		const recipe = buildToolPageRecipe(out);
+		return { out, recipe, studioText: buildToolStudioText(out, recipe) };
+	};
+
+	it('satisfies the studio text contract for every tool, list page and quote page alike', () => {
+		for (const toolId of MeechieToolIdSchema.options) {
+			for (const response of [
+				'Fault: he lied.\nConsequence: he lost the key.\nMove: change the locks.',
+				'1st place: "My phone died"\n2nd place: "I was asleep"',
+				'He had time to know better and he used it badly.',
+				'Run.'
+			]) {
+				const { studioText } = save(toolId, response);
+				const parsed = MeechieStudioTextOutputSchema.safeParse(studioText);
+				expect(parsed.success, `${toolId} / "${response}" produced invalid studio text`).toBe(
+					true
+				);
+			}
+		}
+	});
+
+	it('stores what Meechie said, not the image prompt', () => {
+		const { studioText } = save('clapback', 'He lost access and the parking spot.');
+		expect(studioText.quote).toBe('He lost access and the parking spot.');
+		expect(studioText.verdict).toBe('Verdict Delivered');
+	});
+
+	it('never attaches the default landlord page items to a quote page', () => {
+		const { studioText } = save('caption_this', 'Diamond nails and no explanations.');
+		const labels = studioText.pageItems.map((item) => item.label.toUpperCase());
+		for (const fabricated of DEFAULT_STUDIO_TEXT_OUTPUT.pageItems) {
+			expect(labels).not.toContain(fabricated.label.toUpperCase());
+		}
+		expect(studioText.pageItems.length).toBeGreaterThanOrEqual(2);
+	});
+
+	it('reuses the lines a list page actually prints', () => {
+		const { recipe, studioText } = save(
+			'red_flag_or_run',
+			'Fault: he lied.\nConsequence: he lost the key.\nMove: change the locks.'
+		);
+		expect(studioText.pageItems).toEqual(recipe.spec.items);
+	});
+
+	it('survives the real reopen path without inventing anything', () => {
+		const { out, recipe, studioText } = save('caption_this', 'Diamond nails, no explanations.');
+		const restored = buildStudioTextFromCreationRecord({
+			id: 'creation-1',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: recipe.spec,
+			// The value that used to leak into the quote when studioText was absent.
+			assembledPrompt: 'STYLE: bold outline art\nTEXT (exact):\nNEGATIVE PROMPT: no color',
+			studioText,
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+		expect(restored.quote).toBe(out.response);
+		expect(restored.quote).not.toContain('NEGATIVE PROMPT');
+		expect(restored.verdict).toBe(out.headline);
+	});
+
+	// The red proof for the two tests above: this is exactly what a toolkit save produced before
+	// `buildToolStudioText` existed, and it is why omitting the field was not a neutral choice.
+	it('shows the damage the omitted field caused', () => {
+		const { recipe } = save('caption_this', 'Diamond nails, no explanations.');
+		const withoutStudioText = buildStudioTextFromCreationRecord({
+			id: 'creation-1',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: recipe.spec,
+			assembledPrompt: 'STYLE: bold outline art\nTEXT (exact):\nNEGATIVE PROMPT: no color',
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+		// The image prompt surfaced as Meechie's quote...
+		expect(withoutStudioText.quote).toContain('NEGATIVE PROMPT');
+		// ...and the default landlord lines were attached to the user's saved page.
+		expect(withoutStudioText.pageItems).toEqual(DEFAULT_STUDIO_TEXT_OUTPUT.pageItems);
+	});
+
+	it('carries the rate_excuse score across a save', () => {
+		const { studioText } = save('rate_excuse', 'The location stayed live.', {
+			headline: '2/10',
+			rating: 2
+		});
+		expect(studioText.rating).toBe(2);
+	});
+});
+
+describe('a quote page prints a finished thought', () => {
+	// The spec contract caps a title at 96 characters and a quote page has no items, so the title
+	// is the whole printed page. A hard cut at 96 leaves it ending mid-sentence.
+	it('keeps whole sentences rather than cutting the last one in half', () => {
+		const recipe = buildToolPageRecipe(
+			output(
+				'clapback',
+				'He watched from the cheap seats all season. Then he asked for a ticket to the box.'
+			)
+		);
+		expect(recipe.spec.listMode).toBe('title_only');
+		expect(recipe.spec.title.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
+		// The first sentence survives intact instead of being cut partway through the second.
+		expect(recipe.spec.title).toContain('cheap seats all season');
+		expect(recipe.spec.title.endsWith('Then he asked for a ticket to')).toBe(false);
+	});
+
+	it('still fits the headline and response together when they are short enough', () => {
+		const recipe = buildToolPageRecipe(output('caption_this', 'Diamond nails, no answers.'));
+		expect(recipe.spec.title).toContain('Verdict Delivered');
+		expect(recipe.spec.title).toContain('Diamond nails');
 	});
 });

@@ -1021,3 +1021,109 @@ Recorded in full in `plan.md` under "Meechie's Tools becomes a page factory (202
    `/opt/pw-browsers/chromium_headless_shell-1208/chrome-headless-shell-linux64/` with a
    `chrome-headless-shell` symlink pointing at `chromium_headless_shell-1194/chrome-linux/headless_shell`.
    Without this, all ten e2e tests fail on a missing binary and look like a regression.
+
+---
+
+## Run 2, first close-out — 2026-09-04 — the review round on `95ab82c` and `20c935f`
+
+Appended, not edited. Two rounds landed close together: nine SonarCloud findings on the opening
+head, then eight Codex findings on the same head plus one remaining SonarCloud finding on the
+second.
+
+### Two real bugs, both mine, both missed by a green suite
+
+**1. A late generation could land under a different verdict (Codex, P1).** `/api/generate` is slow
+enough for a user to switch tools underneath it, and switching tools calls `resetState()`, which
+sets `output` to `null`. The in-flight response then repopulated the page state beneath the *new*
+verdict — showing and offering to save tool A's image under tool B's words — and the packaging step
+read `output.toolId` after the await, which threw outright once `output` had been cleared. Fixed
+with a generation token: `resetPage()` bumps it, an in-flight run compares its own token on arrival
+and discards itself if it lost the race, and `isGenerating` is released with the bump so abandoning
+a slow generation does not wedge the button. An end-to-end test holds `/api/generate` open, switches
+tools mid-flight, releases it, and asserts no preview renders and no page error fires.
+
+**2. Saving from the toolkit without `studioText` corrupted the reopen path (Codex, P1).** This one
+is worth reading twice, because the reasoning that produced it was recorded in `DECISIONS.md` as
+deliberate and was wrong.
+
+The original decision said: `MeechieStudioTextOutputSchema` demands a quote and two to six page
+items, a tool verdict has neither, so inventing them would put words in the vault Meechie never
+said — and `vault-gallery.ts` already documents that a record without `studioText` simply shows no
+quote. Every sentence of that is true. The conclusion did not follow, because the documented
+handling is in `vaultQuote`, which governs the **row**, and the **reopen** path is different code.
+`loadCreation` runs the record through `buildStudioTextFromCreationRecord`, which
+
+- falls back to `assembledPrompt` for the quote — on a generated page, the full image-generation
+  prompt — so reopening would print `STYLE:` and `NEGATIVE PROMPT:` instructions in quotation marks
+  as if Meechie had said them; and
+- falls back to `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` whenever the saved spec has no items, which
+  is every full-quote page, attaching the default landlord lines to the user's own saved page.
+
+Fixed with `buildToolStudioText`, where every field is text Meechie actually produced. A red-proof
+test keeps the old behaviour visible: without the field, the restored quote contains
+`NEGATIVE PROMPT` and the page items equal the defaults.
+
+**The lesson, stated plainly:** "an existing comment says this case is handled" is a claim about the
+code path that comment sits on, not about every path that reads the field. The comment was accurate
+and the inference from it was not. Chasing the field to *all* its readers would have caught this
+before review did.
+
+### SonarCloud: nine, then one
+
+All ten landed in this run's new core module, so all ten were this PR's. Read through the check-run
+annotations API using the recipe run 1 recorded — the sixth close-out's "a service is blocked is a
+fact about one route, not about the information" turned out to be immediately reusable.
+
+The regex findings were not a style nit, and the measurement is worth recording because the first
+read of it was wrong in both directions:
+
+- First probe showed 0 ms and suggested Sonar was being conservative. That probe used the wrong
+  input shape.
+- The real pathological shape is a whitespace run followed by a character `.` cannot match. On
+  `"1st" + " ".repeat(n) + "\n"` the original `[).:\s]+\s*(.+)$` took **4473 ms at n=2000** and
+  **did not terminate at n=10000**.
+- But it was **not reachable** through the public entry point, because `splitResponseLines` already
+  trimmed every line, so a newline could never sit inside one. A latent hazard in exported helpers,
+  not a live ReDoS — and the PR comment says exactly that rather than claiming a bigger fix.
+
+Narrowing the class to `[).: ]+` left it merely quadratic (2739 ms at n=50000), which is why
+SonarCloud flagged it again on the next head. The pattern is now anchored on the placing alone and
+the separator is walked by hand, which removes the ambiguity instead of shrinking it. The layer that
+actually protects the entry point is `collapseWhitespace`, one linear pass that deletes the input
+shape for all three flagged patterns at once.
+
+### Four findings refused, with the evidence
+
+Each of these asks this PR to adopt a pattern the merged codebase does not use anywhere. Each is a
+fair reading of `AGENTS.md` in isolation and wrong about which PR should carry the change.
+
+| Codex asks | Why it was refused |
+|---|---|
+| Route `/api/generate` through a seam adapter instead of `postJson` | `postJson` is the repo's documented shared helper (`CLAUDE.md`: "used by routes and UI components") and is how `studio-state.svelte.ts` and all three standalone mode routes already call this exact endpoint. |
+| Put `navigator.clipboard` behind an OS seam | `studio-state.svelte.ts:720` already calls `navigator.clipboard.writeText` directly. The new code matches existing precedent exactly. |
+| Take the creation id and timestamp from seams | `studio-state.svelte.ts:311-314, 349, 745` uses `crypto.randomUUID()` and `new Date().toISOString()` in the same save path. A `clock-seam` does exist, but it is used for the vault's day-rollover label, not for save timestamps. |
+| Keep the recipe core free of the Zod-backed contract | `src/lib/core/meechie-studio.ts:4-8` already value-imports `MAX_LABEL_LENGTH` and `MAX_TITLE_LENGTH` from the same contract module. |
+
+All four are real observations about the codebase and none is a defect this PR introduced. Making
+one path use a seam while the merged path beside it does not would create the inconsistency rather
+than remove it. They are recorded as deferred below.
+
+### The evidence gate, again
+
+Codex was right that the committed evidence did not meet the gate: `proof-tape.md` itself marked
+`verify-chain.txt`, `build.txt`, `lint.txt` and `e2e.txt` as **PREDATES THIS VERIFY RUN**. This is
+the same trap run 1 hit in its fifteenth close-out, and it has the same cause — those four files are
+hand-written, nothing in the chain regenerates them, and `proof-tape.mjs` marks anything older than
+`chamber-lock.json` (the run marker). Regenerating them requires running the chain *first* and
+writing the hand-made files *after*, which is the order this round used.
+
+`cipher-gate.json` is also older, and deliberately: it is not part of the verify chain, and this PR
+changes no seam, so no Cipher Gate entry is required. Refreshing it would mean fabricating a gate
+entry for a change that does not need one.
+
+### One thing the gate caught that review did not
+
+`npm run check` was green when the Codex fixes were written and red when the chain ran, because the
+new end-to-end race test declared `let release: (() => void) | null = null` and control-flow analysis
+narrows that to `never` at the call site. The lesson is small and repeats run 1's: run the gate
+after the last edit, not after the last edit you thought mattered.

@@ -24,7 +24,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 	import { sessionAdapter } from '$lib/adapters/session.adapter';
-	import { buildToolPageRecipe } from '$lib/core/tool-page-recipe';
+	import { buildToolPageRecipe, buildToolStudioText } from '$lib/core/tool-page-recipe';
 	import type { ToolPageRecipe } from '$lib/core/tool-page-recipe';
 
 	// `format` is the only image-type field the contract actually constrains: it is a closed
@@ -138,6 +138,12 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	let assembledPrompt = '';
 	let revisedPrompt = '';
 	let lastRecipe: ToolPageRecipe | null = null;
+	// The verdict the currently displayed page was built from. Kept separate from `output`, which
+	// changes the moment the user switches tools or asks for a new take.
+	let pageVerdict: MeechieToolOutput | null = null;
+	// Incremented whenever the displayed page stops being current. An in-flight generation
+	// compares its own token against this and discards itself if it lost the race.
+	let pageToken = 0;
 	let dedicatedTo = '';
 	let copyStatus = '';
 	let vaultStatus = '';
@@ -155,8 +161,17 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	};
 	void loadOwner();
 
-	/** Drop the generated page. Called whenever the verdict it was built from stops being current. */
+	/**
+	 * Drop the generated page. Called whenever the verdict it was built from stops being current.
+	 *
+	 * Bumping the token here is what cancels an in-flight generation: the request cannot be
+	 * recalled, but its result is discarded on arrival instead of landing under a newer verdict.
+	 * `isGenerating` is released with it, so abandoning a slow generation does not wedge the
+	 * button for the next one.
+	 */
 	const resetPage = (): void => {
+		pageToken += 1;
+		isGenerating = false;
 		generateError = '';
 		imagePreviews = [];
 		packagedFiles = [];
@@ -164,6 +179,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		assembledPrompt = '';
 		revisedPrompt = '';
 		lastRecipe = null;
+		pageVerdict = null;
 		vaultStatus = '';
 		copyStatus = '';
 	};
@@ -186,16 +202,29 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 
 	const handleMakePage = async (): Promise<void> => {
 		if (!output || isGenerating) return;
-		isGenerating = true;
+		// `resetPage` first: it bumps the token, so this run claims the value it leaves behind and
+		// any earlier in-flight run is already stale by the time this one starts.
 		resetPage();
+		isGenerating = true;
 
-		const recipe = buildToolPageRecipe(output, { dedication: dedicatedTo });
+		// Pin the verdict this run belongs to, and take a token for it.
+		//
+		// `/api/generate` is slow enough to switch tools underneath, and `resetState()` sets
+		// `output` to null on the way. Without this, a response arriving late would repopulate the
+		// page state beneath a different verdict — showing and saving tool A's image under tool B's
+		// words — and reading `output.toolId` after the await would throw outright once `output`
+		// had been cleared. Everything below reads `verdict` and re-checks the token instead.
+		const verdict = output;
+		const token = pageToken;
+		const isStale = (): boolean => token !== pageToken;
+		const recipe = buildToolPageRecipe(verdict, { dedication: dedicatedTo });
 		try {
 			const payload = await postJson(
 				'/api/generate',
 				{ spec: recipe.spec, styleHint: recipe.styleHint },
 				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
 			);
+			if (isStale()) return;
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				generateError = 'Generate response did not match contract.';
@@ -206,35 +235,39 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 				return;
 			}
 
-			lastRecipe = recipe;
-			generatedImages = parsed.data.value.images;
-			assembledPrompt = parsed.data.value.prompt;
-			revisedPrompt = parsed.data.value.revisedPrompt ?? '';
-			imagePreviews = generatedImages
-				.map(previewUrl)
-				.filter((url): url is string => url !== null);
-
+			const images = parsed.data.value.images;
 			// Packaging needs a browser canvas for some formats, so treat a failure as a missing
 			// download rather than a failed generation: the page still previews and still saves.
 			const packResult = await outputPackagingAdapter.package({
-				images: generatedImages,
+				images,
 				outputFormat: 'pdf',
-				fileBaseName: `meechie-${output.toolId}-${Date.now()}`,
+				fileBaseName: `meechie-${verdict.toolId}-${Date.now()}`,
 				pageSize: recipe.spec.pageSize,
 				variants: ['print', 'square']
 			});
+			if (isStale()) return;
+
+			pageVerdict = verdict;
+			lastRecipe = recipe;
+			generatedImages = images;
+			assembledPrompt = parsed.data.value.prompt;
+			revisedPrompt = parsed.data.value.revisedPrompt ?? '';
+			imagePreviews = images
+				.map(previewUrl)
+				.filter((url): url is string => url !== null);
 			if (packResult.ok) {
 				packagedFiles = packResult.value.files;
 			} else {
 				generateError = `Page made, but the download could not be built: ${packResult.error.message}`;
 			}
 		} catch (requestError) {
+			if (isStale()) return;
 			generateError =
 				requestError instanceof Error
 					? requestError.message
 					: 'Network error. Try again.';
 		} finally {
-			isGenerating = false;
+			if (!isStale()) isGenerating = false;
 		}
 	};
 
@@ -249,13 +282,17 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	};
 
 	const handleSaveToVault = async (): Promise<void> => {
-		if (isSaving || !lastRecipe || generatedImages.length === 0) return;
+		if (isSaving || !lastRecipe || !pageVerdict || generatedImages.length === 0) return;
 		if (!owner) {
 			vaultStatus = 'Session is still connecting. Try again in a moment.';
 			return;
 		}
 		isSaving = true;
 		vaultStatus = 'Saving...';
+		// Same staleness rule as generation: the record below is built synchronously from the
+		// current page, but the write is awaited, so its status must not be painted over a page
+		// the user has since replaced.
+		const token = pageToken;
 		try {
 			const result = await creationStoreAdapter.saveCreation({
 				record: {
@@ -267,20 +304,23 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 					intent: lastRecipe.spec,
 					assembledPrompt,
 					revisedPrompt: revisedPrompt || undefined,
-					// `studioText` stays unset on purpose. Its schema demands a verdict, a quote and
-					// two to six page items, and a tool verdict supplies none of those; inventing
-					// them to fill the field would put words in the vault that Meechie never said.
-					// `vault-gallery` already renders a row with no stored quote.
+					// Store the verdict's own text. Leaving this unset is not neutral: the reopen
+					// path falls back to `assembledPrompt` for the quote, which on a generated page
+					// is the image-generation prompt, and to the default landlord page items when
+					// the saved spec has none. See `buildToolStudioText`.
+					studioText: buildToolStudioText(pageVerdict, lastRecipe),
 					images: generatedImages.map((image) => ({
 						b64: image.encoding === 'base64' ? image.data : encodeBase64(image.data)
 					})),
 					owner
 				}
 			});
+			if (token !== pageToken) return;
 			vaultStatus = result.ok
 				? 'Saved to the vault. Find it on the home page.'
 				: result.error.message;
 		} catch (saveError) {
+			if (token !== pageToken) return;
 			vaultStatus =
 				saveError instanceof Error ? saveError.message : 'Failed to save to vault.';
 		} finally {

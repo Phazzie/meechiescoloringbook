@@ -35,15 +35,44 @@ Short, durable decisions with context and tradeoffs.
   (`Move: change the locks before he asks` survives). It is a readability improvement on a hard
   40-character contract limit, not a grammar engine, and it is tested against the cases that
   actually occurred.
-- Decision 3: a page saved to the vault from the toolkit stores no `studioText`.
+- Decision 3 (**superseded on the same day — see the correction below**): a page saved to the vault
+  from the toolkit stores no `studioText`.
 - Context: `MeechieStudioTextOutputSchema` requires a verdict, a quote, a page title, and between
   two and six page items. A tool verdict supplies none of those fields, and manufacturing them
   would put words in the vault that Meechie never said.
-- Tradeoff: the vault row for a toolkit page shows its title, thumbnail and save date but no quote
-  line, and vault search matches it on title rather than on quote. This is the behaviour
-  `vault-gallery.ts` already documents and handles for records saved before `studioText` existed
-  (`vaultQuote` returns `''` and `VerdictRow.svelte` omits the line), so no new path was added.
-  Alternative rejected: synthesizing `studioText` from the verdict.
+- Tradeoff as originally recorded: the vault row for a toolkit page shows its title, thumbnail and
+  save date but no quote line, and vault search matches it on title rather than on quote. This is
+  the behaviour `vault-gallery.ts` already documents and handles for records saved before
+  `studioText` existed (`vaultQuote` returns `''` and `VerdictRow.svelte` omits the line).
+
+## 2026-09-04 - Correction: a toolkit vault save must store `studioText`
+
+- Date: 2026-09-04
+- Supersedes: Decision 3 above, which was wrong. Raised by a Codex review on PR #291 and confirmed
+  against the code before acting on it.
+- What the original reasoning got wrong: it checked how an absent `studioText` renders in the vault
+  **row** (`vaultQuote`, which correctly returns `''`) and concluded the absence was handled
+  everywhere. It is not handled on the **reopen** path. `loadCreation` runs the record through
+  `buildStudioTextFromCreationRecord` → `buildStudioTextFromSpec`, which
+  - falls back to `assembledPrompt` for the quote, and on a generated page that field holds the
+    full image-generation prompt, so reopening a saved page would print `STYLE:` / `NEGATIVE
+    PROMPT:` rendering instructions inside quotation marks as if Meechie had said them; and
+  - falls back to `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` when the saved spec has no items — which
+    is *every* full-quote page — attaching the unrelated default landlord lines to the user's own
+    saved page.
+- Decision: `buildToolStudioText` in `src/lib/core/tool-page-recipe.ts` builds the stored text, and
+  every field is text Meechie actually produced: `verdict` is the headline, `quote` is the
+  response, `pageTitle` is the page's own title, and `pageItems` are the lines the page really
+  prints. A full-quote page prints no items, so it falls back to the response's own sentences, and
+  only if those cannot yield the schema's two does it lead with the headline — still her words,
+  never a placeholder.
+- Evidence: `tests/unit/tool-page-recipe.test.ts` asserts the output against
+  `MeechieStudioTextOutputSchema` for every tool across list and quote pages, drives the real
+  `buildStudioTextFromCreationRecord` to prove the reopen path is faithful, and keeps a red proof
+  showing the old behaviour leaking `NEGATIVE PROMPT` into the quote and the default landlord items
+  into the page.
+- Lesson worth keeping: "an existing comment says this case is handled" is a claim about the code
+  path that comment sits on, not about every path that reads the field.
 
 ## 2026-09-04 - Vault image completeness is checked at the edges, not by decoding
 

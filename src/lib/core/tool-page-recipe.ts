@@ -9,7 +9,8 @@ import type { ColoringPageSpec } from '../seams/spec-validation-seam/contract';
 import {
 	ALLOWED_TEXT_REGEX,
 	MAX_DEDICATION_LENGTH,
-	MAX_LABEL_LENGTH
+	MAX_LABEL_LENGTH,
+	MAX_TITLE_LENGTH
 } from '../seams/spec-validation-seam/contract';
 import { compactColoringPageTitle } from './coloring-page-title';
 
@@ -103,15 +104,15 @@ const DANGLING_TAIL_WORDS = new Set([
 /** Coordinators that drag a half-clause behind them when they survive the cut. */
 const CLAUSE_STARTERS = new Set(['and', 'but', 'or', 'because', 'so', 'then', 'with', 'before']);
 
+/** Reduce a word to its bare letters so punctuation cannot hide a joining word. */
+const bareWord = (word: string): string => word.toLowerCase().replace(/[^a-z]/g, '');
+
 /**
  * Drop a trailing fragment so the line ends on a word that carries meaning.
  *
  * Two passes, because the two failures look different: a line ending *on* a joining word, and a
  * line ending on a joining word plus the one word that followed it before the cut ("and used").
  */
-/** Reduce a word to its bare letters so punctuation cannot hide a joining word. */
-const bareWord = (word: string): string => word.toLowerCase().replace(/[^a-z]/g, '');
-
 const trimDanglingTail = (value: string): string => {
 	let words = value.split(' ').filter((word) => word.length > 0);
 
@@ -173,12 +174,6 @@ const toDedication = (value: string | undefined): string | undefined => {
 };
 
 /**
- * Split a tool response into the lines it was actually written as. The tool prompts ask for
- * newline-separated structure ("Fault:" / "Consequence:" / "Move:", or a numbered lineup), but a
- * provider will sometimes return the same structure in one paragraph, so fall back to splitting on
- * sentence ends when there is only a single line.
- */
-/**
  * Collapse runs of whitespace to single spaces and trim.
  *
  * Every line handed downstream goes through this, which is what keeps the parsing patterns below
@@ -190,6 +185,12 @@ const toDedication = (value: string | undefined): string | undefined => {
  */
 const collapseWhitespace = (line: string): string => line.replace(/\s+/g, ' ').trim();
 
+/**
+ * Split a tool response into the lines it was actually written as. The tool prompts ask for
+ * newline-separated structure ("Fault:" / "Consequence:" / "Move:", or a numbered lineup), but a
+ * provider will sometimes return the same structure in one paragraph, so fall back to splitting on
+ * sentence ends when there is only a single line.
+ */
 export const splitResponseLines = (response: string): string[] => {
 	const byNewline = response
 		.split(/\r?\n/)
@@ -253,13 +254,23 @@ const trimQuotes = (value: string): string => {
 export const extractRankedEntries = (response: string): string[] => {
 	const entries: string[] = [];
 	for (const line of splitResponseLines(response)) {
-		// `[).: ]+` alone — the trailing `\s*` this used to carry overlapped the `\s` inside the
-		// class, and two adjacent quantifiers that can both match a space make the pattern
-		// backtrack exponentially on a run of spaces. The class already covers the separator.
-		const match = /^(\d+(?:st|nd|rd|th)?)[).: ]+(.+)$/i.exec(line);
+		// Match only the leading placing, then walk past the separator by hand.
+		//
+		// Every quantified-class-followed-by-`(.+)` form of this is ambiguous — `.` matches the
+		// separator characters too, so the engine re-splits the boundary on every backtrack, which
+		// is what made the original `[).:\s]+\s*(.+)$` catastrophic and its narrowed `[).: ]+(.+)$`
+		// successor merely quadratic. Anchoring on the number alone and scanning the separator
+		// removes the ambiguity rather than shrinking it. `\d{1,3}` because the spec contract caps
+		// an item number at 999.
+		const match = /^(\d{1,3})(?:st|nd|rd|th)?/i.exec(line);
 		if (!match) continue;
+		let cursor = match[0].length;
+		while (cursor < line.length && ').: '.includes(line[cursor])) cursor += 1;
+		// A placing has to be followed by a separator; "3rd" alone, or "12x", is not a ranked line.
+		if (cursor === match[0].length || cursor === line.length) continue;
 		const rest = trimQuotes(
-			match[2]
+			line
+				.slice(cursor)
 				.replace(/^place ?[:\-—]? ?/i, '')
 				// Cut the trailing Meechie commentary at the dash the prompt asks for.
 				.split(/ [–—-] /)[0]
@@ -388,10 +399,29 @@ const buildTitle = (output: MeechieToolOutput, forList: boolean): string => {
 		return compactColoringPageTitle([`${output.rating}/10`, output.response]);
 	}
 	// A list page prints its payload as the items, so the title stays as the headline alone and
-	// does not repeat the first beat. A quote page has no items, so the response is the page.
-	return forList
-		? compactColoringPageTitle([output.headline])
-		: compactColoringPageTitle([output.headline, output.response]);
+	// does not repeat the first beat.
+	if (forList) return compactColoringPageTitle([output.headline]);
+
+	// A quote page has no items: the title is the whole printed page, and the spec contract caps
+	// it at 96 characters. The prompts ask for one to three sentences, so a response that does not
+	// fit is normal rather than exceptional, and a hard cut at 96 leaves the page ending
+	// mid-sentence. Prefer the largest run of *whole* sentences that fits, so the page always
+	// prints a finished thought. The remainder is not lost: the verdict card shows the full
+	// response, Copy yields all of it, and a saved page stores it as `studioText.quote`.
+	const wholeTitle = compactColoringPageTitle([output.headline, output.response]);
+	const fits = (candidate: string): boolean =>
+		compactColoringPageTitle([candidate]).length <= MAX_TITLE_LENGTH &&
+		candidate.length <= MAX_TITLE_LENGTH;
+	if (fits(`${output.headline} - ${output.response}`)) return wholeTitle;
+
+	const sentences = splitResponseLines(output.response);
+	for (let take = sentences.length; take > 0; take -= 1) {
+		const candidate = sentences.slice(0, take).join(' ');
+		if (fits(candidate)) return compactColoringPageTitle([candidate]);
+	}
+	// Not even the first sentence fits; fall back to the shared compaction, which cuts on a word
+	// boundary rather than mid-word.
+	return wholeTitle;
 };
 
 /**
@@ -428,4 +458,56 @@ export const buildToolPageRecipe = (
 	} satisfies ColoringPageSpec;
 
 	return { spec, styleHint: presentation.styleHint };
+};
+
+/** The two-item floor `MeechieStudioTextOutputSchema` puts on `pageItems`. */
+const MIN_STUDIO_PAGE_ITEMS = 2;
+
+/**
+ * Build the studio text to store alongside a page saved from the toolkit.
+ *
+ * This exists because omitting it is actively harmful, not merely lossy. `loadCreation` runs a
+ * record without `studioText` through `buildStudioTextFromCreationRecord`, which falls back to
+ * `assembledPrompt` for the quote — on a generated page that field holds the full image-generation
+ * prompt, so reopening would print rendering instructions inside quotation marks as if Meechie had
+ * said them — and, when the saved spec has no items (every full-quote page), falls back to
+ * `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems`, attaching the unrelated default landlord lines to the
+ * user's own saved page.
+ *
+ * Every field below is text Meechie actually produced. `pageItems` prefers the lines the page
+ * really prints; a full-quote page prints none, so it falls back to the verdict's own words split
+ * into printable lines rather than to anything invented.
+ */
+export const buildToolStudioText = (
+	output: MeechieToolOutput,
+	recipe: ToolPageRecipe
+): {
+	verdict: string;
+	quote: string;
+	pageTitle: string;
+	pageItems: { number: number; label: string }[];
+	rating?: number;
+	qualityState: 'ready';
+} => {
+	const printed = recipe.spec.items.map((item) => ({ number: item.number, label: item.label }));
+	// A list page already prints two or more of the verdict's own lines; reuse exactly those.
+	// Otherwise chop the response itself into printable lines, and if it is too short to yield the
+	// two the schema demands, lead with the headline — still her words, never a placeholder.
+	const fallbackSource =
+		printed.length >= MIN_STUDIO_PAGE_ITEMS
+			? []
+			: toItems(splitResponseLines(output.response));
+	let items = printed.length >= MIN_STUDIO_PAGE_ITEMS ? printed : fallbackSource;
+	if (items.length < MIN_STUDIO_PAGE_ITEMS) {
+		items = toItems([output.headline, output.response]);
+	}
+
+	return {
+		verdict: output.headline,
+		quote: output.response,
+		pageTitle: recipe.spec.title,
+		pageItems: items.slice(0, MAX_TOOL_PAGE_ITEMS),
+		...(typeof output.rating === 'number' ? { rating: output.rating } : {}),
+		qualityState: 'ready'
+	};
 };

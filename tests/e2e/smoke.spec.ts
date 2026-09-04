@@ -475,6 +475,46 @@ test('every toolkit verdict becomes a coloring page that downloads and saves', a
 	await expect(page.getByTestId('home-vault-load')).toBeVisible();
 });
 
+test('a slow page generation cannot land under a different verdict', async ({ page }) => {
+	// Codex found this: `/api/generate` is slow enough to switch tools underneath, and the tool
+	// switch sets `output` to null. A late response used to repopulate the page state beneath the
+	// new verdict, and reading the old verdict's toolId after the await threw outright.
+	// Definite-assignment, not `| null`: the executor runs synchronously, but control-flow
+	// analysis cannot see that and narrows a nullable binding to `never` at the call site.
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	await page.route('**/api/generate', async (route) => {
+		await held;
+		await route.fulfill({ json: generatedPage });
+	});
+
+	const pageErrors: string[] = [];
+	page.on('pageerror', (error) => pageErrors.push(error.message));
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-red_flag_or_run').click();
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+
+	// Start the generation, then switch tools while it is still in flight.
+	await page.getByTestId('meechie-tool-make-page').click();
+	await page.getByTestId('meechie-tool-clapback').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeHidden();
+
+	// Let the abandoned response arrive. It must be discarded, not rendered.
+	release();
+	await page.waitForTimeout(500);
+	await expect(page.locator('.preview-grid img')).toHaveCount(0);
+	expect(pageErrors).toEqual([]);
+
+	// The button is not wedged: the next verdict can still make its own page.
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
+});
+
+
 test('a structured verdict prints as a numbered list page, an unstructured one as a quote', async ({
 	page
 }) => {
