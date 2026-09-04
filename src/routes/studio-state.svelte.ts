@@ -14,6 +14,7 @@ import {
 	DEFAULT_REVISION_BUDGET,
 	DEFAULT_STUDIO_TEXT_OUTPUT,
 	buildColoringPageSpecFromMeechieText,
+	derivesDenseDecorations,
 	buildStudioTextFromCreationRecord,
 	buildStudioTextFromDraftRecord,
 	canRunStudioAction,
@@ -311,11 +312,16 @@ export class StudioState {
 	 * and image quota on an incomplete page.
 	 */
 	private restoredPageLayout = false;
-	// The style hint the current spec's derived fields were built from. Seeded at restore time so
-	// the first unrelated setting change on a reopened page compares equal and preserves what was
-	// restored — seeding it empty would make every reopened page recompute on the first touch,
-	// which is the regression this whole sequence has been circling.
-	private lastStyleHint: string | null = null;
+	// Whether the last rebuild's style hint asked for dense decoration — the derivation's answer,
+	// not its input. Seeded at restore time so the first unrelated setting change on a reopened page
+	// compares equal and preserves what was restored.
+	//
+	// Comparing the whole hint string was the previous attempt and over-triggered: Rawness, Third
+	// Person, Glitter and the wig all appear in the hint without governing density, so changing any
+	// of them on a restored minimal page recomputed it — and with the default `receipts_out`
+	// intensity the recomputation returns `dense`, so the page changed on a control that has nothing
+	// to do with it.
+	private lastDerivesDense: boolean | null = null;
 	authContext: CreationRecord['authContext'] | null = null;
 	// Incremented whenever the displayed page is replaced; async work captures it and drops its
 	// result if the value moved on. Not $state: nothing renders it.
@@ -415,8 +421,9 @@ export class StudioState {
 		// invisible to any comparison: clicking the theme chip that is already active leaves the
 		// hint identical but is still the reader asking for that theme.
 		const styleHint = this.currentStyleHint();
-		const derivationChanged = source === 'theme' || styleHint !== this.lastStyleHint;
-		this.lastStyleHint = styleHint;
+		const derivesDense = derivesDenseDecorations(styleHint);
+		const derivationChanged = source === 'theme' || derivesDense !== this.lastDerivesDense;
+		this.lastDerivesDense = derivesDense;
 		this.spec = buildColoringPageSpecFromMeechieText({
 			output,
 			pageSize: this.pageSize,
@@ -847,7 +854,7 @@ export class StudioState {
 		this.restoredPageLayout = true;
 		// Seed the derivation input at restore time, so the first setting change that does not touch
 		// it compares equal and keeps the density the saved page was built with.
-		this.lastStyleHint = this.currentStyleHint();
+		this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
 		// The evidence box is an editable field the reader's next Generate Verdict sends to the text
 		// provider as their own words, so what lands in it matters more than a display string does.
 		// This fell back to `assembledPrompt` — the image-generation prompt — for any record saved
@@ -1028,7 +1035,7 @@ export class StudioState {
 			// Setting it for a studio-authored draft costs nothing: such a spec is a `list` with a
 			// footer, so both derivations above return what the false branch would have.
 			this.restoredPageLayout = true;
-			this.lastStyleHint = this.currentStyleHint();
+			this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
 			this.evidence = draft.value.chatMessage || '';
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;

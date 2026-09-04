@@ -3,16 +3,11 @@
 #      nothing in the chain regenerates it (see scripts/proof-tape.mjs).
 # Info flow: verify chain stages -> stdout/stderr -> evidence file.
 # Command: npm run verify
-# Date (UTC): 2026-09-04T13:10Z
+# Date (UTC): 2026-09-04T13:16Z
 # Exit code: 0
 #
 # Stage order: audit:gate -> chamber-lock -> verify-runner (check + test) -> shaolin-lint ->
 #              assumption-alarm -> seam-ledger -> clan-chain -> proof-tape. All eight passed.
-#
-# The test count falls from 1122 to 1118 because six tests for `isRenderableGeneratedImage` were
-# removed with the predicate itself — a byte-signature check that a review showed passes a
-# truncated image — and two sentence-boundary tests were added. The behaviour it guarded is now
-# covered end to end, where a real browser decode can be exercised.
 
 
 > meechies-coloringbook@0.1.0 verify
@@ -40,9 +35,9 @@ svelte-check found 0 errors and 0 warnings
 
 
 [2m Test Files [22m [1m[32m79 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (80)[39m
-[2m      Tests [22m [1m[32m1118 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1119)[39m
-[2m   Start at [22m 12:59:44
-[2m   Duration [22m 79.43s[2m (transform 3.12s, setup 796ms, import 5.69s, tests 2.99s, environment 54.72s)[22m
+[2m      Tests [22m [1m[32m1119 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1120)[39m
+[2m   Start at [22m 13:05:20
+[2m   Duration [22m 82.68s[2m (transform 3.23s, setup 841ms, import 5.93s, tests 3.11s, environment 56.91s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

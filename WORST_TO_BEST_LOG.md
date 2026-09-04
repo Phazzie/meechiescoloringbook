@@ -2328,3 +2328,56 @@ So the rule needs a second half. It is not enough to ask whether a check measure
 ask what the check would accept that the real thing would reject, and whether the fix has a mirror
 image somewhere that was left alone. Both of those questions are answerable in about a minute, and
 neither was asked.
+
+---
+
+## Run 2, correction 9 — 2026-09-04 — I wrote the risk down and reasoned it away
+
+**Twenty rounds, 71 findings, 37 real user-visible defects.**
+
+### The self-critique named this exact case and got it wrong
+
+Correction 8's plan entry contains this, under "what could be wrong":
+
+> the style-hint comparison could recompute on a change that does not affect density — a rawness or
+> wig change alters the hint string without altering whether it contains `receipt`. Recomputing
+> there yields the same value it preserved, so the extra work is invisible.
+
+That is false, and false in the only direction that shows. The default intensity is `receipts_out`,
+which puts `receipt` in the hint on its own. So on a restored **minimal** page, recomputing does not
+return what it preserved — it returns `dense`. Touching Rawness, Third Person, Glitter or the wig
+turned a reopened minimal page dense, on controls that have nothing to do with density.
+
+The fix compares the derivation's *answer* rather than its input: `derivesDenseDecorations(hint)`,
+exported from `meechie-studio.ts` so the studio and the builder share one definition of the rule
+instead of keeping two copies that drift. Red-proofed — restoring the whole-hint comparison fails
+the new assertion with `expected 'dense' to be 'minimal'`.
+
+What is worth recording is not the bug. It is that I identified the case, wrote it down in the
+plan, and dismissed it with a sentence of reasoning instead of the thirty seconds it would have
+taken to run it. Every correction in this run has ended with some version of "measure it," and I
+then wrote a self-critique that reasoned about an input rather than running it.
+
+### The token was answering a different question than the one asked
+
+`handleSaveToVault` tested `token !== pageToken || lastRecipe !== savedRecipe`. `handleMakePage`
+advances the token when a regeneration *starts*, so a save begun just before one was ruled stale
+even when that regeneration then failed and left the original page on screen. The write had already
+succeeded; only its confirmation vanished — which invites a second Save and a duplicate vault entry
+for a page that saved correctly the first time.
+
+`lastRecipe` is replaced by reference when a page installs and nulled when the page is dropped, so
+it already answers the real question: is the page this save was for still the page on screen? The
+token is removed. It was added two corrections ago to fix a different race and quietly widened the
+predicate past what that race needed.
+
+### The pattern, fifth statement
+
+Both of these are guards that answer a *near* question instead of the exact one — the token for
+"has the displayed page changed", the whole hint for "did density's input change". Each was added
+to fix a real defect and each carried more than that defect required, and the surplus is where the
+next bug lived.
+
+A guard should be as narrow as the question it exists to answer. When one is widened to cover a new
+case, the right move is to check whether the old terms are still doing work, not to leave them
+because they are already there.

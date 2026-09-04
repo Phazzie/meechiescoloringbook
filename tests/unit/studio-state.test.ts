@@ -1192,6 +1192,51 @@ describe('StudioState quote vault', () => {
 		expect(studio.spec.decorations).toBe('minimal');
 	});
 
+	it('leaves a restored page alone for settings that do not drive density', async () => {
+		// The style hint carries Rawness, Third Person, Glitter and the wig as well as the theme and
+		// the intensity, but only `includes('receipt')` decides density. Comparing the whole hint
+		// string therefore recomputed on controls that do not govern it — and with the default
+		// `receipts_out` intensity the recomputation returns `dense`, so a restored *minimal* page
+		// turned dense when the reader touched Rawness.
+		//
+		// This case was written into the plan's self-critique and dismissed there as "recomputing
+		// yields the same value it preserved, so the extra work is invisible". That was wrong, and
+		// wrong in the one direction that shows: the values differ precisely when the default voice
+		// puts `receipt` in the hint. Hence this test rather than the note.
+		const studio = registerInitialized(new StudioState());
+		expect(studio.voice.intensity).toBe('receipts_out');
+		const minimalPage = {
+			...buildColoringPageSpecFromMeechieText({
+				output: DEFAULT_STUDIO_TEXT_OUTPUT,
+				pageSize: 'US_Letter',
+				border: 'decorative',
+				styleHint: 'crown polish',
+				listMode: 'title_only'
+			}),
+			decorations: 'minimal' as const
+		};
+		await studio.loadCreation({
+			id: 'creation-minimal',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: minimalPage,
+			assembledPrompt: 'a saved crown page',
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+
+		studio.voice = { ...studio.voice, rawness: 'raw' };
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('minimal');
+
+		studio.voice = { ...studio.voice, thirdPerson: 'always' };
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('minimal');
+
+		studio.glitter = true;
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('minimal');
+	});
+
 	it('never loads the image prompt into the evidence box', async () => {
 		// The evidence box is editable and the reader's next Generate Verdict sends it to the text
 		// provider as their own words. Falling back to `assembledPrompt` for a record saved without

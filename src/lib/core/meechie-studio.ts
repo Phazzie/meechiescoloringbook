@@ -403,6 +403,19 @@ export const buildStudioTextFromCreationRecord = (
 		studioText: creation.studioText
 	});
 
+/**
+ * Whether a style hint asks for dense decoration.
+ *
+ * Exported because the studio has to answer "did the thing that drives density change?" before it
+ * decides whether a reopened page keeps its saved value, and answering that with a second copy of
+ * this rule is how the two drift apart. Note that the hint carries the voice as well as the theme,
+ * so the intensity `receipts_out` matches it on its own — surprising, long-standing, and the reason
+ * the question has to be asked against this predicate rather than against the theme or the whole
+ * hint string.
+ */
+export const derivesDenseDecorations = (styleHint: string): boolean =>
+	styleHint.includes('receipt');
+
 export const buildColoringPageSpecFromMeechieText = (input: {
 	output: Pick<
 		MeechieStudioTextOutput,
@@ -496,7 +509,7 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	// page-size change alone turned a dense page minimal. Provenance lives with the caller, which is
 	// the only side that knows whether a theme was actually selected.
 	decorations:
-		input.presentation?.decorations ?? (input.styleHint.includes('receipt') ? 'dense' : 'minimal'),
+		input.presentation?.decorations ?? (derivesDenseDecorations(input.styleHint) ? 'dense' : 'minimal'),
 	illustrations: input.presentation?.illustrations ?? 'simple',
 	shading: input.presentation?.shading ?? 'none',
 	border: input.border,

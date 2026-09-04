@@ -433,12 +433,16 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		// current page, but the write is awaited, so its status must not be painted over a page
 		// the user has since replaced.
 		//
-		// The recipe is pinned as well as the token, because the token alone stopped being enough
-		// once a regeneration kept the previous page on screen: the Save button stays live during
-		// that request, and a save begun in the window captured the very token the regeneration was
-		// already holding. It would then pass this check and paint "Saved to the vault" under the
-		// replacement page it never saved. `lastRecipe` is replaced by reference when a new page
-		// installs, so comparing it catches exactly that swap.
+		// The recipe is the whole test, and the token is deliberately not part of it. `lastRecipe`
+		// is replaced by reference the moment a new page installs and set to null when the page is
+		// dropped, so comparing it asks the exact question — "is the page this save was for still
+		// the page on screen?" — for every way the answer can become no.
+		//
+		// Adding the token made it answer a different question. `handleMakePage` advances the token
+		// when a regeneration *starts*, so a save begun just before one was ruled stale even when
+		// that regeneration then failed and left the original page in place. The write had already
+		// succeeded; only its confirmation vanished, which invites a second Save and a duplicate
+		// vault entry for a page that was saved correctly the first time.
 		//
 		// Not covered by an end-to-end test, deliberately and not silently: the vault write goes to
 		// localStorage through the adapter rather than over the network, so a Playwright route stub
@@ -446,9 +450,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		// Save and then regenerated passed with this guard removed — it was measuring the up-front
 		// `vaultStatus` clear in `handleMakePage`, not this — so it was deleted rather than kept as
 		// false coverage.
-		const token = pageToken;
 		const savedRecipe = lastRecipe;
-		const isStaleSave = (): boolean => token !== pageToken || lastRecipe !== savedRecipe;
+		const isStaleSave = (): boolean => lastRecipe !== savedRecipe;
 		try {
 			const result = await creationStoreAdapter.saveCreation({
 				record: {
