@@ -66,3 +66,41 @@ exit=0
 (chamber-lock, shaolin-lint, assumption-alarm, seam-ledger, clan-chain, proof-tape ran inside
 this same `npm run verify` invocation above, chained with &&; no individual output beyond
 what's shown, and the command's own exit=0 confirms every stage in the chain succeeded)
+
+$ npm run verify   # (log-finalization commit, after PR #285 merged - genuine wrapper invocation)
+
+> meechies-coloringbook@0.1.0 verify
+> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
+
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
+found 0 vulnerabilities
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v4.1.0 /home/user/meechiescoloringbook
+
+
+ Test Files  74 passed | 1 skipped (75)
+      Tests  847 passed | 1 skipped (848)
+   Start at  01:00:09
+   Duration  44.87s (transform 1.74s, setup 478ms, import 3.26s, tests 1.44s, environment 30.64s)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+$ echo "exit=$?"
+exit=0
