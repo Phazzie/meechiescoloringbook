@@ -263,3 +263,54 @@ describe('label truncation reads as a finished line', () => {
 		]);
 	});
 });
+
+describe('parsing survives hostile provider output', () => {
+	// SonarCloud flagged the ranked-line pattern for super-linear backtracking, and it was real:
+	// the previous `[).:\s]+\s*` put two quantifiers that both match a space next to each other,
+	// and on `"1st" + " ".repeat(n) + "\n"` — a run of whitespace followed by a character `.`
+	// cannot match — it took 4.5s at n=2000 and did not terminate at n=10000.
+	//
+	// The defence is layered, and these tests cover both layers:
+	//   1. `splitResponseLines` collapses whitespace in one linear pass, so the shape never
+	//      reaches the pattern through the public entry point. This is the real guarantee.
+	//   2. The pattern itself no longer has the ambiguity, so a direct call to an exported
+	//      helper degrades gracefully instead of hanging.
+	const budgetMs = 5000;
+
+	it('collapses a hostile whitespace run before it reaches any pattern', () => {
+		const started = Date.now();
+		const recipe = buildToolPageRecipe(
+			output(
+				'lineup',
+				`1st${' '.repeat(200000)}\n2nd place: he was asleep\n3rd place: traffic`
+			)
+		);
+		expect(ColoringPageSpecSchema.safeParse(recipe.spec).success).toBe(true);
+		expect(Date.now() - started).toBeLessThan(budgetMs);
+	});
+
+	it('does not hang when a ranked helper is called directly on the pathological shape', () => {
+		const started = Date.now();
+		// n=10000 did not terminate before the fix.
+		expect(extractRankedEntries(`1st${' '.repeat(10000)}\n`)).toEqual([]);
+		expect(Date.now() - started).toBeLessThan(budgetMs);
+	});
+
+	it('does not hang on a long punctuation run in a label', () => {
+		const started = Date.now();
+		const recipe = buildToolPageRecipe(
+			output(
+				'red_flag_or_run',
+				`Fault: ${'-'.repeat(100000)}x\nConsequence: he lost the spare key.`
+			)
+		);
+		expect(ColoringPageSpecSchema.safeParse(recipe.spec).success).toBe(true);
+		expect(Date.now() - started).toBeLessThan(budgetMs);
+	});
+
+	it('still parses a ranked line that uses several spaces around the dash', () => {
+		expect(
+			extractRankedEntries('1st place:   "My phone died"   —   the location was live')
+		).toEqual(['My phone died']);
+	});
+});

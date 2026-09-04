@@ -109,26 +109,37 @@ const CLAUSE_STARTERS = new Set(['and', 'but', 'or', 'because', 'so', 'then', 'w
  * Two passes, because the two failures look different: a line ending *on* a joining word, and a
  * line ending on a joining word plus the one word that followed it before the cut ("and used").
  */
+/** Reduce a word to its bare letters so punctuation cannot hide a joining word. */
+const bareWord = (word: string): string => word.toLowerCase().replace(/[^a-z]/g, '');
+
 const trimDanglingTail = (value: string): string => {
 	let words = value.split(' ').filter((word) => word.length > 0);
 
 	// "…answer and used" — the coordinator is second-to-last, so the clause it opened is a
 	// fragment. Cut the coordinator and everything after it.
-	if (words.length > 2) {
-		const penultimate = words[words.length - 2].toLowerCase().replace(/[^a-z]/g, '');
-		if (CLAUSE_STARTERS.has(penultimate)) {
-			words = words.slice(0, words.length - 2);
-		}
+	if (words.length > 2 && CLAUSE_STARTERS.has(bareWord(words.at(-2) ?? ''))) {
+		words = words.slice(0, -2);
 	}
 
 	// "…spare key and" / "…answer to the" — strip joining words off the end until one carries.
-	while (words.length > 1) {
-		const last = words[words.length - 1].toLowerCase().replace(/[^a-z]/g, '');
-		if (!DANGLING_TAIL_WORDS.has(last)) break;
+	while (words.length > 1 && DANGLING_TAIL_WORDS.has(bareWord(words.at(-1) ?? ''))) {
 		words = words.slice(0, -1);
 	}
 
 	return words.join(' ');
+};
+
+/**
+ * Strip trailing sentence punctuation.
+ *
+ * A scan rather than `/[.,;:-]+$/`: an end-anchored quantified class re-tries from every position
+ * in a long punctuation run that ends in a non-matching character, which is quadratic. Walking
+ * backwards from the end is linear and does the same job.
+ */
+const trimTrailingPunctuation = (value: string): string => {
+	let end = value.length;
+	while (end > 0 && '.,;:-'.includes(value[end - 1])) end -= 1;
+	return value.slice(0, end);
 };
 
 /** Trim to a maximum length on a word boundary where one is available. */
@@ -139,9 +150,9 @@ const truncateOnWord = (value: string, maxLength: number): string => {
 	// Only break on a word if doing so keeps most of the allowance; otherwise a long single word
 	// would collapse to almost nothing.
 	const kept = lastSpace > maxLength * 0.6 ? sliced.slice(0, lastSpace) : sliced;
-	return trimDanglingTail(kept.replace(/[.,;:-]+$/, '').trim())
-		.replace(/[.,;:-]+$/, '')
-		.trim();
+	return trimTrailingPunctuation(
+		trimDanglingTail(trimTrailingPunctuation(kept).trim())
+	).trim();
 };
 
 /**
@@ -167,18 +178,30 @@ const toDedication = (value: string | undefined): string | undefined => {
  * provider will sometimes return the same structure in one paragraph, so fall back to splitting on
  * sentence ends when there is only a single line.
  */
+/**
+ * Collapse runs of whitespace to single spaces and trim.
+ *
+ * Every line handed downstream goes through this, which is what keeps the parsing patterns below
+ * linear: a provider is free to return a line containing thousands of consecutive spaces, and a
+ * pattern like `\s+[-]\s+` scanned across that run backtracks quadratically. Normalizing once, in
+ * a single linear pass, removes the pathological input rather than hardening each pattern against
+ * it. Collapsing internal whitespace is lossless for this use — labels are whitespace-collapsed by
+ * `toAllowedText` anyway, and a coloring page never prints a run of spaces.
+ */
+const collapseWhitespace = (line: string): string => line.replace(/\s+/g, ' ').trim();
+
 export const splitResponseLines = (response: string): string[] => {
 	const byNewline = response
 		.split(/\r?\n/)
-		.map((line) => line.trim())
+		.map(collapseWhitespace)
 		.filter((line) => line.length > 0);
 	if (byNewline.length > 1) return byNewline;
 
 	const single = byNewline[0] ?? '';
 	if (single.length === 0) return [];
 	return single
-		.split(/(?<=[.!?])\s+/)
-		.map((part) => part.trim())
+		.split(/(?<=[.!?]) /)
+		.map(collapseWhitespace)
 		.filter((part) => part.length > 0);
 };
 
@@ -194,7 +217,9 @@ export const splitResponseLines = (response: string): string[] => {
 export const extractVerdictBeats = (response: string): string[] => {
 	const beats: string[] = [];
 	for (const line of splitResponseLines(response)) {
-		const match = /^(fault|consequence|move|verdict|receipt)\s*:\s*(.+)$/i.exec(line);
+		// Lines arrive whitespace-collapsed, so a single optional space is all that can separate
+		// the prefix from its colon. Spelling that out keeps the pattern linear.
+		const match = /^(fault|consequence|move|verdict|receipt) ?: ?(.+)$/i.exec(line);
 		if (!match) continue;
 		const prefix = match[1];
 		const beat = match[2].trim();
@@ -207,6 +232,17 @@ export const extractVerdictBeats = (response: string): string[] => {
 	return beats;
 };
 
+/** Strip one layer of wrapping quotes from a ranked entry, which the lineup prompt asks for. */
+const trimQuotes = (value: string): string => {
+	const opening = new Set(['"', "'", '“']);
+	const closing = new Set(['"', "'", '”']);
+	let start = 0;
+	let end = value.length;
+	if (end > start && opening.has(value[start])) start += 1;
+	if (end > start && closing.has(value[end - 1])) end -= 1;
+	return value.slice(start, end);
+};
+
 /**
  * Pull the ranked entries out of a `lineup` response.
  *
@@ -217,14 +253,18 @@ export const extractVerdictBeats = (response: string): string[] => {
 export const extractRankedEntries = (response: string): string[] => {
 	const entries: string[] = [];
 	for (const line of splitResponseLines(response)) {
-		const match = /^(\d+(?:st|nd|rd|th)?)[).:\s]+\s*(.+)$/i.exec(line);
+		// `[).: ]+` alone — the trailing `\s*` this used to carry overlapped the `\s` inside the
+		// class, and two adjacent quantifiers that can both match a space make the pattern
+		// backtrack exponentially on a run of spaces. The class already covers the separator.
+		const match = /^(\d+(?:st|nd|rd|th)?)[).: ]+(.+)$/i.exec(line);
 		if (!match) continue;
-		const rest = match[2]
-			.replace(/^place\s*[:\-—]?\s*/i, '')
-			// Cut the trailing Meechie commentary at the dash the prompt asks for.
-			.split(/\s+[–—-]\s+/)[0]
-			.replace(/^["'“]|["'”]$/g, '')
-			.trim();
+		const rest = trimQuotes(
+			match[2]
+				.replace(/^place ?[:\-—]? ?/i, '')
+				// Cut the trailing Meechie commentary at the dash the prompt asks for.
+				.split(/ [–—-] /)[0]
+				.trim()
+		).trim();
 		if (rest.length > 0) entries.push(rest);
 	}
 	return entries;
@@ -368,13 +408,12 @@ export const buildToolPageRecipe = (
 	const presentation = TOOL_PRESENTATION[output.toolId];
 	const dedication = toDedication(options.dedication);
 
-	const candidateLines =
-		presentation.listSource === 'beats'
-			? extractVerdictBeats(output.response)
-			: presentation.listSource === 'ranked'
-				? extractRankedEntries(output.response)
-				: [];
-	const items = toItems(candidateLines);
+	const extractCandidateLines = (): string[] => {
+		if (presentation.listSource === 'beats') return extractVerdictBeats(output.response);
+		if (presentation.listSource === 'ranked') return extractRankedEntries(output.response);
+		return [];
+	};
+	const items = toItems(extractCandidateLines());
 	// One lonely item is a quote wearing a list's clothes. Two is a structure worth printing.
 	const useList = items.length >= 2;
 
