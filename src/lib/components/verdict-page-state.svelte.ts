@@ -35,6 +35,29 @@ import type { CreationOwner } from '../../../contracts/creation-store.contract';
 import type { GeneratedImage } from '../../../contracts/image-generation.contract';
 import type { PackagedFile } from '../../../contracts/output-packaging.contract';
 
+/**
+ * Whether the browser can actually decode this preview.
+ *
+ * A byte-signature check is not enough: a truncated response keeps a valid PNG header while the
+ * image itself is missing, and both `<img>` and pdf-lib reject it. Decoding is the only answer to
+ * "can this be shown and printed?" that is not a proxy for it. Outside a browser there is nothing
+ * to decode with, so this does not block there.
+ *
+ * Shared in shape with `MeechieTools.svelte`, deliberately: the two flows should reject the same
+ * bytes for the same reason.
+ */
+const canDecodeImage = async (url: string | null): Promise<boolean> => {
+	if (url === null) return false;
+	if (typeof Image === 'undefined') return true;
+	return await new Promise<boolean>((resolve) => {
+		const probe = new Image();
+		probe.onload = (): void =>
+			resolve(probe.naturalWidth > 0 && probe.naturalHeight > 0);
+		probe.onerror = (): void => resolve(false);
+		probe.src = url;
+	});
+};
+
 export type VerdictPageStateOptions = {
 	/**
 	 * Slug for the downloaded filenames, e.g. `who-fucked-up` produces
@@ -288,9 +311,16 @@ export class VerdictPageState {
 		// about to be thrown away: the replacement's `resetPage()` discards whatever this produced,
 		// after the generation had already been billed. Refusing to start is the only free fix.
 		if (!this.verdict || this.isGenerating || this.isWorking) return;
-		// `resetPage` first: it bumps the token, so this run claims the value it leaves behind and
-		// any earlier in-flight run is already stale by the time this one starts.
-		this.resetPage();
+		// Advance the token without clearing anything. Any earlier in-flight run is stale from here,
+		// but the page already on screen stays: it cost a paid generation, and until a replacement
+		// has actually arrived it is the best thing this class has. Calling `resetPage()` here meant
+		// a timeout, a provider error, an off-contract response or an undecodable image deleted a
+		// good page and left the reader with nothing — the same defect as the verdict path, on the
+		// page path.
+		this.pageToken += 1;
+		this.generateError = '';
+		this.vaultStatus = '';
+		this.copyStatus = '';
 		this.isGenerating = true;
 
 		const verdict = this.verdict;
@@ -317,7 +347,33 @@ export class VerdictPageState {
 				return;
 			}
 
-			const images = parsed.data.value.images;
+			// Decode the bytes before treating them as a page. `GeneratedImageSchema` constrains
+			// `data` only to be non-empty, and the generation pipeline labels unrecognised bytes as
+			// PNG, so a truncated or corrupt response passes the contract intact. Installing it
+			// unchecked — now that the install happens before packaging — would put a broken preview
+			// on screen and arm Save to persist bytes nothing can read.
+			//
+			// A byte-signature test is not enough: a response cut off mid-body keeps a valid PNG
+			// header while the image itself is missing, and both `<img>` and pdf-lib reject it.
+			// Asking the browser to decode answers "can this be shown and printed?" directly.
+			const decoded = await Promise.all(
+				parsed.data.value.images.map(async (image) => {
+					// Built once: the decode probe and the preview must be the same URL, or a later
+					// edit can let them drift apart.
+					const preview = generatedImageDataUrl(image);
+					return { image, preview, usable: await canDecodeImage(preview) };
+				})
+			);
+			if (isStale()) return;
+			const usable = decoded.filter((entry) => entry.usable);
+			if (usable.length === 0) {
+				// Keep whatever is already on screen. It cost a paid generation, and an unreadable
+				// replacement is not a reason to destroy it.
+				this.generateError =
+					'The provider returned an image that could not be read. The page on screen was kept.';
+				return;
+			}
+			const images = usable.map((entry) => entry.image);
 
 			// Install the page *before* packaging it. The generation is the paid part and it has
 			// already succeeded here; packaging is a local render that can fail on its own. Leaving
@@ -330,8 +386,8 @@ export class VerdictPageState {
 			this.revisedPrompt = parsed.data.value.revisedPrompt ?? '';
 			this.violations = parsed.data.value.violations;
 			this.recommendedFixes = parsed.data.value.recommendedFixes;
-			this.imagePreviews = images
-				.map(generatedImageDataUrl)
+			this.imagePreviews = usable
+				.map((entry) => entry.preview)
 				.filter((url): url is string => url !== null);
 			this.packagedFiles = [];
 
@@ -371,6 +427,10 @@ export class VerdictPageState {
 				}
 			};
 			const print = await packageVariant('print');
+			// Checked here, not only after both: the square variant rasterises a 1080px canvas, and
+			// starting that for a page the user has already replaced burns time and memory on a
+			// result that is guaranteed to be discarded.
+			if (isStale()) return;
 			const share = await packageVariant('square');
 			if (isStale()) return;
 

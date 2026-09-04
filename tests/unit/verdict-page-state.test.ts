@@ -91,6 +91,35 @@ type Routes = {
 let routes: Routes;
 let fetchCalls: string[];
 
+/**
+ * jsdom provides an `Image` constructor but never loads anything, so neither `onload` nor
+ * `onerror` would ever fire and the real decode probe would hang forever. This stub decides per
+ * URL, which is also how the corrupt-bytes cases below are driven.
+ */
+const stubImageDecoder = (decides: (src: string) => boolean): void => {
+	vi.stubGlobal(
+		'Image',
+		class {
+			onload: (() => void) | null = null;
+			onerror: (() => void) | null = null;
+			naturalWidth = 0;
+			naturalHeight = 0;
+			set src(value: string) {
+				const decodable = decides(value);
+				queueMicrotask(() => {
+					if (decodable) {
+						this.naturalWidth = 1;
+						this.naturalHeight = 1;
+						this.onload?.();
+					} else {
+						this.onerror?.();
+					}
+				});
+			}
+		}
+	);
+};
+
 const stubFetch = (): void => {
 	fetchCalls = [];
 	vi.stubGlobal(
@@ -183,6 +212,7 @@ const withPage = async (
 beforeEach(() => {
 	routes = {};
 	stubFetch();
+	stubImageDecoder(() => true);
 	vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
 		ok: true,
 		value: { sessionId: 'session-1' }
@@ -431,6 +461,76 @@ describe('makePage', () => {
 		expect(state.generateError).toContain(
 			'printable download could not be built'
 		);
+	});
+
+	it('drops an image the browser cannot decode before it becomes a saveable page', async () => {
+		// `GeneratedImageSchema` constrains `data` only to be non-empty and the pipeline labels
+		// unrecognised bytes as PNG, so corrupt or truncated base64 passes the contract intact.
+		// Installing it unchecked would put a broken preview on screen and arm Save to persist
+		// bytes nothing can read.
+		const good = { ...IMAGE, id: 'good', data: 'R09PRA==' };
+		const corrupt = { ...IMAGE, id: 'corrupt', data: 'Q09SUlVQVA==' };
+		stubImageDecoder((src) => !src.includes('Q09SUlVQVA=='));
+
+		const state = await readyState();
+		routes.tools = okTools(PLAIN_VERDICT);
+		routes.generate = okGenerate({ images: [good, corrupt] });
+		await state.requestVerdict({ toolId: 'random_meechie' });
+		await state.makePage();
+
+		expect(state.imagePreviews).toHaveLength(1);
+		expect(state.imagePreviews[0]).toContain('R09PRA==');
+		await state.saveToVault();
+		const record = vi.mocked(creationStoreAdapter.saveCreation).mock.calls[0][0]
+			.record as CreationRecord;
+		expect(record.images).toEqual([{ b64: 'R09PRA==' }]);
+	});
+
+	it('keeps the page already on screen when nothing in the response decodes', async () => {
+		const state = await withPage(PLAIN_VERDICT);
+		expect(state.hasPage).toBe(true);
+		const previewsBefore = [...state.imagePreviews];
+
+		stubImageDecoder(() => false);
+		await state.makePage();
+
+		expect(state.generateError).toContain('could not be read');
+		expect(state.generateError).toContain('page on screen was kept');
+		expect(state.hasPage).toBe(true);
+		expect(state.imagePreviews).toEqual(previewsBefore);
+	});
+
+	it('does not start the square render once the run is already stale', async () => {
+		// The square variant rasterises a 1080px canvas. Starting it for a page the user has
+		// already replaced burns time and memory on a result guaranteed to be discarded.
+		const state = await readyState();
+		routes.tools = okTools(PLAIN_VERDICT);
+		routes.generate = okGenerate();
+		await state.requestVerdict({ toolId: 'random_meechie' });
+
+		const gate = defer<{ ok: true; value: { files: (typeof printFile)[] } }>();
+		vi.mocked(outputPackagingAdapter.package).mockImplementation(
+			async (input) =>
+				input.variants?.includes('print')
+					? gate.promise
+					: { ok: true, value: { files: [shareFile] } }
+		);
+
+		const generating = state.makePage();
+		// Wait for the print call to actually be in flight. A fixed number of microtask ticks is not
+		// enough — the generate fetch and the decode probes come first — and resetting too early
+		// would make this pass for the wrong reason, by never reaching packaging at all.
+		while (vi.mocked(outputPackagingAdapter.package).mock.calls.length === 0) {
+			await flush();
+		}
+		state.resetPage();
+		gate.resolve({ ok: true, value: { files: [printFile] } });
+		await generating;
+
+		const variants = vi
+			.mocked(outputPackagingAdapter.package)
+			.mock.calls.map(([input]) => input.variants);
+		expect(variants).toEqual([['print']]);
 	});
 
 	it('surfaces the drift report instead of discarding it', async () => {

@@ -229,3 +229,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Two packaging calls were split apart specifically so a square-image failure could not take the printable PDF with it. A reviewer pointed out that a *rejection* from the square call still escaped to the outer catch and discarded the whole page, print PDF included.
 - Lesson: The adapter returns a `Result`, so the code checked `.ok` on both calls — and `package()` turns out to have no try/catch anywhere in its body, with pdf-lib's embedPng/embedJpg/save and the canvas in imageToPngBase64 all able to throw. A Result-returning function is a promise about the return *value*, not about the absence of a throw. The split bought nothing against the failure shape most likely to occur, and the tests passed only because they returned `{ ok: false }` — the shape the code already handled. This was the third instance of the same miss in one change.
 - Action: Before relying on a `Result` boundary for isolation, read the callee for throw paths; if it wraps nothing, wrap the call. Install the expensive, already-succeeded work (the paid generation) before the cheap local work that can fail (packaging), so a local failure costs the download and never the page. And test the throw path explicitly — returning `{ ok: false }` does not exercise it.
+
+## 2026-09-04
+- Date: 2026-09-04
+- Context: Ported one fix out of a three-part pattern from a sibling implementation (install the page before packaging), leaving the other two behind. The next review round found two defects, both created by that half-port, and writing the test for one uncovered a third.
+- Lesson: The three parts were load-bearing together. Installing earlier is only safe once the bytes have been validated, and "install before packaging so a failure cannot cost the page" means nothing if entering the function already destroyed the page. Taking the middle step alone moved the failure rather than removing it.
+- Action: When porting a fix from a sibling implementation, read the whole block it lives in and port the invariant, not the line. If two implementations of the same flow exist, treat that as the defect: the one that went through review first will keep learning things the other has to be told.
+
+## 2026-09-04
+- Date: 2026-09-04
+- Context: A fix needed a user-facing error string. The honest string was "The page on screen was kept" — and the code could not honour it, because the function destroyed that page on entry.
+- Lesson: Writing the message the user should see, and then checking the code can actually make it true, found a defect that no reviewer had reported and no test covered. A message is a claim about behaviour; an untrue one is a bug report you wrote yourself.
+- Action: When adding user-facing text that asserts what the system did, verify the assertion against the code path before shipping the string. Prefer writing the message first.

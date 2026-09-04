@@ -2948,3 +2948,79 @@ waved through on the earlier verdicts.
 
 Every single finding that turned out to be real was a guard that did not cover the whole of what it
 claimed — never a missing guard. A run that only counted green tests would have shipped all seven.
+
+---
+
+## Run 3, fifth close-out — 2026-09-04 — the Codex round on `3e5fd74`, and what a half-port costs
+
+Two findings, both real. Both were **created by the previous round's fix**, and writing the test for
+the first uncovered a third defect Codex had not named.
+
+### The shape of this round: a fix ported halfway
+
+Last round moved the page install *before* packaging, ported from PR #292. Correct on its own. But
+#292's block has three parts, and only one was taken:
+
+| #292's pattern | Ported last round? |
+|---|---|
+| Decode-filter the images before installing | ❌ |
+| Install the page before packaging | ✅ |
+| Enter `makePage` without destroying the current page | ❌ |
+
+Taking the middle one alone is what created both findings. Installing earlier is only safe once the
+bytes have been checked, and "install before packaging so a failure cannot cost the page" only means
+anything if entering the function did not already throw the page away.
+
+### 1 — corrupt bytes became a saveable page (fixed)
+
+`GeneratedImageSchema` constrains `data` only to be non-empty, and the generation pipeline labels
+unrecognised bytes as PNG, so a truncated or corrupt response passes the contract intact. Before
+last round it was packaged first and the failure discarded everything; after last round it went
+straight onto the screen with Save armed to persist bytes nothing can read.
+
+Fixed by porting `canDecodeImage`. It is a real decode, not a byte-signature test, and the reason
+is the same one #292 gave: a response cut off mid-body keeps a valid PNG header while the image
+itself is missing, so a signature check passes and `embedPng` still throws.
+
+### 2 — the square variant rasterised for an abandoned page (fixed)
+
+After the print call resolved, the square call started without re-checking the token — a 1080px
+canvas render for a page the user had already replaced. Real cost on a phone, no benefit ever.
+One `isStale()` between the two calls.
+
+### 3 — `makePage` destroyed the page it was replacing (fixed, and not reported)
+
+Found only because finding 1's fix needed an error message, and the honest message was "the page on
+screen was kept" — which was false. `makePage()` opened with `resetPage()`, so pressing Generate
+deleted the existing page before the replacement existed. A timeout, a provider error, an
+off-contract response or an undecodable image then left the reader with nothing.
+
+This is precisely the defect the *verdict* path was fixed for at the start of this run, sitting
+unnoticed on the page path — and #292 had already fixed it in the sibling. Now the entry advances
+the token and clears only the status lines.
+
+**The test caught it, and the test only existed because the fix needed a truthful error string.**
+Writing the message first and then discovering the code could not honour it is a better bug-finding
+technique than it has any right to be.
+
+### The count of things ported from #292
+
+Five, now: the two-token split (arrived at independently), `canDecodeImage`, install-before-package,
+per-call packaging catch, and the non-destructive `makePage` entry. Two branches solved the same
+problem in parallel; the one that went through review first learned things the other had to be told.
+That is an argument for the follow-up this log already carries — migrate `MeechieTools.svelte` onto
+`VerdictPageState` so there is one implementation to review, not two that drift.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0/0. lint
+clean. test **1168 passed, 1 skipped**. build exit 0. playwright **22 passed**.
+
+**Fifteen guards** proven by deletion, every mutation asserted to have applied before its result was
+believed.
+
+### A correction to the fourth close-out
+
+It said Vercel's cap "cannot be re-run for 24 hours". Vercel's own message said 24 hours and that is
+what was reported, but it cleared sooner: `3e5fd74` deployed successfully. Corrected on the PR too,
+because a standing comment telling a reader to expect Vercel red would hide a real failure later.
