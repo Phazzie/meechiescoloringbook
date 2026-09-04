@@ -3891,3 +3891,84 @@ framing of the rule was wider than the rule.
 `npm run verify` exit 0, all eight stages. check 0 errors / 0 warnings. lint exit 0. test **1187
 passed, 1 skipped**. build exit 0. playwright **28 passed**. Six `npm run rewind` seam runs, all
 exit 0.
+
+---
+
+## Run 4, correction 2 — 2026-09-04 — a merge-gate check that was truncated, not performed
+
+Appended, not edited. Three findings on `658e8ce`. The first is the most serious thing this run got
+wrong, and it is not a code defect — it is a **gate check that looked done and was not**.
+
+### 1. P1 — an open Assumption was missed, and the merge gate's required statement was never made
+
+`AGENTS.md`'s merge gate says not to auto-merge when "an open Assumption in `DECISIONS.md` covers
+the behavior being shipped — resolve it first, **or state why the change is safe without it**."
+
+Before merging PR #295 this run checked for open Assumptions and reported that none covered the
+change. That check was:
+
+```sh
+grep -n "^- Assumption:" -A5 DECISIONS.md | grep -i "status" | head -10
+```
+
+**`head -10` truncated the list.** The Assumption dated 2026-08-24 lives at `DECISIONS.md:2436`,
+past the cut. It names `MeechieToolSeam` — the seam behind the `/api/tools` verdict this rebuilt
+page requires before it can generate anything — and its status is `Open only for the deployed
+full-payload path`. It was never read, and the conclusion "no open Assumption covers this behavior"
+was stated anyway.
+
+The conclusion turns out to be right, and the statement the gate asks for is now recorded in
+`DECISIONS.md` — retroactively, which is itself worth naming rather than glossing. In short: the
+Assumption's subject is whether the *deployed provider* answers the full Meechie payload, which is
+byte-identical before and after this change; `/api/tools` already had four callers and this is the
+fifth, sending inputs built by the same schema through the same code path. If the Assumption is
+false, the four existing routes fail exactly as the fifth does. The change neither creates that
+exposure nor widens it. Its resolution criterion — probe a reachable deployment — is unavailable
+here: the preview is behind Vercel SSO (recorded in the Assumption itself) and a live production
+call spends money against an account a separate open Assumption records as unauthorized.
+
+**The lesson, and it is a sharp one.** Every previous entry in this log is about measuring code
+before claiming things about it. This failure is one level up: the *check itself* was truncated by a
+`head -10` that existed only to keep terminal output short, and the truncation was invisible in the
+output. A gate check that silently drops rows is worse than no check, because it produces a
+confident answer. **A gate check must either show everything it examined or state what it left out.**
+Run 3's close-out warned that a run's summary of itself is the least-verified document it writes;
+this run has now demonstrated that a run's *verification of its own gates* deserves the same
+suspicion.
+
+### 2. P2 — the verify-chain header described a chain run it had not produced
+
+The header read `Chain re-run at 2026-09-04T19:07Z`, hand-typed and then carried forward through two
+later chain executions, while the artifacts committed beside it came from the 19:12:07 run
+(`chamber-lock.json`'s `generatedAt`). Because the file was touched to append each round's narrative,
+the proof tape scored it fresh — so the stale header was invisible to the freshness check that
+exists to catch exactly this.
+
+Fixed, and the header now says where its timestamp comes from: `chamber-lock.json`'s `generatedAt`,
+written at stage 2 of the chain, rather than a number typed by hand. Same root cause as finding 1 —
+a value that was asserted rather than read from the thing it describes.
+
+### 3. P1 — the seam workflow, a fourth time
+
+Now arguing that the six `npm run rewind` runs "merely rerun existing contract-test paths and do not
+provide the required probes, fixtures, red proof, and Cipher Gate."
+
+That is a fair description of what `rewind` does, and it does not change the answer. The position is
+unchanged and fully stated in the previous correction and on the threads of #295 and #296: for all
+six seams every artifact the workflow would produce already exists, is unchanged by this pull
+request, and passes. Writing a Cipher Gate entry would record a seam change that did not happen, and
+`docs/seams.md` and the seam ledger would then carry that as fact for every future run.
+
+**This run is not going to argue it a fifth time.** Four raisings across two pull requests is past
+the point where repetition adds information, and both threads are deliberately left open for an
+owner ruling. The consequence of the reviewer's reading, stated once more so the ruling is made with
+it in view: applied as written, it fires on every new screen in the app that saves to the vault.
+
+If the owner rules for the reviewer, the remedy is a Cipher Gate entry plus a note in `docs/seams.md`
+recording `/m/[mode]` as a consumer — and, more usefully, an amendment to `AGENTS.md:82-86` making
+the caller case explicit, so the fifth run does not have to relitigate it either.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages. check 0 errors / 0 warnings. lint exit 0. test **1187
+passed, 1 skipped**. build exit 0. playwright **28 passed**.

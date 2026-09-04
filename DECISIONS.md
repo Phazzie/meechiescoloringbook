@@ -7,6 +7,42 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-04 - Why the focused-mode rebuild was safe without resolving the deployed full-payload Assumption
+
+- Date: 2026-09-04
+- Seams: none changed. Relates to the open Assumption dated 2026-08-24 (ProviderAdapterSeam,
+  AppConfigSeam, MeechieStudioTextSeam, MeechieToolSeam, ChatInterpretationSeam).
+- Context: `AGENTS.md`'s merge gate says not to auto-merge when "an open Assumption in
+  `DECISIONS.md` covers the behavior being shipped — resolve it first, or state why the change is
+  safe without it." PR #295 rebuilt `/m/<slug>` into a coloring-page factory that requires a
+  successful `/api/tools` verdict, and `MeechieToolSeam` is named in that Assumption. **The
+  statement the gate requires was not made before merging, and this entry makes it retroactively.**
+- What went wrong first, stated plainly: the pre-merge check for open Assumptions was run as a
+  `grep` piped through `head -10`, which truncated the list before this entry at `DECISIONS.md:2436`.
+  The conclusion recorded at the time — "no open Assumption covers this behavior" — was therefore
+  asserted from a list that did not contain the most relevant entry. The conclusion happens to be
+  right, for the reasons below, but it was not checked when it was stated.
+- Decision: the rebuild was and is safe to ship without resolving that Assumption.
+  - The Assumption's subject is whether the **deployed** provider answers `POST /v1/chat/completions`
+    with the full Meechie payload. That is a property of the deployed provider integration, and it
+    is byte-identical before and after this change: no prompt, payload, model id or request shape is
+    in this diff.
+  - `/api/tools` already had four callers before this change — `/meechie`, `/who-fucked-up`,
+    `/rate-his-excuse` and `/random`. `/m/<slug>` is the fifth, sending inputs built by the same
+    `MeechieToolInputSchema` through the same `VerdictPageState.requestVerdict`. If the Assumption
+    turns out false, those four routes fail in exactly the way the fifth does; the change neither
+    creates that exposure nor widens it.
+  - The Assumption's own resolution criterion — probe `POST /api/meechie-studio-text` on a reachable
+    deployment — is unreachable from this environment and was not attempted: the preview sits behind
+    Vercel SSO (recorded in the Assumption itself), and a live production call spends money against
+    a provider account, which a separate open Assumption records as unauthorized.
+- Consequences: the Assumption stays **Open**, unchanged, and still blocks anything that alters the
+  deployed provider payload. It does not block a new consumer of an unchanged path. A future run
+  that changes a prompt, a model id, or the request shape must resolve it rather than cite this
+  entry.
+- Revisit criteria: when a deployment becomes reachable without SSO, or when a change touches the
+  provider payload.
+
 ## 2026-09-04 - The focused-mode catalog is derived from `studioModes`, and an unknown slug is a 404
 
 - Date: 2026-09-04

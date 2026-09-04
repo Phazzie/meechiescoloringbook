@@ -7,7 +7,10 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain re-run at 2026-09-04T19:07Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T19:22:48.229Z on the Run 4 close-out head (PR #296)
+# Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
+# typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
+# executions and described artifacts it had not produced.
 #
 # Change under test: the focused-mode pages behind /m/<slug> — the only page five of the eight
 # modes have, and where every focused-mode link on the home page lands — stop dead-ending at a
