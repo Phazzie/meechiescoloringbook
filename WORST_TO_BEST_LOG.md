@@ -5183,3 +5183,35 @@ and still not the same thing as a working page.
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2 — **sixty findings across
 twenty-two rounds**, none in the application.
+
+---
+
+## Run 4, correction 23 — 2026-09-04 — I rewrote D to fix the contradiction and left C stating it
+
+Appended, not edited. One P1 on `8c9ff7c`.
+
+Round 22 found criteria C and D mutually exclusive and I rewrote **D** to keep the provider-wire and
+normalized shapes distinct. **C still said "both captures are written in the canonical contract
+shapes, loadable without transformation."** The wire object `{ data: [{ url, b64_json,
+revised_prompt }] }` is not an `ImageGenerationSeam` contract value — the contract requires
+`{ images, rawModelInfo, timingMs }` — so the two criteria still contradicted each other, and a
+maintainer following them could still have spent a live call and produced captures satisfying
+neither.
+
+**The error underneath, which I patched around instead of naming:** there is no single canonical
+shape in this seam. There are two, each with exactly one consumer. Criterion C now says so — each
+capture is written in the shape *its own consumer* requires and validated against *that* shape: the
+wire capture against the adapter's `payload.data` reader (`index.ts:17-20`), the sample and fault
+captures against `contract.ts:19-29`. "Without transformation" keeps its single real meaning — each
+consumer loads its capture verbatim, nothing reshapes at load time.
+
+**Third consecutive round where a repair needed repairing, and the second where the half I did not
+edit contradicted the half I did.** Round 22's lesson was "grep for the claim, not the line number".
+The lesson from this one is narrower and more annoying: when a fix resolves a contradiction between
+two statements, **both statements are in scope**. I edited the one the reviewer's comment was
+anchored to and treated the other as context.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1 — **sixty-one findings across
+twenty-three rounds**, none in the application.

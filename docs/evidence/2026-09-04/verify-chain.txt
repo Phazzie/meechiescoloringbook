@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T23:00:45.460Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T23:10:45.100Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -483,9 +483,28 @@ was**, in the document whose purpose is to tell the next run what is true.
     for the claim, not the line number", and I did not grep. Grepped this time: two hits, one the
     real claim and one an unrelated idiom at `DECISIONS.md:444`.
 
+## Round 17 — the Codex round on `8c9ff7c`: I fixed D and left C saying the opposite
+
+One P1, and it is the previous round's repair caught half-done. Round 16 rewrote criterion **D** to
+keep the provider-wire and normalized shapes distinct — and left criterion **C** still requiring
+"both captures are written in the canonical contract shapes". The wire object `{ data: [...] }` is
+not an `ImageGenerationSeam` contract value and never becomes one until the adapter maps it, so C
+and D still contradicted, and a maintainer could still have paid for a live probe and produced
+captures that satisfy neither.
+
+**The conceptual error, now named in the entry rather than patched around:** there is no single
+canonical shape in this seam. There are two, and each has exactly one consumer. C now says each
+capture is written in the shape *its own consumer* requires and is validated against *that* shape —
+the wire capture against the adapter's `payload.data` reader (`index.ts:17-20`), the sample and
+fault captures against `contract.ts:19-29`. "Without transformation" keeps its one real meaning:
+each consumer loads its capture verbatim, with no reshaping at load time.
+
+This is the third consecutive round in which a repair needed repairing, and the second in which the
+half I did not edit contradicted the half I did.
+
 ## Ordering of this round's runs, recorded as they happened
 
-  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 23:00:45.460Z)
+  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 23:10:45.100Z)
   2. npm run lint              exit 0                     -> lint.txt
   3. npm run build             exit 0                     -> build.txt
   4. npx playwright test       28 passed                  -> e2e.txt
