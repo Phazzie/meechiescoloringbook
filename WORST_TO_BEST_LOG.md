@@ -1699,3 +1699,54 @@ Record identity and a download filename are not behaviour anything asserts. Rout
 seam in one component would leave six other call sites doing it the old way, which makes the codebase
 less consistent, not more. The repo-wide change is worth doing; it belongs in its own PR, and it is
 recorded here as a follow-up.
+
+---
+
+## Run 2, addendum 3 — 2026-09-04 — the Codex round on `ace1d01`
+
+Two findings, both real. Running count: **twelve rounds, 49 findings, eighteen real user-visible
+defects.**
+
+### The image prompt reached the provider as the reader's own words
+
+Last round I took the image-generation prompt out of the reopen path's *quote*. Codex found the
+other half: `loadCreation` sets `this.evidence` on its own line, and it had the same fallback.
+
+That one is worse than a display bug. The evidence box is editable, and the reader's next Generate
+Verdict sends its contents to the text provider as their own account of what happened. So reopening
+a page saved without studio text filled the box with `STYLE: bold outline art / TEXT (exact): /
+NEGATIVE PROMPT: no color`, and one click shipped those machine instructions to the provider as user
+facts.
+
+The fix is one line, because `loadCreation` already computes `restoredText` two lines above and that
+value resolves the stored quote when there is one and the page's own words when there is not. The
+lesson is the same one this run keeps teaching: I fixed the function and did not ask who else made
+the same call. `assembledPrompt` had two consumers, and I had checked one.
+
+### The first closing quote is not the wrapper's
+
+The lineup prompt asks for `Nth place: "item" — commentary`, and a provider can follow that exactly
+while quoting someone inside the item: `1st place: "He said "trust me"" — and then he left`. Taking
+the first closing quote silently changed the printed item to `He said`. The scan now runs backwards
+for the closer that has nothing after it but the commentary delimiter.
+
+### A limit found while fixing it, and left honest
+
+Writing that test turned up something older: a lineup arriving as a **single line** loses its first
+item. `splitResponseLines` treats `1.` as a sentence end, so the placing and its entry land on
+opposite sides of the break and neither half parses as a ranked line. A lineup is structured by its
+numbering, not its sentences, so the fix is a placing-aware split for that one caller.
+
+I did not do it here. It is a parser change with its own failure modes, it arrived at the end of an
+already-large PR, and rushing it is exactly how the last six defects in this log got made. It is a
+test that asserts the current behaviour and says why, rather than a test that pretends the case
+works — and it is a follow-up, recorded here.
+
+```
+npm run check    0 errors, 0 warnings
+npm run lint     exit 0
+npm run test     1105 passed | 1 skipped
+npm run test:e2e 14 passed
+npm run verify   blocked at the audit gate; npm's endpoint answered 7 of 40 probes over 22 minutes
+                 and has been down solidly since 09:59Z. Re-running the unmodified chain.
+```

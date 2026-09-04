@@ -1072,6 +1072,31 @@ describe('StudioState quote vault', () => {
 		expect(studio.spec.footerItem).toBeDefined();
 	});
 
+	it('never loads the image prompt into the evidence box', async () => {
+		// The evidence box is editable and the reader's next Generate Verdict sends it to the text
+		// provider as their own words. Falling back to `assembledPrompt` for a record saved without
+		// studio text put `STYLE: ... / NEGATIVE PROMPT: ...` in that box, so the next click shipped
+		// machine instructions to the provider as user facts.
+		const studio = registerInitialized(new StudioState());
+		const spec = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'decorative',
+			styleHint: 'crown',
+			listMode: 'title_only'
+		});
+		await studio.loadCreation({
+			id: 'creation-no-studio-text',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: spec,
+			assembledPrompt: 'STYLE: bold outline art\nTEXT (exact):\nNEGATIVE PROMPT: no color',
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+		expect(studio.evidence).not.toContain('NEGATIVE PROMPT');
+		expect(studio.evidence).not.toContain('STYLE:');
+		expect(studio.evidence.length).toBeGreaterThan(0);
+	});
+
 	it('keeps a reopened footerless list page footerless across a browser refresh', async () => {
 		// The other half of the same rule: a persisted spec carries its own provenance, whatever its
 		// layout. Deriving the flag from `listMode === 'title_only'` recognised only reopened quote

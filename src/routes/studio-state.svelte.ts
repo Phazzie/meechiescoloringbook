@@ -795,7 +795,14 @@ export class StudioState {
 		this.spec = creation.intent;
 		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
 		this.restoredPageLayout = true;
-		this.evidence = creation.studioText?.quote ?? creation.assembledPrompt;
+		// The evidence box is an editable field the reader's next Generate Verdict sends to the text
+		// provider as their own words, so what lands in it matters more than a display string does.
+		// This fell back to `assembledPrompt` — the image-generation prompt — for any record saved
+		// without studio text, which put `STYLE: bold outline art / NEGATIVE PROMPT: ...` in the box
+		// and shipped those machine instructions to the provider as user facts on the next click.
+		// `restoredText` already resolves the same `studioText.quote` when it exists and the page's
+		// own words when it does not, so read it from there and never from the prompt.
+		this.evidence = restoredText.quote;
 		this.dedication = creation.intent.dedication ?? '';
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;

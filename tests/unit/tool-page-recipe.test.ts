@@ -744,3 +744,33 @@ describe('sentence selection survives abbreviations', () => {
 		]);
 	});
 });
+
+describe('ranked entries keep quoted speech intact', () => {
+	it('closes on the wrapper quote, not the first quote inside it', () => {
+		// The lineup prompt asks for `1st place: "entry" — commentary`, and a provider can follow
+		// that exactly while quoting someone inside the entry. Taking the first closing quote
+		// silently shortened the item to `He said`.
+		expect(
+			extractRankedEntries('1st place: "He said "trust me"" — and then he left')
+		).toEqual(['He said "trust me"']);
+	});
+
+	it('still reads a plainly quoted entry, with and without commentary', () => {
+		expect(extractRankedEntries('1st place: "Long distance - no calls" — never again')).toEqual([
+			'Long distance - no calls'
+		]);
+		expect(extractRankedEntries('1. "Long distance - no calls"\n2. "He said maybe"')).toEqual([
+			'Long distance - no calls',
+			'He said maybe'
+		]);
+	});
+
+	it('documents the one-line numbering limit rather than pretending it works', () => {
+		// A lineup arriving as a single line loses its first item, and this is not new: the shared
+		// `splitResponseLines` fallback treats `1.` as a sentence end, so the placing and its entry
+		// land on opposite sides of the break and neither half parses as a ranked line. A lineup is
+		// structured by its numbering rather than its sentences, so the fix is a placing-aware split
+		// for this caller — deliberately left for its own change rather than bolted on here.
+		expect(extractRankedEntries('1. "Long distance - no calls"')).toEqual([]);
+	});
+});

@@ -318,9 +318,20 @@ const readQuotedPrefix = (value: string): string | null => {
 	const openers: Record<string, string> = { '"': '"', "'": "'", '“': '”' };
 	const closer = openers[value[0]];
 	if (!closer) return null;
+	// Find the closer that ends the *wrapper*, not the first one inside it. A provider can follow
+	// the prescribed format and still quote someone inside the entry — `"He said "trust me"" —
+	// commentary` — and taking the first closer silently shortened the item to `He said`. The
+	// wrapper's closer is the one with nothing after it but the commentary delimiter, so scan back
+	// from the end for that one.
+	for (let index = value.length - 1; index > 0; index -= 1) {
+		if (value[index] !== closer) continue;
+		const rest = value.slice(index + 1);
+		if (rest.length === 0 || /^ [–—-] /.test(rest)) return value.slice(1, index);
+	}
+	// No wrapper end anywhere — a stray opener, or trailing text the prompt never asked for. Fall
+	// back to the first closer so a plainly quoted entry still reads correctly.
 	const end = value.indexOf(closer, 1);
-	if (end <= 0) return null;
-	return value.slice(1, end);
+	return end > 0 ? value.slice(1, end) : null;
 };
 
 /** Strip one layer of wrapping quotes from a ranked entry, which the lineup prompt asks for. */
