@@ -10,8 +10,12 @@ Short, durable decisions with context and tradeoffs.
 ## 2026-09-04 - Why the focused-mode rebuild was safe without resolving the deployed full-payload Assumption
 
 - Date: 2026-09-04
-- Seams: none changed. Relates to the open Assumption dated 2026-08-24 (ProviderAdapterSeam,
-  AppConfigSeam, MeechieStudioTextSeam, MeechieToolSeam, ChatInterpretationSeam).
+- Seams: none changed. Relates to the open Assumption **dated 2026-08-24** whose Statement begins
+  "grok-4.6 answers POST /v1/chat/completions with the request shape this app sends"
+  (ProviderAdapterSeam, AppConfigSeam, MeechieStudioTextSeam, MeechieToolSeam,
+  ChatInterpretationSeam). Referenced by date and statement rather than by line number: entries are
+  prepended to this file, so any line number cited here is wrong by the next entry — this one had
+  already drifted from 2436 to 2467 by the time it was reviewed.
 - Context: `AGENTS.md`'s merge gate says not to auto-merge when "an open Assumption in
   `DECISIONS.md` covers the behavior being shipped — resolve it first, or state why the change is
   safe without it." PR #295 rebuilt `/m/<slug>` into a coloring-page factory that requires a
@@ -27,11 +31,17 @@ Short, durable decisions with context and tradeoffs.
     with the full Meechie payload. That is a property of the deployed provider integration, and it
     is byte-identical before and after this change: no prompt, payload, model id or request shape is
     in this diff.
-  - `/api/tools` already had four callers before this change — `/meechie`, `/who-fucked-up`,
-    `/rate-his-excuse` and `/random`. `/m/<slug>` is the fifth, sending inputs built by the same
-    `MeechieToolInputSchema` through the same `VerdictPageState.requestVerdict`. If the Assumption
-    turns out false, those four routes fail in exactly the way the fifth does; the change neither
-    creates that exposure nor widens it.
+  - **`/m/<slug>` was already an `/api/tools` consumer before this change, not a new one.** The
+    first draft of this entry called it "the fifth caller", which is wrong:
+    `MeechieModePage.svelte` posted every focused-mode submission to `/api/tools` at base
+    `210b301` (line 44), and `/m/[mode]` already rendered that component. What the rebuild added is
+    downstream of the verdict — page generation, packaging and the vault write — not the verdict
+    request itself. The `/api/tools` exposure this Assumption covers is therefore not merely
+    unwidened by the change; it is untouched by it.
+  - The other four consumers — `/meechie`, `/who-fucked-up`, `/rate-his-excuse`, `/random` — are
+    unchanged too, and all five send inputs built by the same `MeechieToolInputSchema` through the
+    same request path. If the Assumption turns out false, every one of them fails identically, and
+    did so before this change as much as after it.
   - The Assumption's own resolution criterion — probe `POST /api/meechie-studio-text` on a reachable
     deployment — is unreachable from this environment and was not attempted: the preview sits behind
     Vercel SSO (recorded in the Assumption itself), and a live production call spends money against

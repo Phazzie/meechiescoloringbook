@@ -8,7 +8,7 @@
 
 [2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
 [2m      Tests [22m [1m[32m4 passed[39m[22m[90m (4)[39m
-[2m   Start at [22m 19:24:52
-[2m   Duration [22m 852ms[2m (transform 116ms, setup 44ms, import 194ms, tests 8ms, environment 475ms)[22m
+[2m   Start at [22m 19:32:44
+[2m   Duration [22m 824ms[2m (transform 119ms, setup 36ms, import 203ms, tests 11ms, environment 437ms)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

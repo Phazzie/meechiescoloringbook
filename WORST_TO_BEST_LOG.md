@@ -3972,3 +3972,73 @@ the caller case explicit, so the fifth run does not have to relitigate it either
 
 `npm run verify` exit 0, all eight stages. check 0 errors / 0 warnings. lint exit 0. test **1187
 passed, 1 skipped**. build exit 0. playwright **28 passed**.
+
+---
+
+## Run 4, correction 3 — 2026-09-04 — the fix for the timestamp introduced its own defect, and a claim about my own diff was wrong
+
+Appended, not edited. Three P2 findings on `1d8ccf4`. Two of them are defects **in the previous
+correction**, which is the pattern run 3 recorded five times and this run had, until now, avoided.
+
+### 1. The derived timestamp was uniformly wrong instead of stale
+
+Correction 2 replaced a hand-typed `verify-chain.txt` header with one derived from
+`chamber-lock.json`'s `generatedAt`, and then stamped that same value onto `lint.txt`, `build.txt`
+and `e2e.txt`. But those commands run *after* the chain, by design — the ordering rule at the top of
+this file says so. Their real start times were 19:23:58, 19:24:07 and 19:24:48 against a chain
+stamp of 19:22:48.
+
+So the fix traded one wrong timestamp for three, and made them look authoritative by deriving them.
+A hand-typed stale value at least differs from its neighbours; a uniformly derived wrong one reads
+as deliberate.
+
+Fixed properly: each standalone artifact now stamps **its own start time, captured at the moment
+that command runs**, and says so in the header. The chain header keeps the chain's own
+`generatedAt`. Each header is now earlier than its file's modification time by exactly that
+command's runtime — lint 19:31:45 → 19:31:50, build 19:31:50 → 19:31:59, e2e 19:31:59 → 19:32:39 —
+which is the property that makes them checkable rather than merely present.
+
+### 2. "The fifth caller" was wrong, about code this run had read
+
+The `DECISIONS.md` entry written in correction 2 said `/api/tools` had four callers and
+`/m/<slug>` was the fifth. **It was already a caller.** At base `210b301`,
+`MeechieModePage.svelte:44` posts every focused-mode submission to `/api/tools`, and `/m/[mode]`
+already rendered that component.
+
+This run opened that exact file, at that exact line, in its very first investigation — the case
+against the feature quotes the surrounding code. Then, eight rounds later, it wrote a claim about
+the same file that contradicted what it had read.
+
+The correction strengthens the underlying argument rather than weakening it: the `/api/tools`
+exposure the open Assumption covers is not merely *unwidened* by this change, it is **untouched**.
+The rebuild added behaviour downstream of the verdict — generation, packaging, the vault write —
+and did not touch the verdict request at all. But the record said something false about the diff, in
+a file `AGENTS.md` names as a source of truth, and that is the part that matters.
+
+### 3. Line numbers in `DECISIONS.md` cannot be cited
+
+Correction 2 cited the Assumption as `DECISIONS.md:2436`. Prepending the new entry pushed it to
+2467, so the citation pointed at an unrelated June Cipher Gate by the time it was reviewed — in the
+same commit that created it.
+
+Entries are prepended to that file, so **any line number cited in it is wrong by the next entry.**
+Now referenced by date and by the opening words of its Statement, which are stable. A future run
+citing a `DECISIONS.md` location should do the same.
+
+### The pattern, stated plainly
+
+Three rounds of corrections to this log have now produced: one defect in the original work, and
+**two defects in the corrections themselves**. Both of the latter share a shape with everything else
+this run has recorded — a value asserted rather than read from the thing it describes, and a claim
+about a file written without re-opening the file. Knowing the failure mode by name, and having
+written it down four times in the same document, did not prevent doing it twice more.
+
+That is the most useful thing this run can hand forward, and it is not a technique: **a
+retrospective is written at the point of least attention and greatest confidence, and it earns the
+same adversarial reading as the code.** Every finding on the last three heads has been in prose, not
+in the app.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages. check 0 errors / 0 warnings. lint exit 0. test **1187
+passed, 1 skipped**. build exit 0. playwright **28 passed**. Six `npm run rewind` runs, all exit 0.
