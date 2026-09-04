@@ -132,10 +132,20 @@ export class VerdictPageState {
 	private async resolveOwner(): Promise<CreationOwner | null> {
 		if (this.owner) return this.owner;
 		this.ownerPromise ??= (async (): Promise<CreationOwner | null> => {
-			const result = await sessionAdapter.getSession();
-			return result.ok
-				? { kind: 'anonymous', sessionId: result.value.sessionId }
-				: null;
+			try {
+				const result = await sessionAdapter.getSession();
+				return result.ok
+					? { kind: 'anonymous', sessionId: result.value.sessionId }
+					: null;
+			} catch {
+				// A *thrown* session read is the same outcome as a failed one, and it has to reach the
+				// same branch below. `localStorage` exists but throws `SecurityError` on access in a
+				// browser with site data blocked, so this path is reachable in practice — and letting
+				// the rejection escape would leave the memo holding a permanently rejected promise,
+				// which every later save would re-await and re-throw. That is exactly the "never cache
+				// a failure" rule this function exists to keep, so it must cover both shapes of it.
+				return null;
+			}
 		})();
 		const owner = await this.ownerPromise;
 		if (owner) {
@@ -207,14 +217,23 @@ export class VerdictPageState {
 	 * generation, and wiping them before the replacement arrives means an empty field, a timeout, a
 	 * provider error or an off-contract response silently destroys work that was still perfectly
 	 * good, with nothing to restore it from.
+	 *
+	 * **Returns the verdict this call installed, or null** if it failed, was refused, or was
+	 * abandoned by a reset. Callers need that answer and cannot compute it: comparing
+	 * `verdict` before and after only proves *something* changed, not that *this* request changed
+	 * it. An abandoned request whose replacement has already landed sees exactly the same
+	 * "before !== after" as a successful one, and a route relabelling its UI on that basis
+	 * attributes the new verdict to the old input.
 	 */
-	async requestVerdict(input: MeechieToolInput): Promise<void> {
-		if (this.isWorking) return;
+	async requestVerdict(
+		input: MeechieToolInput
+	): Promise<MeechieToolOutput | null> {
+		if (this.isWorking) return null;
 		this.error = '';
 		const parsedInput = MeechieToolInputSchema.safeParse(input);
 		if (!parsedInput.success) {
 			this.error = 'Please complete the required fields before asking Meechie.';
-			return;
+			return null;
 		}
 		this.isWorking = true;
 
@@ -232,29 +251,31 @@ export class VerdictPageState {
 			});
 			if (isStale()) {
 				abandoned = true;
-				return;
+				return null;
 			}
 			const parsed = MeechieToolResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.error = 'Tool response did not match contract.';
-				return;
+				return null;
 			}
 			if (!parsed.data.ok) {
 				this.error = parsed.data.error.message;
-				return;
+				return null;
 			}
 			// Here, and only here, does what is on screen stop belonging to what is on screen.
 			this.resetPage();
 			this.verdict = parsed.data.value;
+			return this.verdict;
 		} catch (requestError) {
 			if (isStale()) {
 				abandoned = true;
-				return;
+				return null;
 			}
 			this.error =
 				requestError instanceof Error
 					? requestError.message
 					: 'Network error. Try again.';
+			return null;
 		} finally {
 			if (!abandoned) this.isWorking = false;
 		}

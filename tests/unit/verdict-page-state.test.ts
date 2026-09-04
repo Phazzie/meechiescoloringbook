@@ -267,6 +267,52 @@ describe('requestVerdict', () => {
 		expect(state.error).toBe('Tool response did not match contract.');
 	});
 
+	it('returns the verdict it installed, and null when it did not install one', async () => {
+		// Callers cannot compute this: comparing `verdict` before and after only proves something
+		// changed, not that this request changed it.
+		const state = await readyState();
+		routes.tools = okTools(PLAIN_VERDICT);
+		await expect(
+			state.requestVerdict({ toolId: 'random_meechie' })
+		).resolves.toEqual(PLAIN_VERDICT);
+
+		routes.tools = async () =>
+			jsonResponse({
+				ok: false,
+				error: { code: 'NOPE', message: 'Tool is down.' }
+			});
+		await expect(
+			state.requestVerdict({ toolId: 'random_meechie' })
+		).resolves.toBeNull();
+
+		await expect(
+			state.requestVerdict({ toolId: 'red_flag_or_run', situation: '' })
+		).resolves.toBeNull();
+	});
+
+	it('returns null from a request a reset abandoned, even once a newer one has landed', async () => {
+		// The relabelling race: an abandoned request whose replacement has already installed sees
+		// the same "verdict changed" as a successful one. Only the return value tells them apart.
+		const state = await readyState();
+		const gate = defer<Response>();
+		routes.tools = () => gate.promise;
+		const abandoned = state.requestVerdict({
+			toolId: 'red_flag_or_run',
+			situation: 'Excuse A.'
+		});
+
+		state.reset();
+		routes.tools = okTools(PLAIN_VERDICT);
+		const replacement = await state.requestVerdict({
+			toolId: 'random_meechie'
+		});
+		expect(replacement).toEqual(PLAIN_VERDICT);
+
+		gate.resolve(jsonResponse({ ok: true, value: STRUCTURED_VERDICT }));
+		await expect(abandoned).resolves.toBeNull();
+		expect(state.verdict).toEqual(PLAIN_VERDICT);
+	});
+
 	it('discards a verdict abandoned by reset() rather than installing it late', async () => {
 		const state = await readyState();
 		const gate = defer<Response>();
@@ -626,6 +672,23 @@ describe('saveToVault', () => {
 		const state = await withPage();
 		await state.saveToVault();
 		expect(state.vaultStatus).toContain('Could not open your session');
+
+		await state.saveToVault();
+		expect(state.vaultStatus).toContain('Saved to the vault');
+		expect(creationStoreAdapter.saveCreation).toHaveBeenCalledTimes(1);
+	});
+
+	it('retries after a session read that threw, not just one that returned an error', async () => {
+		// `localStorage` exists but throws SecurityError on access when site data is blocked, so a
+		// rejected getSession is reachable. Letting the rejection escape would leave the memo holding
+		// a permanently rejected promise that every later save re-awaits and re-throws.
+		vi.mocked(sessionAdapter.getSession).mockRejectedValueOnce(
+			new Error('SecurityError: access denied')
+		);
+		const state = await withPage();
+		await state.saveToVault();
+		expect(state.vaultStatus).toContain('Could not open your session');
+		expect(creationStoreAdapter.saveCreation).not.toHaveBeenCalled();
 
 		await state.saveToVault();
 		expect(state.vaultStatus).toContain('Saved to the vault');

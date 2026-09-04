@@ -25,13 +25,17 @@ Info flow: Excuse input -> VerdictPageState.requestVerdict (rate_excuse) -> scor
 	const submit = async (): Promise<void> => {
 		const trimmed = excuse.trim();
 		if (!trimmed) return;
-		const previous = studio.verdict;
-		await studio.requestVerdict({ toolId: 'rate_excuse', excuse: trimmed });
-		// Relabel only when a genuinely new ruling arrived. A failed re-run deliberately leaves the
-		// previous ruling on screen, and that ruling belongs to the previous excuse — echoing the
-		// new text above it would attribute Meechie's words to something she never read.
-		if (studio.verdict !== null && studio.verdict !== previous)
-			ruledExcuse = trimmed;
+		// Relabel only on the verdict *this* call installed. Comparing `studio.verdict` before and
+		// after would only prove that something changed: a request abandoned by "Different excuse",
+		// whose replacement has already landed, sees exactly the same before !== after as a
+		// successful one — and would then echo the abandoned excuse above the newer ruling,
+		// attributing Meechie's words to text she never read. A failed re-run still leaves the
+		// previous ruling and its excuse on screen, untouched.
+		const installed = await studio.requestVerdict({
+			toolId: 'rate_excuse',
+			excuse: trimmed
+		});
+		if (installed) ruledExcuse = trimmed;
 	};
 
 	const handleKeydown = (event: KeyboardEvent): void => {

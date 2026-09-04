@@ -1,28 +1,27 @@
-# npx playwright test — 2026-09-04T13:12:53Z
-# Run 3, third head. 19 passed; the new one proves 'Another one' drops a dedication
-# chosen for the previous saying.
+# npx playwright test — 2026-09-04T13:21:23Z
+# Run 3, fourth head. 19 passed.
 
 
 Running 19 tests using 2 workers
 
-  ✓   1 [chromium] › tests/e2e/smoke.spec.ts:120:1 › home mode switching and generation controls work (2.8s)
-  ✓   2 [chromium] › tests/e2e/smoke.spec.ts:158:1 › wig try-on demo works end to end without provider traffic (3.5s)
+  ✓   2 [chromium] › tests/e2e/smoke.spec.ts:120:1 › home mode switching and generation controls work (2.7s)
+  ✓   1 [chromium] › tests/e2e/smoke.spec.ts:158:1 › wig try-on demo works end to end without provider traffic (3.5s)
   ✓   3 [chromium] › tests/e2e/smoke.spec.ts:261:1 › home quote vault can save, load, pin, and delete creations (2.3s)
   ✓   4 [chromium] › tests/e2e/smoke.spec.ts:304:1 › home quote vault searches saved pages and reveals the ones past the preview (2.2s)
   ✓   5 [chromium] › tests/e2e/smoke.spec.ts:339:1 › home shoutout input debounces draft save and clears dedication (2.5s)
   ✓   6 [chromium] › tests/e2e/smoke.spec.ts:378:1 › random route tap and page generation work (2.0s)
-  ✓   7 [chromium] › tests/e2e/smoke.spec.ts:394:1 › rate and who routes submit, reset, and generate pages (3.7s)
-  ✓   8 [chromium] › tests/e2e/smoke.spec.ts:416:1 › the mode routes print the structure a verdict came back in (4.0s)
-  ✓  10 [chromium] › tests/e2e/smoke.spec.ts:481:1 › editing the dedication drops the page it was not generated with (1.7s)
-  ✓   9 [chromium] › tests/e2e/smoke.spec.ts:456:1 › a page made on a mode route can be saved and found in the home vault (3.3s)
+  ✓   7 [chromium] › tests/e2e/smoke.spec.ts:394:1 › rate and who routes submit, reset, and generate pages (3.9s)
+  ✓   8 [chromium] › tests/e2e/smoke.spec.ts:416:1 › the mode routes print the structure a verdict came back in (3.9s)
+  ✓  10 [chromium] › tests/e2e/smoke.spec.ts:481:1 › editing the dedication drops the page it was not generated with (1.9s)
+  ✓   9 [chromium] › tests/e2e/smoke.spec.ts:456:1 › a page made on a mode route can be saved and found in the home vault (3.6s)
   ✓  11 [chromium] › tests/e2e/smoke.spec.ts:501:1 › Another one drops a dedication chosen for the previous saying (1.9s)
-  ✓  12 [chromium] › tests/e2e/smoke.spec.ts:523:1 › a failed re-ask on a mode route does not destroy the page already on screen (2.0s)
-  ✓  13 [chromium] › tests/e2e/smoke.spec.ts:561:1 › meechie toolkit tabs and lineup controls work (2.5s)
-  ✓  14 [chromium] › tests/e2e/smoke.spec.ts:595:1 › every toolkit verdict becomes a coloring page that downloads and saves (3.7s)
-  ✓  16 [chromium] › tests/e2e/smoke.spec.ts:686:1 › editing the dedication drops the page it was not generated with, and drift is surfaced (1.8s)
-  ✓  15 [chromium] › tests/e2e/smoke.spec.ts:629:1 › a slow page generation cannot land under a different verdict (5.2s)
+  ✓  12 [chromium] › tests/e2e/smoke.spec.ts:523:1 › a failed re-ask on a mode route does not destroy the page already on screen (2.2s)
+  ✓  13 [chromium] › tests/e2e/smoke.spec.ts:561:1 › meechie toolkit tabs and lineup controls work (2.6s)
+  ✓  14 [chromium] › tests/e2e/smoke.spec.ts:595:1 › every toolkit verdict becomes a coloring page that downloads and saves (3.5s)
+  ✓  16 [chromium] › tests/e2e/smoke.spec.ts:686:1 › editing the dedication drops the page it was not generated with, and drift is surfaced (1.7s)
+  ✓  15 [chromium] › tests/e2e/smoke.spec.ts:629:1 › a slow page generation cannot land under a different verdict (5.1s)
   ✓  17 [chromium] › tests/e2e/smoke.spec.ts:730:1 › switching tools during a pending verdict does not wedge the button (1.8s)
-  ✓  18 [chromium] › tests/e2e/smoke.spec.ts:766:1 › a structured verdict prints as a numbered list page, an unstructured one as a quote (2.1s)
+  ✓  18 [chromium] › tests/e2e/smoke.spec.ts:766:1 › a structured verdict prints as a numbered list page, an unstructured one as a quote (2.2s)
   ✓  19 [chromium] › tests/e2e/smoke.spec.ts:801:1 › a failed replacement verdict does not destroy the page already on screen (2.0s)
 
-  19 passed (31.8s)
+  19 passed (32.0s)

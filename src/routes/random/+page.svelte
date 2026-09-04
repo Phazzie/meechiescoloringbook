@@ -14,8 +14,7 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 	const studio = new VerdictPageState({ fileBaseSlug: 'random' });
 
 	const tap = async (): Promise<void> => {
-		const previous = studio.verdict;
-		await studio.requestVerdict({ toolId: 'random_meechie' });
+		const installed = await studio.requestVerdict({ toolId: 'random_meechie' });
 		// A new saying is a new subject, so a dedication chosen for the previous one must not ride
 		// along and end up printed on, downloaded with, or saved against a saying it was never meant
 		// for. Cleared only once a replacement has actually arrived: a failed tap keeps the saying
@@ -23,8 +22,7 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 		//
 		// The two other mode routes deliberately do *not* do this. "Ask her again" and "Re-run the
 		// ruling" re-ask about the same situation, so the dedication still belongs to it.
-		if (studio.verdict !== null && studio.verdict !== previous)
-			studio.setDedication('');
+		if (installed) studio.setDedication('');
 	};
 </script>
 

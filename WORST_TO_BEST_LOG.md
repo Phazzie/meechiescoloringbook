@@ -2121,3 +2121,80 @@ should. **A mutation that survives is only evidence once you have confirmed the 
   raw `crypto.randomUUID()`, while `AGENTS.md` classifies clock and randomness as seams and
   `studio-state.svelte.ts` already routes its vault *labels* through `ClockSeam`. Decide it once,
   for all three, in a change that can carry the seam workflow if it needs one.
+
+---
+
+## Run 3, third close-out — 2026-09-04 — the Codex round on `546be58`
+
+Two findings, **both real, both fixed.** One of them is a hole in an invariant this run had claimed,
+in writing, to have already closed — which makes it the most useful finding of the whole run.
+
+### P2 — a rejected session read was cached forever (fixed)
+
+The previous close-out says `resolveOwner` "is cleared on failure so a failed resolve is never
+cached as the permanent answer." That was true for one shape of failure and not the other.
+`getSession()` returning `{ ok: false }` hit the `else` branch and cleared the memo. `getSession()`
+*throwing* did not: the rejection escaped the `await`, the `if/else` never ran, and `ownerPromise`
+kept holding a permanently rejected promise that every later save re-awaited and re-threw.
+
+It is reachable. `sessionAdapter` guards `typeof localStorage === 'undefined'`, but a browser with
+site data blocked has a `localStorage` object whose `getItem`/`setItem` throw `SecurityError` on
+access — so the adapter throws rather than returning a Result.
+
+The fix is a `try/catch` inside the memoised function so a throw becomes the same `null` an error
+result already produced, and both reach the branch that clears the memo. Pinned by a test that
+rejects the first `getSession` and asserts the second save succeeds.
+
+**The lesson is about the previous close-out, not the code.** Writing "cleared on failure" in a log
+entry does not make it true for every failure; the entry described the branch that had been written,
+not the set of failures the function can actually see. A claimed invariant is worth exactly as much
+as the enumeration of cases behind it.
+
+### P2 — an abandoned request could relabel a newer ruling (fixed)
+
+`/rate-his-excuse` echoes the excuse a ruling answered. It decided whether to relabel by comparing
+`studio.verdict` before and after the await:
+
+```ts
+const previous = studio.verdict;
+await studio.requestVerdict({ toolId: 'rate_excuse', excuse: trimmed });
+if (studio.verdict !== null && studio.verdict !== previous) ruledExcuse = trimmed;
+```
+
+That comparison proves *something* changed, not that *this* request changed it. Submit excuse A;
+hit "Different excuse"; submit excuse B; B lands first. When A's abandoned request finally settles,
+its continuation sees a non-null verdict that differs from the `previous` it captured — exactly what
+success looks like — and sets `ruledExcuse = A`. The screen then shows **B's ruling under A's
+excuse**: Meechie's words attributed to text she never read. Precisely the class of defect this run
+exists to remove, reintroduced by the run itself.
+
+The fix is at the boundary rather than in the route. `requestVerdict` now **returns the verdict it
+installed, or null** — a question only it can answer, since a caller cannot distinguish an abandoned
+request from a successful one by observation. Both routes now read that return value, and
+`/random`'s dedication-clearing (added one round earlier, with the same fragile comparison and the
+same latent bug) is fixed by the same change.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0/0. lint
+clean. test **1149 passed, 1 skipped** (44 new against the `6826124` baseline of 1105). build exit
+0. playwright **19 passed**.
+
+**Ten guards** are now proven by deletion rather than by reading — and every mutation was asserted
+to have applied before its result was believed, which is the correction this run had to make to its
+own method two rounds ago.
+
+### The pattern across three review rounds
+
+Every finding that turned out to be real was in the seam between two things this run got right
+individually:
+
+- Keeping the old verdict on screen (good) left the generate button live for it (billed a
+  generation that was then correctly discarded).
+- Clearing the dedication on a new saying (good) was decided by a before/after comparison that
+  cannot tell abandonment from success.
+- Moving the session read out of the constructor (good) handled a failed result but not a thrown
+  one.
+
+None of them was a missing guard. Each was a guard that did not cover the whole of what it claimed.
+That is what a review is for, and it is why "the tests are green" was never the standard here.

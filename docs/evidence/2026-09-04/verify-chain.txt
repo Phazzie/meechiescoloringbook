@@ -1,8 +1,9 @@
-# npm run verify — Run 3 (worst-feature routine), third head, 2026-09-04T13:13:48Z
+# npm run verify — Run 3 (worst-feature routine), fourth head, 2026-09-04T13:21:57Z
 #
 # Change under test: /who-fucked-up, /rate-his-excuse and /random rebuilt onto one shared
-# verdict-to-coloring-page lifecycle (VerdictPageState + VerdictPageStudio). This head also carries
-# the three SonarCloud findings on 93e03f1 and three of the four Codex findings on the same commit.
+# verdict-to-coloring-page lifecycle (VerdictPageState + VerdictPageStudio). This head carries the
+# three SonarCloud findings on 93e03f1, three of four Codex findings on 93e03f1, and both Codex
+# findings on 546be58.
 #
 # Seams touched: none. Every seam is consumed through its existing adapter, exactly as
 # src/routes/+page.svelte and src/lib/components/MeechieTools.svelte already consume it. No file
@@ -14,7 +15,7 @@ ALL EIGHT STAGES RAN. EXIT 0.
 
   1. npm run audit:gate      found 0 vulnerabilities
   2. chamber-lock.mjs        ok
-  3. verify-runner.mjs       check: 0 errors, 0 warnings | test: 1146 passed, 1 skipped
+  3. verify-runner.mjs       check: 0 errors, 0 warnings | test: 1149 passed, 1 skipped
   4. shaolin-lint.mjs        ok
   5. assumption-alarm.mjs    ok
   6. seam-ledger.mjs         ok
@@ -25,34 +26,32 @@ Recorded separately in this folder, and run after the chain so they postdate its
 
   npm run check       0 errors, 0 warnings
   npm run lint        exit 0, clean                  -> lint.txt
-  npm test            1146 passed | 1 skipped        -> test.txt
-                      (baseline on 6826124: 1105 passed | 1 skipped — 41 new)
+  npm test            1149 passed | 1 skipped        -> test.txt
+                      (baseline on 6826124: 1105 passed | 1 skipped — 44 new)
   npm run build       exit 0                         -> build.txt
   npx playwright test 19 passed                      -> e2e.txt
                       (baseline on 6826124: 13 passed — 6 new)
 
 All three routes were also driven in a real browser at 1280x900 and 390x844, with the spec actually
-POSTed to /api/generate captured and read. That is what proves the headline claim — /who-fucked-up
-now sends listMode 'list' with the Fault/Consequence/Move beats as numbered lines, where it used to
-send one truncated title.
+POSTed to /api/generate captured and read.
 
-Guards are proven by deletion, not by reading. Each of these was confirmed to fail when the guard
-it covers is removed:
+Ten guards are proven by deletion, not by reading. Each was confirmed to fail when its guard goes:
   - "does not cancel an in-flight verdict request"        -> collapsing the two staleness tokens
   - "packages print and share separately"                 -> a single two-variant packaging call
   - "keeps the printable PDF when only the square fails"  -> the same
   - "discards a page ... while it was being packaged"     -> the post-packaging isStale() check
   - "retries a session that failed the first time"        -> caching the failed owner promise
+  - "retries after a session read that threw"             -> letting the rejection escape the memo
   - "refuses to start a generation while a replacement"   -> the isWorking guard in makePage()
   - "does not record recommended fixes as applied"        -> writing recommendedFixes to fixesApplied
+  - "returns null from a request a reset abandoned"       -> returning the current verdict instead
   - "Another one drops a dedication" (e2e)                -> the setDedication('') on a new saying
 
-The last one is worth a note. Its first mutation run reported a pass, which would have meant the
-test proved nothing. The mutation had not applied: Prettier had wrapped the guard onto two lines
-and the patch string no longer matched. Re-applied against the real text, the test fails as it
-should. A mutation that "survives" is only evidence once you have confirmed the mutation landed.
+Every mutation above was asserted to have applied before its result was read. That check is not
+ceremony: one mutation this run reported a pass purely because Prettier had rewrapped the target
+line and the patch string no longer matched, so nothing had been changed at all.
 
 Known-failing, and not this PR's: the Vercel deployment status. The account hit Vercel's free-tier
-cap of 100 deployments per day ("api-deployments-free-per-day"), which is an account-level quota
-consumed by every push across every branch today, not anything reachable from this diff. It cannot
-be re-run for 24 hours. Both GitHub Actions "verify" runs are green on this head.
+cap of 100 deployments per day ("api-deployments-free-per-day"), an account-level quota consumed by
+every push across every branch today, not anything reachable from this diff. It cannot be re-run
+for 24 hours. The GitHub Actions "verify" workflow is green on this head.

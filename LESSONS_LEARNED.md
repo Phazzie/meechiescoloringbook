@@ -211,3 +211,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Mutation-testing a new guard — deleting it to confirm the test that covers it fails — reported a pass, which would have meant the test proved nothing.
 - Lesson: The guard was fine; the mutation had not applied. Prettier had wrapped the guarded line across two lines after it was written, so the scripted patch string no longer matched and the file was never changed. The tempting reading of a surviving mutation ("the guard is unnecessary, or the test is worthless") is the wrong one to reach for first.
 - Action: When a mutation survives, confirm it actually landed — diff the file, or make the patch script assert its target was found — before drawing any conclusion about the guard or the test.
+
+## 2026-09-04
+- Date: 2026-09-04
+- Context: A memoised async resolve was documented, in a merged log entry, as "cleared on failure so a failed resolve is never cached". A reviewer found it cleared the memo when the call *returned* an error but not when it *threw*.
+- Lesson: A promise memo has two failure shapes, and `if (result) ... else ...` after an `await` only sees one of them — a rejection skips the branch entirely and leaves the rejected promise cached forever, so every later caller re-awaits and re-throws it. Writing the invariant down in prose did not make it true for the case that had not been enumerated.
+- Action: Put the `try/catch` *inside* the memoised function so every outcome becomes one value, and reach the clearing branch through it. When claiming an invariant, enumerate the failure shapes it has to cover rather than describing the branch that happens to exist.
+
+## 2026-09-04
+- Date: 2026-09-04
+- Context: A route decided whether to relabel its UI by comparing shared state before and after an awaited call: `const previous = x.verdict; await x.request(); if (x.verdict !== previous) relabel()`.
+- Lesson: That comparison proves something changed, not that this call changed it. A request abandoned mid-flight, whose replacement has already landed, observes exactly the same before !== after as a successful one — and relabels the new result with the abandoned input. Callers cannot distinguish abandonment from success by observing shared state; only the operation itself knows.
+- Action: Have the async operation return what it actually did (the value it installed, or null), and branch on the return value. Never infer causation from a before/after diff of state other callers can also write.
