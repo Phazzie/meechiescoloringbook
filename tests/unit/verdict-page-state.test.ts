@@ -395,6 +395,44 @@ describe('makePage', () => {
 		);
 	});
 
+	it('keeps the page and the print PDF when the square packaging call throws', async () => {
+		// `outputPackagingAdapter.package` has no try/catch of its own — pdf-lib's embedPng/embedJpg
+		// and the canvas in imageToPngBase64 all throw. A rejection from the square call used to
+		// escape to the outer catch, discarding the paid images and the print PDF already built, so
+		// splitting the two calls bought nothing against the failure shape most likely to happen.
+		vi.mocked(outputPackagingAdapter.package).mockImplementation(
+			async (input) => {
+				if (input.variants?.includes('square'))
+					throw new Error('canvas is tainted');
+				return { ok: true, value: { files: [printFile] } };
+			}
+		);
+		const state = await withPage();
+
+		expect(state.hasPage).toBe(true);
+		expect(state.imagePreviews).toHaveLength(1);
+		expect(state.packagedFiles).toEqual([printFile]);
+		expect(state.generateError).toContain(
+			'square share image could not be built'
+		);
+		expect(state.generateError).toContain('canvas is tainted');
+	});
+
+	it('keeps the page when the print packaging call throws too', async () => {
+		// The page is the paid part and it already exists; a local render failure must never take it.
+		vi.mocked(outputPackagingAdapter.package).mockRejectedValue(
+			new Error('no canvas here')
+		);
+		const state = await withPage();
+
+		expect(state.hasPage).toBe(true);
+		expect(state.imagePreviews).toHaveLength(1);
+		expect(state.packagedFiles).toEqual([]);
+		expect(state.generateError).toContain(
+			'printable download could not be built'
+		);
+	});
+
 	it('surfaces the drift report instead of discarding it', async () => {
 		const state = await readyState();
 		routes.tools = okTools(PLAIN_VERDICT);

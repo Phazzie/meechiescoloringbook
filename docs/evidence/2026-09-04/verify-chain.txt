@@ -1,4 +1,4 @@
-# npm run verify — Run 3 (worst-feature routine), merge head, 2026-09-04T13:32:02Z
+# npm run verify — Run 3 (worst-feature routine), merge head + Codex round on e31f918, 2026-09-04T13:32:02Z
 #
 # This head merges origin/main (11e72d3, PR #292) into claude/great-bell-c3fdmk and resolves the
 # conflicts. Everything below was re-run against the merged tree, because evidence from either
@@ -18,7 +18,7 @@ ALL EIGHT STAGES RAN. EXIT 0.
 
   1. npm run audit:gate      found 0 vulnerabilities
   2. chamber-lock.mjs        ok
-  3. verify-runner.mjs       check: 0 errors, 0 warnings | test: 1163 passed, 1 skipped
+  3. verify-runner.mjs       check: 0 errors, 0 warnings | test: 1165 passed, 1 skipped
   4. shaolin-lint.mjs        ok
   5. assumption-alarm.mjs    ok
   6. seam-ledger.mjs         ok
@@ -29,7 +29,7 @@ Recorded separately in this folder, and run after the chain so they postdate its
 
   npm run check       0 errors, 0 warnings
   npm run lint        exit 0, clean                  -> lint.txt
-  npm test            1163 passed | 1 skipped        -> test.txt
+  npm test            1165 passed | 1 skipped        -> test.txt
   npm run build       exit 0                         -> build.txt
   npx playwright test 22 passed                      -> e2e.txt
 
@@ -71,3 +71,43 @@ cap of 100 deployments per day ("api-deployments-free-per-day"), an account-leve
 every push across every branch today, not anything reachable from this diff. It cannot be re-run
 for 24 hours, so the one permitted re-run is not being spent on a guaranteed failure. Commented on
 the PR. The GitHub Actions "verify" workflow is green.
+
+## Codex round on the merge head (e31f918)
+
+One finding, and it was right: on all three mode routes, a *rejection* from the square
+`outputPackagingAdapter.package()` call escaped to the outer catch, discarding the paid images and
+the print PDF the preceding call had already built. So splitting the two packaging calls — which
+this run had claimed, in the log and in three commit messages, gave failure isolation — bought
+nothing against the failure shape most likely to occur.
+
+Checked rather than assumed: `package()` in src/lib/adapters/output-packaging.adapter.ts has no
+try/catch anywhere in its body, and pdf-lib's embedPng/embedJpg/save plus the canvas work in
+imageToPngBase64 all throw. So the rejection path is real, not theoretical.
+
+Fixed by porting the pattern PR #292 had already landed in MeechieTools.svelte for the same defect:
+install the page *before* packaging it (the generation is the paid part and has already succeeded;
+packaging is a local render that can fail on its own), and catch each packaging call on its own.
+Ported rather than reinvented, so the two flows now fail the same way.
+
+This is the third time in this run that the same shape appeared: a Result-returning call whose
+`{ ok: false }` branch was handled and whose *throw* was not. The other two were the memoised
+session resolve and this. Recorded in LESSONS_LEARNED.md.
+
+Twelve guards are now proven by deletion rather than by reading, each confirmed to fail when its
+guard is removed — and every mutation was asserted to have applied before its result was believed:
+
+  - "does not cancel an in-flight verdict request"        -> collapsing the two staleness tokens
+  - "packages print and share separately"                 -> a single two-variant packaging call
+  - "keeps the printable PDF when only the square fails"  -> the same
+  - "keeps the page and the print PDF when square throws" -> the per-call packaging try/catch
+  - "keeps the page when the print call throws too"       -> the same
+  - "discards a page ... while it was being packaged"     -> the post-packaging isStale() check
+  - "retries a session that failed the first time"        -> caching the failed owner promise
+  - "retries after a session read that threw"             -> letting the rejection escape the memo
+  - "refuses to start a generation while a replacement"   -> the isWorking guard in makePage()
+  - "does not record recommended fixes as applied"        -> writing recommendedFixes to fixesApplied
+  - "returns null from a request a reset abandoned"       -> returning the current verdict instead
+  - "Another one drops a dedication" (e2e)                -> the setDedication('') on a new saying
+
+Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
+check 0/0, lint clean, test 1165 passed / 1 skipped, build exit 0, playwright 22 passed.

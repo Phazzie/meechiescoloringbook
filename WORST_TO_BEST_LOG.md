@@ -2879,3 +2879,72 @@ clean. test **1163 passed, 1 skipped**. build exit 0. playwright **22 passed**.
 
 Both suites survive intact — this branch's six new e2e tests and #292's are all present and
 passing, and no test from either side was dropped to resolve a conflict.
+
+---
+
+## Run 3, fourth close-out — 2026-09-04 — the Codex round on the merge head `e31f918`
+
+One finding. It was right, and it invalidates a claim this run had made three times in commit
+messages and twice in this log.
+
+### The split packaging calls did not actually isolate the failure they were split for
+
+The claim, repeated since the first commit: two `package()` calls instead of one with
+`variants: ['print', 'square']`, because the adapter returns a square failure *without* the print
+file it already built — so one call meant a browser that could not encode the share canvas lost the
+printable PDF too.
+
+True, as far as it went. What it missed is that `outputPackagingAdapter.package()` **has no
+try/catch anywhere in its body**, and the things it calls — pdf-lib's `embedPng`, `embedJpg` and
+`save`, and the canvas in `imageToPngBase64` — all throw. So the common failure is not
+`{ ok: false }` at all; it is a rejection. And a rejection from the square call escaped straight
+past both `.ok` checks to the outer `catch`, which returns before any of the page is installed —
+discarding the paid images, the previews, *and* the print PDF that had already been built
+successfully.
+
+Splitting the calls bought nothing against the failure shape most likely to happen. The tests
+passed because they only ever returned `{ ok: false }`, which is the shape the code handled.
+
+### Fixed by porting, not by reinventing
+
+PR #292 had already fixed exactly this in `MeechieTools.svelte` — install the page before packaging
+it, and catch each packaging call on its own. That fix landed in `main` while this branch was in
+review, and this branch's `VerdictPageState` was written in parallel without it. Ported verbatim in
+shape, so the two flows now fail identically rather than in two different ways.
+
+The ordering change carries its own reasoning: the generation is the paid part and has already
+succeeded by then, while packaging is a local render that can fail on its own. Installing the page
+first means a packaging failure costs the download, never the page.
+
+### The pattern, now three for three
+
+This is the **third** time in this run that the same shape has been found:
+
+| Where | `{ ok: false }` handled | Throw handled |
+|---|---|---|
+| `resolveOwner` — memoised session read | ✅ | ❌ → memo cached a rejected promise forever |
+| `packageVariant` — print/share packaging | ✅ | ❌ → the whole page was discarded |
+| (and the near-miss) `requestVerdict` | ✅ | ✅ — this one had it from the start |
+
+Two of three. The lesson is not "add try/catch everywhere"; it is that **a `Result`-returning
+function is a promise about the return value, not about the absence of a throw**, and the two have
+to be checked separately unless the callee is known to wrap everything. Here the callee wraps
+nothing, and one look at it would have said so.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0/0. lint
+clean. test **1165 passed, 1 skipped**. build exit 0. playwright **22 passed**.
+
+**Twelve guards** are now proven by deletion rather than by reading, and every mutation was asserted
+to have applied before its result was believed.
+
+### The honest scoreboard for this run's review rounds
+
+Seven Codex findings across four rounds: **six fixed, one refused** with measurements. Three
+SonarCloud findings, all fixed. Rosentic's twenty-odd "breaks" refuted with `git merge-base` and
+`git diff`, including one that turned its check red and was investigated from scratch rather than
+waved through on the earlier verdicts.
+
+Every single finding that turned out to be real was a guard that did not cover the whole of what it
+claimed — never a missing guard. A run that only counted green tests would have shipped all seven.

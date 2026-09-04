@@ -318,27 +318,11 @@ export class VerdictPageState {
 			}
 
 			const images = parsed.data.value.images;
-			// Two packaging calls, not one with `variants: ['print', 'square']`. The adapter builds
-			// the print file first and then returns the square failure *without* its accumulated
-			// files, so a browser that cannot encode the 1080px share canvas took the printable PDF
-			// down with it. The PDF is the product; the square image is a nicety.
-			const fileBaseName = `meechie-${this.fileBaseSlug}-${Date.now()}`;
-			const printResult = await outputPackagingAdapter.package({
-				images,
-				outputFormat: 'pdf',
-				fileBaseName,
-				pageSize: recipe.spec.pageSize,
-				variants: ['print']
-			});
-			const shareResult = await outputPackagingAdapter.package({
-				images,
-				outputFormat: 'pdf',
-				fileBaseName,
-				pageSize: recipe.spec.pageSize,
-				variants: ['square']
-			});
-			if (isStale()) return;
 
+			// Install the page *before* packaging it. The generation is the paid part and it has
+			// already succeeded here; packaging is a local render that can fail on its own. Leaving
+			// the install until afterwards meant any packaging problem skipped it entirely and threw
+			// the whole page away — the images included.
 			this.pageVerdict = verdict;
 			this.lastRecipe = recipe;
 			this.generatedImages = images;
@@ -349,14 +333,52 @@ export class VerdictPageState {
 			this.imagePreviews = images
 				.map(generatedImageDataUrl)
 				.filter((url): url is string => url !== null);
-			this.packagedFiles = [
-				...(printResult.ok ? printResult.value.files : []),
-				...(shareResult.ok ? shareResult.value.files : [])
-			];
-			if (!printResult.ok) {
-				this.generateError = `Page made, but the printable download could not be built: ${printResult.error.message}`;
-			} else if (!shareResult.ok) {
-				this.generateError = `Page and PDF are ready; the square share image could not be built: ${shareResult.error.message}`;
+			this.packagedFiles = [];
+
+			// Two packaging calls, not one with `variants: ['print', 'square']`. The adapter builds
+			// the print file first and then returns the square failure *without* its accumulated
+			// files, so a browser that cannot encode the 1080px share canvas took the printable PDF
+			// down with it. The PDF is the product; the square image is a nicety.
+			//
+			// Each call is caught on its own, because the adapter does not wrap every failure in a
+			// `Result`: `package()` has no try/catch, and pdf-lib's `embedPng`/`embedJpg`/`save` and
+			// the canvas in `imageToPngBase64` all throw. A rejection from the square call escaped to
+			// the outer catch and discarded the print PDF that had already been built — so splitting
+			// the calls bought nothing against the failure shape most likely to occur.
+			const fileBaseName = `meechie-${this.fileBaseSlug}-${Date.now()}`;
+			const packageVariant = async (
+				variant: 'print' | 'square'
+			): Promise<{ files: PackagedFile[]; error: string | null }> => {
+				try {
+					const result = await outputPackagingAdapter.package({
+						images,
+						outputFormat: 'pdf',
+						fileBaseName,
+						pageSize: recipe.spec.pageSize,
+						variants: [variant]
+					});
+					return result.ok
+						? { files: result.value.files, error: null }
+						: { files: [], error: result.error.message };
+				} catch (packagingError) {
+					return {
+						files: [],
+						error:
+							packagingError instanceof Error
+								? packagingError.message
+								: 'Packaging failed.'
+					};
+				}
+			};
+			const print = await packageVariant('print');
+			const share = await packageVariant('square');
+			if (isStale()) return;
+
+			this.packagedFiles = [...print.files, ...share.files];
+			if (print.error !== null) {
+				this.generateError = `Page made, but the printable download could not be built: ${print.error}`;
+			} else if (share.error !== null) {
+				this.generateError = `Page and PDF are ready; the square share image could not be built: ${share.error}`;
 			}
 		} catch (requestError) {
 			if (isStale()) return;
