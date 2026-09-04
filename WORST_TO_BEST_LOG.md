@@ -5009,3 +5009,65 @@ Five consecutive rounds on one waiver. The honest summary is that a two-sentence
 turned out to be resting on a seam whose refresh path is broken in six places and whose fault test
 cannot fail, and it took a reviewer refusing to accept five successive plausible plans to establish
 that. **I would have shipped the first one.**
+
+---
+
+## Run 4, correction 20 — 2026-09-04 — a freshness waiver was behaving as though it waived three gates
+
+Appended, not edited. One P1 on `46af6ba`, and it names the thing five rounds were circling.
+
+### P1 — the waiver covers one checklist item; two others fail with no waiver at all
+
+`AGENTS.md:102-104` lists three **separate** items before saying "Done", and only the first admits a
+waiver:
+
+| checklist item | `ImageGenerationSeam` |
+|---|---|
+| Fixtures fresh (<= 7 days) **or waiver recorded** | waived here, under the rule that permits it |
+| Mock loads fixtures by scenario (no logic shortcuts) | **fails** — `mock.ts:12-35` synthesises `sample` with `buildSvg` |
+| Fault fixture fails before adapter work (red proof) | **fails** — `test.ts:32-41` compares the mock's error against the fixture the mock returns |
+
+My own Validation field had already established both failures, in this same entry, and the Status
+line still read "Waived for PR #295 and its close-out". **A freshness waiver was standing in for
+three gates**, two of which nothing has waived and which I have no authority to waive.
+
+That is the fourth borrowed authorization in this close-out, and the broadest: not a mis-cited
+document or a green check for other work, but a permission that exists being quietly widened to
+cover permissions that do not.
+
+**Both defects predate PR #295.** They are properties of the seam at base `210b301`; that PR
+introduced neither. What it did was route `/m/<slug>` to `/api/generate`, which is what brought the
+seam into scope at all. So "pre-existing" is true, it is worth recording, and **it does not excuse
+them** — the checklist is about the seam the change exposes, not about who broke it and when.
+
+The Status field now says freshness only, names the two failing items with their line numbers, and
+states that waiving them is an owner decision this run is not taking.
+
+### What this changes about the run
+
+**The close-out no longer claims the completion gate is met for `ImageGenerationSeam`, and I am not
+merging on my own judgement.** The thread stays open, next to the seam-workflow P1. Two rulings are
+now outstanding and the second bears directly on whether this run may call itself done:
+
+1. **The seam-workflow question** (raised five times, declined five times, open on #295 and #296):
+   does adding a *caller* of an existing adapter trigger the full Seam-Driven Development workflow?
+2. **These two checklist items** (new): are they waived for this close-out, deferred to the repair in
+   follow-up 9, or is the close-out blocked until the repair lands?
+
+### The uncomfortable general lesson
+
+Nineteen rounds of green `npm run verify` never surfaced this, and could not have: **the two failing
+items have no automated gate.** They are checklist prose. `assumption:alarm` being green means the
+Assumption entry is well-formed and present — not that the seam passes the checklist. I had been
+reading a green chain as evidence about the seam, when it is evidence about the paperwork for the
+seam.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1 — **fifty-five findings across twenty
+rounds**, none in the application.
+
+Six consecutive rounds on one waiver, ending at a place worth stating plainly: **the waiver should
+probably never have been written by an autonomous run at all.** It was reached for to unblock a
+close-out, and each round of scrutiny found it resting on something weaker than the round before —
+until the last one found it standing on two gates nobody had waived.

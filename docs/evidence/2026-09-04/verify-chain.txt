@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T22:23:00.305Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T22:34:19.035Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -412,9 +412,37 @@ defects and seven acceptance criteria — properties that must hold in whatever 
 produces — instead of commands. Criteria are checkable against a future state; commands only look
 like they are.
 
+## Round 14 — the Codex round on `46af6ba`: the waiver waived one gate and behaved as if it waived three
+
+One P1, and it is the structural point the previous five rounds were circling without naming.
+
+`AGENTS.md:102-104` lists three **separate** completion items, and only the first admits a waiver:
+
+  - "Fixtures are fresh (<= 7 days) **or waiver recorded**" — waived here, under the rule that
+    permits it.
+  - "Mock loads fixtures by scenario (no logic shortcuts)" — **fails.** `mock.ts:12-35` synthesises
+    the `sample` response with `buildSvg`.
+  - "Fault fixture fails before adapter work (red proof)" — **fails.** `test.ts:32-41` compares the
+    mock's error against the fixture the mock returns, so no red proof exists or can.
+
+This entry's own Validation field had already established both, and its Status still read "Waived
+for PR #295 and its close-out" — a freshness waiver behaving as though it covered all three. **No
+waiver of any kind exists for the second and third**, and writing one is not this run's to write.
+
+Both defects **predate PR #295**: they are properties of the seam at base `210b301`, not things that
+PR introduced. What PR #295 did was route `/m/<slug>` to `/api/generate`, which is what brought the
+seam into scope at all. "Pre-existing" explains them and does not excuse them — the checklist is
+about the seam the change exposes, not about who broke it.
+
+The Status field now says freshness only, names the two failing items, and states that waiving them
+is an owner decision. **This close-out therefore does not claim the completion gate is met for
+`ImageGenerationSeam`, and the thread is left open rather than resolved**, alongside the
+seam-workflow P1. Two rulings are now outstanding, and the second one bears directly on whether this
+run may call itself done.
+
 ## Ordering of this round's runs, recorded as they happened
 
-  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 22:23:00.305Z)
+  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 22:34:19.035Z)
   2. npm run lint              exit 0                     -> lint.txt
   3. npm run build             exit 0                     -> build.txt
   4. npx playwright test       28 passed                  -> e2e.txt
@@ -424,6 +452,12 @@ like they are.
      npm run assumption:alarm  exit 0    (also chain stage 5; run standalone after the doc edits)
   7. this section
   8. npm run proof:tape        LAST, so the tape inventories every file including this one
+
+**What a green chain does and does not mean here, stated because this round is exactly about that.**
+All eight stages exit 0 on this head, and `assumption:alarm` is green — but green means the
+Assumption entry is *well-formed and present*, not that the seam meets the completion checklist. The
+two failing items have no automated gate at all; they are checklist prose, which is why nineteen
+rounds of green chains never surfaced them and a reader had to.
 
 Evidence on this head, read back from seam-rewind-exit-codes.md and an `ls` of the directory rather
 than recalled: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped, build exit 0,

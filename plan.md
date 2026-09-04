@@ -49,6 +49,16 @@ concession the `ClockSeam` plan in run 1 had to make.
      error against the fixture the mock returns, so it is green by construction and a red proof must
      use a deliberately non-conforming fixture. `npm run assumption:alarm` exits 0 with the entry as
      written.
+
+     **This item is not closed, and the close-out no longer claims it is.** `AGENTS.md:102-104`
+     lists three separate completion items and only the first admits a waiver.
+     `ImageGenerationSeam` fails the other two — the mock synthesises its `sample` response
+     instead of loading a fixture by scenario, and the fault test cannot produce red proof —
+     with **no waiver of any kind**. Both predate PR #295 and neither was introduced by it; what
+     PR #295 did was route `/m/<slug>` to `/api/generate`, which brought the seam into scope, so
+     "pre-existing" explains them and does not excuse them. Waiving those two is an owner
+     decision, not mine, so this run escalates rather than self-certifies. **It joins the
+     seam-workflow P1 as a ruling this close-out waits on.**
 - **Seams:** none changed. No seam artifact is in the diff; the rulings are about whether existing
   open Assumptions block an already-merged change.
 - **Files.** Governance: `DECISIONS.md` (the ruling), `plan.md` (this section),
