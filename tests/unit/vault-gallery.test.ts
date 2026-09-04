@@ -119,12 +119,34 @@ describe('vaultImageSource', () => {
 		['a data: url smuggled in as a stored url', 'data:text/html,<script>alert(1)</script>'],
 		['a protocol-relative url', '//evil.test/page.png'],
 		['a vbscript: url', 'vbscript:msgbox(1)'],
-		// svelte.config.js sets img-src 'self' data: blob:, so an absolute url can only ever
+		// svelte.config.js sets img-src 'self' data: blob:, so an off-origin url can only ever
 		// render as a broken thumbnail with a dead download beside it.
-		['an absolute https url the CSP blocks', 'https://example.test/page.png'],
-		['an absolute http url the CSP blocks', 'http://example.test/page.png']
+		['an off-origin https url the CSP blocks', 'https://example.test/page.png'],
+		['an off-origin http url the CSP blocks', 'http://example.test/page.png']
 	])('refuses %s rather than turning it into a link', (_label, url) => {
-		expect(vaultImageSource({ url })).toBe('');
+		expect(vaultImageSource({ url }, 'https://meechie.test')).toBe('');
+	});
+
+	// A record written before the vault existed may carry a fully qualified URL on the app's own
+	// host. `img-src 'self'` loads it, so blanking the thumbnail would be a regression.
+	it('accepts an absolute url on the running origin', () => {
+		expect(
+			vaultImageSource({ url: 'https://meechie.test/saved/page.png' }, 'https://meechie.test')
+		).toBe('https://meechie.test/saved/page.png');
+	});
+
+	it('refuses an absolute url on a different port of the same host', () => {
+		expect(
+			vaultImageSource({ url: 'https://meechie.test:8443/page.png' }, 'https://meechie.test')
+		).toBe('');
+	});
+
+	it('refuses an absolute url when no origin is known, as in a server render', () => {
+		expect(vaultImageSource({ url: 'https://meechie.test/page.png' })).toBe('');
+	});
+
+	it('accepts a same-origin path even when no origin is known', () => {
+		expect(vaultImageSource({ url: '/saved/page.png' })).toBe('/saved/page.png');
 	});
 
 	it('prefers the stored bytes when a record carries both bytes and a url', () => {
@@ -386,19 +408,34 @@ describe('vaultQuote', () => {
 		expect(vaultQuote(record)).toBe('He had time to learn.');
 	});
 
-	it('reconstructs a quote for a legacy record saved before studioText existed', () => {
-		const legacy = makeRecord('legacy', { assembledPrompt: 'The receipts were already out.' });
+	// On a generated page `assembledPrompt` holds the image-generation prompt `/api/generate`
+	// returned, not anything Meechie said. Showing it in quotation marks, or letting its
+	// boilerplate answer searches, is worse than showing no quote at all.
+	it('shows no quote for a legacy record rather than quoting its generation prompt', () => {
+		const legacy = makeRecord('legacy', {
+			assembledPrompt:
+				'Black and white line art coloring page, bold clean outlines, no shading,\n' +
+				'no solid fills, white background, US Letter portrait, decorative border.'
+		});
 
-		const quote = vaultQuote(legacy);
-
-		expect(quote.length).toBeGreaterThan(0);
 		expect(legacy.studioText).toBeUndefined();
+		expect(vaultQuote(legacy)).toBe('');
 	});
 
-	it('finds a legacy record by its reconstructed quote', () => {
-		const legacy = makeRecord('legacy', { assembledPrompt: 'The receipts were already out.' });
+	it('does not answer a search with words that appear only in the generation prompt', () => {
+		const legacy = makeRecord('legacy', {
+			assembledPrompt: 'Black and white line art coloring page with a decorative border.'
+		});
 
-		expect(matchesVaultQuery(legacy, 'receipts')).toBe(true);
+		expect(matchesVaultQuery(legacy, 'decorative')).toBe(false);
+	});
+
+	it('still finds a legacy record by the text it really stored', () => {
+		const legacy = makeRecord('legacy', {
+			assembledPrompt: 'Black and white line art coloring page.'
+		});
+
+		expect(matchesVaultQuery(legacy, legacy.intent.title)).toBe(true);
 	});
 });
 

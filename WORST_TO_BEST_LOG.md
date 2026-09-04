@@ -193,9 +193,14 @@ generation (real, but a one-line config defect, not a feature).
 
 ## Run 1, close-out — 2026-09-04 — corrections to the entry above
 
-Appended, not edited into Run 1: this file is append-only and the entry above is the record as it
-merged. Two of these corrections exist because the close-out itself broke that rule and had to be
-undone.
+Every correction below is appended here rather than written into Run 1. One exception is visible in
+this run's own diff and is stated plainly rather than glossed: PR #289 **does** modify a line inside
+the Run 1 entry, restoring its outcome line to the text that merged with PR #286. PR #288 had
+overwritten that line in place, so the choice was between a file that keeps a falsified entry and a
+file whose history shows one deliberate, disclosed revert. Restoring won, because the point of
+"append only" is that the record stays true, and a silently rewritten outcome defeats that more
+thoroughly than a documented undo of the rewrite does. Nothing else in Run 1 is touched, and from
+here on nothing in it is edited for any reason.
 
 **Outcome of PR #286.** Merged as `04f1922`; the log close-out that followed it merged as
 `2e488b8` (PR #288).
@@ -208,7 +213,15 @@ The conclusion was still right but for a different reason, and this is the reaso
 should copy: `api-deployments-free-per-day` ("more than 100") is an **account-wide daily deployment
 quota**. It is a property of the Vercel account and the calendar day, not of any diff — no change
 to this repository can cause or avoid it — and `AGENTS.md` already records it as standing noise.
-A quota shared across every PR needs no per-PR reproduction; a *test* failure would.
+
+This does **not** lower the bar for standing a failure down. The merge gate in `AGENTS.md` is
+unconditional: a red status may be stood down only after its actual failure signature has been
+matched against the base commit or an unrelated head, and that comparison written into a PR
+comment. "Vercel is usually the quota" is a hypothesis, not the evidence — a deployment failure
+caused by a real change can look superficially identical, and an unattended run that skips the
+comparison will merge straight through one. Read the status description, confirm it names
+`api-deployments-free-per-day` rather than a build or runtime error, show the same signature
+elsewhere, and record that before merging. Every red status earns the same check.
 
 **Correction 2 — the close-out edited Run 1 in place.** PR #288 rewrote text inside the Run 1
 entry instead of appending. That is exactly what the "Append only" rule at the top of this file
@@ -259,3 +272,32 @@ them; just do not read them as this run's.
 - `localStorage` quota for fifty full-size pages (needs a different storage seam).
 - `.github/workflows/verify.yml` runs twice per push and one of the pair hangs; scope `on: push`
   to `branches: [main]`. Worth its own PR.
+
+---
+
+## Run 1, second close-out — 2026-09-04 — the review round on PR #289
+
+Appended, not edited. PR #289 was the follow-up that fixed the thirteen findings merged unaddressed
+on #286/#288. It was itself reviewed, and Codex returned **seven more findings on `e941fed`**. This
+section records them because the pattern is the point: a fix PR is not exempt from review, and the
+run that waited for the review this time caught real defects it had just written.
+
+| Severity | Finding | What it actually was | Fix |
+|---|---|---|---|
+| P1 | `undoDelete`'s capacity guard reads `this.creations`, which is owner-filtered, while the adapter caps the whole stored array. | Real. Records orphaned under a previous `cb_session_id_v1` occupy slots the guard cannot see, so it can pass and still evict. | The guard stays — it is a correct lower bound and covers every case reachable while the session id survives — but it no longer claims to be a store-wide guarantee. The sound fix needs `CreationStoreSeam` to own the decision, a contract change and so the full SDD workflow; deferred below rather than widened into a fix PR. |
+| P1 | `Date.now()` in `startSavedLabelRefresh` reads the clock outside a seam. | Half real. `AGENTS.md` does classify clock/time as a seam, but this repository has **no** clock seam, and the same file already read `Date.now()` three times before this feature existed (creation ids, `createdAtISO`). | Rather than invent a seam for a date label, every vault clock read now goes through one injectable `readNow`. The UTC-midnight rollover became a real test instead of a path that depended on when the suite ran. |
+| P1 | Restoring Run 1's outcome line is itself an edit to an append-only file, so the appended claim "Appended, not edited into Run 1" was false for that diff. | Real, and worth conceding precisely. | The restore stays, because the point of "append only" is that the record stays true and a silently rewritten outcome defeats that harder than a disclosed undo does. The claim above it is now accurate about its own diff. |
+| P1 | The Vercel guidance told future runs a quota failure needs no per-PR reproduction, contradicting the merge gate. | Real, and the more dangerous of the two log findings: it was advice aimed straight at unattended successors. | Rewritten. Every red status earns the same check — match the actual failure signature, write the comparison down, then merge. |
+| P2 | `vaultQuote` fell back to `buildStudioTextFromCreationRecord`, which falls back to `assembledPrompt` — the full image-generation prompt on any generated page. | Real, and the previous close-out had recorded this fallback as a *fix*. It rendered multiline rendering instructions inside quotation marks and fed their boilerplate to search. | Legacy records show no quote. `VerdictRow.svelte` already omits the line when it is empty. |
+| P2 | `isSafeStoredUrl` rejected same-origin absolute URLs, which `img-src 'self'` permits and `CreationImageSchema` accepts. | Real regression introduced by the previous round's own CodeQL hardening. | Same-origin absolute URLs are accepted by comparing parsed origins; the app origin is passed into core rather than read there. |
+| P2 | `proof-tape.json` omitted `build.txt`, `lint.txt`, and `verify-chain.txt`, hiding that `verify-chain.txt` still reported 847 tests. | Real: the tape ran *before* those shared files were restored, so its inventory disagreed with its own directory. | Re-ran the chain with the shared files present. They now appear under `filesPredatingRun`, which states the ownership split instead of concealing it. |
+
+**The lesson that generalises.** Two of these seven were defects *introduced by the previous round
+of fixes* — the quote fallback and the same-origin rejection were both written as corrections and
+both made something worse. A fix PR earns a full review, not a lighter one.
+
+### Still deferred after this round
+
+- Store-wide capacity belongs inside `CreationStoreSeam`; the guard in `undoDelete` is a lower
+  bound until then.
+- The four items listed at the end of the previous close-out, unchanged.

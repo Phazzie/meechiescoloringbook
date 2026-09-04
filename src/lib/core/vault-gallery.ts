@@ -9,7 +9,6 @@
 //            and re-package.
 import type { CreationRecord } from '../../../contracts/creation-store.contract';
 import type { GeneratedImage } from '../../../contracts/image-generation.contract';
-import { buildStudioTextFromCreationRecord } from './meechie-studio';
 import {
 	detectRasterMimeTypeFromBytes,
 	type RasterMimeType
@@ -119,22 +118,44 @@ export const detectVaultImageKind = (base64: string): VaultImageKind | null => {
 };
 
 // A stored `url` is whatever was in browser storage when the vault was read, and it feeds an
-// `<a href>` as well as an `<img src>`. Only a same-origin path is accepted: `svelte.config.js`
-// sets `img-src 'self' data: blob:`, so an absolute http(s) URL is blocked by the app's own CSP
-// and could only ever render as a broken thumbnail with a dead download beside it — and a
-// `javascript:` value must never become a link the reader can click.
-const isSafeStoredUrl = (url: string): boolean =>
-	url.startsWith('/') && !url.startsWith('//');
+// `<a href>` as well as an `<img src>`. `svelte.config.js` sets `img-src 'self' data: blob:`, so
+// only a same-origin URL can ever render; an off-origin one is blocked by the app's own CSP and
+// could only show as a broken thumbnail with a dead download beside it, and a `javascript:` value
+// must never become a link the reader can click.
+//
+// Same-origin covers two shapes. A root-relative path is same-origin by construction. An absolute
+// URL is same-origin only when its origin matches the running app's, which the caller supplies —
+// `CreationImageSchema` accepts any non-empty string, so records written before the vault existed
+// may well carry a fully qualified URL on the app's own host, and rejecting those outright would
+// blank a thumbnail the CSP would happily have loaded.
+const isSafeStoredUrl = (url: string, appOrigin: string): boolean => {
+	// `//host/path` is protocol-relative: it looks path-like but resolves off-origin.
+	if (url.startsWith('/')) return !url.startsWith('//');
+	if (appOrigin.length === 0) return false;
+	try {
+		const parsed = new URL(url);
+		if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+		return parsed.origin === appOrigin;
+	} catch {
+		return false;
+	}
+};
 
-/** A `src`/`href` for a stored vault image, or '' when it is unreadable or unsafe to link to. */
-export const vaultImageSource = (image: VaultImage): string => {
+/**
+ * A `src`/`href` for a stored vault image, or '' when it is unreadable or unsafe to link to.
+ *
+ * `appOrigin` is the origin the app is served from (`location.origin` in the browser, '' when
+ * there is none, as in a server render or a unit test). It is passed in rather than read here so
+ * this stays a pure function of its inputs.
+ */
+export const vaultImageSource = (image: VaultImage, appOrigin = ''): string => {
 	// Stored bytes win over a stored url. A contract-valid record may carry both, and the bytes
-	// always render under the CSP above while an external url never does.
+	// always render under the CSP above while an off-origin url never does.
 	if (image.b64) {
 		const kind = detectVaultImageKind(image.b64);
 		if (kind) return `data:${kind.mimeType};base64,${compactBase64(image.b64)}`;
 	}
-	if (image.url && isSafeStoredUrl(image.url)) return image.url;
+	if (image.url && isSafeStoredUrl(image.url, appOrigin)) return image.url;
 	return '';
 };
 
@@ -209,16 +230,19 @@ export const sortVaultCreations = (
 	});
 
 /**
- * The quote a row shows. Records saved before `studioText` existed carry none, but
- * `buildStudioTextFromCreationRecord` reconstructs one from the spec and the assembled prompt —
- * the same reconstruction `loadCreation` already performs. Without it a legacy page shows its
- * quote once opened yet displays and searches as though it had none.
+ * The quote a row shows, or '' when the record never stored one.
+ *
+ * Records saved before `studioText` existed carry no quote, and there is nothing faithful to
+ * reconstruct it from. `buildStudioTextFromCreationRecord` falls back to `assembledPrompt`, but on
+ * a generated page that field holds the full image-generation prompt returned by `/api/generate`
+ * — multiline rendering instructions, not anything Meechie said. Rendering that inside quotation
+ * marks, and folding its boilerplate into the search text, is worse than showing no quote, so the
+ * row simply omits one; `VerdictRow.svelte` already renders the quote line only when it is set.
  */
 export const vaultQuote = (record: CreationRecord): string =>
-	record.studioText?.quote ?? buildStudioTextFromCreationRecord(record).quote;
+	record.studioText?.quote ?? '';
 
-const vaultVerdict = (record: CreationRecord): string =>
-	record.studioText?.verdict ?? buildStudioTextFromCreationRecord(record).verdict;
+const vaultVerdict = (record: CreationRecord): string => record.studioText?.verdict ?? '';
 
 /** Everything about a saved page a reader might type into the search box. */
 export const vaultSearchText = (record: CreationRecord): string =>
@@ -285,14 +309,15 @@ export type VaultEntry = {
 
 export const buildVaultEntry = (
 	record: CreationRecord,
-	nowMs: number
+	nowMs: number,
+	appOrigin = ''
 ): VaultEntry => {
 	// The first image that actually resolves, not merely the first non-empty one: a record whose
 	// leading entry has unreadable bytes or an unusable url would otherwise show a placeholder and
 	// no download even though a later entry is perfectly renderable.
 	const imageSource =
 		(record.images ?? [])
-			.map((image) => vaultImageSource(image))
+			.map((image) => vaultImageSource(image, appOrigin))
 			.find((source) => source.length > 0) ?? '';
 	const title = record.intent.title;
 	return {
@@ -314,14 +339,16 @@ export const buildVaultEntry = (
  * `nowMs` is required, not defaulted: `AGENTS.md` classifies clock access as a seam, and reading
  * the clock here would put an unseamed `Date.now()` inside core logic that is otherwise pure. The
  * caller supplies the instant, which also makes every label a pure function of its inputs.
+ * `appOrigin` is supplied for the same reason — see `vaultImageSource`.
  */
 export const buildVaultEntries = (
 	records: readonly CreationRecord[],
-	options: { query?: string; nowMs: number }
+	options: { query?: string; nowMs: number; appOrigin?: string }
 ): VaultEntry[] => {
 	const nowMs = options.nowMs;
 	const query = options.query ?? '';
+	const appOrigin = options.appOrigin ?? '';
 	return sortVaultCreations(records)
 		.filter((record) => matchesVaultQuery(record, query))
-		.map((record) => buildVaultEntry(record, nowMs));
+		.map((record) => buildVaultEntry(record, nowMs, appOrigin));
 };

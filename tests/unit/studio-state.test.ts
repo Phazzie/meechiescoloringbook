@@ -512,7 +512,10 @@ describe('StudioState quote vault', () => {
 	// the adapter these tests actually depend on, and it keeps the identifier out of a
 	// `localStorage.setItem` call in test code, which CodeQL reads as storing a session token
 	// in the clear (`js/clear-text-storage-of-sensitive-data`).
-	const initVault = async (records: CreationRecord[]): Promise<StudioState> => {
+	const initVault = async (
+		records: CreationRecord[],
+		options: { readNow?: () => number } = {}
+	): Promise<StudioState> => {
 		const sessionSpy = vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
 			ok: true,
 			value: { sessionId: SESSION_ID }
@@ -521,6 +524,9 @@ describe('StudioState quote vault', () => {
 			await creationStoreAdapter.saveCreation({ record });
 		}
 		const studio = new StudioState();
+		if (options.readNow) {
+			studio.readNow = options.readNow;
+		}
 		await studio.init();
 		expect(sessionSpy).toHaveBeenCalled();
 		return studio;
@@ -528,6 +534,27 @@ describe('StudioState quote vault', () => {
 
 	afterEach(() => {
 		vi.restoreAllMocks();
+	});
+
+	// A studio left open across UTC midnight kept rendering yesterday's labels, because `nowMs`
+	// only advanced when the vault was read or written. Driving the clock explicitly is why
+	// `readNow` exists: the rollover is a real code path, not something to leave to whenever the
+	// suite happens to run.
+	it('refreshes saved-date labels when the tab returns after UTC midnight', async () => {
+		const savedAt = '2026-09-03T23:00:00.000Z';
+		let currentMs = Date.parse('2026-09-03T23:30:00.000Z');
+
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: savedAt })], {
+			readNow: () => currentMs
+		});
+
+		expect(studio.vaultEntries[0].savedLabel).toBe('Saved today');
+
+		// The tab sat in the background while the date rolled over.
+		currentMs = Date.parse('2026-09-04T09:00:00.000Z');
+		document.dispatchEvent(new Event('visibilitychange'));
+
+		expect(studio.vaultEntries[0].savedLabel).toBe('Saved yesterday');
 	});
 
 	it('keeps every saved page reachable instead of stopping at four', async () => {

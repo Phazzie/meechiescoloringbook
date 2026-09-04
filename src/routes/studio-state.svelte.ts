@@ -149,10 +149,21 @@ export class StudioState {
 	// page costs a paid generation, so a single mis-tap must never be able to destroy one.
 	pendingDeleteId = $state<string | null>(null);
 	undoableDeletion = $state<CreationRecord | null>(null);
+	// Every clock read behind the "Saved today / 3 days ago" labels goes through this one function.
+	// `AGENTS.md` classifies clock/time as a seam, and this repository has no clock seam — the
+	// pre-existing reads in this file (creation ids, `createdAtISO`) call `Date.now()` directly.
+	// Rather than invent a seam for a date label, the vault's reads are funnelled through a single
+	// injectable so the UTC-midnight rollover is drivable from a test instead of depending on when
+	// the suite happens to run. Declared before `nowMs` so the field initializer below can use it.
+	readNow: () => number = () => Date.now();
 	// Clock reading behind the "Saved today / 3 days ago" labels. Held as state and refreshed
 	// whenever the vault reloads so the labels stay a pure function of an explicit instant
 	// instead of re-reading the clock inside a $derived on every keystroke.
-	nowMs = $state(Date.now());
+	nowMs = $state(this.readNow());
+	// Origin the app is served from, used to decide whether a stored absolute image URL is
+	// same-origin and therefore loadable under the app's `img-src 'self'` CSP. '' during server
+	// rendering, where no image is painted anyway.
+	appOrigin = $state(typeof location === 'undefined' ? '' : location.origin);
 
 	// --- Wig try-on state ---
 	selectedWigId = $state<string | null>(null);
@@ -233,7 +244,11 @@ export class StudioState {
 	// to be raw store order truncated to four, so a fifth save made the first one unreachable
 	// even though the store keeps fifty.
 	vaultEntries = $derived(
-		buildVaultEntries(this.creations, { query: this.vaultQuery, nowMs: this.nowMs })
+		buildVaultEntries(this.creations, {
+			query: this.vaultQuery,
+			nowMs: this.nowMs,
+			appOrigin: this.appOrigin
+		})
 	);
 	visibleVaultEntries = $derived(
 		this.vaultShowAll
@@ -407,7 +422,7 @@ export class StudioState {
 			return;
 		}
 		this.vaultError = '';
-		this.nowMs = Date.now();
+		this.nowMs = this.readNow();
 		this.creations = sortVaultCreations(result.value);
 	}
 
@@ -809,9 +824,18 @@ export class StudioState {
 		if (!record) return;
 		// The store keeps a fixed number of records and drops the oldest past that. If the slot
 		// freed by the delete has since been taken by a new save, restoring would push the list
-		// back over the cap and silently evict somebody else's page — the exact failure this
-		// whole feature exists to stop — while reporting only that this one came back. Refuse,
-		// and say why, rather than trading one lost page for another.
+		// back over the cap and silently evict another page — the exact failure this whole feature
+		// exists to stop — while reporting only that this one came back. Refuse, and say why,
+		// rather than trading one lost page for another.
+		//
+		// This is a lower bound, not a store-wide guarantee. `creations` holds only the records
+		// matching the current owner, while the adapter applies its cap to the whole stored array.
+		// The two agree while `cb_session_id_v1` survives, since `buildOwner` derives the single
+		// owner from it; records orphaned under a previous session id still occupy slots this
+		// count cannot see. Closing that gap means deciding capacity inside `CreationStoreSeam` or
+		// exposing it through the contract — a contract change, and so the full Seam-Driven
+		// Development workflow. It is tracked with the other deferred seam work in
+		// `WORST_TO_BEST_LOG.md` rather than widened into this fix.
 		if (this.creations.length >= VAULT_CAPACITY) {
 			this.vaultError =
 				`The vault is full at ${VAULT_CAPACITY} pages, so "${record.intent.title}" cannot come ` +
@@ -885,7 +909,7 @@ export class StudioState {
 		if (typeof document === 'undefined') return;
 		this.onVisibilityChange = () => {
 			if (document.visibilityState === 'visible') {
-				this.nowMs = Date.now();
+				this.nowMs = this.readNow();
 			}
 		};
 		document.addEventListener('visibilitychange', this.onVisibilityChange);
