@@ -95,7 +95,7 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 					class="ghost-btn"
 					data-testid="who-again"
 					onclick={submit}
-					disabled={studio.isWorking}
+					disabled={studio.isWorking || studio.isGenerating}
 				>
 					{studio.isWorking ? 'Reading it again…' : 'Ask her again'}
 				</button>

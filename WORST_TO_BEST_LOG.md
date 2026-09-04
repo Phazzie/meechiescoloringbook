@@ -3248,3 +3248,50 @@ not cover the whole of what it claimed.
 
 `npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0/0. lint clean.
 test **1171 passed, 1 skipped**. build exit 0. playwright **22 passed**.
+
+---
+
+## Run 3, eleventh close-out — 2026-09-04 — the window a good fix opened
+
+Two findings on `e7b7d77`, both consequences of the change that stopped `makePage` destroying the
+page on entry. That change was right and stays. It opened a window that had not existed before, and
+two guards written for the old shape did not cover it.
+
+### Save was live while a replacement generated
+
+Page A stays on screen while B builds — that is the point of the change — so `canSaveToVault`
+stayed true. A save started in that window pins A's recipe and images while capturing **B's** token,
+and installing B does not bump the token again, so the save's staleness check passes and reports
+"Saved to the vault" beneath B. A was persisted, not B; the message was the lie.
+
+Blocked in the getter and again in `saveToVault`. Making the message honest instead was the other
+option and was rejected: the window is one generation long, and a save whose confirmation appears
+under a different page is confusing whatever the text says.
+
+### A replacement verdict could still discard a paid generation
+
+`requestVerdict` was guarded only by `isWorking`, so "Another one" during a generation would succeed
+and call `resetPage()` — throwing away a page already billed for.
+
+This is the **exact mirror** of a guard added earlier in this same branch, where `makePage` learned
+to refuse while `isWorking`. One rule — never start work whose only possible effect is to discard
+work already paid for — and this run implemented it in one direction and not the other, then took
+five more review rounds to notice.
+
+### Two tests had to change, and that is the point
+
+"discards a page whose verdict was replaced while it was generating" and its packaging twin both
+drove staleness by replacing the verdict mid-generation, which guard 2 now makes impossible.
+
+They were **not deleted**. The staleness they cover is still reachable through `reset()` — the
+reader walking away — so both now drive it that way, and both still fail when their guard is
+removed. A test that must change because a new guard made its scenario unreachable is evidence the
+guard does something real; a test deleted because it went red is evidence of nothing.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0/0. lint
+clean. test **1173 passed, 1 skipped**. build exit 0. playwright **22 passed**.
+
+**Seventeen guards** proven by deletion, every mutation asserted to have applied before its result
+was believed.

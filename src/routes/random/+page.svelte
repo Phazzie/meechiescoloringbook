@@ -75,7 +75,7 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 					class="ghost-btn"
 					data-testid="random-another"
 					onclick={() => void tap()}
-					disabled={studio.isWorking}
+					disabled={studio.isWorking || studio.isGenerating}
 				>
 					{studio.isWorking ? 'Deciding…' : 'Another one'}
 				</button>

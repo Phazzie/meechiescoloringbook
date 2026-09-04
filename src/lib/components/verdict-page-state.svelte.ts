@@ -266,9 +266,18 @@ export class VerdictPageState {
 		return this.generatedImages.length > 0 && this.lastRecipe !== null;
 	}
 
-	/** True when a save would actually be attempted, so the button can explain itself instead. */
+	/**
+	 * True when a save would actually be attempted, so the button can explain itself instead.
+	 *
+	 * `!isGenerating` is load-bearing since `makePage` stopped clearing the page on entry: page A
+	 * stays on screen while B generates, so without this the button is live, and a save started in
+	 * that window pins A's recipe and images while capturing B's token. Installing B does not bump
+	 * the token again, so the save's own staleness check passes and it reports "Saved to the vault"
+	 * under B — having persisted A. Blocking the window is simpler than making that message honest,
+	 * and the window is as short as one generation.
+	 */
 	get canSaveToVault(): boolean {
-		return this.hasPage && !this.isSaving;
+		return this.hasPage && !this.isSaving && !this.isGenerating;
 	}
 
 	/**
@@ -383,7 +392,11 @@ export class VerdictPageState {
 	async requestVerdict(
 		input: MeechieToolInput
 	): Promise<MeechieToolOutput | null> {
-		if (this.isWorking) return null;
+		// `isGenerating` blocks this for the same reason `isWorking` blocks `makePage`: a successful
+		// replacement calls `resetPage()`, which discards a generation the user has already been
+		// billed for. The two guards are one rule pointing in opposite directions — never start work
+		// whose only possible effect is to throw away work already paid for.
+		if (this.isWorking || this.isGenerating) return null;
 		this.error = '';
 		const parsedInput = MeechieToolInputSchema.safeParse(input);
 		if (!parsedInput.success) {
@@ -562,6 +575,10 @@ export class VerdictPageState {
 	async saveToVault(): Promise<void> {
 		if (this.isSaving || !this.lastRecipe || !this.pageVerdict) return;
 		if (this.generatedImages.length === 0) return;
+		// Same guard as `canSaveToVault`, enforced here too: this class is the shared contract for
+		// three routes and a future caller must not be able to reintroduce the ambiguity above by
+		// wiring its own button.
+		if (this.isGenerating) return;
 		// Pinned before any await for the same reason the generation path pins its verdict: these
 		// fields are cleared by `resetPage()`, and the record must describe the page that was on
 		// screen when the button was pressed.

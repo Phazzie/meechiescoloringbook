@@ -325,3 +325,33 @@ the original text stands and the correction supersedes it.
 
 Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
 check 0/0, lint clean, test 1171 passed / 1 skipped, build exit 0, playwright 22 passed.
+
+## Codex round on e7b7d77 — the two guards the non-destructive entry needed
+
+Both findings are consequences of the change that stopped `makePage` clearing the page on entry.
+That change was right; it opened a window that had not existed before, and neither guard covered it.
+
+1. Save was live while a replacement generated. Page A stays on screen while B builds, so the Save
+   button stayed enabled. A save started in that window pins A's recipe and images but captures B's
+   token — and installing B does not bump the token again, so the save's own staleness check passes
+   and it reports "Saved to the vault" beneath B, having persisted A. Blocked in `canSaveToVault`
+   and again in `saveToVault`, since this class is the shared contract for three routes.
+
+2. A replacement verdict could discard a paid generation. `requestVerdict` was guarded only by
+   `isWorking`, so "Another one" / "Ask her again" / "Re-run the ruling" during a generation would
+   succeed and call `resetPage()`, throwing away work already billed. This is the exact mirror of
+   the `isWorking` guard added to `makePage` earlier in this branch: one rule, two directions.
+   Guarded in the class and disabled on all three route buttons.
+
+### Two existing tests had to change, and that is the finding restated
+
+"discards a page whose verdict was replaced while it was generating" and its packaging twin both
+drove staleness by replacing the verdict mid-generation — which guard 2 now makes impossible. They
+were not deleted: the staleness they cover is still reachable through `reset()`, the reader walking
+away, so both now drive it that way and still fail when their guard is removed. A test that had to
+change because a new guard made its scenario unreachable is evidence the guard does something.
+
+Seventeen guards are proven by deletion, every mutation asserted to have applied first.
+
+Re-run on this head: npm run verify exit 0 (all eight stages, audit gate 0 vulnerabilities),
+check 0/0, lint clean, test 1173 passed / 1 skipped, build exit 0, playwright 22 passed.

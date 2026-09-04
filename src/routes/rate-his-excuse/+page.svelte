@@ -132,7 +132,7 @@ Info flow: Excuse input -> VerdictPageState.requestVerdict (rate_excuse) -> scor
 					class="ghost-btn"
 					data-testid="rate-again"
 					onclick={() => void submit()}
-					disabled={studio.isWorking}
+					disabled={studio.isWorking || studio.isGenerating}
 				>
 					{studio.isWorking ? 'Court is reviewing…' : 'Re-run the ruling'}
 				</button>

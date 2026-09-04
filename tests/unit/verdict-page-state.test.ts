@@ -584,17 +584,51 @@ describe('makePage', () => {
 		const generating = state.makePage();
 		expect(state.isGenerating).toBe(true);
 
-		// A new verdict lands while the page for the old one is still being built.
-		routes.tools = okTools(PLAIN_VERDICT);
-		await state.requestVerdict({ toolId: 'random_meechie' });
+		// The reader walks away from this verdict while its page is still being built. (A
+		// *replacement verdict* can no longer do this — `requestVerdict` refuses while a generation
+		// is in flight, precisely so an already-billed page is never discarded — so `reset()` is the
+		// path that still reaches this guard.)
+		state.reset();
 
 		gate.resolve(jsonResponse({ ok: true, value: generateValue() }));
 		await generating;
 
-		expect(state.verdict).toEqual(PLAIN_VERDICT);
+		expect(state.verdict).toBeNull();
 		expect(state.hasPage).toBe(false);
 		expect(state.imagePreviews).toEqual([]);
 		expect(state.isGenerating).toBe(false);
+	});
+
+	it('refuses a replacement verdict while a generation is in flight', async () => {
+		// The mirror of the `isWorking` guard on `makePage`. A successful replacement calls
+		// `resetPage()`, which would discard a generation the user has already been billed for.
+		const state = await readyState();
+		routes.tools = okTools(STRUCTURED_VERDICT);
+		await state.requestVerdict({
+			toolId: 'red_flag_or_run',
+			situation: 'The first one.'
+		});
+
+		const gate = defer<Response>();
+		routes.generate = () => gate.promise;
+		const generating = state.makePage();
+		expect(state.isGenerating).toBe(true);
+
+		routes.tools = okTools(PLAIN_VERDICT);
+		const toolsCallsBefore = fetchCalls.filter(
+			(u) => u === '/api/tools'
+		).length;
+		await expect(
+			state.requestVerdict({ toolId: 'random_meechie' })
+		).resolves.toBeNull();
+		expect(fetchCalls.filter((u) => u === '/api/tools')).toHaveLength(
+			toolsCallsBefore
+		);
+		expect(state.verdict).toEqual(STRUCTURED_VERDICT);
+
+		gate.resolve(jsonResponse({ ok: true, value: generateValue() }));
+		await generating;
+		expect(state.hasPage).toBe(true);
 	});
 
 	it('refuses to start a generation while a replacement verdict is in flight', async () => {
@@ -646,13 +680,14 @@ describe('makePage', () => {
 		const generating = state.makePage();
 		await flush();
 
-		routes.tools = okTools(PLAIN_VERDICT);
-		await state.requestVerdict({ toolId: 'random_meechie' });
+		// Abandoned by the reader, not by a replacement verdict: `requestVerdict` now refuses while
+		// a generation is in flight, so `reset()` is what still reaches this window.
+		state.reset();
 
 		gate.resolve({ ok: true, value: { files: [shareFile] } });
 		await generating;
 
-		expect(state.verdict).toEqual(PLAIN_VERDICT);
+		expect(state.verdict).toBeNull();
 		expect(state.hasPage).toBe(false);
 		expect(state.imagePreviews).toEqual([]);
 		expect(state.packagedFiles).toEqual([]);
@@ -831,6 +866,29 @@ describe('saveToVault', () => {
 		const record = vi.mocked(creationStoreAdapter.saveCreation).mock.calls[0][0]
 			.record as CreationRecord;
 		expect(record.createdAtISO).toBe(new Date(1_700_000_000_000).toISOString());
+	});
+
+	it('refuses to save while a replacement page is generating', async () => {
+		// Since `makePage` stopped clearing the page on entry, page A stays on screen while B
+		// generates. Without this guard the Save button is live, and a save started in that window
+		// pins A's recipe and images while capturing B's token — and because installing B does not
+		// bump the token again, the save's own staleness check passes and it reports "Saved to the
+		// vault" under B, having persisted A.
+		const state = await withPage(STRUCTURED_VERDICT);
+		expect(state.canSaveToVault).toBe(true);
+
+		const gate = defer<Response>();
+		routes.generate = () => gate.promise;
+		const generating = state.makePage();
+		expect(state.isGenerating).toBe(true);
+
+		expect(state.canSaveToVault).toBe(false);
+		await state.saveToVault();
+		expect(creationStoreAdapter.saveCreation).not.toHaveBeenCalled();
+
+		gate.resolve(jsonResponse({ ok: true, value: generateValue() }));
+		await generating;
+		expect(state.canSaveToVault).toBe(true);
 	});
 
 	it('does nothing when there is no page to save', async () => {
