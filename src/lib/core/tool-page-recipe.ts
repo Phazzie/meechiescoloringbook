@@ -229,8 +229,12 @@ const anyCase = (word: string): string =>
  * wrong here: a merged pair still reads as finished prose and simply fails the length check, while
  * a bad split prints a page with two characters on it.
  */
+// The terminator may be followed by a closing quote or bracket before the space: a verdict that
+// quotes someone ends `He said "I was busy." Then he changed the story.` Requiring the terminator
+// immediately before the space missed that, so the pair came back as one oversized sentence and the
+// title fell back to a mid-sentence cut even though the first sentence would have fitted.
 const SENTENCE_BOUNDARY = new RegExp(
-	`(?<=[.!?])(?<!\\b(?:${SENTENCE_ABBREVIATIONS.map(anyCase).join('|')})\\.)(?<![A-Z]\\.) (?=["'(]?[A-Z0-9])`
+	`(?<=[.!?]["'”’)\\]]?)(?<!\\b(?:${SENTENCE_ABBREVIATIONS.map(anyCase).join('|')})\\.)(?<![A-Z]\\.) (?=["'“(]?[A-Z0-9])`
 );
 
 /**

@@ -774,3 +774,35 @@ describe('ranked entries keep quoted speech intact', () => {
 		expect(extractRankedEntries('1. "Long distance - no calls"')).toEqual([]);
 	});
 });
+
+describe('sentence boundaries see past a closing quote', () => {
+	it('splits after a quoted sentence', () => {
+		expect(splitResponseLines('He said "I was busy." Then he changed the story.')).toEqual([
+			'He said "I was busy."',
+			'Then he changed the story.'
+		]);
+		expect(splitResponseLines('He said (allegedly.) Then he left.')).toEqual([
+			'He said (allegedly.)',
+			'Then he left.'
+		]);
+	});
+
+	it('prints the whole first sentence of a long response that ends on a quote', () => {
+		const long =
+			'He said "I was busy." Then he changed the story twice more before the receipt turned up ' +
+			'on the counter.';
+		const recipe = buildToolPageRecipe(output('red_flag_or_run', long));
+		expect(recipe.spec.title).toContain('I was busy');
+		expect(recipe.spec.title.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH);
+	});
+
+	it('still refuses to split an abbreviation or a lowercase continuation', () => {
+		expect(splitResponseLines('Dr. Reyes lied. He filed it anyway.')).toEqual([
+			'Dr. Reyes lied.',
+			'He filed it anyway.'
+		]);
+		expect(splitResponseLines('He called at 9 p.m. and never showed up.')).toEqual([
+			'He called at 9 p.m. and never showed up.'
+		]);
+	});
+});

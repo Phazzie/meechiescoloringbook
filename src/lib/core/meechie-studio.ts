@@ -432,6 +432,33 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	 * duplicate of its own title.
 	 */
 	includeFooter?: boolean;
+	/**
+	 * The presentation of the page being rebuilt, when there is one to carry forward.
+	 *
+	 * Same reason as `listMode` and `includeFooter`, and the same omission they each were: a page
+	 * saved by the tools hub is centered, large, stroke 9, loose gutter, 35 whitespace. Rebuilding
+	 * dropped all of that back to the studio's own defaults, so changing something as narrow as page
+	 * size silently returned a visibly different layout — left-aligned, small, stroke 6. Layout,
+	 * footer and presentation are the same question: is this still the page that was reopened?
+	 */
+	presentation?: Partial<
+		Pick<
+			ColoringPageSpec,
+			| 'alignment'
+			| 'numberAlignment'
+			| 'listGutter'
+			| 'whitespaceScale'
+			| 'textSize'
+			| 'fontStyle'
+			| 'textStrokeWidth'
+			| 'colorMode'
+			| 'decorations'
+			| 'illustrations'
+			| 'shading'
+			| 'borderThickness'
+			| 'variations'
+		>
+	>;
 }): ColoringPageSpec => ({
 	title: normalizeSpecTitle(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle),
 	// `title_only` forbids both items and a footer item, so a quote page carries neither.
@@ -454,20 +481,21 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 				}
 			}),
 	listMode: input.listMode ?? 'list',
-	alignment: 'left',
-	numberAlignment: 'strict',
-	listGutter: 'normal',
-	whitespaceScale: 50,
-	textSize: 'small',
-	fontStyle: 'rounded',
-	textStrokeWidth: 6,
-	colorMode: 'black_and_white_only',
-	decorations: input.styleHint.includes('receipt') ? 'dense' : 'minimal',
-	illustrations: 'simple',
-	shading: 'none',
+	alignment: input.presentation?.alignment ?? 'left',
+	numberAlignment: input.presentation?.numberAlignment ?? 'strict',
+	listGutter: input.presentation?.listGutter ?? 'normal',
+	whitespaceScale: input.presentation?.whitespaceScale ?? 50,
+	textSize: input.presentation?.textSize ?? 'small',
+	fontStyle: input.presentation?.fontStyle ?? 'rounded',
+	textStrokeWidth: input.presentation?.textStrokeWidth ?? 6,
+	colorMode: input.presentation?.colorMode ?? 'black_and_white_only',
+	decorations:
+		input.presentation?.decorations ?? (input.styleHint.includes('receipt') ? 'dense' : 'minimal'),
+	illustrations: input.presentation?.illustrations ?? 'simple',
+	shading: input.presentation?.shading ?? 'none',
 	border: input.border,
-	borderThickness: 8,
-	variations: 1,
+	borderThickness: input.presentation?.borderThickness ?? 8,
+	variations: input.presentation?.variations ?? 1,
 	outputFormat: 'pdf',
 	pageSize: input.pageSize,
 	dedication: input.dedication

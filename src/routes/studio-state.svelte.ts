@@ -401,7 +401,11 @@ export class StudioState {
 			// cleared the flag but left that spec in place, so the next studio-authored list was
 			// built without a footer, and every rebuild after that read the spec it had just built
 			// and kept the absence forever.
-			includeFooter: this.restoredPageLayout ? this.spec.footerItem !== undefined : true
+			includeFooter: this.restoredPageLayout ? this.spec.footerItem !== undefined : true,
+			// And the rest of the reopened page's presentation, for the same reason and off the same
+			// flag. Preserving only the layout and the footer still handed back a visibly different
+			// page — left-aligned, small, stroke 6 — the moment any setting changed.
+			presentation: this.restoredPageLayout ? this.spec : undefined
 		});
 		await this.validateSpec();
 		this.scheduleDraftSave();

@@ -1072,6 +1072,49 @@ describe('StudioState quote vault', () => {
 		expect(studio.spec.footerItem).toBeDefined();
 	});
 
+	it('keeps a reopened page looking like itself when a setting changes', async () => {
+		// A toolkit page is centered, large, stroke 9, loose gutter, 35 whitespace. Rebuilding
+		// dropped every one of those to the studio's own defaults, so changing something as narrow
+		// as page size handed back a visibly different page.
+		const studio = registerInitialized(new StudioState());
+		const toolkitSpec = {
+			...buildColoringPageSpecFromMeechieText({
+				output: DEFAULT_STUDIO_TEXT_OUTPUT,
+				pageSize: 'US_Letter',
+				border: 'decorative',
+				styleHint: 'crown',
+				listMode: 'title_only'
+			}),
+			alignment: 'center' as const,
+			textSize: 'large' as const,
+			textStrokeWidth: 9,
+			listGutter: 'loose' as const,
+			whitespaceScale: 35
+		};
+		await studio.loadCreation({
+			id: 'creation-presentation',
+			createdAtISO: '2026-09-04T00:00:00.000Z',
+			intent: toolkitSpec,
+			assembledPrompt: 'a saved toolkit quote page',
+			studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.alignment).toBe('center');
+		expect(studio.spec.textSize).toBe('large');
+		expect(studio.spec.textStrokeWidth).toBe(9);
+		expect(studio.spec.listGutter).toBe('loose');
+		expect(studio.spec.whitespaceScale).toBe(35);
+
+		// And a fresh studio verdict goes back to the studio's own presentation.
+		const nextMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
+		studio.handleModeSelect(nextMode!.id);
+		await studio.syncSpecFromCurrentText();
+		expect(studio.spec.alignment).toBe('left');
+		expect(studio.spec.textStrokeWidth).toBe(6);
+	});
+
 	it('never loads the image prompt into the evidence box', async () => {
 		// The evidence box is editable and the reader's next Generate Verdict sends it to the text
 		// provider as their own words. Falling back to `assembledPrompt` for a record saved without

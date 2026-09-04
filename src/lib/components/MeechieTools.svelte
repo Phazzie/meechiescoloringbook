@@ -150,7 +150,10 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	let pageVerdict: MeechieToolOutput | null = null;
 	// Incremented whenever the displayed page stops being current. An in-flight generation
 	// compares its own token against this and discards itself if it lost the race.
+	// Two independent request lifetimes, two tokens. `/api/tools` (the verdict) and `/api/generate`
+	// (the page) can be in flight at once, and a page-only action must not cancel a pending verdict.
 	let pageToken = 0;
+	let verdictToken = 0;
 	let dedicatedTo = '';
 	let copyStatus = '';
 	let vaultStatus = '';
@@ -178,13 +181,10 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	 */
 	const resetPage = (): void => {
 		pageToken += 1;
-		// Both in-flight flags are released here, not just the page one. The staleness guards below
-		// deliberately stop an abandoned request from clearing a *newer* request's flag — which
-		// means the abandoned request clears nothing at all, so the reset has to do it. Without
-		// this, switching tools while `/api/tools` was pending left `isWorking` true forever and
-		// the verdict button disabled until a reload.
+		// Only the page flag is released here. `isWorking` belongs to the verdict request and is
+		// released by `resetVerdict`; releasing it from a page-only action used to abandon a
+		// perfectly good verdict request that the reader had never cancelled.
 		isGenerating = false;
-		isWorking = false;
 		generateError = '';
 		imagePreviews = [];
 		packagedFiles = [];
@@ -199,9 +199,28 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		copyStatus = '';
 	};
 
+	/**
+	 * Abandon an in-flight verdict request.
+	 *
+	 * Separate from `resetPage` because the two are separate requests with separate lifetimes.
+	 * While a verdict is pending the reader can still press Make Page or edit the dedication on the
+	 * verdict already on screen — both page-only actions. Those called `resetPage`, which advanced
+	 * the single shared token that `handleGenerate` had captured, so the verdict arrived, was read
+	 * as stale, and was thrown away though nobody had cancelled it.
+	 *
+	 * `isWorking` is released here rather than in the request's own `finally`, because the
+	 * staleness guard deliberately stops an abandoned request from clearing a newer one's flag —
+	 * which leaves the abandoned request clearing nothing at all.
+	 */
+	const resetVerdict = (): void => {
+		verdictToken += 1;
+		isWorking = false;
+	};
+
 	const resetState = (): void => {
 		error = '';
 		output = null;
+		resetVerdict();
 		resetPage();
 	};
 
@@ -231,9 +250,15 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 
 	const handleMakePage = async (): Promise<void> => {
 		if (!output || isGenerating) return;
-		// `resetPage` first: it bumps the token, so this run claims the value it leaves behind and
-		// any earlier in-flight run is already stale by the time this one starts.
-		resetPage();
+		// Advance the token without clearing anything. Any earlier in-flight run is stale from here,
+		// but the page already on screen stays: it cost a paid generation, and until a replacement
+		// has actually arrived it is the best thing this component has. Calling `resetPage()` here
+		// meant a timeout, a provider error or an off-contract response deleted a good page and left
+		// the reader with nothing — the same defect as the verdict path, on the page path.
+		pageToken += 1;
+		generateError = '';
+		vaultStatus = '';
+		copyStatus = '';
 		isGenerating = true;
 
 		// Pin the verdict this run belongs to, and take a token for it.
@@ -265,27 +290,11 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			}
 
 			const images = parsed.data.value.images;
-			// Two calls, not one with `variants: ['print', 'square']`. The adapter builds the print
-			// file first and then returns the square failure *without* its accumulated files, so a
-			// browser that cannot encode the 1080px share canvas would take the printable PDF down
-			// with it. The PDF is the product; the square image is a nicety.
-			const fileBaseName = `meechie-${verdict.toolId}-${Date.now()}`;
-			const printResult = await outputPackagingAdapter.package({
-				images,
-				outputFormat: 'pdf',
-				fileBaseName,
-				pageSize: recipe.spec.pageSize,
-				variants: ['print']
-			});
-			const shareResult = await outputPackagingAdapter.package({
-				images,
-				outputFormat: 'pdf',
-				fileBaseName,
-				pageSize: recipe.spec.pageSize,
-				variants: ['square']
-			});
-			if (isStale()) return;
 
+			// Install the page before packaging it. The generation is the paid part and it has
+			// already succeeded here; packaging is a local render that can fail on its own. Leaving
+			// the install until after meant any packaging problem skipped it entirely and threw the
+			// whole page away.
 			pageVerdict = verdict;
 			lastRecipe = recipe;
 			generatedImages = images;
@@ -296,14 +305,48 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			imagePreviews = images
 				.map(previewUrl)
 				.filter((url): url is string => url !== null);
-			packagedFiles = [
-				...(printResult.ok ? printResult.value.files : []),
-				...(shareResult.ok ? shareResult.value.files : [])
-			];
-			if (!printResult.ok) {
-				generateError = `Page made, but the printable download could not be built: ${printResult.error.message}`;
-			} else if (!shareResult.ok) {
-				generateError = `Page and PDF are ready; the square share image could not be built: ${shareResult.error.message}`;
+			packagedFiles = [];
+
+			// Two calls, not one with `variants: ['print', 'square']`. The adapter builds the print
+			// file first and then returns the square failure *without* its accumulated files, so a
+			// browser that cannot encode the 1080px share canvas would take the printable PDF down
+			// with it. The PDF is the product; the square image is a nicety.
+			//
+			// Each call is caught on its own, because the adapter does not wrap every failure into a
+			// `Result` — pdf-lib and the canvas both throw. A rejection from the square call used to
+			// escape to the outer catch and discard the print PDF that had already been built.
+			const fileBaseName = `meechie-${verdict.toolId}-${Date.now()}`;
+			const packageVariant = async (
+				variant: 'print' | 'square'
+			): Promise<{ files: PackagedFile[]; error: string | null }> => {
+				try {
+					const result = await outputPackagingAdapter.package({
+						images,
+						outputFormat: 'pdf',
+						fileBaseName,
+						pageSize: recipe.spec.pageSize,
+						variants: [variant]
+					});
+					return result.ok
+						? { files: result.value.files, error: null }
+						: { files: [], error: result.error.message };
+				} catch (packagingError) {
+					return {
+						files: [],
+						error:
+							packagingError instanceof Error ? packagingError.message : 'Packaging failed.'
+					};
+				}
+			};
+			const print = await packageVariant('print');
+			const share = await packageVariant('square');
+			if (isStale()) return;
+
+			packagedFiles = [...print.files, ...share.files];
+			if (print.error !== null) {
+				generateError = `Page made, but the printable download could not be built: ${print.error}`;
+			} else if (share.error !== null) {
+				generateError = `Page and PDF are ready; the square share image could not be built: ${share.error}`;
 			}
 		} catch (requestError) {
 			if (isStale()) return;
@@ -473,8 +516,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		// under B's tab — and the next click would spend a paid generation on A's verdict while the
 		// screen showed B.
 		const requestedTool = selectedTool;
-		const token = pageToken;
-		const isStale = (): boolean => token !== pageToken || selectedTool !== requestedTool;
+		const token = verdictToken;
+		const isStale = (): boolean => token !== verdictToken || selectedTool !== requestedTool;
 		// Recorded rather than recomputed at the end, because the success path calls `resetState()`,
 		// which bumps `pageToken` itself. Re-asking `isStale()` in the `finally` after that would
 		// read its own reset as someone else's and leave the button disabled forever.

@@ -1827,3 +1827,68 @@ made from reading is a hypothesis until it is measured.
 
 Six times in this run, a fix created the next defect. Every one of those was correct about the thing
 it was fixing.
+
+---
+
+## Run 2, correction — 2026-09-04 — six findings I merged past
+
+I merged PR #291 believing Codex's review of `6392c96` was clean. It was not. The review's body was
+boilerplate and its six findings — one of them **P1** — were posted as separate inline comments,
+which I never fetched. I read the wrong surface, concluded "no findings," said so to my user, and
+merged.
+
+The count in the close-out above is therefore wrong twice over: **thirteen rounds, 55 findings, 23
+real user-visible defects.** This entry supersedes it. The log is append-only, so it stands as
+written.
+
+The mistake worth naming is not the merge itself — the code fixes below are all tractable follow-ups
+and none is a data-loss bug in `main`'s persisted records. It is that I asserted a verification I had
+not performed. Every other claim in this run was measured before it was made; this one was assumed
+because it was the answer I wanted.
+
+### P1 — the page path had the defect I had just fixed on the verdict path
+
+`handleMakePage` called `resetPage()` before `/api/generate` returned, so a timeout, a provider error
+or an off-contract response deleted a page the reader had already paid for. Two hours earlier I fixed
+exactly this in `handleGenerate` and wrote a close-out about not asking who else does the same thing.
+Then I did not ask.
+
+Now the token advances without clearing, and the page is replaced only where a replacement arrived.
+
+### Packaging rejections took the finished PDF with them
+
+The two-call split protects the print PDF from a square-variant **`Result` failure**. It did not
+protect it from a **rejection** — pdf-lib and the canvas throw, and the adapter does not wrap that
+into a `Result`, so the throw escaped to the outer catch before any state was installed. The page is
+now installed first, and each packaging call is caught on its own.
+
+### One token for two requests
+
+Verdicts and pages are separate requests with separate lifetimes, and they shared `pageToken`. While
+a verdict was pending, pressing Make Page or editing the dedication called `resetPage`, advanced the
+token `handleGenerate` had captured, and the good verdict was discarded as stale though nobody had
+cancelled it. Split into `verdictToken` and `pageToken`; `isWorking` now belongs to the verdict reset
+rather than the page reset.
+
+### A closing quote hid the sentence end
+
+`(?<=[.!?])` required the terminator immediately before the space, so `He said "I was busy." Then he
+changed the story.` came back as one oversized sentence and the title fell back to a mid-sentence
+cut. The lookbehind now allows a closing quote or bracket between the two.
+
+### A reopened page stopped looking like itself
+
+Preserving `listMode` and the footer was not enough. `buildColoringPageSpecFromMeechieText` still
+replaced alignment, text size, stroke width, list gutter and whitespace with the studio's defaults,
+so changing something as narrow as page size returned a visibly different page. All of it is carried
+forward now, off the same `restoredPageLayout` flag — the third time this run that flag turned out to
+be answering a question narrower than the one being asked.
+
+### Not fixed: vault records do not carry their originating tool
+
+A toolkit page saved and reopened leaves `activeModeId` at whatever mode happens to be selected, so
+revising a saved horoscope under Rate His Excuse rewrites it in the wrong voice and spends revision
+budget doing it. Real, and I am not fixing it here: the honest fix stores the tool on the record,
+which is a field on `CreationRecord` — a contract change, and contract changes take the full
+Seam-Driven Development workflow rather than a follow-up patch. Raised for a decision rather than
+worked around.

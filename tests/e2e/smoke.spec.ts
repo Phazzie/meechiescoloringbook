@@ -680,3 +680,71 @@ test('a failed replacement verdict does not destroy the page already on screen',
 	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
 	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
 });
+
+test('a failed regeneration does not destroy the page already on screen', async ({ page }) => {
+	// The page path had the same defect the verdict path did: `handleMakePage` cleared the preview,
+	// the downloads, the images and the save recipe before `/api/generate` had returned, so a
+	// timeout or a provider error deleted a page the reader had already paid for.
+	let generateCalls = 0;
+	await page.route('**/api/generate', async (route) => {
+		generateCalls += 1;
+		if (generateCalls === 1) {
+			await route.fulfill({ json: generatedPage });
+			return;
+		}
+		await route.fulfill({ status: 500, json: { message: 'provider exploded' } });
+	});
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
+
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+
+	// Second attempt fails.
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.getByTestId('meechie-tool-generate-error')).toBeVisible();
+
+	// The paid page is still on screen and still downloadable.
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
+});
+
+test('making a page does not cancel a verdict request nobody cancelled', async ({ page }) => {
+	// Verdicts and pages are separate requests. They shared one token, so pressing Make Page (or
+	// editing the dedication) on the verdict already displayed advanced the token the pending
+	// `/api/tools` request had captured, and the good verdict was thrown away as stale.
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	let toolsCalls = 0;
+	await page.route('**/api/tools', async (route) => {
+		toolsCalls += 1;
+		const body = route.request().postDataJSON() as { toolId?: string };
+		if (toolsCalls === 2) await held;
+		await route.fulfill({ json: toolPayload(body.toolId ?? 'unknown') });
+	});
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
+
+	// A page has to exist for the dedication handler to reset anything — that reset is what used to
+	// advance the shared token out from under the pending verdict request.
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+
+	// A second verdict request, held open, with a page-only action running underneath it.
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-generate')).toBeDisabled();
+	await page.getByTestId('meechie-tool-dedication').fill('For Ray');
+
+	// The held verdict was never cancelled, so it must still land and re-enable the button.
+	release();
+	await expect(page.getByTestId('meechie-tool-output')).toContainText('Fault: them');
+	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
+});
