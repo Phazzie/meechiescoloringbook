@@ -3652,3 +3652,68 @@ duplicated.
 
 `npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0 errors /
 0 warnings. lint exit 0. test **1187 passed, 1 skipped**. build exit 0. playwright **26 passed**.
+
+---
+
+## Run 4, second close-out — 2026-09-04 — the Codex round on `75b0017`
+
+Appended, not edited. Three findings: **two accepted and fixed, one declined and its thread left
+open.** Both accepted ones were measured before being fixed and mutated afterwards.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P2 | On `/m/random`, dedicating a saying and then pressing "Ask her again" installed a new saying but left the dedication, so the next coloring page was dedicated with text chosen for the previous one. | **Real, and a regression of a defect this repository had already fixed once.** `/random` solves it and its comment states the rule precisely: a mode that asks *nothing* returns a new subject every tap, so the dedication must not ride along; a mode that asks a question is re-asking about the same situation, so its dedication still belongs. The generic page had no split at all — it was fire-and-forget. It now awaits the installed verdict and clears only for the inputless mode. **Both halves are tested**, because the fix is a split and not a blanket clear. |
+| P2 | The ambient decoration sits `right: -2rem`; below the 680px maximum the page fills the viewport, so the overhang became real document width and the page could be panned sideways on a phone. | **Real, and measured before it was believed.** At a 390px viewport `scrollWidth` was **422** against a `clientWidth` of 390 — exactly 32px, the `2rem` overhang. `overflow-x: clip` on `.page` takes it to 390. `clip` rather than `hidden`, which would make the page a scroll container on both axes. |
+| P1 | "Apply the full seam workflow to the new factory path" — mounting `VerdictPageStudio` newly exposes generation, packaging, session-backed vault storage and clock-dependent saves, so the "Seams touched: none" classification is wrong. | **Declined, thread left open.** Answered on the thread with the diff evidence. |
+
+### The 32px was on three other routes too
+
+The overflow finding was written about `MeechieModePage.svelte`, and the same measurement run
+against the three standalone mode routes returned **the identical 32px** — they carry the same
+decoration with the same offset. Fixing only the file the reviewer named would have left the
+identical defect in three neighbours, on the same mobile viewport, one line away. All four now
+measure 0.
+
+That is the opposite of the run's own scope rule, and worth stating plainly rather than quietly:
+"keep the fix minimal" means do not widen the *change*, not decline to apply a one-line fix to the
+places already proven to have the same bug.
+
+### Why the seam P1 is declined again
+
+This is the same argument raised on run 3's PR #293, declined there, and left open there for the
+same reason. The classification is checkable rather than asserted:
+
+- **No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`,
+  `src/lib/adapters/` or `src/lib/seams/` is in this diff.** The whole non-documentation diff is
+  eight files: one core module, one component, two route files, one error page, two test files, and
+  one deletion.
+- **`verdict-page-state.svelte.ts` — the module that actually calls those adapters — is not
+  modified by this pull request at all.** Every seam call the finding names is made by code that
+  already existed and is unchanged, on behalf of three routes that already made them.
+- No contract shape changed, so nothing crosses a seam boundary differently than it did before.
+
+`AGENTS.md` requires the workflow for a change that *touches* a seam, changes a file under those
+directories, or *alters observable behavior across a seam boundary*. Adding a fourth caller to an
+adapter does none of those. Applied as the finding states it, the rule fires on every new screen in
+the app: a new page that saves to the vault would need a fresh contract, probe, fixture, mock and
+red proof for `CreationStoreSeam` — which already has all five.
+
+**The thread is left unresolved on purpose.** It is the only finding in this pull request that was
+refused, and a human should see that decision sitting open rather than have to reconstruct it from
+a merged log. That is the same handling run 3 gave the same argument.
+
+A caution for the next run, since this is now the second time this has been declined: *"the last
+run declined it" is not the reason.* The reason is the diff, re-checked on this pull request with
+the commands above. Run 3's own log records that an inherited claim is not evidence, and a refusal
+inherited without re-measuring would be exactly that mistake wearing a confident face.
+
+### Evidence on this head
+
+`npm run verify` exit 0, all eight stages, audit gate found 0 vulnerabilities. check 0 errors /
+0 warnings. lint exit 0. test **1187 passed, 1 skipped**. build exit 0. playwright **28 passed**
+(two new: the phone-width overflow measurement and the dedication split). SonarCloud Quality Gate
+**passed** on the previous head with 0.0% duplication on new code.
+
+Both new guards proven by mutation: removing the dedication clear fails with
+`Received "For the group chat"`, and removing `overflow-x: clip` fails with
+`/m/who-fucked-up pans sideways by 32px`.

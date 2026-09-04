@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain re-run at 2026-09-04T18:52Z on the second head (SonarCloud duplication fix)
+# Chain re-run at 2026-09-04T18:54Z on the third head (the Codex round on 75b0017)
 #
 # Change under test: the focused-mode pages behind /m/<slug> — the only page five of the eight
 # modes have, and where every focused-mode link on the home page lands — stop dead-ending at a
@@ -37,7 +37,7 @@ Run on this head after the chain, then `npm run proof:tape` once more so the tap
 
   npm run lint        exit 0, clean                  -> lint.txt
   npm run build       exit 0                         -> build.txt
-  npx playwright test 26 passed                      -> e2e.txt
+  npx playwright test 28 passed                      -> e2e.txt
 
 And by the chain itself:
 
@@ -45,7 +45,7 @@ And by the chain itself:
   npm test            1187 passed | 1 skipped        -> test.txt
 
 Baseline on main at 210b301, for comparison: 1173 unit tests passed | 1 skipped, 22 e2e passed.
-This head adds 14 unit tests (tests/unit/mode-catalog.test.ts) and 4 e2e tests.
+This head adds 14 unit tests (tests/unit/mode-catalog.test.ts) and 6 e2e tests.
 
 ## The ordering rule for the standalone artifacts, which still holds
 
@@ -103,3 +103,34 @@ duplication in new code. The two internal repeats it still finds in `tests/e2e/s
 
 Evidence on this head: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped,
 build exit 0, playwright 26 passed, `npm run verify` exit 0 across all eight stages.
+
+## Round 3 — the Codex round on 75b0017: two accepted, one declined
+
+Both accepted findings were measured before they were fixed and mutated after, rather than taken on
+the reviewer's word or on mine.
+
+  - **The dedication survived a replacement saying on /m/random.** Real. `/random` already solves
+    this and its comment states the rule exactly: a mode that asks nothing returns a new subject
+    every tap, so a dedication chosen for the previous saying must not ride along; a mode that asks
+    a question is re-asking about the same situation, so its dedication still belongs. The generic
+    page had no split at all. Now it awaits the installed verdict and clears only for the inputless
+    mode. Both halves are asserted, because the fix is a split and not a blanket clear. Removing the
+    clear fails the test with Received "For the group chat".
+
+  - **The ambient decoration widened the document on a phone.** Real, and measured before being
+    believed: at a 390px viewport `document.documentElement.scrollWidth` was 422 against a
+    clientWidth of 390 — exactly the decoration's `right: -2rem` overhang — so the page could be
+    panned sideways into blank space. `overflow-x: clip` on `.page` (not `hidden`, which would make
+    it a scroll container on both axes) takes it to 390. The same 32px was measured on all three
+    standalone mode routes, which carry the identical decoration, so the one-line fix went to all
+    four rather than leaving the same defect next door. Removing it fails the test with
+    "/m/who-fucked-up pans sideways by 32px".
+
+The declined finding is the seam-workflow P1, answered on its thread and deliberately left open.
+The evidence for the classification in this file's header is unchanged and is checkable: no file
+under contracts/, probes/, fixtures/, src/lib/mocks/, tests/contract/, src/lib/adapters/ or
+src/lib/seams/ is in the diff, and `verdict-page-state.svelte.ts` — the module that actually calls
+those adapters — is not modified by this pull request at all.
+
+Evidence on this head: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped,
+build exit 0, playwright 28 passed, `npm run verify` exit 0 across all eight stages.

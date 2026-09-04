@@ -43,13 +43,22 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 
 	const canSubmit = $derived(isModeInputComplete(config, values));
 
-	const submit = (): void => {
+	const submit = async (): Promise<void> => {
 		if (!canSubmit) return;
-		void studio.requestVerdict(config.buildInput(values));
+		const installed = await studio.requestVerdict(config.buildInput(values));
+		// A mode that asks nothing — Random Meechie — returns a different subject every time, so a
+		// dedication chosen for the previous saying must not ride along and end up printed on,
+		// downloaded with, or saved against a saying it was never meant for. A mode that asks a
+		// question is re-asking about the same situation, so its dedication still belongs and is
+		// left alone. `/random` and the two other standalone routes split on exactly this line.
+		//
+		// Cleared only once a replacement has actually arrived: a failed re-ask keeps the saying and
+		// its page as they were, dedication included.
+		if (installed && config.fields.length === 0) studio.setDedication('');
 	};
 
 	const handleKeydown = (event: KeyboardEvent): void => {
-		if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) submit();
+		if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) void submit();
 	};
 
 	const startOver = (): void => {
@@ -112,7 +121,7 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 				type="button"
 				class="cta"
 				data-testid="mode-submit"
-				onclick={submit}
+				onclick={() => void submit()}
 				disabled={studio.isWorking || !canSubmit}
 			>
 				{studio.isWorking ? "She's reading it…" : config.button}
@@ -140,7 +149,7 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 					type="button"
 					class="ghost-btn"
 					data-testid="mode-again"
-					onclick={submit}
+					onclick={() => void submit()}
 					disabled={studio.isWorking || studio.isGenerating || !canSubmit}
 				>
 					{studio.isWorking ? 'Reading it again…' : 'Ask her again'}
@@ -173,6 +182,11 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 
 <style>
 	.page {
+		/* The ambient decoration sits 2rem past the page's right edge. Below the 680px maximum the
+		   page fills the viewport, so that overhang — plus its blur — became 32px of real document
+		   width, and every one of these pages could be panned sideways into blank space on a phone.
+		   `clip` rather than `hidden`: `hidden` would make this a scroll container on both axes. */
+		overflow-x: clip;
 		position: relative;
 		max-width: 680px;
 		margin: 0 auto;

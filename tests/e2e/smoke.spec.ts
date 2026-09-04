@@ -1101,3 +1101,57 @@ test('a slug that names no mode is a 404, not a different mode', async ({
 	await gotoHydrated(page, '/m/rate-his-excuse');
 	await expect(page.getByTestId('mode-field-excuse')).toBeVisible();
 });
+
+test('a mode page does not pan sideways on a phone', async ({ page }) => {
+	// The ambient decoration sits 2rem past the page's right edge. Below the 680px maximum the page
+	// fills the viewport, so that overhang became 32px of real document width and the page could be
+	// dragged sideways into blank space. Measured, not eyeballed: 422 against a 390 viewport before
+	// `overflow-x: clip`, 390 after.
+	await page.setViewportSize({ width: 390, height: 844 });
+	for (const path of ['/m/who-fucked-up', '/m/random', '/who-fucked-up']) {
+		await gotoHydrated(page, path);
+		const overflow = await page.evaluate(
+			() =>
+				document.documentElement.scrollWidth -
+				document.documentElement.clientWidth
+		);
+		expect(overflow, `${path} pans sideways by ${overflow}px`).toBe(0);
+	}
+});
+
+test('a replacement saying drops a dedication chosen for the previous one', async ({
+	page
+}) => {
+	// `/m/random` returns a different subject on every tap, so a dedication chosen for the previous
+	// saying must not ride along onto the next one — the same rule `/random` already follows. A mode
+	// that asks a question is re-asking about the same situation, so its dedication still belongs
+	// and must survive; both halves are asserted here because the fix is a split, not a blanket
+	// clear.
+	await gotoHydrated(page, '/m/random');
+	await page.getByTestId('mode-submit').click();
+	await expect(page.getByTestId('mode-result')).toContainText(
+		'story keeps changing'
+	);
+
+	await page.getByTestId('verdict-page-dedication').fill('For the group chat');
+	await Promise.all([
+		page.waitForResponse('**/api/tools'),
+		page.getByTestId('mode-again').click()
+	]);
+	await expect(page.getByTestId('verdict-page-dedication')).toHaveValue('');
+
+	// The question-asking modes keep theirs.
+	await gotoHydrated(page, '/m/who-fucked-up');
+	await page.getByTestId('mode-field-situation').fill('He went quiet for a week.');
+	await page.getByTestId('mode-submit').click();
+	await expect(page.getByTestId('mode-result')).toContainText('Fault: them');
+
+	await page.getByTestId('verdict-page-dedication').fill('He had time.');
+	await Promise.all([
+		page.waitForResponse('**/api/tools'),
+		page.getByTestId('mode-again').click()
+	]);
+	await expect(page.getByTestId('verdict-page-dedication')).toHaveValue(
+		'He had time.'
+	);
+});
