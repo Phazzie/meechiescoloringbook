@@ -838,3 +838,35 @@ reader's page, then told them to download that page from a screen that offered n
 - Structural validation of stored raster bytes — at save time, or behind a per-record cache.
 - The three pre-existing `Date.now()`/`new Date()` reads left in `studio-state.svelte.ts`.
 - **Assume `aca907d` has an unreviewed defect** and start there.
+
+---
+
+## Run 1, correction to the merge close-out — 2026-09-04 — the Vercel claim was wrong
+
+Appended, not edited. The section above says:
+
+> **Vercel's rate limit reset with the calendar day.** Red on `e83bd06` at 05:24, green on
+> `aca907d` at 06:02, with no change in between that could touch an account-wide daily quota.
+
+**The second sentence is true and the first does not follow from it.** Fifteen minutes after that
+was written, the follow-up commit `dc569a0` drew the same failure again, with the count spelled
+out: `Resource is limited - try again in 24 hours (more than 100, code:
+"api-deployments-free-per-day")`. A quota that had reset would not be back at its cap by 06:15.
+
+What actually happened is that the account sits *at* the hundred-deployment ceiling, so each new
+push either squeaks under it or does not — and the 06:02 success consumed one of the few remaining
+slots rather than proving the counter had rolled over. Red, then green, then red again, with
+nothing in any of the three diffs capable of touching it.
+
+The conclusion the close-out drew — stand down, this is not the PR's failure — was right. The
+reason it gave was invented, and inventing a reason that happens to support a correct conclusion is
+how the *previous* Vercel stand-down went wrong too (Run 1's original close-out cited a first head
+that already contained the whole rebuild; the eleventh close-out corrected it). Twice now on the
+same signal:
+
+> A stand-down needs the evidence that actually rules the failure out, not the first story that
+> makes the red light acceptable.
+
+The evidence that does rule it out, and always did: `api-deployments-free-per-day` is a property of
+the account and the calendar day. No diff can move it, so no per-diff reproduction is meaningful.
+That is sufficient on its own and needs no claim about when the counter resets.
