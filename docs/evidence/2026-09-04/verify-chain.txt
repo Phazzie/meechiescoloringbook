@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T20:13:09.250Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T20:23:18.911Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -178,10 +178,12 @@ declined on new evidence.
     SpecValidationSeam, OutputPackagingSeam, CreationStoreSeam, SessionSeam, ClockSeam), the six
     reached server-side inside /api/generate (PromptAssemblySeam, ImageGenerationSeam,
     ImageProviderConfigSeam, SafetyPolicySeam, DriftDetectionSeam, RateLimitSeam), and the two
-    nested inside meechieToolAdapter.respond (MeechieVoiceSeam, ProviderAdapterSeam). Two of them
-    are additionally run under their canonical "(self-contained)" rows, because rewind resolves the
-    first matching row in docs/seams.md and the legacy row precedes the canonical one for
-    DriftDetectionSeam and MeechieVoiceSeam. That is AGENTS.md's own instrument for seam-scoped
+    nested inside meechieToolAdapter.respond (MeechieVoiceSeam, ProviderAdapterSeam). **Five** of
+    them are additionally run under their canonical "(self-contained)" rows, because rewind
+    resolves the first matching row in docs/seams.md and a legacy row precedes the canonical one
+    for MeechieVoiceSeam, PromptAssemblySeam, SpecValidationSeam, MeechieToolSeam and
+    DriftDetectionSeam — production imports the self-contained adapter in every one of those five,
+    so the bare command verifies a seam the code does not use. That is AGENTS.md's own instrument for seam-scoped
     verification when full verify is not required.
 
 Evidence on this head: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped,

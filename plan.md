@@ -37,16 +37,25 @@ concession the `ClockSeam` plan in run 1 had to make.
     **`MeechieVoiceSeam (self-contained)`** (`meechieVoiceAdapter.getVoicePack`) and
     `ProviderAdapterSeam` (`createProviderAdapter({})`), both in
     `src/lib/adapters/meechie-tool-seam/index.ts`.
-  - **Two of these must be named with their `(self-contained)` suffix, and running the bare name is
+  - **Five of these must be named with their `(self-contained)` suffix, and running the bare name is
     a silent mis-verification.** `scripts/rewind.mjs` takes the *first* exact row match from
-    `docs/seams.md`, and `DriftDetectionSeam` and `MeechieVoiceSeam` each have a legacy flat-layout
-    row **above** their canonical self-contained row. `npm run rewind -- --seam MeechieVoiceSeam`
-    therefore runs the legacy suite — 4 tests — while the adapter the code actually imports
-    (`src/lib/adapters/meechie-voice-seam`, via `../meechie-voice-seam` in the tool adapter) is
-    covered by the canonical suite of **18**. The command exits 0 either way, and the evidence file
-    records only a pass count, so nothing about the output reveals that the wrong seam was verified.
-    Both canonical entries are now run explicitly, with evidence in
-    `rewind-MeechieVoiceSeam(self-contained).txt` and `rewind-DriftDetectionSeam(self-contained).txt`.
+    `docs/seams.md`, and five seams have a legacy flat-layout row **above** their canonical
+    self-contained row. Production imports the self-contained adapter in every case, so the bare
+    command verifies a seam the code does not use:
+
+    | seam | bare (legacy) | `(self-contained)` | production imports |
+    |---|---|---|---|
+    | `MeechieVoiceSeam` | 4 tests | **18** | `../meechie-voice-seam` |
+    | `PromptAssemblySeam` | 9 | **14** | `$lib/adapters/prompt-assembly-seam` |
+    | `SpecValidationSeam` | 14 | **16** | `$lib/adapters/spec-validation-seam` |
+    | `MeechieToolSeam` | 5 | **6** | `$lib/adapters/meechie-tool-seam` |
+    | `DriftDetectionSeam` | 5 | 5 | `$lib/adapters/drift-detection-seam` |
+
+    **The command exits 0 either way and the evidence file records only a pass count**, so nothing
+    in the output reveals that the wrong seam was verified — `DriftDetectionSeam` is the worst case,
+    where both suites happen to have five tests and even the number matches. All five canonical
+    entries are now run explicitly with their own artifacts,
+    `rewind-<SeamName>(self-contained).txt`.
   - **This count has been wrong twice, in the same direction each time.** It was first written as
     "the six seams the page consumes" — short, and incoherent too, since `SpecValidationSeam` is
     itself server-side on the `/api/generate` path, so the set could not be defended as

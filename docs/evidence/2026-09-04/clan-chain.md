@@ -5,7 +5,7 @@ Info flow: seam ledger -> chain summary -> review.
 -->
 # Clan Chain
 
-Generated at: 2026-09-04T20:14:13.629Z
+Generated at: 2026-09-04T20:24:24.515Z
 Evidence folder: docs/evidence/2026-09-04
 
 Clean seams:

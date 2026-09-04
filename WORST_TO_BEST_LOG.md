@@ -4298,3 +4298,57 @@ direction of claiming more than it had checked, and every one of them was made w
 careful.** The prose that accompanied each mistake was measured, hedged in places, and explicitly
 about the importance of measuring things. That tone is not evidence, and a reader — human or the
 next scheduled run — cannot distinguish it from the real thing without doing the check themselves.
+
+---
+
+## Run 4, correction 8 — 2026-09-04 — five legacy rows, not two, and a contradiction inside one entry
+
+Appended, not edited. Two P2 findings on `a372613`. Both are second-order: each is a defect in the
+fix for the previous round's finding.
+
+### 1. Five seams resolve to a legacy row, not two
+
+The previous correction found that `rewind` silently ran the legacy suite for `MeechieVoiceSeam` and
+`DriftDetectionSeam`, fixed those two, and stated that two names require the `(self-contained)`
+suffix. **There are five.** `docs/seams.md` also puts a legacy row above the canonical one for
+`PromptAssemblySeam`, `SpecValidationSeam` and `MeechieToolSeam`, and production imports the
+self-contained adapter in every case:
+
+| seam | bare (legacy) | `(self-contained)` | production imports |
+|---|---|---|---|
+| `MeechieVoiceSeam` | 4 tests | **18** | `../meechie-voice-seam` |
+| `PromptAssemblySeam` | 9 | **14** | `$lib/adapters/prompt-assembly-seam` |
+| `SpecValidationSeam` | 14 | **16** | `$lib/adapters/spec-validation-seam` |
+| `MeechieToolSeam` | 5 | **6** | `$lib/adapters/meechie-tool-seam` |
+| `DriftDetectionSeam` | 5 | 5 | `$lib/adapters/drift-detection-seam` |
+
+`DriftDetectionSeam` is the case worth staring at: **both suites have exactly five tests**, so even
+comparing the counts would not have revealed the substitution. The only reliable check is reading
+which row `docs/seams.md` matches first.
+
+Having found the mechanism last round, I fixed the two instances I had been handed and did not ask
+how many others there were — the same "reassuring half of the answer" error the `RateLimitSeam`
+finding already caught three rounds ago, repeated in the correction to a different finding.
+
+All five canonical entries now run with their own artifacts.
+
+### 2. The ruling contradicted itself in the same entry
+
+Correction 6 added a careful note that `buildInput` trims every field and the payload is therefore
+*not* byte-identical. It did not remove the sentence twenty lines above still asserting the payload
+"is byte-identical before and after this change". A source-of-truth entry stated both.
+
+Now says what it actually means: no prompt template, model id, request wrapper, `json_schema` or
+`response_format` is in the diff — and says explicitly that "byte-identical" was the earlier draft's
+error, so the correction cannot be mistaken for the claim it replaced.
+
+**The transferable part:** a correction appended near the end of a document does not retract the
+claim it corrects. Both rounds' findings about summaries drifting are the same failure — I fixed the
+sentence I was pointed at rather than re-reading the document it lived in.
+
+### Running total
+
+Findings per round: 3, 3, 3, 2, 5, 2, 3, 2 — **twenty-three across eight rounds**, still none of
+them in the application, which has been untouched and green since `f81802d`. The seam verification
+alone has now been wrong five times: six seams, twelve, fourteen, fourteen-with-two-canonical, and
+fourteen-with-five-canonical.

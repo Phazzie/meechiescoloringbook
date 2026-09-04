@@ -28,9 +28,12 @@ Short, durable decisions with context and tradeoffs.
   right, for the reasons below, but it was not checked when it was stated.
 - Decision: the rebuild was and is safe to ship without resolving that Assumption.
   - The Assumption's subject is whether the **deployed** provider answers `POST /v1/chat/completions`
-    with the full Meechie payload. That is a property of the deployed provider integration, and it
-    is byte-identical before and after this change: no prompt, payload, model id or request shape is
-    in this diff.
+    with the full Meechie payload. That is a property of the deployed provider integration, and the
+    parts of it this Assumption turns on are unchanged by this diff: **no prompt template, model id,
+    request wrapper, `json_schema` or `response_format` is in it.** Deliberately *not* "the payload
+    is byte-identical" — an earlier draft said that, and it is false, because `buildInput` trims
+    each field (see the normalization note below). The two statements sat in the same entry
+    contradicting each other until a reviewer caught it.
   - **`/m/<slug>` was already an `/api/tools` consumer before this change, not a new one.** The
     first draft of this entry called it "the fifth caller", which is wrong:
     `MeechieModePage.svelte` posted every focused-mode submission to `/api/tools` at base
