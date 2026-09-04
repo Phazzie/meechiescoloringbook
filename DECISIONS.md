@@ -7,6 +7,43 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-04 - The standalone mode routes share one verdict-to-page lifecycle, and it needs two staleness tokens
+
+- Date: 2026-09-04
+- Seams: none changed. `MeechieToolSeam`, `SpecValidationSeam`, `OutputPackagingSeam`,
+  `CreationStoreSeam` and `SessionSeam` are called through their existing adapters exactly as
+  `src/routes/+page.svelte` and `src/lib/components/MeechieTools.svelte` already call them. No file
+  under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+  `src/lib/seams/` was touched, so no Cipher Gate entry is required.
+- Decision 1: `/who-fucked-up`, `/rate-his-excuse` and `/random` delegate everything after the
+  verdict to `VerdictPageState` + `VerdictPageStudio`, and keep only their own hero, input and
+  verdict presentation.
+- Context: the three routes carried ~2,000 lines of near-identical copy-paste. All three sent
+  `listMode: 'title_only'` for every verdict, discarding the `Fault:`/`Consequence:`/`Move:`
+  structure the tool prompts explicitly request and capping the whole answer at a 96-character
+  title; all three discarded the drift report; none could write to the Quote Vault; all three
+  packaged print and share in one call, so a failed share image took the printable PDF with it; and
+  all three cleared the verdict and previews before the request went out, so a failed retry
+  destroyed a page the user had already paid to generate. Every one of those was already solved
+  once, in the toolkit, by code these routes could not reach.
+- Alternatives: fix the three copies in place (rejected — it preserves the thing that made them
+  diverge); make the routes render `MeechieTools.svelte` (rejected — it would replace three distinct
+  landing experiences with one tool picker, and the hero, the score ring and the tap-for-truth
+  loading state are the reason these routes exist).
+- Decision 2: the shared class keeps **two** staleness tokens, `verdictToken` and `pageToken`, not
+  the single token the toolkit uses.
+- Context: `pageToken` is bumped by anything that makes the displayed page wrong, including editing
+  the dedication. `verdictToken` is bumped only by an explicit reset. With one shared token, typing
+  in the dedication field — which on these routes is on screen while a replacement verdict is still
+  loading — silently cancels that verdict request and re-enables the button with nothing on the
+  way. The toolkit never hits this because it clears the verdict on every tool switch.
+- Consequences: a fix to any of these behaviours now lands on all three routes at once. The cost is
+  one more concept in the shared class; it is tested directly
+  (`tests/unit/verdict-page-state.test.ts`, "does not cancel an in-flight verdict request"), and
+  collapsing the two tokens makes that test fail.
+- Revisit criteria: if `MeechieTools.svelte` is ever migrated onto `VerdictPageState`, re-check
+  whether it still needs the tool-switch reset that currently makes one token sufficient there.
+
 ## 2026-09-04 - A tool page is shaped by the verdict's structure, and a page saved from the toolkit carries no `studioText`
 
 - Date: 2026-09-04

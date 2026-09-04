@@ -1,161 +1,28 @@
 <!--
-Purpose: "Random Meechie" mode — one tap, one truth, instant coloring page.
-Why: Give users zero-friction access to Meechie's voice with no input required, so a coloring page can be produced from a single interaction.
-Info flow: Tap -> tools API (random_meechie) -> saying display -> generate coloring page.
+Purpose: "Random Meechie" mode — one tap, one truth, and a coloring page you can keep.
+Why: One of the app's four nav destinations. Its saying was flattened into a title-only page, the
+     drift report was thrown away, and nothing it produced could reach the Quote Vault — so the
+     page a user paid a generation for survived exactly as long as the tab did. The lifecycle now
+     lives in `VerdictPageState`, shared with the other modes.
+Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> VerdictPageStudio
+           -> coloring page, downloads, vault.
 -->
 <script lang="ts">
-	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
-	import type { MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
-	import type { GeneratedImage } from '../../../contracts/image-generation.contract';
-	import type { PackagedFile } from '../../../contracts/output-packaging.contract';
-	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
-	import { MeechieToolResultSchema } from '../../../contracts/meechie-tool.contract';
-	import { GenerateResultSchema } from '../../../contracts/generate.contract';
-	import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
+	import VerdictPageStudio from '$lib/components/VerdictPageStudio.svelte';
+	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
 
-	// `format` is the only image-type field the contract actually constrains: it is a
-	// closed four-value enum, while `mimeType` is `NonEmptyStringSchema`, so any non-empty
-	// string passes validation. Deriving the media type from the enum is therefore total
-	// (it can never emit `undefined`) and it cannot forward an unvalidated wire value. It
-	// also emits the registered `image/jpeg` and `image/svg+xml` names rather than the
-	// non-standard `image/jpg` and `image/svg` that interpolating the enum member produced.
-	const IMAGE_MIME_TYPES: Record<GeneratedImage['format'], string> = {
-		svg: 'image/svg+xml',
-		png: 'image/png',
-		jpg: 'image/jpeg',
-		webp: 'image/webp'
-	};
+	const studio = new VerdictPageState({ fileBaseSlug: 'random' });
 
-	let result: MeechieToolOutput | null = null;
-	let isWorking = false;
-	let isGenerating = false;
-	let error = '';
-	let generateError = '';
-	let imagePreviews: string[] = [];
-	let packagedFiles: PackagedFile[] = [];
-	let dedicatedTo = '';
-	let showSparkle = false;
-
-	const handleTap = async (): Promise<void> => {
-		isWorking = true;
-		error = '';
-		result = null;
-		imagePreviews = [];
-		packagedFiles = [];
-
-		try {
-			const payload = await postJson(
-				'/api/tools',
-				{
-					toolId: 'random_meechie'
-				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.tools }
-			);
-			const parsed = MeechieToolResultSchema.safeParse(payload);
-			if (!parsed.success || !parsed.data.ok) {
-				error =
-					parsed.success && !parsed.data.ok
-						? parsed.data.error.message
-						: 'Something went wrong.';
-			} else {
-				result = parsed.data.value;
-			}
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Network error. Try again.';
-		} finally {
-			isWorking = false;
-		}
-	};
-
-	const handleGenerate = async (): Promise<void> => {
-		if (!result) return;
-		isGenerating = true;
-		generateError = '';
-		imagePreviews = [];
-		packagedFiles = [];
-
-		try {
-			const payload = await postJson(
-				'/api/generate',
-				{
-					spec: {
-						title: compactColoringPageTitle([result.response]),
-						listMode: 'title_only',
-						items: [],
-						dedication: dedicatedTo.trim() || undefined,
-						alignment: 'center',
-						numberAlignment: 'strict',
-						listGutter: 'normal',
-						whitespaceScale: 35,
-						textSize: 'large',
-						fontStyle: 'block',
-						textStrokeWidth: 9,
-						colorMode: 'black_and_white_only',
-						decorations: 'dense',
-						illustrations: 'simple',
-						shading: 'none',
-						border: 'decorative',
-						borderThickness: 10,
-						variations: 1,
-						outputFormat: 'pdf',
-						pageSize: 'US_Letter'
-					},
-					styleHint:
-						'crown, sparkles, diamonds, roses, bold statement coloring page for women'
-				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
-			);
-
-			const parsed = GenerateResultSchema.safeParse(payload);
-			if (!parsed.success || !parsed.data.ok) {
-				generateError =
-					parsed.success && !parsed.data.ok
-						? parsed.data.error.message
-						: 'Page generation failed.';
-				return;
-			}
-
-			const images = parsed.data.value.images;
-			imagePreviews = images
-				.map((img: GeneratedImage): string | null => {
-					if (img.format === 'svg' && img.encoding === 'utf8') {
-						return `data:${IMAGE_MIME_TYPES.svg};utf8,${encodeURIComponent(img.data)}`;
-					}
-					if (img.encoding === 'base64') {
-						return `data:${IMAGE_MIME_TYPES[img.format]};base64,${img.data}`;
-					}
-					return null;
-				})
-				.filter((u): u is string => u !== null);
-
-			const packResult = await outputPackagingAdapter.package({
-				images,
-				outputFormat: 'pdf',
-				fileBaseName: `meechie-random-${Date.now()}`,
-				pageSize: 'US_Letter',
-				variants: ['print', 'square']
-			});
-			if (packResult.ok) {
-				packagedFiles = packResult.value.files;
-			} else {
-				generateError = packResult.error.message;
-			}
-		} catch (e) {
-			generateError =
-				e instanceof Error ? e.message : 'Network error. Try again.';
-		} finally {
-			isGenerating = false;
-		}
-	};
-
-	const another = (): void => {
-		result = null;
-		imagePreviews = [];
-		packagedFiles = [];
-		error = '';
-		generateError = '';
-		dedicatedTo = '';
-		void handleTap();
+	const tap = async (): Promise<void> => {
+		const installed = await studio.requestVerdict({ toolId: 'random_meechie' });
+		// A new saying is a new subject, so a dedication chosen for the previous one must not ride
+		// along and end up printed on, downloaded with, or saved against a saying it was never meant
+		// for. Cleared only once a replacement has actually arrived: a failed tap keeps the saying
+		// and its page exactly as they were, dedication included.
+		//
+		// The two other mode routes deliberately do *not* do this. "Ask her again" and "Re-run the
+		// ruling" re-ask about the same situation, so the dedication still belongs to it.
+		if (installed) studio.setDedication('');
 	};
 </script>
 
@@ -167,7 +34,7 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 	<div class="ambient ambient-a" aria-hidden="true"></div>
 	<div class="ambient ambient-b" aria-hidden="true"></div>
 
-	{#if !result && !isWorking}
+	{#if !studio.verdict && !studio.isWorking}
 		<header class="hero">
 			<p class="crown" aria-hidden="true">✦</p>
 			<h1>Random Meechie</h1>
@@ -175,106 +42,54 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		</header>
 
 		<div class="tap-zone">
-			{#if error}
-				<p class="error" data-testid="random-error">{error}</p>
+			{#if studio.error}
+				<p class="error" data-testid="random-error">{studio.error}</p>
 			{/if}
 			<button
 				type="button"
 				class="tap-cta"
 				data-testid="random-tap"
-				on:click={handleTap}
+				onclick={() => void tap()}
 				aria-label="Get a Meechie saying"
 			>
 				Tap For Truth
 			</button>
 			<p class="tap-hint">No explanation needed. She already knows.</p>
 		</div>
-	{:else if isWorking}
+	{:else if !studio.verdict}
 		<div class="loading-zone" aria-live="polite" aria-busy="true">
 			<p class="loading-crown" aria-hidden="true">♛</p>
 			<p class="loading-text">She's deciding what you need to hear...</p>
 		</div>
-	{:else if result}
+	{:else}
 		<header class="saying-hero">
 			<p class="eyebrow">Meechie Says</p>
 			<blockquote class="saying" data-testid="random-result">
-				{result.response}
+				{studio.verdict.response}
 			</blockquote>
 			<div class="saying-actions">
+				<!-- Deliberately not a reset. The previous saying and the page built from it stay on
+				     screen until the replacement actually lands, so a failed tap costs nothing. -->
 				<button
 					type="button"
 					class="ghost-btn"
 					data-testid="random-another"
-					on:click={another}
+					onclick={() => void tap()}
+					disabled={studio.isWorking || studio.isGenerating}
 				>
-					Another one
+					{studio.isWorking ? 'Deciding…' : 'Another one'}
 				</button>
 			</div>
+			{#if studio.error}
+				<p class="error" data-testid="random-error">{studio.error}</p>
+			{/if}
 		</header>
 
-		<section class="page-section">
-			<h2>Generate the Coloring Page</h2>
-			<p class="section-sub">
-				Print it. Color it. Send it to whoever needs to see it.
-			</p>
-
-			<div class="field">
-				<label for="dedicated" class="field-label"
-					>Dedicated to (optional)</label
-				>
-				<input
-					id="dedicated"
-					type="text"
-					bind:value={dedicatedTo}
-					maxlength="60"
-					placeholder="He had time to know better."
-				/>
-			</div>
-
-			<label class="sparkle-toggle">
-				<input type="checkbox" bind:checked={showSparkle} />
-				<span>Glitter preview overlay</span>
-			</label>
-
-			{#if generateError}
-				<p class="error" data-testid="random-generate-error">{generateError}</p>
-			{/if}
-
-			<button
-				type="button"
-				class="cta"
-				data-testid="random-generate-page"
-				on:click={handleGenerate}
-				disabled={isGenerating}
-			>
-				{isGenerating ? 'Printing the truth...' : 'Generate My Coloring Page'}
-			</button>
-
-			{#if imagePreviews.length > 0}
-				<div class="preview-grid">
-					{#each imagePreviews as preview}
-						<figure class:sparkle={showSparkle}>
-							<img src={preview} alt="Meechie coloring page" />
-						</figure>
-					{/each}
-				</div>
-			{/if}
-
-			{#if packagedFiles.length > 0}
-				<div class="downloads">
-					<p class="download-label">Save & Share</p>
-					{#each packagedFiles as file}
-						<a
-							class="download-link"
-							href={`data:${file.mimeType};base64,${file.dataBase64}`}
-							download={file.filename}
-						>
-							{file.filename}
-						</a>
-					{/each}
-				</div>
-			{/if}
-		</section>
+		<VerdictPageStudio
+			{studio}
+			heading="Generate the Coloring Page"
+			subheading="Print it. Color it. Send it to whoever needs to see it."
+		/>
 	{/if}
 </div>
 
@@ -491,106 +306,17 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		transition: border-color 0.2s ease;
 	}
 
-	.ghost-btn:hover {
+	.ghost-btn:hover:not(:disabled) {
 		border-color: var(--gold);
 	}
 
-	/* Generate section */
-	.page-section {
-		position: relative;
-		z-index: 1;
-	}
-
-	h2 {
-		margin: 0 0 0.3rem;
-		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-size: 1.6rem;
-		font-style: italic;
-		font-weight: 800;
-		color: var(--cream);
-	}
-
-	.section-sub {
-		margin: 0 0 1.4rem;
-		font-size: 0.9rem;
-		color: var(--lavender);
-	}
-
-	.field {
-		margin-bottom: 1rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-	}
-
-	.field-label {
-		font-size: 0.78rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--gold);
-	}
-
-	input[type='text'] {
-		border-radius: 0.72rem;
-		border: 1px solid rgba(201, 162, 39, 0.25);
-		padding: 0.65rem 0.8rem;
-		font-size: 0.95rem;
-		font-family: inherit;
-		color: var(--cream);
-		background: rgba(7, 7, 15, 0.7);
-		transition: border-color 0.2s ease;
-	}
-
-	input[type='text']:focus {
-		outline: none;
-		border-color: var(--gold);
-	}
-
-	input[type='text']::placeholder {
-		color: rgba(184, 170, 207, 0.4);
-	}
-
-	.sparkle-toggle {
-		display: flex;
-		align-items: center;
-		gap: 0.6rem;
-		margin-bottom: 1rem;
-		font-size: 0.87rem;
-		color: var(--lavender);
-		cursor: pointer;
-	}
-
-	.cta {
-		width: 100%;
-		border: none;
-		border-radius: 999px;
-		padding: 1rem 1.6rem;
-		background: linear-gradient(112deg, #6b21a8, #e8006a 55%, #c9a227);
-		color: #fff;
-		font-weight: 800;
-		font-size: 1.05rem;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		cursor: pointer;
-		transition:
-			transform 0.2s ease,
-			box-shadow 0.2s ease,
-			filter 0.2s ease;
-	}
-
-	.cta:hover:not(:disabled) {
-		transform: translateY(-2px);
-		box-shadow: 0 16px 36px rgba(107, 33, 168, 0.4);
-		filter: saturate(1.1) brightness(1.05);
-	}
-
-	.cta:disabled {
+	.ghost-btn:disabled {
 		opacity: 0.45;
 		cursor: not-allowed;
 	}
 
 	.error {
+		margin: 1rem 0 0;
 		padding: 0.7rem 1rem;
 		border-radius: 0.6rem;
 		background: rgba(232, 0, 106, 0.1);
@@ -599,92 +325,9 @@ Info flow: Tap -> tools API (random_meechie) -> saying display -> generate color
 		color: #ff8fab;
 	}
 
-	.preview-grid {
-		display: grid;
-		gap: 1rem;
-		margin-top: 1.6rem;
-	}
-
-	figure {
-		margin: 0;
-		border-radius: 0.8rem;
-		overflow: hidden;
-		border: 1px solid var(--gold-border);
-	}
-
-	figure img {
-		display: block;
-		width: 100%;
-		height: auto;
-	}
-
-	figure.sparkle {
-		position: relative;
-	}
-
-	figure.sparkle::after {
-		content: '';
-		position: absolute;
-		inset: 0;
-		background:
-			radial-gradient(
-				ellipse at 20% 20%,
-				rgba(240, 196, 74, 0.25),
-				transparent 55%
-			),
-			radial-gradient(
-				ellipse at 80% 80%,
-				rgba(107, 33, 168, 0.2),
-				transparent 50%
-			);
-		pointer-events: none;
-	}
-
-	.downloads {
-		margin-top: 1.4rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.6rem;
-	}
-
-	.download-label {
-		margin: 0 0 0.2rem;
-		font-size: 0.75rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--gold);
-	}
-
-	.download-link {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.6rem 1.1rem;
-		border-radius: 999px;
-		border: 1px solid var(--gold-border);
-		background: rgba(201, 162, 39, 0.08);
-		color: var(--gold-bright);
-		text-decoration: none;
-		font-size: 0.88rem;
-		font-weight: 600;
-		transition:
-			border-color 0.2s ease,
-			background-color 0.2s ease;
-	}
-
-	.download-link:hover {
-		border-color: var(--gold);
-		background: rgba(201, 162, 39, 0.15);
-	}
-
 	@media (max-width: 600px) {
 		.page {
 			padding: 1.6rem 1rem 4rem;
-		}
-
-		.tap-cta {
-			padding: 1rem 2rem;
-			font-size: 1.05rem;
 		}
 	}
 </style>

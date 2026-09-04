@@ -1,174 +1,36 @@
 <!--
-Purpose: "Who Fucked Up?" mode — user describes situation, Meechie states what it really means.
-Why: Let users get an instant Meechie read on any situation without building a spec manually.
-Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> generate coloring page.
+Purpose: "Who Fucked Up?" mode — user describes a situation, Meechie states what it really means,
+         and the verdict becomes a coloring page you can keep.
+Why: This route is one of the app's four nav destinations and it used to dead-end at a page you
+     could download once and never see again: the verdict was flattened into a title-only page
+     whatever structure it came back in, the drift report was discarded, and nothing could reach
+     the Quote Vault. All of that now lives in `VerdictPageState`, shared with the other modes.
+Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) -> verdict ->
+           VerdictPageStudio -> coloring page, downloads, vault.
 -->
 <script lang="ts">
-	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
-	import type { MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
-	import type { GeneratedImage } from '../../../contracts/image-generation.contract';
-	import type { PackagedFile } from '../../../contracts/output-packaging.contract';
-	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
-	import { MeechieToolResultSchema } from '../../../contracts/meechie-tool.contract';
-	import { GenerateResultSchema } from '../../../contracts/generate.contract';
-	import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
+	import VerdictPageStudio from '$lib/components/VerdictPageStudio.svelte';
+	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
 
-	// `format` is the only image-type field the contract actually constrains: it is a
-	// closed four-value enum, while `mimeType` is `NonEmptyStringSchema`, so any non-empty
-	// string passes validation. Deriving the media type from the enum is therefore total
-	// (it can never emit `undefined`) and it cannot forward an unvalidated wire value. It
-	// also emits the registered `image/jpeg` and `image/svg+xml` names rather than the
-	// non-standard `image/jpg` and `image/svg` that interpolating the enum member produced.
-	const IMAGE_MIME_TYPES: Record<GeneratedImage['format'], string> = {
-		svg: 'image/svg+xml',
-		png: 'image/png',
-		jpg: 'image/jpeg',
-		webp: 'image/webp'
-	};
+	const studio = new VerdictPageState({ fileBaseSlug: 'who-fucked-up' });
 
-	let situation = '';
-	let verdict: MeechieToolOutput | null = null;
-	let isWorking = false;
-	let isGenerating = false;
-	let error = '';
-	let generateError = '';
-	let imagePreviews: string[] = [];
-	let packagedFiles: PackagedFile[] = [];
-	let dedicatedTo = '';
-	let showSparkle = false;
+	let situation = $state('');
 
-	const handleSubmit = async (): Promise<void> => {
+	const submit = (): void => {
 		if (!situation.trim()) return;
-		isWorking = true;
-		error = '';
-		verdict = null;
-		imagePreviews = [];
-		packagedFiles = [];
-
-		try {
-			const payload = await postJson(
-				'/api/tools',
-				{
-					toolId: 'red_flag_or_run',
-					situation: situation.trim()
-				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.tools }
-			);
-			const parsed = MeechieToolResultSchema.safeParse(payload);
-			if (!parsed.success || !parsed.data.ok) {
-				error =
-					parsed.success && !parsed.data.ok
-						? parsed.data.error.message
-						: 'Something went wrong.';
-			} else {
-				verdict = parsed.data.value;
-			}
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Network error. Try again.';
-		} finally {
-			isWorking = false;
-		}
+		void studio.requestVerdict({
+			toolId: 'red_flag_or_run',
+			situation: situation.trim()
+		});
 	};
 
-	const handleKeydown = (e: KeyboardEvent): void => {
-		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-			void handleSubmit();
-		}
+	const handleKeydown = (event: KeyboardEvent): void => {
+		if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) submit();
 	};
 
-	const handleGenerate = async (): Promise<void> => {
-		if (!verdict) return;
-		isGenerating = true;
-		generateError = '';
-		imagePreviews = [];
-		packagedFiles = [];
-
-		try {
-			const saying = compactColoringPageTitle([
-				verdict.headline,
-				verdict.response
-			]);
-			const payload = await postJson(
-				'/api/generate',
-				{
-					spec: {
-						title: saying,
-						listMode: 'title_only',
-						items: [],
-						dedication: dedicatedTo.trim() || undefined,
-						alignment: 'center',
-						numberAlignment: 'strict',
-						listGutter: 'normal',
-						whitespaceScale: 35,
-						textSize: 'large',
-						fontStyle: 'block',
-						textStrokeWidth: 9,
-						colorMode: 'black_and_white_only',
-						decorations: 'dense',
-						illustrations: 'simple',
-						shading: 'none',
-						border: 'decorative',
-						borderThickness: 10,
-						variations: 1,
-						outputFormat: 'pdf',
-						pageSize: 'US_Letter'
-					},
-					styleHint:
-						'crown, diamonds, roses with thorns, bold statement coloring page'
-				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
-			);
-
-			const parsed = GenerateResultSchema.safeParse(payload);
-			if (!parsed.success || !parsed.data.ok) {
-				generateError =
-					parsed.success && !parsed.data.ok
-						? parsed.data.error.message
-						: 'Page generation failed.';
-				return;
-			}
-
-			const images = parsed.data.value.images;
-			imagePreviews = images
-				.map((img: GeneratedImage): string | null => {
-					if (img.format === 'svg' && img.encoding === 'utf8') {
-						return `data:${IMAGE_MIME_TYPES.svg};utf8,${encodeURIComponent(img.data)}`;
-					}
-					if (img.encoding === 'base64') {
-						return `data:${IMAGE_MIME_TYPES[img.format]};base64,${img.data}`;
-					}
-					return null;
-				})
-				.filter((u): u is string => u !== null);
-
-			const packResult = await outputPackagingAdapter.package({
-				images,
-				outputFormat: 'pdf',
-				fileBaseName: `meechie-who-fucked-up-${Date.now()}`,
-				pageSize: 'US_Letter',
-				variants: ['print', 'square']
-			});
-			if (packResult.ok) {
-				packagedFiles = packResult.value.files;
-			} else {
-				generateError = packResult.error.message;
-			}
-		} catch (e) {
-			generateError =
-				e instanceof Error ? e.message : 'Network error. Try again.';
-		} finally {
-			isGenerating = false;
-		}
-	};
-
-	const reset = (): void => {
+	const startOver = (): void => {
 		situation = '';
-		verdict = null;
-		imagePreviews = [];
-		packagedFiles = [];
-		error = '';
-		generateError = '';
-		dedicatedTo = '';
+		studio.reset();
 	};
 </script>
 
@@ -179,7 +41,7 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 <div class="page">
 	<div class="ambient ambient-a" aria-hidden="true"></div>
 
-	{#if !verdict}
+	{#if !studio.verdict}
 		<header class="hero">
 			<p class="eyebrow">Mode One</p>
 			<h1>Who Fucked Up?</h1>
@@ -194,104 +56,60 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 				id="situation"
 				data-testid="who-situation-input"
 				bind:value={situation}
-				on:keydown={handleKeydown}
+				onkeydown={handleKeydown}
 				rows="5"
 				placeholder="He said his phone died but I saw him active on Instagram at midnight..."
 			></textarea>
 			<p class="key-hint">Ctrl + Enter to submit</p>
 
-			{#if error}
-				<p class="error" data-testid="who-error">{error}</p>
+			{#if studio.error}
+				<p class="error" data-testid="who-error">{studio.error}</p>
 			{/if}
 
 			<button
 				type="button"
 				class="cta"
 				data-testid="who-submit"
-				on:click={handleSubmit}
-				disabled={isWorking || !situation.trim()}
+				onclick={submit}
+				disabled={studio.isWorking || !situation.trim()}
 			>
-				{isWorking ? "She's reading it..." : "She's listening. Go."}
+				{studio.isWorking ? "She's reading it..." : "She's listening. Go."}
 			</button>
 		</section>
 	{:else}
 		<header class="verdict-hero">
 			<p class="eyebrow">Meechie's Observation</p>
-			<div class="verdict-badge">{verdict.headline}</div>
+			<div class="verdict-badge">{studio.verdict.headline}</div>
 			<p class="verdict-response" data-testid="who-result">
-				{verdict.response}
+				{studio.verdict.response}
 			</p>
-			<button
-				type="button"
-				class="ghost-btn"
-				data-testid="who-reset"
-				on:click={reset}>← Different situation</button
-			>
+			<div class="verdict-actions">
+				<button
+					type="button"
+					class="ghost-btn"
+					data-testid="who-reset"
+					onclick={startOver}>← Different situation</button
+				>
+				<button
+					type="button"
+					class="ghost-btn"
+					data-testid="who-again"
+					onclick={submit}
+					disabled={studio.isWorking || studio.isGenerating}
+				>
+					{studio.isWorking ? 'Reading it again…' : 'Ask her again'}
+				</button>
+			</div>
+			{#if studio.error}
+				<p class="error" data-testid="who-error">{studio.error}</p>
+			{/if}
 		</header>
 
-		<section class="page-section">
-			<h2>Generate the Coloring Page</h2>
-			<p class="section-sub">
-				The verdict becomes the page. Print it. Color it. Dedicate it.
-			</p>
-
-			<div class="field">
-				<label for="dedicated" class="field-label"
-					>Dedicated to (optional)</label
-				>
-				<input
-					id="dedicated"
-					type="text"
-					bind:value={dedicatedTo}
-					maxlength="60"
-					placeholder="He had time to learn."
-				/>
-			</div>
-
-			<label class="sparkle-toggle">
-				<input type="checkbox" bind:checked={showSparkle} />
-				<span>Glitter preview overlay</span>
-			</label>
-
-			{#if generateError}
-				<p class="error" data-testid="who-generate-error">{generateError}</p>
-			{/if}
-
-			<button
-				type="button"
-				class="cta"
-				data-testid="who-generate-page"
-				on:click={handleGenerate}
-				disabled={isGenerating}
-			>
-				{isGenerating ? 'Printing the truth...' : 'Generate My Coloring Page'}
-			</button>
-
-			{#if imagePreviews.length > 0}
-				<div class="preview-grid">
-					{#each imagePreviews as preview}
-						<figure class:sparkle={showSparkle}>
-							<img src={preview} alt="Meechie coloring page" />
-						</figure>
-					{/each}
-				</div>
-			{/if}
-
-			{#if packagedFiles.length > 0}
-				<div class="downloads">
-					<p class="download-label">Save & Share</p>
-					{#each packagedFiles as file}
-						<a
-							class="download-link"
-							href={`data:${file.mimeType};base64,${file.dataBase64}`}
-							download={file.filename}
-						>
-							{file.filename}
-						</a>
-					{/each}
-				</div>
-			{/if}
-		</section>
+		<VerdictPageStudio
+			{studio}
+			subheading="The verdict becomes the page. Print it. Color it. Dedicate it."
+			dedicationPlaceholder="He had time to learn."
+		/>
 	{/if}
 </div>
 
@@ -470,6 +288,12 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		color: var(--cream);
 	}
 
+	.verdict-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+	}
+
 	.ghost-btn {
 		background: transparent;
 		border: 1px solid var(--gold-border);
@@ -482,162 +306,23 @@ Info flow: Situation input -> tools API (red_flag_or_run) -> verdict display -> 
 		transition: border-color 0.2s ease;
 	}
 
-	.ghost-btn:hover {
+	.ghost-btn:hover:not(:disabled) {
 		border-color: var(--gold);
 	}
 
-	/* Generate section */
-	.page-section {
-		position: relative;
-		z-index: 1;
-	}
-
-	h2 {
-		margin: 0 0 0.3rem;
-		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-size: 1.6rem;
-		font-style: italic;
-		font-weight: 800;
-		color: var(--cream);
-	}
-
-	.section-sub {
-		margin: 0 0 1.4rem;
-		font-size: 0.9rem;
-		color: var(--lavender);
-	}
-
-	.field {
-		margin-bottom: 1rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-	}
-
-	.field-label {
-		font-size: 0.78rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--gold);
-	}
-
-	input[type='text'] {
-		border-radius: 0.72rem;
-		border: 1px solid rgba(201, 162, 39, 0.25);
-		padding: 0.65rem 0.8rem;
-		font-size: 0.95rem;
-		font-family: inherit;
-		color: var(--cream);
-		background: rgba(7, 7, 15, 0.7);
-		transition: border-color 0.2s ease;
-	}
-
-	input[type='text']:focus {
-		outline: none;
-		border-color: var(--gold);
-		box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15);
-	}
-
-	input[type='text']::placeholder {
-		color: rgba(184, 170, 207, 0.4);
-	}
-
-	.sparkle-toggle {
-		display: flex;
-		align-items: center;
-		gap: 0.6rem;
-		margin-bottom: 1rem;
-		font-size: 0.87rem;
-		color: var(--lavender);
-		cursor: pointer;
+	.ghost-btn:disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
 	}
 
 	.error {
+		margin: 0;
 		padding: 0.7rem 1rem;
 		border-radius: 0.6rem;
 		background: rgba(232, 0, 106, 0.1);
 		border: 1px solid rgba(232, 0, 106, 0.3);
 		font-size: 0.88rem;
 		color: #ff8fab;
-	}
-
-	.preview-grid {
-		display: grid;
-		gap: 1rem;
-		margin-top: 1.6rem;
-	}
-
-	figure {
-		margin: 0;
-		border-radius: 0.8rem;
-		overflow: hidden;
-		border: 1px solid var(--gold-border);
-	}
-
-	figure img {
-		display: block;
-		width: 100%;
-		height: auto;
-	}
-
-	figure.sparkle {
-		position: relative;
-	}
-
-	figure.sparkle::after {
-		content: '';
-		position: absolute;
-		inset: 0;
-		background:
-			radial-gradient(
-				ellipse at 20% 20%,
-				rgba(240, 196, 74, 0.25),
-				transparent 55%
-			),
-			radial-gradient(
-				ellipse at 80% 80%,
-				rgba(232, 0, 106, 0.18),
-				transparent 50%
-			);
-		pointer-events: none;
-	}
-
-	.downloads {
-		margin-top: 1.4rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.6rem;
-	}
-
-	.download-label {
-		margin: 0 0 0.2rem;
-		font-size: 0.75rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--gold);
-	}
-
-	.download-link {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.6rem 1.1rem;
-		border-radius: 999px;
-		border: 1px solid var(--gold-border);
-		background: rgba(201, 162, 39, 0.08);
-		color: var(--gold-bright);
-		text-decoration: none;
-		font-size: 0.88rem;
-		font-weight: 600;
-		transition:
-			border-color 0.2s ease,
-			background-color 0.2s ease;
-	}
-
-	.download-link:hover {
-		border-color: var(--gold);
-		background: rgba(201, 162, 39, 0.15);
 	}
 
 	@media (max-width: 600px) {

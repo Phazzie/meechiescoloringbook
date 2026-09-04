@@ -25,19 +25,15 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 	import { sessionAdapter } from '$lib/adapters/session.adapter';
-	import { buildToolPageRecipe, buildToolStudioText } from '$lib/core/tool-page-recipe';
+	import {
+		buildToolPageRecipe,
+		buildToolStudioText
+	} from '$lib/core/tool-page-recipe';
 	import type { ToolPageRecipe } from '$lib/core/tool-page-recipe';
-
-	// `format` is the only image-type field the contract actually constrains: it is a closed
-	// four-value enum, while `mimeType` is `NonEmptyStringSchema`, so any non-empty string passes
-	// validation. Deriving the media type from the enum is therefore total and cannot forward an
-	// unvalidated wire value.
-	const IMAGE_MIME_TYPES: Record<GeneratedImage['format'], string> = {
-		svg: 'image/svg+xml',
-		png: 'image/png',
-		jpg: 'image/jpeg',
-		webp: 'image/webp'
-	};
+	import {
+		generatedImageBase64,
+		generatedImageDataUrl
+	} from '$lib/core/generated-image-preview';
 
 	const tools = [
 		{
@@ -100,10 +96,9 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	const signs = HoroscopeSignSchema.options;
 	type Tool = (typeof tools)[number];
 	type ToolId = (typeof tools)[number]['id'];
-	const toolsById = Object.fromEntries(tools.map((tool) => [tool.id, tool])) as Record<
-		ToolId,
-		Tool
-	>;
+	const toolsById = Object.fromEntries(
+		tools.map((tool) => [tool.id, tool])
+	) as Record<ToolId, Tool>;
 
 	let selectedTool: ToolId = tools[0].id;
 	let output: MeechieToolOutput | null = null;
@@ -234,7 +229,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		// is still pending, `lastRecipe` and `imagePreviews` are both empty, so checking only those
 		// would return without bumping the token — and the in-flight page, built with the previous
 		// dedication, would then land beneath the new one.
-		if (!isGenerating && lastRecipe === null && imagePreviews.length === 0) return;
+		if (!isGenerating && lastRecipe === null && imagePreviews.length === 0)
+			return;
 		resetPage();
 	};
 
@@ -251,20 +247,11 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		if (typeof Image === 'undefined') return true;
 		return await new Promise<boolean>((resolve) => {
 			const probe = new Image();
-			probe.onload = (): void => resolve(probe.naturalWidth > 0 && probe.naturalHeight > 0);
+			probe.onload = (): void =>
+				resolve(probe.naturalWidth > 0 && probe.naturalHeight > 0);
 			probe.onerror = (): void => resolve(false);
 			probe.src = url;
 		});
-	};
-
-	const previewUrl = (image: GeneratedImage): string | null => {
-		if (image.format === 'svg' && image.encoding === 'utf8') {
-			return `data:${IMAGE_MIME_TYPES.svg};utf8,${encodeURIComponent(image.data)}`;
-		}
-		if (image.encoding === 'base64') {
-			return `data:${IMAGE_MIME_TYPES[image.format]};base64,${image.data}`;
-		}
-		return null;
 	};
 
 	const handleMakePage = async (): Promise<void> => {
@@ -321,11 +308,12 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			// browser to decode the bytes answers "can this be shown and printed?" directly instead
 			// of by proxy. Drop what will not decode and keep the page on screen if nothing does.
 			const decoded = await Promise.all(
-				parsed.data.value.images.map(async (image) => ({
-					image,
-					preview: previewUrl(image),
-					usable: await canDecodeImage(previewUrl(image))
-				}))
+				parsed.data.value.images.map(async (image) => {
+					// Built once: the decode probe and the preview must be the same URL, and
+					// deriving it twice invites them to drift apart under a later edit.
+					const preview = generatedImageDataUrl(image);
+					return { image, preview, usable: await canDecodeImage(preview) };
+				})
 			);
 			if (isStale()) return;
 			const usable = decoded.filter((entry) => entry.usable);
@@ -386,7 +374,9 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 					return {
 						files: [],
 						error:
-							packagingError instanceof Error ? packagingError.message : 'Packaging failed.'
+							packagingError instanceof Error
+								? packagingError.message
+								: 'Packaging failed.'
 					};
 				}
 			};
@@ -411,18 +401,9 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		}
 	};
 
-	/** The vault stores image bytes as base64; utf8 SVG markup has to be encoded before it goes in. */
-	const encodeBase64 = (value: string): string => {
-		const bytes = new TextEncoder().encode(value);
-		let binary = '';
-		for (const byte of bytes) {
-			binary += String.fromCharCode(byte);
-		}
-		return btoa(binary);
-	};
-
 	const handleSaveToVault = async (): Promise<void> => {
-		if (isSaving || !lastRecipe || !pageVerdict || generatedImages.length === 0) return;
+		if (isSaving || !lastRecipe || !pageVerdict || generatedImages.length === 0)
+			return;
 		if (!owner) {
 			vaultStatus = 'Session is still connecting. Try again in a moment.';
 			return;
@@ -456,7 +437,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			const result = await creationStoreAdapter.saveCreation({
 				record: {
 					id:
-						typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+						typeof crypto !== 'undefined' &&
+						typeof crypto.randomUUID === 'function'
 							? crypto.randomUUID()
 							: `creation-${Date.now()}`,
 					createdAtISO: new Date().toISOString(),
@@ -474,7 +456,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 					violations,
 					fixesApplied: recommendedFixes.map((fix) => fix.code),
 					images: generatedImages.map((image) => ({
-						b64: image.encoding === 'base64' ? image.data : encodeBase64(image.data)
+						b64: generatedImageBase64(image)
 					})),
 					owner
 				}
@@ -486,7 +468,9 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		} catch (saveError) {
 			if (isStaleSave()) return;
 			vaultStatus =
-				saveError instanceof Error ? saveError.message : 'Failed to save to vault.';
+				saveError instanceof Error
+					? saveError.message
+					: 'Failed to save to vault.';
 		} finally {
 			isSaving = false;
 		}
@@ -499,7 +483,9 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		const verdict = output;
 		const token = pageToken;
 		try {
-			await navigator.clipboard.writeText(`${verdict.headline}\n\n${verdict.response}`);
+			await navigator.clipboard.writeText(
+				`${verdict.headline}\n\n${verdict.response}`
+			);
 			if (token !== pageToken || output !== verdict) return;
 			copyStatus = 'Verdict copied.';
 		} catch {
@@ -588,7 +574,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		// screen showed B.
 		const requestedTool = selectedTool;
 		const token = verdictToken;
-		const isStale = (): boolean => token !== verdictToken || selectedTool !== requestedTool;
+		const isStale = (): boolean =>
+			token !== verdictToken || selectedTool !== requestedTool;
 		// Recorded rather than recomputed at the end, because the success path calls `resetState()`,
 		// which bumps `pageToken` itself. Re-asking `isStale()` in the `finally` after that would
 		// read its own reset as someone else's and leave the button disabled forever.
@@ -769,7 +756,9 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 					Copy the verdict
 				</button>
 				{#if copyStatus}
-					<span class="status" data-testid="meechie-tool-copy-status">{copyStatus}</span>
+					<span class="status" data-testid="meechie-tool-copy-status"
+						>{copyStatus}</span
+					>
 				{/if}
 			</div>
 		</section>
@@ -782,7 +771,9 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			</p>
 
 			<div class="field">
-				<label class="label" for="tool-dedication">Dedicated to (optional)</label>
+				<label class="label" for="tool-dedication"
+					>Dedicated to (optional)</label
+				>
 				<input
 					id="tool-dedication"
 					data-testid="meechie-tool-dedication"
@@ -794,7 +785,9 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			</div>
 
 			{#if generateError}
-				<p class="error" data-testid="meechie-tool-generate-error">{generateError}</p>
+				<p class="error" data-testid="meechie-tool-generate-error">
+					{generateError}
+				</p>
 			{/if}
 
 			<button
@@ -856,7 +849,9 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 					</button>
 				</div>
 				{#if vaultStatus}
-					<p class="status" data-testid="meechie-tool-vault-status">{vaultStatus}</p>
+					<p class="status" data-testid="meechie-tool-vault-status">
+						{vaultStatus}
+					</p>
 				{/if}
 			{/if}
 		</section>

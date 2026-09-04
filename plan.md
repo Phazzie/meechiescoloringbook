@@ -1811,3 +1811,47 @@ Deliver a brand-new modern/sleek/polished UI with strong visual identity, refres
 2. What must be proven: JPEG and WebP print packaging still route through browser conversion at 2550 by 3300, SVG fallback dimensions remain 2550 by 3300, the HTTP client and studio-text improvements are not regressed, and focused plus full verification gates pass.
 3. Riskiest assumption: Removing duplicated numeric literals without adding a behavior test is acceptable because this slice changes names, not values; the mitigation is focused OutputPackagingSeam tests plus a before/after source debt scan.
 4. Evidence to prove/disprove: Debt scan, focused output-packaging/wig/http/studio tests, Svelte check, lint, full verify, Cipher Gate, and diff-check output.
+
+## The standalone mode routes become real page factories (2026-09-04)
+
+**Goal:** `/who-fucked-up`, `/rate-his-excuse` and `/random` — three of the app's four nav
+destinations — produce the same coloring page the rest of the app produces: shaped by the structure
+the verdict came back in, reporting drift, downloadable as separate print and share files, and
+keepable in the Quote Vault. One implementation, shared, instead of three divergent copies.
+
+**Seams touched:** none. `MeechieToolSeam`, `SpecValidationSeam`, `OutputPackagingSeam`,
+`CreationStoreSeam` and `SessionSeam` are consumed through their existing adapters exactly as
+`src/routes/+page.svelte` and `src/lib/components/MeechieTools.svelte` already consume them. No file
+under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+`src/lib/seams/` is modified, so the full Seam-Driven Development workflow is not triggered and no
+Cipher Gate entry is required.
+
+**Files:**
+- `src/lib/core/generated-image-preview.ts` (new) — pure `GeneratedImage` -> data URL / base64.
+- `src/lib/components/verdict-page-state.svelte.ts` (new) — `VerdictPageState`, the verdict-to-page
+  lifecycle: verdict request, recipe, generation, packaging, drift, vault save, copy.
+- `src/lib/components/VerdictPageStudio.svelte` (new) — the shared "put it on paper" UI.
+- `src/routes/who-fucked-up/+page.svelte`, `src/routes/rate-his-excuse/+page.svelte`,
+  `src/routes/random/+page.svelte` — keep their own hero, input and verdict presentation; delegate
+  everything after the verdict to the shared studio.
+- `src/routes/studio-state.svelte.ts`, `src/lib/components/MeechieTools.svelte` — drop their private
+  copies of the image-conversion helpers in favour of the new core module.
+- `tests/unit/generated-image-preview.test.ts` (new), `tests/unit/verdict-page-state.test.ts` (new),
+  `tests/e2e/smoke.spec.ts`.
+- `CHANGELOG.md`, `CLAUDE.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+`npx playwright test`, plus driving all three routes in a real browser at 1280x900 and 390x844.
+
+**Self-critique:**
+- *Riskiest assumption:* that these three routes can share one lifecycle without losing what makes
+  each distinct. Disproved for the naive version — Rate His Excuse echoes the excuse and leads with
+  a score ring, and Random Meechie has a loading state and no input at all — so the split is at the
+  verdict boundary: each route owns its hero, its input and its verdict presentation, and the shared
+  component owns only what was identical.
+- *What must be proven:* that the shared guards actually hold. Every one of them is invisible from
+  the outside, so each gets a test, and each test is confirmed by deleting the guard and watching it
+  fail rather than by reading the code.
+- *What could be wrong:* the two-token design. One token would be simpler and is what the tools hub
+  uses, but the hub never shows a dedication field beside a loading verdict. Here it does, so a
+  shared token makes typing a dedication cancel an in-flight verdict request.

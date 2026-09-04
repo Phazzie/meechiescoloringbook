@@ -8,6 +8,23 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Who Fucked Up?, Rate His Excuse and Random Meechie now make the same coloring page the rest of the app makes. These three routes are three of the four links in the nav, and each one used to flatten Meechie's whole answer into a single page title: a verdict that came back in beats ("Fault:", "Consequence:", "Move:") lost that structure and got cut off at 96 characters. They now print as numbered list pages with the lines intact, exactly like the toolkit does, and an unstructured saying still prints as a full-quote page.
+- You can save a page from any of those three routes to the Quote Vault. Previously nothing outside the home studio and the toolkit could put anything in the vault, so a page generated from the nav — after paying for the generation — survived only as long as the tab did.
+- Those three routes now tell you when the printed page drifted from what was asked for, instead of discarding the report.
+- A failed retry on those routes no longer destroys the page you already have. Asking Meechie again and getting a timeout, an empty field, or a provider error used to wipe the verdict, the preview and the downloads before the request had even gone out.
+- Editing "Dedicated to" after generating now drops the page it was not generated with, so a download can never carry a dedication the form no longer shows.
+- The printable PDF on those routes survives a failed share image. They used to build both files in one call, and a browser that could not encode the square share image lost the PDF with it.
+- Every verdict on those routes can be copied to the clipboard, and Random Meechie keeps the saying you are reading on screen while it fetches the next one.
+- Asking for another saying on Random Meechie clears a dedication chosen for the previous one, so a name can no longer end up printed on a saying it was never meant for.
+- "Generate My Coloring Page" is disabled while a replacement verdict is loading, so a generation can no longer be charged for a page that is about to be discarded.
+- A saved page no longer claims that drift corrections were applied when none were. The drift report itself is still stored.
+- Rate His Excuse can no longer show one ruling labelled with a different excuse. Abandoning a slow re-run and submitting a new excuse used to let the abandoned request relabel the newer ruling with the older excuse.
+- Saving to the vault recovers if the browser refused access to site data and then allowed it, instead of failing for the rest of the visit.
+- Asking for another verdict while a coloring page is still generating is now blocked rather than silently throwing that page away, and Save is unavailable for the moment a replacement page is being built.
+- Two pages saved at the same moment from two tabs can no longer overwrite each other. On browsers without a secure context the saved-page id came from the clock alone, so two saves in the same millisecond shared an id and the first was silently dropped.
+- Pressing "Generate My Coloring Page" again no longer deletes the page you already have before the new one arrives. A timeout, a provider error or an unreadable image now leaves the existing page intact.
+- An unreadable image from the provider is caught before it becomes a page, instead of showing a broken preview with a working Save button.
+- A coloring page survives a failure while its downloads are being built. Previously a browser that could not render the square share image threw away the page, its preview and the printable PDF along with it.
 - Every tool in Meechie's Tools now makes a coloring page. All eleven — Apology Autopsy, Run Or Red Flag, Meechie Move, Excuse Court, Meechie Forecast, Receipt Check, Caption Drop, Return Fire, Term Breakdown, Rate Excuse and Random Meechie — used to end at a paragraph of text you could not print, keep, or copy. Each verdict now generates the page, previews it, downloads as PDF and PNG, and saves to the Quote Vault.
 - A tool page is now shaped by what the tool actually said. A verdict that comes back in beats ("Fault:", "Consequence:", "Move:") prints as a numbered list page with those lines intact, and a ranked Excuse Court lineup prints as the ranking; a one-line saying prints as a full-quote page. Previously every mode flattened its whole answer into a single page title and lost the structure.
 - Each tool has its own artwork direction: a gavel and scales for Excuse Court, paper and ledger lines for Receipt Check, stars and constellations for Meechie Forecast, and so on, instead of one shared style for everything.
