@@ -1127,3 +1127,29 @@ entry for a change that does not need one.
 new end-to-end race test declared `let release: (() => void) | null = null` and control-flow analysis
 narrows that to `never` at the call site. The lesson is small and repeats run 1's: run the gate
 after the last edit, not after the last edit you thought mattered.
+
+### One more round: the test that did not test anything
+
+SonarCloud flagged the new race test on `9a2aa88` for `await page.waitForTimeout(500)` — replace a
+fixed wait with synchronization on an observable condition. Fair, and acting on it exposed something
+worse than the smell.
+
+Replacing the sleep with `waitForResponse` + `waitForLoadState('networkidle')` made the test pass
+**with the guard deliberately removed**. Two separate reasons, both worth recording:
+
+1. The assertion ran before the discarded response had been processed, so "nothing rendered" was
+   trivially true.
+2. Even given time, the effect was invisible: the tool switch leaves `output` null, the factory is
+   hidden, and a stale response that *is* wrongly applied paints nothing anyone can see. A
+   discarded response and a wrongly-applied one looked identical.
+
+The rewritten test takes the new tool's own verdict first, so the factory is on screen and a stale
+page would appear under the wrong verdict, and it waits on `page.waitForEvent('pageerror')` — where
+the timeout is the passing outcome — instead of sleeping. Red-proofed both ways: with
+`isStale()` forced to `false` it fails on `locator resolved to 1 element`, and with the guard
+restored all eleven end-to-end tests pass.
+
+The related correction: the original crash (`output.toolId` read after the await) sat inside the
+existing `try`, so it never surfaced as an uncaught page error. The first attempt at a red proof
+assumed it would, and passed for the wrong reason. **A regression test is not finished until it has
+been watched to fail.**

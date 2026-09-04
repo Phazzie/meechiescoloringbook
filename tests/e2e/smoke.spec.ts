@@ -503,15 +503,29 @@ test('a slow page generation cannot land under a different verdict', async ({ pa
 	await page.getByTestId('meechie-tool-clapback').click();
 	await expect(page.getByTestId('meechie-tool-page-factory')).toBeHidden();
 
-	// Let the abandoned response arrive. It must be discarded, not rendered.
-	release();
-	await page.waitForTimeout(500);
+	// Take the new tool's own verdict, so the factory is on screen. This is what makes the stale
+	// response observable: with the page hidden, a discarded response and a wrongly-applied one
+	// look identical. The button being enabled here is already part of the fix — abandoning a
+	// generation releases `isGenerating` rather than wedging it.
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
 	await expect(page.locator('.preview-grid img')).toHaveCount(0);
+
+	// Now let the abandoned response arrive.
+	const abandoned = page.waitForResponse('**/api/generate');
+	release();
+	await abandoned;
+
+	// Wait on an event rather than sleeping: this resolves only if the page raises an error, so a
+	// timeout is the passing outcome and a late error still fails. It also gives the discarded
+	// response a real window in which to paint — which is what the next assertion depends on.
+	await expect(page.waitForEvent('pageerror', { timeout: 3000 })).rejects.toThrow();
 	expect(pageErrors).toEqual([]);
 
-	// The button is not wedged: the next verdict can still make its own page.
-	await page.getByTestId('meechie-tool-generate').click();
-	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
+	// The load-bearing assertion: tool A's page must not have appeared under tool B's verdict.
+	await expect(page.locator('.preview-grid img')).toHaveCount(0);
+	await expect(page.getByTestId('meechie-tool-download')).toHaveCount(0);
 });
 
 

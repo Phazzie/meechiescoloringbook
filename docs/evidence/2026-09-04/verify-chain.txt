@@ -3,20 +3,21 @@
 #      nothing in the chain regenerates it (see scripts/proof-tape.mjs).
 # Info flow: verify chain stages -> stdout/stderr -> evidence file.
 # Command: npm run verify
-# Date (UTC): 2026-09-04T07:40:44Z
+# Date (UTC): 2026-09-04T07:48:29Z
 #
 # IMPORTANT — one stage of the chain could not run, and this file does not pretend otherwise.
-# `npm run audit:gate` (`npm audit --audit-level=high`) is the first stage. It failed against
-# npm every attempt with:
+# `npm run audit:gate` (`npm audit --audit-level=high`) is the first stage. It failed on every
+# attempt with:
 #     npm warn audit 503 Service Unavailable - POST
 #     https://registry.npmjs.org/-/npm/v1/security/audits/quick - Service Unavailable
-# This is an npm-side outage of the audit endpoint only, not a finding and not reachable from
-# this diff. Evidence that it is the endpoint and not the network or the registry:
+# This is an npm-side outage of the audit endpoint only. Evidence that it is the endpoint and
+# not this network or the registry:
 #     curl https://registry.npmjs.org/            -> 200 in 0.074s
 #     curl -X POST .../security/audits/quick      -> timeout, no bytes received
-# The identical failure took down the `verify` check on CI for commit 95ab82c at 07:03:48Z.
-# Every other stage of the chain ran, in order, and is transcribed below. The audit gate will be
-# re-run and this file regenerated once npm restores the endpoint.
+# The identical failure took down the `verify` check on CI for 95ab82c at 07:03:48Z, so it is
+# reproduced on both sides and is not reachable from this diff. Every other stage ran, in order,
+# and is transcribed below. The gate will be re-run and this file regenerated once npm restores
+# the endpoint; a watcher is polling for that.
 
 
 > meechies-coloringbook@0.1.0 check
@@ -36,8 +37,8 @@ svelte-check found 0 errors and 0 warnings
 
 [2m Test Files [22m [1m[32m79 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (80)[39m
 [2m      Tests [22m [1m[32m1071 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1072)[39m
-[2m   Start at [22m 07:38:27
-[2m   Duration [22m 77.77s[2m (transform 2.90s, setup 794ms, import 5.35s, tests 2.80s, environment 53.81s)[22m
+[2m   Start at [22m 07:46:21
+[2m   Duration [22m 78.48s[2m (transform 2.94s, setup 825ms, import 5.45s, tests 2.88s, environment 54.18s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
