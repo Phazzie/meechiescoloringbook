@@ -35,7 +35,16 @@ concession the `ClockSeam` plan in run 1 had to make.
   3. **2026-05-14, `ImageGenerationSeam` fixture freshness.** The rebuild newly reaches
      `/api/generate`, which constructs that seam, and `assumption-alarm.json` still lists it under
      `blockedSeams`. The only waiver was scoped to a May review-comment repair. A waiver scoped to
-     PR #295, with its validation plan, is recorded in `DECISIONS.md` as part of this change.
+     PR #295 is recorded in `DECISIONS.md` as part of this change. **Its validation is conditional,
+     and the distinction matters:** no validation can run *today*, because the seam's refresh path
+     needs three code changes first (the probe's captures have no consumer, the mock synthesises its
+     success rather than loading one, and the probe throws on the failure it claims to capture).
+     The entry states those prerequisites, then the post-repair sequence the completion checklist
+     requires — probe, refresh, **red proof on the fault fixture**, both suites, the rewind, verify
+     plus a Cipher Gate for the repairs, the `docs/seams.md` probe date, and finally marking the
+     Assumption Resolved. Three review rounds went by before this field said any of that, and one
+     of my drafts overcorrected into "no plan can be written", which is not the same claim.
+     `npm run assumption:alarm` exits 0 with the entry as written.
 - **Seams:** none changed. No seam artifact is in the diff; the rulings are about whether existing
   open Assumptions block an already-merged change.
 - **Files.** Governance: `DECISIONS.md` (the ruling), `plan.md` (this section),

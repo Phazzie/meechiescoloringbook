@@ -4888,3 +4888,51 @@ none in the application. Rounds 15, 16 and 17 each found the previous round's re
 each went one level deeper: the plan is missing → the plan's file has no consumer → the plan's
 destination has no slot for the data. **That is what it takes to find out a validation plan is
 fiction: someone has to follow it further than you did.**
+
+---
+
+## Run 4, correction 18 — 2026-09-04 — "no plan can be written" was itself an overcorrection
+
+Appended, not edited. One P1 on `6a1681b`, and it is the sharpest kind: the correction I was
+pleased with last round was wrong in the opposite direction from the thing it corrected.
+
+### P1 — a waiver with no stated plan for later validation
+
+`AGENTS.md`'s completion checklist permits a fixture waiver only with "the assumption being made,
+the assumption documented in `LESSONS_LEARNED.md`/`DECISIONS.md`, and **a stated plan for later
+validation**." Round 17's field named three prerequisite code changes and stopped. That says what
+would make validation *possible*; it never says what to run once it is. Meanwhile `plan.md` still
+described the waiver as having a validation plan, so the two documents disagreed about the entry
+they both govern.
+
+**The distinction I collapsed.** What could not be written was a plan that runs **today** — that
+part was correct and hard-won, across three rounds. A plan **conditional on the three repairs** was
+always writable. I went from "this plan is fiction" to "no plan can be written", which is a
+stronger claim, and I did not check it before making it. It is the same failure as the four
+findings that preceded it, one turn of the wheel further on: a decisive-sounding sentence, unchecked,
+in the very place I had just been caught writing decisive-sounding unchecked sentences.
+
+The Validation field now carries the conditional sequence in full: probe → refresh `fixtures.ts`
+from the captures → **red proof on the fault fixture before it is accepted**, captured as
+`image-generation-fault-red-proof.txt` → both suites → the rewind → `verify` plus a Cipher Gate for
+the repairs themselves → the `docs/seams.md` probe date → mark the Assumption Resolved with its
+evidence paths. `plan.md` no longer claims the plan exists unconditionally; it states the condition
+and names what blocks it.
+
+Step 3 is the one worth defending: it is the step a hurried future run will skip, and the only one
+that proves a refreshed fault fixture can actually fail. A green suite after a fixture refresh means
+nothing without a red proof first — which is, in miniature, the entire lesson of rounds 15 through
+18.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1 — **fifty findings across eighteen rounds**,
+none in the application.
+
+Four consecutive rounds have now been the same argument at increasing depth: the plan is missing →
+its file has no consumer → its destination has no slot → the retreat from planning went too far.
+Each correction was made confidently and each was wrong in a way the next reviewer could see
+immediately. The pattern is not carelessness about facts — every claim was checked against
+something — it is **confidence outrunning the check**: I verify the thing I just looked at and then
+write one sentence more than I verified. That last sentence is where every one of these findings
+lives.

@@ -7,7 +7,7 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # npm run verify — Run 4 (worst-feature routine): /m/[mode] becomes a real mode page
-# Chain last re-run at 2026-09-04T22:02:45.267Z on the Run 4 close-out head (PR #296)
+# Chain last re-run at 2026-09-04T22:12:43.273Z on the Run 4 close-out head (PR #296)
 # Taken from chamber-lock.json's generatedAt, which is written at stage 2 of the chain, rather than
 # typed by hand — a hand-typed header carried the earlier 19:07 run forward through two later chain
 # executions and described artifacts it had not produced.
@@ -364,10 +364,29 @@ so a nested list truncated the block before `Status` and the entry parsed as inc
 one line again. Worth recording twice over: the gate did exactly its job, and a formatting choice in
 a governance document is a functional change to what the gate can read.
 
+## Round 12 — the Codex round on `6a1681b`: "blocked" was an overcorrection
+
+One P1, and it lands squarely. `AGENTS.md`'s completion checklist permits a fixture waiver only
+"with the assumption being made, the assumption documented, and **a stated plan for later
+validation**". Round 11's field named three prerequisite code changes and stopped there — it said
+what would make validation *possible* and never said what to run afterwards. That is not a plan for
+later validation, and `plan.md` meanwhile still claimed the waiver had one.
+
+**The distinction I collapsed:** what could not be written was a plan that runs *today*. A plan
+conditional on the three repairs was always writable, and round 11 overcorrected from "this plan is
+fiction" to "no plan can be written", which is a different and stronger claim than the evidence
+supported. Both errors have the same shape — a sentence that sounds decisive and is not checked.
+
+The field now carries the seven-step post-repair sequence: probe, refresh `fixtures.ts` from the
+captures, **red proof on the fault fixture before it is accepted** (captured as
+`image-generation-fault-red-proof.txt`, the step a hurried run skips and the only one that proves the
+refreshed fault can fail), both suites, the rewind, `verify` plus a Cipher Gate for the repairs, the
+`docs/seams.md` probe date, and finally marking the Assumption Resolved with its evidence paths.
+`plan.md` no longer claims a plan exists unconditionally; it states the condition.
+
 ## Ordering of this round's runs, recorded as they happened
 
-  1. npm run verify            exit 1 first, then exit 0 after the field was collapsed to one line
-                                                          (chamber-lock generatedAt 22:02:45.267Z)
+  1. npm run verify            exit 0, all eight stages   (chamber-lock generatedAt 22:12:43.273Z)
   2. npm run lint              exit 0                     -> lint.txt
   3. npm run build             exit 0                     -> build.txt
   4. npx playwright test       28 passed                  -> e2e.txt
@@ -378,13 +397,9 @@ a governance document is a functional change to what the gate can read.
   7. this section
   8. npm run proof:tape        LAST, so the tape inventories every file including this one
 
-The exit 1 in step 1 is recorded rather than quietly re-run into a green line, because a chain that
-failed and was fixed is a different history from a chain that passed, and the artifact should say
-which one happened.
-
 Evidence on this head, read back from seam-rewind-exit-codes.md and an `ls` of the directory rather
 than recalled: check 0 errors / 0 warnings, lint exit 0, test 1187 passed | 1 skipped, build exit 0,
-playwright 28 passed, verify exit 0 across all eight stages on the second run, cipher:gate exit 0
-(scoped as above), assumption:alarm exit 0, and 19 rewind rows recording exit code 0 against 19 files
-matching `rewind-*.txt`. No hand-typed timestamp closes this file; proof-tape.json's generatedAt
-against this file's mtime is the checkable record of the ordering.
+playwright 28 passed, verify exit 0 across all eight stages, cipher:gate exit 0 (scoped as above),
+assumption:alarm exit 0, and 19 rewind rows recording exit code 0 against 19 files matching
+`rewind-*.txt`. No hand-typed timestamp closes this file; proof-tape.json's generatedAt against this
+file's mtime is the checkable record of the ordering.
