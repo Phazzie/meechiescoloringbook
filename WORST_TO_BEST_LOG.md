@@ -1944,3 +1944,74 @@ by the third close-out I was copying my own earlier sentence forward instead of 
 A claim repeated from your own notes is not evidence. It is the same hypothesis it was the first
 time, and the log's own lesson — *measure it before you say it out loud* — applies hardest to the
 things already written down.
+
+---
+
+## Run 2, correction 3 — 2026-09-04 — four findings on the fixes themselves
+
+Codex reviewed the follow-up and found four things wrong with it. Three were real and are fixed; one
+I am refusing, with the reasoning stated rather than assumed.
+
+Running total: **fourteen rounds, 59 findings, 26 real user-visible defects.**
+
+### The closer hid the abbreviation from its own guard
+
+Allowing a closing quote between the terminator and the space broke the guard it sits next to. Every
+lookbehind is evaluated at the space, so with a closer present they saw the closer and never noticed
+the word before the period:
+
+```
+'He consulted "Dr." Smith yesterday.'  ->  ['He consulted "Dr."', 'Smith yesterday.']
+'"A." Then he left.'                   ->  ['"A."', 'Then he left.']
+```
+
+The second one is the two-character title the guard exists to prevent, reintroduced by the fix for
+the case next to it. The abbreviation and initial checks are now written twice, once spanning the
+closer, so the check reaches the word again in both shapes. Red-proofed: removing the second pair
+fails both cases.
+
+### The theme control contradicted itself
+
+Carrying the whole presentation forward carried `decorations` with it — and `decorations` is not
+presentation, it is *derived from the theme*. So choosing Receipts on a restored minimal page stayed
+minimal, and moving off a restored Receipts page stayed dense: the Theme control produced a spec that
+disagreed with the theme selected. It is recomputed from `styleHint` every time now, and the rest of
+the presentation still carries.
+
+The first version of that test passed with the fix reverted, because it never supplied a
+`decorations` key — production passes the whole spec, which does. Rewritten to call it the way
+`applyTextToSpec` does, and it red-proofs.
+
+### A save could claim a page it never saved
+
+Keeping the previous page on screen during a regeneration — the P1 fix — leaves its Save button live.
+A save begun in that window captured the very token the regeneration was already holding, so it
+passed its own staleness check and printed "Saved to the vault" under the replacement. The save now
+pins `lastRecipe` as well as the token, and the status lines clear when a page is installed.
+
+**This one has no test, and that is stated in the code rather than papered over.** The vault write
+goes to localStorage through the adapter, not over the network, so a Playwright route stub cannot
+hold it open across the regeneration the race needs. I wrote a test that clicked Save and then
+regenerated; it passed with the guard removed, because it was measuring the up-front `vaultStatus`
+clear instead. I deleted it. A green test that proves nothing is worse than a documented gap — it
+is the thing that let six defects through this run while the suite stayed green.
+
+### Refused: run the full Seam-Driven Development workflow for this change
+
+Codex reads the P1 as altering "observable behavior across a seam boundary" because it changes
+cancellation and state installation around `/api/generate` and `OutputPackagingSeam`.
+
+Nothing that crosses either boundary changed. The same calls are made with the same arguments and the
+same variants; what changed is what this component does with the results on its own side — when it
+clears its own state, and that it now catches a rejection the adapter does not wrap into a `Result`.
+No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/` or
+`src/lib/adapters/` is touched.
+
+Five call sites consume these adapters exactly this way — `src/routes/studio-state.svelte.ts` and
+three route pages besides this component — and none carries a per-call-site contract test.
+`studio-state.svelte.ts` has this same shape: awaits `outputPackagingAdapter.package`, handles the
+`Result`, guards with its own tokens, covered by unit tests.
+
+Reading the rule as Codex does would make every call-site error-handling change a full contract-first
+cycle, which is not how this repository is built. But it is a reading of the maintainer's own rule,
+so it is a call for the maintainer, and it is raised on the PR rather than settled by me.

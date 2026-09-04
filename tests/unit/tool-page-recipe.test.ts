@@ -806,3 +806,24 @@ describe('sentence boundaries see past a closing quote', () => {
 		]);
 	});
 });
+
+describe('the closer does not hide an abbreviation from the guard', () => {
+	it('does not split a quoted title from the name it introduces', () => {
+		// Every lookbehind is evaluated at the space, so with a closer present they saw the closer
+		// rather than the period before it and the abbreviation went unnoticed.
+		expect(splitResponseLines('He consulted "Dr." Smith yesterday.')).toEqual([
+			'He consulted "Dr." Smith yesterday.'
+		]);
+	});
+
+	it('does not let a quoted initial produce a two-character sentence', () => {
+		expect(splitResponseLines('"A." Then he left.')).toEqual(['"A." Then he left.']);
+	});
+
+	it('still splits a genuinely quoted sentence', () => {
+		expect(splitResponseLines('He said "I was busy." Then he changed the story.')).toEqual([
+			'He said "I was busy."',
+			'Then he changed the story.'
+		]);
+	});
+});

@@ -229,12 +229,28 @@ const anyCase = (word: string): string =>
  * wrong here: a merged pair still reads as finished prose and simply fails the length check, while
  * a bad split prints a page with two characters on it.
  */
-// The terminator may be followed by a closing quote or bracket before the space: a verdict that
-// quotes someone ends `He said "I was busy." Then he changed the story.` Requiring the terminator
-// immediately before the space missed that, so the pair came back as one oversized sentence and the
-// title fell back to a mid-sentence cut even though the first sentence would have fitted.
+/** A closing quote or bracket, which may sit between the terminator and the space. */
+const SENTENCE_CLOSER = `["'”’)\\]]`;
+
+/**
+ * A real sentence end, allowing for a closer.
+ *
+ * A verdict that quotes someone ends `He said "I was busy." Then he changed the story.`, and
+ * requiring the terminator immediately before the space missed it — the pair came back as one
+ * oversized sentence and the title cut mid-sentence.
+ *
+ * The abbreviation and initial guards are written twice, once for each shape. Every lookbehind is
+ * evaluated at the space, so with a closer present they see the closer rather than the period before
+ * it, and the abbreviation is never noticed: `He consulted "Dr." Smith yesterday.` split before
+ * `Smith`, and `"A." Then he left.` produced exactly the two-character title this guard exists to
+ * prevent. The second pair of lookbehinds spans the closer so the check reaches the word again.
+ */
 const SENTENCE_BOUNDARY = new RegExp(
-	`(?<=[.!?]["'”’)\\]]?)(?<!\\b(?:${SENTENCE_ABBREVIATIONS.map(anyCase).join('|')})\\.)(?<![A-Z]\\.) (?=["'“(]?[A-Z0-9])`
+	`(?<=[.!?]${SENTENCE_CLOSER}?)` +
+		`(?<!\\b(?:${SENTENCE_ABBREVIATIONS.map(anyCase).join('|')})\\.)(?<![A-Z]\\.)` +
+		`(?<!\\b(?:${SENTENCE_ABBREVIATIONS.map(anyCase).join('|')})\\.${SENTENCE_CLOSER})` +
+		`(?<![A-Z]\\.${SENTENCE_CLOSER})` +
+		` (?=["'“(]?[A-Z0-9])`
 );
 
 /**

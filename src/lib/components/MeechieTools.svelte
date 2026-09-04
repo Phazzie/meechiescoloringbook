@@ -295,6 +295,13 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			// already succeeded here; packaging is a local render that can fail on its own. Leaving
 			// the install until after meant any packaging problem skipped it entirely and threw the
 			// whole page away.
+			//
+			// The status lines describe the page being replaced, so they go with it. A save that was
+			// started before this swap is caught by `handleSaveToVault`'s own recipe check rather
+			// than by the token — bumping the token here would make this very run read itself as
+			// stale and wedge the button.
+			vaultStatus = '';
+			copyStatus = '';
 			pageVerdict = verdict;
 			lastRecipe = recipe;
 			generatedImages = images;
@@ -380,7 +387,23 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		// Same staleness rule as generation: the record below is built synchronously from the
 		// current page, but the write is awaited, so its status must not be painted over a page
 		// the user has since replaced.
+		//
+		// The recipe is pinned as well as the token, because the token alone stopped being enough
+		// once a regeneration kept the previous page on screen: the Save button stays live during
+		// that request, and a save begun in the window captured the very token the regeneration was
+		// already holding. It would then pass this check and paint "Saved to the vault" under the
+		// replacement page it never saved. `lastRecipe` is replaced by reference when a new page
+		// installs, so comparing it catches exactly that swap.
+		//
+		// Not covered by an end-to-end test, deliberately and not silently: the vault write goes to
+		// localStorage through the adapter rather than over the network, so a Playwright route stub
+		// cannot hold it open across the regeneration that the race requires. A test that clicked
+		// Save and then regenerated passed with this guard removed — it was measuring the up-front
+		// `vaultStatus` clear in `handleMakePage`, not this — so it was deleted rather than kept as
+		// false coverage.
 		const token = pageToken;
+		const savedRecipe = lastRecipe;
+		const isStaleSave = (): boolean => token !== pageToken || lastRecipe !== savedRecipe;
 		try {
 			const result = await creationStoreAdapter.saveCreation({
 				record: {
@@ -408,12 +431,12 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 					owner
 				}
 			});
-			if (token !== pageToken) return;
+			if (isStaleSave()) return;
 			vaultStatus = result.ok
 				? 'Saved to the vault. Find it on the home page.'
 				: result.error.message;
 		} catch (saveError) {
-			if (token !== pageToken) return;
+			if (isStaleSave()) return;
 			vaultStatus =
 				saveError instanceof Error ? saveError.message : 'Failed to save to vault.';
 		} finally {

@@ -311,3 +311,34 @@ describe('Meechie studio controls', () => {
 		expect(vaultText.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
 	});
 });
+
+describe('theme changes always recompute decoration density', () => {
+	it('does not let a restored page freeze its decorations against the selected theme', () => {
+		// `decorations` is derived from the theme, not carried forward like the rest of the
+		// presentation. Production passes the whole restored spec as `presentation`, so that object
+		// carries a `decorations` value even though the accepted type omits the key — which is
+		// exactly how preserving it made the Theme control contradict itself.
+		const restoredDense = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'plain',
+			styleHint: 'receipt ledger lines',
+			presentation: { alignment: 'center', whitespaceScale: 35 }
+		});
+		expect(restoredDense.decorations).toBe('dense');
+
+		// Now move that same restored page off the Receipts theme, passing its full spec back in the
+		// way `applyTextToSpec` does.
+		const movedAway = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'plain',
+			styleHint: 'gold crown ornaments',
+			presentation: restoredDense
+		});
+		expect(movedAway.decorations).toBe('minimal');
+		// The rest of the presentation is still carried forward.
+		expect(movedAway.alignment).toBe('center');
+		expect(movedAway.whitespaceScale).toBe(35);
+	});
+});

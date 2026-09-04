@@ -452,7 +452,6 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 			| 'fontStyle'
 			| 'textStrokeWidth'
 			| 'colorMode'
-			| 'decorations'
 			| 'illustrations'
 			| 'shading'
 			| 'borderThickness'
@@ -489,8 +488,11 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	fontStyle: input.presentation?.fontStyle ?? 'rounded',
 	textStrokeWidth: input.presentation?.textStrokeWidth ?? 6,
 	colorMode: input.presentation?.colorMode ?? 'black_and_white_only',
-	decorations:
-		input.presentation?.decorations ?? (input.styleHint.includes('receipt') ? 'dense' : 'minimal'),
+	// Not carried forward, unlike the rest of the presentation: this one is *derived* from the theme,
+	// and `styleHint` is the theme the reader has selected right now. Preserving it made the Theme
+	// control produce a spec that contradicted itself — picking Receipts on a restored minimal page
+	// stayed minimal, and moving off a restored Receipts page stayed dense.
+	decorations: input.styleHint.includes('receipt') ? 'dense' : 'minimal',
 	illustrations: input.presentation?.illustrations ?? 'simple',
 	shading: input.presentation?.shading ?? 'none',
 	border: input.border,
