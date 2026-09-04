@@ -69,7 +69,5 @@ export const probeClockSeam = async (): Promise<ClockProbeReport> => {
 };
 
 if (process.argv[1]?.endsWith('probe.ts')) {
-	probeClockSeam().then((report) => {
-		process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-	});
+	process.stdout.write(`${JSON.stringify(await probeClockSeam(), null, 2)}\n`);
 }

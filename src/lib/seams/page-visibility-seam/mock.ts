@@ -35,8 +35,10 @@ export const createMockPageVisibilitySeam = (
 			visible = next;
 			if (!becameVisible) return;
 			// Snapshot before notifying: a subscriber is free to unsubscribe from inside its own
-			// callback, and mutating the array mid-iteration would skip the next one.
-			for (const subscriber of [...subscribers]) subscriber();
+			// callback, which reassigns `subscribers`, and iterating the live array would then skip
+			// the next one. `slice()` rather than a spread so the copy reads as deliberate.
+			const notifying = subscribers.slice();
+			for (const subscriber of notifying) subscriber();
 		},
 
 		subscriberCount: () => subscribers.length

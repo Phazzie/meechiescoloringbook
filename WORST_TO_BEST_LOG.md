@@ -464,3 +464,31 @@ acceptable.** The probe now proves the fix, which is what the plan should have d
 ### Still deferred after the seventh round
 
 - Everything listed above, unchanged.
+
+---
+
+## Run 1, eighth close-out — 2026-09-04 — two more SonarCloud findings
+
+Appended, not edited. Both in code added the commit before, both read through the GitHub
+check-run annotations recipe recorded in the sixth close-out — which is now the second time that
+technique has paid, so it is worth trusting rather than rediscovering.
+
+| Finding | Fix |
+|---|---|
+| `clock-seam/probe.ts:72` — prefer top-level await over a promise chain | Done; the probe is an ES module, so `await` at the top level is available. |
+| `page-visibility-seam/mock.ts:39` — `for…of` does not need the iterable converted to an array | Kept the copy, made it unmistakable. |
+
+**Why the second one was not simply obeyed.** The rule reads `[...subscribers]` as a pointless
+conversion, but the copy is load-bearing: a subscriber may unsubscribe from inside its own
+callback, which reassigns `subscribers`, and iterating the live array would then skip the next
+subscriber — a behaviour there is a specific test for. Removing the copy would have satisfied the
+linter and introduced a bug. It is now `subscribers.slice()`, which reads as a deliberate copy
+rather than a conversion, keeps the behaviour, and clears the rule.
+
+A static-analysis finding is a hypothesis about intent. When it is wrong about the intent, the
+right answer is usually to make the intent legible rather than to change the behaviour — and
+never to suppress the rule silently.
+
+### Still deferred after the eighth round
+
+- Everything listed above, unchanged.
