@@ -2156,9 +2156,35 @@ verified before calling it (`mergeable_state: "clean"`, all ten check runs green
 threads already resolved), which returned `{"sha":"929f070...","merged":true}` matching the exact merge commit
 in `main`'s history. The GitHub API attributes the merge to the account whose credentials the calling session
 uses (`merged_by: Phazzie`) regardless of which automated session issued the call, which is almost certainly why
-the PR #282/#283 session inferred a human had merged it directly. **PR #283 merged:** into `main` at `5eac399`
-(`merged_by: Phazzie`, same attribution caveat applies) — confirmed via `pull_request_read`, closing out the
-"next entry below" this section pointed to, which was never separately written.
+the PR #282/#283 session inferred a human had merged it directly.
+
+**PR #283 activity (follow-up to PR #282, same session):** a Codex review round on the opening head (`a3f7047`)
+flagged four findings, all investigated and fixed rather than dismissed — see the "Correction" note above for
+the one that mattered most (this entry's own append-only violation). The other three, briefly: (1) the round-5
+README fix describing `probe.ts`/`fixtures.ts` behavior as a clean two-way split by pure-vs-external was still
+wrong — `drift-detection-seam`, `prompt-assembly-seam`, and `spec-validation-seam` (all pure) have literal
+`export {};` N/A probe stubs rather than calling the seam, and `wig-try-on-seam` (externally backed) uses an
+authored placeholder fixture rather than a real capture — reworded to say the exact strategy is seam-specific
+and defer to `docs/seams.md`, rather than keep guessing at a taxonomy that kept being wrong. (2) the committed
+`assumption-alarm.json` still carried an earlier revision of `DECISIONS.md`'s Validation text because the file
+was edited after the evidence was last generated; re-ran `assumption-alarm.mjs`/`proof-tape.mjs` once the source
+was final. (3) a genuine miscount — prose claimed a "seventh direct retry and an eighth via `npm run verify`"
+both hung after the sixth `npm audit` attempt succeeded, but the transcript only ever recorded one further
+attempt (the wrapper call, correctly labeled retry 7); corrected the count everywhere it appeared. `Rosentic -
+Conflict Detection`, `Vercel` (rate-limited on the first push, standard pre-existing signature, stood down with
+one comment), SonarCloud, CodeQL, and Sourcery (approved) all passed on the final head (`b93d58a`); `verify`
+passed on both required jobs. The exact `npm audit` attempt count is deliberately not repeated here as a
+snapshot number — `docs/evidence/2026-09-03/verify-chain.txt` is the growing, authoritative transcript of every
+attempt across this run and its follow-ups, and any prose total written into this log goes stale the moment the
+next commit makes another attempt (as happened twice already: this sentence originally said "eight... six of
+which" before this same commit's own two further attempts, and a Codex review round on the preceding head
+(`63ffe04`) caught that the number needed correcting yet again before this fix had even merged). See
+`DECISIONS.md`'s still-open Assumption for the endpoint's status.
+
+**PR #283 merged** into `main` at `5eac399` (`merged_by: Phazzie`, same attribution caveat as above applies) —
+confirmed via `pull_request_read`. A fresh open-PR listing afterward showed nothing open from this session's
+`claude/loving-babbage-*` lineage. Both PR #282 (two quick wins plus the user-requested `AGENTS.md` routine
+documentation) and PR #283 (its follow-up) are closed and merged; that run is complete.
 
 ## 2026-09-03 — session_01C9GA2bo9c2ebAWTo3YsaNb (scheduled run)
 
