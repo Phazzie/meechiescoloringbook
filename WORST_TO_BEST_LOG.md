@@ -5579,3 +5579,63 @@ No changelog entry: the adapter's behaviour is byte-for-byte what it was, which 
 refactor that removes a second parsing path.
 
 Three more mutations, each reverted, each caught. Running total for this run: 35.
+
+## Run 7 close-out — round eight: three fixes that stopped short, and a fault fixture that proved nothing
+
+Four findings. Three are places where an earlier round's fix was right and did not reach far enough;
+the fourth is a gate I had satisfied on paper.
+
+**The downloads were still packaged for the live paper.** Rounds four and five made the record honest
+about the spec that produced the picture. `attachPageExports` went on reading `this.spec.pageSize`.
+The Page Controls stay enabled while a generation is in flight and moving Page Size rebuilds that
+spec without advancing `pageLoadToken` — so the PDF and the share image came out sized for paper the
+provider was never asked about, beside an image and a record that agreed with each other and not
+with them. The page size is passed in from the captured spec now, at all three call sites.
+
+**A draft restored a wig nothing could show.** `applyStyleSelection` put a stored wig into
+`restoredStyleWig`, which has no control of its own: the carousel reads `selectedWig`, and that stays
+null. On the vault path that is right — the wig belongs to a page that is on the paper, and round
+three fixed the opposite bug there. On the draft path there is no page, so it was invisible
+provenance, and `handleGeneratePage` reads that fallback *before* the reset clears it. A refresh
+could therefore spend a paid generation on a wig the reader could neither see nor deselect.
+
+This is the third field to leave `applyStyleSelection` for the same reason, after the style and the
+spec in round six. The function is for the controls; the artifact snapshot belongs with the artifact.
+I moved two of the three when that was pointed out and left the third, because I was fixing the
+instances named rather than the rule — which is exactly what round five's entry says not to do, two
+rounds after writing it.
+
+**The unknown-style notice had outlived its own truth.** It ended "changing any of them will restyle
+the page". True when written. False two rounds later, once the snapshot guaranteed the opposite. And
+contradicting the lede directly beneath it — "The page on screen keeps the look it was made with
+until you make it again" — for that whole time, eight lines apart in one file. It now says the
+controls describe the next page.
+
+That is the second sentence in this panel that a later fix of mine falsified (the glitter promise was
+the first, in round four). A claim about behaviour is a thing that can rot, and this run has now
+produced two.
+
+**And the red proof had no fixture behind it.** `src/lib/seams/AGENTS.md` requires the fault fixture
+to make the contract tests fail before adapter work. `fixtures/creation-store/fault.json` has valid
+records as its *inputs* — its fault is that every *output* is `BROWSER_REQUIRED`. So it proved the
+seam reports an unusable environment, and nothing whatsoever about a record whose stored style is
+wrong, which is the only failure mode this run introduced.
+
+The fixture gains a `rejected` block: a voice the text seam refuses, an empty theme id, a draft whose
+style is a string. The fixture module exposes it as `unknown` on purpose — typing it as records would
+make the module throw on import, since the point is that these do not parse — and the contract tests
+drive it through the adapter's own validators. Plus a second test that strips only `styleSelection`
+from each and asserts the rest parses, so the first cannot pass for a payload that is malformed in
+some unrelated way. Rounds three and seven and eight are one story: the checklist asked whether the
+file exists, then whether anything imports it, then whether what it contains proves anything.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1383 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 13 passed ·
+Playwright 38 passed against the installed browser.
+
+Four more mutations, each reverted, each caught: packaging reading the live spec again (1 test),
+restoring the wig in `applyStyleSelection` (1), dropping the wig restore from `loadCreation` (4), and
+widening the stored voice to accept anything (2 — the fault fixture's own payloads). Running total
+for this run: 39.
