@@ -112,11 +112,15 @@ const withDedication = (
 	spec: ColoringPageSpec,
 	dedication: string | undefined
 ): ColoringPageSpec => {
-	if (dedication === undefined) {
-		const { dedication: _dropped, ...rest } = spec;
-		return rest;
+	if (dedication !== undefined) {
+		return { ...spec, dedication };
 	}
-	return { ...spec, dedication };
+	// `delete` on a copy rather than a destructured rest. Naming a binding only to discard it is
+	// what SonarCloud flagged here, and the rule is right that the name carries no information —
+	// the sentence above already says why the key goes.
+	const withoutDedication = { ...spec };
+	delete withoutDedication.dedication;
+	return withoutDedication;
 };
 
 /**

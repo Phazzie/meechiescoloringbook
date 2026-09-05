@@ -5804,9 +5804,24 @@ now report it on *different lines of the page*. Two copies of one sentence, show
 about the same failure. That is the run's own defect class in a string literal, so it is now a named
 constant. The same for the over-length dedication the two new tests share.
 
-Stated plainly because the honest version matters more than a tidy one: I do not know that this is
-what SonarCloud flagged. If the count is still 1 on the next analysis, the issue is something else
-and this change was worth making anyway.
+Stated plainly because the honest version matters more than a tidy one: I did not know that this was
+what SonarCloud flagged, and said so before the next analysis ran.
+
+**It was not.** The count came back 1 again. So I stopped guessing and reproduced the analyser
+instead: `eslint-plugin-sonarjs` installed into the scratch directory (never into the repo) and run
+over this change's files with its recommended rules. Two findings, and the diff decides between them
+— `sonarjs/no-nested-conditional` on a line unchanged from `main`, so not new code, and
+`sonarjs/no-unused-vars` on `withDedication`, a helper this change added:
+
+    const { dedication: _dropped, ...rest } = spec;
+
+Naming a binding purely to discard it. The rule is right that the name carries no information, and
+the comment above the helper already explains why the key goes. It is a copy-and-`delete` now.
+Re-running the plugin leaves only the pre-existing nested ternary, which is not new code.
+
+The lesson is small and worth keeping: when a checker you cannot read reports something, reproducing
+the checker beats reasoning about what it probably meant. The first attempt cost a push and found a
+real duplication by luck; the second took ten minutes and found the actual line.
 
 ### Verification
 
