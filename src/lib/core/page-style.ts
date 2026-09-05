@@ -13,10 +13,24 @@
  */
 import { studioThemes, type StudioTheme } from '$lib/core/meechie-studio';
 import type { MeechieStudioVoiceSettings } from '$lib/seams/meechie-studio-text-seam/contract';
+import type { ColoringPageSpec } from '../../../contracts/spec-validation.contract';
 
 type Intensity = MeechieStudioVoiceSettings['intensity'];
 type Rawness = MeechieStudioVoiceSettings['rawness'];
 type ThirdPerson = MeechieStudioVoiceSettings['thirdPerson'];
+
+/**
+ * The two Page Controls that are already `ColoringPageSpec` fields.
+ *
+ * Deliberately *not* folded into `StyleSelection` — they are persisted with the spec and come back
+ * on reopen, and that difference is the whole reason `StyleSelection` exists. They are named here
+ * only because the panel's one-line summary describes the whole panel, and half of a panel is not
+ * what the panel is set to.
+ */
+export type PaperSelection = {
+	pageSize: ColoringPageSpec['pageSize'];
+	border: ColoringPageSpec['border'];
+};
 
 /**
  * The wig, as the style hint sees it.
@@ -160,17 +174,50 @@ export const RAWNESS_OPTIONS = Object.keys(RAWNESS_LABELS) as readonly Rawness[]
 export const THIRD_PERSON_OPTIONS = Object.keys(THIRD_PERSON_LABELS) as readonly ThirdPerson[];
 
 /**
- * One sentence naming the current selection, for the collapsed panel.
+ * The phrasings the collapsed summary uses, where a bare label would not survive being read out of
+ * its control.
+ *
+ * "Sometimes" and "Decorative" mean something under a labelled dropdown and nothing in a row of
+ * values separated by dots, so the summary says what they are about. Theme, intensity and rawness
+ * keep their labels: those read as a description of a voice on their own.
+ */
+const THIRD_PERSON_SUMMARY: Record<ThirdPerson, string> = {
+	sometimes: 'sometimes in third person',
+	always: 'always in third person',
+	never: 'never in third person'
+};
+
+const PAGE_SIZE_SUMMARY: Record<PaperSelection['pageSize'], string> = {
+	US_Letter: 'US Letter',
+	A4: 'A4'
+};
+
+const BORDER_SUMMARY: Record<PaperSelection['border'], string> = {
+	decorative: 'decorative border',
+	plain: 'plain border',
+	none: 'no border'
+};
+
+/**
+ * One sentence naming the current style selection, for the collapsed panel.
  *
  * The panel is a `<details>` that ships shut, so without this the reader is told a page has
  * "Settings" and nothing about which ones. Glitter is named only when it is on: a summary that
  * reads "no glitter" spends its shortest line on the absence of a thing.
+ *
+ * This is the *style* half. `summarizePageControls` is what the panel renders, and it exists
+ * because this half alone left three of the seven controls — third person, page size and border —
+ * moving without the summary changing, under a panel whose whole claim is that it reports itself.
+ * The split is kept because the two halves are not equally knowable: a reopened page can have a
+ * style that is not on file while its paper always is, and the panel substitutes for exactly this
+ * half in that case.
  */
 export const summarizeStyleSelection = (selection: StyleSelection): string => {
 	const parts = [
 		themeForSelection(selection).label,
 		INTENSITY_LABELS[selection.voice.intensity],
-		RAWNESS_LABELS[selection.voice.rawness]
+		RAWNESS_LABELS[selection.voice.rawness],
+		THIRD_PERSON_SUMMARY[selection.voice.thirdPerson]
 	];
 	if (selection.glitter) {
 		parts.push('glitter');
@@ -180,3 +227,18 @@ export const summarizeStyleSelection = (selection: StyleSelection): string => {
 	}
 	return parts.join(' · ');
 };
+
+/** The paper half of the summary, which is known even when the style is not. */
+export const summarizePaperSelection = (paper: PaperSelection): string =>
+	`${PAGE_SIZE_SUMMARY[paper.pageSize]} · ${BORDER_SUMMARY[paper.border]}`;
+
+/**
+ * The whole panel in one line: every control it holds, in the order it lists them.
+ *
+ * Takes the style half as an already-composed string rather than as a `StyleSelection`, because the
+ * panel replaces it with "this page's style is not on file" when the page on screen has no stored
+ * style — and the paper still has to be reported in that case, since page size and border are
+ * `ColoringPageSpec` fields and always came back with the page.
+ */
+export const summarizePageControls = (styleSummary: string, paper: PaperSelection): string =>
+	`${styleSummary} · ${summarizePaperSelection(paper)}`;

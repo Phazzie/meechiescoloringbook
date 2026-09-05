@@ -71,6 +71,7 @@ import {
 	buildStyleHint,
 	DEFAULT_STYLE_SELECTION,
 	themeForSelection,
+	type PaperSelection,
 	type StyleSelection,
 	type StyleWig
 } from '$lib/core/page-style';
@@ -189,6 +190,21 @@ export class StudioState {
 	 */
 	settingsError = $state('');
 	/**
+	 * What the spec check found wrong after a Page Controls change, in the reader's words.
+	 *
+	 * `settingsError` above covers only the case where the check could not be *run* — an adapter
+	 * rejection, which is the rare one. An ordinary contract failure resolves normally with
+	 * `{ ok: false, issues }`, and `applyTextToSpec` awaited that result and dropped the boolean, so
+	 * the common failure went on appearing solely in System Trace: a Page Controls change reported
+	 * in a panel about the provider, which is precisely what this run took `draftSaveError` out of.
+	 *
+	 * Written only by `syncSpecFromCurrentText`, the panel's own handler, and cleared at the top of
+	 * every one of its runs. Mirroring `validationIssues` wholesale would have parked a generation's
+	 * or a reopen's findings under the settings panel, blaming the controls for something that
+	 * happened before the reader touched them.
+	 */
+	settingsIssues = $state<string[]>([]);
+	/**
 	 * The wig provenance of a reopened page, or `null` when the page on the paper is not one.
 	 *
 	 * Three states, and the wrapper is what makes the middle one expressible:
@@ -217,6 +233,23 @@ export class StudioState {
 	 * Not `$state`: nothing renders it directly.
 	 */
 	private generatedStyleSelection: StyleSelection | undefined = undefined;
+	/**
+	 * The paper the page currently on the paper was actually made for.
+	 *
+	 * The same rule as `generatedStyleSelection`, applied to the two controls that rule deliberately
+	 * left out. Page size and border *are* persisted — they are `ColoringPageSpec` fields, which is
+	 * why they were never part of the missing-style problem — but they are persisted from the
+	 * **live** spec at save time, and `applyTextToSpec` rewrites that spec on every setting change.
+	 * So generating a US Letter page, switching to A4 and then saving wrote a record whose stored
+	 * dimensions and frame never produced its stored image, prompt or downloads: the same defect as
+	 * the style one, one field over, and invisible for the same reason.
+	 *
+	 * Known for a reopened record too, including one written before `styleSelection` existed — the
+	 * paper is in `intent`, so unlike the style there is no unknown case to report.
+	 *
+	 * `undefined` means there is no page on the paper. Not `$state`: nothing renders it.
+	 */
+	private generatedPaper: PaperSelection | undefined = undefined;
 	isTextWorking = $state(false);
 	isGenerating = $state(false);
 	copyStatus = $state('');
@@ -236,6 +269,27 @@ export class StudioState {
 	 * says the page's style is not on file and leaves the reader's own controls alone.
 	 */
 	styleSelectionUnknown = $derived(this.assembledPrompt !== '' && !this.generatedStyleSelection);
+	/**
+	 * The glitter the paper on screen should be wearing — the page's, not the control's.
+	 *
+	 * The preview draws a sparkle overlay on the paper, and it was bound straight to the live
+	 * Glitter checkbox. So with a generated page on screen, toggling Glitter changed how that page
+	 * visibly looked — while the panel one panel over promised, in a sentence added by this same
+	 * change, that the page keeps the look it was made with until you make it again. One of the two
+	 * had to go, and it was not going to be the promise: the whole point of storing the style is
+	 * that a finished page stops answering to the controls.
+	 *
+	 * With no page on the paper this still follows the checkbox, because there the overlay is a
+	 * preview of the setting rather than a claim about an artifact — that is the one moment it is
+	 * honest for it to move.
+	 *
+	 * A page whose style is not on file shows no overlay. It is the only value that is not a guess:
+	 * asserting the live checkbox over somebody else's picture is the exact false provenance this
+	 * run removed everywhere else, and the panel is already telling the reader why.
+	 */
+	pageGlitter = $derived(
+		this.assembledPrompt === '' ? this.glitter : (this.generatedStyleSelection?.glitter ?? false)
+	);
 	revisedPrompt = $state('');
 	violations = $state<Violation[]>([]);
 	recommendedFixes = $state<DriftDetectionOutput['recommendedFixes']>([]);
@@ -800,6 +854,12 @@ export class StudioState {
 		// gets its own values; every other caller is starting a page the controls genuinely describe.
 		this.restoredStyleWig = null;
 		this.generatedStyleSelection = undefined;
+		this.generatedPaper = undefined;
+		// Both of these report a change made to the page that is being replaced right here. Left
+		// standing they would describe the previous page's trouble over the new one, which is the
+		// same stale-report defect in miniature.
+		this.settingsError = '';
+		this.settingsIssues = [];
 	}
 
 	/**
@@ -915,8 +975,13 @@ export class StudioState {
 		source: SettingChangeSource = 'setting'
 	): Promise<void> => {
 		this.settingsError = '';
+		this.settingsIssues = [];
 		try {
 			await this.applyTextToSpec(this.rebuildSourceText(), source);
+			// `applyTextToSpec` has already run the check and stored what it found, so this reads
+			// that answer rather than paying for a second call to the seam that could disagree with
+			// the first. Empty on a pass, which is also what the clear above leaves behind.
+			this.settingsIssues = this.validationIssues.map((issue) => issue.message);
 		} catch (error) {
 			// Reported where the reader is looking — beside the control they just moved — instead of
 			// as "Draft not saved:" in the evidence panel, which is what a settings failure used to
@@ -1154,10 +1219,15 @@ export class StudioState {
 			// request and the record: reading it again after the await was a race, because the Page
 			// Controls stay enabled while a generation is in flight and moving one does not advance
 			// `pageLoadToken`.
+			// The spec the request actually carries, read once. Same rule as `requestedStyle`: the
+			// Page Controls stay enabled while a generation is in flight, and moving Page Size or
+			// Border rebuilds `this.spec` without advancing `pageLoadToken`, so reading it again
+			// after the await would record paper the provider was never asked for.
+			const requestedSpec = $state.snapshot(this.spec);
 			const payload = await postJson(
 				'/api/generate',
 				{
-					spec: $state.snapshot(this.spec),
+					spec: requestedSpec,
 					styleHint: buildStyleHint(requestedStyle)
 				},
 				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
@@ -1175,6 +1245,11 @@ export class StudioState {
 			this.assembledPrompt = parsed.data.value.prompt;
 			// The selection the request actually carried, not the controls as they stand now.
 			this.generatedStyleSelection = requestedStyle;
+			// And the paper it was drawn for, off the same single read, for the same reason.
+			this.generatedPaper = {
+				pageSize: requestedSpec.pageSize,
+				border: requestedSpec.border
+			};
 			this.images = parsed.data.value.images;
 			this.revisedPrompt = parsed.data.value.revisedPrompt || '';
 			this.violations = parsed.data.value.violations;
@@ -1259,6 +1334,9 @@ export class StudioState {
 			this.assembledPrompt = `Wig try-on portrait — ${wig.name} (${wig.style}).`;
 			// The selection the page was actually built from. Same rule as the generate path.
 			this.generatedStyleSelection = requestedStyle;
+			// The paper too, read off the spec that was just assigned two lines up rather than off
+			// the live controls below the awaits that follow. Same rule, same reason.
+			this.generatedPaper = { pageSize: this.spec.pageSize, border: this.spec.border };
 			// Re-validated because the title above was written after `syncSpecFromCurrentText` had
 			// already validated. Checking the issues it left would be checking the previous spec.
 			await this.validateSpec();
@@ -1403,6 +1481,16 @@ export class StudioState {
 		}
 		this.isSaving = true;
 		this.vaultStatus = 'Saving...';
+		// The page as it was made, not as the controls now describe it. `this.spec` is rebuilt from
+		// the live Page Controls on every setting change, so a Page Size or Border moved after the
+		// picture came back put dimensions and a frame on the record that never produced its own
+		// image, prompt or downloads. Everything else in the spec is the page's own words and comes
+		// from the same rebuild, so only the two paper fields are restored from the snapshot.
+		//
+		// Falls back to the live spec when there is no snapshot, which is the page saved before any
+		// generation: there its controls genuinely did author the spec being saved.
+		const liveSpec = $state.snapshot(this.spec);
+		const intent = this.generatedPaper ? { ...liveSpec, ...this.generatedPaper } : liveSpec;
 		const creationId = this.generateCreationId();
 		const storedImages = this.images.map((image) => ({
 			b64: image.encoding === 'base64' ? image.data : this.encodeBase64(image.data)
@@ -1412,7 +1500,7 @@ export class StudioState {
 				record: {
 					id: creationId,
 					createdAtISO: new Date().toISOString(),
-					intent: $state.snapshot(this.spec),
+					intent,
 					assembledPrompt,
 					// Only text that actually describes this page is saved as its own.
 					studioText: this.describingStudioText(),
@@ -1465,6 +1553,12 @@ export class StudioState {
 		// controls, so seeding first would describe a page that was never on screen — and that seed
 		// is what the next setting change is decided against.
 		this.applyRestoredStyleSelection(creation.styleSelection);
+		// The paper this record's image was drawn for. Unlike the style there is no unknown case:
+		// page size and border are `ColoringPageSpec` fields, so every record ever written carries
+		// them. Without this, reopening a page, changing Page Size and saving again wrote the new
+		// dimensions over the old picture — the drift the snapshot at generate time closes, reached
+		// by the other door.
+		this.generatedPaper = { pageSize: creation.intent.pageSize, border: creation.intent.border };
 		// Seed the derivation input at restore time, so the first setting change that does not touch
 		// it compares equal and keeps the density the saved page was built with.
 		this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());

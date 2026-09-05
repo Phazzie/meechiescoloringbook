@@ -19,12 +19,16 @@ import {
 	THIRD_PERSON_OPTIONS,
 	buildStyleHint,
 	isSameStyleSelection,
+	summarizePageControls,
+	summarizePaperSelection,
 	summarizeStyleSelection,
 	themeForSelection,
+	type PaperSelection,
 	type StyleSelection
 } from '$lib/core/page-style';
 import { derivesDenseDecorations, studioThemes } from '$lib/core/meechie-studio';
 import { MeechieStudioVoiceSettingsSchema } from '$lib/seams/meechie-studio-text-seam/contract';
+import { BorderStyleSchema, PageSizeSchema } from '$lib/seams/spec-validation-seam/contract';
 
 const selection = (overrides: Partial<StyleSelection> = {}): StyleSelection => ({
 	...DEFAULT_STYLE_SELECTION,
@@ -173,33 +177,98 @@ describe('the panel prose is total over the seam enums', () => {
 });
 
 describe('summarizeStyleSelection', () => {
-	it('names the theme, intensity and rawness of the current selection', () => {
-		expect(summarizeStyleSelection(selection())).toBe('Crown Energy · Receipts Out · Mild');
+	it('names every voice control of the current selection', () => {
+		expect(summarizeStyleSelection(selection())).toBe(
+			'Crown Energy · Receipts Out · Mild · sometimes in third person'
+		);
 	});
 
 	it('names glitter and the wig only when they are on', () => {
 		expect(summarizeStyleSelection(selection({ glitter: true }))).toBe(
-			'Crown Energy · Receipts Out · Mild · glitter'
+			'Crown Energy · Receipts Out · Mild · sometimes in third person · glitter'
 		);
 		expect(summarizeStyleSelection(selection())).not.toContain('glitter');
 		expect(
 			summarizeStyleSelection(selection({ wig: { name: 'Honey Drip', style: 'body wave' } }))
-		).toBe('Crown Energy · Receipts Out · Mild · Honey Drip');
+		).toBe('Crown Energy · Receipts Out · Mild · sometimes in third person · Honey Drip');
+	});
+
+	// The defect this pins: the summary named four of the panel's seven controls, so a reader who
+	// changed Third Person and shut the panel watched the line they had just changed stay put.
+	it('moves when any one control moves', () => {
+		const paper: PaperSelection = { pageSize: 'US_Letter', border: 'decorative' };
+		const base = summarizePageControls(summarizeStyleSelection(selection()), paper);
+		const moved = [
+			summarizePageControls(
+				summarizeStyleSelection(
+					selection({ voice: { ...DEFAULT_STYLE_SELECTION.voice, thirdPerson: 'always' } })
+				),
+				paper
+			),
+			summarizePageControls(summarizeStyleSelection(selection()), { ...paper, pageSize: 'A4' }),
+			summarizePageControls(summarizeStyleSelection(selection()), { ...paper, border: 'none' })
+		];
+		for (const summary of moved) {
+			expect(summary).not.toBe(base);
+		}
 	});
 
 	it('summarizes every selection the panel can hold without an empty segment', () => {
 		for (const theme of studioThemes) {
 			for (const intensity of INTENSITY_OPTIONS) {
 				for (const rawness of RAWNESS_OPTIONS) {
-					const summary = summarizeStyleSelection(
-						selection({
-							themeId: theme.id,
-							voice: { ...DEFAULT_STYLE_SELECTION.voice, intensity, rawness }
-						})
-					);
-					expect(summary.split(' · ').every((part) => part.trim().length > 0)).toBe(true);
+					for (const thirdPerson of THIRD_PERSON_OPTIONS) {
+						const summary = summarizeStyleSelection(
+							selection({
+								themeId: theme.id,
+								voice: { intensity, rawness, thirdPerson }
+							})
+						);
+						expect(summary.split(' · ').every((part) => part.trim().length > 0)).toBe(true);
+					}
 				}
 			}
 		}
+	});
+});
+
+describe('summarizePageControls', () => {
+	// Every paper the spec contract allows, driven off the schema rather than a list retyped here,
+	// so a page size or border added to the contract fails this instead of rendering `undefined`
+	// into the one line a shut panel shows.
+	const pageSizes = PageSizeSchema.options;
+	const borders = BorderStyleSchema.options;
+
+	it('names both paper controls for every value the spec allows', () => {
+		for (const pageSize of pageSizes) {
+			for (const border of borders) {
+				const summary = summarizePaperSelection({ pageSize, border });
+				expect(summary.split(' · ')).toHaveLength(2);
+				expect(summary).not.toContain('undefined');
+				expect(summary.split(' · ').every((part) => part.trim().length > 0)).toBe(true);
+			}
+		}
+	});
+
+	it('reads as one line: the style, then the paper', () => {
+		expect(
+			summarizePageControls(summarizeStyleSelection(selection()), {
+				pageSize: 'US_Letter',
+				border: 'decorative'
+			})
+		).toBe(
+			'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border'
+		);
+	});
+
+	// A reopened page written before styles were stored has no style to name, and its paper is the
+	// half that *is* on file — so the substitute sentence must not take the paper down with it.
+	it('still names the paper when the style is not on file', () => {
+		expect(
+			summarizePageControls("This page's style is not on file", {
+				pageSize: 'A4',
+				border: 'none'
+			})
+		).toBe("This page's style is not on file · A4 · no border");
 	});
 });

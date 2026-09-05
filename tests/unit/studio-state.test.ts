@@ -2816,4 +2816,174 @@ describe('StudioState page style', () => {
 
 		expect(studio.settingsError).toBe('');
 	});
+
+	it('saves the paper the picture was drawn for, not the paper the controls now show', async () => {
+		// The style defect one field over: page size and border *are* persisted, but from the live
+		// spec, which `applyTextToSpec` rebuilds on every setting change. So generating on US Letter
+		// with a decorative border, switching to A4 with no border and saving filed the old image,
+		// prompt and downloads under dimensions and a frame that never produced them.
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+
+		studio.pageSize = 'US_Letter';
+		studio.border = 'decorative';
+		await generatePage(studio);
+
+		studio.pageSize = 'A4';
+		studio.border = 'none';
+		await studio.syncSpecFromCurrentText('setting');
+		// The controls and the spec on screen do move — the reader changed them, and the next page
+		// will use them. It is the record that must describe the picture it is saved beside.
+		expect(studio.spec.pageSize).toBe('A4');
+
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.intent.pageSize).toBe('US_Letter');
+		expect(saveSpy.mock.calls[0][0].record.intent.border).toBe('decorative');
+	});
+
+	it('keeps a reopened page filed under its own paper when a control moves', async () => {
+		// The same drift through the other door: a record's paper is in `intent`, so it is known
+		// even for one written before styles were stored, and re-saving must not overwrite it with
+		// whatever the panel says now.
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+
+		await studio.loadCreation(
+			makeStyledCreation({
+				intent: {
+					...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+					title: 'A STYLED PAGE',
+					pageSize: 'A4',
+					border: 'plain'
+				}
+			})
+		);
+		studio.pageSize = 'US_Letter';
+		await studio.syncSpecFromCurrentText('setting');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.intent.pageSize).toBe('A4');
+		expect(saveSpy.mock.calls[0][0].record.intent.border).toBe('plain');
+	});
+
+	it('files a page saved before any generation under the controls that authored it', async () => {
+		// The fallback the snapshot leaves in place. Nothing was generated, so there is no artifact
+		// for the controls to disagree with — they *are* this page's paper.
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.intent.pageSize).toBe('A4');
+	});
+
+	it('stops the Glitter checkbox restyling a page that is already on the paper', async () => {
+		// The preview draws its sparkle overlay from this. Bound to the live checkbox, it made the
+		// panel's own promise — a finished page keeps the look it was made with — false on screen.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		// With no page on the paper the overlay previews the setting, which is the one moment it is
+		// honest for it to follow the checkbox.
+		expect(studio.pageGlitter).toBe(false);
+		studio.glitter = true;
+		expect(studio.pageGlitter).toBe(true);
+
+		studio.glitter = false;
+		await generatePage(studio);
+		expect(studio.pageGlitter).toBe(false);
+
+		studio.glitter = true;
+		expect(studio.pageGlitter).toBe(false);
+	});
+
+	it('shows no glitter over a page whose style is not on file', async () => {
+		// The live checkbox over somebody else's picture is a claim about it, and the panel is
+		// already telling the reader that claim cannot be made.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.glitter = true;
+
+		await studio.loadCreation(makeStyledCreation());
+
+		expect(studio.styleSelectionUnknown).toBe(true);
+		expect(studio.pageGlitter).toBe(false);
+	});
+
+	it('gives the page back its own glitter when it is on file', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.glitter = false;
+
+		await studio.loadCreation(makeStyledCreation({ styleSelection }));
+
+		expect(studio.pageGlitter).toBe(true);
+	});
+
+	it('reports a check that ran and failed beside the controls, not only in the trace', async () => {
+		// `validateSpec` resolves with `{ ok: false, issues }` for an ordinary contract failure, and
+		// `applyTextToSpec` dropped that boolean — so the common failure reached the reader only in
+		// System Trace, the panel this run took a settings failure out of. `settingsError` covers
+		// the other case, a check that could not be run at all.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		vi.spyOn(specValidationAdapter, 'validate').mockResolvedValue({
+			ok: false,
+			issues: [{ code: 'title_too_long', field: 'title', message: 'Title is too long.' }]
+		});
+
+		await studio.syncSpecFromCurrentText('setting');
+
+		expect(studio.settingsIssues).toEqual(['Title is too long.']);
+		expect(studio.settingsError).toBe('');
+	});
+
+	it('clears the reported issues once the next change passes its check', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.settingsIssues = ['something old'];
+
+		await studio.syncSpecFromCurrentText('setting');
+
+		expect(studio.settingsIssues).toEqual([]);
+	});
+
+	it('does not park another panel’s findings under Page Controls', async () => {
+		// `validationIssues` is written by every path that validates — a generation, a reopen. Only
+		// a change made from this panel belongs in the panel's own error region, and the report of a
+		// change to the page being replaced does not outlive that page.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.settingsIssues = ['a complaint about the page being replaced'];
+		studio.settingsError = 'and how it could not be checked';
+		vi.spyOn(specValidationAdapter, 'validate').mockResolvedValue({
+			ok: false,
+			issues: [{ code: 'title_too_long', field: 'title', message: 'Title is too long.' }]
+		});
+
+		await studio.loadCreation(makeStyledCreation({ styleSelection }));
+
+		expect(studio.validationIssues).toHaveLength(1);
+		expect(studio.settingsIssues).toEqual([]);
+		expect(studio.settingsError).toBe('');
+	});
 });

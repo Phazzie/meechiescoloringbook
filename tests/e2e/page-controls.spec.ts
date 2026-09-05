@@ -24,7 +24,9 @@ test('the shut panel names what it is set to, and its affordance tracks the pane
 	const affordance = panel.locator('summary span[aria-hidden="true"]').last();
 
 	// Was the constant "Page Controls" over the constant "Open".
-	await expect(panel.locator('summary strong')).toHaveText('Crown Energy · Receipts Out · Mild');
+	await expect(panel.locator('summary strong')).toHaveText(
+		'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border'
+	);
 	await expect(affordance).toHaveText('Open');
 
 	await panel.locator('summary').click();
@@ -45,7 +47,9 @@ test('the selected theme is announced, not only tinted', async ({ page }) => {
 
 	await expect(panel.getByRole('button', { pressed: true })).toHaveCount(1);
 	await expect(panel.getByRole('button', { pressed: true }).first()).toContainText('Pretty & Petty');
-	await expect(panel.locator('summary strong')).toHaveText('Pretty & Petty · Receipts Out · Mild');
+	await expect(panel.locator('summary strong')).toHaveText(
+		'Pretty & Petty · Receipts Out · Mild · sometimes in third person · US Letter · decorative border'
+	);
 });
 
 test('every control explains the value it is currently set to', async ({ page }) => {
@@ -118,15 +122,43 @@ test('the closed panel says so when a page carries no style of its own', async (
 
 	const panel = page.locator('.settings-panel');
 	// Before reopening it, the panel describes the reader's own controls, as it should.
-	await expect(panel.locator('summary strong')).toHaveText('Crown Energy · Receipts Out · Mild');
+	await expect(panel.locator('summary strong')).toHaveText(
+		'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border'
+	);
 
 	await page.getByRole('button', { name: /A PAGE FROM BEFORE/ }).first().click();
 
 	// Now the page on the paper is one whose style nobody recorded, and the shut panel says so
 	// rather than presenting the reader's settings as that page's.
-	await expect(panel.locator('summary strong')).toHaveText("This page's style is not on file");
+	// The paper half survives: page size and border are spec fields, so they *are* on file, and
+	// the substitute sentence replaces only the half that is not.
+	await expect(panel.locator('summary strong')).toHaveText(
+		"This page's style is not on file · US Letter · decorative border"
+	);
 	await panel.locator('summary').click();
 	await expect(panel.getByTestId('home-style-unknown')).toBeVisible();
+});
+
+test('every control the panel holds reaches the shut summary', async ({ page }) => {
+	// The summary named four of the seven. So a reader who came in to change Third Person, Page
+	// Size or Border and then shut the panel watched the one line the panel shows stay exactly as
+	// it was — the "reports nothing" the whole rebuild is against, in the control it is easiest to
+	// miss.
+	const panel = await openPanel(page);
+	const summary = panel.locator('summary strong');
+
+	await panel.locator('#thirdPerson').selectOption('never');
+	await expect(summary).toContainText('never in third person');
+
+	await panel.locator('#pageSize').selectOption('A4');
+	await expect(summary).toContainText('A4');
+
+	await panel.locator('#border').selectOption('none');
+	await expect(summary).toContainText('no border');
+
+	await expect(summary).toHaveText(
+		'Crown Energy · Receipts Out · Mild · never in third person · A4 · no border'
+	);
 });
 
 test('glitter reaches the summary only when it is on', async ({ page }) => {

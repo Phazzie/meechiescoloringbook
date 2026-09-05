@@ -18,6 +18,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange reb
 		THIRD_PERSON_HELP,
 		THIRD_PERSON_LABELS,
 		THIRD_PERSON_OPTIONS,
+		summarizePageControls,
 		summarizeStyleSelection,
 		type StyleSelection
 	} from '$lib/core/page-style';
@@ -36,6 +37,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange reb
 		glitter = $bindable(),
 		styleSelectionUnknown = false,
 		settingsError = '',
+		settingsIssues = [],
 		onSettingChange
 	}: {
 		selectedThemeId: string;
@@ -47,8 +49,19 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange reb
 		glitter: boolean;
 		/** The page on screen was saved before styles were stored with pages. */
 		styleSelectionUnknown?: boolean;
-		/** A change that could not be applied, reported beside the controls that caused it. */
+		/** A change whose check could not be run at all, reported beside the controls. */
 		settingsError?: string;
+		/**
+		 * What the spec check found wrong with the page, after a change made from this panel.
+		 *
+		 * Separate from `settingsError` because the two are different facts and were being reported
+		 * as one. `settingsError` is "the check did not run"; this is "the check ran and the page
+		 * did not pass". Only the first ever reached the reader here, and it is the rarer of the
+		 * two — an ordinary contract failure (a title the provider returned too long, say) resolves
+		 * normally with `ok: false`, so it showed up only in System Trace, which is the other panel
+		 * this run took a settings failure out of.
+		 */
+		settingsIssues?: readonly string[];
 		// The source is passed, not inferred. A theme chip fires this handler even when the reader
 		// clicks the chip that is already active, so comparing theme IDs cannot tell "the reader
 		// picked a theme" from "some other control changed" — and on a reopened page, whose real
@@ -65,8 +78,14 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange reb
 	//
 	// Except when the page's own style is not on file. The panel ships shut, so summarising the
 	// reader's controls there stated exactly the false provenance this whole panel exists to stop —
-	// with the correction hidden inside, visible only to a reader who chose to open it.
-	const summary = $derived(
+	// with the correction hidden inside, visible only to a reader who chose to open it. The paper is
+	// still named in that case: page size and border are `ColoringPageSpec` fields, so they came
+	// back with the page and are the one part of it that is on file.
+	//
+	// Every control the panel holds is in here. It used to name four of the seven, so a reader who
+	// changed Third Person, Page Size or Border and shut the panel watched the line they had just
+	// changed stay exactly as it was — the same "reports nothing" the panel was rebuilt to stop.
+	const styleSummary = $derived(
 		styleSelectionUnknown
 			? "This page's style is not on file"
 			: summarizeStyleSelection({
@@ -75,6 +94,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange reb
 					glitter
 				})
 	);
+	const summary = $derived(summarizePageControls(styleSummary, { pageSize, border }));
 </script>
 
 <details class="settings-panel" bind:open>
@@ -232,6 +252,22 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange reb
 				That change was applied but could not be checked: {settingsError}
 			</p>
 		{/if}
+
+		{#if settingsIssues.length > 0}
+			<!-- Deliberately not phrased as "that change broke the page". The check runs over the
+			     whole spec, so what it reports can be something the provider's own words did long
+			     before this control moved — a title over the length limit, say. Naming the failure
+			     without naming a culprit is the true version, and it is still reported here because
+			     this is where the reader was when the check ran. -->
+			<div class="settings-error" role="alert" data-testid="home-settings-issues">
+				<p>That change was applied. The page did not pass its check:</p>
+				<ul>
+					{#each settingsIssues as issue}
+						<li>{issue}</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
 	</div>
 </details>
 
@@ -302,5 +338,14 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange reb
 		line-height: 1.45;
 		color: var(--cream);
 		background: rgba(232, 0, 106, 0.12);
+	}
+
+	.settings-error p {
+		margin: 0;
+	}
+
+	.settings-error ul {
+		margin: 0.4rem 0 0;
+		padding-left: 1.15rem;
 	}
 </style>

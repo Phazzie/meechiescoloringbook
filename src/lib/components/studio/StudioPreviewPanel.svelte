@@ -38,6 +38,13 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 		copyStatus: string;
 		vaultStatus: string;
 		canSaveToVault: boolean;
+		/**
+		 * Whether the paper wears the sparkle overlay.
+		 *
+		 * The *page's* glitter, not the Glitter checkbox's. The parent decides which of those two it
+		 * is (see `pageGlitter` in `studio-state.svelte.ts`); this was bound straight to the live
+		 * control, so toggling it restyled a finished page on screen.
+		 */
 		glitter: boolean;
 		activeTheme: StudioTheme;
 		onGeneratePage: () => Promise<void>;
