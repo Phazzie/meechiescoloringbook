@@ -5308,35 +5308,33 @@ invalid, and it is: those later pushes carried real source changes (the hero acc
 `verdictToken`), so a success on the older head cannot establish that the newer ones would deploy.
 It shows the project deploys; it does not clear the later heads.
 
-`AGENTS.md` requires the comparison be made "on the base commit or an unrelated head", so here it
-is on an unrelated head. **PR #305** — a different pull request, a different diff, since merged as
-`db32d45` and therefore now part of this PR's base — drew the identical error string on its very
-first head, `34bd3ce`, and on three of the four heads after it:
+`AGENTS.md` L138 requires the signature be matched "on the base commit or an unrelated head", and
+L139 says "it is red elsewhere too" is not evidence. **That test was not met at the moment #305
+merged, and earlier drafts of this entry implied otherwise. It is recorded here as a gap rather than
+argued away.**
 
-```
-Resource is limited - try again in 24 hours (more than 100, code: "api-deployments-free-per-day")
-```
+What the disposition actually rested on at merge time was the error string itself —
+`Resource is limited - try again in 24 hours (more than 100, code: "api-deployments-free-per-day")`
+— which names an account-level cap on deployments per calendar day. That is a claim about the account
+and the date rather than about a diff. Supporting but not sufficient: `aa8553e` deployed successfully
+between heads that did not.
 
-Same service, same code, same account. The one head of #305 that did **not** draw it, `aa8553e`,
-deployed successfully — between two heads that did. A signal whose state flips back and forth across
-five heads of one PR and then again across three heads of another, while tracking nothing in any of
-those diffs, is reporting on the account's daily budget rather than on any branch.
+The comparator the rule asks for exists now and did not then. **PR #306** — this close-out, a
+different pull request whose diff contains **no source file at all** — drew the identical error on
+`1aa46c6`, `1274296` and `fb4e070`, and deployed successfully on `03b2ffc` in between. An unrelated
+pull request, containing no code, reproducing both the failure and the recovery is the comparison the
+gate wants; it simply arrived after the merge it would have justified. **A future run meeting this
+check should post that comparison before pressing merge, not after.**
 
-This paragraph took three attempts, and the failures are worth more than the conclusion:
+Three corrections this paragraph needed, kept because the pattern is the point:
 
-1. The first version argued from "nothing in the branch changed between those states", which was
-   simply false — two source commits landed in between.
-2. The second said PR #306 "draws" that failure, present tense. An hour later its next head deployed
-   successfully and the sentence stopped being true — a claim that was accurate when written and
-   silently expired, which is precisely the defect this run's feature exists to prevent, committed
-   in the prose describing the run.
-3. The second also called this PR "one Markdown file and nothing else". True of `1aa46c6`; false the
-   moment `03b2ffc` regenerated `verify-outer.txt` and the chain rewrote a dozen evidence artefacts.
-   The diff is **13 files**: this log entry and the evidence files it cites. No source file, which is
-   the part that mattered — but "no source" is what I should have written, and is not what I wrote.
-
-Every claim above is now tied to a named commit or PR and stated in the past tense, so none of it
-can expire.
+1. The first draft argued from "nothing in the branch changed between those states" — false; two
+   source commits landed in between.
+2. The second said PR #306 "draws" that failure, present tense. Its next head deployed successfully
+   an hour later and the sentence expired — the exact defect this run's feature exists to prevent,
+   committed in the prose describing the run.
+3. The third cited #305's own earlier heads as the "unrelated head", which is the same-PR comparison
+   the rule excludes — the error the rule exists to catch, made while quoting the rule.
 
 **Rosentic** — 157 findings, 5 graded breaking. Re-derived from scratch rather than inheriting the
 previous entry's dismissal, which that entry itself records as right-for-the-wrong-reason. Five ways,
@@ -5347,6 +5345,20 @@ zero occurrences of the helpers it is blamed for; all three blamed branches have
 with this one and `git merge` refuses them outright, which falsifies the report's own premise; it cites
 `tests/unit/page-style.test.ts`, which does not exist in this repository; and its one finding pinned to
 a changed line, applied literally, produces `Expected 1 arguments, but got 0` from `svelte-check`.
+
+**Where this does not meet the gate's literal test, and why.** L138 asks for the same error, files
+and *branch pair* on the base or an unrelated head. For this check that is unsatisfiable by
+construction: every finding names a pair that includes the branch under review, so no other head can
+ever reproduce "the same branch pair". The nearest available reproduction is PR #306, an unrelated
+pull request with no source in it, which draws the same machinery against a different pair
+(`sweet-mendel-LJ9Iu` × `great-bell-31hg5t`) — same check, same shape, no code to blame.
+
+The five arguments above are offered instead of that comparison, on the grounds that showing a
+finding is *false* is stronger than showing it also appears elsewhere: a branch cannot have removed a
+parameter from a function it does not contain, two branches with no common ancestor cannot be merged,
+a file that does not exist cannot have a call site in it, and a fix that turns `svelte-check` red is
+not a fix. A future run should know that this is a deliberate substitution, not an oversight — and
+that a reviewer was right to ask for the comparison first.
 
 ### What this run actually cost, and what it bought
 
