@@ -270,8 +270,19 @@ const RULES = [
 			// count that a test printed to its own stdout. `docs/evidence/README.md` carries the
 			// convention, so a folder that ships an e2e.txt ships this line; a folder with none is
 			// untouched by this rule.
-			if (!/e2e exit=0/.test(row2))
-				return 'e2e.txt Row 2 does not contain "e2e exit=0"; the run it records either failed or was captured without its exit status, and the counts beneath it cannot settle which.';
+			//
+			// Exactly one, on its own line. `.test(/e2e exit=0/)` asked whether the row contains a
+			// success anywhere, and a retry appended beneath an earlier capture inherits that pass: a
+			// row ending `e2e exit=1` under an older `e2e exit=0` satisfied it. One run produces one
+			// status, so two is a splice that did not replace what it was supposed to, and the rule
+			// that exists to stop this row inheriting a result must not itself let it.
+			const statuses = [...row2.matchAll(/^e2e exit=(\d{1,3})$/gm)];
+			if (statuses.length === 0)
+				return 'e2e.txt Row 2 carries no "e2e exit=<code>" line of its own; the run it records either failed or was captured without its exit status, and the counts beneath it cannot settle which.';
+			if (statuses.length > 1)
+				return `e2e.txt Row 2 carries ${statuses.length} exit statuses (${statuses.map((m) => m[0]).join(', ')}); one run reports one status, so this row was appended to rather than replaced and it is not clear which run it describes.`;
+			if (statuses[0][1] !== '0')
+				return `e2e.txt Row 2 reports "${statuses[0][0]}"; the run it records failed.`;
 			if (lastPassedCount(row2) === null)
 				return 'e2e.txt Row 2 has no "<n> passed" line; the transcript was spliced in against a header that did not match, so the run it records cannot be audited.';
 			if (!/\.spec\.[tj]s/.test(row2))
@@ -282,8 +293,19 @@ const RULES = [
 			// showing it, in a sentence that turned out to be false about its own contents. A reviewer
 			// cannot check test selection, workers or retries against a file they cannot open, which
 			// makes the row's result unauditable however green it is.
-			if (/--config=/.test(row2) && !/```[a-z]{0,8}\n[\s\S]{0,20000}defineConfig/.test(row2))
-				return 'e2e.txt Row 2 names a --config override but does not reproduce it; the run cannot be audited against a configuration that is not in the evidence.';
+			// Every spelling Playwright accepts, not the one this capture happens to use. `--config=`
+			// alone matched only my own command line: `test --help` documents `-c, --config <file>`,
+			// so `--config pw.local.config.ts` and `-c pw.local.config.ts` name the same override and
+			// slipped past. A rule written from the one example in front of you is a rule about that
+			// example.
+			// `[^\w-]` before the short form, not `\s`. The first attempt required whitespace and its
+			// own mutation test passed the `-c` case, because Row 2 names the command inside backticks
+			// and a backtick is not whitespace. The delimiter around a flag in prose is punctuation as
+			// often as space.
+			const NAMES_CONFIG = /--config[=\s]|[^\w-]-c[=\s]/;
+			const REPRODUCES_CONFIG = /```[a-z]{0,8}\n[\s\S]{0,20000}defineConfig/;
+			if (NAMES_CONFIG.test(row2) && !REPRODUCES_CONFIG.test(row2))
+				return 'e2e.txt Row 2 names a config override but does not reproduce it; the run cannot be audited against a configuration that is not in the evidence.';
 			// A passing count is not a passing run. Playwright prints "<n> passed" alongside "<n> failed"
 			// when both happen, so a row with one pass and forty failures satisfied every check above.
 			// "error" is in here because Playwright's list reporter prints "<n> passed" beside

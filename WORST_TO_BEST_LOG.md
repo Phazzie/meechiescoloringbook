@@ -8352,3 +8352,45 @@ application's own adapter cannot report that the adapter is broken.
 `npm run lint` clean · `sonarjs.configs.recommended` clean on the file · `npm run evidence:guard`
 6 rules pass · full chain re-run: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0,
 rewind 17, Playwright 41 with `e2e exit=0` recorded, probe complete.
+
+### Addendum — round thirty-seven: three fixes, and one of them wrong on the first try
+
+Codex reviewed `c8b9e074` — the head that fixed round thirty-five and thirty-six — and found three defects
+in those fixes. All three accepted.
+
+**The exit status I had just made load-bearing was checked with `.test()`.** `/e2e exit=0/` asks whether
+the row contains a success *anywhere*, so a retry appended beneath an earlier capture inherits its pass: a
+row ending `e2e exit=1` under an older `e2e exit=0` satisfied it. The rule now requires exactly one
+own-line status and reads its value. Two statuses is itself the finding — one run reports one status, so
+a second means the row was appended to rather than replaced.
+
+> **Making something the source of truth does not make reading it correctly automatic.** I spent the
+> round arguing that counts cannot settle whether a run passed and the exit status can, and then asked
+> the exit status a question with the same shape as the one I had just rejected: *is the good answer in
+> here somewhere*, rather than *what does this run say*.
+
+**`--config=` matched my own command line and nothing else.** Playwright documents `-c, --config <file>`;
+`--config pw.local.config.ts` and `-c pw.local.config.ts` name the same override and walked past the rule
+added last round to catch exactly this. A rule written from the one example in front of you is a rule
+about that example.
+
+**A branch name can contain a double quote.** `${{ github.ref_name }}` interpolated into the step body
+becomes shell *source*, so `feature/foo"bar` — which `git check-ref-format` accepts — makes the step die
+on an unmatched quote before any check runs. Passed through `env` now, and verified both ways: the old
+form fails `bash -n`, the new one parses and compares the value intact.
+
+**And the interesting part: my own mutation test for the `-c` fix passed, and the fix was wrong.** The
+pattern required whitespace before the flag; Row 2 names the command inside backticks, and a backtick is
+not whitespace. Had I stopped at "the test I wrote agrees with me", a rule that reads as covering three
+spellings would have shipped covering two.
+
+> **A test written by the same hand, in the same minute, from the same idea of the problem, shares the
+> idea's blind spot.** It is worth running anyway — this one did catch it — but only because I ran the
+> case I thought was covered instead of the case I thought was broken.
+
+All three spellings now fire (`--config=`, `--config `, `-c `), the appended-retry and true-failure cases
+both fire, and real evidence still passes.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean on the file · `npm run evidence:guard`
+6 rules pass · full chain re-run: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0,
+rewind 17, Playwright 41 with `e2e exit=0` recorded, probe complete.
