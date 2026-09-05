@@ -9,7 +9,7 @@ import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 
 export default [
-  { ignores: ['.svelte-kit/**', '.vercel/**', 'build/**', 'dist/**', 'coverage/**'] },
+  { ignores: ['.svelte-kit/**', '.vercel/**', 'build/**', 'dist/**', 'coverage/**', '.agents/**'] },
   js.configs.recommended,
   ...svelte.configs['flat/recommended'],
   prettier,

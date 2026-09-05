@@ -1,7 +1,7 @@
 {
   "tool": "clan-chain",
-  "generatedAt": "2026-09-05T04:51:37.639Z",
-  "evidenceDir": "docs/evidence/2026-09-05",
+  "generatedAt": "2026-09-05T05:27:21.351Z",
+  "evidenceDir": "docs\\evidence\\2026-09-05",
   "clean": [
     {
       "seam": "AppConfigSeam",
@@ -32,7 +32,15 @@
       "owner": "hbpheonix"
     },
     {
+      "seam": "AuthContextSeam (self-contained)",
+      "owner": "hbpheonix"
+    },
+    {
       "seam": "CreationStoreSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "CreationStoreSeam (self-contained)",
       "owner": "hbpheonix"
     },
     {
@@ -93,6 +101,10 @@
     },
     {
       "seam": "SessionSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "SessionSeam (self-contained)",
       "owner": "hbpheonix"
     },
     {

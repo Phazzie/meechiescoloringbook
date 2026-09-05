@@ -5,7 +5,7 @@ Info flow: seam checks -> ledger table -> review.
 -->
 # Seam Ledger
 
-Generated at: 2026-09-05T04:51:37.586Z
+Generated at: 2026-09-05T05:27:21.261Z
 
 | Seam | Status | Contract | Probe | Fixtures | Mock | Tests | Adapter |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -16,7 +16,9 @@ Generated at: 2026-09-05T04:51:37.586Z
 | GalleryStoreSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | — |
 | TelemetrySeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | — |
 | AuthContextSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| AuthContextSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | CreationStoreSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CreationStoreSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | PromptAssemblySeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | PromptAssemblySeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | ChatInterpretationSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -32,6 +34,7 @@ Generated at: 2026-09-05T04:51:37.586Z
 | ProviderAdapterSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | OutputPackagingSeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | SessionSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SessionSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | SpecValidationSeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | SpecValidationSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | AppOriginSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |

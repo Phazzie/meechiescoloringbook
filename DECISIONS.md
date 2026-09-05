@@ -7,6 +7,28 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-05 - Modularize Batch 1 Identity and Storage Seams (SessionSeam, AuthContextSeam, CreationStoreSeam)
+
+- Date: 2026-09-05
+- Decision: Modularize `SessionSeam`, `AuthContextSeam`, and `CreationStoreSeam` into canonical self-contained seam packages under `src/lib/seams/` with production adapters at `src/lib/adapters/<name>-seam/index.ts` and legacy re-export compatibility stubs at `contracts/` and `src/lib/adapters/`.
+- Context: Flat legacy seams coupled domain contracts directly to legacy root layout. Modularization standardizes contract exports, creates typed fixture modules (`fixtures.ts`), in-memory mocks (`mock.ts`), and self-contained contract tests (`test.ts`) alongside canonical production adapters while keeping downstream consumers unbroken through backwards-compatible re-export stubs.
+- Alternatives: Immediate destructive migration without re-export stubs; rejected because hundreds of downstream tests and components depend on legacy paths, risking breaking changes across independent components.
+- Consequences: All three seams now support dual rewind (`npm run rewind -- --seam <Name>` and `npm run rewind -- --seam "<Name> (self-contained)"`), contracts enforce strict type refinements (e.g. `userId` required for authenticated context, non-whitespace session IDs), and `CreationStoreSeam` includes optimistic ID merge and malformed record skip observability.
+- Revisit criteria: Once Batch 2 and Batch 3 complete and all consumers are re-routed to canonical paths, legacy stubs in `contracts/` and `src/lib/adapters/` can be deprecated and retired.
+- Self-critique: Riskiest assumption is that concurrent localStorage writes could conflict; mitigated by fresh reads before upserting and optimistic ID merging.
+- Evidence: docs/evidence/2026-09-05/verify.txt; docs/evidence/2026-09-05/test.txt; docs/evidence/2026-09-05/chamber-lock.json; docs/evidence/2026-09-05/seam-ledger.json
+- Plan:
+  - Goal: Implement Batch 1 of Seam Migration v2.0 for SessionSeam, AuthContextSeam, and CreationStoreSeam.
+  - Seams: SessionSeam, AuthContextSeam, CreationStoreSeam.
+  - Files: `contracts/session.contract.ts`, `contracts/auth-context.contract.ts`, `contracts/creation-store.contract.ts`, `docs/seams.md`, `plan.md`, `src/lib/adapters/session.adapter.ts`, `src/lib/adapters/session-seam/index.ts`, `src/lib/seams/session-seam/*`, `src/lib/adapters/auth-context.adapter.ts`, `src/lib/adapters/auth-context-seam/index.ts`, `src/lib/seams/auth-context-seam/*`, `src/lib/adapters/creation-store.adapter.ts`, `src/lib/adapters/creation-store-seam/index.ts`, `src/lib/seams/creation-store-seam/*`.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run verify`.
+
+- Cipher Gate:
+  - Date: 2026-09-05
+  - Seams: SessionSeam, AuthContextSeam, CreationStoreSeam
+  - Evidence: docs/evidence/2026-09-05/verify.txt; docs/evidence/2026-09-05/test.txt; docs/evidence/2026-09-05/chamber-lock.json; docs/evidence/2026-09-05/seam-ledger.json
+  - Summary: Migrated SessionSeam, AuthContextSeam, and CreationStoreSeam to canonical self-contained seam packages with fixture modules, in-memory mocks, self-contained contract suites, canonical adapters, and backward-compatible re-export stubs.
+  - Risks: Concurrent multi-tab localStorage writes could lead to race conditions if two tabs write simultaneously; localStorage access may throw SecurityError in locked-down iframes.
 ## 2026-09-05 - Run 5 merge close-out (micro plan + self-critique)
 
 - Date: 2026-09-05

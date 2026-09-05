@@ -48,7 +48,10 @@ describe('Meechie Tools Parity', () => {
 	// app is the product missing. The page factory is the fix; this asserts it stays wired, since
 	// the tools themselves would keep passing every check above without it.
 	it('keeps the coloring page factory wired to the toolkit', () => {
-		const svelteFile = readFileSync(resolve(__dirname, '../../src/lib/components/MeechieTools.svelte'), 'utf-8');
+		const svelteFile = readFileSync(
+			resolve(__dirname, '../../src/lib/components/MeechieTools.svelte'),
+			'utf-8'
+		).replaceAll('\r\n', '\n');
 
 		expect(svelteFile).toContain('buildToolPageRecipe');
 		expect(svelteFile).toContain("postJson(\n\t\t\t\t'/api/generate'");

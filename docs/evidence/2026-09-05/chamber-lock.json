@@ -1,6 +1,6 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-09-05T04:50:24.986Z",
+  "generatedAt": "2026-09-05T05:25:20.765Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -255,6 +255,42 @@
       ]
     },
     {
+      "seam": "AuthContextSeam (self-contained)",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "src/lib/seams/auth-context-seam/contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "src/lib/seams/auth-context-seam/probe.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "N/A (fixture module: src/lib/seams/auth-context-seam/fixtures.ts)",
+          "status": "na"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/seams/auth-context-seam/mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "src/lib/seams/auth-context-seam/test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/auth-context-seam/index.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
       "seam": "CreationStoreSeam",
       "status": "ok",
       "checks": [
@@ -286,6 +322,42 @@
         {
           "kind": "adapter",
           "path": "src/lib/adapters/creation-store.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "CreationStoreSeam (self-contained)",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "src/lib/seams/creation-store-seam/contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "src/lib/seams/creation-store-seam/probe.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "N/A (fixture module: src/lib/seams/creation-store-seam/fixtures.ts)",
+          "status": "na"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/seams/creation-store-seam/mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "src/lib/seams/creation-store-seam/test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/creation-store-seam/index.ts",
           "status": "ok"
         }
       ]
@@ -831,6 +903,42 @@
       ]
     },
     {
+      "seam": "SessionSeam (self-contained)",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "src/lib/seams/session-seam/contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "src/lib/seams/session-seam/probe.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "N/A (fixture module: src/lib/seams/session-seam/fixtures.ts)",
+          "status": "na"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/seams/session-seam/mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "src/lib/seams/session-seam/test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/session-seam/index.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
       "seam": "SpecValidationSeam",
       "status": "ok",
       "checks": [
@@ -1120,7 +1228,7 @@
     }
   ],
   "summary": {
-    "ok": 31,
+    "ok": 34,
     "blocked": 0,
     "missing": 0,
     "overallStatus": "ok"

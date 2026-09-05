@@ -5,8 +5,8 @@ Info flow: seam ledger -> chain summary -> review.
 -->
 # Clan Chain
 
-Generated at: 2026-09-05T04:51:37.639Z
-Evidence folder: docs/evidence/2026-09-05
+Generated at: 2026-09-05T05:27:21.351Z
+Evidence folder: docs\evidence\2026-09-05
 
 Clean seams:
 - AppConfigSeam (owner: hbpheonix)
@@ -16,7 +16,9 @@ Clean seams:
 - GalleryStoreSeam (owner: hbpheonix)
 - TelemetrySeam (owner: hbpheonix)
 - AuthContextSeam (owner: hbpheonix)
+- AuthContextSeam (self-contained) (owner: hbpheonix)
 - CreationStoreSeam (owner: hbpheonix)
+- CreationStoreSeam (self-contained) (owner: hbpheonix)
 - PromptAssemblySeam (owner: hbpheonix)
 - PromptAssemblySeam (self-contained) (owner: hbpheonix)
 - ChatInterpretationSeam (owner: hbpheonix)
@@ -32,6 +34,7 @@ Clean seams:
 - ProviderAdapterSeam (owner: hbpheonix)
 - OutputPackagingSeam (owner: hbpheonix)
 - SessionSeam (owner: hbpheonix)
+- SessionSeam (self-contained) (owner: hbpheonix)
 - SpecValidationSeam (owner: hbpheonix)
 - SpecValidationSeam (self-contained) (owner: hbpheonix)
 - AppOriginSeam (owner: hbpheonix)

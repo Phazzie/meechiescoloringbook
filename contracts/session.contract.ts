@@ -1,19 +1,7 @@
-// Purpose: Define the SessionSeam contract.
-// Why: Provide a stable anonymous session identity.
-// Info flow: Session lookup -> session context -> storage ownership.
-import { z } from 'zod';
-import { NonEmptyStringSchema, resultSchema } from './shared.contract';
-import type { Result } from './shared.contract';
-
-export const SessionContextSchema = z.object({
-	sessionId: NonEmptyStringSchema
-});
-
-export const SessionResultSchema = resultSchema(SessionContextSchema);
-
-export type SessionContext = z.infer<typeof SessionContextSchema>;
-export type SessionResult = z.infer<typeof SessionResultSchema>;
-
-export type SessionSeam = {
-	getSession(): Promise<Result<SessionContext>>;
-};
+/*
+ * Purpose: Preserve the legacy import path for the canonical SessionSeam contract.
+ * Why: Existing consumers can migrate independently without maintaining duplicate contracts.
+ * Info flow: Legacy imports -> canonical self-contained contract -> consumers.
+ * Invariants: Must maintain full type and schema parity with canonical contract.
+ */
+export * from '../src/lib/seams/session-seam/contract';

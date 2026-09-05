@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-09-05T04:51:37.586Z",
+  "generatedAt": "2026-09-05T05:27:21.261Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -269,6 +269,44 @@
       ]
     },
     {
+      "seam": "AuthContextSeam (self-contained)",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/auth-context-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/auth-context-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "na",
+          "path": "N/A (fixture module: src/lib/seams/auth-context-seam/fixtures.ts)"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/auth-context-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/auth-context-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/auth-context-seam/index.ts"
+        }
+      ]
+    },
+    {
       "seam": "CreationStoreSeam",
       "owner": "hbpheonix",
       "lastProbe": "2026-02-05",
@@ -303,6 +341,44 @@
           "kind": "adapter",
           "status": "ok",
           "path": "src/lib/adapters/creation-store.adapter.ts"
+        }
+      ]
+    },
+    {
+      "seam": "CreationStoreSeam (self-contained)",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/creation-store-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/creation-store-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "na",
+          "path": "N/A (fixture module: src/lib/seams/creation-store-seam/fixtures.ts)"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/creation-store-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/creation-store-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/creation-store-seam/index.ts"
         }
       ]
     },
@@ -877,6 +953,44 @@
       ]
     },
     {
+      "seam": "SessionSeam (self-contained)",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/session-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/session-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "na",
+          "path": "N/A (fixture module: src/lib/seams/session-seam/fixtures.ts)"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/session-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/session-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/session-seam/index.ts"
+        }
+      ]
+    },
+    {
       "seam": "SpecValidationSeam",
       "owner": "hbpheonix",
       "lastProbe": "N/A",
@@ -1182,7 +1296,7 @@
     }
   ],
   "summary": {
-    "ok": 31,
+    "ok": 34,
     "missing": 0,
     "blocked": 0,
     "overallStatus": "ok"
