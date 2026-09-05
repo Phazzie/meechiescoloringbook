@@ -20,7 +20,7 @@
 //   3. A rule that cannot be evaluated is a failure, not a skip. A missing file is the exact state
 //      this script is for.
 
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 import { toDateFolder } from './evidence-reporting.mjs';
@@ -140,6 +140,29 @@ const RULES = [
 				return 'a chain artifact carries a generatedAt that is not a date.';
 			if (tape < lock)
 				return `proof-tape.json is stamped before chamber-lock.json (${new Date(tape).toISOString()} < ${new Date(lock).toISOString()}); the tape is from an earlier run than the chain that was supposed to write it.`;
+			// The stamps prove the chain finished. They do not prove it finished over THESE bytes: an
+			// artifact edited after the tape was written leaves the tape newer than the lock and
+			// describing a different file. That exact mismatch shipped once — the tape recorded 1233
+			// bytes for a 6677-byte e2e.txt — and was found by a reviewer, not by anything here.
+			const inventory = [];
+			const collect = (node) => {
+				if (Array.isArray(node)) return node.forEach(collect);
+				if (node === null || typeof node !== 'object') return;
+				if (typeof node.name === 'string' && typeof node.sizeBytes === 'number')
+					inventory.push({ name: node.name, sizeBytes: node.sizeBytes });
+				Object.values(node).forEach(collect);
+			};
+			collect(JSON.parse(read(dir, 'proof-tape.json') ?? '{}'));
+			const drifted = inventory
+				.map(({ name, sizeBytes }) => {
+					const path = join(dir, name);
+					if (!existsSync(path)) return `${name} is inventoried but not present`;
+					const actual = statSync(path).size;
+					return actual === sizeBytes ? null : `${name} is inventoried at ${sizeBytes} bytes and is ${actual}`;
+				})
+				.filter((entry) => entry !== null);
+			if (drifted.length > 0)
+				return `the proof tape describes files that are not the ones committed: ${drifted.join('; ')}.`;
 			return null;
 		}
 	},
@@ -162,19 +185,49 @@ const RULES = [
 				return 'e2e.txt Row 2 has a summary but no per-test lines; the summary cannot be checked against anything.';
 			// A passing count is not a passing run. Playwright prints "<n> passed" alongside "<n> failed"
 			// when both happen, so a row with one pass and forty failures satisfied every check above.
-			const broken = /(\d{1,9}) (failed|flaky|did not run|interrupted)/.exec(stripAnsi(row2));
+			// "error" is in here because Playwright's list reporter prints "<n> passed" beside
+			// "1 error was not a part of any test" when something fails outside a test body — a green
+			// count next to a red run, which is the shape this rule keeps being caught by.
+			const broken = /(\d{1,9}) (failed|flaky|did not run|interrupted|errors?)\b/.exec(stripAnsi(row2));
 			if (broken !== null)
 				return `e2e.txt Row 2 reports "${broken[0]}"; a summary line that also counts passes does not make the run green.`;
 			return null;
 		}
 	},
 	{
-		name: 'every rewind transcript reports its contract tests',
+		name: 'every rewind transcript reports contract tests, and none of them failing',
 		check: (dir) => {
 			const rewinds = readdirSync(dir).filter((f) => f.startsWith('rewind-') && f.endsWith('.txt'));
 			const empty = rewinds.filter((f) => lastPassedCount(read(dir, f) ?? '') === null);
 			if (empty.length > 0)
 				return `these rewind transcripts report no passing tests: ${empty.join(', ')}.`;
+			// A seam run that reports "1 failed | 16 passed" has a passing count and is not a pass.
+			// Same shape as the end-to-end rule above, and it was missing here for the same reason:
+			// the rule asked whether a number was present rather than what the numbers said.
+			const failing = rewinds.filter((f) =>
+				/(\d{1,9}) (failed|errors?)\b/.test(stripAnsi(read(dir, f) ?? ''))
+			);
+			if (failing.length > 0)
+				return `these rewind transcripts report failures beside their passes: ${failing.join(', ')}.`;
+			return null;
+		}
+	},
+	{
+		name: 'the routine\'s lint and build evidence is present and green',
+		check: (dir) => {
+			// AGENTS.md requires check, lint, test and build before every push. The chain covers check
+			// and test; lint and build are captured by hand beside it, so nothing was reading them and
+			// both could be absent or red while every other rule passed.
+			const REQUIRED = [
+				{ file: 'lint.txt', ok: /lint exit=0/, ran: 'npm run lint' },
+				{ file: 'build.txt', ok: /build exit=0/, ran: 'npm run build' }
+			];
+			for (const { file, ok, ran } of REQUIRED) {
+				const text = read(dir, file);
+				if (text === null) return `${file} is missing; ${ran} is required and left no transcript.`;
+				if (!ok.test(stripAnsi(text)))
+					return `${file} does not record a successful exit; ${ran} either failed or was captured without its result.`;
+			}
 			return null;
 		}
 	}

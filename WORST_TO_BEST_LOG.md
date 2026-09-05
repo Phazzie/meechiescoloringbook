@@ -7960,3 +7960,93 @@ are indistinguishable unless you look at what actually happened.
 | Row 2 reporting `1 passed` and `40 failed` | `"40 failed"; a summary line that also counts passes does not make the run green` |
 
 Five rules now, all passing on this head.
+
+---
+
+## Run 8 close-out — round thirty-one: six more, and two of them are defects this run already had
+
+Six findings against the guard and its CI step. All six right. Two of them are holes for defects
+**this very run hit and I then failed to guard against** — I fixed each cause and never asked whether
+the guard could see the symptom.
+
+### The two that were already my own history
+
+**The proof tape's inventory was never compared to the committed bytes.** Round twenty-eight's actual
+defect was `proof-tape.json` recording 1233 bytes for a 6677-byte `e2e.txt`. I fixed the *cause* —
+the file was written after the chain — and never made the guard detect the *symptom*. Appending
+sixteen bytes to an inventoried artifact after the tape was written still passed all five rules. The
+tape now has to describe the files that are actually there.
+
+**`lint.txt` and `build.txt` were read by nothing.** `AGENTS.md` requires check, lint, test and build
+before every push. The chain covers check and test; lint and build are captured beside it, and no
+rule looked at either. Both could be missing or red with every rule green — and the CI step runs only
+`npm run verify`, which executes neither. This is the same gap as the guard's caller being untracked:
+a mandated gate with nothing downstream that notices it did not happen.
+
+### The four that were new
+
+**A fatal error is not a failed test.** Playwright's list reporter prints `<n> passed` beside `1 error
+was not a part of any test` when something breaks outside a test body. The rule rejected `failed`,
+`flaky`, `did not run` and `interrupted`, and let a genuine red run through on a word it had not
+thought of.
+
+**The rewind rule made the mistake the e2e rule had just been corrected for.** It asked whether a
+passing count was *present*, so `1 failed | 16 passed` counted as a pass. The correction to the
+end-to-end rule was two rounds old and sitting fifteen lines above it. **Fixing an instance is not
+fixing a pattern, and the nearest place to look for the next instance is the code you did not change
+while you were there.**
+
+**`docs/evidence/README.md` would have turned CI red.** The step cut three path segments off every
+changed evidence path; for a file directly under `docs/evidence/` that yields the file itself, which
+the guard then reads as a directory and dies with `ENOTDIR`. Editing the evidence conventions
+document would have broken the check that reads evidence. Restricted to dated folders.
+
+**A force-push names a base no ref reaches.** `github.event.before` on a non-fast-forward push is the
+discarded pre-rebase head, absent even with full history — so last round's unreachable-base check
+would turn every force-pushed branch red. **This branch was force-pushed during this run**, so the
+condition was not hypothetical; it simply had not happened again since the check was added. Branch
+creation and force-push now share one answer: fall back to the default branch.
+
+### The shape, stated plainly
+
+Rounds twenty-six through thirty-one are one long lesson delivered six times:
+
+| Round | Fixed | Left |
+|---|---|---|
+| 26 | the writer's hardcoded count | the guard could not see it |
+| 27 | tracked the guard | its caller was untracked |
+| 28 | tracked the caller | the caller ran and did nothing |
+| 29 | made the caller work | its markers were satisfiable by the header |
+| 30 | fixed the markers | the tape's numbers were never read |
+| 31 | read the numbers | — |
+
+> **Every fix has an edge, and the edge is where the next defect is.** Not a deeper version of the
+> same bug — the thing immediately outside what you just touched, which looks fine precisely because
+> you were not looking at it.
+
+And the corollary, which cost two of this round's six: **when a rule is corrected, every rule shaped
+like it is now wrong too.** The e2e "is a number present" fix should have been applied to the rewind
+rule in the same edit; instead it took a reviewer and two rounds.
+
+### Every exploit reproduced red
+
+Each mutation was confirmed to have landed before its result was believed — the lesson from round
+thirty, applied.
+
+| Exploit | Rule that fired |
+|---|---|
+| `1 error was not a part of any test` beside the passes | Row 2 carries its own result |
+| rewind reporting `1 failed \| 16 passed` | rewind transcripts, none of them failing |
+| `lint.txt` recording a failed exit | lint and build evidence is present and green |
+| an inventoried artifact edited after the tape | the chain stages after the tests actually ran |
+| `docs/evidence/README.md` in the changed paths | filtered out; a README-only change guards nothing and does not error |
+| an unreachable base SHA | falls back to the default branch, resolves the folder |
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1445 passed, 1 skipped** · `npm run build` built ·
+`npm run cipher:gate` 0 · `npm run verify` exit 0 · **`npm run evidence:guard` all 6 rules pass** ·
+rewind 17 · mandated `npx playwright test` exit 1 with 41 launch failures in Row 1 · installed-browser
+run 41 passed in Row 2 · probe complete · YAML valid.
+
+Mutation total for the feature stays at **69**; the guard's six rules are counted with the tooling.
