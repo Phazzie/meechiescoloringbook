@@ -32,6 +32,16 @@
 - npm run rewind -- --seam WigCatalogSeam -> rewind-wig-catalog-seam.txt (27 passed)
 - npx playwright test -> e2e.txt (32 passed; baseline on main at 1dab4cf was 28)
 
+## Re-run on the close-out head
+
+The sections above were captured on the code head that merged as `cc5f622` (PR #297). The
+worst-feature routine requires check, lint, test and build before *every* push and the full verify
+chain, so they were re-run on the Markdown-only close-out head that follows it and the artifacts in
+this folder are that re-run's. A review caught that the first close-out push cited the merged head's
+evidence instead of regenerating it; the numbers are identical because no code changed, which is the
+claim the re-run establishes rather than assumes. `npx playwright test` is not re-run there: the
+routine scopes it to user-facing changes, and a log entry is not one.
+
 ## Results on this head
 
 - npm run check: 0 errors, 0 warnings

@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-05T03:07:52.946Z
+Generated at: 2026-09-05T03:33:48.758Z
 Evidence folder: docs/evidence/2026-09-05
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -19,14 +19,14 @@ after this inventory is taken, so they are not listed):
 - clan-chain.json (2532 bytes)
 - clan-chain.md (1559 bytes)
 - e2e.txt (4252 bytes) — PREDATES THIS VERIFY RUN
-- lint.txt (55 bytes) — PREDATES THIS VERIFY RUN
+- lint.txt (60 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - rewind-WigCatalogSeam.txt (540 bytes) — PREDATES THIS VERIFY RUN
 - rewind-wig-catalog-seam.txt (446 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 rewind | node scripts/rewind.mjs --seam WigCatalogSeam
 - seam-ledger.json (30250 bytes)
 - seam-ledger.md (2409 bytes)
-- shaolin-lint.json (517 bytes)
+- shaolin-lint.json (515 bytes)
 - test.txt (1031 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-chain.txt (4776 bytes) — PREDATES THIS VERIFY RUN

@@ -2,4 +2,4 @@
 > meechies-coloringbook@0.1.0 lint
 > eslint .
 
-exit=0
+lint exit=0
