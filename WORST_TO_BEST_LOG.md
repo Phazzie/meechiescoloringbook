@@ -8520,3 +8520,52 @@ last three wrong guesses in this log were made.
 `npm run lint` clean · `sonarjs.configs.recommended` clean on the file · `npm run evidence:guard`
 6 rules pass · full chain re-run: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0,
 rewind 17, Playwright 41 with `e2e exit=0` recorded, probe complete.
+
+### Addendum — round forty: the first stage of the chain, and a comment that outran its code
+
+Codex reviewed `4abf71c2`. Two findings, both accepted.
+
+**Nothing required evidence that the audit gate ran.** `verify` is
+`npm run audit:gate && chamber-lock && verify-runner && …`, and the guard's stage markers were the
+Svelte check and the Vitest output — the middle of the chain. A branch that dropped `audit:gate` from
+its own `verify` script and refreshed its evidence passed, and because the workflow's Verify step
+delegates to that same branch-owned script, no high-severity audit would have run anywhere.
+
+The chain has eight stages. I had spent four rounds hardening how the guard reads the *transcript*
+and never asked which stages the transcript was required to contain. Two markers are now required
+from the audit gate, both of them stage output: npm's banner line for the sub-script, and the audit's
+own result. Both were checked against a header-only transcript first, because the string
+`audit:gate` appears in the echoed command line at the top of the file — which is exactly how the old
+`proof` marker was satisfied by a run in which proof-tape never executed.
+
+**The Windows separator, which is my own last round's bug.** `proof-tape.mjs` joins `evidenceDir`, so
+a tape generated on Windows records `docs\evidence\2026-09-05`, and POSIX `basename` treats a
+backslash as an ordinary character. The replay check added last round would have rejected valid
+Windows-produced evidence as a copy of another run. Three of this guard's earlier defects were
+correct evidence refused; this one was introduced by the fix for evidence wrongly accepted.
+
+**And the part worth keeping.** My first audit-result pattern was `found \d+ vulnerabilit`, under a
+comment saying it "counts vulnerabilities rather than demanding zero" so that a passing-but-not-clean
+audit would not be rejected. npm writes the severity *between* the count and the noun — "found 3
+moderate severity vulnerabilities" — so the pattern matched only a perfectly clean audit. The comment
+was right and the code beneath it was not.
+
+> **A comment is a claim about the code, and it is the one claim nothing checks.** This is the same
+> defect as every other one in this log — a description and the thing described, drifting — except
+> that here they were written in the same minute by the same hand, and the description was the more
+> accurate of the two. It was caught only because the mutation test asserted the behaviour the
+> comment promised rather than the behaviour the code had.
+
+Seven directions verified: the audit stage stripped fires, the banner without its result fires, a
+passing audit with moderate advisories is accepted, Windows separators are accepted, the replay check
+still fires, and real evidence still passes.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean on the file · `npm run evidence:guard`
+6 rules pass · full chain re-run: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0,
+rewind 17, Playwright 41 with `e2e exit=0` recorded, probe complete.
+
+**Measurement owed from the previous round:** SonarCloud still reports 2 new issues after the
+`permissions` block was added, so that change did not address the second one. The hypothesis is
+disconfirmed. It was labelled unconfirmed when it was made and stands on least privilege alone; the
+second issue remains genuinely unidentified, with the file narrowed to `verify.yml` and the reason
+recorded rather than guessed at.

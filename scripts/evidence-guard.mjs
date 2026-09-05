@@ -133,8 +133,15 @@ const read = (dir, name) => {
 const replayedFrom = (dir, tape) => {
 	// `basename` strips trailing separators itself; the hand-rolled strip that used to be here was
 	// both redundant and, per sonarjs/super-linear-regex, a backtracking pattern.
-	const here = basename(dir);
-	const claimed = typeof tape.evidenceDir === 'string' ? basename(tape.evidenceDir) : null;
+	//
+	// Separators normalised first. `proof-tape.mjs` joins this path, so a tape generated on Windows
+	// records `docs\\evidence\\2026-09-05`, and POSIX `basename` treats a backslash as an ordinary
+	// character — it would return the whole string and this rule would reject valid evidence as a
+	// replay. That is the rule doing the opposite of its job: three of this guard's earlier bugs were
+	// correct evidence refused, and this one was introduced by the fix for evidence wrongly accepted.
+	const named = (value) => basename(value.replace(/\\/g, '/'));
+	const here = named(dir);
+	const claimed = typeof tape.evidenceDir === 'string' ? named(tape.evidenceDir) : null;
 	if (claimed === null)
 		return 'proof-tape.json records no evidenceDir, so it cannot be shown to describe this folder rather than another one.';
 	if (claimed !== here)
@@ -167,11 +174,30 @@ const RULES = [
 			// it while none of the post-test stages had run. A marker that the header can supply is not
 			// a marker. The stages after the tests print nothing distinctive, so they are proved from
 			// their artifacts below rather than from this file.
+			//
+			// The audit gate is the chain's FIRST stage and nothing here required evidence of it, so a
+			// branch that dropped `audit:gate` from its own `verify` script and refreshed the evidence
+			// passed: the workflow's Verify step delegates to that same branch-owned script, so no
+			// high-severity audit would have run anywhere. Both markers are stage OUTPUT — npm's own
+			// banner line for the sub-script, and the audit's result — because the echoed command line
+			// at the top of this transcript contains the string `audit:gate`, which is exactly how the
+			// old `proof` marker was satisfied by a transcript in which proof-tape never ran. Verified
+			// against a header-only transcript: neither pattern matches it.
+			//
+			// The result pattern counts vulnerabilities rather than demanding zero. `--audit-level=high`
+			// exits 0 with low and moderate advisories present, and "found 3 moderate severity
+			// vulnerabilities" is a passing audit; requiring "found 0" would reject it. npm puts the
+			// severity between the count and the noun, so the pattern allows those words — the first
+			// version said all of this in a comment and then matched only `found <n> vulnerabilit`,
+			// which rejects every audit that is passing but not perfectly clean. The comment was
+			// right and the code beneath it was not, which is the defect this whole guard is about.
 			const STAGE_MARKERS = [
-				{ marker: 'svelte-check found', stage: 'the check stage' },
-				{ marker: 'Test Files', stage: 'the test stage' }
+				{ pattern: /^> \S{1,80} audit:gate$/m, stage: 'the audit gate' },
+				{ pattern: /found \d{1,9}( \w{1,12}){0,2} vulnerabilit/, stage: "the audit gate's result" },
+				{ pattern: /svelte-check found/, stage: 'the check stage' },
+				{ pattern: /Test Files/, stage: 'the test stage' }
 			];
-			const missing = STAGE_MARKERS.filter(({ marker }) => !outer.includes(marker));
+			const missing = STAGE_MARKERS.filter(({ pattern }) => !pattern.test(outer));
 			if (missing.length > 0)
 				return `verify-outer.txt is missing ${missing.map((m) => m.stage).join(', ')}; it carries an exit line but not the run that earned it.`;
 			return null;
