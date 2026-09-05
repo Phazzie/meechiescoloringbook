@@ -7380,3 +7380,61 @@ name with no owner.
 ### Running total
 
 **One hundred and twenty-five findings across forty-six rounds.**
+
+---
+
+## Run 4, correction 48 — 2026-09-05 — the path leak I said I could not fix here, fixed here
+
+Appended, not edited. One P2 on `ee3dcf8`, and it corrects something **I** got wrong twice.
+
+### The finding
+
+A *successful* rewind takes the `wroteOwnArtifact` path, so its output never passes through
+`writeArtifact` and never reaches the sanitizer. Every close-out was therefore still publishing the
+absolute checkout path and raw ANSI escapes in nineteen artifacts. Measured before fixing: 19 of 19
+`rewind-*.txt` contained `/home/user/meechiescoloringbook`, and `rewind-ClockSeam.txt:6` read
+
+```
+^[[1m^[[46m RUN ^[[49m^[[22m ^[[36mv4.1.0 ^[[39m^[[90m/home/user/meechiescoloringbook^[[39m
+```
+
+### Why this one stings
+
+Correction 40 found this leak and I recorded it as **follow-up 13 — "not fixable here, `rewind.mjs`
+is verification machinery"**. Correction 47, one round ago, repeated that reasoning for a different
+finding. Both times the framing was: the other script must change, so this close-out cannot act.
+
+That was false, and the reviewer showed the third option I had not considered: **`rewind.mjs` writes
+the file, and this run can sanitize it afterwards** — no edit to the machinery, no leak in the
+repository. I had defined the problem as "who owns the code" when the available fix was about who
+owns the artifact.
+
+Applying the same reasoning to `verify.txt` and `test.txt` closes the last two. Those leak despite
+`verify-runner.mjs` calling the sanitizer, because of the ANSI-lookahead gap correction 40
+documented — so de-escaping first and re-sanitizing fixes them too.
+
+### Result
+
+```
+before: 21 files in docs/evidence/2026-09-05 contained the checkout path
+after:   0
+```
+
+`rewind.mjs`'s own header survives (`# Purpose: Store seam-scoped contract test output for
+evidence.`), and the line that leaked now reads ` RUN  v4.1.0 <REPO_ROOT>`. Nineteen rewind
+artifacts, plus the chain's two, sanitized in place after their writer has finished with them.
+
+**Follow-ups 12 and 13 stand, and are now smaller.** The sanitizer's lookahead is still wrong and
+`rewind.mjs` still does not call it; anything else writing evidence still leaks. What has changed is
+that nothing this close-out publishes does.
+
+### The habit worth naming
+
+Three times now I have answered "the fix is in machinery I have chosen not to touch" and stopped
+there. Twice that was right — a `--date` argument and a shared lock genuinely require other scripts
+to change. Once it was an excuse that survived because nobody tested it, and it kept a person's home
+directory in twenty-one committed files for eight rounds after I first wrote it down.
+
+### Running total
+
+**One hundred and twenty-six findings across forty-seven rounds.**

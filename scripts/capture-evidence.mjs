@@ -210,6 +210,32 @@ const ANSI_ESCAPE = new RegExp(`${ESC}\\[[0-9;]*[A-Za-z]`, 'g');
  * @param {string} body
  * @param {number} code
  */
+const sanitizeArtifactInPlace = async (filePath) => {
+	// rewind.mjs writes its own artifact and does not sanitize: every successful rewind therefore
+	// published the absolute checkout path and raw ANSI escapes — nineteen files per run. Its header
+	// is worth keeping (it is the script's own provenance), so the file is rewritten in place rather
+	// than replaced. This is the same de-escape-then-sanitize order writeArtifact uses, and for the
+	// same reason: the repo's sanitizer misses a path followed by an escape.
+	let body;
+	try {
+		body = await fs.readFile(filePath, 'utf8');
+	} catch {
+		return;
+	}
+	const cleaned = sanitizeEvidenceOutput(ROOT, body.replace(ANSI_ESCAPE, ''));
+	if (cleaned !== body) {
+		await fs.writeFile(filePath, cleaned, 'utf8');
+	}
+};
+
+/**
+ * Writes an evidence artifact: header first, then the captured output, then the exit status.
+ * @param {string} dir
+ * @param {string} name
+ * @param {string[]} header
+ * @param {string} body
+ * @param {number} code
+ */
 const writeArtifact = async (dir, name, header, body, code) => {
 	const cleaned = sanitizeEvidenceOutput(ROOT, body.replace(ANSI_ESCAPE, ''));
 	const text = `${header.map((line) => `# ${line}`).join('\n')}\n#\n${cleaned}\nEXIT=${code}\n`;
@@ -511,6 +537,14 @@ const captureChain = async (dir) => {
 		verify.code
 	);
 	exitIfFailed(verify, 'npm run verify');
+	// The chain's own two captures leak too, for a subtler reason than the rewinds: verify-runner.mjs
+	// DOES call sanitizeEvidenceOutput, but that helper only matches the repo root before end-of-line,
+	// a slash or whitespace, and vitest prints its root wrapped in ANSI colour codes — so the escape
+	// defeats it. De-escaping first and re-sanitizing closes it here. The helper's own lookahead is
+	// still the real fix and is follow-up 12; this stops the leak reaching the repository meanwhile.
+	for (const name of ['verify.txt', 'test.txt']) {
+		await sanitizeArtifactInPlace(path.join(dir, name));
+	}
 };
 
 /**
@@ -614,6 +648,10 @@ const captureRewinds = async (dir, startDate) => {
 				result.code
 			);
 		}
+		// rewind.mjs's own artifact has never been through a sanitizer; this run's companion already
+		// has. Applying to both is idempotent and means no path can reach the repository by either
+		// route.
+		await sanitizeArtifactInPlace(artifactPath);
 		rows.push({ seam, code: result.code, artifact, ownArtifact: wroteOwnArtifact, companion });
 		if (result.code !== 0) {
 			rewindFailed = result.code;

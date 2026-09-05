@@ -3,11 +3,11 @@
 # Info flow: vitest output -> evidence file -> review.
 
 
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+ RUN  v4.1.0 <REPO_ROOT>
 
 
-[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
-[2m      Tests [22m [1m[32m14 passed[39m[22m[90m (14)[39m
-[2m   Start at [22m 03:50:24
-[2m   Duration [22m 894ms[2m (transform 166ms, setup 39ms, import 176ms, tests 14ms, environment 501ms)[22m
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  04:00:16
+   Duration  863ms (transform 166ms, setup 39ms, import 175ms, tests 13ms, environment 476ms)
 
