@@ -5,21 +5,21 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-05T19:12:29.593Z
+Generated at: 2026-09-05T19:22:28.566Z
 Evidence folder: docs/evidence/2026-09-05
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
 after this inventory is taken, so they are not listed):
 
 - assumption-alarm.json (12123 bytes)
-- build.txt (11300 bytes) — PREDATES THIS VERIFY RUN
+- build.txt (11298 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (35321 bytes)
 - cipher-gate.json (1096 bytes) — PREDATES THIS VERIFY RUN
 - clan-chain.json (3181 bytes)
 - clan-chain.md (1956 bytes)
-- e2e.txt (4926 bytes) — PREDATES THIS VERIFY RUN
-- lint.txt (164 bytes) — PREDATES THIS VERIFY RUN
+- e2e.txt (5020 bytes) — PREDATES THIS VERIFY RUN
+- lint.txt (162 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - rewind-AuthContextSeam(self-contained).txt (658 bytes) — PREDATES THIS VERIFY RUN
 - rewind-AuthContextSeam.txt (654 bytes) — PREDATES THIS VERIFY RUN

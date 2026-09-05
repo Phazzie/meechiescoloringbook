@@ -554,6 +554,16 @@ export class StudioState {
 	// Incremented whenever the displayed page is replaced; async work captures it and drops its
 	// result if the value moved on. Not $state: nothing renders it.
 	pageLoadToken = 0;
+	/**
+	 * The same idea for the *verdict*, which has a life of its own: the page can be replaced without
+	 * the verdict changing, and a round can be abandoned while its request is still in flight.
+	 *
+	 * Incremented whenever the reader walks away from the round a request was made for — a mode
+	 * switch, a reopened saved page. `runTextAction` captures it and drops a reply that belongs to a
+	 * round nobody is looking at any more, which otherwise lands the previous mode's verdict on the
+	 * new one and charges the new round's allowance for it.
+	 */
+	private verdictToken = 0;
 	isBrowser = $state(false);
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
 	private stopVisibilityWatch: (() => void) | null = null;
@@ -898,6 +908,8 @@ export class StudioState {
 			// The switch just deleted the verdict the spent rewrites were spent on. Carrying the
 			// spend across to a mode the reader has not asked anything yet is what stranded them.
 			this.startRewriteRound();
+			// And anything still in flight for the old mode belongs to that mode, not this one.
+			this.verdictToken += 1;
 		}
 		this.scheduleDraftSave();
 	};
@@ -964,6 +976,8 @@ export class StudioState {
 		// window. Anchoring at response receipt would put the reset minutes into the future for a
 		// bucket that had already refilled.
 		const requestStartedAtMs = this.clock.now();
+		// Captured before the await, compared after it. See `verdictToken`.
+		const roundToken = this.verdictToken;
 		try {
 			const payload = await postJson(
 				'/api/meechie-studio-text',
@@ -989,6 +1003,12 @@ export class StudioState {
 					}
 				}
 			);
+			// The reader has moved to another round while this was in flight. The reply describes a
+			// verdict nobody is looking at any more, so none of it lands: not the words, not the
+			// charge, not the page reset. The quota reading above is deliberately *not* guarded —
+			// it describes this caller's bucket, which the server charged whatever the reader did
+			// next, so it stays true and useful.
+			if (roundToken !== this.verdictToken) return;
 			const parsed = MeechieStudioTextResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.textError = 'Meechie sent back a line the studio could not read.';
@@ -1016,9 +1036,15 @@ export class StudioState {
 			this.restoredPageLayout = false;
 			await this.applyTextToSpec(parsed.data.value);
 		} catch (error) {
+			// Same rule for a failure: an error about the round the reader walked away from would
+			// otherwise appear under the mode they walked to.
+			if (roundToken !== this.verdictToken) return;
 			this.textError =
 				error instanceof Error ? error.message : 'Meechie could not reach the AI text service.';
 		} finally {
+			// Cleared unconditionally: only one text request can be in flight at a time, so this one
+			// is the one that owns the flag whether or not its result is still wanted. Leaving it set
+			// on a stale round would wedge every AI button on the new one.
 			this.isTextWorking = false;
 		}
 	};
@@ -1414,6 +1440,8 @@ export class StudioState {
 		// buttons light up the moment `textOutput` is set above. Handing it whatever was left of
 		// some earlier page's allowance would let a saved page arrive with none.
 		this.startRewriteRound();
+		// A verdict still in flight was asked about the page this one just replaced.
+		this.verdictToken += 1;
 		// Reopening a saved page used to hand back the words and drop the picture, so the only
 		// way to see your own page again was to pay for another generation. The record already
 		// carries the image bytes and the trace, so give all of it back.

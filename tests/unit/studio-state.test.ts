@@ -2634,4 +2634,97 @@ describe('StudioState AI budget meter', () => {
 		expect(studio.aiQuotaExhausted).toBe(false);
 		expect(studio.canGenerateText).toBe(true);
 	});
+	// A rewrite in flight belongs to the round it was asked about. Switching mode mid-request used
+	// to land the old mode's verdict on the new one and charge the new round's allowance for it.
+	it('drops a reply for a round the reader has walked away from', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse()))
+		);
+		await studio.runTextAction('generate_text');
+		expect(studio.revisionBudget).toBe(3);
+
+		// A rewrite that has not come back yet.
+		let release: (value: Response) => void = () => {};
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(
+				() =>
+					new Promise<Response>((resolve) => {
+						release = resolve;
+					})
+			)
+		);
+		const pending = studio.runTextAction('make_meaner');
+
+		// The reader moves on before it lands.
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+		expect(studio.textOutput).toBeNull();
+		expect(studio.revisionBudget).toBe(3);
+
+		release(studioTextResponse());
+		await pending;
+
+		// None of the discarded round's reply lands on the round the reader is now looking at.
+		expect(studio.textOutput).toBeNull();
+		expect(studio.revisionBudget).toBe(3);
+		// And the flag it owned is released, so the new mode is usable.
+		expect(studio.isTextWorking).toBe(false);
+		expect(studio.canGenerateText).toBe(true);
+	});
+
+	it('does not surface a walked-away-from round\'s failure on the new one', async () => {
+		const studio = arrangeStudioWithEvidence();
+		let fail: (reason: Error) => void = () => {};
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(
+				() =>
+					new Promise<Response>((_resolve, reject) => {
+						fail = reject;
+					})
+			)
+		);
+		const pending = studio.runTextAction('generate_text');
+
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+		fail(new Error('provider unavailable'));
+		await pending;
+
+		expect(studio.textError).toBe('');
+	});
+
+	// The quota is about the caller, not the round: the server charged the bucket whatever the
+	// reader did next, so that reading stays true and must survive the discard.
+	it('still records the quota from a reply it otherwise discards', async () => {
+		const clock = createMockClockSeam(NOW_MS);
+		const studio = arrangeStudioWithEvidence();
+		studio.clock = clock;
+		let release: (value: Response) => void = () => {};
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(
+				() =>
+					new Promise<Response>((resolve) => {
+						release = resolve;
+					})
+			)
+		);
+		const pending = studio.runTextAction('generate_text');
+
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+		release(
+			studioTextResponse({
+				'RateLimit-Limit': '20',
+				'RateLimit-Remaining': '14',
+				'RateLimit-Reset': '45'
+			})
+		);
+		await pending;
+
+		expect(studio.textOutput).toBeNull();
+		expect(studio.aiQuota?.remaining).toBe(14);
+		expect(studio.aiQuotaMessage).toContain('7 AI calls left');
+	});
 });

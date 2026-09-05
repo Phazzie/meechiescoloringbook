@@ -5223,3 +5223,52 @@ unusually good at generating instances of its own defect, because every fix adds
 the knowledge has to be repeated. The fixes that lasted were the ones that removed a place it *could*
 disagree — one definition of the quota cost, one derived `aiQuotaExhausted` behind every guard, one
 `#ai-budget` named by every button — rather than the ones that corrected a value.
+
+---
+
+## Run 7, fourth close-out — 2026-09-05 — the Codex round on `ddaee0d`
+
+One finding, and the best of the four rounds, because the defect it names is larger than the one it
+describes.
+
+Codex reported that a rewrite in flight when the reader switches mode would charge the *new* round's
+allowance: `handleModeSelect` refills to three, then the arriving continuation decrements it to two
+for a verdict that no longer exists. True. But reading `runTextAction` to check it showed there was
+**no staleness guard on that method at all** — so the same continuation also assigned
+`this.textOutput`, meaning a slow reply for "Who Fucked Up?" landed its verdict under "Rate His
+Excuse", and `resetGeneratedPage` wiped whatever the new mode had. The budget charge Codex found was
+the smallest of three symptoms of one missing check.
+
+That miss is squarely mine and predates this PR only in part: the verdict-landing bug was already
+there, and this PR's budget refill gave it a second way to be wrong. The repo had already solved
+exactly this shape twice — `pageLoadToken` in this same file, and the "separate staleness tokens for
+the verdict and the page" that `verdict-page-state.svelte.ts` documents for the mode routes. The home
+studio's verdict simply never got one.
+
+`verdictToken` is that token: captured before the await, compared after it, advanced by
+`handleModeSelect` and `loadCreation`. A reply for an abandoned round now lands nothing — not the
+words, not the charge, not the page reset — and a *failure* from an abandoned round no longer
+surfaces its error message under the mode the reader moved to.
+
+Two details worth keeping:
+
+- **The quota reading is deliberately not guarded.** It describes the caller's bucket, which the
+  server charged whatever the reader did next, so it stays true and useful even when everything else
+  in that reply is discarded. A test pins that a discarded round still updates the meter.
+- **`isTextWorking` is cleared unconditionally** in `finally`. Only one text request can be in flight,
+  so the stale one still owns the flag; returning early before clearing it would wedge every AI
+  button on the new mode. The "drops a reply" test asserts the new round is usable afterwards.
+
+Both new guards were confirmed red against the unguarded code before being made green.
+
+### Four rounds, one shape
+
+Round 1: the count outlived its window; the label rounded away the seconds; the reset was measured
+from the wrong end of the request. Round 2: the buttons ignored the sentence above them. Round 3: one
+button lost the sentence. Round 4: a reply outlived the question it answered.
+
+Every one is the same failure — a part of the studio asserting something the rest of it had already
+stopped believing. The feature is *about* that failure, which did not protect it; if anything the
+opposite, because each fix added another place the same knowledge had to be kept true. What actually
+worked was collapsing the duplicates: one definition of the quota cost, one `aiQuotaExhausted` behind
+every guard, one `#ai-budget` named by every button, one token deciding whether a reply still counts.
