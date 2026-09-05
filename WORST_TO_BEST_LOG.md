@@ -6273,3 +6273,68 @@ open since round eleven and is not blocking.
 `npm run check` 0/0 · `npm run lint` clean · **1403 passed, 1 skipped** · `npm run build` built ·
 `npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed ·
 Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
+
+## Run 7 close-out — round twenty: the equality test the codebase had already warned about
+
+### A theme click is authorship a comparison cannot see
+
+Round eighteen's supersede asked whether the live style differs from the style as restored. There is
+one way for the reader to choose a style that this cannot see, and the codebase already knew it:
+`SettingChangeSource` exists for exactly that case, and its doc comment says so —
+
+> a click on the theme chip that is already active leaves every value identical, and is still the
+> reader asking for that theme.
+
+That was written about the neighbouring question of recomputing derived presentation. I wrote the
+supersede as a pure equality test in the same file, as if the sentence were not there.
+
+It lands on the case the supersede was added for. A reader with a non-default theme up opens a legacy
+record, decides to keep that theme for it, and clicks it — the most direct way to say so — and the
+equality test called it no choice at all. The autosave went on writing `undefined` and the refresh
+went on losing the theme.
+
+The claim is now recorded explicitly on a `theme` rebuild, alongside the comparison, with the
+no-artifact guard untouched.
+
+### The reason was untested again
+
+The claim is recorded *after* the rebuild returns, not when the click arrives: a click whose spec did
+not survive its own check has not authored anything. I wrote that into the code, its comment and the
+commit message, and pinned it with nothing — moving the assignment to the top of the handler left all
+141 tests green.
+
+That is the second time in two rounds that a guard's *reason* was untested while its happy path was
+covered, and it is now the most reliable thing mutation testing catches in this run. The pattern is
+specific enough to state as a rule: **when a fix has a condition on it, the condition needs its own
+test, because the test written alongside the fix will exercise the path that made you write it.**
+
+### A fourth header
+
+`StudioPreviewPanel.svelte` states that the paper shows the page's own look and never the live
+controls'. Written to generalise past `glitter` — the next visual property this paper grows is the
+one at risk — and to name the exception, because a rule with an unstated exception gets applied where
+it does not belong. An earlier round found the settings lede over-claiming by omitting that same
+exception.
+
+### Mutations
+
+Two, both red: the theme claim dropped (1 red), and the claim recorded before the rebuild rather than
+after (1 red). Running total: **64**.
+
+### A correction
+
+Two of my review replies this round quote "1404 passed". The suite on this head is **1405**. I wrote
+the number from the single test file's count plus arithmetic instead of from the run, which is the
+second time in this session I have published a figure ahead of its measurement. Both times it was a
+verification footer — the part of a reply whose whole job is to be checkable.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1405 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed ·
+Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
+
+SonarCloud's gate passes on the previous head (2.1% duplication) and now reports 2 new issues rather
+than 1. Neither is blocking and neither is identified; the local sonarjs reproduction still finds
+nothing on changed lines. Recorded as the same open loose end, with the count updated rather than
+left saying 1.
