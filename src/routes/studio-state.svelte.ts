@@ -758,15 +758,45 @@ export class StudioState {
 		}
 	};
 
+	/**
+	 * Packages what is on the paper and attaches the result — unless the page was replaced while
+	 * packaging ran, in which case the late PDF belongs to a page nobody is looking at.
+	 *
+	 * Shared by both generation paths on purpose. These eleven lines were written twice, and the
+	 * staleness check existed in neither: copying the block is precisely how one path came to be
+	 * guarded and the other not. One implementation is the only way both stay correct.
+	 */
+	private async attachPackagedPage(fileBaseName: string, pageToken: number): Promise<void> {
+		const packagingResult = await outputPackagingAdapter.package({
+			images: $state.snapshot(this.images),
+			outputFormat: 'pdf',
+			fileBaseName,
+			pageSize: this.spec.pageSize,
+			variants: ['print']
+		});
+		if (pageToken !== this.pageLoadToken) return;
+		if (packagingResult.ok) {
+			this.packagedFiles = packagingResult.value.files;
+		} else {
+			this.generationError = packagingResult.error.message;
+		}
+	}
+
 	handleGeneratePage = async (): Promise<void> => {
 		if (!this.textOutput) {
 			this.generationError = 'Generate Meechie words before creating the page.';
 			return;
 		}
 		this.resetGeneratedPage();
+		// The same capture the try-on path makes, for the same reason: everything below is read
+		// after an await, and every path that replaces the paper advances this token. Without it a
+		// slow generation lands its prompt, images and PDF on whatever verdict is on screen when it
+		// finishes — which is the defect the mode routes already guard against, and this one did not.
+		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
 		try {
 			await this.applyTextToSpec(this.textOutput);
+			if (pageToken !== this.pageLoadToken) return;
 			if (this.validationIssues.length > 0) {
 				this.generationError = 'Fix the page settings before generating.';
 				return;
@@ -779,6 +809,7 @@ export class StudioState {
 				},
 				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
 			);
+			if (pageToken !== this.pageLoadToken) return;
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.generationError = 'Generate response did not match contract.';
@@ -795,18 +826,7 @@ export class StudioState {
 			this.recommendedFixes = parsed.data.value.recommendedFixes;
 
 			const creationId = this.generateCreationId();
-			const packagingResult = await outputPackagingAdapter.package({
-				images: $state.snapshot(this.images),
-				outputFormat: 'pdf',
-				fileBaseName: `meechie-coloring-page-${creationId}`,
-				pageSize: this.spec.pageSize,
-				variants: ['print']
-			});
-			if (packagingResult.ok) {
-				this.packagedFiles = packagingResult.value.files;
-			} else {
-				this.generationError = packagingResult.error.message;
-			}
+			await this.attachPackagedPage(`meechie-coloring-page-${creationId}`, pageToken);
 		} catch (error) {
 			this.generationError =
 				error instanceof Error ? error.message : 'Coloring page generation failed.';
@@ -877,18 +897,10 @@ export class StudioState {
 			// From here the paper is a portrait, so no verdict describes it. See `tryOnPageOnScreen`.
 			this.tryOnPageOnScreen = true;
 			const creationId = this.generateCreationId();
-			const packagingResult = await outputPackagingAdapter.package({
-				images: $state.snapshot(this.images),
-				outputFormat: 'pdf',
-				fileBaseName: `meechie-try-on-coloring-page-${creationId}`,
-				pageSize: this.spec.pageSize,
-				variants: ['print']
-			});
-			if (packagingResult.ok) {
-				this.packagedFiles = packagingResult.value.files;
-			} else {
-				this.generationError = packagingResult.error.message;
-			}
+			await this.attachPackagedPage(
+				`meechie-try-on-coloring-page-${creationId}`,
+				pageToken
+			);
 		} catch (error) {
 			this.generationError =
 				error instanceof Error ? error.message : 'Try-on coloring page generation failed.';

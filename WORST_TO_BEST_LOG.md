@@ -4126,3 +4126,72 @@ against the real deployment — the network policy returns 403 for `*.vercel.app
 `sonarcloud.io`. The local end-to-end test asserts the response body and was proven by mutation, and
 the deployment succeeding shows the new `+page.ts` builds and runs there, but that is not the same
 as having read the deployed HTML, and this entry does not claim otherwise.
+
+---
+
+## Run 5, fourth close-out — 2026-09-05 — the audit, not a review round
+
+Appended, not edited. **Nobody reported these.** After the third review round made it four instances
+of one bug, the pattern was audited for directly rather than waiting to be told a fifth time. It
+found two more, in the same file, one of them in code this run had already edited.
+
+| Where | Defect | Outcome |
+|---|---|---|
+| `handleGenerateTryOnPage` | The packaging `await` had no staleness check, so a reader who selected another wig while the PDF was being built got that PDF attached to the page they had moved to. Download PDF would hand back a different page than the one displayed — the exact defect `repackageRestoredImages` already carried a comment about. | **Fixed.** |
+| `handleGeneratePage` | The home studio's *normal* generation had **no staleness guard at all**: a slow provider response landed its prompt, images and PDF on whatever verdict was on screen when it finished. Pre-existing, and not this run's code. | **Fixed anyway**, per run 4's precedent: "keep the fix minimal" means do not widen the *change*, not decline a one-line fix in a place proven to have the same bug. |
+
+That is **six instances of one bug** in this pull request:
+
+1. A late portrait filed under whichever **wig** was selected when it landed.
+2. A late portrait filed at all after the **selfie** it came from was replaced.
+3. A verdict treated as a page's text when it was **invented by a restore**.
+4. A **portrait re-read after an await**, packaged under another wig's name.
+5. A **late PDF** attached to a page the reader had moved off (try-on).
+6. A **slow generation** landing on a replaced verdict (studio) — pre-existing.
+
+Every one is *state read after an await that was true before it*. Three were found by review, two by
+auditing for the pattern once review had established it, and one — number 6 — had been sitting in
+`main` untouched.
+
+### Why the guard was in one path and not the other
+
+The eleven lines that package a page and attach the result were written **twice**, once in each
+generation path, and the staleness check was in neither. Copying the block is exactly how one path
+came to be guarded and the other not: the fix for the try-on path had no reason to visit the studio
+path, because they were separate text.
+
+They are now one method, `attachPackagedPage`. That is not only a duplication fix — it makes the
+divergence structurally impossible, which is the more useful half. It also happens to be the
+follow-up this run's *first* entry deferred as "a clean, self-contained follow-up"; adding the guard
+line to both copies turned it into new code, so it stopped being deferrable.
+
+### Two tests that passed for the wrong reason, caught by mutating
+
+Worth recording plainly, because it nearly shipped. Three tests were written for these guards, and
+**two of them initially passed with the guard deleted**:
+
+- The late-PDF test asserted `packagedFiles` was empty, and the mock resolved packaging with an
+  empty file list — so the assertion held whether the guard fired or not. Fixed by giving the late
+  result a distinguishable payload.
+- The slow-generation test asserted `images` was empty, and the stubbed response was missing
+  `templateVersion`, so it failed `GenerateResultSchema` and never reached the guarded line at all.
+  Fixed by making the payload valid, and by additionally asserting `generationError` is empty — the
+  thing that distinguishes "the guard returned" from "the parse rejected".
+
+Both were only discovered because the guard was deleted and the test was expected to fail. Reading
+either test would have suggested it worked. This is the fifth time in this repository a mutation has
+exposed a test proving less than it claimed, and the second time in this run alone.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1246 passed, 1 skipped**
+(from 1244). `npm run build` exit 0. `npx playwright test` **32 passed**. `npm run verify` exit 0.
+`npm run cipher:gate` exit 0.
+
+**All three guards re-proven by mutation after the extraction**, not before it: removing the shared
+packaging check, the normal-path parse check, or `&& !this.tryOnPageOnScreen` each fails its own
+named test and only that one.
+
+The duplication scan now reports **nothing at all in `src/routes/studio-state.svelte.ts`** — the
+eleven-line block that had been there since before this run is gone. The two blocks it still reports
+are both in `tests/e2e/smoke.spec.ts`, both outside this diff.

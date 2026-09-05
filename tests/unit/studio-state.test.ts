@@ -755,6 +755,108 @@ describe('StudioState wig try-on comparison', () => {
 		expect(studio.spec.title).not.toBe('Wig Try-On - Sample Wig');
 	});
 
+	/**
+	 * The fifth instance of this branch's recurring bug, found by auditing for the pattern rather
+	 * than by being told: packaging is an await too, so its result needs the same token check the
+	 * portrait read got.
+	 */
+	/**
+	 * The sixth instance, and the only one in code this branch did not write: the home studio's
+	 * normal generation had no staleness guard at all, so a slow provider response landed its
+	 * prompt, images and PDF on whatever verdict was on screen when it finished. The mode routes
+	 * already guard this; the studio did not. One line, in a path proven to have the same bug.
+	 */
+	it('does not land a slow generation on a page the reader has already replaced', async () => {
+		const studio = new StudioState();
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		let releaseGenerate: (value: Response) => void = () => {};
+		const fetchSpy = vi.fn().mockReturnValue(
+			new Promise<Response>((resolve) => {
+				releaseGenerate = resolve;
+			})
+		);
+		vi.stubGlobal('fetch', fetchSpy);
+
+		const inFlight = studio.handleGeneratePage();
+		for (let i = 0; i < 100 && fetchSpy.mock.calls.length === 0; i++) {
+			await Promise.resolve();
+		}
+		expect(fetchSpy).toHaveBeenCalledOnce();
+
+		// Switching mode clears the page and advances the token, exactly as a new verdict would.
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+		releaseGenerate(
+			new Response(
+				JSON.stringify({
+					ok: true,
+					value: {
+						prompt: 'a stale prompt',
+						templateVersion: 'v2',
+						images: [
+							{
+								id: 'stale-1',
+								format: 'png',
+								mimeType: 'image/png',
+								data: 'c3RhbGU=',
+								encoding: 'base64'
+							}
+						],
+						violations: [],
+						recommendedFixes: []
+					}
+				}),
+				{ status: 200, statusText: 'OK' }
+			)
+		);
+		await inFlight;
+
+		expect(studio.images).toEqual([]);
+		expect(studio.assembledPrompt).toBe('');
+		// The guard returned; nothing failed. Without it the payload parses cleanly and lands.
+		expect(studio.generationError).toBe('');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('does not attach a late try-on PDF to a page the reader has moved off', async () => {
+		const studio = new StudioState();
+		const STALE_PDF = {
+			filename: 'stale.pdf',
+			mimeType: 'application/pdf',
+			dataBase64: 'AAA'
+		};
+		let releasePackaging: (value: {
+			ok: true;
+			value: { files: (typeof STALE_PDF)[] };
+		}) => void = () => {};
+		const packageSpy = vi.spyOn(outputPackagingAdapter, 'package').mockReturnValue(
+			new Promise((resolve) => {
+				releasePackaging = resolve as typeof releasePackaging;
+			})
+		);
+		studio.tryOnPortraits = [
+			{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT },
+			{ wig: OTHER_WIG, portraitUrl: OTHER_PORTRAIT }
+		];
+		studio.selectedWig = SAMPLE_WIG;
+
+		const inFlight = studio.handleGenerateTryOnPage();
+		// Wait until packaging has actually been entered, so the switch below lands *after* the
+		// earlier token check and can only be caught by the one guarding the packaging result.
+		for (let i = 0; i < 100 && packageSpy.mock.calls.length === 0; i++) {
+			await Promise.resolve();
+		}
+		expect(packageSpy).toHaveBeenCalledOnce();
+
+		await studio.selectWigForTryOn(OTHER_WIG);
+		// A distinguishable payload: without the guard this lands on the page the reader is now
+		// looking at, so Download PDF would hand back the wig they moved off.
+		releasePackaging({ ok: true, value: { files: [STALE_PDF] } });
+		await inFlight;
+
+		expect(studio.packagedFiles).toEqual([]);
+	});
+
 	it('names a try-on coloring page after its wig instead of the demo default', async () => {
 		const studio = new StudioState();
 		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
