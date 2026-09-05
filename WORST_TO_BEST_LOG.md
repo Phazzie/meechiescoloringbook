@@ -7535,3 +7535,73 @@ directory that the next run overwrites anyway. Treating that directory as an arc
 offered for skipping the gate, and it was the wrong model of what it is.
 
 Running mutation total for Run 8 stays at **69**; nothing behavioural changed in this entry.
+
+---
+
+## Run 8 close-out — round twenty-six: the evidence file for the claim I had just corrected
+
+One finding, and it lands on the entry above rather than on the code: `e2e.txt` contained no
+Playwright result. The round-25 table asserts "41 passed against the installed browser" and the
+committed evidence for it was **eight blank lines**.
+
+### The cause is the literal I had already fixed twice
+
+The capture script writes `e2e.txt` by splicing the local run's transcript into the file. Two lines
+of that splice searched for the string `Running 38 tests`:
+
+    row2 = old.split('## Row 2')[1].split('\n\nRunning 38 tests')[0]
+    local = local[local.find('Running 38 tests'):]
+
+The suite is 41 tests since the merge from `main` brought a sibling run's three specs. `find` returns
+`-1`, `local[-1:]` is the last character of the transcript, and Row 2 was written as nothing.
+
+Round twenty-three fixed exactly this literal in this same script — twice, in the two guards — and
+recorded the rule that a check written as a literal is a second copy of the truth. **It did not
+occur to me to look ten lines further down at the code that writes the file.** I corrected the
+readers of the count and left the writers alone.
+
+### The guard that should have caught it was the one I wrote for this
+
+Round twenty-one added a guard because `verify-outer.txt` shipped truncated without its own exit
+line. That guard checks the **committed** `verify-outer.txt` — and only that file. `e2e.txt` shipped
+empty past a script whose entire purpose is refusing to stage evidence that does not carry its own
+result, because the guard was written about the file that failed rather than about the failure.
+
+Now guarded the same way: the committed `e2e.txt` must contain a result line and be more than forty
+lines, and the writer takes the count from the transcript (`Running \d+ tests`) instead of holding
+its own copy of it. A missing header now aborts loudly rather than silently producing an empty row.
+
+### How long it had been wrong, which is the part that matters
+
+Not one round. **`e2e.txt` has carried no Playwright result since the first merge from `main`** —
+it was already 27 lines with an empty Row 2 when PR #304 merged. So #304's description, its close-out
+table, and the round-25 correction to that table all cite "41 passed" against an evidence file that
+never contained it. Three documents, each checked against the previous one, none checked against the
+artifact.
+
+That is the whole run's defect in its purest form, and it survived twenty-six rounds of review
+looking for exactly it. It was found in the end by a reviewer opening the file rather than reading
+the claim.
+
+> **A citation is not evidence until someone opens what it cites.** Every layer above the artifact
+> can agree perfectly and all of them be wrong together, because they were checked against each
+> other. The only check that terminates is the one that reads the file.
+
+### Verification
+
+Re-run on this head with the fixed writer and the new guard:
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | clean, exit 0 |
+| `npm test` | 1445 passed, 1 skipped |
+| `npm run build` | built, exit 0 |
+| `npm run cipher:gate` | exit 0 |
+| `npm run verify` | exit 0, 66-line transcript carrying its own exit status |
+| `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` | 17 passed |
+| `npx playwright test`, the mandated command | **FAILS, exit 1** — 41 error at browser launch, recorded in `e2e.txt` Row 1 |
+| Same suite via `launchOptions.executablePath` | **41 passed (59.3s)**, now actually in `e2e.txt` Row 2, which is 77 lines |
+| `node probes/browser-seams.probe.mjs` | complete |
+
+Mutation total stays at **69**.
