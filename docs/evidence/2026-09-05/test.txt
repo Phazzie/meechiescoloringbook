@@ -13,8 +13,8 @@ $ npm test -- --pool=forks --maxWorkers=1
 
 [2m Test Files [22m [1m[32m93 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (94)[39m
 [2m      Tests [22m [1m[32m1445 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1446)[39m
-[2m   Start at [22m 20:03:50
-[2m   Duration [22m 94.38s[2m (transform 3.54s, setup 904ms, import 6.86s, tests 7.11s, environment 62.31s)[22m
+[2m   Start at [22m 20:30:13
+[2m   Duration [22m 95.26s[2m (transform 3.57s, setup 898ms, import 6.77s, tests 7.04s, environment 63.18s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
