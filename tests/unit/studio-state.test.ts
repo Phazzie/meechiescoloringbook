@@ -3541,6 +3541,72 @@ describe('StudioState page style', () => {
 		expect(studio.settingsIssues).toEqual([]);
 	});
 
+	it('lets the reader give a style-less restored page a style of its own', async () => {
+		// A review's finding against my own decline of it, and the decline was wrong. "Never invent
+		// provenance" had become "never record it": a draft written before styles were stored could
+		// never acquire one, so every autosave wrote `undefined` and every refresh threw away the
+		// theme the reader had just picked. Permanently, on a page with no picture whose look is
+		// entirely that choice — worse than the over-report it was protecting against.
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-01T00:00:00.000Z',
+			intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A LEGACY DRAFT' }
+		});
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		// The reader picks a theme. There is no picture, so nothing on the paper contradicts them.
+		draftSpy.mockClear();
+		studio.selectedThemeId = 'receipts';
+		await studio.syncSpecFromCurrentText('theme');
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		// The notice goes, because the answer is now known.
+		expect(studio.styleSelectionUnknown).toBe(false);
+		// And the choice reaches the draft, so the next refresh keeps it.
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection?.themeId).toBe('receipts');
+	});
+
+	it('still refuses the controls as provenance for a restored picture, however deliberate', async () => {
+		// The other side of the rule above, and the reason it is a comparison rather than "the panel
+		// fired". A restored page that HAS a picture cannot be re-authored from the controls: the
+		// image and the prompt came from choices nobody wrote down, and moving a theme afterwards
+		// does not make it the theme that drew them. The reader's route to authoring this page is to
+		// make it again.
+		const { studio, saveSpy } = await savingStudio();
+		await studio.loadCreation(makePicturedCreation());
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		studio.selectedThemeId = 'receipts';
+		await studio.syncSpecFromCurrentText('theme');
+
+		expect(studio.styleSelectionUnknown).toBe(true);
+		await studio.saveToVault();
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toBeUndefined();
+	});
+
+	it('does not read a moved page size as a style the reader chose', async () => {
+		// Page size and border reach the studio through the same handler as the theme and are not
+		// style — they live in the intent. So the supersede is a comparison against the controls as
+		// restored, not "the settings panel fired": otherwise moving the paper size would write the
+		// untouched default theme down as a deliberate choice, which is the invention the whole
+		// field exists to prevent.
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-01T00:00:00.000Z',
+			intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A LEGACY DRAFT' }
+		});
+
+		draftSpy.mockClear();
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		expect(studio.styleSelectionUnknown).toBe(true);
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection).toBeUndefined();
+		// The paper choice itself is saved, through the field that always carried it.
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.intent.pageSize).toBe('A4');
+	});
+
 	it('does not treat a draft that stored no style as wearing the controls it comes back to', async () => {
 		// The `loadCreation` rule, missing from the other restore path. Every draft written before
 		// `styleSelection` existed has none, and leaving the flag false made the studio read whatever

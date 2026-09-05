@@ -70,6 +70,7 @@ import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 import {
 	buildStyleHint,
 	DEFAULT_STYLE_SELECTION,
+	isSameStyleSelection,
 	themeForSelection,
 	type StyleSelection,
 	type StyleWig
@@ -356,12 +357,52 @@ export class StudioState {
 	/**
 	 * The page on the paper was restored from a record that stored no style of its own.
 	 *
-	 * Its own field because it is a fact about the *restore*, not about an artifact. Only
-	 * `loadCreation` sets it and only `resetGeneratedPage` clears it, so every path that replaces
-	 * the paper clears it exactly once.
+	 * Its own field because it is a fact about the *restore*, not about an artifact. Only the two
+	 * restore paths set it and only `resetGeneratedPage` clears it, so every path that replaces the
+	 * paper clears it exactly once.
 	 */
 	private restoredStyleUnknown = $state(false);
-	styleSelectionUnknown = $derived(this.restoredStyleUnknown);
+	/**
+	 * The style the controls were wearing at the moment of a style-less restore.
+	 *
+	 * `null` when there is nothing to compare against — no restore, or one that brought a style with
+	 * it. Kept so the studio can tell "these controls are the ones that happened to be up when a
+	 * style-less record was opened" from "these controls are what the reader has since chosen", which
+	 * are the same values until the reader moves one.
+	 */
+	private unknownStyleBaseline = $state<StyleSelection | null>(null);
+	/**
+	 * The reader has chosen a style for a restored page that recorded none.
+	 *
+	 * Two conditions, and the second is the one that keeps this from undoing the rest of the change.
+	 *
+	 * A style control has moved since the restore — compared against the baseline rather than
+	 * inferred from the panel firing, because page size and border come through the same handler and
+	 * are not style. Moving those would otherwise write the untouched defaults down as a choice,
+	 * which is the invention this whole field exists to prevent.
+	 *
+	 * And there is no artifact on the paper. With a picture up, the controls do not get to claim its
+	 * provenance no matter how deliberately they were moved — that is the defect this run started
+	 * from. Without one, the controls are the only author there is.
+	 */
+	private readerChoseStyleSinceRestore = $derived(
+		this.generatedSpec === undefined &&
+			this.unknownStyleBaseline !== null &&
+			!isSameStyleSelection(this.currentStyleSelection(), this.unknownStyleBaseline)
+	);
+	/**
+	 * True when the page on the paper has no style of its own on file.
+	 *
+	 * The restore's answer, until the reader gives a better one. Reported unchanged for a page that
+	 * has a picture, because there the reader cannot give one without regenerating.
+	 *
+	 * The second clause is a review's, and it was right against my own decline of it: without it, a
+	 * draft written before styles were stored could never acquire one. Every autosave wrote
+	 * `undefined`, so every refresh threw away the theme the reader had just picked — permanently,
+	 * and on a page with no picture whose look is entirely that choice. "Never invent provenance"
+	 * had quietly become "never record it", which is a different rule and a worse one.
+	 */
+	styleSelectionUnknown = $derived(this.restoredStyleUnknown && !this.readerChoseStyleSinceRestore);
 	/**
 	 * The glitter the paper on screen should be wearing — the page's, not the control's.
 	 *
@@ -1042,6 +1083,9 @@ export class StudioState {
 		// A fact about the page being replaced, so it goes with it. `loadCreation` calls this first
 		// and sets it after, which is the same order the two artifact snapshots above use.
 		this.restoredStyleUnknown = false;
+		// Goes with the flag it qualifies. Left standing it would have the next page's controls
+		// compared against the previous page's restore, which is a difference about nothing.
+		this.unknownStyleBaseline = null;
 	}
 
 	/**
@@ -1824,6 +1868,9 @@ export class StudioState {
 		// Whether this record stored a style is a fact about the record, true whether or not it also
 		// carries a picture. Held apart from the snapshots below, which are about the picture.
 		this.restoredStyleUnknown = creation.styleSelection === undefined;
+		// Captured before the restored style is applied below, so on the style-less path — the only
+		// path where this is read — it is the controls exactly as the reader left them.
+		this.unknownStyleBaseline = this.restoredStyleUnknown ? this.currentStyleSelection() : null;
 		// The two artifact snapshots — but only when this record actually put a picture on the paper.
 		//
 		// They exist so that reopening a page, changing a setting and saving again cannot write the
@@ -2028,6 +2075,12 @@ export class StudioState {
 			// and reads correctly either way: this is a fact about the record being restored, not
 			// about the controls it may be about to move.
 			this.restoredStyleUnknown = draft.value.styleSelection === undefined;
+			// Same capture as `loadCreation`, and it matters more here: a draft is what the reader
+			// comes back to, so this is the path where a theme they pick after the restore has to
+			// survive the next refresh.
+			this.unknownStyleBaseline = this.restoredStyleUnknown
+				? this.currentStyleSelection()
+				: null;
 			// Before the seeding below, for the reason given in `loadCreation`.
 			this.applyRestoredStyleSelection(draft.value.styleSelection);
 			this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
