@@ -29,7 +29,12 @@ Short, durable decisions with context and tradeoffs.
 - Revisit criteria: If the routine ever produces the close-out inside the feature PR, the two-head
   split in `verify-chain.txt` becomes unnecessary and should be removed rather than maintained. If
   `verify-chain.txt` is ever generated rather than hand-written, its stale-header failure mode goes
-  away and the per-artifact labelling should be reassessed.
+  away and the per-artifact labelling should be reassessed. And `scripts/proof-tape.mjs` should
+  learn to compare artifact times against the start of the current push rather than against
+  `chamber-lock.json`: as it stands, `cipher-gate.json` can never clear that test, because the
+  ordering above requires it to be written *before* the chain in order to be inventoried correctly
+  at all, so the tape calls it "written by an earlier run" every time. That is a generator change
+  with its own tests, not a close-out change, which is why it is recorded here instead of made.
 - Plan (micro):
   - Goal: record the merge outcome, the gate conditions and exclusions as actually checked, and the
     findings worth carrying to the next run.

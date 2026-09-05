@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-05T04:10:27.453Z",
+  "generatedAt": "2026-09-05T04:18:14.659Z",
   "cipher": {
     "date": "2026-09-05",
     "seams": "WigCatalogSeam (existing; no contract, validator, mock, probe, fixture or adapter changed). The change is a new *consumer*: the UI stops bypassing the seam and starts calling `listWigs()` through the existing adapter, as `/api/wig-try-on` already does. CreationStoreSeam, SpecValidationSeam and OutputPackagingSeam are likewise consumed through their existing adapters, unchanged.",

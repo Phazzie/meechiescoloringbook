@@ -13,7 +13,7 @@
 #   - the CODE head, merged as cc5f622 (PR #297), which e2e.txt and the two rewind files describe;
 #   - the close-out head that follows it, which every other artifact here was regenerated on.
 #
-# The code head fixed fourteen review findings across six Codex rounds and one self-audit, twelve of
+# The code head fixed fifteen review findings across seven Codex rounds and one self-audit, twelve of
 # them one family — something on the page and the thing describing it drifting apart, across an
 # await, a restore, a serialisation, a rebuild, a replacement under a stable key, or a value
 # invented to satisfy a schema and then believed. The close-out that followed drew further rounds,
@@ -57,11 +57,29 @@ inside it, so the order is not a matter of taste:
 - npx playwright test -> e2e.txt (32 passed; baseline on main at 1dab4cf was 28) [CODE HEAD]
 
 e2e.txt, rewind-wig-catalog-seam.txt and rewind-WigCatalogSeam.txt are the three artifacts in this
-folder not regenerated on the close-out head; everything else here is. Read proof-tape.md's
-"PREDATES THIS VERIFY RUN" marker carefully rather than as a provenance signal: it also flags
-build.txt, cipher-gate.json, lint.txt and this file, and for those four it means only that they were
-written before the chain's own chamber-lock stage within the same push. The marker measures write
-order, not which head produced the result.
+folder not regenerated on the close-out head; everything else here is.
+
+proof-tape.md flags a longer list than that, and says of it: "These files were written by an earlier
+run, so they describe a different run than the one this tape summarizes." For e2e.txt and the two
+rewind files that is exactly right. For build.txt, cipher-gate.json, lint.txt and this file it
+over-reads its own test, which is a modification-time comparison against chamber-lock.json rather
+than a record of which run produced a file. On this head:
+
+  lint.txt          04:18:04
+  build.txt         04:18:14
+  cipher-gate.json  04:18:14
+  chamber-lock.json 04:18:24   <- the comparison point
+  proof-tape.json   04:19:39
+
+Six to sixteen seconds earlier, in this same push, by the ordering the section above requires - not
+an earlier run. Those timestamps are given so a reader can check the claim instead of choosing
+between two files that assert opposite things.
+
+This is a limitation of the generator, recorded rather than worked around: cipher-gate.json in
+particular can never clear the test, because it has to be written before the chain in order to be
+inventoried correctly at all. Teaching proof-tape.mjs to compare against the start of the current
+push rather than against one artifact inside it would fix it properly, and belongs in its own change
+with its own tests rather than in a close-out.
 
 ## Re-run on the close-out head
 
