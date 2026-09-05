@@ -1,0 +1,14 @@
+# Purpose: Store npm run lint output for this head as evidence.
+# Why: AGENTS.md requires lint before every push; eslint prints nothing on success, so the
+#      recorded exit status is the only thing distinguishing a clean run from one that never
+#      started.
+# Info flow: eslint output -> this evidence file -> review and the proof tape.
+#
+# npm run lint — 2026-09-05T00:47:38Z
+# Run 5: the wig try-on becomes a shop you can browse and a look you can keep. Head 6c5a151.
+#
+
+> meechies-coloringbook@0.1.0 lint
+> eslint .
+
+exit=0

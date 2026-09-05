@@ -1,0 +1,55 @@
+# Purpose: Record the whole verification sequence for this head in one place — the eight-stage
+#          chain, the standalone checks run around it, and what each artifact in this folder does
+#          and does not prove.
+# Why: The individual artifacts each show one command's output. Nothing else in the folder says in
+#      what order they were produced, which of them the chain wrote and which were run by hand, or
+#      why a file carries a freshness marker.
+# Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
+#
+# Run 5 of the worst-feature routine — the wig try-on becomes a shop you can browse and a look you
+# can keep. Head 6c5a151, captured 2026-09-05T00:49:01Z.
+
+## The chain (npm run verify) — exit 0
+
+1. npm run audit:gate      -> found 0 vulnerabilities
+2. chamber-lock.mjs        -> chamber-lock.json      (seam artifact presence)
+3. verify-runner.mjs       -> verify.txt, test.txt   (npm run check + npm test)
+4. shaolin-lint.mjs        -> shaolin-lint.json      (evidence freshness)
+5. assumption-alarm.mjs    -> assumption-alarm.json  (Assumption entry coverage)
+6. seam-ledger.mjs         -> seam-ledger.json/.md   (seam coverage ledger)
+7. clan-chain.mjs          -> clan-chain.json/.md    (clean vs dirty seams)
+8. proof-tape.mjs          -> proof-tape.json/.md    (plain-English summary)
+
+## Standalone, run by hand on this head
+
+- npm run lint   -> lint.txt   (exit 0; eslint prints nothing on success)
+- npm run build  -> build.txt  (exit 0)
+- npx playwright test -> e2e.txt (30 passed; baseline on main at 1dab4cf was 28)
+
+## Results on this head
+
+- npm run check: 0 errors, 0 warnings
+- npm test: 1234 passed, 1 skipped (baseline on main at 1dab4cf: 1187 passed, 1 skipped)
+- npm run build: exit 0
+- npx playwright test: 30 passed
+- npm run verify: exit 0, all eight stages
+
+## What is deliberately absent, and why
+
+- cipher-gate.json is not in this folder. `npm run cipher:gate` is not part of the verify chain and
+  is run manually for seam changes. This head changes no seam: no file under contracts/, probes/,
+  fixtures/, src/lib/mocks/, tests/contract/, src/lib/adapters/ or src/lib/seams/ is in the diff,
+  and no contract shape changed. WigCatalogSeam, CreationStoreSeam, SpecValidationSeam and
+  OutputPackagingSeam are consumed through their existing adapters exactly as /api/wig-try-on and
+  studio-state.svelte.ts already consume them. So no Cipher Gate entry is required and none is
+  claimed.
+
+## What this evidence does not prove
+
+- The four behavioural guards in this change are invisible from the outside, so a green suite does
+  not establish them. Each was confirmed by deleting it and watching a named test fail; those
+  mutation runs are recorded in WORST_TO_BEST_LOG.md under Run 5, not in this folder.
+- SonarCloud's duplication gate reports a percentage and no location and cannot be run locally. An
+  n-gram scan over the changed .ts files was used instead, before the first push; it found and
+  removed a 10-line repeat between two new tests. The three blocks it still reports were each
+  checked against the diff hunks and are all in unchanged lines.
