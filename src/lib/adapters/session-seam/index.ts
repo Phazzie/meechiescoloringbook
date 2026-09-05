@@ -10,10 +10,21 @@ import type { Result } from '../../../../contracts/shared.contract';
 const SESSION_KEY = 'cb_session_id_v1';
 
 const generateSessionId = (): string => {
-	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-		return crypto.randomUUID();
+	if (typeof crypto !== 'undefined') {
+		if (typeof crypto.randomUUID === 'function') {
+			return crypto.randomUUID();
+		}
+		if (typeof crypto.getRandomValues === 'function') {
+			const bytes = new Uint8Array(16);
+			crypto.getRandomValues(bytes);
+			return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+		}
 	}
-	return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+	const perf =
+		typeof performance !== 'undefined' && typeof performance.now === 'function'
+			? Math.floor(performance.now() * 1000)
+			: 0;
+	return `session-${Date.now()}-${perf}`;
 };
 
 export const sessionAdapter: SessionSeam = {
