@@ -3508,6 +3508,33 @@ describe('StudioState page style', () => {
 		expect(studio.settingsIssues).toEqual([]);
 	});
 
+	it('does not adopt a failure the reader caused somewhere else after a control passed', async () => {
+		// The other half of deriving the report, and the half that keeps the derivation from
+		// undoing an earlier fix. `settingsIssues` follows `validationIssues` now, so without a rule
+		// saying when the panel stops answering, a control change that *passed* would leave the
+		// panel wired to the live check — and the next failure from anywhere else, an over-long
+		// dedication typed into a different box, would print itself under a row of controls the
+		// reader had not touched. That is precisely the misattribution this run already removed
+		// once.
+		//
+		// So `validateSpec` drops the claim whenever any check begins, and the panel's handler takes
+		// it back after its own rebuild returns.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		// A Page Control moves and the page passes, so the panel is answering and has nothing to say.
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.settingsIssues).toEqual([]);
+
+		// The reader breaks the page from the dedication box instead.
+		studio.handleDedicationInput('D'.repeat(MAX_DEDICATION_LENGTH + 1));
+		await vi.waitFor(() => expect(studio.validationIssues.length).toBeGreaterThan(0));
+
+		// Reported where it happened, not under the controls.
+		expect(studio.settingsIssues).toEqual([]);
+	});
+
 	it('does not treat a draft that stored no style as wearing the controls it comes back to', async () => {
 		// The `loadCreation` rule, missing from the other restore path. Every draft written before
 		// `styleSelection` existed has none, and leaving the flag false made the studio read whatever
