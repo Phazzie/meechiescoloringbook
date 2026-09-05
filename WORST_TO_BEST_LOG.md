@@ -6448,3 +6448,64 @@ the exact defect this whole change exists to remove, in the artifact that docume
 Recorded rather than quietly fixed because the log is where this run keeps its lessons, and "I did
 the same thing three times without noticing the pattern" is worth more to the next run than a clean
 history would be.
+
+## Run 7 close-out — round twenty-one: the evidence misreported itself
+
+### The transcript that carried no result
+
+`verify-outer.txt` shipped at 20 lines. It ended after the audit gate — no check stage, no test
+totals, no `exit=0` — while `verify-chain.txt` names it as the authoritative transcript for exactly
+those things. A run about a panel that misreports itself, shipping evidence that misreports itself,
+in the one file whose entire job is to be checkable.
+
+The cause is the ordering mistake this log described **two commits earlier**. I wrote the rule down —
+do not stage the evidence folder until `git status` is stable — and then copied a still-being-written
+transcript into the tree in the very next push. That is the finding worth keeping: *writing a lesson
+into the log does not install it anywhere that acts.* Four occurrences, one of them immediately after
+recording the fix.
+
+What the capture looks like now: a script that waits for `git status -- docs/evidence` to stop
+changing, and then refuses to stage unless the **committed** file — not the scratch capture — carries
+`verify exit=0` and more than forty lines. It also checks the rewind count, the e2e count and the
+probe's completion line, and aborts rather than writing down a surprise. The mid-run appearance is
+now confirmed rather than assumed: while the chain runs, that transcript genuinely sits at ~17 lines
+and fills in at the end, which is exactly the window I kept copying from.
+
+The general shape, which is the same one this whole run keeps finding: **a check that exists only in
+someone's intention is not a check.** The panel's promise had to become a derived value; the mock's
+ordering had to become a test; the capture's rule had to become a guard. In all three the prose was
+already correct.
+
+### The wig, which is the theme's sibling
+
+The supersede recorded an explicit theme click and not an explicit wig pick. The wig reaches the
+style hint the same way and is re-picked the same way, so a reader who opens a style-less record with
+a wig already up and adopts it by clicking it was recorded as having chosen nothing. `readerClaimedTheme`
+is `readerClaimedStyle` — named for what it means rather than for which widget said so, because a
+field named after one control is an invitation to forget the next one.
+
+**My first test for it passed without the fix.** I set `selectedWig` *after* opening the record, and
+the baseline is captured at the restore — so the wig was already a measurable difference and the
+comparison superseded on its own. The wig has to be up before the record opens. Fifth instance in
+this run of a test green for a reason adjacent to its own, and the first I caught myself, which I
+attribute entirely to having been caught four times already.
+
+### A correction
+
+I published a commit hash I had not read — `4dc46bcd`, which does not exist; the commit is
+`60b7ad6b`. Corrected on the thread. Third time this session I have published a figure I had not
+measured, and all three were in a *citation* rather than an argument: two test counts and a hash. The
+pattern is specific — when writing the part of a claim that exists so somebody can check it, I stopped
+treating the value as something to look up and started treating it as punctuation.
+
+### Mutations
+
+Two, both red: the wig claim dropped (1 red), and the flag left theme-only (1 red, the new test).
+Running total: **67**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1406 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0, **transcript 66 lines and carrying its own exit status** ·
+`npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed · Playwright 38 passed
+against the installed browser · browser probe complete.
