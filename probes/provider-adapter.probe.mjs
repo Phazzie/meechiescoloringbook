@@ -342,5 +342,5 @@ const run = async () => {
 run().catch((error) => {
 	console.error('Provider probe failed.');
 	console.error(error?.message || error);
-	process.exit(1);
+	process.exitCode = 1;
 });

@@ -163,5 +163,5 @@ const run = async () => {
 run().catch((error) => {
 	console.error('Chat interpretation probe failed.');
 	console.error(error?.message || error);
-	process.exit(1);
+	process.exitCode = 1;
 });

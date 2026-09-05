@@ -8,6 +8,505 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Seam Migration v2.0 — Modularization of 7 Flat Seams, Anti-Fragile Hardening, and CI Auto-Merge (2026-09-05)
+
+This section is the sole active implementation plan. It supersedes older dated entries below.
+
+### Base, Ownership, and Dependency Lock
+- **Base:** `main` at commit `9663a04c9db9a011a9fb22a06e0c9d1e92ceade8`. Baseline `npm test` passed 843/844 tests (1 skipped), `npm run check` reported 0 errors, `npm run lint` exited 0.
+- **Integrator:** Antigravity (operating under Seam-Driven Development and the Zero-Trust Adversarial Operating Rule).
+- **Execution Branches:**
+  - Branch 1: `feat/seam-migration-identity-storage` (Batch 1: SessionSeam, AuthContextSeam, CreationStoreSeam)
+  - Branch 2: `feat/seam-migration-generation-transport` (Batch 2: OutputPackagingSeam, ChatInterpretationSeam, MeechieStudioTextSeam, ProviderAdapterSeam)
+  - Branch 3: `feat/retire-legacy-seam-stubs` (Batch 3: Import Re-routing, Stub Deprecation, Proof Tape)
+- **Dependency Graph:**
+  `TICK-MIG-01 -> TICK-MIG-02 -> TICK-MIG-03 -> PR-1 -> TICK-MIG-04 -> TICK-MIG-05 -> TICK-MIG-06 -> TICK-MIG-07 -> PR-2 -> TICK-MIG-08 -> TICK-MIG-09 -> TICK-MIG-10 -> PR-3 -> Merge to main`.
+
+---
+
+### Master Execution Checklist Gate
+
+- [ ] **Batch 1: Identity & Storage (`feat/seam-migration-identity-storage`)**
+  - [ ] `TICK-MIG-01a`: `SessionSeam` Contract, Schemas & `docs/seams.md` Registration
+  - [ ] `TICK-MIG-01b`: `SessionSeam` Fixtures Module, Mock & Contract Test
+  - [ ] `TICK-MIG-01c`: `SessionSeam` Canonical Adapter & Re-export Wrapper
+  - [ ] `TICK-MIG-02a`: `AuthContextSeam` Contract, Validators & Refinement Hardening
+  - [ ] `TICK-MIG-02b`: `AuthContextSeam` Fixtures Module, Mock & Contract Test
+  - [ ] `TICK-MIG-02c`: `AuthContextSeam` Canonical Adapter & Re-export Wrapper
+  - [ ] `TICK-MIG-03a`: `CreationStoreSeam` Contract & Record Schemas
+  - [ ] `TICK-MIG-03b`: `CreationStoreSeam` Fixtures Module, Mock & Vault Isolation Test
+  - [ ] `TICK-MIG-03c`: `CreationStoreSeam` Canonical Adapter with Optimistic ID Merge & Malformed Skip
+  - [ ] `PR-BATCH-1`: Open PR, verify CI checks (`gh pr checks`), address feedback, auto-merge to `main`
+- [ ] **Batch 2: Generation & Transport (`feat/seam-migration-generation-transport`)**
+  - [ ] `TICK-MIG-04a`: `OutputPackagingSeam` Contract & Safe SVG ViewBox Fallback
+  - [ ] `TICK-MIG-04b`: `OutputPackagingSeam` Fixtures Module, Mock & Contract Test
+  - [ ] `TICK-MIG-04c`: `OutputPackagingSeam` Canonical Adapter with 8KB Chunked Base64 & Canvas Browser Guard
+  - [ ] `TICK-MIG-05a`: `ChatInterpretationSeam` Contract & Strict Output Schemas
+  - [ ] `TICK-MIG-05b`: `ChatInterpretationSeam` Fixtures Module, Mock & Corrupt-JSON Canary Test
+  - [ ] `TICK-MIG-05c`: `ChatInterpretationSeam` Canonical Adapter & Re-export Wrapper
+  - [ ] `TICK-MIG-06a`: `MeechieStudioTextSeam` Contract & Studio Text Schemas
+  - [ ] `TICK-MIG-06b`: `MeechieStudioTextSeam` Fixtures Module, Mock & Pre-Charged Quota Test
+  - [ ] `TICK-MIG-06c`: `MeechieStudioTextSeam` Canonical Adapter & Re-export Wrapper
+  - [ ] `TICK-MIG-07a`: `ProviderAdapterSeam` Contract with Injected `AbortSignal` Support
+  - [ ] `TICK-MIG-07b`: `ProviderAdapterSeam` Fixtures Module, Mock & Secret Redaction Canary Test
+  - [ ] `TICK-MIG-07c`: `ProviderAdapterSeam` Canonical Adapter with Socket Cancellation & Stream Redaction
+  - [ ] `PR-BATCH-2`: Open PR, verify CI checks (`gh pr checks`), address feedback, auto-merge to `main`
+- [ ] **Batch 3: Stub Synchronization & Clean Consumer Imports (`feat/retire-legacy-seam-stubs`)**
+  - [ ] `TICK-MIG-08a`: Re-route Consumer Imports in API Routes (`src/routes/api/`)
+  - [ ] `TICK-MIG-08b`: Re-route Consumer Imports in Core Pipelines (`src/lib/core/`)
+  - [ ] `TICK-MIG-08c`: Re-route Consumer Imports in Studio State & Preview Panels (`src/routes/studio-state.svelte.ts`, `StudioPreviewPanel.svelte`, `who-fucked-up/+page.svelte`)
+  - [ ] `TICK-MIG-08d`: Re-route Consumer Imports in Remaining Mode Pages (`random/+page.svelte`, `rate-his-excuse/+page.svelte`)
+  - [ ] `TICK-MIG-09a`: Re-export Synchronization for Legacy Mocks (Identity & Storage: `session`, `auth-context`, `creation-store`)
+  - [ ] `TICK-MIG-09b`: Re-export Synchronization for Legacy Mocks (Generation & Transport: `output-packaging`, `chat-interpretation`, `meechie-studio-text`, `provider-adapter`)
+  - [ ] `TICK-MIG-10`: Final Full Verification Chain, Chamber Lock, Seam Ledger & Proof Tape
+  - [ ] `PR-BATCH-3`: Open PR, verify CI checks, auto-merge to `main`
+
+---
+
+### Universal Ticket Gate
+1. Every ticket touches at most 1–3 closely coupled files (`[NEW]`, `[MODIFY]`, `[DELETE]`).
+2. Every code file created or edited must preserve or include top-level comments (`Purpose`, `Why`, `Info flow`, `Invariants`).
+3. Contract changes must update `docs/seams.md` with the canonical `(self-contained)` row.
+4. Adapters must live at `src/lib/adapters/<name>-seam/index.ts` with legacy flat re-exports at `src/lib/adapters/<name>.adapter.ts`.
+5. Every ticket must close with active runtime verification exiting code 0 (including `npm run rewind -- --seam <SeamName>`).
+
+---
+
+### Atomic Ticket Specifications
+
+#### TICK-MIG-01a: SessionSeam Contract, Schemas & Registry
+- **Role Title:** Seam Contract Architect
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/session-seam/contract.ts`
+  - `[MODIFY] contracts/session.contract.ts`
+  - `[MODIFY] docs/seams.md`
+- **What NOT To Touch:** `src/lib/adapters/`, UI routes, `sessionId` property name.
+- **Touch Blueprint:**
+  - `contract.ts`: Export `SessionContextSchema`, `SessionResultSchema`, `SessionSeam`. Import `Result` from `$lib/types/result.js` or `contracts/shared.contract.ts`.
+  - `contracts/session.contract.ts`: Replace definitions with `export * from '$lib/seams/session-seam/contract';`.
+  - `docs/seams.md`: Add row `| SessionSeam (self-contained) | src/lib/seams/session-seam/contract.ts | src/lib/seams/session-seam/probe.ts | N/A (fixture module: src/lib/seams/session-seam/fixtures.ts) | src/lib/seams/session-seam/mock.ts | src/lib/seams/session-seam/test.ts | src/lib/adapters/session-seam/index.ts | hbpheonix | N/A | self-contained layout |`.
+- **Failure Modes:** Circular import back to `contracts/shared.contract.ts`; missing row in `docs/seams.md`.
+- **Negative Tests:** Empty string `""` and whitespace-only `"   "` must fail `SessionContextSchema.safeParse`.
+- **DoD CLI:** `npx vitest run tests/contract/session.test.ts && npm run rewind -- --seam SessionSeam`
+
+#### TICK-MIG-01b: SessionSeam Fixtures Module, Mock & Contract Test
+- **Role Title:** Seam Verification Engineer
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/session-seam/fixtures.ts`
+  - `[NEW] src/lib/seams/session-seam/mock.ts`
+  - `[NEW] src/lib/seams/session-seam/test.ts`
+- **What NOT To Touch:** `contracts/`, `src/lib/adapters/`.
+- **Touch Blueprint:**
+  - `fixtures.ts`: Export typed sample (`{ sessionId: 'session-123' }`) and fault objects (`{ code: 'BROWSER_REQUIRED', message: 'Session access requires a browser environment.' }`).
+  - `mock.ts`: Export `createSessionMock(scenario)` implementing `SessionSeam`.
+  - `test.ts`: Vitest suite asserting mock compliance and schema validation.
+- **Failure Modes:** Mock returning untyped object; test relying on node `fs` to read fixtures.
+- **Negative Tests:** Mock in `'fault'` scenario returns `{ ok: false, error: { code: 'BROWSER_REQUIRED', message: 'Session access requires a browser environment.' } }`.
+- **DoD CLI:** `npx vitest run src/lib/seams/session-seam/test.ts`
+
+#### TICK-MIG-01c: SessionSeam Canonical Adapter & Re-export Wrapper
+- **Role Title:** Browser Session Specialist
+- **Files Allowed:**
+  - `[NEW] src/lib/adapters/session-seam/index.ts`
+  - `[NEW] src/lib/seams/session-seam/probe.ts`
+  - `[MODIFY] src/lib/adapters/session.adapter.ts`
+- **What NOT To Touch:** `contracts/session.contract.ts`, `src/routes/`.
+- **Touch Blueprint:**
+  - `index.ts`: Export `sessionAdapter: SessionSeam`. Enforce `browserGuard()` so SSR safely rejects storage access without throwing.
+  - `probe.ts`: Export pure probe stub (`// N/A (pure): SessionSeam is probed via browser-seams.probe.mjs; export {};`).
+  - `session.adapter.ts`: Re-export `export { sessionAdapter } from './session-seam';` preserving exact downstream symbol.
+- **Failure Modes:** SSR `ReferenceError: sessionStorage is not defined`; downstream import mismatch (`sessionAdapter` missing).
+- **Negative Tests:** Invoking adapter under Node/SSR environment safely returns `{ ok: false, error: { code: 'BROWSER_REQUIRED' } }`.
+- **DoD CLI:** `npx vitest run tests/contract/session.test.ts src/lib/seams/session-seam/test.ts && npm run rewind -- --seam SessionSeam && npm run rewind -- --seam "SessionSeam (self-contained)"`
+
+#### TICK-MIG-02a: AuthContextSeam Contract, Validators & Refinement Hardening
+- **Role Title:** Authentication Security Specialist
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/auth-context-seam/contract.ts`
+  - `[MODIFY] contracts/auth-context.contract.ts`
+  - `[MODIFY] docs/seams.md`
+- **What NOT To Touch:** `src/lib/adapters/`, existing role/capability strings.
+- **Touch Blueprint:**
+  - `contract.ts`: Port `AuthContextSchema`, `AuthContextInputSchema`, `AuthContextResultSchema`, and `AuthContextSeam`. Enforce refinement: `kind === 'authenticated'` strictly requires non-empty `userId`.
+  - `contracts/auth-context.contract.ts`: Re-export all from `$lib/seams/auth-context-seam/contract`.
+  - `docs/seams.md`: Register canonical `| AuthContextSeam (self-contained) | src/lib/seams/auth-context-seam/contract.ts | src/lib/seams/auth-context-seam/probe.ts | N/A (fixture module: src/lib/seams/auth-context-seam/fixtures.ts) | src/lib/seams/auth-context-seam/mock.ts | src/lib/seams/auth-context-seam/test.ts | src/lib/adapters/auth-context-seam/index.ts | hbpheonix | N/A | self-contained layout |`.
+- **Failure Modes:** Refinement bypass allowing authenticated session with undefined `userId`.
+- **Negative Tests:** `{ kind: 'authenticated' }` without `userId` must fail Zod validation.
+- **DoD CLI:** `npx vitest run tests/contract/auth-context.test.ts && npm run rewind -- --seam AuthContextSeam`
+
+#### TICK-MIG-02b: AuthContextSeam Fixtures Module, Mock & Contract Test
+- **Role Title:** Seam Verification Engineer
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/auth-context-seam/fixtures.ts`
+  - `[NEW] src/lib/seams/auth-context-seam/mock.ts`
+  - `[NEW] src/lib/seams/auth-context-seam/test.ts`
+- **What NOT To Touch:** Adapters, routes.
+- **Touch Blueprint:**
+  - `fixtures.ts`: Export anonymous fixture (`{ kind: 'anonymous', capabilities: ['generate', 'store'], rateLimitTier: 'anonymous' }`), authenticated fixture, and fault fixture (`{ code: 'SESSION_ID_INVALID', message: 'Session ID contains invalid characters.' }`).
+  - `mock.ts`: Export `createAuthContextMock(scenario)`.
+  - `test.ts`: Vitest suite covering anonymous, authenticated, and fault flows.
+- **Failure Modes:** Mock diverging from real schema types.
+- **Negative Tests:** Fault scenario returns error code `SESSION_ID_INVALID`.
+- **DoD CLI:** `npx vitest run src/lib/seams/auth-context-seam/test.ts`
+
+#### TICK-MIG-02c: AuthContextSeam Canonical Adapter & Re-export Wrapper
+- **Role Title:** Identity Transport Specialist
+- **Files Allowed:**
+  - `[NEW] src/lib/adapters/auth-context-seam/index.ts`
+  - `[NEW] src/lib/seams/auth-context-seam/probe.ts`
+  - `[MODIFY] src/lib/adapters/auth-context.adapter.ts`
+- **What NOT To Touch:** `contracts/`, `src/lib/core/`.
+- **Touch Blueprint:**
+  - `index.ts`: Port `authContextAdapter: AuthContextSeam` to consume `./contract` schemas. Guard browser APIs.
+  - `probe.ts`: Export pure probe stub.
+  - `auth-context.adapter.ts`: Re-export `export { authContextAdapter } from './auth-context-seam';`.
+- **Failure Modes:** Missing session mapping; exporting non-existent factory instead of `authContextAdapter`.
+- **Negative Tests:** Malformed session context returns anonymous fallback context.
+- **DoD CLI:** `npx vitest run tests/contract/auth-context.test.ts src/lib/seams/auth-context-seam/test.ts && npm run rewind -- --seam AuthContextSeam && npm run rewind -- --seam "AuthContextSeam (self-contained)"`
+
+#### TICK-MIG-03a: CreationStoreSeam Contract & Record Schemas
+- **Role Title:** Data Storage Architect
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/creation-store-seam/contract.ts`
+  - `[MODIFY] contracts/creation-store.contract.ts`
+  - `[MODIFY] docs/seams.md`
+- **What NOT To Touch:** Key constants (`cb_creations_v1`), `src/lib/adapters/`.
+- **Touch Blueprint:**
+  - `contract.ts`: Define `CreationRecordSchema`, `DraftRecordSchema`, `CreationStoreSeam`. Define maximum boundaries (`MAX_CREATIONS = 50`).
+  - `contracts/creation-store.contract.ts`: Re-export from self-contained contract.
+  - `docs/seams.md`: Register canonical `| CreationStoreSeam (self-contained) | src/lib/seams/creation-store-seam/contract.ts | src/lib/seams/creation-store-seam/probe.ts | N/A (fixture module: src/lib/seams/creation-store-seam/fixtures.ts) | src/lib/seams/creation-store-seam/mock.ts | src/lib/seams/creation-store-seam/test.ts | src/lib/adapters/creation-store-seam/index.ts | hbpheonix | N/A | self-contained layout |`.
+- **Failure Modes:** Dropping `studioText` snapshot types; schema field renames breaking saved records.
+- **Negative Tests:** Creation record with non-integer timestamp or missing ID fails validation.
+- **DoD CLI:** `npx vitest run tests/contract/creation-store.test.ts && npm run rewind -- --seam CreationStoreSeam`
+
+#### TICK-MIG-03b: CreationStoreSeam Fixtures Module, Mock & Vault Isolation Test
+- **Role Title:** Storage Verification Engineer
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/creation-store-seam/fixtures.ts`
+  - `[NEW] src/lib/seams/creation-store-seam/mock.ts`
+  - `[NEW] src/lib/seams/creation-store-seam/test.ts`
+- **What NOT To Touch:** Adapter implementation, UI components.
+- **Touch Blueprint:**
+  - `fixtures.ts`: Export valid creation list fixture, mixed valid/corrupt array fixture, and storage fault fixture (`{ code: 'BROWSER_REQUIRED', message: 'Creation store requires a browser environment.' }`).
+  - `mock.ts`: Export in-memory `createCreationStoreMock(scenario)`.
+  - `test.ts`: Vitest suite asserting isolation of malformed records.
+- **Failure Modes:** Mock swallowing corrupt records without logging skip count.
+- **Negative Tests:** Mock correctly skips malformed vault entry and returns valid neighbor; fault scenario returns `BROWSER_REQUIRED`.
+- **DoD CLI:** `npx vitest run src/lib/seams/creation-store-seam/test.ts`
+
+#### TICK-MIG-03c: CreationStoreSeam Canonical Adapter with Optimistic ID Merge & Malformed Skip
+- **Role Title:** Browser Storage Specialist
+- **Files Allowed:**
+  - `[NEW] src/lib/adapters/creation-store-seam/index.ts`
+  - `[NEW] src/lib/seams/creation-store-seam/probe.ts`
+  - `[MODIFY] src/lib/adapters/creation-store.adapter.ts`
+- **What NOT To Touch:** `CREATIONS_KEY` ('cb_creations_v1'), `DRAFT_KEY` ('cb_drafts_v1'), UI routes.
+- **Touch Blueprint:**
+  - `index.ts`: Implement `creationStoreAdapter: CreationStoreSeam` with `browserGuard()`, `readJson()`, `writeJson()`. Enforce `parseRecords` skip logging. Add optimistic ID merge on write to prevent concurrent tab overwrite data loss.
+  - `probe.ts`: Export pure probe stub.
+  - `creation-store.adapter.ts`: Re-export `export { creationStoreAdapter } from './creation-store-seam';`.
+- **Failure Modes:** DOMException 22 (QuotaExceededError) throwing uncaught exception; exporting factory instead of `creationStoreAdapter`.
+- **Negative Tests:** Non-array JSON payload (`"{}"`) stored in localStorage safely returns empty array without crash.
+- **DoD CLI:** `npx vitest run tests/contract/creation-store.test.ts tests/unit/creation-store-helpers.test.ts src/lib/seams/creation-store-seam/test.ts && npm run rewind -- --seam CreationStoreSeam && npm run rewind -- --seam "CreationStoreSeam (self-contained)"`
+
+#### TICK-MIG-04a: OutputPackagingSeam Contract & Safe SVG ViewBox Fallback
+- **Role Title:** Document Generation Architect
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/output-packaging-seam/contract.ts`
+  - `[MODIFY] contracts/output-packaging.contract.ts`
+  - `[MODIFY] docs/seams.md`
+- **What NOT To Touch:** `src/lib/adapters/`, output MIME type constants.
+- **Touch Blueprint:**
+  - `contract.ts`: Import `OutputFormatSchema`, `PageSizeSchema` from `$lib/seams/spec-validation-seam/contract`. Import `GeneratedImageSchema` from `$lib/seams/image-generation-seam/contract`. Define `PackagedFileSchema`, `OutputPackagingSeam`.
+  - `contracts/output-packaging.contract.ts`: Re-export all from self-contained contract.
+  - `docs/seams.md`: Register canonical `| OutputPackagingSeam (self-contained) | src/lib/seams/output-packaging-seam/contract.ts | src/lib/seams/output-packaging-seam/probe.ts | N/A (fixture module: src/lib/seams/output-packaging-seam/fixtures.ts) | src/lib/seams/output-packaging-seam/mock.ts | src/lib/seams/output-packaging-seam/test.ts | src/lib/adapters/output-packaging-seam/index.ts | hbpheonix | N/A | self-contained layout |`.
+- **Failure Modes:** Relative back-edge imports to `contracts/`; schema mismatch with `spec-validation-seam`.
+- **Negative Tests:** Missing `fileBaseName` or empty `images` array fails validation.
+- **DoD CLI:** `npx vitest run tests/contract/output-packaging.test.ts && npm run rewind -- --seam OutputPackagingSeam`
+
+#### TICK-MIG-04b: OutputPackagingSeam Fixtures Module, Mock & Contract Test
+- **Role Title:** Seam Verification Engineer
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/output-packaging-seam/fixtures.ts`
+  - `[NEW] src/lib/seams/output-packaging-seam/mock.ts`
+  - `[NEW] src/lib/seams/output-packaging-seam/test.ts`
+- **What NOT To Touch:** `output-packaging.adapter.ts`, UI download triggers.
+- **Touch Blueprint:**
+  - `fixtures.ts`: Export sample print PDF fixture, PNG fixture, and fault fixture (`{ code: 'NO_IMAGES', message: 'No images provided for packaging.' }`).
+  - `mock.ts`: Export `createOutputPackagingMock(scenario)`.
+  - `test.ts`: Vitest suite validating contract output shapes without requiring real Canvas/DOM binaries.
+- **Failure Modes:** Test throwing `HTMLCanvasElement.getContext() is not implemented` under Node.
+- **Negative Tests:** Mock in fault scenario returns `{ ok: false, error: { code: 'NO_IMAGES', message: 'No images provided for packaging.' } }`.
+- **DoD CLI:** `npx vitest run src/lib/seams/output-packaging-seam/test.ts`
+
+#### TICK-MIG-04c: OutputPackagingSeam Canonical Adapter with 8KB Chunked Base64 & Canvas Guard
+- **Role Title:** Client-side Asset Pipeline Engineer
+- **Files Allowed:**
+  - `[NEW] src/lib/adapters/output-packaging-seam/index.ts`
+  - `[NEW] src/lib/seams/output-packaging-seam/probe.ts`
+  - `[MODIFY] src/lib/adapters/output-packaging.adapter.ts`
+- **What NOT To Touch:** `pdf-lib` core logic, page size definitions.
+- **Touch Blueprint:**
+  - `index.ts`: Implement `outputPackagingAdapter: OutputPackagingSeam`. Replace naive 4-million-iteration string concatenation with 8KB slice chunking in `toBase64()`. Guard Canvas operations with `browserGuard()`. Parse SVG `viewBox` when explicit `width`/`height` are missing.
+  - `probe.ts`: Export pure probe stub.
+  - `output-packaging.adapter.ts`: Re-export `export { outputPackagingAdapter } from './output-packaging-seam';`.
+- **Failure Modes:** V8 heap allocation exhaustion on 300DPI images; exporting factory instead of `outputPackagingAdapter`.
+- **Negative Tests:** SVG with only `viewBox="0 0 1000 500"` correctly computes 2:1 aspect ratio canvas bounds.
+- **DoD CLI:** `npx vitest run tests/contract/output-packaging.test.ts tests/unit/output-packaging-helpers.test.ts src/lib/seams/output-packaging-seam/test.ts && npm run rewind -- --seam OutputPackagingSeam && npm run rewind -- --seam "OutputPackagingSeam (self-contained)"`
+
+#### TICK-MIG-05a: ChatInterpretationSeam Contract & Strict Output Schemas
+- **Role Title:** Conversational Intent Architect
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/chat-interpretation-seam/contract.ts`
+  - `[MODIFY] contracts/chat-interpretation.contract.ts`
+  - `[MODIFY] docs/seams.md`
+- **What NOT To Touch:** Prompt schema structures, UI chat panels.
+- **Touch Blueprint:**
+  - `contract.ts`: Define `ChatInterpretationInputSchema`, `ChatInterpretationOutputSchema`, and `ChatInterpretationSeam`.
+  - `contracts/chat-interpretation.contract.ts`: Re-export from self-contained contract.
+  - `docs/seams.md`: Register canonical `| ChatInterpretationSeam (self-contained) | src/lib/seams/chat-interpretation-seam/contract.ts | src/lib/seams/chat-interpretation-seam/probe.ts | N/A (fixture module: src/lib/seams/chat-interpretation-seam/fixtures.ts) | src/lib/seams/chat-interpretation-seam/mock.ts | src/lib/seams/chat-interpretation-seam/test.ts | src/lib/adapters/chat-interpretation-seam/index.ts | hbpheonix | N/A | self-contained layout |`.
+- **Failure Modes:** Relaxed schemas accepting empty response text.
+- **Negative Tests:** Empty user input message fails `ChatInterpretationInputSchema.safeParse`.
+- **DoD CLI:** `npx vitest run tests/contract/chat-interpretation.test.ts && npm run rewind -- --seam ChatInterpretationSeam`
+
+#### TICK-MIG-05b: ChatInterpretationSeam Fixtures Module, Mock & Corrupt-JSON Canary Test
+- **Role Title:** Seam Verification Engineer
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/chat-interpretation-seam/fixtures.ts`
+  - `[NEW] src/lib/seams/chat-interpretation-seam/mock.ts`
+  - `[NEW] src/lib/seams/chat-interpretation-seam/test.ts`
+- **What NOT To Touch:** Adapter code, `src/lib/core/`.
+- **Touch Blueprint:**
+  - `fixtures.ts`: Export valid intent payload fixture, ambiguous intent fixture, and malformed JSON fault fixture (`{ code: 'CHAT_RESPONSE_INVALID', message: 'Chat interpretation response did not match contract.' }`).
+  - `mock.ts`: Export `createChatInterpretationMock(scenario)`.
+  - `test.ts`: Vitest suite asserting error handling when model emits invalid JSON.
+- **Failure Modes:** Mock silently masking parse errors into empty objects `{}`.
+- **Negative Tests:** Fault scenario returns error code `CHAT_RESPONSE_INVALID`.
+- **DoD CLI:** `npx vitest run src/lib/seams/chat-interpretation-seam/test.ts`
+
+#### TICK-MIG-05c: ChatInterpretationSeam Canonical Adapter & Re-export Wrapper
+- **Role Title:** Intent Pipeline Specialist
+- **Files Allowed:**
+  - `[NEW] src/lib/adapters/chat-interpretation-seam/index.ts`
+  - `[NEW] src/lib/seams/chat-interpretation-seam/probe.ts`
+  - `[MODIFY] src/lib/adapters/chat-interpretation.adapter.ts`
+- **What NOT To Touch:** Route status serialization, rate limiting.
+- **Touch Blueprint:**
+  - `index.ts`: Port `chatInterpretationAdapter: ChatInterpretationSeam` to invoke `ProviderAdapterSeam` and parse intent. Return strict `Result<ChatInterpretationOutput>`.
+  - `probe.ts`: Export pure probe stub (or wrap probe).
+  - `chat-interpretation.adapter.ts`: Re-export `export { chatInterpretationAdapter } from './chat-interpretation-seam';`.
+- **Failure Modes:** Throwing unhandled syntax error on partial model streaming response; exporting factory instead of `chatInterpretationAdapter`.
+- **Negative Tests:** Raw upstream markdown-wrapped JSON (````json ... ````) is stripped and parsed cleanly.
+- **DoD CLI:** `npx vitest run tests/contract/chat-interpretation.test.ts tests/unit/api-chat-interpretation.test.ts src/lib/seams/chat-interpretation-seam/test.ts && npm run rewind -- --seam ChatInterpretationSeam && npm run rewind -- --seam "ChatInterpretationSeam (self-contained)"`
+
+#### TICK-MIG-06a: MeechieStudioTextSeam Contract & Studio Text Schemas
+- **Role Title:** Voice Synthesis Architect
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/meechie-studio-text-seam/contract.ts`
+  - `[MODIFY] contracts/meechie-studio-text.contract.ts`
+  - `[MODIFY] docs/seams.md`
+- **What NOT To Touch:** Landlord seed text, voice pack lines.
+- **Touch Blueprint:**
+  - `contract.ts`: Export `MeechieStudioTextInputSchema`, `MeechieStudioTextOutputSchema`, `MeechieStudioTextSeam`.
+  - `contracts/meechie-studio-text.contract.ts`: Re-export from self-contained contract.
+  - `docs/seams.md`: Register canonical `| MeechieStudioTextSeam (self-contained) | src/lib/seams/meechie-studio-text-seam/contract.ts | src/lib/seams/meechie-studio-text-seam/probe.ts | N/A (fixture module: src/lib/seams/meechie-studio-text-seam/fixtures.ts) | src/lib/seams/meechie-studio-text-seam/mock.ts | src/lib/seams/meechie-studio-text-seam/test.ts | src/lib/adapters/meechie-studio-text-seam/index.ts | hbpheonix | N/A | self-contained layout |`.
+- **Failure Modes:** Mismatched title or item length limits against `SpecValidationSeam`.
+- **Negative Tests:** Title length exceeding 96 characters fails validation.
+- **DoD CLI:** `npx vitest run tests/contract/meechie-studio-text.test.ts && npm run rewind -- --seam MeechieStudioTextSeam`
+
+#### TICK-MIG-06b: MeechieStudioTextSeam Fixtures Module, Mock & Pre-Charged Quota Test
+- **Role Title:** Seam Verification Engineer
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/meechie-studio-text-seam/fixtures.ts`
+  - `[NEW] src/lib/seams/meechie-studio-text-seam/mock.ts`
+  - `[NEW] src/lib/seams/meechie-studio-text-seam/test.ts`
+- **What NOT To Touch:** `meechie-studio-text-pipeline.ts`.
+- **Touch Blueprint:**
+  - `fixtures.ts`: Export valid generated studio text fixture and fault fixture (`{ code: 'MEECHIE_STUDIO_TEXT_PROVIDER_INVALID', message: 'Provider text response did not match contract.' }`).
+  - `mock.ts`: Export `createMeechieStudioTextMock(scenario)`.
+  - `test.ts`: Vitest suite asserting single-attempt bounded correction retry.
+- **Failure Modes:** Infinite retry loop on invalid spec outputs.
+- **Negative Tests:** Second invalid attempt immediately halts and returns `MEECHIE_STUDIO_TEXT_PROVIDER_INVALID`.
+- **DoD CLI:** `npx vitest run src/lib/seams/meechie-studio-text-seam/test.ts`
+
+#### TICK-MIG-06c: MeechieStudioTextSeam Canonical Adapter & Re-export Wrapper
+- **Role Title:** Studio Generation Engineer
+- **Files Allowed:**
+  - `[NEW] src/lib/adapters/meechie-studio-text-seam/index.ts`
+  - `[NEW] src/lib/seams/meechie-studio-text-seam/probe.ts`
+  - `[MODIFY] src/lib/adapters/meechie-studio-text.adapter.ts`
+- **What NOT To Touch:** `RateLimitGuard` shared secret, route files.
+- **Touch Blueprint:**
+  - `index.ts`: Implement `createMeechieStudioTextAdapter(deps)` consuming `$lib/seams/meechie-studio-text-seam/contract`. Consume pre-charged rate limit quota context.
+  - `probe.ts`: Export pure probe stub.
+  - `meechie-studio-text.adapter.ts`: Re-export `export { createMeechieStudioTextAdapter } from './meechie-studio-text-seam';`.
+- **Failure Modes:** Double-charging 2 units when a studio correction retry occurs.
+- **Negative Tests:** Verifies rate limit quota is consumed up front once for the 2-unit studio budget.
+- **DoD CLI:** `npx vitest run tests/contract/meechie-studio-text.test.ts tests/unit/meechie-studio-text-pipeline.test.ts src/lib/seams/meechie-studio-text-seam/test.ts && npm run rewind -- --seam MeechieStudioTextSeam && npm run rewind -- --seam "MeechieStudioTextSeam (self-contained)"`
+
+#### TICK-MIG-07a: ProviderAdapterSeam Contract with Injected AbortSignal Support
+- **Role Title:** AI Transport Architect
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/provider-adapter-seam/contract.ts`
+  - `[MODIFY] contracts/provider-adapter.contract.ts`
+  - `[MODIFY] docs/seams.md`
+- **What NOT To Touch:** Pinned model IDs (`grok-imagine-image`, `grok-imagine-image-2.0`).
+- **Touch Blueprint:**
+  - `contract.ts`: Export `ProviderChatInputSchema`, `ProviderChatOutputSchema`, `ProviderImageInputSchema`, `ProviderImageOutputSchema`, `ProviderAdapterSeam`. Add optional `signal` property to input schemas for HTTP cancellation.
+  - `contracts/provider-adapter.contract.ts`: Re-export from self-contained contract.
+  - `docs/seams.md`: Register canonical `| ProviderAdapterSeam (self-contained) | src/lib/seams/provider-adapter-seam/contract.ts | src/lib/seams/provider-adapter-seam/probe.ts | N/A (fixture module: src/lib/seams/provider-adapter-seam/fixtures.ts) | src/lib/seams/provider-adapter-seam/mock.ts | src/lib/seams/provider-adapter-seam/test.ts | src/lib/adapters/provider-adapter-seam/index.ts | hbpheonix | N/A | self-contained layout |`.
+- **Failure Modes:** Dropping `b64_json` support for image outputs.
+- **Negative Tests:** Invalid `responseFormat` (e.g. `'xml'`) fails validation.
+- **DoD CLI:** `npx vitest run tests/contract/provider-adapter.test.ts && npm run rewind -- --seam ProviderAdapterSeam`
+
+#### TICK-MIG-07b: ProviderAdapterSeam Fixtures Module, Mock & Secret Redaction Canary Test
+- **Role Title:** Seam Verification Engineer
+- **Files Allowed:**
+  - `[NEW] src/lib/seams/provider-adapter-seam/fixtures.ts`
+  - `[NEW] src/lib/seams/provider-adapter-seam/mock.ts`
+  - `[NEW] src/lib/seams/provider-adapter-seam/test.ts`
+- **What NOT To Touch:** Live credentials (`.env`).
+- **Touch Blueprint:**
+  - `fixtures.ts`: Export chat completion fixture, image generation fixture, and HTTP error fault fixture containing simulated key canaries (`{ code: 'PROVIDER_HTTP_ERROR', message: 'Model not found: grok-4.6-bad', details: { status: '400' } }`).
+  - `mock.ts`: Export `createProviderAdapterMock(scenario)`.
+  - `test.ts`: Vitest suite verifying mock fidelity and credential canary redaction.
+- **Failure Modes:** Mock failing to simulate 110s timeout abort.
+- **Negative Tests:** Secret key canary in upstream error message is completely redacted in the returned `SeamError.message`; fault scenario returns `PROVIDER_HTTP_ERROR`.
+- **DoD CLI:** `npx vitest run src/lib/seams/provider-adapter-seam/test.ts`
+
+#### TICK-MIG-07c: ProviderAdapterSeam Canonical Adapter with Socket Cancellation & Stream Redaction
+- **Role Title:** External Provider Network Specialist
+- **Files Allowed:**
+  - `[NEW] src/lib/adapters/provider-adapter-seam/index.ts`
+  - `[NEW] src/lib/seams/provider-adapter-seam/probe.ts`
+  - `[MODIFY] src/lib/adapters/provider-adapter.adapter.ts`
+- **What NOT To Touch:** `CHAT_TIMEOUT_MS = 110_000`, `CHAT_RETRY_OPTIONS` single-attempt policy.
+- **Touch Blueprint:**
+  - `index.ts`: Port xAI chat and image transport. Export BOTH `createProviderAdapter(config)` and `providerAdapter`. Forward `signal` directly to `fetchWithTimeout` to abort hanging sockets immediately upon client disconnect. Apply `redactProviderMessage()` to all upstream error envelopes.
+  - `probe.ts`: Export probe stub.
+  - `provider-adapter.adapter.ts`: Re-export `export { createProviderAdapter, providerAdapter } from './provider-adapter-seam';`.
+- **Failure Modes:** Socket hanging open for 110s after caller abort; leaking bearer key in error details; missing `providerAdapter` default instance export.
+- **Negative Tests:** Immediate abort signal triggers `ABORT_ERROR` within 50ms, closing the underlying connection.
+- **DoD CLI:** `npx vitest run tests/contract/provider-adapter.test.ts tests/unit/provider-adapter-helpers.test.ts src/lib/seams/provider-adapter-seam/test.ts && npm run rewind -- --seam ProviderAdapterSeam && npm run rewind -- --seam "ProviderAdapterSeam (self-contained)"`
+
+#### TICK-MIG-08a: Re-route Consumer Imports in API Routes
+- **Role Title:** Route Integration Specialist
+- **Files Allowed:**
+  - `[MODIFY] src/routes/api/chat-interpretation/+server.ts`
+  - `[MODIFY] src/routes/api/generate/+server.ts`
+  - `[MODIFY] src/routes/api/meechie-studio-text/+server.ts`
+- **What NOT To Touch:** Route response status mapping, rate limit checks.
+- **Touch Blueprint:**
+  - Replace relative imports pointing to `contracts/` with direct imports from `$lib/seams/<name>-seam/contract`.
+- **Failure Modes:** Breaking runtime request handler type bindings.
+- **Negative Tests:** Malformed POST body to endpoints returns 400 with unchanged error schema.
+- **DoD CLI:** `npm run check` (0 errors)
+
+#### TICK-MIG-08b: Re-route Consumer Imports in Core Pipelines
+- **Role Title:** Core Pipeline Specialist
+- **Files Allowed:**
+  - `[MODIFY] src/lib/core/chat-interpretation-pipeline.ts`
+  - `[MODIFY] src/lib/core/generate-pipeline.ts`
+  - `[MODIFY] src/lib/core/meechie-studio-text-pipeline.ts`
+- **What NOT To Touch:** Pipeline business logic, error sanitization.
+- **Touch Blueprint:**
+  - Update imports from legacy `contracts/*.contract.ts` to `$lib/seams/<name>-seam/contract`.
+- **Failure Modes:** Cycle between core pipelines and seam contracts.
+- **Negative Tests:** Pipelines continue validating specs and returning Result types cleanly.
+- **DoD CLI:** `npm run check && npx vitest run tests/unit/pipeline-edge-cases.test.ts`
+
+#### TICK-MIG-08c: Re-route Consumer Imports in Studio State & Preview Panels
+- **Role Title:** UI Integration Specialist
+- **Files Allowed:**
+  - `[MODIFY] src/routes/studio-state.svelte.ts`
+  - `[MODIFY] src/lib/components/studio/StudioPreviewPanel.svelte`
+  - `[MODIFY] src/routes/who-fucked-up/+page.svelte`
+- **What NOT To Touch:** Component markup, reactive state management.
+- **Touch Blueprint:**
+  - Re-route imports in `studio-state.svelte.ts` from legacy flat contracts/adapters to canonical self-contained paths `$lib/seams/<name>-seam/contract` and `$lib/adapters/<name>-seam`.
+  - Re-route `StudioPreviewPanel.svelte` and `who-fucked-up/+page.svelte` imports to canonical self-contained paths.
+- **Failure Modes:** Type mismatch in state store bindings.
+- **Negative Tests:** `studio-state.svelte.ts` initializes cleanly without type errors.
+- **DoD CLI:** `npm run check && npx vitest run tests/unit/studio-state.test.ts`
+
+#### TICK-MIG-08d: Re-route Consumer Imports in Remaining Mode Pages
+- **Role Title:** Mode Page Integration Specialist
+- **Files Allowed:**
+  - `[MODIFY] src/routes/random/+page.svelte`
+  - `[MODIFY] src/routes/rate-his-excuse/+page.svelte`
+- **What NOT To Touch:** Page styles, interactive elements.
+- **Touch Blueprint:**
+  - Re-route `PackagedFile` and `outputPackagingAdapter` imports to self-contained seam paths.
+- **Failure Modes:** Broken import paths in SvelteKit page bundles.
+- **Negative Tests:** Both pages compile with 0 Svelte diagnostics.
+- **DoD CLI:** `npm run check`
+
+#### TICK-MIG-09a: Re-export Synchronization for Legacy Mocks (Identity & Storage)
+- **Role Title:** Test Infrastructure Specialist
+- **Files Allowed:**
+  - `[MODIFY] src/lib/mocks/session.mock.ts`
+  - `[MODIFY] src/lib/mocks/auth-context.mock.ts`
+  - `[MODIFY] src/lib/mocks/creation-store.mock.ts`
+- **What NOT To Touch:** Legacy mock export names (`createSessionMock`, `createAuthContextMock`, `createCreationStoreMock`).
+- **Touch Blueprint:**
+  - Update `src/lib/mocks/session.mock.ts` to re-export `createSessionMock` from `../seams/session-seam/mock`.
+  - Update `src/lib/mocks/auth-context.mock.ts` to re-export `createAuthContextMock` from `../seams/auth-context-seam/mock`.
+  - Update `src/lib/mocks/creation-store.mock.ts` to re-export `createCreationStoreMock` from `../seams/creation-store-seam/mock`.
+- **Failure Modes:** Export name mismatch breaking contract test imports.
+- **Negative Tests:** `tests/contract/{session,auth-context,creation-store}.test.ts` pass with 100% fixture parity.
+- **DoD CLI:** `npx vitest run tests/contract/session.test.ts tests/contract/auth-context.test.ts tests/contract/creation-store.test.ts`
+
+#### TICK-MIG-09b: Re-export Synchronization for Legacy Mocks (Generation & Transport)
+- **Role Title:** Test Infrastructure Specialist
+- **Files Allowed:**
+  - `[MODIFY] src/lib/mocks/output-packaging.mock.ts`
+  - `[MODIFY] src/lib/mocks/chat-interpretation.mock.ts`
+  - `[MODIFY] src/lib/mocks/meechie-studio-text.mock.ts`
+  - `[MODIFY] src/lib/mocks/provider-adapter.mock.ts`
+- **What NOT To Touch:** Existing mock export signatures.
+- **Touch Blueprint:**
+  - Update legacy mocks in `src/lib/mocks/` to re-export canonical mocks from `../seams/<name>-seam/mock`.
+- **Failure Modes:** Divergent mock behaviors between legacy path and canonical path.
+- **Negative Tests:** All legacy contract tests pass using canonical mock logic.
+- **DoD CLI:** `npx vitest run tests/contract/output-packaging.test.ts tests/contract/chat-interpretation.test.ts tests/contract/meechie-studio-text.test.ts tests/contract/provider-adapter.test.ts`
+
+#### TICK-MIG-10: Final Full Verification Chain, Chamber Lock & Proof Tape
+- **Role Title:** Principal Quality Assurance Auditor
+- **Files Allowed:**
+  - `[NEW] docs/evidence/YYYY-MM-DD/*` (Chamber lock, Shaolin lint, Seam ledger, Clan chain, Proof tape)
+  - `[MODIFY] docs/seams.md` (Update notes column for all 7 migrated seams confirming canonical status)
+  - `[MODIFY] CHANGELOG.md`
+- **What NOT To Touch:** Source code, contracts, adapters.
+- **Touch Blueprint:**
+  - Run full SDD verification suite (`npm run verify`).
+  - Update `docs/seams.md` notes column to document completion of modularization.
+  - Write proof tape and changelog entry.
+- **Failure Modes:** Chamber lock failure due to missing artifact; Shaolin lint evidence freshness rejection.
+- **Negative Tests:** Any missing seam fixture or test causes `npm run verify` to halt with non-zero code.
+- **DoD CLI:** `npm run verify` (exiting code 0 across all 6 verification stages)
+
+---
+
+### Final Definition of Done & Merge Gate
+The autonomous pull requests (`feat/seam-migration-identity-storage`, `feat/seam-migration-generation-transport`, `feat/retire-legacy-seam-stubs`) may be auto-merged into `main` without asking ONLY when every condition below is satisfied:
+1. `npm run check` exits code 0 (0 Svelte/TypeScript compiler diagnostics).
+2. `npm run lint` exits code 0 (0 ESLint errors/warnings).
+3. `npm test` exits code 0 (844/844 unit/contract tests pass).
+4. `npm run verify` exits code 0 (Chamber lock, Shaolin lint, Seam ledger, Clan chain, Proof tape green).
+5. GitHub CLI CI checks pass on current head (`gh pr checks` reports success).
+6. 0 unaddressed bot or human review threads.
+7. Working tree clean, branch pushed, zero merge conflicts against `origin/main`.
+
+---
+
+### Self-Critique
+- **What could be wrong:** Canvas conversion in `OutputPackagingSeam` might require an isolated Web Worker or fake JSDOM context during server tests; optimistic write deduplication in `CreationStoreSeam` could encounter storage quota limits if users exceed 50 creations; import re-routing across routes could expose latent typing mismatches in endpoint inputs.
+- **What must be proven:** All 7 seams operate self-contained under `src/lib/seams/<name>-seam/` with zero back-edges to `contracts/`; `npm run verify` and `npm test` pass with code 0 on each batch; no data loss on corrupted vault JSON; no unhandled promise rejections on provider socket timeout.
+- **Riskiest assumption:** That all callers of legacy flat contracts in `src/routes/` and `src/lib/core/` can be re-routed to `$lib/seams/` without circular dependency deadlock.
+- **Evidence that disproves the plan:** A single failing test in `npm test`, a non-zero exit from `npm run verify`, any lingering reference to deleted stubs found by `git grep`, or a CI failure reported by `gh pr checks`.
+
+---
+
 ## Meechie Recovery v1.1 — Demo Repair, Wigs, Saved Work, Security (2026-08-26)
 
 This section is the sole active implementation plan. It supersedes the 2026-08-25 Slack v0.9 ledger and every partial amendment.

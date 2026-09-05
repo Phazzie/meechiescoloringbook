@@ -65,8 +65,16 @@ Follow this order, no shortcuts:
 - Assumption format (in `DECISIONS.md`):
   - `- Assumption:` followed by indented fields `Date`, `Seams`, `Statement`, `Validation`, `Status`.
 
+## Surgical Delegation Mandate (Zero-Guesswork Subagent & Task Specification)
+To eliminate AI hallucination, scope creep, and wrong guessing during implementation, every task ticket, subagent prompt, and delegation plan MUST adhere to this zero-guesswork specification standard:
+- **Ban on Abstract Verbs:** Strictly forbid vague directives like "refactor X", "clean up Y", or "optimize Z". State in plain, concrete language the exact mechanical action being performed and why.
+- **Explicit File & Action Inventory:** Every ticket must list the exact file paths with explicit demarcation: `[NEW]`, `[MODIFY]`, or `[DELETE]`. No blanket statements or unlisted files.
+- **The Exact Touch Blueprint:** For every touched file, state precisely what is being edited: which specific imports, schemas, function signatures, variables, or lines are changing.
+- **Strict Anti-Goals ("Do Not Touch"):** State explicitly what the implementing agent is FORBIDDEN from touching (e.g., "Do not alter localStorage key names; do not touch UI component props in `src/lib/components/`").
+- **Literal Definition of Done CLI:** Every single task must close with a literal shell command that executes active runtime verification (e.g. unit/contract tests, build) exiting code 0.
+
 ## File Header Requirement
-- Every file must start with a top-level comment describing what it does, why it does it, and how information flows.
+- Every file must start with a top-level comment describing what it does, why it does it, how information flows, and any critical invariants.
 - Use the comment syntax of the file type.
 - Example (Markdown):
 ```md
@@ -74,7 +82,17 @@ Follow this order, no shortcuts:
 Purpose: ...
 Why: ...
 Info flow: ...
+Invariants: ...
 -->
+```
+- Example (TypeScript/JavaScript):
+```ts
+/*
+ * Purpose: ...
+ * Why: ...
+ * Info flow: ...
+ * Invariants: ...
+ */
 ```
 
 ## Seam-Driven Development Is Always Required
