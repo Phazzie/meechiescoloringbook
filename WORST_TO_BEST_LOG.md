@@ -8123,3 +8123,70 @@ than rediscovering it.
 `npm run lint` clean · `npm run evidence:guard` all 6 rules pass · YAML valid · a failed diff exits
 128 · a README-only change yields an empty list at exit 0 · a Vitest unhandled-error rewind is
 rejected.
+
+---
+
+## Run 8 close-out — round thirty-three: three of the five were my guard rejecting correct evidence
+
+Five findings. **Three of them are false positives** — the guard failing valid work — which is the
+worse failure mode and had not appeared before. Two are gaps. All five fixed.
+
+### The false positives, and why they matter more
+
+A guard that misses a defect leaves you where you started. A guard that fails correct work gets
+routed around, and then it protects nothing while looking like it does.
+
+**`verify-outer.txt` is written after the tape, by design — and I wrote the section saying so.**
+`docs/evidence/README.md`: the outer transcript is moved into place after the chain returns, "and is
+therefore deliberately absent from that chain's own inventory." Except it is not absent: the tape
+lists the *previous* run's copy, because that copy was on disk when the chain inventoried the folder.
+So comparing its size against the committed bytes rejects correctly captured evidence as soon as the
+transcript's length changes between runs. **It passes today only because both copies happen to be
+4438 bytes.** Excluded, with the reason written next to it; its freshness is rule one's job, which
+reads contents rather than size.
+
+That one is worth sitting with. I built a rule that contradicts a document I wrote two days earlier,
+in the same folder, about this exact file.
+
+**A test title made a passing run fail.** The Row 2 failure check scanned the whole transcript, so a
+passing test called `shows 1 error message accessibly` matched `1 error` and failed the evidence. Now
+anchored to the reporter's own summary lines. **A pattern that reads prose will eventually read a
+sentence someone wrote.**
+
+**`lint.txt` and `build.txt` were required of every dated folder.** `npm run verify` writes neither,
+so an ordinary seam change's evidence has no such file and my rule turned CI red on it. Requiring
+them only where the routines mandate them means classifying the change — the policy-engine work
+declined last round. So the rule now judges what is present and says nothing about what is absent:
+**check what is there; do not infer what should have been.**
+
+### The two gaps
+
+**A file count stood in for a test count.** `Test Files 1 passed` satisfied the rewind rule, so a
+transcript truncated before any contract-test result passed. Now the `Tests <n> passed` summary
+specifically.
+
+**Two boundary stamps cannot show the middle ran.** Removing `assumption-alarm.json` and re-running
+`proof:tape` alone leaves the tape newer than the lock, and the rule passed. Every mandatory chain
+artifact must now be present.
+
+### The confounded test, again
+
+The first attempt at the test-title case reported a failure and I nearly recorded the fix as broken.
+Editing `e2e.txt` changes its size, so the **inventory** rule fired — a different rule from the one
+under test. Caught by reading which rule failed instead of the exit code.
+
+Twice now a mutation test has lied: once by not landing, once by tripping a neighbour. Both times the
+exit code was the whole story only if you did not look.
+
+> **An exit code answers "did something fail", never "did the thing I am testing fail".** With more
+> than one rule in a checker, those stop being the same question.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1445 passed, 1 skipped** · `npm run build` built ·
+`npm run cipher:gate` 0 · `npm run verify` exit 0 · `npm run evidence:guard` **6 rules pass** ·
+rewind 17 · mandated Playwright exit 1 with 41 launch failures in Row 1 · installed-browser 41 passed
+in Row 2 · probe complete.
+
+Each fix proved: the three false positives now pass, the two gaps now fail, each isolated so that the
+rule under test is the rule that fired.

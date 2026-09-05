@@ -134,6 +134,22 @@ const RULES = [
 			};
 			const lock = readStamp('chamber-lock.json');
 			const tape = readStamp('proof-tape.json');
+			// Every stage, not just the two the timestamps bracket. Removing an intermediate artifact
+			// and re-running proof:tape alone leaves the tape newer than the lock, so boundary stamps
+			// cannot show the middle of the chain ran — they only show something ran first and last.
+			const CHAIN_ARTIFACTS = [
+				'chamber-lock.json',
+				'verify.txt',
+				'test.txt',
+				'shaolin-lint.json',
+				'assumption-alarm.json',
+				'seam-ledger.json',
+				'clan-chain.json',
+				'proof-tape.json'
+			];
+			const absent = CHAIN_ARTIFACTS.filter((name) => read(dir, name) === null);
+			if (absent.length > 0)
+				return `these chain stages left no artifact: ${absent.join(', ')}; the chain did not run all of them.`;
 			if (lock === null) return 'chamber-lock.json is missing or carries no generatedAt stamp.';
 			if (tape === null) return 'proof-tape.json is missing or carries no generatedAt stamp.';
 			if (Number.isNaN(lock) || Number.isNaN(tape))
@@ -153,7 +169,15 @@ const RULES = [
 				Object.values(node).forEach(collect);
 			};
 			collect(JSON.parse(read(dir, 'proof-tape.json') ?? '{}'));
+			// verify-outer.txt is the one artifact written AFTER the chain, by design — the transcript
+			// of the run that writes the tape cannot be inventoried by it. docs/evidence/README.md says
+			// so, and I wrote that section. The tape nonetheless lists the PREVIOUS run's copy, so
+			// comparing it here rejects correctly captured evidence the moment the transcript's length
+			// changes between runs. It passes today only because both copies happen to be 4438 bytes.
+			// Its freshness is rule 1's job, which reads its contents rather than its size.
+			const POST_TAPE = new Set(['verify-outer.txt']);
 			const drifted = inventory
+				.filter(({ name }) => !POST_TAPE.has(name))
 				.map(({ name, sizeBytes }) => {
 					const path = join(dir, name);
 					if (!existsSync(path)) return `${name} is inventoried but not present`;
@@ -188,9 +212,15 @@ const RULES = [
 			// "error" is in here because Playwright's list reporter prints "<n> passed" beside
 			// "1 error was not a part of any test" when something fails outside a test body — a green
 			// count next to a red run, which is the shape this rule keeps being caught by.
-			const broken = /(\d{1,9}) (failed|flaky|did not run|interrupted|errors?)\b/.exec(stripAnsi(row2));
-			if (broken !== null)
-				return `e2e.txt Row 2 reports "${broken[0]}"; a summary line that also counts passes does not make the run green.`;
+			// Anchored to the reporter's own summary lines. Scanning the whole transcript meant a
+			// passing test *titled* "shows 1 error message accessibly" failed the rule — valid evidence
+			// rejected because a human sentence contained a number and a word.
+			const broken = stripAnsi(row2)
+				.split('\n')
+				.map((line) => /^\s{0,8}(\d{1,9}) (failed|flaky|did not run|interrupted|errors?)\b/.exec(line))
+				.find((match) => match !== null && match !== undefined);
+			if (broken !== undefined)
+				return `e2e.txt Row 2 reports "${broken[0].trim()}"; a summary line that also counts passes does not make the run green.`;
 			return null;
 		}
 	},
@@ -198,9 +228,13 @@ const RULES = [
 		name: 'every rewind transcript reports contract tests, and none of them failing',
 		check: (dir) => {
 			const rewinds = readdirSync(dir).filter((f) => f.startsWith('rewind-') && f.endsWith('.txt'));
-			const empty = rewinds.filter((f) => lastPassedCount(read(dir, f) ?? '') === null);
+			// The `Tests` summary specifically. `lastPassedCount` also matches "Test Files 1 passed", so
+			// a transcript truncated after that line — before any contract test result — counted as a
+			// pass. A file count is not a test count.
+			const TESTS_SUMMARY = /^\s{0,8}Tests\s+\d{1,9} passed/m;
+			const empty = rewinds.filter((f) => !TESTS_SUMMARY.test(stripAnsi(read(dir, f) ?? '')));
 			if (empty.length > 0)
-				return `these rewind transcripts report no passing tests: ${empty.join(', ')}.`;
+				return `these rewind transcripts carry no "Tests <n> passed" summary: ${empty.join(', ')}.`;
 			// A seam run that reports "1 failed | 16 passed" has a passing count and is not a pass.
 			// Same shape as the end-to-end rule above, and it was missing here for the same reason:
 			// the rule asked whether a number was present rather than what the numbers said.
@@ -228,7 +262,12 @@ const RULES = [
 			];
 			for (const { file, ok, ran } of REQUIRED) {
 				const text = read(dir, file);
-				if (text === null) return `${file} is missing; ${ran} is required and left no transcript.`;
+				// Absence is not judged here. `npm run verify` writes neither of these, so an ordinary
+				// seam change's folder legitimately has no lint.txt — and requiring one turned CI red on
+				// compliant evidence. Requiring them for the scheduled routines that DO mandate them means
+				// classifying the change, which is the policy-engine work declined in round 32 and
+				// recorded as follow-up. What is here must be green; what is absent is somebody else's rule.
+				if (text === null) continue;
 				if (!ok.test(stripAnsi(text)))
 					return `${file} does not record a successful exit; ${ran} either failed or was captured without its result.`;
 			}
