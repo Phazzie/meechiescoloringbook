@@ -4506,10 +4506,26 @@ What changed in `handleWigTryOn` is the *source expression* for one field, not t
 +					wigId: requestedWig.id
 ```
 
-Same endpoint, same three fields, same timeout, same response schema. `requestedWig` is the wig
-captured **before** the await instead of read after it — the fix for a late portrait landing under
-whichever wig happened to be selected when it arrived. Both expressions yield a wig id from the same
-catalog, so the bytes the adapter forwards to xAI for a given (selfie, wig) pair are byte-identical.
+Same endpoint, same three fields, same timeout, same response schema — and this line is a **no-op**
+at the point it runs, which a second review had to point out because the first correction got the
+reason wrong.
+
+The first version of this paragraph said `requestedWig` is the wig "captured before the await
+instead of read after it". That is not what happens. JavaScript evaluates the request object —
+`this.selectedWigId` included — *before* `postJson` is called, so the old expression was already
+read before any suspension. And there is no `await` between `const requestedWig = wig` and the
+object literal (`resetTryOnPageState()` is called without one), so the two expressions are
+**provably equal** at that point rather than merely equivalent.
+
+The late-result fix is entirely on the **response** side, where the old code genuinely did read
+state after the await: the portrait used to be stored as one unassociated `tryOnPortraitUrl` string
+and rendered under whichever wig was selected when it landed. It is now filed under `requestedWig`
+by `storeTryOnPortrait`, the error paths carry `requestedWig.id`, and a stale `selfieToken` drops
+the result outright. The request line changed only so that one captured value is the single source
+for both halves.
+
+That makes the byte-equivalence conclusion stronger, not weaker: the request is not merely the same
+shape, it is the same value.
 Whether the account accepts them is exactly as proven, and as unproven, as it was before this PR —
 which is also why the Assumption was already open when this feature first shipped, and is not
 something this work introduced.
