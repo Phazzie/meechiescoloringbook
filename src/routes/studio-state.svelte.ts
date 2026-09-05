@@ -3,16 +3,21 @@
 //      state module; the page component becomes a thin lifecycle wrapper.
 // Info flow: User actions -> StudioState methods -> reactive $state updates -> component props.
 import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
+import { appOriginSeam } from '$lib/adapters/app-origin-seam';
+import { clockSeam } from '$lib/adapters/clock-seam';
 import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
+import { pageVisibilitySeam } from '$lib/adapters/page-visibility-seam';
 import { sessionAdapter } from '$lib/adapters/session.adapter';
 import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
 import {
 	DEFAULT_REVISION_BUDGET,
 	DEFAULT_STUDIO_TEXT_OUTPUT,
 	buildColoringPageSpecFromMeechieText,
+	derivesDenseDecorations,
 	buildStudioTextFromCreationRecord,
 	buildStudioTextFromDraftRecord,
+	specOwnQuote,
 	canRunStudioAction,
 	consumeStudioActionBudget,
 	getStudioTextAction,
@@ -22,6 +27,19 @@ import {
 	type StudioTextActionId
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
+import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
+import {
+	GENERATED_IMAGE_MIME_TYPES,
+	generatedImageDataUrl
+} from '$lib/core/generated-image-preview';
+import {
+	VAULT_CAPACITY,
+	VAULT_PREVIEW_COUNT,
+	buildVaultEntries,
+	buildVaultEntry,
+	restoreCreationImages,
+	sortVaultCreations
+} from '$lib/core/vault-gallery';
 import { GenerateResultSchema } from '../../contracts/generate.contract';
 import { WigTryOnResultSchema } from '../../contracts/wig-try-on.contract';
 import {
@@ -37,25 +55,37 @@ import type {
 	ColoringPageSpec,
 	SpecValidationOutput
 } from '../../contracts/spec-validation.contract';
+import type { AppOriginSeam } from '$lib/seams/app-origin-seam/contract';
+import { nextUtcDayBoundary, type ClockSeam } from '$lib/seams/clock-seam/contract';
+import type { PageVisibilitySeam } from '$lib/seams/page-visibility-seam/contract';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
 type PageSize = ColoringPageSpec['pageSize'];
 type BorderChoice = ColoringPageSpec['border'];
 
-const DRAFT_SAVE_DEBOUNCE_MS = 300;
+/**
+ * What caused a spec rebuild: the reader picking a theme, or anything else.
+ *
+ * This is not the whole answer to "should derived presentation be recomputed?" — the style hint
+ * carries the voice as well as the theme, so `applyTextToSpec` also compares the hint itself. What
+ * this flag adds is the one case no comparison can see: a click on the theme chip that is already
+ * active leaves every value identical, and is still the reader asking for that theme.
+ */
+export type SettingChangeSource = 'theme' | 'setting';
 
-// `format` is the only image-type field the contract actually constrains: it is a closed
-// four-value enum, while `mimeType` is `NonEmptyStringSchema`, so any non-empty string
-// passes validation. Deriving the media type from the enum is therefore total (it can
-// never emit `undefined`) and it cannot forward an unvalidated wire value. It also emits
-// the registered `image/jpeg` and `image/svg+xml` names rather than the non-standard
-// `image/jpg` and `image/svg` that interpolating the enum member produced.
-const IMAGE_MIME_TYPES: Record<GeneratedImage['format'], string> = {
-	svg: 'image/svg+xml',
-	png: 'image/png',
-	jpg: 'image/jpeg',
-	webp: 'image/webp'
+/**
+ * One try-on result: the wig it was made for, and the portrait produced.
+ *
+ * The whole wig is held rather than its id, so the compare strip can both label a portrait and
+ * put the reader back on that wig without a catalog lookup — and so a portrait is always labelled
+ * with the wig it was actually made for, whatever the catalog does afterwards.
+ */
+export type TryOnPortrait = {
+	wig: Wig;
+	portraitUrl: string;
 };
+
+const DRAFT_SAVE_DEBOUNCE_MS = 300;
 
 type DraftSeedTextSignature = {
 	title: string;
@@ -133,14 +163,64 @@ export class StudioState {
 	creations = $state<CreationRecord[]>([]);
 	isSaving = $state(false);
 
+	// --- Quote Vault state ---
+	vaultQuery = $state('');
+	vaultShowAll = $state(false);
+	vaultError = $state('');
+	// True only when the last vault *read* failed, so the UI can distinguish "your pages are still
+	// there, we could not see them" from any other error that happens to leave the list empty.
+	vaultReadFailed = $state(false);
+	// Delete is two-step and reversible: the first click arms `pendingDeleteId`, the second
+	// removes the record but keeps it in `undoableDeletion` so one click puts it back. A saved
+	// page costs a paid generation, so a single mis-tap must never be able to destroy one.
+	pendingDeleteId = $state<string | null>(null);
+	undoableDeletion = $state<CreationRecord | null>(null);
+	// The clock behind the "Saved today / 3 days ago" labels. `AGENTS.md` classifies clock/time as
+	// a seam, so both the reads and the day-boundary timer cross `ClockSeam` rather than calling
+	// `Date.now()` or `setTimeout` here. Injectable so a test drives the rollover instead of
+	// waiting for real midnight. Declared before `nowMs` so the field initializer below can use it.
+	clock: ClockSeam = clockSeam;
+	// Clock reading behind the labels. Held as state and refreshed at each day boundary and on each
+	// vault reload, so the labels stay a pure function of an explicit instant rather than
+	// re-reading the clock inside a $derived on every keystroke.
+	nowMs = $state(this.clock.now());
+	// Reads the origin the app is served from, used to decide whether a stored absolute image URL
+	// is same-origin and therefore loadable under the app's `img-src 'self'` CSP. Behind a seam for
+	// the same reason as the clock: reading `location` here would be an unseamed browser
+	// integration, and the same-origin decision could not be driven from a test.
+	origin: AppOriginSeam = appOriginSeam;
+	// Tells the studio when a backgrounded tab comes back. Behind a seam for the same reason as the
+	// clock: reading `document.visibilityState` and subscribing to `visibilitychange` here would be
+	// an unseamed browser integration, reachable from a test only by dispatching a real DOM event.
+	visibility: PageVisibilitySeam = pageVisibilitySeam;
+	appOrigin = $state(this.origin.getOrigin());
+
 	// --- Wig try-on state ---
-	selectedWigId = $state<string | null>(null);
 	selectedWig = $state<Wig | null>(null);
+	// Derived, not stored. Trying a wig on now needs the whole wig — the portrait is filed under it
+	// and labelled with its name — so a separately assigned id would be a second source of truth
+	// for "which wig is on screen", free to disagree with the first.
+	selectedWigId = $derived(this.selectedWig?.id ?? null);
 	selfieBase64 = $state('');
 	selfieMimeType = $state<'image/jpeg' | 'image/png' | 'image/webp'>('image/jpeg');
 	isTryingOn = $state(false);
-	tryOnPortraitUrl = $state('');
 	tryOnError = $state('');
+	/**
+	 * Every portrait made from the current selfie, keyed by the wig it was made for.
+	 *
+	 * This was one string, so trying on a second wig destroyed the first portrait — in a feature
+	 * whose entire purpose is deciding between wigs, and at the price of one AI image generation
+	 * per look. Keyed by wig, coming back to a wig shows what it looked like instead of a blank.
+	 *
+	 * Correctness rides on each entry naming its wig and the list being tied to one selfie: a
+	 * portrait of a face the reader has since replaced, shown under a new wig, would be worse than
+	 * losing it. `setSelfieForTryOn` therefore drops the whole list, not one entry.
+	 *
+	 * An array rather than a map because the order is the order they were tried, which is the order
+	 * the compare strip shows — and re-trying a wig replaces it in place, so the strip does not
+	 * reshuffle under the reader's finger.
+	 */
+	tryOnPortraits = $state<TryOnPortrait[]>([]);
 
 	// spec is initialized from literal values to avoid capturing $state references.
 	// It is updated explicitly via applyTextToSpec() whenever page settings change.
@@ -195,24 +275,163 @@ export class StudioState {
 				isRunning: this.isTextWorking
 			})
 	);
+	// `?? ''` rather than dropping the entry: this array is indexed in parallel with `images`, so
+	// an unrepresentable image has to hold its slot instead of shifting every later preview onto
+	// the wrong image.
 	imagePreviews = $derived(
-		this.images.map((image) => {
-			if (image.format === 'svg' && image.encoding === 'utf8') {
-				return `data:${IMAGE_MIME_TYPES.svg};utf8,${encodeURIComponent(image.data)}`;
-			}
-			if (image.encoding === 'base64') {
-				return `data:${IMAGE_MIME_TYPES[image.format]};base64,${image.data}`;
-			}
-			return '';
-		})
+		this.images.map((image) => generatedImageDataUrl(image) ?? '')
 	);
 	canTryOn = $derived(!!this.selectedWigId && !!this.selfieBase64 && !this.isTryingOn);
+	// The portrait on screen is whichever belongs to the wig on screen. Selecting a wig that was
+	// already tried on brings its portrait back rather than showing an empty result panel.
+	tryOnPortraitUrl = $derived(
+		this.tryOnPortraits.find((portrait) => portrait.wig.id === this.selectedWigId)
+			?.portraitUrl ?? ''
+	);
+	// Only worth showing once there is a decision to make, which is what a second portrait is.
+	/**
+	 * Making a page needs a portrait that is not about to be replaced.
+	 *
+	 * Trying the *same* wig on again keeps the old portrait on screen while the new one is styled,
+	 * and replacing it changes neither the selected wig nor the page token — so neither existing
+	 * guard can see it. A page started in that window captures the old portrait URL and then keeps
+	 * it, leaving the coloring page showing one look while the result panel shows another.
+	 */
+	canGenerateTryOnPage = $derived(
+		!!this.tryOnPortraitUrl && !this.isGenerating && !this.isTryingOn
+	);
+	canCompareTryOns = $derived(this.tryOnPortraits.length > 1);
+	// Words or a picture — either is a page worth keeping. Gating on the verdict alone is what left
+	// a generated try-on page as the only thing in the app the vault would not take.
+	canSaveToVault = $derived(
+		!this.isSaving && (!!this.textOutput || this.images.length > 0)
+	);
+
+	// Every saved page the current search matches, pinned first then newest first. The list used
+	// to be raw store order truncated to four, so a fifth save made the first one unreachable
+	// even though the store keeps fifty.
+	vaultEntries = $derived(
+		buildVaultEntries(this.creations, {
+			query: this.vaultQuery,
+			nowMs: this.nowMs,
+			appOrigin: this.appOrigin
+		})
+	);
+	visibleVaultEntries = $derived(
+		this.vaultShowAll
+			? this.vaultEntries
+			: this.vaultEntries.slice(0, VAULT_PREVIEW_COUNT)
+	);
+	hiddenVaultCount = $derived(
+		Math.max(0, this.vaultEntries.length - this.visibleVaultEntries.length)
+	);
+	// Keyed off the match count, not off what is currently on screen: once expanded there is
+	// nothing hidden, and the toggle still has to be there to collapse the list again. It stays
+	// away entirely when everything fits in the preview.
+	canToggleVaultShowAll = $derived(this.vaultEntries.length > VAULT_PREVIEW_COUNT);
+
+	// The held record rendered the same way a saved row is, so the undo banner can offer a real
+	// Download for it. Without this the page waiting in Undo has no download anywhere — it is out
+	// of `creations`, so no row exists — and when the vault is full `undoDelete` tells the reader
+	// to "download the page you want to keep before freeing a slot" while giving them no way to do
+	// it. A reload then loses the only remaining copy. Telling someone to do something the screen
+	// does not let them do is the same defect this whole rebuild started from.
+	undoableDeletionEntry = $derived(
+		this.undoableDeletion === null
+			? null
+			: buildVaultEntry(this.undoableDeletion, this.nowMs, this.appOrigin)
+	);
 
 	// --- Non-reactive implementation details ---
 	owner: CreationOwner | null = null;
+	/**
+	 * True only while the spec's layout belongs to a page reopened from the vault.
+	 *
+	 * The studio always authors list pages; a page saved from the Meechie tools hub can be
+	 * `title_only`. That layout must survive a settings change on the reopened page, but must not
+	 * outlive it: carried into a brand-new verdict it would make
+	 * `buildColoringPageSpecFromMeechieText` discard every new page item, spending revision budget
+	 * and image quota on an incomplete page.
+	 */
+	private restoredPageLayout = false;
+
+	/**
+	 * Whether the page on the paper is a wig try-on portrait.
+	 *
+	 * A try-on page has no words on it — it is `title_only` with the wig's name and a picture — so
+	 * whatever verdict happens to be on screen is not this page's text. It usually is not there at
+	 * all, but a reader who generated a verdict first and then made a try-on page still has one, and
+	 * saving that as the record's `studioText` claims words the page does not print: the vault would
+	 * show that quote beside the portrait, and reopening would hand it back as the try-on page's own
+	 * text and send it to the provider on the next revision.
+	 *
+	 * Refusing to restore text for a page that prints no items does not cover this. That rule asks
+	 * "does this page have words of its own?", and here the words are perfectly real and perfectly
+	 * present — they are just about a different page.
+	 *
+	 * Cleared in `resetGeneratedPage`, which every path replacing the paper goes through.
+	 */
+	private tryOnPageOnScreen = false;
+
+	/**
+	 * The title of the try-on page on the paper, kept so its shape can be restored after a rebuild.
+	 *
+	 * Every Page Control change runs `syncSpecFromCurrentText`, which rebuilds the spec from the
+	 * verdict — or the demo seed — as a numbered list. On a try-on page that silently replaced the
+	 * wig's title, items and layout while the portrait stayed on the paper, so changing the page
+	 * size alone was enough to make the spec describe a different page than the one displayed, and
+	 * saving stored the portrait under it.
+	 */
+	private tryOnPageTitle = '';
+
+	/**
+	 * The verdict on screen, but only when it is genuinely *this page's* words.
+	 *
+	 * Two things write studio text down — the vault and the draft — and both must answer the same
+	 * question before they do. They asked it separately, and drifted: the vault learned to exclude a
+	 * verdict that belongs to a different page, the draft did not, so a verdict → try-on → draft →
+	 * refresh round trip put that verdict back as genuine and defeated the vault's guard from the
+	 * other side. One accessor, so there is no second copy of the condition to forget.
+	 *
+	 * Excluded: any verdict at all while the paper is a wig portrait (`tryOnPageOnScreen`) — a
+	 * portrait page prints no verdict words. Text invented by a restore needed a second exclusion
+	 * here until `buildStudioTextFromSpec` stopped inventing it; there is now nothing to exclude,
+	 * because a page with no printed items restores no text at all.
+	 */
+	private describingStudioText(): MeechieStudioTextOutput | undefined {
+		if (!this.textOutput) return undefined;
+		if (this.tryOnPageOnScreen) return undefined;
+		return $state.snapshot(this.textOutput);
+	}
+
+	/** The title-only shape a try-on page always has: the wig's name, a picture, and nothing else. */
+	private asTryOnPageSpec(spec: ColoringPageSpec): ColoringPageSpec {
+		return {
+			...spec,
+			title: this.tryOnPageTitle,
+			listMode: 'title_only',
+			items: [],
+			footerItem: undefined
+		};
+	}
+	// Whether the last rebuild's style hint asked for dense decoration — the derivation's answer,
+	// not its input. Seeded at restore time so the first unrelated setting change on a reopened page
+	// compares equal and preserves what was restored.
+	//
+	// Comparing the whole hint string was the previous attempt and over-triggered: Rawness, Third
+	// Person, Glitter and the wig all appear in the hint without governing density, so changing any
+	// of them on a restored minimal page recomputed it — and with the default `receipts_out`
+	// intensity the recomputation returns `dense`, so the page changed on a control that has nothing
+	// to do with it.
+	private lastDerivesDense: boolean | null = null;
 	authContext: CreationRecord['authContext'] | null = null;
+	// Incremented whenever the displayed page is replaced; async work captures it and drops its
+	// result if the value moved on. Not $state: nothing renders it.
+	pageLoadToken = 0;
 	isBrowser = $state(false);
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
+	private stopVisibilityWatch: (() => void) | null = null;
+	private cancelDayBoundaryRefresh: (() => void) | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
 
@@ -263,7 +482,10 @@ export class StudioState {
 					updatedAtISO: new Date().toISOString(),
 					intent: $state.snapshot(this.spec),
 					chatMessage: this.evidence.trim().length > 0 ? this.evidence : undefined,
-					studioText: this.textOutput ? $state.snapshot(this.textOutput) : undefined
+					// Exactly the rule the vault uses, through the same accessor. A draft that
+					// carried text this page does not own would come back after a refresh as
+					// genuine, with nothing left to say otherwise.
+					studioText: this.describingStudioText()
 				}
 			});
 			if (result.ok) {
@@ -288,19 +510,74 @@ export class StudioState {
 		return validation.ok;
 	}
 
-	private async applyTextToSpec(output: MeechieStudioTextOutput): Promise<void> {
+	private async applyTextToSpec(
+		output: MeechieStudioTextOutput,
+		source: SettingChangeSource = 'setting'
+	): Promise<void> {
+		// `decorations` is derived from `styleHint.includes('receipt')`, and the style hint is the
+		// theme's hint concatenated with the voice — where `receipts_out` matches. So the theme is
+		// not the only control that moves the derivation, and asking only about the theme left a
+		// reopened page's density stuck when the reader changed Intensity.
+		//
+		// Two facts decide it, each measured where it is actually knowable. The style hint *is* the
+		// derivation's input, so comparing it against the last rebuild's answers "did the input
+		// change?" exactly rather than by proxy — that is what comparing theme IDs was standing in
+		// for, badly, three corrections running. And the panel passes `source`, because one case is
+		// invisible to any comparison: clicking the theme chip that is already active leaves the
+		// hint identical but is still the reader asking for that theme.
+		const styleHint = this.currentStyleHint();
+		const derivesDense = derivesDenseDecorations(styleHint);
+		const derivationChanged = source === 'theme' || derivesDense !== this.lastDerivesDense;
+		this.lastDerivesDense = derivesDense;
 		this.spec = buildColoringPageSpecFromMeechieText({
 			output,
 			pageSize: this.pageSize,
 			border: this.border,
-			styleHint: this.currentStyleHint(),
-			dedication: this.currentDedication()
+			styleHint,
+			dedication: this.currentDedication(),
+			// Keep the layout only while this is still the reopened page. For anything the studio
+			// authored, and for every fresh verdict, this is 'list'.
+			listMode: this.restoredPageLayout ? this.spec.listMode : 'list',
+			// Layout and footer are the same question — "is this still the page that was reopened?"
+			// — so they read the same flag. Reading the footer off `this.spec` unconditionally
+			// instead looked simpler and was wrong in one direction: once a footerless toolkit page
+			// had been reopened, its missing footer outlived it. A mode change or a new verdict
+			// cleared the flag but left that spec in place, so the next studio-authored list was
+			// built without a footer, and every rebuild after that read the spec it had just built
+			// and kept the absence forever.
+			includeFooter: this.restoredPageLayout ? this.spec.footerItem !== undefined : true,
+			// And the rest of the reopened page's presentation, for the same reason and off the same
+			// flag. Preserving only the layout and the footer still handed back a visibly different
+			// page — left-aligned, small, stroke 6 — the moment any setting changed.
+			//
+			// `decorations` is the one field that is derived from the theme rather than chosen, so it
+			// is dropped only when the reader actually picks a theme. Every setting change comes
+			// through here, so recomputing unconditionally would have turned a restored dense page
+			// minimal on a page-size change alone.
+			//
+			// See `derivationChanged` above for why it takes both an explicit source and a direct
+			// comparison of the style hint to decide this.
+			presentation: this.restoredPageLayout
+				? derivationChanged
+					? { ...this.spec, decorations: undefined }
+					: this.spec
+				: undefined
 		});
+		// A rebuild describes the verdict, and a try-on page has no verdict on it. Without this the
+		// portrait would keep its place on the paper while the spec around it became a numbered list
+		// under someone else's title — see `tryOnPageTitle`.
+		if (this.tryOnPageOnScreen && this.tryOnPageTitle) {
+			this.spec = this.asTryOnPageSpec(this.spec);
+		}
 		await this.validateSpec();
 		this.scheduleDraftSave();
 	}
 
 	private resetGeneratedPage(): void {
+		// Every path that replaces what is on the paper comes through here, so this is the one
+		// place the load token has to advance. Anything still in flight for the previous page
+		// compares its captured token against this and discards itself.
+		this.pageLoadToken += 1;
 		this.generationError = '';
 		this.assembledPrompt = '';
 		this.revisedPrompt = '';
@@ -308,19 +585,39 @@ export class StudioState {
 		this.recommendedFixes = [];
 		this.images = [];
 		this.packagedFiles = [];
+		// Whatever replaces the paper is not a try-on portrait until a try-on generation says so.
+		this.tryOnPageOnScreen = false;
+		this.tryOnPageTitle = '';
 	}
 
-	private resetTryOnResultState(): void {
-		// Delegates to resetGeneratedPage() so a fresh try-on also clears the assembled
-		// prompt/violations from any prior normal generation, not just the images/PDF —
-		// System Trace renders those independently of packagedFiles/images.
+	/**
+	 * Clears what is on the page, but keeps the portraits already made.
+	 *
+	 * Delegates to resetGeneratedPage() so a fresh try-on also clears the assembled
+	 * prompt/violations from any prior normal generation, not just the images/PDF —
+	 * System Trace renders those independently of packagedFiles/images.
+	 */
+	private resetTryOnPageState(): void {
 		this.resetGeneratedPage();
-		this.tryOnPortraitUrl = '';
 		this.tryOnError = '';
 	}
 
-	private parseTryOnPortraitImage(): GeneratedImage | null {
-		const match = this.tryOnPortraitUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/);
+	/**
+	 * Drops every portrait as well. Only for a change that invalidates all of them — which means a
+	 * new selfie, since every stored portrait is of the previous one.
+	 */
+	private discardTryOnPortraits(): void {
+		this.resetTryOnPageState();
+		this.tryOnPortraits = [];
+		// Any request still in flight was made with the previous selfie, so its result must not be
+		// filed when it lands. Not $state: nothing renders it.
+		this.selfieToken += 1;
+	}
+
+	private selfieToken = 0;
+
+	private parseTryOnPortraitImage(portraitUrl: string): GeneratedImage | null {
+		const match = portraitUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/);
 		if (!match) return null;
 		const subtype = match[2];
 		const data = match[3];
@@ -331,7 +628,7 @@ export class StudioState {
 		return {
 			id: 'try-on-portrait-1',
 			format,
-			mimeType: IMAGE_MIME_TYPES[format],
+			mimeType: GENERATED_IMAGE_MIME_TYPES[format],
 			data,
 			encoding: 'base64'
 		};
@@ -352,9 +649,21 @@ export class StudioState {
 	private async refreshCreations(): Promise<void> {
 		if (!this.owner) return;
 		const result = await creationStoreAdapter.listCreations({ owner: this.owner });
-		if (result.ok) {
-			this.creations = result.value;
+		if (!result.ok) {
+			// Reads used to fail silently, so a browser with unreadable storage showed an empty
+			// vault and no reason for it. Say what happened and leave the last good list up.
+			this.vaultError = result.error.message;
+			// Tracked apart from `vaultError` because only a failed *read* means "your pages are
+			// still there, we just could not see them". A failed write — a restore that could not
+			// be saved, say — also sets `vaultError` and can also leave the list empty, and
+			// telling that reader their pages could not be read would be false.
+			this.vaultReadFailed = true;
+			return;
 		}
+		this.vaultError = '';
+		this.vaultReadFailed = false;
+		this.nowMs = this.clock.now();
+		this.creations = sortVaultCreations(result.value);
 	}
 
 	// --- Public action handlers ---
@@ -366,9 +675,35 @@ export class StudioState {
 		this.draftTimer = setTimeout(() => void this.saveDraft(), DRAFT_SAVE_DEBOUNCE_MS);
 	};
 
-	syncSpecFromCurrentText = async (): Promise<void> => {
+	/**
+	 * What a settings rebuild should describe when there is no verdict on screen.
+	 *
+	 * An empty studio has nothing but the demo seed, and rebuilding from it is what the reader sees
+	 * before they generate anything. A *reopened* page is different: it has a title of its own, and
+	 * handing the seed to the rebuild renamed it. That is not hypothetical — the page this matters
+	 * for is the reopened wig try-on, whose title is the wig's name and whose verdict is `null`
+	 * precisely because it prints no items, so changing the page size alone used to retitle it
+	 * THE LANDLORD.
+	 *
+	 * The seed's `pageItems` ride along and are never printed: a restored page with no items is
+	 * `title_only`, `restoredPageLayout` keeps it that way, and that layout discards items.
+	 */
+	private rebuildSourceText(): MeechieStudioTextOutput {
+		if (this.textOutput) return this.textOutput;
+		if (!this.restoredPageLayout) return DEFAULT_STUDIO_TEXT_OUTPUT;
+		return {
+			...DEFAULT_STUDIO_TEXT_OUTPUT,
+			verdict: this.spec.title,
+			pageTitle: this.spec.title,
+			quote: specOwnQuote(this.spec)
+		};
+	}
+
+	syncSpecFromCurrentText = async (
+		source: SettingChangeSource = 'setting'
+	): Promise<void> => {
 		try {
-			await this.applyTextToSpec(this.textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT);
+			await this.applyTextToSpec(this.rebuildSourceText(), source);
 		} catch (error) {
 			this.draftSaveError =
 				error instanceof Error ? error.message : 'Page settings could not be saved.';
@@ -384,16 +719,27 @@ export class StudioState {
 	};
 
 	handleModeSelect = (modeId: string): void => {
+		const modeChanged = modeId !== this.activeModeId;
 		this.activeModeId = modeId;
 		this.textError = '';
-		this.resetGeneratedPage();
+		if (modeChanged) {
+			this.textOutput = null;
+			this.resetGeneratedPage();
+			this.restoredPageLayout = false;
+		}
 		this.scheduleDraftSave();
 	};
 
 	selectWigForTryOn = async (wig: Wig): Promise<void> => {
-		this.selectedWigId = wig.id;
+		const wigChanged = wig.id !== this.selectedWigId;
 		this.selectedWig = wig;
-		this.resetTryOnResultState();
+		if (wigChanged) {
+			// The coloring page on screen was made from the previous wig's portrait, so it goes.
+			// The portraits themselves stay: `tryOnPortraitUrl` follows the selected wig, so this
+			// shows the new wig's portrait if it has one and an empty result panel if it does not,
+			// and the previous wig's portrait is still there when the reader goes back to compare.
+			this.resetTryOnPageState();
+		}
 		await this.syncSpecFromCurrentText();
 	};
 
@@ -403,7 +749,9 @@ export class StudioState {
 	): void => {
 		this.selfieBase64 = base64;
 		this.selfieMimeType = mimeType;
-		this.resetTryOnResultState();
+		// Every stored portrait is of the previous selfie. Keeping them would relabel the old face
+		// under the new upload, which is a worse outcome than losing them.
+		this.discardTryOnPortraits();
 	};
 
 	runTextAction = async (actionId: StudioTextActionId): Promise<void> => {
@@ -425,7 +773,6 @@ export class StudioState {
 		this.textError = '';
 		this.copyStatus = '';
 		this.vaultStatus = '';
-
 		const trimmedEvidence = this.evidence.trim();
 		const safeEvidence =
 			trimmedEvidence.length > 0 || this.activeMode.toolId === 'random_meechie'
@@ -464,6 +811,11 @@ export class StudioState {
 			this.textOutput = parsed.data.value;
 			this.revisionBudget = consumeStudioActionBudget(this.revisionBudget, actionId);
 			this.resetGeneratedPage();
+			// Only now, with a replacement verdict accepted, does a reopened page's layout stop
+			// applying. Clearing it when the action *started* would convert the restored quote page
+			// into a numbered list whenever the action then failed, timed out, or was rejected —
+			// while its text was still the text on screen.
+			this.restoredPageLayout = false;
 			await this.applyTextToSpec(parsed.data.value);
 		} catch (error) {
 			this.textError =
@@ -473,15 +825,45 @@ export class StudioState {
 		}
 	};
 
+	/**
+	 * Packages what is on the paper and attaches the result — unless the page was replaced while
+	 * packaging ran, in which case the late PDF belongs to a page nobody is looking at.
+	 *
+	 * Shared by both generation paths on purpose. These eleven lines were written twice, and the
+	 * staleness check existed in neither: copying the block is precisely how one path came to be
+	 * guarded and the other not. One implementation is the only way both stay correct.
+	 */
+	private async attachPackagedPage(fileBaseName: string, pageToken: number): Promise<void> {
+		const packagingResult = await outputPackagingAdapter.package({
+			images: $state.snapshot(this.images),
+			outputFormat: 'pdf',
+			fileBaseName,
+			pageSize: this.spec.pageSize,
+			variants: ['print']
+		});
+		if (pageToken !== this.pageLoadToken) return;
+		if (packagingResult.ok) {
+			this.packagedFiles = packagingResult.value.files;
+		} else {
+			this.generationError = packagingResult.error.message;
+		}
+	}
+
 	handleGeneratePage = async (): Promise<void> => {
 		if (!this.textOutput) {
 			this.generationError = 'Generate Meechie words before creating the page.';
 			return;
 		}
 		this.resetGeneratedPage();
+		// The same capture the try-on path makes, for the same reason: everything below is read
+		// after an await, and every path that replaces the paper advances this token. Without it a
+		// slow generation lands its prompt, images and PDF on whatever verdict is on screen when it
+		// finishes — which is the defect the mode routes already guard against, and this one did not.
+		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
 		try {
 			await this.applyTextToSpec(this.textOutput);
+			if (pageToken !== this.pageLoadToken) return;
 			if (this.validationIssues.length > 0) {
 				this.generationError = 'Fix the page settings before generating.';
 				return;
@@ -494,6 +876,7 @@ export class StudioState {
 				},
 				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
 			);
+			if (pageToken !== this.pageLoadToken) return;
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.generationError = 'Generate response did not match contract.';
@@ -510,18 +893,7 @@ export class StudioState {
 			this.recommendedFixes = parsed.data.value.recommendedFixes;
 
 			const creationId = this.generateCreationId();
-			const packagingResult = await outputPackagingAdapter.package({
-				images: $state.snapshot(this.images),
-				outputFormat: 'pdf',
-				fileBaseName: `meechie-coloring-page-${creationId}`,
-				pageSize: this.spec.pageSize,
-				variants: ['print']
-			});
-			if (packagingResult.ok) {
-				this.packagedFiles = packagingResult.value.files;
-			} else {
-				this.generationError = packagingResult.error.message;
-			}
+			await this.attachPackagedPage(`meechie-coloring-page-${creationId}`, pageToken);
 		} catch (error) {
 			this.generationError =
 				error instanceof Error ? error.message : 'Coloring page generation failed.';
@@ -531,38 +903,72 @@ export class StudioState {
 	};
 
 	handleGenerateTryOnPage = async (): Promise<void> => {
-		if (!this.tryOnPortraitUrl) {
+		// See `canGenerateTryOnPage`. Guarded here too, not only on the button: the race is between
+		// two state transitions, so the state is where it has to be refused.
+		if (this.isTryingOn) {
+			this.generationError = 'Wait for the new look to finish before making the page.';
+			return;
+		}
+		const wig = this.selectedWig;
+		// Captured together, before any await, because they have to describe the same look.
+		// `tryOnPortraitUrl` is derived from the selected wig, and the carousel stays live during
+		// generation, so re-reading it after the await could return a different wig's portrait —
+		// and the title and prompt below are built from `wig`. That combination packages one wig's
+		// picture under another wig's name.
+		const portraitUrl = this.tryOnPortraitUrl;
+		if (!portraitUrl || !wig) {
 			this.generationError = 'Create a try-on portrait first.';
 			return;
 		}
 		this.resetGeneratedPage();
+		// Taken after the reset, which advances it. Selecting another wig resets the page again, so
+		// a moved token means the reader is no longer looking at the page they asked for.
+		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
 		try {
 			await this.syncSpecFromCurrentText();
-			const portraitImage = this.parseTryOnPortraitImage();
+			if (pageToken !== this.pageLoadToken) return;
+			const portraitImage = this.parseTryOnPortraitImage(portraitUrl);
 			if (!portraitImage) {
 				this.generationError =
 					'Try-on portrait format is not supported for coloring-page export.';
 				return;
 			}
+			// A try-on page is a portrait, not a list, so it takes the whole title-only shape and not
+			// just a new title. `syncSpecFromCurrentText` builds the spec from
+			// `DEFAULT_STUDIO_TEXT_OUTPUT` when no verdict has been generated, so replacing the
+			// title alone left the demo seed's items — THE RENT, THE DOPEMAN, WHAT IT COST — and its
+			// footer on the record. `loadCreation` rebuilds a no-`studioText` record's words from
+			// `intent.items`, so reopening a saved try-on put those unrelated lines in the preview
+			// and in the evidence box, which is the text the reader's next verdict request sends.
+			//
+			// `title_only` with no items and no footer is the shape the schema requires
+			// (`ColoringPageSpecSchema` rejects items or a footer in title-only mode) and the one
+			// the page actually is.
+			this.tryOnPageTitle = compactColoringPageTitle(['Wig Try-On', wig.name]);
+			this.spec = this.asTryOnPageSpec(this.spec);
+			// `assembledPrompt` is required and non-empty on a vault record, and this path never
+			// calls the image provider so there is no real prompt to record. It gets a description
+			// of the page instead of a machine prompt on purpose: `loadCreation` puts a reopened
+			// record's own words in the evidence box, and a prompt there is shipped to the provider
+			// as the reader's facts on their next Generate Verdict — the defect recorded at that
+			// call site.
+			this.assembledPrompt = `Wig try-on portrait — ${wig.name} (${wig.style}).`;
+			// Re-validated because the title above was written after `syncSpecFromCurrentText` had
+			// already validated. Checking the issues it left would be checking the previous spec.
+			await this.validateSpec();
 			if (this.validationIssues.length > 0) {
 				this.generationError = 'Fix the page settings before generating.';
 				return;
 			}
 			this.images = [portraitImage];
+			// From here the paper is a portrait, so no verdict describes it. See `tryOnPageOnScreen`.
+			this.tryOnPageOnScreen = true;
 			const creationId = this.generateCreationId();
-			const packagingResult = await outputPackagingAdapter.package({
-				images: $state.snapshot(this.images),
-				outputFormat: 'pdf',
-				fileBaseName: `meechie-try-on-coloring-page-${creationId}`,
-				pageSize: this.spec.pageSize,
-				variants: ['print']
-			});
-			if (packagingResult.ok) {
-				this.packagedFiles = packagingResult.value.files;
-			} else {
-				this.generationError = packagingResult.error.message;
-			}
+			await this.attachPackagedPage(
+				`meechie-try-on-coloring-page-${creationId}`,
+				pageToken
+			);
 		} catch (error) {
 			this.generationError =
 				error instanceof Error ? error.message : 'Try-on coloring page generation failed.';
@@ -571,12 +977,40 @@ export class StudioState {
 		}
 	};
 
+	/**
+	 * Files a finished portrait under the wig it was actually requested for, replacing that wig's
+	 * previous portrait in place so the compare strip keeps its order.
+	 */
+	private storeTryOnPortrait(portrait: TryOnPortrait): void {
+		const existing = this.tryOnPortraits.findIndex(
+			(entry) => entry.wig.id === portrait.wig.id
+		);
+		if (existing >= 0) {
+			this.tryOnPortraits = this.tryOnPortraits.map((entry, index) =>
+				index === existing ? portrait : entry
+			);
+			return;
+		}
+		this.tryOnPortraits = [...this.tryOnPortraits, portrait];
+	}
+
 	handleWigTryOn = async (): Promise<void> => {
-		if (!this.selectedWigId || !this.selfieBase64) {
+		const wig = this.selectedWig;
+		if (!wig || !this.selectedWigId || !this.selfieBase64) {
 			this.tryOnError = 'Select a wig and upload your selfie first.';
 			return;
 		}
-		this.resetTryOnResultState();
+		// Both captured before the await: styling takes long enough that the reader can pick another
+		// wig, or upload a different photo, while it runs.
+		//
+		// The wig decides where the result is filed, so a late portrait can no longer appear under —
+		// and be labelled as — whichever wig is selected when it lands. The selfie decides whether it
+		// is filed at all: a new upload clears the portraits precisely because they are of the old
+		// face, and a request already in flight would otherwise put one straight back, to sit in the
+		// compare strip beside portraits of the new face as though they were the same person.
+		const requestedWig = wig;
+		const requestedSelfieToken = this.selfieToken;
+		this.resetTryOnPageState();
 		this.isTryingOn = true;
 		try {
 			const payload = await postJson(
@@ -584,26 +1018,51 @@ export class StudioState {
 				{
 					selfieBase64: this.selfieBase64,
 					selfieMimeType: this.selfieMimeType,
-					wigId: this.selectedWigId
+					wigId: requestedWig.id
 				},
 				{ timeoutMs: POST_JSON_TIMEOUTS_MS.wigTryOn }
 			);
 			const parsed = WigTryOnResultSchema.safeParse(payload);
 			if (!parsed.success) {
-				this.tryOnError = 'Try-on response did not match contract.';
+				this.setTryOnError(
+					'Try-on response did not match contract.',
+					requestedWig.id,
+					requestedSelfieToken
+				);
 				return;
 			}
 			if (!parsed.data.ok) {
-				this.tryOnError = parsed.data.error.message;
+				this.setTryOnError(parsed.data.error.message, requestedWig.id, requestedSelfieToken);
 				return;
 			}
-			this.tryOnPortraitUrl = `data:${parsed.data.value.portraitMimeType};base64,${parsed.data.value.portraitBase64}`;
+			// The portrait is of the selfie that was current when it was requested. If that is no
+			// longer the selfie on screen, it belongs to nobody now and is dropped rather than filed.
+			if (requestedSelfieToken !== this.selfieToken) return;
+			this.storeTryOnPortrait({
+				wig: requestedWig,
+				portraitUrl: `data:${parsed.data.value.portraitMimeType};base64,${parsed.data.value.portraitBase64}`
+			});
 		} catch (error) {
-			this.tryOnError = error instanceof Error ? error.message : 'Wig try-on failed.';
+			this.setTryOnError(
+				error instanceof Error ? error.message : 'Wig try-on failed.',
+				requestedWig.id,
+				requestedSelfieToken
+			);
 		} finally {
 			this.isTryingOn = false;
 		}
 	};
+
+	/**
+	 * Shows a try-on failure only while it is still the reader's failure to read: the wig it
+	 * happened to is still on screen, and the selfie it was for is still the uploaded one. A
+	 * failure for a wig they have moved off, or for a photo they have replaced, is neither.
+	 */
+	private setTryOnError(message: string, wigId: string, selfieToken: number): void {
+		if (this.selectedWigId !== wigId) return;
+		if (selfieToken !== this.selfieToken) return;
+		this.tryOnError = message;
+	}
 
 	copyQuote = async (): Promise<void> => {
 		if (!this.textOutput || !this.isBrowser) return;
@@ -619,8 +1078,22 @@ export class StudioState {
 		if (this.isSaving) return;
 		const owner = this.owner;
 		const textOutput = this.textOutput;
-		if (!owner || !textOutput) {
+		if (!owner) {
 			this.vaultStatus = 'Session is still connecting. Try again in a moment.';
+			return;
+		}
+		// A page made from a wig try-on has no verdict behind it, and used to be the one page in
+		// the app that could not be kept: the button was disabled on `textOutput` alone, so the
+		// portrait died with the tab while every other surface reached the vault. `studioText` is
+		// optional on the record and `loadCreation` already restores records without it, so the
+		// real requirement is a page — words or a picture, either one.
+		const assembledPrompt = this.assembledPrompt || textOutput?.quote || '';
+		if (!textOutput && this.images.length === 0) {
+			this.vaultStatus = 'Make a page before saving it.';
+			return;
+		}
+		if (!assembledPrompt) {
+			this.vaultStatus = 'This page has nothing to save yet.';
 			return;
 		}
 		this.isSaving = true;
@@ -635,8 +1108,9 @@ export class StudioState {
 					id: creationId,
 					createdAtISO: new Date().toISOString(),
 					intent: $state.snapshot(this.spec),
-					assembledPrompt: this.assembledPrompt || textOutput.quote,
-					studioText: $state.snapshot(textOutput),
+					assembledPrompt,
+					// Only text that actually describes this page is saved as its own.
+					studioText: this.describingStudioText(),
 					revisedPrompt: this.revisedPrompt || undefined,
 					images: storedImages.length > 0 ? storedImages : undefined,
 					violations: $state.snapshot(this.violations),
@@ -655,38 +1129,176 @@ export class StudioState {
 	};
 
 	loadCreation = async (creation: CreationRecord): Promise<void> => {
+		// `null` for a page that prints no items — a reopened try-on portrait, say. Nothing on that
+		// page is a verdict, so nothing is restored as one; see `buildStudioTextFromSpec`.
 		const restoredText = buildStudioTextFromCreationRecord(creation);
 		this.resetGeneratedPage();
 		this.spec = creation.intent;
-		this.evidence = creation.studioText?.quote ?? creation.assembledPrompt;
+		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
+		this.restoredPageLayout = true;
+		// Seed the derivation input at restore time, so the first setting change that does not touch
+		// it compares equal and keeps the density the saved page was built with.
+		this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
+		// The evidence box is an editable field the reader's next Generate Verdict sends to the text
+		// provider as their own words, so what lands in it matters more than a display string does.
+		// This fell back to `assembledPrompt` — the image-generation prompt — for any record saved
+		// without studio text, which put `STYLE: bold outline art / NEGATIVE PROMPT: ...` in the box
+		// and shipped those machine instructions to the provider as user facts on the next click.
+		// `restoredText` already resolves the same `studioText.quote` when it exists and the page's
+		// own words when it does not, so read it from there and never from the prompt. A page with
+		// no printed items restores no text at all, and `specOwnQuote` is the rule that text would
+		// have used — one implementation, so the box cannot say something the page does not.
+		this.evidence = restoredText?.quote ?? specOwnQuote(creation.intent);
 		this.dedication = creation.intent.dedication ?? '';
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;
 		this.textOutput = restoredText;
+		// Reopening a saved page used to hand back the words and drop the picture, so the only
+		// way to see your own page again was to pay for another generation. The record already
+		// carries the image bytes and the trace, so give all of it back.
+		this.images = restoreCreationImages(creation);
+		this.assembledPrompt = creation.assembledPrompt;
+		this.revisedPrompt = creation.revisedPrompt ?? '';
+		this.violations = creation.violations ?? [];
+		this.vaultStatus = `Reopened "${creation.intent.title}".`;
 		await this.validateSpec();
+		await this.repackageRestoredImages(this.pageLoadToken);
 		this.scheduleDraftSave();
 	};
 
-	deleteCreation = async (id: string): Promise<void> => {
-		const result = await creationStoreAdapter.deleteCreation({ id });
-		if (result.ok) {
-			await this.refreshCreations();
+	// Rebuild the printable PDF for a reopened page so Download PDF works on it. Best effort:
+	// the packaging adapter needs a browser canvas for some formats, and a page that cannot be
+	// re-packaged still previews and still exports as an image, so a failure here is not an error
+	// worth putting in front of the reader.
+	private async repackageRestoredImages(loadToken: number): Promise<void> {
+		if (this.images.length === 0) return;
+		try {
+			const packagingResult = await outputPackagingAdapter.package({
+				images: $state.snapshot(this.images),
+				outputFormat: 'pdf',
+				fileBaseName: `meechie-coloring-page-${this.generateCreationId()}`,
+				pageSize: this.spec.pageSize,
+				variants: ['print']
+			});
+			// Packaging is slow enough that the reader can open another page, or start a new
+			// generation, while it runs. Without this guard the late result would attach the
+			// previous page's PDF to whatever is on screen now, so Download PDF would hand back a
+			// different page than the one displayed.
+			if (loadToken !== this.pageLoadToken) return;
+			if (packagingResult.ok) {
+				this.packagedFiles = packagingResult.value.files;
+			}
+		} catch {
+			if (loadToken !== this.pageLoadToken) return;
+			this.packagedFiles = [];
 		}
+	}
+
+	setVaultQuery = (value: string): void => {
+		this.vaultQuery = value;
+		// A search that hides the armed row would otherwise leave a delete primed off-screen.
+		this.pendingDeleteId = null;
+	};
+
+	toggleVaultShowAll = (): void => {
+		this.vaultShowAll = !this.vaultShowAll;
+		// Collapsing can hide the armed row exactly as a search can, and an armed delete left
+		// off-screen would still be primed when the list is expanded again.
+		this.pendingDeleteId = null;
+	};
+
+	requestDeleteCreation = (id: string): void => {
+		this.pendingDeleteId = id;
+		this.vaultError = '';
+	};
+
+	cancelDeleteCreation = (): void => {
+		this.pendingDeleteId = null;
+	};
+
+	deleteCreation = async (id: string): Promise<void> => {
+		const removed = this.creations.find((creation) => creation.id === id) ?? null;
+		const result = await creationStoreAdapter.deleteCreation({ id });
+		this.pendingDeleteId = null;
+		if (!result.ok) {
+			this.vaultError = result.error.message;
+			return;
+		}
+		this.vaultError = '';
+		// Keep a full copy so Undo can put the exact record back, not a reconstruction of it.
+		this.undoableDeletion = removed ? $state.snapshot(removed) : null;
+		this.vaultStatus = removed
+			? `Deleted "${removed.intent.title}".`
+			: 'Deleted.';
+		await this.refreshCreations();
+	};
+
+	undoDelete = async (): Promise<void> => {
+		const record = this.undoableDeletion;
+		if (!record) return;
+		// The store keeps a fixed number of records and drops the oldest past that. If the slot
+		// freed by the delete has since been taken by a new save, restoring would push the list
+		// back over the cap and silently evict another page — the exact failure this whole feature
+		// exists to stop — while reporting only that this one came back. Refuse, and say why,
+		// rather than trading one lost page for another.
+		//
+		// This is a lower bound, not a store-wide guarantee. `creations` holds only the records
+		// matching the current owner, while the adapter applies its cap to the whole stored array.
+		// The two agree while `cb_session_id_v1` survives, since `buildOwner` derives the single
+		// owner from it; records orphaned under a previous session id still occupy slots this
+		// count cannot see. Closing that gap means deciding capacity inside `CreationStoreSeam` or
+		// exposing it through the contract — a contract change, and so the full Seam-Driven
+		// Development workflow. It is tracked with the other deferred seam work in
+		// `WORST_TO_BEST_LOG.md` rather than widened into this fix.
+		if (this.creations.length >= VAULT_CAPACITY) {
+			// Deliberately does not say "delete a page, then undo". `deleteCreation` replaces
+			// `undoableDeletion` with whatever was deleted last, so following that instruction
+			// would discard this record and leave Undo holding the page just deleted to make room
+			// for it. Say what is true, and what it costs, instead of scripting a move that
+			// destroys the thing the reader is trying to save.
+			this.vaultError =
+				`The vault is full at ${VAULT_CAPACITY} pages, so "${record.intent.title}" cannot ` +
+				'come back without pushing another page out. It is still held here for now — but ' +
+				'Undo only ever holds the most recent deletion, so deleting another page to make ' +
+				'room would replace it. Download the page you want to keep before freeing a slot.';
+			return;
+		}
+		const result = await creationStoreAdapter.saveCreation({ record });
+		if (!result.ok) {
+			this.vaultError = result.error.message;
+			return;
+		}
+		this.vaultError = '';
+		this.undoableDeletion = null;
+		this.vaultStatus = `Restored "${record.intent.title}".`;
+		await this.refreshCreations();
+	};
+
+	dismissUndoDelete = (): void => {
+		this.undoableDeletion = null;
 	};
 
 	toggleFavorite = async (creation: CreationRecord): Promise<void> => {
 		const result = await creationStoreAdapter.saveCreation({
-			record: { ...creation, favorite: !creation.favorite }
+			record: { ...$state.snapshot(creation), favorite: !creation.favorite }
 		});
-		if (result.ok) {
-			await this.refreshCreations();
+		if (!result.ok) {
+			this.vaultError = result.error.message;
+			return;
 		}
+		this.vaultError = '';
+		await this.refreshCreations();
 	};
 
 	// --- Lifecycle ---
 
 	async init(): Promise<void> {
 		this.isBrowser = true;
+		// Re-read rather than trusting the field initializer: a test or an alternate host may have
+		// replaced `origin` after construction, and the value captured then would be the default
+		// adapter's. The clock and visibility seams are consulted here for the same reason.
+		this.appOrigin = this.origin.getOrigin();
+		this.startSavedLabelRefresh();
 		const [sessionResult, draft] = await Promise.all([
 			sessionAdapter.getSession(),
 			creationStoreAdapter.getDraft({})
@@ -702,10 +1314,30 @@ export class StudioState {
 		}
 		if (draft.ok && draft.value) {
 			this.spec = draft.value.intent;
+			// A persisted spec carries its own provenance, exactly as `loadCreation` treats one it
+			// reads from the vault — so this is unconditionally true, for the same reason that one
+			// is. Deriving it from `listMode === 'title_only'` recognised only reopened *quote*
+			// pages and missed reopened structured toolkit pages, which are footerless `list`s.
+			// Setting it for a studio-authored draft costs nothing: such a spec is a `list` with a
+			// footer, so both derivations above return what the false branch would have.
+			this.restoredPageLayout = true;
+			this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
 			this.evidence = draft.value.chatMessage || '';
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;
 			this.border = draft.value.intent.border;
+			// Two separate reasons a restored draft carries no verdict, and each is answered where
+			// it is actually knowable.
+			//
+			// `isKnownDraftSeed` is the one asked here: the page does print items, but they are the
+			// ones the studio ships with, so there is no reader's work to restore.
+			//
+			// The other is the builder's, and this check could not have made it. A title-only try-on
+			// page prints nothing a verdict could describe, and its title — the wig's name — matches
+			// no seed signature, so this waved it through and the studio came back from a refresh
+			// showing THE RENT / THE DOPEMAN under the wig's name with Save to Vault lit up over a
+			// record holding nothing. `buildStudioTextFromDraftRecord` returns null for that page,
+			// which is why the assignment is safe to make unconditionally once past this check.
 			if (draft.value.studioText || !isKnownDraftSeed(draft.value.intent)) {
 				this.textOutput = buildStudioTextFromDraftRecord(draft.value);
 			}
@@ -714,9 +1346,43 @@ export class StudioState {
 		await this.refreshCreations();
 	}
 
+	// "Saved today" is computed against `nowMs`, which otherwise only advances when the vault is
+	// read or written, so a studio left open across UTC midnight keeps showing yesterday's labels.
+	// Two things move the clock forward, because the two cases are genuinely different:
+	//
+	//   - A timer armed at the next UTC day boundary, which re-arms itself for the boundary after
+	//     that. This is the case that matters most: a reader who leaves the tab in the foreground
+	//     is looking straight at the labels while they go stale, and no event would ever fire.
+	//   - `visibilitychange`, for the tab that was suspended in the background. A backgrounded
+	//     timer can be throttled or deferred, so the boundary timer alone cannot be relied on to
+	//     have fired on time; reading the clock on the way back in fixes the label immediately.
+	private startSavedLabelRefresh(): void {
+		this.scheduleNextDayBoundaryRefresh();
+		this.stopVisibilityWatch = this.visibility.onVisible(() => {
+			this.nowMs = this.clock.now();
+			// The boundary the old timer was waiting for may already be behind us.
+			this.scheduleNextDayBoundaryRefresh();
+		});
+	}
+
+	private scheduleNextDayBoundaryRefresh(): void {
+		this.cancelDayBoundaryRefresh?.();
+		this.cancelDayBoundaryRefresh = this.clock.scheduleAt(
+			nextUtcDayBoundary(this.clock.now()),
+			() => {
+				this.nowMs = this.clock.now();
+				this.scheduleNextDayBoundaryRefresh();
+			}
+		);
+	}
+
 	destroy(): void {
 		if (this.draftTimer) {
 			globalThis.clearTimeout(this.draftTimer);
 		}
+		this.cancelDayBoundaryRefresh?.();
+		this.cancelDayBoundaryRefresh = null;
+		this.stopVisibilityWatch?.();
+		this.stopVisibilityWatch = null;
 	}
 }

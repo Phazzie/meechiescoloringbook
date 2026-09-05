@@ -71,7 +71,7 @@ mistake this section exists to prevent repeating.
 
 ## Known open items
 
-- `npm run format:check` fails on six rate-limit files. Pre-existing — it failed identically before any of this session's changes. It is not in `npm run verify` or CI, so it has never blocked. Decide whether to enforce prettier or drop the script.
+- `npm run format:check` reports 721 files needing reformatting repo-wide, not "six rate-limit files" as an earlier version of this line claimed — verified by running it directly. The rate-limit-scoped subset alone is 13 files (`src/lib/adapters/rate-limit-seam/index.ts`, `src/lib/seams/rate-limit-seam/{fixtures,mock,test,validators}.ts`, `src/lib/server/rate-limit-{config,guard,identity,memory-store}.ts`, `tests/unit/rate-limit-{guard,identity,memory-store,route}.test.ts`); the repo-wide majority is auto-generated `docs/evidence/**` JSON/Markdown that's never been run through prettier, growing with every session that adds a new dated evidence folder. Pre-existing — not in `npm run verify` or CI, so it has never blocked. Decide whether to enforce prettier or drop the script.
 - The vault skip signal stops at the seam boundary. `parseRecords` reports `skippedIndices`, but `CreationStoreSeam` pins its return types, so the UI still cannot tell a user that records were dropped. Surfacing it needs the contract in scope.
 - The e2e suite loads Google Fonts on every page navigation, from `src/routes/+layout.svelte`. No credentials, no cost, but a "credentialless" suite that touches a third-party CDN is not hermetic and will behave differently on an egress-restricted runner.
 

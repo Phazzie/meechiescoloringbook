@@ -79,17 +79,39 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `prompt-template.ts` | Canonical and compressed prompt assembly |
 | `constants.ts` | App-wide constants |
 | `http-client.ts` | Shared fetch helper for JSON POST requests (used by routes and UI components) |
+| `vault-gallery.ts` | Pure Quote Vault transforms — sort/search/label saved pages, and rebuild a saved page's image from its stored bytes |
+| `tool-page-recipe.ts` | Pure per-tool coloring page recipes — turns a Meechie tool verdict into the `ColoringPageSpec` + style hint it deserves (list page vs full-quote page) |
+| `mode-catalog.ts` | The focused-mode catalog behind `/m/<slug>` — which modes exist, the questions each asks, and how the answers become a `MeechieToolInput`. Derived from `studioModes` so the home page's links and the mode pages cannot drift apart |
+| `generated-image-preview.ts` | Pure `GeneratedImage` conversions — `data:` URL for a preview, base64 bytes for the vault. Shared by the studio, the toolkit and the mode routes |
+| `wig-catalog-gallery.ts` | Pure wig-catalog shopping transforms — search across name/brand/style/colour/tags, facet chips for length, hair type and colour family, and sorting. Facet counts are measured against the search and every *other* dimension, so a chip never advertises results it cannot return |
 
 ### src/routes/
 
 | File | Purpose |
 |------|---------|
-| `+page.svelte` | Main coloring page builder UI |
-| `meechie/+page.svelte` | Meechie assistant chat UI |
+| `+page.svelte` | Main Meechie coloring-page studio with wig try-on |
+| `meechie/+page.svelte` | Direct route to Meechie tools (hosts `MeechieTools.svelte`, not a chat UI) |
+| `who-fucked-up/+page.svelte`, `rate-his-excuse/+page.svelte`, `random/+page.svelte` | The three standalone mode routes in the nav. Each owns its hero, input and verdict presentation, then hands off to `VerdictPageStudio` |
+| `m/[mode]/+page.svelte` | Focused single-mode page, one per studio mode, and **the only page five of the eight modes have**. **Reachable from the home page** — `StudioHero.svelte` renders a `/m/<id>` link for every weekly mode. Resolves the slug in `+page.ts` (404 on an unknown one) and keys the component on it. Full coloring-page factory: verdict, then `VerdictPageStudio`. Not a delete candidate |
+| `+error.svelte` | The app-wide error page. Before it existed every failure fell through to SvelteKit's unstyled default; it now lists every real mode so a mistyped `/m/<slug>` has somewhere to go |
 | `api/generate/+server.ts` | Generation endpoint |
 | `api/image-generation/+server.ts` | Image provider endpoint |
 | `api/chat-interpretation/+server.ts` | Chat-to-spec endpoint |
 | `api/tools/+server.ts` | Meechie tool endpoint |
+| `api/meechie-studio-text/+server.ts` | Meechie Studio text (verdict/quote) endpoint |
+| `api/wig-try-on/+server.ts` | Wig try-on portrait endpoint |
+
+### src/lib/components/ — shared components
+
+| File | Purpose |
+|------|---------|
+| `MeechieTools.svelte` | The eleven-tool hub at `/meechie`; owns its own verdict-to-page lifecycle |
+| `VerdictPageStudio.svelte` | The "put it on paper" panel shared by the three mode routes — dedication, generate, drift report, preview, downloads, vault save |
+| `verdict-page-state.svelte.ts` | `VerdictPageState`: the runes state class behind `VerdictPageStudio`. Owns the verdict request, the page recipe, generation, packaging, and the vault write, with separate staleness tokens for the verdict and the page |
+| `SelfieUpload.svelte` | Wig try-on selfie input |
+| `WigCarousel.svelte` | The wig catalog browser — presentational, taking `wigs` and `loadError` as props, and owning the search box, facet chips, sort control and result count. The catalog is read by `WigCatalogSeam` in the page's `load` (never a raw `wigs.json` import, so a load failure or an empty catalog is reported rather than rendered as an empty row) — in `load` rather than an `$effect` so the cards and their affiliate links are server-rendered |
+| `MeechieModePage.svelte` | The body of the `/m/[mode]` focused-mode page, which the home page links to. Asks the mode's question, shows the verdict, then hands off to `VerdictPageStudio` — the same shared panel the three standalone mode routes use |
+| `studio/` | The home studio's panels (hero, input, preview, settings, vault row, wig try-on) |
 
 ### scripts/ — `npm run verify` automation (do not edit without a plan)
 

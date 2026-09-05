@@ -29,6 +29,440 @@ Short, durable decisions with context and tradeoffs.
   - Evidence: docs/evidence/2026-09-05/verify.txt; docs/evidence/2026-09-05/test.txt; docs/evidence/2026-09-05/chamber-lock.json; docs/evidence/2026-09-05/seam-ledger.json
   - Summary: Migrated SessionSeam, AuthContextSeam, and CreationStoreSeam to canonical self-contained seam packages with fixture modules, in-memory mocks, self-contained contract suites, canonical adapters, and backward-compatible re-export stubs.
   - Risks: Concurrent multi-tab localStorage writes could lead to race conditions if two tabs write simultaneously; localStorage access may throw SecurityError in locked-down iframes.
+## 2026-09-05 - Run 5 merge close-out (micro plan + self-critique)
+
+- Date: 2026-09-05
+- Decision: Record Run 5's merge outcome in `WORST_TO_BEST_LOG.md` as a separate, docs-only change
+  after PR #297 merged as `cc5f622`, and regenerate this date's evidence artifacts on that
+  close-out head rather than citing the merged head's.
+- Context: The worst-feature routine's log is the only memory between runs. Run 5 exists because
+  three previous runs deferred the wig try-on by citing each other; a run that merges without
+  recording its outcome and its gate reasoning leaves the next one inheriting a claim instead of
+  evidence. A review found this close-out had no micro Plan of its own and was inheriting the
+  pre-merge feature plan in `plan.md`, which describes a different change.
+- Alternatives: Fold the close-out into the feature PR (impossible - it records that PR's merge);
+  skip it (loses the outcome, the gate reasoning and the two carried-forward findings); leave the
+  merged head's evidence in place (rejected, and correctly: the routine requires check, lint, test
+  and build before *every* push).
+- Consequences: `docs/evidence/2026-09-05/` now describes two heads, so provenance is stated per
+  artifact. `verify-outer.txt` is added because `verify.txt` holds only the inner verify-runner
+  stage, which left the audit gate's result and the chain's exit status asserted rather than
+  captured.
+- Revisit criteria: If the routine ever produces the close-out inside the feature PR, the two-head
+  split in `verify-chain.txt` becomes unnecessary and should be removed rather than maintained. If
+  `verify-chain.txt` is ever generated rather than hand-written, its stale-header failure mode goes
+  away and the per-artifact labelling should be reassessed. And `scripts/proof-tape.mjs` should
+  learn to compare artifact times against the start of the current push rather than against
+  `chamber-lock.json`: as it stands, `cipher-gate.json` can never clear that test, because the
+  ordering above requires it to be written *before* the chain in order to be inventoried correctly
+  at all, so the tape calls it "written by an earlier run" every time. That is a generator change
+  with its own tests, not a close-out change, which is why it is recorded here instead of made.
+- Plan (micro):
+  - Goal: record the merge outcome, the gate conditions and exclusions as actually checked, and the
+    findings worth carrying to the next run.
+  - Seams: none. No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+    `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` is touched, and no `src/` or `tests/`
+    file at all.
+  - Files:
+    - `WORST_TO_BEST_LOG.md` (the close-out entry and its corrections)
+    - `DECISIONS.md` (this entry)
+    - `docs/evidence/2026-09-05/verify-outer.txt` (new; written after the chain completes, so it
+      is deliberately absent from that run's own `proof-tape` inventory)
+    - `docs/evidence/2026-09-05/verify-chain.txt`
+    - `docs/evidence/2026-09-05/verify.txt`
+    - `docs/evidence/2026-09-05/test.txt`
+    - `docs/evidence/2026-09-05/lint.txt`
+    - `docs/evidence/2026-09-05/build.txt`
+    - `docs/evidence/2026-09-05/cipher-gate.json`
+    - `docs/evidence/2026-09-05/chamber-lock.json`
+    - `docs/evidence/2026-09-05/shaolin-lint.json`
+    - `docs/evidence/2026-09-05/assumption-alarm.json`
+    - `docs/evidence/2026-09-05/seam-ledger.json`
+    - `docs/evidence/2026-09-05/seam-ledger.md`
+    - `docs/evidence/2026-09-05/clan-chain.json`
+    - `docs/evidence/2026-09-05/clan-chain.md`
+    - `docs/evidence/2026-09-05/proof-tape.json`
+    - `docs/evidence/2026-09-05/proof-tape.md`
+  - Not touched, and deliberately so: `docs/evidence/2026-09-05/e2e.txt`,
+    `docs/evidence/2026-09-05/rewind-wig-catalog-seam.txt` and
+    `docs/evidence/2026-09-05/rewind-WigCatalogSeam.txt` carry the code head's results, because the
+    routine scopes end-to-end runs to user-facing changes and no code has changed since.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+    `npm run cipher:gate`. `npx playwright test` is deliberately not re-run: the routine scopes
+    end-to-end runs to user-facing changes, and a log entry is not one.
+  - How behaviour stays unchanged: no file under `src/` or `tests/` is in the diff at all, so there
+    is no code whose behaviour could differ - that, and not any property of the build output, is
+    what establishes it. `npm run build` exits 0 and every emitted chunk keeps its byte size, and
+    `npm test` is unchanged at 1252 passed / 1 skipped. Note what those do *not* show: the hashed
+    filenames differ between two builds of identical source, so a green build is not evidence of an
+    identical bundle and is not offered as any. Reproduce it from a clean tree with
+    `npm run build && cp -r .svelte-kit/output /tmp/a && npm run build` and compare the emitted
+    filenames: four chunks change name at byte-identical sizes with no source edit between them.
+    Neither a hash nor a commit range is cited here on purpose. A hash quoted in prose is wrong on
+    the next build, which is the very instability being documented; and a range of close-out commits
+    is not guaranteed to remain reachable once this branch is merged and its ref deleted. Running
+    the build twice needs neither.
+- Self-critique (micro): The riskiest thing here is not the diff, it is the prose. Every review
+  finding on this close-out has been a sentence about evidence that was looser than the evidence,
+  and twice the looseness was introduced by the commit fixing the previous instance - a stale
+  "Results on this head" heading over a Playwright run that had not happened, an await-timing
+  explanation that misdescribed code the reader can check, and a header still naming a superseded
+  head. `npm run cipher:gate` cannot catch any of them: it verifies that an entry exists, not that
+  it is true. The mitigation applied is structural rather than a resolution to be careful - claims
+  are now attached to the artifact they describe rather than to a section heading, and the moving
+  totals were removed from a hand-written header and left only in the append-only log where they
+  cannot go stale.
+
+## 2026-09-05 - The wig carousel loads through `WigCatalogSeam`, and facet counts are cross-filtered
+
+- Cipher Gate:
+  - Date: 2026-09-05
+  - Seams: WigCatalogSeam (existing; no contract, validator, mock, probe, fixture or adapter changed). The change is a new *consumer*: the UI stops bypassing the seam and starts calling `listWigs()` through the existing adapter, as `/api/wig-try-on` already does. CreationStoreSeam, SpecValidationSeam and OutputPackagingSeam are likewise consumed through their existing adapters, unchanged.
+  - Evidence: docs/evidence/2026-09-05/rewind-wig-catalog-seam.txt, docs/evidence/2026-09-05/chamber-lock.json, docs/evidence/2026-09-05/test.txt, docs/evidence/2026-09-05/verify.txt, docs/evidence/2026-09-05/seam-ledger.md, docs/evidence/2026-09-05/clan-chain.md, docs/evidence/2026-09-05/proof-tape.md, src/lib/seams/wig-catalog-seam/contract.ts, src/lib/seams/wig-catalog-seam/validators.ts, src/lib/seams/wig-catalog-seam/mock.ts, src/lib/seams/wig-catalog-seam/probe.ts, src/lib/seams/wig-catalog-seam/test.ts, src/lib/seams/wig-catalog-seam/fixtures.ts, src/lib/adapters/wig-catalog-seam/index.ts, docs/seams.md
+  - Summary: `WigCarousel.svelte` previously read the catalog with `import wigData from '$lib/data/wigs.json'` and `wigData as unknown as Wig[]`, so `validateWigCatalog` never ran for the UI and the seam's `WIG_CATALOG_LOAD_FAILED` and `WIG_CATALOG_EMPTY` results had no path to a reader - a malformed or empty catalog rendered as an empty row with no message. The seam is now the only reader, and it is called from the page's `load` in `src/routes/+page.ts`, which runs on the server and on the client. `WigCarousel.svelte` is presentational: it receives `wigs` and `loadError` as props and renders either the validated wigs or the seam's own error message. It has **no** loading state, because there is nothing to wait for - the cards and their affiliate links are in the server-rendered HTML. (An intermediate version of this change did the load in a component `$effect`; that removed the catalog from the initial HTML entirely and was replaced. This entry describes the shipped design, not that one.) This is recorded as a Cipher Gate entry because the integration makes seam outcomes newly observable in the UI, which a reviewer reasonably read as crossing the boundary, and `AGENTS.md` says to treat doubt as a seam change. What the entry does not claim is a seam change: the seam's six artifacts all pre-date this work and none is in the diff (`git diff origin/main...HEAD --name-only` matches nothing under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/`), no contract shape moved, and the seam returns exactly what it returned before for the same input. `npm run rewind -- --seam WigCatalogSeam` passes 27 tests on the code head this entry describes; it is not re-run for the docs-only close-out that follows, which changes no code for it to verify.
+  - Risks: The seam now runs on the server as well as in the browser. That is safe to assert rather than hope for, because the adapter's only input is a bundled `import rawCatalog from '../../data/wigs.json'` - no `fs`, no network, no `process.cwd()` - so it is the same computation in both runtimes and cannot fail on one and succeed on the other. What does change is how often it runs: `+page.ts` constructs a fresh seam per load, and `cachedWigs` lives in that instance's closure, so `validateWigCatalog` now runs once per page load instead of once per browser tab. Accepted, and stated rather than glossed: the catalog is eight entries, and the alternative - a module-level instance - would make the parse result outlive a deploy inside a warm serverless instance. A `wigs.json` edited in a running dev server is still not re-read until the module graph reloads, exactly as the raw import behaved. `wig-catalog-seam` carries a documented manual probe with no `runProbe` export and `N/A` in the registry's probe-date column; that pre-dates this change and is untouched by it, so the seam's automated evidence here is its contract test via rewind and chamber-lock's artifact-presence gate, not a fresh probe run. Making the failure paths visible also means a reader can now be shown a catalog error where they previously saw an empty row, which is better but is a new user-facing string on a path that had none - and because the load runs on the server, that string can now reach the initial HTML.
+
+
+- Date: 2026-09-05
+- Seams: none changed. `WigCatalogSeam` is consumed through its existing adapter
+  (`src/lib/adapters/wig-catalog-seam/index.ts`), exactly as `/api/wig-try-on` already consumes it;
+  `CreationStoreSeam`, `SpecValidationSeam` and `OutputPackagingSeam` through the adapters
+  `studio-state.svelte.ts` already calls. No file under `contracts/`, `probes/`, `fixtures/`,
+  `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` is in the diff and no
+  contract shape changed. A Cipher Gate entry is recorded above all the same: a reviewer read the
+  new consumer as making seam outcomes observable across the boundary, and `AGENTS.md` says to treat
+  doubt as a seam change.
+- Decision 1: the catalog is read by `createWigCatalogSeam().listWigs()` in `src/routes/+page.ts`,
+  not by importing `wigs.json` into `WigCarousel.svelte` and casting it with `as unknown as Wig[]`.
+  The carousel becomes presentational and takes `wigs` and `loadError` as props.
+  - Why: the cast meant `validateWigCatalog` never ran for the UI and the seam's
+    `WIG_CATALOG_LOAD_FAILED` / `WIG_CATALOG_EMPTY` errors could not reach a reader, so a broken
+    catalog rendered as an empty row with no message. The component's own comment claimed
+    "validators run at adapter layer" while never calling the adapter.
+  - Why in `load` and not in the component: the first attempt read the seam from an `$effect`, which
+    does not run during SSR. That took the wigs and their affiliate links out of the
+    server-rendered HTML — the one thing this section of the page exists to carry — and left a
+    loading line for a crawler or a reader with scripting off. A `load` runs in both places, so the
+    seam is still the only reader and the markup comes back. An e2e test asserts against the
+    response body, not the hydrated DOM, so the two cannot silently diverge again.
+  - Tradeoff: a fresh seam instance per load means `validateWigCatalog` runs once per page load
+    rather than once per tab. Accepted for an eight-entry catalog; the alternative is a UI that
+    cannot report a failure it is having.
+- Decision 2: facet counts are computed against the search and every *other* dimension, not against
+  the whole catalog.
+  - Why: two of eight wigs are synthetic and neither is black; four are black and none is synthetic.
+    A catalog-wide count renders "Black 4" while Synthetic is selected and returns nothing when
+    tapped — a control that describes itself falsely, which is the defect this rebuild exists to
+    remove.
+  - Alternative rejected: catalog-wide counts, which are one line shorter. A count of 0 also
+    disables its chip, so a dead end cannot be entered.
+- Decision 3: try-on portraits are held as a list keyed by the wig they were made for, and the wig
+  is captured before the request rather than read after it.
+  - Why: a single shared string made two looks impossible to compare and let a late response attach
+    itself to whichever wig was selected when it landed.
+  - Tradeoff: `selectedWigId` becomes derived from `selectedWig` rather than separately assigned, so
+    the two cannot disagree about which wig is on screen.
+- Decision 4: `saveToVault` accepts a page with images and no studio text.
+  - Why: a try-on page has no verdict behind it and was the only page in the app the vault refused.
+    `CreationRecordSchema.studioText` is already optional and `loadCreation` already restores
+    records without it.
+  - Tradeoff: `assembledPrompt` is required and non-empty, so the try-on path supplies a description
+    of the page rather than a machine prompt — `loadCreation` puts a reopened record's own words in
+    the evidence box, and a prompt there is shipped to the provider as the reader's facts.
+
+## 2026-09-04 - The focused-mode catalog is derived from `studioModes`, and an unknown slug is a 404
+
+- Date: 2026-09-04
+- Seams: none changed. `MeechieToolSeam`, `SpecValidationSeam`, `OutputPackagingSeam`,
+  `CreationStoreSeam`, `SessionSeam` and `ClockSeam` are reached through `VerdictPageState`, which
+  already calls their existing adapters for the three standalone mode routes. No file under
+  `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or `src/lib/seams/`
+  was touched, so no Cipher Gate entry is required.
+- Decision 1: `/m/[mode]` delegates everything after the verdict to `VerdictPageState` +
+  `VerdictPageStudio`, exactly as `/who-fucked-up`, `/rate-his-excuse` and `/random` already do.
+  - Alternative rejected: give it its own lifecycle. That is the duplication run 3 removed, and it
+    is how all three standalone routes ended up each missing a different thing.
+  - Alternative rejected: delete `/m/[mode]` and redirect to the standalone routes. Only three of
+    the eight modes have a standalone route; the other five would lose their only page.
+- Decision 2: the mode catalog is derived from `studioModes` rather than restated beside it.
+  - Why: the home page renders a `/m/<id>` link for every studio mode, and the route resolved those
+    ids against a second hand-written map. The two had to agree for the links to work and nothing
+    checked that they did — a mode added to `studioModes` alone would have got a working home-page
+    link to a page that silently served Random Meechie.
+  - Consequence: adding a mode to `studioModes` gives it a mode card, a home-page link and a `/m/`
+    page in one edit. A mode whose tool has no field definition is left out of the catalog rather
+    than rendered with a dead button.
+- Decision 3: an unrecognised slug returns 404 instead of falling back to Random Meechie.
+  - Tradeoff: this is a behaviour change, and a fallback never 404s. But answering 200 with a
+    different mode's page under the requested address is worse than saying the address is wrong —
+    it is indistinguishable, from the reader's side, from the mode having been renamed.
+  - Every slug the previous hand-written map accepted is kept as an alias and asserted by test, so
+    the change reaches typos only, never a link that works today. Aliases resolve to the canonical
+    slug because the slug becomes the download filename stem.
+- Decision 4: `/m/[mode]` keys `MeechieModePage` on the slug.
+  - Why: SvelteKit reuses one component instance across parameter changes on the same route, and
+    the page owns a `VerdictPageState` built once per instance. Without the key, walking from one
+    mode to another leaves the first mode's verdict on screen under the second mode's title, and
+    the page it made still downloads under the first mode's filename.
+  - Proven by deleting the key and watching the end-to-end test fail. The first version of that
+    test used `page.goto`, which builds a new document, and so passed with the key deleted — the
+    navigation has to be client-side for the reuse to happen at all. The test now marks the
+    document and asserts the mark survives the click.
+
+## 2026-09-04 - The standalone mode routes share one verdict-to-page lifecycle, and it needs two staleness tokens
+
+- Date: 2026-09-04
+- Seams: none changed. `MeechieToolSeam`, `SpecValidationSeam`, `OutputPackagingSeam`,
+  `CreationStoreSeam` and `SessionSeam` are called through their existing adapters exactly as
+  `src/routes/+page.svelte` and `src/lib/components/MeechieTools.svelte` already call them. No file
+  under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+  `src/lib/seams/` was touched, so no Cipher Gate entry is required.
+- Decision 1: `/who-fucked-up`, `/rate-his-excuse` and `/random` delegate everything after the
+  verdict to `VerdictPageState` + `VerdictPageStudio`, and keep only their own hero, input and
+  verdict presentation.
+- Context: the three routes carried ~2,000 lines of near-identical copy-paste. All three sent
+  `listMode: 'title_only'` for every verdict, discarding the `Fault:`/`Consequence:`/`Move:`
+  structure the tool prompts explicitly request and capping the whole answer at a 96-character
+  title; all three discarded the drift report; none could write to the Quote Vault; all three
+  packaged print and share in one call, so a failed share image took the printable PDF with it; and
+  all three cleared the verdict and previews before the request went out, so a failed retry
+  destroyed a page the user had already paid to generate. Every one of those was already solved
+  once, in the toolkit, by code these routes could not reach.
+- Alternatives: fix the three copies in place (rejected — it preserves the thing that made them
+  diverge); make the routes render `MeechieTools.svelte` (rejected — it would replace three distinct
+  landing experiences with one tool picker, and the hero, the score ring and the tap-for-truth
+  loading state are the reason these routes exist).
+- Decision 2: the shared class keeps **two** staleness tokens, `verdictToken` and `pageToken`, not
+  the single token the toolkit uses.
+- Context: `pageToken` is bumped by anything that makes the displayed page wrong, including editing
+  the dedication. `verdictToken` is bumped only by an explicit reset. With one shared token, typing
+  in the dedication field — which on these routes is on screen while a replacement verdict is still
+  loading — silently cancels that verdict request and re-enables the button with nothing on the
+  way. The toolkit never hits this because it clears the verdict on every tool switch.
+- Consequences: a fix to any of these behaviours now lands on all three routes at once. The cost is
+  one more concept in the shared class; it is tested directly
+  (`tests/unit/verdict-page-state.test.ts`, "does not cancel an in-flight verdict request"), and
+  collapsing the two tokens makes that test fail.
+- Revisit criteria: if `MeechieTools.svelte` is ever migrated onto `VerdictPageState`, re-check
+  whether it still needs the tool-switch reset that currently makes one token sufficient there.
+
+## 2026-09-04 - A tool page is shaped by the verdict's structure, and a page saved from the toolkit carries no `studioText`
+
+- Date: 2026-09-04
+- Seams: none changed. `MeechieToolSeam`, `CreationStoreSeam`, `SessionSeam` and
+  `OutputPackagingSeam` are called through their existing adapters; no contract was touched.
+- Decision 1: `src/lib/core/tool-page-recipe.ts` chooses the page type per verdict rather than per
+  tool. A verdict that parses into two or more structured lines — the `Fault:`/`Consequence:`/`Move:`
+  beats that `red_flag_or_run` and `wwmd` are prompted to emit, or the `Nth place:` entries
+  `lineup` is prompted to emit — becomes a numbered list page; everything else becomes a full-quote
+  page.
+- Context: the three standalone mode routes each flatten headline plus response into one
+  `title_only` page title capped at 96 characters, which discards the structure the tool prompt
+  deliberately asked for. The app already has a list page format (`listMode: 'list'`), and nothing
+  was using it outside the studio.
+- Tradeoff: parsing a provider's prose is not guaranteed. The mitigation is that the fallback is
+  not a failure — an unstructured answer is a perfectly good quote page — and the threshold is two
+  items, because a one-item list is a quote wearing a list's clothes. Alternative rejected: always
+  emitting a list page, which would print single-item lists whenever a provider ignored the format.
+- Decision 2: list labels are truncated to the contract's 40 characters and then trimmed back to
+  the last word that carries meaning (`trimDanglingTail`), dropping a trailing conjunction or
+  preposition and the fragment one drags behind it.
+- Context: proven necessary rather than assumed. Driving the rebuilt hub in a real browser produced
+  `Fault: he had time to answer and used` — a printed page line cut mid-phrase. The word-boundary
+  cut alone was not enough.
+- Tradeoff: the rule is a word list, so it is English-only and will not catch every awkward cut
+  (`Move: change the locks before he asks` survives). It is a readability improvement on a hard
+  40-character contract limit, not a grammar engine, and it is tested against the cases that
+  actually occurred.
+- Decision 3 (**superseded on the same day — see the correction below**): a page saved to the vault
+  from the toolkit stores no `studioText`.
+- Context: `MeechieStudioTextOutputSchema` requires a verdict, a quote, a page title, and between
+  two and six page items. A tool verdict supplies none of those fields, and manufacturing them
+  would put words in the vault that Meechie never said.
+- Tradeoff as originally recorded: the vault row for a toolkit page shows its title, thumbnail and
+  save date but no quote line, and vault search matches it on title rather than on quote. This is
+  the behaviour `vault-gallery.ts` already documents and handles for records saved before
+  `studioText` existed (`vaultQuote` returns `''` and `VerdictRow.svelte` omits the line).
+
+## 2026-09-04 - Correction: a toolkit vault save must store `studioText`
+
+- Date: 2026-09-04
+- Supersedes: Decision 3 above, which was wrong. Raised by a Codex review on PR #291 and confirmed
+  against the code before acting on it.
+- What the original reasoning got wrong: it checked how an absent `studioText` renders in the vault
+  **row** (`vaultQuote`, which correctly returns `''`) and concluded the absence was handled
+  everywhere. It is not handled on the **reopen** path. `loadCreation` runs the record through
+  `buildStudioTextFromCreationRecord` → `buildStudioTextFromSpec`, which
+  - falls back to `assembledPrompt` for the quote, and on a generated page that field holds the
+    full image-generation prompt, so reopening a saved page would print `STYLE:` / `NEGATIVE
+    PROMPT:` rendering instructions inside quotation marks as if Meechie had said them; and
+  - falls back to `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` when the saved spec has no items — which
+    is *every* full-quote page — attaching the unrelated default landlord lines to the user's own
+    saved page.
+- Decision: `buildToolStudioText` in `src/lib/core/tool-page-recipe.ts` builds the stored text, and
+  every field is text Meechie actually produced: `verdict` is the headline, `quote` is the
+  response, `pageTitle` is the page's own title, and `pageItems` are the lines the page really
+  prints. A full-quote page prints no items, so it falls back to the response's own sentences, and
+  only if those cannot yield the schema's two does it lead with the headline — still her words,
+  never a placeholder.
+- Evidence: `tests/unit/tool-page-recipe.test.ts` asserts the output against
+  `MeechieStudioTextOutputSchema` for every tool across list and quote pages, drives the real
+  `buildStudioTextFromCreationRecord` to prove the reopen path is faithful, and keeps a red proof
+  showing the old behaviour leaking `NEGATIVE PROMPT` into the quote and the default landlord items
+  into the page.
+- Lesson worth keeping: "an existing comment says this case is handled" is a claim about the code
+  path that comment sits on, not about every path that reads the field.
+
+## 2026-09-04 - Vault image completeness is checked at the edges, not by decoding
+
+- Date: 2026-09-04
+- Decision: `looksCompleteImage` in `src/lib/core/vault-gallery.ts` validates a stored image by its
+  signature and its format's terminator (PNG `IEND`, JPEG `FFD9`, WebP's RIFF declared size against
+  the actual byte length, a closed root for SVG) rather than by decoding or structurally walking the
+  payload.
+- Context: A review on PR #289 correctly observed that a PNG signature followed by arbitrary bytes
+  and a valid `IEND` trailer passes this check, and asked for the image structure or decoding to be
+  validated before the stored bytes are preferred over a fallback url. The observation is right; the
+  remedy is where this decision differs.
+- Tradeoff, and why the cheaper check was kept: `vaultImageSource` runs for every visible row inside
+  a `$derived`, so it re-runs on every keystroke in the vault search box, and a saved page can be a
+  megabyte of base64. Walking PNG chunk headers or decoding the payload turns a constant-cost check
+  into one proportional to total vault size per keystroke. The failure it would additionally catch —
+  bytes that are correctly framed at both ends but corrupt in the middle — is also much rarer than
+  the one the edge check already catches, since truncation is how stored base64 actually gets
+  damaged. Consequence: a middle-corrupt image still produces a broken thumbnail rather than falling
+  back to a url. Alternative rejected: full decode on every render. Alternative worth revisiting:
+  validating once at save time, or caching the verdict per record id, which would make a structural
+  walk affordable — that is a change to the save path or a new cache, and neither belongs in a
+  review-fix pull request.
+
+## 2026-09-04 - Cipher Gate: ClockSeam, AppOriginSeam and PageVisibilitySeam
+
+- Cipher Gate:
+  - Date: 2026-09-04
+  - Seams: ClockSeam (new), AppOriginSeam (new), PageVisibilitySeam (new). No existing seam contract changed.
+  - Evidence: docs/evidence/2026-09-04/chamber-lock.json, docs/evidence/2026-09-04/test.txt, docs/evidence/2026-09-04/verify.txt, docs/evidence/2026-09-04/seam-ledger.md, docs/evidence/2026-09-04/clan-chain.md, docs/evidence/2026-09-04/proof-tape.md, src/lib/seams/clock-seam/test.ts, src/lib/seams/clock-seam/probe.ts, src/lib/seams/app-origin-seam/test.ts, src/lib/seams/app-origin-seam/probe.ts, src/lib/seams/page-visibility-seam/test.ts, src/lib/seams/page-visibility-seam/probe.ts, docs/seams.md
+  - Summary: Three host-environment reads that the Quote Vault rebuild had left outside any seam are now behind one each. ClockSeam owns reading the current instant and running a callback when a given instant arrives, which is what makes the saved-date labels roll over at UTC midnight; its adapter re-arms long waits in chunks so a delay past setTimeout's 32-bit limit does not fire immediately. AppOriginSeam owns reading the origin the app is served from, which decides whether a stored absolute image URL is same-origin and therefore loadable under img-src 'self'. PageVisibilitySeam owns whether the page is being looked at and announcing when it comes back, which is the other half of the label refresh. All three ship with a validator, fault fixtures driven through the mock, and a runnable probe; every mock is deterministic - the clock only moves when a test moves it, the origin is fixed by scenario, and visibility changes only when a test changes it.
+  - Risks: ClockSeam and PageVisibilitySeam have synchronous contracts with no Result arm, unlike most seams here, so an invalid instant throws rather than returning an error - deliberate, because NaN would make setTimeout fire immediately and a self-re-arming timer spin, but it does differ from the house shape. Three pre-existing Date.now()/new Date() reads in src/routes/studio-state.svelte.ts are untouched, so that file currently mixes seamed and unseamed clock access; converting them is recorded as deferred in WORST_TO_BEST_LOG.md. AppOriginSeam degrades any unusable origin to the empty string rather than throwing, which makes the same-origin check refuse every absolute URL - a safe default, but one that hides a misconfigured host rather than reporting it. PageVisibilitySeam resolves any out-of-spec visibility state to "visible" for the same reason: a wrong visible costs one refresh nobody needed, a wrong hidden silently withholds one the reader is waiting on.
+
+## 2026-09-04 - Introducing ClockSeam rather than a test-only clock injection
+
+- Date: 2026-09-04
+- Decision: Add `ClockSeam` (`src/lib/seams/clock-seam/`, adapter at
+  `src/lib/adapters/clock-seam/index.ts`) covering two operations — reading the current instant and
+  running a callback when a given instant arrives — and route the Quote Vault's saved-date labels
+  through it.
+- Context: The vault's "Saved today / 3 days ago" labels need to know the current instant and to
+  roll over at UTC midnight. The first attempt read `Date.now()` directly in
+  `src/routes/studio-state.svelte.ts`; the second replaced that with a plain injectable function
+  defaulting to `Date.now()`. A review on PR #289 flagged both, correctly: `AGENTS.md` classifies
+  clock/time as a seam, and a test-overridable default still leaves the production path reading the
+  host clock outside any boundary. The full workflow was done rather than argued with a second time.
+- Tradeoff 1, scheduling lives in the seam alongside reading: `scheduleAt` is part of the contract
+  rather than a bare `setTimeout` at the call site. A timer is a clock read in disguise — it asks
+  the host "tell me when it is T" — so leaving it outside would have reproduced the same problem one
+  layer along, and the mock could not then drive a rollover end to end. Consequence: the seam owns
+  two operations instead of one. Alternative rejected: a read-only clock seam plus a separate timer
+  seam, which splits one concern across two boundaries for no gain.
+- Tradeoff 2, the contract is synchronous and does not return `Result<>`: neither operation can
+  fail on any host this app runs on, and an async `now()` would report the instant it resolved
+  rather than the instant it was asked for. Consequence: `ClockSeam` does not match the `Promise<
+  Result<>>` shape most seams in this repository use. Judged the honest contract over the uniform
+  one — a `Result` whose error arm is unreachable is noise at every call site.
+- Tradeoff 3, the three pre-existing `Date.now()` reads in `studio-state.svelte.ts` (creation ids,
+  `createdAtISO` on drafts and saves) were **not** converted. They are untouched by this change, and
+  rewriting them would widen a review-fix pull request into unrelated code. Consequence: the file
+  temporarily has both styles. Converting them is a good small follow-up and is recorded as deferred
+  in `WORST_TO_BEST_LOG.md`.
+- Tradeoff 4, both a day-boundary timer and `visibilitychange` refresh the labels: the timer alone
+  is not enough because a backgrounded tab can have its timers throttled or deferred, and
+  `visibilitychange` alone is not enough because a tab left in the foreground across midnight never
+  fires one. Consequence: two paths to the same refresh, both tested.
+
+## 2026-09-04 - Rebuilding the Quote Vault without touching a seam
+
+- Date: 2026-09-04
+- Decision: Rebuild the Quote Vault entirely in `src/lib/core/`, `src/routes/`, and
+  `src/lib/components/`, reading what it needs out of the existing `CreationRecord` rather than
+  changing `CreationStoreSeam`'s contract or adapter.
+- Context: The scheduled "worst feature -> best feature" run picked the Quote Vault (see
+  `WORST_TO_BEST_LOG.md` for the full case). Everything the rebuild needed — the saved image
+  bytes, `createdAtISO`, `favorite`, the studio text — was already persisted in the record and
+  simply never read. Changing the contract would have pulled in the full Seam-Driven Development
+  workflow for no behavioural gain.
+- Tradeoff 1, image format is recovered from bytes, not from storage: `saveToVault` writes
+  `{ b64 }` only, discarding the `format`/`encoding` the generator reported, and fixing *that*
+  would be a contract change. So `detectVaultImageKind` in `src/lib/core/vault-gallery.ts`
+  reads the real byte signature instead (reusing `detectRasterMimeTypeFromBytes`), and returns
+  null rather than guessing when it does not recognise the bytes. Consequence: an image in a
+  format the sniffer does not know renders as a placeholder rather than a broken thumbnail, and
+  is skipped on restore. Alternative rejected: storing the format in the record, which is the
+  cleaner fix and belongs in a seam-scoped change.
+- Tradeoff 2, save-date labels count calendar days in UTC: `formatVaultSavedLabel` uses UTC day
+  boundaries so the label is a pure function of the stored instant and never depends on the
+  runner's or the viewer's timezone. Consequence: a page saved within a few hours of UTC midnight
+  can read "yesterday" to someone whose local date still says today. Accepted because the
+  alternative — local-time formatting — is nondeterministic in tests and risks an SSR/hydration
+  mismatch, for a distinction that does not matter in a list of saved coloring pages.
+- Tradeoff 3, re-packaging a reopened page is best effort: reopening a saved page rebuilds its
+  printable PDF so Download PDF works, but the packaging adapter needs a browser canvas for some
+  formats. A failure there is swallowed rather than surfaced: the page still previews and still
+  exports as an image, so an error message would be noise about a capability the reader did not
+  ask for. Both paths are covered in `tests/unit/studio-state.test.ts`.
+- Known, deliberately not fixed here (all need the seam workflow, all recorded in
+  `WORST_TO_BEST_LOG.md`): `creationStoreAdapter.deleteCreation` ignores `owner` and deletes by
+  `id` across owners; `parseRecords`' `skippedIndices` is computed and never surfaced; and
+  `localStorage` will eventually reject a vault of fifty full-size base64 pages — that last one is
+  at least no longer silent, because this change surfaces `STORAGE_WRITE_FAILED`.
+
+## 2026-09-03 - audit:gate's registry endpoint was unreachable during a scheduled quick-wins run
+
+- Date: 2026-09-03
+- Decision: Treat this run's `npm audit --audit-level=high` result as still valid without a fresh
+  live re-check, and record why here rather than silently reusing it or blocking the whole PR on an
+  external outage.
+- Context: A scheduled quick-wins run (PR #282) made three docs-only commits over roughly 25
+  minutes. The first `npm run verify` pass (22:12:22) completed cleanly, including a passing
+  `audit:gate` ("found 0 vulnerabilities"). After the third commit (adding this run's Plan +
+  Self-Critique and an `AGENTS.md` section), `npm audit --audit-level=high` was retried directly
+  (bypassing the `verify` wrapper) three times with increasing timeouts (30s/60s/90s) and produced
+  zero output each time; `npm ping` to the same `registry.npmjs.org` succeeded in 150ms in between
+  retries, isolating the failure to the audit endpoint specifically rather than general
+  connectivity, DNS, or the session's egress proxy (`registry.npmjs.org` is in `NO_PROXY`). A fourth
+  retry (45s) after Vercel's own rate-limit failure on the same PR separately cleared also hung, and
+  a fifth (30s) after a further round of governance-doc repairs also hung — five attempts in total,
+  spanning roughly 20 minutes.
+  `package.json`/`package-lock.json` are byte-identical to the tree the 22:12:22 run audited
+  (confirmed via `git status --short package.json package-lock.json`, empty), so `npm audit`'s
+  result is a deterministic function of a dependency tree that has not changed - only the ability
+  to reach the endpoint changed.
+- Alternatives: Block the whole run and leave the PR unmerged until the registry recovers; rejected
+  because the two-hour-plus outages this endpoint has shown historically (see the `audit:gate`
+  entry's own registry-round-trip risk in the 2026-09-03 security-headers Decision below) would
+  leave a green, reviewed, docs-only PR stuck for no reason tied to its actual content. Silently
+  reuse the earlier result with no note; rejected as exactly the "claiming compliance without
+  evidence" failure mode `AGENTS.md`'s Anti-Laziness section exists to catch - a live Codex review
+  finding on this PR correctly flagged this gap and asked for either a fresh full chain or an
+  explicit blocked declaration. Skip `audit:gate` permanently or lower its threshold; rejected -
+  `AGENTS.md`'s own revisit criteria for this gate says a registry outage should be recorded as an
+  Assumption, not used to weaken the gate.
+- Consequences: This PR merges on the strength of a same-session, same-dependency-tree audit result
+  that is a few commits old rather than from the exact final diff, for the `audit:gate` step only -
+  every other step (`check`, `test`, `lint`, `build`, chamber lock, shaolin lint, assumption alarm,
+  seam ledger, clan chain, proof tape) ran fresh against the final diff and is captured in
+  `docs/evidence/2026-09-03/verify-chain.txt`, which documents this reasoning inline as well.
+- Revisit criteria: Re-run `npm audit --audit-level=high` directly the next time `package.json` or
+  `package-lock.json` changes, or the next time a scheduled run has spare capacity to retry it -
+  whichever comes first. If this endpoint keeps failing across multiple runs, that is itself worth
+  a Decision about moving the audit off the critical path (e.g. a separate scheduled job) rather
+  than reproducing this same Assumption every time.
+
+- Assumption:
+  - Date: 2026-09-03
+  - Seams: None - `audit:gate` is a dependency-vulnerability check, not a seam.
+  - Statement: The dependency tree at this PR's final commit (`package.json`/`package-lock.json`, unchanged since 22:12:22 this same session) has 0 high-or-critical-severity vulnerabilities, matching the `found 0 vulnerabilities` result `npm audit --audit-level=high` reported at 22:12:22 against the identical tree.
+  - Validation: The registry's audit endpoint hung with zero output across five separate attempts (30s/60s/90s/45s/30s timeouts) spanning roughly 20 minutes, while `npm ping` to the same registry succeeded in 150ms in between, isolating the failure to the audit endpoint specifically. A sixth attempt (after PR #282 merged and further Codex-review repairs were prepared) succeeded once (`found 0 vulnerabilities`, matching this Statement), but a seventh attempt moments later, via `npm run verify`'s own wrapper, hung again - the endpoint is intermittently flaky rather than durably recovered, so this Assumption stays open rather than being marked resolved on one transient success. A separate, concurrent scheduled run (`session_01C9GA2bo9c2ebAWTo3YsaNb`) independently observed the identical pattern against this same unchanged tree: one clean pass at 23:19:21, then a registry-side 400 at 23:22:23, then another hang at 23:30 - consistent with genuine intermittent flakiness rather than a one-off. `package.json`/`package-lock.json` remain byte-unchanged throughout. Validate definitively by getting two consecutive clean runs of `npm audit --audit-level=high`; if any run reports anything other than 0 vulnerabilities, treat that as a regression to fix immediately, not as evidence this Assumption was wrong (the dependency tree has not changed since 22:12:22).
+  - Status: Resolved - this Assumption's own validation criterion ("two consecutive clean runs of `npm audit --audit-level=high`") is now met: the same concurrent session (`session_01C9GA2bo9c2ebAWTo3YsaNb`) recorded three consecutive clean `npm run verify` wrapper invocations with no intervening failure - 23:55:53, then 00:15:49 and 00:28:47 after midnight UTC - all against this same byte-unchanged dependency tree (see `docs/evidence/2026-09-03/verify-chain.txt` and `docs/evidence/2026-09-04/verify-chain.txt`). A Codex review on that session's own PR pointed out the criterion had been satisfied while this entry still read Open, prompting this update.
 
 ## 2026-09-03 - Make the Cipher Gate certify the right entry, and the Proof Tape admit stale evidence
 

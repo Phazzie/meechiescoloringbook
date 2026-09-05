@@ -1,185 +1,64 @@
 <!--
-Purpose: "Rate His Excuse" mode — user provides excuse, Meechie scores it 1-10 with commentary.
-Why: Give users an instant, numbered verdict on an excuse so the judgment feels definitive rather than subjective.
-Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate coloring page.
+Purpose: "Rate His Excuse" mode — user provides an excuse, Meechie scores it 1-10 with commentary,
+         and the ruling becomes a coloring page you can keep.
+Why: One of the app's four nav destinations. It used to flatten every ruling into a title-only page
+     regardless of the structure Meechie answered in, discard the drift report, and offer no way to
+     save the page it charged a generation for. The lifecycle now lives in `VerdictPageState`,
+     shared with the other modes, so the score leads the page and the page reaches the vault.
+Info flow: Excuse input -> VerdictPageState.requestVerdict (rate_excuse) -> scored ruling ->
+           VerdictPageStudio -> coloring page, downloads, vault.
 -->
 <script lang="ts">
-	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
-	import type { MeechieToolOutput } from '../../../contracts/meechie-tool.contract';
-	import type { GeneratedImage } from '../../../contracts/image-generation.contract';
-	import type { PackagedFile } from '../../../contracts/output-packaging.contract';
-	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
-	import { MeechieToolResultSchema } from '../../../contracts/meechie-tool.contract';
-	import { GenerateResultSchema } from '../../../contracts/generate.contract';
-	import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
+	import VerdictPageStudio from '$lib/components/VerdictPageStudio.svelte';
+	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
 
-	// `format` is the only image-type field the contract actually constrains: it is a
-	// closed four-value enum, while `mimeType` is `NonEmptyStringSchema`, so any non-empty
-	// string passes validation. Deriving the media type from the enum is therefore total
-	// (it can never emit `undefined`) and it cannot forward an unvalidated wire value. It
-	// also emits the registered `image/jpeg` and `image/svg+xml` names rather than the
-	// non-standard `image/jpg` and `image/svg` that interpolating the enum member produced.
-	const IMAGE_MIME_TYPES: Record<GeneratedImage['format'], string> = {
-		svg: 'image/svg+xml',
-		png: 'image/png',
-		jpg: 'image/jpeg',
-		webp: 'image/webp'
+	const studio = new VerdictPageState({ fileBaseSlug: 'rate-his-excuse' });
+
+	let excuse = $state('');
+	/**
+	 * The excuse the ruling on screen was actually passed. Echoing the live `excuse` box instead
+	 * would let an edit made after the ruling arrived reattach Meechie's words to a different
+	 * excuse — the ruling would appear to be about text she never saw.
+	 */
+	let ruledExcuse = $state('');
+
+	const submit = async (): Promise<void> => {
+		const trimmed = excuse.trim();
+		if (!trimmed) return;
+		// Relabel only on the verdict *this* call installed. Comparing `studio.verdict` before and
+		// after would only prove that something changed: a request abandoned by "Different excuse",
+		// whose replacement has already landed, sees exactly the same before !== after as a
+		// successful one — and would then echo the abandoned excuse above the newer ruling,
+		// attributing Meechie's words to text she never read. A failed re-run still leaves the
+		// previous ruling and its excuse on screen, untouched.
+		const installed = await studio.requestVerdict({
+			toolId: 'rate_excuse',
+			excuse: trimmed
+		});
+		if (installed) ruledExcuse = trimmed;
 	};
 
-	let excuse = '';
-	let result: MeechieToolOutput | null = null;
-	let isWorking = false;
-	let isGenerating = false;
-	let error = '';
-	let generateError = '';
-	let imagePreviews: string[] = [];
-	let packagedFiles: PackagedFile[] = [];
-	let dedicatedTo = '';
-	let showSparkle = false;
-
-	const handleSubmit = async (): Promise<void> => {
-		if (!excuse.trim()) return;
-		isWorking = true;
-		error = '';
-		result = null;
-		imagePreviews = [];
-		packagedFiles = [];
-
-		try {
-			const payload = await postJson(
-				'/api/tools',
-				{
-					toolId: 'rate_excuse',
-					excuse: excuse.trim()
-				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.tools }
-			);
-			const parsed = MeechieToolResultSchema.safeParse(payload);
-			if (!parsed.success || !parsed.data.ok) {
-				error =
-					parsed.success && !parsed.data.ok
-						? parsed.data.error.message
-						: 'Something went wrong.';
-			} else {
-				result = parsed.data.value;
-			}
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Network error. Try again.';
-		} finally {
-			isWorking = false;
-		}
+	const handleKeydown = (event: KeyboardEvent): void => {
+		if (event.key === 'Enter' && (event.ctrlKey || event.metaKey))
+			void submit();
 	};
 
-	const handleKeydown = (e: KeyboardEvent): void => {
-		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-			void handleSubmit();
-		}
-	};
-
-	const handleGenerate = async (): Promise<void> => {
-		if (!result) return;
-		isGenerating = true;
-		generateError = '';
-		imagePreviews = [];
-		packagedFiles = [];
-
-		try {
-			const saying = compactColoringPageTitle([
-				result.headline,
-				result.response
-			]);
-			const payload = await postJson(
-				'/api/generate',
-				{
-					spec: {
-						title: saying,
-						listMode: 'title_only',
-						items: [],
-						dedication: dedicatedTo.trim() || undefined,
-						alignment: 'center',
-						numberAlignment: 'strict',
-						listGutter: 'normal',
-						whitespaceScale: 30,
-						textSize: 'large',
-						fontStyle: 'block',
-						textStrokeWidth: 9,
-						colorMode: 'black_and_white_only',
-						decorations: 'dense',
-						illustrations: 'simple',
-						shading: 'none',
-						border: 'decorative',
-						borderThickness: 10,
-						variations: 1,
-						outputFormat: 'pdf',
-						pageSize: 'US_Letter'
-					},
-					styleHint:
-						'gavel, scales, diamonds, verdict stamp, bold statement coloring page'
-				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
-			);
-
-			const parsed = GenerateResultSchema.safeParse(payload);
-			if (!parsed.success || !parsed.data.ok) {
-				generateError =
-					parsed.success && !parsed.data.ok
-						? parsed.data.error.message
-						: 'Page generation failed.';
-				return;
-			}
-
-			const images = parsed.data.value.images;
-			imagePreviews = images
-				.map((img: GeneratedImage): string | null => {
-					if (img.format === 'svg' && img.encoding === 'utf8') {
-						return `data:${IMAGE_MIME_TYPES.svg};utf8,${encodeURIComponent(img.data)}`;
-					}
-					if (img.encoding === 'base64') {
-						return `data:${IMAGE_MIME_TYPES[img.format]};base64,${img.data}`;
-					}
-					return null;
-				})
-				.filter((u): u is string => u !== null);
-
-			const packResult = await outputPackagingAdapter.package({
-				images,
-				outputFormat: 'pdf',
-				fileBaseName: `meechie-rate-his-excuse-${Date.now()}`,
-				pageSize: 'US_Letter',
-				variants: ['print', 'square']
-			});
-			if (packResult.ok) {
-				packagedFiles = packResult.value.files;
-			} else {
-				generateError = packResult.error.message;
-			}
-		} catch (e) {
-			generateError =
-				e instanceof Error ? e.message : 'Network error. Try again.';
-		} finally {
-			isGenerating = false;
-		}
-	};
-
-	const reset = (): void => {
+	const startOver = (): void => {
 		excuse = '';
-		result = null;
-		imagePreviews = [];
-		packagedFiles = [];
-		error = '';
-		generateError = '';
-		dedicatedTo = '';
+		ruledExcuse = '';
+		studio.reset();
 	};
 
-	$: ratingScore = result?.rating ?? null;
-	$: ratingColor =
-		ratingScore !== null
-			? ratingScore <= 3
+	const ratingScore = $derived(studio.verdict?.rating ?? null);
+	const ratingColor = $derived(
+		ratingScore === null
+			? 'var(--cream)'
+			: ratingScore <= 3
 				? '#e8006a'
 				: ratingScore <= 6
 					? '#c9a227'
 					: '#b8aacf'
-			: 'var(--cream)';
+	);
 </script>
 
 <svelte:head>
@@ -189,7 +68,7 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 <div class="page">
 	<div class="ambient ambient-a" aria-hidden="true"></div>
 
-	{#if !result}
+	{#if !studio.verdict}
 		<header class="hero">
 			<p class="eyebrow">Mode Two</p>
 			<h1>Rate His Excuse</h1>
@@ -206,117 +85,79 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 				id="excuse"
 				data-testid="rate-excuse-input"
 				bind:value={excuse}
-				on:keydown={handleKeydown}
+				onkeydown={handleKeydown}
 				rows="4"
 				placeholder="My phone died. I was with the guys. I was working late..."
 			></textarea>
 			<p class="key-hint">Ctrl + Enter to submit</p>
 
-			{#if error}
-				<p class="error" data-testid="rate-error">{error}</p>
+			{#if studio.error}
+				<p class="error" data-testid="rate-error">{studio.error}</p>
 			{/if}
 
 			<button
 				type="button"
 				class="cta"
 				data-testid="rate-submit"
-				on:click={handleSubmit}
-				disabled={isWorking || !excuse.trim()}
+				onclick={() => void submit()}
+				disabled={studio.isWorking || !excuse.trim()}
 			>
-				{isWorking ? 'Court is reviewing...' : 'Let Meechie Hear It'}
+				{studio.isWorking ? 'Court is reviewing...' : 'Let Meechie Hear It'}
 			</button>
 		</section>
 	{:else}
 		<header class="verdict-hero">
 			<p class="eyebrow">Meechie's Ruling</p>
-			<p class="excuse-echo">"{excuse}"</p>
+			<p class="excuse-echo">"{ruledExcuse}"</p>
 
 			<div class="score-display">
 				<span class="score-number" style="color: {ratingColor}"
-					>{ratingScore ?? result.headline}</span
+					>{ratingScore ?? studio.verdict.headline}</span
 				>
 				<span class="score-label">out of 10</span>
 			</div>
 
 			<p class="verdict-commentary" data-testid="rate-result">
-				{result.response}
+				{studio.verdict.response}
 			</p>
-			<button
-				type="button"
-				class="ghost-btn"
-				data-testid="rate-reset"
-				on:click={reset}>← Different excuse</button
-			>
+			<div class="verdict-actions">
+				<button
+					type="button"
+					class="ghost-btn"
+					data-testid="rate-reset"
+					onclick={startOver}>← Different excuse</button
+				>
+				<button
+					type="button"
+					class="ghost-btn"
+					data-testid="rate-again"
+					onclick={() => void submit()}
+					disabled={studio.isWorking || studio.isGenerating}
+				>
+					{studio.isWorking ? 'Court is reviewing…' : 'Re-run the ruling'}
+				</button>
+			</div>
+			{#if studio.error}
+				<p class="error" data-testid="rate-error">{studio.error}</p>
+			{/if}
 		</header>
 
-		<section class="page-section">
-			<h2>Generate the Coloring Page</h2>
-			<p class="section-sub">
-				The ruling becomes the page. Print it. Dedicate it.
-			</p>
-
-			<div class="field">
-				<label for="dedicated" class="field-label"
-					>Dedicated to (optional)</label
-				>
-				<input
-					id="dedicated"
-					type="text"
-					bind:value={dedicatedTo}
-					maxlength="60"
-					placeholder="He had time to do better."
-				/>
-			</div>
-
-			<label class="sparkle-toggle">
-				<input type="checkbox" bind:checked={showSparkle} />
-				<span>Glitter preview overlay</span>
-			</label>
-
-			{#if generateError}
-				<p class="error" data-testid="rate-generate-error">{generateError}</p>
-			{/if}
-
-			<button
-				type="button"
-				class="cta"
-				data-testid="rate-generate-page"
-				on:click={handleGenerate}
-				disabled={isGenerating}
-			>
-				{isGenerating ? 'Printing the ruling...' : 'Generate My Coloring Page'}
-			</button>
-
-			{#if imagePreviews.length > 0}
-				<div class="preview-grid">
-					{#each imagePreviews as preview}
-						<figure class:sparkle={showSparkle}>
-							<img src={preview} alt="Meechie coloring page" />
-						</figure>
-					{/each}
-				</div>
-			{/if}
-
-			{#if packagedFiles.length > 0}
-				<div class="downloads">
-					<p class="download-label">Save & Share</p>
-					{#each packagedFiles as file}
-						<a
-							class="download-link"
-							href={`data:${file.mimeType};base64,${file.dataBase64}`}
-							download={file.filename}
-						>
-							{file.filename}
-						</a>
-					{/each}
-				</div>
-			{/if}
-		</section>
+		<VerdictPageStudio
+			{studio}
+			heading="Generate the Coloring Page"
+			subheading="The ruling becomes the page. Print it. Dedicate it."
+			dedicationPlaceholder="He had time to do better."
+		/>
 	{/if}
 </div>
 
 <style>
 	.page {
+		/* The ambient decoration sits 2rem past the page's right edge. Below the 680px maximum the
+		   page fills the viewport, so that overhang — plus its blur — became 32px of real document
+		   width, and every one of these pages could be panned sideways into blank space on a phone.
+		   `clip` rather than `hidden`: `hidden` would make this a scroll container on both axes. */
+		overflow-x: clip;
 		position: relative;
 		max-width: 680px;
 		margin: 0 auto;
@@ -515,6 +356,12 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		color: var(--cream);
 	}
 
+	.verdict-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+	}
+
 	.ghost-btn {
 		background: transparent;
 		border: 1px solid var(--gold-border);
@@ -527,76 +374,17 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		transition: border-color 0.2s ease;
 	}
 
-	.ghost-btn:hover {
+	.ghost-btn:hover:not(:disabled) {
 		border-color: var(--gold);
 	}
 
-	.page-section {
-		position: relative;
-		z-index: 1;
-	}
-
-	h2 {
-		margin: 0 0 0.3rem;
-		font-family: 'Fraunces', 'Times New Roman', serif;
-		font-size: 1.6rem;
-		font-style: italic;
-		font-weight: 800;
-		color: var(--cream);
-	}
-
-	.section-sub {
-		margin: 0 0 1.4rem;
-		font-size: 0.9rem;
-		color: var(--lavender);
-	}
-
-	.field {
-		margin-bottom: 1rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-	}
-
-	.field-label {
-		font-size: 0.78rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--gold);
-	}
-
-	input[type='text'] {
-		border-radius: 0.72rem;
-		border: 1px solid rgba(201, 162, 39, 0.25);
-		padding: 0.65rem 0.8rem;
-		font-size: 0.95rem;
-		font-family: inherit;
-		color: var(--cream);
-		background: rgba(7, 7, 15, 0.7);
-		transition: border-color 0.2s ease;
-	}
-
-	input[type='text']:focus {
-		outline: none;
-		border-color: var(--gold);
-	}
-
-	input[type='text']::placeholder {
-		color: rgba(184, 170, 207, 0.4);
-	}
-
-	.sparkle-toggle {
-		display: flex;
-		align-items: center;
-		gap: 0.6rem;
-		margin-bottom: 1rem;
-		font-size: 0.87rem;
-		color: var(--lavender);
-		cursor: pointer;
+	.ghost-btn:disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
 	}
 
 	.error {
+		margin: 0;
 		padding: 0.7rem 1rem;
 		border-radius: 0.6rem;
 		background: rgba(232, 0, 106, 0.1);
@@ -605,91 +393,9 @@ Info flow: Excuse input -> tools API (rate_excuse) -> rating display -> generate
 		color: #ff8fab;
 	}
 
-	.preview-grid {
-		display: grid;
-		gap: 1rem;
-		margin-top: 1.6rem;
-	}
-
-	figure {
-		margin: 0;
-		border-radius: 0.8rem;
-		overflow: hidden;
-		border: 1px solid var(--gold-border);
-	}
-
-	figure img {
-		display: block;
-		width: 100%;
-		height: auto;
-	}
-
-	figure.sparkle {
-		position: relative;
-	}
-
-	figure.sparkle::after {
-		content: '';
-		position: absolute;
-		inset: 0;
-		background:
-			radial-gradient(
-				ellipse at 20% 20%,
-				rgba(240, 196, 74, 0.25),
-				transparent 55%
-			),
-			radial-gradient(
-				ellipse at 80% 80%,
-				rgba(232, 0, 106, 0.18),
-				transparent 50%
-			);
-		pointer-events: none;
-	}
-
-	.downloads {
-		margin-top: 1.4rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.6rem;
-	}
-
-	.download-label {
-		margin: 0 0 0.2rem;
-		font-size: 0.75rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--gold);
-	}
-
-	.download-link {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.6rem 1.1rem;
-		border-radius: 999px;
-		border: 1px solid var(--gold-border);
-		background: rgba(201, 162, 39, 0.08);
-		color: var(--gold-bright);
-		text-decoration: none;
-		font-size: 0.88rem;
-		font-weight: 600;
-		transition:
-			border-color 0.2s ease,
-			background-color 0.2s ease;
-	}
-
-	.download-link:hover {
-		border-color: var(--gold);
-		background: rgba(201, 162, 39, 0.15);
-	}
-
 	@media (max-width: 600px) {
 		.page {
 			padding: 1.6rem 1rem 4rem;
-		}
-
-		.score-number {
-			font-size: clamp(3.5rem, 18vw, 6rem);
 		}
 	}
 </style>

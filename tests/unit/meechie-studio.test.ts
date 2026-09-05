@@ -198,7 +198,7 @@ describe('Meechie studio controls', () => {
 		});
 
 		expect(restored).toEqual(studioText);
-		expect(restored.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
+		expect(restored!.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
 	});
 
 	it('rehydrates new vault records from studio text instead of the image prompt', () => {
@@ -227,8 +227,9 @@ describe('Meechie studio controls', () => {
 			owner: { kind: 'anonymous', sessionId: 'session-123' }
 		});
 
-		expect(restored.quote).toBe('The prompt is not the quote.');
-		expect(restored.quote).not.toContain('image-generation prompt');
+		expect(restored).not.toBeNull();
+		expect(restored!.quote).toBe('The prompt is not the quote.');
+		expect(restored!.quote).not.toContain('image-generation prompt');
 	});
 
 	it('rehydrates legacy drafts without studio text from their coloring-page spec', () => {
@@ -262,9 +263,11 @@ describe('Meechie studio controls', () => {
 			chatMessage: 'Original evidence'
 		});
 
-		expect(restored.pageTitle).toBe('LEGACY TITLE');
-		expect(restored.pageItems.map((item) => item.label)).toEqual(['LEGACY ITEM', 'SECOND ITEM']);
-		expect(restored.quote).toBe('LEGACY TITLE');
+		// The legacy spec prints two items of its own, so there is real text to rebuild.
+		expect(restored).not.toBeNull();
+		expect(restored!.pageTitle).toBe('LEGACY TITLE');
+		expect(restored!.pageItems.map((item) => item.label)).toEqual(['LEGACY ITEM', 'SECOND ITEM']);
+		expect(restored!.quote).toBe('LEGACY TITLE');
 	});
 
 	it('preserves long titles in legacy draft and vault fallbacks', () => {
@@ -305,9 +308,51 @@ describe('Meechie studio controls', () => {
 			owner: { kind: 'anonymous', sessionId: 'session-123' }
 		});
 
-		expect(draftText.pageTitle).toBe(longTitle);
-		expect(vaultText.pageTitle).toBe(longTitle);
-		expect(draftText.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
-		expect(vaultText.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
+		expect(draftText).not.toBeNull();
+		expect(vaultText).not.toBeNull();
+		expect(draftText!.pageTitle).toBe(longTitle);
+		expect(vaultText!.pageTitle).toBe(longTitle);
+		expect(draftText!.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
+		expect(vaultText!.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
+	});
+});
+
+describe('decoration density follows the caller, not the builder', () => {
+	it('derives it from the theme when none is supplied, and carries one that is', () => {
+		// `decorations` is derived from the theme rather than chosen directly, so the builder cannot
+		// decide on its own whether to keep a restored value: a reopened page's theme is not restored
+		// with it, and the builder never learns whether the reader actually picked one. It therefore
+		// honours what the caller passes and derives only in its absence. `studio-state` owns the
+		// provenance, and its own test covers that decision.
+		const derived = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'plain',
+			styleHint: 'receipt ledger lines',
+			presentation: { alignment: 'center', whitespaceScale: 35 }
+		});
+		expect(derived.decorations).toBe('dense');
+		// The rest of the presentation is carried forward either way.
+		expect(derived.alignment).toBe('center');
+		expect(derived.whitespaceScale).toBe(35);
+
+		const carried = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'plain',
+			styleHint: 'gold crown ornaments',
+			presentation: { alignment: 'center', decorations: 'dense' }
+		});
+		expect(carried.decorations).toBe('dense');
+
+		const dropped = buildColoringPageSpecFromMeechieText({
+			output: DEFAULT_STUDIO_TEXT_OUTPUT,
+			pageSize: 'US_Letter',
+			border: 'plain',
+			styleHint: 'gold crown ornaments',
+			presentation: { alignment: 'center', decorations: undefined }
+		});
+		expect(dropped.decorations).toBe('minimal');
+		expect(dropped.alignment).toBe('center');
 	});
 });

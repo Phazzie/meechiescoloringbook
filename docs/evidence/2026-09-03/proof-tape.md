@@ -5,33 +5,34 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-03T19:22:21.416Z
-Evidence folder: docs\evidence\2026-09-03
+Generated at: 2026-09-04T00:39:53.447Z
+Evidence folder: docs/evidence/2026-09-03
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
 after this inventory is taken, so they are not listed):
 
-- assumption-alarm.json (9484 bytes)
-- build.txt (8987 bytes) — PREDATES THIS VERIFY RUN
-  Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
+- assumption-alarm.json (12123 bytes)
+- build.txt (8843 bytes)
+  Commands: npm run build | meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (25720 bytes)
-- cipher-gate.json (1877 bytes) — PREDATES THIS VERIFY RUN
-- clan-chain.json (2320 bytes)
+- cipher-gate.json (1847 bytes) — PREDATES THIS VERIFY RUN
+- clan-chain.json (2318 bytes)
 - clan-chain.md (1453 bytes)
-- evidence-gate-selection-red-proof.txt (7102 bytes) — PREDATES THIS VERIFY RUN
-- lint.txt (314 bytes) — PREDATES THIS VERIFY RUN
-  Commands: meechies-coloringbook@0.1.0 lint | eslint .
+- evidence-gate-selection-red-proof.txt (6976 bytes) — PREDATES THIS VERIFY RUN
+  Commands: touch -d "2026-09-03 05:00:00" docs/evidence/2026-09-03/proof-tape.{json,md} | node scripts/proof-tape.mjs
+- lint.txt (300 bytes)
+  Commands: npm run lint | meechies-coloringbook@0.1.0 lint | eslint . | echo "exit=$?"
 - seam-ledger.json (27312 bytes)
 - seam-ledger.md (2228 bytes)
-- shaolin-lint.json (518 bytes)
-- test.txt (9679 bytes)
-  Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify-chain.txt (2011 bytes) — PREDATES THIS VERIFY RUN
-  Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify.txt (10014 bytes)
-  Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+- shaolin-lint.json (519 bytes)
+- test.txt (1029 bytes)
+  Commands: npm test -- --pool=forks --maxWorkers=1 | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+- verify-chain.txt (18520 bytes)
+  Commands: npm run verify   # (22:12:22 run this same session - includes a passing audit:gate) | meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1 | timeout 30 npm audit --audit-level=high   # (retry 1 - hung) | timeout 60 npm audit --audit-level=high   # (retry 2 - hung) | timeout 90 npm audit --audit-level=high   # (retry 3 - hung) | npm ping   # (registry itself is reachable; the audit endpoint specifically is not) | timeout 45 npm audit --audit-level=high   # (retry 4, after Vercel's own rate limit cleared on this PR - still hung) | node scripts/chamber-lock.mjs   # (remaining chain stages, run individually) | node scripts/verify-runner.mjs | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1 | node scripts/shaolin-lint.mjs | node scripts/assumption-alarm.mjs   # (first attempt failed: DECISIONS.md's new Assumption entry | node scripts/assumption-alarm.mjs   # (after the fix) | node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs | timeout 30 npm audit --audit-level=high   # (retry 5, after the SEAM_BLUEPRINT.md/AGENTS.md review repairs - still hung) | node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining chain stages, run individually) | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1 | timeout 30 npm audit --audit-level=high   # (follow-up round: retry 6, after PR #282 merged - succeeded) | timeout 200 npm run verify   # (retry 7, via the full chain wrapper - hung again in audit:gate) | node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining chain stages, run individually) | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1 | timeout 30 npm audit --audit-level=high   # (round-6 follow-up: retry 8, after fixing this round's 4 Codex findings - succeeded) | timeout 110 npm run verify   # (retry 9, via the full chain wrapper - hung again in audit:gate) | node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining chain stages, run individually) | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1 | timeout 30 npm audit --audit-level=high   # (log-finalization commit, after PR #283 merged - succeeded) | timeout 110 npm run verify   # (via the full chain wrapper - hung again in audit:gate; same intermittent flakiness) | node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining chain stages, run individually) | npm run verify   # (truly final run: complete wrapper succeeded end-to-end, audit:gate included - no fallback needed) | meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1 | timeout 30 npm audit --audit-level=high   # (post-review-fix commit - hung; same tracked intermittent flakiness) | node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs   # (remaining stages, run individually) | npm run verify   # (PR #285, a separate concurrent session: genuine single wrapper invocation, run after | meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1 | echo "exit=$?" | npm run verify   # (PR #285: second genuine wrapper invocation, after a second merge conflict | meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1 | echo "exit=$?"
+- verify.txt (1354 bytes)
+  Commands: node scripts/verify-runner.mjs | npm run check | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | npm test -- --pool=forks --maxWorkers=1 | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 
-Older than this run's chamber-lock.json: build.txt, cipher-gate.json, evidence-gate-selection-red-proof.txt, lint.txt, verify-chain.txt.
+Older than this run's chamber-lock.json: cipher-gate.json, evidence-gate-selection-red-proof.txt.
 These files were written by an earlier run, so they describe a different run than
 the one this tape summarizes. Regenerate them or read them as history, not as proof
 of the current change.

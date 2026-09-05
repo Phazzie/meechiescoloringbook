@@ -19,7 +19,7 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 		textOutput,
 		copyStatus,
 		vaultStatus,
-		isSaving,
+		canSaveToVault,
 		glitter,
 		activeTheme,
 		onGeneratePage,
@@ -34,7 +34,7 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 		textOutput: MeechieStudioTextOutput | null;
 		copyStatus: string;
 		vaultStatus: string;
-		isSaving: boolean;
+		canSaveToVault: boolean;
 		glitter: boolean;
 		activeTheme: StudioTheme;
 		onGeneratePage: () => Promise<void>;
@@ -145,7 +145,7 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 			type="button"
 			data-testid="home-save-vault"
 			onclick={onSaveToVault}
-			disabled={!textOutput || isSaving}
+			disabled={!canSaveToVault}
 			>{getStudioAction('save_to_vault').label}</button
 		>
 	</div>

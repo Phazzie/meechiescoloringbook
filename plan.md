@@ -525,6 +525,293 @@ The autonomous pull requests (`feat/seam-migration-identity-storage`, `feat/seam
 - **Evidence that disproves the plan:** A single failing test in `npm test`, a non-zero exit from `npm run verify`, any lingering reference to deleted stubs found by `git grep`, or a CI failure reported by `gh pr checks`.
 
 ---
+## The Wig Try-On becomes a shop you can browse and a try-on you can keep (2026-09-05)
+
+Run 5 of the scheduled worst-feature routine. The case against the feature is recorded in
+`WORST_TO_BEST_LOG.md`; this is the execution spec.
+
+**Goal:** the wig catalog loads through the seam it already owns and says so when it cannot; it can
+be searched, filtered and sorted on the metadata every wig already carries; trying on a second wig
+stops destroying the first; and a coloring page made from a try-on portrait reaches the Quote Vault
+like every other page in the app.
+
+**Seams touched: none.** `WigCatalogSeam` is *consumed* through its existing adapter
+(`src/lib/adapters/wig-catalog-seam/index.ts`) exactly as `/api/wig-try-on` already consumes it, and
+`CreationStoreSeam`, `SpecValidationSeam` and `OutputPackagingSeam` through the adapters
+`studio-state.svelte.ts` already calls. No file under `contracts/`, `probes/`, `fixtures/`,
+`src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` is in the diff, no
+contract shape changes, and nothing crosses a seam boundary differently than it does today — so the
+full Seam-Driven Development workflow is not triggered and no Cipher Gate entry is required. The
+change moves the UI *onto* a seam it was bypassing; it does not alter the seam.
+
+**Files:**
+- `src/lib/core/wig-catalog-gallery.ts` (new) — pure, dependency-free transforms: searchable text,
+  facet construction with cross-filtered counts, query application, sorting, labels.
+- `src/routes/+page.ts` (new) — read the catalog through `createWigCatalogSeam().listWigs()` in
+  `load`, so it runs on the server as well as the client and the cards and their affiliate links are
+  in the server-rendered HTML. (Revised during the run: the first version read the seam from a
+  component `$effect`, which does not run during SSR and removed the catalog from the initial HTML.)
+- `src/lib/components/WigCarousel.svelte` — presentational, taking `wigs` and `loadError` as props;
+  surface `WIG_CATALOG_EMPTY` / `WIG_CATALOG_LOAD_FAILED`, render the search box, facet chips, sort
+  control, result count, empty state, and the metadata the cards were hiding.
+- `src/lib/components/studio/WigTryOnStudio.svelte` — the compare strip over portraits already made.
+- `src/routes/studio-state.svelte.ts` — portraits keyed by wig id instead of one string; a new
+  selfie clears them all; the try-on page gets a real title, a real assembled prompt, and can be
+  saved.
+- `src/routes/+page.svelte` — prop wiring and the styles for the new rows.
+- `tests/unit/wig-catalog-gallery.test.ts` (new), `tests/unit/studio-state.test.ts`,
+  `tests/e2e/smoke.spec.ts`.
+- `CHANGELOG.md`, `CLAUDE.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+`npx playwright test`.
+
+**Self-critique:**
+- *Riskiest assumption:* that facet counts can be shown at all without lying. Counting each value
+  against the whole catalog is the easy version and is wrong in exactly the way this run exists to
+  fix — a chip reading "Blonde (1)" that yields nothing because another facet excludes it is a
+  control that lies about itself. So each count is computed against the search and every *other*
+  dimension, and a value that would add nothing is disabled rather than shown as a dead end. This
+  is more code and it is the whole point.
+- *What must be proven, and how:* that switching wigs no longer destroys the previous portrait, and
+  that changing the selfie *does* destroy all of them — the second is the correctness half, because
+  a kept portrait of the old face relabelled under a new one is worse than losing it. Both get
+  tests, and both are confirmed by deleting the guard and watching the test fail.
+- *What could be wrong:* relaxing `saveToVault` to accept a page with no studio text. The record
+  schema already makes `studioText` optional and `loadCreation` already handles records without it,
+  but `assembledPrompt` is `NonEmptyStringSchema`, so the try-on path must supply one. It supplies a
+  description of the page rather than a machine prompt, because `loadCreation` puts the record's own
+  words in the evidence box and a prompt there gets shipped to the provider as user facts — the
+  defect the comment at that call site already records.
+
+## `/m/[mode]` becomes a real mode page (2026-09-04)
+
+Active plan for run 4 of the scheduled "worst feature -> best feature" task recorded in
+`WORST_TO_BEST_LOG.md`. Supersedes the plans below as the current active plan.
+
+### Plan
+
+- **Goal:** `/m/[mode]` — the only page five of the eight modes have, and the destination of every
+  focused-mode link on the home page — stops dead-ending at a verdict and becomes a full
+  coloring-page factory equal to the three standalone routes.
+- **Exact seam names: none changed.** `VerdictPageState` already consumes `CreationStoreSeam`,
+  `OutputPackagingSeam`, `SessionSeam` and `ClockSeam` through adapters that already exist, exactly
+  as `/who-fucked-up`, `/rate-his-excuse` and `/random` do. `buildToolPageRecipe` already covers all
+  eleven tool ids, so every mode has a recipe waiting for it. No contract, mock, fixture, probe or
+  adapter is touched.
+
+**Files:**
+- `src/lib/core/mode-catalog.ts` (new) — the pure mode catalog: field definitions and tool-input
+  builders keyed by `toolId`, the catalog derived from `studioModes`, alias slugs, and
+  `resolveModeSlug`.
+- `src/lib/components/meechie-mode-config.ts` — deleted; its two types move into the catalog.
+- `src/lib/components/MeechieModePage.svelte` — rebuilt on runes, `VerdictPageState` and
+  `VerdictPageStudio`.
+- `src/routes/m/[mode]/+page.svelte`, `src/routes/m/[mode]/+page.ts` — resolve the slug in `load`,
+  404 on an unknown one, and key the component on the slug.
+- `src/routes/+error.svelte` (new) — a styled error page, so the 404 is not SvelteKit's default.
+- `tests/unit/mode-catalog.test.ts` (new), `tests/e2e/smoke.spec.ts`.
+- `CHANGELOG.md`, `CLAUDE.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+`npx playwright test`.
+
+### Self-critique
+
+- *Riskiest assumption:* that one generic component can serve all eight modes without the
+  per-mode character the standalone routes have. It cannot be taken on trust, and the answer is to
+  stop hand-writing the character twice: `studioModes` already holds a label, help line, call to
+  action and placeholder for every mode, and the route map was a second hand-maintained copy of the
+  same strings. Deriving the catalog from `studioModes` makes the two agree by construction. This is
+  not cosmetic — the two lists must already agree for the home page's links to work, and nothing
+  checked that they did. A test asserts every `studioModes` id resolves.
+- *What must be proven, not assumed:* that navigating from `/m/a` to `/m/b` does not carry mode a's
+  verdict into mode b. SvelteKit reuses one component instance across parameter changes on the same
+  route, so `new VerdictPageState({ fileBaseSlug })` would keep the first mode's slug and its
+  verdict. This is the one defect the rebuild would *introduce* that the old page could not have,
+  because the old page had nothing worth carrying. Keyed on the slug, and covered by an end-to-end
+  test that walks between two modes.
+- *What could be wrong:* the 404. Today every unknown slug silently renders Random Meechie, so
+  `/m/typo` answers 200 with the wrong mode. Returning 404 is honest but is a behaviour change, so
+  every alias currently in the route map is kept in the catalog and asserted by test — the change
+  must reach typos only, never a link that works today.
+- *A hole I am not leaving open:* removing the pre-filled inputs is what makes the submit guard
+  matter. Today every field ships with fabricated drama already typed in, so validation never fails
+  and the button always returns a verdict about somebody else's fiction. Placeholders replace them,
+  and the button is disabled until the user has actually written something.
+
+## Meechie's Tools becomes a page factory (2026-09-04)
+
+Active plan for run 2 of the scheduled "worst feature -> best feature" task recorded in
+`WORST_TO_BEST_LOG.md`. Supersedes the Quote Vault seam plan below as the current active plan.
+
+### Plan
+
+- Goal: every one of the eleven tools in `/meechie` produces a coloring page that can be previewed,
+  downloaded and kept — and the page reflects the structure the verdict actually came back in.
+- Exact seam names: **none changed.** `MeechieToolSeam`, `CreationStoreSeam`, `SessionSeam` and
+  `OutputPackagingSeam` are consumed through their existing adapters, exactly as
+  `src/routes/+page.svelte` already consumes them. No file under `contracts/`, `probes/`,
+  `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or `src/lib/seams/` is modified, so the full
+  Seam-Driven Development workflow is not triggered and no Cipher Gate entry is required.
+- Exact files:
+  - `src/lib/core/tool-page-recipe.ts` (new) — pure verdict -> `ColoringPageSpec` + style hint.
+  - `src/lib/components/MeechieTools.svelte` — page factory UI, download, vault save, copy.
+  - `tests/unit/tool-page-recipe.test.ts` (new), `tests/unit/meechie-tools-parity.test.ts`,
+    `tests/e2e/smoke.spec.ts`.
+  - `CHANGELOG.md`, `CLAUDE.md`, `DECISIONS.md`, `plan.md`, `WORST_TO_BEST_LOG.md`.
+- Exact commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+  `npx playwright test`.
+
+### Self-critique
+
+- *Riskiest assumption:* that a tool verdict can be parsed into printable structure at all. It is
+  not taken on trust — the tool prompts in `src/lib/adapters/meechie-tool-seam/index.ts` were read
+  first, and they explicitly instruct `red_flag_or_run` and `wwmd` to answer with `Fault:` /
+  `Consequence:` / `Move:` prefixes and `lineup` to answer as `Nth place:` entries. The parser reads
+  a documented shape rather than guessing at prose, and falls back to a full-quote page whenever the
+  shape is absent.
+- *What must be proven:* that every recipe produces a spec the real contract accepts. Asserted
+  against `ColoringPageSpecSchema` itself for all eleven tools, not against a hand-written
+  expectation of it, because a spec rejected at `/api/generate` would fail after the user had
+  already paid for a generation.
+- *What could be wrong:* label truncation. The contract caps a list label at 40 characters, and a
+  cut that lands mid-phrase reads as a bug on a printed page. This was found by driving the rebuilt
+  hub in a real browser rather than by reasoning about it, and fixed with `trimDanglingTail` plus
+  tests for the cases that actually occurred.
+- *Tradeoff, and the correction that replaced it:* the first implementation saved a toolkit page
+  with **no** `studioText`, reasoning that the schema demands a quote and two to six page items a
+  tool verdict does not have. **That was wrong, and this plan must not be read as endorsing it** —
+  removing the field would reintroduce a live defect. `loadCreation` runs a record without
+  `studioText` through `buildStudioTextFromCreationRecord`, which falls back to `assembledPrompt`
+  for the quote (the image-generation prompt on a generated page) and to
+  `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` when the saved spec has no items, so reopening printed
+  rendering instructions as Meechie's words with the default landlord lines attached.
+  `buildToolStudioText` now supplies every field from text she actually produced: the headline as
+  the verdict, the response as the quote, the page's own title, and — for a full-quote page, which
+  prints no items — the response's own sentences rather than anything invented. Two constraints go
+  with it: `MeechieStudioTextOutputSchema` requires at least two `pageItems`, so a response too
+  short to yield two leads with the headline; and `buildColoringPageSpecFromMeechieText` now takes
+  the layout to rebuild in, because it otherwise hardcodes `listMode: 'list'` and would silently
+  reprint a reopened quote page as a numbered list. Full reasoning in `DECISIONS.md` under
+  "Correction: a toolkit vault save must store `studioText`".
+
+### Follow-up scope: PR #292 review corrections (2026-09-04)
+
+Written after a review finding that the follow-up work on PR #292 had gone outside the file list
+above without amending this plan first. `AGENTS.md` requires the plan to carry every exact path
+before the change, and the correction commits on that pull request did not. That is the defect this
+subsection fixes, and the remaining item below is planned here before it is implemented.
+
+- Exact seam names: **none changed.** Same standing as the parent plan — `MeechieToolSeam`,
+  `CreationStoreSeam`, `SessionSeam`, `OutputPackagingSeam` and `MeechieStudioTextSeam` are consumed
+  through existing adapters. No file under `contracts/`, `probes/`, `fixtures/`,
+  `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` is modified, so the
+  full Seam-Driven Development workflow is not triggered.
+- Exact files, including every path the corrections have already touched:
+  - `src/lib/components/MeechieTools.svelte` — request lifetimes (`pageToken`/`verdictToken`),
+    install-before-packaging, per-variant packaging isolation, image-usability guard.
+  - `src/lib/components/studio/StudioSettingsPanel.svelte` — passes the setting-change source.
+  - `src/routes/studio-state.svelte.ts` — restored-page presentation, decoration provenance.
+  - `src/lib/core/meechie-studio.ts` — optional `presentation` input on the pure builder.
+  - `src/lib/core/tool-page-recipe.ts` — sentence boundary, quoted prefix, abbreviation guards.
+  - `src/lib/core/raster-image-format.ts` — `isRenderableGeneratedImage`, browser-safe decode.
+  - `tests/unit/studio-state.test.ts`, `tests/unit/meechie-studio.test.ts`,
+    `tests/unit/tool-page-recipe.test.ts`, `tests/unit/raster-image-format.test.ts`,
+    `tests/e2e/smoke.spec.ts`.
+  - `plan.md`, `WORST_TO_BEST_LOG.md`, `docs/evidence/2026-09-04/*`.
+- Exact commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`,
+  `npm run test:e2e`, `npm run verify`, `npm run cipher:gate`, `npm run proof:tape`.
+
+**Remaining item, planned before implementation.** Decoration density is derived from
+`styleHint.includes('receipt')` in `buildColoringPageSpecFromMeechieText`, and
+`currentStyleHint()` concatenates the theme's hint *with* `voice.intensity` — where `receipts_out`
+matches. So on a reopened page, changing Intensity to or from Receipts Out changes the derivation's
+input while leaving the theme untouched, and the density does not follow. Recomputing only on an
+explicit theme selection does not cover it.
+
+The fix recomputes when **either** fact holds: the reader made an explicit theme selection (passed
+from the settings panel), or the style hint itself differs from the one the last rebuild ran under
+(compared directly). Two facts, each measured where it is actually knowable.
+
+### Self-critique for the follow-up
+
+1. *What could be wrong:* the style-hint comparison could recompute on a change that does not
+   affect density — a rawness or wig change alters the hint string without altering whether it
+   contains `receipt`. Recomputing there yields the same value it preserved, so the extra work is
+   invisible; the failure mode is wasted derivation, not wrong output.
+2. *Why the comparison is not the same mistake as before:* the previous three attempts compared
+   *theme IDs*, a proxy for the derivation input. The style hint **is** the derivation input. The
+   explicit source is still needed alongside it for the one case the comparison cannot see — a
+   click on the already-active theme chip, which leaves the hint unchanged but is a real selection.
+3. *Riskiest assumption:* that seeding the recorded hint at restore time is right. If it were
+   seeded empty, the first unrelated setting change on a reopened page would read as a change and
+   recompute — the exact regression this whole sequence has been circling. Proven by a test that
+   changes page size on a restored dense page and asserts it stays dense.
+4. *Evidence:* red-proof each branch by reverting it and showing the specific assertion fail, then
+   `npm run verify`, `npm run test:e2e`, and committed evidence under `docs/evidence/2026-09-04/`.
+
+## Quote Vault host-environment seams — ClockSeam, AppOriginSeam, PageVisibilitySeam (2026-09-04)
+
+This section is the active plan for the scheduled "worst feature -> best feature" run recorded in
+`WORST_TO_BEST_LOG.md`. It supersedes the 2026-08-26 recovery plan as the current active plan; that
+section remains below as historical context.
+
+**Why this plan exists at all.** The Quote Vault rebuild (PR #286) was scoped to touch no seam, and
+that was correct for the feature itself — every value it needed was already in `CreationRecord`.
+Review of the follow-up pull request (#289) established that two *host-environment reads* had come
+along with it anyway: the current instant, and the origin the app is served from. Both are seams
+under `AGENTS.md`. This plan is written after the finding and before the seam work, and it is
+recorded here because `AGENTS.md` requires a plan for a seam refactor rather than a decision record
+written afterwards.
+
+### Plan
+
+- Goal: no unseamed host-environment read in the Quote Vault path, and both behaviours drivable
+  from a test — the UTC-midnight label rollover, and the same-origin image-URL decision.
+- Exact seam names (now present in `docs/seams.md`): `ClockSeam`, `AppOriginSeam`,
+  `PageVisibilitySeam`.
+- Exact files:
+  - `src/lib/seams/clock-seam/{contract,validators,fixtures,mock,probe,test}.ts`
+  - `src/lib/adapters/clock-seam/index.ts`
+  - `src/lib/seams/app-origin-seam/{contract,validators,fixtures,mock,probe,test}.ts`
+  - `src/lib/adapters/app-origin-seam/index.ts`
+  - `src/lib/seams/page-visibility-seam/{contract,validators,fixtures,mock,probe,test}.ts`
+  - `src/lib/adapters/page-visibility-seam/index.ts`
+  - `src/routes/studio-state.svelte.ts` (inject all three; day-boundary refresh)
+  - `src/lib/core/vault-gallery.ts` (accept the origin as an argument; stay pure)
+  - `src/routes/+page.svelte`, `src/lib/components/studio/VerdictRow.svelte` (render the vault
+    entry the seams now feed)
+  - `scripts/run-probe.mjs` (new — repository-owned probe runner), `package.json` (register the
+    `probe` script)
+  - `tests/unit/studio-state.test.ts`, `tests/unit/vault-gallery.test.ts`,
+    `tests/e2e/smoke.spec.ts`
+  - `docs/seams.md`, `DECISIONS.md`, `plan.md`, `CHANGELOG.md`, `CLAUDE.md`, `AGENTS.md`,
+    `src/lib/seams/CLAUDE.md`, `WORST_TO_BEST_LOG.md`
+  - `docs/evidence/2026-09-04/*` — written by `npm run verify`, not edited by hand
+- Exact commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`,
+  `npm run cipher:gate`, `npm run verify`.
+- Explicitly out of scope: the three pre-existing `Date.now()`/`new Date()` reads in
+  `src/routes/studio-state.svelte.ts` (creation ids, `createdAtISO`). They are untouched by this
+  change and converting them would widen a review-fix pull request into unrelated code.
+
+### Self-critique
+
+- Riskiest assumption: that a clock seam is worth its weight for a date label. It is not obvious,
+  and it was argued against twice before being built. What settles it is not taste but the rule:
+  `AGENTS.md` names clock/time a seam with no exemption for reads that already exist nearby. The
+  evidence that it was right anyway is behavioural — the seam made the foreground-tab midnight
+  rollover testable, and writing that test is what exposed that the previous `visibilitychange`-only
+  refresh never fired for a reader who leaves the tab open.
+- What could be wrong: `ClockSeam.scheduleAt` wraps `setTimeout`, whose delay is capped near 24.8
+  days. **This was written as an accepted risk and it was not good enough** — a review found the
+  same hole and was right that documenting it is not closing it. The adapter now re-arms in bounded
+  chunks, so any instant is honoured however far ahead, and the probe checks it: a callback armed a
+  year out must still be pending after 200ms rather than having fired.
+- What must be proven: that the mock is a faithful stand-in. Both seams' contract tests assert the
+  adapter's real behaviour alongside the mock's, including that a fault fixture fails.
+- Self-check: `npm run cipher:gate` exits 0, `chamber-lock` reports both new seam folders complete,
+  and `docs/seams.md` has a row for each.
 
 ## Meechie Recovery v1.1 — Demo Repair, Wigs, Saved Work, Security (2026-08-26)
 
@@ -2156,3 +2443,47 @@ Deliver a brand-new modern/sleek/polished UI with strong visual identity, refres
 2. What must be proven: JPEG and WebP print packaging still route through browser conversion at 2550 by 3300, SVG fallback dimensions remain 2550 by 3300, the HTTP client and studio-text improvements are not regressed, and focused plus full verification gates pass.
 3. Riskiest assumption: Removing duplicated numeric literals without adding a behavior test is acceptable because this slice changes names, not values; the mitigation is focused OutputPackagingSeam tests plus a before/after source debt scan.
 4. Evidence to prove/disprove: Debt scan, focused output-packaging/wig/http/studio tests, Svelte check, lint, full verify, Cipher Gate, and diff-check output.
+
+## The standalone mode routes become real page factories (2026-09-04)
+
+**Goal:** `/who-fucked-up`, `/rate-his-excuse` and `/random` — three of the app's four nav
+destinations — produce the same coloring page the rest of the app produces: shaped by the structure
+the verdict came back in, reporting drift, downloadable as separate print and share files, and
+keepable in the Quote Vault. One implementation, shared, instead of three divergent copies.
+
+**Seams touched:** none. `MeechieToolSeam`, `SpecValidationSeam`, `OutputPackagingSeam`,
+`CreationStoreSeam` and `SessionSeam` are consumed through their existing adapters exactly as
+`src/routes/+page.svelte` and `src/lib/components/MeechieTools.svelte` already consume them. No file
+under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+`src/lib/seams/` is modified, so the full Seam-Driven Development workflow is not triggered and no
+Cipher Gate entry is required.
+
+**Files:**
+- `src/lib/core/generated-image-preview.ts` (new) — pure `GeneratedImage` -> data URL / base64.
+- `src/lib/components/verdict-page-state.svelte.ts` (new) — `VerdictPageState`, the verdict-to-page
+  lifecycle: verdict request, recipe, generation, packaging, drift, vault save, copy.
+- `src/lib/components/VerdictPageStudio.svelte` (new) — the shared "put it on paper" UI.
+- `src/routes/who-fucked-up/+page.svelte`, `src/routes/rate-his-excuse/+page.svelte`,
+  `src/routes/random/+page.svelte` — keep their own hero, input and verdict presentation; delegate
+  everything after the verdict to the shared studio.
+- `src/routes/studio-state.svelte.ts`, `src/lib/components/MeechieTools.svelte` — drop their private
+  copies of the image-conversion helpers in favour of the new core module.
+- `tests/unit/generated-image-preview.test.ts` (new), `tests/unit/verdict-page-state.test.ts` (new),
+  `tests/e2e/smoke.spec.ts`.
+- `CHANGELOG.md`, `CLAUDE.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+`npx playwright test`, plus driving all three routes in a real browser at 1280x900 and 390x844.
+
+**Self-critique:**
+- *Riskiest assumption:* that these three routes can share one lifecycle without losing what makes
+  each distinct. Disproved for the naive version — Rate His Excuse echoes the excuse and leads with
+  a score ring, and Random Meechie has a loading state and no input at all — so the split is at the
+  verdict boundary: each route owns its hero, its input and its verdict presentation, and the shared
+  component owns only what was identical.
+- *What must be proven:* that the shared guards actually hold. Every one of them is invisible from
+  the outside, so each gets a test, and each test is confirmed by deleting the guard and watching it
+  fail rather than by reading the code.
+- *What could be wrong:* the two-token design. One token would be simpler and is what the tools hub
+  uses, but the hub never shows a dedication field beside a loading verdict. Here it does, so a
+  shared token makes typing a dedication cancel an in-flight verdict request.

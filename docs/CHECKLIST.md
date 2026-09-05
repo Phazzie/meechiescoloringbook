@@ -13,7 +13,7 @@ Info flow: Plan -> commands -> evidence -> decisions -> completion.
 - [ ] Create today's evidence folder under `docs/evidence/YYYY-MM-DD/`.
 
 ## Phase 1 - Code inventory (confirm implementation exists)
-- [ ] UI flow is implemented in `src/routes/+page.svelte` (manual builder, chat builder, validation gating, generation chain, debug panel, saved creations).
+- [ ] UI flow is implemented in `src/routes/+page.svelte` (Meechie Studio: evidence input, AI verdict/quote generation, wig try-on, coloring-page preview/export, Quote Vault); validation gating before generation is in `src/routes/studio-state.svelte.ts`'s `handleGeneratePage`, and generation diagnostics (assembled prompt, model rewrite, quality flags) are in `src/lib/components/studio/SystemTrace.svelte`.
 - [ ] Server endpoints exist in `src/routes/api/chat-interpretation/+server.ts` and `src/routes/api/image-generation/+server.ts`.
 - [ ] Adapters exist for all seams under `src/lib/adapters/`.
 - [ ] Mocks exist for all seams under `src/lib/mocks/`.
@@ -56,7 +56,7 @@ Info flow: Plan -> commands -> evidence -> decisions -> completion.
 ## Phase 6 - Full verification (required for seam changes)
 - [ ] Run `npm test` and save output to `docs/evidence/YYYY-MM-DD/npm-test.txt`.
 - [ ] Run `npm run verify` and save output to `docs/evidence/YYYY-MM-DD/npm-verify.txt`.
-- [ ] Confirm automation outputs exist under `docs/evidence/YYYY-MM-DD/` (chamber lock, shaolin lint, seam ledger, clan chain, proof tape, cipher gate).
+- [ ] Confirm automation outputs exist under `docs/evidence/YYYY-MM-DD/` (chamber lock, shaolin lint, assumption alarm, seam ledger, clan chain, proof tape, cipher gate).
 
 ## Phase 7 - PWA build validation
 - [ ] Run `npm run build` and save output to `docs/evidence/YYYY-MM-DD/npm-build.txt`.

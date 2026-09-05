@@ -1,0 +1,146 @@
+{
+  "tool": "assumption-alarm",
+  "generatedAt": "2026-09-04T18:54:43.073Z",
+  "blockedSeams": [
+    "ImageGenerationSeam",
+    "RateLimitSeam",
+    "WigTryOnSeam"
+  ],
+  "assumptions": [
+    {
+      "date": "2026-09-03",
+      "seams": "None - `audit:gate` is a dependency-vulnerability check, not a seam.",
+      "statement": "The dependency tree at this PR's final commit (`package.json`/`package-lock.json`, unchanged since 22:12:22 this same session) has 0 high-or-critical-severity vulnerabilities, matching the `found 0 vulnerabilities` result `npm audit --audit-level=high` reported at 22:12:22 against the identical tree.",
+      "validation": "The registry's audit endpoint hung with zero output across five separate attempts (30s/60s/90s/45s/30s timeouts) spanning roughly 20 minutes, while `npm ping` to the same registry succeeded in 150ms in between, isolating the failure to the audit endpoint specifically. A sixth attempt (after PR #282 merged and further Codex-review repairs were prepared) succeeded once (`found 0 vulnerabilities`, matching this Statement), but a seventh attempt moments later, via `npm run verify`'s own wrapper, hung again - the endpoint is intermittently flaky rather than durably recovered, so this Assumption stays open rather than being marked resolved on one transient success. A separate, concurrent scheduled run (`session_01C9GA2bo9c2ebAWTo3YsaNb`) independently observed the identical pattern against this same unchanged tree: one clean pass at 23:19:21, then a registry-side 400 at 23:22:23, then another hang at 23:30 - consistent with genuine intermittent flakiness rather than a one-off. `package.json`/`package-lock.json` remain byte-unchanged throughout. Validate definitively by getting two consecutive clean runs of `npm audit --audit-level=high`; if any run reports anything other than 0 vulnerabilities, treat that as a regression to fix immediately, not as evidence this Assumption was wrong (the dependency tree has not changed since 22:12:22).",
+      "status": "Resolved - this Assumption's own validation criterion (\"two consecutive clean runs of `npm audit --audit-level=high`\") is now met: the same concurrent session (`session_01C9GA2bo9c2ebAWTo3YsaNb`) recorded three consecutive clean `npm run verify` wrapper invocations with no intervening failure - 23:55:53, then 00:15:49 and 00:28:47 after midnight UTC - all against this same byte-unchanged dependency tree (see `docs/evidence/2026-09-03/verify-chain.txt` and `docs/evidence/2026-09-04/verify-chain.txt`). A Codex review on that session's own PR pointed out the criterion had been satisfied while this entry still read Open, prompting this update.",
+      "seamList": [
+        "None - `audit:gate` is a dependency-vulnerability check",
+        "not a seam."
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-09-03",
+      "seams": "None registered - Content Security Policy font directives at the transport boundary",
+      "statement": "`style-src https://fonts.googleapis.com` and `font-src https://fonts.gstatic.com` admit the fonts the layout actually requests, so the site renders in its intended typefaces under the new policy.",
+      "validation": "The probe was blocked - every browser in the verification runtime returned ERR_CONNECTION_RESET for fonts.googleapis.com, and the same failure reproduced on an unmodified `main` worktree built and served identically, so it is that runtime's egress and not the policy. The directives are therefore proven only by reading the served header. Validate by loading the deployed site after this merges and confirming the Google Fonts stylesheet returns 200 with no securitypolicyviolation event.",
+      "status": "Open - pending first deploy.",
+      "seamList": [
+        "None registered - Content Security Policy font directives at the transport boundary"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-09-03",
+      "seams": "None registered - static-asset response headers served by the Vercel edge",
+      "statement": "The `headers` rules in `vercel.json` attach X-Content-Type-Options, X-Frame-Options and Referrer-Policy to the filesystem-served paths that `src/hooks.server.ts` never sees.",
+      "validation": "Not exercised locally - `vite preview` does not read `vercel.json`, so no local run can confirm it. Verification against the pull request's own Vercel preview was attempted and is also impossible: the preview is behind deployment protection and every request 302s to `vercel.com/sso-api`, so no response body or header of the app itself is reachable unauthenticated. The gap being closed is nonetheless confirmed on live production, which does not yet carry this change - `https://meechiescoloringbook.vercel.app/service-worker.js` returns 200 with no security headers at all. Validate after this merges and deploys to production, not on a preview: request `/service-worker.js` and an `/_app/immutable` asset from `https://meechiescoloringbook.vercel.app` and confirm X-Content-Type-Options, X-Frame-Options and Referrer-Policy are present.",
+      "status": "Open - pending first deploy.",
+      "seamList": [
+        "None registered - static-asset response headers served by the Vercel edge"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-08-26",
+      "seams": "RateLimitSeam",
+      "statement": "The durable Upstash-backed RateLimitSeam adapter behaves in production as its fixtures and fake-store tests describe. No live durable store has been provisioned or contacted, so atomic INCRBY/PEXPIREAT semantics, timeout behaviour, and cross-instance sharing are proven only against a fake that models them.",
+      "validation": "Once R2 is authorized, configure UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN and RATE_LIMIT_IDENTITY_SECRET, then run the bounded non-billable allow/deny/reset acceptance sequence against a dedicated probe key and record redacted status, timing and TTL evidence.",
+      "status": "Open. Provisioning a durable store is infrastructure mutation and was not authorized by the owner; the earlier claim that it had been could not be substantiated. Degraded in-process metering is in force meanwhile, so the absence of this store reduces the strength of the limit but never disables it.",
+      "seamList": [
+        "RateLimitSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-08-26",
+      "seams": "WigTryOnSeam",
+      "statement": "The configured xAI account accepts the exact two-image edit payload the production adapter sends to /v1/images/edits and returns a supported raster image.",
+      "validation": "Execute the single capped W11B acceptance call once, with no retry, and assert 200 plus non-empty supported raster output with secret-free evidence.",
+      "status": "Open. A live provider call spends money and was not authorized by the owner. Transport correctness is proven against a fake that asserts exact URL, headers, body, image order and model, and that no credential appears in any URL — but that is request compatibility, not account acceptance.",
+      "seamList": [
+        "WigTryOnSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-02-11",
+      "seams": "ImageGenerationSeam, ProviderAdapterSeam",
+      "statement": "The `grok-imagine-image` image model is available to the configured xAI API key and responds at `/v1/images/generations`.",
+      "validation": "Re-run `node probes/provider-adapter.probe.mjs` and `node probes/image-generation.probe.mjs` with an API key that has access to `grok-imagine-image` and confirm fixtures show ok image output.",
+      "status": "Validated (evidence: docs/evidence/2026-02-11/probe-provider-adapter.txt; docs/evidence/2026-02-11/probe-image-generation.txt).",
+      "seamList": [
+        "ImageGenerationSeam",
+        "ProviderAdapterSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-01-24",
+      "seams": "ProviderAdapterSeam, ChatInterpretationSeam, ImageGenerationSeam",
+      "statement": "DNS resolution is unavailable in the current environment, so xAI probe calls cannot complete and fixtures remain stubbed.",
+      "validation": "Restore DNS/network access and rerun `node probes/provider-adapter.probe.mjs`, `node probes/chat-interpretation.probe.mjs`, and `node probes/image-generation.probe.mjs` to refresh fixtures and evidence.",
+      "status": "closed (probes ran 2026-02-01)",
+      "seamList": [
+        "ProviderAdapterSeam",
+        "ChatInterpretationSeam",
+        "ImageGenerationSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-01-23",
+      "seams": "AuthContextSeam, CreationStoreSeam, ChatInterpretationSeam, ProviderAdapterSeam, SessionSeam",
+      "statement": "Probes are blocked in v1 due to missing credentials or environment; adapters remain stubbed and deterministic for now.",
+      "validation": "Run probes when credentials/environment are available; update fixtures and evidence accordingly.",
+      "status": "closed (browser probes ran 2026-02-05; provider probes ran 2026-02-01)",
+      "seamList": [
+        "AuthContextSeam",
+        "CreationStoreSeam",
+        "ChatInterpretationSeam",
+        "ProviderAdapterSeam",
+        "SessionSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-05-14",
+      "seams": "ImageGenerationSeam",
+      "statement": "Existing ImageGenerationSeam sample/fault fixtures remain representative for review-comment repairs even though they are older than seven days.",
+      "validation": "Run `npm run rewind -- --seam ImageGenerationSeam`, `npm run verify`, and schedule a credentialed `probes/image-generation.probe.mjs` refresh when XAI_API_KEY is available.",
+      "status": "Waived for this review-comment repair because live xAI credentials are not present in the non-interactive environment.",
+      "seamList": [
+        "ImageGenerationSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-05-16",
+      "seams": "ImageProviderConfigSeam",
+      "statement": "ImageProviderConfigSeam is a config-only seam, so its probe is represented by deterministic adapter tests rather than live network I/O.",
+      "validation": "Run `npm.cmd test -- src/lib/seams/image-provider-config-seam/test.ts --pool=forks --maxWorkers=1`, `npm.cmd run verify`, and refresh this assumption if the seam starts reading live provider state.",
+      "status": "Active for PR #70 because the seam reads environment values only and has no live provider call to probe.",
+      "seamList": [
+        "ImageProviderConfigSeam"
+      ],
+      "missingFields": []
+    },
+    {
+      "date": "2026-08-24",
+      "seams": "ProviderAdapterSeam, AppConfigSeam, MeechieStudioTextSeam, MeechieToolSeam, ChatInterpretationSeam",
+      "statement": "grok-4.6 answers POST /v1/chat/completions with the request shape this app sends, including the json_schema response_format.",
+      "validation": "Partially proven. The authenticated 2026-08-25 provider capture shows `grok-4.6` accepted the probe's strict `json_schema` request and returned `{\"status\":\"OK\"}`; `grok-imagine-image` also returned image data. The preview deployment is still behind Vercel SSO, so POST `/api/meechie-studio-text` with the full Meechie system prompt was not captured through the deployed app in this workspace.",
+      "status": "Open only for the deployed full-payload path — resolve by probing POST `/api/meechie-studio-text` on a reachable deployment and confirming `ok:true` with a non-empty verdict. If it fails, the response now carries xAI's real message rather than a bare \"Bad Request\", which names the next model to try. The separate image-model upgrade remains deferred: `grok-imagine-image` is now live-capture-proven, and any replacement belongs in its own authenticated probe-backed change.",
+      "seamList": [
+        "ProviderAdapterSeam",
+        "AppConfigSeam",
+        "MeechieStudioTextSeam",
+        "MeechieToolSeam",
+        "ChatInterpretationSeam"
+      ],
+      "missingFields": []
+    }
+  ],
+  "missingSeamCoverage": [],
+  "invalidAssumptions": []
+}

@@ -107,10 +107,12 @@ To change a model, edit `src/lib/core/models.js` and open a pull request.
 | `npm run test:integration` | Run integration tests against real APIs (requires `FEATURE_INTEGRATION_TESTS=true`) |
 | `npm run lint` | Run ESLint |
 | `npm run format` | Format files with Prettier |
-| `npm run format:check` | Check formatting (CI) |
+| `npm run format:check` | Check formatting (not enforced in CI or `npm run verify`) |
 | `npm run check` | SvelteKit type check |
-| `npm run verify` | Full verify pipeline (chamber lock + lint + type check + tests + seam ledger + proof tape) |
+| `npm run verify` | Full verify pipeline — see stage definitions below (audit gate, chamber lock, verify runner [check + test], shaolin lint, assumption alarm, seam ledger, clan chain, proof tape) |
 | `npm run hooks:install` | Install local git pre-commit/pre-push hooks |
+
+`npm run verify`'s stages, in plain language: **audit gate** fails the build on a known high-severity dependency vulnerability; **chamber lock** checks that every seam has its required contract, probe, sample/fault fixtures, mock, contract tests, and adapter files; **verify runner** runs `npm run check` + `npm test`; **shaolin lint** checks that evidence files are recent enough to trust; **assumption alarm** fails if a blocked probe's assumption isn't recorded in `DECISIONS.md`; **seam ledger** writes a seam coverage report; **clan chain** writes a clean/dirty summary per seam; **proof tape** writes a plain-English summary of all the above.
 
 ---
 
@@ -118,11 +120,15 @@ To change a model, edit `src/lib/core/models.js` and open a pull request.
 
 This project uses **Seam-Driven Development (SDD)** — every external integration point is isolated behind a "seam" with a defined contract, deterministic mock, and real adapter. This prevents integration drift and keeps core logic testable without live API calls.
 
-Each seam consists of:
+Each self-contained seam folder (`src/lib/seams/<seam-name>/`, the layout new seams use) consists of:
 - `contract.ts` — TypeScript types and Zod schemas
-- `fixtures.ts` — static test data captured from real API responses
+- `probe.ts` — captures real behavior to refresh fixtures; the exact strategy is seam-specific (an external-system call, calling the seam directly, or an `N/A` stub for some pure seams) — see `docs/seams.md`
+- `fixtures.ts` — static test data; whether it's captured from a real response or authored by hand is seam-specific — see `docs/seams.md`
 - `mock.ts` — deterministic test doubles (load fixtures by scenario, no invented data)
-- `adapter.ts` — real implementation behind the seam
+- `test.ts` — contract tests (mock first, fault fixture must fail)
+- `validators.ts` — shared Zod validators for adapter and test reuse
+
+When an adapter exists, it lives separately, at `src/lib/adapters/<seam-name>/index.ts` — some seams are pure or dependency-injected and have no adapter at all. Legacy flat-layout seams (see `contracts/CLAUDE.md`) split these same artifacts across `contracts/`, `probes/` (only when the seam requires a real-world probe — most legacy seams are pure and have none), `fixtures/`, `src/lib/mocks/`, and `tests/contract/` instead, with the adapter at `src/lib/adapters/<seam-name>.adapter.ts`, and have no `validators.ts`. `docs/seams.md` is the authoritative source for which layout and files a given seam actually has.
 
 **Key directories:**
 

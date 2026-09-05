@@ -27,7 +27,11 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange tri
 		pageSize: PageSize;
 		border: BorderChoice;
 		glitter: boolean;
-		onSettingChange: () => Promise<void>;
+		// The source is passed, not inferred. A theme chip fires this handler even when the reader
+		// clicks the chip that is already active, so comparing theme IDs cannot tell "the reader
+		// picked a theme" from "some other control changed" — and on a reopened page, whose real
+		// theme was never recorded, the comparison gets it wrong in both directions.
+		onSettingChange: (source: 'theme' | 'setting') => Promise<void>;
 	} = $props();
 </script>
 
@@ -49,7 +53,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange tri
 					class:active={selectedThemeId === theme.id}
 					onclick={async () => {
 						selectedThemeId = theme.id;
-						await onSettingChange();
+						await onSettingChange('theme');
 					}}
 				>
 					<span>{theme.icon}</span>
@@ -62,7 +66,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange tri
 		<select
 			id="intensity"
 			bind:value={intensity}
-			onchange={onSettingChange}
+			onchange={() => onSettingChange('setting')}
 		>
 			<option value="receipts_out">Receipts Out</option>
 			<option value="church_lady">Church Lady</option>
@@ -73,7 +77,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange tri
 		<select
 			id="rawness"
 			bind:value={rawness}
-			onchange={onSettingChange}
+			onchange={() => onSettingChange('setting')}
 		>
 			<option value="mild">Mild</option>
 			<option value="medium">Medium</option>
@@ -84,7 +88,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange tri
 		<select
 			id="thirdPerson"
 			bind:value={thirdPerson}
-			onchange={onSettingChange}
+			onchange={() => onSettingChange('setting')}
 		>
 			<option value="sometimes">Sometimes</option>
 			<option value="always">Always</option>
@@ -95,7 +99,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange tri
 		<select
 			id="pageSize"
 			bind:value={pageSize}
-			onchange={onSettingChange}
+			onchange={() => onSettingChange('setting')}
 		>
 			<option value="US_Letter">US Letter</option>
 			<option value="A4">A4</option>
@@ -105,7 +109,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange tri
 		<select
 			id="border"
 			bind:value={border}
-			onchange={onSettingChange}
+			onchange={() => onSettingChange('setting')}
 		>
 			<option value="decorative">Decorative</option>
 			<option value="plain">Plain</option>
@@ -116,7 +120,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange tri
 			<input
 				type="checkbox"
 				bind:checked={glitter}
-				onchange={onSettingChange}
+				onchange={() => onSettingChange('setting')}
 			/>
 			<span>Add glitter overlay</span>
 		</label>

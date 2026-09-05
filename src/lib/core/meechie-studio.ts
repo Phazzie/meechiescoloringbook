@@ -360,31 +360,63 @@ const normalizeSpecLabel = (value: string, fallback: string): string =>
 const normalizeSpecTitle = (value: string, fallback: string): string =>
 	normalizeSpecText(value, fallback, MAX_TITLE_LENGTH);
 
+/**
+ * The page's own words, for a spec whose text was not persisted beside it.
+ *
+ * The page's own words only. This used to lead with the record's `assembledPrompt`, which on a
+ * generated page is the image-generation prompt — a machine instruction carrying composition
+ * directives, never anything Meechie said — and reopening put it in her mouth as the quote. A page
+ * with no printed items hit that every time: a toolkit quote page, where the title *is* the page,
+ * had nothing else to offer. There is no case where the prompt is the right answer here, so it is
+ * gone rather than demoted.
+ *
+ * Exported because a caller that gets `null` from the builders below still has a page in front of
+ * it and still needs its words. Answering that with a second copy of the rule is how the two drift.
+ */
+export const specOwnQuote = (intent: ColoringPageSpec): string =>
+	intent.footerItem?.label ||
+	normalizeSpecTitle(intent.title, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
+
+/**
+ * Studio text describing a persisted page, or `null` when the page prints nothing to describe.
+ *
+ * `MeechieStudioTextOutputSchema` requires at least two `pageItems`, so a spec with none — exactly
+ * the shape a wig try-on page saves, and what a toolkit quote page degrades to when its verdict
+ * cannot yield printable lines — cannot be described without inventing them. This used to return
+ * the demo seed's THE RENT / THE DOPEMAN / WHAT IT COST for that case: words that were never on the
+ * page and were never Meechie's.
+ *
+ * Callers guarded the *writes* against that fabrication and left it in the state, so it still
+ * reached the paper as the page's list and still enabled Save to Vault on a page that had nothing
+ * to save. Returning `null` deletes the invention itself rather than adding a third guard against
+ * it — a page with no printed items has no studio text, and every consumer already handles that.
+ */
 const buildStudioTextFromSpec = (input: {
 	intent: ColoringPageSpec;
-	quoteFallback?: string;
 	studioText?: MeechieStudioTextOutput;
-}): MeechieStudioTextOutput => {
+}): MeechieStudioTextOutput | null => {
 	if (input.studioText) {
 		return input.studioText;
+	}
+	if (input.intent.items.length === 0) {
+		return null;
 	}
 	const pageTitle = normalizeSpecTitle(input.intent.title, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
 	return {
 		verdict: pageTitle,
-		quote: input.quoteFallback?.trim() || input.intent.footerItem?.label || pageTitle,
+		quote: specOwnQuote(input.intent),
 		pageTitle,
-		pageItems:
-			input.intent.items.length > 0
-				? input.intent.items.map((item) => ({
-						number: item.number,
-						label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
-					}))
-				: DEFAULT_STUDIO_TEXT_OUTPUT.pageItems,
+		pageItems: input.intent.items.map((item) => ({
+			number: item.number,
+			label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
+		})),
 		qualityState: 'ready'
 	};
 };
 
-export const buildStudioTextFromDraftRecord = (draft: DraftRecord): MeechieStudioTextOutput =>
+export const buildStudioTextFromDraftRecord = (
+	draft: DraftRecord
+): MeechieStudioTextOutput | null =>
 	buildStudioTextFromSpec({
 		intent: draft.intent,
 		studioText: draft.studioText
@@ -392,12 +424,24 @@ export const buildStudioTextFromDraftRecord = (draft: DraftRecord): MeechieStudi
 
 export const buildStudioTextFromCreationRecord = (
 	creation: CreationRecord
-): MeechieStudioTextOutput =>
+): MeechieStudioTextOutput | null =>
 	buildStudioTextFromSpec({
 		intent: creation.intent,
-		quoteFallback: creation.assembledPrompt,
 		studioText: creation.studioText
 	});
+
+/**
+ * Whether a style hint asks for dense decoration.
+ *
+ * Exported because the studio has to answer "did the thing that drives density change?" before it
+ * decides whether a reopened page keeps its saved value, and answering that with a second copy of
+ * this rule is how the two drift apart. Note that the hint carries the voice as well as the theme,
+ * so the intensity `receipts_out` matches it on its own — surprising, long-standing, and the reason
+ * the question has to be asked against this predicate rather than against the theme or the whole
+ * hint string.
+ */
+export const derivesDenseDecorations = (styleHint: string): boolean =>
+	styleHint.includes('receipt');
 
 export const buildColoringPageSpecFromMeechieText = (input: {
 	output: Pick<
@@ -408,31 +452,96 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	border: ColoringPageSpec['border'];
 	styleHint: string;
 	dedication?: string;
+	/**
+	 * The layout to rebuild in. Defaults to `'list'`, which is what the studio has always
+	 * produced, so studio behaviour is unchanged.
+	 *
+	 * It exists for pages the studio did not author. A page saved from the Meechie tools hub can
+	 * be `title_only` — the quote *is* the page — and its stored `studioText.pageItems` are a
+	 * faithful record of the verdict rather than lines the page prints. Rebuilding such a page at
+	 * `'list'` would silently reprint it as a numbered list the next time a setting changed,
+	 * spending a generation on the wrong layout.
+	 */
+	listMode?: ColoringPageSpec['listMode'];
+	/**
+	 * Whether to print the repeated-title footer. Defaults to true, which is what the studio has
+	 * always done.
+	 *
+	 * A list page saved from the Meechie tools hub carries no footer — the prompt assembler renders
+	 * one as a second exact headline line, so adding it on rebuild gives the reopened page a
+	 * duplicate of its own title.
+	 */
+	includeFooter?: boolean;
+	/**
+	 * The presentation of the page being rebuilt, when there is one to carry forward.
+	 *
+	 * Same reason as `listMode` and `includeFooter`, and the same omission they each were: a page
+	 * saved by the tools hub is centered, large, stroke 9, loose gutter, 35 whitespace. Rebuilding
+	 * dropped all of that back to the studio's own defaults, so changing something as narrow as page
+	 * size silently returned a visibly different layout — left-aligned, small, stroke 6. Layout,
+	 * footer and presentation are the same question: is this still the page that was reopened?
+	 */
+	presentation?: Partial<
+		Pick<
+			ColoringPageSpec,
+			| 'alignment'
+			| 'numberAlignment'
+			| 'listGutter'
+			| 'whitespaceScale'
+			| 'textSize'
+			| 'fontStyle'
+			| 'textStrokeWidth'
+			| 'colorMode'
+			| 'decorations'
+			| 'illustrations'
+			| 'shading'
+			| 'borderThickness'
+			| 'variations'
+		>
+	>;
 }): ColoringPageSpec => ({
 	title: normalizeSpecTitle(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle),
-	items: input.output.pageItems.map((item) => ({
-		number: item.number,
-		label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
-	})),
-	footerItem: {
-		number: 97,
-		label: normalizeSpecLabel(input.output.pageTitle, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle)
-	},
-	listMode: 'list',
-	alignment: 'left',
-	numberAlignment: 'strict',
-	listGutter: 'normal',
-	whitespaceScale: 50,
-	textSize: 'small',
-	fontStyle: 'rounded',
-	textStrokeWidth: 6,
-	colorMode: 'black_and_white_only',
-	decorations: input.styleHint.includes('receipt') ? 'dense' : 'minimal',
-	illustrations: 'simple',
-	shading: 'none',
+	// `title_only` forbids both items and a footer item, so a quote page carries neither.
+	items:
+		input.listMode === 'title_only'
+			? []
+			: input.output.pageItems.map((item) => ({
+					number: item.number,
+					label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
+				})),
+	...(input.listMode === 'title_only' || input.includeFooter === false
+		? {}
+		: {
+				footerItem: {
+					number: 97,
+					label: normalizeSpecLabel(
+						input.output.pageTitle,
+						DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle
+					)
+				}
+			}),
+	listMode: input.listMode ?? 'list',
+	alignment: input.presentation?.alignment ?? 'left',
+	numberAlignment: input.presentation?.numberAlignment ?? 'strict',
+	listGutter: input.presentation?.listGutter ?? 'normal',
+	whitespaceScale: input.presentation?.whitespaceScale ?? 50,
+	textSize: input.presentation?.textSize ?? 'small',
+	fontStyle: input.presentation?.fontStyle ?? 'rounded',
+	textStrokeWidth: input.presentation?.textStrokeWidth ?? 6,
+	colorMode: input.presentation?.colorMode ?? 'black_and_white_only',
+	// Carried forward like the rest of the presentation, but the caller drops it when the reader
+	// picks a theme, because this one is *derived* from the theme rather than chosen directly.
+	// Preserving it unconditionally made the Theme control contradict itself; recomputing it
+	// unconditionally was no better, since a restored page's theme is not restored with it, so a
+	// page-size change alone turned a dense page minimal. Provenance lives with the caller, which is
+	// the only side that knows whether a theme was actually selected.
+	decorations:
+		input.presentation?.decorations ?? (derivesDenseDecorations(input.styleHint) ? 'dense' : 'minimal'),
+	illustrations: input.presentation?.illustrations ?? 'simple',
+	shading: input.presentation?.shading ?? 'none',
 	border: input.border,
-	borderThickness: 8,
-	variations: 1,
+	borderThickness: input.presentation?.borderThickness ?? 8,
+	variations: input.presentation?.variations ?? 1,
 	outputFormat: 'pdf',
 	pageSize: input.pageSize,
 	dedication: input.dedication
