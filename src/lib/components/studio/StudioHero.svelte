@@ -41,12 +41,19 @@ Info flow: Parent passes read-only mode data and callbacks; hero is purely prese
 			Tell Meechie what happened, get the verdict and quote, then turn it into
 			a printable coloring page.
 		</p>
+		<!--
+			Points at the budget meter in `StudioInputPanel`, the same target the five buttons down
+			there use. `aria-describedby` resolves across the whole document, and this button shares
+			`canGenerateText` with them — including the quota guard — so without it the page's primary
+			action could sit disabled with its reason announced only next to the buttons further down.
+		-->
 		<button
 			type="button"
 			class="primary"
 			data-testid="home-hero-generate"
 			onclick={() => onRunTextAction('generate_text')}
 			disabled={!canGenerateText}
+			aria-describedby="ai-budget"
 		>
 			{isTextWorking ? 'Reading...' : activeMode.cta}
 		</button>

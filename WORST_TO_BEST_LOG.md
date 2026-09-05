@@ -5190,3 +5190,36 @@ the buttons ignoring the sentence above them. Writing the feature whose whole su
 display what the server has not said" did not stop me shipping four instances of it in two commits.
 The mechanism that caught all four was an adversarial reader with no stake in the framing — worth
 more here than the framing itself was.
+
+---
+
+## Run 7, third close-out — 2026-09-05 — the Codex round on `aa8553e`
+
+One finding, and a fair one: widening the quota guard had quietly created an accessibility gap.
+
+`aiQuotaExhausted` gates `canGenerateText`, and `canGenerateText` drives **two** buttons — the five
+in `StudioInputPanel`, which carry `aria-describedby="ai-budget"`, and the hero's, which is the
+page's primary action and lives in a different component. So the previous round could leave the
+biggest button on the page disabled with the reason announced only beside the smaller ones further
+down. `aria-describedby` resolves across the whole document, so the fix is one attribute; the bug
+was that widening a guard silently widened the set of buttons that needed the explanation, and only
+one of the two sites had it.
+
+Covered by a new browser test that asserts all six quota-gated buttons name the meter **and** that
+`#ai-budget` exists — a reference to a missing id is worse than no reference, and nothing else in
+the suite would have noticed if the meter's id changed.
+
+35 e2e now pass.
+
+### The pattern, three rounds in
+
+Round 1: the count outlived its window, the label rounded away the seconds, the reset was measured
+from the wrong end of the request. Round 2: the buttons ignored the sentence above them. Round 3:
+one of those buttons lost the sentence entirely. Every finding across all three is the same shape —
+part of the studio saying, or failing to say, something the rest of it already knew.
+
+A feature whose whole subject is "do not assert what the server has not said" turns out to be
+unusually good at generating instances of its own defect, because every fix adds another place where
+the knowledge has to be repeated. The fixes that lasted were the ones that removed a place it *could*
+disagree — one definition of the quota cost, one derived `aiQuotaExhausted` behind every guard, one
+`#ai-budget` named by every button — rather than the ones that corrected a value.

@@ -1445,3 +1445,28 @@ test('switching mode after spending the rewrites does not strand the studio', as
 		'3 rewrites left'
 	);
 });
+
+// Every button gated by the quota — including the hero's, which is the page's primary action and
+// lives in a different component from the meter that explains it — has to name that explanation.
+test('every quota-gated button points at the meter that explains it', async ({ page }) => {
+	await stubApis(page);
+	await gotoHydrated(page, '/');
+
+	await expect(page.getByTestId('home-hero-generate')).toHaveAttribute(
+		'aria-describedby',
+		'ai-budget'
+	);
+	await expect(page.getByTestId('home-generate-verdict')).toHaveAttribute(
+		'aria-describedby',
+		'ai-budget'
+	);
+	for (const label of ['Regenerate', 'Make Prettier', 'Make Meaner', 'More Specific']) {
+		await expect(page.getByRole('button', { name: label })).toHaveAttribute(
+			'aria-describedby',
+			'ai-budget'
+		);
+	}
+
+	// The target has to exist, or every one of those references points at nothing.
+	await expect(page.locator('#ai-budget')).toHaveCount(1);
+});
