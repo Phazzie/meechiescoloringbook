@@ -7416,3 +7416,19 @@ none of `colorMode`, `textSize`, `fontStyle`, `alignment`, `textStrokeWidth`, `b
 a broken one. Neither is a recommendation. Measure it.
 
 Final mutation total for Run 8: **69**.
+
+### Postscript: the dispositioned red check, settled by measurement
+
+The close-out above argues that Rosentic's red on #304 was a function of the repository's unmerged
+branch backlog rather than of the diff. The follow-up PR carrying this entry tested that argument
+without meaning to.
+
+**#307 is the same branch name, restarted from `main` after the merge, carrying only this log entry.
+Rosentic passes on it.** The Page Controls change is identical — it is simply on `main` now instead of
+in an unmerged branch — and the findings that were "3 breaking" against it are gone. The two findings
+Rosentic does report on #307 name four other branches and not this one at all.
+
+That is the disproof stated as a measurement rather than as a claim: the same code, in the same
+repository, red as a branch and green as `main`. Which is what "these describe hypothetical merges
+with code that is not on `main`" means, and it is worth having it on the record as an observation
+instead of an assertion — since assertions outliving their evidence is the entire subject of this run.
