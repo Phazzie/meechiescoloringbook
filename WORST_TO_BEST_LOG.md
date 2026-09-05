@@ -6578,3 +6578,54 @@ a lesson into this log does not install it anywhere that acts.
 - **Pushing costs something.** Twenty-odd pushes, one per review round, exhausted a Vercel daily
   deployment quota and regenerate ~200 bot comments each. Batching rounds is cheaper and I did not
   notice I was spending anything until the quota ran out.
+
+## Run 7 close-out — round twenty-two: deleting the rule instead of patching it again
+
+A review found the third hole in the same rule. Move Intensity, Rawness, Third Person or Glitter and
+then put it back: the values equal the controls as restored, so the comparison says nothing was
+chosen — while the reader has deliberately settled on exactly this style.
+
+Three rounds, three holes, all the same shape: re-picking the active theme (round twenty),
+re-picking the active wig (round twenty-one), and now a control moved and returned. Every one is the
+reader choosing, and every one leaves the values identical.
+
+### The rule was asking the wrong question
+
+Adding a fourth special case was the obvious move and would have been wrong. The comparison asked
+**"did the values change?"** when what it needed to know was **"did the reader choose?"** — and only
+the caller knows that.
+
+So the comparison is gone. `unknownStyleBaseline` and the `isSameStyleSelection` call with it:
+
+    private readerChoseStyleSinceRestore = $derived(
+        this.generatedSpec === undefined && this.readerClaimedStyle
+    );
+
+It only ever existed because page size and border reach the studio through the same handler as the
+voice and glitter, and they are not style — they live in the intent. Giving the style controls their
+own `SettingChangeSource` removes that reason and the entire class of edge cases with it. Touching a
+style control is the claim; nothing is inferred from values.
+
+**The lesson, and it cost four rounds to buy: when the fix for a rule keeps being another special
+case, stop fixing the cases.** Three reviewers' findings in a row were each individually correct and
+each individually patchable, and taking them one at a time would have produced a rule made entirely
+of exceptions. The signal was not in any one finding — it was in the *shape of the sequence*, and I
+only saw it on the third.
+
+### Mutations, in both directions
+
+Two, both red, and deliberately opposite, because a rule like this fails by being too narrow *or*
+too broad:
+
+- only `'theme'` claims → the new test fails, and the reported case returns.
+- *any* source claims → "does not read a moved page size as a style the reader chose" fails, and
+  paper becomes style.
+
+Running total: **69**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1407 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0, transcript 66 lines carrying its own exit status ·
+`npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed · Playwright 38 passed ·
+browser probe complete.
