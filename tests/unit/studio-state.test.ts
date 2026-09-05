@@ -895,6 +895,36 @@ describe('StudioState wig try-on comparison', () => {
 		expect(studio.packagedFiles).toEqual([]);
 	});
 
+	/**
+	 * Trying the same wig on again keeps the old portrait on screen while the new one is styled.
+	 * Replacing it changes neither the selected wig nor the page token, so neither existing guard
+	 * can see it — a page started in that window would keep the old look while the panel shows the
+	 * new one. The only thing that distinguishes the window is that a try-on is in flight.
+	 */
+	it('refuses to build a page while the portrait it would use is being replaced', async () => {
+		const studio = new StudioState();
+		const packageSpy = vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: { files: [] }
+		});
+		studio.tryOnPortraits = [{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT }];
+		studio.selectedWig = SAMPLE_WIG;
+		studio.selfieBase64 = 'selfie-bytes';
+		expect(studio.canGenerateTryOnPage).toBe(true);
+
+		// The same wig is being tried on again; the old portrait is still on screen.
+		studio.isTryingOn = true;
+		expect(studio.canGenerateTryOnPage).toBe(false);
+
+		await studio.handleGenerateTryOnPage();
+
+		expect(packageSpy).not.toHaveBeenCalled();
+		expect(studio.images).toEqual([]);
+		expect(studio.generationError).toBe(
+			'Wait for the new look to finish before making the page.'
+		);
+	});
+
 	it('names a try-on coloring page after its wig instead of the demo default', async () => {
 		const studio = new StudioState();
 		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
@@ -1909,6 +1939,25 @@ describe('StudioState quote vault', () => {
 
 		expect(studio.creations[0].intent.title).toBe('Wig Try-On - Sample Wig');
 		expect(studio.creations[0].intent.items).toEqual([]);
+	});
+
+	/**
+	 * The vault and the draft both write studio text down, and both have to answer "is this text
+	 * this page's own?" before they do. They asked it separately and drifted: the vault learned to
+	 * exclude a verdict belonging to a different page, the draft did not — so verdict → try-on →
+	 * draft → refresh put that verdict back as genuine and defeated the vault guard from behind.
+	 */
+	it('keeps an unrelated verdict out of the draft as well as the vault', async () => {
+		const studio = await initVault([]);
+		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about something else.' };
+		await makeTryOnPage(studio);
+
+		saveDraftSpy.mockClear();
+		await studio.syncSpecFromCurrentText();
+		await vi.waitFor(() => expect(saveDraftSpy).toHaveBeenCalled());
+
+		expect(saveDraftSpy.mock.calls.at(-1)?.[0].draft.studioText).toBeUndefined();
 	});
 
 	it('still refuses to save when there is neither a verdict nor a page', async () => {

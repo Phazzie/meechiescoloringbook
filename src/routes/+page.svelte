@@ -100,6 +100,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		tryOnPortraitUrl={studio.tryOnPortraitUrl}
 		tryOnPortraits={studio.tryOnPortraits}
 		canCompareTryOns={studio.canCompareTryOns}
+		canGenerateTryOnPage={studio.canGenerateTryOnPage}
 		tryOnError={studio.tryOnError}
 		isTryingOn={studio.isTryingOn}
 		canTryOn={studio.canTryOn}

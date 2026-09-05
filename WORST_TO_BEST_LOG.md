@@ -4256,3 +4256,59 @@ Eleven real findings across four review rounds and one self-audit, every one of 
 own work except the unguarded studio generation, which pre-dated it. Nine of the eleven are one
 family: **something on the page and the thing describing it, drifting apart** — across an await,
 across a restore, across a serialisation, across a settings rebuild.
+
+---
+
+## Run 5, sixth close-out — 2026-09-05 — the Codex round on `eb4e6a4`
+
+Appended, not edited. Two findings, **both accepted and fixed**, both P1.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | A verdict about something else was kept out of the **vault** but not out of the **draft**. Verdict → try-on page → debounced draft save → refresh restored that verdict as genuine, which defeated the vault's guard from behind. | **Real.** Both writers now go through one accessor. |
+| P1 | Trying the **same wig** on again keeps the old portrait on screen while the new one is styled, and "Make It a Coloring Page" only checked `isGenerating`. A page started in that window captured the old portrait, and replacing a portrait for the same wig changes neither the selected wig nor the page token — so **neither existing guard could see it**. | **Real.** The action is refused while a try-on is in flight, in the state and on the button. |
+
+### The first finding is the lesson this run already wrote down, ignored by its own author
+
+Run 5's earlier close-out records: *"a guard that has been reasoned about is not thereby applied
+everywhere it is needed."* It was written after exactly this mistake, twice. Then
+`tryOnPageOnScreen` was added to `saveToVault` and **not** to `saveDraft` — a third instance of the
+pattern the lesson describes, committed after the lesson was committed.
+
+Writing the rule down did not prevent the next occurrence. What prevents it is structural: the two
+writers now call one `describingStudioText()` accessor, so there is no second copy of the condition
+to forget. The mutation proof shows the difference — deleting the exclusion inside the accessor
+fails **both** writers' tests at once, where before each site had to be remembered separately.
+
+That is the same move as `attachPackagedPage` two close-outs ago, for the same reason, and it is now
+twice that the durable fix in this run turned out to be "delete the second copy" rather than "add
+the missing check".
+
+### The second finding is the first race no token could catch
+
+Every staleness guard in this run keys on something *changing*: the wig, the selfie token, the page
+token. Replacing a portrait for the **same** wig changes none of them — the wig is identical, and
+`storeTryOnPortrait` does not advance the page token. The only thing that distinguishes the window
+is that a try-on is in flight, so that is what the guard reads.
+
+Worth keeping because it bounds the technique: identity tokens catch *substitution*, not
+*mutation in place*. A value replaced under a stable key is invisible to them.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1250 passed, 1 skipped**
+(from 1248). `npm run build` exit 0. `npx playwright test` **32 passed**. `npm run verify` exit 0.
+`npm run cipher:gate` exit 0. Duplication scan reports nothing in this diff.
+
+**Both proven by mutation:** dropping `|| this.tryOnPageOnScreen` from the accessor fails *two*
+tests — the vault's and the draft's — and removing the in-flight refusal fails `refuses to build a
+page while the portrait it would use is being replaced`.
+
+### Running total
+
+**Thirteen** real findings across five review rounds and one self-audit. Eleven of the thirteen are
+one family: something on the page and the thing describing it, drifting apart — across an await, a
+restore, a serialisation, a settings rebuild, or a replacement under a stable key.
+
+Codex's round on `3cdb1be` — the self-audit head — came back with **no findings**, the only clean
+round so far, and it independently confirmed one defect the audit had already fixed.

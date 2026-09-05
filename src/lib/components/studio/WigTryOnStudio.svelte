@@ -35,6 +35,7 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 		tryOnPortraitUrl,
 		tryOnPortraits,
 		canCompareTryOns,
+		canGenerateTryOnPage,
 		tryOnError,
 		isTryingOn,
 		canTryOn,
@@ -51,6 +52,7 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 		tryOnPortraitUrl: string;
 		tryOnPortraits: TryOnPortrait[];
 		canCompareTryOns: boolean;
+		canGenerateTryOnPage: boolean;
 		tryOnError: string;
 		isTryingOn: boolean;
 		canTryOn: boolean;
@@ -133,7 +135,7 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 							type="button"
 							class="primary"
 							onclick={onGenerateTryOnPage}
-							disabled={!tryOnPortraitUrl || isGenerating}
+							disabled={!canGenerateTryOnPage}
 						>
 							{isGenerating ? 'Creating...' : 'Make It a Coloring Page'}
 						</button>

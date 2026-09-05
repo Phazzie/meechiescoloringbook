@@ -288,6 +288,17 @@ export class StudioState {
 			?.portraitUrl ?? ''
 	);
 	// Only worth showing once there is a decision to make, which is what a second portrait is.
+	/**
+	 * Making a page needs a portrait that is not about to be replaced.
+	 *
+	 * Trying the *same* wig on again keeps the old portrait on screen while the new one is styled,
+	 * and replacing it changes neither the selected wig nor the page token — so neither existing
+	 * guard can see it. A page started in that window captures the old portrait URL and then keeps
+	 * it, leaving the coloring page showing one look while the result panel shows another.
+	 */
+	canGenerateTryOnPage = $derived(
+		!!this.tryOnPortraitUrl && !this.isGenerating && !this.isTryingOn
+	);
 	canCompareTryOns = $derived(this.tryOnPortraits.length > 1);
 	// Words or a picture — either is a page worth keeping. Gating on the verdict alone is what left
 	// a generated try-on page as the only thing in the app the vault would not take.
@@ -387,6 +398,24 @@ export class StudioState {
 	 */
 	private tryOnPageTitle = '';
 
+	/**
+	 * The verdict on screen, but only when it is genuinely *this page's* words.
+	 *
+	 * Two things write studio text down — the vault and the draft — and both must answer the same
+	 * question before they do. They asked it separately, and drifted: the vault learned to exclude a
+	 * verdict that belongs to a different page, the draft did not, so a verdict → try-on → draft →
+	 * refresh round trip put that verdict back as genuine and defeated the vault's guard from the
+	 * other side. One accessor, so there is no second copy of the condition to forget.
+	 *
+	 * Excluded: text invented by a restore (`restoredSeedPageItems`), and any verdict at all while
+	 * the paper is a wig portrait (`tryOnPageOnScreen`) — a portrait page prints no verdict words.
+	 */
+	private describingStudioText(): MeechieStudioTextOutput | undefined {
+		if (!this.textOutput) return undefined;
+		if (this.restoredSeedPageItems || this.tryOnPageOnScreen) return undefined;
+		return $state.snapshot(this.textOutput);
+	}
+
 	/** The title-only shape a try-on page always has: the wig's name, a picture, and nothing else. */
 	private asTryOnPageSpec(spec: ColoringPageSpec): ColoringPageSpec {
 		return {
@@ -465,13 +494,10 @@ export class StudioState {
 					updatedAtISO: new Date().toISOString(),
 					intent: $state.snapshot(this.spec),
 					chatMessage: this.evidence.trim().length > 0 ? this.evidence : undefined,
-					// Same rule as the vault: invented text is not written down as though it were
-					// real. A draft that carried it would come back after a refresh as genuine
-					// studio text, with nothing left to say it was synthesized.
-					studioText:
-						this.textOutput && !this.restoredSeedPageItems
-							? $state.snapshot(this.textOutput)
-							: undefined
+					// Exactly the rule the vault uses, through the same accessor. A draft that
+					// carried text this page does not own would come back after a refresh as
+					// genuine, with nothing left to say otherwise.
+					studioText: this.describingStudioText()
 				}
 			});
 			if (result.ok) {
@@ -871,6 +897,12 @@ export class StudioState {
 	};
 
 	handleGenerateTryOnPage = async (): Promise<void> => {
+		// See `canGenerateTryOnPage`. Guarded here too, not only on the button: the race is between
+		// two state transitions, so the state is where it has to be refused.
+		if (this.isTryingOn) {
+			this.generationError = 'Wait for the new look to finish before making the page.';
+			return;
+		}
 		const wig = this.selectedWig;
 		// Captured together, before any await, because they have to describe the same look.
 		// `tryOnPortraitUrl` is derived from the selected wig, and the carousel stays live during
@@ -1071,13 +1103,8 @@ export class StudioState {
 					createdAtISO: new Date().toISOString(),
 					intent: $state.snapshot(this.spec),
 					assembledPrompt,
-					// Only text that actually describes this page is saved as its own. Two kinds do
-					// not: text invented by reopening a record that had none, and any verdict that
-					// happens to be on screen while the paper is a wig portrait.
-					studioText:
-						textOutput && !this.restoredSeedPageItems && !this.tryOnPageOnScreen
-							? $state.snapshot(textOutput)
-							: undefined,
+					// Only text that actually describes this page is saved as its own.
+					studioText: this.describingStudioText(),
 					revisedPrompt: this.revisedPrompt || undefined,
 					images: storedImages.length > 0 ? storedImages : undefined,
 					violations: $state.snapshot(this.violations),

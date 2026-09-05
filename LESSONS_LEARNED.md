@@ -356,3 +356,23 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Action: Recompute the provenance from the stored shape at every restore point rather than carrying
   a flag across the boundary — and check whether the flag answers one question or two before reusing
   it for the second.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: Run 5 had already recorded "a guard that has been reasoned about is not thereby applied
+  everywhere it is needed". The next commit added `tryOnPageOnScreen` to `saveToVault` and not to
+  `saveDraft` — the same mistake, made after writing the lesson about it.
+- Lesson: Writing a rule down does not prevent the next occurrence. Removing the second copy does.
+  Two writers of the same record answered the same question separately and drifted; one shared
+  accessor makes the divergence impossible and makes a single mutation fail both call sites' tests.
+- Action: When a condition governs more than one writer of the same data, express it once as a
+  shared accessor rather than repeating it and relying on a lesson to keep the copies in step.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: Replacing a wig try-on portrait for the *same* wig defeated every staleness guard in the
+  feature — the wig identity was unchanged and the page token did not advance.
+- Lesson: Identity tokens catch substitution, not mutation in place. A value replaced under a stable
+  key is invisible to a guard that compares keys.
+- Action: For an operation that can be re-run against the same key, guard on "is a replacement in
+  flight" rather than on whether the key changed.
