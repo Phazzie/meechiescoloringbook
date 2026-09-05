@@ -7329,3 +7329,90 @@ transcript 66 lines carrying its own exit status · rewind 17 passed · Playwrig
 browser probe complete.
 
 Running mutation total stays at **69**.
+
+---
+
+## Run 8 — merge close-out — PR #304 merged as `6d272628`
+
+Page Controls is on `main`. Twenty-four review rounds, two merges from `main` mid-flight, and one
+collision with a sibling run of this same routine.
+
+### What the gate required, and what it found
+
+| Condition | State at merge (`fd2d7358`) |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | clean |
+| `npm test` | 1445 passed, 1 skipped |
+| `npm run build` | built |
+| `npm run verify` | exit 0, 66-line transcript carrying its own exit status |
+| `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` | 17 passed |
+| Playwright | 41 passed against the installed browser |
+| Browser probe | complete |
+| SonarCloud quality gate | passed, 2.0% duplication on new code |
+| CodeQL, both analyses | success |
+| Codex | clean on the last three heads |
+| Rosentic | red, under the disposition commented on the PR |
+
+**Rosentic is the one red check, and it is deliberate rather than tolerated.** Its findings are
+generated against unmerged sibling branches — `sweet-mendel-LJ9Iu`, `trusting-volta-bb8mvr` — and
+describe hypothetical merges with code that is not on `main`. It regenerated roughly two hundred
+findings on every push, ending at 1241 review threads on one pull request. The disproof is direct:
+this branch merged with `main` twice, cleanly, and the merged tree type-checks at 0/0 and runs 1445
+green. One standing-down comment was posted, the single permitted re-run was spent, and no second
+comment was owed after that.
+
+### What the routine actually cost, and where the cost went
+
+Not one of the twenty-four rounds found the feature work wrong. Every single one found a *description*
+wrong — a comment, a plan, an inventory, a count, a transcript, a guard. The feature landed in the
+first push. The other twenty-three rounds were the change learning to describe itself honestly.
+
+The rounds that mattered most were the ones where the defect had moved into the machinery built to
+catch the defect:
+
+- **Round 21**: the evidence transcript shipped truncated, without its own exit line — the file whose
+  only job is to carry the outer command's result, not carrying it.
+- **Round 23**: two guards in the capture script were hardcoded counts. They fired for the wrong
+  reason the moment a sibling run merged and the suite grew. Replaced with checks that measure —
+  the outer transcript's total must *equal* `test.txt`'s — rather than remember.
+- **Round 24**: the Cipher Gate entry named the wrong seam, in a change whose own evidence file has a
+  section explaining that exact distinction. The correction had gone into the evidence and never into
+  the entry the evidence is filed under.
+
+### The single rule this run is worth
+
+Every late finding took the same form, and it is worth stating plainly because it is not the obvious
+one. None of them was a careless claim. **Each was correct when written, and was invalidated by a
+later change made deliberately, for good reasons, that did not go back to the sentence depending on
+it.** The seam correction. The `lint exit=0` fix that made an inventory's exception false. The
+sibling merge that moved two guards' numbers.
+
+> When a fix changes what is true, the fix is not done until every sentence that asserted the old
+> truth has been found. The place to look is not where you edited — it is everywhere that explains
+> *why* the thing you edited was the way it was.
+
+The corollary, from round 23: **a check written as a literal is a second copy of the truth.** It goes
+stale exactly like prose does, and worse, because a stale guard still passes — right up until it
+fails for the wrong reason.
+
+### Open, and deliberately so
+
+- **One unidentified SonarCloud issue**, open since mid-run. `sonarcloud.io` is unreachable from the
+  build container and the local `eslint-plugin-sonarjs` reproduction finds nothing on changed lines.
+  Recorded rather than closed with a guess. The quality gate passes regardless.
+- **Two review threads left open on purpose**: the round-1 draft-provenance request and the round-13
+  try-on provenance decline. Both were declined on measurement, both explained, neither pushed back on.
+- **`proof-tape.mjs` compares file times against one artifact inside the chain** rather than against
+  the start of the push, so it flags files that are current. Documented in `verify-chain.txt`;
+  fixing it properly belongs in its own change with its own tests.
+
+### Deliberately out of scope, for whoever picks the next worst feature
+
+The tools hub and the mode routes still save no style. The field is optional and the restore path is
+shared, so wiring them is now small — but it is a different change. And the home studio still exposes
+none of `colorMode`, `textSize`, `fontStyle`, `alignment`, `textStrokeWidth`, `borderThickness`,
+`illustrations` or `shading`. That is a real gap, and it is *adding* controls rather than rebuilding
+a broken one. Neither is a recommendation. Measure it.
+
+Final mutation total for Run 8: **69**.
