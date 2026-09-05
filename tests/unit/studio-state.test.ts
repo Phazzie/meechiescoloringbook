@@ -3611,6 +3611,26 @@ describe('StudioState page style', () => {
 		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection?.themeId).toBe(alreadyShowing);
 	});
 
+	it('does not record a theme click whose rebuild never succeeded', async () => {
+		// The claim is recorded after the rebuild returns, not when the click arrives, and nothing
+		// pinned that until a mutation moved it to the top of the handler and the whole suite stayed
+		// green. A click whose spec did not survive its own check has not authored anything — there
+		// is no page built from that theme to be the style of.
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-01T00:00:00.000Z',
+			intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A LEGACY DRAFT' }
+		});
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		vi.spyOn(specValidationAdapter, 'validate').mockRejectedValue(
+			new Error('spec rebuild exploded')
+		);
+		await studio.syncSpecFromCurrentText('theme');
+
+		expect(studio.settingsError).toBe('spec rebuild exploded');
+		expect(studio.styleSelectionUnknown).toBe(true);
+	});
+
 	it('does not read a moved page size as a style the reader chose', async () => {
 		// Page size and border reach the studio through the same handler as the theme and are not
 		// style — they live in the intent. So the supersede is a comparison against the controls as
