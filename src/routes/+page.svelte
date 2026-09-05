@@ -50,6 +50,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			bind:dedication={studio.dedication}
 			activeMode={studio.activeMode}
 			revisionBudget={studio.revisionBudget}
+			aiQuotaMessage={studio.aiQuotaMessage}
+			hasVerdict={!!studio.textOutput}
 			textError={studio.textError}
 			isTextWorking={studio.isTextWorking}
 			draftSaveError={studio.draftSaveError}
@@ -431,13 +433,27 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		outline-offset: 1px;
 	}
 
+	/* Two readings stacked rather than run together: the rewrite allowance is the studio's own
+	   rule, the quota line is the server's, and a reader who runs out of one should be able to see
+	   at a glance that the other still has room. */
 	:global(.studio .budget) {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
 		margin: 0.2rem 0 0.9rem;
 		padding: 0.7rem;
 		border-radius: 6px;
 		background: rgba(201, 162, 39, 0.09);
 		color: var(--gold-bright);
 		font-weight: 700;
+	}
+
+	/* The server's number, deliberately quieter than the studio's own: it is the one the reader
+	   can do nothing about except wait. */
+	:global(.studio .budget .quota) {
+		font-size: 0.84rem;
+		font-weight: 600;
+		opacity: 0.85;
 	}
 
 	:global(.studio .budget p) {

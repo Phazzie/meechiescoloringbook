@@ -78,7 +78,8 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `tools-pipeline.ts` | Meechie tool dispatch |
 | `prompt-template.ts` | Canonical and compressed prompt assembly |
 | `constants.ts` | App-wide constants |
-| `http-client.ts` | Shared fetch helper for JSON POST requests (used by routes and UI components) |
+| `http-client.ts` | Shared fetch helper for JSON POST requests (used by routes and UI components). `onResponseHeaders` exposes the response headers to the caller, which is how the AI quota reaches the UI |
+| `ai-quota.ts` | Pure reading of the per-caller AI quota the billable routes publish in `RateLimit-*` / `Retry-After` on every response — the units-to-actions arithmetic (`STUDIO_TEXT_QUOTA_COST`, the one definition, imported by the pipeline that charges it) and the sentence the studio shows. An absent or malformed header set reads as `null`, which the UI renders as nothing rather than as a guess |
 | `vault-gallery.ts` | Pure Quote Vault transforms — sort/search/label saved pages, and rebuild a saved page's image from its stored bytes |
 | `tool-page-recipe.ts` | Pure per-tool coloring page recipes — turns a Meechie tool verdict into the `ColoringPageSpec` + style hint it deserves (list page vs full-quote page) |
 | `mode-catalog.ts` | The focused-mode catalog behind `/m/<slug>` — which modes exist, the questions each asks, and how the answers become a `MeechieToolInput`. Derived from `studioModes` so the home page's links and the mode pages cannot drift apart |

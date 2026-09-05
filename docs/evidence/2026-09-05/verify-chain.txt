@@ -6,13 +6,16 @@
 #      why a file carries a freshness marker.
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
-# Run 7 of the worst-feature routine — the home studio's Page Controls panel becomes something that
+# Run 8 of the worst-feature routine — the home studio's Page Controls panel becomes something that
 # remembers, explains and reports itself.
+#
+# Filed as Run 8, written as Run 7: a sibling run reached `main` first and owns 7. See the note under
+# the Run 8 heading in WORST_TO_BEST_LOG.md.
 #
 # This file described Run 5 until this head. It was the one artifact in the folder that a re-run
 # does not regenerate, so it went on describing a merged change while every file beside it described
-# this one — the same "the page and the thing describing it have drifted apart" that Run 7 is about,
-# in Run 7's own evidence folder. Rewritten rather than appended to, because a summary of two runs
+# this one — the same "the page and the thing describing it have drifted apart" that Run 8 is about,
+# in Run 8's own evidence folder. Rewritten rather than appended to, because a summary of two runs
 # is a summary of neither.
 
 ## The chain (npm run verify) — exit 0, transcript in verify-outer.txt
@@ -203,7 +206,7 @@ drops a field on the way out is red rather than invisible.
 - The provenance guards in this change are invisible from the outside — a green suite cannot tell a
   page filed under the style that made it from a page filed under the controls that happen to be up.
   Each guard was confirmed by breaking it and watching a named test fail. Those mutation runs are
-  recorded in WORST_TO_BEST_LOG.md under Run 7, not in this folder.
+  recorded in WORST_TO_BEST_LOG.md under Run 8, not in this folder.
 - Nothing here exercises the real xAI provider. Every generation in the unit suite and the
   end-to-end suite is a stubbed fetch, so what is proved is what the studio does with a response,
   not what a provider returns.

@@ -22,6 +22,16 @@ export const POST_JSON_TIMEOUTS_MS = {
 
 export type PostJsonOptions = {
 	timeoutMs?: number;
+	/**
+	 * Called with the response's headers before the body is read, on every response that arrives —
+	 * a refusal as much as a success.
+	 *
+	 * It exists because the billable routes advertise the caller's remaining quota in
+	 * `RateLimit-Remaining` / `RateLimit-Reset` / `Retry-After` on *every* exit, and this helper
+	 * used to drop all of it on the floor. Optional, and never called when the request itself
+	 * failed to produce a response, so no existing caller changes behaviour by ignoring it.
+	 */
+	onResponseHeaders?: (headers: Headers) => void;
 };
 
 const formatTimeoutSeconds = (timeoutMs: number): string => {
@@ -53,6 +63,9 @@ export const postJson = async <T = unknown>(
 			throw error;
 		}
 	})();
+
+	// Before any early return, so a 204 and a 429 report their quota as readily as a 200 does.
+	options.onResponseHeaders?.(response.headers);
 
 	if (response.status === 204 || response.status === 205) return undefined as T;
 

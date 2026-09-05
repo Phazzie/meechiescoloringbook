@@ -3729,3 +3729,406 @@ describe('StudioState page style', () => {
 		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection).toBeUndefined();
 	});
 });
+
+describe('StudioState AI budget meter', () => {
+	/** A fixed instant, so a reset time is arithmetic rather than a race with the suite's clock. */
+	const NOW_MS = 1_760_000_000_000;
+
+	// None of this had a single test before. The counter it replaces called the first verdict a
+	// revision, never refilled, described itself as being "for this page", and showed a number the
+	// server had never agreed to — and the suite around it stayed green through six rebuilds of
+	// other features.
+
+	/** A studio-text response carrying whatever quota headers the case is about. */
+	const studioTextResponse = (
+		quotaHeaders: Record<string, string> = {
+			'RateLimit-Limit': '20',
+			'RateLimit-Remaining': '14',
+			'RateLimit-Reset': '45'
+		},
+		init: { status?: number } = {}
+	): Response =>
+		new Response(JSON.stringify({ ok: true, value: DEFAULT_STUDIO_TEXT_OUTPUT }), {
+			status: init.status ?? 200,
+			statusText: 'OK',
+			headers: quotaHeaders
+		});
+
+	/** A studio with evidence in the box, ready to run a text action. */
+	const arrangeStudioWithEvidence = (): StudioState => {
+		const studio = new StudioState();
+		studio.evidence = 'He said he was working late.';
+		return studio;
+	};
+
+	it('does not spend a rewrite on the verdict that starts the round', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
+
+		await studio.runTextAction('generate_text');
+
+		expect(studio.textOutput).not.toBeNull();
+		expect(studio.revisionBudget).toBe(3);
+	});
+
+	it('spends one rewrite per rework of the verdict on screen', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
+
+		await studio.runTextAction('generate_text');
+		await studio.runTextAction('make_meaner');
+		expect(studio.revisionBudget).toBe(2);
+		await studio.runTextAction('make_prettier');
+		await studio.runTextAction('regenerate');
+		expect(studio.revisionBudget).toBe(0);
+		expect(studio.canMakeMoreSpecific).toBe(false);
+
+		// And the way out that the on-screen message promises actually works.
+		expect(studio.canGenerateText).toBe(true);
+		await studio.runTextAction('generate_text');
+		expect(studio.revisionBudget).toBe(3);
+		expect(studio.canMakeMoreSpecific).toBe(true);
+	});
+
+	// The dead end this closes: spend the allowance, switch mode, and the switch deletes the
+	// verdict the spend was for while leaving every AI button disabled — an empty studio the reader
+	// had no way to fill.
+	it('refills the rewrites when a mode switch throws the verdict away', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
+
+		await studio.runTextAction('generate_text');
+		await studio.runTextAction('make_meaner');
+		await studio.runTextAction('make_prettier');
+		await studio.runTextAction('regenerate');
+		expect(studio.revisionBudget).toBe(0);
+
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+
+		expect(studio.textOutput).toBeNull();
+		expect(studio.revisionBudget).toBe(3);
+		expect(studio.canGenerateText).toBe(true);
+	});
+
+	it('gives a reopened saved page its own rewrites', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
+		await studio.runTextAction('generate_text');
+		await studio.runTextAction('make_meaner');
+		await studio.runTextAction('make_prettier');
+		await studio.runTextAction('regenerate');
+		expect(studio.revisionBudget).toBe(0);
+		vi.unstubAllGlobals();
+
+		await studio.loadCreation({
+			id: 'saved-1',
+			createdAtISO: '2026-09-01T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			assembledPrompt: 'prompt for saved-1',
+			owner: { kind: 'anonymous', sessionId: 'budget-session' }
+		});
+
+		expect(studio.revisionBudget).toBe(3);
+	});
+
+	it('charges nothing for an action the provider refused', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
+		await studio.runTextAction('generate_text');
+		await studio.runTextAction('make_meaner');
+		expect(studio.revisionBudget).toBe(2);
+
+		vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('provider unavailable')));
+		await studio.runTextAction('make_prettier');
+
+		expect(studio.textError).not.toBe('');
+		expect(studio.revisionBudget).toBe(2);
+	});
+
+	it('reports the quota the server actually sent, not one of its own', async () => {
+		const studio = arrangeStudioWithEvidence();
+		// Before any call there is nothing to report, and nothing is what it says.
+		expect(studio.aiQuotaMessage).toBe('');
+
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() =>
+				Promise.resolve(
+					studioTextResponse({
+						'RateLimit-Limit': '20',
+						'RateLimit-Remaining': '14',
+						'RateLimit-Reset': '45'
+					})
+				)
+			)
+		);
+		await studio.runTextAction('generate_text');
+
+		// 14 units at 2 units an action. The old counter would have said "2 left" here.
+		expect(studio.aiQuota?.remaining).toBe(14);
+		expect(studio.aiQuotaMessage).toContain('7 AI calls left');
+	});
+
+	it('keeps the last good reading when a response carries no quota headers', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
+		await studio.runTextAction('generate_text');
+		const reported = studio.aiQuota;
+		expect(reported).not.toBeNull();
+
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse({}))));
+		await studio.runTextAction('make_meaner');
+
+		// Blanking the meter on one odd reply would tell the reader less than the last true thing
+		// it knew.
+		expect(studio.aiQuota).toEqual(reported);
+	});
+	// --- Codex review round on 34bd3ce -----------------------------------------------------------
+
+	it('stops showing a quota reading once its own window has run out', async () => {
+		const clock = createMockClockSeam(NOW_MS);
+		const studio = arrangeStudioWithEvidence();
+		studio.clock = clock;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() =>
+				Promise.resolve(
+					studioTextResponse({
+						'RateLimit-Limit': '20',
+						'RateLimit-Remaining': '0',
+						'RateLimit-Reset': '45',
+						'Retry-After': '45'
+					})
+				)
+			)
+		);
+
+		await studio.runTextAction('generate_text');
+		expect(studio.aiQuotaMessage).toContain("Meechie's desk is full");
+
+		// The reader does the sensible thing and waits. The fixed window refills on its own, and
+		// the message has to stop claiming otherwise without another request being made.
+		clock.advanceTo(NOW_MS + 45_000);
+
+		expect(studio.aiQuota).toBeNull();
+		expect(studio.aiQuotaMessage).toBe('');
+	});
+
+	it('anchors the reset instant at the request, not at the response', async () => {
+		const clock = createMockClockSeam(NOW_MS);
+		const studio = arrangeStudioWithEvidence();
+		studio.clock = clock;
+		// A slow provider call: the server charged the bucket and computed a 45s reset before it
+		// started, and 55 seconds pass before the answer reaches the browser.
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() => {
+				clock.setInstantWithoutFiring(NOW_MS + 55_000);
+				return Promise.resolve(
+					studioTextResponse({
+						'RateLimit-Limit': '20',
+						'RateLimit-Remaining': '14',
+						'RateLimit-Reset': '45'
+					})
+				);
+			})
+		);
+
+		await studio.runTextAction('generate_text');
+
+		// Anchored at the response this would read NOW+100s — a window that closed 55 seconds ago
+		// reported as still a minute and a half away.
+		expect(studio.aiQuota?.resetAtMs).toBe(NOW_MS + 45_000);
+	});
+
+	it('renders the reset instant to the second, because the window is only sixty of them', async () => {
+		const clock = createMockClockSeam(NOW_MS);
+		const studio = arrangeStudioWithEvidence();
+		studio.clock = clock;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() =>
+				Promise.resolve(
+					studioTextResponse({
+						'RateLimit-Limit': '20',
+						'RateLimit-Remaining': '14',
+						'RateLimit-Reset': '45'
+					})
+				)
+			)
+		);
+
+		await studio.runTextAction('generate_text');
+
+		const shown = new Date(NOW_MS + 45_000).toLocaleTimeString([], {
+			hour: 'numeric',
+			minute: '2-digit',
+			second: '2-digit'
+		});
+		expect(studio.aiQuotaMessage).toContain(shown);
+		// Truncating to the minute would drop these, and invite a retry up to 59 seconds early.
+		expect(shown).toMatch(/\d{2}:\d{2}/);
+	});
+	// The panel said the desk was full while the buttons still submitted — the same disagreement
+	// between the screen and the server that this feature exists to end.
+	it('refuses the click the server has already said it will refuse', async () => {
+		const clock = createMockClockSeam(NOW_MS);
+		const studio = arrangeStudioWithEvidence();
+		studio.clock = clock;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() =>
+				Promise.resolve(
+					studioTextResponse({
+						'RateLimit-Limit': '20',
+						'RateLimit-Remaining': '0',
+						'RateLimit-Reset': '45',
+						'Retry-After': '45'
+					})
+				)
+			)
+		);
+
+		await studio.runTextAction('generate_text');
+		expect(studio.aiQuotaExhausted).toBe(true);
+		expect(studio.aiQuotaMessage).toContain("Meechie's desk is full");
+		// The sentence and the guard now read the same number.
+		expect(studio.canGenerateText).toBe(false);
+		expect(studio.canRegenerateText).toBe(false);
+		expect(studio.canMakeMeaner).toBe(false);
+
+		// And the block lifts by itself when the window it came from closes, without needing a
+		// refused request to teach the page that the bucket refilled.
+		clock.advanceTo(NOW_MS + 45_000);
+		expect(studio.aiQuotaExhausted).toBe(false);
+		expect(studio.canGenerateText).toBe(true);
+	});
+
+	// A bucket with one unit left cannot pay for a two-unit action, so the guard has to treat it
+	// as exhausted even though the bucket is not empty.
+	it('treats a bucket too low to pay for an action as exhausted', async () => {
+		const clock = createMockClockSeam(NOW_MS);
+		const studio = arrangeStudioWithEvidence();
+		studio.clock = clock;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() =>
+				Promise.resolve(
+					studioTextResponse({
+						'RateLimit-Limit': '20',
+						'RateLimit-Remaining': '1',
+						'RateLimit-Reset': '20'
+					})
+				)
+			)
+		);
+
+		await studio.runTextAction('generate_text');
+
+		expect(studio.aiQuotaExhausted).toBe(true);
+		expect(studio.canGenerateText).toBe(false);
+	});
+
+	// "Not known" must never block: before the server has said anything, and after a reading has
+	// expired, the studio works exactly as it did.
+	it('never blocks on a quota it has not been told about', () => {
+		const studio = arrangeStudioWithEvidence();
+
+		expect(studio.aiQuota).toBeNull();
+		expect(studio.aiQuotaExhausted).toBe(false);
+		expect(studio.canGenerateText).toBe(true);
+	});
+	// A rewrite in flight belongs to the round it was asked about. Switching mode mid-request used
+	// to land the old mode's verdict on the new one and charge the new round's allowance for it.
+	it('drops a reply for a round the reader has walked away from', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse()))
+		);
+		await studio.runTextAction('generate_text');
+		expect(studio.revisionBudget).toBe(3);
+
+		// A rewrite that has not come back yet.
+		let release: (value: Response) => void = () => {};
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(
+				() =>
+					new Promise<Response>((resolve) => {
+						release = resolve;
+					})
+			)
+		);
+		const pending = studio.runTextAction('make_meaner');
+
+		// The reader moves on before it lands.
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+		expect(studio.textOutput).toBeNull();
+		expect(studio.revisionBudget).toBe(3);
+
+		release(studioTextResponse());
+		await pending;
+
+		// None of the discarded round's reply lands on the round the reader is now looking at.
+		expect(studio.textOutput).toBeNull();
+		expect(studio.revisionBudget).toBe(3);
+		// And the flag it owned is released, so the new mode is usable.
+		expect(studio.isTextWorking).toBe(false);
+		expect(studio.canGenerateText).toBe(true);
+	});
+
+	it('does not surface a walked-away-from round\'s failure on the new one', async () => {
+		const studio = arrangeStudioWithEvidence();
+		let fail: (reason: Error) => void = () => {};
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(
+				() =>
+					new Promise<Response>((_resolve, reject) => {
+						fail = reject;
+					})
+			)
+		);
+		const pending = studio.runTextAction('generate_text');
+
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+		fail(new Error('provider unavailable'));
+		await pending;
+
+		expect(studio.textError).toBe('');
+	});
+
+	// The quota is about the caller, not the round: the server charged the bucket whatever the
+	// reader did next, so that reading stays true and must survive the discard.
+	it('still records the quota from a reply it otherwise discards', async () => {
+		const clock = createMockClockSeam(NOW_MS);
+		const studio = arrangeStudioWithEvidence();
+		studio.clock = clock;
+		let release: (value: Response) => void = () => {};
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(
+				() =>
+					new Promise<Response>((resolve) => {
+						release = resolve;
+					})
+			)
+		);
+		const pending = studio.runTextAction('generate_text');
+
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+		release(
+			studioTextResponse({
+				'RateLimit-Limit': '20',
+				'RateLimit-Remaining': '14',
+				'RateLimit-Reset': '45'
+			})
+		);
+		await pending;
+
+		expect(studio.textOutput).toBeNull();
+		expect(studio.aiQuota?.remaining).toBe(14);
+		expect(studio.aiQuotaMessage).toContain('7 AI calls left');
+	});
+});

@@ -20,6 +20,7 @@ import {
 	specOwnQuote,
 	canRunStudioAction,
 	consumeStudioActionBudget,
+	studioActionStartsRound,
 	getStudioTextAction,
 	getMonthlyMode,
 	getWeeklyModes,
@@ -27,6 +28,12 @@ import {
 	type StudioTextActionId
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
+import {
+	aiActionsLeft,
+	describeAiQuota,
+	readAiQuota,
+	type AiQuotaSnapshot
+} from '$lib/core/ai-quota';
 import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 import {
 	GENERATED_IMAGE_MIME_TYPES,
@@ -210,7 +217,20 @@ export class StudioState {
 	pageSize = $state<PageSize>('US_Letter');
 	border = $state<BorderChoice>('decorative');
 	glitter = $state(DEFAULT_STYLE_SELECTION.glitter);
+	/**
+	 * Rewrites left for the verdict currently on screen. Refilled whenever a new verdict arrives —
+	 * see `startRewriteRound`. Never the app's spend control; that is `aiQuota`.
+	 */
 	revisionBudget = $state(DEFAULT_REVISION_BUDGET);
+	/**
+	 * The last quota the server reported, or `null` before it has reported one.
+	 *
+	 * `null` is shown as nothing at all. The counter this replaced invented a number the server had
+	 * never agreed to — it said "3 AI text actions left" while the real gate allowed ten a minute
+	 * and refilled every sixty seconds — so an unknown quota now reads as silence rather than as a
+	 * fresh guess.
+	 */
+	aiQuota = $state<AiQuotaSnapshot | null>(null);
 	textOutput = $state<MeechieStudioTextOutput | null>(null);
 	textError = $state('');
 	generationError = $state('');
@@ -535,14 +555,50 @@ export class StudioState {
 		studioThemes.find((t) => t.id === this.selectedThemeId) ?? studioThemes[0]
 	);
 	previewOutput = $derived(this.textOutput);
+	/**
+	 * What the server said about this caller's quota, in a sentence, or `''` when it has not said
+	 * anything yet.
+	 *
+	 * The reset instant is rendered as a clock time rather than a countdown because nothing here
+	 * re-renders on a tick: "ready in 34s" would be wrong 34 seconds later, and this meter exists
+	 * precisely because the old one said things that were not true.
+	 */
+	// Seconds are shown, not rounded away: the window is sixty seconds long, so a bucket that
+	// refills at 3:42:55 rendered as "3:42" invites the reader to retry most of a minute early and
+	// be refused. A quota label that is wrong by nearly a whole window is the defect this feature
+	// exists to remove, not one to reintroduce in the formatting.
+	aiQuotaMessage = $derived(
+		describeAiQuota(this.aiQuota, (date) =>
+			date.toLocaleTimeString([], {
+				hour: 'numeric',
+				minute: '2-digit',
+				second: '2-digit'
+			})
+		)
+	);
+	/**
+	 * The server has told us, and not yet un-told us, that it will refuse the next AI call.
+	 *
+	 * Only ever true while a reading is both present and unexpired — the expiry timer nulls the
+	 * snapshot at the reset instant, so this cannot outlive the window it came from. `null` means
+	 * "not known", which never blocks anything: the studio refuses a click only on a server
+	 * statement it currently holds, never on a guess.
+	 *
+	 * It exists because a panel that says the desk is full above buttons that still submit is the
+	 * same disagreement between the screen and the server that this whole feature was written to
+	 * end — the sentence and the guard have to be reading the same number.
+	 */
+	aiQuotaExhausted = $derived(this.aiQuota !== null && aiActionsLeft(this.aiQuota) === 0);
 	canGenerateText = $derived(
-		canRunStudioAction('generate_text', {
-			remainingBudget: this.revisionBudget,
-			isRunning: this.isTextWorking
-		})
+		!this.aiQuotaExhausted &&
+			canRunStudioAction('generate_text', {
+				remainingBudget: this.revisionBudget,
+				isRunning: this.isTextWorking
+			})
 	);
 	canRegenerateText = $derived(
 		!!this.textOutput &&
+			!this.aiQuotaExhausted &&
 			canRunStudioAction('regenerate', {
 				remainingBudget: this.revisionBudget,
 				isRunning: this.isTextWorking
@@ -550,6 +606,7 @@ export class StudioState {
 	);
 	canMakePrettier = $derived(
 		!!this.textOutput &&
+			!this.aiQuotaExhausted &&
 			canRunStudioAction('make_prettier', {
 				remainingBudget: this.revisionBudget,
 				isRunning: this.isTextWorking
@@ -557,6 +614,7 @@ export class StudioState {
 	);
 	canMakeMeaner = $derived(
 		!!this.textOutput &&
+			!this.aiQuotaExhausted &&
 			canRunStudioAction('make_meaner', {
 				remainingBudget: this.revisionBudget,
 				isRunning: this.isTextWorking
@@ -564,6 +622,7 @@ export class StudioState {
 	);
 	canMakeMoreSpecific = $derived(
 		!!this.textOutput &&
+			!this.aiQuotaExhausted &&
 			canRunStudioAction('make_more_specific', {
 				remainingBudget: this.revisionBudget,
 				isRunning: this.isTextWorking
@@ -751,10 +810,22 @@ export class StudioState {
 	// Incremented whenever the displayed page is replaced; async work captures it and drops its
 	// result if the value moved on. Not $state: nothing renders it.
 	pageLoadToken = 0;
+	/**
+	 * The same idea for the *verdict*, which has a life of its own: the page can be replaced without
+	 * the verdict changing, and a round can be abandoned while its request is still in flight.
+	 *
+	 * Incremented whenever the reader walks away from the round a request was made for — a mode
+	 * switch, a reopened saved page. `runTextAction` captures it and drops a reply that belongs to a
+	 * round nobody is looking at any more, which otherwise lands the previous mode's verdict on the
+	 * new one and charges the new round's allowance for it.
+	 */
+	private verdictToken = 0;
 	isBrowser = $state(false);
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
 	private stopVisibilityWatch: (() => void) | null = null;
 	private cancelDayBoundaryRefresh: (() => void) | null = null;
+	/** Clears the quota reading when its window runs out. See `setAiQuota`. */
+	private cancelQuotaExpiry: (() => void) | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
 
@@ -1175,6 +1246,42 @@ export class StudioState {
 	// --- Public action handlers ---
 	// Arrow functions ensure stable `this` binding when passed as component callbacks.
 
+	/**
+	 * Give the verdict now on screen its own full rewrite allowance.
+	 *
+	 * Called from every path that replaces what the reader is looking at with something they have
+	 * not reworked yet: a generated verdict, a mode switch, a reopened saved page. Without it the
+	 * allowance was per tab-load and never came back, so spending it on one mode's verdict left the
+	 * next mode — whose verdict the switch had just deleted — with every AI button disabled and a
+	 * message about "this page" that referred to a page no longer on screen.
+	 */
+	private startRewriteRound(): void {
+		this.revisionBudget = DEFAULT_REVISION_BUDGET;
+	}
+
+	/**
+	 * Store a quota reading, and arrange for it to stop being shown the moment it stops being true.
+	 *
+	 * A reading is only valid until its own reset instant: the bucket is a fixed window, so at
+	 * `resetAtMs` it refills whether or not the reader has made another request. Without this, a
+	 * reader who is told the desk is full and does the sensible thing — wait — would go on being
+	 * told the desk is full after it had emptied, because `aiQuotaMessage` derives from this value
+	 * alone and nothing else would touch it. That is the same defect as the counter this feature
+	 * replaced: a number on screen that the server had stopped agreeing with.
+	 *
+	 * The clock comes through `ClockSeam` rather than `setTimeout`, so a test drives the expiry
+	 * instead of waiting for it. An instant already past fires on the next tick, which is right:
+	 * a window that closed before the response arrived has nothing left to report.
+	 */
+	private setAiQuota(snapshot: AiQuotaSnapshot): void {
+		this.aiQuota = snapshot;
+		this.cancelQuotaExpiry?.();
+		this.cancelQuotaExpiry = this.clock.scheduleAt(snapshot.resetAtMs, () => {
+			this.aiQuota = null;
+			this.cancelQuotaExpiry = null;
+		});
+	}
+
 	scheduleDraftSave = (): void => {
 		if (!this.isBrowser) return;
 		if (this.draftTimer) clearTimeout(this.draftTimer);
@@ -1285,6 +1392,11 @@ export class StudioState {
 			this.textOutput = null;
 			this.resetGeneratedPage();
 			this.restoredPageLayout = false;
+			// The switch just deleted the verdict the spent rewrites were spent on. Carrying the
+			// spend across to a mode the reader has not asked anything yet is what stranded them.
+			this.startRewriteRound();
+			// And anything still in flight for the old mode belongs to that mode, not this one.
+			this.verdictToken += 1;
 		}
 		this.scheduleDraftSave();
 	};
@@ -1349,6 +1461,7 @@ export class StudioState {
 			return;
 		}
 		if (
+			this.aiQuotaExhausted ||
 			!canRunStudioAction(actionId, {
 				remainingBudget: this.revisionBudget,
 				isRunning: this.isTextWorking
@@ -1370,6 +1483,15 @@ export class StudioState {
 		}
 
 		this.isTextWorking = true;
+		// The instant the quota headers describe, captured before the request rather than after it.
+		// The server charges the bucket and computes `RateLimit-Reset` *before* it calls the
+		// provider, so by the time the response lands that duration has already been running for
+		// as long as the provider took — up to 230 seconds on this route, against a 60-second
+		// window. Anchoring at response receipt would put the reset minutes into the future for a
+		// bucket that had already refilled.
+		const requestStartedAtMs = this.clock.now();
+		// Captured before the await, compared after it. See `verdictToken`.
+		const roundToken = this.verdictToken;
 		try {
 			const payload = await postJson(
 				'/api/meechie-studio-text',
@@ -1383,8 +1505,24 @@ export class StudioState {
 					voice: $state.snapshot(this.voice),
 					currentText: this.currentTextPayload()
 				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.studioText }
+				{
+					timeoutMs: POST_JSON_TIMEOUTS_MS.studioText,
+					// Read on every response the route produces, refusals included, because a refusal
+					// is exactly when the reader most needs to be told what the limit is and when it
+					// lifts. A response without usable quota headers leaves the last reading alone
+					// rather than blanking the meter on one odd reply.
+					onResponseHeaders: (headers) => {
+						const snapshot = readAiQuota(headers, requestStartedAtMs);
+						if (snapshot) this.setAiQuota(snapshot);
+					}
+				}
 			);
+			// The reader has moved to another round while this was in flight. The reply describes a
+			// verdict nobody is looking at any more, so none of it lands: not the words, not the
+			// charge, not the page reset. The quota reading above is deliberately *not* guarded —
+			// it describes this caller's bucket, which the server charged whatever the reader did
+			// next, so it stays true and useful.
+			if (roundToken !== this.verdictToken) return;
 			const parsed = MeechieStudioTextResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.textError = 'Meechie sent back a line the studio could not read.';
@@ -1395,7 +1533,15 @@ export class StudioState {
 				return;
 			}
 			this.textOutput = parsed.data.value;
-			this.revisionBudget = consumeStudioActionBudget(this.revisionBudget, actionId);
+			// Order matters: a round-starting action refills the allowance for the verdict it just
+			// produced, and a rewrite spends one of the allowance the verdict on screen came with.
+			// Both are applied only on an accepted verdict, so a failure, a timeout or an
+			// unreadable reply still costs the reader nothing.
+			if (studioActionStartsRound(actionId)) {
+				this.startRewriteRound();
+			} else {
+				this.revisionBudget = consumeStudioActionBudget(this.revisionBudget, actionId);
+			}
 			this.resetGeneratedPage();
 			// Only now, with a replacement verdict accepted, does a reopened page's layout stop
 			// applying. Clearing it when the action *started* would convert the restored quote page
@@ -1404,9 +1550,15 @@ export class StudioState {
 			this.restoredPageLayout = false;
 			await this.applyTextToSpec(parsed.data.value);
 		} catch (error) {
+			// Same rule for a failure: an error about the round the reader walked away from would
+			// otherwise appear under the mode they walked to.
+			if (roundToken !== this.verdictToken) return;
 			this.textError =
 				error instanceof Error ? error.message : 'Meechie could not reach the AI text service.';
 		} finally {
+			// Cleared unconditionally: only one text request can be in flight at a time, so this one
+			// is the one that owns the flag whether or not its result is still wanted. Leaving it set
+			// on a stale round would wedge every AI button on the new one.
 			this.isTextWorking = false;
 		}
 	};
@@ -1933,6 +2085,12 @@ export class StudioState {
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;
 		this.textOutput = restoredText;
+		// A reopened page is a verdict the reader has not reworked in this session, and its rewrite
+		// buttons light up the moment `textOutput` is set above. Handing it whatever was left of
+		// some earlier page's allowance would let a saved page arrive with none.
+		this.startRewriteRound();
+		// A verdict still in flight was asked about the page this one just replaced.
+		this.verdictToken += 1;
 		// Reopening a saved page used to hand back the words and drop the picture, so the only
 		// way to see your own page again was to pay for another generation. The record already
 		// carries the image bytes and the trace, so give all of it back.
@@ -2155,6 +2313,8 @@ export class StudioState {
 		}
 		this.cancelDayBoundaryRefresh?.();
 		this.cancelDayBoundaryRefresh = null;
+		this.cancelQuotaExpiry?.();
+		this.cancelQuotaExpiry = null;
 		this.stopVisibilityWatch?.();
 		this.stopVisibilityWatch = null;
 	}
