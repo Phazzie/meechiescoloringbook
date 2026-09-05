@@ -4814,6 +4814,28 @@ two branches and the same two symbols at the same line numbers — and **merged 
 branch differs between the two reports, because the caller is whichever PR is being scanned. The
 comparison was written to the PR before the merge button was pressed.
 
+### A fifth proof arrived by itself, on this close-out's own PR
+
+PR #303 — this entry — changes **no source file at all**. Rosentic ran on it and reported
+`CONFLICT`, "66 of 66 pairs compared", *two possible breaks*: `capDelayMs` in
+`src/lib/core/http-resilience.ts` between `claude/sweet-mendel-efx3o2` and
+`claude/sweet-mendel-3qogj3`, and `buildDeps` in `tests/unit/wig-try-on-pipeline.test.ts` between
+`claude/sweet-mendel-m5cojt` and `claude/trusting-volta-w9lzdw`.
+
+Four branches, and **none of them is the branch under review**. On a docs-only diff, the check
+reported incompatibilities between other people's stale branches in files this PR does not touch —
+and the check run itself concluded **success**, because this time the findings graded "possible"
+rather than "breaking".
+
+That is the whole disposition in one observation, and it arrived without being sought: this check's
+output is a function of the repository's branch backlog, not of the pull request's diff, and whether
+it is red depends on which pair of abandoned branches happens to grade "breaking" that minute. Both
+of the symbols it called breaking on PR #302 were three months younger than the branches it blamed.
+
+A future run that finds this check red should read this section first, then re-derive anyway — the
+previous entry's dismissal was right and its reason was wrong, which is exactly how a wrong reason
+survives.
+
 ### The Assumption argument, made rather than asserted
 
 Three open Assumptions touch seams: the live xAI wig-try-on payload, the rate limiter's durable store,
