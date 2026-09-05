@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-05T01:34:10.761Z
+Generated at: 2026-09-05T01:41:07.032Z
 Evidence folder: docs/evidence/2026-09-05
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -27,10 +27,10 @@ after this inventory is taken, so they are not listed):
 - rewind-DriftDetectionSeam(self-contained).txt (539 bytes)
 - rewind-DriftDetectionSeam.txt (539 bytes)
 - rewind-ImageGenerationSeam.txt (537 bytes)
-- rewind-ImageProviderConfigSeam.txt (537 bytes)
+- rewind-ImageProviderConfigSeam.txt (538 bytes)
 - rewind-MeechieToolSeam(self-contained).txt (539 bytes)
 - rewind-MeechieToolSeam.txt (539 bytes)
-- rewind-MeechieVoiceSeam(self-contained).txt (541 bytes)
+- rewind-MeechieVoiceSeam(self-contained).txt (542 bytes)
 - rewind-MeechieVoiceSeam.txt (539 bytes)
 - rewind-OutputPackagingSeam.txt (640 bytes)
 - rewind-PromptAssemblySeam(self-contained).txt (542 bytes)
@@ -44,7 +44,7 @@ after this inventory is taken, so they are not listed):
 - seam-ledger.json (30250 bytes)
 - seam-ledger.md (2409 bytes)
 - seam-rewind-exit-codes.md (2021 bytes)
-- shaolin-lint.json (517 bytes)
+- shaolin-lint.json (519 bytes)
 - test.txt (1031 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-chain-run.txt (1776 bytes)

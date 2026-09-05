@@ -5886,3 +5886,45 @@ And the honest note on that number: rounds 32 through 35 were four rounds spent 
 shell that describe how to prove a change that shipped and went live in round 1. The finding rate did
 not fall because the reviews got worse; it stayed flat because I kept answering "the description is
 wrong" with a better description.
+
+---
+
+## Run 4, correction 36 — 2026-09-05 — self-review of the new script, from a number I could not read
+
+Appended, not edited. Not a review finding: SonarCloud's PR summary on `ecf9f94` went from
+**0 New issues** to **2**, and the only new code on that head is `scripts/capture-evidence.mjs`.
+The two issues are therefore mine.
+
+**I could not read them.** `sonarcloud.io` is unreachable from this environment — the agent proxy
+returns `CONNECT tunnel failed, response 403` — so the count is all I have. Recording that plainly
+rather than implying I diagnosed them: what follows is a self-review of the file for the findings
+that count most plausibly refers to, not a fix confirmed against the report.
+
+Two things in that file were worth fixing on their own merits, found by reading it as a reviewer
+would:
+
+1. **`run('npm', ['run', <script>])` seven times.** The npm invocation was open-coded at every call
+   site, so `'npm'` and `'run'` repeated throughout and each site could drift independently. Now one
+   `npmRun(script, scriptArgs)` helper, which also puts the `--` separator in exactly one place —
+   the thing the rewind calls need and the easiest to get wrong per-site.
+2. **`main` did everything.** One function held the mkdir, the chain, three standalone checks, a
+   nineteen-iteration loop, table generation, the gate and the tape, each with its own failure
+   branch. Split into `captureChain`, `captureStandaloneChecks`, `captureRewinds` plus a shared
+   `exitIfFailed`, so `main` now reads as the six documented steps in order and each phase is
+   readable next to the comment explaining why it exists.
+
+Both are ordinary quality, and the second matters here specifically: this file's whole justification
+is that it is read instead of a prose description, so it has to be readable.
+
+Verified after: `npm run lint` clean, and `npm run evidence:capture` re-run end to end — verify 0,
+lint 0, build 0, e2e 0, nineteen rewinds 0, cipher:gate 0, proof:tape last, exit 0. The restructure
+changes no behaviour, which is the claim the re-run is there to support.
+
+If the two Sonar issues turn out to be something else, this entry stands as what I actually did and
+why, and the real ones are still open.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3, 2,
+7, 2 — **ninety-nine findings across thirty-six rounds**. The two here are the first in this
+close-out that came from a tool reporting on code I wrote rather than on prose about code.

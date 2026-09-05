@@ -48,21 +48,36 @@ const SEAMS = [
 ];
 
 /**
- * Runs a command and returns its combined output and exit status. Status is read from the spawn
- * result, never from a later command's, which is the mistake the shell version kept making.
- * @param {string} command
- * @param {string[]} args
+ * Runs one of this package's npm scripts and returns its combined output and exit status. The
+ * status is read from this spawn result and never from a later command's, which is the mistake the
+ * shell version of this sequence kept making. `shell: false` keeps arguments as argv entries, so a
+ * seam name containing spaces and parentheses cannot be word-split.
+ * @param {string} script npm script name, as in package.json
+ * @param {string[]} [scriptArgs] arguments forwarded to the script after `--`
  * @returns {{ output: string, code: number }}
  */
-const run = (command, args) => {
-	const result = spawnSync(command, args, { cwd: ROOT, encoding: 'utf8', shell: false });
+const npmRun = (script, scriptArgs = []) => {
+	const args = ['run', script, ...(scriptArgs.length > 0 ? ['--', ...scriptArgs] : [])];
+	const result = spawnSync('npm', args, { cwd: ROOT, encoding: 'utf8', shell: false });
 	if (result.error) {
-		return { output: `Failed to start: ${result.error.message}\n`, code: 1 };
+		return { output: `Failed to start npm run ${script}: ${result.error.message}\n`, code: 1 };
 	}
 	return {
 		output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
 		code: result.status ?? 1
 	};
+};
+
+/**
+ * Runs a step and ends the sequence if it failed, so no later step's success can stand in for it.
+ * @param {{ output: string, code: number }} result
+ * @param {string} what
+ */
+const exitIfFailed = (result, what) => {
+	if (result.code !== 0) {
+		process.stderr.write(`${what} failed (exit ${result.code}); stopping.\n`);
+		process.exit(result.code);
+	}
 };
 
 /**
@@ -107,9 +122,33 @@ const main = async () => {
 	// ordering left nothing to write into.
 	await fs.mkdir(dir, { recursive: true });
 
-	// 1. The chain. Its own stage 8 runs proof:tape, but that copy sees only what exists mid-chain,
-	//    which is why proof:tape runs again at the end.
-	const verify = run('npm', ['run', 'verify']);
+	await captureChain(dir);
+	assertNoDateRollover(startDate);
+	await captureStandaloneChecks(dir);
+	await captureRewinds(dir, startDate);
+
+	// The standalone gate. Its status is checked before the tape runs: a failing gate followed by a
+	// passing tape used to leave the sequence reporting success.
+	const cipher = npmRun('cipher:gate');
+	process.stdout.write(cipher.output);
+	exitIfFailed(cipher, 'npm run cipher:gate');
+
+	// The tape, last, so its inventory covers every artifact above.
+	assertNoDateRollover(startDate);
+	const tape = npmRun('proof:tape');
+	process.stdout.write(tape.output);
+	exitIfFailed(tape, 'npm run proof:tape');
+
+	process.stdout.write(`Evidence captured in docs/evidence/${startDate}/\n`);
+};
+
+/**
+ * Step 1: the chain. Its own stage 8 runs proof:tape, but that copy sees only what exists mid-chain,
+ * which is why proof:tape runs again at the end of the sequence.
+ * @param {string} dir
+ */
+const captureChain = async (dir) => {
+	const verify = npmRun('verify');
 	await writeArtifact(
 		dir,
 		'verify-chain-run.txt',
@@ -122,17 +161,18 @@ const main = async () => {
 		verify.output,
 		verify.code
 	);
-	if (verify.code !== 0) {
-		process.stderr.write('npm run verify failed; stopping before the standalone checks.\n');
-		process.exit(verify.code);
-	}
-	assertNoDateRollover(startDate);
+	exitIfFailed(verify, 'npm run verify');
+};
 
-	// 2. The three checks that are not stages of the chain.
+/**
+ * Step 2: the three checks that are not stages of the chain.
+ * @param {string} dir
+ */
+const captureStandaloneChecks = async (dir) => {
 	const standalone = [
 		{
 			name: 'lint.txt',
-			args: ['run', 'lint'],
+			script: 'lint',
 			header: [
 				'Purpose: Record `npm run lint` (eslint) on this head.',
 				'Why: lint is not a stage of the verify chain; nothing else captures it.',
@@ -141,7 +181,7 @@ const main = async () => {
 		},
 		{
 			name: 'build.txt',
-			args: ['run', 'build'],
+			script: 'build',
 			header: [
 				'Purpose: Record `npm run build` (production build via adapter-vercel) on this head.',
 				'Why: build is not a stage of the verify chain; a green test run does not prove the app builds.',
@@ -150,7 +190,7 @@ const main = async () => {
 		},
 		{
 			name: 'e2e.txt',
-			args: ['run', 'test:e2e'],
+			script: 'test:e2e',
 			header: [
 				'Purpose: Record `npm run test:e2e` (playwright) on this head.',
 				'Why: e2e is not a stage of the verify chain; the chain runs vitest only.',
@@ -159,22 +199,25 @@ const main = async () => {
 		}
 	];
 	for (const check of standalone) {
-		const result = run('npm', check.args);
+		const result = npmRun(check.script);
 		await writeArtifact(dir, check.name, check.header, result.output, result.code);
-		if (result.code !== 0) {
-			process.stderr.write(`${check.args.join(' ')} failed (exit ${result.code}).\n`);
-			process.exit(result.code);
-		}
+		exitIfFailed(result, `npm run ${check.script}`);
 	}
+};
 
-	// 3. The rewinds. scripts/rewind.mjs writes each rewind-<Seam>.txt itself, with its own header,
-	//    so nothing here redirects into those paths — a redirect would clobber the header. It also
-	//    exits with the seam's status without recording it in the file, so the statuses are captured
-	//    here from the spawn result. Hand-transcribing them would make the table unauditable.
+/**
+ * Step 3: the rewinds. scripts/rewind.mjs writes each rewind-<Seam>.txt itself, with its own
+ * header, so nothing here redirects into those paths — a redirect would clobber the header. It also
+ * exits with the seam's status without recording it in the file, so each status is taken from the
+ * spawn result. Hand-transcribing them is what made the table unauditable.
+ * @param {string} dir
+ * @param {string} startDate
+ */
+const captureRewinds = async (dir, startDate) => {
 	const rows = [];
 	let rewindFailed = 0;
 	for (const seam of SEAMS) {
-		const result = run('npm', ['run', 'rewind', '--', '--seam', seam]);
+		const result = npmRun('rewind', ['--seam', seam]);
 		rows.push({ seam, code: result.code });
 		if (result.code !== 0) {
 			rewindFailed = result.code;
@@ -206,25 +249,6 @@ const main = async () => {
 		process.stderr.write('At least one rewind failed; see seam-rewind-exit-codes.md.\n');
 		process.exit(rewindFailed);
 	}
-
-	// 4. The standalone gate. Its status is checked before the tape runs: a failing gate followed by
-	//    a passing tape used to leave the sequence reporting success.
-	const cipher = run('npm', ['run', 'cipher:gate']);
-	process.stdout.write(cipher.output);
-	if (cipher.code !== 0) {
-		process.stderr.write(`npm run cipher:gate failed (exit ${cipher.code}); not running the tape.\n`);
-		process.exit(cipher.code);
-	}
-
-	// 5. The tape, last, so its inventory covers every artifact above.
-	assertNoDateRollover(startDate);
-	const tape = run('npm', ['run', 'proof:tape']);
-	process.stdout.write(tape.output);
-	if (tape.code !== 0) {
-		process.exit(tape.code);
-	}
-
-	process.stdout.write(`Evidence captured in docs/evidence/${startDate}/\n`);
 };
 
 main().catch((error) => {
