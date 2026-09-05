@@ -287,8 +287,33 @@ const captureRewinds = async (dir, startDate) => {
 	const rows = [];
 	let rewindFailed = 0;
 	for (const seam of SEAMS) {
+		const artifact = `rewind-${seam.replace(/\s+/g, '')}.txt`;
+		const artifactPath = path.join(dir, artifact);
+		// Removed first so that whatever exists afterwards is from *this* run. Without it, a passing
+		// artifact left by an earlier run on the same day would satisfy the check below, and a rewind
+		// that now fails early would be reported as exit 1 beside an artifact showing a pass.
+		await fs.rm(artifactPath, { force: true });
 		const result = npmRun('rewind', ['--seam', seam]);
-		rows.push({ seam, code: result.code });
+		// rewind.mjs:68-84 exits before writing its artifact when the seam is not in docs/seams.md,
+		// has no test path, or its test file is missing — exactly the failures a hard-coded seam list
+		// invites. Without this the table would cite an artifact that does not exist and the captured
+		// diagnostic would be dropped, leaving only an exit code to explain what went wrong.
+		const wroteOwnArtifact = await fileExists(artifactPath);
+		if (!wroteOwnArtifact) {
+			await writeArtifact(
+				dir,
+				artifact,
+				[
+					`Purpose: Record why \`npm run rewind -- --seam ${seam}\` failed.`,
+					'Why: rewind.mjs exits before writing its own artifact when it cannot resolve the seam,',
+					'     its test path, or its test file, so this run captured the output instead.',
+					'Info flow: npm run rewind (failed early) -> capture-evidence.mjs -> this file.'
+				],
+				result.output,
+				result.code
+			);
+		}
+		rows.push({ seam, code: result.code, artifact, ownArtifact: wroteOwnArtifact });
 		if (result.code !== 0) {
 			rewindFailed = result.code;
 		}
@@ -310,13 +335,20 @@ const captureRewinds = async (dir, startDate) => {
 		'| Seam (as passed to --seam) | Exit | Artifact |',
 		'| --- | --- | --- |',
 		...rows.map(
-			({ seam, code }) => `| \`${seam}\` | ${code} | \`rewind-${seam.replace(/\s+/g, '')}.txt\` |`
+			({ seam, code, artifact, ownArtifact }) =>
+				`| \`${seam}\` | ${code} | \`${artifact}\`${ownArtifact ? '' : ' (written here: rewind exited before its own)'} |`
 		),
 		''
 	].join('\n');
 	await fs.writeFile(path.join(dir, 'seam-rewind-exit-codes.md'), table, 'utf8');
 	if (rewindFailed !== 0) {
-		process.stderr.write('At least one rewind failed; see seam-rewind-exit-codes.md.\n');
+		const failed = rows.filter((row) => row.code !== 0);
+		process.stderr.write(
+			`${failed.length} rewind(s) failed: ${failed.map((row) => row.seam).join(', ')}.\n` +
+				`Exit codes in seam-rewind-exit-codes.md; output in ${failed
+					.map((row) => row.artifact)
+					.join(', ')}.\n`
+		);
 		process.exit(rewindFailed);
 	}
 };

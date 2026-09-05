@@ -1,6 +1,6 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-09-05T01:49:51.086Z",
+  "generatedAt": "2026-09-05T01:58:52.815Z",
   "evidenceDir": "docs/evidence/2026-09-05",
   "runMarker": "chamber-lock.json",
   "excludedFromInventory": [
@@ -15,7 +15,7 @@
       "name": "assumption-alarm.json",
       "path": "docs/evidence/2026-09-05/assumption-alarm.json",
       "sizeBytes": 25717,
-      "modifiedAt": "2026-09-05T01:48:23.265Z",
+      "modifiedAt": "2026-09-05T01:57:24.293Z",
       "commands": [],
       "predatesRun": false
     },
@@ -23,7 +23,7 @@
       "name": "build.txt",
       "path": "docs/evidence/2026-09-05/build.txt",
       "sizeBytes": 11205,
-      "modifiedAt": "2026-09-05T01:48:36.849Z",
+      "modifiedAt": "2026-09-05T01:57:37.881Z",
       "commands": [
         "meechies-coloringbook@0.1.0 build",
         "vite build",
@@ -35,15 +35,15 @@
       "name": "chamber-lock.json",
       "path": "docs/evidence/2026-09-05/chamber-lock.json",
       "sizeBytes": 28496,
-      "modifiedAt": "2026-09-05T01:47:19.861Z",
+      "modifiedAt": "2026-09-05T01:56:20.841Z",
       "commands": [],
       "predatesRun": false
     },
     {
       "name": "cipher-gate.json",
       "path": "docs/evidence/2026-09-05/cipher-gate.json",
-      "sizeBytes": 4165,
-      "modifiedAt": "2026-09-05T01:49:50.917Z",
+      "sizeBytes": 4164,
+      "modifiedAt": "2026-09-05T01:58:52.633Z",
       "commands": [],
       "predatesRun": false
     },
@@ -51,7 +51,7 @@
       "name": "clan-chain.json",
       "path": "docs/evidence/2026-09-05/clan-chain.json",
       "sizeBytes": 2532,
-      "modifiedAt": "2026-09-05T01:48:23.365Z",
+      "modifiedAt": "2026-09-05T01:57:24.401Z",
       "commands": [],
       "predatesRun": false
     },
@@ -59,7 +59,7 @@
       "name": "clan-chain.md",
       "path": "docs/evidence/2026-09-05/clan-chain.md",
       "sizeBytes": 1559,
-      "modifiedAt": "2026-09-05T01:48:23.369Z",
+      "modifiedAt": "2026-09-05T01:57:24.401Z",
       "commands": [],
       "predatesRun": false
     },
@@ -67,7 +67,7 @@
       "name": "e2e.txt",
       "path": "docs/evidence/2026-09-05/e2e.txt",
       "sizeBytes": 3980,
-      "modifiedAt": "2026-09-05T01:49:15.629Z",
+      "modifiedAt": "2026-09-05T01:58:16.937Z",
       "commands": [
         "meechies-coloringbook@0.1.0 test:e2e",
         "playwright test"
@@ -78,7 +78,7 @@
       "name": "lint.txt",
       "path": "docs/evidence/2026-09-05/lint.txt",
       "sizeBytes": 260,
-      "modifiedAt": "2026-09-05T01:48:28.329Z",
+      "modifiedAt": "2026-09-05T01:57:29.541Z",
       "commands": [
         "meechies-coloringbook@0.1.0 lint",
         "eslint ."
@@ -89,7 +89,7 @@
       "name": "rewind-ClockSeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-ClockSeam.txt",
       "sizeBytes": 543,
-      "modifiedAt": "2026-09-05T01:49:26.845Z",
+      "modifiedAt": "2026-09-05T01:58:28.385Z",
       "commands": [],
       "predatesRun": false
     },
@@ -97,7 +97,7 @@
       "name": "rewind-CreationStoreSeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-CreationStoreSeam.txt",
       "sizeBytes": 539,
-      "modifiedAt": "2026-09-05T01:49:22.889Z",
+      "modifiedAt": "2026-09-05T01:58:24.577Z",
       "commands": [],
       "predatesRun": false
     },
@@ -105,7 +105,7 @@
       "name": "rewind-DriftDetectionSeam(self-contained).txt",
       "path": "docs/evidence/2026-09-05/rewind-DriftDetectionSeam(self-contained).txt",
       "sizeBytes": 539,
-      "modifiedAt": "2026-09-05T01:49:45.121Z",
+      "modifiedAt": "2026-09-05T01:58:46.857Z",
       "commands": [],
       "predatesRun": false
     },
@@ -113,7 +113,7 @@
       "name": "rewind-DriftDetectionSeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-DriftDetectionSeam.txt",
       "sizeBytes": 539,
-      "modifiedAt": "2026-09-05T01:49:39.549Z",
+      "modifiedAt": "2026-09-05T01:58:41.225Z",
       "commands": [],
       "predatesRun": false
     },
@@ -121,7 +121,7 @@
       "name": "rewind-ImageGenerationSeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-ImageGenerationSeam.txt",
       "sizeBytes": 537,
-      "modifiedAt": "2026-09-05T01:49:30.449Z",
+      "modifiedAt": "2026-09-05T01:58:32.085Z",
       "commands": [],
       "predatesRun": false
     },
@@ -129,7 +129,7 @@
       "name": "rewind-ImageProviderConfigSeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-ImageProviderConfigSeam.txt",
       "sizeBytes": 537,
-      "modifiedAt": "2026-09-05T01:49:32.281Z",
+      "modifiedAt": "2026-09-05T01:58:33.865Z",
       "commands": [],
       "predatesRun": false
     },
@@ -137,7 +137,7 @@
       "name": "rewind-MeechieToolSeam(self-contained).txt",
       "path": "docs/evidence/2026-09-05/rewind-MeechieToolSeam(self-contained).txt",
       "sizeBytes": 539,
-      "modifiedAt": "2026-09-05T01:49:50.725Z",
+      "modifiedAt": "2026-09-05T01:58:52.445Z",
       "commands": [],
       "predatesRun": false
     },
@@ -145,7 +145,7 @@
       "name": "rewind-MeechieToolSeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-MeechieToolSeam.txt",
       "sizeBytes": 539,
-      "modifiedAt": "2026-09-05T01:49:17.445Z",
+      "modifiedAt": "2026-09-05T01:58:18.821Z",
       "commands": [],
       "predatesRun": false
     },
@@ -153,7 +153,7 @@
       "name": "rewind-MeechieVoiceSeam(self-contained).txt",
       "path": "docs/evidence/2026-09-05/rewind-MeechieVoiceSeam(self-contained).txt",
       "sizeBytes": 542,
-      "modifiedAt": "2026-09-05T01:49:43.249Z",
+      "modifiedAt": "2026-09-05T01:58:44.941Z",
       "commands": [],
       "predatesRun": false
     },
@@ -161,7 +161,7 @@
       "name": "rewind-MeechieVoiceSeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-MeechieVoiceSeam.txt",
       "sizeBytes": 539,
-      "modifiedAt": "2026-09-05T01:49:41.421Z",
+      "modifiedAt": "2026-09-05T01:58:43.145Z",
       "commands": [],
       "predatesRun": false
     },
@@ -169,7 +169,7 @@
       "name": "rewind-OutputPackagingSeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-OutputPackagingSeam.txt",
       "sizeBytes": 640,
-      "modifiedAt": "2026-09-05T01:49:21.041Z",
+      "modifiedAt": "2026-09-05T01:58:22.689Z",
       "commands": [],
       "predatesRun": false
     },
@@ -177,7 +177,7 @@
       "name": "rewind-PromptAssemblySeam(self-contained).txt",
       "path": "docs/evidence/2026-09-05/rewind-PromptAssemblySeam(self-contained).txt",
       "sizeBytes": 542,
-      "modifiedAt": "2026-09-05T01:49:46.977Z",
+      "modifiedAt": "2026-09-05T01:58:48.741Z",
       "commands": [],
       "predatesRun": false
     },
@@ -185,7 +185,7 @@
       "name": "rewind-PromptAssemblySeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-PromptAssemblySeam.txt",
       "sizeBytes": 539,
-      "modifiedAt": "2026-09-05T01:49:28.637Z",
+      "modifiedAt": "2026-09-05T01:58:30.277Z",
       "commands": [],
       "predatesRun": false
     },
@@ -193,7 +193,7 @@
       "name": "rewind-ProviderAdapterSeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-ProviderAdapterSeam.txt",
       "sizeBytes": 540,
-      "modifiedAt": "2026-09-05T01:49:37.717Z",
+      "modifiedAt": "2026-09-05T01:58:39.329Z",
       "commands": [],
       "predatesRun": false
     },
@@ -201,15 +201,15 @@
       "name": "rewind-RateLimitSeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-RateLimitSeam.txt",
       "sizeBytes": 540,
-      "modifiedAt": "2026-09-05T01:49:35.785Z",
+      "modifiedAt": "2026-09-05T01:58:37.441Z",
       "commands": [],
       "predatesRun": false
     },
     {
       "name": "rewind-SafetyPolicySeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-SafetyPolicySeam.txt",
-      "sizeBytes": 541,
-      "modifiedAt": "2026-09-05T01:49:33.997Z",
+      "sizeBytes": 542,
+      "modifiedAt": "2026-09-05T01:58:35.657Z",
       "commands": [],
       "predatesRun": false
     },
@@ -217,7 +217,7 @@
       "name": "rewind-SessionSeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-SessionSeam.txt",
       "sizeBytes": 537,
-      "modifiedAt": "2026-09-05T01:49:24.761Z",
+      "modifiedAt": "2026-09-05T01:58:26.413Z",
       "commands": [],
       "predatesRun": false
     },
@@ -225,7 +225,7 @@
       "name": "rewind-SpecValidationSeam(self-contained).txt",
       "path": "docs/evidence/2026-09-05/rewind-SpecValidationSeam(self-contained).txt",
       "sizeBytes": 542,
-      "modifiedAt": "2026-09-05T01:49:48.865Z",
+      "modifiedAt": "2026-09-05T01:58:50.601Z",
       "commands": [],
       "predatesRun": false
     },
@@ -233,7 +233,7 @@
       "name": "rewind-SpecValidationSeam.txt",
       "path": "docs/evidence/2026-09-05/rewind-SpecValidationSeam.txt",
       "sizeBytes": 542,
-      "modifiedAt": "2026-09-05T01:49:19.185Z",
+      "modifiedAt": "2026-09-05T01:58:20.705Z",
       "commands": [],
       "predatesRun": false
     },
@@ -241,7 +241,7 @@
       "name": "seam-ledger.json",
       "path": "docs/evidence/2026-09-05/seam-ledger.json",
       "sizeBytes": 30250,
-      "modifiedAt": "2026-09-05T01:48:23.317Z",
+      "modifiedAt": "2026-09-05T01:57:24.353Z",
       "commands": [],
       "predatesRun": false
     },
@@ -249,7 +249,7 @@
       "name": "seam-ledger.md",
       "path": "docs/evidence/2026-09-05/seam-ledger.md",
       "sizeBytes": 2409,
-      "modifiedAt": "2026-09-05T01:48:23.321Z",
+      "modifiedAt": "2026-09-05T01:57:24.357Z",
       "commands": [],
       "predatesRun": false
     },
@@ -257,15 +257,15 @@
       "name": "seam-rewind-exit-codes.md",
       "path": "docs/evidence/2026-09-05/seam-rewind-exit-codes.md",
       "sizeBytes": 2021,
-      "modifiedAt": "2026-09-05T01:49:50.737Z",
+      "modifiedAt": "2026-09-05T01:58:52.457Z",
       "commands": [],
       "predatesRun": false
     },
     {
       "name": "shaolin-lint.json",
       "path": "docs/evidence/2026-09-05/shaolin-lint.json",
-      "sizeBytes": 517,
-      "modifiedAt": "2026-09-05T01:48:23.221Z",
+      "sizeBytes": 516,
+      "modifiedAt": "2026-09-05T01:57:24.241Z",
       "commands": [],
       "predatesRun": false
     },
@@ -273,7 +273,7 @@
       "name": "test.txt",
       "path": "docs/evidence/2026-09-05/test.txt",
       "sizeBytes": 1031,
-      "modifiedAt": "2026-09-05T01:48:23.149Z",
+      "modifiedAt": "2026-09-05T01:57:24.177Z",
       "commands": [
         "meechies-coloringbook@0.1.0 test",
         "vitest run --pool=forks --maxWorkers=1"
@@ -284,7 +284,7 @@
       "name": "verify-chain-run.txt",
       "path": "docs/evidence/2026-09-05/verify-chain-run.txt",
       "sizeBytes": 1776,
-      "modifiedAt": "2026-09-05T01:48:23.441Z",
+      "modifiedAt": "2026-09-05T01:57:24.469Z",
       "commands": [
         "meechies-coloringbook@0.1.0 verify",
         "npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs",
@@ -309,7 +309,7 @@
       "name": "verify.txt",
       "path": "docs/evidence/2026-09-05/verify.txt",
       "sizeBytes": 1356,
-      "modifiedAt": "2026-09-05T01:48:23.145Z",
+      "modifiedAt": "2026-09-05T01:57:24.173Z",
       "commands": [
         "meechies-coloringbook@0.1.0 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

@@ -6043,3 +6043,63 @@ genuine code defects — the first in this close-out — which is what happens w
 containing code. That is an argument for the script being reviewed, not against having written it:
 the same defects were latent in the shell block, where nothing could review them. It is also the
 first round where a static analyser, not a reader of prose, found the defect.
+
+---
+
+## Run 4, correction 38 — 2026-09-05 — I fixed output-discarding in the helper and left it in the caller
+
+Appended, not edited. One P2 on `d760da6`, and it is the previous round's finding one level up.
+
+### The finding
+
+`scripts/rewind.mjs:68-84` has three `process.exit(1)` paths — seam not in `docs/seams.md`, seam
+row with no test path, test file missing — and **all three run before it writes its artifact.** My
+loop then discarded `result.output`, wrote a table row citing `rewind-<Seam>.txt`, and printed
+"At least one rewind failed". So the table pointed at a file that did not exist, and the one
+sentence explaining what went wrong was thrown away.
+
+Verified rather than assumed:
+
+```
+$ npm run rewind -- --seam NoSuchSeamXYZ
+Rewind cannot find tests for seam: NoSuchSeamXYZ.        exit 1
+artifacts in docs/evidence/2026-09-05/ before=37 after=37
+```
+
+Nothing written, and that sentence was the only diagnostic there was.
+
+**This is the ENOBUFS finding again, one frame out.** Last round I fixed `npmRun` to stop throwing
+away captured output on failure — and then discarded it at the call site, in the same file, in the
+same session. Preserving a value and then dropping it is indistinguishable from never capturing it.
+
+It is also the failure mode this script invites most: the seam list is hard-coded, which the Cipher
+Gate entry names as a risk in its own Risks field. A seam renamed in `docs/seams.md` produces exactly
+this, and would have produced it silently.
+
+### The fix, and the edge that testing found
+
+Failed rewinds now get their captured output written to the expected artifact path, with a header
+saying rewind exited before writing its own; the table annotates those rows; and the stderr names
+which seams failed instead of how many.
+
+Then I ran it, and the first version was wrong. `wroteOwnArtifact` was a plain existence check, so a
+**passing artifact left by an earlier run the same day** would satisfy it — and a rewind that now
+failed early would be reported as exit 1 beside an artifact showing a pass. Worse than the bug being
+fixed, because it looks consistent. The artifact is now removed before each rewind, so whatever
+exists afterwards is from this run and staleness is impossible rather than merely unlikely.
+
+I would not have found that by reading. Both paths are now exercised directly — a bogus seam and a
+real one, in one harness run: the bogus seam's diagnostic is written and the table row is annotated,
+and `rewind-ClockSeam.txt` still opens with `# Purpose: Store seam-scoped contract test output`,
+i.e. `rewind.mjs`'s own header, unclobbered.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3, 2,
+7, 2, 5, 1 — **one hundred and five findings across thirty-eight rounds.**
+
+Worth naming the shift: rounds 1-33 found defects in prose describing finished work. Rounds 34-38
+found defects in code — six of them real, two of which I only understood by running the thing rather
+than reading it. That is a better use of a review loop than the thirty rounds before it, and it is
+also the argument for why the shell block needed to become a program: none of these six was
+findable while the sequence lived in a Markdown code fence.
