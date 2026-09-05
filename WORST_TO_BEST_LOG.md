@@ -7824,3 +7824,64 @@ The CI step was simulated locally against this change: it resolves to `docs/evid
 the one folder the diff touches, and passes.
 
 Mutation total for the feature stays at **69**.
+
+---
+
+## Run 8 close-out — round twenty-nine: the CI step passed without running
+
+Not a review finding. I opened the CI job log to check that last round's new step had actually
+executed, because a step that silently no-ops is the same defect class as everything else in this
+entry. It had not executed. It had reported success:
+
+    fatal: Invalid symmetric difference expression 85a7b34e4c58c86e605289e8c9c342419a14b4aa...HEAD
+    No evidence folder touched by this change; nothing to guard.
+
+The change touches `docs/evidence/2026-09-05`. The step said otherwise and went green.
+
+### Two causes, and the second is the interesting one
+
+**`actions/checkout` clones shallow.** Default `fetch-depth: 1`, so the base commit is not in the
+clone and `git diff base...HEAD` cannot resolve. Now `fetch-depth: 0`.
+
+**The failure had nowhere to be seen.** The diff ran inside `$( )`, and a command substitution's
+exit status is swallowed by the assignment — `set -e` never sees it. So a *failed* diff and a diff
+that legitimately *found nothing* produced the same empty string, and the step could not tell them
+apart. It chose the reassuring reading.
+
+The step now establishes the base is readable **before** relying on a diff against it, and an
+unreachable base is exit 1 with a sentence saying it refuses to report success for a check that did
+not run. Both paths were exercised locally: an unreachable base fails, a real one guards
+`docs/evidence/2026-09-05`.
+
+### This is the fourth time in four rounds
+
+- Round 26: the writer held a hardcoded count. Fixed the writer.
+- Round 27: the guard was in `/tmp`. Tracked the guard.
+- Round 28: the guard's caller was in `/tmp`. Tracked the caller.
+- Round 29: the tracked caller ran and did nothing, and said it was fine.
+
+Each fix was correct and each landed one level short. The defect keeps being *the next thing out*,
+and the reason is that every time, I verified the thing I had just written and not the thing that
+runs it.
+
+> **A check that cannot fail loudly has not been installed, it has been decorated.** Watch it fail
+> once, in the place it will actually run, or it is not a check — and "the CI step is green" is the
+> weakest possible evidence that a CI step works, because that is also what it looks like when it
+> does nothing.
+
+The two dangerous shapes, both of which appeared here: **an empty result that means "error" reading
+as "nothing to do"**, and **a success exit code from a step whose real work never happened.**
+
+### Verification
+
+The step was exercised in both directions locally rather than assumed from a green tick:
+
+| Case | Result |
+|---|---|
+| base commit unreachable (the CI condition) | exit 1, names what it cannot determine |
+| base commit present | guards `docs/evidence/2026-09-05`, all 4 rules pass |
+
+The workflow's own next run is the real test, and this entry will be wrong if that log does not show
+`--- docs/evidence/2026-09-05` followed by the guard's output. That is stated here before it runs.
+
+Mutation total for the feature stays at **69**.

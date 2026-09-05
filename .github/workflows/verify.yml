@@ -12,6 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the evidence guard below diffs against the base commit, and the default
+          # shallow clone does not contain it. With fetch-depth 1 that diff fails, the folder list
+          # comes back empty, and the guard step reports "nothing to guard" and passes — which is
+          # the failure it exists to catch, in the step that catches it.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
@@ -25,9 +31,18 @@ jobs:
       # fine; each was found by a person opening the file, which is what this step automates.
       - name: Guard committed evidence
         run: |
-          dirs=$(git diff --name-only \
-            "${{ github.event.pull_request.base.sha || github.event.before }}...HEAD" \
-            -- 'docs/evidence/*' | cut -d/ -f1-3 | sort -u)
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          # An unreachable base is a failure, not an empty result. The first version of this step
+          # computed the folder list inside $( ), where a failing git command sets no exit status the
+          # shell can see: the diff died, `dirs` was empty, and the step announced "nothing to guard"
+          # and went green. Establish the base can be read BEFORE relying on a diff against it.
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "Base commit '$base' is not in this clone, so which evidence folders this change" >&2
+            echo "touches cannot be determined. Refusing to report success for a check that did not run." >&2
+            exit 1
+          fi
+          dirs=$(git diff --name-only "$base...HEAD" -- 'docs/evidence/*' | cut -d/ -f1-3 | sort -u)
           if [ -z "$dirs" ]; then
             echo "No evidence folder touched by this change; nothing to guard."
             exit 0
