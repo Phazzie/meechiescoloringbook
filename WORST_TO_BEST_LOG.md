@@ -4069,3 +4069,60 @@ that outlives the moment it was written* — a portrait outliving its selfie, a 
 page it seeded, a filter outliving the search that emptied it, markup outliving the server. That is
 not a coincidence about this feature; it is what a review is for, and it is the argument for not
 merging a green PR before the review round lands.
+
+---
+
+## Run 5, third close-out — 2026-09-05 — the Codex round on `ab86f37`
+
+Appended, not edited. Two findings, **both accepted and fixed**, both P1, and both are the *same
+class* as findings this run has already fixed twice — applied to a third and fourth code path.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | A verdict generated before making a try-on page was saved as that page's `studioText`. The page prints a portrait and the wig's name and no verdict words at all, so the vault would show that quote beside the portrait, and reopening would hand it back as the page's own text and send it to the provider on the next revision. | **Real.** `tryOnPageOnScreen` marks the paper as a portrait; `saveToVault` omits `studioText` while it holds. |
+| P1 | Starting "Make It a Coloring Page" on wig A and selecting wig B during the `await` packaged **B's portrait under A's title and prompt**. `tryOnPortraitUrl` is derived from the selected wig, and the carousel stays live during generation, so re-reading it after the await returned a different wig's picture. | **Real.** The portrait is captured beside the wig before any await, and the existing `pageLoadToken` — which `resetGeneratedPage` already advances, and which selecting a wig already triggers — abandons the operation when the reader has moved on. |
+
+### This is the fourth instance of one bug
+
+Across three review rounds this run has now fixed the same shape four times, in four places:
+
+1. A late **portrait** filed under whichever **wig** was selected when it landed.
+2. A late portrait filed at all after the **selfie** it was made from had been replaced.
+3. A verdict treated as a page's text when it was **invented by a restore**.
+4. A **portrait re-read after an await**, packaged under a different wig's name.
+
+Every one is *state read after an await that was true before it*. Three were found by review, not by
+1244 unit tests and 32 end-to-end tests, and not by the eight-stage verify chain.
+
+`restoredSeedPageItems` did not cover finding 1 of this round, and the reason is worth keeping: that
+flag asks "was this text invented?", and here the text is perfectly real — it is just **about
+something else**. Provenance has two independent questions in it, "is this true?" and "is this about
+this?", and a flag that answers the first silently looks like it answers both.
+
+The second fix deliberately reuses `pageLoadToken` rather than adding a fifth bespoke token.
+`resetGeneratedPage` already advances it, and `selectWigForTryOn` already calls that, so the guard
+was already available and simply was not being read on this path.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1244 passed, 1 skipped**
+(from 1241). `npm run build` exit 0. `npx playwright test` **32 passed**. `npm run verify` exit 0.
+`npm run cipher:gate` exit 0. Duplication scan clean of anything in this diff.
+
+**Both fixes proven by mutation.** Dropping `&& !this.tryOnPageOnScreen` fails `does not save a
+verdict that has nothing to do with the try-on page`; removing the token check and re-reading
+`this.tryOnPortraitUrl` after the await fails `abandons a try-on page when the reader picks another
+wig while it is being built`.
+
+### The Vercel failure resolved itself, as diagnosed
+
+The deployment status on `ab86f37` is **success** — "Deployment has completed". It was an
+account-wide daily cap, it cleared on its own, and no action on this pull request would have changed
+it at any point. Worth recording because the tempting move was to treat a red check as this PR's
+problem and go looking for something to change.
+
+The deployed preview could not be fetched from this container to confirm the server-rendered catalog
+against the real deployment — the network policy returns 403 for `*.vercel.app` as it does for
+`sonarcloud.io`. The local end-to-end test asserts the response body and was proven by mutation, and
+the deployment succeeding shows the new `+page.ts` builds and runs there, but that is not the same
+as having read the deployed HTML, and this entry does not claim otherwise.

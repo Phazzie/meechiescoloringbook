@@ -8,6 +8,8 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- A coloring page made from a wig try-on no longer carries a verdict you wrote about something else. The page is a portrait and the wig's name, so a saying generated beforehand was never on it, and it used to be saved as though it were.
+- Picking a different wig while a try-on page is still being made no longer builds the page with the wrong picture on it.
 - The wig catalog is in the page again before any JavaScript runs, so the wigs and their shop links are there for a search engine, a reader with scripting off, or a page that failed to finish loading. Moving the catalog behind its seam had quietly made it appear only after the page came alive.
 - Reopening a saved wig try-on and saving it again no longer writes the example page's lines onto it, and asking Meechie to rework such a page no longer sends her three lines nobody wrote.
 - A wig try-on that is still being made when you upload a new photo is now discarded instead of being added to your looks. It was a picture of the previous photo, and it would have sat beside the new ones as though it were the same person.

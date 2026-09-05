@@ -358,6 +358,23 @@ export class StudioState {
 	 * `studioText` synthesizes *the page's own words*, which are the reader's and stay usable.
 	 */
 	private restoredSeedPageItems = false;
+
+	/**
+	 * Whether the page on the paper is a wig try-on portrait.
+	 *
+	 * A try-on page has no words on it — it is `title_only` with the wig's name and a picture — so
+	 * whatever verdict happens to be on screen is not this page's text. It usually is not there at
+	 * all, but a reader who generated a verdict first and then made a try-on page still has one, and
+	 * saving that as the record's `studioText` claims words the page does not print: the vault would
+	 * show that quote beside the portrait, and reopening would hand it back as the try-on page's own
+	 * text and send it to the provider on the next revision.
+	 *
+	 * `restoredSeedPageItems` does not cover this. That flag asks "was this text invented by a
+	 * restore?", and here the text is perfectly real — it is just about something else.
+	 *
+	 * Cleared in `resetGeneratedPage`, which every path replacing the paper goes through.
+	 */
+	private tryOnPageOnScreen = false;
 	// Whether the last rebuild's style hint asked for dense decoration — the derivation's answer,
 	// not its input. Seeded at restore time so the first unrelated setting change on a reopened page
 	// compares equal and preserves what was restored.
@@ -520,6 +537,8 @@ export class StudioState {
 		this.recommendedFixes = [];
 		this.images = [];
 		this.packagedFiles = [];
+		// Whatever replaces the paper is not a try-on portrait until a try-on generation says so.
+		this.tryOnPageOnScreen = false;
 	}
 
 	/**
@@ -548,8 +567,8 @@ export class StudioState {
 
 	private selfieToken = 0;
 
-	private parseTryOnPortraitImage(): GeneratedImage | null {
-		const match = this.tryOnPortraitUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/);
+	private parseTryOnPortraitImage(portraitUrl: string): GeneratedImage | null {
+		const match = portraitUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/);
 		if (!match) return null;
 		const subtype = match[2];
 		const data = match[3];
@@ -798,15 +817,25 @@ export class StudioState {
 
 	handleGenerateTryOnPage = async (): Promise<void> => {
 		const wig = this.selectedWig;
-		if (!this.tryOnPortraitUrl || !wig) {
+		// Captured together, before any await, because they have to describe the same look.
+		// `tryOnPortraitUrl` is derived from the selected wig, and the carousel stays live during
+		// generation, so re-reading it after the await could return a different wig's portrait —
+		// and the title and prompt below are built from `wig`. That combination packages one wig's
+		// picture under another wig's name.
+		const portraitUrl = this.tryOnPortraitUrl;
+		if (!portraitUrl || !wig) {
 			this.generationError = 'Create a try-on portrait first.';
 			return;
 		}
 		this.resetGeneratedPage();
+		// Taken after the reset, which advances it. Selecting another wig resets the page again, so
+		// a moved token means the reader is no longer looking at the page they asked for.
+		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
 		try {
 			await this.syncSpecFromCurrentText();
-			const portraitImage = this.parseTryOnPortraitImage();
+			if (pageToken !== this.pageLoadToken) return;
+			const portraitImage = this.parseTryOnPortraitImage(portraitUrl);
 			if (!portraitImage) {
 				this.generationError =
 					'Try-on portrait format is not supported for coloring-page export.';
@@ -845,6 +874,8 @@ export class StudioState {
 				return;
 			}
 			this.images = [portraitImage];
+			// From here the paper is a portrait, so no verdict describes it. See `tryOnPageOnScreen`.
+			this.tryOnPageOnScreen = true;
 			const creationId = this.generateCreationId();
 			const packagingResult = await outputPackagingAdapter.package({
 				images: $state.snapshot(this.images),
@@ -998,10 +1029,11 @@ export class StudioState {
 					createdAtISO: new Date().toISOString(),
 					intent: $state.snapshot(this.spec),
 					assembledPrompt,
-					// Invented text is never saved as though it were real: resaving a reopened
-					// try-on would otherwise turn the demo seed into this record's own studioText.
+					// Only text that actually describes this page is saved as its own. Two kinds do
+					// not: text invented by reopening a record that had none, and any verdict that
+					// happens to be on screen while the paper is a wig portrait.
 					studioText:
-						textOutput && !this.restoredSeedPageItems
+						textOutput && !this.restoredSeedPageItems && !this.tryOnPageOnScreen
 							? $state.snapshot(textOutput)
 							: undefined,
 					revisedPrompt: this.revisedPrompt || undefined,

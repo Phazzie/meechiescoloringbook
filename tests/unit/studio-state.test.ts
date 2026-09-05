@@ -731,6 +731,30 @@ describe('StudioState wig try-on comparison', () => {
 		vi.unstubAllGlobals();
 	});
 
+	it('abandons a try-on page when the reader picks another wig while it is being built', async () => {
+		const studio = new StudioState();
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: { files: [] }
+		});
+		studio.tryOnPortraits = [
+			{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT },
+			{ wig: OTHER_WIG, portraitUrl: OTHER_PORTRAIT }
+		];
+		studio.selectedWig = SAMPLE_WIG;
+
+		const inFlight = studio.handleGenerateTryOnPage();
+		// The carousel stays live during generation, so this is reachable.
+		await studio.selectWigForTryOn(OTHER_WIG);
+		await inFlight;
+
+		// The page asked for was the first wig's. Rather than package the second wig's portrait
+		// under the first wig's name, or show the first wig's page while the second is selected,
+		// the operation is abandoned.
+		expect(studio.images).toEqual([]);
+		expect(studio.spec.title).not.toBe('Wig Try-On - Sample Wig');
+	});
+
 	it('names a try-on coloring page after its wig instead of the demo default', async () => {
 		const studio = new StudioState();
 		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
@@ -1673,6 +1697,55 @@ describe('StudioState quote vault', () => {
 
 		// This record has real intent.items, so the synthesized text is the page's own words.
 		expect(body.currentText).toBeDefined();
+	});
+
+	/**
+	 * A try-on page prints a portrait and the wig's name — no verdict words at all. A verdict that
+	 * happens to be on screen because the reader generated one first is real text about something
+	 * else, so saving it as this record's own would put its quote in the vault beside the portrait
+	 * and hand it back as the page's text on reopen.
+	 */
+	it('does not save a verdict that has nothing to do with the try-on page', async () => {
+		const studio = await initVault([]);
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about something else.' };
+
+		await makeTryOnPage(studio);
+
+		// The verdict is still on screen — this is not the invented-text case.
+		expect(studio.textOutput).not.toBeNull();
+
+		await studio.saveToVault();
+
+		const saved = studio.creations[0];
+		expect(saved.intent.title).toBe('Wig Try-On - Sample Wig');
+		expect(saved.studioText).toBeUndefined();
+	});
+
+	it('saves the verdict again once a fresh verdict replaces the try-on page', async () => {
+		const studio = await initVault([]);
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about something else.' };
+		await makeTryOnPage(studio);
+
+		// A new verdict goes through resetGeneratedPage, which is where the try-on marking clears.
+		const fresh = { ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about this situation.' };
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				new Response(JSON.stringify({ ok: true, value: fresh }), {
+					status: 200,
+					statusText: 'OK'
+				})
+			)
+		);
+		studio.evidence = 'He changed the story again.';
+		await studio.runTextAction('generate_text');
+		vi.unstubAllGlobals();
+
+		expect(studio.images).toEqual([]);
+
+		await studio.saveToVault();
+
+		expect(studio.creations[0].studioText?.quote).toBe('A verdict about this situation.');
 	});
 
 	it('still refuses to save when there is neither a verdict nor a page', async () => {
