@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-05T02:44:48.050Z
+Generated at: 2026-09-05T02:56:55.207Z
 Evidence folder: docs/evidence/2026-09-05
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -15,6 +15,8 @@ after this inventory is taken, so they are not listed):
 - build.txt (11205 bytes)
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (28496 bytes)
+- cipher-gate-run.txt (429 bytes)
+  Commands: meechies-coloringbook@0.1.0 cipher:gate | node scripts/cipher-gate.mjs
 - cipher-gate.json (4165 bytes)
 - clan-chain.json (2532 bytes)
 - clan-chain.md (1559 bytes)
@@ -22,17 +24,17 @@ after this inventory is taken, so they are not listed):
   Commands: meechies-coloringbook@0.1.0 test:e2e | playwright test
 - lint.txt (260 bytes)
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
-- rewind-ClockSeam.txt (543 bytes)
+- rewind-ClockSeam.txt (544 bytes)
 - rewind-CreationStoreSeam.txt (539 bytes)
 - rewind-DriftDetectionSeam(self-contained).txt (539 bytes)
 - rewind-DriftDetectionSeam.txt (539 bytes)
-- rewind-ImageGenerationSeam.txt (538 bytes)
+- rewind-ImageGenerationSeam.txt (537 bytes)
 - rewind-ImageProviderConfigSeam.txt (537 bytes)
 - rewind-MeechieToolSeam(self-contained).txt (539 bytes)
 - rewind-MeechieToolSeam.txt (539 bytes)
-- rewind-MeechieVoiceSeam(self-contained).txt (542 bytes)
+- rewind-MeechieVoiceSeam(self-contained).txt (541 bytes)
 - rewind-MeechieVoiceSeam.txt (539 bytes)
-- rewind-OutputPackagingSeam.txt (639 bytes)
+- rewind-OutputPackagingSeam.txt (640 bytes)
 - rewind-PromptAssemblySeam(self-contained).txt (542 bytes)
 - rewind-PromptAssemblySeam.txt (539 bytes)
 - rewind-ProviderAdapterSeam.txt (540 bytes)

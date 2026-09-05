@@ -168,13 +168,13 @@ concession the `ClockSeam` plan in run 1 had to make.
     2026-09-04 Quote Vault entry. That was true when written and **false from the moment this
     close-out added its own 2026-09-05 block** — `scripts/cipher-gate.mjs` selects by date, so it now
     selects the new entry, and `docs/evidence/2026-09-05/cipher-gate.json` records exactly that:
-    `"date": "2026-09-05"`, with the eleven evidence paths of *this* change checked and present.
+    `"date": "2026-09-05"`, with the **fourteen** paths of *this* change checked and present.
 
     So what the recorded exit 0 actually checks: that the 2026-09-05 entry has every required field,
-    and that each path it cites — `verify-chain-run.txt`, `chamber-lock.json`, `verify.txt`,
-    `test.txt`, `lint.txt`, `build.txt`, `e2e.txt`, `seam-rewind-exit-codes.md`, `seam-ledger.md`,
-    `clan-chain.md`, `proof-tape.md`, plus `scripts/capture-evidence.mjs`, `package.json` and this
-    file — exists on this head. It does **not** re-check the 2026-09-04 entry, and it still proves
+    and that each of the **fourteen** paths it cites exists on this head — eleven evidence artifacts
+    (`verify-chain-run.txt`, `chamber-lock.json`, `verify.txt`, `test.txt`, `lint.txt`, `build.txt`,
+    `e2e.txt`, `seam-rewind-exit-codes.md`, `seam-ledger.md`, `clan-chain.md`, `proof-tape.md`) and
+    three source files (`scripts/capture-evidence.mjs`, `package.json`, and this plan). It does **not** re-check the 2026-09-04 entry, and it still proves
     nothing about the `ImageGenerationSeam` waiver, whose validation is the plan recorded in
     `DECISIONS.md` — and which, per round 16, did not work either until it was rewritten.
 

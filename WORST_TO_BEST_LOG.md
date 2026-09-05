@@ -6358,3 +6358,45 @@ down — I sanitized what gets committed and left the pre-sanitized original in 
 
 **One hundred and thirteen findings across forty-one rounds**, with one clean round in the middle
 that lasted exactly as long as it took me to write it down.
+
+---
+
+## Run 4, correction 43 — 2026-09-05 — a failed gate would have left nothing to read, and two counts were wrong
+
+Appended, not edited. Three P2s on `0af54a3`.
+
+### 1. The two final gates discarded their own output on failure
+
+`cipher:gate` and `proof:tape` printed to stdout and exited; `npmRun` deletes its temporary capture
+as soon as it has read it. So a close-out that failed at either gate ended with a red exit code and
+**no file anywhere containing what the gate actually said** — in a sequence whose whole purpose is
+retaining what each command said. `cipher-gate.json` is not written at all when the gate rejects, and
+the tape is the last command, so nothing later could report on it either.
+
+Both now write `cipher-gate-run.txt` / `proof-tape-run.txt` — header, output, `EXIT=` — **before** the
+status is propagated. Order matters: writing after `exitIfFailed` would be writing after the process
+had already gone.
+
+This is the fourth instance of the same class in this file: the exit table read from the spawn
+result, the early-rewind diagnostic, the ENOBUFS branch, and now these two. Each time the output was
+in hand and thrown away. The pattern is that I treated printing as recording.
+
+### 2. "eleven evidence paths" — the gate checks fourteen
+
+The paragraph corrected one round earlier said the gate checked eleven paths, then listed fourteen in
+the next sentence. `cipher-gate.json` settles it: fourteen entries — eleven evidence artifacts plus
+`scripts/capture-evidence.mjs`, `package.json` and `plan.md`. Wrong count inside the correction to a
+paragraph that had already been wrong twice.
+
+### 3. The scoreboard denominator was off by one
+
+Correction 42 closed with "one hundred and thirteen findings across **forty-one** rounds". Round 41
+was the clean round; the review that produced correction 42's two findings was round 42. The finding
+total was right and the denominator was one short — in the line whose only job is to hand the next
+run an accurate scoreboard.
+
+**Corrected: one hundred and thirteen findings across forty-two rounds**, superseding that line.
+
+### Running total
+
+With this round's three: **one hundred and sixteen findings across forty-three rounds.**

@@ -253,14 +253,45 @@ const main = async () => {
 
 	// The standalone gate. Its status is checked before the tape runs: a failing gate followed by a
 	// passing tape used to leave the sequence reporting success.
+	//
+	// Its output is written to an artifact BEFORE the status is propagated, and that order is the
+	// point. These two commands used to print to stdout and exit, and npmRun deletes its temporary
+	// capture — so a close-out that failed here left no file containing the gate's own output, in a
+	// sequence whose entire purpose is retaining what each command said. An unattended run would have
+	// had a red exit code and nothing to read.
 	const cipher = npmRun('cipher:gate');
 	process.stdout.write(cipher.output);
+	await writeArtifact(
+		dir,
+		'cipher-gate-run.txt',
+		[
+			'Purpose: Record `npm run cipher:gate` — its output and its exit status.',
+			'Why: cipher:gate is not a stage of the verify chain, and cipher-gate.json is not written',
+			'     at all when the gate rejects, so on a failure this is the only record of what it said.',
+			'Info flow: npm run cipher:gate -> this file (+ cipher-gate.json when it passes).'
+		],
+		cipher.output,
+		cipher.code
+	);
 	exitIfFailed(cipher, 'npm run cipher:gate');
 
 	// The tape, last, so its inventory covers every artifact above.
 	assertNoDateRollover(startDate);
 	const tape = npmRun('proof:tape');
 	process.stdout.write(tape.output);
+	await writeArtifact(
+		dir,
+		'proof-tape-run.txt',
+		[
+			'Purpose: Record `npm run proof:tape` — its output and its exit status.',
+			'Why: the tape is the last command in the sequence, so when it fails nothing later can',
+			'     report what happened; its own proof-tape.json may not exist to explain it either.',
+			'Info flow: npm run proof:tape -> this file (+ proof-tape.json/.md when it succeeds).',
+			'Note: written after the tape ran, so the tape does not inventory this file.'
+		],
+		tape.output,
+		tape.code
+	);
 	exitIfFailed(tape, 'npm run proof:tape');
 
 	// Checking before the spawn is not enough: proof-tape.mjs:197-199 recomputes the date itself, so

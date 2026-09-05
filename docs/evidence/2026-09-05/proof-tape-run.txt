@@ -1,0 +1,12 @@
+# Purpose: Record `npm run proof:tape` — its output and its exit status.
+# Why: the tape is the last command in the sequence, so when it fails nothing later can
+#      report what happened; its own proof-tape.json may not exist to explain it either.
+# Info flow: npm run proof:tape -> this file (+ proof-tape.json/.md when it succeeds).
+# Note: written after the tape ran, so the tape does not inventory this file.
+#
+
+> meechies-coloringbook@0.1.0 proof:tape
+> node scripts/proof-tape.mjs
+
+
+EXIT=0

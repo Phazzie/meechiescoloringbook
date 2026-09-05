@@ -1,0 +1,11 @@
+# Purpose: Record `npm run cipher:gate` — its output and its exit status.
+# Why: cipher:gate is not a stage of the verify chain, and cipher-gate.json is not written
+#      at all when the gate rejects, so on a failure this is the only record of what it said.
+# Info flow: npm run cipher:gate -> this file (+ cipher-gate.json when it passes).
+#
+
+> meechies-coloringbook@0.1.0 cipher:gate
+> node scripts/cipher-gate.mjs
+
+
+EXIT=0
