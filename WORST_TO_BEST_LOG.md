@@ -4482,9 +4482,45 @@ is looking for.
 None of the four exclusions applied: every review was a bot, so no human change request was
 outstanding; no contract, schema or data migration is in the diff (`git diff origin/main...HEAD`
 matches nothing under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`,
-`src/lib/adapters/` or `src/lib/seams/`); no open Assumption covers the shipped behaviour — the
-open `WigTryOnSeam` one is about whether the live xAI account accepts the provider payload, and no
-file on that request path is in the diff; and no owner hold.
+`src/lib/adapters/` or `src/lib/seams/`); no open Assumption covers the shipped behaviour, for the
+reason set out below; and no owner hold.
+
+### Correction — the exclusion was right, the sentence justifying it was not
+
+The first version of this close-out said the open `WigTryOnSeam` Assumption did not apply because
+"no file on that request path is in the diff". A review of this very close-out caught that, and it
+is **wrong as written**: `handleWigTryOn` in `src/routes/studio-state.svelte.ts` is squarely in the
+diff, it builds the `/api/wig-try-on` request, and it applies the response. The client caller is on
+the request path.
+
+The exclusion still does not apply, but it has to be argued rather than asserted. The Assumption's
+Statement is specific: *"The configured xAI account accepts the exact two-image edit payload **the
+production adapter** sends to `/v1/images/edits`."* What decides that is the adapter, the endpoint
+and the pipeline that build the xAI payload — `src/lib/adapters/wig-try-on-seam/`,
+`src/routes/api/wig-try-on/+server.ts`, `contracts/wig-try-on.contract.ts`. None is in the diff.
+
+What changed in `handleWigTryOn` is the *source expression* for one field, not the request:
+
+```diff
+-					wigId: this.selectedWigId
++					wigId: requestedWig.id
+```
+
+Same endpoint, same three fields, same timeout, same response schema. `requestedWig` is the wig
+captured **before** the await instead of read after it — the fix for a late portrait landing under
+whichever wig happened to be selected when it arrived. Both expressions yield a wig id from the same
+catalog, so the bytes the adapter forwards to xAI for a given (selfie, wig) pair are byte-identical.
+Whether the account accepts them is exactly as proven, and as unproven, as it was before this PR —
+which is also why the Assumption was already open when this feature first shipped, and is not
+something this work introduced.
+
+`AGENTS.md` allows precisely this: resolve the Assumption first, **or state why the change is safe
+without it**. The second option is taken here, and stating it is the obligation the original
+sentence dodged by making a factual claim instead.
+
+The irony is worth keeping rather than tidying away. This close-out's own closing lesson is that
+prose has no type-checker — and its first draft carried an overstated claim that no gate could have
+caught, in the paragraph explaining why a gate was satisfied.
 
 ### The one red check at merge, and how it was cleared
 
