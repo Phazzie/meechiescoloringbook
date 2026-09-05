@@ -63,8 +63,13 @@ export const createCreationStoreMock = (scenario: Scenario = 'sample'): Creation
 		// write a handler that never runs in production.
 		saveDraft: async (input) => {
 			const replay = fixture.output.saveDraft;
-			if (refusedByEnvironment(replay)) return replay;
-			validateDraftRecord(input.draft);
+			// Guarding the validation rather than returning early, because the environment does not
+			// change what this replays — only whether the draft is checked on the way. Written as an
+			// early return first, which returned the same value on both paths and so said,
+			// structurally, that the branch decided the result. It does not.
+			if (!refusedByEnvironment(replay)) {
+				validateDraftRecord(input.draft);
+			}
 			return replay;
 		},
 		getDraft: async () => fixture.output.getDraft,
