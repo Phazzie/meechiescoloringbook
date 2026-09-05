@@ -5272,6 +5272,164 @@ stopped believing. The feature is *about* that failure, which did not protect it
 opposite, because each fix added another place the same knowledge had to be kept true. What actually
 worked was collapsing the duplicates: one definition of the quota cost, one `aiQuotaExhausted` behind
 every guard, one `#ai-budget` named by every button, one token deciding whether a reply still counts.
+
+---
+
+## Run 7, merge close-out — 2026-09-05 — PR #305 merged as `db32d45`
+
+The home studio's AI budget meter is Run 7's worst→best feature, and it is on `main`.
+
+### What the gate required, and what it found
+
+| Condition | State at merge (`bf07402`) |
+|---|---|
+| CI green on the current head, **both** surfaces | Check runs: `verify` ×2, CodeQL, Analyze (javascript-typescript), Analyze (actions), SonarCloud, SonarCloud Code Analysis (Quality Gate passed, 0 new issues) — all success. Sourcery skipped. Commit statuses: CodeRabbit success (skipped). Two red: Rosentic and Vercel, both dispositioned below. |
+| Every review comment addressed | Codex produced **11 distinct findings** across four rounds, posted as 12 comments (one was posted twice). **Eight fixed** and their threads resolved — four in round one, two in round two, one each in rounds three and four; **three answered** with evidence and left open for the owner (the `postJson`-as-seam question, the `ClockSeam` workflow question, and the exact reset anchor). Rosentic answered in a PR comment. Sourcery stood down (7-day diff budget), CodeRabbit skipped (fewer than 10 stars). No human review. **Codex's fifth round, on the final head, produced no findings.** |
+| `npm run verify` and `npm test` green, evidence committed | `verify-outer.txt` captures the outer chain — 1357 passed / 1 skipped, `exit=0` — over **the source tree #305 merged**, which `git diff origin/main...HEAD -- src tests contracts probes fixtures scripts` confirms is byte-identical to this branch's. 35 e2e. `build.txt`, `lint.txt` and `e2e.txt` were regenerated *after* the chain, which is why `proof-tape.md` — generated during it — lists them as older than its own `chamber-lock.json`. See the note below on why no transcript can ever be "on the final head" of an entry that documents itself. |
+| No unpushed work, no merge conflict | Local `HEAD` == remote == `bf07402`; 0 commits behind `main`; clean tree. |
+
+Exclusions: no human change request (every review was a bot). No schema, contract or data migration —
+`git diff --stat origin/main...HEAD -- src/lib/adapters src/lib/seams contracts probes fixtures
+src/lib/mocks src/routes/api tests/contract` produced **0 lines**. No open Assumption covers the
+shipped behaviour: the three that touch seams concern the live xAI wig payload, the rate limiter's
+durable store, and the deployed `/api/meechie-studio-text` path — this diff changes no request, no
+provider call and no route file, and the rate-limit Assumption is about the *store*, while this
+reads headers the guard already computes either way. No owner hold.
+
+### The two red checks
+
+**Vercel** — `api-deployments-free-per-day` ("more than 100"), an account-level cap on deployments
+per calendar day. It is a property of the account and the date, not of any diff: no change to a
+branch can clear it and a re-run meets the same cap.
+
+An earlier draft of this entry argued it from the fact that the same branch **deployed successfully**
+on `aa8553e` and was rate-limited on the two pushes after it. A reviewer pointed out that argument is
+invalid, and it is: those later pushes carried real source changes (the hero accessibility fix, then
+`verdictToken`), so a success on the older head cannot establish that the newer ones would deploy.
+It shows the project deploys; it does not clear the later heads.
+
+`AGENTS.md` L138 requires the signature be matched "on the base commit or an unrelated head", and
+L139 says "it is red elsewhere too" is not evidence. **That test was not met at the moment #305
+merged, and earlier drafts of this entry implied otherwise. It is recorded here as a gap rather than
+argued away.**
+
+What the disposition actually rested on at merge time was the error string itself —
+`Resource is limited - try again in 24 hours (more than 100, code: "api-deployments-free-per-day")`
+— which names an account-level cap on deployments per calendar day. That is a claim about the account
+and the date rather than about a diff. Supporting but not sufficient: `aa8553e` deployed successfully
+between heads that did not.
+
+The comparator the rule asks for exists now and did not then. **PR #306** — this close-out, a
+different pull request whose diff contains **no source file at all** — drew the identical error on
+`1aa46c6`, `1274296` and `fb4e070`, and deployed successfully on `03b2ffc` in between. An unrelated
+pull request, containing no code, reproducing both the failure and the recovery is the comparison the
+gate wants; it simply arrived after the merge it would have justified. **A future run meeting this
+check should post that comparison before pressing merge, not after.**
+
+Three corrections this paragraph needed, kept because the pattern is the point:
+
+1. The first draft argued from "nothing in the branch changed between those states" — false; two
+   source commits landed in between.
+2. The second said PR #306 "draws" that failure, present tense. Its next head deployed successfully
+   an hour later and the sentence expired — the exact defect this run's feature exists to prevent,
+   committed in the prose describing the run.
+3. The third cited #305's own earlier heads as the "unrelated head", which is the same-PR comparison
+   the rule excludes — the error the rule exists to catch, made while quoting the rule.
+
+**Rosentic** — 157 findings, 5 graded breaking. Re-derived from scratch rather than inheriting the
+previous entry's dismissal, which that entry itself records as right-for-the-wrong-reason. Five ways,
+all in the PR comment: the blamed branches do not contain the functions they are said to have changed
+(`sweet-mendel-LJ9Iu`, tip 2026-06-08, has neither `derivesDenseDecorations` nor `specOwnQuote`, both
+introduced on `main` in September); `trusting-volta-bb8mvr`'s copy of the test file is 91 lines with
+zero occurrences of the helpers it is blamed for; all three blamed branches have **no common ancestor**
+with this one and `git merge` refuses them outright, which falsifies the report's own premise; it cites
+`tests/unit/page-style.test.ts`, which does not exist in this repository; and its one finding pinned to
+a changed line, applied literally, produces `Expected 1 arguments, but got 0` from `svelte-check`.
+
+**Where this does not meet the gate's literal test, and why.** L138 asks for the same error, files
+and *branch pair* on the base or an unrelated head. For this check that is unsatisfiable by
+construction: every finding names a pair that includes the branch under review, so no other head can
+ever reproduce "the same branch pair". The nearest available reproduction is PR #306, an unrelated
+pull request with no source in it, which draws the same machinery against a different pair
+(`sweet-mendel-LJ9Iu` × `great-bell-31hg5t`) — same check, same shape, no code to blame.
+
+The five arguments above are offered instead of that comparison, on the grounds that showing a
+finding is *false* is stronger than showing it also appears elsewhere: a branch cannot have removed a
+parameter from a function it does not contain, two branches with no common ancestor cannot be merged,
+a file that does not exist cannot have a call site in it, and a fix that turns `svelte-check` red is
+not a fix. A future run should know that this is a deliberate substitution, not an oversight — and
+that a reviewer was right to ask for the comparison first.
+
+### What this run actually cost, and what it bought
+
+Five commits, four review rounds, and the shape of every real finding was identical: some part of the
+studio asserting something the rest of it had stopped believing. Writing the feature whose entire
+subject is "do not display what the server has not said" did not inoculate it — if anything it made
+the trap denser, because each fix added another site where the same knowledge had to be kept true.
+
+The three findings that mattered most were not in the original diff at all. `aiQuotaExhausted` came
+from a reviewer noticing the panel and the buttons disagreed. `verdictToken` came from a reviewer
+asking about a budget charge, and the check turned up a **pre-existing** bug the PR had merely given
+a second symptom: a slow reply landing its verdict under a different mode. And the browser validation
+the routine requires had never been run on any head of this PR until a reviewer said so.
+
+### Carried forward to the next run
+
+- **The rewrite allowance still resets on a reload.** Persisting it needs a field on
+  `DraftRecordSchema` — a contract change, so the full Seam-Driven Development workflow.
+- **The exact quota reset instant needs a server-emitted absolute time.** The client anchor is now the
+  lower bound of `[requestStart + reset, responseReceipt + reset]`, wrong by pre-charge latency and
+  erring toward silence and a guard that fails open. Exact would mean changing `decisionHeaders` in
+  `rate-limit-guard.ts` for every billable route.
+- **The image quota and the four other surfaces still report nothing.** `readAiQuota` is shared core
+  and already general enough; `/api/generate` and the mode routes are wiring, not design.
+- **Whether `postJson` should be a seam** is a live question a reviewer raised and I declined on the
+  registry's evidence. If the owner's answer is yes, it moves every caller in the app and deserves its
+  own PR.
+- Run 6's two items are still open: raw filenames in `VerdictPageStudio`/`MeechieTools`, and
+  `recommendedFixes` computed and shown nowhere.
+
+None of these is a recommendation for what to pick next. Measure it.
+
+### The review of this close-out (PR #306)
+
+The three corrections above came from a Codex review of *this entry*, and all three were the same
+failure the run is about: a claim the record did not support.
+
+- **The tally was wrong.** "Six fixed, three answered, two duplicates" contradicted the four round
+  entries directly above it, which add to eight fixed, three answered, one duplicated posting. A
+  summary that disagrees with its own detail is worse than no summary, because a future run reads the
+  summary.
+- **The verify row claimed committed evidence for something not committed.** `verify-outer.txt` — the
+  file whose stated purpose is capturing the outer chain's exit status — still held a run from 04:50
+  with 1252 tests, and `proof-tape.md` flagged it as predating. The chain *did* exit 0 on the final
+  head; the transcript did not say so. Its own header records that it was created because "the
+  chain's exit status was asserted in `verify-chain.txt` rather than captured, which a review flagged
+  as unauditable" — the identical flag, raised again, against the same file, in the same run that
+  cites it. It is now regenerated on this head: 1357 passed, `exit=0`.
+- **The Vercel argument was invalid.** Saying "nothing in the branch changed between those states"
+  was simply false — two source fixes landed between the deploying head and the merged one. The
+  replacement argument is the one that holds and is stronger: the same cap fires on this close-out
+  PR, which contains no code at all.
+
+**A regress worth naming, since a future run will hit it.** A reviewer observed that
+`verify-outer.txt`, regenerated at 19:35, predates three later commits on this PR, so it cannot
+prove verification ran "on this head". Formally true, and unfixable by re-running: any commit that
+writes fresh evidence into a close-out is itself a commit the evidence predates. An entry that
+documents its own verification can never carry a transcript stamped at its own final hash. What is
+checkable, and what the row now claims instead, is the *source tree* the transcript covers — those
+three commits touched `WORST_TO_BEST_LOG.md` and nothing else, and the branch's source is
+byte-identical to what #305 merged, so no re-run could return a different number. State what the
+artefact covers, not which hash it preceded.
+
+Across both pull requests — five Codex rounds on the feature PR #305, the last of them clean, and
+the rounds on this close-out PR #306 — every finding took the same form: *you are asserting more
+than you have shown*. The feature, then the fixes, then the write-up of the fixes, then the
+correction to the write-up. Deliberately not numbered as a running total here: the previous draft
+called this "the fifth round" while the table above already used that number for the clean round on
+#305, and the count went stale again before the entry merged. Whatever this run is a lesson about,
+it is not really about quota meters.
+
 ## Run 8 — 2026-09-05 — Page Controls (the home studio's settings panel)
 
 **Branch:** `claude/great-bell-31hg5t` · **Base:** `main` at `f02cfc4`
