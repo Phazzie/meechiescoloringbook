@@ -2325,3 +2325,155 @@ describe('StudioState page exports', () => {
 		expect(studio.pageFileBaseName).toBe('');
 	});
 });
+
+describe('StudioState AI budget meter', () => {
+	// None of this had a single test before. The counter it replaces called the first verdict a
+	// revision, never refilled, described itself as being "for this page", and showed a number the
+	// server had never agreed to — and the suite around it stayed green through six rebuilds of
+	// other features.
+
+	/** A studio-text response carrying whatever quota headers the case is about. */
+	const studioTextResponse = (
+		quotaHeaders: Record<string, string> = {
+			'RateLimit-Limit': '20',
+			'RateLimit-Remaining': '14',
+			'RateLimit-Reset': '45'
+		},
+		init: { status?: number } = {}
+	): Response =>
+		new Response(JSON.stringify({ ok: true, value: DEFAULT_STUDIO_TEXT_OUTPUT }), {
+			status: init.status ?? 200,
+			statusText: 'OK',
+			headers: quotaHeaders
+		});
+
+	/** A studio with evidence in the box, ready to run a text action. */
+	const arrangeStudioWithEvidence = (): StudioState => {
+		const studio = new StudioState();
+		studio.evidence = 'He said he was working late.';
+		return studio;
+	};
+
+	it('does not spend a rewrite on the verdict that starts the round', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
+
+		await studio.runTextAction('generate_text');
+
+		expect(studio.textOutput).not.toBeNull();
+		expect(studio.revisionBudget).toBe(3);
+	});
+
+	it('spends one rewrite per rework of the verdict on screen', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
+
+		await studio.runTextAction('generate_text');
+		await studio.runTextAction('make_meaner');
+		expect(studio.revisionBudget).toBe(2);
+		await studio.runTextAction('make_prettier');
+		await studio.runTextAction('regenerate');
+		expect(studio.revisionBudget).toBe(0);
+		expect(studio.canMakeMoreSpecific).toBe(false);
+
+		// And the way out that the on-screen message promises actually works.
+		expect(studio.canGenerateText).toBe(true);
+		await studio.runTextAction('generate_text');
+		expect(studio.revisionBudget).toBe(3);
+		expect(studio.canMakeMoreSpecific).toBe(true);
+	});
+
+	// The dead end this closes: spend the allowance, switch mode, and the switch deletes the
+	// verdict the spend was for while leaving every AI button disabled — an empty studio the reader
+	// had no way to fill.
+	it('refills the rewrites when a mode switch throws the verdict away', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
+
+		await studio.runTextAction('generate_text');
+		await studio.runTextAction('make_meaner');
+		await studio.runTextAction('make_prettier');
+		await studio.runTextAction('regenerate');
+		expect(studio.revisionBudget).toBe(0);
+
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+
+		expect(studio.textOutput).toBeNull();
+		expect(studio.revisionBudget).toBe(3);
+		expect(studio.canGenerateText).toBe(true);
+	});
+
+	it('gives a reopened saved page its own rewrites', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
+		await studio.runTextAction('generate_text');
+		await studio.runTextAction('make_meaner');
+		await studio.runTextAction('make_prettier');
+		await studio.runTextAction('regenerate');
+		expect(studio.revisionBudget).toBe(0);
+		vi.unstubAllGlobals();
+
+		await studio.loadCreation({
+			id: 'saved-1',
+			createdAtISO: '2026-09-01T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			assembledPrompt: 'prompt for saved-1',
+			owner: { kind: 'anonymous', sessionId: 'budget-session' }
+		});
+
+		expect(studio.revisionBudget).toBe(3);
+	});
+
+	it('charges nothing for an action the provider refused', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
+		await studio.runTextAction('generate_text');
+		await studio.runTextAction('make_meaner');
+		expect(studio.revisionBudget).toBe(2);
+
+		vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('provider unavailable')));
+		await studio.runTextAction('make_prettier');
+
+		expect(studio.textError).not.toBe('');
+		expect(studio.revisionBudget).toBe(2);
+	});
+
+	it('reports the quota the server actually sent, not one of its own', async () => {
+		const studio = arrangeStudioWithEvidence();
+		// Before any call there is nothing to report, and nothing is what it says.
+		expect(studio.aiQuotaMessage).toBe('');
+
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() =>
+				Promise.resolve(
+					studioTextResponse({
+						'RateLimit-Limit': '20',
+						'RateLimit-Remaining': '14',
+						'RateLimit-Reset': '45'
+					})
+				)
+			)
+		);
+		await studio.runTextAction('generate_text');
+
+		// 14 units at 2 units an action. The old counter would have said "2 left" here.
+		expect(studio.aiQuota?.remaining).toBe(14);
+		expect(studio.aiQuotaMessage).toContain('7 AI calls left');
+	});
+
+	it('keeps the last good reading when a response carries no quota headers', async () => {
+		const studio = arrangeStudioWithEvidence();
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
+		await studio.runTextAction('generate_text');
+		const reported = studio.aiQuota;
+		expect(reported).not.toBeNull();
+
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse({}))));
+		await studio.runTextAction('make_meaner');
+
+		// Blanking the meter on one odd reply would tell the reader less than the last true thing
+		// it knew.
+		expect(studio.aiQuota).toEqual(reported);
+	});
+});

@@ -8,6 +8,11 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- The AI counter under the evidence box now shows the limit that actually exists. It reads the remaining calls off the studio's own responses and tells you the time they refill, instead of the invented "3 AI text actions left" — a number no server ever agreed to, which allowed less than a third of the real limit and never came back until you reloaded the page.
+- Generating a verdict no longer spends a rewrite. The three rewrites are for reworking the verdict on screen, which is what the message under them always claimed; asking Meechie a new question is what gives you a fresh set.
+- Switching mode after using your rewrites no longer leaves you stuck. The switch clears the verdict the rewrites were spent on, and the studio used to keep the charge — an empty page with every button disabled and no way forward except reloading, which nothing said. Reopening a saved page had the same shape.
+- When the studio does run out of rewrites it now names the way out, and export, copy, theme and vault are still explicitly yours — they never counted against it.
+- The AI buttons now point at the counter that explains them, so a disabled button has a stated reason for a screen reader instead of being silently inert.
 - The home studio's downloads now say what they are. Every file names itself, what it is for and how big it is, instead of every link on the row reading "Download PDF" whatever was behind it.
 - A coloring page made on the home page now comes with a square share image as well as the printable PDF. The tools hub and the mode routes already made both; the front door — the page most people use — could print a page but not post one, in an app about receipts you show people.
 - A page that generates fine but cannot be turned into a PDF now says exactly that, in a notice above a page you can still keep. It used to show the same red error a failed generation shows, which invited paying for a second generation to fix a free step that runs in your own browser.

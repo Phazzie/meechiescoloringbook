@@ -12,6 +12,8 @@ import {
 	consumeStudioActionBudget,
 	getStudioAction,
 	getStudioTextAction,
+	studioActionStartsRound,
+	studioActions,
 	studioModes
 } from '../../src/lib/core/meechie-studio';
 import { meechieVoicePack } from '../../src/lib/seams/meechie-voice-seam/voice-pack';
@@ -57,11 +59,48 @@ describe('Meechie studio controls', () => {
 	});
 
 	it('keeps AI text action metadata separate from local controls', () => {
-		expect(getStudioAction('generate_text').costClass).toBe('unclassified');
-		expect(getStudioAction('generate_text').countsAgainstRevisionBudget).toBe(true);
+		expect(getStudioAction('generate_text').costClass).toBe('paid');
 		expect(getStudioTextAction('generate_text').aiAction).toBe('generate');
 		expect(getStudioAction('copy_quote').costClass).toBe('free');
 		expect(getStudioAction('copy_quote').countsAgainstRevisionBudget).toBe(false);
+	});
+
+	// The grade used to be 'unclassified' on all five provider-calling actions, so the app could
+	// not say whether the thing it rationed cost anything. Every action is now graded, and an
+	// action that reaches the provider is graded paid.
+	it('grades every action, and grades every provider call paid', () => {
+		for (const action of studioActions) {
+			expect(['free', 'paid']).toContain(action.costClass);
+			expect(action.costClass).toBe('aiAction' in action ? 'paid' : 'free');
+		}
+	});
+
+	it('treats asking as starting a round and rewriting as spending one', () => {
+		expect(studioActionStartsRound('generate_text')).toBe(true);
+		expect(getStudioAction('generate_text').countsAgainstRevisionBudget).toBe(false);
+		for (const id of ['regenerate', 'make_prettier', 'make_meaner', 'make_more_specific'] as const) {
+			expect(studioActionStartsRound(id)).toBe(false);
+			expect(getStudioAction(id).countsAgainstRevisionBudget).toBe(true);
+		}
+		// A free local control neither starts a round nor spends one.
+		expect(studioActionStartsRound('copy_quote')).toBe(false);
+		expect(consumeStudioActionBudget(3, 'generate_text')).toBe(3);
+	});
+
+	// The regression this guards: `isRunning` used to be read through `countsAgainstRevisionBudget`,
+	// so the moment Generate Verdict stopped counting against the rewrite allowance it would have
+	// become double-submittable while its own request was still in flight.
+	it('still blocks every provider call while one is in flight', () => {
+		expect(canRunStudioAction('generate_text', { remainingBudget: 3, isRunning: true })).toBe(false);
+		expect(canRunStudioAction('regenerate', { remainingBudget: 3, isRunning: true })).toBe(false);
+		expect(canRunStudioAction('copy_quote', { remainingBudget: 3, isRunning: true })).toBe(true);
+	});
+
+	// A reader with no rewrites left can always still ask a new question — which is the whole
+	// reason the allowance can honestly call itself per-verdict.
+	it('leaves Generate Verdict available when the rewrite allowance is spent', () => {
+		expect(canRunStudioAction('generate_text', { remainingBudget: 0, isRunning: false })).toBe(true);
+		expect(canRunStudioAction('regenerate', { remainingBudget: 0, isRunning: false })).toBe(false);
 	});
 
 	it('throws when text action metadata is requested for a non-AI action id', () => {

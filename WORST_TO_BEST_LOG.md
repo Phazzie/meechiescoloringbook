@@ -4880,3 +4880,154 @@ the Run 6 entry: `VerdictPageStudio` and `MeechieTools` still render raw filenam
 generation and shown on no surface in the app.
 
 Neither is a recommendation to pick next. Measure it.
+
+---
+
+## Run 7 — 2026-09-05 — The AI budget meter on the home studio
+
+**Branch:** `claude/great-bell-94oma2`
+
+### The feature, and why it was the worst
+
+Under the evidence box on the home page sits one line of gold text:
+
+> **3 AI text actions left**
+
+It is the only number in the app that governs what the reader is allowed to do. Every other
+feature offers something; this one takes something away. That is what made it the worst: a feature
+whose entire job is to say no was wrong in every direction at once — wrong about what it counted,
+wrong about what it was counting for, wrong about how to get more, and wrong about the number
+itself, which no server had ever agreed to.
+
+Measured on `main` at `52d2382`:
+
+1. **It called the first verdict a revision.** `generate_text` carried
+   `countsAgainstRevisionBudget: true` alongside the four rewrite actions. The meter said three;
+   the reader got one verdict and two rewrites.
+
+2. **Switching mode deleted your verdict and kept the charge.** `handleModeSelect` sets
+   `textOutput = null` and calls `resetGeneratedPage()`. It never touched `revisionBudget`. Spend
+   three on "Who Fucked Up?", switch to "Rate His Excuse", and the studio is empty with every AI
+   button disabled — the app threw the work away and then refused to let the reader replace it.
+   The only exit was a page reload, which nothing on screen said.
+
+3. **The message described a scope the counter did not have.** "You used the wording changes for
+   **this page**." The counter was per tab-load, shared across all eight modes and every page, and
+   never reset for a new one. It was per page in no sense at all.
+
+4. **It enforced nothing.** A plain in-memory `$state`. F5 restored it to three. And the identical
+   verdict generation runs with no budget whatsoever on `/meechie`, `/who-fucked-up`,
+   `/rate-his-excuse`, `/random`, and all eight `/m/<slug>` pages. The only reader it limited was
+   the one who stayed on the home page and did not think to refresh.
+
+5. **The real limit was already there, and the client threw it away.** `/api/meechie-studio-text`
+   runs a per-caller quota gate. `rate-limit-guard.ts` puts `RateLimit-Limit`,
+   `RateLimit-Remaining` and `RateLimit-Reset` on **every** response and adds `Retry-After` to a
+   refusal; `rate-limit-route.ts` says so in a comment addressed to the routes ("merge `headers`
+   into the success response so it advertises remaining quota"). `postJson` in
+   `src/lib/core/http-client.ts` returned the parsed body and dropped the headers on the floor.
+   So the app displayed a counter it made up while discarding, on every single request, the one the
+   server was computing for it.
+
+6. **The two numbers were not even close.** The text bucket is 20 units per 60 seconds and one
+   studio-text action costs 2 — ten actions a minute, refilling every minute. The invented counter
+   allowed three, ever. More than three times stricter than the real limit, and permanent where the
+   real one lasted a minute.
+
+7. **The taxonomy that would have justified it was dead.** `CostClass` had three grades, and all
+   five provider-calling actions carried `'unclassified'` — the app could not state whether the
+   thing it was rationing cost anything. Outside one unit test, no code ever read the field.
+
+8. **No test had ever touched any of it.** `tests/unit/studio-state.test.ts` is two thousand lines
+   and did not mention `revisionBudget` once. The budget helpers had metadata tests; the behaviour
+   that stranded the reader had none. That is how it survived six runs of scrutiny.
+
+### Plan (per `AGENTS.md` "Plan + Self-Critique")
+
+Goal: replace an invented counter that blocks the reader with the real quota the server already
+publishes, plus an honest per-verdict rewrite allowance that always has a way out.
+
+Seams: none. No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/` or `src/lib/seams/` is touched, so the Seam-Driven Development workflow's
+contract→probe→fixture→mock→adapter chain does not apply and no Cipher Gate entry is required. The
+rate-limit seam contract is unchanged: this reads headers the server already sends.
+
+Files:
+- `[NEW] src/lib/core/ai-quota.ts` — pure. `STUDIO_TEXT_QUOTA_COST`, `readAiQuota`,
+  `aiActionsLeft`, `formatQuotaResetTime`, `describeAiQuota`.
+- `[MODIFY] src/lib/core/meechie-studio-text-pipeline.ts` — import the cost from `ai-quota`
+  instead of defining a second copy.
+- `[MODIFY] src/lib/core/http-client.ts` — optional `onResponseHeaders` on `PostJsonOptions`.
+- `[MODIFY] src/lib/core/meechie-studio.ts` — `generate_text` stops counting and gains
+  `startsRound`; `studioActionStartsRound`; `canRunStudioAction` reads in-flight off the AI
+  metadata; `CostClass` loses `'unclassified'` and every provider call is graded `paid`.
+- `[MODIFY] src/routes/studio-state.svelte.ts` — `aiQuota`, `aiQuotaMessage`, `startRewriteRound`.
+- `[MODIFY] src/lib/components/studio/StudioInputPanel.svelte`, `src/routes/+page.svelte` — the meter.
+- `[NEW] tests/unit/ai-quota.test.ts`; `[MODIFY]` the two affected unit suites.
+
+Anti-goals: do not touch the server-side rate limiter, its policy numbers, the request payload, or
+any other surface's generation path.
+
+Commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`.
+
+### Self-critique, and what it changed
+
+Three things the plan got wrong on first pass, all caught before pushing:
+
+- **Making Generate Verdict free would have made it double-submittable.** `canRunStudioAction`
+  read the in-flight guard off `countsAgainstRevisionBudget` — the same flag being cleared. The
+  moment Generate Verdict stopped counting, the only thing stopping a second click while its own
+  request was in flight would have gone with it. The guard now reads off the AI metadata, and
+  `still blocks every provider call while one is in flight` pins it.
+- **A countdown would have been another lie.** "Ready in 34s" is wrong 34 seconds later and
+  nothing here re-renders on a tick. The reset is rendered as a clock instant, which stays true for
+  as long as it is on screen.
+- **`floor`, not `round`.** One unit left is not an empty bucket, but it cannot pay for a two-unit
+  action. Reporting "1 left" there would promise a call the next request refuses — the same class
+  of lie as the counter being replaced.
+
+### What shipped
+
+- **The meter shows the server's number.** `onResponseHeaders` hands `readAiQuota` the headers of
+  every studio-text response — a refusal as readily as a success — and the panel says "7 AI calls
+  left before 3:42 PM." Before the server has said anything, the line is absent. An unusable header
+  set leaves the last good reading alone rather than blanking it.
+- **Asking is free; reworking is what costs.** `generate_text` starts a round and refills the
+  allowance. The four rewrite actions spend it. A failed, timed-out or unreadable response still
+  charges nothing, as before, now with a test that would notice if it stopped.
+- **The allowance is genuinely per verdict.** It refills on a new verdict, on a mode switch that
+  throws the old one away, and on reopening a saved page. The dead end is gone: a reader with zero
+  rewrites can always still ask.
+- **The zero state names the way out** — generate a new verdict — and that way out now exists.
+- **The buttons explain themselves.** All five AI buttons carry `aria-describedby="ai-budget"`,
+  and the meter is `aria-live="polite"`, so a disabled button has a stated reason.
+- **`costClass` is real.** `'unclassified'` is gone from the type; every provider call is graded
+  `paid`, every local control `free`, and a test asserts the two can never disagree.
+- **The cost constant has one definition.** `STUDIO_TEXT_QUOTA_COST` lives in `ai-quota.ts`; the
+  pipeline that charges it and the meter that divides by it import the same number.
+
+### Deliberately not done (for a future run)
+
+- **The rewrite allowance still resets on reload.** Persisting it would mean a new field on
+  `DraftRecordSchema` — a contract change, and so the full Seam-Driven Development workflow. It was
+  not worth opening that for a churn guardrail whose refill rule (a new verdict) already makes the
+  reload path uninteresting. Stated here rather than left as a silent hole.
+- **The image quota is not metered on screen.** `/api/generate` runs the same gate on an `image`
+  bucket (8 per minute) and its headers are dropped by the same `postJson` call. `ai-quota.ts` is
+  general enough to read them; wiring the generate path was outside this feature.
+- **The four other surfaces still show no quota at all.** `/meechie` and the mode routes call
+  billable endpoints and say nothing about limits. The reading helper is now shared core, so this
+  is wiring rather than design.
+- The two items Run 6 left — raw filenames in `VerdictPageStudio`/`MeechieTools`, and
+  `recommendedFixes` computed and shown nowhere — are still open. Neither is a recommendation.
+
+### Two things a future run should know
+
+- **A number on screen that no system produced is worse than no number.** This counter was not a
+  bug in the sense of a broken line; every line did what it said. It was a made-up quantity given
+  the visual authority of a measurement, sitting nine inches from a real one that was being thrown
+  away on every request. Look for the second copy of a fact before assuming the displayed one is
+  the fact.
+- **The absence of a test is a finding, not a gap to fill quietly.** Two thousand lines of
+  `studio-state.test.ts` never said `revisionBudget`. The feature most likely to be broken is the
+  one nothing asserts about, and six runs of green suites had never once disagreed with it.

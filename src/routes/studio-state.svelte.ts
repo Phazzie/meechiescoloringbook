@@ -20,6 +20,7 @@ import {
 	specOwnQuote,
 	canRunStudioAction,
 	consumeStudioActionBudget,
+	studioActionStartsRound,
 	getStudioTextAction,
 	getMonthlyMode,
 	getWeeklyModes,
@@ -27,6 +28,11 @@ import {
 	type StudioTextActionId
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
+import {
+	describeAiQuota,
+	readAiQuota,
+	type AiQuotaSnapshot
+} from '$lib/core/ai-quota';
 import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 import {
 	GENERATED_IMAGE_MIME_TYPES,
@@ -169,7 +175,20 @@ export class StudioState {
 	pageSize = $state<PageSize>('US_Letter');
 	border = $state<BorderChoice>('decorative');
 	glitter = $state(false);
+	/**
+	 * Rewrites left for the verdict currently on screen. Refilled whenever a new verdict arrives —
+	 * see `startRewriteRound`. Never the app's spend control; that is `aiQuota`.
+	 */
 	revisionBudget = $state(DEFAULT_REVISION_BUDGET);
+	/**
+	 * The last quota the server reported, or `null` before it has reported one.
+	 *
+	 * `null` is shown as nothing at all. The counter this replaced invented a number the server had
+	 * never agreed to — it said "3 AI text actions left" while the real gate allowed ten a minute
+	 * and refilled every sixty seconds — so an unknown quota now reads as silence rather than as a
+	 * fresh guess.
+	 */
+	aiQuota = $state<AiQuotaSnapshot | null>(null);
 	textOutput = $state<MeechieStudioTextOutput | null>(null);
 	textError = $state('');
 	generationError = $state('');
@@ -281,6 +300,19 @@ export class StudioState {
 		studioThemes.find((t) => t.id === this.selectedThemeId) ?? studioThemes[0]
 	);
 	previewOutput = $derived(this.textOutput);
+	/**
+	 * What the server said about this caller's quota, in a sentence, or `''` when it has not said
+	 * anything yet.
+	 *
+	 * The reset instant is rendered as a clock time rather than a countdown because nothing here
+	 * re-renders on a tick: "ready in 34s" would be wrong 34 seconds later, and this meter exists
+	 * precisely because the old one said things that were not true.
+	 */
+	aiQuotaMessage = $derived(
+		describeAiQuota(this.aiQuota, (date) =>
+			date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+		)
+	);
 	canGenerateText = $derived(
 		canRunStudioAction('generate_text', {
 			remainingBudget: this.revisionBudget,
@@ -741,6 +773,19 @@ export class StudioState {
 	// --- Public action handlers ---
 	// Arrow functions ensure stable `this` binding when passed as component callbacks.
 
+	/**
+	 * Give the verdict now on screen its own full rewrite allowance.
+	 *
+	 * Called from every path that replaces what the reader is looking at with something they have
+	 * not reworked yet: a generated verdict, a mode switch, a reopened saved page. Without it the
+	 * allowance was per tab-load and never came back, so spending it on one mode's verdict left the
+	 * next mode — whose verdict the switch had just deleted — with every AI button disabled and a
+	 * message about "this page" that referred to a page no longer on screen.
+	 */
+	private startRewriteRound(): void {
+		this.revisionBudget = DEFAULT_REVISION_BUDGET;
+	}
+
 	scheduleDraftSave = (): void => {
 		if (!this.isBrowser) return;
 		if (this.draftTimer) clearTimeout(this.draftTimer);
@@ -798,6 +843,9 @@ export class StudioState {
 			this.textOutput = null;
 			this.resetGeneratedPage();
 			this.restoredPageLayout = false;
+			// The switch just deleted the verdict the spent rewrites were spent on. Carrying the
+			// spend across to a mode the reader has not asked anything yet is what stranded them.
+			this.startRewriteRound();
 		}
 		this.scheduleDraftSave();
 	};
@@ -869,7 +917,17 @@ export class StudioState {
 					voice: $state.snapshot(this.voice),
 					currentText: this.currentTextPayload()
 				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.studioText }
+				{
+					timeoutMs: POST_JSON_TIMEOUTS_MS.studioText,
+					// Read on every response the route produces, refusals included, because a refusal
+					// is exactly when the reader most needs to be told what the limit is and when it
+					// lifts. A response without usable quota headers leaves the last reading alone
+					// rather than blanking the meter on one odd reply.
+					onResponseHeaders: (headers) => {
+						const snapshot = readAiQuota(headers, this.clock.now());
+						if (snapshot) this.aiQuota = snapshot;
+					}
+				}
 			);
 			const parsed = MeechieStudioTextResultSchema.safeParse(payload);
 			if (!parsed.success) {
@@ -881,7 +939,15 @@ export class StudioState {
 				return;
 			}
 			this.textOutput = parsed.data.value;
-			this.revisionBudget = consumeStudioActionBudget(this.revisionBudget, actionId);
+			// Order matters: a round-starting action refills the allowance for the verdict it just
+			// produced, and a rewrite spends one of the allowance the verdict on screen came with.
+			// Both are applied only on an accepted verdict, so a failure, a timeout or an
+			// unreadable reply still costs the reader nothing.
+			if (studioActionStartsRound(actionId)) {
+				this.startRewriteRound();
+			} else {
+				this.revisionBudget = consumeStudioActionBudget(this.revisionBudget, actionId);
+			}
 			this.resetGeneratedPage();
 			// Only now, with a replacement verdict accepted, does a reopened page's layout stop
 			// applying. Clearing it when the action *started* would convert the restored quote page
@@ -1284,6 +1350,10 @@ export class StudioState {
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;
 		this.textOutput = restoredText;
+		// A reopened page is a verdict the reader has not reworked in this session, and its rewrite
+		// buttons light up the moment `textOutput` is set above. Handing it whatever was left of
+		// some earlier page's allowance would let a saved page arrive with none.
+		this.startRewriteRound();
 		// Reopening a saved page used to hand back the words and drop the picture, so the only
 		// way to see your own page again was to pay for another generation. The record already
 		// carries the image bytes and the trace, so give all of it back.
