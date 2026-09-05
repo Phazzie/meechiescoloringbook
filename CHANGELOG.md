@@ -8,6 +8,8 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- The AI counter now stops reporting a number the moment the server stops standing behind it. The limit resets on a fixed sixty-second window, so a reader who is told to wait and does was previously told to keep waiting after the wait was over.
+- The time the counter says you can try again is now the real one, to the second. It was measured from when the answer came back rather than when the request went out — on a slow call that put the reset minutes after the limit had actually lifted — and it was rounded to the minute, which invited trying again up to a minute early.
 - The AI counter under the evidence box now shows the limit that actually exists. It reads the remaining calls off the studio's own responses and tells you the time they refill, instead of the invented "3 AI text actions left" — a number no server ever agreed to, which allowed less than a third of the real limit and never came back until you reloaded the page.
 - Generating a verdict no longer spends a rewrite. The three rewrites are for reworking the verdict on screen, which is what the message under them always claimed; asking Meechie a new question is what gives you a fresh set.
 - Switching mode after using your rewrites no longer leaves you stuck. The switch clears the verdict the rewrites were spent on, and the studio used to keep the charge — an empty page with every button disabled and no way forward except reloading, which nothing said. Reopening a saved page had the same shape.

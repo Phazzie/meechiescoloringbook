@@ -5031,3 +5031,96 @@ Three things the plan got wrong on first pass, all caught before pushing:
 - **The absence of a test is a finding, not a gap to fill quietly.** Two thousand lines of
   `studio-state.test.ts` never said `revisionBudget`. The feature most likely to be broken is the
   one nothing asserts about, and six runs of green suites had never once disagreed with it.
+
+---
+
+## Run 7, first close-out — 2026-09-05 — the Codex round on `34bd3ce`
+
+Codex was the only reviewer to produce findings on this diff. Sourcery stood down (7-day diff
+budget), CodeRabbit skipped (fewer than 10 stars), and there was no human review. Six comments,
+one of them posted twice; four were real and are fixed, one was answered with evidence.
+
+### Three ways the new meter was still telling the reader something untrue
+
+The irony is the point: this PR exists because the studio displayed a number the server had never
+agreed to. Codex found three more places where the *replacement* drifted from the server, and all
+three are the same defect in a new costume.
+
+1. **The reading never expired.** `aiQuotaMessage` derives from `aiQuota` alone, so once a snapshot
+   said "Meechie's desk is full", nothing could unsay it. The bucket is a fixed 60-second window:
+   a reader who is told to wait, and waits, would have been told the desk was still full after it
+   had emptied — because waiting is precisely the case where no new response arrives to correct the
+   display. Fixed with `ClockSeam.scheduleAt(resetAtMs)`, which clears the snapshot at the instant
+   it stops being true, cancelled in `destroy()` beside the existing day-boundary timer.
+
+2. **The reset instant was anchored at the wrong end of the request.** The server charges the
+   bucket and computes `RateLimit-Reset` *before* it calls the provider; the client was adding that
+   already-aging duration to the clock when the response arrived. On this route a call can take
+   230 seconds against a 60-second window, so a bucket that had refilled two minutes ago could be
+   reported as still a minute away. Now anchored at `requestStartedAtMs`, captured before `postJson`.
+
+3. **The clock label threw away the seconds.** `{hour, minute}` renders a 3:42:55 reset as
+   "3:42 PM", inviting a retry up to 59 seconds early into a refusal — an error of nearly one whole
+   window, in the one label whose entire job is to say when the window ends.
+
+Each of the three has a test that was confirmed red against the unfixed code and green with it,
+rather than merely added and observed to pass:
+
+```
+× anchors the reset instant at the request, not at the response
+× renders the reset instant to the second, because the window is only sixty of them
+× stops showing a quota reading once its own window has run out
+```
+
+### The P1 that was right about the process
+
+`AGENTS.md` L213 requires `npx playwright test` when the change is user-facing, and
+`proof-tape.md` was flagging `e2e.txt` as predating the verify run. It was: e2e had not been run on
+this head at all.
+
+It has now, and the reason it had not is worth recording. `npm run test:e2e` fails in this
+container with `Executable doesn't exist at .../chromium_headless_shell-1208`: the image ships
+Chromium build **1194** and the pinned `@playwright/test` asks for **1208**. Running
+`npx playwright install` is not the fix here — the environment forbids it. The run used
+`executablePath: /opt/pw-browsers/chromium` from a scratch config that was deleted afterwards;
+`playwright.config.ts` is untouched, so nothing container-specific is committed.
+
+**34 passed**, including two new browser tests for the meter itself — which is what the P1 was
+really about, since the old suite covered the buttons but nothing about what the panel says:
+
+- `the AI meter reports the server quota and refills rewrites on a new verdict`
+- `switching mode after spending the rewrites does not strand the studio`
+
+One honest limitation, stated rather than hidden: `proof-tape.md` still lists `e2e.txt` under
+"older than this run's chamber-lock.json". The freshness list is generated *during* `npm run
+verify` and so cannot see a file written after it. The e2e run happened on this exact tree, after
+the chain; the ordering is a mechanical artifact of running two commands in sequence, not a stale
+artifact. Running them the other way round flips which file looks older, so no ordering makes both
+statements true at once.
+
+### The finding that was answered rather than fixed
+
+Codex's other P1 asked for the quota-header callback to go through the full Seam-Driven Development
+workflow, on the grounds that it "introduces new observable behavior across the HTTP/RateLimitSeam
+boundary".
+
+Answered with evidence rather than complied with, for three reasons. `http-client.ts` is not a seam:
+it does not appear in `docs/seams.md`, which `CLAUDE.md` names the authoritative registry, and there
+is no HTTP seam in it to extend. The `RateLimitSeam` contract is untouched — no new request, no new
+response shape, no new failure mode; the headers already crossed the wire on every one of these
+responses and the change is only that the client stops discarding them. And this routine's own scope
+rule in `AGENTS.md` names the directories that trigger the full workflow — `contracts/`, `probes/`,
+`fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/*` — none of which this diff
+touches. Building a seam whose probe would capture "reads four headers off a `Response`" would add
+a contract, a probe, fixtures, a mock and an adapter for a pure function that already has 18 unit
+tests, nine of them for malformed input.
+
+### What this round says about the work
+
+The three real findings were all the same mistake, and it is the mistake this PR was written to
+fix. Having argued in the entry above that "a number on screen that no system produced is worse
+than no number", I shipped a first draft that would have gone on displaying a server reading for up
+to four minutes after the server stopped standing behind it. Anticipating staleness for the *label*
+(which is why the reset is a clock instant rather than a countdown) is not the same as noticing that
+the *count* has a lifetime too — and the reasoning that produced the good decision sat one inch from
+the bad one without touching it.

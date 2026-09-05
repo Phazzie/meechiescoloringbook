@@ -308,9 +308,17 @@ export class StudioState {
 	 * re-renders on a tick: "ready in 34s" would be wrong 34 seconds later, and this meter exists
 	 * precisely because the old one said things that were not true.
 	 */
+	// Seconds are shown, not rounded away: the window is sixty seconds long, so a bucket that
+	// refills at 3:42:55 rendered as "3:42" invites the reader to retry most of a minute early and
+	// be refused. A quota label that is wrong by nearly a whole window is the defect this feature
+	// exists to remove, not one to reintroduce in the formatting.
 	aiQuotaMessage = $derived(
 		describeAiQuota(this.aiQuota, (date) =>
-			date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+			date.toLocaleTimeString([], {
+				hour: 'numeric',
+				minute: '2-digit',
+				second: '2-digit'
+			})
 		)
 	);
 	canGenerateText = $derived(
@@ -531,6 +539,8 @@ export class StudioState {
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
 	private stopVisibilityWatch: (() => void) | null = null;
 	private cancelDayBoundaryRefresh: (() => void) | null = null;
+	/** Clears the quota reading when its window runs out. See `setAiQuota`. */
+	private cancelQuotaExpiry: (() => void) | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
 
@@ -786,6 +796,29 @@ export class StudioState {
 		this.revisionBudget = DEFAULT_REVISION_BUDGET;
 	}
 
+	/**
+	 * Store a quota reading, and arrange for it to stop being shown the moment it stops being true.
+	 *
+	 * A reading is only valid until its own reset instant: the bucket is a fixed window, so at
+	 * `resetAtMs` it refills whether or not the reader has made another request. Without this, a
+	 * reader who is told the desk is full and does the sensible thing — wait — would go on being
+	 * told the desk is full after it had emptied, because `aiQuotaMessage` derives from this value
+	 * alone and nothing else would touch it. That is the same defect as the counter this feature
+	 * replaced: a number on screen that the server had stopped agreeing with.
+	 *
+	 * The clock comes through `ClockSeam` rather than `setTimeout`, so a test drives the expiry
+	 * instead of waiting for it. An instant already past fires on the next tick, which is right:
+	 * a window that closed before the response arrived has nothing left to report.
+	 */
+	private setAiQuota(snapshot: AiQuotaSnapshot): void {
+		this.aiQuota = snapshot;
+		this.cancelQuotaExpiry?.();
+		this.cancelQuotaExpiry = this.clock.scheduleAt(snapshot.resetAtMs, () => {
+			this.aiQuota = null;
+			this.cancelQuotaExpiry = null;
+		});
+	}
+
 	scheduleDraftSave = (): void => {
 		if (!this.isBrowser) return;
 		if (this.draftTimer) clearTimeout(this.draftTimer);
@@ -904,6 +937,13 @@ export class StudioState {
 		}
 
 		this.isTextWorking = true;
+		// The instant the quota headers describe, captured before the request rather than after it.
+		// The server charges the bucket and computes `RateLimit-Reset` *before* it calls the
+		// provider, so by the time the response lands that duration has already been running for
+		// as long as the provider took — up to 230 seconds on this route, against a 60-second
+		// window. Anchoring at response receipt would put the reset minutes into the future for a
+		// bucket that had already refilled.
+		const requestStartedAtMs = this.clock.now();
 		try {
 			const payload = await postJson(
 				'/api/meechie-studio-text',
@@ -924,8 +964,8 @@ export class StudioState {
 					// lifts. A response without usable quota headers leaves the last reading alone
 					// rather than blanking the meter on one odd reply.
 					onResponseHeaders: (headers) => {
-						const snapshot = readAiQuota(headers, this.clock.now());
-						if (snapshot) this.aiQuota = snapshot;
+						const snapshot = readAiQuota(headers, requestStartedAtMs);
+						if (snapshot) this.setAiQuota(snapshot);
 					}
 				}
 			);
@@ -1561,6 +1601,8 @@ export class StudioState {
 		}
 		this.cancelDayBoundaryRefresh?.();
 		this.cancelDayBoundaryRefresh = null;
+		this.cancelQuotaExpiry?.();
+		this.cancelQuotaExpiry = null;
 		this.stopVisibilityWatch?.();
 		this.stopVisibilityWatch = null;
 	}

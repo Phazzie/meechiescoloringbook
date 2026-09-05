@@ -2327,6 +2327,9 @@ describe('StudioState page exports', () => {
 });
 
 describe('StudioState AI budget meter', () => {
+	/** A fixed instant, so a reset time is arithmetic rather than a race with the suite's clock. */
+	const NOW_MS = 1_760_000_000_000;
+
 	// None of this had a single test before. The counter it replaces called the first verdict a
 	// revision, never refilled, described itself as being "for this page", and showed a number the
 	// server had never agreed to — and the suite around it stayed green through six rebuilds of
@@ -2475,5 +2478,91 @@ describe('StudioState AI budget meter', () => {
 		// Blanking the meter on one odd reply would tell the reader less than the last true thing
 		// it knew.
 		expect(studio.aiQuota).toEqual(reported);
+	});
+	// --- Codex review round on 34bd3ce -----------------------------------------------------------
+
+	it('stops showing a quota reading once its own window has run out', async () => {
+		const clock = createMockClockSeam(NOW_MS);
+		const studio = arrangeStudioWithEvidence();
+		studio.clock = clock;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() =>
+				Promise.resolve(
+					studioTextResponse({
+						'RateLimit-Limit': '20',
+						'RateLimit-Remaining': '0',
+						'RateLimit-Reset': '45',
+						'Retry-After': '45'
+					})
+				)
+			)
+		);
+
+		await studio.runTextAction('generate_text');
+		expect(studio.aiQuotaMessage).toContain("Meechie's desk is full");
+
+		// The reader does the sensible thing and waits. The fixed window refills on its own, and
+		// the message has to stop claiming otherwise without another request being made.
+		clock.advanceTo(NOW_MS + 45_000);
+
+		expect(studio.aiQuota).toBeNull();
+		expect(studio.aiQuotaMessage).toBe('');
+	});
+
+	it('anchors the reset instant at the request, not at the response', async () => {
+		const clock = createMockClockSeam(NOW_MS);
+		const studio = arrangeStudioWithEvidence();
+		studio.clock = clock;
+		// A slow provider call: the server charged the bucket and computed a 45s reset before it
+		// started, and 55 seconds pass before the answer reaches the browser.
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() => {
+				clock.setInstantWithoutFiring(NOW_MS + 55_000);
+				return Promise.resolve(
+					studioTextResponse({
+						'RateLimit-Limit': '20',
+						'RateLimit-Remaining': '14',
+						'RateLimit-Reset': '45'
+					})
+				);
+			})
+		);
+
+		await studio.runTextAction('generate_text');
+
+		// Anchored at the response this would read NOW+100s — a window that closed 55 seconds ago
+		// reported as still a minute and a half away.
+		expect(studio.aiQuota?.resetAtMs).toBe(NOW_MS + 45_000);
+	});
+
+	it('renders the reset instant to the second, because the window is only sixty of them', async () => {
+		const clock = createMockClockSeam(NOW_MS);
+		const studio = arrangeStudioWithEvidence();
+		studio.clock = clock;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() =>
+				Promise.resolve(
+					studioTextResponse({
+						'RateLimit-Limit': '20',
+						'RateLimit-Remaining': '14',
+						'RateLimit-Reset': '45'
+					})
+				)
+			)
+		);
+
+		await studio.runTextAction('generate_text');
+
+		const shown = new Date(NOW_MS + 45_000).toLocaleTimeString([], {
+			hour: 'numeric',
+			minute: '2-digit',
+			second: '2-digit'
+		});
+		expect(studio.aiQuotaMessage).toContain(shown);
+		// Truncating to the minute would drop these, and invite a retry up to 59 seconds early.
+		expect(shown).toMatch(/\d{2}:\d{2}/);
 	});
 });
