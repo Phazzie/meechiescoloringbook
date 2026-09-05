@@ -7,8 +7,8 @@ Info flow: Parent passes textOutput + prepared vault entries; open/pin/delete/un
            propagate via callbacks.
 -->
 <script lang="ts">
-	import type { MeechieStudioTextOutput } from '../../../../contracts/meechie-studio-text.contract';
-	import type { CreationRecord } from '../../../../contracts/creation-store.contract';
+	import type { MeechieStudioTextOutput } from '$lib/seams/meechie-studio-text-seam/contract';
+	import type { CreationRecord } from '$lib/seams/creation-store-seam/contract';
 	import type { VaultEntry } from '$lib/core/vault-gallery';
 
 	let {

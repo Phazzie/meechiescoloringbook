@@ -8,9 +8,9 @@
 //      once, here, is the only way it stays fixed.
 // Info flow: tool input -> /api/tools -> verdict -> buildToolPageRecipe -> /api/generate ->
 //            previews + packaged files -> CreationStoreSeam.
-import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
-import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
-import { sessionAdapter } from '$lib/adapters/session.adapter';
+import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
+import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
+import { sessionAdapter } from '$lib/adapters/session-seam';
 import { clockSeam } from '$lib/adapters/clock-seam';
 import type { ClockSeam } from '$lib/seams/clock-seam/contract';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
@@ -33,9 +33,9 @@ import type {
 } from '../../../contracts/meechie-tool.contract';
 import { GenerateResultSchema } from '../../../contracts/generate.contract';
 import type { GenerateResponseValue } from '../../../contracts/generate.contract';
-import type { CreationOwner } from '../../../contracts/creation-store.contract';
+import type { CreationOwner } from '$lib/seams/creation-store-seam/contract';
 import type { GeneratedImage } from '../../../contracts/image-generation.contract';
-import type { PackagedFile } from '../../../contracts/output-packaging.contract';
+import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
 
 /**
  * Whether the browser can actually decode this preview.

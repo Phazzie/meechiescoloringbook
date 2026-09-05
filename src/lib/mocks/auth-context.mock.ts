@@ -1,26 +1,7 @@
-// Purpose: Fixture-backed mock for AuthContextSeam.
-// Why: Keep auth context responses deterministic for tests.
-// Info flow: Scenario -> fixture output -> callers.
-import { z } from 'zod';
-import {
-	AuthContextInputSchema,
-	AuthContextResultSchema
-} from '../../../contracts/auth-context.contract';
-import type { AuthContextSeam } from '../../../contracts/auth-context.contract';
-import { ScenarioSchema } from '../../../contracts/shared.contract';
-import type { Scenario } from '../../../contracts/shared.contract';
-import sample from '../../../fixtures/auth-context/sample.json';
-import fault from '../../../fixtures/auth-context/fault.json';
-
-const fixtureSchema = z.object({
-	scenario: ScenarioSchema,
-	input: AuthContextInputSchema,
-	output: AuthContextResultSchema
-});
-
-const sampleFixture = fixtureSchema.parse(sample);
-const faultFixture = fixtureSchema.parse(fault);
-
-export const createAuthContextMock = (scenario: Scenario): AuthContextSeam => ({
-	getAuthContext: async () => (scenario === 'fault' ? faultFixture.output : sampleFixture.output)
-});
+/*
+ * Purpose: Re-export fixture-backed mock for AuthContextSeam.
+ * Why: Maintain backward compatibility for legacy contract tests and test suites.
+ * Info flow: Callers -> modular auth-context seam mock.
+ * Invariants: Delegate directly to createAuthContextMock in auth-context-seam/mock.
+ */
+export { createAuthContextMock } from '$lib/seams/auth-context-seam/mock';

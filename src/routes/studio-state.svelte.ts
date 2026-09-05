@@ -2,14 +2,14 @@
 // Why: Extracts the 690-line script from +page.svelte into a testable, self-contained
 //      state module; the page component becomes a thin lifecycle wrapper.
 // Info flow: User actions -> StudioState methods -> reactive $state updates -> component props.
-import { authContextAdapter } from '$lib/adapters/auth-context.adapter';
+import { authContextAdapter } from '$lib/adapters/auth-context-seam';
 import { appOriginSeam } from '$lib/adapters/app-origin-seam';
 import { clockSeam } from '$lib/adapters/clock-seam';
-import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
-import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
+import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
+import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
 import { pageVisibilitySeam } from '$lib/adapters/page-visibility-seam';
-import { sessionAdapter } from '$lib/adapters/session.adapter';
-import { specValidationAdapter } from '$lib/adapters/spec-validation.adapter';
+import { sessionAdapter } from '$lib/adapters/session-seam';
+import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import {
 	DEFAULT_REVISION_BUDGET,
 	DEFAULT_STUDIO_TEXT_OUTPUT,
@@ -46,11 +46,11 @@ import {
 	MeechieStudioTextResultSchema,
 	type MeechieStudioTextOutput,
 	type MeechieStudioVoiceSettings
-} from '../../contracts/meechie-studio-text.contract';
-import type { CreationOwner, CreationRecord } from '../../contracts/creation-store.contract';
+} from '$lib/seams/meechie-studio-text-seam/contract';
+import type { CreationOwner, CreationRecord } from '$lib/seams/creation-store-seam/contract';
 import type { DriftDetectionOutput, Violation } from '../../contracts/drift-detection.contract';
 import type { GeneratedImage } from '../../contracts/image-generation.contract';
-import type { PackagedFile } from '../../contracts/output-packaging.contract';
+import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
 import type {
 	ColoringPageSpec,
 	SpecValidationOutput

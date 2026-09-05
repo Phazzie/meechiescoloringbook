@@ -6,8 +6,8 @@ import {
 	MAX_TITLE_LENGTH,
 	type ColoringPageSpec
 } from '../../../contracts/spec-validation.contract';
-import type { CreationRecord, DraftRecord } from '../../../contracts/creation-store.contract';
-import type { MeechieStudioTextAction, MeechieStudioTextOutput } from '../../../contracts/meechie-studio-text.contract';
+import type { CreationRecord, DraftRecord } from '$lib/seams/creation-store-seam/contract';
+import type { MeechieStudioTextAction, MeechieStudioTextOutput } from '$lib/seams/meechie-studio-text-seam/contract';
 import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract';
 
 export const DEFAULT_REVISION_BUDGET = 3;

@@ -10,8 +10,8 @@ import {
 	MeechieStudioTextInputSchema,
 	MeechieStudioTextOutputSchema,
 	MeechieStudioTextResultSchema
-} from '../../../contracts/meechie-studio-text.contract';
-import type { ProviderAdapterSeam } from '../../../contracts/provider-adapter.contract';
+} from '$lib/seams/meechie-studio-text-seam/contract';
+import type { ProviderAdapterSeam } from '$lib/seams/provider-adapter-seam/contract';
 import type { Result, SeamError } from '../../../contracts/shared.contract';
 import { z } from 'zod';
 

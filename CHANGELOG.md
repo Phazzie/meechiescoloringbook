@@ -8,6 +8,7 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Completed Seam Migration v2.0 across all seven core app seams (SessionSeam, AuthContextSeam, CreationStoreSeam, OutputPackagingSeam, ChatInterpretationSeam, MeechieStudioTextSeam, ProviderAdapterSeam), modularizing all contracts, fixture suites, mocks, and production adapters into canonical self-contained packages with immediate socket cancellation on client abort, strict type validation, and full backward compatibility.
 - A reopened or refreshed wig try-on no longer shows the example page's lines on the paper. The page is a portrait and the wig's name, and those three lines were put there by the reopen itself — they printed as the page's own list and lit up Save to Vault for a page that had nothing in it to save.
 - Changing a page setting on a reopened wig try-on no longer renames it. It kept the picture and the layout but took the example page's heading, so a page you had saved under a wig's name came back under someone else's.
 - Making a coloring page is unavailable for the moment a new look is being styled for the same wig, so the page can no longer be built from the picture that is about to be replaced.
