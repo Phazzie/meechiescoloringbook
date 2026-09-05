@@ -5871,8 +5871,10 @@ test has turned out to be green for a reason adjacent to the one it names, and t
 fixture rather than the assertion was what made it so.
 
 Mutations: removing the image gate (1 red — the new test), and pointing `styleSelectionUnknown` back
-at `generatedSpec` (1 red — the glitter test, which the gate would otherwise have quietly changed).
-Running total for this run: **48**.
+at `generatedSpec` (**4** red — every test that asks whether a reopened page reports unknown
+provenance). I predicted one for the second and measured four, which is the direction that matters:
+the separation is load-bearing in more places than I had accounted for, and had I gated the snapshots
+without splitting the field, four tests would have caught it. Running total for this run: **48**.
 
 ### Verification
 
