@@ -6379,3 +6379,52 @@ than fixing it: the folder's naming scheme is not this change's to redesign.
 CI on the code is green, the quality gate passes, every review thread is answered and resolved. The
 one red status is an account quota, and merging past a required check is a decision about somebody's
 Vercel plan rather than about this diff — so it goes to the owner rather than getting taken here.
+
+## Run 7 — closing the SonarCloud loose end, identified at last
+
+This has been logged twice as an open loose end: SonarCloud reports new issues, the dashboard is
+unreachable from this container (the network policy 403s sonarcloud.io), and earlier local
+reproductions found nothing that matched. Both are now identified, and the earlier reproductions
+missed them for a reason worth writing down.
+
+**The earlier attempts enabled every rule the plugin has.** That produced hundreds of stylistic
+warnings — arrow-function parentheses and the like — which Sonar does not run, and the two real
+findings were buried in the noise. Sonar runs its `recommended` set. Configuring the reproduction to
+match it turns up **exactly two errors**, which is exactly what the dashboard reports. A checker
+reproduced with the wrong settings is not a reproduction; it is a different checker that happens to
+share a name, and I read its silence as agreement twice.
+
+### One is mine, and the rule is right
+
+`sonarjs/no-invariant-returns` on `creation-store-seam/mock.ts`, introduced by my own round-19 fix.
+Both returns in `saveDraft` returned `replay`, so the early return said — structurally — that the
+branch decided the result. It does not. What the environment decides is whether the draft is
+validated on the way past. The conditional now guards exactly that, with one return. Inverting the
+guard turns two tests red.
+
+Worth noting the shape: the finding is not a bug, and the behaviour was correct. What was wrong is
+that the code's *structure* claimed something its behaviour did not — a branch presented as deciding
+a value it does not decide. That is the same defect as a doc comment describing code it does not
+match, expressed in control flow instead of prose, which makes it a fitting last finding for this run.
+
+### One is not mine
+
+`sonarjs/no-nested-conditional` at `studio-state.svelte.ts:1054` — the nested ternary in the
+`presentation` argument. Not introduced here:
+
+    git log -1 -L 1053,1057:src/routes/studio-state.svelte.ts   ->  73a8f053, 2026-09-04
+    git merge-base --is-ancestor 73a8f053 origin/main            ->  true
+
+It is on `main`, untouched by this diff (`git diff <base>..HEAD` does not contain the line). Sonar
+most likely attributes it as new because this change adds ~600 lines to that file and shifts it.
+
+Left alone deliberately. Extracting it is a real improvement and it is somebody's next change, not
+this one's — rewriting untouched pre-existing logic to satisfy a metric is how a focused change turns
+into an unreviewable one. Recorded here with the commands that establish it, so the next run does not
+have to re-derive whose it is.
+
+### What I would do differently
+
+Not "reproduce the checker" — I did that, twice. **Reproduce the checker's configuration.** The first
+two attempts failed on a setting, not on the idea, and I recorded "the local reproduction finds
+nothing" as though that were evidence about the code. It was evidence about my config.
