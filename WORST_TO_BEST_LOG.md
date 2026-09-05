@@ -7550,3 +7550,51 @@ disproportionate for a documentation close-out. I am not making that call unilat
 ### Running total
 
 **One hundred and twenty-nine findings across forty-nine rounds.**
+
+---
+
+## Run 4, correction 51 — 2026-09-05 — a live pid is not proof of a live run
+
+Appended, not edited. One P2 on `448e5f9`, against the pid check added in correction 47.
+
+### The finding
+
+The lock stored a bare pid and treated *any* process holding that number as the active capture. The
+OS reuses pids. So a wrapper killed by a timeout can have its number reassigned to some unrelated
+long-lived process, and from then on every scheduled run reads "owner alive" and refuses — **which
+is exactly the permanent block on an unattended routine that the pid check was introduced to
+prevent.** Correction 47 replaced one deadlock with a rarer one.
+
+### The fix
+
+A bounded lease. The lock now carries a `heartbeat` alongside the pid, refreshed after every child
+returns — the only moment this process can run JS at all, since `spawnSync` blocks throughout each
+one. A lock is live only if its owner is running **and** its lease is fresh; either condition failing
+means nobody is driving it.
+
+Thirty minutes, against a longest single child (the e2e suite) of well under two. Not a close call,
+deliberately: the cost of reclaiming too eagerly is two runs colliding, and the cost of reclaiming too
+late is one delayed run.
+
+### Verified, all three states
+
+```
+live pid + fresh lease   -> REFUSED
+live pid + stale lease   -> "its owner (pid 8366) is not refreshing the lease"   -> WON
+dead pid                 -> "its owner (pid 999999) is no longer running"        -> WON
+```
+
+The middle case is the finding: a live process holding the recorded pid, correctly reclaimed. The
+message distinguishes the two reasons rather than reporting "no longer running" for a process that
+demonstrably is.
+
+### Three rounds, one lock
+
+47 added a lock that could deadlock the routine. 49 fixed a race in the reclaim that fixed it. 51
+fixes a pid-reuse hole in the check that drove the reclaim. Each was a real defect and each was
+introduced by the previous fix. The lock is now roughly ninety lines to serialise a command that
+runs a few times a day — which is its own argument, already on the owner's list.
+
+### Running total
+
+**One hundred and thirty findings across fifty rounds.**

@@ -162,6 +162,7 @@ const npmRun = (script, scriptArgs = []) => {
 		output = `(capture file could not be read: ${error.message})\n`;
 	}
 	rmSync(captureDir, { force: true, recursive: true });
+	touchLease();
 	if (result.error) {
 		// Kept, not replaced: whatever the child managed to emit is the evidence.
 		return { output: `${output}\nnpm run ${script} error: ${result.error.message}\n`, code: 1 };
@@ -299,12 +300,31 @@ const assertTapeCoversThisRun = async (dir) => {
  * `mkdirSync` fails with EEXIST if the lock is already there, which makes claiming it atomic.
  * @returns {string} the lock path, removed when the run ends
  */
+let heldLockPath = null;
+
+/**
+ * Refreshes the lease. Called after every child returns — which is the only moment this process is
+ * able to run JS at all, since spawnSync blocks throughout each one.
+ */
+const touchLease = () => {
+	if (!heldLockPath || readOwnerPid(heldLockPath) !== String(process.pid)) {
+		return;
+	}
+	try {
+		writeFileSync(path.join(heldLockPath, 'heartbeat'), String(Date.now()), 'utf8');
+	} catch {
+		// A lease we cannot refresh is not worth aborting a green run over; the age check below
+		// treats it as abandoned, which is the safe direction.
+	}
+};
+
 const acquireRunLock = () => {
 	const lockPath = path.join(EVIDENCE_ROOT, '.capture-evidence.lock');
 	const shown = path.relative(ROOT, lockPath);
 	const claim = () => {
 		mkdirSync(lockPath);
 		writeFileSync(path.join(lockPath, 'pid'), String(process.pid), 'utf8');
+		writeFileSync(path.join(lockPath, 'heartbeat'), String(Date.now()), 'utf8');
 	};
 	// Bounded, because each attempt either wins the lock, loses a race and retries, or exits.
 	for (let attempt = 0; ; attempt += 1) {
@@ -320,7 +340,14 @@ const acquireRunLock = () => {
 			// behind — and this routine is unattended, so "a human should delete it" is not a recovery
 			// path: every later invocation would exit EEXIST for ever.
 			const holder = Number.parseInt(readOwnerPid(lockPath) ?? '', 10);
-			if (Number.isInteger(holder) && isProcessAlive(holder)) {
+			// A live pid is NOT sufficient on its own. The OS reuses pids, so a wrapper killed by a
+			// timeout can have its number reassigned to some unrelated long-lived process — and then
+			// every later run would read "owner alive" and refuse for ever, which is precisely the
+			// permanent block the pid check was added to prevent. The lease settles it: this run
+			// refreshes the heartbeat after every child, so a gap longer than LEASE_MS means nobody
+			// is driving the lock whatever the pid says. The longest single child here is the e2e
+			// suite at well under two minutes, so thirty is not a close call.
+			if (Number.isInteger(holder) && isProcessAlive(holder) && isLeaseFresh(lockPath)) {
 				process.stderr.write(
 					`Another capture-evidence run (pid ${holder}) holds ${shown}.\n` +
 						'Two runs sharing a dated folder overwrite each other and can leave a mixed evidence\n' +
@@ -350,7 +377,11 @@ const acquireRunLock = () => {
 			process.stderr.write(
 				`Reclaiming ${shown}: its owner${
 					Number.isInteger(holder) ? ` (pid ${holder})` : ''
-				} is no longer running, so a previous run was killed before it could clean up.\n`
+				} is ${
+					Number.isInteger(holder) && isProcessAlive(holder)
+						? 'not refreshing the lease'
+						: 'no longer running'
+				}, so a previous run ended before it could clean up.\n`
 			);
 			rmSync(stale, { force: true, recursive: true });
 		}
@@ -362,6 +393,7 @@ const acquireRunLock = () => {
 			rmSync(lockPath, { force: true, recursive: true });
 		}
 	};
+	heldLockPath = lockPath;
 	process.on('exit', release);
 	// These handlers only fire in the gaps BETWEEN children, and that is not a caveat — it is most of
 	// the reason the pid check above exists. `spawnSync` blocks the event loop, and this script spends
@@ -376,6 +408,23 @@ const acquireRunLock = () => {
 		});
 	}
 	return lockPath;
+};
+
+// A run refreshes its lease after every child. Thirty minutes is far beyond the longest gap that
+// can occur inside a healthy run, so a lease older than this means no process is driving the lock.
+const LEASE_MS = 30 * 60 * 1000;
+
+/**
+ * @param {string} lockPath
+ * @returns {boolean}
+ */
+const isLeaseFresh = (lockPath) => {
+	try {
+		const beat = Number.parseInt(readFileSync(path.join(lockPath, 'heartbeat'), 'utf8').trim(), 10);
+		return Number.isInteger(beat) && Date.now() - beat < LEASE_MS;
+	} catch {
+		return false;
+	}
 };
 
 /**
