@@ -5808,3 +5808,81 @@ see why the ugly form is the correct one.
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3, 2 —
 **ninety findings across thirty-four rounds**, none in the application.
+
+---
+
+## Run 4, correction 35 — 2026-09-05 — the command block stops being prose and becomes a program
+
+Appended, not edited. Seven findings on `32662ee`. Four of them are one defect wearing four faces,
+and this entry is mostly about why I stopped patching and changed the shape instead.
+
+### The four that are one
+
+| # | Finding | True? |
+|---|---|---|
+| P1 | No `mkdir -p "$D"` — on the first run of a new UTC day the folder does not exist, because chamber-lock creates it and that runs *after* the first write into it | Yes |
+| P1 | `cipher:gate` failure not propagated — bash runs `proof:tape` next and its success becomes the block's status | Yes |
+| P1 | `proof:tape` sits before the lint/build/e2e/rewind commands listed later in the plan, so its inventory misses them | Yes |
+| P1 | The rewind exit table is hand-entered — `rewind.mjs:98-111` writes the artifact and exits **without recording the status in it**, and the plan's commands never append `$?` | Yes |
+
+Counting the previous three rounds, that is **seven defects in one four-line shell block across five
+rounds**: an unquoted `<date>` bash reads as redirection so the chain never runs; a truncating `>`
+that destroys the required header; a brace group returning printf's status so a failed chain reports
+success; no `mkdir`; no status propagation past the gate; the tape out of order; and a table of
+results typed by hand.
+
+Every one of them I fixed by editing prose. Nothing executes prose. That is the whole diagnosis:
+**the block was a transcription of what I ran, maintained separately from what I ran, and the two
+drifted every single round.** Round 34's header existed only because of a Python step that was not
+in the plan; round 35's exit table was mechanical only because of a shell loop that was not in the
+plan. Same defect, twice, in the two rounds where I was explicitly fixing that defect.
+
+So: `scripts/capture-evidence.mjs`, run as `npm run evidence:capture`. It creates the dated folder,
+runs the chain and captures its own spawn status, runs the three non-chain checks, runs the nineteen
+rewinds reading each exit from its spawn result, checks `cipher:gate` **before** continuing, and runs
+`proof:tape` last. It also aborts on a UTC rollover mid-run. A file that is executed cannot drift
+from what was executed.
+
+### It caught a live failure on its first run
+
+Not a hypothetical. The first `npm run evidence:capture` stopped at:
+
+```
+Cipher Gate: cipher entry is older than latest changes.
+npm run cipher:gate failed (exit 1); not running the tape.
+```
+
+`scripts/` and `package.json` are watched paths (`cipher-gate.mjs:151-159`) and I had just changed
+both, so the gate correctly demanded a Cipher Gate entry for this change. **Under the old block,
+`proof:tape` would have run anyway, exited 0, and the sequence would have reported success over a
+failed gate.** The second finding above was not a code-reading exercise; it was already happening.
+Entry written, gate green, sequence re-run whole.
+
+### The remaining three
+
+- **P2, UTC rollover.** True and not addressed by a date variable: each generator calls `new Date()`
+  independently (`chamber-lock.mjs:173`, `verify-runner.mjs:44`), so a run straddling midnight
+  splits its artifacts across two folders. The script now aborts rather than splitting silently.
+- **P1, Markdown header.** `seam-rewind-exit-codes.md` opened with `# Purpose:` — which renders as an
+  H1, not a comment. Every other `.md` evidence file uses `<!-- -->`. I converted that file from
+  `.txt` to `.md` two rounds ago and carried the shell comment syntax across. The script writes the
+  Markdown form now.
+- **P2, the 2026-09-04 tape.** True, and **not fixed** — the one thing here I am standing down on.
+  It inventories twenty-one files that are no longer in that folder: nineteen `rewind-*.txt` deleted
+  in this close-out because my redirect had destroyed their headers, plus `verify-chain.txt` and
+  `seam-rewind-exit-codes.md`, which moved to today. `proof-tape.mjs:197-199` always writes into
+  *today's* folder, so that day's tape cannot be regenerated; the deleted files were deleted for
+  being corrupt, so restoring them is not an option either; and hand-editing a generated evidence
+  artifact to match is worse than leaving a dated one stale. The folder stays because `DECISIONS.md:292`
+  cites six of its files as Cipher Gate evidence and all six are present. Recorded in
+  `verify-chain.txt` and left for the owner.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3, 2,
+7 — **ninety-seven findings across thirty-five rounds**, none in the application.
+
+And the honest note on that number: rounds 32 through 35 were four rounds spent on the four lines of
+shell that describe how to prove a change that shipped and went live in round 1. The finding rate did
+not fall because the reviews got worse; it stayed flat because I kept answering "the description is
+wrong" with a better description.

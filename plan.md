@@ -99,70 +99,77 @@ concession the `ClockSeam` plan in run 1 had to make.
     redirect `npm run rewind`'s stdout into them** — `scripts/rewind.mjs:98-99` writes each
     artifact itself, with the Purpose/Why/Info-flow header, and a shell redirect to the same path
     clobbers it with the raw npm banner. Capture the exit code only.
-- **Commands:** `npm run verify`, `npm run check`, `npm run lint`, `npm test`, `npm run build`,
-  `npx playwright test`, `npm run cipher:gate`, `npm run proof:tape`, and
-  `npm run rewind -- --seam <name>` for **every seam on the paths this
-  page reaches — fourteen.** Evidence: `docs/evidence/2026-09-05/rewind-<SeamName>.txt`.
-  - **The two standalone gate commands, and why they are listed separately.** `npm run verify` is
-    `audit:gate && chamber-lock && verify-runner && shaolin-lint && assumption-alarm && seam-ledger
-    && clan-chain && proof-tape` (`package.json:33`). **`cipher:gate` is not in that chain** — it is
-    a separate script (`package.json:26`) — so a plan listing only `npm run verify` cannot reproduce
-    what was actually run. The literal invocations:
+- **Commands: `npm run evidence:capture`** — one command, which runs the whole sequence in the
+  required order: `npm run verify`, then `npm run lint`, `npm run build`, `npm run test:e2e`, then
+  `npm run rewind -- --seam <name>` for **every seam on the paths this page reaches — fourteen
+  seams over nineteen rows**, then `npm run cipher:gate`, then `npm run proof:tape` last. Evidence:
+  `docs/evidence/<UTC date>/`, one artifact per command plus
+  `rewind-<SeamName>.txt` per seam. The list above is what the script runs, not a second list to
+  keep in step with it — see below for why that distinction cost five rounds.
+  - **The whole sequence is one command, and the reason is five rounds of review.** It used to be
+    a shell block transcribed into this file and copy-pasted out of it. Four consecutive reviews
+    found four defects in that transcription — an unquoted `<date>` bash read as redirection
+    operators so `npm run verify` never ran; a truncating `>` that destroyed the required
+    Purpose/Why/Info-flow header; a `{ cmd; printf ...; }` group that returned *printf's* status so
+    a failed chain reported success; and a `proof:tape` placed before the lint, build, e2e and
+    rewind artifacts it is supposed to inventory. Each was fixed by editing prose nobody executed,
+    which is why the next one landed the same way. The sequence now lives in
+    `scripts/capture-evidence.mjs` and runs as:
 
     ```sh
-    # The chain, captured. Three things here are load-bearing and each was a separate review finding:
-    #   1. NO `<date>` placeholder. Bash reads `< >` as redirection, so `> docs/evidence/<date>/f`
-    #      fails with "docs/evidence/: Is a directory" and npm run verify never runs at all.
-    #      Use a real variable, quoted.
-    #   2. Header FIRST, output APPENDED. A bare `>` truncates and puts the npm banner on line 1,
-    #      losing the required Purpose/Why/Info-flow header — the same defect as redirecting the
-    #      rewind artifacts.
-    #   3. Save `$?` before printing it. `{ cmd; printf ...; }` returns *printf's* status, so the
-    #      group exits 0 on a failed chain and an unattended run pushes past a red gate.
-    D="docs/evidence/$(date -u +%F)"
-    printf '# Purpose: Record the OUTER `npm run verify` command, its output and its exit status.\n# Why: verify.txt holds only the inner verify-runner stage and proof:tape overwrites stage 8,\n#      so nothing else retains the outer chain result.\n# Info flow: npm run verify -> this file -> verify-chain.txt points here.\n#\n' > "$D/verify-chain-run.txt"
-    npm run verify >> "$D/verify-chain-run.txt" 2>&1; code=$?
-    printf 'EXIT=%s\n' "$code" >> "$D/verify-chain-run.txt"
-    [ "$code" -eq 0 ] || exit "$code"
-    npm run cipher:gate        # not in the verify chain; run on its own. exit 0
-    npm run proof:tape         # LAST, after every artifact above. exit 0
+    npm run evidence:capture
     ```
 
-    **`npm run assumption:alarm` used to be listed here and no longer is.** Its stated reason was
-    that the chain's stage 5 ran before the `DECISIONS.md` entry was written, so a standalone rerun
-    was needed to see it. **Round 19's reordering made that false**: every edit now precedes
-    `npm run verify`, so stage 5 parses the final entry and the standalone run only overwrote its
-    own artifact with an identical result. A command kept for a reason that has expired is a command
-    a future run will copy without knowing why — so it is removed rather than re-justified.
-    `cipher:gate` stays because it is genuinely not a chain stage (`package.json:26` against `:33`),
-    and `proof:tape` stays because the chain's stage-8 copy runs before lint, build, e2e and the
-    rewinds exist.
+    A file that is executed cannot drift from what was executed. What it does, in order:
 
-    **`proof:tape` is listed even though the chain's stage 8 already runs it, and the order is the
-    whole point.** `scripts/proof-tape.mjs` inventories the evidence directory, so the copy that runs
-    inside `npm run verify` sees only what exists at that moment — not lint, build, e2e, the nineteen
-    rewinds, the gate artifacts, or the hand-written summary, all of which are written afterwards.
-    Without the standalone rerun, the committed `proof-tape.md` would describe a directory that no
-    longer exists and the chronology in `verify-chain.txt` could not be reproduced from this list.
+    1. `mkdir -p docs/evidence/<UTC date>` — the dated folder is otherwise created by chamber-lock,
+       the chain's first stage, which is *after* the first thing written into it. On the first run
+       of a new UTC day nothing existed to write into.
+    2. `npm run verify`, captured to `verify-chain-run.txt` with the header written by the same call
+       that writes the body, and the spawn's own status recorded as `EXIT=` and propagated.
+    3. `npm run lint`, `npm run build`, `npm run test:e2e` — the three checks that are **not** stages
+       of the chain — each captured the same way, each halting the sequence on failure.
+    4. The nineteen rewinds. `scripts/rewind.mjs:98-108` writes each `rewind-<Seam>.txt` itself, with
+       its own header, so nothing redirects into those paths; a redirect clobbers the header. It
+       exits with the seam's status **without recording it in the file**, so each status is taken
+       from the spawn result and written to `seam-rewind-exit-codes.md`. That table is therefore
+       command evidence rather than a hand-entered claim, which is what it was before.
+       The five self-contained seams carry their `(self-contained)` suffix and are passed as argv
+       entries, not through a shell, so the parentheses and spaces cannot be word-split — `rewind`
+       resolves a seam by the first exact row match in `docs/seams.md` and would otherwise verify
+       the legacy row in silence.
+    5. `npm run cipher:gate` — **not** a stage of the chain (`package.json:26` against `:34`), so a
+       plan naming only `npm run verify` cannot reproduce what was run. Its status is checked
+       *before* the tape: a failing gate followed by a passing tape used to leave the sequence
+       reporting success.
+    6. `npm run proof:tape` **last**, so its inventory covers every artifact above. The chain's own
+       stage 8 already ran it, but that copy sees only what exists mid-chain — not lint, build, e2e,
+       the nineteen rewinds or the gate artifact, all written afterwards.
+
+    It also aborts if the UTC date rolls over mid-run. Each evidence generator calls `new Date()`
+    independently (`scripts/chamber-lock.mjs:173`, `scripts/verify-runner.mjs:44`, and the others),
+    so a run straddling midnight splits its artifacts across two dated folders and the final tape
+    inventories only part of them. A run that splits silently is worse than one that stops.
+
+    **`npm run assumption:alarm` is deliberately not in it.** Its stated reason was that the chain's
+    stage 5 ran before the `DECISIONS.md` entry was written, so a standalone rerun was needed to see
+    it. Round 19's reordering made that false: every edit now precedes the chain, so stage 5 parses
+    the final entry and a standalone run only overwrites its own artifact with an identical result.
 
     **What `cipher:gate` exit 0 does and does not prove here, since an earlier draft of this plan
     got it backwards.** It is not validation of the `ImageGenerationSeam` waiver and must not be
     cited as such. `scripts/cipher-gate.mjs` selects a Cipher Gate *block* from `DECISIONS.md`, and
     this close-out adds none — so it selected the existing 2026-09-04 block for the Quote Vault's
     `ClockSeam (new), AppOriginSeam (new), PageVisibilitySeam (new)`, checked that block's evidence
-    paths still exist, and exited 0. `cipher-gate.json` on this head records exactly that. Citing
-    its green as the waiver's proof would be the **third** borrowed authorization in this close-out
-    and the first one wearing a passing gate: it revalidates an unrelated earlier change and makes
-    that older proof look current. What it legitimately shows is only that the prior entry's
+    paths still exist, and exited 0. What it legitimately shows is only that the prior entry's
     evidence has not gone missing. The waiver's own validation is the plan recorded in
     `DECISIONS.md`, and — per round 16 — that plan did not work either until it was rewritten.
 
-    That block is the complete standalone set. **`assumption:alarm` is deliberately absent** for the
-    reason given above — the reorder made stage 5 see the final entry, so a standalone rerun only
-    overwrites the chain's own artifact. An earlier revision of this plan removed it from the code
-    block and left it in the prose here and in the Commands line above, which is worse than either
-    keeping or dropping it: a reader following the list and a reader following the prose would run
-    different things.
+    **Why one command and not a list.** An earlier revision of this plan dropped
+    `assumption:alarm` from its code block but left it in the surrounding prose and in the Commands
+    line, so a reader following the block and a reader following the prose would run different
+    things. Every such divergence since has had the same shape: two descriptions of one sequence,
+    kept in step by hand. There is now one description, and it is the one that executes.
   - Reached from the browser, or directly by the request the page makes:
     `MeechieToolSeam`, `SpecValidationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`,
     `SessionSeam`, `ClockSeam`.

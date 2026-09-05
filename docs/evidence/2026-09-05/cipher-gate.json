@@ -1,66 +1,70 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-05T01:13:26.026Z",
+  "generatedAt": "2026-09-05T01:34:10.590Z",
   "cipher": {
-    "date": "2026-09-04",
-    "seams": "ClockSeam (new), AppOriginSeam (new), PageVisibilitySeam (new). No existing seam contract changed.",
+    "date": "2026-09-05",
+    "seams": "None. No seam contract, mock, adapter, fixture or test changed. This adds one build-support script and one npm script; the watched paths it touches are `scripts/` and `package.json`.",
     "evidence": [
       {
-        "path": "docs/evidence/2026-09-04/chamber-lock.json",
+        "path": "docs/evidence/2026-09-05/verify-chain-run.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-09-04/test.txt",
+        "path": "docs/evidence/2026-09-05/chamber-lock.json",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-09-04/verify.txt",
+        "path": "docs/evidence/2026-09-05/verify.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-09-04/seam-ledger.md",
+        "path": "docs/evidence/2026-09-05/test.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-09-04/clan-chain.md",
+        "path": "docs/evidence/2026-09-05/lint.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-09-04/proof-tape.md",
+        "path": "docs/evidence/2026-09-05/build.txt",
         "exists": true
       },
       {
-        "path": "src/lib/seams/clock-seam/test.ts",
+        "path": "docs/evidence/2026-09-05/e2e.txt",
         "exists": true
       },
       {
-        "path": "src/lib/seams/clock-seam/probe.ts",
+        "path": "docs/evidence/2026-09-05/seam-rewind-exit-codes.md",
         "exists": true
       },
       {
-        "path": "src/lib/seams/app-origin-seam/test.ts",
+        "path": "docs/evidence/2026-09-05/seam-ledger.md",
         "exists": true
       },
       {
-        "path": "src/lib/seams/app-origin-seam/probe.ts",
+        "path": "docs/evidence/2026-09-05/clan-chain.md",
         "exists": true
       },
       {
-        "path": "src/lib/seams/page-visibility-seam/test.ts",
+        "path": "docs/evidence/2026-09-05/proof-tape.md",
         "exists": true
       },
       {
-        "path": "src/lib/seams/page-visibility-seam/probe.ts",
+        "path": "scripts/capture-evidence.mjs",
         "exists": true
       },
       {
-        "path": "docs/seams.md",
+        "path": "package.json",
+        "exists": true
+      },
+      {
+        "path": "plan.md",
         "exists": true
       }
     ],
-    "summary": "Three host-environment reads that the Quote Vault rebuild had left outside any seam are now behind one each. ClockSeam owns reading the current instant and running a callback when a given instant arrives, which is what makes the saved-date labels roll over at UTC midnight; its adapter re-arms long waits in chunks so a delay past setTimeout's 32-bit limit does not fire immediately. AppOriginSeam owns reading the origin the app is served from, which decides whether a stored absolute image URL is same-origin and therefore loadable under img-src 'self'. PageVisibilitySeam owns whether the page is being looked at and announcing when it comes back, which is the other half of the label refresh. All three ship with a validator, fault fixtures driven through the mock, and a runnable probe; every mock is deterministic - the clock only moves when a test moves it, the origin is fixed by scenario, and visibility changes only when a test changes it.",
-    "risks": "ClockSeam and PageVisibilitySeam have synchronous contracts with no Result arm, unlike most seams here, so an invalid instant throws rather than returning an error - deliberate, because NaN would make setTimeout fire immediately and a self-re-arming timer spin, but it does differ from the house shape. Three pre-existing Date.now()/new Date() reads in src/routes/studio-state.svelte.ts are untouched, so that file currently mixes seamed and unseamed clock access; converting them is recorded as deferred in WORST_TO_BEST_LOG.md. AppOriginSeam degrades any unusable origin to the empty string rather than throwing, which makes the same-origin check refuse every absolute URL - a safe default, but one that hides a misconfigured host rather than reporting it. PageVisibilitySeam resolves any out-of-spec visibility state to \"visible\" for the same reason: a wrong visible costs one refresh nobody needed, a wrong hidden silently withholds one the reader is waiting on."
+    "summary": "The close-out evidence sequence used to be a shell block transcribed into `plan.md` and copy-pasted out of it. Five consecutive review rounds found five defects in that transcription: an unquoted `<date>` that bash parses as redirection operators, so `npm run verify` never ran; a truncating `>` that destroyed the required Purpose/Why/Info-flow header; a `{ cmd; printf ...; }` group that returns printf's status, so a failed chain reported success; a `proof:tape` placed before the lint, build, e2e and rewind artifacts it inventories; and a missing `mkdir -p`, so the first run of a new UTC day wrote into a directory that the chain had not yet created. Every one of those was fixed by editing prose that nothing executed, which is precisely why the next defect landed the same way. `scripts/capture-evidence.mjs` (`npm run evidence:capture`) now runs the sequence: create the dated folder, run the chain and capture its own exit status, run the three checks that are not chain stages, run the nineteen rewinds while reading each exit status from its spawn result rather than transcribing it, run `cipher:gate` and check its status before continuing, then run `proof:tape` last so its inventory covers everything above. It also aborts if the UTC date rolls over mid-run, because each evidence generator calls `new Date()` independently and a run that straddles midnight silently splits its artifacts across two folders. A file that is executed cannot drift from what was executed, which is the property the shell block never had.",
+    "risks": "This adds a second way to run checks that already have npm scripts, so a future contributor could run `npm run evidence:capture` and believe it is the gate; it is not - `npm run verify` remains the gate and CI runs that, while this script only sequences and captures. The seam list is hard-coded in the script rather than derived from `docs/seams.md`, so a seam added to the close-out scope must be added here too; deriving it was rejected for this change because `docs/seams.md` carries five duplicate names that only a human reading can disambiguate, and a wrong automatic resolution would silently verify the legacy row - the same failure the explicit `(self-contained)` suffixes exist to prevent. The script is not itself covered by a test; its proof is that running it produces the committed evidence, which is a weaker guarantee than a test but a stronger one than the prose it replaces."
   },
-  "latestChangeMs": 1788547844538.759,
+  "latestChangeMs": 1788571582087.5535,
   "status": "ok"
 }

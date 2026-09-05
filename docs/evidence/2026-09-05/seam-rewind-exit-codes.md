@@ -1,12 +1,18 @@
-# Purpose: Exit status of every `npm run rewind` invocation in this close-out.
-# Why: `scripts/rewind.mjs` writes its own artifact per seam but the exit code is not in it;
-#      redirecting stdout would clobber that artifact, so the statuses are collected here.
-# Info flow: npm run rewind -> rewind-<Seam>.txt (headered, by the script) + this table.
-# Note: .md, not .txt, so this summary is not mistaken for a raw rewind artifact.
-#
+<!--
+Purpose: Record the exit status of every `npm run rewind` invocation in this run.
+Why: scripts/rewind.mjs writes a per-seam artifact but not its exit status, and redirecting
+     its stdout would clobber that artifact's header. The statuses are collected here
+     mechanically, from each spawn result, so the table is command evidence and not a
+     hand-entered claim.
+Info flow: npm run rewind -> rewind-<Seam>.txt (written by the script) + this table.
+Note: Markdown, so the header uses Markdown comment syntax and the file is not mistaken
+      for one of the raw rewind-*.txt artifacts.
+-->
+
+# Seam rewind exit codes (2026-09-05)
 
 | Seam (as passed to --seam) | Exit | Artifact |
-|---|---|---|
+| --- | --- | --- |
 | `MeechieToolSeam` | 0 | `rewind-MeechieToolSeam.txt` |
 | `SpecValidationSeam` | 0 | `rewind-SpecValidationSeam.txt` |
 | `OutputPackagingSeam` | 0 | `rewind-OutputPackagingSeam.txt` |

@@ -1,6 +1,6 @@
 # Purpose: Record the OUTER `npm run verify` command, its output and its exit status.
-# Why: verify.txt holds only the inner verify-runner stage and proof:tape overwrites stage 8,
-#      so nothing else retains the outer chain result.
+# Why: verify.txt holds only the inner verify-runner stage, and the chain's own proof:tape
+#      overwrites stage 8, so nothing else retains the outer chain result.
 # Info flow: npm run verify -> this file -> verify-chain.txt points here.
 #
 
@@ -30,10 +30,11 @@ svelte-check found 0 errors and 0 warnings
 
 [2m Test Files [22m [1m[32m82 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (83)[39m
 [2m      Tests [22m [1m[32m1187 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1188)[39m
-[2m   Start at [22m 01:07:51
-[2m   Duration [22m 53.30s[2m (transform 2.37s, setup 598ms, import 4.54s, tests 2.32s, environment 35.60s)[22m
+[2m   Start at [22m 01:31:48
+[2m   Duration [22m 53.49s[2m (transform 2.36s, setup 611ms, import 4.50s, tests 2.21s, environment 35.71s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
 EXIT=0

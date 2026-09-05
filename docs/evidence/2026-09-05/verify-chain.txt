@@ -59,29 +59,58 @@ outer command's exit. If the chain had aborted, the green summary would have shi
 its `EXIT=` line, written by the run itself the same way `lint.txt` and `build.txt` are. That file is
 the record; this paragraph is a pointer to it.
 
-## The ordering, stated before the runs it describes
+## The ordering — no longer described here, because describing it is what kept going wrong
 
-  1. every edit, **including this section**
-  2. npm run verify        — the eight-stage chain, on the final tree. Its result is in
-                             verify.txt, test.txt and chamber-lock.json, written after this
-                             paragraph. **This file does not assert that result**, for the same
-                             reason it carries no hand-typed timestamp: the artifact is the claim.
-  3. npm run lint          -> lint.txt        ) after the chain, so they postdate chamber-lock.json
-  4. npm run build         -> build.txt       ) and are not marked as predating the run by
-  5. npx playwright test   -> e2e.txt         ) markArtifactsPredatingRun
-  6. 19 rewind runs        -> seam-rewind-exit-codes.md, each exit code appended as it finishes
-  7. npm run cipher:gate   — the one standalone gate. `assumption:alarm` is NOT re-run: the reorder
-                             means chain stage 5 already parsed the final DECISIONS.md entry.
-  8. npm run proof:tape    — LAST, so the tape inventories every file above, this one included
+Steps 2 through 8 below used to be a shell block in `plan.md`, copy-pasted by hand. Five review
+rounds found five defects in that copy: an unquoted `<date>` bash parses as redirection operators,
+so the chain never ran; a truncating `>` that destroyed the header this very file requires; a brace
+group returning printf's status, so a failed chain reported success; a `proof:tape` placed ahead of
+the artifacts it inventories; and a missing `mkdir -p`, so the first run of a new UTC day had no
+directory to write into. Each was fixed by editing prose nothing executed — which is why the next
+one landed the same way.
+
+The sequence is now `scripts/capture-evidence.mjs`, run as **`npm run evidence:capture`**, and the
+list below describes what that file does rather than instructing anyone to retype it:
+
+  1. every edit, **including this section**, then:
+  2. mkdir -p docs/evidence/<UTC date>  — the chain's first stage creates it otherwise, which is
+                                          after the first thing written into it
+  3. npm run verify        -> verify-chain-run.txt (header, output, EXIT=), plus the chain's own
+                              verify.txt, test.txt, chamber-lock.json. **This file does not assert
+                              the chain's result**, for the same reason it carries no hand-typed
+                              timestamp: the artifact is the claim.
+  4. npm run lint          -> lint.txt        ) after the chain, so they postdate chamber-lock.json
+     npm run build         -> build.txt       ) and are not marked as predating the run by
+     npm run test:e2e      -> e2e.txt         ) markArtifactsPredatingRun
+  5. 19 rewind runs        -> rewind-<Seam>.txt, written by scripts/rewind.mjs itself (a redirect
+                              would clobber its header), and seam-rewind-exit-codes.md, whose exit
+                              column is read from each spawn result rather than transcribed
+  6. npm run cipher:gate   — the one standalone gate, and **its status is checked before the tape
+                              runs**. `assumption:alarm` is NOT re-run: the reorder means chain
+                              stage 5 already parsed the final DECISIONS.md entry.
+  7. npm run proof:tape    — LAST, so the tape inventories every file above, this one included
+
+The script aborts if the UTC date rolls over mid-run: each generator calls `new Date()`
+independently, so a run straddling midnight splits its artifacts across two folders and the tape
+then inventories only part of them.
 
 Where to look for each result: `verify.txt` and `test.txt` for the chain, the `EXIT=` line at the
-foot of `lint.txt` / `build.txt` / `e2e.txt`, the exit column in `seam-rewind-exit-codes.md`, and
-`proof-tape.json`'s `generatedAt` for the tape.
+foot of `verify-chain-run.txt` / `lint.txt` / `build.txt` / `e2e.txt`, the exit column in
+`seam-rewind-exit-codes.md`, and `proof-tape.json`'s `generatedAt` for the tape.
 
 **proof-tape flags this file, and its label for the flag is wrong** — see follow-up 10. The marker is
 `modified < chamber-lock.json` and nothing else, so any summary the chain covers is necessarily
 flagged; the tape then calls it "history, not proof", which is false here. Any *other* flagged file
 is worth investigating.
+
+**One older artifact is knowingly inconsistent.** `docs/evidence/2026-09-04/proof-tape.md`
+inventories nineteen `rewind-*.txt` files, `seam-rewind-exit-codes.md` and `verify-chain.txt` that
+are no longer in that folder: the nineteen were deleted in this close-out because a stdout redirect
+had overwritten each one's header with the npm banner, and the other two moved here. `proof-tape.mjs`
+always writes into today's folder, so that day's tape cannot be regenerated, and hand-editing a
+generated evidence file would be worse than leaving a dated one stale. The folder is kept because
+`DECISIONS.md:292` cites six of its files as Cipher Gate evidence, and all six are present. The
+current head's evidence is this folder, which is complete and self-consistent.
 
 **Three rulings are outstanding** (see `plan.md` and the open thread on PR #296): the seam-workflow
 question; `ImageGenerationSeam`'s two un-waived checklist items; and whether `SessionSeam` and
