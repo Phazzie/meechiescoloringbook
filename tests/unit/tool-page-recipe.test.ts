@@ -23,7 +23,8 @@ import { MeechieStudioTextOutputSchema } from '../../contracts/meechie-studio-te
 import {
 	DEFAULT_STUDIO_TEXT_OUTPUT,
 	buildColoringPageSpecFromMeechieText,
-	buildStudioTextFromCreationRecord
+	buildStudioTextFromCreationRecord,
+	specOwnQuote
 } from '../../src/lib/core/meechie-studio';
 
 const output = (
@@ -323,7 +324,7 @@ describe('parsing survives hostile provider output', () => {
 });
 
 describe('buildToolStudioText keeps a saved page faithful when reopened', () => {
-	// Omitting `studioText` is not neutral. `buildStudioTextFromCreationRecord` falls back to
+	// Omitting `studioText` is not neutral. `buildStudioTextFromCreationRecord` used to fall back to
 	// `assembledPrompt` for the quote — the image-generation prompt on a generated page — and to
 	// `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` when the saved spec has no items, which is every
 	// full-quote page. These assert against the real schema and the real loader.
@@ -387,16 +388,20 @@ describe('buildToolStudioText keeps a saved page faithful when reopened', () => 
 			studioText,
 			owner: { kind: 'anonymous', sessionId: 'session-1' }
 		});
-		expect(restored.quote).toBe(out.response);
-		expect(restored.quote).not.toContain('NEGATIVE PROMPT');
-		expect(restored.verdict).toBe(out.headline);
+		// The record carries its own text, so the reopen never has to fall back.
+		expect(restored).not.toBeNull();
+		expect(restored!.quote).toBe(out.response);
+		expect(restored!.quote).not.toContain('NEGATIVE PROMPT');
+		expect(restored!.verdict).toBe(out.headline);
 	});
 
 	// Why omitting the field still is not a neutral choice, and what is no longer true about it.
 	// `buildToolStudioText` returns null for a verdict with no printable words at all, so a record
 	// can still be saved without this field and has to degrade honestly when reopened.
-	it('never puts the image prompt in Meechie\'s mouth when the field is missing', () => {
+	it('restores no text at all for a quote page saved without the field', () => {
 		const { recipe } = save('caption_this', 'Diamond nails, no explanations.');
+		// A quote page prints its title and nothing else, so `intent.items` is empty.
+		expect(recipe.spec.items).toHaveLength(0);
 		const withoutStudioText = buildStudioTextFromCreationRecord({
 			id: 'creation-1',
 			createdAtISO: '2026-09-04T00:00:00.000Z',
@@ -404,15 +409,17 @@ describe('buildToolStudioText keeps a saved page faithful when reopened', () => 
 			assembledPrompt: 'STYLE: bold outline art\nTEXT (exact):\nNEGATIVE PROMPT: no color',
 			owner: { kind: 'anonymous', sessionId: 'session-1' }
 		});
-		// The quote is the page's own text now, never the image-generation prompt.
-		expect(withoutStudioText.quote).not.toContain('NEGATIVE PROMPT');
-		expect(withoutStudioText.quote).not.toContain('STYLE:');
-		// The page's own title, as the spec normalizes it for printing.
-		expect(withoutStudioText.quote).toBe(recipe.spec.title.toUpperCase());
-		// The remaining degradation, stated rather than hidden: a page with no printed items cannot
-		// supply the two the studio-text schema demands, so the defaults still stand in for them.
-		// They are only ever printed if the reader switches that page to a list layout by hand.
-		expect(withoutStudioText.pageItems).toEqual(DEFAULT_STUDIO_TEXT_OUTPUT.pageItems);
+		// This used to hand back the page's title wrapped around DEFAULT_STUDIO_TEXT_OUTPUT's items,
+		// because the schema demands two and the page supplies none. Those words were never on the
+		// page: they reached the paper as its list and lit up Save to Vault over an empty record.
+		// A page with no printed items has no studio text, so there is nothing to invent.
+		expect(withoutStudioText).toBeNull();
+		// The page's own words are still available to whoever reopened it — the title as the spec
+		// normalizes it for printing, and never the image-generation prompt.
+		const quote = specOwnQuote(recipe.spec);
+		expect(quote).toBe(recipe.spec.title.toUpperCase());
+		expect(quote).not.toContain('NEGATIVE PROMPT');
+		expect(quote).not.toContain('STYLE:');
 	});
 
 	it('carries the rate_excuse score across a save', () => {

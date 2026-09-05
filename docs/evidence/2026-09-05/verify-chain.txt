@@ -7,11 +7,11 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # Run 5 of the worst-feature routine — the wig try-on becomes a shop you can browse and a look you
-# can keep. Head f10a38a, captured 2026-09-05T02:24:18Z. Five Codex rounds plus one self-audit;
-# thirteen real findings fixed, eleven of them one family — something on the page and the thing
-# describing it drifting apart, across an await, a restore, a serialisation, a settings rebuild, or
-# a replacement under a stable key. The full list is in WORST_TO_BEST_LOG.md under Run 5's
-# close-outs.
+# can keep. Head cd0ca3d + this fix, captured 2026-09-05T02:52Z. Six Codex rounds plus one
+# self-audit; fourteen real findings fixed, twelve of them one family — something on the page and
+# the thing describing it drifting apart, across an await, a restore, a serialisation, a rebuild, a
+# replacement under a stable key, or a value invented to satisfy a schema and then believed. The
+# full list is in WORST_TO_BEST_LOG.md under Run 5's close-outs.
 
 ## The chain (npm run verify) — exit 0
 
@@ -35,7 +35,7 @@
 ## Results on this head
 
 - npm run check: 0 errors, 0 warnings
-- npm test: 1250 passed, 1 skipped (baseline on main at 1dab4cf: 1187 passed, 1 skipped)
+- npm test: 1252 passed, 1 skipped (baseline on main at 1dab4cf: 1187 passed, 1 skipped)
 - npm run build: exit 0
 - npx playwright test: 32 passed
 - npm run verify: exit 0, all eight stages
@@ -58,14 +58,14 @@
 
 ## What this evidence does not prove
 
-- The four behavioural guards in this change are invisible from the outside, so a green suite does
+- The behavioural guards in this change are invisible from the outside, so a green suite does
   not establish them. Each was confirmed by deleting it and watching a named test fail; those
   mutation runs are recorded in WORST_TO_BEST_LOG.md under Run 5, not in this folder.
 - SonarCloud's duplication gate reports a percentage and no location and cannot be run locally. An
   n-gram scan over the changed .ts files was used instead, before each push. It removed a 10-line
   repeat between two new tests before the first push (the gate then passed at 0.0%), and removed the
-  same shape again after the Codex round added two more staleness tests. The three blocks it still
-  reports were each checked against the diff hunks and are all in unchanged lines.
+  same shape again after a Codex round added two more staleness tests. On this head it reports no
+  repeated block at all among the changed .ts files.
 - SonarCloud reports 2 new issues beside its passed gate whose locations are not readable from this
   environment: the check run's annotation text is empty, no inline comment was posted, and the
   network policy returns 403 for sonarcloud.io. They are not gate-blocking, not security alerts, and

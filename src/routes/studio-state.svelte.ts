@@ -17,6 +17,7 @@ import {
 	derivesDenseDecorations,
 	buildStudioTextFromCreationRecord,
 	buildStudioTextFromDraftRecord,
+	specOwnQuote,
 	canRunStudioAction,
 	consumeStudioActionBudget,
 	getStudioTextAction,
@@ -353,22 +354,6 @@ export class StudioState {
 	 * and image quota on an incomplete page.
 	 */
 	private restoredPageLayout = false;
-	/**
-	 * Whether the verdict on screen was *invented* by reopening, rather than restored.
-	 *
-	 * `buildStudioTextFromCreationRecord` must return a `MeechieStudioTextOutput`, and the contract
-	 * requires at least two `pageItems`, so for a record with no `studioText` and no `intent.items`
-	 * — exactly the shape a wig try-on page saves — it falls back to the demo seed's THE RENT /
-	 * THE DOPEMAN / WHAT IT COST. Those words are not on the page and were never Meechie's.
-	 *
-	 * Two things must therefore not treat that text as the reader's: resaving must not persist it as
-	 * real `studioText`, which would launder the seed into the record; and a revision action must
-	 * not send it as `currentText`, which would ask the provider to rewrite lines nobody wrote.
-	 *
-	 * Only set when the synthesis actually fell back. A record with real `intent.items` and no
-	 * `studioText` synthesizes *the page's own words*, which are the reader's and stay usable.
-	 */
-	private restoredSeedPageItems = false;
 
 	/**
 	 * Whether the page on the paper is a wig try-on portrait.
@@ -380,8 +365,9 @@ export class StudioState {
 	 * show that quote beside the portrait, and reopening would hand it back as the try-on page's own
 	 * text and send it to the provider on the next revision.
 	 *
-	 * `restoredSeedPageItems` does not cover this. That flag asks "was this text invented by a
-	 * restore?", and here the text is perfectly real — it is just about something else.
+	 * Refusing to restore text for a page that prints no items does not cover this. That rule asks
+	 * "does this page have words of its own?", and here the words are perfectly real and perfectly
+	 * present — they are just about a different page.
 	 *
 	 * Cleared in `resetGeneratedPage`, which every path replacing the paper goes through.
 	 */
@@ -407,12 +393,14 @@ export class StudioState {
 	 * refresh round trip put that verdict back as genuine and defeated the vault's guard from the
 	 * other side. One accessor, so there is no second copy of the condition to forget.
 	 *
-	 * Excluded: text invented by a restore (`restoredSeedPageItems`), and any verdict at all while
-	 * the paper is a wig portrait (`tryOnPageOnScreen`) — a portrait page prints no verdict words.
+	 * Excluded: any verdict at all while the paper is a wig portrait (`tryOnPageOnScreen`) — a
+	 * portrait page prints no verdict words. Text invented by a restore needed a second exclusion
+	 * here until `buildStudioTextFromSpec` stopped inventing it; there is now nothing to exclude,
+	 * because a page with no printed items restores no text at all.
 	 */
 	private describingStudioText(): MeechieStudioTextOutput | undefined {
 		if (!this.textOutput) return undefined;
-		if (this.restoredSeedPageItems || this.tryOnPageOnScreen) return undefined;
+		if (this.tryOnPageOnScreen) return undefined;
 		return $state.snapshot(this.textOutput);
 	}
 
@@ -647,8 +635,6 @@ export class StudioState {
 	}
 
 	private currentTextPayload() {
-		// Nothing here to revise: the words on screen were invented by the restore, not written.
-		if (this.restoredSeedPageItems) return undefined;
 		return this.textOutput
 			? {
 					verdict: this.textOutput.verdict,
@@ -689,11 +675,35 @@ export class StudioState {
 		this.draftTimer = setTimeout(() => void this.saveDraft(), DRAFT_SAVE_DEBOUNCE_MS);
 	};
 
+	/**
+	 * What a settings rebuild should describe when there is no verdict on screen.
+	 *
+	 * An empty studio has nothing but the demo seed, and rebuilding from it is what the reader sees
+	 * before they generate anything. A *reopened* page is different: it has a title of its own, and
+	 * handing the seed to the rebuild renamed it. That is not hypothetical — the page this matters
+	 * for is the reopened wig try-on, whose title is the wig's name and whose verdict is `null`
+	 * precisely because it prints no items, so changing the page size alone used to retitle it
+	 * THE LANDLORD.
+	 *
+	 * The seed's `pageItems` ride along and are never printed: a restored page with no items is
+	 * `title_only`, `restoredPageLayout` keeps it that way, and that layout discards items.
+	 */
+	private rebuildSourceText(): MeechieStudioTextOutput {
+		if (this.textOutput) return this.textOutput;
+		if (!this.restoredPageLayout) return DEFAULT_STUDIO_TEXT_OUTPUT;
+		return {
+			...DEFAULT_STUDIO_TEXT_OUTPUT,
+			verdict: this.spec.title,
+			pageTitle: this.spec.title,
+			quote: specOwnQuote(this.spec)
+		};
+	}
+
 	syncSpecFromCurrentText = async (
 		source: SettingChangeSource = 'setting'
 	): Promise<void> => {
 		try {
-			await this.applyTextToSpec(this.textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT, source);
+			await this.applyTextToSpec(this.rebuildSourceText(), source);
 		} catch (error) {
 			this.draftSaveError =
 				error instanceof Error ? error.message : 'Page settings could not be saved.';
@@ -716,8 +726,6 @@ export class StudioState {
 			this.textOutput = null;
 			this.resetGeneratedPage();
 			this.restoredPageLayout = false;
-			// The invented text goes with it: there is either no verdict now, or a real one.
-			this.restoredSeedPageItems = false;
 		}
 		this.scheduleDraftSave();
 	};
@@ -808,8 +816,6 @@ export class StudioState {
 			// into a numbered list whenever the action then failed, timed out, or was rejected —
 			// while its text was still the text on screen.
 			this.restoredPageLayout = false;
-			// The invented text goes with it: there is either no verdict now, or a real one.
-			this.restoredSeedPageItems = false;
 			await this.applyTextToSpec(parsed.data.value);
 		} catch (error) {
 			this.textError =
@@ -1123,9 +1129,9 @@ export class StudioState {
 	};
 
 	loadCreation = async (creation: CreationRecord): Promise<void> => {
+		// `null` for a page that prints no items — a reopened try-on portrait, say. Nothing on that
+		// page is a verdict, so nothing is restored as one; see `buildStudioTextFromSpec`.
 		const restoredText = buildStudioTextFromCreationRecord(creation);
-		// See `restoredSeedPageItems`: this is the one combination whose page items are invented.
-		this.restoredSeedPageItems = !creation.studioText && creation.intent.items.length === 0;
 		this.resetGeneratedPage();
 		this.spec = creation.intent;
 		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
@@ -1139,8 +1145,10 @@ export class StudioState {
 		// without studio text, which put `STYLE: bold outline art / NEGATIVE PROMPT: ...` in the box
 		// and shipped those machine instructions to the provider as user facts on the next click.
 		// `restoredText` already resolves the same `studioText.quote` when it exists and the page's
-		// own words when it does not, so read it from there and never from the prompt.
-		this.evidence = restoredText.quote;
+		// own words when it does not, so read it from there and never from the prompt. A page with
+		// no printed items restores no text at all, and `specOwnQuote` is the rule that text would
+		// have used — one implementation, so the box cannot say something the page does not.
+		this.evidence = restoredText?.quote ?? specOwnQuote(creation.intent);
 		this.dedication = creation.intent.dedication ?? '';
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;
@@ -1318,11 +1326,18 @@ export class StudioState {
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;
 			this.border = draft.value.intent.border;
-			// The same question `loadCreation` asks, asked again here: a restored draft with no
-			// studio text and no items has its page items invented from the seed, exactly as a
-			// reopened record does, and the flag does not survive a page load on its own.
-			this.restoredSeedPageItems =
-				!draft.value.studioText && draft.value.intent.items.length === 0;
+			// Two separate reasons a restored draft carries no verdict, and each is answered where
+			// it is actually knowable.
+			//
+			// `isKnownDraftSeed` is the one asked here: the page does print items, but they are the
+			// ones the studio ships with, so there is no reader's work to restore.
+			//
+			// The other is the builder's, and this check could not have made it. A title-only try-on
+			// page prints nothing a verdict could describe, and its title — the wig's name — matches
+			// no seed signature, so this waved it through and the studio came back from a refresh
+			// showing THE RENT / THE DOPEMAN under the wig's name with Save to Vault lit up over a
+			// record holding nothing. `buildStudioTextFromDraftRecord` returns null for that page,
+			// which is why the assignment is safe to make unconditionally once past this check.
 			if (draft.value.studioText || !isKnownDraftSeed(draft.value.intent)) {
 				this.textOutput = buildStudioTextFromDraftRecord(draft.value);
 			}

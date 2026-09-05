@@ -1,9 +1,3 @@
-# Purpose: Store the single-seam contract verification for WigCatalogSeam on this head.
-# Why: Cited by the Cipher Gate entry in DECISIONS.md dated 2026-09-05.
-# Info flow: npm run rewind --seam WigCatalogSeam -> this evidence file -> review.
-#
-# npm run rewind -- --seam WigCatalogSeam — 2026-09-05T02:24:18Z (head f10a38a)
-#
 
 > meechies-coloringbook@0.1.0 rewind
 > node scripts/rewind.mjs --seam WigCatalogSeam
@@ -14,7 +8,6 @@
 
 [2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
 [2m      Tests [22m [1m[32m27 passed[39m[22m[90m (27)[39m
-[2m   Start at [22m 02:24:34
-[2m   Duration [22m 809ms[2m (transform 90ms, setup 40ms, import 82ms, tests 16ms, environment 517ms)[22m
+[2m   Start at [22m 02:52:25
+[2m   Duration [22m 822ms[2m (transform 85ms, setup 38ms, import 81ms, tests 17ms, environment 525ms)[22m
 
-exit=0

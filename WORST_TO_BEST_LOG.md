@@ -4312,3 +4312,77 @@ restore, a serialisation, a settings rebuild, or a replacement under a stable ke
 
 Codex's round on `3cdb1be` — the self-audit head — came back with **no findings**, the only clean
 round so far, and it independently confirmed one defect the audit had already fixed.
+
+## Run 5, seventh close-out — 2026-09-05 — the Codex round on `cd0ca3d`
+
+Appended, not edited. One finding, **accepted and fixed**, P1.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | A restored title-only try-on draft rebuilds `textOutput` from the demo seed, because its wig-specific title matches no seed signature. `restoredSeedPageItems` suppressed *serialising* that text but left it in the state, so it reached the paper as the page's list and lit up Save to Vault over a draft that carries no portrait. | **Real.** The builder returns `null` instead; the flag is gone. |
+
+### The finding is right, and it reached one call site further than it says
+
+Codex reported the draft path. The same fabrication was in `loadCreation`, which assigned it
+unconditionally — so a reopened try-on record had the same invented list behind it. Both are fixed,
+because both were fixed in the same place.
+
+### What was actually wrong, and it was written down as a constraint
+
+The deleted flag's own doc comment read: *"`buildStudioTextFromCreationRecord` **must** return a
+`MeechieStudioTextOutput`, and the contract requires at least two `pageItems`, so … it falls back to
+the demo seed."* That premise was never true. Nothing forces a page with no printed items to have
+studio text; the builder can return `null`, and every consumer already handles `null` because
+`textOutput` starts there.
+
+Having accepted the fabrication as unavoidable, the only remaining move was to guard the places it
+must not reach — and two were guarded (the vault write, the revision payload) while the two that
+matter most to a reader were not: **the paper**, which printed THE RENT / THE DOPEMAN under the
+wig's name, and **Save to Vault**, which `canSaveToVault` lit up from `!!textOutput` alone.
+
+So this is the third time in this run that the durable fix was *delete the thing*, not *guard it*:
+`attachPackagedPage`, then `describingStudioText()`, now `buildStudioTextFromSpec` returning `null`.
+The flag `restoredSeedPageItems` existed only to mark a value as fabricated. With nothing fabricated
+there is nothing to mark, and its two remaining reads were already covered by the `!textOutput`
+checks beside them — it is deleted rather than left as a third guard.
+
+### The fix uncovered a second defect that no reviewer had reported
+
+With `textOutput` null, the settings rebuild fell back to `DEFAULT_STUDIO_TEXT_OUTPUT` — so changing
+the page size on a reopened try-on **retitled the reader's page THE LANDLORD**. The old fabricated
+output happened to carry the wig's title, which is why nobody had seen this. `rebuildSourceText()`
+now describes a restored page with the page's own title and `specOwnQuote`, and the seed is used
+only for a studio that has never had a verdict.
+
+Worth naming: removing a wrong value exposed a caller that had been relying on it for the one field
+it got right. A fabricated value is not inert — things come to depend on it.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1252 passed, 1 skipped**
+(from 1250). `npm run build` exit 0. `npx playwright test` **32 passed**. `npm run verify` exit 0.
+`npm run cipher:gate` exit 0. Duplication scan reports nothing in this diff.
+
+**Both proven by mutation.** Restoring the `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` fallback fails
+**five** named tests across three files — `restores no text at all for a quote page saved without
+the field`, `restores no verdict for a try-on draft rather than inventing the seed`, `does not write
+invented seed text into the draft it saves back`, `restores no verdict for a reopened try-on, and
+resaves none`, and `does not send invented seed items to the provider as the reader's current text`.
+Dropping the `restoredPageLayout` branch from `rebuildSourceText` fails `keeps a restored try-on
+page its own title when a setting changes`.
+
+### A test that was passing for the wrong reason, again
+
+`makeTryOnPage` seeded the portrait with `data:image/png;base64,ZmFrZQ==` — four bytes spelling
+"fake". The vault refuses to rebuild bytes whose magic number it cannot recognise, so every reopen in
+that block restored **no** picture, and any assertion after it was an assertion about an empty page.
+The fixture now carries a real 1×1 PNG. This is the third time in this run that a green test was
+resting on a stub rather than on the behaviour it named, and the second found by writing a *new*
+assertion rather than by reading the old one.
+
+### Running total
+
+**Fourteen** real findings across six review rounds and one self-audit. Twelve of the fourteen are
+one family: something on the page and the thing describing it, drifting apart — across an await, a
+restore, a serialisation, a settings rebuild, a replacement under a stable key, or a value invented
+to satisfy a schema and then believed.

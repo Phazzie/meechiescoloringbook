@@ -8,6 +8,8 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- A reopened or refreshed wig try-on no longer shows the example page's lines on the paper. The page is a portrait and the wig's name, and those three lines were put there by the reopen itself — they printed as the page's own list and lit up Save to Vault for a page that had nothing in it to save.
+- Changing a page setting on a reopened wig try-on no longer renames it. It kept the picture and the layout but took the example page's heading, so a page you had saved under a wig's name came back under someone else's.
 - Making a coloring page is unavailable for the moment a new look is being styled for the same wig, so the page can no longer be built from the picture that is about to be replaced.
 - A saying you wrote about something else is no longer attached to a wig try-on page by the auto-save either. It was already kept out of the vault; the draft kept putting it back after a refresh.
 - Changing a page setting after making a wig try-on page no longer quietly retitles it. The picture stayed while the page around it turned into a numbered list under an unrelated heading, and saving stored the portrait under that.

@@ -535,38 +535,61 @@ describe('StudioState', () => {
 });
 
 describe('StudioState try-on draft provenance', () => {
-	/**
-	 * `restoredSeedPageItems` lives in memory, so a reopened try-on that survived only as a draft
-	 * came back after a refresh with the seed text looking genuine. The provenance has to be
-	 * carried by what is written down, not just by the instance that wrote it.
-	 */
-	it('does not write invented seed text into the draft, and re-marks it on restore', async () => {
-		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
-		const tryOnIntent = {
-			...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
-			title: 'Wig Try-On - Sample Wig',
-			listMode: 'title_only' as const,
-			items: [],
-			footerItem: undefined
-		};
+	const tryOnDraftIntent = () => ({
+		...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+		title: 'WIG TRY-ON - SAMPLE WIG',
+		listMode: 'title_only' as const,
+		items: [],
+		footerItem: undefined
+	});
 
+	/**
+	 * A try-on page prints a wig's name and a picture. Its title matches no seed signature, so the
+	 * draft restore used to rebuild a verdict for it — and the only text the schema allows for a
+	 * page with no items is the demo seed's. Those words then sat on the paper as the page's list.
+	 */
+	it('restores no verdict for a try-on draft rather than inventing the seed', async () => {
 		const restored = await initFromDraft({
 			updatedAtISO: '2026-09-05T00:00:00.000Z',
-			intent: tryOnIntent
+			intent: tryOnDraftIntent()
 		});
 
-		// The restore invents page items from the seed, exactly as reopening a record does...
-		expect(restored.textOutput?.pageItems.map((item) => item.label)).toEqual([
-			'THE RENT',
-			'THE DOPEMAN',
-			'WHAT IT COST'
-		]);
+		expect(restored.textOutput).toBeNull();
+		// The panel reads this, so an invented verdict would have printed THE RENT / THE DOPEMAN
+		// under the wig's name.
+		expect(restored.previewOutput).toBeNull();
+		// And Save to Vault would have been lit up by it, over a draft that carries no portrait.
+		expect(restored.canSaveToVault).toBe(false);
+	});
+
+	/**
+	 * The rebuild that runs on every Page Control change describes the verdict, and this page has
+	 * none. Falling back to the seed retitled the reader's page THE LANDLORD on a page-size change.
+	 */
+	it('keeps a restored try-on page its own title when a setting changes', async () => {
+		const restored = await initFromDraft({
+			updatedAtISO: '2026-09-05T00:00:00.000Z',
+			intent: tryOnDraftIntent()
+		});
+
+		await restored.syncSpecFromCurrentText();
+
+		expect(restored.spec.title).toBe('WIG TRY-ON - SAMPLE WIG');
+		expect(restored.spec.listMode).toBe('title_only');
+		expect(restored.spec.items).toEqual([]);
+	});
+
+	it('does not write invented seed text into the draft it saves back', async () => {
+		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const restored = await initFromDraft({
+			updatedAtISO: '2026-09-05T00:00:00.000Z',
+			intent: tryOnDraftIntent()
+		});
 
 		saveDraftSpy.mockClear();
 		await restored.syncSpecFromCurrentText();
 		await vi.waitFor(() => expect(saveDraftSpy).toHaveBeenCalled());
 
-		// ...and the draft it writes back must not present that text as the reader's own.
 		const written = saveDraftSpy.mock.calls.at(-1)?.[0].draft;
 		expect(written?.studioText).toBeUndefined();
 	});
@@ -1030,13 +1053,19 @@ describe('StudioState quote vault', () => {
 	 * Extracted rather than repeated — repeating a test's opening is how this repository has tripped
 	 * the duplication gate four times now, and here the opening *is* the shared subject.
 	 */
+	// Real PNG bytes (a 1x1 pixel), not a stub: the vault refuses to rebuild bytes it cannot
+	// recognise, so a fake payload would make every reopen in this block restore no picture and
+	// quietly turn the assertions after it into assertions about an empty page.
+	const REAL_PNG_PORTRAIT =
+		'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
 	const makeTryOnPage = async (studio: StudioState): Promise<void> => {
 		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
 			ok: true,
 			value: { files: [] }
 		});
 		studio.selectedWig = SAMPLE_WIG;
-		studio.tryOnPortraits = [{ wig: SAMPLE_WIG, portraitUrl: 'data:image/png;base64,ZmFrZQ==' }];
+		studio.tryOnPortraits = [{ wig: SAMPLE_WIG, portraitUrl: REAL_PNG_PORTRAIT }];
 		await studio.handleGenerateTryOnPage();
 	};
 
@@ -1801,7 +1830,7 @@ describe('StudioState quote vault', () => {
 		// which `loadCreation` would otherwise put in the evidence box as the reader's own words.
 		expect(saved.assembledPrompt).toContain(SAMPLE_WIG.name);
 		expect(saved.assembledPrompt).not.toContain('NEGATIVE PROMPT');
-		expect(saved.images?.[0]?.b64).toBe('ZmFrZQ==');
+		expect(saved.images?.[0]?.b64).toBe(REAL_PNG_PORTRAIT.split(',')[1]);
 		// The record has no studioText, so `loadCreation` rebuilds its words from `intent.items`.
 		// Seed items here would put THE RENT / THE DOPEMAN / WHAT IT COST into the reopened
 		// preview and into the evidence box, which is the text the next verdict request sends.
@@ -1815,11 +1844,12 @@ describe('StudioState quote vault', () => {
 	});
 
 	/**
-	 * Reopening a no-verdict try-on has to invent a `MeechieStudioTextOutput` — the contract needs
-	 * two page items and the record has none — so it falls back to the demo seed. Resaving must not
-	 * launder those invented words into the record as though the reader had written them.
+	 * Reopening a no-verdict try-on used to invent a `MeechieStudioTextOutput` — the contract needs
+	 * two page items and the record has none — by falling back to the demo seed. Nothing about that
+	 * page is a verdict, so nothing is restored as one, and a resave has no invented words to
+	 * launder into the record.
 	 */
-	it('does not persist the invented seed text when a reopened try-on is saved again', async () => {
+	it('restores no verdict for a reopened try-on, and resaves none', async () => {
 		const studio = await initVault([]);
 		await makeTryOnPage(studio);
 		await studio.saveToVault();
@@ -1828,12 +1858,11 @@ describe('StudioState quote vault', () => {
 
 		await studio.loadCreation(firstSave);
 
-		// The restore does invent a verdict, and the seed is where it comes from.
-		expect(studio.textOutput?.pageItems.map((item) => item.label)).toEqual([
-			'THE RENT',
-			'THE DOPEMAN',
-			'WHAT IT COST'
-		]);
+		// Nothing on a portrait page is a verdict, so the reopen restores none — while the picture,
+		// which is the whole page, comes back and keeps it worth saving.
+		expect(studio.textOutput).toBeNull();
+		expect(studio.images).not.toHaveLength(0);
+		expect(studio.canSaveToVault).toBe(true);
 
 		await studio.saveToVault();
 

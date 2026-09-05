@@ -376,3 +376,41 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
   key is invisible to a guard that compares keys.
 - Action: For an operation that can be re-run against the same key, guard on "is a replacement in
   flight" rather than on whether the key changed.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: Run 5. `buildStudioTextFromSpec` had to return a `MeechieStudioTextOutput`, and the
+  contract demands at least two `pageItems`, so a page that prints none — a wig try-on portrait —
+  got the demo seed's. That fabrication was accepted as unavoidable and *guarded* instead: a
+  `restoredSeedPageItems` flag kept it out of the vault write and out of the revision payload. It
+  still reached the paper as the page's list, and still lit up Save to Vault through
+  `canSaveToVault`, because a guard only covers the call sites someone thought of.
+- Lesson: A schema minimum is a statement about valid values, not an obligation to produce one. When
+  the honest answer is "this has no text", the return type should be able to say so. Accepting an
+  invented value and guarding its uses means enumerating every use, forever, and the two that
+  mattered most here were the two nobody enumerated — the screen and a derived `!!` check.
+- Action: Before guarding a fabricated value, ask whether the function can return `null` instead.
+  Deleting the invention removes the need for every guard on it, including the ones not yet written.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: Removing that fabricated text immediately broke a caller: the settings rebuild fell back
+  to the demo seed and retitled a reopened try-on page, because the fabricated value had carried the
+  page's real title in the one field it got right.
+- Lesson: A wrong value is not inert. Callers come to depend on the parts of it that happen to be
+  correct, so deleting it exposes them — and the exposure is a defect the fabrication was hiding,
+  not one the deletion created.
+- Action: After removing a fallback, re-read every consumer of the value for the fields it was
+  silently supplying, and give each one a source that is right for the reason it needs it.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: A try-on test fixture used `data:image/png;base64,ZmFrZQ==` — four bytes spelling "fake".
+  The vault refuses to rebuild image bytes whose magic number it does not recognise, so every reopen
+  in that block restored no picture and the assertions after it were about an empty page.
+- Lesson: A stub that the code under test *correctly rejects* makes a test pass by skipping the
+  behaviour it names. This is the same failure as an assertion that holds either way, arriving
+  through the fixture instead of through the expectation.
+- Action: Fixtures for data the product validates must be valid. Use real bytes — a 1×1 PNG is
+  small enough — or assert that the rejection happened, but never let a rejected stub sit upstream
+  of assertions about what was restored.
