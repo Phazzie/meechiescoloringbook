@@ -6428,3 +6428,23 @@ have to re-derive whose it is.
 Not "reproduce the checker" — I did that, twice. **Reproduce the checker's configuration.** The first
 two attempts failed on a setting, not on the idea, and I recorded "the local reproduction finds
 nothing" as though that were evidence about the code. It was evidence about my config.
+
+## Run 7 — a process note: committing evidence while the chain is still writing it
+
+Three times in this run I committed the evidence folder and the verify chain then finished and
+rewrote it. Each time the fix was another commit, and each time I described the first one as
+"regenerate the evidence on this head" when it was a snapshot taken mid-write.
+
+The cause is my ordering, not the tooling. I treated "the outer transcript contains `verify exit=0`"
+as the signal that the folder had settled, and copied files in and committed on that basis — while
+the chain's later stages were still writing their own artifacts. The transcript's exit line and the
+folder's last write are not the same event.
+
+The rule for the next run: **do not stage anything from `docs/evidence/` until `git status` is stable
+across two checks.** The folder is the deliverable that says what was measured; a snapshot of it
+taken while it is being written says something that was never true all at once — which is, again,
+the exact defect this whole change exists to remove, in the artifact that documents removing it.
+
+Recorded rather than quietly fixed because the log is where this run keeps its lessons, and "I did
+the same thing three times without noticing the pattern" is worth more to the next run than a clean
+history would be.
