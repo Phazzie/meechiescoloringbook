@@ -7,15 +7,23 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # Run 5 of the worst-feature routine — the wig try-on becomes a shop you can browse and a look you
-# can keep. Head cd0ca3d + this fix, captured 2026-09-05T02:52Z. Six Codex rounds plus one
-# self-audit; fourteen real findings fixed, twelve of them one family — something on the page and
-# the thing describing it drifting apart, across an await, a restore, a serialisation, a rebuild, a
-# replacement under a stable key, or a value invented to satisfy a schema and then believed. The
-# full list is in WORST_TO_BEST_LOG.md under Run 5's close-outs.
+# can keep.
+#
+# Two heads are represented here, and the Results section below is the authoritative split:
+#   - the CODE head, merged as cc5f622 (PR #297), which e2e.txt and the two rewind files describe;
+#   - the close-out head that follows it, which every other artifact here was regenerated on.
+#
+# The code head fixed fourteen review findings across six Codex rounds and one self-audit, twelve of
+# them one family — something on the page and the thing describing it drifting apart, across an
+# await, a restore, a serialisation, a rebuild, a replacement under a stable key, or a value
+# invented to satisfy a schema and then believed. The close-out that followed drew further rounds,
+# every one of them a statement about evidence that was looser than the evidence. Rather than
+# restate a total that keeps moving, the running count lives in WORST_TO_BEST_LOG.md under Run 5's
+# close-outs, which is append-only and cannot go stale the way this line just did.
 
-## The chain (npm run verify) — exit 0
+## The chain (npm run verify) — exit 0, transcript in verify-outer.txt
 
-1. npm run audit:gate      -> found 0 vulnerabilities
+1. npm run audit:gate      -> found 0 vulnerabilities   (captured in verify-outer.txt)
 2. chamber-lock.mjs        -> chamber-lock.json      (seam artifact presence)
 3. verify-runner.mjs       -> verify.txt, test.txt   (npm run check + npm test)
 4. shaolin-lint.mjs        -> shaolin-lint.json      (evidence freshness)
@@ -63,7 +71,9 @@ Re-run on the close-out head (this commit):
 - npm run lint: exit 0
 - npm test: 1252 passed, 1 skipped (baseline on main at 1dab4cf: 1187 passed, 1 skipped)
 - npm run build: exit 0
-- npm run verify: exit 0, all eight stages
+- npm run verify: exit 0, all eight stages (its own transcript is verify-outer.txt; verify.txt is
+  only the inner verify-runner stage, so the audit gate and the chain's exit status used to be
+  asserted here rather than captured)
 - npm run cipher:gate: exit 0
 
 Captured on the code head that merged as cc5f622, and NOT re-run since:
@@ -85,8 +95,9 @@ this split exists to keep.
   probes/, fixtures/, src/lib/mocks/, tests/contract/, src/lib/adapters/ or src/lib/seams/ is in the
   diff; all six of WigCatalogSeam's artifacts pre-date this work; no contract shape moved. The seam
   returns exactly what it returned before for the same input.
-- rewind-wig-catalog-seam.txt is the positive evidence for that: the seam's contract still verifies
-  on this head, 27 tests passed.
+- rewind-wig-catalog-seam.txt is the positive evidence for that: the seam's contract verifies on the
+  CODE head, 27 tests passed. It is not re-run on the close-out head and does not claim to be — no
+  code has changed since, which is what makes carrying it forward legitimate rather than stale.
 - wig-catalog-seam carries a documented manual probe with no runProbe export (docs/seams.md records
   N/A in its probe-date column), which pre-dates this change. So the seam's automated evidence here
   is its contract test via rewind plus chamber-lock's artifact-presence gate, not a fresh probe run.

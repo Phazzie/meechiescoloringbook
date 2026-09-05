@@ -7,6 +7,57 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-05 - Run 5 merge close-out (micro plan + self-critique)
+
+- Date: 2026-09-05
+- Decision: Record Run 5's merge outcome in `WORST_TO_BEST_LOG.md` as a separate, docs-only change
+  after PR #297 merged as `cc5f622`, and regenerate this date's evidence artifacts on that
+  close-out head rather than citing the merged head's.
+- Context: The worst-feature routine's log is the only memory between runs. Run 5 exists because
+  three previous runs deferred the wig try-on by citing each other; a run that merges without
+  recording its outcome and its gate reasoning leaves the next one inheriting a claim instead of
+  evidence. A review found this close-out had no micro Plan of its own and was inheriting the
+  pre-merge feature plan in `plan.md`, which describes a different change.
+- Alternatives: Fold the close-out into the feature PR (impossible - it records that PR's merge);
+  skip it (loses the outcome, the gate reasoning and the two carried-forward findings); leave the
+  merged head's evidence in place (rejected, and correctly: the routine requires check, lint, test
+  and build before *every* push).
+- Consequences: `docs/evidence/2026-09-05/` now describes two heads, so provenance is stated per
+  artifact. `verify-outer.txt` is added because `verify.txt` holds only the inner verify-runner
+  stage, which left the audit gate's result and the chain's exit status asserted rather than
+  captured.
+- Revisit criteria: If the routine ever produces the close-out inside the feature PR, the two-head
+  split in `verify-chain.txt` becomes unnecessary and should be removed rather than maintained. If
+  `verify-chain.txt` is ever generated rather than hand-written, its stale-header failure mode goes
+  away and the per-artifact labelling should be reassessed.
+- Plan (micro):
+  - Goal: record the merge outcome, the gate conditions and exclusions as actually checked, and the
+    findings worth carrying to the next run.
+  - Seams: none. No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+    `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` is touched, and no `src/` or `tests/`
+    file at all.
+  - Files:
+    - `WORST_TO_BEST_LOG.md` (the close-out entry and its corrections)
+    - `DECISIONS.md` (this entry)
+    - `docs/evidence/2026-09-05/verify-outer.txt` (new)
+    - the regenerated artifacts under `docs/evidence/2026-09-05/`
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+    `npm run cipher:gate`. `npx playwright test` is deliberately not re-run: the routine scopes
+    end-to-end runs to user-facing changes, and a log entry is not one.
+  - How behaviour stays unchanged: the change is Markdown, JSON and text evidence only. No module
+    is imported by anything shipped; `npm run build` produces the same bundle, and the test count is
+    unchanged at 1252 passed / 1 skipped precisely because no code moved.
+- Self-critique (micro): The riskiest thing here is not the diff, it is the prose. Every review
+  finding on this close-out has been a sentence about evidence that was looser than the evidence,
+  and twice the looseness was introduced by the commit fixing the previous instance - a stale
+  "Results on this head" heading over a Playwright run that had not happened, an await-timing
+  explanation that misdescribed code the reader can check, and a header still naming a superseded
+  head. `npm run cipher:gate` cannot catch any of them: it verifies that an entry exists, not that
+  it is true. The mitigation applied is structural rather than a resolution to be careful - claims
+  are now attached to the artifact they describe rather than to a section heading, and the moving
+  totals were removed from a hand-written header and left only in the append-only log where they
+  cannot go stale.
+
 ## 2026-09-05 - The wig carousel loads through `WigCatalogSeam`, and facet counts are cross-filtered
 
 - Cipher Gate:
