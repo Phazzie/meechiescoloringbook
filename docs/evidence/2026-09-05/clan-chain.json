@@ -1,6 +1,6 @@
 {
   "tool": "clan-chain",
-  "generatedAt": "2026-09-05T05:27:21.351Z",
+  "generatedAt": "2026-09-05T05:43:04.178Z",
   "evidenceDir": "docs\\evidence\\2026-09-05",
   "clean": [
     {
@@ -56,6 +56,10 @@
       "owner": "hbpheonix"
     },
     {
+      "seam": "ChatInterpretationSeam (self-contained)",
+      "owner": "hbpheonix"
+    },
+    {
       "seam": "ImageGenerationSeam",
       "owner": "hbpheonix"
     },
@@ -92,11 +96,23 @@
       "owner": "hbpheonix"
     },
     {
+      "seam": "MeechieStudioTextSeam (self-contained)",
+      "owner": "hbpheonix"
+    },
+    {
       "seam": "ProviderAdapterSeam",
       "owner": "hbpheonix"
     },
     {
+      "seam": "ProviderAdapterSeam (self-contained)",
+      "owner": "hbpheonix"
+    },
+    {
       "seam": "OutputPackagingSeam",
+      "owner": "hbpheonix"
+    },
+    {
+      "seam": "OutputPackagingSeam (self-contained)",
       "owner": "hbpheonix"
     },
     {

@@ -5,7 +5,7 @@ Info flow: seam ledger -> chain summary -> review.
 -->
 # Clan Chain
 
-Generated at: 2026-09-05T05:27:21.351Z
+Generated at: 2026-09-05T05:43:04.178Z
 Evidence folder: docs\evidence\2026-09-05
 
 Clean seams:
@@ -22,6 +22,7 @@ Clean seams:
 - PromptAssemblySeam (owner: hbpheonix)
 - PromptAssemblySeam (self-contained) (owner: hbpheonix)
 - ChatInterpretationSeam (owner: hbpheonix)
+- ChatInterpretationSeam (self-contained) (owner: hbpheonix)
 - ImageGenerationSeam (owner: hbpheonix)
 - RateLimitSeam (owner: hbpheonix)
 - DriftDetectionSeam (owner: hbpheonix)
@@ -31,8 +32,11 @@ Clean seams:
 - MeechieToolSeam (owner: hbpheonix)
 - MeechieToolSeam (self-contained) (owner: hbpheonix)
 - MeechieStudioTextSeam (owner: hbpheonix)
+- MeechieStudioTextSeam (self-contained) (owner: hbpheonix)
 - ProviderAdapterSeam (owner: hbpheonix)
+- ProviderAdapterSeam (self-contained) (owner: hbpheonix)
 - OutputPackagingSeam (owner: hbpheonix)
+- OutputPackagingSeam (self-contained) (owner: hbpheonix)
 - SessionSeam (owner: hbpheonix)
 - SessionSeam (self-contained) (owner: hbpheonix)
 - SpecValidationSeam (owner: hbpheonix)
