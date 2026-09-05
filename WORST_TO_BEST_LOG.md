@@ -7684,3 +7684,32 @@ make the pipeline trustworthy. Rewritten to split on the escape rather than matc
 
 Mutation total stays at **69** for the feature; the four guard rules were each verified red
 separately and are counted with the tooling rather than with the change.
+
+### Addendum to round twenty-seven: SonarCloud on the new script
+
+The head that added `evidence-guard.mjs` took SonarCloud's new-issue count from **0 to 2**. Both are
+in that file, since it is the only code in the change.
+
+**One is confirmed and fixed.** `sonarjs/super-linear-regex` on `/(\d+) passed/g` — an unbounded
+quantifier immediately before a literal backtracks, which is a real cost on a long transcript.
+Reproduced locally against `sonarjs.configs.recommended`, and the reproduction is clean after
+bounding it to `\d{1,9}`. No suite reports a ten-digit total.
+
+**The second is a hypothesis, and is labelled as one.** The only other regular expression in the file
+had the same shape — `/^\[[0-9;]*m/`, an unbounded quantifier before a literal — so it is bounded to
+`{0,16}` as well. That is cheap and harmless whether or not it was the finding.
+
+What it is *not* is confirmed. `sonarcloud.io` is unreachable from this container, the local
+recommended-set reproduction reports nothing further, and enabling every rule in the plugin produces
+thirteen findings that are plainly not Sonar's profile — tabs, arrow-function parentheses, a file
+header, and `no-reference-error` on `process` and `console` from node globals my scratch config does
+not declare. That is the same noise that let me read a misconfigured checker's silence as agreement
+twice earlier in this run, so it is not being read as anything now.
+
+**The next SonarCloud run is the measurement.** If new issues go to 0, both were the regexes. If one
+remains, that will be said. Recording the prediction before the result, so it cannot be quietly
+reinterpreted afterwards — which is the failure mode this whole entry is about.
+
+The guard was re-proved red on all three defects after both regex changes: an emptied `e2e.txt` Row
+2, a truncated `verify-outer.txt`, and the two totals set to disagree. A changed regex in a checker
+is a changed checker, and a checker that has not been seen to fail since it changed is not evidence.

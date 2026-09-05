@@ -33,12 +33,15 @@ const ESC = String.fromCharCode(27);
 const stripAnsi = (text) =>
 	text
 		.split(ESC)
-		.map((part, index) => (index === 0 ? part : part.replace(/^\[[0-9;]*m/, '')))
+		.map((part, index) => (index === 0 ? part : part.replace(/^\[[0-9;]{0,16}m/, '')))
 		.join('');
 
 /** The last `<n> passed` in a transcript, as a number, or null when the transcript has no result. */
 const lastPassedCount = (text) => {
-	const matches = stripAnsi(text).match(/(\d+) passed/g);
+	// Bounded rather than `\d+`: an unbounded quantifier before a literal backtracks, which
+	// `sonarjs/super-linear-regex` flags and which is a real cost on a long transcript. No suite
+	// reports a ten-digit total.
+	const matches = stripAnsi(text).match(/(\d{1,9}) passed/g);
 	if (!matches || matches.length === 0) return null;
 	return Number(matches[matches.length - 1].split(' ')[0]);
 };
