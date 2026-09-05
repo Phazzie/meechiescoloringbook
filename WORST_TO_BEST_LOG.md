@@ -5639,3 +5639,59 @@ Four more mutations, each reverted, each caught: packaging reading the live spec
 restoring the wig in `applyStyleSelection` (1), dropping the wig restore from `loadCreation` (4), and
 widening the stored voice to accept anything (2 — the fault fixture's own payloads). Running total
 for this run: 39.
+
+## Run 7 close-out — round nine: the same value drifting a third time, and a mock that could not disagree
+
+Two findings, and the first is the same page size for the third round running.
+
+Round eight fixed the *packaging* call to use the captured page size. `pageExports` went on
+describing those files with the live `this.spec.pageSize` — so the PDF was correctly made for US
+Letter and correctly labelled "A4 — ready to print". Round four snapshotted it into the record,
+round eight into the packaging call, round nine into the label.
+
+Three rounds of moving one value from one reader to another is the signal that passing it around was
+the wrong shape. So this time it is removed rather than relocated: `PageExportAttempt` carries the
+paper it was packaged for, `describePackagedExports` takes no page size at all and reads each
+attempt's own, and there is no second value left for a label to disagree with. That is the
+difference between fixing the instance and fixing the class, which this log has now recorded wanting
+three times and finally done.
+
+**And the mock could not refuse anything.** Round eight added the `rejected` fault payloads and drove
+them through the validators. The mock still returned its fixture's canned output whatever it was
+handed — so a consumer could pass a record the adapter rejects, watch the mock accept it, and find
+out in a browser. That is exactly the mock/adapter divergence a fault fixture exists to catch, and
+the reason the governance says to run the mock against it rather than the helpers underneath.
+
+The mock now validates through the same validators the adapter uses. `saveCreation` returns
+`CREATION_SCHEMA_MISMATCH`; `saveDraft` **throws**, because that is what the adapter's `saveDraft`
+does. The asymmetry is the adapter's and mirroring it is the whole point: a mock that reported a
+failure where the real thing throws would let a consumer write an error handler that never runs.
+
+Each of the two new contract tests is paired with the same mock still replaying its fixture for
+input that *does* parse, so the refusal is demonstrably about the record rather than about the
+scenario.
+
+### A mutation that survived, and what it was telling me
+
+The first mutation batch for this round had M1 — labelling from a constant instead of the attempt —
+**survive**. Not a harness mistake this time, unlike round seven: the fix genuinely had no test. I
+had changed the shape and watched the suite stay green, which proves only that nothing depended on
+the old shape.
+
+Two tests added and the mutant dies twice: a pure one giving two attempts different paper and
+asserting each file is labelled with its own, and an end-to-end one that moves Page Size mid-flight
+and asserts every printed row still says US Letter.
+
+Worth stating plainly: a passing suite after a refactor is not evidence the refactor did anything.
+The mutation is what turns "I changed this" into "this is load-bearing", and it only says that if
+you run it.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1387 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 15 passed ·
+Playwright 38 passed against the installed browser.
+
+Three mutations, each reverted: the label ignoring the attempt's page size (2 tests, after the two
+were added), the mock accepting any record again (1), and the mock's draft validation removed (1).
+Running total for this run: 42.

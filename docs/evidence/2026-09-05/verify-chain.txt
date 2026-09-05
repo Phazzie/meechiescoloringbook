@@ -122,7 +122,7 @@ was never committed; that is why the exclusion is now mechanical rather than rem
 
 - npm run check: 0 errors, 0 warnings
 - npm run lint: exit 0
-- npm test: 1383 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped)
+- npm test: 1387 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped)
 - npm run build: exit 0
 - npm run verify: exit 0, all eight stages (its own transcript is verify-outer.txt; verify.txt is
   only the inner verify-runner stage, so the audit gate and the chain's exit status are captured
@@ -140,7 +140,7 @@ was never committed; that is why the exclusion is now mechanical rather than rem
   command's own output, carrying somebody else's. It is regenerated here, and the count above is the check on
   that: verify-outer.txt and verify.txt must report the same total, or one of them is stale.
 - npm run cipher:gate: exit 0
-- npm run rewind -- --seam "CreationStoreSeam (self-contained)": 13 passed
+- npm run rewind -- --seam "CreationStoreSeam (self-contained)": 15 passed
 - npx playwright test: see the section above — the mandated command fails on a browser-version
   mismatch; the suite passes 38/38 against the installed browser.
 
