@@ -5,7 +5,7 @@ Info flow: seam checks -> ledger table -> review.
 -->
 # Seam Ledger
 
-Generated at: 2026-09-05T05:27:21.261Z
+Generated at: 2026-09-05T05:43:04.024Z
 
 | Seam | Status | Contract | Probe | Fixtures | Mock | Tests | Adapter |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -22,6 +22,7 @@ Generated at: 2026-09-05T05:27:21.261Z
 | PromptAssemblySeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | PromptAssemblySeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | ChatInterpretationSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| ChatInterpretationSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | ImageGenerationSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | RateLimitSeam | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | DriftDetectionSeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
@@ -31,8 +32,11 @@ Generated at: 2026-09-05T05:27:21.261Z
 | MeechieToolSeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | MeechieToolSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | MeechieStudioTextSeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| MeechieStudioTextSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | ProviderAdapterSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| ProviderAdapterSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | OutputPackagingSeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| OutputPackagingSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | SessionSeam | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | SessionSeam (self-contained) | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ |
 | SpecValidationSeam | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |

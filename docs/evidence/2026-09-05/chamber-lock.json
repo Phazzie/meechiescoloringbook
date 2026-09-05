@@ -1,6 +1,6 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-09-05T05:25:20.765Z",
+  "generatedAt": "2026-09-05T05:40:20.939Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -471,6 +471,42 @@
       ]
     },
     {
+      "seam": "ChatInterpretationSeam (self-contained)",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "src/lib/seams/chat-interpretation-seam/contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "src/lib/seams/chat-interpretation-seam/probe.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "N/A (fixture module: src/lib/seams/chat-interpretation-seam/fixtures.ts)",
+          "status": "na"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/seams/chat-interpretation-seam/mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "src/lib/seams/chat-interpretation-seam/test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/chat-interpretation-seam/index.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
       "seam": "ImageGenerationSeam",
       "status": "ok",
       "checks": [
@@ -795,6 +831,42 @@
       ]
     },
     {
+      "seam": "MeechieStudioTextSeam (self-contained)",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "src/lib/seams/meechie-studio-text-seam/contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "src/lib/seams/meechie-studio-text-seam/probe.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "N/A (fixture module: src/lib/seams/meechie-studio-text-seam/fixtures.ts)",
+          "status": "na"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/seams/meechie-studio-text-seam/mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "src/lib/seams/meechie-studio-text-seam/test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/meechie-studio-text-seam/index.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
       "seam": "ProviderAdapterSeam",
       "status": "ok",
       "checks": [
@@ -831,6 +903,42 @@
       ]
     },
     {
+      "seam": "ProviderAdapterSeam (self-contained)",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "src/lib/seams/provider-adapter-seam/contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "src/lib/seams/provider-adapter-seam/probe.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "N/A (fixture module: src/lib/seams/provider-adapter-seam/fixtures.ts)",
+          "status": "na"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/seams/provider-adapter-seam/mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "src/lib/seams/provider-adapter-seam/test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/provider-adapter-seam/index.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
       "seam": "OutputPackagingSeam",
       "status": "ok",
       "checks": [
@@ -862,6 +970,42 @@
         {
           "kind": "adapter",
           "path": "src/lib/adapters/output-packaging.adapter.ts",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "seam": "OutputPackagingSeam (self-contained)",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "path": "src/lib/seams/output-packaging-seam/contract.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "probe",
+          "path": "src/lib/seams/output-packaging-seam/probe.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "fixtures",
+          "path": "N/A (fixture module: src/lib/seams/output-packaging-seam/fixtures.ts)",
+          "status": "na"
+        },
+        {
+          "kind": "mock",
+          "path": "src/lib/seams/output-packaging-seam/mock.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "tests",
+          "path": "src/lib/seams/output-packaging-seam/test.ts",
+          "status": "ok"
+        },
+        {
+          "kind": "adapter",
+          "path": "src/lib/adapters/output-packaging-seam/index.ts",
           "status": "ok"
         }
       ]
@@ -1228,7 +1372,7 @@
     }
   ],
   "summary": {
-    "ok": 34,
+    "ok": 38,
     "blocked": 0,
     "missing": 0,
     "overallStatus": "ok"

@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-09-05T05:27:21.261Z",
+  "generatedAt": "2026-09-05T05:43:04.024Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -497,6 +497,44 @@
       ]
     },
     {
+      "seam": "ChatInterpretationSeam (self-contained)",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/chat-interpretation-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/chat-interpretation-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "na",
+          "path": "N/A (fixture module: src/lib/seams/chat-interpretation-seam/fixtures.ts)"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/chat-interpretation-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/chat-interpretation-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/chat-interpretation-seam/index.ts"
+        }
+      ]
+    },
+    {
       "seam": "ImageGenerationSeam",
       "owner": "hbpheonix",
       "lastProbe": "TBD (blocked)",
@@ -839,6 +877,44 @@
       ]
     },
     {
+      "seam": "MeechieStudioTextSeam (self-contained)",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/meechie-studio-text-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/meechie-studio-text-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "na",
+          "path": "N/A (fixture module: src/lib/seams/meechie-studio-text-seam/fixtures.ts)"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/meechie-studio-text-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/meechie-studio-text-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/meechie-studio-text-seam/index.ts"
+        }
+      ]
+    },
+    {
       "seam": "ProviderAdapterSeam",
       "owner": "hbpheonix",
       "lastProbe": "2026-02-01",
@@ -877,6 +953,44 @@
       ]
     },
     {
+      "seam": "ProviderAdapterSeam (self-contained)",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/provider-adapter-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/provider-adapter-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "na",
+          "path": "N/A (fixture module: src/lib/seams/provider-adapter-seam/fixtures.ts)"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/provider-adapter-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/provider-adapter-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/provider-adapter-seam/index.ts"
+        }
+      ]
+    },
+    {
       "seam": "OutputPackagingSeam",
       "owner": "hbpheonix",
       "lastProbe": "N/A",
@@ -911,6 +1025,44 @@
           "kind": "adapter",
           "status": "ok",
           "path": "src/lib/adapters/output-packaging.adapter.ts"
+        }
+      ]
+    },
+    {
+      "seam": "OutputPackagingSeam (self-contained)",
+      "owner": "hbpheonix",
+      "lastProbe": "N/A",
+      "status": "ok",
+      "checks": [
+        {
+          "kind": "contract",
+          "status": "ok",
+          "path": "src/lib/seams/output-packaging-seam/contract.ts"
+        },
+        {
+          "kind": "probe",
+          "status": "ok",
+          "path": "src/lib/seams/output-packaging-seam/probe.ts"
+        },
+        {
+          "kind": "fixtures",
+          "status": "na",
+          "path": "N/A (fixture module: src/lib/seams/output-packaging-seam/fixtures.ts)"
+        },
+        {
+          "kind": "mock",
+          "status": "ok",
+          "path": "src/lib/seams/output-packaging-seam/mock.ts"
+        },
+        {
+          "kind": "tests",
+          "status": "ok",
+          "path": "src/lib/seams/output-packaging-seam/test.ts"
+        },
+        {
+          "kind": "adapter",
+          "status": "ok",
+          "path": "src/lib/adapters/output-packaging-seam/index.ts"
         }
       ]
     },
@@ -1296,7 +1448,7 @@
     }
   ],
   "summary": {
-    "ok": 34,
+    "ok": 38,
     "missing": 0,
     "blocked": 0,
     "overallStatus": "ok"

@@ -26,7 +26,7 @@ This section is the sole active implementation plan. It supersedes older dated e
 
 ### Master Execution Checklist Gate
 
-- [ ] **Batch 1: Identity & Storage (`feat/seam-migration-identity-storage`)**
+- [x] **Batch 1: Identity & Storage (`feat/seam-migration-identity-storage`)**
   - [x] `TICK-MIG-01a`: `SessionSeam` Contract, Schemas & `docs/seams.md` Registration
   - [x] `TICK-MIG-01b`: `SessionSeam` Fixtures Module, Mock & Contract Test
   - [x] `TICK-MIG-01c`: `SessionSeam` Canonical Adapter & Re-export Wrapper
@@ -36,20 +36,20 @@ This section is the sole active implementation plan. It supersedes older dated e
   - [x] `TICK-MIG-03a`: `CreationStoreSeam` Contract & Record Schemas
   - [x] `TICK-MIG-03b`: `CreationStoreSeam` Fixtures Module, Mock & Vault Isolation Test
   - [x] `TICK-MIG-03c`: `CreationStoreSeam` Canonical Adapter with Optimistic ID Merge & Malformed Skip
-  - [ ] `PR-BATCH-1`: Open PR, verify CI checks (`gh pr checks`), address feedback, auto-merge to `main`
+  - [x] `PR-BATCH-1`: Open PR, verify CI checks (`gh pr checks`), address feedback, auto-merge to `main`
 - [ ] **Batch 2: Generation & Transport (`feat/seam-migration-generation-transport`)**
-  - [ ] `TICK-MIG-04a`: `OutputPackagingSeam` Contract & Safe SVG ViewBox Fallback
-  - [ ] `TICK-MIG-04b`: `OutputPackagingSeam` Fixtures Module, Mock & Contract Test
-  - [ ] `TICK-MIG-04c`: `OutputPackagingSeam` Canonical Adapter with 8KB Chunked Base64 & Canvas Browser Guard
-  - [ ] `TICK-MIG-05a`: `ChatInterpretationSeam` Contract & Strict Output Schemas
-  - [ ] `TICK-MIG-05b`: `ChatInterpretationSeam` Fixtures Module, Mock & Corrupt-JSON Canary Test
-  - [ ] `TICK-MIG-05c`: `ChatInterpretationSeam` Canonical Adapter & Re-export Wrapper
-  - [ ] `TICK-MIG-06a`: `MeechieStudioTextSeam` Contract & Studio Text Schemas
-  - [ ] `TICK-MIG-06b`: `MeechieStudioTextSeam` Fixtures Module, Mock & Pre-Charged Quota Test
-  - [ ] `TICK-MIG-06c`: `MeechieStudioTextSeam` Canonical Adapter & Re-export Wrapper
-  - [ ] `TICK-MIG-07a`: `ProviderAdapterSeam` Contract with Injected `AbortSignal` Support
-  - [ ] `TICK-MIG-07b`: `ProviderAdapterSeam` Fixtures Module, Mock & Secret Redaction Canary Test
-  - [ ] `TICK-MIG-07c`: `ProviderAdapterSeam` Canonical Adapter with Socket Cancellation & Stream Redaction
+  - [x] `TICK-MIG-04a`: `OutputPackagingSeam` Contract & Safe SVG ViewBox Fallback
+  - [x] `TICK-MIG-04b`: `OutputPackagingSeam` Fixtures Module, Mock & Contract Test
+  - [x] `TICK-MIG-04c`: `OutputPackagingSeam` Canonical Adapter with 8KB Chunked Base64 & Canvas Browser Guard
+  - [x] `TICK-MIG-05a`: `ChatInterpretationSeam` Contract & Strict Output Schemas
+  - [x] `TICK-MIG-05b`: `ChatInterpretationSeam` Fixtures Module, Mock & Corrupt-JSON Canary Test
+  - [x] `TICK-MIG-05c`: `ChatInterpretationSeam` Canonical Adapter & Re-export Wrapper
+  - [x] `TICK-MIG-06a`: `MeechieStudioTextSeam` Contract & Studio Text Schemas
+  - [x] `TICK-MIG-06b`: `MeechieStudioTextSeam` Fixtures Module, Mock & Pre-Charged Quota Test
+  - [x] `TICK-MIG-06c`: `MeechieStudioTextSeam` Canonical Adapter & Re-export Wrapper
+  - [x] `TICK-MIG-07a`: `ProviderAdapterSeam` Contract with Injected `AbortSignal` Support
+  - [x] `TICK-MIG-07b`: `ProviderAdapterSeam` Fixtures Module, Mock & Secret Redaction Canary Test
+  - [x] `TICK-MIG-07c`: `ProviderAdapterSeam` Canonical Adapter with Socket Cancellation & Stream Redaction
   - [ ] `PR-BATCH-2`: Open PR, verify CI checks (`gh pr checks`), address feedback, auto-merge to `main`
 - [ ] **Batch 3: Stub Synchronization & Clean Consumer Imports (`feat/retire-legacy-seam-stubs`)**
   - [ ] `TICK-MIG-08a`: Re-route Consumer Imports in API Route & Test Mock (`src/routes/api/meechie-studio-text/+server.ts`, `tests/unit/api-meechie-studio-text-endpoint.test.ts`)

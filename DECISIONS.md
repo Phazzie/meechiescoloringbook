@@ -7,6 +7,29 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-05 - Modularize Batch 2 Generation and Transport Seams (OutputPackagingSeam, ChatInterpretationSeam, MeechieStudioTextSeam, ProviderAdapterSeam)
+
+- Date: 2026-09-05
+- Decision: Modularize `OutputPackagingSeam`, `ChatInterpretationSeam`, `MeechieStudioTextSeam`, and `ProviderAdapterSeam` into canonical self-contained seam packages under `src/lib/seams/` with production adapters at `src/lib/adapters/<name>-seam/index.ts` and legacy re-export compatibility stubs at `contracts/` and `src/lib/adapters/`.
+- Context: These 4 generation and transport seams handle document packaging, LLM chat interpretation, studio text synthesis, and external AI provider transport. Modularizing them standardizes contract exports, creates typed fixture modules (`fixtures.ts`), in-memory mocks (`mock.ts`), and self-contained contract tests (`test.ts`) while hardening boundaries with 8KB chunked base64 encoding, browser canvas guards, SVG viewBox parsing, and AbortSignal cancellation.
+- Alternatives: Large monolithic refactor combining consumer import migration in the same branch; rejected to maintain atomic, reviewable batches and satisfy CI audit gates incrementally.
+- Consequences: All 4 seams support dual rewind (`npm run rewind -- --seam <Name>` and `npm run rewind -- --seam "<Name> (self-contained)"`), contracts enforce strict type boundaries, and provider adapters properly clean up sockets on client abort.
+- Revisit criteria: Once Batch 3 completes and consumers are re-routed to canonical paths, legacy stubs in `contracts/` and `src/lib/adapters/` can be retired.
+- Self-critique: Riskiest assumption is that upstream provider responses could alter field formats; mitigated by strict Zod schema validation and fixture-backed contract tests.
+- Evidence: docs/evidence/2026-09-05/verify.txt; docs/evidence/2026-09-05/test.txt; docs/evidence/2026-09-05/chamber-lock.json; docs/evidence/2026-09-05/seam-ledger.json
+- Plan:
+  - Goal: Implement Batch 2 of Seam Migration v2.0 for OutputPackagingSeam, ChatInterpretationSeam, MeechieStudioTextSeam, ProviderAdapterSeam.
+  - Seams: OutputPackagingSeam, ChatInterpretationSeam, MeechieStudioTextSeam, ProviderAdapterSeam.
+  - Files: `contracts/output-packaging.contract.ts`, `contracts/chat-interpretation.contract.ts`, `contracts/meechie-studio-text.contract.ts`, `contracts/provider-adapter.contract.ts`, `docs/seams.md`, `plan.md`, `src/lib/adapters/output-packaging.adapter.ts`, `src/lib/adapters/output-packaging-seam/index.ts`, `src/lib/seams/output-packaging-seam/*`, `src/lib/adapters/chat-interpretation.adapter.ts`, `src/lib/adapters/chat-interpretation-seam/index.ts`, `src/lib/seams/chat-interpretation-seam/*`, `src/lib/adapters/meechie-studio-text.adapter.ts`, `src/lib/adapters/meechie-studio-text-seam/index.ts`, `src/lib/seams/meechie-studio-text-seam/*`, `src/lib/adapters/provider-adapter.adapter.ts`, `src/lib/adapters/provider-adapter-seam/index.ts`, `src/lib/seams/provider-adapter-seam/*`.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run verify`.
+
+- Cipher Gate:
+  - Date: 2026-09-05
+  - Seams: OutputPackagingSeam, ChatInterpretationSeam, MeechieStudioTextSeam, ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-09-05/verify.txt; docs/evidence/2026-09-05/test.txt; docs/evidence/2026-09-05/chamber-lock.json; docs/evidence/2026-09-05/seam-ledger.json
+  - Summary: Migrated OutputPackagingSeam, ChatInterpretationSeam, MeechieStudioTextSeam, and ProviderAdapterSeam to canonical self-contained seam packages with fixture modules, in-memory mocks, self-contained contract suites, canonical adapters with chunked memory buffers and abort handling, and backward-compatible re-export stubs.
+  - Risks: Headless canvas unavailability in non-browser execution environments; upstream AI provider socket stalls on long generative responses.
+
 ## 2026-09-05 - Modularize Batch 1 Identity and Storage Seams (SessionSeam, AuthContextSeam, CreationStoreSeam)
 
 - Date: 2026-09-05
