@@ -71,7 +71,6 @@ import {
 	buildStyleHint,
 	DEFAULT_STYLE_SELECTION,
 	themeForSelection,
-	type PaperSelection,
 	type StyleSelection,
 	type StyleWig
 } from '$lib/core/page-style';
@@ -88,6 +87,27 @@ type BorderChoice = ColoringPageSpec['border'];
  * active leaves every value identical, and is still the reader asking for that theme.
  */
 export type SettingChangeSource = 'theme' | 'setting';
+
+/**
+ * A spec with the reader's current dedication on it, and no `dedication` key at all when there is
+ * none.
+ *
+ * Spreading `{ dedication: undefined }` would leave the key present with an undefined value, which
+ * survives `$state.snapshot` and reaches the storage seam. `DedicationSchema` is `.optional()`, so
+ * that parses — and then the record carries a field it does not have, which is the kind of small
+ * untruth this whole change is about. Deleting the key is the difference between "no dedication"
+ * and "a dedication that is nothing".
+ */
+const withDedication = (
+	spec: ColoringPageSpec,
+	dedication: string | undefined
+): ColoringPageSpec => {
+	if (dedication === undefined) {
+		const { dedication: _dropped, ...rest } = spec;
+		return rest;
+	}
+	return { ...spec, dedication };
+};
 
 /**
  * One try-on result: the wig it was made for, and the portrait produced.
@@ -234,22 +254,32 @@ export class StudioState {
 	 */
 	private generatedStyleSelection: StyleSelection | undefined = undefined;
 	/**
-	 * The paper the page currently on the paper was actually made for.
+	 * The spec the page currently on the paper was actually built from.
 	 *
-	 * The same rule as `generatedStyleSelection`, applied to the two controls that rule deliberately
-	 * left out. Page size and border *are* persisted — they are `ColoringPageSpec` fields, which is
-	 * why they were never part of the missing-style problem — but they are persisted from the
-	 * **live** spec at save time, and `applyTextToSpec` rewrites that spec on every setting change.
-	 * So generating a US Letter page, switching to A4 and then saving wrote a record whose stored
-	 * dimensions and frame never produced its stored image, prompt or downloads: the same defect as
-	 * the style one, one field over, and invisible for the same reason.
+	 * The same rule as `generatedStyleSelection`, applied to the record's `intent`. That field *is*
+	 * persisted — it is where page size and border always came back from, which is why they were
+	 * never part of the missing-style problem — but it is persisted from the **live** spec at save
+	 * time, and `applyTextToSpec` rebuilds that spec from the live controls on every setting change.
+	 * So generating a page, moving a control and then saving wrote a record whose stored spec never
+	 * produced its own image, prompt or downloads.
+	 *
+	 * The whole spec rather than the two paper fields, which is where this started. `decorations` is
+	 * *derived from the style hint* — the very thing this change made storable — so switching from a
+	 * dense theme to a minimal one after generating left a record whose `styleSelection` said dense
+	 * and whose `intent.decorations` said minimal, about one picture. Snapshotting two fields fixed
+	 * the two I had thought of; snapshotting the spec fixes the field, its whole `presentation`
+	 * group, and whatever is added to that group next.
+	 *
+	 * Title, items and the footer cannot drift into it: they are built from `textOutput`, and every
+	 * path that replaces `textOutput` calls `resetGeneratedPage`, which clears this. The one field
+	 * deliberately NOT taken from here is `dedication` — see `saveToVault`.
 	 *
 	 * Known for a reopened record too, including one written before `styleSelection` existed — the
-	 * paper is in `intent`, so unlike the style there is no unknown case to report.
+	 * spec is the record, so unlike the style there is no unknown case to report.
 	 *
 	 * `undefined` means there is no page on the paper. Not `$state`: nothing renders it.
 	 */
-	private generatedPaper: PaperSelection | undefined = undefined;
+	private generatedSpec: ColoringPageSpec | undefined = undefined;
 	isTextWorking = $state(false);
 	isGenerating = $state(false);
 	copyStatus = $state('');
@@ -854,7 +884,7 @@ export class StudioState {
 		// gets its own values; every other caller is starting a page the controls genuinely describe.
 		this.restoredStyleWig = null;
 		this.generatedStyleSelection = undefined;
-		this.generatedPaper = undefined;
+		this.generatedSpec = undefined;
 		// Both of these report a change made to the page that is being replaced right here. Left
 		// standing they would describe the previous page's trouble over the new one, which is the
 		// same stale-report defect in miniature.
@@ -1245,11 +1275,8 @@ export class StudioState {
 			this.assembledPrompt = parsed.data.value.prompt;
 			// The selection the request actually carried, not the controls as they stand now.
 			this.generatedStyleSelection = requestedStyle;
-			// And the paper it was drawn for, off the same single read, for the same reason.
-			this.generatedPaper = {
-				pageSize: requestedSpec.pageSize,
-				border: requestedSpec.border
-			};
+			// And the spec it was drawn from, off the same single read, for the same reason.
+			this.generatedSpec = requestedSpec;
 			this.images = parsed.data.value.images;
 			this.revisedPrompt = parsed.data.value.revisedPrompt || '';
 			this.violations = parsed.data.value.violations;
@@ -1334,9 +1361,9 @@ export class StudioState {
 			this.assembledPrompt = `Wig try-on portrait — ${wig.name} (${wig.style}).`;
 			// The selection the page was actually built from. Same rule as the generate path.
 			this.generatedStyleSelection = requestedStyle;
-			// The paper too, read off the spec that was just assigned two lines up rather than off
-			// the live controls below the awaits that follow. Same rule, same reason.
-			this.generatedPaper = { pageSize: this.spec.pageSize, border: this.spec.border };
+			// The spec too, read off the assignment two lines up rather than off the live controls
+			// below the awaits that follow. Same rule, same reason.
+			this.generatedSpec = $state.snapshot(this.spec);
 			// Re-validated because the title above was written after `syncSpecFromCurrentText` had
 			// already validated. Checking the issues it left would be checking the previous spec.
 			await this.validateSpec();
@@ -1482,15 +1509,24 @@ export class StudioState {
 		this.isSaving = true;
 		this.vaultStatus = 'Saving...';
 		// The page as it was made, not as the controls now describe it. `this.spec` is rebuilt from
-		// the live Page Controls on every setting change, so a Page Size or Border moved after the
-		// picture came back put dimensions and a frame on the record that never produced its own
-		// image, prompt or downloads. Everything else in the spec is the page's own words and comes
-		// from the same rebuild, so only the two paper fields are restored from the snapshot.
+		// the live Page Controls on every setting change, so any setting moved after the picture came
+		// back put a spec on the record that never produced its own image, prompt or downloads —
+		// dimensions and a frame, and `decorations`, which is derived from the style hint and so
+		// contradicted the `styleSelection` saved beside it.
 		//
 		// Falls back to the live spec when there is no snapshot, which is the page saved before any
 		// generation: there its controls genuinely did author the spec being saved.
+		//
+		// `dedication` is deliberately the reader's, not the artifact's. It is the one field here
+		// they type directly rather than choose from a control, and a dedication entered after
+		// generating is on no page at all — so keeping the snapshot's would silently discard what
+		// they just wrote, which is a different defect from the one this snapshot removes and not
+		// one to introduce while removing it. That a typed dedication can still describe a picture
+		// without it predates this change; it belongs with the drift reporting, not here.
 		const liveSpec = $state.snapshot(this.spec);
-		const intent = this.generatedPaper ? { ...liveSpec, ...this.generatedPaper } : liveSpec;
+		const intent = this.generatedSpec
+			? withDedication(this.generatedSpec, liveSpec.dedication)
+			: liveSpec;
 		const creationId = this.generateCreationId();
 		const storedImages = this.images.map((image) => ({
 			b64: image.encoding === 'base64' ? image.data : this.encodeBase64(image.data)
@@ -1553,12 +1589,11 @@ export class StudioState {
 		// controls, so seeding first would describe a page that was never on screen — and that seed
 		// is what the next setting change is decided against.
 		this.applyRestoredStyleSelection(creation.styleSelection);
-		// The paper this record's image was drawn for. Unlike the style there is no unknown case:
-		// page size and border are `ColoringPageSpec` fields, so every record ever written carries
-		// them. Without this, reopening a page, changing Page Size and saving again wrote the new
-		// dimensions over the old picture — the drift the snapshot at generate time closes, reached
-		// by the other door.
-		this.generatedPaper = { pageSize: creation.intent.pageSize, border: creation.intent.border };
+		// The spec this record's image was drawn from. Unlike the style there is no unknown case: the
+		// spec *is* the record, so every record ever written carries one. Without this, reopening a
+		// page, changing a setting and saving again wrote the rebuilt spec over the old picture —
+		// the drift the snapshot at generate time closes, reached by the other door.
+		this.generatedSpec = creation.intent;
 		// Seed the derivation input at restore time, so the first setting change that does not touch
 		// it compares equal and keeps the density the saved page was built with.
 		this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());

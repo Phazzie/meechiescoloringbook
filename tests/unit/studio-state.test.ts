@@ -2870,6 +2870,57 @@ describe('StudioState page style', () => {
 		expect(saveSpy.mock.calls[0][0].record.intent.border).toBe('plain');
 	});
 
+	it('never files a style and a decoration density that disagree about one picture', async () => {
+		// `decorations` is derived from the style hint rather than chosen, so it is the field the
+		// paper snapshot missed and the one that mattered most: generating under a dense theme,
+		// switching to a minimal one and saving wrote a record whose `styleSelection` said Receipts
+		// and whose `intent.decorations` said minimal, about the same image. A reopen then preserved
+		// that contradiction, and a paid regeneration could be built from it.
+		const { studio, saveSpy } = await savingStudio();
+
+		studio.selectedThemeId = 'receipts';
+		await generatePage(studio);
+		expect(studio.spec.decorations).toBe('dense');
+
+		// Both controls move, because the derivation reads the whole style hint: the default
+		// intensity is `receipts_out`, which puts "receipt" in the hint on its own, so a theme
+		// change alone cannot reach the minimal branch.
+		studio.selectedThemeId = 'crown-energy';
+		studio.voice = { ...studio.voice, intensity: 'no_mercy' };
+		await studio.syncSpecFromCurrentText('theme');
+		expect(studio.spec.decorations).toBe('minimal');
+
+		await studio.saveToVault();
+
+		const record = saveSpy.mock.calls[0][0].record;
+		expect(record.styleSelection?.themeId).toBe('receipts');
+		expect(record.intent.decorations).toBe('dense');
+	});
+
+	it('keeps the dedication the reader typed, which is theirs rather than the artifact’s', async () => {
+		// The one field deliberately taken from the live spec instead of the snapshot. A dedication
+		// entered after generating is on no page either way; silently dropping what the reader just
+		// typed would be a different defect from the one the snapshot removes.
+		const { studio, saveSpy } = await savingStudio();
+
+		await generatePage(studio);
+		studio.handleDedicationInput('For the group chat');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.intent.dedication).toBe('For the group chat');
+	});
+
+	it('leaves no empty dedication key on a record that has none', async () => {
+		// `{ ...spec, dedication: undefined }` keeps the key, and an optional schema accepts it — so
+		// the record would carry a field it does not have.
+		const { studio, saveSpy } = await savingStudio();
+
+		await generatePage(studio);
+		await studio.saveToVault();
+
+		expect('dedication' in saveSpy.mock.calls[0][0].record.intent).toBe(false);
+	});
+
 	it('files a page saved before any generation under the controls that authored it', async () => {
 		// The fallback the snapshot leaves in place. Nothing was generated, so there is no artifact
 		// for the controls to disagree with — they *are* this page's paper.
