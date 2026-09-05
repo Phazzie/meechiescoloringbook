@@ -6009,10 +6009,37 @@ differently, and like the first, it is on the open list for the owner rather tha
 me. If the owner reads `AGENTS.md:82-86` as covering build tooling, the consequence is worth stating
 before ruling: all seven scripts above are in violation today, not just mine.
 
+### 5. P1 — the actual Sonar finding, and my guess at it was wrong
+
+Correction 36 fixed two things in this file from a SonarCloud *count* (0 new issues -> 2) that I
+could not read, because `sonarcloud.io` is blocked from this environment. It landed as an inline
+comment on this head, so now I can:
+
+> **OS commands should not rely on PATH resolution** — Make sure the "PATH" variable only contains
+> fixed, unwriteable directories.
+
+`spawnSync('npm', ...)` resolves `npm` through PATH, and a writable PATH entry can hijack it. Neither
+of the two things I guessed at in correction 36 was this. That entry said, in as many words, that if
+the issues turned out to be something else it stands as what I did and the real ones are still open
+— so this is the real one, and the guesses were a readability refactor rather than a fix.
+
+The fix is better than the one it replaces. npm exports `npm_node_execpath` and `npm_execpath` as
+**absolute** paths when it runs a script, and this script is always started as
+`npm run evidence:capture`. Spawning `<node> <npm-cli.js>` resolves nothing through PATH — and it
+also makes finding 2 above moot, because `npm-cli.js` is an ordinary file that node runs identically
+on every platform, where `npm.cmd` needed the ComSpec detour. The ComSpec branch survives only as a
+fallback for someone running `node scripts/capture-evidence.mjs` directly, where npm has exported
+nothing.
+
+Verified in this environment: `npm_execpath = /opt/node22/lib/node_modules/npm/bin/npm-cli.js`,
+`npm_node_execpath = /opt/node22/bin/node`, and undefined when run outside npm — which is exactly
+the case the fallback is for.
+
 ### Running total
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3, 2,
-7, 2, 4 — **one hundred and three findings across thirty-seven rounds.** Three of the four here are
-the first genuine code defects found in this close-out, which is what happens when the close-out
-starts containing code. That is an argument for the script being reviewed, not an argument against
-having written it: the same three bugs were in the shell block, unexaminable.
+7, 2, 5 — **one hundred and four findings across thirty-seven rounds.** Four of the five here are
+genuine code defects — the first in this close-out — which is what happens when the close-out starts
+containing code. That is an argument for the script being reviewed, not against having written it:
+the same defects were latent in the shell block, where nothing could review them. It is also the
+first round where a static analyser, not a reader of prose, found the defect.

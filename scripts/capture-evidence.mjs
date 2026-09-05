@@ -60,6 +60,34 @@ const SEAMS = [
 	'MeechieToolSeam (self-contained)'
 ];
 
+/**
+ * Resolves how to invoke npm without a PATH lookup.
+ *
+ * npm sets `npm_node_execpath` and `npm_execpath` to absolute paths when it runs a script, and this
+ * script is always started as `npm run evidence:capture`. Spawning `<node> <npm-cli.js>` therefore
+ * resolves nothing through PATH — which a writable PATH entry could hijack — and sidesteps the
+ * platform problem at the same time: Windows exposes npm as `npm.cmd`, which `spawnSync` cannot
+ * start with `shell: false`, but `npm-cli.js` is just a file and node runs it the same everywhere.
+ *
+ * The fallback covers being run directly as `node scripts/capture-evidence.mjs`, where npm has set
+ * nothing. There PATH resolution is unavoidable, so Windows needs the ComSpec route that
+ * scripts/verify-runner.mjs:25-27 uses.
+ * @param {string[]} args arguments to npm itself, e.g. ['run', 'lint']
+ * @returns {{ executable: string, executableArgs: string[] }}
+ */
+const npmInvocation = (args) => {
+	const nodeExecutable = process.env.npm_node_execpath || process.execPath;
+	const npmCli = process.env.npm_execpath;
+	if (npmCli) {
+		return { executable: nodeExecutable, executableArgs: [npmCli, ...args] };
+	}
+	if (process.platform === 'win32') {
+		const shell = process.env.ComSpec || 'cmd.exe';
+		return { executable: shell, executableArgs: ['/d', '/s', '/c', ['npm', ...args].join(' ')] };
+	}
+	return { executable: 'npm', executableArgs: args };
+};
+
 // spawnSync's default maxBuffer is 1 MiB. A verbose failure — a vitest run printing every failing
 // assertion, a playwright report with traces — passes that easily, and the child is then killed with
 // ENOBUFS: exactly the run whose diagnostics matter most is the one that would be truncated, and a
@@ -69,26 +97,21 @@ const MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
 /**
  * Runs one of this package's npm scripts and returns its combined output and exit status.
  *
- * Three things here follow scripts/verify-runner.mjs:24-41, which solved the same problems first:
- *  - Windows exposes npm as `npm.cmd`, so `spawnSync('npm', ...)` with `shell: false` cannot start
- *    it. The command goes through ComSpec there, as verify-runner does.
- *  - Output is preserved even when the spawn reports an error. ENOBUFS sets `error` *and* leaves the
- *    output captured up to that point; discarding it would throw away the diagnostics this tool
- *    exists to keep, and replace them with a misleading "failed to start".
- *  - The status is read from this spawn result and never from a later command's, which is the
- *    mistake the shell version of this sequence kept making.
+ * Output is preserved even when the spawn reports an error: ENOBUFS sets `error` *and* leaves the
+ * output captured up to that point, so discarding it would throw away the diagnostics this tool
+ * exists to keep and replace them with a misleading "failed to start" — the mistake
+ * scripts/verify-runner.mjs:34-39 already avoids. The status is read from this spawn result and
+ * never from a later command's, which is what the shell version of this sequence kept getting wrong.
  *
- * On non-Windows the arguments stay argv entries, so a seam name containing spaces and parentheses
- * cannot be word-split.
+ * Arguments stay argv entries, so a seam name containing spaces and parentheses cannot be
+ * word-split.
  * @param {string} script npm script name, as in package.json
  * @param {string[]} [scriptArgs] arguments forwarded to the script after `--`
  * @returns {{ output: string, code: number }}
  */
 const npmRun = (script, scriptArgs = []) => {
 	const args = ['run', script, ...(scriptArgs.length > 0 ? ['--', ...scriptArgs] : [])];
-	const isWindows = process.platform === 'win32';
-	const executable = isWindows ? process.env.ComSpec || 'cmd.exe' : 'npm';
-	const executableArgs = isWindows ? ['/d', '/s', '/c', ['npm', ...args].join(' ')] : args;
+	const { executable, executableArgs } = npmInvocation(args);
 	const result = spawnSync(executable, executableArgs, {
 		cwd: ROOT,
 		encoding: 'utf8',

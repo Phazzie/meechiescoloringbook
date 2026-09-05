@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-05T01:45:56.040Z
+Generated at: 2026-09-05T01:49:51.086Z
 Evidence folder: docs/evidence/2026-09-05
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -15,7 +15,7 @@ after this inventory is taken, so they are not listed):
 - build.txt (11205 bytes)
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (28496 bytes)
-- cipher-gate.json (4164 bytes)
+- cipher-gate.json (4165 bytes)
 - clan-chain.json (2532 bytes)
 - clan-chain.md (1559 bytes)
 - e2e.txt (3980 bytes)
@@ -44,7 +44,7 @@ after this inventory is taken, so they are not listed):
 - seam-ledger.json (30250 bytes)
 - seam-ledger.md (2409 bytes)
 - seam-rewind-exit-codes.md (2021 bytes)
-- shaolin-lint.json (516 bytes)
+- shaolin-lint.json (517 bytes)
 - test.txt (1031 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-chain-run.txt (1776 bytes)
