@@ -7,7 +7,8 @@
 //      defect landed the same way. This file is executed instead of transcribed, so it cannot drift
 //      from what actually ran.
 // Info flow: this script -> docs/evidence/<UTC date>/*.txt|*.md -> review.
-import { promises as fs } from 'node:fs';
+import { promises as fs, closeSync, openSync, readFileSync, rmSync } from 'node:fs';
+import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
@@ -88,11 +89,6 @@ const npmInvocation = (args) => {
 	return { executable: 'npm', executableArgs: args };
 };
 
-// spawnSync's default maxBuffer is 1 MiB. A verbose failure — a vitest run printing every failing
-// assertion, a playwright report with traces — passes that easily, and the child is then killed with
-// ENOBUFS: exactly the run whose diagnostics matter most is the one that would be truncated, and a
-// command that would have succeeded fails instead. Raised well past any plausible run.
-const MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
 
 /**
  * Runs one of this package's npm scripts and returns its combined output and exit status.
@@ -112,13 +108,32 @@ const MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
 const npmRun = (script, scriptArgs = []) => {
 	const args = ['run', script, ...(scriptArgs.length > 0 ? ['--', ...scriptArgs] : [])];
 	const { executable, executableArgs } = npmInvocation(args);
-	const result = spawnSync(executable, executableArgs, {
-		cwd: ROOT,
-		encoding: 'utf8',
-		shell: false,
-		maxBuffer: MAX_OUTPUT_BYTES
-	});
-	const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+	// Both descriptors point at ONE file, which buys two things that piping cannot.
+	//  - Order. Piping fills two separate buffers and any later join puts every stderr line after all
+	//    stdout: canvas warnings emitted mid-run end up below vitest's final summary, and on a failure
+	//    the error is detached from the stage that produced it. One file interleaves as it happened.
+	//  - No ceiling. A pipe is capped by maxBuffer (1 MiB by default) and the child is killed with
+	//    ENOBUFS past it — truncating exactly the verbose failure whose output matters most. A file
+	//    has no such limit, so there is no buffer size to tune and get wrong.
+	const capturePath = path.join(os.tmpdir(), `capture-evidence-${process.pid}-${Date.now()}.log`);
+	const captureFd = openSync(capturePath, 'w');
+	let result;
+	try {
+		result = spawnSync(executable, executableArgs, {
+			cwd: ROOT,
+			shell: false,
+			stdio: ['ignore', captureFd, captureFd]
+		});
+	} finally {
+		closeSync(captureFd);
+	}
+	let output = '';
+	try {
+		output = readFileSync(capturePath, 'utf8');
+	} catch {
+		output = '(capture file could not be read)\n';
+	}
+	rmSync(capturePath, { force: true });
 	if (result.error) {
 		// Kept, not replaced: whatever the child managed to emit is the evidence.
 		return { output: `${output}\nnpm run ${script} error: ${result.error.message}\n`, code: 1 };
@@ -172,6 +187,28 @@ const assertNoDateRollover = (startDate) => {
 	}
 };
 
+/**
+ * Confirms the tape inventoried this run's folder, using the folder it names in its own report.
+ * @param {string} dir
+ */
+const assertTapeCoversThisRun = async (dir) => {
+	const reportPath = path.join(dir, 'proof-tape.json');
+	if (!(await fileExists(reportPath))) {
+		process.stderr.write(`proof:tape reported success but wrote no proof-tape.json into ${dir}.\n`);
+		process.exit(1);
+	}
+	const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+	const inventoried = path.resolve(ROOT, report.evidenceDir ?? '');
+	if (inventoried !== path.resolve(dir)) {
+		process.stderr.write(
+			`proof:tape inventoried ${report.evidenceDir} but this run's evidence is in ${dir}.\n` +
+				'The tape in this folder describes a different one and lists none of this run\'s\n' +
+				'captures. Remove or correct the stray dated folder and re-run.\n'
+		);
+		process.exit(1);
+	}
+};
+
 const main = async () => {
 	const startDate = utcDate();
 	const dir = path.join(EVIDENCE_ROOT, startDate);
@@ -199,15 +236,14 @@ const main = async () => {
 
 	// Checking before the spawn is not enough: proof-tape.mjs:197-199 recomputes the date itself, so
 	// a tape that *starts* after midnight writes into tomorrow's folder while this run's check has
-	// already passed. Re-check, and confirm the tape actually landed where this run's artifacts are.
+	// already passed.
 	assertNoDateRollover(startDate);
-	if (!(await fileExists(path.join(dir, 'proof-tape.md')))) {
-		process.stderr.write(
-			`proof:tape reported success but wrote no proof-tape.md into ${dir}. Its output went to a\n` +
-				'different folder, so this run\'s evidence is split and its inventory is incomplete.\n'
-		);
-		process.exit(1);
-	}
+	// And the file being here is not enough either. proof-tape.mjs inventories getLatestEvidenceDir()
+	// — the lexicographically last dated folder — but writes its report into *today's*. A folder
+	// dated ahead of today (committed by a machine whose clock ran fast) makes it inventory that one
+	// and drop this report here, so proof-tape.md would exist in this folder while describing another
+	// and listing none of this run's captures. The report names the folder it read; check that.
+	await assertTapeCoversThisRun(dir);
 
 	process.stdout.write(`Evidence captured in docs/evidence/${startDate}/\n`);
 };
@@ -313,7 +349,29 @@ const captureRewinds = async (dir, startDate) => {
 				result.code
 			);
 		}
-		rows.push({ seam, code: result.code, artifact, ownArtifact: wroteOwnArtifact });
+		// An artifact existing is not the same as an artifact being complete. rewind.mjs:88-91 pipes
+		// its inner vitest with the DEFAULT 1 MiB maxBuffer, so a verbose failure is killed with
+		// ENOBUFS; rewind then writes a *truncated* artifact anyway (:98-109) and reports the spawn
+		// error only on stderr. This run's own capture has no such ceiling, so for any failed rewind
+		// it is kept beside the artifact rather than dropped because a file happened to be there.
+		let companion = null;
+		if (result.code !== 0 && wroteOwnArtifact) {
+			companion = `rewind-${seam.replace(/\s+/g, '')}-capture.txt`;
+			await writeArtifact(
+				dir,
+				companion,
+				[
+					`Purpose: This run's full capture of \`npm run rewind -- --seam ${seam}\`, which failed.`,
+					'Why: rewind.mjs wrote its own artifact, but its inner vitest spawn uses the default',
+					'     1 MiB pipe buffer, so that artifact can be truncated and its spawn error reaches',
+					'     stderr only. This capture goes to a file with no size ceiling.',
+					`Info flow: npm run rewind -> ${artifact} (rewind's, possibly truncated) + this file.`
+				],
+				result.output,
+				result.code
+			);
+		}
+		rows.push({ seam, code: result.code, artifact, ownArtifact: wroteOwnArtifact, companion });
 		if (result.code !== 0) {
 			rewindFailed = result.code;
 		}
@@ -335,8 +393,10 @@ const captureRewinds = async (dir, startDate) => {
 		'| Seam (as passed to --seam) | Exit | Artifact |',
 		'| --- | --- | --- |',
 		...rows.map(
-			({ seam, code, artifact, ownArtifact }) =>
-				`| \`${seam}\` | ${code} | \`${artifact}\`${ownArtifact ? '' : ' (written here: rewind exited before its own)'} |`
+			({ seam, code, artifact, ownArtifact, companion }) =>
+				`| \`${seam}\` | ${code} | \`${artifact}\`${
+					ownArtifact ? '' : ' (written here: rewind exited before its own)'
+				}${companion ? ` + \`${companion}\` (full capture)` : ''} |`
 		),
 		''
 	].join('\n');

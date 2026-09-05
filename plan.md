@@ -80,9 +80,14 @@ concession the `ClockSeam` plan in run 1 had to make.
      written down. Recorded as a third item for the owner ruling.
 - **Seams:** none changed. No seam artifact is in the diff; the rulings are about whether existing
   open Assumptions block an already-merged change.
-- **Files.** Governance: `DECISIONS.md` (the ruling), `plan.md` (this section),
-  `WORST_TO_BEST_LOG.md` (append-only record), `LESSONS_LEARNED.md` (the entry the fixture waiver
-  requires). Evidence under **`docs/evidence/2026-09-05/`** — the run crossed midnight UTC and the
+- **Files.** Governance: `DECISIONS.md` (the ruling, plus the Cipher Gate entry the executable
+  below required), `plan.md` (this section), `WORST_TO_BEST_LOG.md` (append-only record),
+  `LESSONS_LEARNED.md` (the entry the fixture waiver requires). **Executable — this close-out is no
+  longer governance-only, and saying so was false for five commits:** `scripts/capture-evidence.mjs`
+  (new; the evidence sequence, which replaced a shell block that four consecutive reviews found four
+  defects in) and `package.json` (one line: the `evidence:capture` script that runs it). Those two
+  are watched paths for `cipher-gate.mjs`, which is what made the Cipher Gate entry mandatory rather
+  than optional. Evidence under **`docs/evidence/2026-09-05/`** — the run crossed midnight UTC and the
   final chain, checks, rewinds and tape all live there; `docs/evidence/2026-09-04/` holds the earlier
   rounds' artifacts and is **history, not the record of this head**. Enumerated rather than left as a directory
   placeholder, since a plan that says `*` cannot be audited against what was actually touched:
@@ -249,7 +254,15 @@ concession the `ClockSeam` plan in run 1 had to make.
     two seams nested one call *inside* an adapter the page already used. The lesson for a future
     run enumerating seams: **walk the call graph, not the list of adapters you can name** — a seam
     reached by an adapter is still a seam the change reaches.
-- **How behaviour stays unchanged:** nothing executable is touched. The ruling neither resolves nor
+- **How the application's behaviour stays unchanged — restated, because the original claim
+  ("nothing executable is touched") became false and stayed false for five commits.** Executable
+  code *is* touched: `scripts/capture-evidence.mjs` is new and `package.json` gains a script entry.
+  Neither is application code and neither is reachable from the app — `scripts/` is build tooling,
+  the new file is invoked only by `npm run evidence:capture`, and it is deliberately **not** added to
+  the `verify` chain, so the gate CI runs is byte-identical to before. Nothing under `src/`,
+  `contracts/`, `fixtures/` or `tests/` is in the diff. The precise claim is therefore: the shipped
+  application is unchanged, and the change to what a *maintainer* can run is a new command that
+  sequences existing ones. The ruling itself neither resolves nor
   edits the Assumption — it stays Open with its Status text unchanged — and adds no exemption to any
   automated gate. **The precise claim, since the looser one was false:** `assumption-alarm.json`'s
   `blockedSeams` list is byte-identical before and after — `["ImageGenerationSeam", "RateLimitSeam",

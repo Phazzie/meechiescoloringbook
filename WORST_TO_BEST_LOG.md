@@ -6103,3 +6103,83 @@ found defects in code — six of them real, two of which I only understood by ru
 than reading it. That is a better use of a review loop than the thirty rounds before it, and it is
 also the argument for why the shell block needed to become a program: none of these six was
 findable while the sequence lived in a Markdown code fence.
+
+---
+
+## Run 4, correction 39 — 2026-09-05 — capture to a file, and stop trusting a file's existence
+
+Appended, not edited. Four P2s on `4b59a01`, all real. Two of them are the same lesson from opposite
+directions: **the presence of an artifact is not evidence of its contents.**
+
+### 1. Concatenating stdout and stderr destroyed the chronology. Fixed.
+
+`` `${result.stdout}${result.stderr}` `` puts every stderr line after all stdout, whatever order the
+command actually produced them in. The finding points at committed captures where this already shows:
+canvas diagnostics emitted during the run sit below vitest's final pass summary. On a failure the
+error would likewise be detached from the stage that caused it — in a file whose only job is to say
+what happened when.
+
+Fixed by giving `spawnSync` **one file descriptor for both streams** rather than two pipes, and
+reading the file back. Order is preserved because the child writes both into one place, as a terminal
+would.
+
+That change also deletes the previous round's `maxBuffer: 64 MiB` — and the whole question. A pipe
+has a ceiling and the child dies with `ENOBUFS` past it; a file does not. Correction 37 raised the
+ceiling, which is guessing at a number. This removes the thing that has a number.
+
+### 2. rewind's artifact can exist and still be truncated. Fixed.
+
+Correction 38 wrote the wrapper's capture only when `rewind-<Seam>.txt` was absent. But
+`rewind.mjs:88-91` spawns its inner vitest with the **default 1 MiB pipe** and no `maxBuffer`, so a
+verbose failure is killed with `ENOBUFS`; `rewind.mjs:98-109` then writes a *truncated* artifact
+anyway and reports the spawn error to stderr only. My existence check read that truncated file as
+proof the diagnostic was captured, and dropped the wrapper's complete one.
+
+So: correction 38 fixed "the file is missing" and introduced "the file is there but partial". Now any
+failed rewind also gets `rewind-<Seam>-capture.txt` — this run's full capture, file-backed, no
+ceiling — and the table cites both.
+
+The root cause is `rewind.mjs`'s own missing `maxBuffer`. **Not fixing that here**: it is the
+verification machinery, and this close-out edits its own file only. Follow-up 11.
+
+### 3. `proof:tape` can exit 0 having inventoried the wrong folder. Fixed, and demonstrated.
+
+`proof-tape.mjs` inventories `getLatestEvidenceDir()` — the lexicographically last dated folder —
+but writes its report into **today's**. A folder dated ahead of today (a machine with a fast clock
+committing one) makes it read that one and drop the report here. Correction 38's check only asked
+whether `proof-tape.md` existed in this run's folder, so it would have passed.
+
+Reproduced rather than reasoned about:
+
+```
+$ mkdir -p docs/evidence/2026-09-06 && echo '{}' > docs/evidence/2026-09-06/chamber-lock.json
+$ npm run proof:tape                     # exit 0
+$ cat docs/evidence/2026-09-05/proof-tape.json | jq .evidenceDir
+"docs/evidence/2026-09-06"
+```
+
+A green tape in this run's folder, describing another folder, listing none of this run's captures.
+The check now reads `proof-tape.json`'s own `evidenceDir` and fails if it is not this run's — which
+is the same correction as the rewind table two rounds ago: read what the tool reported, don't infer
+it from a filename.
+
+### 4. The plan said "nothing executable is touched". It had been false for five commits. Fixed.
+
+`plan.md`'s Files list enumerated governance and evidence files only, and its behaviour section
+opened "nothing executable is touched" — while the same change adds `scripts/capture-evidence.mjs`
+and a `package.json` script entry. `DECISIONS.md` described the new command correctly, so the two
+governance documents disagreed, and the one a maintainer is told is mandatory was the wrong one.
+
+Both are now listed, and the claim is narrowed to what is actually true: the shipped application is
+unchanged — nothing under `src/`, `contracts/`, `fixtures/` or `tests/` is in the diff, the new file
+is reachable only from `npm run evidence:capture`, and it is deliberately not in the `verify` chain,
+so the gate CI runs is byte-identical. What changed is what a maintainer can run.
+
+I wrote that Files list before the script existed and never revisited it when the scope changed —
+the same failure as the seam-count and consumer-count corrections earlier in this run: a claim about
+a set, left standing after the set changed.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3, 2,
+7, 2, 5, 1, 4 — **one hundred and nine findings across thirty-nine rounds.**
