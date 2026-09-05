@@ -5695,3 +5695,48 @@ Playwright 38 passed against the installed browser.
 Three mutations, each reverted: the label ignoring the attempt's page size (2 tests, after the two
 were added), the mock accepting any record again (1), and the mock's draft validation removed (1).
 Running total for this run: 42.
+
+## Run 7 close-out — round ten: the seam was never asked what a browser actually does
+
+One finding, and it is the one the whole run kept almost committing: a required step that produced
+an artifact rather than a measurement.
+
+`AGENTS.md`'s first core principle is "probe real behavior for any seam that touches the world."
+CreationStoreSeam touches `localStorage`, and its `probe.ts` is a delegation note pointing at
+`probes/browser-seams.probe.mjs`, which writes the fixture's inputs into a real browser and reads
+them back out. The contract change added `styleSelection`; round two updated the fixture's **inputs**
+to carry it. The probe was never re-run. So the outputs sitting beside those inputs — the half that
+is supposed to be *captured* — were hand-maintained to look like a probe result.
+
+The reason that matters is not procedural. Every schema test, every fixture test and every mock test
+this change added reads those outputs. Not one of them could tell a captured value from a typed one,
+because the thing they compare against is the thing that was typed. The suite was as green as it
+would have been if browser storage silently dropped the field.
+
+**Re-ran the probe. It found a divergence.** The committed `output.getCreation` said a record read
+back out of `localStorage` carries no `studioText`, while the record written into it does. Browser
+storage keeps it; the hand-kept copy was wrong, and had been wrong under a green suite. The
+style-bearing creation and draft do round-trip intact — which is what the probe was asked to
+establish — but the answer arrived alongside a fact nobody had checked.
+
+The fix is not just the re-run, because a re-run is a thing a person remembers to do. The seam's
+contract test now asserts that the read-back outputs equal the inputs that went in, field for field.
+A hand-edit that quietly loses a field on the way out is red. Mutations: reverting the fixture to its
+pre-probe outputs (1 red — the new test), and deleting `styleSelection` from the captured read-back
+(2 red — the new test and the round-two mock test). Running total for this run: **44**.
+
+Worth writing down next to round seven's and round nine's lessons, because it is the third face of
+the same coin. Round seven: a mutant that was never run looks like a weak suite. Round nine: a
+passing suite after a refactor is not evidence the refactor did anything. Round ten: a fixture whose
+expected output you wrote yourself cannot tell you what the world does — it can only tell you what
+you already believed.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1388 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser · `node probes/browser-seams.probe.mjs` complete
+(transcript in `docs/evidence/2026-09-05/probe-browser-seams.txt`).
+
+Both `docs/seams.md` rows for this seam now carry a last-probe date of 2026-09-05 rather than
+2026-02-05 and `N/A`.

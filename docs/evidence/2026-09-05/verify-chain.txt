@@ -49,6 +49,7 @@ followed here:
 - npm run rewind -- --seam "CreationStoreSeam (self-contained)"
                  -> rewind-CreationStoreSeam-self-contained.txt
 - npx playwright test -> e2e.txt
+- node probes/browser-seams.probe.mjs -> probe-browser-seams.txt, and the fixture it rewrites
 
 Every one of these was re-run on this head, and so was every artifact the chain writes. The
 exception, stated rather than glossed: the `rewind-*.txt` files naming any seam OTHER than
@@ -118,11 +119,31 @@ no repository file claims a harness that does not ship. An earlier run of this r
 root-level copy of that config into a commit through `git add -A`, while its own log said the file
 was never committed; that is why the exclusion is now mechanical rather than remembered.
 
+## The probe, and why it is in this folder at all
+
+`src/lib/seams/creation-store-seam/probe.ts` is a delegation note: this seam is probed by
+`probes/browser-seams.probe.mjs`, which writes the fixture's inputs into a real browser's
+localStorage and reads them back out. The contract change added `styleSelection` and the fixture's
+INPUTS were updated to carry it — but the probe had not been re-run since, so the outputs beside
+those inputs were hand-maintained rather than captured. Every schema, fixture and mock test in this
+change reads those outputs, so not one of them could have told the difference. A review caught it.
+
+Re-run on this head, and the capture found a divergence: the committed `output.getCreation` claimed
+a record read back out of localStorage carries no `studioText`, while the record written into it
+does. Browser storage keeps it. The style-bearing creation and draft do round-trip intact, which is
+what the probe was asked to establish, but the point stands either way — the outputs were a hand-kept
+copy of what a browser was assumed to return.
+
+The transcript is probe-browser-seams.txt, including why the mandated command cannot launch a
+browser here (the same Chromium 1194/1208 mismatch as the e2e suite, handled the same way). The
+seam's contract test now pins the read-back outputs against the inputs, so a future hand-edit that
+drops a field on the way out is red rather than invisible.
+
 ## Results
 
 - npm run check: 0 errors, 0 warnings
 - npm run lint: exit 0
-- npm test: 1387 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped)
+- npm test: 1388 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped)
 - npm run build: exit 0
 - npm run verify: exit 0, all eight stages (its own transcript is verify-outer.txt; verify.txt is
   only the inner verify-runner stage, so the audit gate and the chain's exit status are captured
@@ -140,9 +161,12 @@ was never committed; that is why the exclusion is now mechanical rather than rem
   command's own output, carrying somebody else's. It is regenerated here, and the count above is the check on
   that: verify-outer.txt and verify.txt must report the same total, or one of them is stale.
 - npm run cipher:gate: exit 0
-- npm run rewind -- --seam "CreationStoreSeam (self-contained)": 15 passed
+- npm run rewind -- --seam "CreationStoreSeam (self-contained)": 16 passed
 - npx playwright test: see the section above — the mandated command fails on a browser-version
   mismatch; the suite passes 38/38 against the installed browser.
+- node probes/browser-seams.probe.mjs: complete; rewrote fixtures/creation-store/sample.json (the
+  session and auth-context fixtures came back byte-identical). Same browser-version caveat as the
+  e2e suite, recorded in probe-browser-seams.txt.
 
 ## The Cipher Gate entry, and what it claims
 
