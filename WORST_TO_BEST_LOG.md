@@ -7713,3 +7713,27 @@ reinterpreted afterwards — which is the failure mode this whole entry is about
 The guard was re-proved red on all three defects after both regex changes: an emptied `e2e.txt` Row
 2, a truncated `verify-outer.txt`, and the two totals set to disagree. A changed regex in a checker
 is a changed checker, and a checker that has not been seen to fail since it changed is not evidence.
+
+#### The measurement, and it went against the hypothesis
+
+Recorded prediction: "if new issues go to 0, both were the regexes; if one remains, that will be
+said." SonarCloud on the next head reports **1 new issue**, down from 2.
+
+So the confirmed fix — `super-linear-regex`, reproduced locally — removed one. **The speculative
+second bounding did not remove the other.** The hypothesis was wrong, which is exactly why it was
+labelled a hypothesis and why the prediction was written before the result.
+
+The `{0,16}` bound stays. It is a small genuine improvement on its own terms and reverting it would
+be pretending the reasoning that produced it was worthless rather than merely unconfirmed. But it is
+**not** the fix for the remaining finding, and nothing here will claim it is.
+
+**One new issue remains, in code this change added, and it is unidentified.** Not "unidentified" in
+the sense the earlier close-out used the word wrongly — that one was identified in this log and I
+had failed to read it. This one genuinely is not identified: `sonarcloud.io` is unreachable from the
+container, `sonarjs.configs.recommended` is clean on the file, and the all-rules scan is noise. It is
+recorded as an open item against `scripts/evidence-guard.mjs`, the quality gate passes, and the next
+run has the file, the command, and this paragraph rather than a guess.
+
+Two attempts at reproducing a checker I cannot reach have now produced one hit and one miss. That is
+a better record than the earlier "it found nothing, so there is nothing", and it is still not the
+same as knowing.
