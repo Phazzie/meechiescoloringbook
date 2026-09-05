@@ -62,12 +62,18 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange reb
 	// The summary reads the live controls, so it keeps describing the page while the panel is shut.
 	// The wig is deliberately absent: it belongs to the try-on studio's own summary, and naming it
 	// here would put a second, staler copy of that fact on the page.
+	//
+	// Except when the page's own style is not on file. The panel ships shut, so summarising the
+	// reader's controls there stated exactly the false provenance this whole panel exists to stop —
+	// with the correction hidden inside, visible only to a reader who chose to open it.
 	const summary = $derived(
-		summarizeStyleSelection({
-			themeId: selectedThemeId,
-			voice: { intensity, rawness, thirdPerson },
-			glitter
-		})
+		styleSelectionUnknown
+			? "This page's style is not on file"
+			: summarizeStyleSelection({
+					themeId: selectedThemeId,
+					voice: { intensity, rawness, thirdPerson },
+					glitter
+				})
 	);
 </script>
 

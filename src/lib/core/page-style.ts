@@ -12,28 +12,11 @@
  *             rather than rendering `undefined` to a reader.
  */
 import { studioThemes, type StudioTheme } from '$lib/core/meechie-studio';
-import {
-	MeechieStudioVoiceSettingsSchema,
-	type MeechieStudioVoiceSettings
-} from '$lib/seams/meechie-studio-text-seam/contract';
+import type { MeechieStudioVoiceSettings } from '$lib/seams/meechie-studio-text-seam/contract';
 
 type Intensity = MeechieStudioVoiceSettings['intensity'];
 type Rawness = MeechieStudioVoiceSettings['rawness'];
 type ThirdPerson = MeechieStudioVoiceSettings['thirdPerson'];
-
-/**
- * The values each voice control offers, read off the seam's own enums.
- *
- * Taken from the schema rather than restated as a literal array, so a value added to
- * `MeechieStudioVoiceSettingsSchema` appears in the panel by construction instead of being a
- * dropdown entry someone has to remember to add in a second place.
- */
-export const INTENSITY_OPTIONS: readonly Intensity[] =
-	MeechieStudioVoiceSettingsSchema.shape.intensity.options;
-export const RAWNESS_OPTIONS: readonly Rawness[] =
-	MeechieStudioVoiceSettingsSchema.shape.rawness.options;
-export const THIRD_PERSON_OPTIONS: readonly ThirdPerson[] =
-	MeechieStudioVoiceSettingsSchema.shape.thirdPerson.options;
 
 /**
  * The wig, as the style hint sees it.
@@ -160,6 +143,21 @@ export const THIRD_PERSON_HELP: Record<ThirdPerson, string> = {
 	always: 'Meechie always refers to herself by name.',
 	never: 'Meechie speaks as "I" throughout.'
 };
+
+/**
+ * The values each voice control offers, in the order the panel lists them.
+ *
+ * Derived from the label tables' keys rather than restated, and rather than read off the Zod
+ * schema at runtime. The tables are `Record<Enum, string>`, so the *type* already forces them to be
+ * total: a value added to `MeechieStudioVoiceSettingsSchema` fails compilation here, and these
+ * lists follow automatically. That keeps the drift guarantee — the reason the schema was being read
+ * in the first place — without core reaching into a validator's representation of its own enums.
+ * `tests/unit/page-style.test.ts` drives the schema's `.options` against these, so the seam and the
+ * panel are still proved equal, in the place where importing the schema costs nothing.
+ */
+export const INTENSITY_OPTIONS = Object.keys(INTENSITY_LABELS) as readonly Intensity[];
+export const RAWNESS_OPTIONS = Object.keys(RAWNESS_LABELS) as readonly Rawness[];
+export const THIRD_PERSON_OPTIONS = Object.keys(THIRD_PERSON_LABELS) as readonly ThirdPerson[];
 
 /**
  * One sentence naming the current selection, for the collapsed panel.

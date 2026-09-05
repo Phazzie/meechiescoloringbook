@@ -5170,3 +5170,78 @@ into the harness.
 The durable version is not "remember to commit": it is that a harness which reverts by path must
 refuse to run against a dirty tree. A future run building one should make it check
 `git diff --quiet` first and stop, rather than trusting the operator to have committed.
+
+## Run 7, second close-out — 2026-09-05 — the Codex round on `e4e1b59`
+
+Five more findings on the fixes themselves. **All five were right**, and one of them is the *third*
+appearance of this run's own defect — which is the finding worth recording.
+
+### The same bug, a third time, one await earlier
+
+Run 7 fixed "the reopened page's controls do not describe it". The first Codex round found the same
+defect at save time. This round found it at **request time**: `handleGeneratePage` sent
+`styleHint: this.currentStyleHint()`, then — after the network round trip — assigned
+`generatedStyleSelection = this.currentStyleSelection()`. The Page Controls stay enabled while a
+generation is in flight and moving one does not advance `pageLoadToken`, so a theme changed
+mid-request was recorded as the style of a picture drawn from the previous hint.
+
+Three occurrences, one shape: **reading a value twice and assuming the two reads agree.** Now one
+`requestedStyle` is captured before `postJson`, used to build the hint, and assigned afterwards. The
+try-on path got the same treatment, where the existing code already captured `wig` before its await
+for exactly this reason — the precedent was sitting two lines above the bug.
+
+### The other four
+
+- **P1 — a live wig beat a restored page's provenance.** `loadCreation` does not clear
+  `selectedWig`, and `currentStyleSelection` preferred the live carousel. A reader browsing wigs who
+  reopened a page saved *without* one rebuilt that page's hint with the unrelated wig. The cause was
+  a type that could not express the distinction: `StyleWig | undefined` collapses "no restored page"
+  and "restored page with no wig". It is now `{ value: StyleWig | undefined } | null`, three states,
+  cleared when the reader picks a wig — which is the moment the live selection becomes theirs again.
+- **P1 — the seam fixtures never carried the new field.** The contract gained `styleSelection` and
+  the contract test parsed the schema directly, so no *mock* scenario ever proved the field survives
+  save/get/list/draft. That is the SDD workflow half-done — the exact thing this log's scope rule
+  forbids — and I had claimed it was done properly. `fixtures/creation-store/sample.json` now carries
+  it through inputs and outputs, and a test drives it through the mock rather than the schema.
+- **P1 — core reached into Zod's representation of the seam's enums.** `page-style.ts` runtime-imported
+  `MeechieStudioVoiceSettingsSchema` to read `.shape.<field>.options`. The cited mandate is arguably
+  already bent by every other core pipeline (`generate-pipeline`, `chat-interpretation-pipeline` and
+  `image-generation-pipeline` all runtime-import contract schemas), so the *precedent* defence was
+  available — and taking it would have kept a coupling for no benefit. The better answer keeps the
+  drift guarantee and drops the import: the option lists are now `Object.keys` of the label tables,
+  which are `Record<Enum, string>` and therefore **total by the type system**. A value added to the
+  seam fails compilation. The schema is still driven against the tables — in the test, where
+  importing it costs nothing.
+- **P2 — the shut panel still asserted false provenance.** The `<details>` ships closed, so a
+  reopened legacy page summarised the *reader's* controls in the one line they could see, with the
+  correction hidden inside. The summary now reads "This page's style is not on file". This is the
+  run's own thesis applied to the run's own fix: a control that displays state it does not own is a
+  lie, and putting the truth one click away does not undo it.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1353 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · Playwright 37 passed against the installed browser (the mandated
+`npx playwright test` still fails on the container's browser-version mismatch, unchanged).
+
+Four more mutations, each reverted after:
+
+| Mutation | Caught by |
+|---|---|
+| style re-read after the generate await | 1 test |
+| live wig overrides a restored page's provenance | 5 tests |
+| fixture no longer carries `styleSelection` | 1 test |
+| summary stops reporting unknown provenance | 1 e2e test |
+
+The e2e for the last one seeds a pre-field record through `localStorage`, because the case is a
+record that predates the field and there is no longer any way to produce one through the UI. The
+first version of that test asserted only that the *normal* summary lacks the phrase — a test that
+could not fail for the right reason, which is the thing this log keeps saying is not evidence.
+
+### And the scratch config nearly shipped
+
+`pw.local.config.ts` — the uncommitted Playwright override that points at this container's Chromium
+— was swept into a commit by `git add -A` and caught only by reading `git ls-files` afterwards. It
+is the same failure mode as the two `git checkout` incidents above: a blunt command over a whole
+tree, trusted rather than checked. Removed from tracking; the log's claim that the override "is not
+committed" is true again.

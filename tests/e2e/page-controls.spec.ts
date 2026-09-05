@@ -69,6 +69,66 @@ test('every control explains the value it is currently set to', async ({ page })
 	await expect(panel.locator('.settings-lede')).toContainText('until you make it again');
 });
 
+test('the closed panel says so when a page carries no style of its own', async ({ page }) => {
+	// A record written before styles were stored restores a page whose look is not on file. The
+	// panel ships shut, so the summary is where the reader has to be told — a notice only visible
+	// after they choose to expand it states the false provenance for as long as it stays closed.
+	//
+	// Seeded through localStorage because the point is a record that predates the field: there is
+	// no way to produce one through the UI any more.
+	await page.goto('/');
+	await page.waitForSelector('[data-hydrated="true"]');
+	await page.evaluate(() => {
+		const sessionId = localStorage.getItem('cb_session_id_v1');
+		localStorage.setItem(
+			'cb_creations_v1',
+			JSON.stringify([
+				{
+					id: 'legacy-page',
+					createdAtISO: '2026-09-01T00:00:00.000Z',
+					intent: {
+						title: 'A PAGE FROM BEFORE',
+						items: [{ number: 1, label: 'ONE LINE' }],
+						listMode: 'list',
+						alignment: 'left',
+						numberAlignment: 'strict',
+						listGutter: 'normal',
+						whitespaceScale: 50,
+						textSize: 'small',
+						fontStyle: 'rounded',
+						textStrokeWidth: 6,
+						colorMode: 'black_and_white_only',
+						decorations: 'minimal',
+						illustrations: 'none',
+						shading: 'none',
+						border: 'decorative',
+						borderThickness: 8,
+						variations: 1,
+						outputFormat: 'png',
+						pageSize: 'US_Letter'
+					},
+					assembledPrompt: 'a prompt from before styles were stored',
+					owner: { kind: 'anonymous', sessionId }
+				}
+			])
+		);
+	});
+	await page.reload();
+	await page.waitForSelector('[data-hydrated="true"]');
+
+	const panel = page.locator('.settings-panel');
+	// Before reopening it, the panel describes the reader's own controls, as it should.
+	await expect(panel.locator('summary strong')).toHaveText('Crown Energy · Receipts Out · Mild');
+
+	await page.getByRole('button', { name: /A PAGE FROM BEFORE/ }).first().click();
+
+	// Now the page on the paper is one whose style nobody recorded, and the shut panel says so
+	// rather than presenting the reader's settings as that page's.
+	await expect(panel.locator('summary strong')).toHaveText("This page's style is not on file");
+	await panel.locator('summary').click();
+	await expect(panel.getByTestId('home-style-unknown')).toBeVisible();
+});
+
 test('glitter reaches the summary only when it is on', async ({ page }) => {
 	const panel = await openPanel(page);
 

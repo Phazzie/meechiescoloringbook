@@ -76,6 +76,19 @@
         "owner": {
           "kind": "anonymous",
           "sessionId": "session-123"
+        },
+        "styleSelection": {
+          "themeId": "receipts",
+          "voice": {
+            "intensity": "no_mercy",
+            "rawness": "raw",
+            "thirdPerson": "always"
+          },
+          "glitter": true,
+          "wig": {
+            "name": "Honey Drip",
+            "style": "body wave"
+          }
         }
       }
     },
@@ -144,6 +157,19 @@
             }
           ],
           "qualityState": "ready"
+        },
+        "styleSelection": {
+          "themeId": "receipts",
+          "voice": {
+            "intensity": "no_mercy",
+            "rawness": "raw",
+            "thirdPerson": "always"
+          },
+          "glitter": true,
+          "wig": {
+            "name": "Honey Drip",
+            "style": "body wave"
+          }
         }
       }
     },
@@ -227,6 +253,19 @@
         "owner": {
           "kind": "anonymous",
           "sessionId": "session-123"
+        },
+        "styleSelection": {
+          "themeId": "receipts",
+          "voice": {
+            "intensity": "no_mercy",
+            "rawness": "raw",
+            "thirdPerson": "always"
+          },
+          "glitter": true,
+          "wig": {
+            "name": "Honey Drip",
+            "style": "body wave"
+          }
         }
       }
     },
@@ -307,6 +346,19 @@
           "owner": {
             "kind": "anonymous",
             "sessionId": "session-123"
+          },
+          "styleSelection": {
+            "themeId": "receipts",
+            "voice": {
+              "intensity": "no_mercy",
+              "rawness": "raw",
+              "thirdPerson": "always"
+            },
+            "glitter": true,
+            "wig": {
+              "name": "Honey Drip",
+              "style": "body wave"
+            }
           }
         }
       ]
@@ -371,6 +423,19 @@
         "owner": {
           "kind": "anonymous",
           "sessionId": "session-123"
+        },
+        "styleSelection": {
+          "themeId": "receipts",
+          "voice": {
+            "intensity": "no_mercy",
+            "rawness": "raw",
+            "thirdPerson": "always"
+          },
+          "glitter": true,
+          "wig": {
+            "name": "Honey Drip",
+            "style": "body wave"
+          }
         }
       }
     },
@@ -432,6 +497,19 @@
             }
           ],
           "qualityState": "ready"
+        },
+        "styleSelection": {
+          "themeId": "receipts",
+          "voice": {
+            "intensity": "no_mercy",
+            "rawness": "raw",
+            "thirdPerson": "always"
+          },
+          "glitter": true,
+          "wig": {
+            "name": "Honey Drip",
+            "style": "body wave"
+          }
         }
       }
     },
@@ -489,6 +567,19 @@
             }
           ],
           "qualityState": "ready"
+        },
+        "styleSelection": {
+          "themeId": "receipts",
+          "voice": {
+            "intensity": "no_mercy",
+            "rawness": "raw",
+            "thirdPerson": "always"
+          },
+          "glitter": true,
+          "wig": {
+            "name": "Honey Drip",
+            "style": "body wave"
+          }
         }
       }
     },

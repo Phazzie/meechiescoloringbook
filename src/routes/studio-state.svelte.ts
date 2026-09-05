@@ -189,12 +189,21 @@ export class StudioState {
 	 */
 	settingsError = $state('');
 	/**
-	 * The wig named by a reopened page's stored style, when no wig is selected now.
+	 * The wig provenance of a reopened page, or `null` when the page on the paper is not one.
 	 *
-	 * See `currentStyleSelection`. Not `$state`: nothing renders it, and it is read only while
-	 * composing the hint.
+	 * Three states, and the wrapper is what makes the middle one expressible:
+	 *   `null`            — no restored page; the hint takes the live wig.
+	 *   `{ value: undefined }` — a restored page whose stored style had *no* wig.
+	 *   `{ value: wig }`  — a restored page whose stored style had that wig.
+	 *
+	 * A bare `StyleWig | undefined` collapsed the first two, so a reader who had any wig selected
+	 * and then reopened a page saved without one rebuilt that page's hint with the unrelated live
+	 * wig — `loadCreation` does not clear `selectedWig`. Cleared by `resetGeneratedPage` and by the
+	 * reader picking a wig, which is the moment the live selection becomes theirs again.
+	 *
+	 * Not `$state`: nothing renders it, and it is read only while composing the hint.
 	 */
-	private restoredStyleWig: StyleWig | undefined = undefined;
+	private restoredStyleWig: { value: StyleWig | undefined } | null = null;
 	/**
 	 * The style that produced the page currently on the paper.
 	 *
@@ -580,9 +589,14 @@ export class StudioState {
 	 * fallback, so it can never outlive the page it was restored for.
 	 */
 	currentStyleSelection(): StyleSelection {
-		const wig = this.selectedWig
-			? { name: this.selectedWig.name, style: this.selectedWig.style }
-			: this.restoredStyleWig;
+		// A restored page's stored provenance wins over the live carousel, including when that
+		// provenance is "no wig". Only once there is no restored page — or the reader picks a wig —
+		// does the live selection describe what is on the paper.
+		const wig = this.restoredStyleWig
+			? this.restoredStyleWig.value
+			: this.selectedWig
+				? { name: this.selectedWig.name, style: this.selectedWig.style }
+				: undefined;
 		return {
 			themeId: this.selectedThemeId,
 			voice: $state.snapshot(this.voice),
@@ -611,7 +625,7 @@ export class StudioState {
 		this.selectedThemeId = themeForSelection(selection).id;
 		this.voice = { ...selection.voice };
 		this.glitter = selection.glitter;
-		this.restoredStyleWig = selection.wig;
+		this.restoredStyleWig = { value: selection.wig };
 	}
 
 	/**
@@ -777,7 +791,7 @@ export class StudioState {
 		// Both of these describe a *restored* page, and this is the moment there stops being one.
 		// `loadCreation` calls this first and applies the restored style after, so a reopen still
 		// gets its own values; every other caller is starting a page the controls genuinely describe.
-		this.restoredStyleWig = undefined;
+		this.restoredStyleWig = null;
 		this.generatedStyleSelection = undefined;
 	}
 
@@ -937,6 +951,10 @@ export class StudioState {
 	selectWigForTryOn = async (wig: Wig): Promise<void> => {
 		const wigChanged = wig.id !== this.selectedWigId;
 		this.selectedWig = wig;
+		// The reader has taken the wig back, so a reopened page's stored wig provenance stops
+		// speaking for the hint. Set unconditionally: re-picking the wig that is already selected is
+		// still the reader choosing it, and `wigChanged` is false in exactly that case.
+		this.restoredStyleWig = null;
 		if (wigChanged) {
 			// The coloring page on screen was made from the previous wig's portrait, so it goes.
 			// The portraits themselves stay: `tryOnPortraitUrl` follows the selected wig, so this
@@ -1120,11 +1138,16 @@ export class StudioState {
 				this.generationError = 'Fix the page settings before generating.';
 				return;
 			}
+			// One selection, read once, used for both the request and the record. Reading it again
+			// after the await was a race: the Page Controls stay enabled while a generation is in
+			// flight and moving one does not advance `pageLoadToken`, so a theme changed mid-request
+			// would be recorded as the style of a picture drawn from the previous hint.
+			const requestedStyle = this.currentStyleSelection();
 			const payload = await postJson(
 				'/api/generate',
 				{
 					spec: $state.snapshot(this.spec),
-					styleHint: this.currentStyleHint()
+					styleHint: buildStyleHint(requestedStyle)
 				},
 				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
 			);
@@ -1139,10 +1162,8 @@ export class StudioState {
 				return;
 			}
 			this.assembledPrompt = parsed.data.value.prompt;
-			// Captured here, with the prompt and the picture it belongs to. `applyTextToSpec` above
-			// composed the hint from these same controls, so this is the selection that was actually
-			// sent — not whatever the panel says by the time the reader presses Save.
-			this.generatedStyleSelection = this.currentStyleSelection();
+			// The selection the request actually carried, not the controls as they stand now.
+			this.generatedStyleSelection = requestedStyle;
 			this.images = parsed.data.value.images;
 			this.revisedPrompt = parsed.data.value.revisedPrompt || '';
 			this.violations = parsed.data.value.violations;
@@ -1193,6 +1214,10 @@ export class StudioState {
 		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
 		try {
+			// Captured before the await, like `wig` above and like the generate path: the spec this
+			// page gets is built from these controls, so reading them again afterwards could record
+			// a style the page was not built with.
+			const requestedStyle = this.currentStyleSelection();
 			await this.syncSpecFromCurrentText();
 			if (pageToken !== this.pageLoadToken) return;
 			const portraitImage = this.parseTryOnPortraitImage(portraitUrl);
@@ -1221,8 +1246,8 @@ export class StudioState {
 			// as the reader's facts on their next Generate Verdict — the defect recorded at that
 			// call site.
 			this.assembledPrompt = `Wig try-on portrait — ${wig.name} (${wig.style}).`;
-			// Same capture as the normal generate path, for the same reason.
-			this.generatedStyleSelection = this.currentStyleSelection();
+			// The selection the page was actually built from. Same rule as the generate path.
+			this.generatedStyleSelection = requestedStyle;
 			// Re-validated because the title above was written after `syncSpecFromCurrentText` had
 			// already validated. Checking the issues it left would be checking the previous spec.
 			await this.validateSpec();

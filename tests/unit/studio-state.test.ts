@@ -2605,6 +2605,86 @@ describe('StudioState page style', () => {
 		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
 	});
 
+	it('records the style the request carried, not one chosen while it was in flight', async () => {
+		// The Page Controls stay enabled during a generation and moving one does not advance
+		// `pageLoadToken`, so reading the controls after the await recorded a style the picture was
+		// not drawn from.
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.selectedThemeId = 'receipts';
+		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
+		studio.glitter = true;
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+
+		let sentHint = '';
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+				sentHint = JSON.parse(String(init?.body)).styleHint;
+				// The reader moves a control while the request is still in flight.
+				studio.selectedThemeId = 'church-glam';
+				studio.glitter = false;
+				return new Response(
+					JSON.stringify({
+						ok: true,
+						value: {
+							prompt: 'the prompt this page was made with',
+							templateVersion: 'v2',
+							images: [
+								{
+									id: 'image-1',
+									format: 'png',
+									mimeType: 'image/png',
+									data: PAGE_STYLE_PNG_BASE64,
+									encoding: 'base64'
+								}
+							],
+							violations: [],
+							recommendedFixes: []
+						}
+					}),
+					{ status: 200, statusText: 'OK' }
+				);
+			})
+		);
+
+		await studio.handleGeneratePage();
+		expect(sentHint).toContain('receipt collage');
+
+		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		await studio.saveToVault();
+
+		// The record matches the hint that was sent, not the controls as they ended up.
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
+	});
+
+	it('keeps a reopened page on its own wig provenance, even against a live selection', async () => {
+		// `loadCreation` does not clear `selectedWig`, so a reader browsing wigs who then reopens a
+		// page saved without one rebuilt that page's hint with the unrelated live wig.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.selectedWig = SAMPLE_WIG;
+
+		await studio.loadCreation(makeStyledCreation({ styleSelection }));
+
+		// The stored style had no wig, and that is provenance, not absence of information.
+		expect(studio.currentStyleSelection().wig).toBeUndefined();
+		// The try-on studio still shows what the reader was looking at. Compared by id: `selectedWig`
+		// is `$state`, so it comes back as a proxy and is never identical to the source object.
+		expect(studio.selectedWigId).toBe(SAMPLE_WIG.id);
+
+		// Picking a wig is the reader taking it back, and the hint follows again.
+		await studio.selectWigForTryOn(OTHER_WIG);
+		expect(studio.currentStyleSelection().wig).toEqual({
+			name: OTHER_WIG.name,
+			style: OTHER_WIG.style
+		});
+	});
+
 	it('reports a page whose style is not on file, and stops once a new page is made', async () => {
 		const studio = registerInitialized(new StudioState());
 		await studio.init();

@@ -90,6 +90,35 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 		).toBe(false);
 	});
 
+	it('carries the style selection through the mock, not only through the schema', async () => {
+		// The fixture is what the mandated mock replays, so a field the fixture does not carry is a
+		// field no consumer tested against the mock can notice losing. Parsing the schema directly
+		// proves the shape is legal; this proves the seam actually hands it back.
+		const mock = createCreationStoreMock('sample');
+		const expected = creationStoreSampleFixture.input.saveCreation.record.styleSelection;
+		expect(expected).toBeDefined();
+
+		const saved = await mock.saveCreation(creationStoreSampleFixture.input.saveCreation);
+		expect(saved.ok && saved.value.styleSelection).toEqual(expected);
+
+		const fetched = await mock.getCreation(creationStoreSampleFixture.input.getCreation);
+		expect(fetched.ok && fetched.value?.styleSelection).toEqual(expected);
+
+		const listed = await mock.listCreations(creationStoreSampleFixture.input.listCreations);
+		expect(listed.ok).toBe(true);
+		if (listed.ok) {
+			expect(listed.value.length).toBeGreaterThan(0);
+			for (const record of listed.value) {
+				expect(record.styleSelection).toEqual(expected);
+			}
+		}
+
+		const draft = await mock.getDraft(creationStoreSampleFixture.input.getDraft);
+		expect(draft.ok && draft.value?.styleSelection).toEqual(
+			creationStoreSampleFixture.input.saveDraft.draft.styleSelection
+		);
+	});
+
 	it('mock returns sample fixture outputs', async () => {
 		const mock = createCreationStoreMock('sample');
 		expect(await mock.saveCreation(creationStoreSampleFixture.input.saveCreation)).toEqual(
