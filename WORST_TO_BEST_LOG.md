@@ -5423,3 +5423,53 @@ total for this run: 25.
 
 The commit-before-mutating rule held. The harness reverts by path, so it was run only against a
 committed tree, and `git diff --quiet` was checked before and after each batch.
+
+## Run 7 close-out — round five: the field I did not think of was the one that mattered
+
+One finding, and it lands squarely on round four's fix.
+
+Round four's defect was that the record's spec is written from the *live* spec, which
+`applyTextToSpec` rebuilds on every setting change. I fixed it by snapshotting page size and
+border with the artifact — the two fields I had thought of, because they are the two Page Controls
+that live in the spec.
+
+`decorations` also lives in the spec, and it is not chosen. It is **derived from the style hint** —
+the exact string this whole run made storable. So: generate under a dense theme, switch to a
+minimal one, save without regenerating. The record gets the original `styleSelection`, the original
+prompt and the original image, beside a recomputed `intent.decorations`. One picture, two stored
+answers about how dense it is, disagreeing with each other. Reopening preserves the contradiction,
+and a paid regeneration can be built from it.
+
+I had written, in the module comment, in the decision entry and in a reply to a reviewer, that page
+size and border were the fields that could drift. That was a list, and a list of the cases I
+happened to think of is not a rule. The rule is: *the record's spec should be the spec that made
+the artifact.* Snapshot the spec, and the field, its whole `presentation` group, and whatever is
+added to that group next are all covered without anyone having to think of them.
+
+The two rounds are the same lesson twice, at different sizes. Round four: "persisted" and
+"persisted as the thing it describes" are different claims. Round five: fixing the instances you
+can name is not fixing the class.
+
+### The one field deliberately left out, and why
+
+`dedication` still comes from the live spec. It is the only field here the reader types rather than
+picks from a control, and a dedication entered after generating is on no page either way — so
+taking the snapshot's would silently throw away what they had just written. That is a different
+defect from the one being removed, and not one to introduce while removing it. That a typed
+dedication can describe a picture without it predates this run and belongs with drift reporting.
+
+It is carried across by deleting the key rather than by spreading `undefined`, because
+`{ ...spec, dedication: undefined }` keeps the key, survives `$state.snapshot`, and parses against
+an `.optional()` schema — leaving a record carrying a field it does not have. "No dedication" and
+"a dedication that is nothing" are different, and only one of them is true.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1372 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 7 passed ·
+Playwright 38 passed against the installed browser · SonarCloud 0 new issues, duplication back to
+0.0% after the test-setup extraction that round four's own scan turned up.
+
+Three more mutations, each reverted, each caught: narrowing the snapshot back to the two paper
+fields (2 tests), taking the dedication from the snapshot as well (2), and spreading `undefined`
+instead of deleting the key (1). Running total for this run: 28.
