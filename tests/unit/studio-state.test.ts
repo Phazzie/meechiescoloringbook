@@ -2662,6 +2662,99 @@ describe('StudioState page style', () => {
 		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
 	});
 
+	it('regenerates a reopened page with its own wig, not the one left in the carousel', async () => {
+		// `handleGeneratePage` calls `resetGeneratedPage` first, which clears the restored wig
+		// provenance. The theme, voice and glitter survive that reset because they live on the
+		// controls, so the wig has to as well — otherwise the paid request describes a page that is
+		// partly the record's and partly the carousel's.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		await studio.loadCreation(
+			makeStyledCreation({
+				styleSelection: { ...styleSelection, wig: { name: 'Honey Drip', style: 'body wave' } }
+			})
+		);
+		// A wig left selected in the carousel, without the reader picking it since the restore.
+		studio.selectedWig = SAMPLE_WIG;
+
+		let sentHint = '';
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+				sentHint = JSON.parse(String(init?.body)).styleHint;
+				return new Response(
+					JSON.stringify({
+						ok: true,
+						value: {
+							prompt: 'a prompt',
+							templateVersion: 'v2',
+							images: [
+								{
+									id: 'image-1',
+									format: 'png',
+									mimeType: 'image/png',
+									data: PAGE_STYLE_PNG_BASE64,
+									encoding: 'base64'
+								}
+							],
+							violations: [],
+							recommendedFixes: []
+						}
+					}),
+					{ status: 200, statusText: 'OK' }
+				);
+			})
+		);
+
+		await studio.handleGeneratePage();
+
+		expect(sentHint).toContain('featuring Honey Drip (body wave)');
+		expect(sentHint).not.toContain(SAMPLE_WIG.name);
+	});
+
+	it('saves the controls as the style of a page that never generated an image', async () => {
+		// A verdict with no picture is saveable — `assembledPrompt` falls back to the quote — and it
+		// has no artifact snapshot, because only the generate paths take one. Its controls did author
+		// the spec being saved, so they are its style; filing it as "not on file" would report an
+		// unknown for a page whose style is perfectly well known.
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.selectedThemeId = 'receipts';
+		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
+		studio.glitter = true;
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		expect(studio.assembledPrompt).toBe('');
+		expect(studio.styleSelectionUnknown).toBe(false);
+
+		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
+	});
+
+	it('still files a reopened page with no stored style as unknown when it is saved again', async () => {
+		// The other side of the case above: here the prompt and picture came from choices nobody
+		// wrote down, so the controls are the reader's and not the page's. Re-saving must not invent
+		// provenance for it.
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		await studio.loadCreation(makeStyledCreation());
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toBeUndefined();
+	});
+
 	it('keeps a reopened page on its own wig provenance, even against a live selection', async () => {
 		// `loadCreation` does not clear `selectedWig`, so a reader browsing wigs who then reopens a
 		// page saved without one rebuilt that page's hint with the unrelated live wig.

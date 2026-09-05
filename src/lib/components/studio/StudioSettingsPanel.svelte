@@ -92,9 +92,8 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange reb
 	<div class="settings-content">
 		{#if styleSelectionUnknown}
 			<p class="settings-notice" data-testid="home-style-unknown">
-				This page was saved before the studio kept styles with pages, so its own look is not on
-				file. These controls still show your settings, not the ones that made it — changing any
-				of them will restyle the page.
+				This page's own look was not stored with it. These controls still show your settings, not
+				the ones that made it — changing any of them will restyle the page.
 			</p>
 		{/if}
 

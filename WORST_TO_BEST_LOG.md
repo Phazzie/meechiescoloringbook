@@ -4996,7 +4996,7 @@ have been a false claim about Svelte sitting in the codebase forever.
 | `npm test` | 1347 passed, 1 skipped (was 1319 passed, 1 skipped; **+28 tests**) |
 | `npm run build` | built |
 | `npm run verify` | **exit 0**, evidence refreshed in `docs/evidence/2026-09-05/` |
-| `npm run rewind -- --seam CreationStoreSeam` | 4 passed |
+| `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` | 7 passed — see the third close-out; the un-suffixed name runs the *legacy* seam and proves nothing about this change |
 | `npx playwright test` | **fails in this container** — all 36 error before any test body runs; see below |
 | Playwright against the installed browser | 36 passed (32 existing + 4 new) |
 
@@ -5245,3 +5245,72 @@ could not fail for the right reason, which is the thing this log keeps saying is
 is the same failure mode as the two `git checkout` incidents above: a blunt command over a whole
 tree, trusted rather than checked. Removed from tracking; the log's claim that the override "is not
 committed" is true again.
+
+## Run 7, third close-out — 2026-09-05 — the Codex round on `5a60192`
+
+Five findings, all correct. Two of them say the same thing about this run's discipline: **a claim
+of "verified" is only as good as the thing the command actually ran.**
+
+### The verification that verified nothing
+
+`npm run rewind -- --seam CreationStoreSeam` was recorded in this log as the seam-scoped proof for a
+contract change. It reported 4 passing tests. The file this run modified —
+`src/lib/seams/creation-store-seam/test.ts` — contains **seven**.
+
+`docs/seams.md` carries two rows for this seam: `CreationStoreSeam` (the legacy flat layout) and
+`CreationStoreSeam (self-contained)`. `rewind.mjs` resolves the exact name first, so the
+un-suffixed name ran `tests/contract/creation-store.test.ts` — a file this branch never touched.
+Measured, not argued:
+
+| Command | Tests run |
+|---|---|
+| `npm run rewind -- --seam CreationStoreSeam` | 4 |
+| `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` | 7 |
+
+The verification table above is corrected. The evidence was not wrong about what it ran; the entry
+was wrong about what that meant — which is the more dangerous kind, because it reads as a green
+check.
+
+**And the seam was missing a required artifact.** `src/lib/seams/AGENTS.md` lists `validators.ts`
+among the files that must exist for "any new or **modified** seam folder"; 19 of the 26 seams have
+one and `creation-store-seam` was among the seven that do not. Added, re-exporting the contract's
+schemas rather than restating them, with the non-throwing variants the production adapter's
+skip-the-corrupt-record behaviour actually needs.
+
+Both of these were checkable at any point in this run by reading the governance file and counting
+the tests. Neither was, until a reviewer did it.
+
+### The same defect, a fourth and fifth time
+
+- **The paid request dropped a reopened page's wig.** `handleGeneratePage` calls
+  `resetGeneratedPage` — which clears the restored wig provenance — *before* capturing
+  `requestedStyle`. Theme, voice and glitter survive that reset because they live on the controls,
+  so regenerating a reopened page sent a hint that was partly the record's and partly the carousel's.
+  The capture moved above the reset.
+- **A page saved without ever generating an image stored no style.** `saveToVault` accepts a
+  text-only page — `assembledPrompt` falls back to `textOutput.quote` — and `generatedStyleSelection`
+  is only set by the two generate paths, so such a record was filed with no style and reopened as
+  "not on file". Its controls *did* author its spec. The save now falls back to the live selection
+  exactly when `styleSelectionUnknown` is false, which is precisely the case where the controls are
+  the page's own rather than the reader's.
+
+I nearly pushed back on the second of these, on the belief that `saveToVault` required a generated
+prompt. Reading the guard first showed it does not. The instinct to defend was wrong and cheap to
+check.
+
+### And the notice was telling readers something false
+
+"This page was saved before the studio kept styles with pages" is not true of every page reaching
+it: `MeechieTools.svelte` and `verdict-page-state.svelte.ts` still save without a `styleSelection` —
+a deferred item this run recorded itself — so a page created minutes ago on either surface reopens
+into that notice with a fabricated explanation. It now says only what is known: the page's own look
+was not stored with it.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1356 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 7 passed ·
+Playwright 37 passed against the installed browser · SonarCloud 0 new issues.
+
+Two more mutations, each reverted after: capturing the style after the reset again (1 test), and
+dropping the text-only fallback (1 test).

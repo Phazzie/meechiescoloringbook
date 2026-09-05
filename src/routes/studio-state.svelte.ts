@@ -1131,6 +1131,11 @@ export class StudioState {
 			this.generationError = 'Generate Meechie words before creating the page.';
 			return;
 		}
+		// Read before `resetGeneratedPage`, which clears the restored wig provenance. Regenerating a
+		// reopened page keeps its theme, voice and glitter — those live on the controls and the reset
+		// does not touch them — so the wig has to keep pace or the paid request goes out describing a
+		// page that is partly the record's and partly the carousel's.
+		const requestedStyle = this.currentStyleSelection();
 		this.resetGeneratedPage();
 		// The same capture the try-on path makes, for the same reason: everything below is read
 		// after an await, and every path that replaces the paper advances this token. Without it a
@@ -1145,11 +1150,10 @@ export class StudioState {
 				this.generationError = 'Fix the page settings before generating.';
 				return;
 			}
-			// One selection, read once, used for both the request and the record. Reading it again
-			// after the await was a race: the Page Controls stay enabled while a generation is in
-			// flight and moving one does not advance `pageLoadToken`, so a theme changed mid-request
-			// would be recorded as the style of a picture drawn from the previous hint.
-			const requestedStyle = this.currentStyleSelection();
+			// `requestedStyle` was read at the top, before the reset. One read, used for both the
+			// request and the record: reading it again after the await was a race, because the Page
+			// Controls stay enabled while a generation is in flight and moving one does not advance
+			// `pageLoadToken`.
 			const payload = await postJson(
 				'/api/generate',
 				{
@@ -1424,7 +1428,14 @@ export class StudioState {
 					// its look. Reading it live would store whatever the panel happens to say at save
 					// time, which after a post-generation control change is a style that never made
 					// this image.
-					styleSelection: this.generatedStyleSelection,
+					// A page saved without ever generating an image has no artifact snapshot — only the
+					// generate paths take one — but its controls did author the spec being saved, so
+					// they are its style. `styleSelectionUnknown` is precisely the case where they are
+					// *not*: a record restored without a stored style, whose prompt and picture came
+					// from choices nobody wrote down.
+					styleSelection:
+						this.generatedStyleSelection ??
+						(this.styleSelectionUnknown ? undefined : this.currentStyleSelection()),
 					owner
 				}
 			});
