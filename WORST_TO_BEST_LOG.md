@@ -5881,3 +5881,68 @@ without splitting the field, four tests would have caught it. Running total for 
 `npm run check` 0/0 · `npm run lint` clean · **1391 passed, 1 skipped** · `npm run build` built ·
 `npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
 Playwright 38 passed against the installed browser.
+
+## Run 7 close-out — round thirteen: the draft and the vault were two writers of one field
+
+Three findings. Two taken, one answered with a measurement and a reason.
+
+### The autosaved draft invented provenance the vault refused to invent
+
+`saveToVault` files a page's style under a rule with three cases: the artifact's style if there is
+one, the live controls if they genuinely authored the page, and **nothing at all** when the page's
+style is not on file. `saveDraft` wrote `this.currentStyleSelection()` unconditionally.
+
+Two writers of the same field, one applying the rule and one ignoring it — which is this whole
+change's subject, now found inside the change itself for the second time. And the draft is the worse
+of the two to get wrong, because it is restored on every refresh: reopen a record with no stored
+style, wait for the autosave, reload, and the page comes back wearing the reader's controls as its
+own. The unknown-style notice is gone, the invented values are now restorable, and the next vault
+save can pair them with that record's intent permanently.
+
+Both call sites now go through one `styleSelectionToFile()`. Not "the draft was fixed to match" —
+there is one rule and one place it lives, so a third writer cannot disagree with it either.
+
+### The plan's file list was still not an inventory
+
+Round eleven fixed the plan's summary line contradicting its file list. This round found the file
+list itself incomplete: `tests/unit/page-exports.test.ts` is modified and was absent, and the
+evidence folder was a `docs/evidence/2026-09-05/*` wildcard standing in for an inventory. A wildcard
+cannot be compared against a diff, which is the one thing the list is for.
+
+Every evidence artifact is now named individually, and the entry states the check outright: the list
+is meant to equal `git diff --name-status <base>..HEAD`, and a path in one and not the other is a
+defect in the entry. Verified by script rather than by reading — the only mismatches are `lint.txt`,
+which is deliberately absent because eslint prints nothing on success so the file never changes.
+
+### The one I did not take, with the measurement behind it
+
+The P2 says a try-on page records the current theme and voice as its provenance although neither
+reaches an image renderer on that path — the portrait is copied from `tryOnPortraitUrl` and packaged
+unchanged. I checked rather than reasoned: building the spec once per theme and diffing the results,
+**no field of the resulting spec varies with the theme at all**. So the finding is right, and more
+strongly than it states.
+
+It is not fixed here, and the reason is a cost the finding does not account for. Recording nothing
+would also drop the **wig**, which genuinely is that page's provenance and is what round two added
+`restoredStyleWig` to protect; the alternative is widening `StyleSelectionSchema` so a wig can stand
+without a theme, which is a seam contract change in the thirteenth review round of a change whose
+plan names the contract's shape as settled. Both are worse than the defect. Recorded here and
+answered on the thread rather than silently left.
+
+Mutations: the draft writing the live controls again (1 red — the new test). Running total for this
+run: **49**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1392 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser.
+
+### The SonarCloud issue I still cannot name
+
+Round eleven's count of one new issue has not moved, and the `_dropped` binding fixed in round twelve
+was not it. Reproducing the analyser again at this head — `eslint-plugin-sonarjs` over every file
+this change touches, each finding attributed against `git diff` — turns up exactly one hit, and it is
+on a line unchanged from `main`, so it is not new code. The quality gate passes and the count is one.
+Stated as an open loose end rather than closed with a guess: I have not identified it, the local
+reproduction disagrees with the dashboard, and the dashboard is unreachable from this container.

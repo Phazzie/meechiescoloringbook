@@ -2829,6 +2829,30 @@ describe('StudioState page style', () => {
 		expect(saveSpy.mock.calls[0][0].record.styleSelection).toBeUndefined();
 	});
 
+	it('does not invent a style for the autosaved draft of a page that has none', async () => {
+		// The sibling of the test above, and the case it did not cover: the vault applies that rule,
+		// the autosaved draft wrote the live controls unconditionally. A draft is restored on every
+		// refresh, so reopening a record with no stored style and waiting for the autosave brought the
+		// page back after a reload wearing the reader's controls as its own — the unknown-style notice
+		// gone, the invented values now restorable, and a later vault save able to pair them with that
+		// record's intent for good.
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		await studio.loadCreation(makeStyledCreation());
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		// `loadCreation` schedules the autosave itself, so this is the draft the reader gets without
+		// touching anything at all.
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+		expect(draftSpy.mock.calls[0][0].draft.styleSelection).toBeUndefined();
+	});
+
 	it('keeps a reopened page on its own wig provenance, even against a live selection', async () => {
 		// `loadCreation` does not clear `selectedWig`, so a reader browsing wigs who then reopens a
 		// page saved without one rebuilt that page's hint with the unrelated live wig.

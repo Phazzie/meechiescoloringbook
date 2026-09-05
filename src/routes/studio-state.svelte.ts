@@ -810,6 +810,28 @@ export class StudioState {
 		}
 	}
 
+	/**
+	 * The style a save should file the page under.
+	 *
+	 * The artifact's, when there is one; the live controls when they genuinely authored the page;
+	 * and nothing at all when the page's own style is not on file, so nothing invents provenance for
+	 * a record that never had any.
+	 *
+	 * One accessor because the vault and the autosaved draft are two writers of the same field and
+	 * they had drifted: the vault applied this rule, the draft wrote the live controls
+	 * unconditionally. So reopening a record with no stored style, waiting for the autosave and
+	 * refreshing brought the page back wearing the reader's controls as its own — the unknown-style
+	 * notice gone, the invented values now restorable, and a later vault save able to pair them with
+	 * that record's intent permanently. The whole point of the field is that it is absent when the
+	 * answer is not known.
+	 */
+	private styleSelectionToFile(): StyleSelection | undefined {
+		return (
+			$state.snapshot(this.generatedStyleSelection) ??
+			(this.styleSelectionUnknown ? undefined : this.currentStyleSelection())
+		);
+	}
+
 	private currentDedication(): string | undefined {
 		const trimmed = this.dedication.trim();
 		return trimmed.length > 0 ? trimmed : undefined;
@@ -835,7 +857,11 @@ export class StudioState {
 					// Saved for the same reason the vault saves it, and it matters more here: a
 					// draft is restored on every refresh, so a draft without the style was a page
 					// whose look changed every time the reader came back to it.
-					styleSelection: this.currentStyleSelection()
+					//
+					// Through the same accessor the vault uses, not a second copy of the rule. This
+					// wrote the live controls unconditionally, which is how a reopened record with no
+					// stored style came back from a refresh wearing provenance nobody had recorded.
+					styleSelection: this.styleSelectionToFile()
 				}
 			});
 			if (result.ok) {
@@ -1691,9 +1717,7 @@ export class StudioState {
 					// they are its style. `styleSelectionUnknown` is precisely the case where they are
 					// *not*: a record restored without a stored style, whose prompt and picture came
 					// from choices nobody wrote down.
-					styleSelection:
-						$state.snapshot(this.generatedStyleSelection) ??
-						(this.styleSelectionUnknown ? undefined : this.currentStyleSelection()),
+					styleSelection: this.styleSelectionToFile(),
 					owner
 				}
 			});
