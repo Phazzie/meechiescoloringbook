@@ -74,6 +74,13 @@ Re-run on the close-out head (this commit):
 - npm run verify: exit 0, all eight stages (its own transcript is verify-outer.txt; verify.txt is
   only the inner verify-runner stage, so the audit gate and the chain's exit status used to be
   asserted here rather than captured)
+
+  verify-outer.txt is intentionally NOT listed in proof-tape.json/.md. It is the transcript OF the
+  run that writes the proof tape, so it is written after the chain returns. The first attempt
+  captured it in place while the chain ran, and proof-tape inventoried the still-open file at 1901
+  bytes against a committed 1908 - it had not yet seen the transcript's own closing exit line. A
+  file cannot inventory itself mid-write, so the transcript is now written after the chain and is
+  absent from that chain's inventory rather than present in it with a wrong size.
 - npm run cipher:gate: exit 0
 
 Captured on the code head that merged as cc5f622, and NOT re-run since:

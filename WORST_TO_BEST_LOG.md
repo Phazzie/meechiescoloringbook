@@ -4475,7 +4475,7 @@ is looking for.
 | Condition | State at merge |
 |---|---|
 | CI green on the current head, **both** surfaces | Check runs and commit statuses read on `2544069`. `verify` ×2, CodeQL, Analyze (javascript-typescript), Analyze (actions), SonarCloud, Vercel Preview Comments: success. Vercel: **deployed**. |
-| Every review comment addressed | Seven Codex rounds, one self-audit, Rosentic, Sourcery, CodeRabbit. Fifteen findings: fourteen fixed, one declined with the output disproving it. |
+| Every review comment addressed | Seven Codex rounds, one self-audit, Rosentic, Sourcery, CodeRabbit. **Fifteen** findings, all fifteen fixed. One of them — round seven's — also proposed a remedy ("complete the WigCatalogSeam workflow") that was declined, with the `git diff` and `rewind` output disproving it; the finding itself, a Cipher Gate entry describing a superseded design, was fixed. A declined remedy is not a sixteenth finding and does not subtract from the fifteen. |
 | `npm run verify` and `npm test` green, evidence committed | Exit 0; 1252 passed / 1 skipped; `docs/evidence/2026-09-05/`. |
 | No unpushed work, no merge conflict | Clean. |
 

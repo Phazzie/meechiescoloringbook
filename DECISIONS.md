@@ -39,8 +39,27 @@ Short, durable decisions with context and tradeoffs.
   - Files:
     - `WORST_TO_BEST_LOG.md` (the close-out entry and its corrections)
     - `DECISIONS.md` (this entry)
-    - `docs/evidence/2026-09-05/verify-outer.txt` (new)
-    - the regenerated artifacts under `docs/evidence/2026-09-05/`
+    - `docs/evidence/2026-09-05/verify-outer.txt` (new; written after the chain completes, so it
+      is deliberately absent from that run's own `proof-tape` inventory)
+    - `docs/evidence/2026-09-05/verify-chain.txt`
+    - `docs/evidence/2026-09-05/verify.txt`
+    - `docs/evidence/2026-09-05/test.txt`
+    - `docs/evidence/2026-09-05/lint.txt`
+    - `docs/evidence/2026-09-05/build.txt`
+    - `docs/evidence/2026-09-05/cipher-gate.json`
+    - `docs/evidence/2026-09-05/chamber-lock.json`
+    - `docs/evidence/2026-09-05/shaolin-lint.json`
+    - `docs/evidence/2026-09-05/assumption-alarm.json`
+    - `docs/evidence/2026-09-05/seam-ledger.json`
+    - `docs/evidence/2026-09-05/seam-ledger.md`
+    - `docs/evidence/2026-09-05/clan-chain.json`
+    - `docs/evidence/2026-09-05/clan-chain.md`
+    - `docs/evidence/2026-09-05/proof-tape.json`
+    - `docs/evidence/2026-09-05/proof-tape.md`
+  - Not touched, and deliberately so: `docs/evidence/2026-09-05/e2e.txt`,
+    `docs/evidence/2026-09-05/rewind-wig-catalog-seam.txt` and
+    `docs/evidence/2026-09-05/rewind-WigCatalogSeam.txt` carry the code head's results, because the
+    routine scopes end-to-end runs to user-facing changes and no code has changed since.
   - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
     `npm run cipher:gate`. `npx playwright test` is deliberately not re-run: the routine scopes
     end-to-end runs to user-facing changes, and a log entry is not one.
