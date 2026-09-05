@@ -7,7 +7,7 @@
 //      defect landed the same way. This file is executed instead of transcribed, so it cannot drift
 //      from what actually ran.
 // Info flow: this script -> docs/evidence/<UTC date>/*.txt|*.md -> review.
-import { promises as fs, closeSync, openSync, readFileSync, rmSync } from 'node:fs';
+import { promises as fs, closeSync, mkdtempSync, openSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import { sanitizeEvidenceOutput } from './evidence-reporting.mjs';
 import { spawnSync } from 'node:child_process';
@@ -121,8 +121,14 @@ const npmRun = (script, scriptArgs = []) => {
 	//  - No ceiling. A pipe is capped by maxBuffer (1 MiB by default) and the child is killed with
 	//    ENOBUFS past it — truncating exactly the verbose failure whose output matters most. A file
 	//    has no such limit, so there is no buffer size to tune and get wrong.
-	const capturePath = path.join(os.tmpdir(), `capture-evidence-${process.pid}-${Date.now()}.log`);
-	const captureFd = openSync(capturePath, 'w');
+	// mkdtemp creates the directory with mode 0700 atomically, so the capture is unreadable by other
+	// local accounts for its whole life. It matters because this file holds the child's output BEFORE
+	// sanitizeEvidenceOutput strips workstation paths — the raw form is exactly what should not sit
+	// world-readable on a shared host. Creating the file alone would inherit the umask (0644 under a
+	// standard 022) and there is no atomic way to narrow it afterwards.
+	const captureDir = mkdtempSync(path.join(os.tmpdir(), 'capture-evidence-'));
+	const capturePath = path.join(captureDir, 'child-output.log');
+	const captureFd = openSync(capturePath, 'w', 0o600);
 	let result;
 	try {
 		result = spawnSync(executable, executableArgs, {
@@ -139,7 +145,7 @@ const npmRun = (script, scriptArgs = []) => {
 	} catch {
 		output = '(capture file could not be read)\n';
 	}
-	rmSync(capturePath, { force: true });
+	rmSync(captureDir, { force: true, recursive: true });
 	if (result.error) {
 		// Kept, not replaced: whatever the child managed to emit is the evidence.
 		return { output: `${output}\nnpm run ${script} error: ${result.error.message}\n`, code: 1 };

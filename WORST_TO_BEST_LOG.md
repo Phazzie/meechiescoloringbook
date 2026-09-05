@@ -6298,3 +6298,63 @@ has deliberately not edited.
 about prose describing finished work; rounds 34-40 were about code, and found ten real defects there.
 The application itself — the `/m/<slug>` rebuild that was the point of this run — shipped in round 1
 and has been live since, unchanged by any of it.
+
+---
+
+## Run 4, correction 42 — 2026-09-05 — the clean round did not survive my writing about it
+
+Appended, not edited. Two P2s on `cfc1bee` — the commit whose entire content was round 41's entry
+recording a review round with no findings. **So the previous entry's headline was right about
+`c650c8d` and wrong as a claim about this branch**: the loop had not converged, it had run out of
+things to say about a head I then changed. Recorded here rather than edited there, because the log
+is append-only and because "declared convergence, immediately reopened it" is the more useful fact.
+
+### 1. P2 — the `cipher:gate` paragraph in `plan.md` has now been wrong twice, in opposite directions
+
+The paragraph explains what the recorded `cipher:gate` exit 0 proves. Its first draft cited the gate
+as validation of the `ImageGenerationSeam` waiver — wrong, and corrected in round 16. The correction
+said instead that this close-out adds **no** Cipher Gate block, so the gate selected the 2026-09-04
+Quote Vault entry and merely confirmed that older entry's evidence still exists.
+
+That was true when written and **false from the moment correction 35 added a 2026-09-05 Cipher Gate
+block** — which the gate itself demanded, after `scripts/` and `package.json` turned it red.
+`scripts/cipher-gate.mjs` selects by date, so it selects mine. The committed artifact says so
+outright:
+
+```json
+{ "tool": "cipher-gate", "cipher": { "date": "2026-09-05", ... } }
+```
+
+The paragraph now describes what the gate actually checked — the 2026-09-05 entry's fields and its
+fourteen evidence paths — and says plainly that it does not re-check the 2026-09-04 entry and still
+proves nothing about the waiver.
+
+**Third instance of one failure this run.** "Nothing executable is touched", the Files list, and now
+this: prose written accurately, then falsified by a later commit of my own, and never re-read. The
+common factor is that each was a statement about the *diff*, in a file the diff kept changing.
+
+### 2. P2 — the raw capture file was world-readable while it held unsanitized output
+
+`openSync(capturePath, 'w')` inherits the umask; under a standard `022` that is mode `0644`. The
+file holds the child's output **before** `sanitizeEvidenceOutput` strips workstation paths — the raw
+form, containing exactly what correction 40 established should not be published — and it sits there
+readable by every local account for the life of each child process. Twenty-four of them per run.
+
+Confirmed the umask here is `0022`. Fixed with `mkdtempSync`, which creates its directory `0700`
+atomically; the capture lives inside it and is opened `0600`. Creating the file alone could not fix
+this: the mode would be masked on creation and there is no atomic way to narrow it afterwards.
+
+Verified rather than reasoned about:
+
+```
+dir  mode: 700
+file mode: 600
+```
+
+A small exposure and a short window, but it is the same data correction 40 was about, one layer
+down — I sanitized what gets committed and left the pre-sanitized original in `/tmp` at 0644.
+
+### Running total
+
+**One hundred and thirteen findings across forty-one rounds**, with one clean round in the middle
+that lasted exactly as long as it took me to write it down.

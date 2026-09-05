@@ -161,14 +161,22 @@ concession the `ClockSeam` plan in run 1 had to make.
     it. Round 19's reordering made that false: every edit now precedes the chain, so stage 5 parses
     the final entry and a standalone run only overwrites its own artifact with an identical result.
 
-    **What `cipher:gate` exit 0 does and does not prove here, since an earlier draft of this plan
-    got it backwards.** It is not validation of the `ImageGenerationSeam` waiver and must not be
-    cited as such. `scripts/cipher-gate.mjs` selects a Cipher Gate *block* from `DECISIONS.md`, and
-    this close-out adds none — so it selected the existing 2026-09-04 block for the Quote Vault's
-    `ClockSeam (new), AppOriginSeam (new), PageVisibilitySeam (new)`, checked that block's evidence
-    paths still exist, and exited 0. What it legitimately shows is only that the prior entry's
-    evidence has not gone missing. The waiver's own validation is the plan recorded in
-    `DECISIONS.md`, and — per round 16 — that plan did not work either until it was rewritten.
+    **What `cipher:gate` exit 0 does and does not prove here. This paragraph has now been wrong
+    twice, in opposite directions, and the second time was my own doing.** An early draft cited the
+    gate as validation of the `ImageGenerationSeam` waiver; it is not, and must never be. The
+    correction said instead that this close-out adds no Cipher Gate block, so the gate selected the
+    2026-09-04 Quote Vault entry. That was true when written and **false from the moment this
+    close-out added its own 2026-09-05 block** — `scripts/cipher-gate.mjs` selects by date, so it now
+    selects the new entry, and `docs/evidence/2026-09-05/cipher-gate.json` records exactly that:
+    `"date": "2026-09-05"`, with the eleven evidence paths of *this* change checked and present.
+
+    So what the recorded exit 0 actually checks: that the 2026-09-05 entry has every required field,
+    and that each path it cites — `verify-chain-run.txt`, `chamber-lock.json`, `verify.txt`,
+    `test.txt`, `lint.txt`, `build.txt`, `e2e.txt`, `seam-rewind-exit-codes.md`, `seam-ledger.md`,
+    `clan-chain.md`, `proof-tape.md`, plus `scripts/capture-evidence.mjs`, `package.json` and this
+    file — exists on this head. It does **not** re-check the 2026-09-04 entry, and it still proves
+    nothing about the `ImageGenerationSeam` waiver, whose validation is the plan recorded in
+    `DECISIONS.md` — and which, per round 16, did not work either until it was rewritten.
 
     **Why one command and not a list.** An earlier revision of this plan dropped
     `assumption:alarm` from its code block but left it in the surrounding prose and in the Commands
