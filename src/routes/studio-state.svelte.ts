@@ -89,6 +89,16 @@ type BorderChoice = ColoringPageSpec['border'];
 export type SettingChangeSource = 'theme' | 'setting';
 
 /**
+ * What a rebuild says when it failed for a reason it cannot name — a thrown value that is not an
+ * `Error`, so there is no message to pass on.
+ *
+ * Named rather than written twice. The two rebuild callers report it on different lines of the page
+ * (Page Controls and the try-on studio), which is precisely the arrangement where two copies of one
+ * sentence drift apart and the reader is told two different things about the same failure.
+ */
+const UNCHECKED_SETTINGS_MESSAGE = 'Page settings could not be checked.';
+
+/**
  * A spec with the reader's current dedication on it, and no `dedication` key at all when there is
  * none.
  *
@@ -1089,7 +1099,7 @@ export class StudioState {
 			// not apply" over a control that visibly did move was a second thing the panel was wrong
 			// about, in a run about a panel that misreports itself.
 			this.settingsError =
-				error instanceof Error ? error.message : 'Page settings could not be checked.';
+				error instanceof Error ? error.message : UNCHECKED_SETTINGS_MESSAGE;
 		}
 	};
 
@@ -1136,7 +1146,7 @@ export class StudioState {
 			await this.rebuildSpecFromCurrentText();
 		} catch (error) {
 			this.generationError =
-				error instanceof Error ? error.message : 'Page settings could not be checked.';
+				error instanceof Error ? error.message : UNCHECKED_SETTINGS_MESSAGE;
 		}
 	};
 

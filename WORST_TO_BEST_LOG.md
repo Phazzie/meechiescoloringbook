@@ -5789,6 +5789,25 @@ Two tests, each red without the split: a wig change on a page with a failing che
 try-on generation. Mutations: routing either caller back through the panel's handler (1 red each).
 Running total for this run: **46**.
 
+### One new SonarCloud issue, and what I could and could not establish about it
+
+The quality gate passed, but SonarCloud's count of new issues went from 0 to 1 on the first push of
+this round — the first time in the run it has been anything but zero. Its detail is not readable from
+here: the network policy returns 403 for sonarcloud.io, and the code-scanning check reports "No new
+alerts", so whatever it found is a maintainability issue rather than a security one and its text
+lives only on the dashboard.
+
+Rather than guess at a rule, I looked at what the round actually added that a maintainability check
+would have an opinion about, and found one thing worth fixing on its own merits: the fallback message
+for a rebuild that threw a non-`Error` was written out twice, once per caller — and the two callers
+now report it on *different lines of the page*. Two copies of one sentence, shown in two places,
+about the same failure. That is the run's own defect class in a string literal, so it is now a named
+constant. The same for the over-length dedication the two new tests share.
+
+Stated plainly because the honest version matters more than a tidy one: I do not know that this is
+what SonarCloud flagged. If the count is still 1 on the next analysis, the issue is something else
+and this change was worth making anyway.
+
 ### Verification
 
 `npm run check` 0/0 · `npm run lint` clean · **1390 passed, 1 skipped** · `npm run build` built ·

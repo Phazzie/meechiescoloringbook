@@ -1880,12 +1880,14 @@ describe('StudioState quote vault', () => {
 	// the wig selector and the try-on page generator both called that handler for its rebuild, and
 	// got its reporting with it. These two cover the halves of that — one writes into the panel about
 	// something it does not own, the other wipes what the panel is already saying.
+	// One character over the limit, so the page genuinely fails its check for a reason that has
+	// nothing to do with Page Controls — the reader typed it into the dedication box.
+	const OVERLONG_DEDICATION = 'D'.repeat(MAX_DEDICATION_LENGTH + 1);
+
 	it('does not report a wig change under Page Controls', async () => {
 		const studio = await initVault([]);
 
-		// A page that does not pass its check, for a reason that has nothing to do with the panel:
-		// the reader typed a dedication one character over the limit.
-		studio.handleDedicationInput('D'.repeat(MAX_DEDICATION_LENGTH + 1));
+		studio.handleDedicationInput(OVERLONG_DEDICATION);
 		await vi.waitFor(() => expect(studio.validationIssues.length).toBeGreaterThan(0));
 
 		// The panel is quiet, correctly — the reader has not touched a Page Control.
@@ -1905,7 +1907,7 @@ describe('StudioState quote vault', () => {
 	it('does not report a refused try-on generation under Page Controls', async () => {
 		const studio = await initVault([]);
 
-		studio.handleDedicationInput('D'.repeat(MAX_DEDICATION_LENGTH + 1));
+		studio.handleDedicationInput(OVERLONG_DEDICATION);
 		await vi.waitFor(() => expect(studio.validationIssues.length).toBeGreaterThan(0));
 
 		await makeTryOnPage(studio);
