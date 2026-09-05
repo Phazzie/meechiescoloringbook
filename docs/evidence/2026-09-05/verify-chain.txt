@@ -95,7 +95,7 @@ fix it properly, and belongs in its own change with its own tests.
 self-contained `CreationStoreSeam (self-contained)`. `npm run rewind -- --seam CreationStoreSeam`
 resolves to the LEGACY row and runs its 4 contract tests — none of which touch the field this change
 adds. The change is to `src/lib/seams/creation-store-seam/`, so the seam-scoped evidence is the
-suffixed name and its 7 tests, in rewind-CreationStoreSeam-self-contained.txt.
+suffixed name and its tests, in rewind-CreationStoreSeam-self-contained.txt.
 
 An earlier push of this change cited the unsuffixed run. It was green and it was the wrong seam;
 the file is kept alongside rather than deleted, so the distinction stays visible.
@@ -122,7 +122,7 @@ was never committed; that is why the exclusion is now mechanical rather than rem
 
 - npm run check: 0 errors, 0 warnings
 - npm run lint: exit 0
-- npm test: 1374 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped)
+- npm test: 1378 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped)
 - npm run build: exit 0
 - npm run verify: exit 0, all eight stages (its own transcript is verify-outer.txt; verify.txt is
   only the inner verify-runner stage, so the audit gate and the chain's exit status are captured
@@ -140,7 +140,7 @@ was never committed; that is why the exclusion is now mechanical rather than rem
   command's own output, carrying somebody else's. It is regenerated here, and the count above is the check on
   that: verify-outer.txt and verify.txt must report the same total, or one of them is stale.
 - npm run cipher:gate: exit 0
-- npm run rewind -- --seam "CreationStoreSeam (self-contained)": 7 passed
+- npm run rewind -- --seam "CreationStoreSeam (self-contained)": 11 passed
 - npx playwright test: see the section above — the mandated command fails on a browser-version
   mismatch; the suite passes 38/38 against the installed browser.
 

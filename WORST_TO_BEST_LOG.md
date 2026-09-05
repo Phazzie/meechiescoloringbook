@@ -5525,3 +5525,57 @@ Playwright 38 passed against the installed browser.
 Four more mutations, each reverted, each caught: recording the artifact snapshot on draft restore
 (1 test), snapshotting the no-picture generation (1), the predicate back to `assembledPrompt` (1),
 and the snapshot fields back to plain (2). Running total for this run: 32.
+
+## Run 7 close-out — round seven: the required artifact was decoration
+
+One finding, and it is about the artifact round three added.
+
+`src/lib/seams/AGENTS.md` requires a `validators.ts` for any new or **modified** seam folder. Round
+three caught that `creation-store-seam` did not have one, I added it, and a reviewer has now caught
+that **nothing imports it**. The production adapter went on calling `safeParse` at four sites of its
+own. So the required artifact shipped as dead code, and the duplicate parsing it exists to remove
+stayed exactly where it was. Every other seam's validators module in this repo is consumed by its
+adapter, its mock or its test; this one was consumed by nothing.
+
+Worse, the shape was wrong, which is why nothing *could* have used it. `isCreationRecord` and
+`isDraftRecord` returned booleans — and the path the module's own comment named as their reason,
+the vault read that keeps what parses and skips the rest, needs the parsed record back, not a
+verdict. I wrote a justification for a helper the justification's own use case could not use.
+
+Replaced by `parseCreationRecord` / `parseDraftRecord`, returning `{ ok: true, value } | { ok: false }`.
+Deliberately not the shared `Result`: each call site phrases its own failure — skip and count,
+`DRAFT_SCHEMA_MISMATCH`, `CREATION_SCHEMA_MISMATCH` — so a message carried up from the validator
+would only be discarded. The adapter's four sites route through them now, plus `validateDraftRecord`
+for the one that was a throwing `.parse`, and the seam's contract tests exercise all of it including
+`validateStyleSelection`, the third helper nothing called.
+
+The pattern across rounds three and seven: satisfying a checklist is not the same as doing the thing
+the checklist is for. The gate asked whether the file exists. It does not ask whether anything
+imports it, and I did not ask either.
+
+### A mutation run that proved nothing, caught before it was believed
+
+The first mutation batch for this fix reported all three mutants surviving — and the reason was that
+I pointed it at `tests/unit/creation-store-vault.test.ts`, which does not exist, alongside the seam
+test. Vitest ran the one real file, 11 tests, none of which touch the adapter, and reported green
+for every mutation.
+
+Re-run against the four suites that actually exercise the adapter — the seam test, the legacy
+contract test, the helpers test and the studio-state test, 165 tests — all three mutants died: 7
+tests for keeping a corrupt record instead of skipping it, 1 for accepting an invalid record on
+save, 2 for a draft parse that always reports success.
+
+A mutation that survives is either evidence the test suite is weak or evidence the harness pointed
+somewhere useless, and the two look identical from the summary line. This log has said since Run 5
+that a test never seen to fail is not evidence; the same is true of a mutant never actually run.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1378 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 11 passed ·
+Playwright 38 passed against the installed browser.
+
+No changelog entry: the adapter's behaviour is byte-for-byte what it was, which is the point of a
+refactor that removes a second parsing path.
+
+Three more mutations, each reverted, each caught. Running total for this run: 35.
