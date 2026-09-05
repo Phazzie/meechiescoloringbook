@@ -48,11 +48,18 @@ const stripAnsi = (text) =>
  *
  * A summary line begins the line (allowing the reporter's indent) and starts with a count or one of
  * the reporter's own labels. A sentence a developer wrote inside a test name cannot reach it.
+ *
+ * `Vitest caught` is in the list because it is a summary that begins with neither. Routing every
+ * rule through this filter without it silently dropped the unhandled-error line the rewind rule
+ * had just been taught to catch — a gate added to stop prose getting in, which also stopped a
+ * result getting in.
  */
 const summaryLines = (text) =>
 	stripAnsi(text)
 		.split('\n')
-		.filter((line) => /^\s{0,8}(\d{1,9} \w|Tests\s|Test Files\s|Errors\s)/.test(line));
+		.filter((line) =>
+			/^\s{0,8}(\d{1,9} \w|Tests\s|Test Files\s|Errors\s|Vitest caught\s)/.test(line)
+		);
 
 /** The last `<n> passed` in a transcript, as a number, or null when the transcript has no result. */
 const lastPassedCount = (text) => {
@@ -267,9 +274,16 @@ const RULES = [
 			// Playwright's "1 error was not a part of any test" and was missed here for the same reason:
 			// the pattern was written from the failures I had seen rather than from how the reporter
 			// says a run went wrong.
-			const FAILING = /^\s{0,8}(Tests|Errors)?\s{0,8}(\d{1,9}) (failed|errors?)\b|^\s{0,8}Vitest caught \d{1,9} unhandled error/;
+			// Two patterns rather than one alternation: the combined form measured 21 on Sonar's
+			// regex-complexity against a limit of 20, and the honest fix for a regex that is hard to
+			// read is fewer branches, not cleverer ones. They are also two different questions — a
+			// counted failure, and a crash the reporter attributes to no test.
+			const COUNTED_FAILURE = /^\s{0,8}(Tests|Errors)?\s{0,8}\d{1,9} (failed|errors?)\b/;
+			const UNHANDLED = /^\s{0,8}Vitest caught \d{1,9} unhandled error/;
 			const failing = rewinds.filter((f) =>
-				summaryLines(read(dir, f) ?? '').some((line) => FAILING.test(line))
+				summaryLines(read(dir, f) ?? '').some(
+					(line) => COUNTED_FAILURE.test(line) || UNHANDLED.test(line)
+				)
 			);
 			if (failing.length > 0)
 				return `these rewind transcripts report failures beside their passes: ${failing.join(', ')}.`;

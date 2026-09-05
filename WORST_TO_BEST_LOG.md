@@ -8249,3 +8249,43 @@ complete · YAML valid.
 Each proved in the direction it needed: a rewind whose test title says `1 failed` passes; a Row 2
 truncated to a title saying `1 passed` fails; an artifact the tape marks as predating the run fails;
 a fallback resolving to HEAD refuses.
+
+### Addendum to round thirty-four: the unification broke what it unified
+
+SonarCloud went 1 → 2 on the head that introduced `summaryLines()`. Reproduced locally against
+`sonarjs.configs.recommended`: **`regex-complexity`, 21 against a limit of 20**, in the alternation I
+had just written to merge the two rewind failure forms. Split into two named patterns —
+`COUNTED_FAILURE` and `UNHANDLED` — rather than golfed smaller, because the honest fix for a regex
+that is hard to read is fewer branches, and they were two different questions anyway.
+
+**Splitting it exposed a regression the unification had shipped.** With the two forms separate, the
+unhandled-error case stopped firing. The cause was the unification itself: `summaryLines()` admits
+lines beginning with a count or the labels `Tests` / `Test Files` / `Errors` — and
+`Vitest caught 1 unhandled error` begins with none of those. Routing every rule through one filter
+silently dropped the line the rewind rule had been taught to catch **in the same round**.
+
+A gate added to keep prose out was also keeping a result out.
+
+### Why my own test missed it
+
+Round thirty-four's rewind test checked one direction: a transcript whose test title says
+`1 failed` must pass. It did. I never re-ran the true-positive direction after the refactor, because
+the refactor was "about" false positives.
+
+> **A refactor invalidates every test of the thing refactored, in both directions — not the direction
+> you were thinking about when you made it.** The reason to re-run the whole set is precisely that you
+> believe only half of it is relevant.
+
+Four directions are now checked together, and will be from here: `Tests 1 failed` fires,
+`Vitest caught 1 unhandled error` fires, `Errors 1 error` fires, `recovers after 1 failed request`
+does not.
+
+The shape of this addendum is worth noticing on its own. Round thirty-four's lesson was to stop
+patching instances and delete the space the defect lives in — which was right, and the unification is
+better than four patterns held in agreement by attention. **A structural fix is still a change, and
+it breaks things the way changes do.** "I removed the class of bug" is not a reason to skip
+verifying, it is a reason the verification has to be wider than usual.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean on the file · `npm run evidence:guard`
+6 rules pass · full chain re-run: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0,
+rewind 17, Playwright 41 against the installed browser, probe complete.

@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-05T22:23:52.333Z
+Generated at: 2026-09-05T22:30:07.882Z
 Evidence folder: docs/evidence/2026-09-05
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -15,7 +15,7 @@ after this inventory is taken, so they are not listed):
 - build.txt (11231 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (35321 bytes)
-- cipher-gate.json (1262 bytes) — PREDATES THIS VERIFY RUN
+- cipher-gate.json (1260 bytes) — PREDATES THIS VERIFY RUN
 - clan-chain.json (3181 bytes)
 - clan-chain.md (1956 bytes)
 - e2e.txt (6665 bytes) — PREDATES THIS VERIFY RUN
@@ -43,7 +43,7 @@ after this inventory is taken, so they are not listed):
   Commands: meechies-coloringbook@0.1.0 rewind | node scripts/rewind.mjs --seam WigCatalogSeam
 - seam-ledger.json (37460 bytes)
 - seam-ledger.md (2981 bytes)
-- shaolin-lint.json (517 bytes)
+- shaolin-lint.json (519 bytes)
 - test.txt (3131 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-chain.txt (14169 bytes) — PREDATES THIS VERIFY RUN
