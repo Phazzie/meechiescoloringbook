@@ -81,7 +81,7 @@ Critical invariants — this panel describes a page, so it must never describe o
 		// clicks the chip that is already active, so comparing theme IDs cannot tell "the reader
 		// picked a theme" from "some other control changed" — and on a reopened page, whose real
 		// theme was never recorded, the comparison gets it wrong in both directions.
-		onSettingChange: (source: 'theme' | 'setting') => Promise<void>;
+		onSettingChange: (source: 'theme' | 'style' | 'setting') => Promise<void>;
 	} = $props();
 
 	// Whether the panel is expanded, mirrored from the element's own `open` on every toggle.
@@ -183,7 +183,7 @@ Critical invariants — this panel describes a page, so it must never describe o
 				id="intensity"
 				aria-describedby="intensity-help"
 				bind:value={intensity}
-				onchange={() => onSettingChange('setting')}
+				onchange={() => onSettingChange('style')}
 			>
 				{#each INTENSITY_OPTIONS as value}
 					<option {value}>{INTENSITY_LABELS[value]}</option>
@@ -196,7 +196,7 @@ Critical invariants — this panel describes a page, so it must never describe o
 				id="rawness"
 				aria-describedby="rawness-help"
 				bind:value={rawness}
-				onchange={() => onSettingChange('setting')}
+				onchange={() => onSettingChange('style')}
 			>
 				{#each RAWNESS_OPTIONS as value}
 					<option {value}>{RAWNESS_LABELS[value]}</option>
@@ -209,7 +209,7 @@ Critical invariants — this panel describes a page, so it must never describe o
 				id="thirdPerson"
 				aria-describedby="third-person-help"
 				bind:value={thirdPerson}
-				onchange={() => onSettingChange('setting')}
+				onchange={() => onSettingChange('style')}
 			>
 				{#each THIRD_PERSON_OPTIONS as value}
 					<option {value}>{THIRD_PERSON_LABELS[value]}</option>
@@ -262,7 +262,7 @@ Critical invariants — this panel describes a page, so it must never describe o
 					type="checkbox"
 					aria-describedby="glitter-help"
 					bind:checked={glitter}
-					onchange={() => onSettingChange('setting')}
+					onchange={() => onSettingChange('style')}
 				/>
 				<span>Add glitter overlay</span>
 			</label>

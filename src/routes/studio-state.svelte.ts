@@ -70,7 +70,6 @@ import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 import {
 	buildStyleHint,
 	DEFAULT_STYLE_SELECTION,
-	isSameStyleSelection,
 	themeForSelection,
 	type StyleSelection,
 	type StyleWig
@@ -87,7 +86,7 @@ type BorderChoice = ColoringPageSpec['border'];
  * this flag adds is the one case no comparison can see: a click on the theme chip that is already
  * active leaves every value identical, and is still the reader asking for that theme.
  */
-export type SettingChangeSource = 'theme' | 'setting';
+export type SettingChangeSource = 'theme' | 'style' | 'setting';
 
 /**
  * What a rebuild says when it failed for a reason it cannot name — a thrown value that is not an
@@ -363,33 +362,23 @@ export class StudioState {
 	 */
 	private restoredStyleUnknown = $state(false);
 	/**
-	 * The style the controls were wearing at the moment of a style-less restore.
-	 *
-	 * `null` when there is nothing to compare against — no restore, or one that brought a style with
-	 * it. Kept so the studio can tell "these controls are the ones that happened to be up when a
-	 * style-less record was opened" from "these controls are what the reader has since chosen", which
-	 * are the same values until the reader moves one.
-	 */
-	private unknownStyleBaseline = $state<StyleSelection | null>(null);
-	/**
 	 * The reader picked a style control since the restore, whatever it changed.
 	 *
-	 * The authorship a comparison cannot see. Picking the theme chip — or the wig — that is already
-	 * active leaves every field identical and is still the reader choosing it. `SettingChangeSource`
-	 * exists for exactly that, and says so in its own doc comment, about the neighbouring question of
-	 * recomputing presentation; the comparison below was first written as if that sentence were not
-	 * there.
+	 * The whole answer to "has the reader chosen a style for a page that recorded none?", and it took
+	 * three review rounds to get here because the first answer was a *comparison* — the live
+	 * selection against the controls as restored — with flags bolted on for the cases a comparison
+	 * cannot see. Each round found another: re-picking the active theme, re-picking the active wig,
+	 * and finally moving Rawness and putting it back. All three are the reader choosing, and all
+	 * three leave the values identical.
 	 *
-	 * It matters on the case this whole rule is about. Open a legacy record with a non-default theme
-	 * or wig already up, adopt it by clicking it, and the equality test says nothing was chosen — so
-	 * the autosave keeps writing `undefined` and the refresh still loses it, which is the defect the
-	 * supersede was added to remove, surviving in the gesture that expresses the intent most
-	 * directly.
+	 * The comparison existed for one reason: page size and border reach the studio through the same
+	 * handler as the voice and glitter, and they are not style — they live in the intent. Giving the
+	 * style controls their own `SettingChangeSource` removes that reason, and with it the entire
+	 * class of edge cases. Touching a style control is the claim; nothing is inferred from values.
 	 *
-	 * Covers both controls rather than the theme alone, which is how it was first written. A review
-	 * pointed at the wig immediately: it reaches the style hint the same way, it is re-picked the
-	 * same way, and a flag named for one of the two controls invites the next one to be forgotten.
-	 * Named for what it means — the reader claimed this style — rather than for which widget said so.
+	 * The lesson, since it cost four rounds: when the fix for a rule keeps being another special
+	 * case, the rule is asking the wrong question. This one was asking "did the values change?" when
+	 * what it needed to know was "did the reader choose?" — and only the caller knows that.
 	 */
 	private readerClaimedStyle = $state(false);
 	/**
@@ -407,10 +396,7 @@ export class StudioState {
 	 * from. Without one, the controls are the only author there is.
 	 */
 	private readerChoseStyleSinceRestore = $derived(
-		this.generatedSpec === undefined &&
-			this.unknownStyleBaseline !== null &&
-			(this.readerClaimedStyle ||
-				!isSameStyleSelection(this.currentStyleSelection(), this.unknownStyleBaseline))
+		this.generatedSpec === undefined && this.readerClaimedStyle
 	);
 	/**
 	 * True when the page on the paper has no style of its own on file.
@@ -1105,10 +1091,8 @@ export class StudioState {
 		// A fact about the page being replaced, so it goes with it. `loadCreation` calls this first
 		// and sets it after, which is the same order the two artifact snapshots above use.
 		this.restoredStyleUnknown = false;
-		// Both go with the flag they qualify. Left standing, the baseline would have the next page's
-		// controls compared against the previous page's restore — a difference about nothing — and
-		// the claim would carry a click made about a page that is no longer here.
-		this.unknownStyleBaseline = null;
+		// Goes with the flag it qualifies: left standing, the claim would carry a choice made about a
+		// page that is no longer here.
 		this.readerClaimedStyle = false;
 	}
 
@@ -1264,7 +1248,7 @@ export class StudioState {
 			// it is recorded here rather than inferred from the values. Only on a rebuild that
 			// succeeded: a click whose spec did not survive its own check has not authored anything.
 			// `selectWigForTryOn` sets the same flag for the same reason — see there.
-			if (source === 'theme') {
+			if (source !== 'setting') {
 				this.readerClaimedStyle = true;
 			}
 		} catch (error) {
@@ -1904,9 +1888,6 @@ export class StudioState {
 		// Whether this record stored a style is a fact about the record, true whether or not it also
 		// carries a picture. Held apart from the snapshots below, which are about the picture.
 		this.restoredStyleUnknown = creation.styleSelection === undefined;
-		// Captured before the restored style is applied below, so on the style-less path — the only
-		// path where this is read — it is the controls exactly as the reader left them.
-		this.unknownStyleBaseline = this.restoredStyleUnknown ? this.currentStyleSelection() : null;
 		// The two artifact snapshots — but only when this record actually put a picture on the paper.
 		//
 		// They exist so that reopening a page, changing a setting and saving again cannot write the
@@ -2111,12 +2092,6 @@ export class StudioState {
 			// and reads correctly either way: this is a fact about the record being restored, not
 			// about the controls it may be about to move.
 			this.restoredStyleUnknown = draft.value.styleSelection === undefined;
-			// Same capture as `loadCreation`, and it matters more here: a draft is what the reader
-			// comes back to, so this is the path where a theme they pick after the restore has to
-			// survive the next refresh.
-			this.unknownStyleBaseline = this.restoredStyleUnknown
-				? this.currentStyleSelection()
-				: null;
 			// Before the seeding below, for the reason given in `loadCreation`.
 			this.applyRestoredStyleSelection(draft.value.styleSelection);
 			this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());

@@ -3658,6 +3658,33 @@ describe('StudioState page style', () => {
 		});
 	});
 
+	it('keeps a style the reader settled on after moving a control and putting it back', async () => {
+		// The third hole a review found in the same rule, and the one that made the rule wrong rather
+		// than incomplete. Toggle Glitter on, look at it, toggle it off again: the values now equal
+		// the controls as restored, so a comparison says nothing was chosen — and the reader has in
+		// fact settled on exactly this style, deliberately.
+		//
+		// The comparison is gone. Touching a style control is the claim.
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-01T00:00:00.000Z',
+			intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A LEGACY DRAFT' }
+		});
+		const settledGlitter = studio.glitter;
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		draftSpy.mockClear();
+		studio.glitter = !settledGlitter;
+		await studio.syncSpecFromCurrentText('style');
+		studio.glitter = settledGlitter;
+		await studio.syncSpecFromCurrentText('style');
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		expect(studio.glitter).toBe(settledGlitter);
+		expect(studio.styleSelectionUnknown).toBe(false);
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection?.glitter).toBe(settledGlitter);
+	});
+
 	it('does not read a moved page size as a style the reader chose', async () => {
 		// Page size and border reach the studio through the same handler as the theme and are not
 		// style — they live in the intent. So the supersede is a comparison against the controls as
