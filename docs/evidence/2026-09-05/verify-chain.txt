@@ -143,7 +143,7 @@ drops a field on the way out is red rather than invisible.
 
 - npm run check: 0 errors, 0 warnings
 - npm run lint: exit 0
-- npm test: 1395 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped)
+- npm test: 1399 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped)
 - npm run build: exit 0
 - npm run verify: exit 0, all eight stages (its own transcript is verify-outer.txt; verify.txt is
   only the inner verify-runner stage, so the audit gate and the chain's exit status are captured

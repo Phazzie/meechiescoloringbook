@@ -6055,3 +6055,61 @@ did not split the rule). Running total for this run: **54**.
 `npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
 Playwright 38 passed against the installed browser · the browser probe re-run, all three fixtures
 byte-identical.
+
+## Run 7 close-out — round sixteen: the report was the last thing still copying
+
+Two findings, and between them they close the loop this run has been walking since round one.
+
+### The panel's own report drifted from the thing it reported
+
+`settingsIssues` was a copy of `validationIssues`, taken by the panel's handler at the moment of a
+control change. A copy taken at one moment cannot follow its source. So: type an over-long
+dedication, move a Page Control — the panel correctly says the page does not pass its check — then go
+back and *fix the dedication*. The check reruns, `validationIssues` empties, and the panel goes on
+insisting the page failed a check it now passes.
+
+That is this run's own defect, in this run's own reporting. The whole change exists because a panel
+was saying things about a page that were no longer true, and the mechanism I added to fix it was a
+copy that could go out of date.
+
+`settingsIssues` is `$derived` now: `validationIssues` while the panel is the one answering, empty
+otherwise. Nothing writes it, so nothing can write it stale.
+
+"While the panel is the one answering" is the other half, and it is what keeps the derivation from
+undoing round eleven's fix. A live wire to `validationIssues` would print the *next* failure from
+anywhere — a dedication typed into a different box — under a row of controls the reader never
+touched. So `validateSpec` drops the claim whenever any check begins, and the panel's handler takes
+it back after its own rebuild returns. Enforced at the one place every check goes through, rather
+than in each caller, because a caller forgetting is exactly what round eleven was.
+
+### The other restore path never asked the question
+
+`loadCreation` asks whether the record it is restoring stored a style. `init`'s draft restore did
+not. Every draft written before `styleSelection` existed has none, so the studio read whatever the
+controls happened to say as that draft's own style; the next autosave wrote those values down beside
+a restored intent they did not author, and the refresh after that applied them. Invented provenance
+in two steps, from a draft that recorded none.
+
+Two restore paths, one question, asked on one of them. The same shape as round eleven's two writers
+and round fourteen's third snapshot.
+
+### Mutations, and one the tests did not have
+
+Four red. The derivation replaced by a copy (1 red). The `validateSpec` clear removed (1 red). The
+draft restore's assignment removed (1 red). The `settingsError` clear removed (1 red).
+
+The last two of those needed tests written *because of the mutation*, not before it. Removing the
+`validateSpec` clear left the whole suite green on the first pass — my new test covered the
+staleness, which the derivation alone already fixes, and nothing covered the misattribution the
+clear exists to prevent. Same for `settingsError`: the clear was reasoned into place and pinned by
+nothing.
+
+Both are the same lesson in a new place, and it is worth stating plainly because it keeps recurring:
+**a fix and a test written in the same breath tend to test the fix's happy path, not its reason.**
+The mutation is what asks the reason. Running total for this run: **58**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1399 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
