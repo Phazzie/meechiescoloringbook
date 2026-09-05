@@ -136,6 +136,18 @@ Two runs colliding on one dated folder is the same hazard the run lock was added
 earlier — arriving here through two branches rather than two concurrent processes, which a lock
 cannot prevent.
 
+**Three files here belong to Run 5 and are deliberately left alone.** `verify-outer.txt` is Run 5's
+transcript of its own outer `npm run verify` — this sequence's equivalent is `verify-chain-run.txt`
+— and `rewind-WigCatalogSeam.txt` / `rewind-wig-catalog-seam.txt` cover a seam outside this
+capture's `SEAMS` list. None of the three conflicted, so the merge carried them in intact and this
+run does not regenerate them. They are **not** deleted: removing another run's committed evidence
+because this run does not own it is exactly correction 50, where a wildcard cleanup destroyed these
+same two rewind files and they had to be restored from `main`. `proof-tape.md` already names all
+three under "Older than this run's chamber-lock.json", so the folder states their status without
+this file having to be believed. They are also the three artifacts here still containing an absolute
+checkout path, which is follow-ups 12 and 13 — the sanitizer gap is in `rewind.mjs` and
+`evidence-reporting.mjs`, not in anything this close-out wrote.
+
 **Three rulings are outstanding** (see `plan.md` and the open thread on PR #296): the seam-workflow
 question; `ImageGenerationSeam`'s two un-waived checklist items; and whether `SessionSeam` and
 `CreationStoreSeam` need waivers or refreshed fixtures. This close-out does not claim the completion

@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-05T04:57:06.725Z",
+  "generatedAt": "2026-09-05T05:07:18.276Z",
   "cipher": {
     "date": "2026-09-05",
     "seams": "None. No seam contract, mock, adapter, fixture or test changed. This adds one build-support script and one npm script; the watched paths it touches are `scripts/` and `package.json`.",
