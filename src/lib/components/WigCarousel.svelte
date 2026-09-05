@@ -101,6 +101,14 @@
 				</label>
 			</div>
 
+			<!--
+				A zero count disables a chip only when it is not already chosen. Disabling it either way
+				strands the reader: a selection can be invalidated by a later search — pick Human hair, then
+				search a term only a synthetic wig matches — and its own chip then reads 0, so the one
+				control that would undo it is the one control they cannot press, leaving Clear (which also
+				discards their search) as the only way out. Entering a dead end is what the disable is for;
+				leaving one never is.
+			-->
 			<div class="facet-row" data-testid="wig-facet-length" role="group" aria-label="Filter by length">
 				<span class="facet-name">Length</span>
 				{#each facets.lengths as facet}
@@ -109,7 +117,7 @@
 						class="facet-chip"
 						class:active={facet.selected}
 						aria-pressed={facet.selected}
-						disabled={facet.count === 0}
+						disabled={facet.count === 0 && !facet.selected}
 						onclick={() =>
 							(query = { ...query, lengths: toggleWigFacetValue(query.lengths, facet.value) })}
 					>
@@ -126,7 +134,7 @@
 						class="facet-chip"
 						class:active={facet.selected}
 						aria-pressed={facet.selected}
-						disabled={facet.count === 0}
+						disabled={facet.count === 0 && !facet.selected}
 						onclick={() =>
 							(query = { ...query, hairTypes: toggleWigFacetValue(query.hairTypes, facet.value) })}
 					>
@@ -143,7 +151,7 @@
 						class="facet-chip"
 						class:active={facet.selected}
 						aria-pressed={facet.selected}
-						disabled={facet.count === 0}
+						disabled={facet.count === 0 && !facet.selected}
 						onclick={() =>
 							(query = {
 								...query,

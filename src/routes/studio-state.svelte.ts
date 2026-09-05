@@ -525,7 +525,12 @@ export class StudioState {
 	private discardTryOnPortraits(): void {
 		this.resetTryOnPageState();
 		this.tryOnPortraits = [];
+		// Any request still in flight was made with the previous selfie, so its result must not be
+		// filed when it lands. Not $state: nothing renders it.
+		this.selfieToken += 1;
 	}
+
+	private selfieToken = 0;
 
 	private parseTryOnPortraitImage(): GeneratedImage | null {
 		const match = this.tryOnPortraitUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/);
@@ -785,12 +790,23 @@ export class StudioState {
 					'Try-on portrait format is not supported for coloring-page export.';
 				return;
 			}
-			// Name the page after the wig it is of. Without this the spec keeps whatever title the
-			// last verdict left — and with no verdict at all that is the demo default, so a saved
-			// try-on page went into the vault filed under "THE LANDLORD".
+			// A try-on page is a portrait, not a list, so it takes the whole title-only shape and not
+			// just a new title. `syncSpecFromCurrentText` builds the spec from
+			// `DEFAULT_STUDIO_TEXT_OUTPUT` when no verdict has been generated, so replacing the
+			// title alone left the demo seed's items — THE RENT, THE DOPEMAN, WHAT IT COST — and its
+			// footer on the record. `loadCreation` rebuilds a no-`studioText` record's words from
+			// `intent.items`, so reopening a saved try-on put those unrelated lines in the preview
+			// and in the evidence box, which is the text the reader's next verdict request sends.
+			//
+			// `title_only` with no items and no footer is the shape the schema requires
+			// (`ColoringPageSpecSchema` rejects items or a footer in title-only mode) and the one
+			// the page actually is.
 			this.spec = {
 				...this.spec,
-				title: compactColoringPageTitle(['Wig Try-On', wig.name])
+				title: compactColoringPageTitle(['Wig Try-On', wig.name]),
+				listMode: 'title_only',
+				items: [],
+				footerItem: undefined
 			};
 			// `assembledPrompt` is required and non-empty on a vault record, and this path never
 			// calls the image provider so there is no real prompt to record. It gets a description
@@ -851,10 +867,16 @@ export class StudioState {
 			this.tryOnError = 'Select a wig and upload your selfie first.';
 			return;
 		}
-		// Captured before the await: styling takes long enough that the reader can pick another wig
-		// while it runs. The result is filed under the wig it was requested for, so a late portrait
-		// can no longer appear under — and be labelled as — whichever wig is selected when it lands.
+		// Both captured before the await: styling takes long enough that the reader can pick another
+		// wig, or upload a different photo, while it runs.
+		//
+		// The wig decides where the result is filed, so a late portrait can no longer appear under —
+		// and be labelled as — whichever wig is selected when it lands. The selfie decides whether it
+		// is filed at all: a new upload clears the portraits precisely because they are of the old
+		// face, and a request already in flight would otherwise put one straight back, to sit in the
+		// compare strip beside portraits of the new face as though they were the same person.
 		const requestedWig = wig;
+		const requestedSelfieToken = this.selfieToken;
 		this.resetTryOnPageState();
 		this.isTryingOn = true;
 		try {
@@ -869,13 +891,20 @@ export class StudioState {
 			);
 			const parsed = WigTryOnResultSchema.safeParse(payload);
 			if (!parsed.success) {
-				this.setTryOnError('Try-on response did not match contract.', requestedWig.id);
+				this.setTryOnError(
+					'Try-on response did not match contract.',
+					requestedWig.id,
+					requestedSelfieToken
+				);
 				return;
 			}
 			if (!parsed.data.ok) {
-				this.setTryOnError(parsed.data.error.message, requestedWig.id);
+				this.setTryOnError(parsed.data.error.message, requestedWig.id, requestedSelfieToken);
 				return;
 			}
+			// The portrait is of the selfie that was current when it was requested. If that is no
+			// longer the selfie on screen, it belongs to nobody now and is dropped rather than filed.
+			if (requestedSelfieToken !== this.selfieToken) return;
 			this.storeTryOnPortrait({
 				wig: requestedWig,
 				portraitUrl: `data:${parsed.data.value.portraitMimeType};base64,${parsed.data.value.portraitBase64}`
@@ -883,7 +912,8 @@ export class StudioState {
 		} catch (error) {
 			this.setTryOnError(
 				error instanceof Error ? error.message : 'Wig try-on failed.',
-				requestedWig.id
+				requestedWig.id,
+				requestedSelfieToken
 			);
 		} finally {
 			this.isTryingOn = false;
@@ -891,11 +921,13 @@ export class StudioState {
 	};
 
 	/**
-	 * Shows a try-on failure only while the wig it happened to is still the one on screen. A
-	 * failure for a wig the reader has already moved on from is not theirs to read any more.
+	 * Shows a try-on failure only while it is still the reader's failure to read: the wig it
+	 * happened to is still on screen, and the selfie it was for is still the uploaded one. A
+	 * failure for a wig they have moved off, or for a photo they have replaced, is neither.
 	 */
-	private setTryOnError(message: string, wigId: string): void {
+	private setTryOnError(message: string, wigId: string, selfieToken: number): void {
 		if (this.selectedWigId !== wigId) return;
+		if (selfieToken !== this.selfieToken) return;
 		this.tryOnError = message;
 	}
 

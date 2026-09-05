@@ -385,6 +385,31 @@ test('the wig catalog can be searched and filtered, and its counts never promise
 	await expect(wigCards.first()).toContainText('Short Cut Boss');
 });
 
+test('a filter invalidated by a later search can still be switched off', async ({
+	page
+}) => {
+	await gotoHydrated(page, '/');
+
+	const humanChip = page
+		.getByTestId('wig-facet-hair-type')
+		.getByRole('button', { name: /^Human hair/ });
+	await humanChip.click();
+	await expect(page.getByTestId('wig-result-count')).toHaveText('6 of 8 wigs');
+
+	// The only wig matching "silver" is synthetic, so the chip the reader already picked drops to
+	// a count of zero. Disabling a zero-count chip is right for one they have not picked — it is a
+	// dead end — but here it would strand them: the control that undoes the filter is the only one
+	// that could, and Clear would throw away their search as well.
+	await page.getByTestId('wig-search').fill('silver');
+	await expect(humanChip).toHaveText(/0/);
+	await expect(humanChip).toBeEnabled();
+
+	await humanChip.click();
+	await expect(page.getByTestId('wig-result-count')).toHaveText('1 of 8 wigs');
+	// The search survived, which is the point of not making them press Clear.
+	await expect(page.getByTestId('wig-search')).toHaveValue('silver');
+});
+
 test('two wigs tried on the same selfie can both be kept and compared', async ({
 	page
 }) => {

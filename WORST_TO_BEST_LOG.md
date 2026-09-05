@@ -3883,3 +3883,112 @@ a repository defect, and CI resolves its own browser.
   records would need a record shape that is not a coloring page, which is a contract question.
 - Run 3's four follow-ups and run 4's three are untouched and still stand, including `getMonthKey`
   reading `new Date()` outside `ClockSeam`.
+
+---
+
+## Run 5, first close-out — 2026-09-05 — the Codex round on `70648ff`
+
+Appended, not edited. Four findings: **three accepted and fixed, one accepted in part.** Three of
+the four were defects in *this run's own new code*, and two of them were failures of an invariant
+this run had written down and then not enforced.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | A try-on request in flight when the reader uploads a new selfie files its portrait anyway. `setSelfieForTryOn` clears the portraits *because* they are of the old face; the pending response put one straight back, to sit in the compare strip beside portraits of the new face as though they were the same person. | **Real, and the sharpest finding of the round.** Fixed with a `selfieToken` captured before the request, checked before filing the result and before showing an error. |
+| P1 | A try-on page carried the demo seed's *body*. `syncSpecFromCurrentText` builds the spec from `DEFAULT_STUDIO_TEXT_OUTPUT` when no verdict exists; this run replaced only `title`, leaving items `THE RENT` / `THE DOPEMAN` / `WHAT IT COST` and the seed footer on the saved record. `loadCreation` rebuilds a no-`studioText` record's words from `intent.items`, so reopening put those lines in the preview **and in the evidence box** — the text the reader's next verdict request sends. | **Real.** The page now takes the whole `title_only` shape: wig title, no items, no footer — which is what a portrait page is, and what the schema requires. |
+| P2 | A selected facet chip invalidated by a later search drops to count 0 and was then disabled, so the one control that would undo it was the one control the reader could not press. Clear was the only way out, and it discards the search too. | **Real.** `disabled={facet.count === 0 && !facet.selected}`. |
+| P1 | "Apply the seam workflow to the catalog integration" — consuming `listWigs()` makes the seam's loading and failure results observable, so the no-seams classification is wrong. | **Accepted in part.** A Cipher Gate entry is now recorded, with `rewind` evidence. The claim that the *seam changed* is still not made, and the entry says so explicitly. |
+
+### Two of these were invariants this run wrote down and did not enforce
+
+That is the part worth recording, because it is a pattern rather than an accident.
+
+- `tryOnPortraits`'s own comment says a portrait of a replaced face "would be worse than losing
+  them" — and `setSelfieForTryOn` duly clears the list. The async path was left unguarded. This run
+  had already fixed exactly this class of bug **for the wig**, in the same function, capturing
+  `requestedWig` before the `await`; the selfie is the second input to the same request and got no
+  such treatment.
+- `buildFacet`'s comment says "a value that is currently selected is still counted and still shown,
+  **so it can always be undone**". The markup then disabled it. The module was right and the
+  component contradicted it three times over.
+
+The lesson is narrower than "test more". Both defects sit exactly where a stated invariant meets a
+second code path, and in both cases the invariant was written at the place it was *first* satisfied.
+A guard that has been reasoned about is not thereby applied everywhere it is needed — and the
+comment asserting it makes the gap *harder* to see, not easier, because the file reads as though the
+question has been settled.
+
+### Why the seam finding was handled differently this time
+
+Runs 3 and 4 both declined a "you touched a seam" P1 and left the thread open. Run 4's log warns
+that "the last run declined it" is not a reason. It is not the reason here, and this argument is
+not the same argument: runs 3 and 4 answered "you added a new caller of adapters that already had
+callers". This one says the UI moved from *bypassing* a seam to *consuming* it, which is a real
+change in what the reader can observe, and it is a better point.
+
+Re-checked against the diff on this head:
+
+- No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`,
+  `src/lib/adapters/` or `src/lib/seams/` is in it — `git diff origin/main...HEAD --name-only`
+  matches none of those paths.
+- `WigCatalogSeam`'s six artifacts all pre-date this work, so there is no missing contract, probe,
+  fixture, mock or red proof to produce.
+- `npm run rewind -- --seam WigCatalogSeam` passes **27 tests** on this head.
+
+So the finding's *remedy* — record the seam and show the evidence — is right, and its *premise* —
+that the seam changed — is not. `AGENTS.md` says to treat doubt as a seam change, and a third
+appearance of an argument in a stronger form is doubt. The Cipher Gate entry is therefore recorded
+in `DECISIONS.md` with the rewind evidence, and it states plainly what it does and does not claim.
+This is not half-doing the workflow: every artifact the workflow demands already exists for this
+seam, so the whole of what remained was the entry and the verification, and both are done.
+
+### The duplication gate, again, and the same fix a third time
+
+SonarCloud passed at **0.0% duplication on new code** on `70648ff` — the pre-push n-gram scan had
+already found and removed a 10-line repeat between the two new staleness tests. Adding the two
+selfie tests recreated it, in the same shape, between the same kind of pair. Both pairs are now one
+helper, `tryOnInterruptedBy`, parameterised by which input the reader changes mid-flight — which is
+also the better test, since the wig case and the selfie case differ only in that.
+
+That is three times this repository has hit the same gate by writing a second test that opens the
+same way as the first. It is not a coincidence and it is not really about duplication: a staleness
+test's setup *is* the interesting part, so writing it twice by hand is writing the subject twice.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1238 passed, 1 skipped**
+(from 1234 on the previous head; baseline on `main` 1187). `npm run build` exit 0.
+`npx playwright test` **31 passed** (from 30; baseline 28). `npm run verify` exit 0, all eight
+stages. `npm run cipher:gate` exit 0, `docs/evidence/2026-09-05/cipher-gate.json` written.
+`npm run rewind -- --seam WigCatalogSeam` 27 passed.
+
+**All four fixes proven by mutation.** Removing the store-side selfie guard fails
+`drops a portrait whose selfie was replaced...`; removing the error-side guard fails
+`does not show a try-on failure for a selfie...`; reverting to title-only-title fails both
+`carries none of the demo seed body...` and the vault save test; restoring
+`disabled={facet.count === 0}` fails the new e2e
+`a filter invalidated by a later search can still be switched off`.
+
+### Not this pull request's, established rather than asserted
+
+Two checks are red and neither is this PR's; both were commented on the pull request with the
+evidence rather than passed over in silence.
+
+- **Vercel** — `api-deployments-free-per-day`, an account-wide free-tier cap of 100/day, posted
+  before any build of this branch could run. PR #296, which is documentation-only, carries the
+  identical status.
+- **Rosentic** — reports that other branches "removed" parameters from `derivesDenseDecorations`,
+  `initVault` and six more. Those branches have **no common ancestor with `main`**
+  (`git merge-base` exits 1) and their tips pre-date every symbol named by two to three months, so
+  the symbols are simply absent there. None of the cited call sites is in this diff. Its proposed
+  fix — dropping the argument from `initVault([])` — would turn CI red.
+
+### One thing that could not be read
+
+SonarCloud's summary reports **1 new issue** beside the passed gate, and there is no surface here
+that names it: the check run's annotation text is empty, no inline comment was posted, and this
+container's network policy returns 403 for `sonarcloud.io`, so the API is unreachable. It is not
+gate-blocking, not a security alert, and not duplication or coverage — every enforced measure is
+green. It is recorded here unresolved rather than guessed at, because run 4's own lesson is that a
+finding you cannot read is an instruction to measure, and the measurement is unavailable from this
+environment.

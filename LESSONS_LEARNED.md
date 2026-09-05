@@ -309,3 +309,16 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
   portrait with the wrong wig.
 - Action: When a rebuild replaces a single shared value with a keyed one, treat every write to the
   old value as a staleness candidate and capture the key before the await, not after it.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: The Codex round on Run 5. Two of its three real findings were invariants this run had
+  written into a comment and then failed to enforce on a second code path — a portrait of a
+  replaced selfie, and a selected facet chip that could not be unselected.
+- Lesson: A guard that has been reasoned about is not thereby applied everywhere it is needed, and
+  the comment asserting it makes the gap harder to see rather than easier, because the file reads as
+  though the question is settled. Both defects sat exactly where the stated invariant met a path
+  that was written later than the sentence describing it.
+- Action: When a comment states an invariant, enumerate the paths it has to hold on and check each
+  one, rather than trusting the comment at the site where it was first satisfied. In particular, an
+  async handler with two inputs needs a staleness token per input, not per handler.

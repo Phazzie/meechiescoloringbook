@@ -548,17 +548,21 @@ describe('StudioState wig try-on comparison', () => {
 		);
 
 	/**
-	 * Starts a try-on for SAMPLE_WIG, moves the reader onto OTHER_WIG while the request is still
-	 * in flight, and only then lets the response land. That window is the whole subject of the two
-	 * tests below: it is where a late result used to attach itself to whichever wig happened to be
-	 * on screen when it arrived.
+	 * Starts a try-on for SAMPLE_WIG on a first selfie, runs `interrupt` while the request is still
+	 * in flight, and only then lets the response land.
+	 *
+	 * That window is the whole subject of the staleness tests below. A try-on is slow enough for the
+	 * reader to change either input under it, and a late result used to attach itself to whatever
+	 * was on screen when it arrived — so both interruptions are exercised through one helper: they
+	 * differ only in which input moves.
 	 */
-	const tryOnThenMoveOnBeforeItLands = async (
+	const tryOnInterruptedBy = async (
 		studio: StudioState,
+		interrupt: (_studio: StudioState) => void,
 		response: Response
 	): Promise<void> => {
 		studio.selectedWig = SAMPLE_WIG;
-		studio.selfieBase64 = 'selfie-bytes';
+		studio.setSelfieForTryOn('first-selfie', 'image/png');
 		let release: (value: Response) => void = () => {};
 		const pending = new Promise<Response>((resolve) => {
 			release = resolve;
@@ -566,9 +570,17 @@ describe('StudioState wig try-on comparison', () => {
 		vi.stubGlobal('fetch', vi.fn().mockReturnValue(pending));
 
 		const inFlight = studio.handleWigTryOn();
-		studio.selectedWig = OTHER_WIG;
+		interrupt(studio);
 		release(response);
 		await inFlight;
+	};
+
+	const selectOtherWig = (studio: StudioState): void => {
+		studio.selectedWig = OTHER_WIG;
+	};
+
+	const uploadAnotherSelfie = (studio: StudioState): void => {
+		studio.setSelfieForTryOn('second-selfie', 'image/png');
 	};
 
 	const failedTryOnResponse = (): Response =>
@@ -629,7 +641,7 @@ describe('StudioState wig try-on comparison', () => {
 	it('files a late portrait under the wig it was requested for, not the wig now on screen', async () => {
 		const studio = new StudioState();
 
-		await tryOnThenMoveOnBeforeItLands(studio, portraitResponse('ZmFrZQ=='));
+		await tryOnInterruptedBy(studio, selectOtherWig, portraitResponse('ZmFrZQ=='));
 
 		expect(studio.tryOnPortraits).toEqual([{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT }]);
 		// The wig on screen never had a portrait made, so it must not be wearing someone else's.
@@ -641,7 +653,7 @@ describe('StudioState wig try-on comparison', () => {
 	it('does not show a try-on failure for a wig the reader has already moved off', async () => {
 		const studio = new StudioState();
 
-		await tryOnThenMoveOnBeforeItLands(studio, failedTryOnResponse());
+		await tryOnInterruptedBy(studio, selectOtherWig, failedTryOnResponse());
 
 		expect(studio.tryOnError).toBe('');
 
@@ -682,6 +694,43 @@ describe('StudioState wig try-on comparison', () => {
 		vi.unstubAllGlobals();
 	});
 
+	it('drops a portrait whose selfie was replaced while it was still being made', async () => {
+		const studio = new StudioState();
+
+		// Replacing the photo mid-flight clears the portraits precisely because they are of the old
+		// face, so the in-flight result must not put one straight back — it would sit in the compare
+		// strip beside portraits of the new face as though they were the same person.
+		await tryOnInterruptedBy(studio, uploadAnotherSelfie, portraitResponse('ZmFrZQ=='));
+
+		expect(studio.tryOnPortraits).toEqual([]);
+		expect(studio.tryOnPortraitUrl).toBe('');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('does not show a try-on failure for a selfie the reader has already replaced', async () => {
+		const studio = new StudioState();
+
+		await tryOnInterruptedBy(studio, uploadAnotherSelfie, failedTryOnResponse());
+
+		expect(studio.tryOnError).toBe('');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('still files a portrait when the selfie was never replaced', async () => {
+		const studio = new StudioState();
+		studio.selectedWig = SAMPLE_WIG;
+		studio.setSelfieForTryOn('only-selfie', 'image/png');
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(portraitResponse('ZmFrZQ==')));
+
+		await studio.handleWigTryOn();
+
+		expect(studio.tryOnPortraitUrl).toBe(PNG_PORTRAIT);
+
+		vi.unstubAllGlobals();
+	});
+
 	it('names a try-on coloring page after its wig instead of the demo default', async () => {
 		const studio = new StudioState();
 		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
@@ -696,6 +745,34 @@ describe('StudioState wig try-on comparison', () => {
 
 		expect(studio.spec.title).toBe('Wig Try-On - Sample Wig');
 		expect(studio.assembledPrompt).toContain(SAMPLE_WIG.name);
+	});
+
+	/**
+	 * Replacing only the title left the demo seed's list on the record. A try-on page is a
+	 * portrait, so it takes the whole title-only shape: no items, no footer, nothing of the seed.
+	 */
+	it('carries none of the demo seed body into a try-on page', async () => {
+		const studio = new StudioState();
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: { files: [] }
+		});
+		// The seed the spec starts on, which is what a try-on page used to inherit wholesale.
+		expect(studio.spec.items.map((item) => item.label)).toEqual([
+			'THE RENT',
+			'THE DOPEMAN',
+			'WHAT IT COST'
+		]);
+		arrangeTryOnPortrait(studio, PNG_PORTRAIT);
+
+		await studio.handleGenerateTryOnPage();
+
+		expect(studio.spec.listMode).toBe('title_only');
+		expect(studio.spec.items).toEqual([]);
+		expect(studio.spec.footerItem).toBeUndefined();
+		// And the spec it produced is one the validator accepts, so generation is not blocked.
+		expect(studio.validationIssues).toEqual([]);
+		expect(studio.generationError).toBe('');
 	});
 });
 
@@ -1499,6 +1576,16 @@ describe('StudioState quote vault', () => {
 		expect(saved.assembledPrompt).toContain(SAMPLE_WIG.name);
 		expect(saved.assembledPrompt).not.toContain('NEGATIVE PROMPT');
 		expect(saved.images?.[0]?.b64).toBe('ZmFrZQ==');
+		// The record has no studioText, so `loadCreation` rebuilds its words from `intent.items`.
+		// Seed items here would put THE RENT / THE DOPEMAN / WHAT IT COST into the reopened
+		// preview and into the evidence box, which is the text the next verdict request sends.
+		expect(saved.intent.items).toEqual([]);
+		expect(saved.intent.footerItem).toBeUndefined();
+
+		await studio.loadCreation(saved);
+
+		expect(studio.evidence).not.toContain('THE RENT');
+		expect(studio.evidence).not.toContain('DOPEMAN');
 	});
 
 	it('still refuses to save when there is neither a verdict nor a page', async () => {

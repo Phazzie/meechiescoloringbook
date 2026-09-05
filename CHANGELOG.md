@@ -8,6 +8,9 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- A wig try-on that is still being made when you upload a new photo is now discarded instead of being added to your looks. It was a picture of the previous photo, and it would have sat beside the new ones as though it were the same person.
+- A coloring page made from a wig try-on no longer carries the example page's list. Reopening a saved try-on used to put "The rent", "The dopeman" and "What it cost" into the preview and into the evidence box, where they became the words your next verdict was asked about.
+- A wig filter you have already chosen can always be switched off, even when a later search leaves it matching nothing. It used to grey itself out, so the only way to undo it was Clear, which threw away your search too.
 - The wig catalog can be shopped. Every wig already carried a hair type, a length, a colour family and a handful of tags, and the carousel showed none of it and let you filter on none of it — eight wigs in one horizontal scroll, in the only part of the app that sells anything. You can now search by name, brand, colour, texture or vibe, narrow by length, hair type and colour, and sort by price or name, with the length, hair type and colour of each wig on its card.
 - A filter can no longer promise results it does not have. Each filter shows how many wigs it would actually return given everything else you have already picked, and one that would return nothing is greyed out rather than offered.
 - The wig catalog now says when it cannot be loaded. A catalog that failed to load or came back empty used to render as an empty row with no message at all.
