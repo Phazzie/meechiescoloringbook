@@ -224,27 +224,6 @@ export class StudioState {
 	 */
 	settingsError = $state('');
 	/**
-	 * What the spec check found wrong after a Page Controls change, in the reader's words.
-	 *
-	 * `settingsError` above covers only the case where the check could not be *run* — an adapter
-	 * rejection, which is the rare one. An ordinary contract failure resolves normally with
-	 * `{ ok: false, issues }`, and `applyTextToSpec` awaited that result and dropped the boolean, so
-	 * the common failure went on appearing solely in System Trace: a Page Controls change reported
-	 * in a panel about the provider, which is precisely what this run took `draftSaveError` out of.
-	 *
-	 * Written only by `syncSpecFromCurrentText`, the panel's own handler, and cleared at the top of
-	 * every one of its runs. Mirroring `validationIssues` wholesale would have parked a generation's
-	 * or a reopen's findings under the settings panel, blaming the controls for something that
-	 * happened before the reader touched them.
-	 *
-	 * That sentence was false when it was written, which is why the rebuild is now split. The wig
-	 * selector and the try-on page generator both called `syncSpecFromCurrentText`, so both wrote
-	 * here; the try-on path in particular left a finished, valid page reporting a failure about the
-	 * intermediate spec it had already thrown away. They call `rebuildSpecFromCurrentText` instead,
-	 * and the claim holds by construction rather than by everyone remembering it.
-	 */
-	settingsIssues = $state<string[]>([]);
-	/**
 	 * The wig provenance of a reopened page, or `null` when the page on the paper is not one.
 	 *
 	 * Three states, and the wrapper is what makes the middle one expressible:
@@ -312,6 +291,45 @@ export class StudioState {
 	copyStatus = $state('');
 	vaultStatus = $state('');
 	validationIssues = $state<SpecValidationOutput['issues']>([]);
+	/**
+	 * The Page Controls panel is the thing currently answering for the spec's check.
+	 *
+	 * Set by `syncSpecFromCurrentText` once its rebuild returns, and dropped by `validateSpec` the
+	 * moment any check begins — including the one inside that same rebuild, which is why the set
+	 * comes after. So the panel speaks for the check it caused and stops speaking the instant
+	 * anything else re-checks the spec, without every other caller having to remember to say so.
+	 */
+	private settingsReported = $state(false);
+	/**
+	 * What the spec check found wrong after a Page Controls change, in the reader's words.
+	 *
+	 * `settingsError` above covers only the case where the check could not be *run* — an adapter
+	 * rejection, which is the rare one. An ordinary contract failure resolves normally with
+	 * `{ ok: false, issues }`, and `applyTextToSpec` awaited that result and dropped the boolean, so
+	 * the common failure went on appearing solely in System Trace: a Page Controls change reported
+	 * in a panel about the provider, which is precisely what this run took `draftSaveError` out of.
+	 *
+	 * Mirroring `validationIssues` wholesale would park a generation's or a reopen's findings under
+	 * the settings panel, blaming the controls for something that happened before the reader touched
+	 * them. So it is `validationIssues` *while the panel is the one answering*, and empty otherwise.
+	 *
+	 * Derived rather than copied, which is the second correction this field has needed. It was a
+	 * `$state` written by the panel's handler, and a copy taken at one moment cannot follow its
+	 * source: an over-long dedication reported here, then *fixed* in the dedication box, revalidated
+	 * and cleared `validationIssues` and left this saying the page had failed a check it now passed.
+	 * A copy that drifts from what it copied is the defect this whole run is about, and it was in
+	 * the reporting itself.
+	 *
+	 * The first correction was the writer, not the value. The doc here claimed "written only by the
+	 * panel's own handler" while the wig selector and the try-on page generator both called that
+	 * handler, and the try-on path left a finished, valid page reporting a failure about the
+	 * intermediate spec it had already thrown away. They call `rebuildSpecFromCurrentText` instead.
+	 * Between the split and the derivation, neither the wrong caller nor a stale moment can write
+	 * here, because nothing writes here at all.
+	 */
+	settingsIssues = $derived(
+		this.settingsReported ? this.validationIssues.map((issue) => issue.message) : []
+	);
 	assembledPrompt = $state('');
 	/**
 	 * True when there is a page on the paper and its own style is not on file.
@@ -913,6 +931,15 @@ export class StudioState {
 	}
 
 	private async validateSpec(): Promise<boolean> {
+		// A fresh check begins, so whatever the panel was saying about the last one stops being an
+		// answer about the current spec. Here rather than in each non-panel caller: the leak this
+		// replaces was one caller forgetting, and a rule enforced at the one place every check goes
+		// through cannot be forgotten by a caller added later. `syncSpecFromCurrentText` sets it
+		// back after its own rebuild returns, which is after this has run.
+		this.settingsReported = false;
+		// Same reasoning, one field over. This one says the last Page Controls change could not be
+		// *checked*; a check that is now running says otherwise.
+		this.settingsError = '';
 		const validation = await specValidationAdapter.validate({ spec: $state.snapshot(this.spec) });
 		this.validationIssues = validation.issues;
 		return validation.ok;
@@ -1011,7 +1038,7 @@ export class StudioState {
 		// standing they would describe the previous page's trouble over the new one, which is the
 		// same stale-report defect in miniature.
 		this.settingsError = '';
-		this.settingsIssues = [];
+		this.settingsReported = false;
 		// A fact about the page being replaced, so it goes with it. `loadCreation` calls this first
 		// and sets it after, which is the same order the two artifact snapshots above use.
 		this.restoredStyleUnknown = false;
@@ -1155,13 +1182,16 @@ export class StudioState {
 		source: SettingChangeSource = 'setting'
 	): Promise<void> => {
 		this.settingsError = '';
-		this.settingsIssues = [];
+		this.settingsReported = false;
 		try {
 			await this.rebuildSpecFromCurrentText(source);
-			// `applyTextToSpec` has already run the check and stored what it found, so this reads
-			// that answer rather than paying for a second call to the seam that could disagree with
-			// the first. Empty on a pass, which is also what the clear above leaves behind.
-			this.settingsIssues = this.validationIssues.map((issue) => issue.message);
+			// `applyTextToSpec` has already run the check and stored what it found, so the panel
+			// reads that answer rather than paying for a second call to the seam that could
+			// disagree with the first. Claiming the check rather than copying its result: the issues
+			// the reader sees are `validationIssues` itself from here on, so a later fix to the spec
+			// that clears them clears the panel too instead of leaving it insisting on a failure the
+			// page no longer has.
+			this.settingsReported = true;
 		} catch (error) {
 			// Reported where the reader is looking — beside the control they just moved — instead of
 			// as "Draft not saved:" in the evidence panel, which is what a settings failure used to
@@ -1986,6 +2016,18 @@ export class StudioState {
 			// Setting it for a studio-authored draft costs nothing: such a spec is a `list` with a
 			// footer, so both derivations above return what the false branch would have.
 			this.restoredPageLayout = true;
+			// The same question `loadCreation` asks of a record, asked of a draft, because the same
+			// thing goes wrong when it is not asked. `DraftRecordSchema` accepts a draft with no
+			// `styleSelection` — every draft written before the field existed is one — and leaving
+			// the flag false made the studio treat whatever the controls happened to say as that
+			// draft's own style. The next autosave then wrote those values down beside the restored
+			// intent, which they did not author, and the refresh after that applied them: invented
+			// provenance, arrived at in two steps from a draft that recorded none.
+			//
+			// Before `applyRestoredStyleSelection`, which is the same order the seeding below needs
+			// and reads correctly either way: this is a fact about the record being restored, not
+			// about the controls it may be about to move.
+			this.restoredStyleUnknown = draft.value.styleSelection === undefined;
 			// Before the seeding below, for the reason given in `loadCreation`.
 			this.applyRestoredStyleSelection(draft.value.styleSelection);
 			this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());

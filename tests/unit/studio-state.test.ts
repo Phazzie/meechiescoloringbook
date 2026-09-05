@@ -3465,17 +3465,67 @@ describe('StudioState page style', () => {
 		// change to the page being replaced does not outlive that page.
 		const studio = registerInitialized(new StudioState());
 		await studio.init();
-		studio.settingsIssues = ['a complaint about the page being replaced'];
-		studio.settingsError = 'and how it could not be checked';
 		vi.spyOn(specValidationAdapter, 'validate').mockResolvedValue({
 			ok: false,
 			issues: [{ code: 'title_too_long', field: 'title', message: 'Title is too long.' }]
 		});
+
+		// The panel genuinely reports a complaint about the page that is about to be replaced,
+		// rather than the test assigning one. `settingsIssues` is derived now, so a forged value is
+		// no longer even expressible — which is the point of the derivation, and means this test
+		// reaches the state the way the reader does.
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.settingsIssues).toEqual(['Title is too long.']);
 
 		await studio.loadCreation(makeStyledCreation({ styleSelection }));
 
 		expect(studio.validationIssues).toHaveLength(1);
 		expect(studio.settingsIssues).toEqual([]);
 		expect(studio.settingsError).toBe('');
+	});
+
+	it('stops reporting a settings failure the reader has since fixed', async () => {
+		// The panel's report was a copy taken at one moment, and a copy cannot follow its source. An
+		// over-long dedication found by a Page Controls change stayed printed under the controls
+		// after the reader went and fixed the dedication — the check now passes, `validationIssues`
+		// is empty, and the panel was still insisting the page failed it. That is this run's own
+		// defect inside this run's own reporting.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		studio.handleDedicationInput('D'.repeat(MAX_DEDICATION_LENGTH + 1));
+		await vi.waitFor(() => expect(studio.validationIssues.length).toBeGreaterThan(0));
+
+		// A Page Control moves, and the panel correctly says the page does not pass its check.
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.settingsIssues.length).toBeGreaterThan(0);
+
+		// The reader fixes the thing it complained about, somewhere else entirely.
+		studio.handleDedicationInput('For Meechie');
+		await vi.waitFor(() => expect(studio.validationIssues).toEqual([]));
+
+		expect(studio.settingsIssues).toEqual([]);
+	});
+
+	it('does not treat a draft that stored no style as wearing the controls it comes back to', async () => {
+		// The `loadCreation` rule, missing from the other restore path. Every draft written before
+		// `styleSelection` existed has none, and leaving the flag false made the studio read whatever
+		// the controls happened to say as that draft's own style — so the next autosave wrote those
+		// values down beside a restored intent they did not author, and the refresh after that
+		// applied them. Invented provenance in two steps, from a draft that recorded none.
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-01T00:00:00.000Z',
+			intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A LEGACY DRAFT' }
+		});
+
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		// And the autosave says so rather than filling the gap in.
+		draftSpy.mockClear();
+		studio.handleDedicationInput('For Meechie');
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection).toBeUndefined();
 	});
 });
