@@ -7,11 +7,10 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # Run 5 of the worst-feature routine — the wig try-on becomes a shop you can browse and a look you
-# can keep. Head 48112b8, captured 2026-09-05T01:59:47Z. Three Codex rounds plus one self-audit; nine real
-# findings fixed: the replaced-selfie portrait, the seed body on try-on records, the stranded facet
-# chip, the server-rendered catalog, the laundered seed text on resave, the unrelated verdict saved
-# onto a try-on page, the portrait re-read after an await, the late try-on PDF, and the unguarded
-# studio generation (the last of which pre-dated this branch).
+# can keep. Head 8cb2c90, captured 2026-09-05T02:08:52Z. Four Codex rounds plus one self-audit;
+# eleven real findings fixed, nine of them one family — something on the page and the thing
+# describing it drifting apart, across an await, a restore, a serialisation, or a settings rebuild.
+# The full list is in WORST_TO_BEST_LOG.md under Run 5's close-outs.
 
 ## The chain (npm run verify) — exit 0
 
@@ -35,7 +34,7 @@
 ## Results on this head
 
 - npm run check: 0 errors, 0 warnings
-- npm test: 1246 passed, 1 skipped (baseline on main at 1dab4cf: 1187 passed, 1 skipped)
+- npm test: 1248 passed, 1 skipped (baseline on main at 1dab4cf: 1187 passed, 1 skipped)
 - npm run build: exit 0
 - npx playwright test: 32 passed
 - npm run verify: exit 0, all eight stages

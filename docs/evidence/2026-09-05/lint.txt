@@ -2,7 +2,7 @@
 # Why: AGENTS.md requires lint before every push; eslint prints nothing on success.
 # Info flow: eslint output -> this evidence file -> review and the proof tape.
 #
-# npm run lint — 2026-09-05T01:59:47Z (head 48112b8)
+# npm run lint — 2026-09-05T02:08:52Z (head 8cb2c90)
 #
 
 > meechies-coloringbook@0.1.0 lint
