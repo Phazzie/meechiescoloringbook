@@ -5308,18 +5308,35 @@ invalid, and it is: those later pushes carried real source changes (the hero acc
 `verdictToken`), so a success on the older head cannot establish that the newer ones would deploy.
 It shows the project deploys; it does not clear the later heads.
 
-The evidence that does hold is on a head with no code in it at all. PR #306 — the close-out this
-entry belongs to — changes one Markdown file and nothing else. Its first head, `1aa46c6`, drew the
-identical `api-deployments-free-per-day` failure. Its second, `03b2ffc`, **deployed successfully**,
-with the Markdown edited in between and not a line of source touched by either. A signal that both
-fails and succeeds on a diff containing no code is measuring something other than the code.
+`AGENTS.md` requires the comparison be made "on the base commit or an unrelated head", so here it
+is on an unrelated head. **PR #305** — a different pull request, a different diff, since merged as
+`db32d45` and therefore now part of this PR's base — drew the identical error string on its very
+first head, `34bd3ce`, and on three of the four heads after it:
 
-That second half arrived after this paragraph was first written, and it caught the paragraph out:
-the original said PR #306 "draws" that failure, present tense, which stopped being true about the
-current head an hour later. A statement that was accurate when written and silently expired — which
-is, exactly, the defect this run's feature exists to prevent, committed in the sentence describing
-the run. It is written here in the past tense, tied to the two commits it is about, so it cannot
-expire again.
+```
+Resource is limited - try again in 24 hours (more than 100, code: "api-deployments-free-per-day")
+```
+
+Same service, same code, same account. The one head of #305 that did **not** draw it, `aa8553e`,
+deployed successfully — between two heads that did. A signal whose state flips back and forth across
+five heads of one PR and then again across three heads of another, while tracking nothing in any of
+those diffs, is reporting on the account's daily budget rather than on any branch.
+
+This paragraph took three attempts, and the failures are worth more than the conclusion:
+
+1. The first version argued from "nothing in the branch changed between those states", which was
+   simply false — two source commits landed in between.
+2. The second said PR #306 "draws" that failure, present tense. An hour later its next head deployed
+   successfully and the sentence stopped being true — a claim that was accurate when written and
+   silently expired, which is precisely the defect this run's feature exists to prevent, committed
+   in the prose describing the run.
+3. The second also called this PR "one Markdown file and nothing else". True of `1aa46c6`; false the
+   moment `03b2ffc` regenerated `verify-outer.txt` and the chain rewrote a dozen evidence artefacts.
+   The diff is **13 files**: this log entry and the evidence files it cites. No source file, which is
+   the part that mattered — but "no source" is what I should have written, and is not what I wrote.
+
+Every claim above is now tied to a named commit or PR and stated in the past tense, so none of it
+can expire.
 
 **Rosentic** — 157 findings, 5 graded breaking. Re-derived from scratch rather than inheriting the
 previous entry's dismissal, which that entry itself records as right-for-the-wrong-reason. Five ways,
@@ -5362,7 +5379,7 @@ the routine requires had never been run on any head of this PR until a reviewer 
 
 None of these is a recommendation for what to pick next. Measure it.
 
-### A fifth round, on the close-out itself
+### The review of this close-out (PR #306)
 
 The three corrections above came from a Codex review of *this entry*, and all three were the same
 failure the run is about: a claim the record did not support.
@@ -5383,6 +5400,10 @@ failure the run is about: a claim the record did not support.
   replacement argument is the one that holds and is stronger: the same cap fires on this close-out
   PR, which contains no code at all.
 
-That is five rounds where the finding was, in one form or another, *you are asserting more than you
-have shown*. The feature, the fixes, and now the write-up of the fixes. Whatever this run is a lesson
-about, it is not really about quota meters.
+Across both pull requests — five Codex rounds on the feature PR #305, the last of them clean, and
+the rounds on this close-out PR #306 — every finding took the same form: *you are asserting more
+than you have shown*. The feature, then the fixes, then the write-up of the fixes, then the
+correction to the write-up. Deliberately not numbered as a running total here: the previous draft
+called this "the fifth round" while the table above already used that number for the clean round on
+#305, and the count went stale again before the entry merged. Whatever this run is a lesson about,
+it is not really about quota meters.
