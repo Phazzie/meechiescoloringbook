@@ -5285,7 +5285,7 @@ The home studio's AI budget meter is Run 7's worst→best feature, and it is on 
 |---|---|
 | CI green on the current head, **both** surfaces | Check runs: `verify` ×2, CodeQL, Analyze (javascript-typescript), Analyze (actions), SonarCloud, SonarCloud Code Analysis (Quality Gate passed, 0 new issues) — all success. Sourcery skipped. Commit statuses: CodeRabbit success (skipped). Two red: Rosentic and Vercel, both dispositioned below. |
 | Every review comment addressed | Codex produced **11 distinct findings** across four rounds, posted as 12 comments (one was posted twice). **Eight fixed** and their threads resolved — four in round one, two in round two, one each in rounds three and four; **three answered** with evidence and left open for the owner (the `postJson`-as-seam question, the `ClockSeam` workflow question, and the exact reset anchor). Rosentic answered in a PR comment. Sourcery stood down (7-day diff budget), CodeRabbit skipped (fewer than 10 stars). No human review. **Codex's fifth round, on the final head, produced no findings.** |
-| `npm run verify` and `npm test` green, evidence committed | `verify-outer.txt` captures the outer chain on this head: 1357 passed / 1 skipped, `exit=0`. 35 e2e. `build.txt`, `lint.txt` and `e2e.txt` regenerated from the final head *after* the chain, which is why `proof-tape.md` — generated during it — lists them as older than its own `chamber-lock.json`. |
+| `npm run verify` and `npm test` green, evidence committed | `verify-outer.txt` captures the outer chain — 1357 passed / 1 skipped, `exit=0` — over **the source tree #305 merged**, which `git diff origin/main...HEAD -- src tests contracts probes fixtures scripts` confirms is byte-identical to this branch's. 35 e2e. `build.txt`, `lint.txt` and `e2e.txt` were regenerated *after* the chain, which is why `proof-tape.md` — generated during it — lists them as older than its own `chamber-lock.json`. See the note below on why no transcript can ever be "on the final head" of an entry that documents itself. |
 | No unpushed work, no merge conflict | Local `HEAD` == remote == `bf07402`; 0 commits behind `main`; clean tree. |
 
 Exclusions: no human change request (every review was a bot). No schema, contract or data migration —
@@ -5411,6 +5411,16 @@ failure the run is about: a claim the record did not support.
   was simply false — two source fixes landed between the deploying head and the merged one. The
   replacement argument is the one that holds and is stronger: the same cap fires on this close-out
   PR, which contains no code at all.
+
+**A regress worth naming, since a future run will hit it.** A reviewer observed that
+`verify-outer.txt`, regenerated at 19:35, predates three later commits on this PR, so it cannot
+prove verification ran "on this head". Formally true, and unfixable by re-running: any commit that
+writes fresh evidence into a close-out is itself a commit the evidence predates. An entry that
+documents its own verification can never carry a transcript stamped at its own final hash. What is
+checkable, and what the row now claims instead, is the *source tree* the transcript covers — those
+three commits touched `WORST_TO_BEST_LOG.md` and nothing else, and the branch's source is
+byte-identical to what #305 merged, so no re-run could return a different number. State what the
+artefact covers, not which hash it preceded.
 
 Across both pull requests — five Codex rounds on the feature PR #305, the last of them clean, and
 the rounds on this close-out PR #306 — every finding took the same form: *you are asserting more
