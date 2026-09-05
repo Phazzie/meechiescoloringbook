@@ -250,9 +250,14 @@ export class StudioState {
 	 * which is the silent-restyling defect this run exists to remove, one step further along.
 	 *
 	 * `undefined` means "no page, or a page whose style is not on file" — see `styleSelectionUnknown`.
-	 * Not `$state`: nothing renders it directly.
+	 *
+	 * `$state` because `styleSelectionUnknown` and `pageGlitter` are derived from it. Nothing renders
+	 * it directly, and it was a plain field until those two started reading it as their only
+	 * non-constant input: a `$derived` over an unreactive field simply never recomputes, so the panel
+	 * kept whatever it had said first. It read `assembledPrompt` before, which is `$state`, and that
+	 * is the only reason the plain field appeared to work.
 	 */
-	private generatedStyleSelection: StyleSelection | undefined = undefined;
+	private generatedStyleSelection = $state<StyleSelection | undefined>(undefined);
 	/**
 	 * The spec the page currently on the paper was actually built from.
 	 *
@@ -277,9 +282,11 @@ export class StudioState {
 	 * Known for a reopened record too, including one written before `styleSelection` existed — the
 	 * spec is the record, so unlike the style there is no unknown case to report.
 	 *
-	 * `undefined` means there is no page on the paper. Not `$state`: nothing renders it.
+	 * `undefined` means there is no page on the paper. `$state` for the same reason as
+	 * `generatedStyleSelection` above: it is what `styleSelectionUnknown` and `pageGlitter` are
+	 * derived from.
 	 */
-	private generatedSpec: ColoringPageSpec | undefined = undefined;
+	private generatedSpec = $state<ColoringPageSpec | undefined>(undefined);
 	isTextWorking = $state(false);
 	isGenerating = $state(false);
 	copyStatus = $state('');
@@ -289,16 +296,21 @@ export class StudioState {
 	/**
 	 * True when there is a page on the paper and its own style is not on file.
 	 *
-	 * Declared after `assembledPrompt` because a `$derived` initialiser runs in field order, and
-	 * derived rather than assigned, from the two facts that decide it: `assembledPrompt` is set
-	 * exactly when a generated artifact is on screen, and `generatedStyleSelection` is set exactly
-	 * when that artifact's style is known. A separate flag had to be written correctly at four
-	 * sites, and a fifth would have been added silently.
+	 * Derived rather than assigned, from the two facts that decide it: `generatedSpec` is set
+	 * exactly when there is an artifact on screen, and `generatedStyleSelection` is set exactly when
+	 * that artifact's style is known. A separate flag had to be written correctly at four sites, and
+	 * a fifth would have been added silently.
 	 *
-	 * A record written before styles were stored restores a prompt and no selection, so the panel
-	 * says the page's style is not on file and leaves the reader's own controls alone.
+	 * A record written before styles were stored restores a spec and no selection, so the panel says
+	 * the page's style is not on file and leaves the reader's own controls alone.
+	 *
+	 * This asked `assembledPrompt !== ''` until a review pointed at the gap: the prompt is assigned
+	 * *before* the check for a response that came back with no picture, deliberately, so System
+	 * Trace still shows what was asked for. So a generation that produced nothing looked like an
+	 * artifact. `generatedSpec` is the honest test, because it is now set only where a page actually
+	 * exists — and it is `undefined` for a restored draft, which is a page the controls do describe.
 	 */
-	styleSelectionUnknown = $derived(this.assembledPrompt !== '' && !this.generatedStyleSelection);
+	styleSelectionUnknown = $derived(this.generatedSpec !== undefined && !this.generatedStyleSelection);
 	/**
 	 * The glitter the paper on screen should be wearing — the page's, not the control's.
 	 *
@@ -318,7 +330,9 @@ export class StudioState {
 	 * run removed everywhere else, and the panel is already telling the reader why.
 	 */
 	pageGlitter = $derived(
-		this.assembledPrompt === '' ? this.glitter : (this.generatedStyleSelection?.glitter ?? false)
+		this.generatedSpec === undefined
+			? this.glitter
+			: (this.generatedStyleSelection?.glitter ?? false)
 	);
 	revisedPrompt = $state('');
 	violations = $state<Violation[]>([]);
@@ -727,23 +741,26 @@ export class StudioState {
 	 * neighbouring question of which verdict belongs to a page; one function is how that stops
 	 * being possible.
 	 *
-	 * When there is no stored selection the controls are left exactly as the reader set them, and
-	 * the panel is told to say the page's own style is not on file.
+	 * When there is no stored selection the controls are left exactly as the reader set them.
 	 *
 	 * Resetting them to the defaults instead was the first attempt, and a test caught it being
 	 * wrong: those controls are the reader's, not the record's, so reopening any page saved before
 	 * this field existed would have silently thrown away settings they had just chosen — arbitrary
 	 * destruction, to replace a lie with a different lie. The lie is what needed removing, and the
 	 * notice removes it. Nothing the reader owns is touched to do that.
+	 *
+	 * This puts a stored style on the controls and does nothing else. It used to also record the
+	 * selection as the *artifact's* — which is right for the vault, where there is an artifact, and
+	 * wrong for a draft, where there is not. A draft restores no prompt and no image, so a reader
+	 * who came back after a refresh, changed a theme and saved got a record holding the draft's old
+	 * style beside a spec rebuilt from the new controls. Both paths still answer "no stored
+	 * selection?" through this one function; the artifact snapshot now lives with the artifact,
+	 * which only `loadCreation` has.
 	 */
 	private applyRestoredStyleSelection(selection: StyleSelection | undefined): void {
 		if (selection) {
 			this.applyStyleSelection(selection);
 		}
-		// The record's own style, which is what the page on the paper was made with. Left `undefined`
-		// for a record written before the field existed, so `styleSelectionUnknown` reports it rather
-		// than the panel presenting the reader's controls as that page's choices.
-		this.generatedStyleSelection = selection;
 	}
 
 	private currentDedication(): string | undefined {
@@ -1273,10 +1290,6 @@ export class StudioState {
 				return;
 			}
 			this.assembledPrompt = parsed.data.value.prompt;
-			// The selection the request actually carried, not the controls as they stand now.
-			this.generatedStyleSelection = requestedStyle;
-			// And the spec it was drawn from, off the same single read, for the same reason.
-			this.generatedSpec = requestedSpec;
 			this.images = parsed.data.value.images;
 			this.revisedPrompt = parsed.data.value.revisedPrompt || '';
 			this.violations = parsed.data.value.violations;
@@ -1292,6 +1305,15 @@ export class StudioState {
 					'Meechie sent the words back without a picture. Try creating the page again.';
 				return;
 			}
+
+			// The artifact snapshot, taken only now that there is an artifact — below this guard, not
+			// above it with the trace. Assigning it before the guard filed a request that produced
+			// nothing as though it had produced a page: `textOutput` still lights up Save to Vault,
+			// so saving after the failure stored that request's style and spec, and went on doing so
+			// after the reader had moved every control. Values captured before the await, not read
+			// off the live controls, for the reason given where each was captured.
+			this.generatedStyleSelection = requestedStyle;
+			this.generatedSpec = requestedSpec;
 
 			const creationId = this.generateCreationId();
 			await this.attachPageExports(`meechie-coloring-page-${creationId}`, pageToken);
@@ -1359,11 +1381,9 @@ export class StudioState {
 			// as the reader's facts on their next Generate Verdict — the defect recorded at that
 			// call site.
 			this.assembledPrompt = `Wig try-on portrait — ${wig.name} (${wig.style}).`;
-			// The selection the page was actually built from. Same rule as the generate path.
-			this.generatedStyleSelection = requestedStyle;
-			// The spec too, read off the assignment two lines up rather than off the live controls
-			// below the awaits that follow. Same rule, same reason.
-			this.generatedSpec = $state.snapshot(this.spec);
+			// The spec the page was actually built as, read here rather than after the await below,
+			// where a control change could have rebuilt it. Same rule as the generate path.
+			const requestedSpec = $state.snapshot(this.spec);
 			// Re-validated because the title above was written after `syncSpecFromCurrentText` had
 			// already validated. Checking the issues it left would be checking the previous spec.
 			await this.validateSpec();
@@ -1372,6 +1392,11 @@ export class StudioState {
 				return;
 			}
 			this.images = [portraitImage];
+			// The artifact snapshot, below the guard rather than above it, for the reason the
+			// generate path gives: assigned before it, a run that reported a settings problem and
+			// made no page still filed one.
+			this.generatedStyleSelection = requestedStyle;
+			this.generatedSpec = requestedSpec;
 			// From here the paper is a portrait, so no verdict describes it. See `tryOnPageOnScreen`.
 			this.tryOnPageOnScreen = true;
 			const creationId = this.generateCreationId();
@@ -1524,9 +1549,10 @@ export class StudioState {
 		// one to introduce while removing it. That a typed dedication can still describe a picture
 		// without it predates this change; it belongs with the drift reporting, not here.
 		const liveSpec = $state.snapshot(this.spec);
-		const intent = this.generatedSpec
-			? withDedication(this.generatedSpec, liveSpec.dedication)
-			: liveSpec;
+		// Snapshotted out of `$state` on the way to the seam, which stores JSON: a proxy is what the
+		// record would otherwise be built from, and the two snapshot fields are reactive now.
+		const artifactSpec = $state.snapshot(this.generatedSpec);
+		const intent = artifactSpec ? withDedication(artifactSpec, liveSpec.dedication) : liveSpec;
 		const creationId = this.generateCreationId();
 		const storedImages = this.images.map((image) => ({
 			b64: image.encoding === 'base64' ? image.data : this.encodeBase64(image.data)
@@ -1558,7 +1584,7 @@ export class StudioState {
 					// *not*: a record restored without a stored style, whose prompt and picture came
 					// from choices nobody wrote down.
 					styleSelection:
-						this.generatedStyleSelection ??
+						$state.snapshot(this.generatedStyleSelection) ??
 						(this.styleSelectionUnknown ? undefined : this.currentStyleSelection()),
 					owner
 				}
@@ -1589,11 +1615,16 @@ export class StudioState {
 		// controls, so seeding first would describe a page that was never on screen — and that seed
 		// is what the next setting change is decided against.
 		this.applyRestoredStyleSelection(creation.styleSelection);
-		// The spec this record's image was drawn from. Unlike the style there is no unknown case: the
-		// spec *is* the record, so every record ever written carries one. Without this, reopening a
-		// page, changing a setting and saving again wrote the rebuilt spec over the old picture —
-		// the drift the snapshot at generate time closes, reached by the other door.
+		// The two artifact snapshots, set together at the one restore path that has an artifact.
+		//
+		// The spec has no unknown case: it *is* the record, so every record ever written carries
+		// one. Without it, reopening a page, changing a setting and saving again wrote the rebuilt
+		// spec over the old picture — the drift the snapshot at generate time closes, reached by the
+		// other door. The style is left `undefined` for a record written before the field existed,
+		// which is what `styleSelectionUnknown` reports rather than the panel presenting the
+		// reader's controls as that page's choices.
 		this.generatedSpec = creation.intent;
+		this.generatedStyleSelection = creation.styleSelection;
 		// Seed the derivation input at restore time, so the first setting change that does not touch
 		// it compares equal and keeps the density the saved page was built with.
 		this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());

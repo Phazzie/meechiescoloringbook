@@ -2921,6 +2921,82 @@ describe('StudioState page style', () => {
 		expect('dedication' in saveSpy.mock.calls[0][0].record.intent).toBe(false);
 	});
 
+	it('lets an edited draft save the style it is now wearing', async () => {
+		// A restored draft used to be filed as though an artifact existed: it put its stored style
+		// on the controls *and* recorded it as the page's. Drafts restore no prompt and no image, so
+		// a reader who came back after a refresh, changed a theme and saved got a record holding the
+		// draft's old style beside a spec rebuilt from the new controls.
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		vi.spyOn(creationStoreAdapter, 'getDraft').mockResolvedValue({
+			ok: true,
+			value: {
+				updatedAtISO: '2026-09-01T00:00:00.000Z',
+				intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A DRAFTED PAGE' },
+				studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+				styleSelection
+			}
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+
+		// The draft's style is on the controls, which is the half that was always right.
+		expect(studio.selectedThemeId).toBe('receipts');
+		// And no page exists, so nothing is reported as having a style that is not on file.
+		expect(studio.styleSelectionUnknown).toBe(false);
+
+		studio.selectedThemeId = 'crown-energy';
+		await studio.syncSpecFromCurrentText('theme');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.styleSelection?.themeId).toBe('crown-energy');
+	});
+
+	it('files nothing under a generation that came back without a picture', async () => {
+		// The prompt is assigned before the no-picture check on purpose, so System Trace still shows
+		// what was asked for. The artifact snapshot must not be: `textOutput` keeps Save to Vault
+		// lit, so saving after the failure filed the failed request's style and spec — and went on
+		// doing so after the reader had moved every control.
+		const { studio, saveSpy } = await savingStudio();
+
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.selectedThemeId = 'receipts';
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(
+				async () =>
+					new Response(
+						JSON.stringify({
+							ok: true,
+							value: {
+								prompt: 'the prompt that produced nothing',
+								templateVersion: 'v2',
+								images: [],
+								violations: [],
+								recommendedFixes: []
+							}
+						}),
+						{ status: 200, statusText: 'OK' }
+					)
+			)
+		);
+		await studio.handleGeneratePage();
+
+		expect(studio.generationError).toContain('without a picture');
+		// The trace kept what was asked for; the panel did not gain a page to describe.
+		expect(studio.assembledPrompt).toBe('the prompt that produced nothing');
+		expect(studio.styleSelectionUnknown).toBe(false);
+
+		studio.selectedThemeId = 'crown-energy';
+		await studio.syncSpecFromCurrentText('theme');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.styleSelection?.themeId).toBe('crown-energy');
+	});
+
 	it('files a page saved before any generation under the controls that authored it', async () => {
 		// The fallback the snapshot leaves in place. Nothing was generated, so there is no artifact
 		// for the controls to disagree with — they *are* this page's paper.
