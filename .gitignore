@@ -29,6 +29,8 @@ Thumbs.db
 
 # Machine-local agent permissions
 /.claude/settings.local.json
+/.agents/
+skills-lock.json
 
 # Vite
 vite.config.js.timestamp-*

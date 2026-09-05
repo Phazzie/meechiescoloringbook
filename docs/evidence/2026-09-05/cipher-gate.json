@@ -1,0 +1,30 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-09-05T05:13:31.443Z",
+  "cipher": {
+    "date": "2026-09-05",
+    "seams": "SessionSeam, AuthContextSeam, CreationStoreSeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-09-05/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-05/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-05/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-05/seam-ledger.json",
+        "exists": true
+      }
+    ],
+    "summary": "Migrated SessionSeam, AuthContextSeam, and CreationStoreSeam to canonical self-contained seam packages with fixture modules, in-memory mocks, self-contained contract suites, canonical adapters, and backward-compatible re-export stubs.",
+    "risks": "Concurrent multi-tab localStorage writes could lead to race conditions if two tabs write simultaneously; localStorage access may throw SecurityError in locked-down iframes."
+  },
+  "latestChangeMs": 1788584952059.3674,
+  "status": "ok"
+}
