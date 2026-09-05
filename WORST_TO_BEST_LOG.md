@@ -5552,3 +5552,60 @@ mechanical step, not another statement of intent.
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5 — **seventy-seven
 findings across twenty-nine rounds**, none in the application.
+
+---
+
+## Run 4, correction 30 — 2026-09-05 — a lesson that encoded the mistake it was about
+
+Appended, not edited. Four findings on `34067f9` — one P1, three P2. Three accepted, one held.
+
+### 1. P2 — moving the evidence left the plan pointing at the old folder
+
+Correction 29 consolidated the final run into `docs/evidence/2026-09-05/`. `plan.md` went on naming
+`2026-09-04/` for the Files list, the rewind artifact pattern, and the "all paths are relative to"
+line under the nineteen commands. **A reader following the mandatory plan would not have found the
+summaries it names.**
+
+Fourth time in this close-out. I fixed the folder and left every sentence that pointed at it — which
+is the same failure as rounds 12–14, 22 and 29, and the second time in two rounds. The paths now say
+`2026-09-05/`, with `2026-09-04/` explicitly labelled history.
+
+### 2. P2 — the lesson I wrote would have reproduced the miss it describes
+
+`LESSONS_LEARNED.md`'s Action said: *"When a change newly reaches a seam, check
+`assumption-alarm.json`'s `blockedSeams` for it."*
+
+That is precisely the narrow audit that missed `SessionSeam` and `CreationStoreSeam` — established
+**in the same commit**, three corrections earlier. `blockedSeams` is derived from `TBD (blocked)`
+markers, not from age; a seven-month-old probe date passes it exactly as a seven-day-old one does. A
+future run following my lesson would have made my mistake.
+
+The Action now says to check the seam's `Last probe` date in `docs/seams.md` and explicitly warns off
+`blockedSeams` as the sole check, naming the two seams that proved it.
+
+**This is the worst kind of error in this whole log.** Every other one made a document inaccurate.
+This one made a document *actively harmful* — a lesson file exists to stop the next run repeating a
+mistake, and mine would have instructed it to.
+
+### 3. P1 — the request-side criterion permitted a non-production call
+
+Round 29 added "capture the request the adapter sends". It did not pin *which* request.
+`runImageGenerationPipeline` hard-codes `RESPONSE_FORMAT = 'b64_json'`
+(`image-generation-pipeline.ts:19`) and discards images without `b64`; the checked-in request fixture
+says `format: 'url'`. So a maintainer could make a billable **URL-format** call, capture it, replay
+it, satisfy every assertion — and never touch the path the app ships. The criterion now requires the
+probe input to come from the production pipeline or pin every production value, `b64_json` included.
+
+### 4. P2 — held: `verify-chain.txt` should be `verify-chain.md`
+
+Correct by the same rule that moved `seam-rewind-exit-codes` to Markdown, and **already recorded as
+follow-up 8** in correction 14, deliberately, for reasons that have not changed: `verify-chain.txt`
+is named in five `DECISIONS.md` entries, in a comment in `scripts/proof-tape.mjs`, and in earlier
+dated evidence folders. Renaming only the copy in this PR's folder would leave the repository with
+both spellings and the references pointing at neither consistently. It is a repo-wide convention
+change and it stays on the owner's list.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4 — **eighty-one
+findings across thirty rounds**, none in the application.

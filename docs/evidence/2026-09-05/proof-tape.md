@@ -5,13 +5,13 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-05T00:20:30.051Z
+Generated at: 2026-09-05T00:31:31.507Z
 Evidence folder: docs/evidence/2026-09-05
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
 after this inventory is taken, so they are not listed):
 
-- assumption-alarm.json (25124 bytes)
+- assumption-alarm.json (25717 bytes)
 - build.txt (11340 bytes)
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (28496 bytes)
@@ -21,7 +21,7 @@ after this inventory is taken, so they are not listed):
 - e2e.txt (4270 bytes)
 - lint.txt (495 bytes)
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
-- rewind-ClockSeam.txt (543 bytes)
+- rewind-ClockSeam.txt (542 bytes)
 - rewind-CreationStoreSeam.txt (539 bytes)
 - rewind-DriftDetectionSeam(self-contained).txt (539 bytes)
 - rewind-DriftDetectionSeam.txt (539 bytes)
@@ -29,17 +29,17 @@ after this inventory is taken, so they are not listed):
 - rewind-ImageProviderConfigSeam.txt (537 bytes)
 - rewind-MeechieToolSeam(self-contained).txt (539 bytes)
 - rewind-MeechieToolSeam.txt (539 bytes)
-- rewind-MeechieVoiceSeam(self-contained).txt (541 bytes)
+- rewind-MeechieVoiceSeam(self-contained).txt (542 bytes)
 - rewind-MeechieVoiceSeam.txt (539 bytes)
 - rewind-OutputPackagingSeam.txt (640 bytes)
 - rewind-PromptAssemblySeam(self-contained).txt (542 bytes)
-- rewind-PromptAssemblySeam.txt (540 bytes)
+- rewind-PromptAssemblySeam.txt (539 bytes)
 - rewind-ProviderAdapterSeam.txt (540 bytes)
 - rewind-RateLimitSeam.txt (540 bytes)
-- rewind-SafetyPolicySeam.txt (541 bytes)
+- rewind-SafetyPolicySeam.txt (540 bytes)
 - rewind-SessionSeam.txt (537 bytes)
 - rewind-SpecValidationSeam(self-contained).txt (542 bytes)
-- rewind-SpecValidationSeam.txt (541 bytes)
+- rewind-SpecValidationSeam.txt (542 bytes)
 - seam-ledger.json (30250 bytes)
 - seam-ledger.md (2409 bytes)
 - seam-rewind-exit-codes.md (3025 bytes)

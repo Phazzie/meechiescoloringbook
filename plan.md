@@ -82,7 +82,9 @@ concession the `ClockSeam` plan in run 1 had to make.
   open Assumptions block an already-merged change.
 - **Files.** Governance: `DECISIONS.md` (the ruling), `plan.md` (this section),
   `WORST_TO_BEST_LOG.md` (append-only record), `LESSONS_LEARNED.md` (the entry the fixture waiver
-  requires). Evidence under `docs/evidence/2026-09-04/`, enumerated rather than left as a directory
+  requires). Evidence under **`docs/evidence/2026-09-05/`** — the run crossed midnight UTC and the
+  final chain, checks, rewinds and tape all live there; `docs/evidence/2026-09-04/` holds the earlier
+  rounds' artifacts and is **history, not the record of this head**. Enumerated rather than left as a directory
   placeholder, since a plan that says `*` cannot be audited against what was actually touched:
   - Hand-written summaries: `verify-chain.txt`, `seam-rewind-exit-codes.md`.
   - Command captures: `lint.txt`, `build.txt`, `e2e.txt`, `verify.txt`, `test.txt`.
@@ -93,7 +95,7 @@ concession the `ClockSeam` plan in run 1 had to make.
 - **Commands:** `npm run verify`, `npm run check`, `npm run lint`, `npm test`, `npm run build`,
   `npx playwright test`, `npm run cipher:gate`, `npm run proof:tape`, and
   `npm run rewind -- --seam <name>` for **every seam on the paths this
-  page reaches — fourteen.** Evidence: `docs/evidence/2026-09-04/rewind-<SeamName>.txt`.
+  page reaches — fourteen.** Evidence: `docs/evidence/2026-09-05/rewind-<SeamName>.txt`.
   - **The two standalone gate commands, and why they are listed separately.** `npm run verify` is
     `audit:gate && chamber-lock && verify-runner && shaolin-lint && assumption-alarm && seam-ledger
     && clan-chain && proof-tape` (`package.json:33`). **`cipher:gate` is not in that chain** — it is
@@ -208,7 +210,10 @@ concession the `ClockSeam` plan in run 1 had to make.
     npm run rewind -- --seam "MeechieToolSeam (self-contained)"   # rewind-MeechieToolSeam(self-contained).txt
     ```
 
-    All paths are relative to `docs/evidence/2026-09-04/`.
+    All paths are relative to **`docs/evidence/2026-09-05/`**. They said `2026-09-04/` until a
+    reviewer caught it: consolidating the final run into one folder moved the artifacts and left this
+    plan pointing at the old location, so a reader following it would not have found the summaries it
+    names. Third time in this close-out that fixing one place left its siblings stale.
   - **This count has been wrong twice, in the same direction each time.** It was first written as
     "the six seams the page consumes" — short, and incoherent too, since `SpecValidationSeam` is
     itself server-side on the `/api/generate` path, so the set could not be defended as
