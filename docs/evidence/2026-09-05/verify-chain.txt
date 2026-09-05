@@ -24,13 +24,21 @@
 7. clan-chain.mjs          -> clan-chain.json/.md    (clean vs dirty seams)
 8. proof-tape.mjs          -> proof-tape.json/.md    (plain-English summary)
 
-## Standalone, run by hand on this head
+## Standalone, run by hand
 
 - npm run lint   -> lint.txt   (exit 0; eslint prints nothing on success)
 - npm run build  -> build.txt  (exit 0)
 - npm run cipher:gate -> cipher-gate.json (exit 0)
 - npm run rewind -- --seam WigCatalogSeam -> rewind-wig-catalog-seam.txt (27 passed)
 - npx playwright test -> e2e.txt (32 passed; baseline on main at 1dab4cf was 28)
+  Captured on the CODE head only - see the next section. e2e.txt,
+  rewind-wig-catalog-seam.txt and rewind-WigCatalogSeam.txt are the three
+  artifacts in this folder not regenerated on the close-out head.
+  Read proof-tape.md's "PREDATES THIS VERIFY RUN" marker carefully here: it
+  also flags build.txt, cipher-gate.json, lint.txt and this file, and for
+  those four it means only that they were written before the chain's own
+  chamber-lock stage within the same push - not that they came from an older
+  head. The marker measures write order, not provenance.
 
 ## Re-run on the close-out head
 
@@ -42,13 +50,25 @@ evidence instead of regenerating it; the numbers are identical because no code c
 claim the re-run establishes rather than assumes. `npx playwright test` is not re-run there: the
 routine scopes it to user-facing changes, and a log entry is not one.
 
-## Results on this head
+## Results
+
+Re-run on the close-out head (this commit):
 
 - npm run check: 0 errors, 0 warnings
+- npm run lint: exit 0
 - npm test: 1252 passed, 1 skipped (baseline on main at 1dab4cf: 1187 passed, 1 skipped)
 - npm run build: exit 0
-- npx playwright test: 32 passed
 - npm run verify: exit 0, all eight stages
+- npm run cipher:gate: exit 0
+
+Captured on the code head that merged as cc5f622, and NOT re-run since:
+
+- npx playwright test: 32 passed (baseline on main at 1dab4cf: 28)
+- npm run rewind -- --seam WigCatalogSeam: 27 passed
+
+Those two cover the code, which is what they are about; no code has changed since. Presenting them
+under a "this head" heading would have claimed a run that did not happen, which is the distinction
+this split exists to keep.
 
 ## The Cipher Gate entry, and what it claims
 
