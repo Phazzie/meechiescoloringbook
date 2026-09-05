@@ -4386,3 +4386,70 @@ assertion rather than by reading the old one.
 one family: something on the page and the thing describing it, drifting apart — across an await, a
 restore, a serialisation, a settings rebuild, a replacement under a stable key, or a value invented
 to satisfy a schema and then believed.
+
+## Run 5, eighth close-out — 2026-09-05 — the Codex round on `d4a48ed`
+
+Appended, not edited. One finding, **accepted in part**, P1.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | The Cipher Gate entry's Summary and Risks describe the superseded client-only `$effect` implementation, not the design that will ship. | **Real.** Regenerated for the shipped design, and it turned up a second wrong claim nobody had reported. |
+| — | "Complete the WigCatalogSeam workflow for newly observable seam behavior." | **Declined, with evidence.** |
+
+### The accepted part, and it is worse than reported
+
+The entry said the component *"now calls `createWigCatalogSeam().listWigs()` and renders a loading
+state"*, and its Risks warned that *"an `$effect` that never resolves would leave 'Loading the wig
+wall…' on screen indefinitely"*. Both describe the implementation that **this PR's own second review
+round replaced**, five commits before the entry was written. The shipped design loads in
+`src/routes/+page.ts` and the carousel is presentational with **no loading state at all** — the whole
+point of that fix was that the cards are in the server-rendered HTML.
+
+`CLAUDE.md`'s file map, `plan.md`'s file list and the decision section's own Decision 1 carried the
+same stale description, and the decision section still read *"so no Cipher Gate entry is required"*
+directly beneath the Cipher Gate entry. All four are corrected.
+
+### Regenerating it found a claim that was wrong on its own terms
+
+The Risks said *"the seam caches after its first successful parse, so this costs one validation per
+page lifetime."* `+page.ts` calls `createWigCatalogSeam()` **per load**, and `cachedWigs` lives in
+that instance's closure — so the cache never survives a call and `validateWigCatalog` runs once per
+page load, not once per tab. Fine for an eight-entry catalog, and now stated instead of glossed.
+
+The regenerated entry also asserts what the old one only implied: the seam is safe to run on the
+server because the adapter's sole input is a bundled `import wigs.json` — no `fs`, no network, no
+`process.cwd()` — so it is the same computation in both runtimes.
+
+### The declined part
+
+The finding asks to "complete the WigCatalogSeam workflow for newly observable seam behavior". The
+seam is **consumed**, not changed, and the entry says so explicitly rather than claiming otherwise:
+
+- `git diff origin/main...HEAD --name-only` matches nothing under `contracts/`, `probes/`,
+  `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/`.
+- All six of `WigCatalogSeam`'s artifacts pre-date this work; no contract shape moved.
+- `npm run rewind -- --seam WigCatalogSeam` passes 27 tests on this head.
+- `wig-catalog-seam` carries a documented **manual** probe with no `runProbe` export (`docs/seams.md`
+  records `N/A`), which pre-dates this change. There is no probe to run, and inventing one to
+  satisfy a review would be the opposite of evidence.
+
+A governance doc is repaired by making it describe the code, not by manufacturing a ceremony the
+change did not require.
+
+### The lesson, which is this run's own lesson pointed at prose
+
+Every earlier finding in this run was code drifting from the thing that described it. This one is a
+**document** drifting from the code it describes — written to answer round 1, never revised when
+round 2 replaced the implementation it documented. The mechanism is identical, and prose has no
+type-checker: `npm run cipher:gate` passed on every push, because it verifies an entry *exists*, not
+that it is *true*.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run verify` exit 0. `npm run cipher:gate` exit 0. Test,
+build and e2e results are unchanged from the previous close-out — this change touches only Markdown.
+
+### Running total
+
+**Fifteen** real findings across seven review rounds and one self-audit. One declined, with the
+`git diff` and `rewind` output that disproves it.

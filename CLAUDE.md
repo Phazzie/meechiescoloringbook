@@ -109,7 +109,7 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `VerdictPageStudio.svelte` | The "put it on paper" panel shared by the three mode routes — dedication, generate, drift report, preview, downloads, vault save |
 | `verdict-page-state.svelte.ts` | `VerdictPageState`: the runes state class behind `VerdictPageStudio`. Owns the verdict request, the page recipe, generation, packaging, and the vault write, with separate staleness tokens for the verdict and the page |
 | `SelfieUpload.svelte` | Wig try-on selfie input |
-| `WigCarousel.svelte` | The wig catalog browser — loads through `WigCatalogSeam` (never a raw `wigs.json` import, so a load failure or an empty catalog is reported rather than rendered as an empty row), and owns the search box, facet chips, sort control and result count |
+| `WigCarousel.svelte` | The wig catalog browser — presentational, taking `wigs` and `loadError` as props, and owning the search box, facet chips, sort control and result count. The catalog is read by `WigCatalogSeam` in the page's `load` (never a raw `wigs.json` import, so a load failure or an empty catalog is reported rather than rendered as an empty row) — in `load` rather than an `$effect` so the cards and their affiliate links are server-rendered |
 | `MeechieModePage.svelte` | The body of the `/m/[mode]` focused-mode page, which the home page links to. Asks the mode's question, shows the verdict, then hands off to `VerdictPageStudio` — the same shared panel the three standalone mode routes use |
 | `studio/` | The home studio's panels (hero, input, preview, settings, vault row, wig try-on) |
 

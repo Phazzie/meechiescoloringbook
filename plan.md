@@ -30,9 +30,13 @@ change moves the UI *onto* a seam it was bypassing; it does not alter the seam.
 **Files:**
 - `src/lib/core/wig-catalog-gallery.ts` (new) — pure, dependency-free transforms: searchable text,
   facet construction with cross-filtered counts, query application, sorting, labels.
-- `src/lib/components/WigCarousel.svelte` — load via `createWigCatalogSeam()`, surface
-  `WIG_CATALOG_EMPTY` / `WIG_CATALOG_LOAD_FAILED`, render the search box, facet chips, sort control,
-  result count, empty state, and the metadata the cards were hiding.
+- `src/routes/+page.ts` (new) — read the catalog through `createWigCatalogSeam().listWigs()` in
+  `load`, so it runs on the server as well as the client and the cards and their affiliate links are
+  in the server-rendered HTML. (Revised during the run: the first version read the seam from a
+  component `$effect`, which does not run during SSR and removed the catalog from the initial HTML.)
+- `src/lib/components/WigCarousel.svelte` — presentational, taking `wigs` and `loadError` as props;
+  surface `WIG_CATALOG_EMPTY` / `WIG_CATALOG_LOAD_FAILED`, render the search box, facet chips, sort
+  control, result count, empty state, and the metadata the cards were hiding.
 - `src/lib/components/studio/WigTryOnStudio.svelte` — the compare strip over portraits already made.
 - `src/routes/studio-state.svelte.ts` — portraits keyed by wig id instead of one string; a new
   selfie clears them all; the try-on page gets a real title, a real assembled prompt, and can be
