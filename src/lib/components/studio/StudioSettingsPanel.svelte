@@ -121,9 +121,14 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange reb
 			</p>
 		{/if}
 
+		<!-- The second sentence used to be unconditional, and a review caught that it is only true of a
+		     page with a picture on it. A reopened text-only record has no artifact, so the preview's
+		     paper follows the controls live — correctly, because there it *is* a preview of the next
+		     page rather than a claim about a finished one. The promise now says which case it is
+		     about instead of over-claiming for both. -->
 		<p class="settings-lede">
-			These decide how the next page looks. The page on screen keeps the look it was made with
-			until you make it again.
+			These decide how the next page looks. Once a page has a picture on it, it keeps the look it
+			was made with until you make it again.
 		</p>
 
 		<fieldset>

@@ -1770,11 +1770,17 @@ export class StudioState {
 			this.generatedSpec = creation.intent;
 			this.generatedStyleSelection = creation.styleSelection;
 		}
-		// The wig belongs with them: it is this page's, not the carousel's, and regenerating a
-		// reopened page must keep it rather than reach for whatever the reader has selected now.
-		// Left `null` for a record with no stored style, which is the case the panel reports as
-		// unknown rather than guesses at.
-		if (creation.styleSelection) {
+		// The wig belongs with them, and so does the guard: it is this page's, not the carousel's,
+		// and regenerating a reopened page must keep it rather than reach for whatever the reader has
+		// selected now. Left `null` for a record with no stored style, which is the case the panel
+		// reports as unknown rather than guesses at.
+		//
+		// Inside the image guard for a reason the first version of that guard missed. This is stored
+		// as `{ name, style }`, not a catalog `Wig`, so it cannot be put back into the carousel —
+		// which means on a record with no picture it was an *invisible* wig: nothing selected on
+		// screen, and Create Coloring Page quietly sending it in a paid request. With no artifact
+		// there is nothing for the reader's selection to contradict, so the visible one wins.
+		if (restoredImages.length > 0 && creation.styleSelection) {
 			this.restoredStyleWig = { value: creation.styleSelection.wig };
 		}
 		// Seed the derivation input at restore time, so the first setting change that does not touch

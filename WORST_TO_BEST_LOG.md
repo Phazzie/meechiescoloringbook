@@ -5946,3 +5946,57 @@ this change touches, each finding attributed against `git diff` — turns up exa
 on a line unchanged from `main`, so it is not new code. The quality gate passes and the count is one.
 Stated as an open loose end rather than closed with a guess: I have not identified it, the local
 reproduction disagrees with the dashboard, and the dashboard is unreachable from this container.
+
+## Run 7 close-out — round fourteen: two holes my own round-twelve gate opened
+
+Both findings are consequences of the image guard added last round, which is the honest way to read
+them: a fix that changes what "there is a page on the paper" means has to be carried through
+everything that asked the old question.
+
+### An invisible wig in a paid request
+
+`loadCreation` gated the two artifact snapshots on the record actually restoring a picture, and left
+`restoredStyleWig` outside the guard. A record saved from a verdict before any image existed still
+records the live wig, so its stored style can name one — and reopening such a record put that wig
+into the style hint while the carousel showed nothing selected.
+
+The wig is stored as `{ name, style }`, not as a catalog entry, so it cannot be put back into the
+carousel for the reader to see or change. So Create Coloring Page sent a wig that was invisible and
+unreachable, in a request the reader pays for. That is the worst shape a provenance bug has taken in
+this run: not a wrong label, a wrong *request*.
+
+It is the third artifact snapshot and it belongs inside the same guard as the other two. With no
+picture there is nothing for the reader's selection to contradict, so the visible selection wins.
+
+### The panel's promise was true of one case and stated for both
+
+The lede read "The page on screen keeps the look it was made with until you make it again",
+unconditionally. After the guard, a reopened text-only record has no artifact, so `pageGlitter`
+follows the live checkbox and the preview's paper visibly changes under the reader's hand — which is
+*correct*, because there it is a preview of the next page rather than a claim about a finished one.
+The sentence was the thing that was wrong. It now says which case it is about: "Once a page has a
+picture on it, it keeps the look it was made with until you make it again."
+
+Worth noting which way that fix went. The reflex is to change the code so the promise holds; here the
+code was right and the promise was over-claiming, and a run about a panel that misreports itself
+should be able to tell those apart.
+
+### Four more tests that were green next to their own reason
+
+Every one of the four that broke is about a *reopened page's wig provenance* — and every one used the
+image-less fixture. Same as round twelve's two, and the same fix: they describe a finished page, so
+they get one. That is six tests in three rounds passing for a reason adjacent to the one they name,
+all traceable to a single fixture that never had a picture in it. The lesson is not "read the tests
+more carefully"; it is that a fixture missing a field the subject branches on will hide every branch
+that depends on it, in every test that uses it, silently.
+
+Mutations: `restoredStyleWig` moved back outside the guard (1 red — the new test), and the lede
+restored to its unconditional form (0 red — no test asserts the qualifying clause, which is honest to
+record: the wording fix is checked by the e2e only as far as "until you make it again" survives).
+Running total for this run: **50**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1393 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser.

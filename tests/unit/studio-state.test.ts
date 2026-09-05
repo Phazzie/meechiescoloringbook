@@ -2547,7 +2547,7 @@ describe('StudioState page style', () => {
 		await studio.init();
 
 		await studio.loadCreation(
-			makeStyledCreation({
+			makePicturedCreation({
 				styleSelection: { ...styleSelection, wig: { name: 'Honey Drip', style: 'body wave' } }
 			})
 		);
@@ -2744,7 +2744,7 @@ describe('StudioState page style', () => {
 		const studio = registerInitialized(new StudioState());
 		await studio.init();
 		await studio.loadCreation(
-			makeStyledCreation({
+			makePicturedCreation({
 				styleSelection: { ...styleSelection, wig: { name: 'Honey Drip', style: 'body wave' } }
 			})
 		);
@@ -2860,7 +2860,7 @@ describe('StudioState page style', () => {
 		await studio.init();
 		studio.selectedWig = SAMPLE_WIG;
 
-		await studio.loadCreation(makeStyledCreation({ styleSelection }));
+		await studio.loadCreation(makePicturedCreation({ styleSelection }));
 
 		// The stored style had no wig, and that is provenance, not absence of information.
 		expect(studio.currentStyleSelection().wig).toBeUndefined();
@@ -2873,6 +2873,35 @@ describe('StudioState page style', () => {
 		expect(studio.currentStyleSelection().wig).toEqual({
 			name: OTHER_WIG.name,
 			style: OTHER_WIG.style
+		});
+	});
+
+	it('does not send an invisible wig from a reopened page that has no picture', async () => {
+		// A record saved from a verdict before any image was generated still records the live wig, so
+		// its stored style can name one. Reopening it put that wig into the hint while the carousel
+		// showed nothing selectable — the wig cannot go back into the carousel, because it is stored
+		// as `{ name, style }` and not as a catalog entry. So Create Coloring Page sent a wig the
+		// reader could neither see nor change, in a request they pay for.
+		//
+		// With no picture there is no artifact for the reader's selection to contradict, so the
+		// visible selection is the one that counts. The wig provenance now sits inside the same image
+		// guard as the other two snapshots, which is where it always belonged.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		await studio.loadCreation(
+			makeStyledCreation({ styleSelection: { ...styleSelection, wig: { name: 'Stored Wig', style: 'bob' } } })
+		);
+
+		// Nothing is selected on screen, so nothing rides along in the hint.
+		expect(studio.selectedWigId).toBeNull();
+		expect(studio.currentStyleSelection().wig).toBeUndefined();
+
+		// And the reader's own choice still reaches it.
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+		expect(studio.currentStyleSelection().wig).toEqual({
+			name: SAMPLE_WIG.name,
+			style: SAMPLE_WIG.style
 		});
 	});
 
@@ -3263,7 +3292,7 @@ describe('StudioState page style', () => {
 		await studio.init();
 
 		await studio.loadCreation(
-			makeStyledCreation({
+			makePicturedCreation({
 				styleSelection: { ...styleSelection, wig: { name: 'Honey Drip', style: 'body wave' } }
 			})
 		);
