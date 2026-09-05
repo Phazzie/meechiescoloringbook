@@ -534,6 +534,44 @@ describe('StudioState', () => {
 	});
 });
 
+describe('StudioState try-on draft provenance', () => {
+	/**
+	 * `restoredSeedPageItems` lives in memory, so a reopened try-on that survived only as a draft
+	 * came back after a refresh with the seed text looking genuine. The provenance has to be
+	 * carried by what is written down, not just by the instance that wrote it.
+	 */
+	it('does not write invented seed text into the draft, and re-marks it on restore', async () => {
+		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const tryOnIntent = {
+			...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			title: 'Wig Try-On - Sample Wig',
+			listMode: 'title_only' as const,
+			items: [],
+			footerItem: undefined
+		};
+
+		const restored = await initFromDraft({
+			updatedAtISO: '2026-09-05T00:00:00.000Z',
+			intent: tryOnIntent
+		});
+
+		// The restore invents page items from the seed, exactly as reopening a record does...
+		expect(restored.textOutput?.pageItems.map((item) => item.label)).toEqual([
+			'THE RENT',
+			'THE DOPEMAN',
+			'WHAT IT COST'
+		]);
+
+		saveDraftSpy.mockClear();
+		await restored.syncSpecFromCurrentText();
+		await vi.waitFor(() => expect(saveDraftSpy).toHaveBeenCalled());
+
+		// ...and the draft it writes back must not present that text as the reader's own.
+		const written = saveDraftSpy.mock.calls.at(-1)?.[0].draft;
+		expect(written?.studioText).toBeUndefined();
+	});
+});
+
 describe('StudioState wig try-on comparison', () => {
 	const PNG_PORTRAIT = 'data:image/png;base64,ZmFrZQ==';
 	const OTHER_PORTRAIT = 'data:image/png;base64,b3RoZXI=';
@@ -1848,6 +1886,29 @@ describe('StudioState quote vault', () => {
 		await studio.saveToVault();
 
 		expect(studio.creations[0].studioText?.quote).toBe('A verdict about this situation.');
+	});
+
+	it('keeps a try-on page title-only when a page control is changed', async () => {
+		const studio = await initVault([]);
+		await makeTryOnPage(studio);
+		expect(studio.spec.title).toBe('Wig Try-On - Sample Wig');
+
+		// A Page Control rebuilds the spec from the verdict — or, here, the demo seed.
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+
+		// The portrait is still on the paper, so the spec must still describe it.
+		expect(studio.spec.title).toBe('Wig Try-On - Sample Wig');
+		expect(studio.spec.listMode).toBe('title_only');
+		expect(studio.spec.items).toEqual([]);
+		expect(studio.spec.footerItem).toBeUndefined();
+		// And the control the reader actually changed did take effect.
+		expect(studio.spec.pageSize).toBe('A4');
+
+		await studio.saveToVault();
+
+		expect(studio.creations[0].intent.title).toBe('Wig Try-On - Sample Wig');
+		expect(studio.creations[0].intent.items).toEqual([]);
 	});
 
 	it('still refuses to save when there is neither a verdict nor a page', async () => {

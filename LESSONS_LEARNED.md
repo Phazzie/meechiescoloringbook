@@ -344,3 +344,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
   case differs from the first in exactly one step.
 - Action: When writing the second test of a pair that differs in one step, write both through one
   helper parameterised by that step, rather than extracting after a scan flags it.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: Run 5. A `restoredSeedPageItems` flag marked text as invented so it would not be saved as
+  the reader's own. It failed twice: once because "is this true?" is a different question from "is
+  this about this page?", and once because a draft save serialised the text while the flag stayed in
+  memory, so a refresh restored the text as genuine.
+- Lesson: Provenance that governs what gets persisted must itself be derivable from what was
+  persisted. A boolean held beside a record is not part of that record, and any round trip drops it.
+- Action: Recompute the provenance from the stored shape at every restore point rather than carrying
+  a flag across the boundary — and check whether the flag answers one question or two before reusing
+  it for the second.

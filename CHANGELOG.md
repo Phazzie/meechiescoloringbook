@@ -8,6 +8,8 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Changing a page setting after making a wig try-on page no longer quietly retitles it. The picture stayed while the page around it turned into a numbered list under an unrelated heading, and saving stored the portrait under that.
+- A reopened wig try-on that survives a browser refresh no longer comes back with the example page's lines attached to it as though you had written them.
 - A coloring page made from a wig try-on no longer carries a verdict you wrote about something else. The page is a portrait and the wig's name, so a saying generated beforehand was never on it, and it used to be saved as though it were.
 - Picking a different wig while a try-on page is still being made no longer builds the page with the wrong picture on it.
 - The wig catalog is in the page again before any JavaScript runs, so the wigs and their shop links are there for a search engine, a reader with scripting off, or a page that failed to finish loading. Moving the catalog behind its seam had quietly made it appear only after the page came alive.

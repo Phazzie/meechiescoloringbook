@@ -375,6 +375,28 @@ export class StudioState {
 	 * Cleared in `resetGeneratedPage`, which every path replacing the paper goes through.
 	 */
 	private tryOnPageOnScreen = false;
+
+	/**
+	 * The title of the try-on page on the paper, kept so its shape can be restored after a rebuild.
+	 *
+	 * Every Page Control change runs `syncSpecFromCurrentText`, which rebuilds the spec from the
+	 * verdict — or the demo seed — as a numbered list. On a try-on page that silently replaced the
+	 * wig's title, items and layout while the portrait stayed on the paper, so changing the page
+	 * size alone was enough to make the spec describe a different page than the one displayed, and
+	 * saving stored the portrait under it.
+	 */
+	private tryOnPageTitle = '';
+
+	/** The title-only shape a try-on page always has: the wig's name, a picture, and nothing else. */
+	private asTryOnPageSpec(spec: ColoringPageSpec): ColoringPageSpec {
+		return {
+			...spec,
+			title: this.tryOnPageTitle,
+			listMode: 'title_only',
+			items: [],
+			footerItem: undefined
+		};
+	}
 	// Whether the last rebuild's style hint asked for dense decoration — the derivation's answer,
 	// not its input. Seeded at restore time so the first unrelated setting change on a reopened page
 	// compares equal and preserves what was restored.
@@ -443,7 +465,13 @@ export class StudioState {
 					updatedAtISO: new Date().toISOString(),
 					intent: $state.snapshot(this.spec),
 					chatMessage: this.evidence.trim().length > 0 ? this.evidence : undefined,
-					studioText: this.textOutput ? $state.snapshot(this.textOutput) : undefined
+					// Same rule as the vault: invented text is not written down as though it were
+					// real. A draft that carried it would come back after a refresh as genuine
+					// studio text, with nothing left to say it was synthesized.
+					studioText:
+						this.textOutput && !this.restoredSeedPageItems
+							? $state.snapshot(this.textOutput)
+							: undefined
 				}
 			});
 			if (result.ok) {
@@ -521,6 +549,12 @@ export class StudioState {
 					: this.spec
 				: undefined
 		});
+		// A rebuild describes the verdict, and a try-on page has no verdict on it. Without this the
+		// portrait would keep its place on the paper while the spec around it became a numbered list
+		// under someone else's title — see `tryOnPageTitle`.
+		if (this.tryOnPageOnScreen && this.tryOnPageTitle) {
+			this.spec = this.asTryOnPageSpec(this.spec);
+		}
 		await this.validateSpec();
 		this.scheduleDraftSave();
 	}
@@ -539,6 +573,7 @@ export class StudioState {
 		this.packagedFiles = [];
 		// Whatever replaces the paper is not a try-on portrait until a try-on generation says so.
 		this.tryOnPageOnScreen = false;
+		this.tryOnPageTitle = '';
 	}
 
 	/**
@@ -872,13 +907,8 @@ export class StudioState {
 			// `title_only` with no items and no footer is the shape the schema requires
 			// (`ColoringPageSpecSchema` rejects items or a footer in title-only mode) and the one
 			// the page actually is.
-			this.spec = {
-				...this.spec,
-				title: compactColoringPageTitle(['Wig Try-On', wig.name]),
-				listMode: 'title_only',
-				items: [],
-				footerItem: undefined
-			};
+			this.tryOnPageTitle = compactColoringPageTitle(['Wig Try-On', wig.name]);
+			this.spec = this.asTryOnPageSpec(this.spec);
 			// `assembledPrompt` is required and non-empty on a vault record, and this path never
 			// calls the image provider so there is no real prompt to record. It gets a description
 			// of the page instead of a machine prompt on purpose: `loadCreation` puts a reopened
@@ -1261,6 +1291,11 @@ export class StudioState {
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;
 			this.border = draft.value.intent.border;
+			// The same question `loadCreation` asks, asked again here: a restored draft with no
+			// studio text and no items has its page items invented from the seed, exactly as a
+			// reopened record does, and the flag does not survive a page load on its own.
+			this.restoredSeedPageItems =
+				!draft.value.studioText && draft.value.intent.items.length === 0;
 			if (draft.value.studioText || !isKnownDraftSeed(draft.value.intent)) {
 				this.textOutput = buildStudioTextFromDraftRecord(draft.value);
 			}

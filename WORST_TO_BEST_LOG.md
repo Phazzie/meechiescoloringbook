@@ -4195,3 +4195,64 @@ named test and only that one.
 The duplication scan now reports **nothing at all in `src/routes/studio-state.svelte.ts`** — the
 eleven-line block that had been there since before this run is gone. The two blocks it still reports
 are both in `tests/e2e/smoke.spec.ts`, both outside this diff.
+
+---
+
+## Run 5, fifth close-out — 2026-09-05 — the Codex round on `800f4a4`
+
+Appended, not edited. Three findings. **One of them the self-audit had already fixed**, which is the
+useful result of the round; the other two are real and are fixed here.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | "Recheck the page token after packaging." | **Already fixed** in `3cdb1be`, the audit commit, which Codex had not seen — it reviewed `800f4a4`. Independent confirmation that auditing for the pattern found a real defect rather than an imagined one. |
+| P1 | `restoredSeedPageItems` protects only the live `StudioState`. `loadCreation` schedules a draft save, `saveDraft` serialises the synthesised seed text, and after a refresh `init()` restores it as genuine with the flag back at its default. | **Real.** The draft no longer carries invented text, and `init()` re-marks the provenance on the same condition `loadCreation` uses. |
+| P1 | After a try-on page is generated, changing any Page Control runs `syncSpecFromCurrentText`, which rebuilds the spec from the verdict or the seed as a numbered list — while the portrait stays on the paper. Changing the page size alone made the spec describe a different page than the one displayed, and saving stored the portrait under it. | **Real.** Every rebuild now re-applies the try-on shape while a portrait is on the paper. |
+
+### The provenance flag had a lifetime, and the lifetime was wrong
+
+Two of this run's findings are now the *same* flag failing at a boundary it did not know about:
+`restoredSeedPageItems` answered "was this text invented?" correctly, but only for as long as the
+object holding it lived, and only against the questions asked in that instant.
+
+- Round three: the flag did not cover a verdict that was *real but about something else* — the
+  question "is this about **this**?" was different from "is this **true**?".
+- This round: the flag did not survive being **written down**. A draft is a serialisation of the
+  page, and a boolean held beside it in memory is not part of that serialisation, so the round trip
+  dropped the only thing that knew the text was invented.
+
+The lesson generalises past this flag: **provenance that governs what gets persisted must itself be
+derivable from what was persisted.** The fix is not a second boolean in the draft record — the
+condition is already recoverable from the record's own shape (no `studioText`, no `intent.items`),
+so `init()` recomputes it exactly as `loadCreation` does. Two call sites asking the same question of
+the same shape, rather than one call site trusting a value it did not write.
+
+### The Page Controls case is the same drift, one layer up
+
+`tryOnPageOnScreen` marks the paper. The spec rebuild did not read that marking, so the picture and
+the description of the picture drifted apart on a control that had nothing to do with either. That
+is the same failure as the whole run's staleness family, moved from "state read after an await" to
+"state rebuilt without consulting what it is describing".
+
+The fix keeps the Page Controls working — page size and border genuinely apply to a portrait page,
+so throwing the page away on a settings change would have been the lazier and worse answer. The
+title-only shape is re-applied after the rebuild, and a test asserts the reader's actual change
+(`pageSize: 'A4'`) still lands.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1248 passed, 1 skipped**
+(from 1246). `npm run build` exit 0. `npx playwright test` **32 passed**. `npm run verify` exit 0.
+`npm run cipher:gate` exit 0. Duplication scan reports nothing in this diff.
+
+**All three guards proven by mutation:** removing the try-on shape re-application fails `keeps a
+try-on page title-only when a page control is changed`; serialising invented text into the draft, or
+dropping the re-mark in `init()`, each fail `does not write invented seed text into the draft, and
+re-marks it on restore`.
+
+### Running total
+
+Eleven real findings across four review rounds and one self-audit, every one of them in this run's
+own work except the unguarded studio generation, which pre-dated it. Nine of the eleven are one
+family: **something on the page and the thing describing it, drifting apart** — across an await,
+across a restore, across a serialisation, across a settings rebuild.
