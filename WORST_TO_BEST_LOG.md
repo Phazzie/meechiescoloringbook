@@ -5609,3 +5609,45 @@ change and it stays on the owner's list.
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4 — **eighty-one
 findings across thirty rounds**, none in the application.
+
+---
+
+## Run 4, correction 31 — 2026-09-05 — a green result written before the command that produces it
+
+Appended, not edited. Two findings on `eece08f`.
+
+### 1. P1 — the evidence file asserted the chain's result *and* claimed it didn't
+
+`verify-chain.txt` opened with `ALL EIGHT STAGES RAN. EXIT 0.` and a per-stage breakdown, while its
+own chronology two sections later said this file does not assert that result. Both were in the
+shipped file. The block is a leftover from before round 19 moved the summary ahead of the chain — the
+**fifth** consequence of that one reorder found by review rather than by me.
+
+Worse than the contradiction: **nothing could have substantiated it.** `verify.txt` stores only the
+inner `verify-runner` stage — its own header says so — and the final standalone `proof:tape`
+overwrites stage 8's output. There was no retained record of the outer command's exit anywhere. **If
+the chain had aborted, the green summary would have shipped unchanged**, and no artifact in the
+directory would have contradicted it.
+
+The block is gone, and the outer chain's exit is now *captured* in `verify-chain-run.txt` — command,
+output, `EXIT=` line — the same way `lint.txt` and `build.txt` have been all along. The one command
+whose result this whole file is about was the only one not being recorded.
+
+### 2. P2 — the replacement lesson was still not enough
+
+Correction 30 changed the Action from "check `blockedSeams`" to "check the seam's `Last probe` date".
+Still insufficient: `probes/browser-seams.probe.mjs:200-202` writes only `sample.json` for
+`SessionSeam`, `AuthContextSeam` and `CreationStoreSeam` — **no `fault.json` for any of them**. Run
+that probe, advance the date, and all three read as fresh while their fault fixtures are exactly as
+old as before.
+
+The Action now says the seam-level date answers "when did some probe last run", not "is every
+scenario's fixture current", and the seven-day gate is about the second.
+
+Two rounds running on the same lesson entry, each time because the signal I reached for was the one
+that was easy to check rather than the one that means what the gate needs.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2 —
+**eighty-three findings across thirty-one rounds**, none in the application.

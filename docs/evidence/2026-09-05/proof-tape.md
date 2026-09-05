@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-05T00:31:31.507Z
+Generated at: 2026-09-05T00:41:06.315Z
 Evidence folder: docs/evidence/2026-09-05
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -21,7 +21,7 @@ after this inventory is taken, so they are not listed):
 - e2e.txt (4270 bytes)
 - lint.txt (495 bytes)
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
-- rewind-ClockSeam.txt (542 bytes)
+- rewind-ClockSeam.txt (543 bytes)
 - rewind-CreationStoreSeam.txt (539 bytes)
 - rewind-DriftDetectionSeam(self-contained).txt (539 bytes)
 - rewind-DriftDetectionSeam.txt (539 bytes)
@@ -39,14 +39,16 @@ after this inventory is taken, so they are not listed):
 - rewind-SafetyPolicySeam.txt (540 bytes)
 - rewind-SessionSeam.txt (537 bytes)
 - rewind-SpecValidationSeam(self-contained).txt (542 bytes)
-- rewind-SpecValidationSeam.txt (542 bytes)
+- rewind-SpecValidationSeam.txt (541 bytes)
 - seam-ledger.json (30250 bytes)
 - seam-ledger.md (2409 bytes)
 - seam-rewind-exit-codes.md (3025 bytes)
-- shaolin-lint.json (519 bytes)
+- shaolin-lint.json (517 bytes)
 - test.txt (1031 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify-chain.txt (42579 bytes) — PREDATES THIS VERIFY RUN
+- verify-chain-run.txt (1924 bytes)
+  Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+- verify-chain.txt (6945 bytes) — PREDATES THIS VERIFY RUN
 - verify.txt (1356 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 
