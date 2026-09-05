@@ -6164,3 +6164,55 @@ green is not evidence the refactor kept anything. Running total: **58**.
 `npm run check` 0/0 · `npm run lint` clean · **1399 passed, 1 skipped** · `npm run build` built ·
 `npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
 Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
+
+## Run 7 close-out — round eighteen: the decline was wrong
+
+Last round I named a residual and argued for leaving it. The reviewer came back on it as a finding
+of its own, and they were right.
+
+### "Never invent provenance" had become "never record it"
+
+`restoredStyleUnknown` was cleared only by `resetGeneratedPage` — that is, only by making a new page.
+So on a draft written before styles were stored, the reader could pick a theme and the studio would
+go on saying its style was not on file, and every autosave would go on writing `undefined`. Every
+refresh threw the choice away. Permanently, on a page with no picture whose look is *entirely* that
+choice.
+
+My argument for leaving it was that erring toward "not on file" never claims provenance that does not
+exist. That is true and the conclusion does not follow, because I only counted one of the two costs.
+Five rounds of removing invented provenance had turned "the field is absent when the answer is not
+known" from a description into a goal, and I stopped asking whether the answer had become known.
+
+The rule now: the restore's answer stands until the reader gives a better one.
+
+Two things in the implementation are load-bearing, and each has its own red mutation.
+
+**It is a comparison against the controls as restored, not "the settings panel fired."** Page size
+and border reach the studio through the same handler as the theme and are not style — they live in
+the intent. Superseding on the handler would write the untouched default theme down as a deliberate
+choice the first time somebody switched to A4, which is the invention the field exists to prevent.
+That mutation turns eight tests red, which is the measure of how much of this run rests on it.
+
+**It is gated on there being no artifact.** With a picture on the paper the controls still do not get
+to claim its provenance, however deliberately they were moved. The round-eleven rule survives intact;
+what changes is only the case where there is nothing for the controls to contradict.
+
+### Mutations
+
+Three, all red: the supersede dropped (1 red, the reported behaviour returns), the no-artifact gate
+dropped (1 red), and the supersede fired on any panel change rather than on a difference (8 red).
+Running total for this run: **61**.
+
+### What I want to remember from this one
+
+A decline is a decision, and a decision made from a principle I had been applying all day deserved
+more suspicion than one made from scratch. The principle was sound; I had stopped checking whether it
+still described the case in front of me. Being pushed back on is how that got caught, which is an
+argument for saying plainly *why* I am declining something rather than just that I am — the reviewer
+could only disagree with the reasoning because the reasoning was written down.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1402 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
