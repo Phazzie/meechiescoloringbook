@@ -91,7 +91,7 @@ concession the `ClockSeam` plan in run 1 had to make.
     `proof-tape.md`; plus `cipher-gate.json` from the standalone gate.
   - The nineteen rewind artifacts, named individually in the command block below.
 - **Commands:** `npm run verify`, `npm run check`, `npm run lint`, `npm test`, `npm run build`,
-  `npx playwright test`, `npm run cipher:gate`, `npm run assumption:alarm`, and
+  `npx playwright test`, `npm run cipher:gate`, `npm run proof:tape`, and
   `npm run rewind -- --seam <name>` for **every seam on the paths this
   page reaches — fourteen.** Evidence: `docs/evidence/2026-09-04/rewind-<SeamName>.txt`.
   - **The two standalone gate commands, and why they are listed separately.** `npm run verify` is
@@ -134,9 +134,12 @@ concession the `ClockSeam` plan in run 1 had to make.
     evidence has not gone missing. The waiver's own validation is the plan recorded in
     `DECISIONS.md`, and — per round 16 — that plan did not work either until it was rewritten.
 
-    `assumption:alarm` is listed even though the chain already runs it, because the waiver's
-    validation turns on it seeing the new entry *after* the entry was written, which the chain's
-    earlier execution did not.
+    That block is the complete standalone set. **`assumption:alarm` is deliberately absent** for the
+    reason given above — the reorder made stage 5 see the final entry, so a standalone rerun only
+    overwrites the chain's own artifact. An earlier revision of this plan removed it from the code
+    block and left it in the prose here and in the Commands line above, which is worse than either
+    keeping or dropping it: a reader following the list and a reader following the prose would run
+    different things.
   - Reached from the browser, or directly by the request the page makes:
     `MeechieToolSeam`, `SpecValidationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`,
     `SessionSeam`, `ClockSeam`.

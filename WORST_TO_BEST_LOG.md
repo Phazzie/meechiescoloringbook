@@ -5504,3 +5504,51 @@ recounting would have produced.
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1 — **seventy-two
 findings across twenty-eight rounds**, none in the application.
+
+---
+
+## Run 4, correction 29 — 2026-09-05 — the run crossed midnight and split its own evidence
+
+Appended, not edited. Five findings on `3afa340` — three P1, two P2. Two are defects in this PR's
+shipped content; three are in the follow-up-9 specification.
+
+### 1. P1 — midnight UTC split the final run across two dated folders
+
+`npm run verify` and the rewinds wrote into `docs/evidence/2026-09-05/`; `lint.txt`, `build.txt`,
+`e2e.txt`, `verify-chain.txt` and `seam-rewind-exit-codes.md` stayed in `2026-09-04/`. `proof-tape`
+inventories **one** dated folder, so the tape's file list omitted the three standalone checks and
+the only chronology — while `plan.md` claimed the final tape sees every artifact.
+
+Nothing I did caused this except running past 00:00 UTC, which is exactly why it is worth recording:
+**the evidence layout has a time-of-day dependency and nothing in the procedure mentions it.** The
+whole final run now lives in `2026-09-05/`; `2026-09-04/` keeps the earlier rounds as history.
+
+### 2. P2 — I removed a command from the code block and left it in two other places
+
+Correction 27 said `npm run assumption:alarm` was removed. It was removed from the literal command
+block — and left in the Commands line above it and in the explanatory prose below it, which still
+carried the superseded rationale. **A reader following the block and a reader following the prose
+would have run different things**, which is worse than either keeping it or dropping it.
+
+This is the third time in this close-out that I have "fixed" something in the copy under my cursor
+and left its siblings. The lesson has been written down twice already; what it evidently needs is a
+mechanical step, not another statement of intent.
+
+### 3-5. Three findings in the follow-up-9 spec
+
+- **`timingMs` cannot be replayed exactly.** Round 28's "yields exactly (iii)" is unsatisfiable:
+  the adapter recomputes `timingMs` from `Date.now()` (`index.ts:77,165`), so a live capture's
+  duration can never equal a replayed one. Now: compare every deterministic field, exclude
+  `timingMs`, check it separately as a plausible non-negative number.
+- **Criterion B still said "exactly one consumer"** while D said that framing was wrong. No
+  implementation could satisfy both, and a maintainer following B would have omitted the mapping
+  comparison — the exact defect D exists to prevent. Removed from B.
+- **Nothing checks the request the adapter sends.** Every criterion captures what the provider
+  *returns*. The probe builds its own `fetch` body and the contract test asserts only that `fetch`
+  was called once, so the adapter could drift to the wrong URL, model, headers, prompt, `n` or
+  `response_format` and every replay would still pass. Added to follow-up 9's scope.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5 — **seventy-seven
+findings across twenty-nine rounds**, none in the application.
