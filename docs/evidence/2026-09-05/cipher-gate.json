@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-05T04:17:45.585Z",
+  "generatedAt": "2026-09-05T04:23:06.120Z",
   "cipher": {
     "date": "2026-09-05",
     "seams": "None. No seam contract, mock, adapter, fixture or test changed. This adds one build-support script and one npm script; the watched paths it touches are `scripts/` and `package.json`.",
@@ -65,6 +65,6 @@
     "summary": "The close-out evidence sequence used to be a shell block transcribed into `plan.md` and copy-pasted out of it. Five consecutive review rounds found five defects in that transcription: an unquoted `<date>` that bash parses as redirection operators, so `npm run verify` never ran; a truncating `>` that destroyed the required Purpose/Why/Info-flow header; a `{ cmd; printf ...; }` group that returns printf's status, so a failed chain reported success; a `proof:tape` placed before the lint, build, e2e and rewind artifacts it inventories; and a missing `mkdir -p`, so the first run of a new UTC day wrote into a directory that the chain had not yet created. Every one of those was fixed by editing prose that nothing executed, which is precisely why the next defect landed the same way. `scripts/capture-evidence.mjs` (`npm run evidence:capture`) now runs the sequence: create the dated folder, run the chain and capture its own exit status, run the three checks that are not chain stages, run the nineteen rewinds while reading each exit status from its spawn result rather than transcribing it, run `cipher:gate` and check its status before continuing, then run `proof:tape` last so its inventory covers everything above. It also aborts if the UTC date rolls over mid-run, because each evidence generator calls `new Date()` independently and a run that straddles midnight silently splits its artifacts across two folders. A file that is executed cannot drift from what was executed, which is the property the shell block never had.",
     "risks": "This adds a second way to run checks that already have npm scripts, so a future contributor could run `npm run evidence:capture` and believe it is the gate; it is not - `npm run verify` remains the gate and CI runs that, while this script only sequences and captures. The seam list is hard-coded in the script rather than derived from `docs/seams.md`, so a seam added to the close-out scope must be added here too; deriving it was rejected for this change because `docs/seams.md` carries five duplicate names that only a human reading can disambiguate, and a wrong automatic resolution would silently verify the legacy row - the same failure the explicit `(self-contained)` suffixes exist to prevent. The script is not itself covered by a test; its proof is that running it produces the committed evidence, which is a weaker guarantee than a test but a stronger one than the prose it replaces."
   },
-  "latestChangeMs": 1788581632854.5632,
+  "latestChangeMs": 1788581997023.551,
   "status": "ok"
 }

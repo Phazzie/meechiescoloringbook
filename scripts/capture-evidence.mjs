@@ -14,8 +14,10 @@ import {
 	mkdtempSync,
 	openSync,
 	readFileSync,
+	readdirSync,
 	renameSync,
 	rmSync,
+	statSync,
 	writeFileSync
 } from 'node:fs';
 import os from 'node:os';
@@ -415,6 +417,36 @@ const acquireRunLock = () => {
 const LEASE_MS = 30 * 60 * 1000;
 
 /**
+ * Removes raw capture directories abandoned by earlier runs.
+ *
+ * The per-child capture is deleted as soon as it is read, but a wrapper killed outright never gets
+ * there: SIGKILL runs no handler, and a pending SIGTERM cannot run one either while spawnSync
+ * blocks. What is left behind is the worst thing this script handles — the child's output BEFORE
+ * sanitizing, with the checkout path still in it — sitting unbounded under the temp directory, one
+ * per killed run. Nothing else ever cleans them, so each capture reclaims the abandoned ones on
+ * startup, using the same lease age that governs the run lock.
+ */
+const clearAbandonedCaptures = () => {
+	const tmp = os.tmpdir();
+	let entries = [];
+	try {
+		entries = readdirSync(tmp);
+	} catch {
+		return;
+	}
+	for (const name of entries.filter((entry) => entry.startsWith('capture-evidence-'))) {
+		const dir = path.join(tmp, name);
+		try {
+			if (Date.now() - statSync(dir).mtimeMs > LEASE_MS) {
+				rmSync(dir, { force: true, recursive: true });
+			}
+		} catch {
+			// Another user's directory, or one removed underneath us. Neither is ours to resolve.
+		}
+	}
+};
+
+/**
  * @param {string} lockPath
  * @returns {boolean}
  */
@@ -514,6 +546,7 @@ const main = async () => {
 	// ordering left nothing to write into.
 	await fs.mkdir(dir, { recursive: true });
 	acquireRunLock();
+	clearAbandonedCaptures();
 	await clearOwnedOutputs(dir);
 
 	await captureChain(dir);
@@ -580,6 +613,15 @@ const main = async () => {
 		tape.output,
 		tape.code
 	);
+	if (tape.code !== 0) {
+		// cipher:gate ran earlier and recorded proof-tape.md as `exists: true`; this run then deleted
+		// that file so the tape could rewrite it. If the tape has now failed, the folder would keep a
+		// green cipher-gate.json whose evidence list contradicts what is actually on disk — the same
+		// "machine-readable success outliving its run" this sequence keeps having to close. The gate's
+		// own report goes; cipher-gate-run.txt stays, because what the gate said is still true of when
+		// it said it.
+		await fs.rm(path.join(dir, 'cipher-gate.json'), { force: true });
+	}
 	exitIfFailed(tape, 'npm run proof:tape');
 
 	// Checking before the spawn is not enough: proof-tape.mjs:197-199 recomputes the date itself, so

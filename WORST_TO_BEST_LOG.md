@@ -7598,3 +7598,49 @@ runs a few times a day — which is its own argument, already on the owner's lis
 ### Running total
 
 **One hundred and thirty findings across fifty rounds.**
+
+---
+
+## Run 4, correction 52 — 2026-09-05 — the unsanitized copy nobody cleans up, and a gate report outliving its evidence
+
+Appended, not edited. Two P2s on `448e5f9`.
+
+### 1. Killed runs leave the raw, unsanitized capture under `/tmp` for ever
+
+The per-child capture is deleted as soon as it is read — but a wrapper killed outright never reaches
+that line. `SIGKILL` runs no handler, and a pending `SIGTERM` cannot run one either while `spawnSync`
+blocks (correction 47). What survives is the **worst artifact this script handles**: the child's
+output *before* sanitizing, checkout path intact, sitting unbounded under the temp directory. One per
+killed run, and nothing in the system ever removes them.
+
+That is the same data corrections 40, 48 and 50 were about, in the one place none of them looked. I
+made the file private in correction 42 and stopped there, having framed the risk as *who can read it*
+rather than *how long it exists*.
+
+Each capture now reclaims abandoned `capture-evidence-*` directories on startup, using the same lease
+age as the run lock. Verified:
+
+```
+capture-evidence-OLD-test (mtime 2h ago) -> removed
+capture-evidence-NEW-test (mtime now)    -> KEPT
+```
+
+### 2. A failed tape left the gate's success report standing
+
+`cipher:gate` runs before the tape and records `proof-tape.md` as `exists: true`. This run then
+deletes that file so the tape can rewrite it (correction 50). If the tape then **fails**, the folder
+keeps a green `cipher-gate.json` whose evidence list contradicts what is on disk.
+
+`cipher-gate.json` is now removed when the tape fails. `cipher-gate-run.txt` stays — what the gate
+said is still true of the moment it said it, and that is a record rather than a claim about the
+folder's final state.
+
+This is the fifth distinct route by which machine-readable success could outlive the run it belonged
+to: the hand-typed exit table, the truncated rewind artifact, the tape's stale inventory, the
+surviving `cipher-gate.json` on an early failure, and now the same file on a *late* one. Each was
+closed individually. The category is closed by staging a run and publishing it atomically, which is
+follow-up 15's territory.
+
+### Running total
+
+**One hundred and thirty-two findings across fifty-one rounds.**
