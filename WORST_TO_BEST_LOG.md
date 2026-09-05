@@ -5272,3 +5272,74 @@ stopped believing. The feature is *about* that failure, which did not protect it
 opposite, because each fix added another place the same knowledge had to be kept true. What actually
 worked was collapsing the duplicates: one definition of the quota cost, one `aiQuotaExhausted` behind
 every guard, one `#ai-budget` named by every button, one token deciding whether a reply still counts.
+
+---
+
+## Run 7, merge close-out — 2026-09-05 — PR #305 merged as `db32d45`
+
+The home studio's AI budget meter is Run 7's worst→best feature, and it is on `main`.
+
+### What the gate required, and what it found
+
+| Condition | State at merge (`bf07402`) |
+|---|---|
+| CI green on the current head, **both** surfaces | Check runs: `verify` ×2, CodeQL, Analyze (javascript-typescript), Analyze (actions), SonarCloud, SonarCloud Code Analysis (Quality Gate passed, 0 new issues) — all success. Sourcery skipped. Commit statuses: CodeRabbit success (skipped). Two red: Rosentic and Vercel, both dispositioned below. |
+| Every review comment addressed | Codex produced 11 findings across four rounds. Six fixed and their threads resolved; three answered with evidence and left open for the owner; two were duplicates of a fixed one. Rosentic answered in a PR comment. Sourcery stood down (7-day diff budget), CodeRabbit skipped (fewer than 10 stars). No human review. **Codex's fifth round, on the final head, produced no findings.** |
+| `npm run verify` and `npm test` green, evidence committed | Exit 0; 1357 passed / 1 skipped; 35 e2e; `docs/evidence/2026-09-05/` with `build.txt`, `lint.txt` and `e2e.txt` regenerated from the final head *after* the chain. |
+| No unpushed work, no merge conflict | Local `HEAD` == remote == `bf07402`; 0 commits behind `main`; clean tree. |
+
+Exclusions: no human change request (every review was a bot). No schema, contract or data migration —
+`git diff --stat origin/main...HEAD -- src/lib/adapters src/lib/seams contracts probes fixtures
+src/lib/mocks src/routes/api tests/contract` produced **0 lines**. No open Assumption covers the
+shipped behaviour: the three that touch seams concern the live xAI wig payload, the rate limiter's
+durable store, and the deployed `/api/meechie-studio-text` path — this diff changes no request, no
+provider call and no route file, and the rate-limit Assumption is about the *store*, while this
+reads headers the guard already computes either way. No owner hold.
+
+### The two red checks
+
+**Vercel** — `api-deployments-free-per-day`, an account free-tier cap, not a property of the diff.
+The strongest evidence that it is not this PR's: the same branch **deployed successfully** on
+`aa8553e` an hour before merge, and went back to rate-limited on the next two pushes. Nothing in the
+branch changed between those states; the day's deployment budget did.
+
+**Rosentic** — 157 findings, 5 graded breaking. Re-derived from scratch rather than inheriting the
+previous entry's dismissal, which that entry itself records as right-for-the-wrong-reason. Five ways,
+all in the PR comment: the blamed branches do not contain the functions they are said to have changed
+(`sweet-mendel-LJ9Iu`, tip 2026-06-08, has neither `derivesDenseDecorations` nor `specOwnQuote`, both
+introduced on `main` in September); `trusting-volta-bb8mvr`'s copy of the test file is 91 lines with
+zero occurrences of the helpers it is blamed for; all three blamed branches have **no common ancestor**
+with this one and `git merge` refuses them outright, which falsifies the report's own premise; it cites
+`tests/unit/page-style.test.ts`, which does not exist in this repository; and its one finding pinned to
+a changed line, applied literally, produces `Expected 1 arguments, but got 0` from `svelte-check`.
+
+### What this run actually cost, and what it bought
+
+Five commits, four review rounds, and the shape of every real finding was identical: some part of the
+studio asserting something the rest of it had stopped believing. Writing the feature whose entire
+subject is "do not display what the server has not said" did not inoculate it — if anything it made
+the trap denser, because each fix added another site where the same knowledge had to be kept true.
+
+The three findings that mattered most were not in the original diff at all. `aiQuotaExhausted` came
+from a reviewer noticing the panel and the buttons disagreed. `verdictToken` came from a reviewer
+asking about a budget charge, and the check turned up a **pre-existing** bug the PR had merely given
+a second symptom: a slow reply landing its verdict under a different mode. And the browser validation
+the routine requires had never been run on any head of this PR until a reviewer said so.
+
+### Carried forward to the next run
+
+- **The rewrite allowance still resets on a reload.** Persisting it needs a field on
+  `DraftRecordSchema` — a contract change, so the full Seam-Driven Development workflow.
+- **The exact quota reset instant needs a server-emitted absolute time.** The client anchor is now the
+  lower bound of `[requestStart + reset, responseReceipt + reset]`, wrong by pre-charge latency and
+  erring toward silence and a guard that fails open. Exact would mean changing `decisionHeaders` in
+  `rate-limit-guard.ts` for every billable route.
+- **The image quota and the four other surfaces still report nothing.** `readAiQuota` is shared core
+  and already general enough; `/api/generate` and the mode routes are wiring, not design.
+- **Whether `postJson` should be a seam** is a live question a reviewer raised and I declined on the
+  registry's evidence. If the owner's answer is yes, it moves every caller in the app and deserves its
+  own PR.
+- Run 6's two items are still open: raw filenames in `VerdictPageStudio`/`MeechieTools`, and
+  `recommendedFixes` computed and shown nowhere.
+
+None of these is a recommendation for what to pick next. Measure it.
