@@ -24,25 +24,33 @@
 
 - npm run lint   -> lint.txt   (exit 0; eslint prints nothing on success)
 - npm run build  -> build.txt  (exit 0)
+- npm run cipher:gate -> cipher-gate.json (exit 0)
+- npm run rewind -- --seam WigCatalogSeam -> rewind-wig-catalog-seam.txt (27 passed)
 - npx playwright test -> e2e.txt (30 passed; baseline on main at 1dab4cf was 28)
 
 ## Results on this head
 
 - npm run check: 0 errors, 0 warnings
-- npm test: 1234 passed, 1 skipped (baseline on main at 1dab4cf: 1187 passed, 1 skipped)
+- npm test: 1238 passed, 1 skipped (baseline on main at 1dab4cf: 1187 passed, 1 skipped)
 - npm run build: exit 0
-- npx playwright test: 30 passed
+- npx playwright test: 31 passed
 - npm run verify: exit 0, all eight stages
 
-## What is deliberately absent, and why
+## The Cipher Gate entry, and what it claims
 
-- cipher-gate.json is not in this folder. `npm run cipher:gate` is not part of the verify chain and
-  is run manually for seam changes. This head changes no seam: no file under contracts/, probes/,
-  fixtures/, src/lib/mocks/, tests/contract/, src/lib/adapters/ or src/lib/seams/ is in the diff,
-  and no contract shape changed. WigCatalogSeam, CreationStoreSeam, SpecValidationSeam and
-  OutputPackagingSeam are consumed through their existing adapters exactly as /api/wig-try-on and
-  studio-state.svelte.ts already consume them. So no Cipher Gate entry is required and none is
-  claimed.
+- cipher-gate.json is now in this folder, and DECISIONS.md carries a Cipher Gate entry dated
+  2026-09-05 for WigCatalogSeam. It was added after a review finding argued that moving the UI from
+  bypassing the seam to consuming listWigs() makes seam outcomes newly observable, and AGENTS.md
+  says to treat doubt as a seam change.
+- The entry does not claim the seam changed, and neither does this file. No file under contracts/,
+  probes/, fixtures/, src/lib/mocks/, tests/contract/, src/lib/adapters/ or src/lib/seams/ is in the
+  diff; all six of WigCatalogSeam's artifacts pre-date this work; no contract shape moved. The seam
+  returns exactly what it returned before for the same input.
+- rewind-wig-catalog-seam.txt is the positive evidence for that: the seam's contract still verifies
+  on this head, 27 tests passed.
+- wig-catalog-seam carries a documented manual probe with no runProbe export (docs/seams.md records
+  N/A in its probe-date column), which pre-dates this change. So the seam's automated evidence here
+  is its contract test via rewind plus chamber-lock's artifact-presence gate, not a fresh probe run.
 
 ## What this evidence does not prove
 
@@ -50,6 +58,11 @@
   not establish them. Each was confirmed by deleting it and watching a named test fail; those
   mutation runs are recorded in WORST_TO_BEST_LOG.md under Run 5, not in this folder.
 - SonarCloud's duplication gate reports a percentage and no location and cannot be run locally. An
-  n-gram scan over the changed .ts files was used instead, before the first push; it found and
-  removed a 10-line repeat between two new tests. The three blocks it still reports were each
-  checked against the diff hunks and are all in unchanged lines.
+  n-gram scan over the changed .ts files was used instead, before each push. It removed a 10-line
+  repeat between two new tests before the first push (the gate then passed at 0.0%), and removed the
+  same shape again after the Codex round added two more staleness tests. The three blocks it still
+  reports were each checked against the diff hunks and are all in unchanged lines.
+- SonarCloud reports 1 new issue beside its passed gate whose location is not readable from this
+  environment: the check run's annotation text is empty, no inline comment was posted, and the
+  network policy returns 403 for sonarcloud.io. It is not gate-blocking, not a security alert, and
+  not duplication or coverage. Recorded unresolved rather than guessed at.

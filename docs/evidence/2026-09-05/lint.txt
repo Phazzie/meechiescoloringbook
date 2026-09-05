@@ -4,8 +4,8 @@
 #      started.
 # Info flow: eslint output -> this evidence file -> review and the proof tape.
 #
-# npm run lint — 2026-09-05T00:47:38Z
-# Run 5: the wig try-on becomes a shop you can browse and a look you can keep. Head 6c5a151.
+# npm run lint — 2026-09-05T01:07:01Z
+# Run 5, after the Codex round. Head 787a587.
 #
 
 > meechies-coloringbook@0.1.0 lint
