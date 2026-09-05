@@ -30,7 +30,7 @@
 - npm run build  -> build.txt  (exit 0)
 - npm run cipher:gate -> cipher-gate.json (exit 0)
 - npm run rewind -- --seam WigCatalogSeam -> rewind-wig-catalog-seam.txt (27 passed)
-- npx playwright test -> e2e.txt (30 passed; baseline on main at 1dab4cf was 28)
+- npx playwright test -> e2e.txt (32 passed; baseline on main at 1dab4cf was 28)
 
 ## Results on this head
 
@@ -66,7 +66,8 @@
   repeat between two new tests before the first push (the gate then passed at 0.0%), and removed the
   same shape again after the Codex round added two more staleness tests. The three blocks it still
   reports were each checked against the diff hunks and are all in unchanged lines.
-- SonarCloud reports 1 new issue beside its passed gate whose location is not readable from this
+- SonarCloud reports 2 new issues beside its passed gate whose locations are not readable from this
   environment: the check run's annotation text is empty, no inline comment was posted, and the
-  network policy returns 403 for sonarcloud.io. It is not gate-blocking, not a security alert, and
-  not duplication or coverage. Recorded unresolved rather than guessed at.
+  network policy returns 403 for sonarcloud.io. They are not gate-blocking, not security alerts, and
+  not duplication or coverage — the gate passed with 0.0% duplication on new code and 0 security
+  hotspots. Recorded unresolved rather than guessed at.
