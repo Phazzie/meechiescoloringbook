@@ -1,0 +1,14 @@
+# Purpose: Store seam-scoped contract test output for evidence.
+# Why: Provide a focused proof trail for the specified seam.
+# Info flow: vitest output -> evidence file -> review.
+
+
+ RUN  v4.1.0 <REPO_ROOT>
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  05:06:48
+   Duration  744ms (transform 96ms, setup 33ms, import 167ms, tests 9ms, environment 406ms)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

@@ -8,13 +8,13 @@ $ npm test -- --pool=forks --maxWorkers=1
 > vitest run --pool=forks --maxWorkers=1
 
 
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+ RUN  v4.1.0 <REPO_ROOT>
 
 
-[2m Test Files [22m [1m[32m83 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (84)[39m
-[2m      Tests [22m [1m[32m1252 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1253)[39m
-[2m   Start at [22m 04:50:34
-[2m   Duration [22m 63.18s[2m (transform 2.51s, setup 661ms, import 4.68s, tests 3.10s, environment 42.63s)[22m
+ Test Files  83 passed | 1 skipped (84)
+      Tests  1252 passed | 1 skipped (1253)
+   Start at  05:05:00
+   Duration  52.33s (transform 2.21s, setup 541ms, import 4.11s, tests 2.77s, environment 34.59s)
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

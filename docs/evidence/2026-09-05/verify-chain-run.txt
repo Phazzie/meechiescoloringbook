@@ -1,10 +1,17 @@
-# Purpose: Store the verify runner's check and test stage output.
-# Why: Keep this inner stage distinct from the outer verify chain and its separate artifacts.
-# Info flow: check/test output -> evidence file -> outer verify chain.
+# Purpose: Record the OUTER `npm run verify` command, its output and its exit status.
+# Why: verify.txt holds only the inner verify-runner stage, and the chain's own proof:tape
+#      overwrites stage 8, so nothing else retains the outer chain result.
+# Info flow: npm run verify -> this file -> verify-chain.txt points here.
+#
 
-$ node scripts/verify-runner.mjs
+> meechies-coloringbook@0.1.0 verify
+> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
 
-$ npm run check
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
+found 0 vulnerabilities
 
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
@@ -13,8 +20,6 @@ Loading svelte-check in workspace: <REPO_ROOT>
 Getting Svelte diagnostics...
 
 svelte-check found 0 errors and 0 warnings
-
-$ npm test -- --pool=forks --maxWorkers=1
 
 > meechies-coloringbook@0.1.0 test
 > vitest run --pool=forks --maxWorkers=1
@@ -31,3 +36,5 @@ $ npm test -- --pool=forks --maxWorkers=1
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+EXIT=0

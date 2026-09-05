@@ -7,97 +7,122 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
-## 2026-09-05 - Run 5 merge close-out (micro plan + self-critique)
+- Assumption:
+  - Date: 2026-09-04
+  - Seams: ImageGenerationSeam
+  - Statement: The checked-in ImageGenerationSeam sample and fault fixtures remain representative for PR #295, which newly lets `/m/<slug>` reach `/api/generate` and therefore construct this seam, even though the fixtures are older than the seven days `AGENTS.md` requires.
+  - Validation: **BLOCKED. Stated as scope and acceptance criteria rather than as a command sequence, because five review rounds produced five command sequences and every one was wrong** - each predicted the behaviour of a tree that does not exist yet, and each was falsified by reading one file further. The refresh path for this seam is broken in six independent places, all measured on this head: (1) the probe's output has no consumer - `probes/image-generation.probe.mjs:58` writes `fixtures/image-generation/{sample,fault}.json` and `grep -rn "fixtures/image-generation" src/ tests/ scripts/ contracts/` returns zero hits, the only one of fourteen `fixtures/` directories nothing reads; (2) there is no success fixture to refresh - `fixtures.ts` exports a *request* and a fault, `mock.ts:10` imports only the fault and its `sample` scenario synthesises an SVG via `buildSvg`, and `tests/contract/image-generation.test.ts:32` uses a private `xaiSampleResponse`; (3) the probe cannot observe a fault - it throws on any non-2xx (`:138-148`); (4) the fault it writes instead is a hard-coded `PROMPT_MISSING_REQUIRED_PHRASES` (`:224`), not the canonical `IMAGE_HTTP_ERROR` (`fixtures.ts:15`); (5) it requests the wrong model - `model: 'grok-imagine-image'` hard-coded at `:132`, where production resolves `grok-imagine-image-2.0` through `ImageProviderConfigSeam` (`image-provider-config-seam/fixtures.ts:10`), so a live call would characterise a model the shipped adapter never uses; (6) it emits the wrong shape - `format`/`mimeType`/`data`/`encoding`/`modelMetadata` (`:157-190`) where `contract.ts:19-29` requires `{ images: [{ id, url?, b64? }], rawModelInfo, timingMs }`, so a capture cannot be loaded without inventing fields. **Acceptance criteria for the repair, which is a dedicated seam task with its own plan and Cipher Gate, not a step in a waiver.** A. the probe requests the model `ImageProviderConfigSeam` resolves, read from config rather than a literal, and records which model answered. B. it records a real non-2xx response rather than throwing, **and that recording is a capture in its own right** - the provider's actual error body plus its status, kept as an artifact in its own right. **There are FOUR capture values, not three and not two** - and they are *paired*, not partitioned (criterion D); an earlier draft required "exactly one consumer" each, which contradicts D and would lead a maintainer straight back to omitting the mapping comparison: (i) provider-wire **success** body -> the contract test's successful `fetch`; (ii) provider-wire **error** body plus status -> the contract test's failing `fetch`; (iii) normalized `ImageGenerationResult` -> the mock's `sample` scenario; (iv) normalized `ImageGenerationError` -> the mock's `fault` scenario. (iii) and (iv) are disjoint arms of the contract's `Result<>` and cannot be supplied by one "normalized capture", which is how an earlier draft of these criteria counted three. C. **each capture is written in the shape its own consumer requires, and is validated against that shape rather than against a single "canonical" one** - the wire capture as the provider's `{ data: [{ url, b64_json, revised_prompt }] }` response body exactly as received, validated against the adapter's `payload.data` reader (`image-generation-seam/index.ts:17-20`); the normalized sample capture as `ImageGenerationResult`, validated against `contract.ts:25-29` via `validateImageGenerationResult`; the normalized fault capture against the `ImageGenerationError` union at `contract.ts:35-42` - **which needs a validator that does not exist yet.** `validators.ts` exports only `imageGenerationRequestSchema`, `generatedImageSchema` and `imageGenerationResultSchema`; there is no error schema, so "validate the fault capture" is unsatisfiable today and an earlier draft of this criterion pointed at `:19-29`, a range that does not even contain the error union. Adding `imageGenerationErrorSchema` and `validateImageGenerationError`, and using the latter on the fault capture, is part of the repair. **There is no one canonical shape here and saying "both captures are canonical" was the error**: a wire response is not an `ImageGenerationSeam` contract value and never becomes one until the adapter maps it. Every capture is loaded by its consumer verbatim, with no reshaping at load time - that is what "without transformation" means and all it means. D. something loads them, **with the two shapes kept distinct** - this is where criteria C and D contradicted each other in the first draft: `tests/contract/image-generation.test.ts` stubs `fetch` and must be handed the **provider-wire** shape `{ data: [{ url, b64_json, revised_prompt }] }` that `image-generation-seam/index.ts:17-20,145` parses, whereas the mock and the seam contract want the **normalized** `{ images, rawModelInfo, timingMs }`; feeding a canonical seam result to `fetch` makes the adapter report an empty response, and reshaping it in the test would be the transformation criterion C forbids. So the probe captures **both** - the raw provider response exactly as received, and the normalized result the adapter produces from it - the contract test loads the wire-success capture in place of its private `xaiSampleResponse`, **its HTTP-failure test loads the wire-error capture in place of the inline `new Response('rate limited', { status: 429 })` it constructs at `tests/contract/image-generation.test.ts:78-96`** - without that, criterion B's live error could be recorded and then never read by anything, leaving every test green while nothing checks that the adapter maps the provider's *actual* error body to the normalized fault - the mock's `sample` scenario loads capture (iii) and its `fault` scenario loads capture (iv), each validated against its own arm of the contract - **and, correcting the "exactly one consumer" framing two earlier drafts of these criteria insisted on, the captures are PAIRED rather than partitioned.** (i) and (iii) are the input and the expected output of one adapter mapping; (ii) and (iv) are the same for the failure path. The adapter tests must assert that generating against wire capture (i) yields (iii), and against (ii) yields (iv) - **on every deterministic field, with `timingMs` excluded and checked separately.** `ImageGenerationResult` carries `timingMs`, which the adapter recomputes from `Date.now()` (`image-generation-seam/index.ts:77,165`), so a live capture's duration can never equal a replayed one; demanding "exactly" would make the acceptance test flaky or unwritable. Either inject a clock or compare the rest and assert `timingMs` is a plausible non-negative number on its own. Without that, nothing checks the mapping itself: `tests/contract/image-generation.test.ts:132-140` currently asserts only `images.length` and `images[0].url`, and `:78-95` only the error code and status - so `rawModelInfo`, `timingMs`, `revised_prompt` and the provider's error body could all be silently dropped in wire-to-contract translation while every capture had its consumer and every criterion read as satisfied. **One consumer each was the wrong requirement; it made the four captures independent when the whole value is in the two correspondences between them.** Neither consumer transforms anything; the adapter is the only thing that maps between them, which is the point of testing it. E. **the fault test can fail** - as written, `image-generation-seam/test.ts:32-41` compares `result.error` against the same `imageGenerationFaultFixture` that `mock.ts:21-25` returns, so it is green by construction and refreshing the fixture keeps it green; the red proof must be a deliberately non-conforming fixture shown failing, captured as `docs/evidence/<date>/image-generation-fault-red-proof.txt`, before the real capture is accepted. F. `docs/seams.md`'s `TBD (blocked)` and this entry's Status are updated **before** the final `npm run verify` / `cipher:gate` / `assumption:alarm`, because `scripts/assumption-alarm.mjs:93-106` computes `blockedSeams` from those two files and gates run earlier would certify the pre-resolution tree. G. the repair gets the full seam workflow, since it changes probe, fixtures, mock and tests. H. **the repair targets the probe `docs/seams.md` actually inventories.** The criteria above diagnose `probes/image-generation.probe.mjs`, but the registry names `src/lib/seams/image-generation-seam/probe.ts` as this seam's probe - and that file is four lines (`probeImageGenerationSeam = async (seam, request) => seam.generate(request)`): it forwards an injected seam call, exports no runner, and writes no capture. So the repair could satisfy every criterion above by fixing the legacy script while the authoritative probe remains incapable of the refresh. It must either make the inventoried probe runnable and capture-backed, or update `docs/seams.md` and delete the split entrypoint - **two probes for one seam is itself the defect**, and whichever way it is resolved, one of them stops existing. **And the request side is in follow-up 9's scope too, though no criterion above covers it:** criteria A-D capture what the provider *returns* and never check what the adapter *sends*. The probe builds its own `fetch` body (`probes/image-generation.probe.mjs:125-136`) and the contract test only asserts `fetch` was called once, so the adapter could drift to the wrong URL, model, headers, prompt, `n` or `response_format` and every replay would still pass. The repair should capture a secret-free provider-wire *request* and assert the adapter emits it, or run the canonical probe through an observable transport - **with the probe's input pinned to what production actually sends.** `runImageGenerationPipeline` hard-codes `RESPONSE_FORMAT = 'b64_json'` (`image-generation-pipeline.ts:19`) and later discards images with no `b64`, while the checked-in `imageGenerationRequestFixture` says `format: 'url'`. A maintainer could therefore make a billable **URL-format** call, capture it, replay it, satisfy every request assertion - and never exercise the path the application ships. The probe input must come from the production pipeline or pin every production request value explicitly, `b64_json` included. Recorded as follow-up 9. Until every criterion holds, a future run must not mark this Assumption validated on the strength of a green rewind - the rewind is green now, on fixtures nobody refreshed, against a test that cannot fail.
+  - Status: **Waived for fixture freshness ONLY, and that is now stated because an earlier version of this line claimed more than a freshness waiver can carry.** `AGENTS.md`'s completion checklist (`:102-104`) has three separate items, and only the first admits a waiver: "Fixtures are fresh (<= 7 days) **or waiver recorded**"; "Mock loads fixtures by scenario (no logic shortcuts)"; "Fault fixture fails before adapter work (red proof)". This entry's own Validation field establishes that `ImageGenerationSeam` **fails the second and third with no waiver of any kind**: `mock.ts:12-35` synthesises its `sample` response with `buildSvg` rather than loading a fixture by scenario, and `image-generation-seam/test.ts:32-41` compares the mock's error against the same `imageGenerationFaultFixture` the mock returns, so there is no red proof and cannot be one until the test can fail. **Both predate PR #295** - they are properties of the seam at base `210b301`, not defects that PR introduced - but PR #295 newly routed `/m/<slug>` to `/api/generate`, which is what brought the seam into this change's scope, so "pre-existing" explains them and does not excuse them. **Waiving those two items is not mine to do.** The freshness waiver is recorded here under the rule that permits it; the other two need either the repair (follow-up 9) or an explicit owner ruling, and this close-out claims neither. Scoped deliberately in the other direction too: the earlier waiver dated 2026-05-14 covers "this review-comment repair" only, and citing it for a different change would be borrowing an authorization never given. On the freshness item itself: PR #295 adds no new call shape, model id or provider request to this seam - it adds a **sixth** screen that can reach an endpoint **five** others already reached - so the fixtures' representativeness is unchanged by the diff. The five at base `210b301`, enumerated so this count is checkable rather than asserted: the home studio (`studio-state.svelte.ts:668`), `/meechie` (`MeechieTools.svelte:283`), and `/who-fucked-up`, `/rate-his-excuse`, `/random` (all three through `verdict-page-state.svelte.ts:480`). This was the third wrong exposure count in this close-out, and the reason it recurs is worth naming: two different endpoints have two different consumer sets, and the counts are not interchangeable. `/api/tools` already had `/m/<slug>` among its five consumers before the rebuild; `/api/generate` did not, so for *this* seam `/m/<slug>` is genuinely new and genuinely the sixth. `assumption-alarm.json` continues to list ImageGenerationSeam under blockedSeams, which is correct and is why this entry exists.
 
-- Date: 2026-09-05
-- Decision: Record Run 5's merge outcome in `WORST_TO_BEST_LOG.md` as a separate, docs-only change
-  after PR #297 merged as `cc5f622`, and regenerate this date's evidence artifacts on that
-  close-out head rather than citing the merged head's.
-- Context: The worst-feature routine's log is the only memory between runs. Run 5 exists because
-  three previous runs deferred the wig try-on by citing each other; a run that merges without
-  recording its outcome and its gate reasoning leaves the next one inheriting a claim instead of
-  evidence. A review found this close-out had no micro Plan of its own and was inheriting the
-  pre-merge feature plan in `plan.md`, which describes a different change.
-- Alternatives: Fold the close-out into the feature PR (impossible - it records that PR's merge);
-  skip it (loses the outcome, the gate reasoning and the two carried-forward findings); leave the
-  merged head's evidence in place (rejected, and correctly: the routine requires check, lint, test
-  and build before *every* push).
-- Consequences: `docs/evidence/2026-09-05/` now describes two heads, so provenance is stated per
-  artifact. `verify-outer.txt` is added because `verify.txt` holds only the inner verify-runner
-  stage, which left the audit gate's result and the chain's exit status asserted rather than
-  captured.
-- Revisit criteria: If the routine ever produces the close-out inside the feature PR, the two-head
-  split in `verify-chain.txt` becomes unnecessary and should be removed rather than maintained. If
-  `verify-chain.txt` is ever generated rather than hand-written, its stale-header failure mode goes
-  away and the per-artifact labelling should be reassessed. And `scripts/proof-tape.mjs` should
-  learn to compare artifact times against the start of the current push rather than against
-  `chamber-lock.json`: as it stands, `cipher-gate.json` can never clear that test, because the
-  ordering above requires it to be written *before* the chain in order to be inventoried correctly
-  at all, so the tape calls it "written by an earlier run" every time. That is a generator change
-  with its own tests, not a close-out change, which is why it is recorded here instead of made.
-- Plan (micro):
-  - Goal: record the merge outcome, the gate conditions and exclusions as actually checked, and the
-    findings worth carrying to the next run.
-  - Seams: none. No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
-    `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` is touched, and no `src/` or `tests/`
-    file at all.
-  - Files:
-    - `WORST_TO_BEST_LOG.md` (the close-out entry and its corrections)
-    - `DECISIONS.md` (this entry)
-    - `docs/evidence/2026-09-05/verify-outer.txt` (new; written after the chain completes, so it
-      is deliberately absent from that run's own `proof-tape` inventory)
-    - `docs/evidence/2026-09-05/verify-chain.txt`
-    - `docs/evidence/2026-09-05/verify.txt`
-    - `docs/evidence/2026-09-05/test.txt`
-    - `docs/evidence/2026-09-05/lint.txt`
-    - `docs/evidence/2026-09-05/build.txt`
-    - `docs/evidence/2026-09-05/cipher-gate.json`
-    - `docs/evidence/2026-09-05/chamber-lock.json`
-    - `docs/evidence/2026-09-05/shaolin-lint.json`
-    - `docs/evidence/2026-09-05/assumption-alarm.json`
-    - `docs/evidence/2026-09-05/seam-ledger.json`
-    - `docs/evidence/2026-09-05/seam-ledger.md`
-    - `docs/evidence/2026-09-05/clan-chain.json`
-    - `docs/evidence/2026-09-05/clan-chain.md`
-    - `docs/evidence/2026-09-05/proof-tape.json`
-    - `docs/evidence/2026-09-05/proof-tape.md`
-  - Not touched, and deliberately so: `docs/evidence/2026-09-05/e2e.txt`,
-    `docs/evidence/2026-09-05/rewind-wig-catalog-seam.txt` and
-    `docs/evidence/2026-09-05/rewind-WigCatalogSeam.txt` carry the code head's results, because the
-    routine scopes end-to-end runs to user-facing changes and no code has changed since.
-  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
-    `npm run cipher:gate`. `npx playwright test` is deliberately not re-run: the routine scopes
-    end-to-end runs to user-facing changes, and a log entry is not one.
-  - How behaviour stays unchanged: no file under `src/` or `tests/` is in the diff at all, so there
-    is no code whose behaviour could differ - that, and not any property of the build output, is
-    what establishes it. `npm run build` exits 0 and every emitted chunk keeps its byte size, and
-    `npm test` is unchanged at 1252 passed / 1 skipped. Note what those do *not* show: the hashed
-    filenames differ between two builds of identical source, so a green build is not evidence of an
-    identical bundle and is not offered as any. Reproduce it from a clean tree with
-    `npm run build && cp -r .svelte-kit/output /tmp/a && npm run build` and compare the emitted
-    filenames: four chunks change name at byte-identical sizes with no source edit between them.
-    Neither a hash nor a commit range is cited here on purpose. A hash quoted in prose is wrong on
-    the next build, which is the very instability being documented; and a range of close-out commits
-    is not guaranteed to remain reachable once this branch is merged and its ref deleted. Running
-    the build twice needs neither.
-- Self-critique (micro): The riskiest thing here is not the diff, it is the prose. Every review
-  finding on this close-out has been a sentence about evidence that was looser than the evidence,
-  and twice the looseness was introduced by the commit fixing the previous instance - a stale
-  "Results on this head" heading over a Playwright run that had not happened, an await-timing
-  explanation that misdescribed code the reader can check, and a header still naming a superseded
-  head. `npm run cipher:gate` cannot catch any of them: it verifies that an entry exists, not that
-  it is true. The mitigation applied is structural rather than a resolution to be careful - claims
-  are now attached to the artifact they describe rather than to a section heading, and the moving
-  totals were removed from a hand-written header and left only in the append-only log where they
-  cannot go stale.
+## 2026-09-05 - Cipher Gate: the close-out evidence sequence becomes an executable
 
+- Cipher Gate:
+  - Date: 2026-09-05
+  - Seams: None. No seam contract, mock, adapter, fixture or test changed. This adds one build-support script and one npm script; the watched paths it touches are `scripts/` and `package.json`.
+  - Evidence: docs/evidence/2026-09-05/verify-chain-run.txt, docs/evidence/2026-09-05/chamber-lock.json, docs/evidence/2026-09-05/verify.txt, docs/evidence/2026-09-05/test.txt, docs/evidence/2026-09-05/lint.txt, docs/evidence/2026-09-05/build.txt, docs/evidence/2026-09-05/e2e.txt, docs/evidence/2026-09-05/seam-rewind-exit-codes.md, docs/evidence/2026-09-05/seam-ledger.md, docs/evidence/2026-09-05/clan-chain.md, docs/evidence/2026-09-05/proof-tape.md, scripts/capture-evidence.mjs, package.json, plan.md
+  - Summary: The close-out evidence sequence used to be a shell block transcribed into `plan.md` and copy-pasted out of it. Five consecutive review rounds found five defects in that transcription: an unquoted `<date>` that bash parses as redirection operators, so `npm run verify` never ran; a truncating `>` that destroyed the required Purpose/Why/Info-flow header; a `{ cmd; printf ...; }` group that returns printf's status, so a failed chain reported success; a `proof:tape` placed before the lint, build, e2e and rewind artifacts it inventories; and a missing `mkdir -p`, so the first run of a new UTC day wrote into a directory that the chain had not yet created. Every one of those was fixed by editing prose that nothing executed, which is precisely why the next defect landed the same way. `scripts/capture-evidence.mjs` (`npm run evidence:capture`) now runs the sequence: create the dated folder, run the chain and capture its own exit status, run the three checks that are not chain stages, run the nineteen rewinds while reading each exit status from its spawn result rather than transcribing it, run `cipher:gate` and check its status before continuing, then run `proof:tape` last so its inventory covers everything above. It also aborts if the UTC date rolls over mid-run, because each evidence generator calls `new Date()` independently and a run that straddles midnight silently splits its artifacts across two folders. A file that is executed cannot drift from what was executed, which is the property the shell block never had.
+  - Risks: This adds a second way to run checks that already have npm scripts, so a future contributor could run `npm run evidence:capture` and believe it is the gate; it is not - `npm run verify` remains the gate and CI runs that, while this script only sequences and captures. The seam list is hard-coded in the script rather than derived from `docs/seams.md`, so a seam added to the close-out scope must be added here too; deriving it was rejected for this change because `docs/seams.md` carries five duplicate names that only a human reading can disambiguate, and a wrong automatic resolution would silently verify the legacy row - the same failure the explicit `(self-contained)` suffixes exist to prevent. The script is not itself covered by a test; its proof is that running it produces the committed evidence, which is a weaker guarantee than a test but a stronger one than the prose it replaces.
+
+## 2026-09-04 - Why the focused-mode rebuild was safe without resolving the deployed full-payload Assumption
+
+- Date: 2026-09-04
+- Seams: none changed. Relates to the open Assumption **dated 2026-08-24** whose Statement begins
+  "grok-4.6 answers POST /v1/chat/completions with the request shape this app sends"
+  (ProviderAdapterSeam, AppConfigSeam, MeechieStudioTextSeam, MeechieToolSeam,
+  ChatInterpretationSeam). Referenced by date and statement rather than by line number: entries are
+  prepended to this file, so any line number cited here is wrong by the next entry — this one had
+  already drifted from 2436 to 2467 by the time it was reviewed.
+- Context: `AGENTS.md`'s merge gate says not to auto-merge when "an open Assumption in
+  `DECISIONS.md` covers the behavior being shipped — resolve it first, or state why the change is
+  safe without it." PR #295 rebuilt `/m/<slug>` into a coloring-page factory that requires a
+  successful `/api/tools` verdict, and `MeechieToolSeam` is named in that Assumption. **The
+  statement the gate requires was not made before merging, and this entry makes it retroactively.**
+- What went wrong first, stated plainly: the pre-merge check for open Assumptions was run as a
+  `grep` piped through `head -10`, which truncated the list before this entry at `DECISIONS.md:2436`.
+  The conclusion recorded at the time — "no open Assumption covers this behavior" — was therefore
+  asserted from a list that did not contain the most relevant entry. The conclusion happens to be
+  right, for the reasons below, but it was not checked when it was stated.
+- Decision: the rebuild was and is safe to ship without resolving that Assumption.
+  - The Assumption's subject is whether the **deployed** provider answers `POST /v1/chat/completions`
+    with the full Meechie payload. That is a property of the deployed provider integration, and the
+    parts of it this Assumption turns on are unchanged by this diff: **no prompt template, model id,
+    request wrapper, `json_schema` or `response_format` is in it.** Deliberately *not* "the payload
+    is byte-identical" — an earlier draft said that, and it is false, because `buildInput` trims
+    each field (see the normalization note below). The two statements sat in the same entry
+    contradicting each other until a reviewer caught it.
+  - **`/m/<slug>` was already an `/api/tools` consumer before this change, not a new one.** The
+    first draft of this entry called it "the fifth caller", which is wrong:
+    `MeechieModePage.svelte` posted every focused-mode submission to `/api/tools` at base
+    `210b301` (line 44), and `/m/[mode]` already rendered that component. What the rebuild added is
+    downstream of the verdict — page generation, packaging and the vault write — not the verdict
+    request itself. The `/api/tools` exposure this Assumption covers is therefore not merely
+    unwidened by the change; it is untouched by it.
+  - The other four consumers — `/meechie`, `/who-fucked-up`, `/rate-his-excuse`, `/random` — are
+    unchanged too. **Not that they all fail identically**, which an earlier draft claimed and which
+    is false: `meechie-tool-seam/index.ts` builds a different user message per `toolId`, and
+    `rate_excuse` uses `RATE_EXCUSE_RESPONSE_FORMAT` where the others use
+    `STANDARD_RESPONSE_FORMAT`, so the provider could reject one payload and accept another. The
+    accurate statement is narrower: **each route already sent its own request shape before the
+    rebuild and still sends that shape after it.** A later audit must not read one tool's success as
+    proof for the rest.
+  - **One thing the rebuild does change about the payload, recorded rather than glossed:**
+    `mode-catalog.ts`'s `buildInput` applies `.trim()` to every field, where the base route passed
+    `fields.*` verbatim. For an answer with leading or trailing whitespace the bytes sent are
+    therefore *not* identical to before. An earlier draft of this entry said the route "still sends
+    exactly that payload", which is false for that case. It does not disturb the argument — the
+    Assumption is about whether the deployed provider accepts this app's **request shape and
+    `json_schema` response format**, and trimming a user-supplied string value changes neither the
+    schema, the wrapper, the model id, nor the `response_format` — but "byte-identical" was a
+    stronger claim than the evidence supports and than the argument needs.
+  - The Assumption's own resolution criterion — probe `POST /api/meechie-studio-text` on a reachable
+    deployment — was not met, and the reason is stated directly rather than borrowed: the preview
+    sits behind Vercel SSO (recorded inside the Assumption itself), and **no owner authorization
+    exists in this repository for making a live billable text-provider call from an unattended
+    run.** An earlier draft attributed that restriction to the 2026-08-26 `WigTryOnSeam`
+    Assumption, which is wrong — that entry is scoped to one capped two-image `/v1/images/edits`
+    acceptance call and says nothing about chat completions or this endpoint. The constraint here is
+    the absence of a ruling, not the presence of one.
+
+- Second exposure, which the first draft of this entry did not address at all: **`/api/generate`.**
+  Unlike `/api/tools`, this genuinely is new from `/m/<slug>` — the old page could not generate
+  anything — and `/api/generate` calls `createQuotaGate(event, 'image')`, so it sits behind
+  `RateLimitSeam`, whose 2026-08-26 Assumption is also Open (the durable Upstash store is
+  unprovisioned; degraded in-process metering is in force). By this entry's own rule a genuinely new
+  caller owes its own argument, so here it is:
+  - The `image` quota bucket is keyed by **client identity** — `createQuotaGate` passes
+    `() => event.getClientAddress()` — and by bucket name, **not by route**. One identity's image
+    allowance is the same number whether it is spent from `/m/<slug>`, `/meechie`,
+    `/who-fucked-up`, `/rate-his-excuse`, `/random` or the home studio.
+  - `/api/generate` already had those callers before this change. Adding a sixth entry point to a
+    per-identity gate does not raise what any identity can spend, and does not touch the metering
+    mechanism the Assumption is about: the open question is durable cross-instance sharing versus
+    in-process metering, which is a property of the store, not of how many screens can reach it.
+  - The Assumption's own Status records that degraded metering "reduces the strength of the limit
+    but never disables it", so the gate is in force on this path exactly as it is on the others.
+  - What this does **not** clear: any change that raises a bucket limit, adds an ungated billable
+    call, or introduces a new bucket. Those are the cases the Assumption is for.
+- Consequences: the Assumption stays **Open** and unchanged. This entry clears exactly one thing —
+  PR #295's rebuild of behaviour *downstream* of a verdict on `/m/<slug>`, a route that was already
+  an `/api/tools` consumer before the change — and nothing else.
+  - **It is not a standing exemption, and must not be cited as one.** An earlier draft of this line
+    read "it does not block a new consumer of an unchanged path", which was both too broad and, once
+    the consumer history above was corrected, no longer even the argument this entry makes. A
+    genuinely *new* caller puts users and flows in front of the still-unverified deployed-provider
+    behaviour that were not in front of it before, so it is covered by the Assumption and must stop
+    an auto-merge until that specific change explains why it is safe.
+  - A future run that adds a new `/api/tools` consumer, or changes a prompt, a model id or the
+    request shape, must make its own argument or resolve the Assumption. Citing this entry is not
+    that argument. The same holds for the `RateLimitSeam` Assumption and anything that raises a
+    bucket limit, adds an ungated billable call, or introduces a new bucket.
+- Revisit criteria: when a deployment becomes reachable without SSO, or when a change touches the
+  provider payload.
 ## 2026-09-05 - The wig carousel loads through `WigCatalogSeam`, and facet counts are cross-filtered
 
 - Cipher Gate:
   - Date: 2026-09-05
   - Seams: WigCatalogSeam (existing; no contract, validator, mock, probe, fixture or adapter changed). The change is a new *consumer*: the UI stops bypassing the seam and starts calling `listWigs()` through the existing adapter, as `/api/wig-try-on` already does. CreationStoreSeam, SpecValidationSeam and OutputPackagingSeam are likewise consumed through their existing adapters, unchanged.
   - Evidence: docs/evidence/2026-09-05/rewind-wig-catalog-seam.txt, docs/evidence/2026-09-05/chamber-lock.json, docs/evidence/2026-09-05/test.txt, docs/evidence/2026-09-05/verify.txt, docs/evidence/2026-09-05/seam-ledger.md, docs/evidence/2026-09-05/clan-chain.md, docs/evidence/2026-09-05/proof-tape.md, src/lib/seams/wig-catalog-seam/contract.ts, src/lib/seams/wig-catalog-seam/validators.ts, src/lib/seams/wig-catalog-seam/mock.ts, src/lib/seams/wig-catalog-seam/probe.ts, src/lib/seams/wig-catalog-seam/test.ts, src/lib/seams/wig-catalog-seam/fixtures.ts, src/lib/adapters/wig-catalog-seam/index.ts, docs/seams.md
-  - Summary: `WigCarousel.svelte` previously read the catalog with `import wigData from '$lib/data/wigs.json'` and `wigData as unknown as Wig[]`, so `validateWigCatalog` never ran for the UI and the seam's `WIG_CATALOG_LOAD_FAILED` and `WIG_CATALOG_EMPTY` results had no path to a reader - a malformed or empty catalog rendered as an empty row with no message. The seam is now the only reader, and it is called from the page's `load` in `src/routes/+page.ts`, which runs on the server and on the client. `WigCarousel.svelte` is presentational: it receives `wigs` and `loadError` as props and renders either the validated wigs or the seam's own error message. It has **no** loading state, because there is nothing to wait for - the cards and their affiliate links are in the server-rendered HTML. (An intermediate version of this change did the load in a component `$effect`; that removed the catalog from the initial HTML entirely and was replaced. This entry describes the shipped design, not that one.) This is recorded as a Cipher Gate entry because the integration makes seam outcomes newly observable in the UI, which a reviewer reasonably read as crossing the boundary, and `AGENTS.md` says to treat doubt as a seam change. What the entry does not claim is a seam change: the seam's six artifacts all pre-date this work and none is in the diff (`git diff origin/main...HEAD --name-only` matches nothing under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/`), no contract shape moved, and the seam returns exactly what it returned before for the same input. `npm run rewind -- --seam WigCatalogSeam` passes 27 tests on the code head this entry describes; it is not re-run for the docs-only close-out that follows, which changes no code for it to verify.
+  - Summary: `WigCarousel.svelte` previously read the catalog with `import wigData from '$lib/data/wigs.json'` and `wigData as unknown as Wig[]`, so `validateWigCatalog` never ran for the UI and the seam's `WIG_CATALOG_LOAD_FAILED` and `WIG_CATALOG_EMPTY` results had no path to a reader - a malformed or empty catalog rendered as an empty row with no message. The seam is now the only reader, and it is called from the page's `load` in `src/routes/+page.ts`, which runs on the server and on the client. `WigCarousel.svelte` is presentational: it receives `wigs` and `loadError` as props and renders either the validated wigs or the seam's own error message. It has **no** loading state, because there is nothing to wait for - the cards and their affiliate links are in the server-rendered HTML. (An intermediate version of this change did the load in a component `$effect`; that removed the catalog from the initial HTML entirely and was replaced. This entry describes the shipped design, not that one.) This is recorded as a Cipher Gate entry because the integration makes seam outcomes newly observable in the UI, which a reviewer reasonably read as crossing the boundary, and `AGENTS.md` says to treat doubt as a seam change. What the entry does not claim is a seam change: the seam's six artifacts all pre-date this work and none is in the diff (`git diff origin/main...HEAD --name-only` matches nothing under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/`), no contract shape moved, and the seam returns exactly what it returned before for the same input. `npm run rewind -- --seam WigCatalogSeam` passes 27 tests on this head.
   - Risks: The seam now runs on the server as well as in the browser. That is safe to assert rather than hope for, because the adapter's only input is a bundled `import rawCatalog from '../../data/wigs.json'` - no `fs`, no network, no `process.cwd()` - so it is the same computation in both runtimes and cannot fail on one and succeed on the other. What does change is how often it runs: `+page.ts` constructs a fresh seam per load, and `cachedWigs` lives in that instance's closure, so `validateWigCatalog` now runs once per page load instead of once per browser tab. Accepted, and stated rather than glossed: the catalog is eight entries, and the alternative - a module-level instance - would make the parse result outlive a deploy inside a warm serverless instance. A `wigs.json` edited in a running dev server is still not re-read until the module graph reloads, exactly as the raw import behaved. `wig-catalog-seam` carries a documented manual probe with no `runProbe` export and `N/A` in the registry's probe-date column; that pre-dates this change and is untouched by it, so the seam's automated evidence here is its contract test via rewind and chamber-lock's artifact-presence gate, not a fresh probe run. Making the failure paths visible also means a reader can now be shown a catalog error where they previously saw an empty row, which is better but is a new user-facing string on a path that had none - and because the load runs on the server, that string can now reach the initial HTML.
 
 
@@ -167,9 +192,19 @@ Short, durable decisions with context and tradeoffs.
     ids against a second hand-written map. The two had to agree for the links to work and nothing
     checked that they did — a mode added to `studioModes` alone would have got a working home-page
     link to a page that silently served Random Meechie.
-  - Consequence: adding a mode to `studioModes` gives it a mode card, a home-page link and a `/m/`
-    page in one edit. A mode whose tool has no field definition is left out of the catalog rather
-    than rendered with a dead button.
+  - Consequence, **scoped after a reviewer caught the unscoped version**: adding a mode to
+    `studioModes` gives it a mode card, a home-page link and a working `/m/` page in one edit
+    **only when its `toolId` already has entries in both `FIELDS_BY_TOOL` and `BUILD_INPUT_BY_TOOL`**
+    (`mode-catalog.ts:69`, `:144`). For any other tool it is three edits, not one. `buildCatalog`
+    (`:199-201`) does `if (!fields || !buildInput) continue;` while `StudioHero.svelte` still renders
+    the `/m/<id>` link — so a mode on an unmapped tool gets a home-page link to a 404.
+    `lineup`, `horoscope` and `meechie_explains` are valid `toolId`s sitting in exactly that
+    position today. What stops it reaching users is `tests/unit/mode-catalog.test.ts`, whose
+    coverage assertion fails on such an addition; that guard is real and is why this is a scoping
+    error rather than a shipped defect, but a failing test is not a working page and the original
+    wording promised the page. A mode whose tool has no field definition is left out of the catalog
+    rather than rendered with a dead button — which is the right failure mode, and is not the same
+    claim as "one edit".
 - Decision 3: an unrecognised slug returns 404 instead of falling back to Random Meechie.
   - Tradeoff: this is a behaviour change, and a fallback never 404s. But answering 200 with a
     different mode's page under the requested address is worse than saying the address is wrong —

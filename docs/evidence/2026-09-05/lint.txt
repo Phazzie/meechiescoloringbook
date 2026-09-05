@@ -1,5 +1,10 @@
+# Purpose: Record `npm run lint` (eslint) on this head.
+# Why: lint is not a stage of the verify chain; nothing else captures it.
+# Info flow: npm run lint -> this file -> verify-chain.txt points here.
+#
 
 > meechies-coloringbook@0.1.0 lint
 > eslint .
 
-lint exit=0
+
+EXIT=0

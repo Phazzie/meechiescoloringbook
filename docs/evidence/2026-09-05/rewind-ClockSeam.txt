@@ -1,0 +1,13 @@
+# Purpose: Store seam-scoped contract test output for evidence.
+# Why: Provide a focused proof trail for the specified seam.
+# Info flow: vitest output -> evidence file -> review.
+
+
+ RUN  v4.1.0 <REPO_ROOT>
+
+
+ Test Files  1 passed (1)
+      Tests  31 passed (31)
+   Start at  05:06:53
+   Duration  891ms (transform 91ms, setup 35ms, import 86ms, tests 272ms, environment 373ms)
+

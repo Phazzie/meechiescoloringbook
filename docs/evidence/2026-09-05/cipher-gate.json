@@ -1,12 +1,12 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-05T04:50:14.325Z",
+  "generatedAt": "2026-09-05T05:07:18.276Z",
   "cipher": {
     "date": "2026-09-05",
-    "seams": "WigCatalogSeam (existing; no contract, validator, mock, probe, fixture or adapter changed). The change is a new *consumer*: the UI stops bypassing the seam and starts calling `listWigs()` through the existing adapter, as `/api/wig-try-on` already does. CreationStoreSeam, SpecValidationSeam and OutputPackagingSeam are likewise consumed through their existing adapters, unchanged.",
+    "seams": "None. No seam contract, mock, adapter, fixture or test changed. This adds one build-support script and one npm script; the watched paths it touches are `scripts/` and `package.json`.",
     "evidence": [
       {
-        "path": "docs/evidence/2026-09-05/rewind-wig-catalog-seam.txt",
+        "path": "docs/evidence/2026-09-05/verify-chain-run.txt",
         "exists": true
       },
       {
@@ -14,11 +14,27 @@
         "exists": true
       },
       {
+        "path": "docs/evidence/2026-09-05/verify.txt",
+        "exists": true
+      },
+      {
         "path": "docs/evidence/2026-09-05/test.txt",
         "exists": true
       },
       {
-        "path": "docs/evidence/2026-09-05/verify.txt",
+        "path": "docs/evidence/2026-09-05/lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-05/build.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-05/e2e.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-05/seam-rewind-exit-codes.md",
         "exists": true
       },
       {
@@ -34,41 +50,21 @@
         "exists": true
       },
       {
-        "path": "src/lib/seams/wig-catalog-seam/contract.ts",
+        "path": "scripts/capture-evidence.mjs",
         "exists": true
       },
       {
-        "path": "src/lib/seams/wig-catalog-seam/validators.ts",
+        "path": "package.json",
         "exists": true
       },
       {
-        "path": "src/lib/seams/wig-catalog-seam/mock.ts",
-        "exists": true
-      },
-      {
-        "path": "src/lib/seams/wig-catalog-seam/probe.ts",
-        "exists": true
-      },
-      {
-        "path": "src/lib/seams/wig-catalog-seam/test.ts",
-        "exists": true
-      },
-      {
-        "path": "src/lib/seams/wig-catalog-seam/fixtures.ts",
-        "exists": true
-      },
-      {
-        "path": "src/lib/adapters/wig-catalog-seam/index.ts",
-        "exists": true
-      },
-      {
-        "path": "docs/seams.md",
+        "path": "plan.md",
         "exists": true
       }
     ],
-    "summary": "`WigCarousel.svelte` previously read the catalog with `import wigData from '$lib/data/wigs.json'` and `wigData as unknown as Wig[]`, so `validateWigCatalog` never ran for the UI and the seam's `WIG_CATALOG_LOAD_FAILED` and `WIG_CATALOG_EMPTY` results had no path to a reader - a malformed or empty catalog rendered as an empty row with no message. The seam is now the only reader, and it is called from the page's `load` in `src/routes/+page.ts`, which runs on the server and on the client. `WigCarousel.svelte` is presentational: it receives `wigs` and `loadError` as props and renders either the validated wigs or the seam's own error message. It has **no** loading state, because there is nothing to wait for - the cards and their affiliate links are in the server-rendered HTML. (An intermediate version of this change did the load in a component `$effect`; that removed the catalog from the initial HTML entirely and was replaced. This entry describes the shipped design, not that one.) This is recorded as a Cipher Gate entry because the integration makes seam outcomes newly observable in the UI, which a reviewer reasonably read as crossing the boundary, and `AGENTS.md` says to treat doubt as a seam change. What the entry does not claim is a seam change: the seam's six artifacts all pre-date this work and none is in the diff (`git diff origin/main...HEAD --name-only` matches nothing under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/`), no contract shape moved, and the seam returns exactly what it returned before for the same input. `npm run rewind -- --seam WigCatalogSeam` passes 27 tests on the code head this entry describes; it is not re-run for the docs-only close-out that follows, which changes no code for it to verify.",
-    "risks": "The seam now runs on the server as well as in the browser. That is safe to assert rather than hope for, because the adapter's only input is a bundled `import rawCatalog from '../../data/wigs.json'` - no `fs`, no network, no `process.cwd()` - so it is the same computation in both runtimes and cannot fail on one and succeed on the other. What does change is how often it runs: `+page.ts` constructs a fresh seam per load, and `cachedWigs` lives in that instance's closure, so `validateWigCatalog` now runs once per page load instead of once per browser tab. Accepted, and stated rather than glossed: the catalog is eight entries, and the alternative - a module-level instance - would make the parse result outlive a deploy inside a warm serverless instance. A `wigs.json` edited in a running dev server is still not re-read until the module graph reloads, exactly as the raw import behaved. `wig-catalog-seam` carries a documented manual probe with no `runProbe` export and `N/A` in the registry's probe-date column; that pre-dates this change and is untouched by it, so the seam's automated evidence here is its contract test via rewind and chamber-lock's artifact-presence gate, not a fresh probe run. Making the failure paths visible also means a reader can now be shown a catalog error where they previously saw an empty row, which is better but is a new user-facing string on a path that had none - and because the load runs on the server, that string can now reach the initial HTML."
+    "summary": "The close-out evidence sequence used to be a shell block transcribed into `plan.md` and copy-pasted out of it. Five consecutive review rounds found five defects in that transcription: an unquoted `<date>` that bash parses as redirection operators, so `npm run verify` never ran; a truncating `>` that destroyed the required Purpose/Why/Info-flow header; a `{ cmd; printf ...; }` group that returns printf's status, so a failed chain reported success; a `proof:tape` placed before the lint, build, e2e and rewind artifacts it inventories; and a missing `mkdir -p`, so the first run of a new UTC day wrote into a directory that the chain had not yet created. Every one of those was fixed by editing prose that nothing executed, which is precisely why the next defect landed the same way. `scripts/capture-evidence.mjs` (`npm run evidence:capture`) now runs the sequence: create the dated folder, run the chain and capture its own exit status, run the three checks that are not chain stages, run the nineteen rewinds while reading each exit status from its spawn result rather than transcribing it, run `cipher:gate` and check its status before continuing, then run `proof:tape` last so its inventory covers everything above. It also aborts if the UTC date rolls over mid-run, because each evidence generator calls `new Date()` independently and a run that straddles midnight silently splits its artifacts across two folders. A file that is executed cannot drift from what was executed, which is the property the shell block never had.",
+    "risks": "This adds a second way to run checks that already have npm scripts, so a future contributor could run `npm run evidence:capture` and believe it is the gate; it is not - `npm run verify` remains the gate and CI runs that, while this script only sequences and captures. The seam list is hard-coded in the script rather than derived from `docs/seams.md`, so a seam added to the close-out scope must be added here too; deriving it was rejected for this change because `docs/seams.md` carries five duplicate names that only a human reading can disambiguate, and a wrong automatic resolution would silently verify the legacy row - the same failure the explicit `(self-contained)` suffixes exist to prevent. The script is not itself covered by a test; its proof is that running it produces the committed evidence, which is a weaker guarantee than a test but a stronger one than the prose it replaces."
   },
-  "latestChangeMs": 1788578121495.1533,
+  "latestChangeMs": 1788583901666.8718,
   "status": "ok"
 }

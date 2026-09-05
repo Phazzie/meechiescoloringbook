@@ -29,6 +29,7 @@
     "rewind": "node scripts/rewind.mjs",
     "probe": "node scripts/run-probe.mjs",
     "hooks:install": "node scripts/install-githooks.mjs",
+    "evidence:capture": "node scripts/capture-evidence.mjs",
     "verify:runner": "node scripts/verify-runner.mjs",
     "verify": "npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs"
   },

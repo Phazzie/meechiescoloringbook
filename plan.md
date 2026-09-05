@@ -8,6 +8,300 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Micro plan — the Run 4 close-out's merge-gate ruling (2026-09-04)
+
+`AGENTS.md` requires a micro Plan + Self-Critique for a governance-only documentation change. The
+feature plan below covers the `/m/[mode]` rebuild; it does not cover the retroactive Assumption
+ruling written into `DECISIONS.md` during the close-out, and that ruling is a change to a source of
+truth future autonomous runs read when deciding whether to merge. This is that plan, written after
+the ruling rather than before it — stated plainly rather than backdated, which is the same
+concession the `ClockSeam` plan in run 1 had to make.
+
+- **Goal:** record the statements `AGENTS.md`'s merge gate requires ("resolve it first, or state why
+  the change is safe without it") for the `DECISIONS.md` entries bearing on PR #295 that were not
+  addressed before it merged, because the pre-merge check was truncated by a `head -10`. **Two open
+  Assumptions plus one new PR-scoped fixture waiver — not "three open Assumptions", which is what
+  this said and which points a later audit at the wrong records.** Items 1 and 2 below have
+  Status `Open`. Item 3 is neither: the 2026-05-14 `ImageGenerationSeam` entry it used to name is
+  itself `Waived`, and what this change adds is a *new* entry dated 2026-09-04 whose Status is
+  "Waived for fixture freshness ONLY". A merge-gate audit looking for open Assumptions will not find
+  item 3 among them, and should not:
+  1. **2026-08-24, text provider** ("grok-4.6 answers POST /v1/chat/completions with the request
+     shape this app sends"). Claim: `/m/<slug>` was already an `/api/tools` consumer, and no prompt
+     template, model id, wrapper, `json_schema` or `response_format` is in the diff.
+  2. **2026-08-26, `RateLimitSeam`** (durable Upstash store unprovisioned; degraded in-process
+     metering in force). Claim: the rebuild *does* newly expose `/api/generate`, but the `image`
+     bucket is keyed by client identity and bucket name — not by route — so a sixth entry point
+     raises no identity's allowance, and durable-vs-in-process metering is a property of the store
+     rather than of how many screens reach it. **Risk:** if the bucket were ever keyed per route, or
+     a new bucket introduced, this reasoning fails and the Assumption blocks again. **Evidence:**
+     `createQuotaGate(event, 'image')` in `src/routes/api/generate/+server.ts`, and
+     `createQuotaGate` passing `() => event.getClientAddress()` in
+     `src/lib/server/rate-limit-route.ts`.
+  3. **2026-05-14, `ImageGenerationSeam` fixture freshness.** The rebuild newly reaches
+     `/api/generate`, which constructs that seam, and `assumption-alarm.json` still lists it under
+     `blockedSeams`. The only waiver was scoped to a May review-comment repair. A waiver scoped to
+     PR #295 is recorded in `DECISIONS.md` as part of this change. **Its validation is conditional,
+     and the distinction matters:** no validation can run *today*, because the seam's refresh path
+     needs three code changes first (the probe's captures have no consumer, the mock synthesises its
+     success rather than loading one, and the probe throws on the failure it claims to capture).
+     The entry enumerates **six** measured defects in the seam's refresh path and states the
+     validation as **scope plus acceptance criteria**, not as a command sequence. That change is the
+     product of five rounds in which I wrote five command sequences and a reviewer falsified each by
+     reading one file further: wrong destination, wrong fault, wrong model, wrong shape, wrong
+     ordering. **Commands predict the tree they will run in; criteria describe the state that must
+     hold in whatever tree exists.** For a repair not yet designed, only the second is checkable.
+     The criteria include the one that indicts the current suite: the fault test compares the mock's
+     error against the fixture the mock returns, so it is green by construction and a red proof must
+     use a deliberately non-conforming fixture. `npm run assumption:alarm` exits 0 with the entry as
+     written.
+
+     **This item is not closed, and the close-out no longer claims it is.** `AGENTS.md:102-104`
+     lists three separate completion items and only the first admits a waiver.
+     `ImageGenerationSeam` fails the other two — the mock synthesises its `sample` response
+     instead of loading a fixture by scenario, and the fault test cannot produce red proof —
+     with **no waiver of any kind**. Both predate PR #295 and neither was introduced by it; what
+     PR #295 did was route `/m/<slug>` to `/api/generate`, which brought the seam into scope, so
+     "pre-existing" explains them and does not excuse them. Waiving those two is an owner
+     decision, not mine, so this run escalates rather than self-certifies. **It joins the
+     seam-workflow P1 as a ruling this close-out waits on.**
+
+     **And `ImageGenerationSeam` is not the only newly reached seam with stale fixtures — the audit
+     that produced this waiver was too narrow.** The rebuilt page's vault flow calls
+     `sessionAdapter.getSession()` and `creationStoreAdapter.saveCreation()`, and `docs/seams.md`
+     dates both `SessionSeam` and `CreationStoreSeam` probes to **2026-02-05** — seven months, via
+     `probes/browser-seams.probe.mjs`. Neither has a fresh capture and neither has a PR-scoped
+     waiver, so both fail the same freshness item `ImageGenerationSeam` was waived for. They are not
+     in `assumption-alarm.json`'s `blockedSeams`, because their rows carry real dates rather than
+     `TBD (blocked)` — which is exactly why no automated gate raised them and why I did not look.
+     **This run is not writing two more waivers.** Round 20 established that reaching for a waiver
+     to unblock a close-out is how this entry ended up standing on gates nobody had waived; doing it
+     twice more, faster, to clear a finding, would be the same mistake with the lesson already
+     written down. Recorded as a third item for the owner ruling.
+- **Seams:** none changed. No seam artifact is in the diff; the rulings are about whether existing
+  open Assumptions block an already-merged change.
+- **Files.** Governance: `DECISIONS.md` (the ruling, plus the Cipher Gate entry the executable
+  below required), `plan.md` (this section), `WORST_TO_BEST_LOG.md` (append-only record),
+  `LESSONS_LEARNED.md` (the entry the fixture waiver requires). **Executable — this close-out is no
+  longer governance-only, and saying so was false for five commits:** `scripts/capture-evidence.mjs`
+  (new; the evidence sequence, which replaced a shell block that four consecutive reviews found four
+  defects in) and `package.json` (one line: the `evidence:capture` script that runs it). Those two
+  are watched paths for `cipher-gate.mjs`, which is what made the Cipher Gate entry mandatory rather
+  than optional. Evidence under **`docs/evidence/2026-09-05/`** — the run crossed midnight UTC and the
+  final chain, checks, rewinds and tape all live there; `docs/evidence/2026-09-04/` holds the earlier
+  rounds' artifacts and is **history, not the record of this head**. Enumerated rather than left as a directory
+  placeholder, since a plan that says `*` cannot be audited against what was actually touched:
+  - Hand-written summaries: `verify-chain.txt`, `seam-rewind-exit-codes.md`.
+  - The two final gates' own records: `cipher-gate-run.txt` and `proof-tape-run.txt` — each gate's
+    output and `EXIT=` line. Added because both gates previously printed and exited: `cipher-gate.json`
+    is not written at all when the gate rejects, and the tape is the last command, so a close-out that
+    failed at either one retained no file saying what it had said. `proof-tape-run.txt` is written
+    *after* the tape and is therefore not in the tape's own inventory, which is why the run deletes
+    any earlier copy before the tape runs rather than letting it report a file about to be replaced.
+  - The outer chain's own record: `verify-chain-run.txt` — the `npm run verify` command, its full
+    output and its `EXIT=` line. **Not optional and not the same as `verify.txt`**, which stores only
+    the inner `verify-runner` stage; without this file nothing retains the outer command's exit and
+    the summary is back to asserting a result it cannot substantiate.
+  - Command captures: `lint.txt`, `build.txt`, `e2e.txt`, `verify.txt`, `test.txt`.
+  - Chain-generated: `chamber-lock.json`, `shaolin-lint.json`, `assumption-alarm.json`,
+    `seam-ledger.json`, `seam-ledger.md`, `clan-chain.json`, `clan-chain.md`, `proof-tape.json`,
+    `proof-tape.md`; plus `cipher-gate.json` from the standalone gate.
+  - The nineteen rewind artifacts, named individually in the command block below. **Do not
+    redirect `npm run rewind`'s stdout into them** — `scripts/rewind.mjs:98-99` writes each
+    artifact itself, with the Purpose/Why/Info-flow header, and a shell redirect to the same path
+    clobbers it with the raw npm banner. Capture the exit code only.
+- **Commands: `npm run evidence:capture`** — one command, which runs the whole sequence in the
+  required order: `npm run verify`, then `npm run lint`, `npm run build`, `npm run test:e2e`, then
+  `npm run rewind -- --seam <name>` for **every seam on the paths this page reaches — fourteen
+  seams over nineteen rows**, then `npm run cipher:gate`, then `npm run proof:tape` last. Evidence:
+  `docs/evidence/<UTC date>/`, one artifact per command plus
+  `rewind-<SeamName>.txt` per seam. The list above is what the script runs, not a second list to
+  keep in step with it — see below for why that distinction cost five rounds.
+  - **The whole sequence is one command, and the reason is five rounds of review.** It used to be
+    a shell block transcribed into this file and copy-pasted out of it. Four consecutive reviews
+    found four defects in that transcription — an unquoted `<date>` bash read as redirection
+    operators so `npm run verify` never ran; a truncating `>` that destroyed the required
+    Purpose/Why/Info-flow header; a `{ cmd; printf ...; }` group that returned *printf's* status so
+    a failed chain reported success; and a `proof:tape` placed before the lint, build, e2e and
+    rewind artifacts it is supposed to inventory. Each was fixed by editing prose nobody executed,
+    which is why the next one landed the same way. The sequence now lives in
+    `scripts/capture-evidence.mjs` and runs as:
+
+    ```sh
+    npm run evidence:capture
+    ```
+
+    A file that is executed cannot drift from what was executed. What it does, in order:
+
+    1. `mkdir -p docs/evidence/<UTC date>` — the dated folder is otherwise created by chamber-lock,
+       the chain's first stage, which is *after* the first thing written into it. On the first run
+       of a new UTC day nothing existed to write into.
+    2. `npm run verify`, captured to `verify-chain-run.txt` with the header written by the same call
+       that writes the body, and the spawn's own status recorded as `EXIT=` and propagated.
+    3. `npm run lint`, `npm run build`, `npm run test:e2e` — the three checks that are **not** stages
+       of the chain — each captured the same way, each halting the sequence on failure.
+    4. The nineteen rewinds. `scripts/rewind.mjs:98-108` writes each `rewind-<Seam>.txt` itself, with
+       its own header, so nothing redirects into those paths; a redirect clobbers the header. It
+       exits with the seam's status **without recording it in the file**, so each status is taken
+       from the spawn result and written to `seam-rewind-exit-codes.md`. That table is therefore
+       command evidence rather than a hand-entered claim, which is what it was before.
+       The five self-contained seams carry their `(self-contained)` suffix and are passed as argv
+       entries, not through a shell, so the parentheses and spaces cannot be word-split — `rewind`
+       resolves a seam by the first exact row match in `docs/seams.md` and would otherwise verify
+       the legacy row in silence.
+    5. `npm run cipher:gate` — **not** a stage of the chain (`package.json:26` against `:34`), so a
+       plan naming only `npm run verify` cannot reproduce what was run. Its status is checked
+       *before* the tape: a failing gate followed by a passing tape used to leave the sequence
+       reporting success.
+    6. `npm run proof:tape` **last**, so its inventory covers every artifact above. The chain's own
+       stage 8 already ran it, but that copy sees only what exists mid-chain — not lint, build, e2e,
+       the nineteen rewinds or the gate artifact, all written afterwards.
+
+    It also aborts if the UTC date rolls over mid-run. Each evidence generator calls `new Date()`
+    independently (`scripts/chamber-lock.mjs:173`, `scripts/verify-runner.mjs:44`, and the others),
+    so a run straddling midnight splits its artifacts across two dated folders and the final tape
+    inventories only part of them. A run that splits silently is worse than one that stops.
+
+    **`npm run assumption:alarm` is deliberately not in it.** Its stated reason was that the chain's
+    stage 5 ran before the `DECISIONS.md` entry was written, so a standalone rerun was needed to see
+    it. Round 19's reordering made that false: every edit now precedes the chain, so stage 5 parses
+    the final entry and a standalone run only overwrites its own artifact with an identical result.
+
+    **What `cipher:gate` exit 0 does and does not prove here. This paragraph has now been wrong
+    twice, in opposite directions, and the second time was my own doing.** An early draft cited the
+    gate as validation of the `ImageGenerationSeam` waiver; it is not, and must never be. The
+    correction said instead that this close-out adds no Cipher Gate block, so the gate selected the
+    2026-09-04 Quote Vault entry. That was true when written and **false from the moment this
+    close-out added its own 2026-09-05 block** — `scripts/cipher-gate.mjs` selects by date, so it now
+    selects the new entry, and `docs/evidence/2026-09-05/cipher-gate.json` records exactly that:
+    `"date": "2026-09-05"`, with the **fourteen** paths of *this* change checked and present.
+
+    So what the recorded exit 0 actually checks: that the 2026-09-05 entry has every required field,
+    and that each of the **fourteen** paths it cites exists on this head — eleven evidence artifacts
+    (`verify-chain-run.txt`, `chamber-lock.json`, `verify.txt`, `test.txt`, `lint.txt`, `build.txt`,
+    `e2e.txt`, `seam-rewind-exit-codes.md`, `seam-ledger.md`, `clan-chain.md`, `proof-tape.md`) and
+    three source files (`scripts/capture-evidence.mjs`, `package.json`, and this plan). It does **not** re-check the 2026-09-04 entry, and it still proves
+    nothing about the `ImageGenerationSeam` waiver, whose validation is the plan recorded in
+    `DECISIONS.md` — and which, per round 16, did not work either until it was rewritten.
+
+    **Why one command and not a list.** An earlier revision of this plan dropped
+    `assumption:alarm` from its code block but left it in the surrounding prose and in the Commands
+    line, so a reader following the block and a reader following the prose would run different
+    things. Every such divergence since has had the same shape: two descriptions of one sequence,
+    kept in step by hand. There is now one description, and it is the one that executes.
+  - Reached from the browser, or directly by the request the page makes:
+    `MeechieToolSeam`, `SpecValidationSeam`, `OutputPackagingSeam`, `CreationStoreSeam`,
+    `SessionSeam`, `ClockSeam`.
+  - Reached server-side inside `/api/generate`, which the rebuilt page can now call:
+    `PromptAssemblySeam`, `ImageGenerationSeam`, `ImageProviderConfigSeam`, `SafetyPolicySeam`,
+    **`DriftDetectionSeam (self-contained)`**, `RateLimitSeam` (via `createQuotaGate(event, 'image')`).
+  - Reached *inside* `/api/tools`, nested behind `meechieToolAdapter.respond`:
+    **`MeechieVoiceSeam (self-contained)`** (`meechieVoiceAdapter.getVoicePack`) and
+    `ProviderAdapterSeam` (`createProviderAdapter({})`), both in
+    `src/lib/adapters/meechie-tool-seam/index.ts`.
+  - **Five of these must be named with their `(self-contained)` suffix, and running the bare name is
+    a silent mis-verification.** `scripts/rewind.mjs` takes the *first* exact row match from
+    `docs/seams.md`, and five seams have a legacy flat-layout row **above** their canonical
+    self-contained row, and production imports the self-contained adapter in every case. **What the
+    bare run costs differs by seam, and an earlier draft of this plan got that wrong by calling all
+    five "a seam the code does not use".** Only two of the five legacy adapters are separate
+    implementations; the other three are compatibility shims over the canonical one:
+
+    | seam | bare (legacy) | `(self-contained)` | production imports |
+    |---|---|---|---|
+    | `MeechieVoiceSeam` | 4 tests | **18** | `../meechie-voice-seam` |
+    | `PromptAssemblySeam` | 9 | **14** | `$lib/adapters/prompt-assembly-seam` |
+    | `SpecValidationSeam` | 14 | **16** | `$lib/adapters/spec-validation-seam` |
+    | `MeechieToolSeam` | 5 | **6** | `$lib/adapters/meechie-tool-seam` |
+    | `DriftDetectionSeam` | 5 | 5 | `$lib/adapters/drift-detection-seam` |
+
+    - **Genuinely different code — the bare run verifies an implementation production does not
+      use:** `MeechieVoiceSeam` (`meechie-voice.adapter.ts` builds its own adapter from
+      `seams/meechie-voice-seam/voice-pack`) and `DriftDetectionSeam`
+      (`drift-detection.adapter.ts` is a standalone implementation).
+    - **Compatibility shims — the bare run exercises the same production code through a
+      re-export, so it is *narrower coverage*, not the wrong seam:**
+      `prompt-assembly.adapter.ts` imports the canonical adapter and delegates to it;
+      `spec-validation.adapter.ts` and `meechie-tool.adapter.ts` are one-line re-exports of it.
+      The canonical rerun still adds real coverage — a larger suite and the self-contained
+      fixtures — but calling it "the wrong seam" overstated the defect.
+
+    **The command exits 0 either way and the evidence file records only a pass count**, so nothing
+    in the output reveals which row was used — `DriftDetectionSeam` is the worst case, where the
+    implementations genuinely differ *and* both suites have five tests, so even the number matches.
+    All five canonical entries are now run explicitly with their own artifacts,
+    `rewind-<SeamName>(self-contained).txt`.
+  - **The nineteen literal commands, and the artifact each writes.** Quoting matters for the five
+    canonical names: without quotes the shell splits on the space and `rewind` never sees the
+    `(self-contained)` row.
+
+    ```sh
+    npm run rewind -- --seam MeechieToolSeam                      # rewind-MeechieToolSeam.txt
+    npm run rewind -- --seam SpecValidationSeam                   # rewind-SpecValidationSeam.txt
+    npm run rewind -- --seam OutputPackagingSeam                  # rewind-OutputPackagingSeam.txt
+    npm run rewind -- --seam CreationStoreSeam                    # rewind-CreationStoreSeam.txt
+    npm run rewind -- --seam SessionSeam                          # rewind-SessionSeam.txt
+    npm run rewind -- --seam ClockSeam                            # rewind-ClockSeam.txt
+    npm run rewind -- --seam PromptAssemblySeam                   # rewind-PromptAssemblySeam.txt
+    npm run rewind -- --seam ImageGenerationSeam                  # rewind-ImageGenerationSeam.txt
+    npm run rewind -- --seam ImageProviderConfigSeam              # rewind-ImageProviderConfigSeam.txt
+    npm run rewind -- --seam SafetyPolicySeam                     # rewind-SafetyPolicySeam.txt
+    npm run rewind -- --seam RateLimitSeam                        # rewind-RateLimitSeam.txt
+    npm run rewind -- --seam ProviderAdapterSeam                  # rewind-ProviderAdapterSeam.txt
+    npm run rewind -- --seam DriftDetectionSeam                   # rewind-DriftDetectionSeam.txt
+    npm run rewind -- --seam MeechieVoiceSeam                     # rewind-MeechieVoiceSeam.txt
+    npm run rewind -- --seam "MeechieVoiceSeam (self-contained)"  # rewind-MeechieVoiceSeam(self-contained).txt
+    npm run rewind -- --seam "DriftDetectionSeam (self-contained)"  # rewind-DriftDetectionSeam(self-contained).txt
+    npm run rewind -- --seam "PromptAssemblySeam (self-contained)"  # rewind-PromptAssemblySeam(self-contained).txt
+    npm run rewind -- --seam "SpecValidationSeam (self-contained)"  # rewind-SpecValidationSeam(self-contained).txt
+    npm run rewind -- --seam "MeechieToolSeam (self-contained)"   # rewind-MeechieToolSeam(self-contained).txt
+    ```
+
+    All paths are relative to **`docs/evidence/2026-09-05/`**. They said `2026-09-04/` until a
+    reviewer caught it: consolidating the final run into one folder moved the artifacts and left this
+    plan pointing at the old location, so a reader following it would not have found the summaries it
+    names. Third time in this close-out that fixing one place left its siblings stale.
+  - **This count has been wrong twice, in the same direction each time.** It was first written as
+    "the six seams the page consumes" — short, and incoherent too, since `SpecValidationSeam` is
+    itself server-side on the `/api/generate` path, so the set could not be defended as
+    "browser-side only". Corrected to twelve by walking the generate path, which still missed the
+    two seams nested one call *inside* an adapter the page already used. The lesson for a future
+    run enumerating seams: **walk the call graph, not the list of adapters you can name** — a seam
+    reached by an adapter is still a seam the change reaches.
+- **How the application's behaviour stays unchanged — restated, because the original claim
+  ("nothing executable is touched") became false and stayed false for five commits.** Executable
+  code *is* touched: `scripts/capture-evidence.mjs` is new and `package.json` gains a script entry.
+  Neither is application code and neither is reachable from the app — `scripts/` is build tooling,
+  the new file is invoked only by `npm run evidence:capture`, and it is deliberately **not** added to
+  the `verify` chain, so the gate CI runs is byte-identical to before. Nothing under `src/`,
+  `contracts/`, `fixtures/` or `tests/` is in the diff. The precise claim is therefore: the shipped
+  application is unchanged, and the change to what a *maintainer* can run is a new command that
+  sequences existing ones. The ruling itself neither resolves nor
+  edits the Assumption — it stays Open with its Status text unchanged — and adds no exemption to any
+  automated gate. **The precise claim, since the looser one was false:** `assumption-alarm.json`'s
+  `blockedSeams` list is byte-identical before and after — `["ImageGenerationSeam", "RateLimitSeam",
+  "WigTryOnSeam"]` at `1dab4cf` and on this head — so nothing this change does unblocks a seam or
+  relaxes the gate. Its `assumptions` array does grow, 11 entries to 12, because the fixture waiver
+  *is* a new Assumption and the alarm reads them all. Saying the alarm "sees the same entries before
+  and after" was therefore wrong in a way that mattered: it would have told a later audit the waiver
+  never touched the gate's input, when what is actually true is that it added an entry the gate
+  reports and changed no seam's blocked status.
+
+**Self-critique.**
+
+- *The riskiest thing here is not the ruling, it is its scope.* A merge-gate decision recorded in a
+  source-of-truth file is a rule future runs will apply to changes I cannot see. The first draft
+  generalised it to "does not block a new consumer of an unchanged path", which would have handed
+  every later run a standing exemption from an Assumption that is still open and still unverified.
+  Narrowed to the single change it actually covers, with an explicit instruction that citing it is
+  not an argument.
+- *What could still be wrong:* the ruling rests on `/m/<slug>` having already been an `/api/tools`
+  consumer before PR #295. That is checkable — `MeechieModePage.svelte:44` at `210b301` — and was
+  checked only after a reviewer caught the first draft claiming the opposite. If it were false, the
+  ruling would need remaking rather than amending.
+- *What this plan cannot fix:* it is late. The gate check should have run before the merge, and the
+  statement should have existed before the ruling was needed. Writing the plan afterwards documents
+  the process failure; it does not undo it, and the log says so in those words.
 ## The Wig Try-On becomes a shop you can browse and a try-on you can keep (2026-09-05)
 
 Run 5 of the scheduled worst-feature routine. The case against the feature is recorded in
