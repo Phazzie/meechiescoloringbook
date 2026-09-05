@@ -6216,3 +6216,60 @@ could only disagree with the reasoning because the reasoning was written down.
 `npm run check` 0/0 · `npm run lint` clean · **1402 passed, 1 skipped** · `npm run build` built ·
 `npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
 Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
+
+## Run 7 close-out — round nineteen: my own fix, in the wrong order
+
+### The mock still lied, one step further in
+
+An earlier round found `creation-store-seam/mock.ts` replaying its fixture whatever it was handed, so
+a record the adapter refuses would sail through it. I added validation. I put it in front of the
+environment guard, and the adapter's order is the other way round: every guarded operation opens with
+`typeof localStorage === 'undefined'` and returns `BROWSER_REQUIRED` **before** it parses anything.
+
+So the fault scenario — which represents "no browser" — answered a malformed record with
+`CREATION_SCHEMA_MISMATCH`, and a malformed draft by throwing. Two results the adapter cannot produce
+in that environment. A consumer verified against the mock could write a handler for a case that never
+happens, which is the same "greener than the real thing" the validation existed to remove, displaced
+by one step rather than removed.
+
+The guard now reads off the fixture's own output rather than off `scenario === 'fault'`. The fixture
+is the record of what the environment does, so a fault scenario added later whose failure is *not*
+environmental correctly goes back to validating first — and there is no second place stating which
+scenario has a browser for the first place to disagree with.
+
+### The tests were proving it in the wrong scenario
+
+The two tests covering that validation asserted it against `fault` — the one scenario where the
+adapter never reaches its validator. They passed, they were about the right behaviour, and they
+proved it in the place where it is the wrong answer.
+
+That is the fourth instance in this run of a test green *next to* its reason rather than for it, and
+the first where the misleading fixture was one I chose rather than one I inherited. The earlier three
+were all "the fixture has no image"; this one is "the scenario has no browser". The general shape is
+the same and worth naming as a rule: **when a test needs a scenario, pick the one the behaviour
+actually lives in, not the one that is already imported.**
+
+### A third header
+
+`StudioSettingsPanel.svelte` now states the three invariants that decide whether it tells the truth
+about a page, each naming the concrete way it was broken — because "don't bind a display to a
+control" reads as a style preference until you know that doing it made a finished page visibly
+restyle itself under the reader's hand. The second of the three carries round eighteen's correction:
+the rule is not "never record a style", it is "never attribute one the page did not have".
+
+### Mutations
+
+One, red: the validation moved back in front of the environment guard. Running total: **62**.
+
+### SonarCloud, closing the loose end from round seventeen
+
+The duplication gate **passes** — 2.1% on new code against the 3% ceiling, down from 3.7%. I could
+not run Sonar locally and said the next push would be the measurement; it was, and the refactor was
+aimed correctly. The gate still reports 1 new issue, which is the same unidentified one logged as
+open since round eleven and is not blocking.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1403 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed ·
+Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
