@@ -588,15 +588,22 @@ export class StudioState {
 	 * quietly restyle a page the reader only asked to resize. `resetGeneratedPage` clears the
 	 * fallback, so it can never outlive the page it was restored for.
 	 */
+	/**
+	 * The wig the page on the paper is styled with, which is not always the one on screen.
+	 *
+	 * A restored page's stored provenance wins over the live carousel, *including* when that
+	 * provenance is "no wig" — hence the wrapper object on `restoredStyleWig`, and hence the early
+	 * return rather than a chain of conditionals: the two "undefined" answers here mean different
+	 * things and reach the caller by different routes.
+	 */
+	private styleWig(): StyleWig | undefined {
+		if (this.restoredStyleWig) return this.restoredStyleWig.value;
+		if (!this.selectedWig) return undefined;
+		return { name: this.selectedWig.name, style: this.selectedWig.style };
+	}
+
 	currentStyleSelection(): StyleSelection {
-		// A restored page's stored provenance wins over the live carousel, including when that
-		// provenance is "no wig". Only once there is no restored page — or the reader picks a wig —
-		// does the live selection describe what is on the paper.
-		const wig = this.restoredStyleWig
-			? this.restoredStyleWig.value
-			: this.selectedWig
-				? { name: this.selectedWig.name, style: this.selectedWig.style }
-				: undefined;
+		const wig = this.styleWig();
 		return {
 			themeId: this.selectedThemeId,
 			voice: $state.snapshot(this.voice),
