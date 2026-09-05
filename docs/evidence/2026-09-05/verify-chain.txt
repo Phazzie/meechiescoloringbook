@@ -32,6 +32,22 @@
 7. clan-chain.mjs          -> clan-chain.json/.md    (clean vs dirty seams)
 8. proof-tape.mjs          -> proof-tape.json/.md    (plain-English summary)
 
+## The order these are run in, which is load-bearing
+
+Two artifacts in this folder are written by commands outside the chain but inventoried by a stage
+inside it, so the order is not a matter of taste:
+
+  1. npm run check / lint / build
+  2. npm run cipher:gate      <- BEFORE verify, so proof-tape inventories the committed
+                                 cipher-gate.json rather than the previous run's. Running it after
+                                 left proof-tape describing a file that no longer existed on disk,
+                                 and labelling the committed one as predating a run it postdated.
+  3. npm run verify           <- writes chamber-lock, verify.txt, test.txt, shaolin-lint,
+                                 assumption-alarm, seam-ledger, clan-chain and the proof tape
+  4. the outer transcript     <- captured to a scratch path and moved to verify-outer.txt AFTER the
+                                 chain returns, because a file cannot be inventoried while it is
+                                 still being written to; see the Results note below
+
 ## Standalone, run by hand
 
 - npm run lint   -> lint.txt   (exit 0; eslint prints nothing on success)
