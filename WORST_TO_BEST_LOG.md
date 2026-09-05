@@ -7605,3 +7605,82 @@ Re-run on this head with the fixed writer and the new guard:
 | `node probes/browser-seams.probe.mjs` | complete |
 
 Mutation total stays at **69**.
+
+---
+
+## Run 8 close-out — round twenty-seven: the guard was in a scratch directory
+
+Two findings on the previous entry, and the second one invalidates something this log has been
+quietly assuming for twenty-seven rounds.
+
+### 1. The proof tape inventoried the empty file
+
+`proof-tape.json` recorded `e2e.txt` at **1233 bytes** while the file committed beside it was
+**6677**. The capture wrote `e2e.txt` after `npm run verify`, and `proof-tape` is the chain's last
+stage — so the inventory audited the previous run's empty artifact and the fixed one shipped
+un-inventoried. The evidence folder contained a summary of itself that was wrong about itself.
+
+Fixed by order: Playwright, the probe, the rewind, and the `e2e.txt` write now all happen **before**
+the chain. The tape now reports 6665 bytes against an actual 6665.
+
+### 2. Every guard this log has described was in a temporary directory
+
+The previous entry says `e2e.txt` is "now guarded the same way". A reviewer searched the repository
+for that guard and found nothing, because **there was nothing to find**. Every guard described in
+rounds twenty-one, twenty-three and twenty-six lived in a shell script in this session's scratch
+directory, which is deleted when the session ends.
+
+So the log has been recording mechanical protections that a future run would inherit *no part of*.
+This run's own rule, written four hundred lines above and about someone else's code:
+
+> a check that exists only in an intention is not a check.
+
+A check that exists only in `/tmp` is the same thing with extra steps. It runs, it catches real
+defects, it produces evidence — and it is gone by the next run, which reads the log, believes the
+protection exists, and does not build it.
+
+**`scripts/evidence-guard.mjs` is now in the repository**, wired as `npm run evidence:guard`, with
+four rules that read committed artifacts and hardcode no counts:
+
+1. `verify-outer.txt` contains the chain's exit status and is not truncated.
+2. `verify-outer.txt` and `test.txt` — two records of one run — report the same total.
+3. `e2e.txt` carries a result line and its per-test output, not just its own headings.
+4. Every `rewind-*.txt` reports passing contract tests.
+
+Each was confirmed by breaking the evidence and watching the named rule fail: Row 2 emptied, the
+outer transcript truncated to its first twenty lines, and the two totals set to disagree. A guard
+that has never been seen to fail is not evidence either, and that rule is also already in this log.
+
+The scratch script still exists and still runs the capture; its last act is now to call the tracked
+guard, so the temporary tooling ends by deferring to the permanent kind.
+
+### The part that is funny, and worth keeping
+
+The new guard **failed the repository's own lint** on its first run — `no-control-regex`, for the
+escape character in its ANSI stripper — and the capture pipeline aborted at the lint stage without
+writing any evidence at all. That is the pipeline working exactly as designed, on the file written to
+make the pipeline trustworthy. Rewritten to split on the escape rather than match it.
+
+> **Tooling that only exists where you are standing is not tooling.** The test is not "did the check
+> run" but "will it run for someone who was not here" — and the answer for a scratch file is no,
+> however many defects it caught while you watched.
+
+### Verification
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | clean, exit 0 — including the new script |
+| `npm test` | 1445 passed, 1 skipped |
+| `npm run build` | built, exit 0 |
+| `npm run cipher:gate` | exit 0 |
+| `npm run verify` | exit 0, 66-line transcript carrying its own exit status |
+| `npm run evidence:guard` | all 4 rules pass |
+| `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` | 17 passed |
+| `npx playwright test`, the mandated command | **FAILS, exit 1** — 41 error at browser launch, in `e2e.txt` Row 1 |
+| Same suite via `launchOptions.executablePath` | 41 passed, in `e2e.txt` Row 2 |
+| `node probes/browser-seams.probe.mjs` | complete |
+| `proof-tape.json` vs the file it inventories | 6665 bytes against an actual 6665 |
+
+Mutation total stays at **69** for the feature; the four guard rules were each verified red
+separately and are counted with the tooling rather than with the change.
