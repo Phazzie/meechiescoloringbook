@@ -112,6 +112,30 @@ generated evidence file would be worse than leaving a dated one stale. The folde
 `DECISIONS.md:292` cites six of its files as Cipher Gate evidence, and all six are present. The
 current head's evidence is this folder, which is complete and self-consistent.
 
+## This head is a merge of `main`, and that is why these artifacts were regenerated
+
+`main` moved 18 commits while this close-out was in review — Run 5's wig try-on work, including
+PR #297 from `claude/great-bell-koj4d9`. Merging it in produced twenty conflicts of two kinds, and
+they were resolved differently on purpose:
+
+  - **Four append-only or prepend-only documents** — `WORST_TO_BEST_LOG.md`, `DECISIONS.md`,
+    `LESSONS_LEARNED.md`, `plan.md` — conflicted because both runs added entries at the same point.
+    Resolved as **unions**: every entry from both sides is present, none rewritten. That is what
+    append-only means, and picking a side would have deleted a run's record.
+    In `DECISIONS.md` the ordering is load-bearing rather than cosmetic: two Cipher Gate blocks now
+    carry the date 2026-09-05, and `selectLatestCipherBlock` breaks a date tie by **earliest document
+    position** (`cipher-gate.mjs`), so this close-out's block is placed first and is the one the gate
+    validates. Run 5's block is preserved directly after it.
+  - **Sixteen generated evidence artifacts** in this folder, which both runs wrote under the same
+    dated name. Neither side described the merged tree, so neither side was kept: the whole set was
+    **regenerated** by `npm run evidence:capture` against the merge. Run 5's artifacts for its own
+    head remain in `main`'s history at `cc5f622`; a dated folder describes one head, and this head
+    is new.
+
+Two runs colliding on one dated folder is the same hazard the run lock was added for one round
+earlier — arriving here through two branches rather than two concurrent processes, which a lock
+cannot prevent.
+
 **Three rulings are outstanding** (see `plan.md` and the open thread on PR #296): the seam-workflow
 question; `ImageGenerationSeam`'s two un-waived checklist items; and whether `SessionSeam` and
 `CreationStoreSeam` need waivers or refreshed fixtures. This close-out does not claim the completion

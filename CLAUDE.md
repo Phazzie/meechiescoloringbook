@@ -83,6 +83,7 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `tool-page-recipe.ts` | Pure per-tool coloring page recipes — turns a Meechie tool verdict into the `ColoringPageSpec` + style hint it deserves (list page vs full-quote page) |
 | `mode-catalog.ts` | The focused-mode catalog behind `/m/<slug>` — which modes exist, the questions each asks, and how the answers become a `MeechieToolInput`. Derived from `studioModes` so the home page's links and the mode pages cannot drift apart |
 | `generated-image-preview.ts` | Pure `GeneratedImage` conversions — `data:` URL for a preview, base64 bytes for the vault. Shared by the studio, the toolkit and the mode routes |
+| `wig-catalog-gallery.ts` | Pure wig-catalog shopping transforms — search across name/brand/style/colour/tags, facet chips for length, hair type and colour family, and sorting. Facet counts are measured against the search and every *other* dimension, so a chip never advertises results it cannot return |
 
 ### src/routes/
 
@@ -107,7 +108,8 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `MeechieTools.svelte` | The eleven-tool hub at `/meechie`; owns its own verdict-to-page lifecycle |
 | `VerdictPageStudio.svelte` | The "put it on paper" panel shared by the three mode routes — dedication, generate, drift report, preview, downloads, vault save |
 | `verdict-page-state.svelte.ts` | `VerdictPageState`: the runes state class behind `VerdictPageStudio`. Owns the verdict request, the page recipe, generation, packaging, and the vault write, with separate staleness tokens for the verdict and the page |
-| `SelfieUpload.svelte`, `WigCarousel.svelte` | Wig try-on inputs |
+| `SelfieUpload.svelte` | Wig try-on selfie input |
+| `WigCarousel.svelte` | The wig catalog browser — presentational, taking `wigs` and `loadError` as props, and owning the search box, facet chips, sort control and result count. The catalog is read by `WigCatalogSeam` in the page's `load` (never a raw `wigs.json` import, so a load failure or an empty catalog is reported rather than rendered as an empty row) — in `load` rather than an `$effect` so the cards and their affiliate links are server-rendered |
 | `MeechieModePage.svelte` | The body of the `/m/[mode]` focused-mode page, which the home page links to. Asks the mode's question, shows the verdict, then hands off to `VerdictPageStudio` — the same shared panel the three standalone mode routes use |
 | `studio/` | The home studio's panels (hero, input, preview, settings, vault row, wig try-on) |
 

@@ -360,36 +360,63 @@ const normalizeSpecLabel = (value: string, fallback: string): string =>
 const normalizeSpecTitle = (value: string, fallback: string): string =>
 	normalizeSpecText(value, fallback, MAX_TITLE_LENGTH);
 
+/**
+ * The page's own words, for a spec whose text was not persisted beside it.
+ *
+ * The page's own words only. This used to lead with the record's `assembledPrompt`, which on a
+ * generated page is the image-generation prompt — a machine instruction carrying composition
+ * directives, never anything Meechie said — and reopening put it in her mouth as the quote. A page
+ * with no printed items hit that every time: a toolkit quote page, where the title *is* the page,
+ * had nothing else to offer. There is no case where the prompt is the right answer here, so it is
+ * gone rather than demoted.
+ *
+ * Exported because a caller that gets `null` from the builders below still has a page in front of
+ * it and still needs its words. Answering that with a second copy of the rule is how the two drift.
+ */
+export const specOwnQuote = (intent: ColoringPageSpec): string =>
+	intent.footerItem?.label ||
+	normalizeSpecTitle(intent.title, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
+
+/**
+ * Studio text describing a persisted page, or `null` when the page prints nothing to describe.
+ *
+ * `MeechieStudioTextOutputSchema` requires at least two `pageItems`, so a spec with none — exactly
+ * the shape a wig try-on page saves, and what a toolkit quote page degrades to when its verdict
+ * cannot yield printable lines — cannot be described without inventing them. This used to return
+ * the demo seed's THE RENT / THE DOPEMAN / WHAT IT COST for that case: words that were never on the
+ * page and were never Meechie's.
+ *
+ * Callers guarded the *writes* against that fabrication and left it in the state, so it still
+ * reached the paper as the page's list and still enabled Save to Vault on a page that had nothing
+ * to save. Returning `null` deletes the invention itself rather than adding a third guard against
+ * it — a page with no printed items has no studio text, and every consumer already handles that.
+ */
 const buildStudioTextFromSpec = (input: {
 	intent: ColoringPageSpec;
 	studioText?: MeechieStudioTextOutput;
-}): MeechieStudioTextOutput => {
+}): MeechieStudioTextOutput | null => {
 	if (input.studioText) {
 		return input.studioText;
+	}
+	if (input.intent.items.length === 0) {
+		return null;
 	}
 	const pageTitle = normalizeSpecTitle(input.intent.title, DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
 	return {
 		verdict: pageTitle,
-		// The page's own words only. This used to lead with the record's `assembledPrompt`, which on
-		// a generated page is the image-generation prompt — a machine instruction carrying
-		// composition directives, never anything Meechie said — and reopening put it in her mouth as
-		// the quote. A page with no printed items hit that every time: a toolkit quote page, where
-		// the title *is* the page, had nothing else to offer. There is no case where the prompt is
-		// the right answer here, so it is gone rather than demoted.
-		quote: input.intent.footerItem?.label || pageTitle,
+		quote: specOwnQuote(input.intent),
 		pageTitle,
-		pageItems:
-			input.intent.items.length > 0
-				? input.intent.items.map((item) => ({
-						number: item.number,
-						label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
-					}))
-				: DEFAULT_STUDIO_TEXT_OUTPUT.pageItems,
+		pageItems: input.intent.items.map((item) => ({
+			number: item.number,
+			label: normalizeSpecLabel(item.label, DEFAULT_STUDIO_TEXT_OUTPUT.pageItems[0].label)
+		})),
 		qualityState: 'ready'
 	};
 };
 
-export const buildStudioTextFromDraftRecord = (draft: DraftRecord): MeechieStudioTextOutput =>
+export const buildStudioTextFromDraftRecord = (
+	draft: DraftRecord
+): MeechieStudioTextOutput | null =>
 	buildStudioTextFromSpec({
 		intent: draft.intent,
 		studioText: draft.studioText
@@ -397,7 +424,7 @@ export const buildStudioTextFromDraftRecord = (draft: DraftRecord): MeechieStudi
 
 export const buildStudioTextFromCreationRecord = (
 	creation: CreationRecord
-): MeechieStudioTextOutput =>
+): MeechieStudioTextOutput | null =>
 	buildStudioTextFromSpec({
 		intent: creation.intent,
 		studioText: creation.studioText

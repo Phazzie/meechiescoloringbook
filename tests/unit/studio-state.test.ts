@@ -38,6 +38,26 @@ const SAMPLE_WIG: Wig = {
 	tags: []
 };
 
+const OTHER_WIG: Wig = {
+	...SAMPLE_WIG,
+	id: 'wig-2',
+	name: 'Second Wig'
+};
+
+/**
+ * Puts a studio on a wig that already has a portrait. `tryOnPortraitUrl` is derived from the
+ * portraits made so far and the wig on screen, so a test cannot assign it directly any more —
+ * which is the point: it can no longer drift from the wig it is labelled with.
+ */
+const arrangeTryOnPortrait = (
+	studio: StudioState,
+	portraitUrl: string,
+	wig: Wig = SAMPLE_WIG
+): void => {
+	studio.selectedWig = wig;
+	studio.tryOnPortraits = [{ wig, portraitUrl }];
+};
+
 const LEGACY_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	verdict: 'Meechie already clocked it.',
 	quote: "He said I act like I run the place. I don't act.",
@@ -425,7 +445,7 @@ describe('StudioState', () => {
 
 	it('clears a previously generated coloring page when a new try-on is requested', async () => {
 		const studio = new StudioState();
-		studio.selectedWigId = 'wig-1';
+		studio.selectedWig = SAMPLE_WIG;
 		studio.selfieBase64 = 'selfie-bytes';
 		studio.images = [
 			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
@@ -464,9 +484,7 @@ describe('StudioState', () => {
 
 	it('preserves the current try-on portrait and coloring page when the already-selected wig card is reselected', async () => {
 		const studio = new StudioState();
-		studio.selectedWigId = SAMPLE_WIG.id;
-		studio.selectedWig = SAMPLE_WIG;
-		studio.tryOnPortraitUrl = 'data:image/png;base64,ZmFrZQ==';
+		arrangeTryOnPortrait(studio, 'data:image/png;base64,ZmFrZQ==');
 		studio.images = [
 			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
 		];
@@ -487,7 +505,7 @@ describe('StudioState', () => {
 			ok: true,
 			value: { files: [] }
 		});
-		studio.tryOnPortraitUrl = 'data:image/jpeg;base64,/9j/4AAQ';
+		arrangeTryOnPortrait(studio, 'data:image/jpeg;base64,/9j/4AAQ');
 
 		await studio.handleGenerateTryOnPage();
 
@@ -501,7 +519,7 @@ describe('StudioState', () => {
 			ok: true,
 			value: { files: [] }
 		});
-		studio.tryOnPortraitUrl = 'data:image/webp;base64,d2VicA==';
+		arrangeTryOnPortrait(studio, 'data:image/webp;base64,d2VicA==');
 
 		await studio.handleGenerateTryOnPage();
 
@@ -513,6 +531,465 @@ describe('StudioState', () => {
 			data: 'd2VicA==',
 			encoding: 'base64'
 		});
+	});
+});
+
+describe('StudioState try-on draft provenance', () => {
+	const tryOnDraftIntent = () => ({
+		...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+		title: 'WIG TRY-ON - SAMPLE WIG',
+		listMode: 'title_only' as const,
+		items: [],
+		footerItem: undefined
+	});
+
+	/**
+	 * A try-on page prints a wig's name and a picture. Its title matches no seed signature, so the
+	 * draft restore used to rebuild a verdict for it — and the only text the schema allows for a
+	 * page with no items is the demo seed's. Those words then sat on the paper as the page's list.
+	 */
+	it('restores no verdict for a try-on draft rather than inventing the seed', async () => {
+		const restored = await initFromDraft({
+			updatedAtISO: '2026-09-05T00:00:00.000Z',
+			intent: tryOnDraftIntent()
+		});
+
+		expect(restored.textOutput).toBeNull();
+		// The panel reads this, so an invented verdict would have printed THE RENT / THE DOPEMAN
+		// under the wig's name.
+		expect(restored.previewOutput).toBeNull();
+		// And Save to Vault would have been lit up by it, over a draft that carries no portrait.
+		expect(restored.canSaveToVault).toBe(false);
+	});
+
+	/**
+	 * The rebuild that runs on every Page Control change describes the verdict, and this page has
+	 * none. Falling back to the seed retitled the reader's page THE LANDLORD on a page-size change.
+	 */
+	it('keeps a restored try-on page its own title when a setting changes', async () => {
+		const restored = await initFromDraft({
+			updatedAtISO: '2026-09-05T00:00:00.000Z',
+			intent: tryOnDraftIntent()
+		});
+
+		await restored.syncSpecFromCurrentText();
+
+		expect(restored.spec.title).toBe('WIG TRY-ON - SAMPLE WIG');
+		expect(restored.spec.listMode).toBe('title_only');
+		expect(restored.spec.items).toEqual([]);
+	});
+
+	it('does not write invented seed text into the draft it saves back', async () => {
+		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const restored = await initFromDraft({
+			updatedAtISO: '2026-09-05T00:00:00.000Z',
+			intent: tryOnDraftIntent()
+		});
+
+		saveDraftSpy.mockClear();
+		await restored.syncSpecFromCurrentText();
+		await vi.waitFor(() => expect(saveDraftSpy).toHaveBeenCalled());
+
+		const written = saveDraftSpy.mock.calls.at(-1)?.[0].draft;
+		expect(written?.studioText).toBeUndefined();
+	});
+});
+
+describe('StudioState wig try-on comparison', () => {
+	const PNG_PORTRAIT = 'data:image/png;base64,ZmFrZQ==';
+	const OTHER_PORTRAIT = 'data:image/png;base64,b3RoZXI=';
+
+	const portraitResponse = (base64: string): Response =>
+		new Response(
+			JSON.stringify({
+				ok: true,
+				value: { portraitBase64: base64, portraitMimeType: 'image/png' }
+			}),
+			{ status: 200, statusText: 'OK' }
+		);
+
+	/**
+	 * Starts a try-on for SAMPLE_WIG on a first selfie, runs `interrupt` while the request is still
+	 * in flight, and only then lets the response land.
+	 *
+	 * That window is the whole subject of the staleness tests below. A try-on is slow enough for the
+	 * reader to change either input under it, and a late result used to attach itself to whatever
+	 * was on screen when it arrived — so both interruptions are exercised through one helper: they
+	 * differ only in which input moves.
+	 */
+	const tryOnInterruptedBy = async (
+		studio: StudioState,
+		interrupt: (_studio: StudioState) => void,
+		response: Response
+	): Promise<void> => {
+		studio.selectedWig = SAMPLE_WIG;
+		studio.setSelfieForTryOn('first-selfie', 'image/png');
+		let release: (value: Response) => void = () => {};
+		const pending = new Promise<Response>((resolve) => {
+			release = resolve;
+		});
+		vi.stubGlobal('fetch', vi.fn().mockReturnValue(pending));
+
+		const inFlight = studio.handleWigTryOn();
+		interrupt(studio);
+		release(response);
+		await inFlight;
+	};
+
+	const selectOtherWig = (studio: StudioState): void => {
+		studio.selectedWig = OTHER_WIG;
+	};
+
+	const uploadAnotherSelfie = (studio: StudioState): void => {
+		studio.setSelfieForTryOn('second-selfie', 'image/png');
+	};
+
+	const failedTryOnResponse = (): Response =>
+		new Response(
+			JSON.stringify({
+				ok: false,
+				error: { code: 'WIG_TRY_ON_FAILED', message: 'Styling failed.' }
+			}),
+			{ status: 200, statusText: 'OK' }
+		);
+
+	it('keeps the previous wig\'s portrait when another wig is selected, and shows it again on return', async () => {
+		const studio = new StudioState();
+		studio.selfieBase64 = 'selfie-bytes';
+		studio.tryOnPortraits = [{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT }];
+		studio.selectedWig = SAMPLE_WIG;
+		expect(studio.tryOnPortraitUrl).toBe(PNG_PORTRAIT);
+
+		await studio.selectWigForTryOn(OTHER_WIG);
+
+		// The other wig has no portrait yet, so the result panel is empty for it...
+		expect(studio.tryOnPortraitUrl).toBe('');
+		// ...but the first wig's portrait was not destroyed, which is what made comparing two
+		// wigs impossible.
+		expect(studio.tryOnPortraits).toHaveLength(1);
+
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+
+		expect(studio.tryOnPortraitUrl).toBe(PNG_PORTRAIT);
+	});
+
+	it('drops every portrait when a new selfie is uploaded, because they are all of the old face', () => {
+		const studio = new StudioState();
+		studio.selectedWig = SAMPLE_WIG;
+		studio.tryOnPortraits = [
+			{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT },
+			{ wig: OTHER_WIG, portraitUrl: OTHER_PORTRAIT }
+		];
+
+		studio.setSelfieForTryOn('new-selfie-bytes', 'image/png');
+
+		expect(studio.tryOnPortraits).toEqual([]);
+		expect(studio.tryOnPortraitUrl).toBe('');
+	});
+
+	it('shows the compare strip only once there are two looks to choose between', () => {
+		const studio = new StudioState();
+		expect(studio.canCompareTryOns).toBe(false);
+		studio.tryOnPortraits = [{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT }];
+		expect(studio.canCompareTryOns).toBe(false);
+		studio.tryOnPortraits = [
+			{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT },
+			{ wig: OTHER_WIG, portraitUrl: OTHER_PORTRAIT }
+		];
+		expect(studio.canCompareTryOns).toBe(true);
+	});
+
+	it('files a late portrait under the wig it was requested for, not the wig now on screen', async () => {
+		const studio = new StudioState();
+
+		await tryOnInterruptedBy(studio, selectOtherWig, portraitResponse('ZmFrZQ=='));
+
+		expect(studio.tryOnPortraits).toEqual([{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT }]);
+		// The wig on screen never had a portrait made, so it must not be wearing someone else's.
+		expect(studio.tryOnPortraitUrl).toBe('');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('does not show a try-on failure for a wig the reader has already moved off', async () => {
+		const studio = new StudioState();
+
+		await tryOnInterruptedBy(studio, selectOtherWig, failedTryOnResponse());
+
+		expect(studio.tryOnError).toBe('');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('still shows a try-on failure for the wig that is on screen', async () => {
+		const studio = new StudioState();
+		studio.selectedWig = SAMPLE_WIG;
+		studio.selfieBase64 = 'selfie-bytes';
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(failedTryOnResponse()));
+
+		await studio.handleWigTryOn();
+
+		expect(studio.tryOnError).toBe('Styling failed.');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('replaces a re-tried wig in place, so the compare strip does not reshuffle', async () => {
+		const studio = new StudioState();
+		studio.selfieBase64 = 'selfie-bytes';
+		studio.tryOnPortraits = [
+			{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT },
+			{ wig: OTHER_WIG, portraitUrl: OTHER_PORTRAIT }
+		];
+		studio.selectedWig = SAMPLE_WIG;
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(portraitResponse('cmVkb25l')));
+
+		await studio.handleWigTryOn();
+
+		expect(studio.tryOnPortraits.map((entry) => entry.wig.id)).toEqual([
+			SAMPLE_WIG.id,
+			OTHER_WIG.id
+		]);
+		expect(studio.tryOnPortraits[0].portraitUrl).toBe('data:image/png;base64,cmVkb25l');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('drops a portrait whose selfie was replaced while it was still being made', async () => {
+		const studio = new StudioState();
+
+		// Replacing the photo mid-flight clears the portraits precisely because they are of the old
+		// face, so the in-flight result must not put one straight back — it would sit in the compare
+		// strip beside portraits of the new face as though they were the same person.
+		await tryOnInterruptedBy(studio, uploadAnotherSelfie, portraitResponse('ZmFrZQ=='));
+
+		expect(studio.tryOnPortraits).toEqual([]);
+		expect(studio.tryOnPortraitUrl).toBe('');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('does not show a try-on failure for a selfie the reader has already replaced', async () => {
+		const studio = new StudioState();
+
+		await tryOnInterruptedBy(studio, uploadAnotherSelfie, failedTryOnResponse());
+
+		expect(studio.tryOnError).toBe('');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('still files a portrait when the selfie was never replaced', async () => {
+		const studio = new StudioState();
+		studio.selectedWig = SAMPLE_WIG;
+		studio.setSelfieForTryOn('only-selfie', 'image/png');
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(portraitResponse('ZmFrZQ==')));
+
+		await studio.handleWigTryOn();
+
+		expect(studio.tryOnPortraitUrl).toBe(PNG_PORTRAIT);
+
+		vi.unstubAllGlobals();
+	});
+
+	it('abandons a try-on page when the reader picks another wig while it is being built', async () => {
+		const studio = new StudioState();
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: { files: [] }
+		});
+		studio.tryOnPortraits = [
+			{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT },
+			{ wig: OTHER_WIG, portraitUrl: OTHER_PORTRAIT }
+		];
+		studio.selectedWig = SAMPLE_WIG;
+
+		const inFlight = studio.handleGenerateTryOnPage();
+		// The carousel stays live during generation, so this is reachable.
+		await studio.selectWigForTryOn(OTHER_WIG);
+		await inFlight;
+
+		// The page asked for was the first wig's. Rather than package the second wig's portrait
+		// under the first wig's name, or show the first wig's page while the second is selected,
+		// the operation is abandoned.
+		expect(studio.images).toEqual([]);
+		expect(studio.spec.title).not.toBe('Wig Try-On - Sample Wig');
+	});
+
+	/**
+	 * The fifth instance of this branch's recurring bug, found by auditing for the pattern rather
+	 * than by being told: packaging is an await too, so its result needs the same token check the
+	 * portrait read got.
+	 */
+	/**
+	 * The sixth instance, and the only one in code this branch did not write: the home studio's
+	 * normal generation had no staleness guard at all, so a slow provider response landed its
+	 * prompt, images and PDF on whatever verdict was on screen when it finished. The mode routes
+	 * already guard this; the studio did not. One line, in a path proven to have the same bug.
+	 */
+	it('does not land a slow generation on a page the reader has already replaced', async () => {
+		const studio = new StudioState();
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		let releaseGenerate: (value: Response) => void = () => {};
+		const fetchSpy = vi.fn().mockReturnValue(
+			new Promise<Response>((resolve) => {
+				releaseGenerate = resolve;
+			})
+		);
+		vi.stubGlobal('fetch', fetchSpy);
+
+		const inFlight = studio.handleGeneratePage();
+		for (let i = 0; i < 100 && fetchSpy.mock.calls.length === 0; i++) {
+			await Promise.resolve();
+		}
+		expect(fetchSpy).toHaveBeenCalledOnce();
+
+		// Switching mode clears the page and advances the token, exactly as a new verdict would.
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+		releaseGenerate(
+			new Response(
+				JSON.stringify({
+					ok: true,
+					value: {
+						prompt: 'a stale prompt',
+						templateVersion: 'v2',
+						images: [
+							{
+								id: 'stale-1',
+								format: 'png',
+								mimeType: 'image/png',
+								data: 'c3RhbGU=',
+								encoding: 'base64'
+							}
+						],
+						violations: [],
+						recommendedFixes: []
+					}
+				}),
+				{ status: 200, statusText: 'OK' }
+			)
+		);
+		await inFlight;
+
+		expect(studio.images).toEqual([]);
+		expect(studio.assembledPrompt).toBe('');
+		// The guard returned; nothing failed. Without it the payload parses cleanly and lands.
+		expect(studio.generationError).toBe('');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('does not attach a late try-on PDF to a page the reader has moved off', async () => {
+		const studio = new StudioState();
+		const STALE_PDF = {
+			filename: 'stale.pdf',
+			mimeType: 'application/pdf',
+			dataBase64: 'AAA'
+		};
+		let releasePackaging: (value: {
+			ok: true;
+			value: { files: (typeof STALE_PDF)[] };
+		}) => void = () => {};
+		const packageSpy = vi.spyOn(outputPackagingAdapter, 'package').mockReturnValue(
+			new Promise((resolve) => {
+				releasePackaging = resolve as typeof releasePackaging;
+			})
+		);
+		studio.tryOnPortraits = [
+			{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT },
+			{ wig: OTHER_WIG, portraitUrl: OTHER_PORTRAIT }
+		];
+		studio.selectedWig = SAMPLE_WIG;
+
+		const inFlight = studio.handleGenerateTryOnPage();
+		// Wait until packaging has actually been entered, so the switch below lands *after* the
+		// earlier token check and can only be caught by the one guarding the packaging result.
+		for (let i = 0; i < 100 && packageSpy.mock.calls.length === 0; i++) {
+			await Promise.resolve();
+		}
+		expect(packageSpy).toHaveBeenCalledOnce();
+
+		await studio.selectWigForTryOn(OTHER_WIG);
+		// A distinguishable payload: without the guard this lands on the page the reader is now
+		// looking at, so Download PDF would hand back the wig they moved off.
+		releasePackaging({ ok: true, value: { files: [STALE_PDF] } });
+		await inFlight;
+
+		expect(studio.packagedFiles).toEqual([]);
+	});
+
+	/**
+	 * Trying the same wig on again keeps the old portrait on screen while the new one is styled.
+	 * Replacing it changes neither the selected wig nor the page token, so neither existing guard
+	 * can see it — a page started in that window would keep the old look while the panel shows the
+	 * new one. The only thing that distinguishes the window is that a try-on is in flight.
+	 */
+	it('refuses to build a page while the portrait it would use is being replaced', async () => {
+		const studio = new StudioState();
+		const packageSpy = vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: { files: [] }
+		});
+		studio.tryOnPortraits = [{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT }];
+		studio.selectedWig = SAMPLE_WIG;
+		studio.selfieBase64 = 'selfie-bytes';
+		expect(studio.canGenerateTryOnPage).toBe(true);
+
+		// The same wig is being tried on again; the old portrait is still on screen.
+		studio.isTryingOn = true;
+		expect(studio.canGenerateTryOnPage).toBe(false);
+
+		await studio.handleGenerateTryOnPage();
+
+		expect(packageSpy).not.toHaveBeenCalled();
+		expect(studio.images).toEqual([]);
+		expect(studio.generationError).toBe(
+			'Wait for the new look to finish before making the page.'
+		);
+	});
+
+	it('names a try-on coloring page after its wig instead of the demo default', async () => {
+		const studio = new StudioState();
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: { files: [] }
+		});
+		// No verdict has ever been generated, so the spec still carries the seed title.
+		expect(studio.spec.title).toBe(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
+		arrangeTryOnPortrait(studio, PNG_PORTRAIT);
+
+		await studio.handleGenerateTryOnPage();
+
+		expect(studio.spec.title).toBe('Wig Try-On - Sample Wig');
+		expect(studio.assembledPrompt).toContain(SAMPLE_WIG.name);
+	});
+
+	/**
+	 * Replacing only the title left the demo seed's list on the record. A try-on page is a
+	 * portrait, so it takes the whole title-only shape: no items, no footer, nothing of the seed.
+	 */
+	it('carries none of the demo seed body into a try-on page', async () => {
+		const studio = new StudioState();
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: { files: [] }
+		});
+		// The seed the spec starts on, which is what a try-on page used to inherit wholesale.
+		expect(studio.spec.items.map((item) => item.label)).toEqual([
+			'THE RENT',
+			'THE DOPEMAN',
+			'WHAT IT COST'
+		]);
+		arrangeTryOnPortrait(studio, PNG_PORTRAIT);
+
+		await studio.handleGenerateTryOnPage();
+
+		expect(studio.spec.listMode).toBe('title_only');
+		expect(studio.spec.items).toEqual([]);
+		expect(studio.spec.footerItem).toBeUndefined();
+		// And the spec it produced is one the validator accepts, so generation is not blocked.
+		expect(studio.validationIssues).toEqual([]);
+		expect(studio.generationError).toBe('');
 	});
 });
 
@@ -570,6 +1047,50 @@ describe('StudioState quote vault', () => {
 		destroyInitializedStudios();
 		vi.restoreAllMocks();
 	});
+
+	/**
+	 * The opening both try-on vault tests share: a studio holding a portrait, turned into a page.
+	 * Extracted rather than repeated — repeating a test's opening is how this repository has tripped
+	 * the duplication gate four times now, and here the opening *is* the shared subject.
+	 */
+	// Real PNG bytes (a 1x1 pixel), not a stub: the vault refuses to rebuild bytes it cannot
+	// recognise, so a fake payload would make every reopen in this block restore no picture and
+	// quietly turn the assertions after it into assertions about an empty page.
+	const REAL_PNG_PORTRAIT =
+		'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+	const makeTryOnPage = async (studio: StudioState): Promise<void> => {
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: { files: [] }
+		});
+		studio.selectedWig = SAMPLE_WIG;
+		studio.tryOnPortraits = [{ wig: SAMPLE_WIG, portraitUrl: REAL_PNG_PORTRAIT }];
+		await studio.handleGenerateTryOnPage();
+	};
+
+	/**
+	 * Runs a revision action and hands back the request body it sent, so a test can assert what the
+	 * provider was actually told. The response is a rejection because these tests care only about
+	 * what went out, never what came back.
+	 */
+	const payloadSentByRevision = async (
+		studio: StudioState,
+		evidence: string
+	): Promise<{ currentText?: unknown }> => {
+		const fetchSpy = vi.fn().mockResolvedValue(
+			new Response(
+				JSON.stringify({ ok: false, error: { code: 'X', message: 'no' } }),
+				{ status: 200, statusText: 'OK' }
+			)
+		);
+		vi.stubGlobal('fetch', fetchSpy);
+		studio.evidence = evidence;
+		await studio.runTextAction('make_meaner');
+		const body = JSON.parse(fetchSpy.mock.calls[0][1].body as string);
+		vi.unstubAllGlobals();
+		return body;
+	};
 
 	// A studio left open across UTC midnight kept rendering yesterday's labels, because `nowMs`
 	// only advanced when the vault was read or written. Both refresh paths are covered because
@@ -1282,5 +1803,200 @@ describe('StudioState quote vault', () => {
 		await refreshed.syncSpecFromCurrentText();
 		expect(refreshed.spec.listMode).toBe('list');
 		expect(refreshed.spec.footerItem).toBeUndefined();
+	});
+
+	/**
+	 * A coloring page made from a wig try-on has no verdict behind it, and used to be the one page
+	 * in the app the vault would not take: the button was disabled on `textOutput` alone, so the
+	 * portrait the reader had paid a generation for died with the tab.
+	 */
+	it('saves a try-on coloring page that has no verdict behind it', async () => {
+		const studio = await initVault([]);
+
+		await makeTryOnPage(studio);
+
+		expect(studio.textOutput).toBeNull();
+		expect(studio.canSaveToVault).toBe(true);
+
+		await studio.saveToVault();
+
+		expect(studio.vaultStatus).toBe('Saved to the quote vault.');
+		expect(studio.creations).toHaveLength(1);
+		const saved = studio.creations[0];
+		expect(saved.intent.title).toBe('Wig Try-On - Sample Wig');
+		// No verdict, so no studio text on the record — the shape `loadCreation` already handles.
+		expect(saved.studioText).toBeUndefined();
+		// And the required prompt describes the page rather than carrying machine instructions,
+		// which `loadCreation` would otherwise put in the evidence box as the reader's own words.
+		expect(saved.assembledPrompt).toContain(SAMPLE_WIG.name);
+		expect(saved.assembledPrompt).not.toContain('NEGATIVE PROMPT');
+		expect(saved.images?.[0]?.b64).toBe(REAL_PNG_PORTRAIT.split(',')[1]);
+		// The record has no studioText, so `loadCreation` rebuilds its words from `intent.items`.
+		// Seed items here would put THE RENT / THE DOPEMAN / WHAT IT COST into the reopened
+		// preview and into the evidence box, which is the text the next verdict request sends.
+		expect(saved.intent.items).toEqual([]);
+		expect(saved.intent.footerItem).toBeUndefined();
+
+		await studio.loadCreation(saved);
+
+		expect(studio.evidence).not.toContain('THE RENT');
+		expect(studio.evidence).not.toContain('DOPEMAN');
+	});
+
+	/**
+	 * Reopening a no-verdict try-on used to invent a `MeechieStudioTextOutput` — the contract needs
+	 * two page items and the record has none — by falling back to the demo seed. Nothing about that
+	 * page is a verdict, so nothing is restored as one, and a resave has no invented words to
+	 * launder into the record.
+	 */
+	it('restores no verdict for a reopened try-on, and resaves none', async () => {
+		const studio = await initVault([]);
+		await makeTryOnPage(studio);
+		await studio.saveToVault();
+		const firstSave = studio.creations[0];
+		expect(firstSave.studioText).toBeUndefined();
+
+		await studio.loadCreation(firstSave);
+
+		// Nothing on a portrait page is a verdict, so the reopen restores none — while the picture,
+		// which is the whole page, comes back and keeps it worth saving.
+		expect(studio.textOutput).toBeNull();
+		expect(studio.images).not.toHaveLength(0);
+		expect(studio.canSaveToVault).toBe(true);
+
+		await studio.saveToVault();
+
+		const resaved = studio.creations.find((record) => record.id !== firstSave.id);
+		expect(resaved).toBeDefined();
+		expect(resaved?.studioText).toBeUndefined();
+	});
+
+	it('does not send invented seed items to the provider as the reader\'s current text', async () => {
+		const studio = await initVault([
+			makeCreation('try-on-1', { studioText: undefined, intent: {
+				...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+				title: 'Wig Try-On - Sample Wig',
+				listMode: 'title_only',
+				items: [],
+				footerItem: undefined
+			} })
+		]);
+		await studio.loadCreation(studio.creations[0]);
+
+		const body = await payloadSentByRevision(studio, 'He said the wig was his idea.');
+
+		expect(body.currentText).toBeUndefined();
+	});
+
+	it('still sends a reopened page\'s own words when they are really the page\'s', async () => {
+		const studio = await initVault([makeCreation('listed-1', { studioText: undefined })]);
+		await studio.loadCreation(studio.creations[0]);
+
+		const body = await payloadSentByRevision(studio, 'Still the same situation.');
+
+		// This record has real intent.items, so the synthesized text is the page's own words.
+		expect(body.currentText).toBeDefined();
+	});
+
+	/**
+	 * A try-on page prints a portrait and the wig's name — no verdict words at all. A verdict that
+	 * happens to be on screen because the reader generated one first is real text about something
+	 * else, so saving it as this record's own would put its quote in the vault beside the portrait
+	 * and hand it back as the page's text on reopen.
+	 */
+	it('does not save a verdict that has nothing to do with the try-on page', async () => {
+		const studio = await initVault([]);
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about something else.' };
+
+		await makeTryOnPage(studio);
+
+		// The verdict is still on screen — this is not the invented-text case.
+		expect(studio.textOutput).not.toBeNull();
+
+		await studio.saveToVault();
+
+		const saved = studio.creations[0];
+		expect(saved.intent.title).toBe('Wig Try-On - Sample Wig');
+		expect(saved.studioText).toBeUndefined();
+	});
+
+	it('saves the verdict again once a fresh verdict replaces the try-on page', async () => {
+		const studio = await initVault([]);
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about something else.' };
+		await makeTryOnPage(studio);
+
+		// A new verdict goes through resetGeneratedPage, which is where the try-on marking clears.
+		const fresh = { ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about this situation.' };
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				new Response(JSON.stringify({ ok: true, value: fresh }), {
+					status: 200,
+					statusText: 'OK'
+				})
+			)
+		);
+		studio.evidence = 'He changed the story again.';
+		await studio.runTextAction('generate_text');
+		vi.unstubAllGlobals();
+
+		expect(studio.images).toEqual([]);
+
+		await studio.saveToVault();
+
+		expect(studio.creations[0].studioText?.quote).toBe('A verdict about this situation.');
+	});
+
+	it('keeps a try-on page title-only when a page control is changed', async () => {
+		const studio = await initVault([]);
+		await makeTryOnPage(studio);
+		expect(studio.spec.title).toBe('Wig Try-On - Sample Wig');
+
+		// A Page Control rebuilds the spec from the verdict — or, here, the demo seed.
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+
+		// The portrait is still on the paper, so the spec must still describe it.
+		expect(studio.spec.title).toBe('Wig Try-On - Sample Wig');
+		expect(studio.spec.listMode).toBe('title_only');
+		expect(studio.spec.items).toEqual([]);
+		expect(studio.spec.footerItem).toBeUndefined();
+		// And the control the reader actually changed did take effect.
+		expect(studio.spec.pageSize).toBe('A4');
+
+		await studio.saveToVault();
+
+		expect(studio.creations[0].intent.title).toBe('Wig Try-On - Sample Wig');
+		expect(studio.creations[0].intent.items).toEqual([]);
+	});
+
+	/**
+	 * The vault and the draft both write studio text down, and both have to answer "is this text
+	 * this page's own?" before they do. They asked it separately and drifted: the vault learned to
+	 * exclude a verdict belonging to a different page, the draft did not — so verdict → try-on →
+	 * draft → refresh put that verdict back as genuine and defeated the vault guard from behind.
+	 */
+	it('keeps an unrelated verdict out of the draft as well as the vault', async () => {
+		const studio = await initVault([]);
+		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about something else.' };
+		await makeTryOnPage(studio);
+
+		saveDraftSpy.mockClear();
+		await studio.syncSpecFromCurrentText();
+		await vi.waitFor(() => expect(saveDraftSpy).toHaveBeenCalled());
+
+		expect(saveDraftSpy.mock.calls.at(-1)?.[0].draft.studioText).toBeUndefined();
+	});
+
+	it('still refuses to save when there is neither a verdict nor a page', async () => {
+		const studio = await initVault([]);
+
+		expect(studio.canSaveToVault).toBe(false);
+
+		await studio.saveToVault();
+
+		expect(studio.vaultStatus).toBe('Make a page before saving it.');
+		expect(studio.creations).toHaveLength(0);
 	});
 });

@@ -116,6 +116,62 @@ Short, durable decisions with context and tradeoffs.
     bucket limit, adds an ungated billable call, or introduces a new bucket.
 - Revisit criteria: when a deployment becomes reachable without SSO, or when a change touches the
   provider payload.
+## 2026-09-05 - The wig carousel loads through `WigCatalogSeam`, and facet counts are cross-filtered
+
+- Cipher Gate:
+  - Date: 2026-09-05
+  - Seams: WigCatalogSeam (existing; no contract, validator, mock, probe, fixture or adapter changed). The change is a new *consumer*: the UI stops bypassing the seam and starts calling `listWigs()` through the existing adapter, as `/api/wig-try-on` already does. CreationStoreSeam, SpecValidationSeam and OutputPackagingSeam are likewise consumed through their existing adapters, unchanged.
+  - Evidence: docs/evidence/2026-09-05/rewind-wig-catalog-seam.txt, docs/evidence/2026-09-05/chamber-lock.json, docs/evidence/2026-09-05/test.txt, docs/evidence/2026-09-05/verify.txt, docs/evidence/2026-09-05/seam-ledger.md, docs/evidence/2026-09-05/clan-chain.md, docs/evidence/2026-09-05/proof-tape.md, src/lib/seams/wig-catalog-seam/contract.ts, src/lib/seams/wig-catalog-seam/validators.ts, src/lib/seams/wig-catalog-seam/mock.ts, src/lib/seams/wig-catalog-seam/probe.ts, src/lib/seams/wig-catalog-seam/test.ts, src/lib/seams/wig-catalog-seam/fixtures.ts, src/lib/adapters/wig-catalog-seam/index.ts, docs/seams.md
+  - Summary: `WigCarousel.svelte` previously read the catalog with `import wigData from '$lib/data/wigs.json'` and `wigData as unknown as Wig[]`, so `validateWigCatalog` never ran for the UI and the seam's `WIG_CATALOG_LOAD_FAILED` and `WIG_CATALOG_EMPTY` results had no path to a reader - a malformed or empty catalog rendered as an empty row with no message. The seam is now the only reader, and it is called from the page's `load` in `src/routes/+page.ts`, which runs on the server and on the client. `WigCarousel.svelte` is presentational: it receives `wigs` and `loadError` as props and renders either the validated wigs or the seam's own error message. It has **no** loading state, because there is nothing to wait for - the cards and their affiliate links are in the server-rendered HTML. (An intermediate version of this change did the load in a component `$effect`; that removed the catalog from the initial HTML entirely and was replaced. This entry describes the shipped design, not that one.) This is recorded as a Cipher Gate entry because the integration makes seam outcomes newly observable in the UI, which a reviewer reasonably read as crossing the boundary, and `AGENTS.md` says to treat doubt as a seam change. What the entry does not claim is a seam change: the seam's six artifacts all pre-date this work and none is in the diff (`git diff origin/main...HEAD --name-only` matches nothing under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/`), no contract shape moved, and the seam returns exactly what it returned before for the same input. `npm run rewind -- --seam WigCatalogSeam` passes 27 tests on this head.
+  - Risks: The seam now runs on the server as well as in the browser. That is safe to assert rather than hope for, because the adapter's only input is a bundled `import rawCatalog from '../../data/wigs.json'` - no `fs`, no network, no `process.cwd()` - so it is the same computation in both runtimes and cannot fail on one and succeed on the other. What does change is how often it runs: `+page.ts` constructs a fresh seam per load, and `cachedWigs` lives in that instance's closure, so `validateWigCatalog` now runs once per page load instead of once per browser tab. Accepted, and stated rather than glossed: the catalog is eight entries, and the alternative - a module-level instance - would make the parse result outlive a deploy inside a warm serverless instance. A `wigs.json` edited in a running dev server is still not re-read until the module graph reloads, exactly as the raw import behaved. `wig-catalog-seam` carries a documented manual probe with no `runProbe` export and `N/A` in the registry's probe-date column; that pre-dates this change and is untouched by it, so the seam's automated evidence here is its contract test via rewind and chamber-lock's artifact-presence gate, not a fresh probe run. Making the failure paths visible also means a reader can now be shown a catalog error where they previously saw an empty row, which is better but is a new user-facing string on a path that had none - and because the load runs on the server, that string can now reach the initial HTML.
+
+
+- Date: 2026-09-05
+- Seams: none changed. `WigCatalogSeam` is consumed through its existing adapter
+  (`src/lib/adapters/wig-catalog-seam/index.ts`), exactly as `/api/wig-try-on` already consumes it;
+  `CreationStoreSeam`, `SpecValidationSeam` and `OutputPackagingSeam` through the adapters
+  `studio-state.svelte.ts` already calls. No file under `contracts/`, `probes/`, `fixtures/`,
+  `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` is in the diff and no
+  contract shape changed. A Cipher Gate entry is recorded above all the same: a reviewer read the
+  new consumer as making seam outcomes observable across the boundary, and `AGENTS.md` says to treat
+  doubt as a seam change.
+- Decision 1: the catalog is read by `createWigCatalogSeam().listWigs()` in `src/routes/+page.ts`,
+  not by importing `wigs.json` into `WigCarousel.svelte` and casting it with `as unknown as Wig[]`.
+  The carousel becomes presentational and takes `wigs` and `loadError` as props.
+  - Why: the cast meant `validateWigCatalog` never ran for the UI and the seam's
+    `WIG_CATALOG_LOAD_FAILED` / `WIG_CATALOG_EMPTY` errors could not reach a reader, so a broken
+    catalog rendered as an empty row with no message. The component's own comment claimed
+    "validators run at adapter layer" while never calling the adapter.
+  - Why in `load` and not in the component: the first attempt read the seam from an `$effect`, which
+    does not run during SSR. That took the wigs and their affiliate links out of the
+    server-rendered HTML — the one thing this section of the page exists to carry — and left a
+    loading line for a crawler or a reader with scripting off. A `load` runs in both places, so the
+    seam is still the only reader and the markup comes back. An e2e test asserts against the
+    response body, not the hydrated DOM, so the two cannot silently diverge again.
+  - Tradeoff: a fresh seam instance per load means `validateWigCatalog` runs once per page load
+    rather than once per tab. Accepted for an eight-entry catalog; the alternative is a UI that
+    cannot report a failure it is having.
+- Decision 2: facet counts are computed against the search and every *other* dimension, not against
+  the whole catalog.
+  - Why: two of eight wigs are synthetic and neither is black; four are black and none is synthetic.
+    A catalog-wide count renders "Black 4" while Synthetic is selected and returns nothing when
+    tapped — a control that describes itself falsely, which is the defect this rebuild exists to
+    remove.
+  - Alternative rejected: catalog-wide counts, which are one line shorter. A count of 0 also
+    disables its chip, so a dead end cannot be entered.
+- Decision 3: try-on portraits are held as a list keyed by the wig they were made for, and the wig
+  is captured before the request rather than read after it.
+  - Why: a single shared string made two looks impossible to compare and let a late response attach
+    itself to whichever wig was selected when it landed.
+  - Tradeoff: `selectedWigId` becomes derived from `selectedWig` rather than separately assigned, so
+    the two cannot disagree about which wig is on screen.
+- Decision 4: `saveToVault` accepts a page with images and no studio text.
+  - Why: a try-on page has no verdict behind it and was the only page in the app the vault refused.
+    `CreationRecordSchema.studioText` is already optional and `loadCreation` already restores
+    records without it.
+  - Tradeoff: `assembledPrompt` is required and non-empty, so the try-on path supplies a description
+    of the page rather than a machine prompt — `loadCreation` puts a reopened record's own words in
+    the evidence box, and a prompt there is shipped to the provider as the reader's facts.
 
 ## 2026-09-04 - The focused-mode catalog is derived from `studioModes`, and an unknown slug is a 404
 

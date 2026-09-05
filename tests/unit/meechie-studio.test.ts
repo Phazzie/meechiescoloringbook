@@ -198,7 +198,7 @@ describe('Meechie studio controls', () => {
 		});
 
 		expect(restored).toEqual(studioText);
-		expect(restored.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
+		expect(restored!.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
 	});
 
 	it('rehydrates new vault records from studio text instead of the image prompt', () => {
@@ -227,8 +227,9 @@ describe('Meechie studio controls', () => {
 			owner: { kind: 'anonymous', sessionId: 'session-123' }
 		});
 
-		expect(restored.quote).toBe('The prompt is not the quote.');
-		expect(restored.quote).not.toContain('image-generation prompt');
+		expect(restored).not.toBeNull();
+		expect(restored!.quote).toBe('The prompt is not the quote.');
+		expect(restored!.quote).not.toContain('image-generation prompt');
 	});
 
 	it('rehydrates legacy drafts without studio text from their coloring-page spec', () => {
@@ -262,9 +263,11 @@ describe('Meechie studio controls', () => {
 			chatMessage: 'Original evidence'
 		});
 
-		expect(restored.pageTitle).toBe('LEGACY TITLE');
-		expect(restored.pageItems.map((item) => item.label)).toEqual(['LEGACY ITEM', 'SECOND ITEM']);
-		expect(restored.quote).toBe('LEGACY TITLE');
+		// The legacy spec prints two items of its own, so there is real text to rebuild.
+		expect(restored).not.toBeNull();
+		expect(restored!.pageTitle).toBe('LEGACY TITLE');
+		expect(restored!.pageItems.map((item) => item.label)).toEqual(['LEGACY ITEM', 'SECOND ITEM']);
+		expect(restored!.quote).toBe('LEGACY TITLE');
 	});
 
 	it('preserves long titles in legacy draft and vault fallbacks', () => {
@@ -305,10 +308,12 @@ describe('Meechie studio controls', () => {
 			owner: { kind: 'anonymous', sessionId: 'session-123' }
 		});
 
-		expect(draftText.pageTitle).toBe(longTitle);
-		expect(vaultText.pageTitle).toBe(longTitle);
-		expect(draftText.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
-		expect(vaultText.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
+		expect(draftText).not.toBeNull();
+		expect(vaultText).not.toBeNull();
+		expect(draftText!.pageTitle).toBe(longTitle);
+		expect(vaultText!.pageTitle).toBe(longTitle);
+		expect(draftText!.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
+		expect(vaultText!.pageTitle).toHaveLength(MAX_TITLE_LENGTH);
 	});
 });
 
