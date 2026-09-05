@@ -5473,3 +5473,55 @@ Playwright 38 passed against the installed browser · SonarCloud 0 new issues, d
 Three more mutations, each reverted, each caught: narrowing the snapshot back to the two paper
 fields (2 tests), taking the dedication from the snapshot as well (2), and spreading `undefined`
 instead of deleting the key (1). Running total for this run: 28.
+
+## Run 7 close-out — round six: the snapshot was being taken where there was nothing to photograph
+
+Two findings, both real, both the same shape as each other and neither the same as before. Round
+four and five were about the snapshot being too *narrow*. This one is about it being taken at all,
+in three places where no page had been made.
+
+**A restored draft was filed as though an artifact existed.** `applyRestoredStyleSelection` put the
+stored style on the controls *and* recorded it as the page's own. Drafts restore no prompt and no
+image. So a reader who came back after a refresh, changed a theme and saved got a record holding the
+draft's old style beside a spec rebuilt from the new controls — the exact contradiction round five
+removed, arriving through a door I had built myself. That function now does only the part the two
+restore paths genuinely share, which is the controls; the snapshot moved into `loadCreation`, the
+one restore path that has an artifact, where the style and the spec are now set together on adjacent
+lines.
+
+**Both generate paths took the snapshot above the guard that reports nothing was made.** A
+schema-valid `{ ok: true, images: [] }` response, and the try-on path's settings-failure return. In
+both, `textOutput` keeps Save to Vault lit, so saving after the failure filed the failed request's
+style and spec as a page — and went on doing so after the reader had moved every control. The trace
+assignments stay above the guard, deliberately and as an earlier round decided, so System Trace
+still shows what was asked for. The snapshot moved below it.
+
+### Two things underneath, neither of them reported
+
+Fixing the second exposed the predicate. `styleSelectionUnknown` and `pageGlitter` asked
+`assembledPrompt !== ''`, and the prompt is assigned for the trace whether or not a picture came
+back — so a failed generation read as an artifact whose style was not on file, and the panel would
+have said so about a page that does not exist. They ask `generatedSpec` now, which is set only where
+a page exists, and is `undefined` for a restored draft, whose page the controls genuinely do
+describe.
+
+Which exposed the other thing: both snapshot fields were plain fields rather than `$state`, and a
+`$derived` over an unreactive field never recomputes. The old predicate worked only because
+`assembledPrompt` is `$state` and happened to change at the same moment as the field the derivation
+actually cared about. Two tests went red the moment the derivation stopped reading a reactive value
+by accident. Both fields are reactive now, and snapshotted on the way to the storage seam so the
+record is built from values rather than proxies.
+
+Worth naming plainly: the comment on those fields said "Not `$state`: nothing renders it directly",
+and that was true when it was written and false by the time two derivations read them. A comment
+that justifies a decision by a fact that later changes is a defect with a delay on it.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1374 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 7 passed ·
+Playwright 38 passed against the installed browser.
+
+Four more mutations, each reverted, each caught: recording the artifact snapshot on draft restore
+(1 test), snapshotting the no-picture generation (1), the predicate back to `assembledPrompt` (1),
+and the snapshot fields back to plain (2). Running total for this run: 32.
