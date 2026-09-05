@@ -22,6 +22,8 @@
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import process from 'node:process';
+import { toDateFolder } from './evidence-reporting.mjs';
 
 /**
  * Colour codes out, without an escape character inside a regular expression. `no-control-regex`
@@ -64,9 +66,18 @@ const RULES = [
 			if (outer === null) return 'verify-outer.txt is missing; the chain has no transcript.';
 			if (!/verify exit=0/.test(outer))
 				return 'verify-outer.txt does not contain "verify exit=0" — it was captured before the chain finished, or the chain failed.';
-			const lines = outer.split('\n').length;
-			if (lines <= 40)
-				return `verify-outer.txt is only ${lines} lines; a complete chain transcript is far longer, so this one was truncated mid-write.`;
+			// Every stage the chain runs must have left its mark. A line count was the first version of
+			// this and was a proxy for "did the whole thing run" — it would fail a legitimately compact
+			// transcript after a reporter change, and pass a long one that stopped early. These are the
+			// stages themselves.
+			const STAGE_MARKERS = [
+				{ marker: 'svelte-check found', stage: 'the check stage' },
+				{ marker: 'Test Files', stage: 'the test stage' },
+				{ marker: 'proof', stage: 'the proof-tape stage' }
+			];
+			const missing = STAGE_MARKERS.filter(({ marker }) => !outer.includes(marker));
+			if (missing.length > 0)
+				return `verify-outer.txt is missing ${missing.map((m) => m.stage).join(', ')}; it carries an exit line but not the run that earned it.`;
 			return null;
 		}
 	},
@@ -87,15 +98,22 @@ const RULES = [
 		}
 	},
 	{
-		name: 'e2e.txt carries a result, not just its own headings',
+		name: 'e2e.txt Row 2 carries its own result',
 		check: (dir) => {
 			const e2e = read(dir, 'e2e.txt');
 			if (e2e === null) return null; // not every change runs the end-to-end suite
-			if (lastPassedCount(e2e) === null)
-				return 'e2e.txt has no "<n> passed" line; the transcript was spliced in against a header that did not match, so the file records a run that cannot be audited.';
-			const lines = e2e.split('\n').length;
-			if (lines <= 40)
-				return `e2e.txt is only ${lines} lines; the per-test output is missing, so the summary cannot be checked against anything.`;
+			const marker = e2e.indexOf('## Row 2');
+			if (marker === -1)
+				return 'e2e.txt has no "## Row 2" section; the mandated command and the run that actually executes are both meant to be recorded.';
+			// Scoped to Row 2 on purpose. Reading the whole file lets Row 1 mask an empty Row 2 —
+			// the mandated command can execute partially and print its own "1 passed" before failing,
+			// and the splice failure this rule exists to catch would then pass. Row 2 is the row whose
+			// result gets cited, so Row 2 is what gets checked.
+			const row2 = e2e.slice(marker);
+			if (lastPassedCount(row2) === null)
+				return 'e2e.txt Row 2 has no "<n> passed" line; the transcript was spliced in against a header that did not match, so the run it records cannot be audited.';
+			if (!/\.spec\.[tj]s/.test(row2))
+				return 'e2e.txt Row 2 has a summary but no per-test lines; the summary cannot be checked against anything.';
 			return null;
 		}
 	},
@@ -111,22 +129,18 @@ const RULES = [
 	}
 ];
 
-const dir = process.argv[2] ?? latestEvidenceDir();
-
-function latestEvidenceDir() {
-	const root = 'docs/evidence';
-	const dated = readdirSync(root)
-		.filter((name) => /^\d{4}-\d{2}-\d{2}$/.test(name))
-		.sort();
-	if (dated.length === 0) {
-		console.error('evidence-guard: no dated folder under docs/evidence.');
-		process.exit(1);
-	}
-	return join(root, dated[dated.length - 1]);
-}
+const dir = process.argv[2] ?? join('docs/evidence', toDateFolder(new Date()));
 
 if (!existsSync(dir)) {
+	// Today's folder, not the newest that happens to exist. Selecting the latest dated directory
+	// meant that a run whose evidence was never written — because the chain stopped at the audit
+	// gate, say — validated the PREVIOUS run's folder and printed that every rule passed. A guard
+	// that reports success for a run that produced nothing is worse than no guard.
 	console.error(`evidence-guard: ${dir} does not exist.`);
+	console.error(
+		'  This run has written no evidence folder for today. Pass a directory explicitly to check an\n' +
+			'  older one; the default is deliberately not "whichever is newest".'
+	);
 	process.exit(1);
 }
 

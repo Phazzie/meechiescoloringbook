@@ -7737,3 +7737,90 @@ run has the file, the command, and this paragraph rather than a guess.
 Two attempts at reproducing a checker I cannot reach have now produced one hit and one miss. That is
 a better record than the earlier "it found nothing, so there is nothing", and it is still not the
 same as knowing.
+
+---
+
+## Run 8 close-out — round twenty-eight: five findings on the guard itself
+
+The guard added last round was reviewed as code rather than as a claim, and four of the five findings
+were right. Recording the one that was wrong too, because a reviewer being wrong once is worth
+knowing about a reviewer that has now been right thirty times.
+
+### The one that was wrong
+
+**"Route evidence reads through an approved seam."** `AGENTS.md` L116 requires filesystem I/O behind
+seam adapters — but that governs application code. Every tracked script under `scripts/` reads
+`node:fs` directly, `proof-tape.mjs` included, and no evidence-filesystem seam exists to route
+through. Checked before answering rather than after.
+
+It pointed at something real anyway: `scripts/evidence-reporting.mjs` exists precisely so these
+scripts share their date and file helpers, and I had reimplemented its `toDateFolder` by hand. Now
+imported. **A finding can be wrong about the rule and right about the code.**
+
+### The four that were right
+
+**The guard's caller was untracked.** `npm run evidence:guard` was a standalone command that only the
+scratch capture script invoked, so once that script is gone the guard never runs and a future run
+executes every mandated tracked command while committing empty evidence. This is the same defect as
+last round — the guard made tracked, its invocation left in `/tmp` — one level up, which is where I
+stopped looking. There is now a step in `.github/workflows/verify.yml` that runs it against the
+evidence folders the change actually touches, before `verify` rewrites them.
+
+**Row 1 could mask an empty Row 2.** `lastPassedCount` scanned the whole file, so if the mandated
+command executed partially and printed its own `1 passed` before failing, the rule passed with Row 2
+still empty — the exact splice failure the rule was written for, surviving the rule written for it.
+Scoped to Row 2, plus a check that the per-test lines are there and not just a summary. The reviewer
+reproduced it; so did I, before fixing it.
+
+**The default validated the wrong run.** `latestEvidenceDir()` picked the newest existing dated
+folder. So a run whose evidence was never written — the chain stops at the audit gate, say — would
+validate the *previous* run's folder and print that all rules pass. A guard that reports success for
+a run that produced nothing is worse than no guard. Now today's UTC folder, and absent is exit 1 with
+a sentence saying to pass a directory explicitly if an older one is meant.
+
+**The forty-line threshold was a proxy.** It stood for "did the whole chain run", and would fail a
+legitimately compact transcript after a reporter change while passing a long one that stopped early.
+Replaced with the stage markers themselves: the check stage, the test stage, the proof tape.
+
+### Every rule re-proved red
+
+A changed checker is a new checker. Each was broken deliberately and watched to fail:
+
+| Case | Rule that fired |
+|---|---|
+| Row 1 prints `1 passed`, Row 2 empty | Row 2 carries its own result |
+| Row 2 has a summary but no per-test lines | Row 2 carries its own result |
+| `verify-outer.txt` has its exit line but stopped after the audit gate | carries the chain exit status |
+| Two totals set to disagree | outer and `test.txt` agree |
+| A newer broken dated folder exists | default still selects today's |
+| The named folder is absent | exit 1, not a silent pass |
+
+### The rule
+
+Rounds twenty-six and twenty-seven both ended with a fix one level below where the defect actually
+lived: the writer fixed but not the guard, then the guard tracked but not its caller.
+
+> **When a check fails, ask what checks the check — and then ask that question again.** Each answer
+> is a new thing that can be missing, and stopping at the first one is how a fix comes to have the
+> same shape as the bug.
+
+### Verification
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | clean, exit 0 |
+| `npm test` | 1445 passed, 1 skipped |
+| `npm run build` | built, exit 0 |
+| `npm run cipher:gate` | exit 0 |
+| `npm run verify` | exit 0, transcript carrying its own exit status |
+| `npm run evidence:guard` | all 4 rules pass |
+| `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` | 17 passed |
+| `npx playwright test`, the mandated command | **FAILS, exit 1** — 41 error at browser launch, `e2e.txt` Row 1 |
+| Same suite via `launchOptions.executablePath` | 41 passed, `e2e.txt` Row 2 |
+| `node probes/browser-seams.probe.mjs` | complete |
+
+The CI step was simulated locally against this change: it resolves to `docs/evidence/2026-09-05`,
+the one folder the diff touches, and passes.
+
+Mutation total for the feature stays at **69**.

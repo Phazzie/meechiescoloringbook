@@ -18,5 +18,23 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm install
+      # Before `verify`, because `verify` rewrites the dated folder and the thing being checked is
+      # what the author committed. Scoped to the evidence folders this change actually touches, so a
+      # change that ships no evidence is not asked to justify somebody else's, and no folder has to
+      # be guessed at. Three times this repository committed evidence that proved nothing and looked
+      # fine; each was found by a person opening the file, which is what this step automates.
+      - name: Guard committed evidence
+        run: |
+          dirs=$(git diff --name-only \
+            "${{ github.event.pull_request.base.sha || github.event.before }}...HEAD" \
+            -- 'docs/evidence/*' | cut -d/ -f1-3 | sort -u)
+          if [ -z "$dirs" ]; then
+            echo "No evidence folder touched by this change; nothing to guard."
+            exit 0
+          fi
+          for dir in $dirs; do
+            echo "--- $dir"
+            npm run evidence:guard -- "$dir"
+          done
       - name: Verify
         run: npm run verify
