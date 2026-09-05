@@ -372,21 +372,26 @@ export class StudioState {
 	 */
 	private unknownStyleBaseline = $state<StyleSelection | null>(null);
 	/**
-	 * The reader clicked a theme chip since the restore, whatever it changed.
+	 * The reader picked a style control since the restore, whatever it changed.
 	 *
-	 * The one authorship a comparison cannot see, and the reason `SettingChangeSource` has a `theme`
-	 * value at all: clicking the chip that is already active leaves every field identical and is
-	 * still the reader asking for that theme. Its doc comment says exactly that, about the
-	 * neighbouring question of recomputing presentation, and the comparison below was written as if
-	 * it did not.
+	 * The authorship a comparison cannot see. Picking the theme chip — or the wig — that is already
+	 * active leaves every field identical and is still the reader choosing it. `SettingChangeSource`
+	 * exists for exactly that, and says so in its own doc comment, about the neighbouring question of
+	 * recomputing presentation; the comparison below was first written as if that sentence were not
+	 * there.
 	 *
 	 * It matters on the case this whole rule is about. Open a legacy record with a non-default theme
-	 * already up, adopt it by clicking it, and the equality test says nothing was chosen — so the
-	 * autosave keeps writing `undefined` and the refresh still loses the theme, which is the defect
-	 * the supersede was added to remove, surviving in the one gesture that expresses the intent most
+	 * or wig already up, adopt it by clicking it, and the equality test says nothing was chosen — so
+	 * the autosave keeps writing `undefined` and the refresh still loses it, which is the defect the
+	 * supersede was added to remove, surviving in the gesture that expresses the intent most
 	 * directly.
+	 *
+	 * Covers both controls rather than the theme alone, which is how it was first written. A review
+	 * pointed at the wig immediately: it reaches the style hint the same way, it is re-picked the
+	 * same way, and a flag named for one of the two controls invites the next one to be forgotten.
+	 * Named for what it means — the reader claimed this style — rather than for which widget said so.
 	 */
-	private readerClaimedTheme = $state(false);
+	private readerClaimedStyle = $state(false);
 	/**
 	 * The reader has chosen a style for a restored page that recorded none.
 	 *
@@ -404,7 +409,7 @@ export class StudioState {
 	private readerChoseStyleSinceRestore = $derived(
 		this.generatedSpec === undefined &&
 			this.unknownStyleBaseline !== null &&
-			(this.readerClaimedTheme ||
+			(this.readerClaimedStyle ||
 				!isSameStyleSelection(this.currentStyleSelection(), this.unknownStyleBaseline))
 	);
 	/**
@@ -1104,7 +1109,7 @@ export class StudioState {
 		// controls compared against the previous page's restore — a difference about nothing — and
 		// the claim would carry a click made about a page that is no longer here.
 		this.unknownStyleBaseline = null;
-		this.readerClaimedTheme = false;
+		this.readerClaimedStyle = false;
 	}
 
 	/**
@@ -1258,8 +1263,9 @@ export class StudioState {
 			// A theme click is the reader naming a style even when it changes nothing measurable, so
 			// it is recorded here rather than inferred from the values. Only on a rebuild that
 			// succeeded: a click whose spec did not survive its own check has not authored anything.
+			// `selectWigForTryOn` sets the same flag for the same reason — see there.
 			if (source === 'theme') {
-				this.readerClaimedTheme = true;
+				this.readerClaimedStyle = true;
 			}
 		} catch (error) {
 			// Reported where the reader is looking — beside the control they just moved — instead of
@@ -1328,6 +1334,11 @@ export class StudioState {
 		// an unhandled rejection that told nobody anything.
 		try {
 			await this.rebuildSpecFromCurrentText();
+			// Picking a wig is the reader naming a style, on the same terms as a theme click: it
+			// reaches the hint the same way, and re-picking the one already selected changes no value
+			// a comparison could see. Recorded only on a rebuild that succeeded, for the reason given
+			// where the theme sets it.
+			this.readerClaimedStyle = true;
 		} catch (error) {
 			this.generationError =
 				error instanceof Error ? error.message : UNCHECKED_SETTINGS_MESSAGE;

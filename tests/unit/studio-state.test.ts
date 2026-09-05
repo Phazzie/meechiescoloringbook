@@ -3631,6 +3631,33 @@ describe('StudioState page style', () => {
 		expect(studio.styleSelectionUnknown).toBe(true);
 	});
 
+	it('reads re-picking the wig already selected as the reader adopting it', async () => {
+		// The theme's sibling, and a review found it the moment the theme flag existed: the wig
+		// reaches the style hint the same way and is re-picked the same way, so a flag named for one
+		// of the two controls just invites the other to be forgotten. It is named for what it means
+		// now — the reader claimed this style — rather than for which widget said so.
+		const { studio } = await savingStudio();
+		// The wig is up BEFORE the record is opened, which is the case the finding describes and the
+		// only way to isolate it: the baseline is captured at the restore, so a wig selected
+		// afterwards is already a measurable change and would supersede on the comparison alone.
+		studio.selectedWig = SAMPLE_WIG;
+
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		await studio.loadCreation(makeStyledCreation());
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		// Re-picking the wig already selected changes no value a comparison could see.
+		draftSpy.mockClear();
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		expect(studio.styleSelectionUnknown).toBe(false);
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection?.wig).toEqual({
+			name: SAMPLE_WIG.name,
+			style: SAMPLE_WIG.style
+		});
+	});
+
 	it('does not read a moved page size as a style the reader chose', async () => {
 		// Page size and border reach the studio through the same handler as the theme and are not
 		// style — they live in the intent. So the supersede is a comparison against the controls as
