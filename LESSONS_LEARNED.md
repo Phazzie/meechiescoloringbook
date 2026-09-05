@@ -414,3 +414,22 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Action: Fixtures for data the product validates must be valid. Use real bytes — a 1×1 PNG is
   small enough — or assert that the rejection happened, but never let a rejected stub sit upstream
   of assertions about what was restored.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: Rebuilding the home studio's download row (`WORST_TO_BEST_LOG.md` Run 6).
+- Lesson: A `$derived` class field in Svelte 5 is still assignable, so a test that writes to one and
+  then asserts on it passes whatever the production code does. Four existing `studio-state` tests
+  became exactly that the moment `packagedFiles` stopped being `$state`, and the suite stayed green.
+- Action: Arrange through the one stored field (`packageAttempts`), never through a derived view;
+  and mutation-check any test whose subject changed from stored to derived.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: Same run — removing a packaging call from a path that could legitimately have no images.
+- Lesson: Deleting a call also deletes whatever message that call was accidentally producing. The
+  zero-image generate response (`images` is `z.array(...)` with no minimum) had only ever been
+  reported as the packaging seam's "No images provided for packaging."; the rebuild would have
+  replaced a confusing message with silence.
+- Action: When an early return replaces a call, ask what the old call was reporting for the inputs
+  the early return now swallows, and report it where it actually happens.

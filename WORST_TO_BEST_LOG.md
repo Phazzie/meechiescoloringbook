@@ -4586,3 +4586,172 @@ Removing the thing that can diverge did prevent it.
 
 The next worst feature is not named here. Measure it rather than inherit it — that is the whole
 reason this feature was still broken after three runs said it was fine.
+
+---
+
+## Run 6 — 2026-09-05 — Getting the page out of the app (the home studio's download row)
+
+**Branch:** `claude/great-bell-6ilzdd` · **Base:** `main` at `c38c49bc`
+
+### The feature, and why it was the worst
+
+Every path through this app ends the same way: you have a coloring page on screen, and you want it
+somewhere you can use it — a printer, a group chat, a folder. The home studio's `preview-actions`
+row is where that happens for the app's front door.
+
+It was the worst feature because it is the **last untouched page-making surface in the app**, and it
+is the one where the money becomes a file you keep. Runs 1–5 measured and rebuilt the vault, the
+tools hub, the three mode routes, `/m/<slug>` and the wig try-on. Nobody had ever measured what
+happens when you press Download.
+
+Measured on `main` at `c38c49bc`:
+
+1. **Every download wore the same hardcoded label.** `StudioPreviewPanel.svelte:110–124` rendered
+   `{#each packagedFiles as file}` and then, inside the loop, the *constant*
+   `getStudioAction('download_pdf').label` — "Download PDF". The filename, the media type and the
+   variant were all discarded. With one file it happened to be true; with two it would have been two
+   identical buttons. The two surfaces Runs 2–4 rebuilt both render `{file.filename}`. This one
+   rendered a string that could not be wrong about the page because it was never about the page.
+2. **The front door could print a page but not post one.** `studio-state.svelte.ts:842` and `:1181`
+   both asked for `variants: ['print']`. `MeechieTools.svelte:350–368` and
+   `verdict-page-state.svelte.ts:541–566` package **print *and* square**. The packaging seam has
+   supported `square` and `chat` since it was written. So on the surface that gets the traffic, in an
+   app whose entire subject is receipts you show people, there was no share image at all.
+3. **A failed PDF was reported as a failed generation.** `attachPackagedPage` wrote
+   `this.generationError = packagingResult.error.message`, the same field the image-generation
+   failure uses, rendered as `data-testid="home-generation-error"` directly above a finished page.
+   Packaging runs *after* the image exists and is free, deterministic and client-side. The most
+   natural response to a red error under a page is to press Create again — so the failure of a free
+   step invited paying for a second generation. `verdict-page-state.ts:568` already had the right
+   sentence for this ("Page made, but the printable download could not be built: …"); the studio had
+   the wrong one.
+4. **Reopening a page whose PDF could not be rebuilt failed silently, forever.**
+   `repackageRestoredImages` caught everything, set `packagedFiles = []`, and said nothing — by
+   design, per its own comment. The consequence was a Download button disabled with no reason and no
+   way to learn one.
+5. **The export link handed back a constant filename.** `download={meechie-coloring-page.${ext}}` —
+   the same name for every page ever generated, so a second save landed as
+   `meechie-coloring-page (1).png` next to a first nobody could tell it from.
+6. **Nothing said what you were about to get.** No size, no format, no distinction between the file
+   you print and the file you post.
+
+The two paths were also a near-copy of each other that had **already diverged** — one reported
+`Result` errors and guarded staleness, the other swallowed both — which is the exact failure Run 5's
+close-out ends on: *writing the rule down did not prevent the next occurrence; deleting the second
+copy did.*
+
+### What shipped
+
+**New pure module — `src/lib/core/page-exports.ts`.** Turns packaging attempts into rows a reader
+can act on, and into one sentence for what could not be built.
+
+- The **variant is carried in from the call site that asked for it**, never sniffed back out of a
+  filename. Recovering `-square` from a string would be a second, weaker answer to a question the
+  caller already knows — the "checking a proxy" mistake Run 2's corrections hit four separate times.
+- `base64ByteLength` measures a payload from its encoded length instead of `atob`-ing megabytes to
+  read `.length`. Proved against a real round-trip at all three padding lengths, not restated.
+- `formatByteSize` is hand-rolled rather than `Intl` — the wig studio already had to pin a locale
+  when a browser-locale format showed `89,99 $` beside the carousel's `$89.99`.
+- The purposes carry **no pixel dimensions**. `SHARE_SQUARE`/`SHARE_CHAT` are module-private in the
+  adapter, so "1080 × 1080" would be a claim this module cannot check — and this log's own last
+  entry is about prose drifting from the code it describes. "square crop — for posting" needs no
+  number and cannot go stale.
+- Labels, purposes and failure nouns are `Record<OutputVariant, …>`, and two tests drive
+  `OutputVariantSchema.options` so a variant added to the seam fails a test rather than rendering
+  `undefined` in the row.
+
+**One packaging path instead of two.** `attachPackagedPage` and `repackageRestoredImages` are gone;
+`attachPageExports` serves all three callers — generate, try-on page, reopen. `packageVariant`
+catches rejections as well as `Result` errors, which is what keeps a packaging failure out of
+`handleGeneratePage`'s `catch` (the clause that writes `generationError`).
+
+**One stored source, three derived views.** `packageAttempts` is the only state; `packagedFiles`,
+`pageExports` and `exportError` are all `$derived` from it, so `resetGeneratedPage` clears four
+things with one assignment and none of them can disagree.
+
+**Print and square, packaged in sequence, not in one call.** The seam returns on its first error, so
+asking for both at once loses the print PDF whenever the square rasterisation is what breaks. One
+call per variant means a share-image failure costs you the share image and nothing else — a case
+this run has a test for, because it is exactly the case the single-call shape gets wrong.
+
+**The row itself.** Each download is two lines: what it is ("Printable PDF", "Square PNG", "Original
+JPG"), then what it is for and how big it is ("US Letter — ready to print · 945 B"). A real `<ul>`,
+so a screen reader is told how many ways out there are before reading them. An empty state that says
+what will appear. An export notice in gold, not error pink, that always opens by affirming the page.
+
+Screenshotted in a real Chromium at the end of the mainline flow: three distinct, self-describing
+downloads where there were two constant labels.
+
+### The defect this run introduced and then caught
+
+Removing the packaging call from the zero-image path removed the only message that case had. A
+generate response can be schema-valid with **no picture** — `images` is `z.array(...)` with no
+minimum in `contracts/image-generation.contract.ts:30` — and it used to surface as the seam's "No
+images provided for packaging.", a message about a step that should never have been entered. Left
+alone, this rebuild would have replaced a confusing message with silence: a text-only page, an empty
+export row, no error. It now says what actually happened, where it happens. Found by asking what the
+new early-return costs, not by a test failing.
+
+### Verification
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | clean |
+| `npm test` | 1319 passed, 1 skipped (was 1279 passed, 1 skipped; **+40 tests**) |
+| `npm run build` | built |
+| `npm run verify` | **exit 0**, evidence refreshed in `docs/evidence/2026-09-05/` |
+| `npx playwright test` | 32 passed |
+
+**The tests were mutation-checked rather than assumed.** Three mutations of the shipped code, each
+reverted after:
+
+| Mutation | Caught by |
+|---|---|
+| `STUDIO_EXPORT_VARIANTS` back to `['print']` | 8 tests |
+| `packageVariant` rethrows instead of catching | 2 tests |
+| packaging failure written back into `generationError` | 3 tests |
+
+This is deliberate: Run 5's close-out records three tests that passed for the wrong reason, and
+notes that only one was found by writing a new assertion. A test that has never been seen to fail is
+not evidence.
+
+Four existing tests that *assigned* `studio.packagedFiles` were rewritten to arrange
+`packageAttempts` instead. Svelte 5 lets you write to a `$derived` class field, so those assignments
+would have kept passing while asserting about a value the test wrote itself — the same wrong-reason
+pass, one version later.
+
+### Scope, and what was deliberately left alone
+
+No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+`src/lib/seams/` is in the diff, so no Cipher Gate entry is required and none was invented. Checked,
+not assumed: `git diff --cached --stat -- contracts probes fixtures src/lib/mocks src/lib/adapters
+src/lib/seams` prints nothing on the staged tree.
+
+Deferred, with reasons rather than as an oversight:
+
+- **`VerdictPageStudio` and `MeechieTools` still render raw filenames.** They could use
+  `page-exports.ts` and would read better for it. They are the features Runs 2–4 own, their
+  `packagedFiles` discards the variant association at `verdict-page-state.ts:566`, and rewiring them
+  would multiply the review surface of a run whose rule is one feature. The good behaviour now lives
+  in one importable module, which is the precondition for doing it.
+- **`chat` (720px) is described but not requested.** Each variant is another full canvas
+  rasterisation per generation; the square already covers sharing. The description exists because the
+  tables are total over the seam's enum, not because a path was built for it.
+- **Only `images[0]` is offered as the original, and only `imagePreviews[0]` is shown.**
+  `variations` is 1 everywhere today (`buildColoringPageSpecFromMeechieText` hardcodes it; nothing
+  in the UI changes it), so this is latent, not live. If a future change lets a reader ask for two
+  to four variations, the preview panel and the export row both need revisiting together — the
+  preview is the half that would be wrong first.
+- **`recommendedFixes` is still stored and never shown** on any surface — collected at
+  `studio-state.ts:893`, used only for the vault record's `fixesApplied`. Not this feature; worth a
+  future run's attention, since the app pays a drift-detection pass to produce advice nobody reads.
+
+### For the next run
+
+The pick that made this run was noticing that **five runs had rebuilt everything except the step
+where the user actually keeps what they paid for**. The pattern generalises: the features that get
+measured are the ones that look like features. A row of buttons at the end of a flow looks like
+plumbing, and plumbing is where "the label is a constant" survives five audits.
+
+Do not inherit this entry's "measured on `main`" claims either. Re-measure.

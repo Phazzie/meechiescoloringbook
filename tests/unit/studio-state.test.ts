@@ -58,6 +58,26 @@ const arrangeTryOnPortrait = (
 	studio.tryOnPortraits = [{ wig, portraitUrl }];
 };
 
+/**
+ * Put a studio in the state of having already packaged its page.
+ *
+ * Arranged through `packageAttempts` — the one stored record — because `packagedFiles`,
+ * `pageExports` and `exportError` are all derived from it. Assigning the derived view instead would
+ * make the test assert about a value it wrote itself, which is a test that passes whatever the code
+ * does.
+ */
+const arrangePackagedPage = (studio: StudioState): void => {
+	studio.packageAttempts = [
+		{
+			variant: 'print',
+			files: [
+				{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
+			],
+			error: null
+		}
+	];
+};
+
 const LEGACY_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	verdict: 'Meechie already clocked it.',
 	quote: "He said I act like I run the place. I don't act.",
@@ -275,9 +295,7 @@ describe('StudioState', () => {
 		studio.images = [
 			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
 		];
-		studio.packagedFiles = [
-			{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
-		];
+		arrangePackagedPage(studio);
 		studio.assembledPrompt = 'assembled prompt';
 
 		studio.handleModeSelect(studio.activeModeId);
@@ -292,9 +310,7 @@ describe('StudioState', () => {
 		studio.images = [
 			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
 		];
-		studio.packagedFiles = [
-			{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
-		];
+		arrangePackagedPage(studio);
 		studio.assembledPrompt = 'stale assembled prompt';
 		studio.revisedPrompt = 'stale revised prompt';
 		studio.generationError = 'stale error';
@@ -320,14 +336,26 @@ describe('StudioState', () => {
 
 	it('brings the saved picture back when a creation with stored images is reopened', async () => {
 		const studio = new StudioState();
-		const packageSpy = vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
-			ok: true,
-			value: {
-				files: [
-					{ filename: 'saved.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' }
-				]
-			}
-		});
+		const packageSpy = vi
+			.spyOn(outputPackagingAdapter, 'package')
+			.mockImplementation(async (input) => ({
+				ok: true,
+				value: {
+					files: [
+						input.variants?.[0] === 'square'
+							? {
+									filename: 'saved-square.png',
+									mimeType: 'image/png',
+									dataBase64: 'c3F1YXJl'
+								}
+							: {
+									filename: 'saved.pdf',
+									mimeType: 'application/pdf',
+									dataBase64: 'cGRm'
+								}
+					]
+				}
+			}));
 
 		const creation: CreationRecord = {
 			id: 'creation-with-image',
@@ -350,17 +378,32 @@ describe('StudioState', () => {
 			}
 		]);
 		expect(studio.imagePreviews[0]).toBe(`data:image/png;base64,${ONE_PIXEL_PNG_BASE64}`);
-		// Download PDF works again on a reopened page instead of sitting disabled.
-		expect(packageSpy).toHaveBeenCalledOnce();
-		expect(studio.packagedFiles).toEqual([
-			{ filename: 'saved.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' }
+		// A reopened page gets the same downloads a freshly generated one does — printable and
+		// share — instead of sitting on a disabled button.
+		expect(packageSpy.mock.calls.map((call) => call[0].variants)).toEqual([
+			['print'],
+			['square']
 		]);
+		expect(studio.packagedFiles).toEqual([
+			{ filename: 'saved.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' },
+			{ filename: 'saved-square.png', mimeType: 'image/png', dataBase64: 'c3F1YXJl' }
+		]);
+		// Including the provider's own bytes, named after the same page as the rest.
+		expect(studio.pageExports.map((item) => item.kind)).toEqual([
+			'print',
+			'square',
+			'original'
+		]);
+		expect(studio.exportError).toBe('');
 	});
 
 	it('discards a stale packaging result when another page is opened first', async () => {
 		const studio = new StudioState();
 		let releaseFirstPackaging: (() => void) | null = null;
-		vi.spyOn(outputPackagingAdapter, 'package').mockImplementation(async () => {
+		// Named per variant as well as per page, so the assertions below read as "these are the
+		// second page's downloads" rather than as a count.
+		vi.spyOn(outputPackagingAdapter, 'package').mockImplementation(async (input) => {
+			const variant = input.variants?.[0] ?? 'print';
 			if (!releaseFirstPackaging) {
 				await new Promise<void>((resolve) => {
 					releaseFirstPackaging = resolve;
@@ -369,7 +412,11 @@ describe('StudioState', () => {
 					ok: true,
 					value: {
 						files: [
-							{ filename: 'first.pdf', mimeType: 'application/pdf', dataBase64: 'Zmlyc3Q=' }
+							{
+								filename: `first-${variant}.pdf`,
+								mimeType: 'application/pdf',
+								dataBase64: 'Zmlyc3Q='
+							}
 						]
 					}
 				};
@@ -378,11 +425,20 @@ describe('StudioState', () => {
 				ok: true,
 				value: {
 					files: [
-						{ filename: 'second.pdf', mimeType: 'application/pdf', dataBase64: 'c2Vjb25k' }
+						{
+							filename: `second-${variant}.pdf`,
+							mimeType: 'application/pdf',
+							dataBase64: 'c2Vjb25k'
+						}
 					]
 				}
 			};
 		});
+
+		const secondPageFiles = [
+			{ filename: 'second-print.pdf', mimeType: 'application/pdf', dataBase64: 'c2Vjb25k' },
+			{ filename: 'second-square.pdf', mimeType: 'application/pdf', dataBase64: 'c2Vjb25k' }
+		];
 
 		const makeSaved = (id: string): CreationRecord => ({
 			id,
@@ -399,17 +455,13 @@ describe('StudioState', () => {
 
 		// ...when the reader opens a second page, which packages immediately.
 		await studio.loadCreation(makeSaved('second-page'));
-		expect(studio.packagedFiles).toEqual([
-			{ filename: 'second.pdf', mimeType: 'application/pdf', dataBase64: 'c2Vjb25k' }
-		]);
+		expect(studio.packagedFiles).toEqual(secondPageFiles);
 
 		// The late first result must not replace what is now on screen.
 		releaseFirstPackaging!();
 		await firstLoad;
 
-		expect(studio.packagedFiles).toEqual([
-			{ filename: 'second.pdf', mimeType: 'application/pdf', dataBase64: 'c2Vjb25k' }
-		]);
+		expect(studio.packagedFiles).toEqual(secondPageFiles);
 	});
 
 	it('leaves a reopened page usable when re-packaging the saved image fails', async () => {
@@ -427,7 +479,16 @@ describe('StudioState', () => {
 
 		expect(studio.images).toHaveLength(1);
 		expect(studio.packagedFiles).toEqual([]);
+		// Not a generation failure: the page is on the paper and still previews, exports as the
+		// provider's own image, and saves to the vault.
 		expect(studio.generationError).toBe('');
+		expect(studio.pageExports.map((item) => item.kind)).toEqual(['original']);
+		// And it says so, rather than leaving a dead button with no reason — which is what the
+		// reopen path's own near-copy of the packaging code used to do.
+		expect(studio.exportError).toBe(
+			'Your page is on the paper. The printable download could not be built: no canvas. ' +
+				'The square share image could not be built: no canvas.'
+		);
 	});
 
 	it('applies the dedication input value before validation and schedules draft save', () => {
@@ -450,9 +511,7 @@ describe('StudioState', () => {
 		studio.images = [
 			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
 		];
-		studio.packagedFiles = [
-			{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
-		];
+		arrangePackagedPage(studio);
 		studio.generationError = 'stale error';
 		studio.assembledPrompt = 'stale assembled prompt';
 		studio.revisedPrompt = 'stale revised prompt';
@@ -488,9 +547,7 @@ describe('StudioState', () => {
 		studio.images = [
 			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
 		];
-		studio.packagedFiles = [
-			{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
-		];
+		arrangePackagedPage(studio);
 
 		await studio.selectWigForTryOn(SAMPLE_WIG);
 
@@ -523,14 +580,19 @@ describe('StudioState', () => {
 
 		await studio.handleGenerateTryOnPage();
 
-		expect(packageSpy).toHaveBeenCalledOnce();
-		const input = packageSpy.mock.calls[0][0];
-		expect(input.images[0]).toMatchObject({
-			format: 'webp',
-			mimeType: 'image/webp',
-			data: 'd2VicA==',
-			encoding: 'base64'
-		});
+		// Both variants get the same untranscoded WebP bytes.
+		expect(packageSpy.mock.calls.map((call) => call[0].variants)).toEqual([
+			['print'],
+			['square']
+		]);
+		for (const [input] of packageSpy.mock.calls) {
+			expect(input.images[0]).toMatchObject({
+				format: 'webp',
+				mimeType: 'image/webp',
+				data: 'd2VicA==',
+				encoding: 'base64'
+			});
+		}
 	});
 });
 
@@ -1998,5 +2060,268 @@ describe('StudioState quote vault', () => {
 
 		expect(studio.vaultStatus).toBe('Make a page before saving it.');
 		expect(studio.creations).toHaveLength(0);
+	});
+});
+
+/**
+ * The export row: what a finished page can actually be taken away as.
+ *
+ * The studio was the last page-making surface in the app whose downloads had never been measured.
+ * It packaged one variant where the tools hub and the mode routes packaged two, rendered a single
+ * hardcoded label — "Download PDF" — once per file whatever was behind it, and wrote a packaging
+ * failure into `generationError`, which put "your page is fine, its PDF is not" on screen in the
+ * same red as "your page failed", directly above the finished page.
+ */
+describe('StudioState page exports', () => {
+	const GENERATED_PNG_BASE64 = Buffer.from(new Uint8Array(4096).fill(9)).toString(
+		'base64'
+	);
+
+	const generateResponse = (): Response =>
+		new Response(
+			JSON.stringify({
+				ok: true,
+				value: {
+					prompt: 'the assembled prompt',
+					templateVersion: 'v2',
+					images: [
+						{
+							id: 'image-1',
+							format: 'png',
+							mimeType: 'image/png',
+							data: GENERATED_PNG_BASE64,
+							encoding: 'base64'
+						}
+					],
+					violations: [],
+					recommendedFixes: []
+				}
+			}),
+			{ status: 200, statusText: 'OK' }
+		);
+
+	const arrangeGeneratedPage = (): StudioState => {
+		const studio = new StudioState();
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => generateResponse()));
+		return studio;
+	};
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('packages the printable and the share image, like every other page-making surface', async () => {
+		const studio = arrangeGeneratedPage();
+		const packageSpy = vi
+			.spyOn(outputPackagingAdapter, 'package')
+			.mockImplementation(async (input) => ({
+				ok: true,
+				value: {
+					files: [
+						{
+							filename: `page-${input.variants?.[0]}.bin`,
+							mimeType:
+								input.variants?.[0] === 'print' ? 'application/pdf' : 'image/png',
+							dataBase64: 'cGRm'
+						}
+					]
+				}
+			}));
+
+		await studio.handleGeneratePage();
+
+		// The front door could print a page but not post one, in an app about showing receipts.
+		expect(packageSpy.mock.calls.map((call) => call[0].variants)).toEqual([
+			['print'],
+			['square']
+		]);
+		expect(studio.pageExports.map((item) => item.label)).toEqual([
+			'Printable PDF',
+			'Square PNG',
+			'Original PNG'
+		]);
+	});
+
+	it('gives every download its own name, size and purpose', async () => {
+		const studio = arrangeGeneratedPage();
+		vi.spyOn(outputPackagingAdapter, 'package').mockImplementation(async (input) => ({
+			ok: true,
+			value: {
+				files: [
+					{
+						filename: `${input.fileBaseName}${input.variants?.[0] === 'square' ? '-square.png' : '.pdf'}`,
+						mimeType:
+							input.variants?.[0] === 'print' ? 'application/pdf' : 'image/png',
+						dataBase64: GENERATED_PNG_BASE64
+					}
+				]
+			}
+		}));
+
+		await studio.handleGeneratePage();
+
+		// Three distinct labels where there used to be one constant string repeated.
+		expect(new Set(studio.pageExports.map((item) => item.label)).size).toBe(3);
+		for (const item of studio.pageExports) {
+			expect(item.sizeLabel).toBe('4 KB');
+			expect(item.purpose.length).toBeGreaterThan(0);
+			expect(item.href.startsWith('data:')).toBe(true);
+		}
+		// Every download names the same page, so a Downloads folder does not fill with files that
+		// cannot be told apart.
+		const baseName = studio.pageFileBaseName;
+		expect(baseName).toMatch(/^meechie-coloring-page-/);
+		for (const item of studio.pageExports) {
+			expect(item.filename.startsWith(baseName)).toBe(true);
+		}
+		expect(new Set(studio.pageExports.map((item) => item.filename)).size).toBe(3);
+	});
+
+	it('reports a failed packaging as a missing download, not as a failed generation', async () => {
+		const studio = arrangeGeneratedPage();
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: false,
+			error: {
+				code: 'CANVAS_UNAVAILABLE',
+				message: 'Canvas context unavailable for resizing.'
+			}
+		});
+
+		await studio.handleGeneratePage();
+
+		// The page generated. Saying otherwise is what pushes a reader to pay for a second one over
+		// a free client-side step.
+		expect(studio.images).toHaveLength(1);
+		expect(studio.generationError).toBe('');
+		expect(studio.exportError).toBe(
+			'Your page is on the paper. The printable download could not be built: Canvas context unavailable for resizing. ' +
+				'The square share image could not be built: Canvas context unavailable for resizing.'
+		);
+		// And the provider's own bytes are still there to take away.
+		expect(studio.pageExports.map((item) => item.kind)).toEqual(['original']);
+	});
+
+	it('keeps the printable download when only the share image fails', async () => {
+		const studio = arrangeGeneratedPage();
+		vi.spyOn(outputPackagingAdapter, 'package').mockImplementation(async (input) =>
+			input.variants?.[0] === 'square'
+				? {
+						ok: false,
+						error: { code: 'CANVAS_UNAVAILABLE', message: 'no canvas' }
+					}
+				: {
+						ok: true,
+						value: {
+							files: [
+								{
+									filename: 'page.pdf',
+									mimeType: 'application/pdf',
+									dataBase64: 'cGRm'
+								}
+							]
+						}
+					}
+		);
+
+		await studio.handleGeneratePage();
+
+		// One call per variant is what buys this: the seam returns on its first error, so asking for
+		// both at once would lose the PDF whenever the square rasterisation is what breaks.
+		expect(studio.pageExports.map((item) => item.kind)).toEqual(['print', 'original']);
+		expect(studio.exportError).toBe(
+			'Your page is on the paper. The square share image could not be built: no canvas.'
+		);
+	});
+
+	it('survives a packaging adapter that throws rather than returning an error', async () => {
+		const studio = arrangeGeneratedPage();
+		vi.spyOn(outputPackagingAdapter, 'package').mockRejectedValue(
+			new Error('pdf-lib could not embed these bytes')
+		);
+
+		await studio.handleGeneratePage();
+
+		// A throw used to reach `handleGeneratePage`'s catch, which writes `generationError`.
+		expect(studio.generationError).toBe('');
+		expect(studio.exportError).toContain('pdf-lib could not embed these bytes');
+	});
+
+	it('offers the provider image as soon as the page lands, before packaging finishes', async () => {
+		const studio = arrangeGeneratedPage();
+		let releasePackaging: (value: { ok: true; value: { files: [] } }) => void = () => {};
+		const packageSpy = vi.spyOn(outputPackagingAdapter, 'package').mockReturnValue(
+			new Promise((resolve) => {
+				releasePackaging = resolve as typeof releasePackaging;
+			})
+		);
+
+		const inFlight = studio.handleGeneratePage();
+		for (let i = 0; i < 100 && packageSpy.mock.calls.length === 0; i++) {
+			await Promise.resolve();
+		}
+
+		// Packaging takes seconds. The bytes on screen are downloadable for all of them — and
+		// already named after this page rather than after no page in particular.
+		expect(studio.pageExports.map((item) => item.kind)).toEqual(['original']);
+		expect(studio.pageExports[0].filename).toBe(`${studio.pageFileBaseName}-original.png`);
+
+		releasePackaging({ ok: true, value: { files: [] } });
+		await inFlight;
+	});
+
+	it('names a picture-less response for what it is instead of blaming the packager', async () => {
+		const studio = new StudioState();
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(
+				async () =>
+					new Response(
+						JSON.stringify({
+							ok: true,
+							value: {
+								prompt: 'the assembled prompt',
+								templateVersion: 'v2',
+								// Schema-valid: the contract puts no minimum on this array.
+								images: [],
+								violations: [],
+								recommendedFixes: []
+							}
+						}),
+						{ status: 200, statusText: 'OK' }
+					)
+			)
+		);
+		const packageSpy = vi.spyOn(outputPackagingAdapter, 'package');
+
+		await studio.handleGeneratePage();
+
+		expect(packageSpy).not.toHaveBeenCalled();
+		expect(studio.generationError).toBe(
+			'Meechie sent the words back without a picture. Try creating the page again.'
+		);
+		// The trace still shows what was asked for, so the failure is diagnosable.
+		expect(studio.assembledPrompt).toBe('the assembled prompt');
+	});
+
+	it('clears the whole export row when the page is replaced', async () => {
+		const studio = arrangeGeneratedPage();
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: false,
+			error: { code: 'CANVAS_UNAVAILABLE', message: 'no canvas' }
+		});
+
+		await studio.handleGeneratePage();
+		expect(studio.exportError).not.toBe('');
+
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+
+		// The files, the described row, the failure sentence and the shared file name all go, because
+		// all four are derived from the one thing `resetGeneratedPage` clears.
+		expect(studio.packagedFiles).toEqual([]);
+		expect(studio.pageExports).toEqual([]);
+		expect(studio.exportError).toBe('');
+		expect(studio.pageFileBaseName).toBe('');
 	});
 });

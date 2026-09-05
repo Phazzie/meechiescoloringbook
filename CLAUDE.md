@@ -83,6 +83,7 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `tool-page-recipe.ts` | Pure per-tool coloring page recipes — turns a Meechie tool verdict into the `ColoringPageSpec` + style hint it deserves (list page vs full-quote page) |
 | `mode-catalog.ts` | The focused-mode catalog behind `/m/<slug>` — which modes exist, the questions each asks, and how the answers become a `MeechieToolInput`. Derived from `studioModes` so the home page's links and the mode pages cannot drift apart |
 | `generated-image-preview.ts` | Pure `GeneratedImage` conversions — `data:` URL for a preview, base64 bytes for the vault. Shared by the studio, the toolkit and the mode routes |
+| `page-exports.ts` | Pure descriptions of a finished page's downloads — what each packaged file is, what it is for, how big it is, and one sentence naming any variant that could not be built. The variant is carried in from the call site that asked the packaging seam for it, never recovered from a filename |
 | `wig-catalog-gallery.ts` | Pure wig-catalog shopping transforms — search across name/brand/style/colour/tags, facet chips for length, hair type and colour family, and sorting. Facet counts are measured against the search and every *other* dimension, so a chip never advertises results it cannot return |
 
 ### src/routes/
