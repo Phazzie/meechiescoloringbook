@@ -4755,3 +4755,106 @@ measured are the ones that look like features. A row of buttons at the end of a 
 plumbing, and plumbing is where "the label is a constant" survives five audits.
 
 Do not inherit this entry's "measured on `main`" claims either. Re-measure.
+
+---
+
+## Run 6, merge close-out — 2026-09-05 — PR #302 merged as `2d3c3832`
+
+The home studio's export row is Run 6's worst→best feature, and it is on `main`. Merged under the
+`AGENTS.md` green gate, which merges without asking rather than waiting to be told.
+
+### What the gate required, and what it found
+
+| Condition | State at merge |
+|---|---|
+| CI green on the current head, **both** surfaces | Read on `c40f831a`. Check runs: `verify` ×2, CodeQL, Analyze (javascript-typescript), Analyze (actions), SonarCloud, SonarCloud Code Analysis (Quality Gate passed, 0 new issues), Vercel Preview Comments — all success. Commit statuses: combined `success`; Vercel **deployed**. One red: Rosentic. |
+| Every review comment addressed | Rosentic's 134 findings answered in a comment with the reason they are not being fixed. Codex, Sourcery and CodeRabbit each stood down for account reasons — usage limit, 7-day diff budget, and "fewer than 10 stars" — so **no bot produced a single finding about this diff**. No human review. |
+| `npm run verify` and `npm test` green, evidence committed | Exit 0; 1319 passed / 1 skipped; `docs/evidence/2026-09-05/`. |
+| No unpushed work, no merge conflict | Local `HEAD` == remote == `c40f831a`; 0 commits behind `main`. |
+
+None of the four exclusions applied. No human change request (every review was a bot). No schema,
+contract or data migration — `git diff origin/main...HEAD -- src/lib/adapters src/lib/seams contracts
+src/routes/api` produced **0 lines**. No open Assumption covers the shipped behaviour, argued rather
+than asserted below. No owner hold.
+
+### The one red check, and how it was cleared
+
+Rosentic reported 134 findings, 5 "Breaking", reducing to two claims: that
+`claude/sweet-mendel-LJ9Iu` had "changed `derivesDenseDecorations` by removing `styleHint`" and
+"changed `specOwnQuote` by removing `intent`", so this branch's calls would send an argument to a
+function that takes none.
+
+This log's previous entry describes a Rosentic failure with the same shape and dismisses it on the
+grounds that the branches had **no common ancestor** with `main`. That argument does not hold here —
+these two branches *do* share an ancestor (`29109f03`) — which is exactly why an inherited conclusion
+is not evidence. Re-established from scratch, four ways:
+
+1. **The branches predate the functions.** Tips at 2026-06-08 and 2026-07-01; `derivesDenseDecorations`
+   introduced on `main` 2026-09-04 (`f356e1db`), `specOwnQuote` 2026-09-05 (`d4a48eda`). Both absent at
+   the merge base, and absent from `sweet-mendel`'s entire 425-line copy of the file. The lines
+   Rosentic cites as the site of the change — `meechie-studio.ts:376` and `:443` — are where those
+   functions sit **on `main`**.
+2. **Simulating both merges keeps the parameters.** `git merge --no-commit --no-ff` for each branch,
+   then grep: `specOwnQuote = (intent: ColoringPageSpec)` and
+   `derivesDenseDecorations = (styleHint: string)` survive intact. The predicted breakage does not
+   happen, because these are additions made on `main` after the fork point.
+3. **The inline findings fail the same way.** They name test helpers — `makeSaved`,
+   `arrangeTryOnPortrait`, `buildSeedSpec`, `makeCreation`, `initVault` — as changed on
+   `trusting-volta`. That branch's `tests/unit/studio-state.test.ts` is **91 lines** and defines none
+   of them; `main`'s is 2002 and defines all of them. `releasePackaging`, named in one finding, exists
+   on neither branch.
+4. **Its fix would turn CI red.** Applying it literally gives four `svelte-check` errors —
+   "Expected 1 arguments, but got 0" — three of them at call sites this PR never touched.
+
+The gate additionally requires matching the same *signature* on the base or an unrelated head, in
+writing, before merging. PR #301 (`feat/retire-legacy-seam-stubs`) carried the identical Rosentic
+failure — same `CONFLICT`, same "66 of 66 pairs compared", same two breaking findings naming the same
+two branches and the same two symbols at the same line numbers — and **merged into `main` as
+`7c0249b3` an hour earlier**, with the owner standing the check down there by name. Only the *calling*
+branch differs between the two reports, because the caller is whichever PR is being scanned. The
+comparison was written to the PR before the merge button was pressed.
+
+### The Assumption argument, made rather than asserted
+
+Three open Assumptions touch seams: the live xAI wig-try-on payload, the rate limiter's durable store,
+and the deployed `/api/meechie-studio-text` path. The wig one is the only plausible candidate, because
+`handleGenerateTryOnPage` is in the diff.
+
+It still does not apply, and the reason is the shape of the change rather than the file list. That
+Assumption is about what the **production adapter sends** to xAI. This diff changes no request. A grep
+of the studio-state diff for `postJson('/api…`, `wigId`, `selfieBase64`, `selfieMimeType` and
+`actionId:` returns nothing; the only edit on the try-on path is one call site renamed from
+`attachPackagedPage` to `attachPageExports`, which runs **after** the portrait already exists and does
+packaging, not provider I/O. The previous run's close-out had to be corrected twice for asserting an
+exclusion instead of arguing it; this states the argument up front.
+
+### What this run is actually about
+
+Five runs rebuilt the vault, the tools hub, the mode routes, `/m/<slug>` and the wig try-on. Every one
+of those looks like a feature. The download row looks like plumbing — and plumbing is where a label
+that is a compile-time constant survived five audits, where the app's front door quietly lacked the
+one artifact its whole subject matter calls for, and where a free client-side failure wore the costume
+of a paid one.
+
+The three most useful things this run produced are not in the feature:
+
+- **A `$derived` field in Svelte 5 is still writable.** Four existing tests assigned `packagedFiles`
+  and asserted on it. The moment it stopped being `$state`, those tests were asserting about a value
+  they had written themselves — and the suite stayed green. A test whose subject changes from stored
+  to derived needs re-reading, not just re-running.
+- **Deleting a call deletes the message it was accidentally producing.** The zero-image generate
+  response had only ever been reported as the packaging seam's "No images provided for packaging."
+  Removing the packaging call from that path would have replaced a confusing message with silence.
+  Found by asking what the new early return costs, not by a test failing.
+- **An inherited dismissal is worth less than the check it dismisses.** The previous entry's reason for
+  standing Rosentic down was factually wrong for this run's branch pair. Had it been reused, the
+  conclusion would still have been right and the reasoning indefensible.
+
+### For the next run
+
+Two things this run deliberately did not do, both with the reasoning already written down above and in
+the Run 6 entry: `VerdictPageStudio` and `MeechieTools` still render raw filenames where
+`page-exports.ts` now exists to describe them, and `recommendedFixes` is still computed on every
+generation and shown on no surface in the app.
+
+Neither is a recommendation to pick next. Measure it.
