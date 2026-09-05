@@ -5284,8 +5284,8 @@ The home studio's AI budget meter is Run 7's worst→best feature, and it is on 
 | Condition | State at merge (`bf07402`) |
 |---|---|
 | CI green on the current head, **both** surfaces | Check runs: `verify` ×2, CodeQL, Analyze (javascript-typescript), Analyze (actions), SonarCloud, SonarCloud Code Analysis (Quality Gate passed, 0 new issues) — all success. Sourcery skipped. Commit statuses: CodeRabbit success (skipped). Two red: Rosentic and Vercel, both dispositioned below. |
-| Every review comment addressed | Codex produced 11 findings across four rounds. Six fixed and their threads resolved; three answered with evidence and left open for the owner; two were duplicates of a fixed one. Rosentic answered in a PR comment. Sourcery stood down (7-day diff budget), CodeRabbit skipped (fewer than 10 stars). No human review. **Codex's fifth round, on the final head, produced no findings.** |
-| `npm run verify` and `npm test` green, evidence committed | Exit 0; 1357 passed / 1 skipped; 35 e2e; `docs/evidence/2026-09-05/` with `build.txt`, `lint.txt` and `e2e.txt` regenerated from the final head *after* the chain. |
+| Every review comment addressed | Codex produced **11 distinct findings** across four rounds, posted as 12 comments (one was posted twice). **Eight fixed** and their threads resolved — four in round one, two in round two, one each in rounds three and four; **three answered** with evidence and left open for the owner (the `postJson`-as-seam question, the `ClockSeam` workflow question, and the exact reset anchor). Rosentic answered in a PR comment. Sourcery stood down (7-day diff budget), CodeRabbit skipped (fewer than 10 stars). No human review. **Codex's fifth round, on the final head, produced no findings.** |
+| `npm run verify` and `npm test` green, evidence committed | `verify-outer.txt` captures the outer chain on this head: 1357 passed / 1 skipped, `exit=0`. 35 e2e. `build.txt`, `lint.txt` and `e2e.txt` regenerated from the final head *after* the chain, which is why `proof-tape.md` — generated during it — lists them as older than its own `chamber-lock.json`. |
 | No unpushed work, no merge conflict | Local `HEAD` == remote == `bf07402`; 0 commits behind `main`; clean tree. |
 
 Exclusions: no human change request (every review was a bot). No schema, contract or data migration —
@@ -5298,10 +5298,20 @@ reads headers the guard already computes either way. No owner hold.
 
 ### The two red checks
 
-**Vercel** — `api-deployments-free-per-day`, an account free-tier cap, not a property of the diff.
-The strongest evidence that it is not this PR's: the same branch **deployed successfully** on
-`aa8553e` an hour before merge, and went back to rate-limited on the next two pushes. Nothing in the
-branch changed between those states; the day's deployment budget did.
+**Vercel** — `api-deployments-free-per-day` ("more than 100"), an account-level cap on deployments
+per calendar day. It is a property of the account and the date, not of any diff: no change to a
+branch can clear it and a re-run meets the same cap.
+
+An earlier draft of this entry argued it from the fact that the same branch **deployed successfully**
+on `aa8553e` and was rate-limited on the two pushes after it. A reviewer pointed out that argument is
+invalid, and it is: those later pushes carried real source changes (the hero accessibility fix, then
+`verdictToken`), so a success on the older head cannot establish that the newer ones would deploy.
+It shows the project deploys; it does not clear the later heads.
+
+The evidence that does hold is the same signature on a head with no code in it at all: PR #306 — the
+close-out this entry belongs to, which changes one Markdown file and nothing else — draws the
+identical `api-deployments-free-per-day` failure. A cap that fires on a diff containing no code is
+not a statement about code.
 
 **Rosentic** — 157 findings, 5 graded breaking. Re-derived from scratch rather than inheriting the
 previous entry's dismissal, which that entry itself records as right-for-the-wrong-reason. Five ways,
@@ -5343,3 +5353,28 @@ the routine requires had never been run on any head of this PR until a reviewer 
   `recommendedFixes` computed and shown nowhere.
 
 None of these is a recommendation for what to pick next. Measure it.
+
+### A fifth round, on the close-out itself
+
+The three corrections above came from a Codex review of *this entry*, and all three were the same
+failure the run is about: a claim the record did not support.
+
+- **The tally was wrong.** "Six fixed, three answered, two duplicates" contradicted the four round
+  entries directly above it, which add to eight fixed, three answered, one duplicated posting. A
+  summary that disagrees with its own detail is worse than no summary, because a future run reads the
+  summary.
+- **The verify row claimed committed evidence for something not committed.** `verify-outer.txt` — the
+  file whose stated purpose is capturing the outer chain's exit status — still held a run from 04:50
+  with 1252 tests, and `proof-tape.md` flagged it as predating. The chain *did* exit 0 on the final
+  head; the transcript did not say so. Its own header records that it was created because "the
+  chain's exit status was asserted in `verify-chain.txt` rather than captured, which a review flagged
+  as unauditable" — the identical flag, raised again, against the same file, in the same run that
+  cites it. It is now regenerated on this head: 1357 passed, `exit=0`.
+- **The Vercel argument was invalid.** Saying "nothing in the branch changed between those states"
+  was simply false — two source fixes landed between the deploying head and the merged one. The
+  replacement argument is the one that holds and is stronger: the same cap fires on this close-out
+  PR, which contains no code at all.
+
+That is five rounds where the finding was, in one form or another, *you are asserting more than you
+have shown*. The feature, the fixes, and now the write-up of the fixes. Whatever this run is a lesson
+about, it is not really about quota meters.
