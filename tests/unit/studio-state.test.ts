@@ -3508,6 +3508,30 @@ describe('StudioState page style', () => {
 		expect(studio.settingsIssues).toEqual([]);
 	});
 
+	it('stops saying a control change could not be checked once a check has run', async () => {
+		// `settingsError` is the other half of the panel's report, and it goes stale the same way.
+		// It says "that change was not *checked*", which stops being true the moment something else
+		// checks the spec — and only the next Page Controls change cleared it, so the sentence could
+		// outlive its own subject on a page that had since been validated twice.
+		//
+		// Found by mutation rather than by review: dropping the clear left the whole suite green,
+		// which is the same as not having written it.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		const validate = vi
+			.spyOn(specValidationAdapter, 'validate')
+			.mockRejectedValue(new Error('spec rebuild exploded'));
+
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.settingsError).toBe('spec rebuild exploded');
+
+		// The seam recovers, and the reader's next edit gets a real answer about the spec.
+		validate.mockRestore();
+		studio.handleDedicationInput('For Meechie');
+		await vi.waitFor(() => expect(studio.settingsError).toBe(''));
+	});
+
 	it('does not adopt a failure the reader caused somewhere else after a control passed', async () => {
 		// The other half of deriving the report, and the half that keeps the derivation from
 		// undoing an earlier fix. `settingsIssues` follows `validationIssues` now, so without a rule
