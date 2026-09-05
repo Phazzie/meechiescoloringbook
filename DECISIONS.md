@@ -7,6 +7,29 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-05 - Persist the Page Controls' style selection with the pages it made (CreationStoreSeam)
+
+- Date: 2026-09-05
+- Decision: Add an optional `styleSelection` field (`StyleSelectionSchema`: `themeId`, `voice`, `glitter`, optional `wig` name/style) to `CreationRecordSchema` and `DraftRecordSchema` in `CreationStoreSeam`, and make `src/lib/core/page-style.ts` the single encoder of the prompt's `Vibe:` line.
+- Context: Of the seven Page Controls on the home studio, only page size and border were persisted, because those two are `ColoringPageSpec` fields. Theme, intensity, rawness, third person and glitter reach a page only through the style hint, which is composed at request time and stored nowhere. A reopened page therefore showed defaults in its controls, and because `applyTextToSpec` recomposes the hint from the live controls on every setting change, touching one control silently restyled the page with the other five.
+- Alternatives: (a) Recover the hint by parsing the `Vibe:` line back out of the stored `assembledPrompt` — rejected: it makes restore depend on `PromptAssemblySeam`'s exact template, so a prompt-format change breaks restore silently, and it is the "read a value back out of a proxy" mistake this log records four times. (b) Leave restore alone and only warn — rejected: it accepts the data loss it describes. (c) Reset the controls to defaults when a record has no stored style — implemented first, then rejected when a test caught it destroying settings the reader had just chosen; the controls belong to the reader, not to the record.
+- Consequences: Reopening a page or restoring a draft puts back the style that made it. Records written before this field parse unchanged (the field is optional) and are reported to the reader as "this page's style is not on file" rather than being presented as the defaults. Nothing about a live generation changes: `buildStyleHint` reproduces the previous inline template byte for byte, pinned by a literal test.
+- Revisit criteria: If a future release removes a theme, `themeForSelection` falls back to the first theme; if theme removal becomes common, store the theme's style hint alongside its id.
+- Self-critique: The riskiest assumption is that making the field optional is enough for backward compatibility. Disproved-by-testing rather than asserted: a contract test parses a record with the key deleted, and a mutation making the field required turned ten vault tests red — the adapter validates with these schemas, so a required field would have silently emptied every existing reader's vault on upgrade.
+- Evidence: docs/evidence/2026-09-05/verify.txt; docs/evidence/2026-09-05/test.txt; docs/evidence/2026-09-05/chamber-lock.json; docs/evidence/2026-09-05/seam-ledger.json; docs/evidence/2026-09-05/proof-tape.json
+- Plan:
+  - Goal: Store the style a page was made with, restore it on reopen and on draft refresh, and make the Page Controls panel explain and report itself.
+  - Seams: CreationStoreSeam (contract + contract tests; adapter and mock unchanged — the adapter validates through these schemas and stores JSON, so an added optional field needs no adapter change).
+  - Files: `src/lib/seams/creation-store-seam/contract.ts`, `src/lib/seams/creation-store-seam/test.ts`, `src/lib/core/page-style.ts`, `src/routes/studio-state.svelte.ts`, `src/lib/components/studio/StudioSettingsPanel.svelte`, `src/routes/+page.svelte`, `tests/unit/page-style.test.ts`, `tests/unit/studio-state.test.ts`, `docs/seams.md`, `CHANGELOG.md`, `DECISIONS.md`, `WORST_TO_BEST_LOG.md`.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`.
+
+- Cipher Gate:
+  - Date: 2026-09-05
+  - Seams: CreationStoreSeam
+  - Evidence: docs/evidence/2026-09-05/verify.txt; docs/evidence/2026-09-05/test.txt; docs/evidence/2026-09-05/chamber-lock.json; docs/evidence/2026-09-05/seam-ledger.json; docs/evidence/2026-09-05/proof-tape.json
+  - Summary: Added an optional `styleSelection` to `CreationRecordSchema` and `DraftRecordSchema` so a saved page carries the theme, voice, glitter and wig that composed its `Vibe:` line, reusing `MeechieStudioVoiceSettingsSchema` rather than restating three enums.
+  - Risks: A record naming a theme that a later release removes falls back to the first theme rather than failing; the field is optional, so a record written by an older build restores no style and is reported as unknown rather than guessed at.
+
 ## 2026-09-05 - Consumer Import Re-routing and Mock Synchronization (Batch 3 Seam Migration v2.0)
 
 - Date: 2026-09-05

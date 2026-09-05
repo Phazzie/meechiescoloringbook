@@ -16,6 +16,7 @@ import { createMockAppOriginSeam } from '../../src/lib/seams/app-origin-seam/moc
 import type { AppOriginSeam } from '../../src/lib/seams/app-origin-seam/contract';
 import { createMockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
 import type { MockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
+import { specValidationAdapter } from '../../src/lib/adapters/spec-validation-seam';
 import { StudioState } from '../../src/routes/studio-state.svelte';
 import { VAULT_CAPACITY } from '../../src/lib/core/vault-gallery';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
@@ -2323,5 +2324,227 @@ describe('StudioState page exports', () => {
 		expect(studio.pageExports).toEqual([]);
 		expect(studio.exportError).toBe('');
 		expect(studio.pageFileBaseName).toBe('');
+	});
+});
+
+describe('StudioState page style', () => {
+	const SESSION_ID = 'style-session';
+
+	const styleSelection = {
+		themeId: 'receipts',
+		voice: {
+			intensity: 'no_mercy' as const,
+			rawness: 'raw' as const,
+			thirdPerson: 'always' as const
+		},
+		glitter: true
+	};
+
+	const makeStyledCreation = (overrides: Partial<CreationRecord> = {}): CreationRecord => ({
+		id: 'styled-page',
+		createdAtISO: '2026-09-01T00:00:00.000Z',
+		intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A STYLED PAGE' },
+		assembledPrompt: 'prompt for styled-page',
+		studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+		owner: { kind: 'anonymous', sessionId: SESSION_ID },
+		...overrides
+	});
+
+	afterEach(() => {
+		destroyInitializedStudios();
+		vi.restoreAllMocks();
+	});
+
+	it('saves the theme, voice and glitter that composed the page', async () => {
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+
+		studio.selectedThemeId = 'receipts';
+		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
+		studio.glitter = true;
+		studio.textOutput = DEFAULT_STUDIO_TEXT_OUTPUT;
+		studio.assembledPrompt = 'a prompt';
+
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
+	});
+
+	it('records the wig in the saved style when one was on the page', async () => {
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+
+		studio.selectedWig = SAMPLE_WIG;
+		studio.textOutput = DEFAULT_STUDIO_TEXT_OUTPUT;
+		studio.assembledPrompt = 'a prompt';
+		await studio.saveToVault();
+
+		// The two strings the hint prints, and deliberately not the catalog id.
+		expect(saveSpy.mock.calls[0][0].record.styleSelection?.wig).toEqual({
+			name: SAMPLE_WIG.name,
+			style: SAMPLE_WIG.style
+		});
+	});
+
+	it('puts a reopened page back on the controls that made it', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		await studio.loadCreation(makeStyledCreation({ styleSelection }));
+
+		expect(studio.selectedThemeId).toBe('receipts');
+		expect(studio.voice).toEqual(styleSelection.voice);
+		expect(studio.glitter).toBe(true);
+		expect(studio.styleSelectionUnknown).toBe(false);
+	});
+
+	it('keeps a reopened page looking the same when an unrelated control changes', async () => {
+		// The defect this run exists to fix. `applyTextToSpec` recomposes the style hint from the
+		// live controls on every setting change, so a reopened page whose controls had reset to the
+		// defaults was restyled by a page-size change — one control moved, five moved underneath.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		await studio.loadCreation(makeStyledCreation({ styleSelection }));
+
+		const generateSpy = vi.spyOn(globalThis, 'fetch');
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		generateSpy.mockRestore();
+
+		expect(studio.selectedThemeId).toBe('receipts');
+		expect(studio.voice.intensity).toBe('no_mercy');
+		expect(studio.glitter).toBe(true);
+		// And the size the reader actually asked for did change.
+		expect(studio.spec.pageSize).toBe('A4');
+	});
+
+	it('keeps a reopened page on its wig for hint purposes without re-selecting the wig', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		await studio.loadCreation(
+			makeStyledCreation({
+				styleSelection: { ...styleSelection, wig: { name: 'Honey Drip', style: 'body wave' } }
+			})
+		);
+
+		// The try-on studio is untouched — nothing re-selects a wig the reader has not chosen.
+		expect(studio.selectedWig).toBeNull();
+		// But the page's own look still carries it, so the next setting change cannot drop it.
+		expect(studio.currentStyleSelection().wig).toEqual({ name: 'Honey Drip', style: 'body wave' });
+	});
+
+	it('says a page saved before styles were stored has no style on file, and touches nothing', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.voice = { intensity: 'church_lady', rawness: 'medium', thirdPerson: 'never' };
+		studio.selectedThemeId = 'main-character';
+
+		await studio.loadCreation(makeStyledCreation());
+
+		expect(studio.styleSelectionUnknown).toBe(true);
+		// The controls are the reader's, not the record's. Resetting them to the defaults here was
+		// the first attempt and threw away settings the reader had just chosen.
+		expect(studio.selectedThemeId).toBe('main-character');
+		expect(studio.voice.intensity).toBe('church_lady');
+	});
+
+	it('clears the unknown-style notice once a page the studio authored replaces it', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		await studio.loadCreation(makeStyledCreation());
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+
+		expect(studio.styleSelectionUnknown).toBe(false);
+	});
+
+	it('round-trips the style through the draft, so a refresh does not restyle the page', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		studio.selectedThemeId = 'receipts';
+		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
+		studio.glitter = true;
+		draftSpy.mockClear();
+		await studio.syncSpecFromCurrentText('setting');
+		// The draft save is debounced behind a timer, so the write is not on the spy yet.
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		const savedDraft = draftSpy.mock.calls.at(-1)?.[0].draft;
+		expect(savedDraft?.styleSelection).toEqual(styleSelection);
+
+		const refreshed = await initFromDraft(savedDraft!);
+		expect(refreshed.selectedThemeId).toBe('receipts');
+		expect(refreshed.voice).toEqual(styleSelection.voice);
+		expect(refreshed.glitter).toBe(true);
+		expect(refreshed.styleSelectionUnknown).toBe(false);
+	});
+
+	it('seeds the density derivation from the restored style, not from the defaults', async () => {
+		// Order matters inside the restore: `lastDerivesDense` is read from the live controls, so
+		// seeding it before the style is applied describes a page that was never on screen — and
+		// that seed is what the next setting change is decided against.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		const dense = {
+			...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			decorations: 'dense' as const
+		};
+
+		await studio.loadCreation(
+			makeStyledCreation({
+				intent: dense,
+				styleSelection: {
+					themeId: 'receipts',
+					voice: { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' },
+					glitter: false
+				}
+			})
+		);
+
+		// `receipts` puts `receipt` in the hint, so the restored page is correctly seeded dense and
+		// an unrelated change leaves it dense.
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('dense');
+	});
+
+	it('reports a failed settings change beside the controls, not as a draft problem', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		// `saveDraft` catches its own failures, so the way to fail a settings change is to fail the
+		// rebuild itself — the same module instance the studio validates through.
+		vi.spyOn(specValidationAdapter, 'validate').mockRejectedValue(
+			new Error('spec rebuild exploded')
+		);
+
+		// Resolves rather than rejects: the only caller is a DOM event handler, and rethrowing here
+		// produced an unhandled rejection that told nobody anything.
+		await expect(studio.syncSpecFromCurrentText('setting')).resolves.toBeUndefined();
+
+		expect(studio.settingsError).toBe('spec rebuild exploded');
+		expect(studio.draftSaveError).toBe('');
+	});
+
+	it('clears a previous settings error when the next change succeeds', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.settingsError = 'something old';
+
+		await studio.syncSpecFromCurrentText('setting');
+
+		expect(studio.settingsError).toBe('');
 	});
 });

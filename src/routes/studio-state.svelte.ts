@@ -67,6 +67,13 @@ import { nextUtcDayBoundary, type ClockSeam } from '$lib/seams/clock-seam/contra
 import type { PageVisibilitySeam } from '$lib/seams/page-visibility-seam/contract';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
+import {
+	buildStyleHint,
+	DEFAULT_STYLE_SELECTION,
+	type StyleSelection,
+	type StyleWig
+} from '$lib/core/page-style';
+
 type PageSize = ColoringPageSpec['pageSize'];
 type BorderChoice = ColoringPageSpec['border'];
 
@@ -158,22 +165,43 @@ export class StudioState {
 
 	// --- Reactive state (template-bound) ---
 	activeModeId = $state(this.weeklyModes[0].id);
-	selectedThemeId = $state(studioThemes[0].id);
+	// The studio's starting style and `DEFAULT_STYLE_SELECTION` were the same three values written
+	// out twice. Spread rather than shared, so one instance's voice is not another's.
+	selectedThemeId = $state(DEFAULT_STYLE_SELECTION.themeId);
 	evidence = $state('');
 	dedication = $state('');
-	voice = $state<MeechieStudioVoiceSettings>({
-		intensity: 'receipts_out',
-		rawness: 'mild',
-		thirdPerson: 'sometimes'
-	});
+	voice = $state<MeechieStudioVoiceSettings>({ ...DEFAULT_STYLE_SELECTION.voice });
 	pageSize = $state<PageSize>('US_Letter');
 	border = $state<BorderChoice>('decorative');
-	glitter = $state(false);
+	glitter = $state(DEFAULT_STYLE_SELECTION.glitter);
 	revisionBudget = $state(DEFAULT_REVISION_BUDGET);
 	textOutput = $state<MeechieStudioTextOutput | null>(null);
 	textError = $state('');
 	generationError = $state('');
 	draftSaveError = $state('');
+	/**
+	 * A Page Controls change that could not be applied.
+	 *
+	 * Its own field, because it used to be written to `draftSaveError` — rendered in the *evidence*
+	 * panel, prefixed "Draft not saved:". A theme that failed to apply was therefore reported as a
+	 * draft problem, on a different panel, while the control the reader had just moved said nothing.
+	 */
+	settingsError = $state('');
+	/**
+	 * The wig named by a reopened page's stored style, when no wig is selected now.
+	 *
+	 * See `currentStyleSelection`. Not `$state`: nothing renders it, and it is read only while
+	 * composing the hint.
+	 */
+	private restoredStyleWig: StyleWig | undefined = undefined;
+	/**
+	 * True when the page on screen was saved before styles were stored with them.
+	 *
+	 * Such a record has no `styleSelection`, so the panel genuinely does not know what made the
+	 * page. The controls therefore keep showing the reader's own settings — and the panel says so,
+	 * rather than presenting them as this page's choices.
+	 */
+	styleSelectionUnknown = $state(false);
 	isTextWorking = $state(false);
 	isGenerating = $state(false);
 	copyStatus = $state('');
@@ -523,12 +551,67 @@ export class StudioState {
 		return btoa(binary);
 	}
 
+	/**
+	 * The Page Controls, as the one value that composes the page's `Vibe:` line.
+	 *
+	 * The wig is read live and falls back to `restoredStyleWig`. A page can be made while a wig is
+	 * selected, and the wig is then part of the hint that made it; reopening that page re-selects no
+	 * wig, so without the fallback the first setting change would drop the wig out of the hint and
+	 * quietly restyle a page the reader only asked to resize. `resetGeneratedPage` clears the
+	 * fallback, so it can never outlive the page it was restored for.
+	 */
+	currentStyleSelection(): StyleSelection {
+		const wig = this.selectedWig
+			? { name: this.selectedWig.name, style: this.selectedWig.style }
+			: this.restoredStyleWig;
+		return {
+			themeId: this.selectedThemeId,
+			voice: $state.snapshot(this.voice),
+			glitter: this.glitter,
+			...(wig ? { wig } : {})
+		};
+	}
+
 	private currentStyleHint(): string {
-		const glitterText = this.glitter ? ' removable glitter overlay accents' : '';
-		const wigText = this.selectedWig
-			? ` featuring ${this.selectedWig.name} (${this.selectedWig.style})`
-			: '';
-		return `${this.activeTheme.styleHint}; ${this.voice.intensity}; ${this.voice.rawness}; ${this.voice.thirdPerson}${glitterText}${wigText}`;
+		return buildStyleHint(this.currentStyleSelection());
+	}
+
+	/**
+	 * Put a stored selection back on the controls.
+	 *
+	 * Assigning the whole voice object rather than three fields keeps this in step with the contract
+	 * shape: a voice value that gained a fourth setting would arrive here complete instead of being
+	 * silently dropped by a three-field copy.
+	 */
+	private applyStyleSelection(selection: StyleSelection): void {
+		this.selectedThemeId = selection.themeId;
+		this.voice = { ...selection.voice };
+		this.glitter = selection.glitter;
+		this.restoredStyleWig = selection.wig;
+	}
+
+	/**
+	 * Restore a page's style, or record that the page did not come with one.
+	 *
+	 * Both restore paths — the vault and the draft — go through here, so the two cannot answer the
+	 * "what if there is no stored selection?" question differently. They already drifted once on the
+	 * neighbouring question of which verdict belongs to a page; one function is how that stops
+	 * being possible.
+	 *
+	 * When there is no stored selection the controls are left exactly as the reader set them, and
+	 * the panel is told to say the page's own style is not on file.
+	 *
+	 * Resetting them to the defaults instead was the first attempt, and a test caught it being
+	 * wrong: those controls are the reader's, not the record's, so reopening any page saved before
+	 * this field existed would have silently thrown away settings they had just chosen — arbitrary
+	 * destruction, to replace a lie with a different lie. The lie is what needed removing, and the
+	 * notice removes it. Nothing the reader owns is touched to do that.
+	 */
+	private applyRestoredStyleSelection(selection: StyleSelection | undefined): void {
+		if (selection) {
+			this.applyStyleSelection(selection);
+		}
+		this.styleSelectionUnknown = !selection;
 	}
 
 	private currentDedication(): string | undefined {
@@ -552,7 +635,11 @@ export class StudioState {
 					// Exactly the rule the vault uses, through the same accessor. A draft that
 					// carried text this page does not own would come back after a refresh as
 					// genuine, with nothing left to say otherwise.
-					studioText: this.describingStudioText()
+					studioText: this.describingStudioText(),
+					// Saved for the same reason the vault saves it, and it matters more here: a
+					// draft is restored on every refresh, so a draft without the style was a page
+					// whose look changed every time the reader came back to it.
+					styleSelection: this.currentStyleSelection()
 				}
 			});
 			if (result.ok) {
@@ -660,6 +747,11 @@ export class StudioState {
 		// Whatever replaces the paper is not a try-on portrait until a try-on generation says so.
 		this.tryOnPageOnScreen = false;
 		this.tryOnPageTitle = '';
+		// Both of these describe a *restored* page, and this is the moment there stops being one.
+		// `loadCreation` calls this first and applies the restored style after, so a reopen still
+		// gets its own values; every other caller is starting a page the controls genuinely describe.
+		this.restoredStyleWig = undefined;
+		this.styleSelectionUnknown = false;
 	}
 
 	/**
@@ -774,12 +866,19 @@ export class StudioState {
 	syncSpecFromCurrentText = async (
 		source: SettingChangeSource = 'setting'
 	): Promise<void> => {
+		this.settingsError = '';
 		try {
 			await this.applyTextToSpec(this.rebuildSourceText(), source);
 		} catch (error) {
-			this.draftSaveError =
-				error instanceof Error ? error.message : 'Page settings could not be saved.';
-			throw error;
+			// Reported where the reader is looking — beside the control they just moved — instead of
+			// as "Draft not saved:" in the evidence panel, which is what a settings failure used to
+			// be dressed up as.
+			//
+			// Swallowed rather than rethrown. The only caller is a DOM event handler, so rethrowing
+			// produced an unhandled rejection and told nobody anything; the message above is the
+			// whole report either way.
+			this.settingsError =
+				error instanceof Error ? error.message : 'Page settings could not be applied.';
 		}
 	};
 
@@ -1247,6 +1346,11 @@ export class StudioState {
 					violations: $state.snapshot(this.violations),
 					fixesApplied: this.recommendedFixes.map((fix) => fix.code),
 					authContext: this.authContext ?? undefined,
+					// What the page actually looks like. `intent` carries page size and border; the
+					// theme, voice and glitter that composed its `Vibe:` line reach the page only
+					// through the style hint, so without this the record describes the layout of a
+					// page and none of its look.
+					styleSelection: this.currentStyleSelection(),
 					owner
 				}
 			});
@@ -1267,6 +1371,15 @@ export class StudioState {
 		this.spec = creation.intent;
 		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
 		this.restoredPageLayout = true;
+		// And this page's *look* is the saved page's too, for exactly the same reason. Restoring the
+		// layout while leaving the style controls where they were is what made a reopened page
+		// change its vibe on the next page-size change: `applyTextToSpec` recomposes the hint from
+		// whatever the controls say, and they were saying Crown Energy over somebody else's page.
+		//
+		// Applied before the derivation is seeded below, not after: the seed is read off the
+		// controls, so seeding first would describe a page that was never on screen — and that seed
+		// is what the next setting change is decided against.
+		this.applyRestoredStyleSelection(creation.styleSelection);
 		// Seed the derivation input at restore time, so the first setting change that does not touch
 		// it compares equal and keeps the density the saved page was built with.
 		this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
@@ -1430,6 +1543,8 @@ export class StudioState {
 			// Setting it for a studio-authored draft costs nothing: such a spec is a `list` with a
 			// footer, so both derivations above return what the false branch would have.
 			this.restoredPageLayout = true;
+			// Before the seeding below, for the reason given in `loadCreation`.
+			this.applyRestoredStyleSelection(draft.value.styleSelection);
 			this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
 			this.evidence = draft.value.chatMessage || '';
 			this.dedication = draft.value.intent.dedication ?? '';

@@ -37,6 +37,59 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 		).toEqual(studioText);
 	});
 
+	it('accepts an optional style selection on creations and drafts, and round-trips the wig', () => {
+		const styleSelection = {
+			themeId: 'receipts',
+			voice: {
+				intensity: 'no_mercy' as const,
+				rawness: 'raw' as const,
+				thirdPerson: 'always' as const
+			},
+			glitter: true,
+			wig: { name: 'Honey Drip', style: 'body wave' }
+		};
+
+		expect(
+			CreationRecordSchema.parse({
+				...creationStoreSampleFixture.input.saveCreation.record,
+				styleSelection
+			}).styleSelection
+		).toEqual(styleSelection);
+
+		expect(
+			DraftRecordSchema.parse({
+				...creationStoreSampleFixture.input.saveDraft.draft,
+				styleSelection
+			}).styleSelection
+		).toEqual(styleSelection);
+	});
+
+	it('leaves records written before styles were stored valid, with no selection invented', () => {
+		// The field is optional precisely so every record already in a reader's browser keeps
+		// parsing. If this ever became required, the adapter would drop those records on the floor
+		// as schema failures — the vault would silently empty itself on upgrade.
+		const legacyRecord = { ...creationStoreSampleFixture.input.saveCreation.record };
+		delete (legacyRecord as { styleSelection?: unknown }).styleSelection;
+
+		const parsed = CreationRecordSchema.parse(legacyRecord);
+		expect(parsed.styleSelection).toBeUndefined();
+	});
+
+	it('rejects a style selection whose voice is not one the text seam accepts', () => {
+		// The voice schema is shared with MeechieStudioTextSeam rather than restated, so a value
+		// that seam would refuse cannot be stored here and handed back to it on restore.
+		expect(
+			CreationRecordSchema.safeParse({
+				...creationStoreSampleFixture.input.saveCreation.record,
+				styleSelection: {
+					themeId: 'receipts',
+					voice: { intensity: 'polite', rawness: 'raw', thirdPerson: 'always' },
+					glitter: false
+				}
+			}).success
+		).toBe(false);
+	});
+
 	it('mock returns sample fixture outputs', async () => {
 		const mock = createCreationStoreMock('sample');
 		expect(await mock.saveCreation(creationStoreSampleFixture.input.saveCreation)).toEqual(

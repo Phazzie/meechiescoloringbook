@@ -8,6 +8,11 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- A saved page now keeps the look it was made with. The theme, Meechie's voice settings and the glitter toggle are stored with the page and put back when you reopen it — previously only page size and border came back, so a reopened page showed the default theme and voice, and changing any one control silently restyled the page with five others. A page saved before this change says its style is not on file instead of presenting the defaults as its own.
+- The same is true after a refresh: the draft the studio saves as you work now carries the style with it.
+- Page Controls explains itself. Every theme, voice setting, page size and border says what it does, the panel's summary names what it is currently set to while it is closed, and it states that a change applies to the next page you make rather than to the one on screen.
+- The selected theme is now announced to screen readers instead of being shown only as a background colour, and the panel's open/close affordance no longer reads "Open" while it is open.
+- A Page Controls change that fails now says so beside the controls, instead of appearing in the evidence panel as "Draft not saved:".
 - The home studio's downloads now say what they are. Every file names itself, what it is for and how big it is, instead of every link on the row reading "Download PDF" whatever was behind it.
 - A coloring page made on the home page now comes with a square share image as well as the printable PDF. The tools hub and the mode routes already made both; the front door — the page most people use — could print a page but not post one, in an app about receipts you show people.
 - A page that generates fine but cannot be turned into a PDF now says exactly that, in a notice above a page you can still keep. It used to show the same red error a failed generation shows, which invited paying for a second generation to fix a free step that runs in your own browser.

@@ -89,6 +89,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			bind:pageSize={studio.pageSize}
 			bind:border={studio.border}
 			bind:glitter={studio.glitter}
+			styleSelectionUnknown={studio.styleSelectionUnknown}
+			settingsError={studio.settingsError}
 			onSettingChange={studio.syncSpecFromCurrentText}
 		/>
 	</section>

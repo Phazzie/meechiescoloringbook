@@ -4880,3 +4880,200 @@ the Run 6 entry: `VerdictPageStudio` and `MeechieTools` still render raw filenam
 generation and shown on no surface in the app.
 
 Neither is a recommendation to pick next. Measure it.
+
+## Run 7 — 2026-09-05 — Page Controls (the home studio's settings panel)
+
+**Branch:** `claude/great-bell-31hg5t` · **Base:** `main` at `f02cfc4`
+
+### The feature, and why it was the worst
+
+Page Controls is the app's **only** say over what a coloring page looks like. Seven controls in a
+`<details>` on the home page: Theme, Intensity, Rawness, Third Person, Page Size, Border, and a
+glitter toggle. Everything else in the studio decides what the page *says*. This decides what it
+*is*.
+
+It was the worst feature because it is the one surface that **lies about the page in front of you,
+and then makes the lie true**.
+
+Measured on `main` at `f02cfc4`, not inherited from any previous entry:
+
+1. **Five of the seven controls were never stored anywhere.** `pageSize` and `border` are
+   `ColoringPageSpec` fields, so they ride along in `intent` and come back on reopen
+   (`studio-state.svelte.ts:1284–85`) and on draft restore (`:1436–37`). Theme, Intensity, Rawness,
+   Third Person and Glitter reach the page only through `currentStyleHint()` — a template string
+   built at request time (`:526–532`), sent as `styleHint` on `/api/generate` (`:995`), rendered by
+   `PromptAssemblySeam` as the prompt's entire `Vibe:` line (`prompt-assembly-seam/index.ts:52`),
+   and then discarded. `ColoringPageSpecSchema` has no `styleHint` field. Neither did
+   `CreationRecordSchema` or `DraftRecordSchema`. Nothing in the app had ever written it down.
+2. **So a reopened page misreported itself.** Reopen a page you made with Receipts / No Mercy / Raw
+   and the panel showed Crown Energy / Receipts Out / Mild — the defaults — presented exactly like
+   the two controls that *were* genuinely restored. Nothing distinguished them.
+3. **And the misreport became the page.** `applyTextToSpec` recomposes the hint from the live
+   controls on *every* setting change. So changing Page Size on a reopened page rebuilt it with the
+   default theme and voice. The reader moved one control; five moved underneath, silently, on a page
+   they had already paid a generation for. This is Run 1's and Run 6's family of defect — losing work
+   the reader already bought — except this one does not lose the page, it *rewrites* it.
+4. **Nothing said what any control does.** "Intensity: Receipts Out / Church Lady / No Mercy",
+   "Rawness", "Third Person" — three dropdowns of house jargon, eight theme chips with a one-letter
+   icon, and no sentence anywhere explaining that these change the picture, or that a change applies
+   to the *next* page rather than the one on screen.
+5. **The selected theme was invisible to assistive technology.** `class:active` was the only signal
+   (`StudioSettingsPanel.svelte:53`). Eight `<button>`s in a bare `<div aria-label="Theme options">`
+   — a `div` with an `aria-label` and no role exposes no group — and no `aria-pressed` anywhere. A
+   screen-reader user was told there were eight buttons and could not learn which one was on.
+6. **The disclosure lied too.** `<span aria-hidden="true">Open</span>` was a constant: it read "Open"
+   while the panel stood open. And the `<summary>` read the constant "Page Controls", so a shut panel
+   said what it was and nothing about what it was set to.
+7. **A failed change was filed as somebody else's problem.** `syncSpecFromCurrentText` wrote to
+   `draftSaveError` and rethrew. The rethrow became an unhandled rejection (the only caller is a DOM
+   event handler that does not catch), and the message surfaced in the *evidence* panel, prefixed
+   "Draft not saved:" — a settings failure reported as a draft failure, on a different panel from the
+   control the reader had just moved.
+
+### What shipped
+
+**New pure module — `src/lib/core/page-style.ts`.** The style selection as one named value, and
+`buildStyleHint` as the only place the `Vibe:` line is composed. It is load-bearing in two
+directions — the provider's whole art direction, and the input `derivesDenseDecorations` reads back
+to pick decoration density — so building it in two places is how those two answers drift apart.
+The voice option lists are read off `MeechieStudioVoiceSettingsSchema.shape.<field>.options` rather
+than restated, so a value added to the seam appears in the panel by construction. The label and help
+tables are total `Record`s over the same enums, driven by a test.
+
+**Contract change (`CreationStoreSeam`), done as the full SDD workflow.** An optional
+`styleSelection` on `CreationRecordSchema` and `DraftRecordSchema` — `themeId`, `voice`, `glitter`,
+and optionally the wig's printed `name`/`style`. It reuses `MeechieStudioVoiceSettingsSchema` rather
+than restating three enums, so a voice that seam would refuse cannot be stored here and handed back
+to it on restore. Cipher Gate entry in `DECISIONS.md`; `docs/seams.md` updated; adapter and mock
+unchanged, because the adapter validates through these schemas and stores JSON, so an added optional
+field needs no adapter change.
+
+**Optional, and that is the load-bearing part.** The adapter parses stored records with these
+schemas, so a *required* field would have made every record already in a reader's browser fail
+validation — the vault would have silently emptied itself on upgrade. There is a contract test that
+parses a record with the key deleted, and the mutation that makes the field required turns ten vault
+tests red.
+
+**One restore path, not two.** `applyRestoredStyleSelection` serves both the vault and the draft, so
+the two cannot answer "what if there is no stored selection?" differently — they already drifted
+once on the neighbouring question of which verdict belongs to a page.
+
+**The panel itself.** Three `fieldset`/`legend` groups. Every value explains itself under the control
+it belongs to, updating as the value changes. `aria-pressed` on the theme chips. A `<summary>` that
+names the current selection while shut, and an affordance that actually says "Close" when open. A
+lede stating that a change applies to the next page you make. Its own error region, in error pink
+with `role="alert"`, beside the controls.
+
+**`aria-pressed`, deliberately not `role="radio"`.** A real radiogroup owes the reader arrow-key
+navigation and a roving tabindex; claiming the role without them trades an invisible state for a
+broken interaction. The enclosing fieldset already groups the chips, so the role was only ever
+carrying the state.
+
+### Two things this run got wrong first, and how they were caught
+
+**The unknown-style case originally clobbered the reader's controls.** The first implementation reset
+theme/voice/glitter to `DEFAULT_STYLE_SELECTION` whenever a record carried no stored selection. An
+*existing* test failed — "keeps a restored page dense until the reader actually picks a theme" — and
+the failure was right. Those controls belong to the reader, not to the record: reopening any page
+saved before this field existed would have thrown away settings they had just chosen. That is
+arbitrary destruction, replacing a lie with a different lie. The lie is what needed removing, and the
+notice removes it. The controls are now left exactly as they were, and the panel says the page's own
+style is not on file.
+
+**A false diagnosis was nearly shipped as a code comment.** A browser test of the affordance failed,
+so `bind:open` was replaced with an explicit `ontoggle` handler and a comment asserting "the binding
+did not fire here". Re-tested before committing: the panel was never broken — the test had clicked
+before the page hydrated. `bind:open` was restored, and the committed e2e file waits for
+`[data-hydrated="true"]` and says why. The workaround would have been harmless; the comment would
+have been a false claim about Svelte sitting in the codebase forever.
+
+### Verification
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | clean |
+| `npm test` | 1347 passed, 1 skipped (was 1319 passed, 1 skipped; **+28 tests**) |
+| `npm run build` | built |
+| `npm run verify` | **exit 0**, evidence refreshed in `docs/evidence/2026-09-05/` |
+| `npm run rewind -- --seam CreationStoreSeam` | 4 passed |
+| `npx playwright test` | 32 existing + 4 new = 36 passed |
+
+**The e2e suite needs a note.** `npx playwright test` fails all 32 tests in this environment with
+`Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1208/...`. That is not a code
+failure: the container ships Chromium build **1194** and the installed `@playwright/test` pins
+**1208**. Running against the installed binary via `launchOptions.executablePath =
+'/opt/pw-browsers/chromium'` passes all 36. The override config was temporary and is not committed —
+a future run that sees 32 red e2e tests should check the build number before believing them.
+
+**The tests were mutation-checked rather than assumed.** Eight mutations, each reverted after:
+
+| Mutation | Caught by |
+|---|---|
+| creation record stops storing `styleSelection` | 2 tests |
+| restore no longer applies the stored style | 4 tests |
+| unknown style resets the reader's controls to defaults | 2 tests |
+| settings failure written to `draftSaveError` and rethrown | 1 test |
+| encoder emits the wig before the glitter | 1 test |
+| `styleSelection` made required | 10+ tests (the vault stops parsing) |
+| stored voice loosened to plain strings | 1 test |
+| encoder transposes rawness and third person | 2 tests |
+
+The encoder mutations matter most: `buildStyleHint` reproduces the previous inline template **byte
+for byte**, and the test that pins it is written as a literal rather than rebuilt from the same
+pieces the implementation uses — a test that composes its expectation the way the subject does only
+ever proves the subject equals itself.
+
+### A process failure worth recording
+
+Mid-run, the mutation harness ran `git checkout -- src/` to revert each mutation **while the run's
+own work was still uncommitted**. It reverted all five tracked source files. `page-style.ts` survived
+only because it was untracked, and the tests survived only because they live under `tests/`. Two
+mutation results (M2, M3) were also void, having run against a reverted tree, and were re-run.
+
+Everything was reconstructed and re-verified, but the correct order is: **commit first, then
+mutate.** A mutation harness that reverts by path is a destructive command pointed at the working
+tree; it is only safe once there is a commit to return to.
+
+### Scope, and what was deliberately left alone
+
+This run touches `src/lib/seams/creation-store-seam/{contract,test}.ts`, so it took the full
+Seam-Driven Development route rather than half-doing it: contract, contract tests, seam registry,
+Cipher Gate entry in `DECISIONS.md`, and `npm run rewind -- --seam CreationStoreSeam`. No adapter,
+mock, fixture or probe change was needed or invented — the adapter validates through these schemas
+and persists JSON, so an added optional field flows through untouched, and the contract test that
+parses a key-deleted record is the evidence for that rather than the assertion.
+
+Deferred, with reasons:
+
+- **The tools hub and the mode routes still do not persist a style.** `VerdictPageStudio` and
+  `MeechieTools` build their own `styleHint` from `tool-page-recipe.ts` and save records without a
+  `styleSelection`, so pages saved there reopen as "style not on file". The field is optional and the
+  restore path is shared, so wiring them is now small — but they are Runs 2–4's features, and this
+  run's rule is one feature.
+- **`recommendedFixes` is still computed on every generation and shown nowhere.** Run 6 flagged it;
+  it is still true; it was not this feature.
+- **The home studio still exposes none of `colorMode`, `textSize`, `fontStyle`, `alignment`,
+  `textStrokeWidth`, `borderThickness`, `illustrations` or `shading`.** Every one is a real
+  `ColoringPageSpec` field the prompt honours, hardcoded to a default on this surface, and the tools
+  hub sets several of them per recipe. That is a genuine gap — but it is *adding* controls, not
+  rebuilding a broken one, and this run's subject was a panel that misreports itself.
+- **The wig is stored as its printed name and style, not its catalog id.** Reproducing a `Vibe:` line
+  needs the two printed strings; storing the id would look like a reference the try-on studio ought
+  to honour on restore, and re-selecting a wig the reader has not chosen is a different feature's
+  decision to make.
+
+### For the next run
+
+The pick came from asking which surface *tells the reader something false*, rather than which one is
+missing a feature. Six runs had rebuilt the vault, the tools hub, the mode routes, `/m/<slug>`, the
+wig try-on and the download row — all of them things that either work or visibly do not. A settings
+panel is worse than broken when it is confidently wrong: it renders a value, the reader believes it,
+and the next click makes the belief true.
+
+The generalisable version: **a control that displays state it does not own is a lie waiting for a
+round trip.** Look for state that is composed at request time and never written down — the panel had
+seven controls and only the two that happened to be schema fields survived a save, for no reason a
+reader could see.
+
+Do not inherit this entry's "measured on `main`" claims. Re-measure.
