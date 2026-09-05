@@ -25,11 +25,17 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 	import WigCarousel from '$lib/components/WigCarousel.svelte';
 	import SelfieUpload from '$lib/components/SelfieUpload.svelte';
 	import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
+	import type { TryOnPortrait } from '../../../routes/studio-state.svelte';
 
 	let {
 		selectedWigId,
 		selectedWig,
+		wigs,
+		wigCatalogError,
 		tryOnPortraitUrl,
+		tryOnPortraits,
+		canCompareTryOns,
+		canGenerateTryOnPage,
 		tryOnError,
 		isTryingOn,
 		canTryOn,
@@ -41,7 +47,12 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 	}: {
 		selectedWigId: string | null;
 		selectedWig: Wig | null;
+		wigs: Wig[];
+		wigCatalogError: string;
 		tryOnPortraitUrl: string;
+		tryOnPortraits: TryOnPortrait[];
+		canCompareTryOns: boolean;
+		canGenerateTryOnPage: boolean;
 		tryOnError: string;
 		isTryingOn: boolean;
 		canTryOn: boolean;
@@ -71,6 +82,8 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 
 	<WigCarousel
 		{selectedWigId}
+		{wigs}
+		loadError={wigCatalogError}
 		onSelect={(wig) => void onWigSelect(wig)}
 	/>
 
@@ -102,7 +115,7 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 			</div>
 
 			{#if tryOnPortraitUrl}
-				<div class="try-on-result">
+				<div class="try-on-result" data-testid="home-try-on-result">
 					<p class="eyebrow">Your Try-On Portrait</p>
 					<img
 						src={tryOnPortraitUrl}
@@ -122,7 +135,7 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 							type="button"
 							class="primary"
 							onclick={onGenerateTryOnPage}
-							disabled={!tryOnPortraitUrl || isGenerating}
+							disabled={!canGenerateTryOnPage}
 						>
 							{isGenerating ? 'Creating...' : 'Make It a Coloring Page'}
 						</button>
@@ -130,5 +143,34 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 				</div>
 			{/if}
 		</div>
+
+		{#if canCompareTryOns}
+			<!--
+				Every look made from the current selfie, so the reader can put two wigs side by side
+				and go back to one. Trying on a second wig used to destroy the first portrait, which
+				made a feature about choosing between wigs incapable of showing two.
+			-->
+			<div class="try-on-compare" data-testid="home-try-on-compare">
+				<p class="eyebrow">Your Looks — Tap to Go Back</p>
+				<div class="compare-strip" role="group" aria-label="Your try-on looks">
+					{#each tryOnPortraits as portrait (portrait.wig.id)}
+						<button
+							type="button"
+							class="compare-item"
+							class:active={selectedWigId === portrait.wig.id}
+							aria-pressed={selectedWigId === portrait.wig.id}
+							onclick={() => void onWigSelect(portrait.wig)}
+						>
+							<img
+								src={portrait.portraitUrl}
+								alt={`You wearing ${portrait.wig.name}`}
+								class="compare-thumb"
+							/>
+							<span class="compare-name">{portrait.wig.name}</span>
+						</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
 	{/if}
 </section>

@@ -3717,3 +3717,739 @@ inherited without re-measuring would be exactly that mistake wearing a confident
 Both new guards proven by mutation: removing the dedication clear fails with
 `Received "For the group chat"`, and removing `overflow-x: clip` fails with
 `/m/who-fucked-up pans sideways by 32px`.
+
+---
+
+## Run 5 — 2026-09-05 — The Wig Try-On (catalog, try-on, and what happens to the result)
+
+**Branch:** `claude/great-bell-koj4d9`
+
+### The feature, and why it was the worst
+
+The Wig Try-On is the app's shop. It is the only feature that sells something — every card carries
+an affiliate link to one of three programs — and the only one that puts the reader's own face on the
+page. It sits on the home page under "Style Your Look".
+
+Three runs passed it over, each citing the one before: run 1 ("works, and was already repaired in
+the v1.1 recovery"), run 3 ("works, and was repaired in the v1.1 recovery"), run 4 ("it has its own
+styling, error surfacing, a download and a 'Make It a Coloring Page' button, so it is a complete
+feature"). Run 4's own log warns that an inherited claim is not evidence. It was re-measured rather
+than re-inherited, and the claim does not survive contact with the files.
+
+Concretely, on `main` at `1dab4cf`:
+
+1. **The catalog bypassed the seam it already owns.** `WigCarousel.svelte` opened with
+   `import wigData from '$lib/data/wigs.json'` and `Array.isArray(wigData) ? (wigData as unknown as
+   Wig[]) : []`, under a comment reading *"Validate shape at runtime; validators run at adapter
+   layer, not here."* The adapter it defers to — `src/lib/adapters/wig-catalog-seam/index.ts`, with
+   `validateWigCatalog`, a zod schema, and caching — **was never called by the UI at all.** In a
+   repository whose whole governance is that external data flows through seams, the one screen that
+   reads a data file read it raw and cast the result.
+2. **Its three error codes could not reach a reader.** `WIG_CATALOG_LOAD_FAILED`,
+   `WIG_CATALOG_EMPTY` and `WIG_NOT_FOUND` are defined in the contract and produced by the adapter.
+   With the adapter bypassed, a malformed or empty `wigs.json` rendered as an empty horizontal row
+   and no message — the same silent-failure shape run 1 named as the vault's worst sin.
+3. **The shop had no shopping in it.** Every wig carries `brand`, `hairType`, `length`, `color`,
+   `colorFamily`, `priceUsd` and five tags — 36 distinct tags across eight wigs, three brands, two
+   hair types, three lengths, five colour families, $59.99 to $149.99. The card showed brand, name,
+   style and price. There was **no search, no filter and no sort of any kind.** A schema built for
+   browsing, with the browsing left out.
+4. **Trying on a second wig destroyed the first.** `tryOnPortraitUrl` was a single string and
+   `selectWigForTryOn` cleared it on every change of wig. The entire point of a try-on is choosing
+   between looks, and the feature could never show two — at the price of one AI image generation
+   each.
+5. **A late portrait landed under the wrong wig.** The request is slow enough to switch wigs during,
+   and the response wrote to that one shared string with no check on what had been asked for. The
+   portrait then rendered under `alt="AI illustration of you wearing {selectedWig.name}"` — a
+   picture of one wig, labelled as another.
+6. **The page made from a portrait was the one page in the app the vault would not take.** After
+   runs 1–4 every other surface reaches the Quote Vault. `saveToVault` returned early on
+   `!textOutput`, and the button was disabled on the same condition; a try-on page has no verdict
+   behind it, so the reader's portrait died with the tab. Had it been savable, it would have gone in
+   titled **"THE LANDLORD"** — the demo seed title, because nothing ever set a real one.
+
+Runners-up considered and passed over:
+
+- **`ChatInterpretationSeam`** — a complete seam (contract, probe, fixtures, mock, contract test,
+  adapter) behind `/api/chat-interpretation`, with **no UI anywhere**; `CHANGELOG.md` records a
+  "chat stub" that was removed. Genuinely dead weight, but by this log's own rule an unreachable
+  feature costs a real user nothing. It is a wiring job or a deletion, not a rebuild.
+- **`.github/workflows/verify.yml` on `[push, pull_request]`**, still doubling every CI run. Still
+  real, still cheap, still its own small PR.
+
+### Plan (per `AGENTS.md` "Plan + Self-Critique")
+
+Recorded in `plan.md` under "The Wig Try-On becomes a shop you can browse and a try-on you can keep
+(2026-09-05)" before any code was written.
+
+- **Goal:** the catalog loads through its own seam and says so when it cannot; it can be searched,
+  filtered and sorted on the metadata it already carries; a second wig stops destroying the first;
+  and a page made from a portrait reaches the vault like every other page.
+- **Seams touched: none.** `WigCatalogSeam` is *consumed* through its existing adapter exactly as
+  `/api/wig-try-on` already consumes it, and `CreationStoreSeam`, `SpecValidationSeam` and
+  `OutputPackagingSeam` through the adapters `studio-state.svelte.ts` already calls. Nothing under
+  `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or
+  `src/lib/seams/` is in the diff, and no contract shape changed. The change moves the UI *onto* a
+  seam it was bypassing; it does not alter the seam. No Cipher Gate entry required.
+- **Files:** `src/lib/core/wig-catalog-gallery.ts` (new), `src/lib/components/WigCarousel.svelte`,
+  `src/lib/components/studio/WigTryOnStudio.svelte`, `src/lib/components/studio/StudioPreviewPanel.svelte`,
+  `src/routes/studio-state.svelte.ts`, `src/routes/+page.svelte`,
+  `tests/unit/wig-catalog-gallery.test.ts` (new), `tests/unit/studio-state.test.ts`,
+  `tests/e2e/smoke.spec.ts`, plus the governance docs.
+
+### What it is now
+
+- **Loaded through `WigCatalogSeam`.** A load failure prints what failed; an empty catalog says so.
+- **Searchable** across name, brand, style, colour, colour family, hair type, length and tags, with
+  terms ANDed and matched as substrings, so "long" also finds extra-long.
+- **Filterable** on length, hair type and colour family — OR within a dimension, AND across them —
+  with chips built from the values the catalog actually contains, so a chip for a length no wig has
+  never appears.
+- **Sortable**: featured, price both ways, name. Price ties break by name in *both* directions, so
+  the order is total rather than stable by accident.
+- **Comparable.** Portraits are kept per wig, so a second look no longer destroys the first, and a
+  strip of every look made from the current selfie puts the reader back on any of them. A new selfie
+  drops all of them, because they are all of the old face.
+- **Keepable.** A try-on page is titled after its wig and can be saved to the vault with no verdict
+  behind it.
+- 37 new unit tests for the catalog transforms, 8 new for the try-on state, 2 new e2e tests.
+
+### The counts had to be honest, and that was the whole design
+
+The easy version of a facet count is "how many wigs in the catalog have this value". It is one line
+shorter and it lies. Two of the eight wigs are synthetic, and neither is black; four are black and
+none is synthetic. With **Synthetic** selected, a catalog-wide count renders **"Black 4"** — a chip
+promising four results that returns nothing when tapped.
+
+That is the same defect as run 1's decorative favourite pin and this run's own finding 3: a control
+that describes itself falsely. So each count is computed against the search and every *other*
+dimension, and a value whose count is 0 is disabled rather than offered. The e2e test asserts
+exactly that chip: with Synthetic selected, **Black reads 0 and cannot be clicked.**
+
+A property test pins the promise rather than one example — for every colour chip, the count equals
+the number of results selecting it actually returns. Removing the cross-filtering fails three tests,
+including that one.
+
+### The staleness bug that was found by fixing something else
+
+Finding 5 was not on the list when the work started. It surfaced while keying portraits by wig:
+once a portrait has to be filed *somewhere*, the question "under which wig?" has to be answered, and
+the honest answer is the wig that was requested, not the wig now on screen. The single shared string
+had made the question unaskable, which is why the bug survived four runs of review. The wig is now
+captured before the `await`, and a failure is shown only if its wig is still selected.
+
+This is the second time in this repository that a data-shape change has exposed a defect that no
+amount of reading the old shape would reveal.
+
+### Evidence
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm run lint`: clean, exit 0.
+- `npm test`: **1234 passed, 1 skipped** (baseline on `main` at `1dab4cf`: 1187 passed, 1 skipped).
+- `npm run build`: exit 0.
+- `npx playwright test`: **30 passed** (baseline: 28).
+- `npm run verify`: exit 0, all eight stages, audit gate found 0 vulnerabilities. Evidence in
+  `docs/evidence/2026-09-05/`.
+- **Four guards proven by deletion, not by reading.** Counting facets against the whole catalog
+  fails three tests including the property test. Discarding portraits on a wig switch fails
+  `keeps the previous wig's portrait...`. Keeping them across a new selfie fails
+  `drops every portrait when a new selfie is uploaded...`. Filing a late portrait under
+  `this.selectedWig` fails `files a late portrait under the wig it was requested for...`.
+- **The duplication gate was measured before pushing, not waited for.** Run 4's n-gram scan over the
+  changed `.ts` files found a 10-line identical block between the two new staleness tests — the same
+  shape that failed the gate at 4.5% on run 4 — and it was extracted as
+  `tryOnThenMoveOnBeforeItLands` before the first push. The three blocks the scan still reports
+  (`studio-state.svelte.ts:756↔815`, `smoke.spec.ts:681↔959` and `971↔1004`) were each checked
+  against the diff hunks and are all in unchanged lines, so none is new code.
+
+**The e2e browser here, again.** The container ships Chromium 1194 while the pinned
+`@playwright/test` (1.58.2) resolves 1208, and `npx playwright install` is unavailable. Run 4's note
+described symlinking the path; the actual layout differs — 1194 keeps its binary at
+`chrome-linux/headless_shell`, and Playwright wants
+`chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell`. The suite runs
+after mirroring `chrome-linux/` into that path and aliasing the binary name.
+`playwright.config.ts` is deliberately **not** in the diff: the mismatch is an environment fact, not
+a repository defect, and CI resolves its own browser.
+
+### Deliberately not done (for a future run)
+
+- **The packaging block is written three times in `studio-state.svelte.ts`** (`handleGeneratePage`,
+  `handleGenerateTryOnPage`, `repackageRestoredImages`) — 10 identical lines between the first two.
+  It is pre-existing and outside this diff, and extracting it would widen a run that already touches
+  that file heavily. It is a clean, self-contained follow-up.
+- **`ChatInterpretationSeam` has no UI**, as above — wire it or delete it, but it should not stay.
+- **The try-on portrait itself still cannot be saved without turning it into a coloring page.** The
+  page reaches the vault now; the raw portrait is still only a download. Storing portraits as vault
+  records would need a record shape that is not a coloring page, which is a contract question.
+- Run 3's four follow-ups and run 4's three are untouched and still stand, including `getMonthKey`
+  reading `new Date()` outside `ClockSeam`.
+
+---
+
+## Run 5, first close-out — 2026-09-05 — the Codex round on `70648ff`
+
+Appended, not edited. Four findings: **three accepted and fixed, one accepted in part.** Three of
+the four were defects in *this run's own new code*, and two of them were failures of an invariant
+this run had written down and then not enforced.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | A try-on request in flight when the reader uploads a new selfie files its portrait anyway. `setSelfieForTryOn` clears the portraits *because* they are of the old face; the pending response put one straight back, to sit in the compare strip beside portraits of the new face as though they were the same person. | **Real, and the sharpest finding of the round.** Fixed with a `selfieToken` captured before the request, checked before filing the result and before showing an error. |
+| P1 | A try-on page carried the demo seed's *body*. `syncSpecFromCurrentText` builds the spec from `DEFAULT_STUDIO_TEXT_OUTPUT` when no verdict exists; this run replaced only `title`, leaving items `THE RENT` / `THE DOPEMAN` / `WHAT IT COST` and the seed footer on the saved record. `loadCreation` rebuilds a no-`studioText` record's words from `intent.items`, so reopening put those lines in the preview **and in the evidence box** — the text the reader's next verdict request sends. | **Real.** The page now takes the whole `title_only` shape: wig title, no items, no footer — which is what a portrait page is, and what the schema requires. |
+| P2 | A selected facet chip invalidated by a later search drops to count 0 and was then disabled, so the one control that would undo it was the one control the reader could not press. Clear was the only way out, and it discards the search too. | **Real.** `disabled={facet.count === 0 && !facet.selected}`. |
+| P1 | "Apply the seam workflow to the catalog integration" — consuming `listWigs()` makes the seam's loading and failure results observable, so the no-seams classification is wrong. | **Accepted in part.** A Cipher Gate entry is now recorded, with `rewind` evidence. The claim that the *seam changed* is still not made, and the entry says so explicitly. |
+
+### Two of these were invariants this run wrote down and did not enforce
+
+That is the part worth recording, because it is a pattern rather than an accident.
+
+- `tryOnPortraits`'s own comment says a portrait of a replaced face "would be worse than losing
+  them" — and `setSelfieForTryOn` duly clears the list. The async path was left unguarded. This run
+  had already fixed exactly this class of bug **for the wig**, in the same function, capturing
+  `requestedWig` before the `await`; the selfie is the second input to the same request and got no
+  such treatment.
+- `buildFacet`'s comment says "a value that is currently selected is still counted and still shown,
+  **so it can always be undone**". The markup then disabled it. The module was right and the
+  component contradicted it three times over.
+
+The lesson is narrower than "test more". Both defects sit exactly where a stated invariant meets a
+second code path, and in both cases the invariant was written at the place it was *first* satisfied.
+A guard that has been reasoned about is not thereby applied everywhere it is needed — and the
+comment asserting it makes the gap *harder* to see, not easier, because the file reads as though the
+question has been settled.
+
+### Why the seam finding was handled differently this time
+
+Runs 3 and 4 both declined a "you touched a seam" P1 and left the thread open. Run 4's log warns
+that "the last run declined it" is not a reason. It is not the reason here, and this argument is
+not the same argument: runs 3 and 4 answered "you added a new caller of adapters that already had
+callers". This one says the UI moved from *bypassing* a seam to *consuming* it, which is a real
+change in what the reader can observe, and it is a better point.
+
+Re-checked against the diff on this head:
+
+- No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`,
+  `src/lib/adapters/` or `src/lib/seams/` is in it — `git diff origin/main...HEAD --name-only`
+  matches none of those paths.
+- `WigCatalogSeam`'s six artifacts all pre-date this work, so there is no missing contract, probe,
+  fixture, mock or red proof to produce.
+- `npm run rewind -- --seam WigCatalogSeam` passes **27 tests** on this head.
+
+So the finding's *remedy* — record the seam and show the evidence — is right, and its *premise* —
+that the seam changed — is not. `AGENTS.md` says to treat doubt as a seam change, and a third
+appearance of an argument in a stronger form is doubt. The Cipher Gate entry is therefore recorded
+in `DECISIONS.md` with the rewind evidence, and it states plainly what it does and does not claim.
+This is not half-doing the workflow: every artifact the workflow demands already exists for this
+seam, so the whole of what remained was the entry and the verification, and both are done.
+
+### The duplication gate, again, and the same fix a third time
+
+SonarCloud passed at **0.0% duplication on new code** on `70648ff` — the pre-push n-gram scan had
+already found and removed a 10-line repeat between the two new staleness tests. Adding the two
+selfie tests recreated it, in the same shape, between the same kind of pair. Both pairs are now one
+helper, `tryOnInterruptedBy`, parameterised by which input the reader changes mid-flight — which is
+also the better test, since the wig case and the selfie case differ only in that.
+
+That is three times this repository has hit the same gate by writing a second test that opens the
+same way as the first. It is not a coincidence and it is not really about duplication: a staleness
+test's setup *is* the interesting part, so writing it twice by hand is writing the subject twice.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1238 passed, 1 skipped**
+(from 1234 on the previous head; baseline on `main` 1187). `npm run build` exit 0.
+`npx playwright test` **31 passed** (from 30; baseline 28). `npm run verify` exit 0, all eight
+stages. `npm run cipher:gate` exit 0, `docs/evidence/2026-09-05/cipher-gate.json` written.
+`npm run rewind -- --seam WigCatalogSeam` 27 passed.
+
+**All four fixes proven by mutation.** Removing the store-side selfie guard fails
+`drops a portrait whose selfie was replaced...`; removing the error-side guard fails
+`does not show a try-on failure for a selfie...`; reverting to title-only-title fails both
+`carries none of the demo seed body...` and the vault save test; restoring
+`disabled={facet.count === 0}` fails the new e2e
+`a filter invalidated by a later search can still be switched off`.
+
+### Not this pull request's, established rather than asserted
+
+Two checks are red and neither is this PR's; both were commented on the pull request with the
+evidence rather than passed over in silence.
+
+- **Vercel** — `api-deployments-free-per-day`, an account-wide free-tier cap of 100/day, posted
+  before any build of this branch could run. PR #296, which is documentation-only, carries the
+  identical status.
+- **Rosentic** — reports that other branches "removed" parameters from `derivesDenseDecorations`,
+  `initVault` and six more. Those branches have **no common ancestor with `main`**
+  (`git merge-base` exits 1) and their tips pre-date every symbol named by two to three months, so
+  the symbols are simply absent there. None of the cited call sites is in this diff. Its proposed
+  fix — dropping the argument from `initVault([])` — would turn CI red.
+
+### One thing that could not be read
+
+SonarCloud's summary reports **1 new issue** beside the passed gate, and there is no surface here
+that names it: the check run's annotation text is empty, no inline comment was posted, and this
+container's network policy returns 403 for `sonarcloud.io`, so the API is unreachable. It is not
+gate-blocking, not a security alert, and not duplication or coverage — every enforced measure is
+green. It is recorded here unresolved rather than guessed at, because run 4's own lesson is that a
+finding you cannot read is an instruction to measure, and the measurement is unavailable from this
+environment.
+
+---
+
+## Run 5, second close-out — 2026-09-05 — the Codex round on `70f1385`
+
+Appended, not edited. Two findings, **both accepted and fixed**, and both are second-order
+consequences of the *first* round's fixes rather than defects the first round missed.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P2 | The catalog stopped being server-rendered. `$effect` runs only after hydration, so the initial HTML held `Loading the wig wall...` and none of the cards — or their **affiliate links** — where the old module-scope `import wigs.json` had rendered all of it. | **Real, and the most consequential defect of the whole run.** The seam read moved into `src/routes/+page.ts`'s `load`, which runs on the server and the client, and the carousel became presentational. |
+| P2 | Reopening a saved try-on and saving it again laundered the seed into the record. `buildStudioTextFromSpec` falls back to `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` when `intent.items` is empty — which is precisely the shape round one's fix created — so the resave persisted THE RENT / THE DOPEMAN / WHAT IT COST as real `studioText`, and a later revision action sent them as `currentText`. | **Real.** A `restoredSeedPageItems` flag now carries the provenance: invented text is neither saved as real nor sent to the provider. |
+
+### The SSR one is the finding this run should have caught itself
+
+Round one's entry says, twice, that the wig try-on is "the only feature that sells anything" and
+that the affiliate link is the app's monetization. The change then **removed those links from the
+server-rendered HTML** — invisible in a browser, total for a crawler, a reader with JavaScript
+disabled, or a hydration that fails. A run whose stated case rests on the commercial value of a
+surface deleted that surface from the markup and did not notice, because every check it ran drove a
+hydrated browser.
+
+The e2e test for it asserts the *response body*, not the rendered page, and was confirmed by
+reproducing the defect exactly — gating the catalog on `browser` — rather than by reasoning about
+when `$effect` runs.
+
+There is a general shape here worth keeping. Moving a read behind a seam is normally strictly better
+and was the right call; but a seam contract is `async` by construction, and moving a *synchronous
+module import* onto one silently converts server-rendered markup into client-only markup. The seam
+was not the mistake. Doing it inside the component was, and the fix is that a seam read belongs in
+`load`, where SvelteKit will run it on both sides.
+
+### The second one is the cost of the first round's fix, and was not visible from it
+
+Round one emptied `intent.items` so a try-on record would stop carrying the demo seed. That is
+right, and it moved the problem: the restore path *needs* two page items, because
+`MeechieStudioTextOutputSchema` requires `pageItems.min(2)`, so an item-less record is exactly the
+input for which synthesis has nothing to draw on and reaches for the seed.
+
+So the seed could not be removed from the restore, and the fix had to be provenance instead: mark
+the one combination whose page items are invented — no `studioText` **and** no `intent.items` — and
+refuse to treat that text as the reader's. The flag is deliberately that narrow: a record with real
+`intent.items` and no `studioText` synthesizes *the page's own words*, which are the reader's and
+must keep working.
+
+### The duplication gate, a fourth time, and what it is actually telling us
+
+Two new pairs, both the shared opening of two tests: the `initVault` + portrait + generate sequence,
+and the fetch-stub + revision + parse-body sequence. Extracted as `makeTryOnPage` and
+`payloadSentByRevision`.
+
+That is now four times in this repository, and the pattern has never once been "the same logic
+written twice by accident". It is always **a second test written by copying the first**, because in
+a test the setup *is* the subject and the second case differs only in one step. The gate is
+detecting a real thing about how these tests get written. The counter-move is to write the pair as
+one parameterised helper from the start, not to reach for the extraction after the scan flags it.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1241 passed, 1 skipped**
+(from 1238). `npm run build` exit 0. `npx playwright test` **32 passed** (from 31).
+`npm run verify` exit 0, all eight stages. `npm run cipher:gate` exit 0.
+
+**Both fixes proven by mutation.** Gating the carousel's wigs on `browser` — which reproduces the
+`$effect`-only behaviour exactly — fails `the wig catalog and its affiliate links are
+server-rendered`. Restoring the unconditional `studioText` write fails `does not persist the
+invented seed text when a reopened try-on is saved again`, and removing the `currentTextPayload`
+guard fails `does not send invented seed items to the provider as the reader's current text`.
+
+### A note the next run should not have to rediscover
+
+Both rounds' findings were in code this run wrote, and none was found by the eight-stage verify
+chain, the 1241 unit tests, or the 32 e2e tests before review. Four of the five were about *state
+that outlives the moment it was written* — a portrait outliving its selfie, a seed outliving the
+page it seeded, a filter outliving the search that emptied it, markup outliving the server. That is
+not a coincidence about this feature; it is what a review is for, and it is the argument for not
+merging a green PR before the review round lands.
+
+---
+
+## Run 5, third close-out — 2026-09-05 — the Codex round on `ab86f37`
+
+Appended, not edited. Two findings, **both accepted and fixed**, both P1, and both are the *same
+class* as findings this run has already fixed twice — applied to a third and fourth code path.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | A verdict generated before making a try-on page was saved as that page's `studioText`. The page prints a portrait and the wig's name and no verdict words at all, so the vault would show that quote beside the portrait, and reopening would hand it back as the page's own text and send it to the provider on the next revision. | **Real.** `tryOnPageOnScreen` marks the paper as a portrait; `saveToVault` omits `studioText` while it holds. |
+| P1 | Starting "Make It a Coloring Page" on wig A and selecting wig B during the `await` packaged **B's portrait under A's title and prompt**. `tryOnPortraitUrl` is derived from the selected wig, and the carousel stays live during generation, so re-reading it after the await returned a different wig's picture. | **Real.** The portrait is captured beside the wig before any await, and the existing `pageLoadToken` — which `resetGeneratedPage` already advances, and which selecting a wig already triggers — abandons the operation when the reader has moved on. |
+
+### This is the fourth instance of one bug
+
+Across three review rounds this run has now fixed the same shape four times, in four places:
+
+1. A late **portrait** filed under whichever **wig** was selected when it landed.
+2. A late portrait filed at all after the **selfie** it was made from had been replaced.
+3. A verdict treated as a page's text when it was **invented by a restore**.
+4. A **portrait re-read after an await**, packaged under a different wig's name.
+
+Every one is *state read after an await that was true before it*. Three were found by review, not by
+1244 unit tests and 32 end-to-end tests, and not by the eight-stage verify chain.
+
+`restoredSeedPageItems` did not cover finding 1 of this round, and the reason is worth keeping: that
+flag asks "was this text invented?", and here the text is perfectly real — it is just **about
+something else**. Provenance has two independent questions in it, "is this true?" and "is this about
+this?", and a flag that answers the first silently looks like it answers both.
+
+The second fix deliberately reuses `pageLoadToken` rather than adding a fifth bespoke token.
+`resetGeneratedPage` already advances it, and `selectWigForTryOn` already calls that, so the guard
+was already available and simply was not being read on this path.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1244 passed, 1 skipped**
+(from 1241). `npm run build` exit 0. `npx playwright test` **32 passed**. `npm run verify` exit 0.
+`npm run cipher:gate` exit 0. Duplication scan clean of anything in this diff.
+
+**Both fixes proven by mutation.** Dropping `&& !this.tryOnPageOnScreen` fails `does not save a
+verdict that has nothing to do with the try-on page`; removing the token check and re-reading
+`this.tryOnPortraitUrl` after the await fails `abandons a try-on page when the reader picks another
+wig while it is being built`.
+
+### The Vercel failure resolved itself, as diagnosed
+
+The deployment status on `ab86f37` is **success** — "Deployment has completed". It was an
+account-wide daily cap, it cleared on its own, and no action on this pull request would have changed
+it at any point. Worth recording because the tempting move was to treat a red check as this PR's
+problem and go looking for something to change.
+
+The deployed preview could not be fetched from this container to confirm the server-rendered catalog
+against the real deployment — the network policy returns 403 for `*.vercel.app` as it does for
+`sonarcloud.io`. The local end-to-end test asserts the response body and was proven by mutation, and
+the deployment succeeding shows the new `+page.ts` builds and runs there, but that is not the same
+as having read the deployed HTML, and this entry does not claim otherwise.
+
+---
+
+## Run 5, fourth close-out — 2026-09-05 — the audit, not a review round
+
+Appended, not edited. **Nobody reported these.** After the third review round made it four instances
+of one bug, the pattern was audited for directly rather than waiting to be told a fifth time. It
+found two more, in the same file, one of them in code this run had already edited.
+
+| Where | Defect | Outcome |
+|---|---|---|
+| `handleGenerateTryOnPage` | The packaging `await` had no staleness check, so a reader who selected another wig while the PDF was being built got that PDF attached to the page they had moved to. Download PDF would hand back a different page than the one displayed — the exact defect `repackageRestoredImages` already carried a comment about. | **Fixed.** |
+| `handleGeneratePage` | The home studio's *normal* generation had **no staleness guard at all**: a slow provider response landed its prompt, images and PDF on whatever verdict was on screen when it finished. Pre-existing, and not this run's code. | **Fixed anyway**, per run 4's precedent: "keep the fix minimal" means do not widen the *change*, not decline a one-line fix in a place proven to have the same bug. |
+
+That is **six instances of one bug** in this pull request:
+
+1. A late portrait filed under whichever **wig** was selected when it landed.
+2. A late portrait filed at all after the **selfie** it came from was replaced.
+3. A verdict treated as a page's text when it was **invented by a restore**.
+4. A **portrait re-read after an await**, packaged under another wig's name.
+5. A **late PDF** attached to a page the reader had moved off (try-on).
+6. A **slow generation** landing on a replaced verdict (studio) — pre-existing.
+
+Every one is *state read after an await that was true before it*. Three were found by review, two by
+auditing for the pattern once review had established it, and one — number 6 — had been sitting in
+`main` untouched.
+
+### Why the guard was in one path and not the other
+
+The eleven lines that package a page and attach the result were written **twice**, once in each
+generation path, and the staleness check was in neither. Copying the block is exactly how one path
+came to be guarded and the other not: the fix for the try-on path had no reason to visit the studio
+path, because they were separate text.
+
+They are now one method, `attachPackagedPage`. That is not only a duplication fix — it makes the
+divergence structurally impossible, which is the more useful half. It also happens to be the
+follow-up this run's *first* entry deferred as "a clean, self-contained follow-up"; adding the guard
+line to both copies turned it into new code, so it stopped being deferrable.
+
+### Two tests that passed for the wrong reason, caught by mutating
+
+Worth recording plainly, because it nearly shipped. Three tests were written for these guards, and
+**two of them initially passed with the guard deleted**:
+
+- The late-PDF test asserted `packagedFiles` was empty, and the mock resolved packaging with an
+  empty file list — so the assertion held whether the guard fired or not. Fixed by giving the late
+  result a distinguishable payload.
+- The slow-generation test asserted `images` was empty, and the stubbed response was missing
+  `templateVersion`, so it failed `GenerateResultSchema` and never reached the guarded line at all.
+  Fixed by making the payload valid, and by additionally asserting `generationError` is empty — the
+  thing that distinguishes "the guard returned" from "the parse rejected".
+
+Both were only discovered because the guard was deleted and the test was expected to fail. Reading
+either test would have suggested it worked. This is the fifth time in this repository a mutation has
+exposed a test proving less than it claimed, and the second time in this run alone.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1246 passed, 1 skipped**
+(from 1244). `npm run build` exit 0. `npx playwright test` **32 passed**. `npm run verify` exit 0.
+`npm run cipher:gate` exit 0.
+
+**All three guards re-proven by mutation after the extraction**, not before it: removing the shared
+packaging check, the normal-path parse check, or `&& !this.tryOnPageOnScreen` each fails its own
+named test and only that one.
+
+The duplication scan now reports **nothing at all in `src/routes/studio-state.svelte.ts`** — the
+eleven-line block that had been there since before this run is gone. The two blocks it still reports
+are both in `tests/e2e/smoke.spec.ts`, both outside this diff.
+
+---
+
+## Run 5, fifth close-out — 2026-09-05 — the Codex round on `800f4a4`
+
+Appended, not edited. Three findings. **One of them the self-audit had already fixed**, which is the
+useful result of the round; the other two are real and are fixed here.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | "Recheck the page token after packaging." | **Already fixed** in `3cdb1be`, the audit commit, which Codex had not seen — it reviewed `800f4a4`. Independent confirmation that auditing for the pattern found a real defect rather than an imagined one. |
+| P1 | `restoredSeedPageItems` protects only the live `StudioState`. `loadCreation` schedules a draft save, `saveDraft` serialises the synthesised seed text, and after a refresh `init()` restores it as genuine with the flag back at its default. | **Real.** The draft no longer carries invented text, and `init()` re-marks the provenance on the same condition `loadCreation` uses. |
+| P1 | After a try-on page is generated, changing any Page Control runs `syncSpecFromCurrentText`, which rebuilds the spec from the verdict or the seed as a numbered list — while the portrait stays on the paper. Changing the page size alone made the spec describe a different page than the one displayed, and saving stored the portrait under it. | **Real.** Every rebuild now re-applies the try-on shape while a portrait is on the paper. |
+
+### The provenance flag had a lifetime, and the lifetime was wrong
+
+Two of this run's findings are now the *same* flag failing at a boundary it did not know about:
+`restoredSeedPageItems` answered "was this text invented?" correctly, but only for as long as the
+object holding it lived, and only against the questions asked in that instant.
+
+- Round three: the flag did not cover a verdict that was *real but about something else* — the
+  question "is this about **this**?" was different from "is this **true**?".
+- This round: the flag did not survive being **written down**. A draft is a serialisation of the
+  page, and a boolean held beside it in memory is not part of that serialisation, so the round trip
+  dropped the only thing that knew the text was invented.
+
+The lesson generalises past this flag: **provenance that governs what gets persisted must itself be
+derivable from what was persisted.** The fix is not a second boolean in the draft record — the
+condition is already recoverable from the record's own shape (no `studioText`, no `intent.items`),
+so `init()` recomputes it exactly as `loadCreation` does. Two call sites asking the same question of
+the same shape, rather than one call site trusting a value it did not write.
+
+### The Page Controls case is the same drift, one layer up
+
+`tryOnPageOnScreen` marks the paper. The spec rebuild did not read that marking, so the picture and
+the description of the picture drifted apart on a control that had nothing to do with either. That
+is the same failure as the whole run's staleness family, moved from "state read after an await" to
+"state rebuilt without consulting what it is describing".
+
+The fix keeps the Page Controls working — page size and border genuinely apply to a portrait page,
+so throwing the page away on a settings change would have been the lazier and worse answer. The
+title-only shape is re-applied after the rebuild, and a test asserts the reader's actual change
+(`pageSize: 'A4'`) still lands.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1248 passed, 1 skipped**
+(from 1246). `npm run build` exit 0. `npx playwright test` **32 passed**. `npm run verify` exit 0.
+`npm run cipher:gate` exit 0. Duplication scan reports nothing in this diff.
+
+**All three guards proven by mutation:** removing the try-on shape re-application fails `keeps a
+try-on page title-only when a page control is changed`; serialising invented text into the draft, or
+dropping the re-mark in `init()`, each fail `does not write invented seed text into the draft, and
+re-marks it on restore`.
+
+### Running total
+
+Eleven real findings across four review rounds and one self-audit, every one of them in this run's
+own work except the unguarded studio generation, which pre-dated it. Nine of the eleven are one
+family: **something on the page and the thing describing it, drifting apart** — across an await,
+across a restore, across a serialisation, across a settings rebuild.
+
+---
+
+## Run 5, sixth close-out — 2026-09-05 — the Codex round on `eb4e6a4`
+
+Appended, not edited. Two findings, **both accepted and fixed**, both P1.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | A verdict about something else was kept out of the **vault** but not out of the **draft**. Verdict → try-on page → debounced draft save → refresh restored that verdict as genuine, which defeated the vault's guard from behind. | **Real.** Both writers now go through one accessor. |
+| P1 | Trying the **same wig** on again keeps the old portrait on screen while the new one is styled, and "Make It a Coloring Page" only checked `isGenerating`. A page started in that window captured the old portrait, and replacing a portrait for the same wig changes neither the selected wig nor the page token — so **neither existing guard could see it**. | **Real.** The action is refused while a try-on is in flight, in the state and on the button. |
+
+### The first finding is the lesson this run already wrote down, ignored by its own author
+
+Run 5's earlier close-out records: *"a guard that has been reasoned about is not thereby applied
+everywhere it is needed."* It was written after exactly this mistake, twice. Then
+`tryOnPageOnScreen` was added to `saveToVault` and **not** to `saveDraft` — a third instance of the
+pattern the lesson describes, committed after the lesson was committed.
+
+Writing the rule down did not prevent the next occurrence. What prevents it is structural: the two
+writers now call one `describingStudioText()` accessor, so there is no second copy of the condition
+to forget. The mutation proof shows the difference — deleting the exclusion inside the accessor
+fails **both** writers' tests at once, where before each site had to be remembered separately.
+
+That is the same move as `attachPackagedPage` two close-outs ago, for the same reason, and it is now
+twice that the durable fix in this run turned out to be "delete the second copy" rather than "add
+the missing check".
+
+### The second finding is the first race no token could catch
+
+Every staleness guard in this run keys on something *changing*: the wig, the selfie token, the page
+token. Replacing a portrait for the **same** wig changes none of them — the wig is identical, and
+`storeTryOnPortrait` does not advance the page token. The only thing that distinguishes the window
+is that a try-on is in flight, so that is what the guard reads.
+
+Worth keeping because it bounds the technique: identity tokens catch *substitution*, not
+*mutation in place*. A value replaced under a stable key is invisible to them.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1250 passed, 1 skipped**
+(from 1248). `npm run build` exit 0. `npx playwright test` **32 passed**. `npm run verify` exit 0.
+`npm run cipher:gate` exit 0. Duplication scan reports nothing in this diff.
+
+**Both proven by mutation:** dropping `|| this.tryOnPageOnScreen` from the accessor fails *two*
+tests — the vault's and the draft's — and removing the in-flight refusal fails `refuses to build a
+page while the portrait it would use is being replaced`.
+
+### Running total
+
+**Thirteen** real findings across five review rounds and one self-audit. Eleven of the thirteen are
+one family: something on the page and the thing describing it, drifting apart — across an await, a
+restore, a serialisation, a settings rebuild, or a replacement under a stable key.
+
+Codex's round on `3cdb1be` — the self-audit head — came back with **no findings**, the only clean
+round so far, and it independently confirmed one defect the audit had already fixed.
+
+## Run 5, seventh close-out — 2026-09-05 — the Codex round on `cd0ca3d`
+
+Appended, not edited. One finding, **accepted and fixed**, P1.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | A restored title-only try-on draft rebuilds `textOutput` from the demo seed, because its wig-specific title matches no seed signature. `restoredSeedPageItems` suppressed *serialising* that text but left it in the state, so it reached the paper as the page's list and lit up Save to Vault over a draft that carries no portrait. | **Real.** The builder returns `null` instead; the flag is gone. |
+
+### The finding is right, and it reached one call site further than it says
+
+Codex reported the draft path. The same fabrication was in `loadCreation`, which assigned it
+unconditionally — so a reopened try-on record had the same invented list behind it. Both are fixed,
+because both were fixed in the same place.
+
+### What was actually wrong, and it was written down as a constraint
+
+The deleted flag's own doc comment read: *"`buildStudioTextFromCreationRecord` **must** return a
+`MeechieStudioTextOutput`, and the contract requires at least two `pageItems`, so … it falls back to
+the demo seed."* That premise was never true. Nothing forces a page with no printed items to have
+studio text; the builder can return `null`, and every consumer already handles `null` because
+`textOutput` starts there.
+
+Having accepted the fabrication as unavoidable, the only remaining move was to guard the places it
+must not reach — and two were guarded (the vault write, the revision payload) while the two that
+matter most to a reader were not: **the paper**, which printed THE RENT / THE DOPEMAN under the
+wig's name, and **Save to Vault**, which `canSaveToVault` lit up from `!!textOutput` alone.
+
+So this is the third time in this run that the durable fix was *delete the thing*, not *guard it*:
+`attachPackagedPage`, then `describingStudioText()`, now `buildStudioTextFromSpec` returning `null`.
+The flag `restoredSeedPageItems` existed only to mark a value as fabricated. With nothing fabricated
+there is nothing to mark, and its two remaining reads were already covered by the `!textOutput`
+checks beside them — it is deleted rather than left as a third guard.
+
+### The fix uncovered a second defect that no reviewer had reported
+
+With `textOutput` null, the settings rebuild fell back to `DEFAULT_STUDIO_TEXT_OUTPUT` — so changing
+the page size on a reopened try-on **retitled the reader's page THE LANDLORD**. The old fabricated
+output happened to carry the wig's title, which is why nobody had seen this. `rebuildSourceText()`
+now describes a restored page with the page's own title and `specOwnQuote`, and the seed is used
+only for a studio that has never had a verdict.
+
+Worth naming: removing a wrong value exposed a caller that had been relying on it for the one field
+it got right. A fabricated value is not inert — things come to depend on it.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1252 passed, 1 skipped**
+(from 1250). `npm run build` exit 0. `npx playwright test` **32 passed**. `npm run verify` exit 0.
+`npm run cipher:gate` exit 0. Duplication scan reports nothing in this diff.
+
+**Both proven by mutation.** Restoring the `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` fallback fails
+**five** named tests across three files — `restores no text at all for a quote page saved without
+the field`, `restores no verdict for a try-on draft rather than inventing the seed`, `does not write
+invented seed text into the draft it saves back`, `restores no verdict for a reopened try-on, and
+resaves none`, and `does not send invented seed items to the provider as the reader's current text`.
+Dropping the `restoredPageLayout` branch from `rebuildSourceText` fails `keeps a restored try-on
+page its own title when a setting changes`.
+
+### A test that was passing for the wrong reason, again
+
+`makeTryOnPage` seeded the portrait with `data:image/png;base64,ZmFrZQ==` — four bytes spelling
+"fake". The vault refuses to rebuild bytes whose magic number it cannot recognise, so every reopen in
+that block restored **no** picture, and any assertion after it was an assertion about an empty page.
+The fixture now carries a real 1×1 PNG. This is the third time in this run that a green test was
+resting on a stub rather than on the behaviour it named, and the second found by writing a *new*
+assertion rather than by reading the old one.
+
+### Running total
+
+**Fourteen** real findings across six review rounds and one self-audit. Twelve of the fourteen are
+one family: something on the page and the thing describing it, drifting apart — across an await, a
+restore, a serialisation, a settings rebuild, a replacement under a stable key, or a value invented
+to satisfy a schema and then believed.
+
+## Run 5, eighth close-out — 2026-09-05 — the Codex round on `d4a48ed`
+
+Appended, not edited. One finding, **accepted in part**, P1.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P1 | The Cipher Gate entry's Summary and Risks describe the superseded client-only `$effect` implementation, not the design that will ship. | **Real.** Regenerated for the shipped design, and it turned up a second wrong claim nobody had reported. |
+| — | "Complete the WigCatalogSeam workflow for newly observable seam behavior." | **Declined, with evidence.** |
+
+### The accepted part, and it is worse than reported
+
+The entry said the component *"now calls `createWigCatalogSeam().listWigs()` and renders a loading
+state"*, and its Risks warned that *"an `$effect` that never resolves would leave 'Loading the wig
+wall…' on screen indefinitely"*. Both describe the implementation that **this PR's own second review
+round replaced**, five commits before the entry was written. The shipped design loads in
+`src/routes/+page.ts` and the carousel is presentational with **no loading state at all** — the whole
+point of that fix was that the cards are in the server-rendered HTML.
+
+`CLAUDE.md`'s file map, `plan.md`'s file list and the decision section's own Decision 1 carried the
+same stale description, and the decision section still read *"so no Cipher Gate entry is required"*
+directly beneath the Cipher Gate entry. All four are corrected.
+
+### Regenerating it found a claim that was wrong on its own terms
+
+The Risks said *"the seam caches after its first successful parse, so this costs one validation per
+page lifetime."* `+page.ts` calls `createWigCatalogSeam()` **per load**, and `cachedWigs` lives in
+that instance's closure — so the cache never survives a call and `validateWigCatalog` runs once per
+page load, not once per tab. Fine for an eight-entry catalog, and now stated instead of glossed.
+
+The regenerated entry also asserts what the old one only implied: the seam is safe to run on the
+server because the adapter's sole input is a bundled `import wigs.json` — no `fs`, no network, no
+`process.cwd()` — so it is the same computation in both runtimes.
+
+### The declined part
+
+The finding asks to "complete the WigCatalogSeam workflow for newly observable seam behavior". The
+seam is **consumed**, not changed, and the entry says so explicitly rather than claiming otherwise:
+
+- `git diff origin/main...HEAD --name-only` matches nothing under `contracts/`, `probes/`,
+  `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/`.
+- All six of `WigCatalogSeam`'s artifacts pre-date this work; no contract shape moved.
+- `npm run rewind -- --seam WigCatalogSeam` passes 27 tests on this head.
+- `wig-catalog-seam` carries a documented **manual** probe with no `runProbe` export (`docs/seams.md`
+  records `N/A`), which pre-dates this change. There is no probe to run, and inventing one to
+  satisfy a review would be the opposite of evidence.
+
+A governance doc is repaired by making it describe the code, not by manufacturing a ceremony the
+change did not require.
+
+### The lesson, which is this run's own lesson pointed at prose
+
+Every earlier finding in this run was code drifting from the thing that described it. This one is a
+**document** drifting from the code it describes — written to answer round 1, never revised when
+round 2 replaced the implementation it documented. The mechanism is identical, and prose has no
+type-checker: `npm run cipher:gate` passed on every push, because it verifies an entry *exists*, not
+that it is *true*.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run verify` exit 0. `npm run cipher:gate` exit 0. Test,
+build and e2e results are unchanged from the previous close-out — this change touches only Markdown.
+
+### Running total
+
+**Fifteen** real findings across seven review rounds and one self-audit. One declined, with the
+`git diff` and `rewind` output that disproves it.

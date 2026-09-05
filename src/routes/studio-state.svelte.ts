@@ -17,6 +17,7 @@ import {
 	derivesDenseDecorations,
 	buildStudioTextFromCreationRecord,
 	buildStudioTextFromDraftRecord,
+	specOwnQuote,
 	canRunStudioAction,
 	consumeStudioActionBudget,
 	getStudioTextAction,
@@ -26,6 +27,7 @@ import {
 	type StudioTextActionId
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
+import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 import {
 	GENERATED_IMAGE_MIME_TYPES,
 	generatedImageDataUrl
@@ -70,6 +72,18 @@ type BorderChoice = ColoringPageSpec['border'];
  * active leaves every value identical, and is still the reader asking for that theme.
  */
 export type SettingChangeSource = 'theme' | 'setting';
+
+/**
+ * One try-on result: the wig it was made for, and the portrait produced.
+ *
+ * The whole wig is held rather than its id, so the compare strip can both label a portrait and
+ * put the reader back on that wig without a catalog lookup — and so a portrait is always labelled
+ * with the wig it was actually made for, whatever the catalog does afterwards.
+ */
+export type TryOnPortrait = {
+	wig: Wig;
+	portraitUrl: string;
+};
 
 const DRAFT_SAVE_DEBOUNCE_MS = 300;
 
@@ -182,13 +196,31 @@ export class StudioState {
 	appOrigin = $state(this.origin.getOrigin());
 
 	// --- Wig try-on state ---
-	selectedWigId = $state<string | null>(null);
 	selectedWig = $state<Wig | null>(null);
+	// Derived, not stored. Trying a wig on now needs the whole wig — the portrait is filed under it
+	// and labelled with its name — so a separately assigned id would be a second source of truth
+	// for "which wig is on screen", free to disagree with the first.
+	selectedWigId = $derived(this.selectedWig?.id ?? null);
 	selfieBase64 = $state('');
 	selfieMimeType = $state<'image/jpeg' | 'image/png' | 'image/webp'>('image/jpeg');
 	isTryingOn = $state(false);
-	tryOnPortraitUrl = $state('');
 	tryOnError = $state('');
+	/**
+	 * Every portrait made from the current selfie, keyed by the wig it was made for.
+	 *
+	 * This was one string, so trying on a second wig destroyed the first portrait — in a feature
+	 * whose entire purpose is deciding between wigs, and at the price of one AI image generation
+	 * per look. Keyed by wig, coming back to a wig shows what it looked like instead of a blank.
+	 *
+	 * Correctness rides on each entry naming its wig and the list being tied to one selfie: a
+	 * portrait of a face the reader has since replaced, shown under a new wig, would be worse than
+	 * losing it. `setSelfieForTryOn` therefore drops the whole list, not one entry.
+	 *
+	 * An array rather than a map because the order is the order they were tried, which is the order
+	 * the compare strip shows — and re-trying a wig replaces it in place, so the strip does not
+	 * reshuffle under the reader's finger.
+	 */
+	tryOnPortraits = $state<TryOnPortrait[]>([]);
 
 	// spec is initialized from literal values to avoid capturing $state references.
 	// It is updated explicitly via applyTextToSpec() whenever page settings change.
@@ -250,6 +282,30 @@ export class StudioState {
 		this.images.map((image) => generatedImageDataUrl(image) ?? '')
 	);
 	canTryOn = $derived(!!this.selectedWigId && !!this.selfieBase64 && !this.isTryingOn);
+	// The portrait on screen is whichever belongs to the wig on screen. Selecting a wig that was
+	// already tried on brings its portrait back rather than showing an empty result panel.
+	tryOnPortraitUrl = $derived(
+		this.tryOnPortraits.find((portrait) => portrait.wig.id === this.selectedWigId)
+			?.portraitUrl ?? ''
+	);
+	// Only worth showing once there is a decision to make, which is what a second portrait is.
+	/**
+	 * Making a page needs a portrait that is not about to be replaced.
+	 *
+	 * Trying the *same* wig on again keeps the old portrait on screen while the new one is styled,
+	 * and replacing it changes neither the selected wig nor the page token — so neither existing
+	 * guard can see it. A page started in that window captures the old portrait URL and then keeps
+	 * it, leaving the coloring page showing one look while the result panel shows another.
+	 */
+	canGenerateTryOnPage = $derived(
+		!!this.tryOnPortraitUrl && !this.isGenerating && !this.isTryingOn
+	);
+	canCompareTryOns = $derived(this.tryOnPortraits.length > 1);
+	// Words or a picture — either is a page worth keeping. Gating on the verdict alone is what left
+	// a generated try-on page as the only thing in the app the vault would not take.
+	canSaveToVault = $derived(
+		!this.isSaving && (!!this.textOutput || this.images.length > 0)
+	);
 
 	// Every saved page the current search matches, pinned first then newest first. The list used
 	// to be raw store order truncated to four, so a fifth save made the first one unreachable
@@ -298,6 +354,66 @@ export class StudioState {
 	 * and image quota on an incomplete page.
 	 */
 	private restoredPageLayout = false;
+
+	/**
+	 * Whether the page on the paper is a wig try-on portrait.
+	 *
+	 * A try-on page has no words on it — it is `title_only` with the wig's name and a picture — so
+	 * whatever verdict happens to be on screen is not this page's text. It usually is not there at
+	 * all, but a reader who generated a verdict first and then made a try-on page still has one, and
+	 * saving that as the record's `studioText` claims words the page does not print: the vault would
+	 * show that quote beside the portrait, and reopening would hand it back as the try-on page's own
+	 * text and send it to the provider on the next revision.
+	 *
+	 * Refusing to restore text for a page that prints no items does not cover this. That rule asks
+	 * "does this page have words of its own?", and here the words are perfectly real and perfectly
+	 * present — they are just about a different page.
+	 *
+	 * Cleared in `resetGeneratedPage`, which every path replacing the paper goes through.
+	 */
+	private tryOnPageOnScreen = false;
+
+	/**
+	 * The title of the try-on page on the paper, kept so its shape can be restored after a rebuild.
+	 *
+	 * Every Page Control change runs `syncSpecFromCurrentText`, which rebuilds the spec from the
+	 * verdict — or the demo seed — as a numbered list. On a try-on page that silently replaced the
+	 * wig's title, items and layout while the portrait stayed on the paper, so changing the page
+	 * size alone was enough to make the spec describe a different page than the one displayed, and
+	 * saving stored the portrait under it.
+	 */
+	private tryOnPageTitle = '';
+
+	/**
+	 * The verdict on screen, but only when it is genuinely *this page's* words.
+	 *
+	 * Two things write studio text down — the vault and the draft — and both must answer the same
+	 * question before they do. They asked it separately, and drifted: the vault learned to exclude a
+	 * verdict that belongs to a different page, the draft did not, so a verdict → try-on → draft →
+	 * refresh round trip put that verdict back as genuine and defeated the vault's guard from the
+	 * other side. One accessor, so there is no second copy of the condition to forget.
+	 *
+	 * Excluded: any verdict at all while the paper is a wig portrait (`tryOnPageOnScreen`) — a
+	 * portrait page prints no verdict words. Text invented by a restore needed a second exclusion
+	 * here until `buildStudioTextFromSpec` stopped inventing it; there is now nothing to exclude,
+	 * because a page with no printed items restores no text at all.
+	 */
+	private describingStudioText(): MeechieStudioTextOutput | undefined {
+		if (!this.textOutput) return undefined;
+		if (this.tryOnPageOnScreen) return undefined;
+		return $state.snapshot(this.textOutput);
+	}
+
+	/** The title-only shape a try-on page always has: the wig's name, a picture, and nothing else. */
+	private asTryOnPageSpec(spec: ColoringPageSpec): ColoringPageSpec {
+		return {
+			...spec,
+			title: this.tryOnPageTitle,
+			listMode: 'title_only',
+			items: [],
+			footerItem: undefined
+		};
+	}
 	// Whether the last rebuild's style hint asked for dense decoration — the derivation's answer,
 	// not its input. Seeded at restore time so the first unrelated setting change on a reopened page
 	// compares equal and preserves what was restored.
@@ -366,7 +482,10 @@ export class StudioState {
 					updatedAtISO: new Date().toISOString(),
 					intent: $state.snapshot(this.spec),
 					chatMessage: this.evidence.trim().length > 0 ? this.evidence : undefined,
-					studioText: this.textOutput ? $state.snapshot(this.textOutput) : undefined
+					// Exactly the rule the vault uses, through the same accessor. A draft that
+					// carried text this page does not own would come back after a refresh as
+					// genuine, with nothing left to say otherwise.
+					studioText: this.describingStudioText()
 				}
 			});
 			if (result.ok) {
@@ -444,6 +563,12 @@ export class StudioState {
 					: this.spec
 				: undefined
 		});
+		// A rebuild describes the verdict, and a try-on page has no verdict on it. Without this the
+		// portrait would keep its place on the paper while the spec around it became a numbered list
+		// under someone else's title — see `tryOnPageTitle`.
+		if (this.tryOnPageOnScreen && this.tryOnPageTitle) {
+			this.spec = this.asTryOnPageSpec(this.spec);
+		}
 		await this.validateSpec();
 		this.scheduleDraftSave();
 	}
@@ -460,19 +585,39 @@ export class StudioState {
 		this.recommendedFixes = [];
 		this.images = [];
 		this.packagedFiles = [];
+		// Whatever replaces the paper is not a try-on portrait until a try-on generation says so.
+		this.tryOnPageOnScreen = false;
+		this.tryOnPageTitle = '';
 	}
 
-	private resetTryOnResultState(): void {
-		// Delegates to resetGeneratedPage() so a fresh try-on also clears the assembled
-		// prompt/violations from any prior normal generation, not just the images/PDF —
-		// System Trace renders those independently of packagedFiles/images.
+	/**
+	 * Clears what is on the page, but keeps the portraits already made.
+	 *
+	 * Delegates to resetGeneratedPage() so a fresh try-on also clears the assembled
+	 * prompt/violations from any prior normal generation, not just the images/PDF —
+	 * System Trace renders those independently of packagedFiles/images.
+	 */
+	private resetTryOnPageState(): void {
 		this.resetGeneratedPage();
-		this.tryOnPortraitUrl = '';
 		this.tryOnError = '';
 	}
 
-	private parseTryOnPortraitImage(): GeneratedImage | null {
-		const match = this.tryOnPortraitUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/);
+	/**
+	 * Drops every portrait as well. Only for a change that invalidates all of them — which means a
+	 * new selfie, since every stored portrait is of the previous one.
+	 */
+	private discardTryOnPortraits(): void {
+		this.resetTryOnPageState();
+		this.tryOnPortraits = [];
+		// Any request still in flight was made with the previous selfie, so its result must not be
+		// filed when it lands. Not $state: nothing renders it.
+		this.selfieToken += 1;
+	}
+
+	private selfieToken = 0;
+
+	private parseTryOnPortraitImage(portraitUrl: string): GeneratedImage | null {
+		const match = portraitUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/);
 		if (!match) return null;
 		const subtype = match[2];
 		const data = match[3];
@@ -530,11 +675,35 @@ export class StudioState {
 		this.draftTimer = setTimeout(() => void this.saveDraft(), DRAFT_SAVE_DEBOUNCE_MS);
 	};
 
+	/**
+	 * What a settings rebuild should describe when there is no verdict on screen.
+	 *
+	 * An empty studio has nothing but the demo seed, and rebuilding from it is what the reader sees
+	 * before they generate anything. A *reopened* page is different: it has a title of its own, and
+	 * handing the seed to the rebuild renamed it. That is not hypothetical — the page this matters
+	 * for is the reopened wig try-on, whose title is the wig's name and whose verdict is `null`
+	 * precisely because it prints no items, so changing the page size alone used to retitle it
+	 * THE LANDLORD.
+	 *
+	 * The seed's `pageItems` ride along and are never printed: a restored page with no items is
+	 * `title_only`, `restoredPageLayout` keeps it that way, and that layout discards items.
+	 */
+	private rebuildSourceText(): MeechieStudioTextOutput {
+		if (this.textOutput) return this.textOutput;
+		if (!this.restoredPageLayout) return DEFAULT_STUDIO_TEXT_OUTPUT;
+		return {
+			...DEFAULT_STUDIO_TEXT_OUTPUT,
+			verdict: this.spec.title,
+			pageTitle: this.spec.title,
+			quote: specOwnQuote(this.spec)
+		};
+	}
+
 	syncSpecFromCurrentText = async (
 		source: SettingChangeSource = 'setting'
 	): Promise<void> => {
 		try {
-			await this.applyTextToSpec(this.textOutput ?? DEFAULT_STUDIO_TEXT_OUTPUT, source);
+			await this.applyTextToSpec(this.rebuildSourceText(), source);
 		} catch (error) {
 			this.draftSaveError =
 				error instanceof Error ? error.message : 'Page settings could not be saved.';
@@ -563,10 +732,13 @@ export class StudioState {
 
 	selectWigForTryOn = async (wig: Wig): Promise<void> => {
 		const wigChanged = wig.id !== this.selectedWigId;
-		this.selectedWigId = wig.id;
 		this.selectedWig = wig;
 		if (wigChanged) {
-			this.resetTryOnResultState();
+			// The coloring page on screen was made from the previous wig's portrait, so it goes.
+			// The portraits themselves stay: `tryOnPortraitUrl` follows the selected wig, so this
+			// shows the new wig's portrait if it has one and an empty result panel if it does not,
+			// and the previous wig's portrait is still there when the reader goes back to compare.
+			this.resetTryOnPageState();
 		}
 		await this.syncSpecFromCurrentText();
 	};
@@ -577,7 +749,9 @@ export class StudioState {
 	): void => {
 		this.selfieBase64 = base64;
 		this.selfieMimeType = mimeType;
-		this.resetTryOnResultState();
+		// Every stored portrait is of the previous selfie. Keeping them would relabel the old face
+		// under the new upload, which is a worse outcome than losing them.
+		this.discardTryOnPortraits();
 	};
 
 	runTextAction = async (actionId: StudioTextActionId): Promise<void> => {
@@ -651,15 +825,45 @@ export class StudioState {
 		}
 	};
 
+	/**
+	 * Packages what is on the paper and attaches the result — unless the page was replaced while
+	 * packaging ran, in which case the late PDF belongs to a page nobody is looking at.
+	 *
+	 * Shared by both generation paths on purpose. These eleven lines were written twice, and the
+	 * staleness check existed in neither: copying the block is precisely how one path came to be
+	 * guarded and the other not. One implementation is the only way both stay correct.
+	 */
+	private async attachPackagedPage(fileBaseName: string, pageToken: number): Promise<void> {
+		const packagingResult = await outputPackagingAdapter.package({
+			images: $state.snapshot(this.images),
+			outputFormat: 'pdf',
+			fileBaseName,
+			pageSize: this.spec.pageSize,
+			variants: ['print']
+		});
+		if (pageToken !== this.pageLoadToken) return;
+		if (packagingResult.ok) {
+			this.packagedFiles = packagingResult.value.files;
+		} else {
+			this.generationError = packagingResult.error.message;
+		}
+	}
+
 	handleGeneratePage = async (): Promise<void> => {
 		if (!this.textOutput) {
 			this.generationError = 'Generate Meechie words before creating the page.';
 			return;
 		}
 		this.resetGeneratedPage();
+		// The same capture the try-on path makes, for the same reason: everything below is read
+		// after an await, and every path that replaces the paper advances this token. Without it a
+		// slow generation lands its prompt, images and PDF on whatever verdict is on screen when it
+		// finishes — which is the defect the mode routes already guard against, and this one did not.
+		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
 		try {
 			await this.applyTextToSpec(this.textOutput);
+			if (pageToken !== this.pageLoadToken) return;
 			if (this.validationIssues.length > 0) {
 				this.generationError = 'Fix the page settings before generating.';
 				return;
@@ -672,6 +876,7 @@ export class StudioState {
 				},
 				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
 			);
+			if (pageToken !== this.pageLoadToken) return;
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.generationError = 'Generate response did not match contract.';
@@ -688,18 +893,7 @@ export class StudioState {
 			this.recommendedFixes = parsed.data.value.recommendedFixes;
 
 			const creationId = this.generateCreationId();
-			const packagingResult = await outputPackagingAdapter.package({
-				images: $state.snapshot(this.images),
-				outputFormat: 'pdf',
-				fileBaseName: `meechie-coloring-page-${creationId}`,
-				pageSize: this.spec.pageSize,
-				variants: ['print']
-			});
-			if (packagingResult.ok) {
-				this.packagedFiles = packagingResult.value.files;
-			} else {
-				this.generationError = packagingResult.error.message;
-			}
+			await this.attachPackagedPage(`meechie-coloring-page-${creationId}`, pageToken);
 		} catch (error) {
 			this.generationError =
 				error instanceof Error ? error.message : 'Coloring page generation failed.';
@@ -709,38 +903,72 @@ export class StudioState {
 	};
 
 	handleGenerateTryOnPage = async (): Promise<void> => {
-		if (!this.tryOnPortraitUrl) {
+		// See `canGenerateTryOnPage`. Guarded here too, not only on the button: the race is between
+		// two state transitions, so the state is where it has to be refused.
+		if (this.isTryingOn) {
+			this.generationError = 'Wait for the new look to finish before making the page.';
+			return;
+		}
+		const wig = this.selectedWig;
+		// Captured together, before any await, because they have to describe the same look.
+		// `tryOnPortraitUrl` is derived from the selected wig, and the carousel stays live during
+		// generation, so re-reading it after the await could return a different wig's portrait —
+		// and the title and prompt below are built from `wig`. That combination packages one wig's
+		// picture under another wig's name.
+		const portraitUrl = this.tryOnPortraitUrl;
+		if (!portraitUrl || !wig) {
 			this.generationError = 'Create a try-on portrait first.';
 			return;
 		}
 		this.resetGeneratedPage();
+		// Taken after the reset, which advances it. Selecting another wig resets the page again, so
+		// a moved token means the reader is no longer looking at the page they asked for.
+		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
 		try {
 			await this.syncSpecFromCurrentText();
-			const portraitImage = this.parseTryOnPortraitImage();
+			if (pageToken !== this.pageLoadToken) return;
+			const portraitImage = this.parseTryOnPortraitImage(portraitUrl);
 			if (!portraitImage) {
 				this.generationError =
 					'Try-on portrait format is not supported for coloring-page export.';
 				return;
 			}
+			// A try-on page is a portrait, not a list, so it takes the whole title-only shape and not
+			// just a new title. `syncSpecFromCurrentText` builds the spec from
+			// `DEFAULT_STUDIO_TEXT_OUTPUT` when no verdict has been generated, so replacing the
+			// title alone left the demo seed's items — THE RENT, THE DOPEMAN, WHAT IT COST — and its
+			// footer on the record. `loadCreation` rebuilds a no-`studioText` record's words from
+			// `intent.items`, so reopening a saved try-on put those unrelated lines in the preview
+			// and in the evidence box, which is the text the reader's next verdict request sends.
+			//
+			// `title_only` with no items and no footer is the shape the schema requires
+			// (`ColoringPageSpecSchema` rejects items or a footer in title-only mode) and the one
+			// the page actually is.
+			this.tryOnPageTitle = compactColoringPageTitle(['Wig Try-On', wig.name]);
+			this.spec = this.asTryOnPageSpec(this.spec);
+			// `assembledPrompt` is required and non-empty on a vault record, and this path never
+			// calls the image provider so there is no real prompt to record. It gets a description
+			// of the page instead of a machine prompt on purpose: `loadCreation` puts a reopened
+			// record's own words in the evidence box, and a prompt there is shipped to the provider
+			// as the reader's facts on their next Generate Verdict — the defect recorded at that
+			// call site.
+			this.assembledPrompt = `Wig try-on portrait — ${wig.name} (${wig.style}).`;
+			// Re-validated because the title above was written after `syncSpecFromCurrentText` had
+			// already validated. Checking the issues it left would be checking the previous spec.
+			await this.validateSpec();
 			if (this.validationIssues.length > 0) {
 				this.generationError = 'Fix the page settings before generating.';
 				return;
 			}
 			this.images = [portraitImage];
+			// From here the paper is a portrait, so no verdict describes it. See `tryOnPageOnScreen`.
+			this.tryOnPageOnScreen = true;
 			const creationId = this.generateCreationId();
-			const packagingResult = await outputPackagingAdapter.package({
-				images: $state.snapshot(this.images),
-				outputFormat: 'pdf',
-				fileBaseName: `meechie-try-on-coloring-page-${creationId}`,
-				pageSize: this.spec.pageSize,
-				variants: ['print']
-			});
-			if (packagingResult.ok) {
-				this.packagedFiles = packagingResult.value.files;
-			} else {
-				this.generationError = packagingResult.error.message;
-			}
+			await this.attachPackagedPage(
+				`meechie-try-on-coloring-page-${creationId}`,
+				pageToken
+			);
 		} catch (error) {
 			this.generationError =
 				error instanceof Error ? error.message : 'Try-on coloring page generation failed.';
@@ -749,12 +977,40 @@ export class StudioState {
 		}
 	};
 
+	/**
+	 * Files a finished portrait under the wig it was actually requested for, replacing that wig's
+	 * previous portrait in place so the compare strip keeps its order.
+	 */
+	private storeTryOnPortrait(portrait: TryOnPortrait): void {
+		const existing = this.tryOnPortraits.findIndex(
+			(entry) => entry.wig.id === portrait.wig.id
+		);
+		if (existing >= 0) {
+			this.tryOnPortraits = this.tryOnPortraits.map((entry, index) =>
+				index === existing ? portrait : entry
+			);
+			return;
+		}
+		this.tryOnPortraits = [...this.tryOnPortraits, portrait];
+	}
+
 	handleWigTryOn = async (): Promise<void> => {
-		if (!this.selectedWigId || !this.selfieBase64) {
+		const wig = this.selectedWig;
+		if (!wig || !this.selectedWigId || !this.selfieBase64) {
 			this.tryOnError = 'Select a wig and upload your selfie first.';
 			return;
 		}
-		this.resetTryOnResultState();
+		// Both captured before the await: styling takes long enough that the reader can pick another
+		// wig, or upload a different photo, while it runs.
+		//
+		// The wig decides where the result is filed, so a late portrait can no longer appear under —
+		// and be labelled as — whichever wig is selected when it lands. The selfie decides whether it
+		// is filed at all: a new upload clears the portraits precisely because they are of the old
+		// face, and a request already in flight would otherwise put one straight back, to sit in the
+		// compare strip beside portraits of the new face as though they were the same person.
+		const requestedWig = wig;
+		const requestedSelfieToken = this.selfieToken;
+		this.resetTryOnPageState();
 		this.isTryingOn = true;
 		try {
 			const payload = await postJson(
@@ -762,26 +1018,51 @@ export class StudioState {
 				{
 					selfieBase64: this.selfieBase64,
 					selfieMimeType: this.selfieMimeType,
-					wigId: this.selectedWigId
+					wigId: requestedWig.id
 				},
 				{ timeoutMs: POST_JSON_TIMEOUTS_MS.wigTryOn }
 			);
 			const parsed = WigTryOnResultSchema.safeParse(payload);
 			if (!parsed.success) {
-				this.tryOnError = 'Try-on response did not match contract.';
+				this.setTryOnError(
+					'Try-on response did not match contract.',
+					requestedWig.id,
+					requestedSelfieToken
+				);
 				return;
 			}
 			if (!parsed.data.ok) {
-				this.tryOnError = parsed.data.error.message;
+				this.setTryOnError(parsed.data.error.message, requestedWig.id, requestedSelfieToken);
 				return;
 			}
-			this.tryOnPortraitUrl = `data:${parsed.data.value.portraitMimeType};base64,${parsed.data.value.portraitBase64}`;
+			// The portrait is of the selfie that was current when it was requested. If that is no
+			// longer the selfie on screen, it belongs to nobody now and is dropped rather than filed.
+			if (requestedSelfieToken !== this.selfieToken) return;
+			this.storeTryOnPortrait({
+				wig: requestedWig,
+				portraitUrl: `data:${parsed.data.value.portraitMimeType};base64,${parsed.data.value.portraitBase64}`
+			});
 		} catch (error) {
-			this.tryOnError = error instanceof Error ? error.message : 'Wig try-on failed.';
+			this.setTryOnError(
+				error instanceof Error ? error.message : 'Wig try-on failed.',
+				requestedWig.id,
+				requestedSelfieToken
+			);
 		} finally {
 			this.isTryingOn = false;
 		}
 	};
+
+	/**
+	 * Shows a try-on failure only while it is still the reader's failure to read: the wig it
+	 * happened to is still on screen, and the selfie it was for is still the uploaded one. A
+	 * failure for a wig they have moved off, or for a photo they have replaced, is neither.
+	 */
+	private setTryOnError(message: string, wigId: string, selfieToken: number): void {
+		if (this.selectedWigId !== wigId) return;
+		if (selfieToken !== this.selfieToken) return;
+		this.tryOnError = message;
+	}
 
 	copyQuote = async (): Promise<void> => {
 		if (!this.textOutput || !this.isBrowser) return;
@@ -797,8 +1078,22 @@ export class StudioState {
 		if (this.isSaving) return;
 		const owner = this.owner;
 		const textOutput = this.textOutput;
-		if (!owner || !textOutput) {
+		if (!owner) {
 			this.vaultStatus = 'Session is still connecting. Try again in a moment.';
+			return;
+		}
+		// A page made from a wig try-on has no verdict behind it, and used to be the one page in
+		// the app that could not be kept: the button was disabled on `textOutput` alone, so the
+		// portrait died with the tab while every other surface reached the vault. `studioText` is
+		// optional on the record and `loadCreation` already restores records without it, so the
+		// real requirement is a page — words or a picture, either one.
+		const assembledPrompt = this.assembledPrompt || textOutput?.quote || '';
+		if (!textOutput && this.images.length === 0) {
+			this.vaultStatus = 'Make a page before saving it.';
+			return;
+		}
+		if (!assembledPrompt) {
+			this.vaultStatus = 'This page has nothing to save yet.';
 			return;
 		}
 		this.isSaving = true;
@@ -813,8 +1108,9 @@ export class StudioState {
 					id: creationId,
 					createdAtISO: new Date().toISOString(),
 					intent: $state.snapshot(this.spec),
-					assembledPrompt: this.assembledPrompt || textOutput.quote,
-					studioText: $state.snapshot(textOutput),
+					assembledPrompt,
+					// Only text that actually describes this page is saved as its own.
+					studioText: this.describingStudioText(),
 					revisedPrompt: this.revisedPrompt || undefined,
 					images: storedImages.length > 0 ? storedImages : undefined,
 					violations: $state.snapshot(this.violations),
@@ -833,6 +1129,8 @@ export class StudioState {
 	};
 
 	loadCreation = async (creation: CreationRecord): Promise<void> => {
+		// `null` for a page that prints no items — a reopened try-on portrait, say. Nothing on that
+		// page is a verdict, so nothing is restored as one; see `buildStudioTextFromSpec`.
 		const restoredText = buildStudioTextFromCreationRecord(creation);
 		this.resetGeneratedPage();
 		this.spec = creation.intent;
@@ -847,8 +1145,10 @@ export class StudioState {
 		// without studio text, which put `STYLE: bold outline art / NEGATIVE PROMPT: ...` in the box
 		// and shipped those machine instructions to the provider as user facts on the next click.
 		// `restoredText` already resolves the same `studioText.quote` when it exists and the page's
-		// own words when it does not, so read it from there and never from the prompt.
-		this.evidence = restoredText.quote;
+		// own words when it does not, so read it from there and never from the prompt. A page with
+		// no printed items restores no text at all, and `specOwnQuote` is the rule that text would
+		// have used — one implementation, so the box cannot say something the page does not.
+		this.evidence = restoredText?.quote ?? specOwnQuote(creation.intent);
 		this.dedication = creation.intent.dedication ?? '';
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;
@@ -1026,6 +1326,18 @@ export class StudioState {
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;
 			this.border = draft.value.intent.border;
+			// Two separate reasons a restored draft carries no verdict, and each is answered where
+			// it is actually knowable.
+			//
+			// `isKnownDraftSeed` is the one asked here: the page does print items, but they are the
+			// ones the studio ships with, so there is no reader's work to restore.
+			//
+			// The other is the builder's, and this check could not have made it. A title-only try-on
+			// page prints nothing a verdict could describe, and its title — the wig's name — matches
+			// no seed signature, so this waved it through and the studio came back from a refresh
+			// showing THE RENT / THE DOPEMAN under the wig's name with Save to Vault lit up over a
+			// record holding nothing. `buildStudioTextFromDraftRecord` returns null for that page,
+			// which is why the assignment is safe to make unconditionally once past this check.
 			if (draft.value.studioText || !isKnownDraftSeed(draft.value.intent)) {
 				this.textOutput = buildStudioTextFromDraftRecord(draft.value);
 			}

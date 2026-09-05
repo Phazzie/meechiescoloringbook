@@ -8,6 +8,65 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## The Wig Try-On becomes a shop you can browse and a try-on you can keep (2026-09-05)
+
+Run 5 of the scheduled worst-feature routine. The case against the feature is recorded in
+`WORST_TO_BEST_LOG.md`; this is the execution spec.
+
+**Goal:** the wig catalog loads through the seam it already owns and says so when it cannot; it can
+be searched, filtered and sorted on the metadata every wig already carries; trying on a second wig
+stops destroying the first; and a coloring page made from a try-on portrait reaches the Quote Vault
+like every other page in the app.
+
+**Seams touched: none.** `WigCatalogSeam` is *consumed* through its existing adapter
+(`src/lib/adapters/wig-catalog-seam/index.ts`) exactly as `/api/wig-try-on` already consumes it, and
+`CreationStoreSeam`, `SpecValidationSeam` and `OutputPackagingSeam` through the adapters
+`studio-state.svelte.ts` already calls. No file under `contracts/`, `probes/`, `fixtures/`,
+`src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` is in the diff, no
+contract shape changes, and nothing crosses a seam boundary differently than it does today — so the
+full Seam-Driven Development workflow is not triggered and no Cipher Gate entry is required. The
+change moves the UI *onto* a seam it was bypassing; it does not alter the seam.
+
+**Files:**
+- `src/lib/core/wig-catalog-gallery.ts` (new) — pure, dependency-free transforms: searchable text,
+  facet construction with cross-filtered counts, query application, sorting, labels.
+- `src/routes/+page.ts` (new) — read the catalog through `createWigCatalogSeam().listWigs()` in
+  `load`, so it runs on the server as well as the client and the cards and their affiliate links are
+  in the server-rendered HTML. (Revised during the run: the first version read the seam from a
+  component `$effect`, which does not run during SSR and removed the catalog from the initial HTML.)
+- `src/lib/components/WigCarousel.svelte` — presentational, taking `wigs` and `loadError` as props;
+  surface `WIG_CATALOG_EMPTY` / `WIG_CATALOG_LOAD_FAILED`, render the search box, facet chips, sort
+  control, result count, empty state, and the metadata the cards were hiding.
+- `src/lib/components/studio/WigTryOnStudio.svelte` — the compare strip over portraits already made.
+- `src/routes/studio-state.svelte.ts` — portraits keyed by wig id instead of one string; a new
+  selfie clears them all; the try-on page gets a real title, a real assembled prompt, and can be
+  saved.
+- `src/routes/+page.svelte` — prop wiring and the styles for the new rows.
+- `tests/unit/wig-catalog-gallery.test.ts` (new), `tests/unit/studio-state.test.ts`,
+  `tests/e2e/smoke.spec.ts`.
+- `CHANGELOG.md`, `CLAUDE.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+`npx playwright test`.
+
+**Self-critique:**
+- *Riskiest assumption:* that facet counts can be shown at all without lying. Counting each value
+  against the whole catalog is the easy version and is wrong in exactly the way this run exists to
+  fix — a chip reading "Blonde (1)" that yields nothing because another facet excludes it is a
+  control that lies about itself. So each count is computed against the search and every *other*
+  dimension, and a value that would add nothing is disabled rather than shown as a dead end. This
+  is more code and it is the whole point.
+- *What must be proven, and how:* that switching wigs no longer destroys the previous portrait, and
+  that changing the selfie *does* destroy all of them — the second is the correctness half, because
+  a kept portrait of the old face relabelled under a new one is worse than losing it. Both get
+  tests, and both are confirmed by deleting the guard and watching the test fail.
+- *What could be wrong:* relaxing `saveToVault` to accept a page with no studio text. The record
+  schema already makes `studioText` optional and `loadCreation` already handles records without it,
+  but `assembledPrompt` is `NonEmptyStringSchema`, so the try-on path must supply one. It supplies a
+  description of the page rather than a machine prompt, because `loadCreation` puts the record's own
+  words in the evidence box and a prompt there gets shipped to the provider as user facts — the
+  defect the comment at that call site already records.
+
 ## `/m/[mode]` becomes a real mode page (2026-09-04)
 
 Active plan for run 4 of the scheduled "worst feature -> best feature" task recorded in
