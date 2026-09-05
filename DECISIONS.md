@@ -7,13 +7,97 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-05 - Run 5 merge close-out (micro plan + self-critique)
+
+- Date: 2026-09-05
+- Decision: Record Run 5's merge outcome in `WORST_TO_BEST_LOG.md` as a separate, docs-only change
+  after PR #297 merged as `cc5f622`, and regenerate this date's evidence artifacts on that
+  close-out head rather than citing the merged head's.
+- Context: The worst-feature routine's log is the only memory between runs. Run 5 exists because
+  three previous runs deferred the wig try-on by citing each other; a run that merges without
+  recording its outcome and its gate reasoning leaves the next one inheriting a claim instead of
+  evidence. A review found this close-out had no micro Plan of its own and was inheriting the
+  pre-merge feature plan in `plan.md`, which describes a different change.
+- Alternatives: Fold the close-out into the feature PR (impossible - it records that PR's merge);
+  skip it (loses the outcome, the gate reasoning and the two carried-forward findings); leave the
+  merged head's evidence in place (rejected, and correctly: the routine requires check, lint, test
+  and build before *every* push).
+- Consequences: `docs/evidence/2026-09-05/` now describes two heads, so provenance is stated per
+  artifact. `verify-outer.txt` is added because `verify.txt` holds only the inner verify-runner
+  stage, which left the audit gate's result and the chain's exit status asserted rather than
+  captured.
+- Revisit criteria: If the routine ever produces the close-out inside the feature PR, the two-head
+  split in `verify-chain.txt` becomes unnecessary and should be removed rather than maintained. If
+  `verify-chain.txt` is ever generated rather than hand-written, its stale-header failure mode goes
+  away and the per-artifact labelling should be reassessed. And `scripts/proof-tape.mjs` should
+  learn to compare artifact times against the start of the current push rather than against
+  `chamber-lock.json`: as it stands, `cipher-gate.json` can never clear that test, because the
+  ordering above requires it to be written *before* the chain in order to be inventoried correctly
+  at all, so the tape calls it "written by an earlier run" every time. That is a generator change
+  with its own tests, not a close-out change, which is why it is recorded here instead of made.
+- Plan (micro):
+  - Goal: record the merge outcome, the gate conditions and exclusions as actually checked, and the
+    findings worth carrying to the next run.
+  - Seams: none. No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+    `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` is touched, and no `src/` or `tests/`
+    file at all.
+  - Files:
+    - `WORST_TO_BEST_LOG.md` (the close-out entry and its corrections)
+    - `DECISIONS.md` (this entry)
+    - `docs/evidence/2026-09-05/verify-outer.txt` (new; written after the chain completes, so it
+      is deliberately absent from that run's own `proof-tape` inventory)
+    - `docs/evidence/2026-09-05/verify-chain.txt`
+    - `docs/evidence/2026-09-05/verify.txt`
+    - `docs/evidence/2026-09-05/test.txt`
+    - `docs/evidence/2026-09-05/lint.txt`
+    - `docs/evidence/2026-09-05/build.txt`
+    - `docs/evidence/2026-09-05/cipher-gate.json`
+    - `docs/evidence/2026-09-05/chamber-lock.json`
+    - `docs/evidence/2026-09-05/shaolin-lint.json`
+    - `docs/evidence/2026-09-05/assumption-alarm.json`
+    - `docs/evidence/2026-09-05/seam-ledger.json`
+    - `docs/evidence/2026-09-05/seam-ledger.md`
+    - `docs/evidence/2026-09-05/clan-chain.json`
+    - `docs/evidence/2026-09-05/clan-chain.md`
+    - `docs/evidence/2026-09-05/proof-tape.json`
+    - `docs/evidence/2026-09-05/proof-tape.md`
+  - Not touched, and deliberately so: `docs/evidence/2026-09-05/e2e.txt`,
+    `docs/evidence/2026-09-05/rewind-wig-catalog-seam.txt` and
+    `docs/evidence/2026-09-05/rewind-WigCatalogSeam.txt` carry the code head's results, because the
+    routine scopes end-to-end runs to user-facing changes and no code has changed since.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+    `npm run cipher:gate`. `npx playwright test` is deliberately not re-run: the routine scopes
+    end-to-end runs to user-facing changes, and a log entry is not one.
+  - How behaviour stays unchanged: no file under `src/` or `tests/` is in the diff at all, so there
+    is no code whose behaviour could differ - that, and not any property of the build output, is
+    what establishes it. `npm run build` exits 0 and every emitted chunk keeps its byte size, and
+    `npm test` is unchanged at 1252 passed / 1 skipped. Note what those do *not* show: the hashed
+    filenames differ between two builds of identical source, so a green build is not evidence of an
+    identical bundle and is not offered as any. Reproduce it from a clean tree with
+    `npm run build && cp -r .svelte-kit/output /tmp/a && npm run build` and compare the emitted
+    filenames: four chunks change name at byte-identical sizes with no source edit between them.
+    Neither a hash nor a commit range is cited here on purpose. A hash quoted in prose is wrong on
+    the next build, which is the very instability being documented; and a range of close-out commits
+    is not guaranteed to remain reachable once this branch is merged and its ref deleted. Running
+    the build twice needs neither.
+- Self-critique (micro): The riskiest thing here is not the diff, it is the prose. Every review
+  finding on this close-out has been a sentence about evidence that was looser than the evidence,
+  and twice the looseness was introduced by the commit fixing the previous instance - a stale
+  "Results on this head" heading over a Playwright run that had not happened, an await-timing
+  explanation that misdescribed code the reader can check, and a header still naming a superseded
+  head. `npm run cipher:gate` cannot catch any of them: it verifies that an entry exists, not that
+  it is true. The mitigation applied is structural rather than a resolution to be careful - claims
+  are now attached to the artifact they describe rather than to a section heading, and the moving
+  totals were removed from a hand-written header and left only in the append-only log where they
+  cannot go stale.
+
 ## 2026-09-05 - The wig carousel loads through `WigCatalogSeam`, and facet counts are cross-filtered
 
 - Cipher Gate:
   - Date: 2026-09-05
   - Seams: WigCatalogSeam (existing; no contract, validator, mock, probe, fixture or adapter changed). The change is a new *consumer*: the UI stops bypassing the seam and starts calling `listWigs()` through the existing adapter, as `/api/wig-try-on` already does. CreationStoreSeam, SpecValidationSeam and OutputPackagingSeam are likewise consumed through their existing adapters, unchanged.
   - Evidence: docs/evidence/2026-09-05/rewind-wig-catalog-seam.txt, docs/evidence/2026-09-05/chamber-lock.json, docs/evidence/2026-09-05/test.txt, docs/evidence/2026-09-05/verify.txt, docs/evidence/2026-09-05/seam-ledger.md, docs/evidence/2026-09-05/clan-chain.md, docs/evidence/2026-09-05/proof-tape.md, src/lib/seams/wig-catalog-seam/contract.ts, src/lib/seams/wig-catalog-seam/validators.ts, src/lib/seams/wig-catalog-seam/mock.ts, src/lib/seams/wig-catalog-seam/probe.ts, src/lib/seams/wig-catalog-seam/test.ts, src/lib/seams/wig-catalog-seam/fixtures.ts, src/lib/adapters/wig-catalog-seam/index.ts, docs/seams.md
-  - Summary: `WigCarousel.svelte` previously read the catalog with `import wigData from '$lib/data/wigs.json'` and `wigData as unknown as Wig[]`, so `validateWigCatalog` never ran for the UI and the seam's `WIG_CATALOG_LOAD_FAILED` and `WIG_CATALOG_EMPTY` results had no path to a reader - a malformed or empty catalog rendered as an empty row with no message. The seam is now the only reader, and it is called from the page's `load` in `src/routes/+page.ts`, which runs on the server and on the client. `WigCarousel.svelte` is presentational: it receives `wigs` and `loadError` as props and renders either the validated wigs or the seam's own error message. It has **no** loading state, because there is nothing to wait for - the cards and their affiliate links are in the server-rendered HTML. (An intermediate version of this change did the load in a component `$effect`; that removed the catalog from the initial HTML entirely and was replaced. This entry describes the shipped design, not that one.) This is recorded as a Cipher Gate entry because the integration makes seam outcomes newly observable in the UI, which a reviewer reasonably read as crossing the boundary, and `AGENTS.md` says to treat doubt as a seam change. What the entry does not claim is a seam change: the seam's six artifacts all pre-date this work and none is in the diff (`git diff origin/main...HEAD --name-only` matches nothing under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/`), no contract shape moved, and the seam returns exactly what it returned before for the same input. `npm run rewind -- --seam WigCatalogSeam` passes 27 tests on this head.
+  - Summary: `WigCarousel.svelte` previously read the catalog with `import wigData from '$lib/data/wigs.json'` and `wigData as unknown as Wig[]`, so `validateWigCatalog` never ran for the UI and the seam's `WIG_CATALOG_LOAD_FAILED` and `WIG_CATALOG_EMPTY` results had no path to a reader - a malformed or empty catalog rendered as an empty row with no message. The seam is now the only reader, and it is called from the page's `load` in `src/routes/+page.ts`, which runs on the server and on the client. `WigCarousel.svelte` is presentational: it receives `wigs` and `loadError` as props and renders either the validated wigs or the seam's own error message. It has **no** loading state, because there is nothing to wait for - the cards and their affiliate links are in the server-rendered HTML. (An intermediate version of this change did the load in a component `$effect`; that removed the catalog from the initial HTML entirely and was replaced. This entry describes the shipped design, not that one.) This is recorded as a Cipher Gate entry because the integration makes seam outcomes newly observable in the UI, which a reviewer reasonably read as crossing the boundary, and `AGENTS.md` says to treat doubt as a seam change. What the entry does not claim is a seam change: the seam's six artifacts all pre-date this work and none is in the diff (`git diff origin/main...HEAD --name-only` matches nothing under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/`), no contract shape moved, and the seam returns exactly what it returned before for the same input. `npm run rewind -- --seam WigCatalogSeam` passes 27 tests on the code head this entry describes; it is not re-run for the docs-only close-out that follows, which changes no code for it to verify.
   - Risks: The seam now runs on the server as well as in the browser. That is safe to assert rather than hope for, because the adapter's only input is a bundled `import rawCatalog from '../../data/wigs.json'` - no `fs`, no network, no `process.cwd()` - so it is the same computation in both runtimes and cannot fail on one and succeed on the other. What does change is how often it runs: `+page.ts` constructs a fresh seam per load, and `cachedWigs` lives in that instance's closure, so `validateWigCatalog` now runs once per page load instead of once per browser tab. Accepted, and stated rather than glossed: the catalog is eight entries, and the alternative - a module-level instance - would make the parse result outlive a deploy inside a warm serverless instance. A `wigs.json` edited in a running dev server is still not re-read until the module graph reloads, exactly as the raw import behaved. `wig-catalog-seam` carries a documented manual probe with no `runProbe` export and `N/A` in the registry's probe-date column; that pre-dates this change and is untouched by it, so the seam's automated evidence here is its contract test via rewind and chamber-lock's artifact-presence gate, not a fresh probe run. Making the failure paths visible also means a reader can now be shown a catalog error where they previously saw an empty row, which is better but is a new user-facing string on a path that had none - and because the load runs on the server, that string can now reach the initial HTML.
 
 
