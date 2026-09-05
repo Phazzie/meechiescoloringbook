@@ -8050,3 +8050,76 @@ rewind 17 · mandated `npx playwright test` exit 1 with 41 launch failures in Ro
 run 41 passed in Row 2 · probe complete · YAML valid.
 
 Mutation total for the feature stays at **69**; the guard's six rules are counted with the tooling.
+
+---
+
+## Run 8 close-out — round thirty-two: I reintroduced the bug I had just fixed
+
+Seven findings. Two are fixed here, five are declined as out of this change's scope with reasons
+recorded. The first of the two is the worst single thing in this whole sequence.
+
+### I put the bug back, one round later, in the same file
+
+Round twenty-nine's finding was that the CI step reported success without running, because a failing
+`git diff` inside a pipeline left `dirs` empty and the step read that as "nothing to guard". I fixed
+it, wrote the rule about checks that cannot fail loudly, and recorded a prediction that the log would
+prove it.
+
+Round thirty-one then added a `grep` to that pipeline — grep exits 1 when nothing matches, which is
+legitimate — and I appended `|| true` **to the whole pipeline** to tolerate it. That is the same
+swallow, restored:
+
+    dirs=$(git diff … | grep … | cut … | sort -u || true)   # a failed diff is again an empty list
+
+Measured, not argued: with an unreachable base this returns exit 0 and an empty `dirs`. The step
+would have gone green without guarding anything, exactly as it did two rounds earlier.
+
+Now two statements. The diff runs alone, so `set -e` sees it fail — an unreachable base or two roots
+with no merge base is exit 128 and stops the step. Only the grep line carries `|| true`, covering
+exactly one expected outcome. Both proved: a bad base exits 128; a README-only change yields an empty
+list and exit 0.
+
+> **A tolerance added for one failure will absorb every failure that reaches it.** `|| true` does not
+> mean "this command may not match" — it means "nothing here can fail", and the difference only shows
+> up on the day something else does.
+
+The reason it happened is worth naming too: I was adding a filter, not touching error handling, so I
+did not re-read what the line promised. **An edit that changes what a line can fail on is an edit to
+the check, whatever it was you thought you were doing.**
+
+### The second: a reporter's other way of saying no
+
+Vitest can exit 1 while printing `Tests 1 passed` alongside `Errors 1 error` and `Vitest caught 1
+unhandled error` — a failure outside any test body. The rewind rule matched `failed` and `errors?` as
+counts and missed both forms. Same shape as Playwright's `1 error was not a part of any test`, missed
+for the same reason: **the pattern was written from the failures I had seen, not from the ways the
+reporter says a run went wrong.**
+
+### The five declined, and why
+
+All five are reasonable and none is wrong. They ask the guard to become something this change is not.
+
+- **Compare content hashes, not sizes.** Correct: a same-length edit — `41 passed` to `40 passed` —
+  is invisible. Closing it means teaching `proof-tape.mjs` to record hashes, which changes a chain
+  artifact's schema, and `CLAUDE.md` says not to edit the chain scripts without a plan. Worth stating
+  the guard's actual threat model instead of implying a stronger one: **it catches accidental
+  staleness and truncation, not deliberate same-length tampering.**
+- **Reject stale `lint.txt` / `build.txt`.** Correct, and it has no fix inside the guard: those files
+  contain eslint's silence plus an appended exit line and carry no run identity to bind to. Making
+  them bindable means the *tracked* tooling must produce them, rather than an untracked capture
+  script — which is round twenty-seven's lesson one level further out, and its own change.
+- **Require `e2e.txt` for user-facing changes**, **fail when a change that needs evidence commits
+  none**, and **enforce the Cipher Gate for seam changes.** All three require the guard to classify a
+  change — user-facing, seam-touching, evidence-requiring — from its diff. That is a policy engine
+  with real false-positive cost: a wrong classification turns CI red on a legitimate change, and the
+  wrongness would be invisible until it happened. It belongs in its own change with its own tests,
+  not bolted onto a documentation correction at round thirty-two.
+
+Declining is not disagreeing. All five are recorded here so the next run inherits the list rather
+than rediscovering it.
+
+### Verification
+
+`npm run lint` clean · `npm run evidence:guard` all 6 rules pass · YAML valid · a failed diff exits
+128 · a README-only change yields an empty list at exit 0 · a Vitest unhandled-error rewind is
+rejected.

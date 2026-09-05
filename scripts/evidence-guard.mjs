@@ -204,9 +204,13 @@ const RULES = [
 			// A seam run that reports "1 failed | 16 passed" has a passing count and is not a pass.
 			// Same shape as the end-to-end rule above, and it was missing here for the same reason:
 			// the rule asked whether a number was present rather than what the numbers said.
-			const failing = rewinds.filter((f) =>
-				/(\d{1,9}) (failed|errors?)\b/.test(stripAnsi(read(dir, f) ?? ''))
-			);
+			// Vitest can exit 1 while reporting "Tests 1 passed" and "Errors 1 error" / "Vitest caught
+			// 1 unhandled error" — a failure outside any test body, which is the same shape as
+			// Playwright's "1 error was not a part of any test" and was missed here for the same reason:
+			// the pattern was written from the failures I had seen rather than from how the reporter
+			// says a run went wrong.
+			const FAILING = /(\d{1,9}) (failed|errors?)\b|unhandled error/;
+			const failing = rewinds.filter((f) => FAILING.test(stripAnsi(read(dir, f) ?? '')));
 			if (failing.length > 0)
 				return `these rewind transcripts report failures beside their passes: ${failing.join(', ')}.`;
 			return null;

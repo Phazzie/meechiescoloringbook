@@ -63,7 +63,16 @@ jobs:
           # Dated folders only. `docs/evidence/README.md` is a file, and cutting three path segments
           # off it yields the file itself — which the guard then tries to read as a directory and
           # dies with ENOTDIR, so editing the evidence conventions document would turn CI red.
-          dirs=$(git diff --name-only "$base...HEAD" -- 'docs/evidence/*' \
+          # Two statements, not one pipeline. The diff runs alone so `set -e` sees it fail — an
+          # unreachable base, or two roots with no merge base, is exit 128 and must stop the step.
+          # Only the second line carries `|| true`, and it covers exactly one expected outcome:
+          # grep exits 1 when nothing matches, which is a change that touches no dated folder.
+          #
+          # The previous version put `|| true` on the whole pipeline, so a failed diff again became
+          # an empty list and "nothing to guard" — reintroducing, one round later and in this same
+          # file, the defect that adding this check was supposed to fix.
+          changed=$(git diff --name-only "$base...HEAD" -- 'docs/evidence/*')
+          dirs=$(printf '%s\n' "$changed" \
             | grep -E '^docs/evidence/[0-9]{4}-[0-9]{2}-[0-9]{2}/' \
             | cut -d/ -f1-3 | sort -u || true)
           if [ -z "$dirs" ]; then
