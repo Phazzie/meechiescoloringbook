@@ -7098,3 +7098,76 @@ carrying its own exit status · `npm run rewind -- --seam "CreationStoreSeam (se
 passed · Playwright **41 passed** against the installed browser · browser probe complete.
 
 No mutation this round — nothing behavioural changed. Running total stays at **69**.
+
+---
+
+## Run 8 close-out — round twenty-four: the plan's inventory, three ways
+
+Three P1 findings, all in `DECISIONS.md`, all the same shape: the entry that is supposed to be the
+authoritative description of this change had drifted from the change. Each was checkable against the
+repository, and each checked out.
+
+### 1. The Cipher Gate named the wrong seam
+
+The mandatory audit entry read `Seams: CreationStoreSeam`. That is the **legacy flat-layout row** in
+`docs/seams.md`, whose rewind runs four contract tests that touch nothing here. The change is to
+`src/lib/seams/creation-store-seam/`, registered as `CreationStoreSeam (self-contained)`.
+
+This one is worse than a typo, because the surrounding evidence spells the distinction out at
+length. `verify-chain.txt` has a whole section on it, added *because* an earlier push cited the
+unsuffixed rewind and I recorded the correction. The correction went into the evidence and never
+into the entry the evidence is filed under.
+
+It also made a rule in that same file false. `verify-chain.txt` says a rewind artifact is current
+"if and only if its name is the seam in the Cipher Gate entry" — and the Cipher Gate entry named a
+seam whose artifact is deliberately stale. The rule and the entry each pointed at the other and
+disagreed.
+
+Fixed in the Cipher Gate entry, **and in the plan's own `Seams:` line above it**, which had the same
+defect and was not flagged. One of the two would have been the instance; both is the root.
+
+### 2. The command list could not reproduce the evidence beside it
+
+`Commands:` listed check, lint, test, build, verify, rewind and playwright. `npm run verify` does
+**not** invoke `npm run cipher:gate` — that is stated three lines up in the capture-order section —
+and it does not run the browser probe. Both had run; the folder carries a regenerated
+`cipher-gate.json` and a `probe-browser-seams.txt` proving it. A list that omits them describes a
+change nobody could reproduce.
+
+### 3. `lint.txt` was declared impossible to change, and this commit changes it
+
+The inventory ended: "`lint.txt` is deliberately absent — eslint prints nothing on success, so the
+file does not change and does not appear in the diff."
+
+True when written. False since **round twenty-one**, when the capture script started appending its
+own `lint exit=0` line so the transcript would carry its own result — the fix for the truncated
+`verify-outer.txt`. That fix changed what `lint.txt` contains, and the sentence explaining why it
+could never change stayed put through three pushes.
+
+What made it a defect rather than a rounding error is the sentence immediately before it, which
+declares the list equal to `git diff --name-status`. An inventory that asserts its own completeness
+and then names an exception that is no longer true is worse than one that says nothing.
+
+### The pattern, twenty-four rounds in
+
+Every one of the three is a reason that outlived its fact. Not a wrong claim carelessly made — each
+was **correct when written**, and each was invalidated by a later change made by me, for good
+reasons, that did not go back to update the sentence that depended on it. The seam correction went
+into the evidence but not the entry. The `lint exit=0` fix changed a file the plan said was
+unchangeable. The probe and the gate were added to the process but not to the process's own list.
+
+**The rule: when a fix changes what is true, the fix is not done until every sentence that asserted
+the old truth has been found. The place to look is not where you edited — it is everywhere that
+explains why the thing you edited was the way it was.**
+
+### Verification
+
+Docs-only; no behaviour changed and no mutation applies. Re-run because `cipher-gate.json` and
+`assumption-alarm.json` are generated from `DECISIONS.md`:
+
+`npm run check` 0/0 · `npm run lint` clean · **1445 passed, 1 skipped** · `npm run build` built ·
+`npm run cipher:gate` exit 0 · `npm run assumption:alarm` exit 0 · `npm run verify` exit 0,
+transcript 66 lines carrying its own exit status · rewind 17 passed · Playwright 41 passed ·
+browser probe complete.
+
+Running mutation total stays at **69**.

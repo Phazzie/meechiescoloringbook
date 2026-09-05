@@ -5,21 +5,21 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-05T19:35:40.405Z
+Generated at: 2026-09-05T19:52:37.596Z
 Evidence folder: docs/evidence/2026-09-05
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
 after this inventory is taken, so they are not listed):
 
 - assumption-alarm.json (12123 bytes)
-- build.txt (11138 bytes) — PREDATES THIS VERIFY RUN
+- build.txt (11231 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (35321 bytes)
-- cipher-gate.json (1245 bytes) — PREDATES THIS VERIFY RUN
+- cipher-gate.json (1262 bytes) — PREDATES THIS VERIFY RUN
 - clan-chain.json (3181 bytes)
 - clan-chain.md (1956 bytes)
-- e2e.txt (6256 bytes) — PREDATES THIS VERIFY RUN
-- lint.txt (162 bytes) — PREDATES THIS VERIFY RUN
+- e2e.txt (1224 bytes) — PREDATES THIS VERIFY RUN
+- lint.txt (60 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - probe-browser-seams.txt (3054 bytes) — PREDATES THIS VERIFY RUN
 - rewind-AuthContextSeam(self-contained).txt (658 bytes) — PREDATES THIS VERIFY RUN
@@ -43,10 +43,10 @@ after this inventory is taken, so they are not listed):
   Commands: meechies-coloringbook@0.1.0 rewind | node scripts/rewind.mjs --seam WigCatalogSeam
 - seam-ledger.json (37460 bytes)
 - seam-ledger.md (2981 bytes)
-- shaolin-lint.json (517 bytes)
+- shaolin-lint.json (519 bytes)
 - test.txt (3131 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify-chain.txt (13945 bytes) — PREDATES THIS VERIFY RUN
+- verify-chain.txt (14169 bytes) — PREDATES THIS VERIFY RUN
 - verify-outer.txt (4438 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (3456 bytes)
