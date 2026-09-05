@@ -5651,3 +5651,51 @@ that was easy to check rather than the one that means what the gate needs.
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2 —
 **eighty-three findings across thirty-one rounds**, none in the application.
+
+---
+
+## Run 4, correction 32 — 2026-09-05 — I recreated the phantom follow-up that correction 15 was about
+
+Appended, not edited. Two P2s on `135d441`. Both are defects I introduced in the previous commit.
+
+### 1. P2 — the proof-tape repair is follow-up 10, not 11
+
+**Renumbering, stated first because it is what a future run acts on: the marker-semantics repair
+recorded as "follow-up 11" in correction 27 is FOLLOW-UP 10. Read it as 10 wherever it appears.**
+
+The list runs 1–4 (Run 3), 5–7 (Run 4), 8 (`verify-chain.md` repo-wide rename), 9
+(`ImageGenerationSeam` repair). Ten was never used. Numbering the next one 11 leaves a gap a later
+run will search for and not find.
+
+**Correction 15 was about exactly this** — it renumbered a mis-numbered "follow-up 10" down to 8,
+and said in its own words that the gap "created two phantom entries a later run would go looking for
+and could not find, in the file that exists precisely so a later run knows what was left undone."
+Sixteen corrections later I created another one, in the same file, for the same reason: I picked the
+next number that felt right instead of reading the list.
+
+Current list, restated so it does not have to be reassembled again: **1–4** Run 3's carried-forward
+items; **5** `/m/` and the standalone routes are two implementations; **6** `getMonthKey` /
+`getWeekNumber` read the host clock outside `ClockSeam`; **7** the seam-workflow P1 (owner ruling);
+**8** whether `verify-chain.txt` becomes `.md` repo-wide; **9** the `ImageGenerationSeam` probe /
+fixture / mock / test repair; **10** give `markArtifactsPredatingRun` a way to distinguish deliberate
+pre-chain inputs from stale leftovers.
+
+### 2. P2 — the new artifact was not added to the plan that mandates it
+
+Correction 31 added `verify-chain-run.txt` as the record of the outer chain's exit, called it the
+authoritative record — and did not add it to `plan.md`'s exhaustive file list, nor replace bare
+`npm run verify` in the command list with the capture that produces it. **A future run following the
+mandatory plan would have run the chain without retaining its exit: the exact defect correction 31
+existed to fix.**
+
+Both added, with the redirection written out literally and marked as the requirement rather than an
+implementation detail.
+
+**Sixth time in this close-out that fixing one place left its siblings.** I said last round that this
+needs a mechanical step rather than another resolution, and then did it again in the very next
+commit, which is the strongest possible evidence for that claim.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2 —
+**eighty-five findings across thirty-two rounds**, none in the application.

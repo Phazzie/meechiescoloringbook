@@ -87,6 +87,10 @@ concession the `ClockSeam` plan in run 1 had to make.
   rounds' artifacts and is **history, not the record of this head**. Enumerated rather than left as a directory
   placeholder, since a plan that says `*` cannot be audited against what was actually touched:
   - Hand-written summaries: `verify-chain.txt`, `seam-rewind-exit-codes.md`.
+  - The outer chain's own record: `verify-chain-run.txt` — the `npm run verify` command, its full
+    output and its `EXIT=` line. **Not optional and not the same as `verify.txt`**, which stores only
+    the inner `verify-runner` stage; without this file nothing retains the outer command's exit and
+    the summary is back to asserting a result it cannot substantiate.
   - Command captures: `lint.txt`, `build.txt`, `e2e.txt`, `verify.txt`, `test.txt`.
   - Chain-generated: `chamber-lock.json`, `shaolin-lint.json`, `assumption-alarm.json`,
     `seam-ledger.json`, `seam-ledger.md`, `clan-chain.json`, `clan-chain.md`, `proof-tape.json`,
@@ -103,6 +107,8 @@ concession the `ClockSeam` plan in run 1 had to make.
     what was actually run. The literal invocations:
 
     ```sh
+    # The chain, captured — not bare `npm run verify`. The redirection IS the requirement:
+    { npm run verify 2>&1; printf 'EXIT=%s\n' "$?"; } > docs/evidence/<date>/verify-chain-run.txt
     npm run cipher:gate        # not in the verify chain; run on its own. exit 0
     npm run proof:tape         # LAST, after every artifact above. exit 0
     ```
