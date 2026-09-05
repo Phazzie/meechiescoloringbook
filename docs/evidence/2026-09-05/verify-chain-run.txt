@@ -16,7 +16,7 @@ found 0 vulnerabilities
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 
-Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Loading svelte-check in workspace: <REPO_ROOT>
 Getting Svelte diagnostics...
 
 svelte-check found 0 errors and 0 warnings
@@ -25,13 +25,13 @@ svelte-check found 0 errors and 0 warnings
 > vitest run --pool=forks --maxWorkers=1
 
 
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+ RUN  v4.1.0 <REPO_ROOT>
 
 
-[2m Test Files [22m [1m[32m82 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (83)[39m
-[2m      Tests [22m [1m[32m1187 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1188)[39m
-[2m   Start at [22m 02:09:08
-[2m   Duration [22m 81.74s[2m (transform 3.19s, setup 843ms, import 6.23s, tests 3.02s, environment 56.09s)[22m
+ Test Files  82 passed | 1 skipped (83)
+      Tests  1187 passed | 1 skipped (1188)
+   Start at  02:22:57
+   Duration  77.84s (transform 2.87s, setup 779ms, import 5.57s, tests 2.93s, environment 53.78s)
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

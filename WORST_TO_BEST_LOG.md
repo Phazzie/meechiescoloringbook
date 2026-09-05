@@ -6183,3 +6183,63 @@ a set, left standing after the set changed.
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3, 2,
 7, 2, 5, 1, 4 — **one hundred and nine findings across thirty-nine rounds.**
+
+---
+
+## Run 4, correction 40 — 2026-09-05 — a path leak, and why the repo's own sanitizer does not catch it
+
+Appended, not edited. Two P2s on `9daeae0`. The second one is the most useful finding of the last
+several rounds, and investigating it turned up a pre-existing defect the finding did not know about.
+
+### 1. The Windows fallback would have failed on five of the nineteen seams. Fixed.
+
+The direct-invocation fallback (`node scripts/capture-evidence.mjs`, where npm has exported nothing)
+joined its arguments into one unquoted string for `cmd.exe /c`. Five seam names contain spaces **and
+parentheses** — `MeechieVoiceSeam (self-contained)` — and cmd.exe reads parentheses as grouping
+syntax, so the name never arrives as one `--seam` value. It would have failed after the chain and
+all three standalone checks had already run.
+
+Every argument is quoted now, with embedded quotes doubled. Same defect the argv path was designed
+to avoid — I built the argv path carefully and then hand-joined a string in the fallback beside it.
+
+### 2. Committed evidence contained an absolute checkout path. Fixed for my files, and the repo's
+sanitizer turns out not to work on the line that matters.
+
+The finding: `verify-runner.mjs` passes output through `sanitizeEvidenceOutput` before persisting it,
+and my captures wrote verbatim, so `verify-chain-run.txt` committed `/home/user/meechiescoloringbook`
+— a workstation path in shared evidence.
+
+True, and I should have used the existing helper. But the interesting part is why the finding's
+premise does not hold as stated. **`verify.txt` and `test.txt` leak the same path today, and those
+*are* sanitized.** The reason:
+
+```
+ RUN  v4.1.0 <ESC>[90m/home/user/meechiescoloringbook<ESC>[39m
+```
+
+`sanitizeEvidenceOutput` (`scripts/evidence-reporting.mjs:35-42`) replaces the root only when
+followed by end-of-string, a slash, or whitespace. Vitest prints its root wrapped in colour codes,
+and `ESC` is none of those — so the root survives the sanitizer, in every artifact that contains a
+vitest banner. Calling the helper alone would have fixed **one** of my two leaked lines.
+
+So the fix here is strip ANSI escapes first, then sanitize. Verified after: my four artifacts contain
+zero occurrences of the path, `<REPO_ROOT>` appears where it should, and the committed `.txt` is
+finally readable rather than studded with `[1m[46m`.
+
+**Twenty-one files still leak, and none of them is mine.** Nineteen `rewind-*.txt` — `rewind.mjs`
+imports only `toDateFolder` and never sanitizes at all — plus `verify.txt` and `test.txt`, which
+sanitize and lose to the ANSI gap above. Both are verification machinery, both are pre-existing, and
+this close-out has kept to its own file:
+
+- **Follow-up 12:** `sanitizeEvidenceOutput`'s lookahead misses paths adjacent to an ANSI escape.
+  One character class. It is why sanitizing looks like it works and does not.
+- **Follow-up 13:** `rewind.mjs` does not call the sanitizer. Nineteen artifacts per run.
+
+I would rather flag those than quietly widen this PR into the machinery, but they are a real privacy
+leak in committed files and worth doing soon — on a checkout under `/Users/<name>/` or
+`C:\Users\<name>\`, that is a person's name in the repository.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3, 2,
+7, 2, 5, 1, 4, 2 — **one hundred and eleven findings across forty rounds.**

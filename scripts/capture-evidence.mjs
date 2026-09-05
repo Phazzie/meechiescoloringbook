@@ -9,6 +9,7 @@
 // Info flow: this script -> docs/evidence/<UTC date>/*.txt|*.md -> review.
 import { promises as fs, closeSync, openSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
+import { sanitizeEvidenceOutput } from './evidence-reporting.mjs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
@@ -83,8 +84,13 @@ const npmInvocation = (args) => {
 		return { executable: nodeExecutable, executableArgs: [npmCli, ...args] };
 	}
 	if (process.platform === 'win32') {
+		// Every argument is quoted, because five of the seam names contain spaces and parentheses
+		// (`MeechieVoiceSeam (self-contained)`). Joined raw, cmd.exe parses those parentheses as
+		// grouping syntax and the name never arrives as one --seam value — and it would fail here,
+		// after the chain and the three standalone checks had already run.
 		const shell = process.env.ComSpec || 'cmd.exe';
-		return { executable: shell, executableArgs: ['/d', '/s', '/c', ['npm', ...args].join(' ')] };
+		const quoted = ['npm', ...args].map((arg) => `"${arg.replace(/"/g, '""')}"`).join(' ');
+		return { executable: shell, executableArgs: ['/d', '/s', '/c', quoted] };
 	}
 	return { executable: 'npm', executableArgs: args };
 };
@@ -153,10 +159,26 @@ const exitIfFailed = (result, what) => {
 	}
 };
 
+// ANSI escapes are stripped before the repo's path sanitizer runs, and the order matters.
+// sanitizeEvidenceOutput replaces the repo root only when followed by end-of-string, a slash or
+// whitespace (scripts/evidence-reporting.mjs:35-42). Vitest prints its root wrapped in colour codes
+// — `RUN v4.1.0 \x1b[90m<root>\x1b[39m` — and ESC is none of those, so the root survives
+// sanitizing. That is why docs/evidence/*/verify.txt and test.txt still contain absolute paths
+// today even though verify-runner.mjs does sanitize them. Removing the escapes first closes that
+// gap here, and makes the committed .txt readable rather than full of `[1m[46m`.
+// Built rather than written as a literal: an ESC in a regex literal trips eslint's no-control-regex,
+// and suppressing that rule to keep the terser form would be trading a real check for two characters.
+const ESC = String.fromCharCode(27);
+const ANSI_ESCAPE = new RegExp(`${ESC}\\[[0-9;]*[A-Za-z]`, 'g');
+
 /**
  * Writes an evidence artifact: header first, then the captured output, then the exit status.
  * The header is written by the same call that writes the body, so there is no window in which the
  * file exists without it and no separate step that a reader of this script would not see.
+ *
+ * The body is de-escaped and then path-sanitized, so a checkout under `/home/<someone>/...` does not
+ * commit that person's directory layout into shared evidence, and the artifact reads the same from
+ * any checkout.
  * @param {string} dir
  * @param {string} name
  * @param {string[]} header
@@ -164,7 +186,8 @@ const exitIfFailed = (result, what) => {
  * @param {number} code
  */
 const writeArtifact = async (dir, name, header, body, code) => {
-	const text = `${header.map((line) => `# ${line}`).join('\n')}\n#\n${body}\nEXIT=${code}\n`;
+	const cleaned = sanitizeEvidenceOutput(ROOT, body.replace(ANSI_ESCAPE, ''));
+	const text = `${header.map((line) => `# ${line}`).join('\n')}\n#\n${cleaned}\nEXIT=${code}\n`;
 	await fs.writeFile(path.join(dir, name), text, 'utf8');
 };
 
