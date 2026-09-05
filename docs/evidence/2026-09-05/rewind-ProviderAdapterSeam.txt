@@ -1,6 +1,6 @@
-
-> meechies-coloringbook@0.1.0 rewind
-> node scripts/rewind.mjs --seam ProviderAdapterSeam
+# Purpose: Store seam-scoped contract test output for evidence.
+# Why: Provide a focused proof trail for the specified seam.
+# Info flow: vitest output -> evidence file -> review.
 
 
 [1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m

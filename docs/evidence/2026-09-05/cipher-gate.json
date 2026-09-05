@@ -1,0 +1,66 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-09-05T00:07:44.715Z",
+  "cipher": {
+    "date": "2026-09-04",
+    "seams": "ClockSeam (new), AppOriginSeam (new), PageVisibilitySeam (new). No existing seam contract changed.",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-09-04/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-04/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-04/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-04/seam-ledger.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-04/clan-chain.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-04/proof-tape.md",
+        "exists": true
+      },
+      {
+        "path": "src/lib/seams/clock-seam/test.ts",
+        "exists": true
+      },
+      {
+        "path": "src/lib/seams/clock-seam/probe.ts",
+        "exists": true
+      },
+      {
+        "path": "src/lib/seams/app-origin-seam/test.ts",
+        "exists": true
+      },
+      {
+        "path": "src/lib/seams/app-origin-seam/probe.ts",
+        "exists": true
+      },
+      {
+        "path": "src/lib/seams/page-visibility-seam/test.ts",
+        "exists": true
+      },
+      {
+        "path": "src/lib/seams/page-visibility-seam/probe.ts",
+        "exists": true
+      },
+      {
+        "path": "docs/seams.md",
+        "exists": true
+      }
+    ],
+    "summary": "Three host-environment reads that the Quote Vault rebuild had left outside any seam are now behind one each. ClockSeam owns reading the current instant and running a callback when a given instant arrives, which is what makes the saved-date labels roll over at UTC midnight; its adapter re-arms long waits in chunks so a delay past setTimeout's 32-bit limit does not fire immediately. AppOriginSeam owns reading the origin the app is served from, which decides whether a stored absolute image URL is same-origin and therefore loadable under img-src 'self'. PageVisibilitySeam owns whether the page is being looked at and announcing when it comes back, which is the other half of the label refresh. All three ship with a validator, fault fixtures driven through the mock, and a runnable probe; every mock is deterministic - the clock only moves when a test moves it, the origin is fixed by scenario, and visibility changes only when a test changes it.",
+    "risks": "ClockSeam and PageVisibilitySeam have synchronous contracts with no Result arm, unlike most seams here, so an invalid instant throws rather than returning an error - deliberate, because NaN would make setTimeout fire immediately and a self-re-arming timer spin, but it does differ from the house shape. Three pre-existing Date.now()/new Date() reads in src/routes/studio-state.svelte.ts are untouched, so that file currently mixes seamed and unseamed clock access; converting them is recorded as deferred in WORST_TO_BEST_LOG.md. AppOriginSeam degrades any unusable origin to the empty string rather than throwing, which makes the same-origin check refuse every absolute URL - a safe default, but one that hides a misconfigured host rather than reporting it. PageVisibilitySeam resolves any out-of-spec visibility state to \"visible\" for the same reason: a wrong visible costs one refresh nobody needed, a wrong hidden silently withholds one the reader is waiting on."
+  },
+  "latestChangeMs": 1788547844538.759,
+  "status": "ok"
+}

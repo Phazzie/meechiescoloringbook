@@ -5458,3 +5458,49 @@ announce themselves.
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2 — **seventy-one
 findings across twenty-seven rounds**, none in the application.
+
+---
+
+## Run 4, correction 28 — 2026-09-05 — "one consumer each" was the wrong requirement
+
+Appended, not edited. One P1 on `1049202`, and it overturns a framing I had asserted emphatically
+in two consecutive corrections.
+
+### P1 — partitioning the captures hid the only thing worth testing
+
+Criteria C and D routed the four captures to four consumers: wire-success → the contract test's
+successful `fetch`, wire-error → its failing `fetch`, normalized result → the mock's `sample`,
+normalized error → the mock's `fault`. I wrote "each has exactly one consumer" as if it were the
+property that made the set correct, and repeated it.
+
+**It is the flaw.** With the captures partitioned, nothing checks the adapter's *mapping* from wire
+to contract. Verified in the assertions:
+
+```ts
+// :132-140 — the success path
+expect(output.value.images).toHaveLength(1);
+expect(output.value.images[0].url).toBe('https://example.com/image.png');
+```
+
+and `:78-95` checks only the error code and the `429` status. So `rawModelInfo`, `timingMs`,
+`revised_prompt` and the provider's actual error body could all be dropped in translation, every
+capture would still have its consumer, and every criterion would read as satisfied.
+
+**The captures are pairs, not a partition.** (i) and (iii) are the input and expected output of one
+adapter mapping; (ii) and (iv) are the same for the failure path. The criteria now require the
+adapter tests to assert that generating against (i) yields exactly (iii), and against (ii) yields
+exactly (iv). That is what makes a live capture worth paying for: not that four files exist and four
+things read them, but that the two correspondences between them are checked.
+
+### What this says about the last three corrections
+
+Round 24 said "three captures, not two". Round 25 said "four, not three". Both were counting
+exercises, and I treated getting the count right as getting the design right — twice writing "each
+with exactly one consumer" as the clincher. **The number was never the point.** A reviewer had to
+step outside the frame I had set to see that the requirement itself was wrong, which no amount of
+recounting would have produced.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1 — **seventy-two
+findings across twenty-eight rounds**, none in the application.
