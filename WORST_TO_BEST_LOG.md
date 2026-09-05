@@ -5429,3 +5429,1903 @@ correction to the write-up. Deliberately not numbered as a running total here: t
 called this "the fifth round" while the table above already used that number for the clean round on
 #305, and the count went stale again before the entry merged. Whatever this run is a lesson about,
 it is not really about quota meters.
+
+## Run 8 — 2026-09-05 — Page Controls (the home studio's settings panel)
+
+**Branch:** `claude/great-bell-31hg5t` · **Base:** `main` at `f02cfc4`
+
+### A note on the number
+
+This entry was written as Run 7 and is filed as Run 8. Another run of this routine —
+`claude/great-bell-94oma2`, the AI budget meter — picked its feature the same day and reached `main`
+first, so it owns 7. Renumbered on the merge rather than left to collide, because two sections
+answering to one number is the same defect this run spent twenty-two rounds on: a name and the thing
+it points at drifting apart. The branch name and the commit hashes below are unchanged.
+
+
+### The feature, and why it was the worst
+
+Page Controls is the app's **only** say over what a coloring page looks like. Seven controls in a
+`<details>` on the home page: Theme, Intensity, Rawness, Third Person, Page Size, Border, and a
+glitter toggle. Everything else in the studio decides what the page *says*. This decides what it
+*is*.
+
+It was the worst feature because it is the one surface that **lies about the page in front of you,
+and then makes the lie true**.
+
+Measured on `main` at `f02cfc4`, not inherited from any previous entry:
+
+1. **Five of the seven controls were never stored anywhere.** `pageSize` and `border` are
+   `ColoringPageSpec` fields, so they ride along in `intent` and come back on reopen
+   (`studio-state.svelte.ts:1284–85`) and on draft restore (`:1436–37`). Theme, Intensity, Rawness,
+   Third Person and Glitter reach the page only through `currentStyleHint()` — a template string
+   built at request time (`:526–532`), sent as `styleHint` on `/api/generate` (`:995`), rendered by
+   `PromptAssemblySeam` as the prompt's entire `Vibe:` line (`prompt-assembly-seam/index.ts:52`),
+   and then discarded. `ColoringPageSpecSchema` has no `styleHint` field. Neither did
+   `CreationRecordSchema` or `DraftRecordSchema`. Nothing in the app had ever written it down.
+2. **So a reopened page misreported itself.** Reopen a page you made with Receipts / No Mercy / Raw
+   and the panel showed Crown Energy / Receipts Out / Mild — the defaults — presented exactly like
+   the two controls that *were* genuinely restored. Nothing distinguished them.
+3. **And the misreport became the page.** `applyTextToSpec` recomposes the hint from the live
+   controls on *every* setting change. So changing Page Size on a reopened page rebuilt it with the
+   default theme and voice. The reader moved one control; five moved underneath, silently, on a page
+   they had already paid a generation for. This is Run 1's and Run 6's family of defect — losing work
+   the reader already bought — except this one does not lose the page, it *rewrites* it.
+4. **Nothing said what any control does.** "Intensity: Receipts Out / Church Lady / No Mercy",
+   "Rawness", "Third Person" — three dropdowns of house jargon, eight theme chips with a one-letter
+   icon, and no sentence anywhere explaining that these change the picture, or that a change applies
+   to the *next* page rather than the one on screen.
+5. **The selected theme was invisible to assistive technology.** `class:active` was the only signal
+   (`StudioSettingsPanel.svelte:53`). Eight `<button>`s in a bare `<div aria-label="Theme options">`
+   — a `div` with an `aria-label` and no role exposes no group — and no `aria-pressed` anywhere. A
+   screen-reader user was told there were eight buttons and could not learn which one was on.
+6. **The disclosure lied too.** `<span aria-hidden="true">Open</span>` was a constant: it read "Open"
+   while the panel stood open. And the `<summary>` read the constant "Page Controls", so a shut panel
+   said what it was and nothing about what it was set to.
+7. **A failed change was filed as somebody else's problem.** `syncSpecFromCurrentText` wrote to
+   `draftSaveError` and rethrew. The rethrow became an unhandled rejection (the only caller is a DOM
+   event handler that does not catch), and the message surfaced in the *evidence* panel, prefixed
+   "Draft not saved:" — a settings failure reported as a draft failure, on a different panel from the
+   control the reader had just moved.
+
+### What shipped
+
+**New pure module — `src/lib/core/page-style.ts`.** The style selection as one named value, and
+`buildStyleHint` as the only place the `Vibe:` line is composed. It is load-bearing in two
+directions — the provider's whole art direction, and the input `derivesDenseDecorations` reads back
+to pick decoration density — so building it in two places is how those two answers drift apart.
+The voice option lists are read off `MeechieStudioVoiceSettingsSchema.shape.<field>.options` rather
+than restated, so a value added to the seam appears in the panel by construction. The label and help
+tables are total `Record`s over the same enums, driven by a test.
+
+**Contract change (`CreationStoreSeam`), done as the full Seam-Driven Development workflow.** An optional
+`styleSelection` on `CreationRecordSchema` and `DraftRecordSchema` — `themeId`, `voice`, `glitter`,
+and optionally the wig's printed `name`/`style`. It reuses `MeechieStudioVoiceSettingsSchema` rather
+than restating three enums, so a voice that seam would refuse cannot be stored here and handed back
+to it on restore. Cipher Gate entry in `DECISIONS.md`; `docs/seams.md` updated; adapter and mock
+unchanged, because the adapter validates through these schemas and stores JSON, so an added optional
+field needs no adapter change.
+
+**Optional, and that is the load-bearing part.** The adapter parses stored records with these
+schemas, so a *required* field would have made every record already in a reader's browser fail
+validation — the vault would have silently emptied itself on upgrade. There is a contract test that
+parses a record with the key deleted, and the mutation that makes the field required turns ten vault
+tests red.
+
+**One restore path, not two.** `applyRestoredStyleSelection` serves both the vault and the draft, so
+the two cannot answer "what if there is no stored selection?" differently — they already drifted
+once on the neighbouring question of which verdict belongs to a page.
+
+**The panel itself.** Three `fieldset`/`legend` groups. Every value explains itself under the control
+it belongs to, updating as the value changes. `aria-pressed` on the theme chips. A `<summary>` that
+names the current selection while shut, and an affordance that actually says "Close" when open. A
+lede stating that a change applies to the next page you make. Its own error region, in error pink
+with `role="alert"`, beside the controls.
+
+**`aria-pressed`, deliberately not `role="radio"`.** A real radiogroup owes the reader arrow-key
+navigation and a roving tabindex; claiming the role without them trades an invisible state for a
+broken interaction. The enclosing fieldset already groups the chips, so the role was only ever
+carrying the state.
+
+### Two things this run got wrong first, and how they were caught
+
+**The unknown-style case originally clobbered the reader's controls.** The first implementation reset
+theme/voice/glitter to `DEFAULT_STYLE_SELECTION` whenever a record carried no stored selection. An
+*existing* test failed — "keeps a restored page dense until the reader actually picks a theme" — and
+the failure was right. Those controls belong to the reader, not to the record: reopening any page
+saved before this field existed would have thrown away settings they had just chosen. That is
+arbitrary destruction, replacing a lie with a different lie. The lie is what needed removing, and the
+notice removes it. The controls are now left exactly as they were, and the panel says the page's own
+style is not on file.
+
+**A false diagnosis was nearly shipped as a code comment.** A browser test of the affordance failed,
+so `bind:open` was replaced with an explicit `ontoggle` handler and a comment asserting "the binding
+did not fire here". Re-tested before committing: the panel was never broken — the test had clicked
+before the page hydrated. `bind:open` was restored, and the committed e2e file waits for
+`[data-hydrated="true"]` and says why. The workaround would have been harmless; the comment would
+have been a false claim about Svelte sitting in the codebase forever.
+
+### Verification
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | clean |
+| `npm test` | 1347 passed, 1 skipped (was 1319 passed, 1 skipped; **+28 tests**) |
+| `npm run build` | built |
+| `npm run verify` | **exit 0**, evidence refreshed in `docs/evidence/2026-09-05/` |
+| `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` | 7 passed — see the third close-out; the un-suffixed name runs the *legacy* seam and proves nothing about this change |
+| `npx playwright test` | **fails in this container** — all 36 error before any test body runs; see below |
+| Playwright against the installed browser | 36 passed (32 existing + 4 new) |
+
+**The e2e row says "fails", because it did.** The exact command `AGENTS.md` mandates —
+`npx playwright test` — exits red in this container: every test errors with `Executable doesn't
+exist at /opt/pw-browsers/chromium_headless_shell-1208/...` before any test body runs. The container
+ships Chromium build **1194**; the installed `@playwright/test` pins **1208**.
+
+The suite itself is green: pointing Playwright at the installed binary
+(`launchOptions.executablePath = '/opt/pw-browsers/chromium'`) passes all 36. That override was a
+scratch config and is **not committed**, because committing it would hard-code a container-specific
+path into a config CI uses, where the pinned browser *is* present — so it would trade a local red
+for a possible CI red.
+
+Both facts are in the table rather than one of them, because the mandated command and the suite are
+different claims and only one of them was green. A future run that sees 36 red e2e tests should
+check the build number before believing the code is broken; a future run that wants the mandated
+command to pass needs the environment's browser and the pinned version reconciled, which is outside
+this feature's scope.
+
+**The tests were mutation-checked rather than assumed.** Eight mutations, each reverted after:
+
+| Mutation | Caught by |
+|---|---|
+| creation record stops storing `styleSelection` | 2 tests |
+| restore no longer applies the stored style | 4 tests |
+| unknown style resets the reader's controls to defaults | 2 tests |
+| settings failure written to `draftSaveError` and rethrown | 1 test |
+| encoder emits the wig before the glitter | 1 test |
+| `styleSelection` made required | 10+ tests (the vault stops parsing) |
+| stored voice loosened to plain strings | 1 test |
+| encoder transposes rawness and third person | 2 tests |
+
+The encoder mutations matter most: `buildStyleHint` reproduces the previous inline template **byte
+for byte**, and the test that pins it is written as a literal rather than rebuilt from the same
+pieces the implementation uses — a test that composes its expectation the way the subject does only
+ever proves the subject equals itself.
+
+### A process failure worth recording
+
+Mid-run, the mutation harness ran `git checkout -- src/` to revert each mutation **while the run's
+own work was still uncommitted**. It reverted all five tracked source files. `page-style.ts` survived
+only because it was untracked, and the tests survived only because they live under `tests/`. Two
+mutation results (M2, M3) were also void, having run against a reverted tree, and were re-run.
+
+Everything was reconstructed and re-verified, but the correct order is: **commit first, then
+mutate.** A mutation harness that reverts by path is a destructive command pointed at the working
+tree; it is only safe once there is a commit to return to.
+
+### Scope, and what was deliberately left alone
+
+This run touches `src/lib/seams/creation-store-seam/{contract,test}.ts`, so it took the full
+Seam-Driven Development route rather than half-doing it: contract, contract tests, seam registry,
+Cipher Gate entry in `DECISIONS.md`, and `npm run rewind -- --seam CreationStoreSeam`. No adapter,
+mock, fixture or probe change was needed or invented — the adapter validates through these schemas
+and persists JSON, so an added optional field flows through untouched, and the contract test that
+parses a key-deleted record is the evidence for that rather than the assertion.
+
+Deferred, with reasons:
+
+- **The tools hub and the mode routes still do not persist a style.** `VerdictPageStudio` and
+  `MeechieTools` build their own `styleHint` from `tool-page-recipe.ts` and save records without a
+  `styleSelection`, so pages saved there reopen as "style not on file". The field is optional and the
+  restore path is shared, so wiring them is now small — but they are Runs 2–4's features, and this
+  run's rule is one feature.
+- **`recommendedFixes` is still computed on every generation and shown nowhere.** Run 6 flagged it;
+  it is still true; it was not this feature.
+- **The home studio still exposes none of `colorMode`, `textSize`, `fontStyle`, `alignment`,
+  `textStrokeWidth`, `borderThickness`, `illustrations` or `shading`.** Every one is a real
+  `ColoringPageSpec` field the prompt honours, hardcoded to a default on this surface, and the tools
+  hub sets several of them per recipe. That is a genuine gap — but it is *adding* controls, not
+  rebuilding a broken one, and this run's subject was a panel that misreports itself.
+- **The wig is stored as its printed name and style, not its catalog id.** Reproducing a `Vibe:` line
+  needs the two printed strings; storing the id would look like a reference the try-on studio ought
+  to honour on restore, and re-selecting a wig the reader has not chosen is a different feature's
+  decision to make.
+
+### For the next run
+
+The pick came from asking which surface *tells the reader something false*, rather than which one is
+missing a feature. Six runs had rebuilt the vault, the tools hub, the mode routes, `/m/<slug>`, the
+wig try-on and the download row — all of them things that either work or visibly do not. A settings
+panel is worse than broken when it is confidently wrong: it renders a value, the reader believes it,
+and the next click makes the belief true.
+
+The generalisable version: **a control that displays state it does not own is a lie waiting for a
+round trip.** Look for state that is composed at request time and never written down — the panel had
+seven controls and only the two that happened to be schema fields survived a save, for no reason a
+reader could see.
+
+Do not inherit this entry's "measured on `main`" claims. Re-measure.
+
+## Run 8, first close-out — 2026-09-05 — the Codex round on `8d0ec19`
+
+Five findings, and **four of them were right**. Sourcery was out of review budget and CodeRabbit
+skipped the repo, so Codex was the only bot that read this diff — which is a reminder that "no bot
+produced a finding" (this log's Run 6 close-out) is a statement about budgets, not about a diff.
+
+### The one that matters: the run's own defect, one step further along
+
+**P1 — the vault saved the controls, not the style that made the page.** `saveToVault` wrote
+`styleSelection: this.currentStyleSelection()`, read live at save time. But `images` and
+`assembledPrompt` are captured at *generation* time. Generate a page, move the Theme chip without
+regenerating, press Save — and the record stores a style that never produced its own picture.
+
+That is precisely the defect this run exists to remove, displaced by one step. The fix I shipped
+closed the reopen path and left the save path open, because I checked that the *record* carried a
+style and never asked whether it carried the *right* one.
+
+The style is now captured beside the artifact it belongs to — `generatedStyleSelection`, assigned in
+the same block as `assembledPrompt` on both generate paths, cleared by `resetGeneratedPage`, and set
+from the record on reopen. Saving persists that snapshot.
+
+**And `styleSelectionUnknown` became `$derived` rather than assigned.** Once the snapshot exists the
+flag is a function of two facts already on the object — `assembledPrompt !== '' && !generatedStyleSelection`
+— so the four sites that had to write it correctly became zero, and the fifth that a later change
+would have forgotten cannot exist. This is Run 6's "one stored source, three derived views" applied
+to a flag rather than to a row.
+
+### The three others, all real
+
+- **P2 — a removed theme id went onto the control raw.** `applyStyleSelection` assigned
+  `selection.themeId` directly. The schema deliberately accepts an id a later release removed, and
+  `themeForSelection` falls back — so the summary named the fallback theme while every chip compared
+  against the dead id and reported `aria-pressed="false"`. The panel disagreed with itself about
+  which theme was on, in the one case I had written a fallback *for*. Now resolved through the same
+  fallback before it reaches the control.
+- **P2 — "That change did not apply" was false.** By the time `syncSpecFromCurrentText` can catch
+  anything, `applyTextToSpec` has already moved the control and assigned the rebuilt spec; what
+  failed is validating or recording it. The panel now says the change was applied but could not be
+  checked. A run about a panel that misreports itself had shipped a second misreport.
+- **P1 — the verification table claimed a green `npx playwright test`.** It was not green; the
+  paragraph below it said so, and the table said the opposite. Corrected above: the mandated command
+  **fails** in this container on a browser-version mismatch, and the suite passes against the
+  installed binary. Two rows, because they are two claims and only one was green.
+
+### The one I did not take, with the reason
+
+Codex's remaining P1 asked me to omit `styleSelection` from the auto-saved draft while the style is
+unknown, on the grounds that a refresh would convert an explicit unknown into false metadata. The
+concern is right and the fix is no longer needed: a draft restores **neither `assembledPrompt` nor
+`images`** — checked, not assumed — so after a refresh there is no artifact whose provenance could be
+misstated, and the derived flag reads false because there is no page rather than because a style was
+invented. Omitting the field would instead discard the reader's working control settings, which is
+the destruction the vault-restore path was already corrected for once in this run. The draft keeps
+the live controls because a draft *is* the working state; the vault keeps the snapshot because a
+record *is* an artifact.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1350 passed, 1 skipped** (+3 on this round) ·
+`npm run build` built · `npm run verify` exit 0 · Playwright 36 passed against the installed browser.
+
+Four more mutations, each reverted after:
+
+| Mutation | Caught by |
+|---|---|
+| vault saves the live controls again | 1 test |
+| removed theme id assigned raw to the control | 1 test |
+| the unknown-style notice can never show | 3 tests |
+| the generate path never captures the style | 3 tests |
+
+### The process failure, repeated
+
+The mutation harness reverted uncommitted work a **second** time in this run — same command,
+`git checkout -- <path>`, same cause: the fixes being mutation-tested had not been committed first.
+The first occurrence is recorded in the Run 8 entry above with the correct rule written out, and the
+rule was still not followed on the next occasion, because it was written as a note rather than built
+into the harness.
+
+The durable version is not "remember to commit": it is that a harness which reverts by path must
+refuse to run against a dirty tree. A future run building one should make it check
+`git diff --quiet` first and stop, rather than trusting the operator to have committed.
+
+## Run 8, second close-out — 2026-09-05 — the Codex round on `e4e1b59`
+
+Five more findings on the fixes themselves. **All five were right**, and one of them is the *third*
+appearance of this run's own defect — which is the finding worth recording.
+
+### The same bug, a third time, one await earlier
+
+Run 8 fixed "the reopened page's controls do not describe it". The first Codex round found the same
+defect at save time. This round found it at **request time**: `handleGeneratePage` sent
+`styleHint: this.currentStyleHint()`, then — after the network round trip — assigned
+`generatedStyleSelection = this.currentStyleSelection()`. The Page Controls stay enabled while a
+generation is in flight and moving one does not advance `pageLoadToken`, so a theme changed
+mid-request was recorded as the style of a picture drawn from the previous hint.
+
+Three occurrences, one shape: **reading a value twice and assuming the two reads agree.** Now one
+`requestedStyle` is captured before `postJson`, used to build the hint, and assigned afterwards. The
+try-on path got the same treatment, where the existing code already captured `wig` before its await
+for exactly this reason — the precedent was sitting two lines above the bug.
+
+### The other four
+
+- **P1 — a live wig beat a restored page's provenance.** `loadCreation` does not clear
+  `selectedWig`, and `currentStyleSelection` preferred the live carousel. A reader browsing wigs who
+  reopened a page saved *without* one rebuilt that page's hint with the unrelated wig. The cause was
+  a type that could not express the distinction: `StyleWig | undefined` collapses "no restored page"
+  and "restored page with no wig". It is now `{ value: StyleWig | undefined } | null`, three states,
+  cleared when the reader picks a wig — which is the moment the live selection becomes theirs again.
+- **P1 — the seam fixtures never carried the new field.** The contract gained `styleSelection` and
+  the contract test parsed the schema directly, so no *mock* scenario ever proved the field survives
+  save/get/list/draft. That is the Seam-Driven Development workflow half-done — the exact thing this log's scope rule
+  forbids — and I had claimed it was done properly. `fixtures/creation-store/sample.json` now carries
+  it through inputs and outputs, and a test drives it through the mock rather than the schema.
+- **P1 — core reached into Zod's representation of the seam's enums.** `page-style.ts` runtime-imported
+  `MeechieStudioVoiceSettingsSchema` to read `.shape.<field>.options`. The cited mandate is arguably
+  already bent by every other core pipeline (`generate-pipeline`, `chat-interpretation-pipeline` and
+  `image-generation-pipeline` all runtime-import contract schemas), so the *precedent* defence was
+  available — and taking it would have kept a coupling for no benefit. The better answer keeps the
+  drift guarantee and drops the import: the option lists are now `Object.keys` of the label tables,
+  which are `Record<Enum, string>` and therefore **total by the type system**. A value added to the
+  seam fails compilation. The schema is still driven against the tables — in the test, where
+  importing it costs nothing.
+- **P2 — the shut panel still asserted false provenance.** The `<details>` ships closed, so a
+  reopened legacy page summarised the *reader's* controls in the one line they could see, with the
+  correction hidden inside. The summary now reads "This page's style is not on file". This is the
+  run's own thesis applied to the run's own fix: a control that displays state it does not own is a
+  lie, and putting the truth one click away does not undo it.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1353 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · Playwright 37 passed against the installed browser (the mandated
+`npx playwright test` still fails on the container's browser-version mismatch, unchanged).
+
+Four more mutations, each reverted after:
+
+| Mutation | Caught by |
+|---|---|
+| style re-read after the generate await | 1 test |
+| live wig overrides a restored page's provenance | 5 tests |
+| fixture no longer carries `styleSelection` | 1 test |
+| summary stops reporting unknown provenance | 1 e2e test |
+
+The e2e for the last one seeds a pre-field record through `localStorage`, because the case is a
+record that predates the field and there is no longer any way to produce one through the UI. The
+first version of that test asserted only that the *normal* summary lacks the phrase — a test that
+could not fail for the right reason, which is the thing this log keeps saying is not evidence.
+
+### And the scratch config nearly shipped
+
+`pw.local.config.ts` — the uncommitted Playwright override that points at this container's Chromium
+— was swept into a commit by `git add -A` and caught only by reading `git ls-files` afterwards. It
+is the same failure mode as the two `git checkout` incidents above: a blunt command over a whole
+tree, trusted rather than checked. Removed from tracking; the log's claim that the override "is not
+committed" is true again.
+
+## Run 8, third close-out — 2026-09-05 — the Codex round on `5a60192`
+
+Five findings, all correct. Two of them say the same thing about this run's discipline: **a claim
+of "verified" is only as good as the thing the command actually ran.**
+
+### The verification that verified nothing
+
+`npm run rewind -- --seam CreationStoreSeam` was recorded in this log as the seam-scoped proof for a
+contract change. It reported 4 passing tests. The file this run modified —
+`src/lib/seams/creation-store-seam/test.ts` — contains **seven**.
+
+`docs/seams.md` carries two rows for this seam: `CreationStoreSeam` (the legacy flat layout) and
+`CreationStoreSeam (self-contained)`. `rewind.mjs` resolves the exact name first, so the
+un-suffixed name ran `tests/contract/creation-store.test.ts` — a file this branch never touched.
+Measured, not argued:
+
+| Command | Tests run |
+|---|---|
+| `npm run rewind -- --seam CreationStoreSeam` | 4 |
+| `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` | 7 |
+
+The verification table above is corrected. The evidence was not wrong about what it ran; the entry
+was wrong about what that meant — which is the more dangerous kind, because it reads as a green
+check.
+
+**And the seam was missing a required artifact.** `src/lib/seams/AGENTS.md` lists `validators.ts`
+among the files that must exist for "any new or **modified** seam folder"; 19 of the 26 seams have
+one and `creation-store-seam` was among the seven that do not. Added, re-exporting the contract's
+schemas rather than restating them, with the non-throwing variants the production adapter's
+skip-the-corrupt-record behaviour actually needs.
+
+Both of these were checkable at any point in this run by reading the governance file and counting
+the tests. Neither was, until a reviewer did it.
+
+### The same defect, a fourth and fifth time
+
+- **The paid request dropped a reopened page's wig.** `handleGeneratePage` calls
+  `resetGeneratedPage` — which clears the restored wig provenance — *before* capturing
+  `requestedStyle`. Theme, voice and glitter survive that reset because they live on the controls,
+  so regenerating a reopened page sent a hint that was partly the record's and partly the carousel's.
+  The capture moved above the reset.
+- **A page saved without ever generating an image stored no style.** `saveToVault` accepts a
+  text-only page — `assembledPrompt` falls back to `textOutput.quote` — and `generatedStyleSelection`
+  is only set by the two generate paths, so such a record was filed with no style and reopened as
+  "not on file". Its controls *did* author its spec. The save now falls back to the live selection
+  exactly when `styleSelectionUnknown` is false, which is precisely the case where the controls are
+  the page's own rather than the reader's.
+
+I nearly pushed back on the second of these, on the belief that `saveToVault` required a generated
+prompt. Reading the guard first showed it does not. The instinct to defend was wrong and cheap to
+check.
+
+### And the notice was telling readers something false
+
+"This page was saved before the studio kept styles with pages" is not true of every page reaching
+it: `MeechieTools.svelte` and `verdict-page-state.svelte.ts` still save without a `styleSelection` —
+a deferred item this run recorded itself — so a page created minutes ago on either surface reopens
+into that notice with a fabricated explanation. It now says only what is known: the page's own look
+was not stored with it.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1356 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 7 passed ·
+Playwright 37 passed against the installed browser · SonarCloud 0 new issues.
+
+Two more mutations, each reverted after: capturing the style after the reset again (1 test), and
+dropping the text-only fallback (1 test).
+
+## Run 8 close-out — round four: the same drift, one field over
+
+Codex's fourth round found four more defects and two evidence failures. Every one was real. The
+pattern held for the fourth round running: something on the page, and the thing describing it,
+drifting apart.
+
+### The paper had exactly the defect the style had
+
+Page size and border were the two Page Controls this run's whole thesis excused. They are
+`ColoringPageSpec` fields, they are persisted, they come back on reopen — so they were never part
+of the missing-style problem, and I said so in the contract, in the decision entry and in the
+module comment.
+
+They are persisted from the **live** spec. `applyTextToSpec` rebuilds that spec on every setting
+change. So: generate a page on US Letter with a decorative border, change to A4 with no border, hit
+save — and the record files the old image, the old prompt and the old downloads under dimensions
+and a frame that never produced any of them. Identical to the style defect, in the one place I had
+argued the defect could not be.
+
+Fixed the same way: snapshot with the artifact. Both generate paths capture the paper off the spec
+the request actually carried, `loadCreation` takes it from `intent`, and the save writes the
+snapshot over the live spec's two fields. There is no unknown case for the paper, unlike the style —
+every record ever written carries page size and border, so even a record from before this run
+re-saves under its own.
+
+The lesson is not "check the other two fields". It is that "persisted" and "persisted as the thing
+it describes" are different claims, and I had checked only the first.
+
+### The preview was contradicting the sentence beside it
+
+The panel's new lede says: *the page on screen keeps the look it was made with until you make it
+again.* The preview's sparkle overlay was bound straight to the live Glitter checkbox. So toggling
+Glitter visibly restyled a finished page while a sentence one panel over promised it could not.
+
+A false claim I wrote in this run, about a control this run is about, rendered eight inches from the
+thing disproving it. The overlay now reads the page's own glitter, follows the checkbox only when
+there is no page to lie about, and shows nothing over a page whose style is not on file.
+
+### The summary named four of the seven controls
+
+The shut panel's one line carried theme, intensity, rawness and glitter. Third person, page size and
+border moved without it moving. A reader who opened the panel to change Border and shut it again
+watched the line stay exactly as it was — which is the "reports nothing" the panel was rebuilt
+against, surviving inside the rebuild.
+
+All seven are in it now, phrased so a value read out of its dropdown still means something:
+`Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border`.
+The paper half is composed separately from the style half, because a reopened page can have a style
+that is not on file while its paper always is — the substitute sentence replaces one half and leaves
+the other standing.
+
+### The error region caught the rare failure and missed the common one
+
+This run moved settings failures out of the evidence panel and put them beside the controls. It
+moved the wrong one. `applyTextToSpec` awaits `validateSpec` and dropped the returned boolean, so
+only an adapter *rejection* — the rare case — reached the new alert. An ordinary contract failure
+resolves normally with `{ ok: false, issues }`, and those went on appearing solely in System Trace,
+which is the other panel this run took a settings failure out of.
+
+Both are reported now, as two separate facts rather than one: "the check could not be run" and "the
+check ran and the page did not pass". The second is worded so it does not blame the control — the
+check runs over the whole spec, so what it reports can be something the provider's words did long
+before the reader touched anything. Both are cleared when the page they describe is replaced, which
+was a staleness bug of my own that the fix surfaced.
+
+### Two evidence failures, and they are the worse half
+
+**The outer verify transcript was three heads old.** `verify-outer.txt` exists for exactly one
+reason: `verify.txt`, despite its name, holds only the inner runner stage, so the audit gate and
+the chain's exit status are captured in the outer file and nowhere else. The committed one reported
+**1,252 tests** for a head that runs **1,369**. A seam changed under it and the artifact that
+proves the gate ran did not move. Regenerated, and `verify-chain.txt` now states the check that
+would have caught it: verify-outer.txt and verify.txt must report the same total or one is stale.
+
+**`verify-chain.txt` still described Run 5.** Nobody flagged it; I found it while fixing the file
+above. It is the folder's index — the one artifact a re-run does not regenerate — so it sat there
+describing a merged change while every file beside it described this one. The same drift this run
+is about, in this run's own evidence folder. Rewritten for Run 8.
+
+**And the plan's file inventory understated the change.** `AGENTS.md` requires every touched path
+with an explicit `[NEW]` / `[MODIFY]` marker, an exact touch blueprint, and stated anti-goals. The
+committed plan listed twelve paths, marked none, and omitted `fixtures/creation-store/sample.json`,
+`src/lib/seams/creation-store-seam/validators.ts`, `tests/e2e/page-controls.spec.ts`,
+`src/lib/components/studio/StudioPreviewPanel.svelte` and the evidence artifacts. A scope gate that
+can only be checked against an understated inventory is not a gate. Rewritten with every path, its
+marker, what changes inside it, and the do-not-touch list.
+
+### The acronym, again
+
+Two new uses of the forbidden acronym in this run's own log entry — in a log whose line 320 records
+a previous run being told the same thing. Spelled out.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1369 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 (outer transcript captured on this head) ·
+`npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 7 passed ·
+Playwright **38 passed** against the installed browser; the mandated `npx playwright test` still
+fails at browser launch on the container's version mismatch, and `e2e.txt` now carries both rows.
+
+Seven more mutations, each reverted after, each caught: saving the live spec instead of the paper
+snapshot (2 tests), binding the overlay back to the live checkbox (2), dropping the issue report
+(1), leaving the stale reports standing across a page replacement (1), dropping third person from
+the summary (4), dropping the paper from the summary (3), and deleting a border label (2). Running
+total for this run: 25.
+
+The commit-before-mutating rule held. The harness reverts by path, so it was run only against a
+committed tree, and `git diff --quiet` was checked before and after each batch.
+
+## Run 8 close-out — round five: the field I did not think of was the one that mattered
+
+One finding, and it lands squarely on round four's fix.
+
+Round four's defect was that the record's spec is written from the *live* spec, which
+`applyTextToSpec` rebuilds on every setting change. I fixed it by snapshotting page size and
+border with the artifact — the two fields I had thought of, because they are the two Page Controls
+that live in the spec.
+
+`decorations` also lives in the spec, and it is not chosen. It is **derived from the style hint** —
+the exact string this whole run made storable. So: generate under a dense theme, switch to a
+minimal one, save without regenerating. The record gets the original `styleSelection`, the original
+prompt and the original image, beside a recomputed `intent.decorations`. One picture, two stored
+answers about how dense it is, disagreeing with each other. Reopening preserves the contradiction,
+and a paid regeneration can be built from it.
+
+I had written, in the module comment, in the decision entry and in a reply to a reviewer, that page
+size and border were the fields that could drift. That was a list, and a list of the cases I
+happened to think of is not a rule. The rule is: *the record's spec should be the spec that made
+the artifact.* Snapshot the spec, and the field, its whole `presentation` group, and whatever is
+added to that group next are all covered without anyone having to think of them.
+
+The two rounds are the same lesson twice, at different sizes. Round four: "persisted" and
+"persisted as the thing it describes" are different claims. Round five: fixing the instances you
+can name is not fixing the class.
+
+### The one field deliberately left out, and why
+
+`dedication` still comes from the live spec. It is the only field here the reader types rather than
+picks from a control, and a dedication entered after generating is on no page either way — so
+taking the snapshot's would silently throw away what they had just written. That is a different
+defect from the one being removed, and not one to introduce while removing it. That a typed
+dedication can describe a picture without it predates this run and belongs with drift reporting.
+
+It is carried across by deleting the key rather than by spreading `undefined`, because
+`{ ...spec, dedication: undefined }` keeps the key, survives `$state.snapshot`, and parses against
+an `.optional()` schema — leaving a record carrying a field it does not have. "No dedication" and
+"a dedication that is nothing" are different, and only one of them is true.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1372 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 7 passed ·
+Playwright 38 passed against the installed browser · SonarCloud 0 new issues, duplication back to
+0.0% after the test-setup extraction that round four's own scan turned up.
+
+Three more mutations, each reverted, each caught: narrowing the snapshot back to the two paper
+fields (2 tests), taking the dedication from the snapshot as well (2), and spreading `undefined`
+instead of deleting the key (1). Running total for this run: 28.
+
+## Run 8 close-out — round six: the snapshot was being taken where there was nothing to photograph
+
+Two findings, both real, both the same shape as each other and neither the same as before. Round
+four and five were about the snapshot being too *narrow*. This one is about it being taken at all,
+in three places where no page had been made.
+
+**A restored draft was filed as though an artifact existed.** `applyRestoredStyleSelection` put the
+stored style on the controls *and* recorded it as the page's own. Drafts restore no prompt and no
+image. So a reader who came back after a refresh, changed a theme and saved got a record holding the
+draft's old style beside a spec rebuilt from the new controls — the exact contradiction round five
+removed, arriving through a door I had built myself. That function now does only the part the two
+restore paths genuinely share, which is the controls; the snapshot moved into `loadCreation`, the
+one restore path that has an artifact, where the style and the spec are now set together on adjacent
+lines.
+
+**Both generate paths took the snapshot above the guard that reports nothing was made.** A
+schema-valid `{ ok: true, images: [] }` response, and the try-on path's settings-failure return. In
+both, `textOutput` keeps Save to Vault lit, so saving after the failure filed the failed request's
+style and spec as a page — and went on doing so after the reader had moved every control. The trace
+assignments stay above the guard, deliberately and as an earlier round decided, so System Trace
+still shows what was asked for. The snapshot moved below it.
+
+### Two things underneath, neither of them reported
+
+Fixing the second exposed the predicate. `styleSelectionUnknown` and `pageGlitter` asked
+`assembledPrompt !== ''`, and the prompt is assigned for the trace whether or not a picture came
+back — so a failed generation read as an artifact whose style was not on file, and the panel would
+have said so about a page that does not exist. They ask `generatedSpec` now, which is set only where
+a page exists, and is `undefined` for a restored draft, whose page the controls genuinely do
+describe.
+
+Which exposed the other thing: both snapshot fields were plain fields rather than `$state`, and a
+`$derived` over an unreactive field never recomputes. The old predicate worked only because
+`assembledPrompt` is `$state` and happened to change at the same moment as the field the derivation
+actually cared about. Two tests went red the moment the derivation stopped reading a reactive value
+by accident. Both fields are reactive now, and snapshotted on the way to the storage seam so the
+record is built from values rather than proxies.
+
+Worth naming plainly: the comment on those fields said "Not `$state`: nothing renders it directly",
+and that was true when it was written and false by the time two derivations read them. A comment
+that justifies a decision by a fact that later changes is a defect with a delay on it.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1374 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 7 passed ·
+Playwright 38 passed against the installed browser.
+
+Four more mutations, each reverted, each caught: recording the artifact snapshot on draft restore
+(1 test), snapshotting the no-picture generation (1), the predicate back to `assembledPrompt` (1),
+and the snapshot fields back to plain (2). Running total for this run: 32.
+
+## Run 8 close-out — round seven: the required artifact was decoration
+
+One finding, and it is about the artifact round three added.
+
+`src/lib/seams/AGENTS.md` requires a `validators.ts` for any new or **modified** seam folder. Round
+three caught that `creation-store-seam` did not have one, I added it, and a reviewer has now caught
+that **nothing imports it**. The production adapter went on calling `safeParse` at four sites of its
+own. So the required artifact shipped as dead code, and the duplicate parsing it exists to remove
+stayed exactly where it was. Every other seam's validators module in this repo is consumed by its
+adapter, its mock or its test; this one was consumed by nothing.
+
+Worse, the shape was wrong, which is why nothing *could* have used it. `isCreationRecord` and
+`isDraftRecord` returned booleans — and the path the module's own comment named as their reason,
+the vault read that keeps what parses and skips the rest, needs the parsed record back, not a
+verdict. I wrote a justification for a helper the justification's own use case could not use.
+
+Replaced by `parseCreationRecord` / `parseDraftRecord`, returning `{ ok: true, value } | { ok: false }`.
+Deliberately not the shared `Result`: each call site phrases its own failure — skip and count,
+`DRAFT_SCHEMA_MISMATCH`, `CREATION_SCHEMA_MISMATCH` — so a message carried up from the validator
+would only be discarded. The adapter's four sites route through them now, plus `validateDraftRecord`
+for the one that was a throwing `.parse`, and the seam's contract tests exercise all of it including
+`validateStyleSelection`, the third helper nothing called.
+
+The pattern across rounds three and seven: satisfying a checklist is not the same as doing the thing
+the checklist is for. The gate asked whether the file exists. It does not ask whether anything
+imports it, and I did not ask either.
+
+### A mutation run that proved nothing, caught before it was believed
+
+The first mutation batch for this fix reported all three mutants surviving — and the reason was that
+I pointed it at `tests/unit/creation-store-vault.test.ts`, which does not exist, alongside the seam
+test. Vitest ran the one real file, 11 tests, none of which touch the adapter, and reported green
+for every mutation.
+
+Re-run against the four suites that actually exercise the adapter — the seam test, the legacy
+contract test, the helpers test and the studio-state test, 165 tests — all three mutants died: 7
+tests for keeping a corrupt record instead of skipping it, 1 for accepting an invalid record on
+save, 2 for a draft parse that always reports success.
+
+A mutation that survives is either evidence the test suite is weak or evidence the harness pointed
+somewhere useless, and the two look identical from the summary line. This log has said since Run 5
+that a test never seen to fail is not evidence; the same is true of a mutant never actually run.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1378 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 11 passed ·
+Playwright 38 passed against the installed browser.
+
+No changelog entry: the adapter's behaviour is byte-for-byte what it was, which is the point of a
+refactor that removes a second parsing path.
+
+Three more mutations, each reverted, each caught. Running total for this run: 35.
+
+## Run 8 close-out — round eight: three fixes that stopped short, and a fault fixture that proved nothing
+
+Four findings. Three are places where an earlier round's fix was right and did not reach far enough;
+the fourth is a gate I had satisfied on paper.
+
+**The downloads were still packaged for the live paper.** Rounds four and five made the record honest
+about the spec that produced the picture. `attachPageExports` went on reading `this.spec.pageSize`.
+The Page Controls stay enabled while a generation is in flight and moving Page Size rebuilds that
+spec without advancing `pageLoadToken` — so the PDF and the share image came out sized for paper the
+provider was never asked about, beside an image and a record that agreed with each other and not
+with them. The page size is passed in from the captured spec now, at all three call sites.
+
+**A draft restored a wig nothing could show.** `applyStyleSelection` put a stored wig into
+`restoredStyleWig`, which has no control of its own: the carousel reads `selectedWig`, and that stays
+null. On the vault path that is right — the wig belongs to a page that is on the paper, and round
+three fixed the opposite bug there. On the draft path there is no page, so it was invisible
+provenance, and `handleGeneratePage` reads that fallback *before* the reset clears it. A refresh
+could therefore spend a paid generation on a wig the reader could neither see nor deselect.
+
+This is the third field to leave `applyStyleSelection` for the same reason, after the style and the
+spec in round six. The function is for the controls; the artifact snapshot belongs with the artifact.
+I moved two of the three when that was pointed out and left the third, because I was fixing the
+instances named rather than the rule — which is exactly what round five's entry says not to do, two
+rounds after writing it.
+
+**The unknown-style notice had outlived its own truth.** It ended "changing any of them will restyle
+the page". True when written. False two rounds later, once the snapshot guaranteed the opposite. And
+contradicting the lede directly beneath it — "The page on screen keeps the look it was made with
+until you make it again" — for that whole time, eight lines apart in one file. It now says the
+controls describe the next page.
+
+That is the second sentence in this panel that a later fix of mine falsified (the glitter promise was
+the first, in round four). A claim about behaviour is a thing that can rot, and this run has now
+produced two.
+
+**And the red proof had no fixture behind it.** `src/lib/seams/AGENTS.md` requires the fault fixture
+to make the contract tests fail before adapter work. `fixtures/creation-store/fault.json` has valid
+records as its *inputs* — its fault is that every *output* is `BROWSER_REQUIRED`. So it proved the
+seam reports an unusable environment, and nothing whatsoever about a record whose stored style is
+wrong, which is the only failure mode this run introduced.
+
+The fixture gains a `rejected` block: a voice the text seam refuses, an empty theme id, a draft whose
+style is a string. The fixture module exposes it as `unknown` on purpose — typing it as records would
+make the module throw on import, since the point is that these do not parse — and the contract tests
+drive it through the adapter's own validators. Plus a second test that strips only `styleSelection`
+from each and asserts the rest parses, so the first cannot pass for a payload that is malformed in
+some unrelated way. Rounds three and seven and eight are one story: the checklist asked whether the
+file exists, then whether anything imports it, then whether what it contains proves anything.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1383 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 13 passed ·
+Playwright 38 passed against the installed browser.
+
+Four more mutations, each reverted, each caught: packaging reading the live spec again (1 test),
+restoring the wig in `applyStyleSelection` (1), dropping the wig restore from `loadCreation` (4), and
+widening the stored voice to accept anything (2 — the fault fixture's own payloads). Running total
+for this run: 39.
+
+## Run 8 close-out — round nine: the same value drifting a third time, and a mock that could not disagree
+
+Two findings, and the first is the same page size for the third round running.
+
+Round eight fixed the *packaging* call to use the captured page size. `pageExports` went on
+describing those files with the live `this.spec.pageSize` — so the PDF was correctly made for US
+Letter and correctly labelled "A4 — ready to print". Round four snapshotted it into the record,
+round eight into the packaging call, round nine into the label.
+
+Three rounds of moving one value from one reader to another is the signal that passing it around was
+the wrong shape. So this time it is removed rather than relocated: `PageExportAttempt` carries the
+paper it was packaged for, `describePackagedExports` takes no page size at all and reads each
+attempt's own, and there is no second value left for a label to disagree with. That is the
+difference between fixing the instance and fixing the class, which this log has now recorded wanting
+three times and finally done.
+
+**And the mock could not refuse anything.** Round eight added the `rejected` fault payloads and drove
+them through the validators. The mock still returned its fixture's canned output whatever it was
+handed — so a consumer could pass a record the adapter rejects, watch the mock accept it, and find
+out in a browser. That is exactly the mock/adapter divergence a fault fixture exists to catch, and
+the reason the governance says to run the mock against it rather than the helpers underneath.
+
+The mock now validates through the same validators the adapter uses. `saveCreation` returns
+`CREATION_SCHEMA_MISMATCH`; `saveDraft` **throws**, because that is what the adapter's `saveDraft`
+does. The asymmetry is the adapter's and mirroring it is the whole point: a mock that reported a
+failure where the real thing throws would let a consumer write an error handler that never runs.
+
+Each of the two new contract tests is paired with the same mock still replaying its fixture for
+input that *does* parse, so the refusal is demonstrably about the record rather than about the
+scenario.
+
+### A mutation that survived, and what it was telling me
+
+The first mutation batch for this round had M1 — labelling from a constant instead of the attempt —
+**survive**. Not a harness mistake this time, unlike round seven: the fix genuinely had no test. I
+had changed the shape and watched the suite stay green, which proves only that nothing depended on
+the old shape.
+
+Two tests added and the mutant dies twice: a pure one giving two attempts different paper and
+asserting each file is labelled with its own, and an end-to-end one that moves Page Size mid-flight
+and asserts every printed row still says US Letter.
+
+Worth stating plainly: a passing suite after a refactor is not evidence the refactor did anything.
+The mutation is what turns "I changed this" into "this is load-bearing", and it only says that if
+you run it.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1387 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 15 passed ·
+Playwright 38 passed against the installed browser.
+
+Three mutations, each reverted: the label ignoring the attempt's page size (2 tests, after the two
+were added), the mock accepting any record again (1), and the mock's draft validation removed (1).
+Running total for this run: 42.
+
+## Run 8 close-out — round ten: the seam was never asked what a browser actually does
+
+One finding, and it is the one the whole run kept almost committing: a required step that produced
+an artifact rather than a measurement.
+
+`AGENTS.md`'s first core principle is "probe real behavior for any seam that touches the world."
+CreationStoreSeam touches `localStorage`, and its `probe.ts` is a delegation note pointing at
+`probes/browser-seams.probe.mjs`, which writes the fixture's inputs into a real browser and reads
+them back out. The contract change added `styleSelection`; round two updated the fixture's **inputs**
+to carry it. The probe was never re-run. So the outputs sitting beside those inputs — the half that
+is supposed to be *captured* — were hand-maintained to look like a probe result.
+
+The reason that matters is not procedural. Every schema test, every fixture test and every mock test
+this change added reads those outputs. Not one of them could tell a captured value from a typed one,
+because the thing they compare against is the thing that was typed. The suite was as green as it
+would have been if browser storage silently dropped the field.
+
+**Re-ran the probe. It found a divergence.** The committed `output.getCreation` said a record read
+back out of `localStorage` carries no `studioText`, while the record written into it does. Browser
+storage keeps it; the hand-kept copy was wrong, and had been wrong under a green suite. The
+style-bearing creation and draft do round-trip intact — which is what the probe was asked to
+establish — but the answer arrived alongside a fact nobody had checked.
+
+The fix is not just the re-run, because a re-run is a thing a person remembers to do. The seam's
+contract test now asserts that the read-back outputs equal the inputs that went in, field for field.
+A hand-edit that quietly loses a field on the way out is red. Mutations: reverting the fixture to its
+pre-probe outputs (1 red — the new test), and deleting `styleSelection` from the captured read-back
+(2 red — the new test and the round-two mock test). Running total for this run: **44**.
+
+Worth writing down next to round seven's and round nine's lessons, because it is the third face of
+the same coin. Round seven: a mutant that was never run looks like a weak suite. Round nine: a
+passing suite after a refactor is not evidence the refactor did anything. Round ten: a fixture whose
+expected output you wrote yourself cannot tell you what the world does — it can only tell you what
+you already believed.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1388 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser · `node probes/browser-seams.probe.mjs` complete
+(transcript in `docs/evidence/2026-09-05/probe-browser-seams.txt`).
+
+Both `docs/seams.md` rows for this seam now carry a last-probe date of 2026-09-05 rather than
+2026-02-05 and `N/A`.
+
+## Run 8 close-out — round eleven: a plan disagreeing with its own file list, and a report filed under the wrong control
+
+Two findings. Both are the run's own subject pointed back at the run.
+
+### The plan contradicted its own inventory
+
+`DECISIONS.md`'s `Seams:` line said "adapter and mock unchanged", with a reason that was true when it
+was written: the adapter validates through these schemas and stores JSON, so an added optional field
+needs no adapter change. Three lines below it, the file inventory listed `[MODIFY]` against both the
+adapter and the mock — because round seven found `validators.ts` present and imported by nothing with
+the adapter still calling `safeParse` at four sites, and round nine found the mock replaying its
+fixture for records the adapter refuses. Both were fixed. Neither correction reached the summary
+sentence above them.
+
+So the mandatory planning gate held two descriptions of the same change, disagreeing, in a change
+whose entire subject is two descriptions of the same thing drifting apart. The summary now defers to
+the inventory as the authoritative list and says what moved it, rather than being quietly rewritten
+as though it had always been right.
+
+### The panel was reporting on controls nobody had touched
+
+`syncSpecFromCurrentText` did two jobs: rebuild the spec, and write the Page Controls panel's two
+error regions. Three callers used it — the panel, the wig selector, and the try-on page generator —
+so the second and third got the reporting along with the rebuild. Picking a wig, or pressing the
+try-on button on a page that does not pass its check, printed "That change was applied. The page did
+not pass its check" under a row of controls the reader had never gone near. The wig in particular is
+deliberately absent from that panel's own summary, on the grounds that it belongs to the try-on
+studio — and then its failures were being filed there anyway.
+
+The field's doc comment said, in as many words, "written only by `syncSpecFromCurrentText`, the
+panel's own handler". That sentence was false the day it was written, and it is the reason the leak
+was invisible: the invariant was documented instead of enforced. The rebuild is now
+`rebuildSpecFromCurrentText`, which reports nothing; `syncSpecFromCurrentText` is the panel's handler
+and the only writer of those two regions. A new caller cannot leak into them by forgetting to.
+
+**One correction to the finding as filed, which I would rather state than quietly work around.** It
+described a completed try-on page left reporting a stale failure, via a provider title over the
+length limit. That exact sequence is not reachable: `normalizeSpecTitle` clamps the title before it
+reaches the spec, so the intermediate never fails for that reason, and every other field
+`asTryOnPageSpec` replaces is either normalised on the way in or bounded by the text seam's own
+schema. What is reachable is the misattribution above, and a refused generation reporting itself
+twice — once correctly on the try-on line, once wrongly under Page Controls. The diagnosis of the
+cause was right; the worked example was not, and the fix is the one the diagnosis called for.
+
+Two tests, each red without the split: a wig change on a page with a failing check, and a refused
+try-on generation. Mutations: routing either caller back through the panel's handler (1 red each).
+Running total for this run: **46**.
+
+### One new SonarCloud issue, and what I could and could not establish about it
+
+The quality gate passed, but SonarCloud's count of new issues went from 0 to 1 on the first push of
+this round — the first time in the run it has been anything but zero. Its detail is not readable from
+here: the network policy returns 403 for sonarcloud.io, and the code-scanning check reports "No new
+alerts", so whatever it found is a maintainability issue rather than a security one and its text
+lives only on the dashboard.
+
+Rather than guess at a rule, I looked at what the round actually added that a maintainability check
+would have an opinion about, and found one thing worth fixing on its own merits: the fallback message
+for a rebuild that threw a non-`Error` was written out twice, once per caller — and the two callers
+now report it on *different lines of the page*. Two copies of one sentence, shown in two places,
+about the same failure. That is the run's own defect class in a string literal, so it is now a named
+constant. The same for the over-length dedication the two new tests share.
+
+Stated plainly because the honest version matters more than a tidy one: I did not know that this was
+what SonarCloud flagged, and said so before the next analysis ran.
+
+**It was not.** The count came back 1 again. So I stopped guessing and reproduced the analyser
+instead: `eslint-plugin-sonarjs` installed into the scratch directory (never into the repo) and run
+over this change's files with its recommended rules. Two findings, and the diff decides between them
+— `sonarjs/no-nested-conditional` on a line unchanged from `main`, so not new code, and
+`sonarjs/no-unused-vars` on `withDedication`, a helper this change added:
+
+    const { dedication: _dropped, ...rest } = spec;
+
+Naming a binding purely to discard it. The rule is right that the name carries no information, and
+the comment above the helper already explains why the key goes. It is a copy-and-`delete` now.
+Re-running the plugin leaves only the pre-existing nested ternary, which is not new code.
+
+The lesson is small and worth keeping: when a checker you cannot read reports something, reproducing
+the checker beats reasoning about what it probably meant. The first attempt cost a push and found a
+real duplication by luck; the second took ten minutes and found the actual line.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1390 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser.
+
+## Run 8 close-out — round twelve: the snapshot taken where there is no artifact, through the last door
+
+One finding, and it is the round-six defect reached by the one entrance round six did not check.
+
+`loadCreation` set both artifact snapshots — `generatedSpec` and `generatedStyleSelection` — for every
+record it reopened. `saveToVault` prefers the artifact spec over the live one, deliberately: a
+finished page must be filed under the picture it was saved beside, not under whatever the controls
+say afterwards. But a record saved from a verdict *before any image was generated* has no picture.
+There is nothing for a later control change to contradict, so the snapshot made `saveToVault` prefer
+the old intent and throw the reader's change away — they moved Page Size, pressed save, and watched
+it go nowhere, with no error and no explanation.
+
+Round six corrected exactly this shape at two doors: a restored draft, and a generation that came
+back with no picture. This was the third door. The comment above the two assignments read "set
+together at the one restore path that has an artifact" — a claim about the code rather than a
+description of it, which is now the third such comment this review has caught. The snapshots are
+gated on the restored record actually putting a picture on the paper, measured from
+`restoreCreationImages` rather than from `creation.images`, so a record whose stored bytes do not
+decode is treated as what the reader is actually looking at rather than as what the record claims.
+
+### One field answering two questions
+
+`styleSelectionUnknown` read `generatedSpec !== undefined && !generatedStyleSelection`, which made
+one field answer both "is there a picture whose spec must not be overwritten?" and "did this record
+store a style?". Those are the same for a generated page and come apart for an image-less one — so
+gating the snapshots would have silently stopped the panel reporting unknown provenance for records
+it should still report. The second question now has its own field, `restoredStyleUnknown`, set only
+by `loadCreation` and cleared only by `resetGeneratedPage`.
+
+### Two existing tests were passing next to the reason they gave
+
+Both of the tests that broke turned out to be about a *finished page* — "keeps a reopened page filed
+under its own paper when a control moves", and the glitter overlay being a claim about somebody
+else's picture — and both were written against a fixture with no picture in it. They passed, and
+they were not testing what they said.
+
+They now use a fixture with real PNG bytes on it, and the image-less case has its own test asserting
+the opposite: the reader's control change survives the save. That is the third time this run a green
+test has turned out to be green for a reason adjacent to the one it names, and the first time the
+fixture rather than the assertion was what made it so.
+
+Mutations: removing the image gate (1 red — the new test), and pointing `styleSelectionUnknown` back
+at `generatedSpec` (**4** red — every test that asks whether a reopened page reports unknown
+provenance). I predicted one for the second and measured four, which is the direction that matters:
+the separation is load-bearing in more places than I had accounted for, and had I gated the snapshots
+without splitting the field, four tests would have caught it. Running total for this run: **48**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1391 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser.
+
+## Run 8 close-out — round thirteen: the draft and the vault were two writers of one field
+
+Three findings. Two taken, one answered with a measurement and a reason.
+
+### The autosaved draft invented provenance the vault refused to invent
+
+`saveToVault` files a page's style under a rule with three cases: the artifact's style if there is
+one, the live controls if they genuinely authored the page, and **nothing at all** when the page's
+style is not on file. `saveDraft` wrote `this.currentStyleSelection()` unconditionally.
+
+Two writers of the same field, one applying the rule and one ignoring it — which is this whole
+change's subject, now found inside the change itself for the second time. And the draft is the worse
+of the two to get wrong, because it is restored on every refresh: reopen a record with no stored
+style, wait for the autosave, reload, and the page comes back wearing the reader's controls as its
+own. The unknown-style notice is gone, the invented values are now restorable, and the next vault
+save can pair them with that record's intent permanently.
+
+Both call sites now go through one `styleSelectionToFile()`. Not "the draft was fixed to match" —
+there is one rule and one place it lives, so a third writer cannot disagree with it either.
+
+### The plan's file list was still not an inventory
+
+Round eleven fixed the plan's summary line contradicting its file list. This round found the file
+list itself incomplete: `tests/unit/page-exports.test.ts` is modified and was absent, and the
+evidence folder was a `docs/evidence/2026-09-05/*` wildcard standing in for an inventory. A wildcard
+cannot be compared against a diff, which is the one thing the list is for.
+
+Every evidence artifact is now named individually, and the entry states the check outright: the list
+is meant to equal `git diff --name-status <base>..HEAD`, and a path in one and not the other is a
+defect in the entry. Verified by script rather than by reading — the only mismatches are `lint.txt`,
+which is deliberately absent because eslint prints nothing on success so the file never changes.
+
+### The one I did not take, with the measurement behind it
+
+The P2 says a try-on page records the current theme and voice as its provenance although neither
+reaches an image renderer on that path — the portrait is copied from `tryOnPortraitUrl` and packaged
+unchanged. I checked rather than reasoned: building the spec once per theme and diffing the results,
+**no field of the resulting spec varies with the theme at all**. So the finding is right, and more
+strongly than it states.
+
+It is not fixed here, and the reason is a cost the finding does not account for. Recording nothing
+would also drop the **wig**, which genuinely is that page's provenance and is what round two added
+`restoredStyleWig` to protect; the alternative is widening `StyleSelectionSchema` so a wig can stand
+without a theme, which is a seam contract change in the thirteenth review round of a change whose
+plan names the contract's shape as settled. Both are worse than the defect. Recorded here and
+answered on the thread rather than silently left.
+
+Mutations: the draft writing the live controls again (1 red — the new test). Running total for this
+run: **49**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1392 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser.
+
+### The SonarCloud issue I still cannot name
+
+Round eleven's count of one new issue has not moved, and the `_dropped` binding fixed in round twelve
+was not it. Reproducing the analyser again at this head — `eslint-plugin-sonarjs` over every file
+this change touches, each finding attributed against `git diff` — turns up exactly one hit, and it is
+on a line unchanged from `main`, so it is not new code. The quality gate passes and the count is one.
+Stated as an open loose end rather than closed with a guess: I have not identified it, the local
+reproduction disagrees with the dashboard, and the dashboard is unreachable from this container.
+
+## Run 8 close-out — round fourteen: two holes my own round-twelve gate opened
+
+Both findings are consequences of the image guard added last round, which is the honest way to read
+them: a fix that changes what "there is a page on the paper" means has to be carried through
+everything that asked the old question.
+
+### An invisible wig in a paid request
+
+`loadCreation` gated the two artifact snapshots on the record actually restoring a picture, and left
+`restoredStyleWig` outside the guard. A record saved from a verdict before any image existed still
+records the live wig, so its stored style can name one — and reopening such a record put that wig
+into the style hint while the carousel showed nothing selected.
+
+The wig is stored as `{ name, style }`, not as a catalog entry, so it cannot be put back into the
+carousel for the reader to see or change. So Create Coloring Page sent a wig that was invisible and
+unreachable, in a request the reader pays for. That is the worst shape a provenance bug has taken in
+this run: not a wrong label, a wrong *request*.
+
+It is the third artifact snapshot and it belongs inside the same guard as the other two. With no
+picture there is nothing for the reader's selection to contradict, so the visible selection wins.
+
+### The panel's promise was true of one case and stated for both
+
+The lede read "The page on screen keeps the look it was made with until you make it again",
+unconditionally. After the guard, a reopened text-only record has no artifact, so `pageGlitter`
+follows the live checkbox and the preview's paper visibly changes under the reader's hand — which is
+*correct*, because there it is a preview of the next page rather than a claim about a finished one.
+The sentence was the thing that was wrong. It now says which case it is about: "Once a page has a
+picture on it, it keeps the look it was made with until you make it again."
+
+Worth noting which way that fix went. The reflex is to change the code so the promise holds; here the
+code was right and the promise was over-claiming, and a run about a panel that misreports itself
+should be able to tell those apart.
+
+### Four more tests that were green next to their own reason
+
+Every one of the four that broke is about a *reopened page's wig provenance* — and every one used the
+image-less fixture. Same as round twelve's two, and the same fix: they describe a finished page, so
+they get one. That is six tests in three rounds passing for a reason adjacent to the one they name,
+all traceable to a single fixture that never had a picture in it. The lesson is not "read the tests
+more carefully"; it is that a fixture missing a field the subject branches on will hide every branch
+that depends on it, in every test that uses it, silently.
+
+Mutations: `restoredStyleWig` moved back outside the guard (1 red — the new test), and the lede
+restored to its unconditional form (0 red — no test asserts the qualifying clause, which is honest to
+record: the wording fix is checked by the e2e only as far as "until you make it again" survives).
+Running total for this run: **50**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1393 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser.
+
+## Run 8 close-out — round fifteen: the pair, not the accessor
+
+Round eleven's fix was "one accessor, so the vault and the draft cannot answer the same question
+differently". Round fifteen is the bill for that sentence being half right.
+
+### One rule was shared; the wrong one
+
+The two writers do share a rule: the live controls cannot claim a style the page never recorded.
+What they do *not* share is which spec they are storing. The vault stores the artifact's spec, so it
+files the artifact's style beside it. The draft stores the **live** spec — it is work in progress,
+not a finished page — and it was filing the artifact's style beside that.
+
+So: generate a page under one theme, move a control to another without regenerating. The debounced
+autosave writes an intent rebuilt for the new theme next to the old theme's selection. Refresh, and
+the old theme is reapplied over the new intent — the control the reader just moved silently undone,
+and `decorations`, which is derived from the style hint, describing a theme the stored selection
+contradicts. One record, two answers, again.
+
+The fix is not another shared accessor. It is that the *pairing* is the invariant: each writer files
+the style belonging to the intent it is about to store. `authoredStyleSelection` holds the rule they
+genuinely share; `artifactStyleSelection` is the vault's snapshot on top of it. Deduplication that
+merges two callers who differ is not deduplication, it is a coin flip resolved in favour of whoever
+wrote the function.
+
+### An error nobody could clear
+
+A wig pick rebuilds the spec, and a failure there lands on the try-on studio's error line. The only
+thing that cleared that line was `resetGeneratedPage`, which runs when the wig *changes* — and
+re-picking the wig already selected is exactly how a reader retries after reading the message. So the
+one gesture the message invites was the one gesture that could not clear it: the failure sat there
+through every later success, describing an attempt that had already been retried.
+
+### A header that stopped short
+
+`tests/e2e/page-controls.spec.ts` opens with Purpose / Why / Info flow and stops. Every test in it
+waits for `[data-hydrated="true"]` first, because clicking earlier races the browser's own `<details>`
+toggle against Svelte's and the panel reads as broken when it is only early — a failure that looks
+exactly like the feature. That is the file's critical invariant and it was written as a note beside
+one helper, where a test added later would not meet it. It is in the header now, which is what the
+file-header rule in `AGENTS.md` is for.
+
+### Mutations
+
+Four, all red. Draft pointed back at the artifact's style (1 red). Vault pointed at the live style
+(4 red). The error clear removed (1 red). The unknown-style rule dropped from
+`authoredStyleSelection` (2 red — one test per writer, which is the check that splitting the accessor
+did not split the rule). Running total for this run: **54**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1395 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser · the browser probe re-run, all three fixtures
+byte-identical.
+
+## Run 8 close-out — round sixteen: the report was the last thing still copying
+
+Two findings, and between them they close the loop this run has been walking since round one.
+
+### The panel's own report drifted from the thing it reported
+
+`settingsIssues` was a copy of `validationIssues`, taken by the panel's handler at the moment of a
+control change. A copy taken at one moment cannot follow its source. So: type an over-long
+dedication, move a Page Control — the panel correctly says the page does not pass its check — then go
+back and *fix the dedication*. The check reruns, `validationIssues` empties, and the panel goes on
+insisting the page failed a check it now passes.
+
+That is this run's own defect, in this run's own reporting. The whole change exists because a panel
+was saying things about a page that were no longer true, and the mechanism I added to fix it was a
+copy that could go out of date.
+
+`settingsIssues` is `$derived` now: `validationIssues` while the panel is the one answering, empty
+otherwise. Nothing writes it, so nothing can write it stale.
+
+"While the panel is the one answering" is the other half, and it is what keeps the derivation from
+undoing round eleven's fix. A live wire to `validationIssues` would print the *next* failure from
+anywhere — a dedication typed into a different box — under a row of controls the reader never
+touched. So `validateSpec` drops the claim whenever any check begins, and the panel's handler takes
+it back after its own rebuild returns. Enforced at the one place every check goes through, rather
+than in each caller, because a caller forgetting is exactly what round eleven was.
+
+### The other restore path never asked the question
+
+`loadCreation` asks whether the record it is restoring stored a style. `init`'s draft restore did
+not. Every draft written before `styleSelection` existed has none, so the studio read whatever the
+controls happened to say as that draft's own style; the next autosave wrote those values down beside
+a restored intent they did not author, and the refresh after that applied them. Invented provenance
+in two steps, from a draft that recorded none.
+
+Two restore paths, one question, asked on one of them. The same shape as round eleven's two writers
+and round fourteen's third snapshot.
+
+### Mutations, and one the tests did not have
+
+Four red. The derivation replaced by a copy (1 red). The `validateSpec` clear removed (1 red). The
+draft restore's assignment removed (1 red). The `settingsError` clear removed (1 red).
+
+The last two of those needed tests written *because of the mutation*, not before it. Removing the
+`validateSpec` clear left the whole suite green on the first pass — my new test covered the
+staleness, which the derivation alone already fixes, and nothing covered the misattribution the
+clear exists to prevent. Same for `settingsError`: the clear was reasoned into place and pinned by
+nothing.
+
+Both are the same lesson in a new place, and it is worth stating plainly because it keeps recurring:
+**a fix and a test written in the same breath tend to test the fix's happy path, not its reason.**
+The mutation is what asks the reason. Running total for this run: **58**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1399 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
+
+## Run 8 close-out — round seventeen: a gate I broke myself, and a header
+
+### SonarCloud stopped passing, and it was right
+
+The quality gate had passed every push in this run until round fifteen's, when it started failing on
+**duplication in new code** — 3.7%, then 3.5% against a 3% ceiling. My own diff, and a real finding
+rather than a threshold quibble.
+
+The cause was embarrassing in a specific way. A `savingStudio()` helper already existed in this test
+block, with a doc comment saying it was extracted because "six lines repeated verbatim in every test
+that asserts on what reaches the vault" — and six later tests, mine among them, spelled its body out
+instead of calling it. The two draft-restore tests wrote the same fourteen-line stored draft twice.
+My round-fifteen test then repeated thirteen successive statements from the test directly above it.
+
+So: a helper existed, its comment said why, and the tests written after it did not use it. The same
+shape as everything else this run has found — a thing that describes itself correctly while the code
+beside it says otherwise.
+
+Fixed structurally rather than by trimming to fit the metric: `putStyleOnControls`,
+`styledPageOnScreen`, `restyleWithoutRegenerating` and `initFromStoredDraft`, each named for the
+*step* rather than the values. The one worth more than the duplication number is
+`putStyleOnControls`, which now assigns from `styleSelection` instead of retyping its fields — a
+setup that drifts from the constant it asserts against would be green for the wrong reason, which is
+this run's own recurring defect wearing a test's clothes.
+
+**I could not run SonarCloud to confirm the fix.** The network policy 403s sonarcloud.io, and jscpd
+at Sonar-like thresholds finds no clones in these files either way — Sonar's TypeScript detector
+counts successive duplicated *statements* rather than tokens, so the local tool cannot answer the
+question. What I did instead was remove the duplication I could name and count, and let the gate on
+the next push be the measurement. If it still fails, the fix was aimed wrong and the log will say so.
+
+### A second header that stopped short
+
+`tests/unit/page-style.test.ts` opened with Purpose / Why / Info flow, while two constraints that
+decide whether the file proves anything lived only in the body: every expected `Vibe:` string is
+written out literally rather than rebuilt from the pieces the subject assembles, and option coverage
+is driven from the seam schemas rather than a hand-kept list. Both exist to stop the file agreeing
+with itself. Both are now in the header, which is where a person adding a test reads.
+
+### Mutations
+
+None new. The eight guards from rounds fifteen and sixteen were re-run against the refactored suite
+and all eight are still red, which is the point of re-running them: a refactor that leaves the suite
+green is not evidence the refactor kept anything. Running total: **58**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1399 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
+
+## Run 8 close-out — round eighteen: the decline was wrong
+
+Last round I named a residual and argued for leaving it. The reviewer came back on it as a finding
+of its own, and they were right.
+
+### "Never invent provenance" had become "never record it"
+
+`restoredStyleUnknown` was cleared only by `resetGeneratedPage` — that is, only by making a new page.
+So on a draft written before styles were stored, the reader could pick a theme and the studio would
+go on saying its style was not on file, and every autosave would go on writing `undefined`. Every
+refresh threw the choice away. Permanently, on a page with no picture whose look is *entirely* that
+choice.
+
+My argument for leaving it was that erring toward "not on file" never claims provenance that does not
+exist. That is true and the conclusion does not follow, because I only counted one of the two costs.
+Five rounds of removing invented provenance had turned "the field is absent when the answer is not
+known" from a description into a goal, and I stopped asking whether the answer had become known.
+
+The rule now: the restore's answer stands until the reader gives a better one.
+
+Two things in the implementation are load-bearing, and each has its own red mutation.
+
+**It is a comparison against the controls as restored, not "the settings panel fired."** Page size
+and border reach the studio through the same handler as the theme and are not style — they live in
+the intent. Superseding on the handler would write the untouched default theme down as a deliberate
+choice the first time somebody switched to A4, which is the invention the field exists to prevent.
+That mutation turns eight tests red, which is the measure of how much of this run rests on it.
+
+**It is gated on there being no artifact.** With a picture on the paper the controls still do not get
+to claim its provenance, however deliberately they were moved. The round-eleven rule survives intact;
+what changes is only the case where there is nothing for the controls to contradict.
+
+### Mutations
+
+Three, all red: the supersede dropped (1 red, the reported behaviour returns), the no-artifact gate
+dropped (1 red), and the supersede fired on any panel change rather than on a difference (8 red).
+Running total for this run: **61**.
+
+### What I want to remember from this one
+
+A decline is a decision, and a decision made from a principle I had been applying all day deserved
+more suspicion than one made from scratch. The principle was sound; I had stopped checking whether it
+still described the case in front of me. Being pushed back on is how that got caught, which is an
+argument for saying plainly *why* I am declining something rather than just that I am — the reviewer
+could only disagree with the reasoning because the reasoning was written down.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1402 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
+
+## Run 8 close-out — round nineteen: my own fix, in the wrong order
+
+### The mock still lied, one step further in
+
+An earlier round found `creation-store-seam/mock.ts` replaying its fixture whatever it was handed, so
+a record the adapter refuses would sail through it. I added validation. I put it in front of the
+environment guard, and the adapter's order is the other way round: every guarded operation opens with
+`typeof localStorage === 'undefined'` and returns `BROWSER_REQUIRED` **before** it parses anything.
+
+So the fault scenario — which represents "no browser" — answered a malformed record with
+`CREATION_SCHEMA_MISMATCH`, and a malformed draft by throwing. Two results the adapter cannot produce
+in that environment. A consumer verified against the mock could write a handler for a case that never
+happens, which is the same "greener than the real thing" the validation existed to remove, displaced
+by one step rather than removed.
+
+The guard now reads off the fixture's own output rather than off `scenario === 'fault'`. The fixture
+is the record of what the environment does, so a fault scenario added later whose failure is *not*
+environmental correctly goes back to validating first — and there is no second place stating which
+scenario has a browser for the first place to disagree with.
+
+### The tests were proving it in the wrong scenario
+
+The two tests covering that validation asserted it against `fault` — the one scenario where the
+adapter never reaches its validator. They passed, they were about the right behaviour, and they
+proved it in the place where it is the wrong answer.
+
+That is the fourth instance in this run of a test green *next to* its reason rather than for it, and
+the first where the misleading fixture was one I chose rather than one I inherited. The earlier three
+were all "the fixture has no image"; this one is "the scenario has no browser". The general shape is
+the same and worth naming as a rule: **when a test needs a scenario, pick the one the behaviour
+actually lives in, not the one that is already imported.**
+
+### A third header
+
+`StudioSettingsPanel.svelte` now states the three invariants that decide whether it tells the truth
+about a page, each naming the concrete way it was broken — because "don't bind a display to a
+control" reads as a style preference until you know that doing it made a finished page visibly
+restyle itself under the reader's hand. The second of the three carries round eighteen's correction:
+the rule is not "never record a style", it is "never attribute one the page did not have".
+
+### Mutations
+
+One, red: the validation moved back in front of the environment guard. Running total: **62**.
+
+### SonarCloud, closing the loose end from round seventeen
+
+The duplication gate **passes** — 2.1% on new code against the 3% ceiling, down from 3.7%. I could
+not run Sonar locally and said the next push would be the measurement; it was, and the refactor was
+aimed correctly. The gate still reports 1 new issue, which is the same unidentified one logged as
+open since round eleven and is not blocking.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1403 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed ·
+Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
+
+## Run 8 close-out — round twenty: the equality test the codebase had already warned about
+
+### A theme click is authorship a comparison cannot see
+
+Round eighteen's supersede asked whether the live style differs from the style as restored. There is
+one way for the reader to choose a style that this cannot see, and the codebase already knew it:
+`SettingChangeSource` exists for exactly that case, and its doc comment says so —
+
+> a click on the theme chip that is already active leaves every value identical, and is still the
+> reader asking for that theme.
+
+That was written about the neighbouring question of recomputing derived presentation. I wrote the
+supersede as a pure equality test in the same file, as if the sentence were not there.
+
+It lands on the case the supersede was added for. A reader with a non-default theme up opens a legacy
+record, decides to keep that theme for it, and clicks it — the most direct way to say so — and the
+equality test called it no choice at all. The autosave went on writing `undefined` and the refresh
+went on losing the theme.
+
+The claim is now recorded explicitly on a `theme` rebuild, alongside the comparison, with the
+no-artifact guard untouched.
+
+### The reason was untested again
+
+The claim is recorded *after* the rebuild returns, not when the click arrives: a click whose spec did
+not survive its own check has not authored anything. I wrote that into the code, its comment and the
+commit message, and pinned it with nothing — moving the assignment to the top of the handler left all
+141 tests green.
+
+That is the second time in two rounds that a guard's *reason* was untested while its happy path was
+covered, and it is now the most reliable thing mutation testing catches in this run. The pattern is
+specific enough to state as a rule: **when a fix has a condition on it, the condition needs its own
+test, because the test written alongside the fix will exercise the path that made you write it.**
+
+### A fourth header
+
+`StudioPreviewPanel.svelte` states that the paper shows the page's own look and never the live
+controls'. Written to generalise past `glitter` — the next visual property this paper grows is the
+one at risk — and to name the exception, because a rule with an unstated exception gets applied where
+it does not belong. An earlier round found the settings lede over-claiming by omitting that same
+exception.
+
+### Mutations
+
+Two, both red: the theme claim dropped (1 red), and the claim recorded before the rebuild rather than
+after (1 red). Running total: **64**.
+
+### A correction
+
+Two of my review replies this round quote "1404 passed". The suite on this head is **1405**. I wrote
+the number from the single test file's count plus arithmetic instead of from the run, which is the
+second time in this session I have published a figure ahead of its measurement. Both times it was a
+verification footer — the part of a reply whose whole job is to be checkable.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1405 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed ·
+Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
+
+SonarCloud's gate passes on the previous head (2.1% duplication) and now reports 2 new issues rather
+than 1. Neither is blocking and neither is identified; the local sonarjs reproduction still finds
+nothing on changed lines. Recorded as the same open loose end, with the count updated rather than
+left saying 1.
+
+## Run 8 — blocked before merge: a Vercel account limit, and a conflict in the evidence folder
+
+### The blocker, which is not the code
+
+`Vercel` went red on `4e486608`:
+
+    Resource is limited - try again in 24 hours
+    (more than 100, code: "api-deployments-free-per-day")
+
+An account-level quota on the free plan, not a build error. The previous head deployed successfully
+minutes earlier and the diff since is a log entry and regenerated evidence, so nothing in the change
+can clear it. The single re-run reserved for a suspected flake would be wasted: the limit is
+time-based, so a retry returns the same status, and no PR anywhere fixes a quota. It clears by
+waiting out the reset or by upgrading the plan — both the account owner's call.
+
+Worth recording rather than filing under "external": **this PR pushed roughly twenty heads today, one
+per review round, each triggering a preview deployment.** Working the rounds one push at a time is a
+real part of what exhausted the quota. Batching several rounds behind one push would have cost less,
+at the price of longer gaps between a finding and its fix. That is a genuine tradeoff and I picked
+one side of it twenty times without noticing I was spending something.
+
+### The conflict, which is this run's own theme again
+
+The PR went `dirty` mid-round. Every conflict was inside `docs/evidence/2026-09-05/` — `main` had
+refreshed the same dated folder for itself, so both branches were writing generated artifacts to one
+path. No source file conflicted.
+
+Resolved by taking this branch's side and re-running the chain, never by hand-editing the artifacts:
+a hand-merged proof tape is a proof of nothing. That is the rule the folder exists to enforce, and a
+merge conflict is exactly where it is most tempting to break it.
+
+The dated folder is a shared mutable path that two branches both regenerate, which makes this
+collision structural rather than bad luck. It will happen to the next run too. Naming it here rather
+than fixing it: the folder's naming scheme is not this change's to redesign.
+
+### Not merged
+
+CI on the code is green, the quality gate passes, every review thread is answered and resolved. The
+one red status is an account quota, and merging past a required check is a decision about somebody's
+Vercel plan rather than about this diff — so it goes to the owner rather than getting taken here.
+
+## Run 8 — closing the SonarCloud loose end, identified at last
+
+This has been logged twice as an open loose end: SonarCloud reports new issues, the dashboard is
+unreachable from this container (the network policy 403s sonarcloud.io), and earlier local
+reproductions found nothing that matched. Both are now identified, and the earlier reproductions
+missed them for a reason worth writing down.
+
+**The earlier attempts enabled every rule the plugin has.** That produced hundreds of stylistic
+warnings — arrow-function parentheses and the like — which Sonar does not run, and the two real
+findings were buried in the noise. Sonar runs its `recommended` set. Configuring the reproduction to
+match it turns up **exactly two errors**, which is exactly what the dashboard reports. A checker
+reproduced with the wrong settings is not a reproduction; it is a different checker that happens to
+share a name, and I read its silence as agreement twice.
+
+### One is mine, and the rule is right
+
+`sonarjs/no-invariant-returns` on `creation-store-seam/mock.ts`, introduced by my own round-19 fix.
+Both returns in `saveDraft` returned `replay`, so the early return said — structurally — that the
+branch decided the result. It does not. What the environment decides is whether the draft is
+validated on the way past. The conditional now guards exactly that, with one return. Inverting the
+guard turns two tests red.
+
+Worth noting the shape: the finding is not a bug, and the behaviour was correct. What was wrong is
+that the code's *structure* claimed something its behaviour did not — a branch presented as deciding
+a value it does not decide. That is the same defect as a doc comment describing code it does not
+match, expressed in control flow instead of prose, which makes it a fitting last finding for this run.
+
+### One is not mine
+
+`sonarjs/no-nested-conditional` at `studio-state.svelte.ts:1054` — the nested ternary in the
+`presentation` argument. Not introduced here:
+
+    git log -1 -L 1053,1057:src/routes/studio-state.svelte.ts   ->  73a8f053, 2026-09-04
+    git merge-base --is-ancestor 73a8f053 origin/main            ->  true
+
+It is on `main`, untouched by this diff (`git diff <base>..HEAD` does not contain the line). Sonar
+most likely attributes it as new because this change adds ~600 lines to that file and shifts it.
+
+Left alone deliberately. Extracting it is a real improvement and it is somebody's next change, not
+this one's — rewriting untouched pre-existing logic to satisfy a metric is how a focused change turns
+into an unreviewable one. Recorded here with the commands that establish it, so the next run does not
+have to re-derive whose it is.
+
+### What I would do differently
+
+Not "reproduce the checker" — I did that, twice. **Reproduce the checker's configuration.** The first
+two attempts failed on a setting, not on the idea, and I recorded "the local reproduction finds
+nothing" as though that were evidence about the code. It was evidence about my config.
+
+## Run 8 — a process note: committing evidence while the chain is still writing it
+
+Three times in this run I committed the evidence folder and the verify chain then finished and
+rewrote it. Each time the fix was another commit, and each time I described the first one as
+"regenerate the evidence on this head" when it was a snapshot taken mid-write.
+
+The cause is my ordering, not the tooling. I treated "the outer transcript contains `verify exit=0`"
+as the signal that the folder had settled, and copied files in and committed on that basis — while
+the chain's later stages were still writing their own artifacts. The transcript's exit line and the
+folder's last write are not the same event.
+
+The rule for the next run: **do not stage anything from `docs/evidence/` until `git status` is stable
+across two checks.** The folder is the deliverable that says what was measured; a snapshot of it
+taken while it is being written says something that was never true all at once — which is, again,
+the exact defect this whole change exists to remove, in the artifact that documents removing it.
+
+Recorded rather than quietly fixed because the log is where this run keeps its lessons, and "I did
+the same thing three times without noticing the pattern" is worth more to the next run than a clean
+history would be.
+
+## Run 8 close-out — round twenty-one: the evidence misreported itself
+
+### The transcript that carried no result
+
+`verify-outer.txt` shipped at 20 lines. It ended after the audit gate — no check stage, no test
+totals, no `exit=0` — while `verify-chain.txt` names it as the authoritative transcript for exactly
+those things. A run about a panel that misreports itself, shipping evidence that misreports itself,
+in the one file whose entire job is to be checkable.
+
+The cause is the ordering mistake this log described **two commits earlier**. I wrote the rule down —
+do not stage the evidence folder until `git status` is stable — and then copied a still-being-written
+transcript into the tree in the very next push. That is the finding worth keeping: *writing a lesson
+into the log does not install it anywhere that acts.* Four occurrences, one of them immediately after
+recording the fix.
+
+What the capture looks like now: a script that waits for `git status -- docs/evidence` to stop
+changing, and then refuses to stage unless the **committed** file — not the scratch capture — carries
+`verify exit=0` and more than forty lines. It also checks the rewind count, the e2e count and the
+probe's completion line, and aborts rather than writing down a surprise. The mid-run appearance is
+now confirmed rather than assumed: while the chain runs, that transcript genuinely sits at ~17 lines
+and fills in at the end, which is exactly the window I kept copying from.
+
+The general shape, which is the same one this whole run keeps finding: **a check that exists only in
+someone's intention is not a check.** The panel's promise had to become a derived value; the mock's
+ordering had to become a test; the capture's rule had to become a guard. In all three the prose was
+already correct.
+
+### The wig, which is the theme's sibling
+
+The supersede recorded an explicit theme click and not an explicit wig pick. The wig reaches the
+style hint the same way and is re-picked the same way, so a reader who opens a style-less record with
+a wig already up and adopts it by clicking it was recorded as having chosen nothing. `readerClaimedTheme`
+is `readerClaimedStyle` — named for what it means rather than for which widget said so, because a
+field named after one control is an invitation to forget the next one.
+
+**My first test for it passed without the fix.** I set `selectedWig` *after* opening the record, and
+the baseline is captured at the restore — so the wig was already a measurable difference and the
+comparison superseded on its own. The wig has to be up before the record opens. Fifth instance in
+this run of a test green for a reason adjacent to its own, and the first I caught myself, which I
+attribute entirely to having been caught four times already.
+
+### A correction
+
+I published a commit hash I had not read — `4dc46bcd`, which does not exist; the commit is
+`60b7ad6b`. Corrected on the thread. Third time this session I have published a figure I had not
+measured, and all three were in a *citation* rather than an argument: two test counts and a hash. The
+pattern is specific — when writing the part of a claim that exists so somebody can check it, I stopped
+treating the value as something to look up and started treating it as punctuation.
+
+### Mutations
+
+Two, both red: the wig claim dropped (1 red), and the flag left theme-only (1 red, the new test).
+Running total: **67**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1406 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0, **transcript 66 lines and carrying its own exit status** ·
+`npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed · Playwright 38 passed
+against the installed browser · browser probe complete.
+
+## Run 8 — merge close-out
+
+### What the gate required, and what it found
+
+- `npm run check` 0 errors, 0 warnings
+- `npm run lint` clean
+- **1406 passed, 1 skipped** (baseline on `main` at `f02cfc4`: 1252 passed, 1 skipped — **+154**)
+- `npm run build` built
+- `npm run verify` exit 0, transcript carrying its own exit status
+- `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed
+- Playwright 38 passed against the installed browser; the mandated command still fails at launch on
+  the container's Chromium 1194 against a pinned 1208, recorded in `e2e.txt` under both rows
+- browser probe re-run, all three fixtures byte-identical
+- **67 mutations, every one confirmed red**
+
+On the pull request: `verify`, CodeQL, both Analyze jobs, SonarCloud Code Analysis and Vercel green.
+SonarCloud's quality gate passes at 2.0% duplication on new code against a 3% ceiling.
+
+### The two things still red, and why they are not blockers
+
+**Rosentic** reports ~196 findings and marks 8 "Breaking". Every one is a conflict against a
+*different unmerged branch* — `sweet-mendel-LJ9Iu`, `trusting-volta-bb8mvr`, `great-bell-94oma2` —
+which changed signatures this branch still calls with their current arity. Against `main`, which is
+what this merges into, nothing is broken: `derivesDenseDecorations` takes `styleHint` on this head,
+the calls pass one argument, `npm run check` is 0/0 and the suite is green. Commented once on the PR
+with six proofs; the disposition has not changed across twenty-one rounds.
+
+**One SonarCloud issue** — the nested ternary at `studio-state.svelte.ts:1054`. Established as
+pre-existing on `main` (`73a8f053`, an ancestor of `origin/main`, and absent from this diff), and
+left alone deliberately: rewriting untouched logic to satisfy a metric is how a focused change
+becomes an unreviewable one.
+
+### What twenty-one review rounds actually found
+
+One defect family, over and over: **something on the page and the thing describing it drifting
+apart.** Not a coincidence — it is what the feature was chosen for, and it turned out to run deeper
+than the feature.
+
+Three doc comments asserted invariants the code beneath them broke. The plan in `DECISIONS.md`
+drifted twice. The PR description sat six hours claiming 1347 tests and citing a rewind command that
+resolves to the wrong seam. The mock written to stop lying was fixed in the wrong order and kept
+lying. The reporting mechanism I added to fix the panel was itself a copy that went stale. And the
+evidence transcript — the file whose entire job is to be checkable — shipped without its own result.
+
+**Five tests were green next to their reason rather than for it.** Four came from a fixture with no
+image; the fifth from a scenario with no browser. Each passed, each described the right behaviour,
+and each proved it somewhere the behaviour does not live.
+
+The remedy was the same every time, and it is the run's one durable lesson: **a check that exists
+only in an intention is not a check.** The panel's promise had to become a `$derived`. The mock's
+ordering had to become a test. The capture rule had to become a script guard. In every case the prose
+was already correct — I had written the rule down, sometimes in the file that then broke it. Writing
+a lesson into this log does not install it anywhere that acts.
+
+### What I would tell the next run
+
+- **Mutate the condition, not just the fix.** Twice a guard's *reason* was untested while its happy
+  path was covered, and only a mutation asked. The test written alongside a fix exercises the path
+  that made you write it.
+- **Reproduce the checker's configuration, not just the checker.** Two local reproductions reported
+  "nothing found" because they ran every rule instead of the recommended set. I recorded that as
+  evidence about the code; it was evidence about my config.
+- **Citations are the part that must be measured.** Three times I published a figure I had not
+  looked up — two test counts and a commit hash — always in the part of a claim that exists so
+  somebody else can check it.
+- **Pushing costs something.** Twenty-odd pushes, one per review round, exhausted a Vercel daily
+  deployment quota and regenerate ~200 bot comments each. Batching rounds is cheaper and I did not
+  notice I was spending anything until the quota ran out.
+
+## Run 8 close-out — round twenty-two: deleting the rule instead of patching it again
+
+A review found the third hole in the same rule. Move Intensity, Rawness, Third Person or Glitter and
+then put it back: the values equal the controls as restored, so the comparison says nothing was
+chosen — while the reader has deliberately settled on exactly this style.
+
+Three rounds, three holes, all the same shape: re-picking the active theme (round twenty),
+re-picking the active wig (round twenty-one), and now a control moved and returned. Every one is the
+reader choosing, and every one leaves the values identical.
+
+### The rule was asking the wrong question
+
+Adding a fourth special case was the obvious move and would have been wrong. The comparison asked
+**"did the values change?"** when what it needed to know was **"did the reader choose?"** — and only
+the caller knows that.
+
+So the comparison is gone. `unknownStyleBaseline` and the `isSameStyleSelection` call with it:
+
+    private readerChoseStyleSinceRestore = $derived(
+        this.generatedSpec === undefined && this.readerClaimedStyle
+    );
+
+It only ever existed because page size and border reach the studio through the same handler as the
+voice and glitter, and they are not style — they live in the intent. Giving the style controls their
+own `SettingChangeSource` removes that reason and the entire class of edge cases with it. Touching a
+style control is the claim; nothing is inferred from values.
+
+**The lesson, and it cost four rounds to buy: when the fix for a rule keeps being another special
+case, stop fixing the cases.** Three reviewers' findings in a row were each individually correct and
+each individually patchable, and taking them one at a time would have produced a rule made entirely
+of exceptions. The signal was not in any one finding — it was in the *shape of the sequence*, and I
+only saw it on the third.
+
+### Mutations, in both directions
+
+Two, both red, and deliberately opposite, because a rule like this fails by being too narrow *or*
+too broad:
+
+- only `'theme'` claims → the new test fails, and the reported case returns.
+- *any* source claims → "does not read a moved page size as a style the reader chose" fails, and
+  paper becomes style.
+
+Running total: **69**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1407 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0, transcript 66 lines carrying its own exit status ·
+`npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed · Playwright 38 passed ·
+browser probe complete.
+
+---
+
+## Run 8 close-out — round twenty-three: two runs of this routine collided
+
+A sibling run of this same routine — `claude/great-bell-94oma2`, the AI budget meter — merged to
+`main` as `db32d458` while this branch was waiting on CI. Both had picked their feature the same
+day, both rebuilt part of `StudioState`, and both wrote themselves into the same three documents.
+
+### What actually conflicted, and what only looked like it
+
+`git merge` reported fifteen conflicted files. Exactly two of them were code:
+
+- **`src/routes/studio-state.svelte.ts`** — one hunk, and not a real disagreement. Both sides edited
+  adjacent lines of the state block: this branch changed `glitter` to read from
+  `DEFAULT_STYLE_SELECTION`, main added a doc comment to `revisionBudget` on the line below. Two
+  different fields; both sides kept.
+- **`tests/unit/studio-state.test.ts`** — both sides appended a `describe` block at the end of the
+  file, so git diffed my 1328 lines against their 402 as though they were one edit. Neither
+  overlaps. Reconstructed from the three merge stages rather than by hand-editing the markers:
+  `git show :2:` and `:3:` give the two sides, the shared prefix was already merged in the worktree,
+  and the two blocks were concatenated. Checked by counting `describe(` headers before and after.
+
+The other thirteen were `docs/evidence/2026-09-05/`, which both runs regenerate into the same dated
+folder, and the three governance documents.
+
+### The one that needed a decision
+
+Both entries were numbered **Run 7**. main's merged first, so it owns the number, and this one is
+renumbered to Run 8 — thirty occurrences, plus the evidence summary's header — with a note under
+its heading saying why.
+
+Left alone, the log would have carried two different sections answering to the same name, in a
+document whose entire subject is a name and the thing it points at drifting apart. The number is
+the cheapest possible instance of that, and the one nobody would have caught later, because both
+sections are individually correct.
+
+### Two guards in my own capture script were made of remembered numbers
+
+The script that gates this evidence refused to stage it, twice, and both refusals were right:
+
+- `grep -q "1405 passed\|1406 passed\|1407 passed"` — a hardcoded list of acceptable test totals.
+  The merge brought the suite to 1445 and the guard fired.
+- `grep -q "38 passed"` for the end-to-end suite. The merge brought three specs with it; 41 now.
+
+Both were doing real work — the first one is why the truncated transcript got caught two rounds ago
+— and both were written as a number I had to remember to update. That is the same defect as a doc
+comment describing code it no longer matches, in the tool built to catch that defect.
+
+Replaced with checks that measure instead of remember:
+
+- the outer transcript's total must **equal `test.txt`'s** total. They are two records of one run,
+  so disagreement means one is stale — which is the actual thing worth catching, and it is what
+  `verify-chain.txt` already claimed as its rule without anything enforcing it.
+- the e2e guard asks for *at least* the 38 this branch ships and **no** failed or flaky line, rather
+  than an exact count a merge can move.
+
+**The rule this buys, and it is the twenty-third round's version of the same one: a check written as
+a literal is a second copy of the truth. It goes stale exactly like prose does, and it does it
+silently, because a stale guard still passes — right up until it fails for the wrong reason.**
+
+### Verification, on the merge head
+
+`npm run check` 0/0 · `npm run lint` clean · **1445 passed, 1 skipped** (1407 from this change, 38
+brought in by the merge) · `npm run build` built · `npm run verify` exit 0, transcript 66 lines
+carrying its own exit status · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17
+passed · Playwright **41 passed** against the installed browser · browser probe complete.
+
+No mutation this round — nothing behavioural changed. Running total stays at **69**.
+
+---
+
+## Run 8 close-out — round twenty-four: the plan's inventory, three ways
+
+Three P1 findings, all in `DECISIONS.md`, all the same shape: the entry that is supposed to be the
+authoritative description of this change had drifted from the change. Each was checkable against the
+repository, and each checked out.
+
+### 1. The Cipher Gate named the wrong seam
+
+The mandatory audit entry read `Seams: CreationStoreSeam`. That is the **legacy flat-layout row** in
+`docs/seams.md`, whose rewind runs four contract tests that touch nothing here. The change is to
+`src/lib/seams/creation-store-seam/`, registered as `CreationStoreSeam (self-contained)`.
+
+This one is worse than a typo, because the surrounding evidence spells the distinction out at
+length. `verify-chain.txt` has a whole section on it, added *because* an earlier push cited the
+unsuffixed rewind and I recorded the correction. The correction went into the evidence and never
+into the entry the evidence is filed under.
+
+It also made a rule in that same file false. `verify-chain.txt` says a rewind artifact is current
+"if and only if its name is the seam in the Cipher Gate entry" — and the Cipher Gate entry named a
+seam whose artifact is deliberately stale. The rule and the entry each pointed at the other and
+disagreed.
+
+Fixed in the Cipher Gate entry, **and in the plan's own `Seams:` line above it**, which had the same
+defect and was not flagged. One of the two would have been the instance; both is the root.
+
+### 2. The command list could not reproduce the evidence beside it
+
+`Commands:` listed check, lint, test, build, verify, rewind and playwright. `npm run verify` does
+**not** invoke `npm run cipher:gate` — that is stated three lines up in the capture-order section —
+and it does not run the browser probe. Both had run; the folder carries a regenerated
+`cipher-gate.json` and a `probe-browser-seams.txt` proving it. A list that omits them describes a
+change nobody could reproduce.
+
+### 3. `lint.txt` was declared impossible to change, and this commit changes it
+
+The inventory ended: "`lint.txt` is deliberately absent — eslint prints nothing on success, so the
+file does not change and does not appear in the diff."
+
+True when written. False since **round twenty-one**, when the capture script started appending its
+own `lint exit=0` line so the transcript would carry its own result — the fix for the truncated
+`verify-outer.txt`. That fix changed what `lint.txt` contains, and the sentence explaining why it
+could never change stayed put through three pushes.
+
+What made it a defect rather than a rounding error is the sentence immediately before it, which
+declares the list equal to `git diff --name-status`. An inventory that asserts its own completeness
+and then names an exception that is no longer true is worse than one that says nothing.
+
+### The pattern, twenty-four rounds in
+
+Every one of the three is a reason that outlived its fact. Not a wrong claim carelessly made — each
+was **correct when written**, and each was invalidated by a later change made by me, for good
+reasons, that did not go back to update the sentence that depended on it. The seam correction went
+into the evidence but not the entry. The `lint exit=0` fix changed a file the plan said was
+unchangeable. The probe and the gate were added to the process but not to the process's own list.
+
+**The rule: when a fix changes what is true, the fix is not done until every sentence that asserted
+the old truth has been found. The place to look is not where you edited — it is everywhere that
+explains why the thing you edited was the way it was.**
+
+### Verification
+
+Docs-only; no behaviour changed and no mutation applies. Re-run because `cipher-gate.json` and
+`assumption-alarm.json` are generated from `DECISIONS.md`:
+
+`npm run check` 0/0 · `npm run lint` clean · **1445 passed, 1 skipped** · `npm run build` built ·
+`npm run cipher:gate` exit 0 · `npm run assumption:alarm` exit 0 · `npm run verify` exit 0,
+transcript 66 lines carrying its own exit status · rewind 17 passed · Playwright 41 passed ·
+browser probe complete.
+
+Running mutation total stays at **69**.

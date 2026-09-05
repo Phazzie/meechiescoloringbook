@@ -8,11 +8,43 @@ import { z } from 'zod';
 import { AuthContextSchema } from '../auth-context-seam/contract';
 import { ColoringPageSpecSchema } from '../spec-validation-seam/contract';
 import { MeechieStudioTextOutputSchema } from '../../../../contracts/meechie-studio-text.contract';
+import { MeechieStudioVoiceSettingsSchema } from '../meechie-studio-text-seam/contract';
 import { NonEmptyStringSchema, resultSchema } from '../../../../contracts/shared.contract';
 import type { Result } from '../../../../contracts/shared.contract';
 import { ViolationSchema } from '../drift-detection-seam/contract';
 
 export const MAX_CREATIONS = 50;
+
+/**
+ * The Page Controls choices that compose a page's `Vibe:` line.
+ *
+ * `intent` (a `ColoringPageSpec`) already carries page size and border, so reopening a page brought
+ * those back. It carries no theme, voice or glitter — those reach the page only through the style
+ * hint, which is assembled at request time and never stored. So a reopened page displayed the
+ * *defaults* in its Page Controls, and the next control the reader touched re-encoded those
+ * defaults over the choices that actually made the page.
+ *
+ * Optional, and unversioned on purpose: every record written before this field existed stays valid
+ * and parses unchanged, and the studio treats its absence as "this page's style is not on file"
+ * rather than as the defaults.
+ *
+ * The voice schema is reused rather than restated — it is the same value the studio sends to
+ * `MeechieStudioTextSeam`, and a second copy of three enums is a second thing to keep in step.
+ */
+export const StyleSelectionSchema = z.object({
+	themeId: NonEmptyStringSchema,
+	voice: MeechieStudioVoiceSettingsSchema,
+	glitter: z.boolean(),
+	// Only what the hint prints. The catalog id is deliberately not stored: it would look like a
+	// reference the try-on studio should honour on restore, and reproducing a `Vibe:` line needs
+	// the two printed strings, not a wig the reader has not re-selected.
+	wig: z
+		.object({
+			name: NonEmptyStringSchema,
+			style: NonEmptyStringSchema
+		})
+		.optional()
+});
 
 export const CreationOwnerSchema = z.union([
 	z.object({
@@ -46,6 +78,7 @@ export const CreationRecordSchema = z.object({
 	violations: z.array(ViolationSchema).optional(),
 	fixesApplied: z.array(NonEmptyStringSchema).optional(),
 	authContext: AuthContextSchema.optional(),
+	styleSelection: StyleSelectionSchema.optional(),
 	owner: CreationOwnerSchema
 });
 
@@ -53,7 +86,8 @@ export const DraftRecordSchema = z.object({
 	updatedAtISO: NonEmptyStringSchema,
 	intent: ColoringPageSpecSchema,
 	chatMessage: NonEmptyStringSchema.optional(),
-	studioText: MeechieStudioTextOutputSchema.optional()
+	studioText: MeechieStudioTextOutputSchema.optional(),
+	styleSelection: StyleSelectionSchema.optional()
 });
 
 export const SaveCreationInputSchema = z.object({
@@ -89,6 +123,7 @@ export const DraftDeleteResultSchema = resultSchema(z.boolean());
 
 export type CreationOwner = z.infer<typeof CreationOwnerSchema>;
 export type CreationImage = z.infer<typeof CreationImageSchema>;
+export type StoredStyleSelection = z.infer<typeof StyleSelectionSchema>;
 export type CreationRecord = z.infer<typeof CreationRecordSchema>;
 export type DraftRecord = z.infer<typeof DraftRecordSchema>;
 export type SaveCreationInput = z.infer<typeof SaveCreationInputSchema>;

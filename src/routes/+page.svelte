@@ -76,7 +76,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			copyStatus={studio.copyStatus}
 			vaultStatus={studio.vaultStatus}
 			canSaveToVault={studio.canSaveToVault}
-			glitter={studio.glitter}
+			glitter={studio.pageGlitter}
 			activeTheme={studio.activeTheme}
 			onGeneratePage={studio.handleGeneratePage}
 			onCopyQuote={studio.copyQuote}
@@ -91,6 +91,9 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			bind:pageSize={studio.pageSize}
 			bind:border={studio.border}
 			bind:glitter={studio.glitter}
+			styleSelectionUnknown={studio.styleSelectionUnknown}
+			settingsError={studio.settingsError}
+			settingsIssues={studio.settingsIssues}
 			onSettingChange={studio.syncSpecFromCurrentText}
 		/>
 	</section>

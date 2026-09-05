@@ -182,12 +182,12 @@ describe('describePackagedExports', () => {
 			{
 				variant: 'print',
 				files: [pdfFile('cGRm')],
-				error: null
+				error: null, pageSize: 'US_Letter'
 			},
-			{ variant: 'square', files: [], error: 'Canvas context unavailable.' }
+			{ variant: 'square', files: [], error: 'Canvas context unavailable.', pageSize: 'US_Letter' }
 		];
 
-		expect(describePackagedExports(attempts, 'US_Letter').map((item) => item.kind)).toEqual([
+		expect(describePackagedExports(attempts).map((item) => item.kind)).toEqual([
 			'print'
 		]);
 	});
@@ -200,17 +200,35 @@ describe('describePackagedExports', () => {
 					{ filename: 'page-1.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' },
 					{ filename: 'page-2.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' }
 				],
-				error: null
+				error: null,
+				pageSize: 'US_Letter'
 			}
 		];
 
 		expect(
-			describePackagedExports(attempts, 'US_Letter').map((item) => item.filename)
+			describePackagedExports(attempts).map((item) => item.filename)
 		).toEqual(['page-1.pdf', 'page-2.pdf']);
 	});
 
+	it('labels each file by the paper its own attempt was packaged for', () => {
+		// The page size travels on the attempt precisely so the row cannot describe a file as paper
+		// it was not made on — which is what reading a caller's live spec did whenever the reader
+		// moved Page Size while a generation was in flight.
+		const attempts: PageExportAttempt[] = [
+			{ variant: 'print', files: [pdfFile('cGRm')], error: null, pageSize: 'US_Letter' },
+			{ variant: 'print', files: [pdfFile('cGRmMg==')], error: null, pageSize: 'A4' }
+		];
+
+		const described = describePackagedExports(attempts);
+
+		expect(described[0].purpose).toContain('US Letter');
+		expect(described[0].purpose).not.toContain('A4');
+		expect(described[1].purpose).toContain('A4');
+		expect(described[1].purpose).not.toContain('US Letter');
+	});
+
 	it('describes nothing when nothing was packaged', () => {
-		expect(describePackagedExports([], 'US_Letter')).toEqual([]);
+		expect(describePackagedExports([])).toEqual([]);
 	});
 });
 
@@ -318,8 +336,8 @@ describe('summarisePageExportFailures', () => {
 	it('says nothing when every variant was built', () => {
 		expect(
 			summarisePageExportFailures([
-				{ variant: 'print', files: [pdfFile('cGRm')], error: null },
-				{ variant: 'square', files: [pdfFile('cGRm')], error: null }
+				{ variant: 'print', files: [pdfFile('cGRm')], error: null, pageSize: 'US_Letter' },
+				{ variant: 'square', files: [pdfFile('cGRm')], error: null, pageSize: 'US_Letter' }
 			])
 		).toBe('');
 		expect(summarisePageExportFailures([])).toBe('');
@@ -327,8 +345,8 @@ describe('summarisePageExportFailures', () => {
 
 	it('affirms the page before naming what is missing', () => {
 		const summary = summarisePageExportFailures([
-			{ variant: 'print', files: [], error: 'Canvas context unavailable.' },
-			{ variant: 'square', files: [pdfFile('cGRm')], error: null }
+			{ variant: 'print', files: [], error: 'Canvas context unavailable.', pageSize: 'US_Letter' },
+			{ variant: 'square', files: [pdfFile('cGRm')], error: null, pageSize: 'US_Letter' }
 		]);
 
 		// The reader's page is finished; only a free client-side step failed. A message that reads
@@ -341,8 +359,8 @@ describe('summarisePageExportFailures', () => {
 	it('names every variant that failed', () => {
 		expect(
 			summarisePageExportFailures([
-				{ variant: 'print', files: [], error: 'no canvas' },
-				{ variant: 'square', files: [], error: 'still no canvas' }
+				{ variant: 'print', files: [], error: 'no canvas', pageSize: 'US_Letter' },
+				{ variant: 'square', files: [], error: 'still no canvas', pageSize: 'US_Letter' }
 			])
 		).toBe(
 			'Your page is on the paper. The printable download could not be built: no canvas. ' +
@@ -352,7 +370,7 @@ describe('summarisePageExportFailures', () => {
 
 	it('does not double the full stop on a seam message that is already a sentence', () => {
 		const summary = summarisePageExportFailures([
-			{ variant: 'square', files: [], error: 'No images provided for packaging.' }
+			{ variant: 'square', files: [], error: 'No images provided for packaging.', pageSize: 'US_Letter' }
 		]);
 
 		expect(summary.endsWith('packaging.')).toBe(true);
@@ -362,7 +380,7 @@ describe('summarisePageExportFailures', () => {
 	it('names every variant the seam defines', () => {
 		for (const variant of OutputVariantSchema.options) {
 			const summary = summarisePageExportFailures([
-				{ variant, files: [], error: 'no canvas' }
+				{ variant, files: [], error: 'no canvas', pageSize: 'US_Letter' }
 			]);
 			expect(summary).not.toContain('undefined');
 			expect(summary.startsWith('Your page is on the paper. The ')).toBe(true);

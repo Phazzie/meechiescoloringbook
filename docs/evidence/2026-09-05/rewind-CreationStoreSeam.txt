@@ -3,12 +3,11 @@
 # Info flow: vitest output -> evidence file -> review.
 
 
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90mC:/Users/shiva/meechiescoloringbook[39m
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
 
- [32m✓[39m tests/contract/creation-store.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 11[2mms[22m[39m
 
 [2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
 [2m      Tests [22m [1m[32m4 passed[39m[22m[90m (4)[39m
-[2m   Start at [22m 01:09:24
-[2m   Duration [22m 1.92s[2m (transform 224ms, setup 76ms, import 211ms, tests 11ms, environment 1.37s)[22m
+[2m   Start at [22m 13:50:57
+[2m   Duration [22m 1.22s[2m (transform 182ms, setup 53ms, import 193ms, tests 8ms, environment 778ms)[22m
 

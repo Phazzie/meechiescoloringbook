@@ -74,6 +74,14 @@ import { nextUtcDayBoundary, type ClockSeam } from '$lib/seams/clock-seam/contra
 import type { PageVisibilitySeam } from '$lib/seams/page-visibility-seam/contract';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
+import {
+	buildStyleHint,
+	DEFAULT_STYLE_SELECTION,
+	themeForSelection,
+	type StyleSelection,
+	type StyleWig
+} from '$lib/core/page-style';
+
 type PageSize = ColoringPageSpec['pageSize'];
 type BorderChoice = ColoringPageSpec['border'];
 
@@ -85,7 +93,42 @@ type BorderChoice = ColoringPageSpec['border'];
  * this flag adds is the one case no comparison can see: a click on the theme chip that is already
  * active leaves every value identical, and is still the reader asking for that theme.
  */
-export type SettingChangeSource = 'theme' | 'setting';
+export type SettingChangeSource = 'theme' | 'style' | 'setting';
+
+/**
+ * What a rebuild says when it failed for a reason it cannot name — a thrown value that is not an
+ * `Error`, so there is no message to pass on.
+ *
+ * Named rather than written twice. The two rebuild callers report it on different lines of the page
+ * (Page Controls and the try-on studio), which is precisely the arrangement where two copies of one
+ * sentence drift apart and the reader is told two different things about the same failure.
+ */
+const UNCHECKED_SETTINGS_MESSAGE = 'Page settings could not be checked.';
+
+/**
+ * A spec with the reader's current dedication on it, and no `dedication` key at all when there is
+ * none.
+ *
+ * Spreading `{ dedication: undefined }` would leave the key present with an undefined value, which
+ * survives `$state.snapshot` and reaches the storage seam. `DedicationSchema` is `.optional()`, so
+ * that parses — and then the record carries a field it does not have, which is the kind of small
+ * untruth this whole change is about. Deleting the key is the difference between "no dedication"
+ * and "a dedication that is nothing".
+ */
+const withDedication = (
+	spec: ColoringPageSpec,
+	dedication: string | undefined
+): ColoringPageSpec => {
+	if (dedication !== undefined) {
+		return { ...spec, dedication };
+	}
+	// `delete` on a copy rather than a destructured rest. Naming a binding only to discard it is
+	// what SonarCloud flagged here, and the rule is right that the name carries no information —
+	// the sentence above already says why the key goes.
+	const withoutDedication = { ...spec };
+	delete withoutDedication.dedication;
+	return withoutDedication;
+};
 
 /**
  * One try-on result: the wig it was made for, and the portrait produced.
@@ -165,17 +208,15 @@ export class StudioState {
 
 	// --- Reactive state (template-bound) ---
 	activeModeId = $state(this.weeklyModes[0].id);
-	selectedThemeId = $state(studioThemes[0].id);
+	// The studio's starting style and `DEFAULT_STYLE_SELECTION` were the same three values written
+	// out twice. Spread rather than shared, so one instance's voice is not another's.
+	selectedThemeId = $state(DEFAULT_STYLE_SELECTION.themeId);
 	evidence = $state('');
 	dedication = $state('');
-	voice = $state<MeechieStudioVoiceSettings>({
-		intensity: 'receipts_out',
-		rawness: 'mild',
-		thirdPerson: 'sometimes'
-	});
+	voice = $state<MeechieStudioVoiceSettings>({ ...DEFAULT_STYLE_SELECTION.voice });
 	pageSize = $state<PageSize>('US_Letter');
 	border = $state<BorderChoice>('decorative');
-	glitter = $state(false);
+	glitter = $state(DEFAULT_STYLE_SELECTION.glitter);
 	/**
 	 * Rewrites left for the verdict currently on screen. Refilled whenever a new verdict arrives —
 	 * see `startRewriteRound`. Never the app's spend control; that is `aiQuota`.
@@ -194,12 +235,225 @@ export class StudioState {
 	textError = $state('');
 	generationError = $state('');
 	draftSaveError = $state('');
+	/**
+	 * A Page Controls change that could not be applied.
+	 *
+	 * Its own field, because it used to be written to `draftSaveError` — rendered in the *evidence*
+	 * panel, prefixed "Draft not saved:". A theme that failed to apply was therefore reported as a
+	 * draft problem, on a different panel, while the control the reader had just moved said nothing.
+	 */
+	settingsError = $state('');
+	/**
+	 * The wig provenance of a reopened page, or `null` when the page on the paper is not one.
+	 *
+	 * Three states, and the wrapper is what makes the middle one expressible:
+	 *   `null`            — no restored page; the hint takes the live wig.
+	 *   `{ value: undefined }` — a restored page whose stored style had *no* wig.
+	 *   `{ value: wig }`  — a restored page whose stored style had that wig.
+	 *
+	 * A bare `StyleWig | undefined` collapsed the first two, so a reader who had any wig selected
+	 * and then reopened a page saved without one rebuilt that page's hint with the unrelated live
+	 * wig — `loadCreation` does not clear `selectedWig`. Cleared by `resetGeneratedPage` and by the
+	 * reader picking a wig, which is the moment the live selection becomes theirs again.
+	 *
+	 * Not `$state`: nothing renders it, and it is read only while composing the hint.
+	 */
+	private restoredStyleWig: { value: StyleWig | undefined } | null = null;
+	/**
+	 * The style that produced the page currently on the paper.
+	 *
+	 * Captured where the artifact is — beside `assembledPrompt` and `images` — rather than read off
+	 * the live controls when the reader saves. Generating a page and *then* moving a control leaves
+	 * the picture and the prompt describing the old style while the controls describe the new one;
+	 * saving the controls would have written a record whose stored style never made its own image,
+	 * which is the silent-restyling defect this run exists to remove, one step further along.
+	 *
+	 * `undefined` means "no page, or a page whose style is not on file" — see `styleSelectionUnknown`.
+	 *
+	 * `$state` because `styleSelectionUnknown` and `pageGlitter` are derived from it. Nothing renders
+	 * it directly, and it was a plain field until those two started reading it as their only
+	 * non-constant input: a `$derived` over an unreactive field simply never recomputes, so the panel
+	 * kept whatever it had said first. It read `assembledPrompt` before, which is `$state`, and that
+	 * is the only reason the plain field appeared to work.
+	 */
+	private generatedStyleSelection = $state<StyleSelection | undefined>(undefined);
+	/**
+	 * The spec the page currently on the paper was actually built from.
+	 *
+	 * The same rule as `generatedStyleSelection`, applied to the record's `intent`. That field *is*
+	 * persisted — it is where page size and border always came back from, which is why they were
+	 * never part of the missing-style problem — but it is persisted from the **live** spec at save
+	 * time, and `applyTextToSpec` rebuilds that spec from the live controls on every setting change.
+	 * So generating a page, moving a control and then saving wrote a record whose stored spec never
+	 * produced its own image, prompt or downloads.
+	 *
+	 * The whole spec rather than the two paper fields, which is where this started. `decorations` is
+	 * *derived from the style hint* — the very thing this change made storable — so switching from a
+	 * dense theme to a minimal one after generating left a record whose `styleSelection` said dense
+	 * and whose `intent.decorations` said minimal, about one picture. Snapshotting two fields fixed
+	 * the two I had thought of; snapshotting the spec fixes the field, its whole `presentation`
+	 * group, and whatever is added to that group next.
+	 *
+	 * Title, items and the footer cannot drift into it: they are built from `textOutput`, and every
+	 * path that replaces `textOutput` calls `resetGeneratedPage`, which clears this. The one field
+	 * deliberately NOT taken from here is `dedication` — see `saveToVault`.
+	 *
+	 * Known for a reopened record too, including one written before `styleSelection` existed — the
+	 * spec is the record, so unlike the style there is no unknown case to report.
+	 *
+	 * `undefined` means there is no page on the paper. `$state` for the same reason as
+	 * `generatedStyleSelection` above: it is what `styleSelectionUnknown` and `pageGlitter` are
+	 * derived from.
+	 */
+	private generatedSpec = $state<ColoringPageSpec | undefined>(undefined);
 	isTextWorking = $state(false);
 	isGenerating = $state(false);
 	copyStatus = $state('');
 	vaultStatus = $state('');
 	validationIssues = $state<SpecValidationOutput['issues']>([]);
+	/**
+	 * The Page Controls panel is the thing currently answering for the spec's check.
+	 *
+	 * Set by `syncSpecFromCurrentText` once its rebuild returns, and dropped by `validateSpec` the
+	 * moment any check begins — including the one inside that same rebuild, which is why the set
+	 * comes after. So the panel speaks for the check it caused and stops speaking the instant
+	 * anything else re-checks the spec, without every other caller having to remember to say so.
+	 */
+	private settingsReported = $state(false);
+	/**
+	 * What the spec check found wrong after a Page Controls change, in the reader's words.
+	 *
+	 * `settingsError` above covers only the case where the check could not be *run* — an adapter
+	 * rejection, which is the rare one. An ordinary contract failure resolves normally with
+	 * `{ ok: false, issues }`, and `applyTextToSpec` awaited that result and dropped the boolean, so
+	 * the common failure went on appearing solely in System Trace: a Page Controls change reported
+	 * in a panel about the provider, which is precisely what this run took `draftSaveError` out of.
+	 *
+	 * Mirroring `validationIssues` wholesale would park a generation's or a reopen's findings under
+	 * the settings panel, blaming the controls for something that happened before the reader touched
+	 * them. So it is `validationIssues` *while the panel is the one answering*, and empty otherwise.
+	 *
+	 * Derived rather than copied, which is the second correction this field has needed. It was a
+	 * `$state` written by the panel's handler, and a copy taken at one moment cannot follow its
+	 * source: an over-long dedication reported here, then *fixed* in the dedication box, revalidated
+	 * and cleared `validationIssues` and left this saying the page had failed a check it now passed.
+	 * A copy that drifts from what it copied is the defect this whole run is about, and it was in
+	 * the reporting itself.
+	 *
+	 * The first correction was the writer, not the value. The doc here claimed "written only by the
+	 * panel's own handler" while the wig selector and the try-on page generator both called that
+	 * handler, and the try-on path left a finished, valid page reporting a failure about the
+	 * intermediate spec it had already thrown away. They call `rebuildSpecFromCurrentText` instead.
+	 * Between the split and the derivation, neither the wrong caller nor a stale moment can write
+	 * here, because nothing writes here at all.
+	 */
+	settingsIssues = $derived(
+		this.settingsReported ? this.validationIssues.map((issue) => issue.message) : []
+	);
 	assembledPrompt = $state('');
+	/**
+	 * True when there is a page on the paper and its own style is not on file.
+	 *
+	 * Derived rather than assigned, from the two facts that decide it: `generatedSpec` is set
+	 * exactly when there is an artifact on screen, and `generatedStyleSelection` is set exactly when
+	 * that artifact's style is known. A separate flag had to be written correctly at four sites, and
+	 * a fifth would have been added silently.
+	 *
+	 * A record written before styles were stored restores a spec and no selection, so the panel says
+	 * the page's style is not on file and leaves the reader's own controls alone.
+	 *
+	 * This asked `assembledPrompt !== ''` until a review pointed at the gap: the prompt is assigned
+	 * *before* the check for a response that came back with no picture, deliberately, so System
+	 * Trace still shows what was asked for. So a generation that produced nothing looked like an
+	 * artifact.
+	 *
+	 * It then read `generatedSpec !== undefined && !generatedStyleSelection`, which made one field
+	 * answer two different questions: "is there a picture whose spec must not be overwritten?" and
+	 * "did the record on screen store a style?". Those come apart on a record saved without ever
+	 * generating an image, and a review found them apart — see `restoredStyleUnknown` and
+	 * `loadCreation`. This is now the second question only, which is the one the panel asks.
+	 */
+	/**
+	 * The page on the paper was restored from a record that stored no style of its own.
+	 *
+	 * Its own field because it is a fact about the *restore*, not about an artifact. Only the two
+	 * restore paths set it and only `resetGeneratedPage` clears it, so every path that replaces the
+	 * paper clears it exactly once.
+	 */
+	private restoredStyleUnknown = $state(false);
+	/**
+	 * The reader picked a style control since the restore, whatever it changed.
+	 *
+	 * The whole answer to "has the reader chosen a style for a page that recorded none?", and it took
+	 * three review rounds to get here because the first answer was a *comparison* — the live
+	 * selection against the controls as restored — with flags bolted on for the cases a comparison
+	 * cannot see. Each round found another: re-picking the active theme, re-picking the active wig,
+	 * and finally moving Rawness and putting it back. All three are the reader choosing, and all
+	 * three leave the values identical.
+	 *
+	 * The comparison existed for one reason: page size and border reach the studio through the same
+	 * handler as the voice and glitter, and they are not style — they live in the intent. Giving the
+	 * style controls their own `SettingChangeSource` removes that reason, and with it the entire
+	 * class of edge cases. Touching a style control is the claim; nothing is inferred from values.
+	 *
+	 * The lesson, since it cost four rounds: when the fix for a rule keeps being another special
+	 * case, the rule is asking the wrong question. This one was asking "did the values change?" when
+	 * what it needed to know was "did the reader choose?" — and only the caller knows that.
+	 */
+	private readerClaimedStyle = $state(false);
+	/**
+	 * The reader has chosen a style for a restored page that recorded none.
+	 *
+	 * Two conditions, and the second is the one that keeps this from undoing the rest of the change.
+	 *
+	 * A style control has moved since the restore — compared against the baseline rather than
+	 * inferred from the panel firing, because page size and border come through the same handler and
+	 * are not style. Moving those would otherwise write the untouched defaults down as a choice,
+	 * which is the invention this whole field exists to prevent.
+	 *
+	 * And there is no artifact on the paper. With a picture up, the controls do not get to claim its
+	 * provenance no matter how deliberately they were moved — that is the defect this run started
+	 * from. Without one, the controls are the only author there is.
+	 */
+	private readerChoseStyleSinceRestore = $derived(
+		this.generatedSpec === undefined && this.readerClaimedStyle
+	);
+	/**
+	 * True when the page on the paper has no style of its own on file.
+	 *
+	 * The restore's answer, until the reader gives a better one. Reported unchanged for a page that
+	 * has a picture, because there the reader cannot give one without regenerating.
+	 *
+	 * The second clause is a review's, and it was right against my own decline of it: without it, a
+	 * draft written before styles were stored could never acquire one. Every autosave wrote
+	 * `undefined`, so every refresh threw away the theme the reader had just picked — permanently,
+	 * and on a page with no picture whose look is entirely that choice. "Never invent provenance"
+	 * had quietly become "never record it", which is a different rule and a worse one.
+	 */
+	styleSelectionUnknown = $derived(this.restoredStyleUnknown && !this.readerChoseStyleSinceRestore);
+	/**
+	 * The glitter the paper on screen should be wearing — the page's, not the control's.
+	 *
+	 * The preview draws a sparkle overlay on the paper, and it was bound straight to the live
+	 * Glitter checkbox. So with a generated page on screen, toggling Glitter changed how that page
+	 * visibly looked — while the panel one panel over promised, in a sentence added by this same
+	 * change, that the page keeps the look it was made with until you make it again. One of the two
+	 * had to go, and it was not going to be the promise: the whole point of storing the style is
+	 * that a finished page stops answering to the controls.
+	 *
+	 * With no page on the paper this still follows the checkbox, because there the overlay is a
+	 * preview of the setting rather than a claim about an artifact — that is the one moment it is
+	 * honest for it to move.
+	 *
+	 * A page whose style is not on file shows no overlay. It is the only value that is not a guess:
+	 * asserting the live checkbox over somebody else's picture is the exact false provenance this
+	 * run removed everywhere else, and the panel is already telling the reader why.
+	 */
+	pageGlitter = $derived(
+		this.generatedSpec === undefined
+			? this.glitter
+			: (this.generatedStyleSelection?.glitter ?? false)
+	);
 	revisedPrompt = $state('');
 	violations = $state<Violation[]>([]);
 	recommendedFixes = $state<DriftDetectionOutput['recommendedFixes']>([]);
@@ -392,7 +646,9 @@ export class StudioState {
 	 * disappears with the page it belongs to and can never be left behind by a reset.
 	 */
 	pageExports = $derived.by((): PageExport[] => {
-		const packaged = describePackagedExports(this.packageAttempts, this.spec.pageSize);
+		// No page size passed: each attempt carries the one it was packaged for, so the row cannot
+		// describe a file as paper it was not made on.
+		const packaged = describePackagedExports(this.packageAttempts);
 		const original = describeOriginalImageExport(
 			this.images[0],
 			this.pageFileBaseName || DEFAULT_PAGE_FILE_BASE_NAME
@@ -594,12 +850,146 @@ export class StudioState {
 		return btoa(binary);
 	}
 
+	/**
+	 * The Page Controls, as the one value that composes the page's `Vibe:` line.
+	 *
+	 * The wig is read live and falls back to `restoredStyleWig`. A page can be made while a wig is
+	 * selected, and the wig is then part of the hint that made it; reopening that page re-selects no
+	 * wig, so without the fallback the first setting change would drop the wig out of the hint and
+	 * quietly restyle a page the reader only asked to resize. `resetGeneratedPage` clears the
+	 * fallback, so it can never outlive the page it was restored for.
+	 */
+	/**
+	 * The wig the page on the paper is styled with, which is not always the one on screen.
+	 *
+	 * A restored page's stored provenance wins over the live carousel, *including* when that
+	 * provenance is "no wig" — hence the wrapper object on `restoredStyleWig`, and hence the early
+	 * return rather than a chain of conditionals: the two "undefined" answers here mean different
+	 * things and reach the caller by different routes.
+	 */
+	private styleWig(): StyleWig | undefined {
+		if (this.restoredStyleWig) return this.restoredStyleWig.value;
+		if (!this.selectedWig) return undefined;
+		return { name: this.selectedWig.name, style: this.selectedWig.style };
+	}
+
+	currentStyleSelection(): StyleSelection {
+		const wig = this.styleWig();
+		return {
+			themeId: this.selectedThemeId,
+			voice: $state.snapshot(this.voice),
+			glitter: this.glitter,
+			...(wig ? { wig } : {})
+		};
+	}
+
 	private currentStyleHint(): string {
-		const glitterText = this.glitter ? ' removable glitter overlay accents' : '';
-		const wigText = this.selectedWig
-			? ` featuring ${this.selectedWig.name} (${this.selectedWig.style})`
-			: '';
-		return `${this.activeTheme.styleHint}; ${this.voice.intensity}; ${this.voice.rawness}; ${this.voice.thirdPerson}${glitterText}${wigText}`;
+		return buildStyleHint(this.currentStyleSelection());
+	}
+
+	/**
+	 * Put a stored selection back on the controls.
+	 *
+	 * Assigning the whole voice object rather than three fields keeps this in step with the contract
+	 * shape: a voice value that gained a fourth setting would arrive here complete instead of being
+	 * silently dropped by a three-field copy.
+	 */
+	private applyStyleSelection(selection: StyleSelection): void {
+		// Resolved through the same fallback the encoder and the summary use, rather than assigned
+		// raw. A stored id can name a theme a later release removed — the schema accepts it and
+		// `themeForSelection` falls back — and putting the dead id on the control split the panel
+		// against itself: the summary named the fallback theme while every chip compared against the
+		// dead id and reported `aria-pressed="false"`, so no chip looked selected.
+		this.selectedThemeId = themeForSelection(selection).id;
+		this.voice = { ...selection.voice };
+		this.glitter = selection.glitter;
+		// The wig is deliberately NOT applied here, and this is the third field to move out of this
+		// function for the same reason: it is artifact provenance, not a control.
+		//
+		// Nothing shows it. `restoredStyleWig` has no control of its own — the carousel reads
+		// `selectedWig`, which stays null — so applying it here on the draft path put a wig into the
+		// next `Vibe:` line that the reader could neither see nor deselect, and `handleGeneratePage`
+		// reads that fallback *before* the reset clears it. A refresh could therefore spend a paid
+		// generation on a wig from a draft, chosen invisibly. Restoring a visible catalog selection
+		// instead is not available: a stored selection carries the wig's name and style, not its
+		// catalog id, and the catalog is not loaded on this path.
+		//
+		// `loadCreation` sets it, because there the wig belongs to a page that is actually on the
+		// paper — see the artifact snapshot there.
+	}
+
+	/**
+	 * Restore a page's style, or record that the page did not come with one.
+	 *
+	 * Both restore paths — the vault and the draft — go through here, so the two cannot answer the
+	 * "what if there is no stored selection?" question differently. They already drifted once on the
+	 * neighbouring question of which verdict belongs to a page; one function is how that stops
+	 * being possible.
+	 *
+	 * When there is no stored selection the controls are left exactly as the reader set them.
+	 *
+	 * Resetting them to the defaults instead was the first attempt, and a test caught it being
+	 * wrong: those controls are the reader's, not the record's, so reopening any page saved before
+	 * this field existed would have silently thrown away settings they had just chosen — arbitrary
+	 * destruction, to replace a lie with a different lie. The lie is what needed removing, and the
+	 * notice removes it. Nothing the reader owns is touched to do that.
+	 *
+	 * This puts a stored style on the controls and does nothing else. It used to also record the
+	 * selection as the *artifact's* — which is right for the vault, where there is an artifact, and
+	 * wrong for a draft, where there is not. A draft restores no prompt and no image, so a reader
+	 * who came back after a refresh, changed a theme and saved got a record holding the draft's old
+	 * style beside a spec rebuilt from the new controls. Both paths still answer "no stored
+	 * selection?" through this one function; the artifact snapshot now lives with the artifact,
+	 * which only `loadCreation` has.
+	 */
+	private applyRestoredStyleSelection(selection: StyleSelection | undefined): void {
+		if (selection) {
+			this.applyStyleSelection(selection);
+		}
+	}
+
+	/**
+	 * The style the live controls are entitled to claim.
+	 *
+	 * The controls themselves, except when the page on the paper was restored from a record that
+	 * stored no style: there they are the reader's own settings sitting next to somebody else's
+	 * page, and writing them down would invent provenance the record never had. That is the case
+	 * `styleSelectionUnknown` exists to name, and it is the one rule the vault and the draft share.
+	 *
+	 * Shared through one function because the two writers of this field had drifted once already:
+	 * the vault applied this rule, the draft wrote the live controls unconditionally. So reopening
+	 * a record with no stored style, waiting for the autosave and refreshing brought the page back
+	 * wearing the reader's controls as its own — the unknown-style notice gone, the invented values
+	 * now restorable, and a later vault save able to pair them with that record's intent
+	 * permanently. The whole point of the field is that it is absent when the answer is not known.
+	 */
+	private authoredStyleSelection(): StyleSelection | undefined {
+		return this.styleSelectionUnknown ? undefined : this.currentStyleSelection();
+	}
+
+	/**
+	 * The style the *vault* should file a page under: the artifact's.
+	 *
+	 * Captured when the picture was made, so a control moved afterwards cannot file the page under a
+	 * style that never produced it. With no artifact snapshot — a page saved before any generation —
+	 * the controls genuinely authored the spec being saved, so they are its style, subject to the
+	 * unknown rule above.
+	 *
+	 * This is the vault's rule and only the vault's, and that separation is the point. Both writers
+	 * used to call one accessor, which paired the artifact's style with whatever intent the caller
+	 * happened to save — right for the vault, which saves the artifact's spec beside it, and wrong
+	 * for the draft, which saves the live one. A review found the pair coming apart: generate under
+	 * one theme, move a control to another without regenerating, and the debounced draft wrote an
+	 * intent rebuilt for the new theme beside the old theme's selection. A refresh then reapplied
+	 * the old theme over the new intent — the reader's latest choice gone, and `decorations`, which
+	 * is derived from the style hint, describing a theme the stored selection contradicts.
+	 *
+	 * So the rule is the pairing, not the accessor: each writer files the style belonging to the
+	 * intent it is about to store. See `saveDraft`, which files `authoredStyleSelection` beside the
+	 * live spec.
+	 */
+	private artifactStyleSelection(): StyleSelection | undefined {
+		return $state.snapshot(this.generatedStyleSelection) ?? this.authoredStyleSelection();
 	}
 
 	private currentDedication(): string | undefined {
@@ -623,7 +1013,25 @@ export class StudioState {
 					// Exactly the rule the vault uses, through the same accessor. A draft that
 					// carried text this page does not own would come back after a refresh as
 					// genuine, with nothing left to say otherwise.
-					studioText: this.describingStudioText()
+					studioText: this.describingStudioText(),
+					// Saved for the same reason the vault saves it, and it matters more here: a
+					// draft is restored on every refresh, so a draft without the style was a page
+					// whose look changed every time the reader came back to it.
+					//
+					// The *live* style, because the line above stores the *live* spec. A draft is
+					// the reader's work in progress, not a finished artifact, and the two fields
+					// have to describe the same moment or restoring it reapplies one over the
+					// other. Filing the artifact's style here — which this did, through the
+					// accessor the vault uses — meant a control moved after generating was written
+					// into `intent` and then overwritten on the next refresh by the style it had
+					// replaced.
+					//
+					// Still not a second copy of the "no stored style" rule: that lives in
+					// `authoredStyleSelection`, which the vault reaches through
+					// `artifactStyleSelection`. Writing the live controls unconditionally is how a
+					// reopened record with no stored style came back from a refresh wearing
+					// provenance nobody had recorded.
+					styleSelection: this.authoredStyleSelection()
 				}
 			});
 			if (result.ok) {
@@ -643,6 +1051,15 @@ export class StudioState {
 	}
 
 	private async validateSpec(): Promise<boolean> {
+		// A fresh check begins, so whatever the panel was saying about the last one stops being an
+		// answer about the current spec. Here rather than in each non-panel caller: the leak this
+		// replaces was one caller forgetting, and a rule enforced at the one place every check goes
+		// through cannot be forgotten by a caller added later. `syncSpecFromCurrentText` sets it
+		// back after its own rebuild returns, which is after this has run.
+		this.settingsReported = false;
+		// Same reasoning, one field over. This one says the last Page Controls change could not be
+		// *checked*; a check that is now running says otherwise.
+		this.settingsError = '';
 		const validation = await specValidationAdapter.validate({ spec: $state.snapshot(this.spec) });
 		this.validationIssues = validation.issues;
 		return validation.ok;
@@ -731,6 +1148,23 @@ export class StudioState {
 		// Whatever replaces the paper is not a try-on portrait until a try-on generation says so.
 		this.tryOnPageOnScreen = false;
 		this.tryOnPageTitle = '';
+		// Both of these describe a *restored* page, and this is the moment there stops being one.
+		// `loadCreation` calls this first and applies the restored style after, so a reopen still
+		// gets its own values; every other caller is starting a page the controls genuinely describe.
+		this.restoredStyleWig = null;
+		this.generatedStyleSelection = undefined;
+		this.generatedSpec = undefined;
+		// Both of these report a change made to the page that is being replaced right here. Left
+		// standing they would describe the previous page's trouble over the new one, which is the
+		// same stale-report defect in miniature.
+		this.settingsError = '';
+		this.settingsReported = false;
+		// A fact about the page being replaced, so it goes with it. `loadCreation` calls this first
+		// and sets it after, which is the same order the two artifact snapshots above use.
+		this.restoredStyleUnknown = false;
+		// Goes with the flag it qualifies: left standing, the claim would carry a choice made about a
+		// page that is no longer here.
+		this.readerClaimedStyle = false;
 	}
 
 	/**
@@ -878,15 +1312,68 @@ export class StudioState {
 		};
 	}
 
+	/**
+	 * Rebuild the spec from whatever text is current. Reports nothing to Page Controls.
+	 *
+	 * Separate from `syncSpecFromCurrentText` below because that one is the *panel's handler* and
+	 * writes the panel's two error regions. It was doing both jobs, and the wig selector and the
+	 * try-on page generator both called it — so a try-on whose intermediate spec did not validate
+	 * (a provider title over the length limit, say) copied that into `settingsIssues`, then replaced
+	 * the invalid fields with a valid title-only spec, re-validated successfully, and left the
+	 * finished page reporting under Page Controls that it had failed its check. A control the reader
+	 * never touched, blamed for a page that passed.
+	 *
+	 * The field's own doc comment claimed "written only by the panel's own handler". It was not, and
+	 * the split is what makes the claim true rather than aspirational: reporting now lives in the one
+	 * caller that owns those regions, so a new caller cannot leak into them by forgetting to.
+	 */
+	private rebuildSpecFromCurrentText = async (
+		source: SettingChangeSource = 'setting'
+	): Promise<void> => {
+		await this.applyTextToSpec(this.rebuildSourceText(), source);
+	};
+
+	/**
+	 * The Page Controls panel's handler: rebuild the spec, then report the outcome beside the
+	 * control the reader just moved. The only writer of `settingsError` and `settingsIssues`.
+	 */
 	syncSpecFromCurrentText = async (
 		source: SettingChangeSource = 'setting'
 	): Promise<void> => {
+		this.settingsError = '';
+		this.settingsReported = false;
 		try {
-			await this.applyTextToSpec(this.rebuildSourceText(), source);
+			await this.rebuildSpecFromCurrentText(source);
+			// `applyTextToSpec` has already run the check and stored what it found, so the panel
+			// reads that answer rather than paying for a second call to the seam that could
+			// disagree with the first. Claiming the check rather than copying its result: the issues
+			// the reader sees are `validationIssues` itself from here on, so a later fix to the spec
+			// that clears them clears the panel too instead of leaving it insisting on a failure the
+			// page no longer has.
+			this.settingsReported = true;
+			// A theme click is the reader naming a style even when it changes nothing measurable, so
+			// it is recorded here rather than inferred from the values. Only on a rebuild that
+			// succeeded: a click whose spec did not survive its own check has not authored anything.
+			// `selectWigForTryOn` sets the same flag for the same reason — see there.
+			if (source !== 'setting') {
+				this.readerClaimedStyle = true;
+			}
 		} catch (error) {
-			this.draftSaveError =
-				error instanceof Error ? error.message : 'Page settings could not be saved.';
-			throw error;
+			// Reported where the reader is looking — beside the control they just moved — instead of
+			// as "Draft not saved:" in the evidence panel, which is what a settings failure used to
+			// be dressed up as.
+			//
+			// Swallowed rather than rethrown. The only caller is a DOM event handler, so rethrowing
+			// produced an unhandled rejection and told nobody anything; the message above is the
+			// whole report either way.
+			//
+			// The wording says the change was *not checked*, not that it did not happen. By the time
+			// anything here can throw, `applyTextToSpec` has already moved the control and assigned
+			// the rebuilt spec; the failure is in validating or recording it. Saying "that change did
+			// not apply" over a control that visibly did move was a second thing the panel was wrong
+			// about, in a run about a panel that misreports itself.
+			this.settingsError =
+				error instanceof Error ? error.message : UNCHECKED_SETTINGS_MESSAGE;
 		}
 	};
 
@@ -917,6 +1404,10 @@ export class StudioState {
 	selectWigForTryOn = async (wig: Wig): Promise<void> => {
 		const wigChanged = wig.id !== this.selectedWigId;
 		this.selectedWig = wig;
+		// The reader has taken the wig back, so a reopened page's stored wig provenance stops
+		// speaking for the hint. Set unconditionally: re-picking the wig that is already selected is
+		// still the reader choosing it, and `wigChanged` is false in exactly that case.
+		this.restoredStyleWig = null;
 		if (wigChanged) {
 			// The coloring page on screen was made from the previous wig's portrait, so it goes.
 			// The portraits themselves stay: `tryOnPortraitUrl` follows the selected wig, so this
@@ -924,7 +1415,30 @@ export class StudioState {
 			// and the previous wig's portrait is still there when the reader goes back to compare.
 			this.resetTryOnPageState();
 		}
-		await this.syncSpecFromCurrentText();
+		// The previous attempt's failure is about the previous attempt. On the `wigChanged` path
+		// `resetGeneratedPage` already clears it along with the page; on the same-wig path nothing
+		// did, so a rebuild that failed once stayed on screen through every later success — and
+		// re-picking the selected wig is exactly how a reader retries after seeing it. Cleared
+		// before the attempt rather than after it, so the line is empty while the retry runs
+		// instead of showing a stale sentence about a rebuild that is no longer happening.
+		this.generationError = '';
+		// Not the panel's handler: the wig is the try-on studio's control, and the panel's summary
+		// deliberately does not name it. A rebuild that fails here belongs on the try-on studio's own
+		// error line, not filed under settings the reader did not touch.
+		//
+		// Still swallowed rather than rethrown — this is a DOM event handler, and rethrowing produced
+		// an unhandled rejection that told nobody anything.
+		try {
+			await this.rebuildSpecFromCurrentText();
+			// Picking a wig is the reader naming a style, on the same terms as a theme click: it
+			// reaches the hint the same way, and re-picking the one already selected changes no value
+			// a comparison could see. Recorded only on a rebuild that succeeded, for the reason given
+			// where the theme sets it.
+			this.readerClaimedStyle = true;
+		} catch (error) {
+			this.generationError =
+				error instanceof Error ? error.message : UNCHECKED_SETTINGS_MESSAGE;
+		}
 	};
 
 	setSelfieForTryOn = (
@@ -1074,13 +1588,14 @@ export class StudioState {
 				variants: [variant]
 			});
 			return result.ok
-				? { variant, files: result.value.files, error: null }
-				: { variant, files: [], error: result.error.message };
+				? { variant, files: result.value.files, error: null, pageSize }
+				: { variant, files: [], error: result.error.message, pageSize };
 		} catch (error) {
 			return {
 				variant,
 				files: [],
-				error: error instanceof Error ? error.message : 'Packaging failed.'
+				error: error instanceof Error ? error.message : 'Packaging failed.',
+				pageSize
 			};
 		}
 	}
@@ -1099,10 +1614,20 @@ export class StudioState {
 	 * not take the other down with it: the seam returns on its first error, so asking for print and
 	 * square together loses the print PDF whenever the square rasterisation is the thing that breaks.
 	 */
-	private async attachPageExports(fileBaseName: string, pageToken: number): Promise<void> {
+	/**
+	 * `pageSize` is passed in rather than read off `this.spec`, because by the time this runs the
+	 * live spec may already be somebody else's. The Page Controls stay enabled while a generation is
+	 * in flight and moving Page Size rebuilds `this.spec` without advancing `pageLoadToken`, so
+	 * reading it here packaged the PDF and the share image for different paper than the picture and
+	 * the saved record — the same drift the artifact snapshot removes, one step further down.
+	 */
+	private async attachPageExports(
+		fileBaseName: string,
+		pageToken: number,
+		pageSize: ColoringPageSpec['pageSize']
+	): Promise<void> {
 		if (this.images.length === 0) return;
 		const images = $state.snapshot(this.images);
-		const pageSize = this.spec.pageSize;
 		// Set before packaging, not after: the provider's own image is downloadable the moment the
 		// page lands, and packaging takes seconds. Naming it only afterwards would hand anyone who
 		// grabbed it early a file named after no page in particular. Safe against a late attempt for
@@ -1126,6 +1651,11 @@ export class StudioState {
 			this.generationError = 'Generate Meechie words before creating the page.';
 			return;
 		}
+		// Read before `resetGeneratedPage`, which clears the restored wig provenance. Regenerating a
+		// reopened page keeps its theme, voice and glitter — those live on the controls and the reset
+		// does not touch them — so the wig has to keep pace or the paid request goes out describing a
+		// page that is partly the record's and partly the carousel's.
+		const requestedStyle = this.currentStyleSelection();
 		this.resetGeneratedPage();
 		// The same capture the try-on path makes, for the same reason: everything below is read
 		// after an await, and every path that replaces the paper advances this token. Without it a
@@ -1140,11 +1670,20 @@ export class StudioState {
 				this.generationError = 'Fix the page settings before generating.';
 				return;
 			}
+			// `requestedStyle` was read at the top, before the reset. One read, used for both the
+			// request and the record: reading it again after the await was a race, because the Page
+			// Controls stay enabled while a generation is in flight and moving one does not advance
+			// `pageLoadToken`.
+			// The spec the request actually carries, read once. Same rule as `requestedStyle`: the
+			// Page Controls stay enabled while a generation is in flight, and moving Page Size or
+			// Border rebuilds `this.spec` without advancing `pageLoadToken`, so reading it again
+			// after the await would record paper the provider was never asked for.
+			const requestedSpec = $state.snapshot(this.spec);
 			const payload = await postJson(
 				'/api/generate',
 				{
-					spec: $state.snapshot(this.spec),
-					styleHint: this.currentStyleHint()
+					spec: requestedSpec,
+					styleHint: buildStyleHint(requestedStyle)
 				},
 				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
 			);
@@ -1175,8 +1714,21 @@ export class StudioState {
 				return;
 			}
 
+			// The artifact snapshot, taken only now that there is an artifact — below this guard, not
+			// above it with the trace. Assigning it before the guard filed a request that produced
+			// nothing as though it had produced a page: `textOutput` still lights up Save to Vault,
+			// so saving after the failure stored that request's style and spec, and went on doing so
+			// after the reader had moved every control. Values captured before the await, not read
+			// off the live controls, for the reason given where each was captured.
+			this.generatedStyleSelection = requestedStyle;
+			this.generatedSpec = requestedSpec;
+
 			const creationId = this.generateCreationId();
-			await this.attachPageExports(`meechie-coloring-page-${creationId}`, pageToken);
+			await this.attachPageExports(
+				`meechie-coloring-page-${creationId}`,
+				pageToken,
+				requestedSpec.pageSize
+			);
 		} catch (error) {
 			this.generationError =
 				error instanceof Error ? error.message : 'Coloring page generation failed.';
@@ -1209,7 +1761,17 @@ export class StudioState {
 		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
 		try {
-			await this.syncSpecFromCurrentText();
+			// Captured before the await, like `wig` above and like the generate path: the spec this
+			// page gets is built from these controls, so reading them again afterwards could record
+			// a style the page was not built with.
+			const requestedStyle = this.currentStyleSelection();
+			// The bare rebuild, not the panel's handler. The spec it builds here is an intermediate —
+			// `asTryOnPageSpec` replaces the title-bearing half of it four lines down and the result
+			// is re-validated — so reporting this one's findings under Page Controls announced a
+			// failure about a spec that no longer exists, on a page that went on to pass. The enclosing
+			// catch turns a genuine failure here into `generationError`, which is where a try-on that
+			// could not be made belongs.
+			await this.rebuildSpecFromCurrentText();
 			if (pageToken !== this.pageLoadToken) return;
 			const portraitImage = this.parseTryOnPortraitImage(portraitUrl);
 			if (!portraitImage) {
@@ -1237,6 +1799,9 @@ export class StudioState {
 			// as the reader's facts on their next Generate Verdict — the defect recorded at that
 			// call site.
 			this.assembledPrompt = `Wig try-on portrait — ${wig.name} (${wig.style}).`;
+			// The spec the page was actually built as, read here rather than after the await below,
+			// where a control change could have rebuilt it. Same rule as the generate path.
+			const requestedSpec = $state.snapshot(this.spec);
 			// Re-validated because the title above was written after `syncSpecFromCurrentText` had
 			// already validated. Checking the issues it left would be checking the previous spec.
 			await this.validateSpec();
@@ -1245,12 +1810,18 @@ export class StudioState {
 				return;
 			}
 			this.images = [portraitImage];
+			// The artifact snapshot, below the guard rather than above it, for the reason the
+			// generate path gives: assigned before it, a run that reported a settings problem and
+			// made no page still filed one.
+			this.generatedStyleSelection = requestedStyle;
+			this.generatedSpec = requestedSpec;
 			// From here the paper is a portrait, so no verdict describes it. See `tryOnPageOnScreen`.
 			this.tryOnPageOnScreen = true;
 			const creationId = this.generateCreationId();
 			await this.attachPageExports(
 				`meechie-try-on-coloring-page-${creationId}`,
-				pageToken
+				pageToken,
+				requestedSpec.pageSize
 			);
 		} catch (error) {
 			this.generationError =
@@ -1381,6 +1952,26 @@ export class StudioState {
 		}
 		this.isSaving = true;
 		this.vaultStatus = 'Saving...';
+		// The page as it was made, not as the controls now describe it. `this.spec` is rebuilt from
+		// the live Page Controls on every setting change, so any setting moved after the picture came
+		// back put a spec on the record that never produced its own image, prompt or downloads —
+		// dimensions and a frame, and `decorations`, which is derived from the style hint and so
+		// contradicted the `styleSelection` saved beside it.
+		//
+		// Falls back to the live spec when there is no snapshot, which is the page saved before any
+		// generation: there its controls genuinely did author the spec being saved.
+		//
+		// `dedication` is deliberately the reader's, not the artifact's. It is the one field here
+		// they type directly rather than choose from a control, and a dedication entered after
+		// generating is on no page at all — so keeping the snapshot's would silently discard what
+		// they just wrote, which is a different defect from the one this snapshot removes and not
+		// one to introduce while removing it. That a typed dedication can still describe a picture
+		// without it predates this change; it belongs with the drift reporting, not here.
+		const liveSpec = $state.snapshot(this.spec);
+		// Snapshotted out of `$state` on the way to the seam, which stores JSON: a proxy is what the
+		// record would otherwise be built from, and the two snapshot fields are reactive now.
+		const artifactSpec = $state.snapshot(this.generatedSpec);
+		const intent = artifactSpec ? withDedication(artifactSpec, liveSpec.dedication) : liveSpec;
 		const creationId = this.generateCreationId();
 		const storedImages = this.images.map((image) => ({
 			b64: image.encoding === 'base64' ? image.data : this.encodeBase64(image.data)
@@ -1390,7 +1981,7 @@ export class StudioState {
 				record: {
 					id: creationId,
 					createdAtISO: new Date().toISOString(),
-					intent: $state.snapshot(this.spec),
+					intent,
 					assembledPrompt,
 					// Only text that actually describes this page is saved as its own.
 					studioText: this.describingStudioText(),
@@ -1399,6 +1990,19 @@ export class StudioState {
 					violations: $state.snapshot(this.violations),
 					fixesApplied: this.recommendedFixes.map((fix) => fix.code),
 					authContext: this.authContext ?? undefined,
+					// The style that produced this page — captured when the picture was made, not read
+					// off the controls now. `intent` carries page size and border; the theme, voice
+					// and glitter that composed the `Vibe:` line reach the page only through the
+					// style hint, so without this the record describes a page's layout and none of
+					// its look. Reading it live would store whatever the panel happens to say at save
+					// time, which after a post-generation control change is a style that never made
+					// this image.
+					// A page saved without ever generating an image has no artifact snapshot — only the
+					// generate paths take one — but its controls did author the spec being saved, so
+					// they are its style. `styleSelectionUnknown` is precisely the case where they are
+					// *not*: a record restored without a stored style, whose prompt and picture came
+					// from choices nobody wrote down.
+					styleSelection: this.artifactStyleSelection(),
 					owner
 				}
 			});
@@ -1415,10 +2019,55 @@ export class StudioState {
 		// `null` for a page that prints no items — a reopened try-on portrait, say. Nothing on that
 		// page is a verdict, so nothing is restored as one; see `buildStudioTextFromSpec`.
 		const restoredText = buildStudioTextFromCreationRecord(creation);
+		// Decoded up here rather than at the assignment below, because whether this record puts a
+		// picture on the paper is what decides the artifact snapshots — and a record whose stored
+		// bytes do not decode restores none. Asking `creation.images` would be asking what the
+		// record claims; this asks what the reader is actually looking at.
+		const restoredImages = restoreCreationImages(creation);
 		this.resetGeneratedPage();
 		this.spec = creation.intent;
 		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
 		this.restoredPageLayout = true;
+		// And this page's *look* is the saved page's too, for exactly the same reason. Restoring the
+		// layout while leaving the style controls where they were is what made a reopened page
+		// change its vibe on the next page-size change: `applyTextToSpec` recomposes the hint from
+		// whatever the controls say, and they were saying Crown Energy over somebody else's page.
+		//
+		// Applied before the derivation is seeded below, not after: the seed is read off the
+		// controls, so seeding first would describe a page that was never on screen — and that seed
+		// is what the next setting change is decided against.
+		this.applyRestoredStyleSelection(creation.styleSelection);
+		// Whether this record stored a style is a fact about the record, true whether or not it also
+		// carries a picture. Held apart from the snapshots below, which are about the picture.
+		this.restoredStyleUnknown = creation.styleSelection === undefined;
+		// The two artifact snapshots — but only when this record actually put a picture on the paper.
+		//
+		// They exist so that reopening a page, changing a setting and saving again cannot write the
+		// rebuilt spec over the picture the record was saved with. A record saved before any image
+		// was generated has no such picture, so there is nothing for the reader's later changes to
+		// contradict, and taking a snapshot there made `saveToVault` prefer the old intent and throw
+		// their changes away on the next save.
+		//
+		// This is the same "snapshot taken where there is no artifact" the generate paths were
+		// corrected for two rounds earlier — the restore door, missed then. The comment here used to
+		// read "the one restore path that has an artifact", which was the claim rather than the code.
+		if (restoredImages.length > 0) {
+			this.generatedSpec = creation.intent;
+			this.generatedStyleSelection = creation.styleSelection;
+		}
+		// The wig belongs with them, and so does the guard: it is this page's, not the carousel's,
+		// and regenerating a reopened page must keep it rather than reach for whatever the reader has
+		// selected now. Left `null` for a record with no stored style, which is the case the panel
+		// reports as unknown rather than guesses at.
+		//
+		// Inside the image guard for a reason the first version of that guard missed. This is stored
+		// as `{ name, style }`, not a catalog `Wig`, so it cannot be put back into the carousel —
+		// which means on a record with no picture it was an *invisible* wig: nothing selected on
+		// screen, and Create Coloring Page quietly sending it in a paid request. With no artifact
+		// there is nothing for the reader's selection to contradict, so the visible one wins.
+		if (restoredImages.length > 0 && creation.styleSelection) {
+			this.restoredStyleWig = { value: creation.styleSelection.wig };
+		}
 		// Seed the derivation input at restore time, so the first setting change that does not touch
 		// it compares equal and keeps the density the saved page was built with.
 		this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
@@ -1445,7 +2094,7 @@ export class StudioState {
 		// Reopening a saved page used to hand back the words and drop the picture, so the only
 		// way to see your own page again was to pay for another generation. The record already
 		// carries the image bytes and the trace, so give all of it back.
-		this.images = restoreCreationImages(creation);
+		this.images = restoredImages;
 		this.assembledPrompt = creation.assembledPrompt;
 		this.revisedPrompt = creation.revisedPrompt ?? '';
 		this.violations = creation.violations ?? [];
@@ -1456,7 +2105,8 @@ export class StudioState {
 		// button with no reason, which is what its own near-copy of this used to do.
 		await this.attachPageExports(
 			`meechie-coloring-page-${this.generateCreationId()}`,
-			this.pageLoadToken
+			this.pageLoadToken,
+			creation.intent.pageSize
 		);
 		this.scheduleDraftSave();
 	};
@@ -1588,6 +2238,20 @@ export class StudioState {
 			// Setting it for a studio-authored draft costs nothing: such a spec is a `list` with a
 			// footer, so both derivations above return what the false branch would have.
 			this.restoredPageLayout = true;
+			// The same question `loadCreation` asks of a record, asked of a draft, because the same
+			// thing goes wrong when it is not asked. `DraftRecordSchema` accepts a draft with no
+			// `styleSelection` — every draft written before the field existed is one — and leaving
+			// the flag false made the studio treat whatever the controls happened to say as that
+			// draft's own style. The next autosave then wrote those values down beside the restored
+			// intent, which they did not author, and the refresh after that applied them: invented
+			// provenance, arrived at in two steps from a draft that recorded none.
+			//
+			// Before `applyRestoredStyleSelection`, which is the same order the seeding below needs
+			// and reads correctly either way: this is a fact about the record being restored, not
+			// about the controls it may be about to move.
+			this.restoredStyleUnknown = draft.value.styleSelection === undefined;
+			// Before the seeding below, for the reason given in `loadCreation`.
+			this.applyRestoredStyleSelection(draft.value.styleSelection);
 			this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
 			this.evidence = draft.value.chatMessage || '';
 			this.dedication = draft.value.intent.dedication ?? '';

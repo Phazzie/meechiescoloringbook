@@ -16,11 +16,14 @@ import { createMockAppOriginSeam } from '../../src/lib/seams/app-origin-seam/moc
 import type { AppOriginSeam } from '../../src/lib/seams/app-origin-seam/contract';
 import { createMockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
 import type { MockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
+import { specValidationAdapter } from '../../src/lib/adapters/spec-validation-seam';
+import { MAX_DEDICATION_LENGTH } from '../../src/lib/seams/spec-validation-seam/contract';
 import { StudioState } from '../../src/routes/studio-state.svelte';
 import { VAULT_CAPACITY } from '../../src/lib/core/vault-gallery';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
 import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-text.contract';
 import type { Wig } from '../../src/lib/seams/wig-catalog-seam/contract';
+import type { StyleSelection } from '../../src/lib/core/page-style';
 
 const SAMPLE_WIG: Wig = {
 	id: 'wig-1',
@@ -73,7 +76,8 @@ const arrangePackagedPage = (studio: StudioState): void => {
 			files: [
 				{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
 			],
-			error: null
+			error: null,
+			pageSize: 'US_Letter'
 		}
 	];
 };
@@ -1872,6 +1876,77 @@ describe('StudioState quote vault', () => {
 	 * in the app the vault would not take: the button was disabled on `textOutput` alone, so the
 	 * portrait the reader had paid a generation for died with the tab.
 	 */
+	// `settingsError` and `settingsIssues` are the Page Controls panel's two report regions, and the
+	// field's own doc comment claimed they were written only by the panel's handler. They were not:
+	// the wig selector and the try-on page generator both called that handler for its rebuild, and
+	// got its reporting with it. These two cover the halves of that — one writes into the panel about
+	// something it does not own, the other wipes what the panel is already saying.
+	// One character over the limit, so the page genuinely fails its check for a reason that has
+	// nothing to do with Page Controls — the reader typed it into the dedication box.
+	const OVERLONG_DEDICATION = 'D'.repeat(MAX_DEDICATION_LENGTH + 1);
+
+	it('does not report a wig change under Page Controls', async () => {
+		const studio = await initVault([]);
+
+		studio.handleDedicationInput(OVERLONG_DEDICATION);
+		await vi.waitFor(() => expect(studio.validationIssues.length).toBeGreaterThan(0));
+
+		// The panel is quiet, correctly — the reader has not touched a Page Control.
+		expect(studio.settingsIssues).toEqual([]);
+
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+
+		// The wig belongs to the try-on studio; the panel's summary deliberately does not even name
+		// it. Reporting here read as "That change was applied. The page did not pass its check" over
+		// a row of controls the reader never went near.
+		expect(studio.settingsIssues).toEqual([]);
+		expect(studio.settingsError).toBe('');
+		// And the failure is still reported — through the field that always carried it.
+		expect(studio.validationIssues.length).toBeGreaterThan(0);
+	});
+
+	it('does not report a refused try-on generation under Page Controls', async () => {
+		const studio = await initVault([]);
+
+		studio.handleDedicationInput(OVERLONG_DEDICATION);
+		await vi.waitFor(() => expect(studio.validationIssues.length).toBeGreaterThan(0));
+
+		await makeTryOnPage(studio);
+
+		// The generation is refused — no portrait reached the paper — and says so on the try-on
+		// studio's own line.
+		expect(studio.images).toHaveLength(0);
+		expect(studio.generationError).toBe('Fix the page settings before generating.');
+		// It used to say so twice. `handleGenerateTryOnPage` rebuilt the spec through the panel's
+		// handler, which copied the finding into `settingsIssues` — so pressing a try-on button
+		// printed "That change was applied. The page did not pass its check" under a row of controls
+		// the reader had not touched, alongside the correct message above.
+		expect(studio.settingsIssues).toEqual([]);
+		expect(studio.settingsError).toBe('');
+	});
+
+	it('clears a failed wig pick when the reader retries the wig already selected', async () => {
+		// Re-picking the selected wig is how a reader retries after seeing that line, and it is the
+		// one path that did not clear it: `resetGeneratedPage` clears the error along with the page,
+		// but only runs when the wig actually changed. So a rebuild that failed once stayed on screen
+		// through every later success, indefinitely, describing an attempt that had already been
+		// retried.
+		const studio = await initVault([]);
+		const validate = vi
+			.spyOn(specValidationAdapter, 'validate')
+			.mockRejectedValue(new Error('spec rebuild exploded'));
+
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+		expect(studio.generationError).toBe('spec rebuild exploded');
+
+		// Whatever made it fail is over, and the reader clicks the same wig again.
+		validate.mockRestore();
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+
+		expect(studio.selectedWigId).toBe(SAMPLE_WIG.id);
+		expect(studio.generationError).toBe('');
+	});
+
 	it('saves a try-on coloring page that has no verdict behind it', async () => {
 		const studio = await initVault([]);
 
@@ -2323,6 +2398,1335 @@ describe('StudioState page exports', () => {
 		expect(studio.pageExports).toEqual([]);
 		expect(studio.exportError).toBe('');
 		expect(studio.pageFileBaseName).toBe('');
+	});
+});
+
+describe('StudioState page style', () => {
+	const SESSION_ID = 'style-session';
+
+	const PAGE_STYLE_PNG_BASE64 = Buffer.from(new Uint8Array(4096).fill(9)).toString('base64');
+
+	const styleSelection = {
+		themeId: 'receipts',
+		voice: {
+			intensity: 'no_mercy' as const,
+			rawness: 'raw' as const,
+			thirdPerson: 'always' as const
+		},
+		glitter: true
+	};
+
+	const makeStyledCreation = (overrides: Partial<CreationRecord> = {}): CreationRecord => ({
+		id: 'styled-page',
+		createdAtISO: '2026-09-01T00:00:00.000Z',
+		intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A STYLED PAGE' },
+		assembledPrompt: 'prompt for styled-page',
+		studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+		owner: { kind: 'anonymous', sessionId: SESSION_ID },
+		...overrides
+	});
+
+	/**
+	 * The same record with a picture actually on it.
+	 *
+	 * Several tests below are about what a *finished page* does when a control moves, and were
+	 * written against the image-less record above — so they passed for a reason next to the one they
+	 * describe. A record with no picture has no artifact for a later control change to contradict,
+	 * and now behaves accordingly (see `loadCreation`), which is what separated the two.
+	 *
+	 * Real PNG bytes, because `restoreCreationImages` checks the byte signature and drops anything it
+	 * cannot recognise — a stub payload would restore no picture and put the fixture straight back
+	 * where it was.
+	 */
+	const makePicturedCreation = (overrides: Partial<CreationRecord> = {}): CreationRecord =>
+		makeStyledCreation({
+			images: [{ b64: ONE_PIXEL_PNG_BASE64 }],
+			...overrides
+		});
+
+	/**
+	 * Runs a real generation so the page on screen has a prompt and a picture.
+	 *
+	 * The style is now captured where the artifact is made, so a test that wants a *saveable* page
+	 * has to make one. Assigning `assembledPrompt` by hand produced a page with no recorded style,
+	 * which is exactly the state the code now refuses to file under the live controls.
+	 */
+	const generatePage = async (studio: StudioState): Promise<void> => {
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(
+				async () =>
+					new Response(
+						JSON.stringify({
+							ok: true,
+							value: {
+								prompt: 'the prompt this page was made with',
+								templateVersion: 'v2',
+								images: [
+									{
+										id: 'image-1',
+										format: 'png',
+										mimeType: 'image/png',
+										data: PAGE_STYLE_PNG_BASE64,
+										encoding: 'base64'
+									}
+								],
+								violations: [],
+								recommendedFixes: []
+							}
+						}),
+						{ status: 200, statusText: 'OK' }
+					)
+			)
+		);
+		await studio.handleGeneratePage();
+	};
+
+	afterEach(() => {
+		destroyInitializedStudios();
+		vi.unstubAllGlobals();
+		vi.restoreAllMocks();
+	});
+
+	/**
+	 * An initialised studio with a session, and a spy on the vault write.
+	 *
+	 * Six lines repeated verbatim in every test that asserts on what reaches the vault. Extracted
+	 * because a saved record's provenance is what this block is about, and the setup was starting to
+	 * outweigh the assertion in each one.
+	 */
+	const savingStudio = async () => {
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		return { studio, saveSpy: vi.spyOn(creationStoreAdapter, 'saveCreation') };
+	};
+
+	/**
+	 * The controls set to `styleSelection`, with no page made from them yet.
+	 *
+	 * Every test in this block that is about provenance has to put a *known* style on the controls
+	 * first, and they were each spelling out the same three assignments — including the voice
+	 * literal, which is `styleSelection.voice` and now says so. A test whose setup silently drifted
+	 * from the constant it asserts against would be green for the wrong reason.
+	 */
+	const putStyleOnControls = (studio: StudioState): void => {
+		studio.selectedThemeId = styleSelection.themeId;
+		studio.voice = { ...styleSelection.voice };
+		studio.glitter = styleSelection.glitter;
+	};
+
+	/**
+	 * A saving studio with a real page on the paper, made from `styleSelection`.
+	 *
+	 * The prologue of every test about what a *finished* page files itself under. It has to be a
+	 * real generation rather than an assigned prompt — see `generatePage` — so it is seven lines
+	 * before the test's own first sentence, repeated verbatim each time.
+	 */
+	const styledPageOnScreen = async () => {
+		const saving = await savingStudio();
+		putStyleOnControls(saving.studio);
+		await generatePage(saving.studio);
+		return saving;
+	};
+
+	/**
+	 * The reader changes their mind after the picture exists, and does not regenerate.
+	 *
+	 * The move at the centre of this whole block: it is the moment the controls and the page stop
+	 * describing the same thing, and what each writer does about that is what the tests below are
+	 * checking. Named because "which theme" is not the point of it — "after, without regenerating"
+	 * is.
+	 */
+	const restyleWithoutRegenerating = async (studio: StudioState): Promise<void> => {
+		studio.selectedThemeId = 'church-glam';
+		studio.glitter = false;
+		await studio.syncSpecFromCurrentText('theme');
+	};
+
+	/**
+	 * A saving studio started from a stored draft, which is what a refresh actually is.
+	 *
+	 * `initFromDraft` writes to localStorage and builds a bare studio; this stubs the seam and adds
+	 * the session, because a draft-restore test that is about what gets *saved* next needs both. The
+	 * draft body was written out twice verbatim, so the one field each test varies — the style — is
+	 * the parameter, and the rest cannot drift between them.
+	 */
+	const initFromStoredDraft = async (draftStyle: StyleSelection | undefined) => {
+		vi.spyOn(creationStoreAdapter, 'getDraft').mockResolvedValue({
+			ok: true,
+			value: {
+				updatedAtISO: '2026-09-01T00:00:00.000Z',
+				intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A DRAFTED PAGE' },
+				studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+				styleSelection: draftStyle
+			}
+		});
+		return savingStudio();
+	};
+
+	it('saves the theme, voice and glitter that composed the page', async () => {
+		const { studio, saveSpy } = await styledPageOnScreen();
+
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
+	});
+
+	it('records the wig in the saved style when one was on the page', async () => {
+		const { studio, saveSpy } = await savingStudio();
+
+		studio.selectedWig = SAMPLE_WIG;
+		await generatePage(studio);
+		await studio.saveToVault();
+
+		// The two strings the hint prints, and deliberately not the catalog id.
+		expect(saveSpy.mock.calls[0][0].record.styleSelection?.wig).toEqual({
+			name: SAMPLE_WIG.name,
+			style: SAMPLE_WIG.style
+		});
+	});
+
+	it('puts a reopened page back on the controls that made it', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		await studio.loadCreation(makeStyledCreation({ styleSelection }));
+
+		expect(studio.selectedThemeId).toBe('receipts');
+		expect(studio.voice).toEqual(styleSelection.voice);
+		expect(studio.glitter).toBe(true);
+		expect(studio.styleSelectionUnknown).toBe(false);
+	});
+
+	it('keeps a reopened page looking the same when an unrelated control changes', async () => {
+		// The defect this run exists to fix. `applyTextToSpec` recomposes the style hint from the
+		// live controls on every setting change, so a reopened page whose controls had reset to the
+		// defaults was restyled by a page-size change — one control moved, five moved underneath.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		await studio.loadCreation(makeStyledCreation({ styleSelection }));
+
+		const generateSpy = vi.spyOn(globalThis, 'fetch');
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		generateSpy.mockRestore();
+
+		expect(studio.selectedThemeId).toBe('receipts');
+		expect(studio.voice.intensity).toBe('no_mercy');
+		expect(studio.glitter).toBe(true);
+		// And the size the reader actually asked for did change.
+		expect(studio.spec.pageSize).toBe('A4');
+	});
+
+	it('keeps a reopened page on its wig for hint purposes without re-selecting the wig', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		await studio.loadCreation(
+			makePicturedCreation({
+				styleSelection: { ...styleSelection, wig: { name: 'Honey Drip', style: 'body wave' } }
+			})
+		);
+
+		// The try-on studio is untouched — nothing re-selects a wig the reader has not chosen.
+		expect(studio.selectedWig).toBeNull();
+		// But the page's own look still carries it, so the next setting change cannot drop it.
+		expect(studio.currentStyleSelection().wig).toEqual({ name: 'Honey Drip', style: 'body wave' });
+	});
+
+	it('says a page saved before styles were stored has no style on file, and touches nothing', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.voice = { intensity: 'church_lady', rawness: 'medium', thirdPerson: 'never' };
+		studio.selectedThemeId = 'main-character';
+
+		await studio.loadCreation(makeStyledCreation());
+
+		expect(studio.styleSelectionUnknown).toBe(true);
+		// The controls are the reader's, not the record's. Resetting them to the defaults here was
+		// the first attempt and threw away settings the reader had just chosen.
+		expect(studio.selectedThemeId).toBe('main-character');
+		expect(studio.voice.intensity).toBe('church_lady');
+	});
+
+	it('clears the unknown-style notice once a page the studio authored replaces it', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		await studio.loadCreation(makeStyledCreation());
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+
+		expect(studio.styleSelectionUnknown).toBe(false);
+	});
+
+	it('round-trips the style through the draft, so a refresh does not restyle the page', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		studio.selectedThemeId = 'receipts';
+		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
+		studio.glitter = true;
+		draftSpy.mockClear();
+		await studio.syncSpecFromCurrentText('setting');
+		// The draft save is debounced behind a timer, so the write is not on the spy yet.
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		const savedDraft = draftSpy.mock.calls.at(-1)?.[0].draft;
+		expect(savedDraft?.styleSelection).toEqual(styleSelection);
+
+		const refreshed = await initFromDraft(savedDraft!);
+		expect(refreshed.selectedThemeId).toBe('receipts');
+		expect(refreshed.voice).toEqual(styleSelection.voice);
+		expect(refreshed.glitter).toBe(true);
+		expect(refreshed.styleSelectionUnknown).toBe(false);
+	});
+
+	it('seeds the density derivation from the restored style, not from the defaults', async () => {
+		// Order matters inside the restore: `lastDerivesDense` is read from the live controls, so
+		// seeding it before the style is applied describes a page that was never on screen — and
+		// that seed is what the next setting change is decided against.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		const dense = {
+			...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			decorations: 'dense' as const
+		};
+
+		await studio.loadCreation(
+			makeStyledCreation({
+				intent: dense,
+				styleSelection: {
+					themeId: 'receipts',
+					voice: { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' },
+					glitter: false
+				}
+			})
+		);
+
+		// `receipts` puts `receipt` in the hint, so the restored page is correctly seeded dense and
+		// an unrelated change leaves it dense.
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.spec.decorations).toBe('dense');
+	});
+
+	it('reports a failed settings change beside the controls, not as a draft problem', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		// `saveDraft` catches its own failures, so the way to fail a settings change is to fail the
+		// rebuild itself — the same module instance the studio validates through.
+		vi.spyOn(specValidationAdapter, 'validate').mockRejectedValue(
+			new Error('spec rebuild exploded')
+		);
+
+		// Resolves rather than rejects: the only caller is a DOM event handler, and rethrowing here
+		// produced an unhandled rejection that told nobody anything.
+		await expect(studio.syncSpecFromCurrentText('setting')).resolves.toBeUndefined();
+
+		expect(studio.settingsError).toBe('spec rebuild exploded');
+		expect(studio.draftSaveError).toBe('');
+	});
+
+	it('saves the style that produced the page, not the controls at save time', async () => {
+		// The defect this PR exists to remove, one step further along: generate a page, then move a
+		// control, then save. The image and the prompt are the old style's; reading the live controls
+		// would file them under a style that never made them.
+		const { studio, saveSpy } = await styledPageOnScreen();
+		expect(studio.assembledPrompt).toBe('the prompt this page was made with');
+
+		await restyleWithoutRegenerating(studio);
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
+	});
+
+	it('files the autosaved draft under the controls its own intent was built from', async () => {
+		// The sibling of the test above, on the other writer, and the pairing goes the opposite way.
+		// The vault stores the *artifact's* spec, so it files the artifact's style beside it. A draft
+		// stores the *live* spec — it is work in progress, not a finished page — so filing the
+		// artifact's style there put an intent rebuilt for the new theme next to the old theme's
+		// selection. Restoring that draft reapplied the old theme over the new intent: the control
+		// the reader had just moved undone on every refresh, and `decorations`, which is derived from
+		// the style hint, describing a theme the stored selection contradicts.
+		const { studio, saveSpy } = await styledPageOnScreen();
+
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		await restyleWithoutRegenerating(studio);
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		const savedDraft = draftSpy.mock.calls.at(-1)?.[0].draft;
+		expect(savedDraft?.styleSelection).toEqual({
+			themeId: 'church-glam',
+			voice: styleSelection.voice,
+			glitter: false
+		});
+
+		// The pairing is the point, so the round trip is what proves it: the draft comes back as the
+		// reader left it rather than as the picture they did not remake.
+		const refreshed = await initFromDraft(savedDraft!);
+		expect(refreshed.selectedThemeId).toBe('church-glam');
+		expect(refreshed.glitter).toBe(false);
+		expect(refreshed.spec.decorations).toBe(savedDraft?.intent.decorations);
+
+		// And the vault still files the picture under the style that made it — the two writers now
+		// disagree on purpose, because they are storing two different specs.
+		await studio.saveToVault();
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
+	});
+
+	it('records the style the request carried, not one chosen while it was in flight', async () => {
+		// The Page Controls stay enabled during a generation and moving one does not advance
+		// `pageLoadToken`, so reading the controls after the await recorded a style the picture was
+		// not drawn from.
+		//
+		// Not `styledPageOnScreen`: this one needs its own fetch stub, because the control move has
+		// to happen *inside* the request rather than after it.
+		const { studio } = await savingStudio();
+		putStyleOnControls(studio);
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+
+		let sentHint = '';
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+				sentHint = JSON.parse(String(init?.body)).styleHint;
+				// The reader moves a control while the request is still in flight.
+				studio.selectedThemeId = 'church-glam';
+				studio.glitter = false;
+				return new Response(
+					JSON.stringify({
+						ok: true,
+						value: {
+							prompt: 'the prompt this page was made with',
+							templateVersion: 'v2',
+							images: [
+								{
+									id: 'image-1',
+									format: 'png',
+									mimeType: 'image/png',
+									data: PAGE_STYLE_PNG_BASE64,
+									encoding: 'base64'
+								}
+							],
+							violations: [],
+							recommendedFixes: []
+						}
+					}),
+					{ status: 200, statusText: 'OK' }
+				);
+			})
+		);
+
+		await studio.handleGeneratePage();
+		expect(sentHint).toContain('receipt collage');
+
+		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		await studio.saveToVault();
+
+		// The record matches the hint that was sent, not the controls as they ended up.
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
+	});
+
+	it('regenerates a reopened page with its own wig, not the one left in the carousel', async () => {
+		// `handleGeneratePage` calls `resetGeneratedPage` first, which clears the restored wig
+		// provenance. The theme, voice and glitter survive that reset because they live on the
+		// controls, so the wig has to as well — otherwise the paid request describes a page that is
+		// partly the record's and partly the carousel's.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		await studio.loadCreation(
+			makePicturedCreation({
+				styleSelection: { ...styleSelection, wig: { name: 'Honey Drip', style: 'body wave' } }
+			})
+		);
+		// A wig left selected in the carousel, without the reader picking it since the restore.
+		studio.selectedWig = SAMPLE_WIG;
+
+		let sentHint = '';
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+				sentHint = JSON.parse(String(init?.body)).styleHint;
+				return new Response(
+					JSON.stringify({
+						ok: true,
+						value: {
+							prompt: 'a prompt',
+							templateVersion: 'v2',
+							images: [
+								{
+									id: 'image-1',
+									format: 'png',
+									mimeType: 'image/png',
+									data: PAGE_STYLE_PNG_BASE64,
+									encoding: 'base64'
+								}
+							],
+							violations: [],
+							recommendedFixes: []
+						}
+					}),
+					{ status: 200, statusText: 'OK' }
+				);
+			})
+		);
+
+		await studio.handleGeneratePage();
+
+		expect(sentHint).toContain('featuring Honey Drip (body wave)');
+		expect(sentHint).not.toContain(SAMPLE_WIG.name);
+	});
+
+	it('saves the controls as the style of a page that never generated an image', async () => {
+		// A verdict with no picture is saveable — `assembledPrompt` falls back to the quote — and it
+		// has no artifact snapshot, because only the generate paths take one. Its controls did author
+		// the spec being saved, so they are its style; filing it as "not on file" would report an
+		// unknown for a page whose style is perfectly well known.
+		const { studio, saveSpy } = await savingStudio();
+		putStyleOnControls(studio);
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		expect(studio.assembledPrompt).toBe('');
+		expect(studio.styleSelectionUnknown).toBe(false);
+
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
+	});
+
+	it('still files a reopened page with no stored style as unknown when it is saved again', async () => {
+		// The other side of the case above: here the prompt and picture came from choices nobody
+		// wrote down, so the controls are the reader's and not the page's. Re-saving must not invent
+		// provenance for it.
+		const { studio, saveSpy } = await savingStudio();
+		await studio.loadCreation(makeStyledCreation());
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toBeUndefined();
+	});
+
+	it('does not invent a style for the autosaved draft of a page that has none', async () => {
+		// The sibling of the test above, and the case it did not cover: the vault applies that rule,
+		// the autosaved draft wrote the live controls unconditionally. A draft is restored on every
+		// refresh, so reopening a record with no stored style and waiting for the autosave brought the
+		// page back after a reload wearing the reader's controls as its own — the unknown-style notice
+		// gone, the invented values now restorable, and a later vault save able to pair them with that
+		// record's intent for good.
+		const { studio } = await savingStudio();
+
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		await studio.loadCreation(makeStyledCreation());
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		// `loadCreation` schedules the autosave itself, so this is the draft the reader gets without
+		// touching anything at all.
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+		expect(draftSpy.mock.calls[0][0].draft.styleSelection).toBeUndefined();
+	});
+
+	it('keeps a reopened page on its own wig provenance, even against a live selection', async () => {
+		// `loadCreation` does not clear `selectedWig`, so a reader browsing wigs who then reopens a
+		// page saved without one rebuilt that page's hint with the unrelated live wig.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.selectedWig = SAMPLE_WIG;
+
+		await studio.loadCreation(makePicturedCreation({ styleSelection }));
+
+		// The stored style had no wig, and that is provenance, not absence of information.
+		expect(studio.currentStyleSelection().wig).toBeUndefined();
+		// The try-on studio still shows what the reader was looking at. Compared by id: `selectedWig`
+		// is `$state`, so it comes back as a proxy and is never identical to the source object.
+		expect(studio.selectedWigId).toBe(SAMPLE_WIG.id);
+
+		// Picking a wig is the reader taking it back, and the hint follows again.
+		await studio.selectWigForTryOn(OTHER_WIG);
+		expect(studio.currentStyleSelection().wig).toEqual({
+			name: OTHER_WIG.name,
+			style: OTHER_WIG.style
+		});
+	});
+
+	it('does not send an invisible wig from a reopened page that has no picture', async () => {
+		// A record saved from a verdict before any image was generated still records the live wig, so
+		// its stored style can name one. Reopening it put that wig into the hint while the carousel
+		// showed nothing selectable — the wig cannot go back into the carousel, because it is stored
+		// as `{ name, style }` and not as a catalog entry. So Create Coloring Page sent a wig the
+		// reader could neither see nor change, in a request they pay for.
+		//
+		// With no picture there is no artifact for the reader's selection to contradict, so the
+		// visible selection is the one that counts. The wig provenance now sits inside the same image
+		// guard as the other two snapshots, which is where it always belonged.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		await studio.loadCreation(
+			makeStyledCreation({ styleSelection: { ...styleSelection, wig: { name: 'Stored Wig', style: 'bob' } } })
+		);
+
+		// Nothing is selected on screen, so nothing rides along in the hint.
+		expect(studio.selectedWigId).toBeNull();
+		expect(studio.currentStyleSelection().wig).toBeUndefined();
+
+		// And the reader's own choice still reaches it.
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+		expect(studio.currentStyleSelection().wig).toEqual({
+			name: SAMPLE_WIG.name,
+			style: SAMPLE_WIG.style
+		});
+	});
+
+	it('reports a page whose style is not on file, and stops once a new page is made', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		expect(studio.styleSelectionUnknown).toBe(false);
+
+		await studio.loadCreation(makeStyledCreation());
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		await studio.loadCreation(makeStyledCreation({ styleSelection }));
+		expect(studio.styleSelectionUnknown).toBe(false);
+	});
+
+	it('puts a stored theme that no longer exists onto the control as its fallback', async () => {
+		// The schema accepts an id a later release removed and `themeForSelection` falls back, so
+		// assigning the dead id raw split the panel against itself: the summary named the fallback
+		// while every chip compared against the dead id and reported not-pressed.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		await studio.loadCreation(
+			makeStyledCreation({
+				styleSelection: { ...styleSelection, themeId: 'a-theme-that-was-deleted' }
+			})
+		);
+
+		expect(studio.selectedThemeId).toBe(studioThemes[0].id);
+		expect(studioThemes.some((theme) => theme.id === studio.selectedThemeId)).toBe(true);
+	});
+
+	it('clears a previous settings error when the next change succeeds', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.settingsError = 'something old';
+
+		await studio.syncSpecFromCurrentText('setting');
+
+		expect(studio.settingsError).toBe('');
+	});
+
+	it('saves the paper the picture was drawn for, not the paper the controls now show', async () => {
+		// The style defect one field over: page size and border *are* persisted, but from the live
+		// spec, which `applyTextToSpec` rebuilds on every setting change. So generating on US Letter
+		// with a decorative border, switching to A4 with no border and saving filed the old image,
+		// prompt and downloads under dimensions and a frame that never produced them.
+		const { studio, saveSpy } = await savingStudio();
+
+		studio.pageSize = 'US_Letter';
+		studio.border = 'decorative';
+		await generatePage(studio);
+
+		studio.pageSize = 'A4';
+		studio.border = 'none';
+		await studio.syncSpecFromCurrentText('setting');
+		// The controls and the spec on screen do move — the reader changed them, and the next page
+		// will use them. It is the record that must describe the picture it is saved beside.
+		expect(studio.spec.pageSize).toBe('A4');
+
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.intent.pageSize).toBe('US_Letter');
+		expect(saveSpy.mock.calls[0][0].record.intent.border).toBe('decorative');
+	});
+
+	it('keeps a reopened page filed under its own paper when a control moves', async () => {
+		// The same drift through the other door: a record's paper is in `intent`, so it is known
+		// even for one written before styles were stored, and re-saving must not overwrite it with
+		// whatever the panel says now.
+		const { studio, saveSpy } = await savingStudio();
+
+		await studio.loadCreation(
+			makePicturedCreation({
+				intent: {
+					...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+					title: 'A STYLED PAGE',
+					pageSize: 'A4',
+					border: 'plain'
+				}
+			})
+		);
+		studio.pageSize = 'US_Letter';
+		await studio.syncSpecFromCurrentText('setting');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.intent.pageSize).toBe('A4');
+		expect(saveSpy.mock.calls[0][0].record.intent.border).toBe('plain');
+	});
+
+	it('keeps a reopened image-less page under the controls the reader just moved', async () => {
+		// The mirror of the test above, and the case it was silently standing in for. A record saved
+		// from a verdict before any image was generated has no picture, so there is no artifact for a
+		// later control change to contradict — the reader's change is the only authorship there is.
+		//
+		// Snapshotting the record's intent on reopen made `saveToVault` prefer it over the rebuilt
+		// live spec, so the reader changed Page Size, pressed save, and watched their change go
+		// nowhere with no error and no explanation. Same shape as the snapshots taken on a restored
+		// draft and on a failed generation, corrected two rounds earlier; this was the restore door.
+		const { studio, saveSpy } = await savingStudio();
+
+		await studio.loadCreation(
+			makeStyledCreation({
+				intent: {
+					...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+					title: 'A PAGE WITH NO PICTURE',
+					pageSize: 'A4',
+					border: 'plain'
+				}
+			})
+		);
+		studio.pageSize = 'US_Letter';
+		await studio.syncSpecFromCurrentText('setting');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.intent.pageSize).toBe('US_Letter');
+	});
+
+	it('never files a style and a decoration density that disagree about one picture', async () => {
+		// `decorations` is derived from the style hint rather than chosen, so it is the field the
+		// paper snapshot missed and the one that mattered most: generating under a dense theme,
+		// switching to a minimal one and saving wrote a record whose `styleSelection` said Receipts
+		// and whose `intent.decorations` said minimal, about the same image. A reopen then preserved
+		// that contradiction, and a paid regeneration could be built from it.
+		const { studio, saveSpy } = await savingStudio();
+
+		studio.selectedThemeId = 'receipts';
+		await generatePage(studio);
+		expect(studio.spec.decorations).toBe('dense');
+
+		// Both controls move, because the derivation reads the whole style hint: the default
+		// intensity is `receipts_out`, which puts "receipt" in the hint on its own, so a theme
+		// change alone cannot reach the minimal branch.
+		studio.selectedThemeId = 'crown-energy';
+		studio.voice = { ...studio.voice, intensity: 'no_mercy' };
+		await studio.syncSpecFromCurrentText('theme');
+		expect(studio.spec.decorations).toBe('minimal');
+
+		await studio.saveToVault();
+
+		const record = saveSpy.mock.calls[0][0].record;
+		expect(record.styleSelection?.themeId).toBe('receipts');
+		expect(record.intent.decorations).toBe('dense');
+	});
+
+	it('keeps the dedication the reader typed, which is theirs rather than the artifact’s', async () => {
+		// The one field deliberately taken from the live spec instead of the snapshot. A dedication
+		// entered after generating is on no page either way; silently dropping what the reader just
+		// typed would be a different defect from the one the snapshot removes.
+		const { studio, saveSpy } = await savingStudio();
+
+		await generatePage(studio);
+		studio.handleDedicationInput('For the group chat');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.intent.dedication).toBe('For the group chat');
+	});
+
+	it('leaves no empty dedication key on a record that has none', async () => {
+		// `{ ...spec, dedication: undefined }` keeps the key, and an optional schema accepts it — so
+		// the record would carry a field it does not have.
+		const { studio, saveSpy } = await savingStudio();
+
+		await generatePage(studio);
+		await studio.saveToVault();
+
+		expect('dedication' in saveSpy.mock.calls[0][0].record.intent).toBe(false);
+	});
+
+	it('lets an edited draft save the style it is now wearing', async () => {
+		// A restored draft used to be filed as though an artifact existed: it put its stored style
+		// on the controls *and* recorded it as the page's. Drafts restore no prompt and no image, so
+		// a reader who came back after a refresh, changed a theme and saved got a record holding the
+		// draft's old style beside a spec rebuilt from the new controls.
+		const { studio, saveSpy } = await initFromStoredDraft(styleSelection);
+
+		// The draft's style is on the controls, which is the half that was always right.
+		expect(studio.selectedThemeId).toBe('receipts');
+		// And no page exists, so nothing is reported as having a style that is not on file.
+		expect(studio.styleSelectionUnknown).toBe(false);
+
+		studio.selectedThemeId = 'crown-energy';
+		await studio.syncSpecFromCurrentText('theme');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.styleSelection?.themeId).toBe('crown-energy');
+	});
+
+	it('files nothing under a generation that came back without a picture', async () => {
+		// The prompt is assigned before the no-picture check on purpose, so System Trace still shows
+		// what was asked for. The artifact snapshot must not be: `textOutput` keeps Save to Vault
+		// lit, so saving after the failure filed the failed request's style and spec — and went on
+		// doing so after the reader had moved every control.
+		const { studio, saveSpy } = await savingStudio();
+
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.selectedThemeId = 'receipts';
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(
+				async () =>
+					new Response(
+						JSON.stringify({
+							ok: true,
+							value: {
+								prompt: 'the prompt that produced nothing',
+								templateVersion: 'v2',
+								images: [],
+								violations: [],
+								recommendedFixes: []
+							}
+						}),
+						{ status: 200, statusText: 'OK' }
+					)
+			)
+		);
+		await studio.handleGeneratePage();
+
+		expect(studio.generationError).toContain('without a picture');
+		// The trace kept what was asked for; the panel did not gain a page to describe.
+		expect(studio.assembledPrompt).toBe('the prompt that produced nothing');
+		expect(studio.styleSelectionUnknown).toBe(false);
+
+		studio.selectedThemeId = 'crown-energy';
+		await studio.syncSpecFromCurrentText('theme');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.styleSelection?.themeId).toBe('crown-energy');
+	});
+
+	it('packages the downloads for the paper the picture was drawn on', async () => {
+		// The snapshot kept the record honest; the packaging call was still reading the live spec, so
+		// a Page Size moved while the generation was in flight produced a PDF and a share image for
+		// different paper than the image and the saved intent.
+		const { studio } = await savingStudio();
+		const packageSpy = vi
+			.spyOn(outputPackagingAdapter, 'package')
+			.mockResolvedValue({ ok: true, value: { files: [] } });
+
+		studio.pageSize = 'US_Letter';
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(async () => {
+				// The reader moves Page Size while the request is in flight. Nothing advances
+				// `pageLoadToken`, so the generation is still the one that lands.
+				studio.pageSize = 'A4';
+				await studio.syncSpecFromCurrentText('setting');
+				return new Response(
+					JSON.stringify({
+						ok: true,
+						value: {
+							prompt: 'the prompt this page was made with',
+							templateVersion: 'v2',
+							images: [
+								{
+									id: 'image-1',
+									format: 'png',
+									mimeType: 'image/png',
+									data: PAGE_STYLE_PNG_BASE64,
+									encoding: 'base64'
+								}
+							],
+							violations: [],
+							recommendedFixes: []
+						}
+					}),
+					{ status: 200, statusText: 'OK' }
+				);
+			})
+		);
+
+		await studio.handleGeneratePage();
+
+		expect(studio.spec.pageSize).toBe('A4');
+		expect(packageSpy).toHaveBeenCalled();
+		for (const call of packageSpy.mock.calls) {
+			expect(call[0].pageSize).toBe('US_Letter');
+		}
+	});
+
+	it('describes those downloads as the paper they were made on, not the live setting', async () => {
+		// The other half: packaging for the right paper and then labelling the row from the live spec
+		// presented a US Letter PDF as "A4 — ready to print".
+		const { studio } = await savingStudio();
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: {
+				files: [
+					{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' }
+				]
+			}
+		});
+
+		studio.pageSize = 'US_Letter';
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(async () => {
+				studio.pageSize = 'A4';
+				await studio.syncSpecFromCurrentText('setting');
+				return new Response(
+					JSON.stringify({
+						ok: true,
+						value: {
+							prompt: 'the prompt this page was made with',
+							templateVersion: 'v2',
+							images: [
+								{
+									id: 'image-1',
+									format: 'png',
+									mimeType: 'image/png',
+									data: PAGE_STYLE_PNG_BASE64,
+									encoding: 'base64'
+								}
+							],
+							violations: [],
+							recommendedFixes: []
+						}
+					}),
+					{ status: 200, statusText: 'OK' }
+				);
+			})
+		);
+
+		await studio.handleGeneratePage();
+
+		const printed = studio.pageExports.filter((item) => item.kind === 'print');
+		expect(printed.length).toBeGreaterThan(0);
+		for (const item of printed) {
+			expect(item.purpose).toContain('US Letter');
+			expect(item.purpose).not.toContain('A4');
+		}
+	});
+
+	it('does not send a draft’s wig on a generation the reader cannot see it in', async () => {
+		// A restored draft used to put its stored wig into `restoredStyleWig`, which has no control
+		// of its own — the carousel reads `selectedWig`, which stays null. `handleGeneratePage` reads
+		// that fallback before the reset clears it, so a refresh could spend a paid generation on a
+		// wig chosen invisibly.
+		const { studio } = await initFromStoredDraft({
+			...styleSelection,
+			wig: { name: 'Honey Drip', style: 'body wave' }
+		});
+
+		// Nothing on screen names a wig.
+		expect(studio.selectedWig).toBeNull();
+
+		await generatePage(studio);
+
+		const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[][] } };
+		const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as {
+			styleHint: string;
+		};
+		expect(body.styleHint).not.toContain('Honey Drip');
+	});
+
+	it('still sends a reopened page’s own wig, which is on the paper', async () => {
+		// The other half of the same rule: a vault record's wig belongs to a page that exists, so
+		// regenerating it must keep that wig rather than reach for the carousel.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		await studio.loadCreation(
+			makePicturedCreation({
+				styleSelection: { ...styleSelection, wig: { name: 'Honey Drip', style: 'body wave' } }
+			})
+		);
+		await generatePage(studio);
+
+		const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[][] } };
+		const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as {
+			styleHint: string;
+		};
+		expect(body.styleHint).toContain('Honey Drip');
+	});
+
+	it('files a page saved before any generation under the controls that authored it', async () => {
+		// The fallback the snapshot leaves in place. Nothing was generated, so there is no artifact
+		// for the controls to disagree with — they *are* this page's paper.
+		const { studio, saveSpy } = await savingStudio();
+
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.intent.pageSize).toBe('A4');
+	});
+
+	it('stops the Glitter checkbox restyling a page that is already on the paper', async () => {
+		// The preview draws its sparkle overlay from this. Bound to the live checkbox, it made the
+		// panel's own promise — a finished page keeps the look it was made with — false on screen.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		// With no page on the paper the overlay previews the setting, which is the one moment it is
+		// honest for it to follow the checkbox.
+		expect(studio.pageGlitter).toBe(false);
+		studio.glitter = true;
+		expect(studio.pageGlitter).toBe(true);
+
+		studio.glitter = false;
+		await generatePage(studio);
+		expect(studio.pageGlitter).toBe(false);
+
+		studio.glitter = true;
+		expect(studio.pageGlitter).toBe(false);
+	});
+
+	it('shows no glitter over a page whose style is not on file', async () => {
+		// The live checkbox over somebody else's picture is a claim about it, and the panel is
+		// already telling the reader that claim cannot be made.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.glitter = true;
+
+		await studio.loadCreation(makePicturedCreation());
+
+		expect(studio.styleSelectionUnknown).toBe(true);
+		expect(studio.pageGlitter).toBe(false);
+	});
+
+	it('gives the page back its own glitter when it is on file', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.glitter = false;
+
+		await studio.loadCreation(makePicturedCreation({ styleSelection }));
+
+		expect(studio.pageGlitter).toBe(true);
+	});
+
+	it('reports a check that ran and failed beside the controls, not only in the trace', async () => {
+		// `validateSpec` resolves with `{ ok: false, issues }` for an ordinary contract failure, and
+		// `applyTextToSpec` dropped that boolean — so the common failure reached the reader only in
+		// System Trace, the panel this run took a settings failure out of. `settingsError` covers
+		// the other case, a check that could not be run at all.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		vi.spyOn(specValidationAdapter, 'validate').mockResolvedValue({
+			ok: false,
+			issues: [{ code: 'title_too_long', field: 'title', message: 'Title is too long.' }]
+		});
+
+		await studio.syncSpecFromCurrentText('setting');
+
+		expect(studio.settingsIssues).toEqual(['Title is too long.']);
+		expect(studio.settingsError).toBe('');
+	});
+
+	it('clears the reported issues once the next change passes its check', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.settingsIssues = ['something old'];
+
+		await studio.syncSpecFromCurrentText('setting');
+
+		expect(studio.settingsIssues).toEqual([]);
+	});
+
+	it('does not park another panel’s findings under Page Controls', async () => {
+		// `validationIssues` is written by every path that validates — a generation, a reopen. Only
+		// a change made from this panel belongs in the panel's own error region, and the report of a
+		// change to the page being replaced does not outlive that page.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		vi.spyOn(specValidationAdapter, 'validate').mockResolvedValue({
+			ok: false,
+			issues: [{ code: 'title_too_long', field: 'title', message: 'Title is too long.' }]
+		});
+
+		// The panel genuinely reports a complaint about the page that is about to be replaced,
+		// rather than the test assigning one. `settingsIssues` is derived now, so a forged value is
+		// no longer even expressible — which is the point of the derivation, and means this test
+		// reaches the state the way the reader does.
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.settingsIssues).toEqual(['Title is too long.']);
+
+		await studio.loadCreation(makeStyledCreation({ styleSelection }));
+
+		expect(studio.validationIssues).toHaveLength(1);
+		expect(studio.settingsIssues).toEqual([]);
+		expect(studio.settingsError).toBe('');
+	});
+
+	it('stops reporting a settings failure the reader has since fixed', async () => {
+		// The panel's report was a copy taken at one moment, and a copy cannot follow its source. An
+		// over-long dedication found by a Page Controls change stayed printed under the controls
+		// after the reader went and fixed the dedication — the check now passes, `validationIssues`
+		// is empty, and the panel was still insisting the page failed it. That is this run's own
+		// defect inside this run's own reporting.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		studio.handleDedicationInput('D'.repeat(MAX_DEDICATION_LENGTH + 1));
+		await vi.waitFor(() => expect(studio.validationIssues.length).toBeGreaterThan(0));
+
+		// A Page Control moves, and the panel correctly says the page does not pass its check.
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.settingsIssues.length).toBeGreaterThan(0);
+
+		// The reader fixes the thing it complained about, somewhere else entirely.
+		studio.handleDedicationInput('For Meechie');
+		await vi.waitFor(() => expect(studio.validationIssues).toEqual([]));
+
+		expect(studio.settingsIssues).toEqual([]);
+	});
+
+	it('stops saying a control change could not be checked once a check has run', async () => {
+		// `settingsError` is the other half of the panel's report, and it goes stale the same way.
+		// It says "that change was not *checked*", which stops being true the moment something else
+		// checks the spec — and only the next Page Controls change cleared it, so the sentence could
+		// outlive its own subject on a page that had since been validated twice.
+		//
+		// Found by mutation rather than by review: dropping the clear left the whole suite green,
+		// which is the same as not having written it.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		const validate = vi
+			.spyOn(specValidationAdapter, 'validate')
+			.mockRejectedValue(new Error('spec rebuild exploded'));
+
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.settingsError).toBe('spec rebuild exploded');
+
+		// The seam recovers, and the reader's next edit gets a real answer about the spec.
+		validate.mockRestore();
+		studio.handleDedicationInput('For Meechie');
+		await vi.waitFor(() => expect(studio.settingsError).toBe(''));
+	});
+
+	it('does not adopt a failure the reader caused somewhere else after a control passed', async () => {
+		// The other half of deriving the report, and the half that keeps the derivation from
+		// undoing an earlier fix. `settingsIssues` follows `validationIssues` now, so without a rule
+		// saying when the panel stops answering, a control change that *passed* would leave the
+		// panel wired to the live check — and the next failure from anywhere else, an over-long
+		// dedication typed into a different box, would print itself under a row of controls the
+		// reader had not touched. That is precisely the misattribution this run already removed
+		// once.
+		//
+		// So `validateSpec` drops the claim whenever any check begins, and the panel's handler takes
+		// it back after its own rebuild returns.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		// A Page Control moves and the page passes, so the panel is answering and has nothing to say.
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		expect(studio.settingsIssues).toEqual([]);
+
+		// The reader breaks the page from the dedication box instead.
+		studio.handleDedicationInput('D'.repeat(MAX_DEDICATION_LENGTH + 1));
+		await vi.waitFor(() => expect(studio.validationIssues.length).toBeGreaterThan(0));
+
+		// Reported where it happened, not under the controls.
+		expect(studio.settingsIssues).toEqual([]);
+	});
+
+	it('lets the reader give a style-less restored page a style of its own', async () => {
+		// A review's finding against my own decline of it, and the decline was wrong. "Never invent
+		// provenance" had become "never record it": a draft written before styles were stored could
+		// never acquire one, so every autosave wrote `undefined` and every refresh threw away the
+		// theme the reader had just picked. Permanently, on a page with no picture whose look is
+		// entirely that choice — worse than the over-report it was protecting against.
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-01T00:00:00.000Z',
+			intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A LEGACY DRAFT' }
+		});
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		// The reader picks a theme. There is no picture, so nothing on the paper contradicts them.
+		draftSpy.mockClear();
+		studio.selectedThemeId = 'receipts';
+		await studio.syncSpecFromCurrentText('theme');
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		// The notice goes, because the answer is now known.
+		expect(studio.styleSelectionUnknown).toBe(false);
+		// And the choice reaches the draft, so the next refresh keeps it.
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection?.themeId).toBe('receipts');
+	});
+
+	it('still refuses the controls as provenance for a restored picture, however deliberate', async () => {
+		// The other side of the rule above, and the reason it is a comparison rather than "the panel
+		// fired". A restored page that HAS a picture cannot be re-authored from the controls: the
+		// image and the prompt came from choices nobody wrote down, and moving a theme afterwards
+		// does not make it the theme that drew them. The reader's route to authoring this page is to
+		// make it again.
+		const { studio, saveSpy } = await savingStudio();
+		await studio.loadCreation(makePicturedCreation());
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		studio.selectedThemeId = 'receipts';
+		await studio.syncSpecFromCurrentText('theme');
+
+		expect(studio.styleSelectionUnknown).toBe(true);
+		await studio.saveToVault();
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toBeUndefined();
+	});
+
+	it('reads re-picking the theme already showing as the reader adopting it', async () => {
+		// The one authorship a comparison cannot see, and the reason `SettingChangeSource` has a
+		// `theme` value at all: clicking the chip that is already active leaves every field
+		// identical and is still the reader asking for that theme.
+		//
+		// It lands on exactly the case the supersede exists for. A reader with a non-default theme
+		// up opens a legacy record, decides to keep that theme for it, and clicks it — the most
+		// direct way to say so — and the equality test called it no choice at all. The autosave kept
+		// writing `undefined` and the refresh still lost the theme.
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-01T00:00:00.000Z',
+			intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A LEGACY DRAFT' }
+		});
+		const alreadyShowing = studio.selectedThemeId;
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		// The reader clicks the theme that is already active. Nothing measurable changes.
+		draftSpy.mockClear();
+		await studio.syncSpecFromCurrentText('theme');
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		expect(studio.selectedThemeId).toBe(alreadyShowing);
+		expect(studio.styleSelectionUnknown).toBe(false);
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection?.themeId).toBe(alreadyShowing);
+	});
+
+	it('does not record a theme click whose rebuild never succeeded', async () => {
+		// The claim is recorded after the rebuild returns, not when the click arrives, and nothing
+		// pinned that until a mutation moved it to the top of the handler and the whole suite stayed
+		// green. A click whose spec did not survive its own check has not authored anything — there
+		// is no page built from that theme to be the style of.
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-01T00:00:00.000Z',
+			intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A LEGACY DRAFT' }
+		});
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		vi.spyOn(specValidationAdapter, 'validate').mockRejectedValue(
+			new Error('spec rebuild exploded')
+		);
+		await studio.syncSpecFromCurrentText('theme');
+
+		expect(studio.settingsError).toBe('spec rebuild exploded');
+		expect(studio.styleSelectionUnknown).toBe(true);
+	});
+
+	it('reads re-picking the wig already selected as the reader adopting it', async () => {
+		// The theme's sibling, and a review found it the moment the theme flag existed: the wig
+		// reaches the style hint the same way and is re-picked the same way, so a flag named for one
+		// of the two controls just invites the other to be forgotten. It is named for what it means
+		// now — the reader claimed this style — rather than for which widget said so.
+		const { studio } = await savingStudio();
+		// The wig is up BEFORE the record is opened, which is the case the finding describes and the
+		// only way to isolate it: the baseline is captured at the restore, so a wig selected
+		// afterwards is already a measurable change and would supersede on the comparison alone.
+		studio.selectedWig = SAMPLE_WIG;
+
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		await studio.loadCreation(makeStyledCreation());
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		// Re-picking the wig already selected changes no value a comparison could see.
+		draftSpy.mockClear();
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		expect(studio.styleSelectionUnknown).toBe(false);
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection?.wig).toEqual({
+			name: SAMPLE_WIG.name,
+			style: SAMPLE_WIG.style
+		});
+	});
+
+	it('keeps a style the reader settled on after moving a control and putting it back', async () => {
+		// The third hole a review found in the same rule, and the one that made the rule wrong rather
+		// than incomplete. Toggle Glitter on, look at it, toggle it off again: the values now equal
+		// the controls as restored, so a comparison says nothing was chosen — and the reader has in
+		// fact settled on exactly this style, deliberately.
+		//
+		// The comparison is gone. Touching a style control is the claim.
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-01T00:00:00.000Z',
+			intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A LEGACY DRAFT' }
+		});
+		const settledGlitter = studio.glitter;
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		draftSpy.mockClear();
+		studio.glitter = !settledGlitter;
+		await studio.syncSpecFromCurrentText('style');
+		studio.glitter = settledGlitter;
+		await studio.syncSpecFromCurrentText('style');
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		expect(studio.glitter).toBe(settledGlitter);
+		expect(studio.styleSelectionUnknown).toBe(false);
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection?.glitter).toBe(settledGlitter);
+	});
+
+	it('does not read a moved page size as a style the reader chose', async () => {
+		// Page size and border reach the studio through the same handler as the theme and are not
+		// style — they live in the intent. So the supersede is a comparison against the controls as
+		// restored, not "the settings panel fired": otherwise moving the paper size would write the
+		// untouched default theme down as a deliberate choice, which is the invention the whole
+		// field exists to prevent.
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-01T00:00:00.000Z',
+			intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A LEGACY DRAFT' }
+		});
+
+		draftSpy.mockClear();
+		studio.pageSize = 'A4';
+		await studio.syncSpecFromCurrentText('setting');
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		expect(studio.styleSelectionUnknown).toBe(true);
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection).toBeUndefined();
+		// The paper choice itself is saved, through the field that always carried it.
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.intent.pageSize).toBe('A4');
+	});
+
+	it('does not treat a draft that stored no style as wearing the controls it comes back to', async () => {
+		// The `loadCreation` rule, missing from the other restore path. Every draft written before
+		// `styleSelection` existed has none, and leaving the flag false made the studio read whatever
+		// the controls happened to say as that draft's own style — so the next autosave wrote those
+		// values down beside a restored intent they did not author, and the refresh after that
+		// applied them. Invented provenance in two steps, from a draft that recorded none.
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-01T00:00:00.000Z',
+			intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A LEGACY DRAFT' }
+		});
+
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		// And the autosave says so rather than filling the gap in.
+		draftSpy.mockClear();
+		studio.handleDedicationInput('For Meechie');
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection).toBeUndefined();
 	});
 });
 

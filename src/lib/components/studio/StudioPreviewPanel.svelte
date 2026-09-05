@@ -2,6 +2,13 @@
 Purpose: Coloring-page preview paper, generate/download/copy/vault actions.
 Why: Extracted from +page.svelte; parent owns state, this component is purely presentational.
 Info flow: Parent passes derived image data and callbacks; user actions propagate via callbacks.
+Critical invariant: the paper on screen shows the page's OWN look, never the live controls'. `glitter`
+     here is the finished page's glitter — `pageGlitter` in the parent — not the Glitter checkbox.
+     This was bound straight to the checkbox, so with a generated page up, ticking the box visibly
+     restyled a picture nobody had remade, while the settings panel promised the opposite one panel
+     over. Any other look this paper grows must come from the artifact the same way: a value read off
+     a control here is a claim about a page that control did not make. With no page on the paper the
+     controls are correct to show through, because there the paper is a preview of the next one.
 -->
 <script lang="ts">
 	import { getStudioAction } from '$lib/core/meechie-studio';
@@ -38,6 +45,13 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 		copyStatus: string;
 		vaultStatus: string;
 		canSaveToVault: boolean;
+		/**
+		 * Whether the paper wears the sparkle overlay.
+		 *
+		 * The *page's* glitter, not the Glitter checkbox's. The parent decides which of those two it
+		 * is (see `pageGlitter` in `studio-state.svelte.ts`); this was bound straight to the live
+		 * control, so toggling it restyled a finished page on screen.
+		 */
 		glitter: boolean;
 		activeTheme: StudioTheme;
 		onGeneratePage: () => Promise<void>;

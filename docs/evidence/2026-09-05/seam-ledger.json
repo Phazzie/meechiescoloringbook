@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-09-05T19:36:41.928Z",
+  "generatedAt": "2026-09-05T20:05:25.518Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -309,7 +309,7 @@
     {
       "seam": "CreationStoreSeam",
       "owner": "hbpheonix",
-      "lastProbe": "2026-02-05",
+      "lastProbe": "2026-09-05",
       "status": "ok",
       "checks": [
         {
@@ -347,7 +347,7 @@
     {
       "seam": "CreationStoreSeam (self-contained)",
       "owner": "hbpheonix",
-      "lastProbe": "N/A",
+      "lastProbe": "2026-09-05",
       "status": "ok",
       "checks": [
         {
