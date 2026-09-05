@@ -38,6 +38,26 @@ const SAMPLE_WIG: Wig = {
 	tags: []
 };
 
+const OTHER_WIG: Wig = {
+	...SAMPLE_WIG,
+	id: 'wig-2',
+	name: 'Second Wig'
+};
+
+/**
+ * Puts a studio on a wig that already has a portrait. `tryOnPortraitUrl` is derived from the
+ * portraits made so far and the wig on screen, so a test cannot assign it directly any more —
+ * which is the point: it can no longer drift from the wig it is labelled with.
+ */
+const arrangeTryOnPortrait = (
+	studio: StudioState,
+	portraitUrl: string,
+	wig: Wig = SAMPLE_WIG
+): void => {
+	studio.selectedWig = wig;
+	studio.tryOnPortraits = [{ wig, portraitUrl }];
+};
+
 const LEGACY_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	verdict: 'Meechie already clocked it.',
 	quote: "He said I act like I run the place. I don't act.",
@@ -425,7 +445,7 @@ describe('StudioState', () => {
 
 	it('clears a previously generated coloring page when a new try-on is requested', async () => {
 		const studio = new StudioState();
-		studio.selectedWigId = 'wig-1';
+		studio.selectedWig = SAMPLE_WIG;
 		studio.selfieBase64 = 'selfie-bytes';
 		studio.images = [
 			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
@@ -464,9 +484,7 @@ describe('StudioState', () => {
 
 	it('preserves the current try-on portrait and coloring page when the already-selected wig card is reselected', async () => {
 		const studio = new StudioState();
-		studio.selectedWigId = SAMPLE_WIG.id;
-		studio.selectedWig = SAMPLE_WIG;
-		studio.tryOnPortraitUrl = 'data:image/png;base64,ZmFrZQ==';
+		arrangeTryOnPortrait(studio, 'data:image/png;base64,ZmFrZQ==');
 		studio.images = [
 			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
 		];
@@ -487,7 +505,7 @@ describe('StudioState', () => {
 			ok: true,
 			value: { files: [] }
 		});
-		studio.tryOnPortraitUrl = 'data:image/jpeg;base64,/9j/4AAQ';
+		arrangeTryOnPortrait(studio, 'data:image/jpeg;base64,/9j/4AAQ');
 
 		await studio.handleGenerateTryOnPage();
 
@@ -501,7 +519,7 @@ describe('StudioState', () => {
 			ok: true,
 			value: { files: [] }
 		});
-		studio.tryOnPortraitUrl = 'data:image/webp;base64,d2VicA==';
+		arrangeTryOnPortrait(studio, 'data:image/webp;base64,d2VicA==');
 
 		await studio.handleGenerateTryOnPage();
 
@@ -513,6 +531,171 @@ describe('StudioState', () => {
 			data: 'd2VicA==',
 			encoding: 'base64'
 		});
+	});
+});
+
+describe('StudioState wig try-on comparison', () => {
+	const PNG_PORTRAIT = 'data:image/png;base64,ZmFrZQ==';
+	const OTHER_PORTRAIT = 'data:image/png;base64,b3RoZXI=';
+
+	const portraitResponse = (base64: string): Response =>
+		new Response(
+			JSON.stringify({
+				ok: true,
+				value: { portraitBase64: base64, portraitMimeType: 'image/png' }
+			}),
+			{ status: 200, statusText: 'OK' }
+		);
+
+	/**
+	 * Starts a try-on for SAMPLE_WIG, moves the reader onto OTHER_WIG while the request is still
+	 * in flight, and only then lets the response land. That window is the whole subject of the two
+	 * tests below: it is where a late result used to attach itself to whichever wig happened to be
+	 * on screen when it arrived.
+	 */
+	const tryOnThenMoveOnBeforeItLands = async (
+		studio: StudioState,
+		response: Response
+	): Promise<void> => {
+		studio.selectedWig = SAMPLE_WIG;
+		studio.selfieBase64 = 'selfie-bytes';
+		let release: (value: Response) => void = () => {};
+		const pending = new Promise<Response>((resolve) => {
+			release = resolve;
+		});
+		vi.stubGlobal('fetch', vi.fn().mockReturnValue(pending));
+
+		const inFlight = studio.handleWigTryOn();
+		studio.selectedWig = OTHER_WIG;
+		release(response);
+		await inFlight;
+	};
+
+	const failedTryOnResponse = (): Response =>
+		new Response(
+			JSON.stringify({
+				ok: false,
+				error: { code: 'WIG_TRY_ON_FAILED', message: 'Styling failed.' }
+			}),
+			{ status: 200, statusText: 'OK' }
+		);
+
+	it('keeps the previous wig\'s portrait when another wig is selected, and shows it again on return', async () => {
+		const studio = new StudioState();
+		studio.selfieBase64 = 'selfie-bytes';
+		studio.tryOnPortraits = [{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT }];
+		studio.selectedWig = SAMPLE_WIG;
+		expect(studio.tryOnPortraitUrl).toBe(PNG_PORTRAIT);
+
+		await studio.selectWigForTryOn(OTHER_WIG);
+
+		// The other wig has no portrait yet, so the result panel is empty for it...
+		expect(studio.tryOnPortraitUrl).toBe('');
+		// ...but the first wig's portrait was not destroyed, which is what made comparing two
+		// wigs impossible.
+		expect(studio.tryOnPortraits).toHaveLength(1);
+
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+
+		expect(studio.tryOnPortraitUrl).toBe(PNG_PORTRAIT);
+	});
+
+	it('drops every portrait when a new selfie is uploaded, because they are all of the old face', () => {
+		const studio = new StudioState();
+		studio.selectedWig = SAMPLE_WIG;
+		studio.tryOnPortraits = [
+			{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT },
+			{ wig: OTHER_WIG, portraitUrl: OTHER_PORTRAIT }
+		];
+
+		studio.setSelfieForTryOn('new-selfie-bytes', 'image/png');
+
+		expect(studio.tryOnPortraits).toEqual([]);
+		expect(studio.tryOnPortraitUrl).toBe('');
+	});
+
+	it('shows the compare strip only once there are two looks to choose between', () => {
+		const studio = new StudioState();
+		expect(studio.canCompareTryOns).toBe(false);
+		studio.tryOnPortraits = [{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT }];
+		expect(studio.canCompareTryOns).toBe(false);
+		studio.tryOnPortraits = [
+			{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT },
+			{ wig: OTHER_WIG, portraitUrl: OTHER_PORTRAIT }
+		];
+		expect(studio.canCompareTryOns).toBe(true);
+	});
+
+	it('files a late portrait under the wig it was requested for, not the wig now on screen', async () => {
+		const studio = new StudioState();
+
+		await tryOnThenMoveOnBeforeItLands(studio, portraitResponse('ZmFrZQ=='));
+
+		expect(studio.tryOnPortraits).toEqual([{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT }]);
+		// The wig on screen never had a portrait made, so it must not be wearing someone else's.
+		expect(studio.tryOnPortraitUrl).toBe('');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('does not show a try-on failure for a wig the reader has already moved off', async () => {
+		const studio = new StudioState();
+
+		await tryOnThenMoveOnBeforeItLands(studio, failedTryOnResponse());
+
+		expect(studio.tryOnError).toBe('');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('still shows a try-on failure for the wig that is on screen', async () => {
+		const studio = new StudioState();
+		studio.selectedWig = SAMPLE_WIG;
+		studio.selfieBase64 = 'selfie-bytes';
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(failedTryOnResponse()));
+
+		await studio.handleWigTryOn();
+
+		expect(studio.tryOnError).toBe('Styling failed.');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('replaces a re-tried wig in place, so the compare strip does not reshuffle', async () => {
+		const studio = new StudioState();
+		studio.selfieBase64 = 'selfie-bytes';
+		studio.tryOnPortraits = [
+			{ wig: SAMPLE_WIG, portraitUrl: PNG_PORTRAIT },
+			{ wig: OTHER_WIG, portraitUrl: OTHER_PORTRAIT }
+		];
+		studio.selectedWig = SAMPLE_WIG;
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(portraitResponse('cmVkb25l')));
+
+		await studio.handleWigTryOn();
+
+		expect(studio.tryOnPortraits.map((entry) => entry.wig.id)).toEqual([
+			SAMPLE_WIG.id,
+			OTHER_WIG.id
+		]);
+		expect(studio.tryOnPortraits[0].portraitUrl).toBe('data:image/png;base64,cmVkb25l');
+
+		vi.unstubAllGlobals();
+	});
+
+	it('names a try-on coloring page after its wig instead of the demo default', async () => {
+		const studio = new StudioState();
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: { files: [] }
+		});
+		// No verdict has ever been generated, so the spec still carries the seed title.
+		expect(studio.spec.title).toBe(DEFAULT_STUDIO_TEXT_OUTPUT.pageTitle);
+		arrangeTryOnPortrait(studio, PNG_PORTRAIT);
+
+		await studio.handleGenerateTryOnPage();
+
+		expect(studio.spec.title).toBe('Wig Try-On - Sample Wig');
+		expect(studio.assembledPrompt).toContain(SAMPLE_WIG.name);
 	});
 });
 
@@ -1282,5 +1465,50 @@ describe('StudioState quote vault', () => {
 		await refreshed.syncSpecFromCurrentText();
 		expect(refreshed.spec.listMode).toBe('list');
 		expect(refreshed.spec.footerItem).toBeUndefined();
+	});
+
+	/**
+	 * A coloring page made from a wig try-on has no verdict behind it, and used to be the one page
+	 * in the app the vault would not take: the button was disabled on `textOutput` alone, so the
+	 * portrait the reader had paid a generation for died with the tab.
+	 */
+	it('saves a try-on coloring page that has no verdict behind it', async () => {
+		const studio = await initVault([]);
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: { files: [] }
+		});
+		studio.selectedWig = SAMPLE_WIG;
+		studio.tryOnPortraits = [{ wig: SAMPLE_WIG, portraitUrl: 'data:image/png;base64,ZmFrZQ==' }];
+
+		await studio.handleGenerateTryOnPage();
+
+		expect(studio.textOutput).toBeNull();
+		expect(studio.canSaveToVault).toBe(true);
+
+		await studio.saveToVault();
+
+		expect(studio.vaultStatus).toBe('Saved to the quote vault.');
+		expect(studio.creations).toHaveLength(1);
+		const saved = studio.creations[0];
+		expect(saved.intent.title).toBe('Wig Try-On - Sample Wig');
+		// No verdict, so no studio text on the record — the shape `loadCreation` already handles.
+		expect(saved.studioText).toBeUndefined();
+		// And the required prompt describes the page rather than carrying machine instructions,
+		// which `loadCreation` would otherwise put in the evidence box as the reader's own words.
+		expect(saved.assembledPrompt).toContain(SAMPLE_WIG.name);
+		expect(saved.assembledPrompt).not.toContain('NEGATIVE PROMPT');
+		expect(saved.images?.[0]?.b64).toBe('ZmFrZQ==');
+	});
+
+	it('still refuses to save when there is neither a verdict nor a page', async () => {
+		const studio = await initVault([]);
+
+		expect(studio.canSaveToVault).toBe(false);
+
+		await studio.saveToVault();
+
+		expect(studio.vaultStatus).toBe('Make a page before saving it.');
+		expect(studio.creations).toHaveLength(0);
 	});
 });

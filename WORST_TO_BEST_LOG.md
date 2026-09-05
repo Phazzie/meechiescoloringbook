@@ -3717,3 +3717,169 @@ inherited without re-measuring would be exactly that mistake wearing a confident
 Both new guards proven by mutation: removing the dedication clear fails with
 `Received "For the group chat"`, and removing `overflow-x: clip` fails with
 `/m/who-fucked-up pans sideways by 32px`.
+
+---
+
+## Run 5 — 2026-09-05 — The Wig Try-On (catalog, try-on, and what happens to the result)
+
+**Branch:** `claude/great-bell-koj4d9`
+
+### The feature, and why it was the worst
+
+The Wig Try-On is the app's shop. It is the only feature that sells something — every card carries
+an affiliate link to one of three programs — and the only one that puts the reader's own face on the
+page. It sits on the home page under "Style Your Look".
+
+Three runs passed it over, each citing the one before: run 1 ("works, and was already repaired in
+the v1.1 recovery"), run 3 ("works, and was repaired in the v1.1 recovery"), run 4 ("it has its own
+styling, error surfacing, a download and a 'Make It a Coloring Page' button, so it is a complete
+feature"). Run 4's own log warns that an inherited claim is not evidence. It was re-measured rather
+than re-inherited, and the claim does not survive contact with the files.
+
+Concretely, on `main` at `1dab4cf`:
+
+1. **The catalog bypassed the seam it already owns.** `WigCarousel.svelte` opened with
+   `import wigData from '$lib/data/wigs.json'` and `Array.isArray(wigData) ? (wigData as unknown as
+   Wig[]) : []`, under a comment reading *"Validate shape at runtime; validators run at adapter
+   layer, not here."* The adapter it defers to — `src/lib/adapters/wig-catalog-seam/index.ts`, with
+   `validateWigCatalog`, a zod schema, and caching — **was never called by the UI at all.** In a
+   repository whose whole governance is that external data flows through seams, the one screen that
+   reads a data file read it raw and cast the result.
+2. **Its three error codes could not reach a reader.** `WIG_CATALOG_LOAD_FAILED`,
+   `WIG_CATALOG_EMPTY` and `WIG_NOT_FOUND` are defined in the contract and produced by the adapter.
+   With the adapter bypassed, a malformed or empty `wigs.json` rendered as an empty horizontal row
+   and no message — the same silent-failure shape run 1 named as the vault's worst sin.
+3. **The shop had no shopping in it.** Every wig carries `brand`, `hairType`, `length`, `color`,
+   `colorFamily`, `priceUsd` and five tags — 36 distinct tags across eight wigs, three brands, two
+   hair types, three lengths, five colour families, $59.99 to $149.99. The card showed brand, name,
+   style and price. There was **no search, no filter and no sort of any kind.** A schema built for
+   browsing, with the browsing left out.
+4. **Trying on a second wig destroyed the first.** `tryOnPortraitUrl` was a single string and
+   `selectWigForTryOn` cleared it on every change of wig. The entire point of a try-on is choosing
+   between looks, and the feature could never show two — at the price of one AI image generation
+   each.
+5. **A late portrait landed under the wrong wig.** The request is slow enough to switch wigs during,
+   and the response wrote to that one shared string with no check on what had been asked for. The
+   portrait then rendered under `alt="AI illustration of you wearing {selectedWig.name}"` — a
+   picture of one wig, labelled as another.
+6. **The page made from a portrait was the one page in the app the vault would not take.** After
+   runs 1–4 every other surface reaches the Quote Vault. `saveToVault` returned early on
+   `!textOutput`, and the button was disabled on the same condition; a try-on page has no verdict
+   behind it, so the reader's portrait died with the tab. Had it been savable, it would have gone in
+   titled **"THE LANDLORD"** — the demo seed title, because nothing ever set a real one.
+
+Runners-up considered and passed over:
+
+- **`ChatInterpretationSeam`** — a complete seam (contract, probe, fixtures, mock, contract test,
+  adapter) behind `/api/chat-interpretation`, with **no UI anywhere**; `CHANGELOG.md` records a
+  "chat stub" that was removed. Genuinely dead weight, but by this log's own rule an unreachable
+  feature costs a real user nothing. It is a wiring job or a deletion, not a rebuild.
+- **`.github/workflows/verify.yml` on `[push, pull_request]`**, still doubling every CI run. Still
+  real, still cheap, still its own small PR.
+
+### Plan (per `AGENTS.md` "Plan + Self-Critique")
+
+Recorded in `plan.md` under "The Wig Try-On becomes a shop you can browse and a try-on you can keep
+(2026-09-05)" before any code was written.
+
+- **Goal:** the catalog loads through its own seam and says so when it cannot; it can be searched,
+  filtered and sorted on the metadata it already carries; a second wig stops destroying the first;
+  and a page made from a portrait reaches the vault like every other page.
+- **Seams touched: none.** `WigCatalogSeam` is *consumed* through its existing adapter exactly as
+  `/api/wig-try-on` already consumes it, and `CreationStoreSeam`, `SpecValidationSeam` and
+  `OutputPackagingSeam` through the adapters `studio-state.svelte.ts` already calls. Nothing under
+  `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or
+  `src/lib/seams/` is in the diff, and no contract shape changed. The change moves the UI *onto* a
+  seam it was bypassing; it does not alter the seam. No Cipher Gate entry required.
+- **Files:** `src/lib/core/wig-catalog-gallery.ts` (new), `src/lib/components/WigCarousel.svelte`,
+  `src/lib/components/studio/WigTryOnStudio.svelte`, `src/lib/components/studio/StudioPreviewPanel.svelte`,
+  `src/routes/studio-state.svelte.ts`, `src/routes/+page.svelte`,
+  `tests/unit/wig-catalog-gallery.test.ts` (new), `tests/unit/studio-state.test.ts`,
+  `tests/e2e/smoke.spec.ts`, plus the governance docs.
+
+### What it is now
+
+- **Loaded through `WigCatalogSeam`.** A load failure prints what failed; an empty catalog says so.
+- **Searchable** across name, brand, style, colour, colour family, hair type, length and tags, with
+  terms ANDed and matched as substrings, so "long" also finds extra-long.
+- **Filterable** on length, hair type and colour family — OR within a dimension, AND across them —
+  with chips built from the values the catalog actually contains, so a chip for a length no wig has
+  never appears.
+- **Sortable**: featured, price both ways, name. Price ties break by name in *both* directions, so
+  the order is total rather than stable by accident.
+- **Comparable.** Portraits are kept per wig, so a second look no longer destroys the first, and a
+  strip of every look made from the current selfie puts the reader back on any of them. A new selfie
+  drops all of them, because they are all of the old face.
+- **Keepable.** A try-on page is titled after its wig and can be saved to the vault with no verdict
+  behind it.
+- 37 new unit tests for the catalog transforms, 8 new for the try-on state, 2 new e2e tests.
+
+### The counts had to be honest, and that was the whole design
+
+The easy version of a facet count is "how many wigs in the catalog have this value". It is one line
+shorter and it lies. Two of the eight wigs are synthetic, and neither is black; four are black and
+none is synthetic. With **Synthetic** selected, a catalog-wide count renders **"Black 4"** — a chip
+promising four results that returns nothing when tapped.
+
+That is the same defect as run 1's decorative favourite pin and this run's own finding 3: a control
+that describes itself falsely. So each count is computed against the search and every *other*
+dimension, and a value whose count is 0 is disabled rather than offered. The e2e test asserts
+exactly that chip: with Synthetic selected, **Black reads 0 and cannot be clicked.**
+
+A property test pins the promise rather than one example — for every colour chip, the count equals
+the number of results selecting it actually returns. Removing the cross-filtering fails three tests,
+including that one.
+
+### The staleness bug that was found by fixing something else
+
+Finding 5 was not on the list when the work started. It surfaced while keying portraits by wig:
+once a portrait has to be filed *somewhere*, the question "under which wig?" has to be answered, and
+the honest answer is the wig that was requested, not the wig now on screen. The single shared string
+had made the question unaskable, which is why the bug survived four runs of review. The wig is now
+captured before the `await`, and a failure is shown only if its wig is still selected.
+
+This is the second time in this repository that a data-shape change has exposed a defect that no
+amount of reading the old shape would reveal.
+
+### Evidence
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm run lint`: clean, exit 0.
+- `npm test`: **1234 passed, 1 skipped** (baseline on `main` at `1dab4cf`: 1187 passed, 1 skipped).
+- `npm run build`: exit 0.
+- `npx playwright test`: **30 passed** (baseline: 28).
+- `npm run verify`: exit 0, all eight stages, audit gate found 0 vulnerabilities. Evidence in
+  `docs/evidence/2026-09-05/`.
+- **Four guards proven by deletion, not by reading.** Counting facets against the whole catalog
+  fails three tests including the property test. Discarding portraits on a wig switch fails
+  `keeps the previous wig's portrait...`. Keeping them across a new selfie fails
+  `drops every portrait when a new selfie is uploaded...`. Filing a late portrait under
+  `this.selectedWig` fails `files a late portrait under the wig it was requested for...`.
+- **The duplication gate was measured before pushing, not waited for.** Run 4's n-gram scan over the
+  changed `.ts` files found a 10-line identical block between the two new staleness tests — the same
+  shape that failed the gate at 4.5% on run 4 — and it was extracted as
+  `tryOnThenMoveOnBeforeItLands` before the first push. The three blocks the scan still reports
+  (`studio-state.svelte.ts:756↔815`, `smoke.spec.ts:681↔959` and `971↔1004`) were each checked
+  against the diff hunks and are all in unchanged lines, so none is new code.
+
+**The e2e browser here, again.** The container ships Chromium 1194 while the pinned
+`@playwright/test` (1.58.2) resolves 1208, and `npx playwright install` is unavailable. Run 4's note
+described symlinking the path; the actual layout differs — 1194 keeps its binary at
+`chrome-linux/headless_shell`, and Playwright wants
+`chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell`. The suite runs
+after mirroring `chrome-linux/` into that path and aliasing the binary name.
+`playwright.config.ts` is deliberately **not** in the diff: the mismatch is an environment fact, not
+a repository defect, and CI resolves its own browser.
+
+### Deliberately not done (for a future run)
+
+- **The packaging block is written three times in `studio-state.svelte.ts`** (`handleGeneratePage`,
+  `handleGenerateTryOnPage`, `repackageRestoredImages`) — 10 identical lines between the first two.
+  It is pre-existing and outside this diff, and extracting it would widen a run that already touches
+  that file heavily. It is a clean, self-contained follow-up.
+- **`ChatInterpretationSeam` has no UI**, as above — wire it or delete it, but it should not stay.
+- **The try-on portrait itself still cannot be saved without turning it into a coloring page.** The
+  page reaches the vault now; the raw portrait is still only a download. Storing portraits as vault
+  records would need a record shape that is not a coloring page, which is a contract question.
+- Run 3's four follow-ups and run 4's three are untouched and still stand, including `getMonthKey`
+  reading `new Date()` outside `ClockSeam`.

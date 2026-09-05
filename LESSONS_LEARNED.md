@@ -277,3 +277,35 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Rebuilt `/m/[mode]` and keyed the component on the slug so switching modes cannot carry the previous mode's verdict across. Wrote an end-to-end test for it, ran the test with the key deleted, and it passed.
 - Lesson: The test navigated with `page.goto`, which builds a fresh document — and component reuse across parameter changes only happens on *client-side* navigation. So the test exercised the defect's subject without ever reaching its precondition, and would have certified the key as load-bearing while proving nothing. Worse, the honest version of the test had nowhere to click: no link in the app went from one `/m/` page to another, so the failing input was not reachable through the interface at all. The fix was to make it reachable — a row of links to the other modes, which the page needed anyway — and then to mark the document and assert the mark survived the click, so the test fails if the navigation ever stops being client-side.
 - Action: When a guard depends on *how* a transition happens rather than that it happened, assert the mechanism in the test, not just the outcome. And when the failing input cannot be reached through the app, that is a finding about the app, not a reason to write a test that simulates it — the fourth instance in this repo of a mutation exposing a test that proved less than it claimed.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: Run 5 of the worst-feature routine. Three prior runs passed over the wig try-on, each
+  citing the previous one's judgement that it "works".
+- Lesson: A deferral is not a finding. Re-measuring the feature against its files turned up six
+  defects, including a catalog that bypassed its own seam and a portrait that could be labelled with
+  the wrong wig. An inherited "this one is fine" compounds exactly like an inherited "this one is
+  broken" — run 4's log warned about the second and this is the first.
+- Action: Re-derive a runner-up's status from the code each run. Cite the prior reasoning only after
+  confirming it still holds.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: Facet counts on the rebuilt wig catalog.
+- Lesson: A number rendered next to a control is a promise about what that control does. Counting
+  each facet value against the whole catalog is simpler and produces "Black 4" on a filter that
+  returns nothing — the same class of defect as a decorative favourite pin, but harder to spot
+  because a number looks like evidence.
+- Action: Count a facet against the other active facets, disable a value that would return nothing,
+  and pin it with a property test asserting count equals actual result size for every value, not
+  with one example.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: A staleness bug in the wig try-on that four runs of review had not found.
+- Lesson: Changing a data shape can expose a defect that reading the old shape never would. One
+  shared `tryOnPortraitUrl` string made "which wig is this portrait of?" an unaskable question;
+  keying portraits by wig forced the question, and the answer showed a late response could label a
+  portrait with the wrong wig.
+- Action: When a rebuild replaces a single shared value with a keyed one, treat every write to the
+  old value as a staleness candidate and capture the key before the await, not after it.

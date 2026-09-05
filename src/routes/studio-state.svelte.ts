@@ -26,6 +26,7 @@ import {
 	type StudioTextActionId
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
+import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 import {
 	GENERATED_IMAGE_MIME_TYPES,
 	generatedImageDataUrl
@@ -70,6 +71,18 @@ type BorderChoice = ColoringPageSpec['border'];
  * active leaves every value identical, and is still the reader asking for that theme.
  */
 export type SettingChangeSource = 'theme' | 'setting';
+
+/**
+ * One try-on result: the wig it was made for, and the portrait produced.
+ *
+ * The whole wig is held rather than its id, so the compare strip can both label a portrait and
+ * put the reader back on that wig without a catalog lookup — and so a portrait is always labelled
+ * with the wig it was actually made for, whatever the catalog does afterwards.
+ */
+export type TryOnPortrait = {
+	wig: Wig;
+	portraitUrl: string;
+};
 
 const DRAFT_SAVE_DEBOUNCE_MS = 300;
 
@@ -182,13 +195,31 @@ export class StudioState {
 	appOrigin = $state(this.origin.getOrigin());
 
 	// --- Wig try-on state ---
-	selectedWigId = $state<string | null>(null);
 	selectedWig = $state<Wig | null>(null);
+	// Derived, not stored. Trying a wig on now needs the whole wig — the portrait is filed under it
+	// and labelled with its name — so a separately assigned id would be a second source of truth
+	// for "which wig is on screen", free to disagree with the first.
+	selectedWigId = $derived(this.selectedWig?.id ?? null);
 	selfieBase64 = $state('');
 	selfieMimeType = $state<'image/jpeg' | 'image/png' | 'image/webp'>('image/jpeg');
 	isTryingOn = $state(false);
-	tryOnPortraitUrl = $state('');
 	tryOnError = $state('');
+	/**
+	 * Every portrait made from the current selfie, keyed by the wig it was made for.
+	 *
+	 * This was one string, so trying on a second wig destroyed the first portrait — in a feature
+	 * whose entire purpose is deciding between wigs, and at the price of one AI image generation
+	 * per look. Keyed by wig, coming back to a wig shows what it looked like instead of a blank.
+	 *
+	 * Correctness rides on each entry naming its wig and the list being tied to one selfie: a
+	 * portrait of a face the reader has since replaced, shown under a new wig, would be worse than
+	 * losing it. `setSelfieForTryOn` therefore drops the whole list, not one entry.
+	 *
+	 * An array rather than a map because the order is the order they were tried, which is the order
+	 * the compare strip shows — and re-trying a wig replaces it in place, so the strip does not
+	 * reshuffle under the reader's finger.
+	 */
+	tryOnPortraits = $state<TryOnPortrait[]>([]);
 
 	// spec is initialized from literal values to avoid capturing $state references.
 	// It is updated explicitly via applyTextToSpec() whenever page settings change.
@@ -250,6 +281,19 @@ export class StudioState {
 		this.images.map((image) => generatedImageDataUrl(image) ?? '')
 	);
 	canTryOn = $derived(!!this.selectedWigId && !!this.selfieBase64 && !this.isTryingOn);
+	// The portrait on screen is whichever belongs to the wig on screen. Selecting a wig that was
+	// already tried on brings its portrait back rather than showing an empty result panel.
+	tryOnPortraitUrl = $derived(
+		this.tryOnPortraits.find((portrait) => portrait.wig.id === this.selectedWigId)
+			?.portraitUrl ?? ''
+	);
+	// Only worth showing once there is a decision to make, which is what a second portrait is.
+	canCompareTryOns = $derived(this.tryOnPortraits.length > 1);
+	// Words or a picture — either is a page worth keeping. Gating on the verdict alone is what left
+	// a generated try-on page as the only thing in the app the vault would not take.
+	canSaveToVault = $derived(
+		!this.isSaving && (!!this.textOutput || this.images.length > 0)
+	);
 
 	// Every saved page the current search matches, pinned first then newest first. The list used
 	// to be raw store order truncated to four, so a fifth save made the first one unreachable
@@ -462,13 +506,25 @@ export class StudioState {
 		this.packagedFiles = [];
 	}
 
-	private resetTryOnResultState(): void {
-		// Delegates to resetGeneratedPage() so a fresh try-on also clears the assembled
-		// prompt/violations from any prior normal generation, not just the images/PDF —
-		// System Trace renders those independently of packagedFiles/images.
+	/**
+	 * Clears what is on the page, but keeps the portraits already made.
+	 *
+	 * Delegates to resetGeneratedPage() so a fresh try-on also clears the assembled
+	 * prompt/violations from any prior normal generation, not just the images/PDF —
+	 * System Trace renders those independently of packagedFiles/images.
+	 */
+	private resetTryOnPageState(): void {
 		this.resetGeneratedPage();
-		this.tryOnPortraitUrl = '';
 		this.tryOnError = '';
+	}
+
+	/**
+	 * Drops every portrait as well. Only for a change that invalidates all of them — which means a
+	 * new selfie, since every stored portrait is of the previous one.
+	 */
+	private discardTryOnPortraits(): void {
+		this.resetTryOnPageState();
+		this.tryOnPortraits = [];
 	}
 
 	private parseTryOnPortraitImage(): GeneratedImage | null {
@@ -563,10 +619,13 @@ export class StudioState {
 
 	selectWigForTryOn = async (wig: Wig): Promise<void> => {
 		const wigChanged = wig.id !== this.selectedWigId;
-		this.selectedWigId = wig.id;
 		this.selectedWig = wig;
 		if (wigChanged) {
-			this.resetTryOnResultState();
+			// The coloring page on screen was made from the previous wig's portrait, so it goes.
+			// The portraits themselves stay: `tryOnPortraitUrl` follows the selected wig, so this
+			// shows the new wig's portrait if it has one and an empty result panel if it does not,
+			// and the previous wig's portrait is still there when the reader goes back to compare.
+			this.resetTryOnPageState();
 		}
 		await this.syncSpecFromCurrentText();
 	};
@@ -577,7 +636,9 @@ export class StudioState {
 	): void => {
 		this.selfieBase64 = base64;
 		this.selfieMimeType = mimeType;
-		this.resetTryOnResultState();
+		// Every stored portrait is of the previous selfie. Keeping them would relabel the old face
+		// under the new upload, which is a worse outcome than losing them.
+		this.discardTryOnPortraits();
 	};
 
 	runTextAction = async (actionId: StudioTextActionId): Promise<void> => {
@@ -709,7 +770,8 @@ export class StudioState {
 	};
 
 	handleGenerateTryOnPage = async (): Promise<void> => {
-		if (!this.tryOnPortraitUrl) {
+		const wig = this.selectedWig;
+		if (!this.tryOnPortraitUrl || !wig) {
 			this.generationError = 'Create a try-on portrait first.';
 			return;
 		}
@@ -723,6 +785,23 @@ export class StudioState {
 					'Try-on portrait format is not supported for coloring-page export.';
 				return;
 			}
+			// Name the page after the wig it is of. Without this the spec keeps whatever title the
+			// last verdict left — and with no verdict at all that is the demo default, so a saved
+			// try-on page went into the vault filed under "THE LANDLORD".
+			this.spec = {
+				...this.spec,
+				title: compactColoringPageTitle(['Wig Try-On', wig.name])
+			};
+			// `assembledPrompt` is required and non-empty on a vault record, and this path never
+			// calls the image provider so there is no real prompt to record. It gets a description
+			// of the page instead of a machine prompt on purpose: `loadCreation` puts a reopened
+			// record's own words in the evidence box, and a prompt there is shipped to the provider
+			// as the reader's facts on their next Generate Verdict — the defect recorded at that
+			// call site.
+			this.assembledPrompt = `Wig try-on portrait — ${wig.name} (${wig.style}).`;
+			// Re-validated because the title above was written after `syncSpecFromCurrentText` had
+			// already validated. Checking the issues it left would be checking the previous spec.
+			await this.validateSpec();
 			if (this.validationIssues.length > 0) {
 				this.generationError = 'Fix the page settings before generating.';
 				return;
@@ -749,12 +828,34 @@ export class StudioState {
 		}
 	};
 
+	/**
+	 * Files a finished portrait under the wig it was actually requested for, replacing that wig's
+	 * previous portrait in place so the compare strip keeps its order.
+	 */
+	private storeTryOnPortrait(portrait: TryOnPortrait): void {
+		const existing = this.tryOnPortraits.findIndex(
+			(entry) => entry.wig.id === portrait.wig.id
+		);
+		if (existing >= 0) {
+			this.tryOnPortraits = this.tryOnPortraits.map((entry, index) =>
+				index === existing ? portrait : entry
+			);
+			return;
+		}
+		this.tryOnPortraits = [...this.tryOnPortraits, portrait];
+	}
+
 	handleWigTryOn = async (): Promise<void> => {
-		if (!this.selectedWigId || !this.selfieBase64) {
+		const wig = this.selectedWig;
+		if (!wig || !this.selectedWigId || !this.selfieBase64) {
 			this.tryOnError = 'Select a wig and upload your selfie first.';
 			return;
 		}
-		this.resetTryOnResultState();
+		// Captured before the await: styling takes long enough that the reader can pick another wig
+		// while it runs. The result is filed under the wig it was requested for, so a late portrait
+		// can no longer appear under — and be labelled as — whichever wig is selected when it lands.
+		const requestedWig = wig;
+		this.resetTryOnPageState();
 		this.isTryingOn = true;
 		try {
 			const payload = await postJson(
@@ -762,26 +863,41 @@ export class StudioState {
 				{
 					selfieBase64: this.selfieBase64,
 					selfieMimeType: this.selfieMimeType,
-					wigId: this.selectedWigId
+					wigId: requestedWig.id
 				},
 				{ timeoutMs: POST_JSON_TIMEOUTS_MS.wigTryOn }
 			);
 			const parsed = WigTryOnResultSchema.safeParse(payload);
 			if (!parsed.success) {
-				this.tryOnError = 'Try-on response did not match contract.';
+				this.setTryOnError('Try-on response did not match contract.', requestedWig.id);
 				return;
 			}
 			if (!parsed.data.ok) {
-				this.tryOnError = parsed.data.error.message;
+				this.setTryOnError(parsed.data.error.message, requestedWig.id);
 				return;
 			}
-			this.tryOnPortraitUrl = `data:${parsed.data.value.portraitMimeType};base64,${parsed.data.value.portraitBase64}`;
+			this.storeTryOnPortrait({
+				wig: requestedWig,
+				portraitUrl: `data:${parsed.data.value.portraitMimeType};base64,${parsed.data.value.portraitBase64}`
+			});
 		} catch (error) {
-			this.tryOnError = error instanceof Error ? error.message : 'Wig try-on failed.';
+			this.setTryOnError(
+				error instanceof Error ? error.message : 'Wig try-on failed.',
+				requestedWig.id
+			);
 		} finally {
 			this.isTryingOn = false;
 		}
 	};
+
+	/**
+	 * Shows a try-on failure only while the wig it happened to is still the one on screen. A
+	 * failure for a wig the reader has already moved on from is not theirs to read any more.
+	 */
+	private setTryOnError(message: string, wigId: string): void {
+		if (this.selectedWigId !== wigId) return;
+		this.tryOnError = message;
+	}
 
 	copyQuote = async (): Promise<void> => {
 		if (!this.textOutput || !this.isBrowser) return;
@@ -797,8 +913,22 @@ export class StudioState {
 		if (this.isSaving) return;
 		const owner = this.owner;
 		const textOutput = this.textOutput;
-		if (!owner || !textOutput) {
+		if (!owner) {
 			this.vaultStatus = 'Session is still connecting. Try again in a moment.';
+			return;
+		}
+		// A page made from a wig try-on has no verdict behind it, and used to be the one page in
+		// the app that could not be kept: the button was disabled on `textOutput` alone, so the
+		// portrait died with the tab while every other surface reached the vault. `studioText` is
+		// optional on the record and `loadCreation` already restores records without it, so the
+		// real requirement is a page — words or a picture, either one.
+		const assembledPrompt = this.assembledPrompt || textOutput?.quote || '';
+		if (!textOutput && this.images.length === 0) {
+			this.vaultStatus = 'Make a page before saving it.';
+			return;
+		}
+		if (!assembledPrompt) {
+			this.vaultStatus = 'This page has nothing to save yet.';
 			return;
 		}
 		this.isSaving = true;
@@ -813,8 +943,8 @@ export class StudioState {
 					id: creationId,
 					createdAtISO: new Date().toISOString(),
 					intent: $state.snapshot(this.spec),
-					assembledPrompt: this.assembledPrompt || textOutput.quote,
-					studioText: $state.snapshot(textOutput),
+					assembledPrompt,
+					studioText: textOutput ? $state.snapshot(textOutput) : undefined,
 					revisedPrompt: this.revisedPrompt || undefined,
 					images: storedImages.length > 0 ? storedImages : undefined,
 					violations: $state.snapshot(this.violations),

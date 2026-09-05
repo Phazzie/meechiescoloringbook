@@ -315,7 +315,115 @@ test('wig try-on demo works end to end without provider traffic', async ({
 	);
 	await expect(exportLink).toHaveText('Export JPG');
 
+	// A try-on page has no verdict behind it, and used to be the one page in the app the vault
+	// would not take — the Save button was disabled on the verdict alone, so the portrait died
+	// with the tab while every other surface reached the vault.
+	await page.getByTestId('home-save-vault').click();
+	await expect(page.getByTestId('home-status')).toContainText(
+		'Saved to the quote vault.'
+	);
+	await expect(page.getByTestId('home-vault-load')).toContainText(
+		'Wig Try-On - Sleek Straight Goddess'
+	);
+
 	expect(providerRequests).toEqual([]);
+});
+
+test('the wig catalog can be searched and filtered, and its counts never promise an empty result', async ({
+	page
+}) => {
+	await gotoHydrated(page, '/');
+
+	const resultCount = page.getByTestId('wig-result-count');
+	const wigCards = page.locator('.wig-carousel .wig-card');
+	await expect(resultCount).toHaveText('8 wigs');
+	await expect(wigCards).toHaveCount(8);
+
+	// Two of the eight are synthetic, and both happen to be the blonde one and the gray one.
+	await page
+		.getByTestId('wig-facet-hair-type')
+		.getByRole('button', { name: /^Synthetic/ })
+		.click();
+	await expect(resultCount).toHaveText('2 of 8 wigs');
+	await expect(wigCards).toHaveCount(2);
+
+	// Four wigs are black, but none of them is synthetic. Counting each colour against the whole
+	// catalog would advertise "Black 4" here and hand back nothing when tapped; the count is
+	// measured against the other facets instead, so the chip reads 0 and cannot be tapped at all.
+	const blackChip = page
+		.getByTestId('wig-facet-color')
+		.getByRole('button', { name: /^Black/ });
+	await expect(blackChip).toHaveText(/0/);
+	await expect(blackChip).toBeDisabled();
+
+	await page
+		.getByTestId('wig-facet-color')
+		.getByRole('button', { name: /^Blonde/ })
+		.click();
+	await expect(resultCount).toHaveText('1 of 8 wigs');
+	await expect(wigCards).toHaveCount(1);
+	await expect(wigCards.first()).toContainText('Honey Blonde Bombshell');
+	// The metadata the card used to hide is now on it.
+	await expect(wigCards.first()).toContainText('Medium · Synthetic · Honey Blonde');
+
+	await page.getByTestId('wig-clear').click();
+	await expect(resultCount).toHaveText('8 wigs');
+	await expect(wigCards).toHaveCount(8);
+
+	// Search reaches the tags and colour names, not just the wig name.
+	await page.getByTestId('wig-search').fill('silver');
+	await expect(resultCount).toHaveText('1 of 8 wigs');
+	await expect(wigCards.first()).toContainText('Silver Fox');
+
+	await page.getByTestId('wig-search').fill('nothing matches this');
+	await expect(page.getByTestId('wig-no-matches')).toBeVisible();
+	await expect(resultCount).toHaveText('0 of 8 wigs');
+
+	// Sorting reorders the whole catalog, cheapest first.
+	await page.getByTestId('wig-clear').click();
+	await page.getByTestId('wig-sort').selectOption('price_low');
+	await expect(wigCards.first()).toContainText('Short Cut Boss');
+});
+
+test('two wigs tried on the same selfie can both be kept and compared', async ({
+	page
+}) => {
+	await gotoHydrated(page, '/');
+
+	await page.getByRole('button', { name: 'Select Sleek Straight Goddess' }).click();
+	await page.locator('#selfie-input').setInputFiles(wigJpegPath);
+	await expect(page.getByTestId('home-try-on')).toBeEnabled();
+	await page.getByTestId('home-try-on').click();
+	await expect(page.getByTestId('home-try-on-portrait')).toBeVisible();
+
+	// One look is not a comparison, so the strip stays away until there is a choice to make.
+	await expect(page.getByTestId('home-try-on-compare')).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'Select Short Cut Boss' }).click();
+	// Switching wigs clears the result panel for the new wig, which has not been tried on yet...
+	await expect(page.getByTestId('home-try-on-result')).toHaveCount(0);
+	await page.getByTestId('home-try-on').click();
+	await expect(page.getByTestId('home-try-on-portrait')).toBeVisible();
+
+	// ...and now both looks are on the strip, in the order they were tried.
+	const compare = page.getByTestId('home-try-on-compare');
+	await expect(compare).toBeVisible();
+	const looks = compare.getByRole('button');
+	await expect(looks).toHaveCount(2);
+	await expect(looks.nth(0)).toContainText('Sleek Straight Goddess');
+	await expect(looks.nth(1)).toContainText('Short Cut Boss');
+
+	// Tapping the first look goes back to it — the portrait it destroyed before this change.
+	await looks.nth(0).click();
+	await expect(page.getByTestId('home-try-on-portrait')).toBeVisible();
+	await expect(
+		page.getByRole('link', { name: 'Save Portrait' })
+	).toHaveAttribute('download', 'meechie-try-on-wig-001.jpg');
+
+	// A new selfie invalidates every stored portrait, because they are all of the old face.
+	await page.locator('#selfie-input').setInputFiles(wigJpegPath);
+	await expect(page.getByTestId('home-try-on-compare')).toHaveCount(0);
+	await expect(page.getByTestId('home-try-on-result')).toHaveCount(0);
 });
 
 test('home quote vault can save, load, pin, and delete creations', async ({

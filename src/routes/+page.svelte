@@ -70,7 +70,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 			textOutput={studio.textOutput}
 			copyStatus={studio.copyStatus}
 			vaultStatus={studio.vaultStatus}
-			isSaving={studio.isSaving}
+			canSaveToVault={studio.canSaveToVault}
 			glitter={studio.glitter}
 			activeTheme={studio.activeTheme}
 			onGeneratePage={studio.handleGeneratePage}
@@ -94,6 +94,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		selectedWigId={studio.selectedWigId}
 		selectedWig={studio.selectedWig}
 		tryOnPortraitUrl={studio.tryOnPortraitUrl}
+		tryOnPortraits={studio.tryOnPortraits}
+		canCompareTryOns={studio.canCompareTryOns}
 		tryOnError={studio.tryOnError}
 		isTryingOn={studio.isTryingOn}
 		canTryOn={studio.canTryOn}
@@ -660,6 +662,65 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		display: flex;
 		gap: 0.5rem;
 		flex-wrap: wrap;
+	}
+
+	:global(.studio .try-on-compare) {
+		margin-top: 1rem;
+	}
+
+	:global(.studio .compare-strip) {
+		display: flex;
+		gap: 0.6rem;
+		overflow-x: auto;
+		padding: 0.5rem 0 0.25rem;
+		scrollbar-width: thin;
+		scrollbar-color: rgba(201, 162, 39, 0.4) transparent;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	:global(.studio .compare-item) {
+		flex: 0 0 104px;
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+		padding: 0.32rem;
+		border: 2px solid rgba(201, 162, 39, 0.24);
+		border-radius: 8px;
+		background: rgba(22, 20, 42, 0.9);
+		color: inherit;
+		cursor: pointer;
+		min-height: auto;
+		transition:
+			border-color 0.16s,
+			box-shadow 0.16s;
+	}
+
+	:global(.studio .compare-item:hover),
+	:global(.studio .compare-item:focus-visible) {
+		border-color: rgba(255, 20, 147, 0.6);
+	}
+
+	:global(.studio .compare-item.active) {
+		border-color: #ff1493;
+		box-shadow: 0 0 14px rgba(255, 20, 147, 0.4);
+	}
+
+	:global(.studio .compare-thumb) {
+		width: 100%;
+		aspect-ratio: 1 / 1;
+		object-fit: cover;
+		border-radius: 5px;
+		display: block;
+	}
+
+	:global(.studio .compare-name) {
+		font-family: var(--font-label, sans-serif);
+		font-size: 0.62rem;
+		font-weight: 800;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		line-height: 1.2;
+		color: rgba(253, 246, 227, 0.78);
 	}
 
 	/* Verdict + Vault */

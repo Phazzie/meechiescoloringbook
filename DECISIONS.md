@@ -7,6 +7,46 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-05 - The wig carousel loads through `WigCatalogSeam`, and facet counts are cross-filtered
+
+- Date: 2026-09-05
+- Seams: none changed. `WigCatalogSeam` is consumed through its existing adapter
+  (`src/lib/adapters/wig-catalog-seam/index.ts`), exactly as `/api/wig-try-on` already consumes it;
+  `CreationStoreSeam`, `SpecValidationSeam` and `OutputPackagingSeam` through the adapters
+  `studio-state.svelte.ts` already calls. No file under `contracts/`, `probes/`, `fixtures/`,
+  `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` is in the diff and no
+  contract shape changed, so no Cipher Gate entry is required.
+- Decision 1: `WigCarousel.svelte` calls `createWigCatalogSeam().listWigs()` instead of importing
+  `wigs.json` and casting it with `as unknown as Wig[]`.
+  - Why: the cast meant `validateWigCatalog` never ran for the UI and the seam's
+    `WIG_CATALOG_LOAD_FAILED` / `WIG_CATALOG_EMPTY` errors could not reach a reader, so a broken
+    catalog rendered as an empty row with no message. The component's own comment claimed
+    "validators run at adapter layer" while never calling the adapter.
+  - Tradeoff: the catalog is now loaded asynchronously, so the carousel has a loading state it did
+    not have. Accepted: the adapter caches after its first parse, so this costs one validation per
+    page lifetime, and the alternative is a UI that cannot report a failure it is having.
+- Decision 2: facet counts are computed against the search and every *other* dimension, not against
+  the whole catalog.
+  - Why: two of eight wigs are synthetic and neither is black; four are black and none is synthetic.
+    A catalog-wide count renders "Black 4" while Synthetic is selected and returns nothing when
+    tapped — a control that describes itself falsely, which is the defect this rebuild exists to
+    remove.
+  - Alternative rejected: catalog-wide counts, which are one line shorter. A count of 0 also
+    disables its chip, so a dead end cannot be entered.
+- Decision 3: try-on portraits are held as a list keyed by the wig they were made for, and the wig
+  is captured before the request rather than read after it.
+  - Why: a single shared string made two looks impossible to compare and let a late response attach
+    itself to whichever wig was selected when it landed.
+  - Tradeoff: `selectedWigId` becomes derived from `selectedWig` rather than separately assigned, so
+    the two cannot disagree about which wig is on screen.
+- Decision 4: `saveToVault` accepts a page with images and no studio text.
+  - Why: a try-on page has no verdict behind it and was the only page in the app the vault refused.
+    `CreationRecordSchema.studioText` is already optional and `loadCreation` already restores
+    records without it.
+  - Tradeoff: `assembledPrompt` is required and non-empty, so the try-on path supplies a description
+    of the page rather than a machine prompt — `loadCreation` puts a reopened record's own words in
+    the evidence box, and a prompt there is shipped to the provider as the reader's facts.
+
 ## 2026-09-04 - The focused-mode catalog is derived from `studioModes`, and an unknown slug is a 404
 
 - Date: 2026-09-04
