@@ -20,8 +20,21 @@ Short, durable decisions with context and tradeoffs.
 - Plan:
   - Goal: Store the style a page was made with, restore it on reopen and on draft refresh, and make the Page Controls panel explain and report itself.
   - Seams: CreationStoreSeam (contract + contract tests; adapter and mock unchanged — the adapter validates through these schemas and stores JSON, so an added optional field needs no adapter change).
-  - Files: `src/lib/seams/creation-store-seam/contract.ts`, `src/lib/seams/creation-store-seam/test.ts`, `src/lib/core/page-style.ts`, `src/routes/studio-state.svelte.ts`, `src/lib/components/studio/StudioSettingsPanel.svelte`, `src/routes/+page.svelte`, `tests/unit/page-style.test.ts`, `tests/unit/studio-state.test.ts`, `docs/seams.md`, `CHANGELOG.md`, `DECISIONS.md`, `WORST_TO_BEST_LOG.md`.
-  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`.
+  - Files — every path the change touches, with what happens to each. Checkable against the commit with `git diff --name-status <base>..HEAD`; an earlier version of this list omitted four of them and marked none, which made the scope gate uncheckable in the direction that matters (understating it).
+    - `[MODIFY] src/lib/seams/creation-store-seam/contract.ts` — add `StyleSelectionSchema` (importing `MeechieStudioVoiceSettingsSchema` rather than restating three enums) and an optional `styleSelection` field on `CreationRecordSchema` and `DraftRecordSchema`; export `StoredStyleSelection`.
+    - `[NEW] src/lib/seams/creation-store-seam/validators.ts` — the seam's required validators artifact, re-exporting the contract schemas plus throwing and non-throwing variants; the adapter's read path needs the non-throwing pair so one corrupt record cannot empty a vault.
+    - `[MODIFY] src/lib/seams/creation-store-seam/test.ts` — contract tests for the added field: mock round-trip, and a record with the key deleted.
+    - `[MODIFY] fixtures/creation-store/sample.json` — add `styleSelection` to the `saveCreation`/`saveDraft` inputs and to the `saveCreation`/`getCreation`/`listCreations`/`saveDraft`/`getDraft` outputs.
+    - `[NEW] src/lib/core/page-style.ts` — `StyleSelection`, `PaperSelection`, `DEFAULT_STYLE_SELECTION`, `themeForSelection`, `buildStyleHint` (the sole encoder of the `Vibe:` line), `isSameStyleSelection`, the total label/help `Record`s, and the panel summarizers.
+    - `[MODIFY] src/routes/studio-state.svelte.ts` — hold the selection as one value; capture the style and the paper with the artifact at both generate paths and on reopen; save the captured pair rather than the live controls; add `settingsError`, `settingsIssues`, `styleSelectionUnknown` and `pageGlitter`.
+    - `[MODIFY] src/lib/components/studio/StudioSettingsPanel.svelte` — rebuild as a `<details>` with three fieldsets, per-value help, `aria-pressed` theme chips, a summary naming all seven controls, and the two error regions.
+    - `[MODIFY] src/lib/components/studio/StudioPreviewPanel.svelte` — document `glitter` as the page's, not the checkbox's.
+    - `[MODIFY] src/routes/+page.svelte` — pass `styleSelectionUnknown`, `settingsIssues`, and `pageGlitter` instead of the live `glitter`.
+    - `[NEW] tests/unit/page-style.test.ts`, `[NEW] tests/e2e/page-controls.spec.ts`, `[MODIFY] tests/unit/studio-state.test.ts`.
+    - `[MODIFY] docs/seams.md`, `[MODIFY] CHANGELOG.md`, `[MODIFY] DECISIONS.md`, `[MODIFY] WORST_TO_BEST_LOG.md`.
+    - `[NEW]/[MODIFY] docs/evidence/2026-09-05/*` — the artifacts `npm run verify` writes (`chamber-lock.json`, `verify.txt`, `test.txt`, `shaolin-lint.json`, `assumption-alarm.json`, `seam-ledger.json|md`, `clan-chain.json|md`, `proof-tape.json|md`), the outer transcript `verify-outer.txt`, and `rewind-CreationStoreSeam-self-contained.txt`.
+  - Do not touch: the `cb_creations_v1` / `cb_drafts_v1` localStorage key names or the adapter's storage format; the `Vibe:` line's existing byte-for-byte output; any seam other than `CreationStoreSeam`; the legacy flat-layout `contracts/` copies of this seam.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`, `npm run rewind -- --seam "CreationStoreSeam (self-contained)"`, `npx playwright test`.
 
 - Cipher Gate:
   - Date: 2026-09-05

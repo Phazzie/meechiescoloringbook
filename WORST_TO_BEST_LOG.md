@@ -4940,7 +4940,7 @@ The voice option lists are read off `MeechieStudioVoiceSettingsSchema.shape.<fie
 than restated, so a value added to the seam appears in the panel by construction. The label and help
 tables are total `Record`s over the same enums, driven by a test.
 
-**Contract change (`CreationStoreSeam`), done as the full SDD workflow.** An optional
+**Contract change (`CreationStoreSeam`), done as the full Seam-Driven Development workflow.** An optional
 `styleSelection` on `CreationRecordSchema` and `DraftRecordSchema` — `themeId`, `voice`, `glitter`,
 and optionally the wig's printed `name`/`style`. It reuses `MeechieStudioVoiceSettingsSchema` rather
 than restating three enums, so a voice that seam would refuse cannot be stored here and handed back
@@ -5200,7 +5200,7 @@ for exactly this reason — the precedent was sitting two lines above the bug.
   cleared when the reader picks a wig — which is the moment the live selection becomes theirs again.
 - **P1 — the seam fixtures never carried the new field.** The contract gained `styleSelection` and
   the contract test parsed the schema directly, so no *mock* scenario ever proved the field survives
-  save/get/list/draft. That is the SDD workflow half-done — the exact thing this log's scope rule
+  save/get/list/draft. That is the Seam-Driven Development workflow half-done — the exact thing this log's scope rule
   forbids — and I had claimed it was done properly. `fixtures/creation-store/sample.json` now carries
   it through inputs and outputs, and a test drives it through the mock rather than the schema.
 - **P1 — core reached into Zod's representation of the seam's enums.** `page-style.ts` runtime-imported
@@ -5314,3 +5314,112 @@ Playwright 37 passed against the installed browser · SonarCloud 0 new issues.
 
 Two more mutations, each reverted after: capturing the style after the reset again (1 test), and
 dropping the text-only fallback (1 test).
+
+## Run 7 close-out — round four: the same drift, one field over
+
+Codex's fourth round found four more defects and two evidence failures. Every one was real. The
+pattern held for the fourth round running: something on the page, and the thing describing it,
+drifting apart.
+
+### The paper had exactly the defect the style had
+
+Page size and border were the two Page Controls this run's whole thesis excused. They are
+`ColoringPageSpec` fields, they are persisted, they come back on reopen — so they were never part
+of the missing-style problem, and I said so in the contract, in the decision entry and in the
+module comment.
+
+They are persisted from the **live** spec. `applyTextToSpec` rebuilds that spec on every setting
+change. So: generate a page on US Letter with a decorative border, change to A4 with no border, hit
+save — and the record files the old image, the old prompt and the old downloads under dimensions
+and a frame that never produced any of them. Identical to the style defect, in the one place I had
+argued the defect could not be.
+
+Fixed the same way: snapshot with the artifact. Both generate paths capture the paper off the spec
+the request actually carried, `loadCreation` takes it from `intent`, and the save writes the
+snapshot over the live spec's two fields. There is no unknown case for the paper, unlike the style —
+every record ever written carries page size and border, so even a record from before this run
+re-saves under its own.
+
+The lesson is not "check the other two fields". It is that "persisted" and "persisted as the thing
+it describes" are different claims, and I had checked only the first.
+
+### The preview was contradicting the sentence beside it
+
+The panel's new lede says: *the page on screen keeps the look it was made with until you make it
+again.* The preview's sparkle overlay was bound straight to the live Glitter checkbox. So toggling
+Glitter visibly restyled a finished page while a sentence one panel over promised it could not.
+
+A false claim I wrote in this run, about a control this run is about, rendered eight inches from the
+thing disproving it. The overlay now reads the page's own glitter, follows the checkbox only when
+there is no page to lie about, and shows nothing over a page whose style is not on file.
+
+### The summary named four of the seven controls
+
+The shut panel's one line carried theme, intensity, rawness and glitter. Third person, page size and
+border moved without it moving. A reader who opened the panel to change Border and shut it again
+watched the line stay exactly as it was — which is the "reports nothing" the panel was rebuilt
+against, surviving inside the rebuild.
+
+All seven are in it now, phrased so a value read out of its dropdown still means something:
+`Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border`.
+The paper half is composed separately from the style half, because a reopened page can have a style
+that is not on file while its paper always is — the substitute sentence replaces one half and leaves
+the other standing.
+
+### The error region caught the rare failure and missed the common one
+
+This run moved settings failures out of the evidence panel and put them beside the controls. It
+moved the wrong one. `applyTextToSpec` awaits `validateSpec` and dropped the returned boolean, so
+only an adapter *rejection* — the rare case — reached the new alert. An ordinary contract failure
+resolves normally with `{ ok: false, issues }`, and those went on appearing solely in System Trace,
+which is the other panel this run took a settings failure out of.
+
+Both are reported now, as two separate facts rather than one: "the check could not be run" and "the
+check ran and the page did not pass". The second is worded so it does not blame the control — the
+check runs over the whole spec, so what it reports can be something the provider's words did long
+before the reader touched anything. Both are cleared when the page they describe is replaced, which
+was a staleness bug of my own that the fix surfaced.
+
+### Two evidence failures, and they are the worse half
+
+**The outer verify transcript was three heads old.** `verify-outer.txt` exists for exactly one
+reason: `verify.txt`, despite its name, holds only the inner runner stage, so the audit gate and
+the chain's exit status are captured in the outer file and nowhere else. The committed one reported
+**1,252 tests** for a head that runs **1,369**. A seam changed under it and the artifact that
+proves the gate ran did not move. Regenerated, and `verify-chain.txt` now states the check that
+would have caught it: verify-outer.txt and verify.txt must report the same total or one is stale.
+
+**`verify-chain.txt` still described Run 5.** Nobody flagged it; I found it while fixing the file
+above. It is the folder's index — the one artifact a re-run does not regenerate — so it sat there
+describing a merged change while every file beside it described this one. The same drift this run
+is about, in this run's own evidence folder. Rewritten for Run 7.
+
+**And the plan's file inventory understated the change.** `AGENTS.md` requires every touched path
+with an explicit `[NEW]` / `[MODIFY]` marker, an exact touch blueprint, and stated anti-goals. The
+committed plan listed twelve paths, marked none, and omitted `fixtures/creation-store/sample.json`,
+`src/lib/seams/creation-store-seam/validators.ts`, `tests/e2e/page-controls.spec.ts`,
+`src/lib/components/studio/StudioPreviewPanel.svelte` and the evidence artifacts. A scope gate that
+can only be checked against an understated inventory is not a gate. Rewritten with every path, its
+marker, what changes inside it, and the do-not-touch list.
+
+### The acronym, again
+
+Two new uses of the forbidden acronym in this run's own log entry — in a log whose line 320 records
+a previous run being told the same thing. Spelled out.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1369 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 (outer transcript captured on this head) ·
+`npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 7 passed ·
+Playwright **38 passed** against the installed browser; the mandated `npx playwright test` still
+fails at browser launch on the container's version mismatch, and `e2e.txt` now carries both rows.
+
+Seven more mutations, each reverted after, each caught: saving the live spec instead of the paper
+snapshot (2 tests), binding the overlay back to the live checkbox (2), dropping the issue report
+(1), leaving the stale reports standing across a page replacement (1), dropping third person from
+the summary (4), dropping the paper from the summary (3), and deleting a border label (2). Running
+total for this run: 25.
+
+The commit-before-mutating rule held. The harness reverts by path, so it was run only against a
+committed tree, and `git diff --quiet` was checked before and after each batch.

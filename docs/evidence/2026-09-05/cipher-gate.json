@@ -1,9 +1,9 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-05T05:13:31.443Z",
+  "generatedAt": "2026-09-05T14:29:57.857Z",
   "cipher": {
     "date": "2026-09-05",
-    "seams": "SessionSeam, AuthContextSeam, CreationStoreSeam",
+    "seams": "CreationStoreSeam",
     "evidence": [
       {
         "path": "docs/evidence/2026-09-05/verify.txt",
@@ -20,11 +20,15 @@
       {
         "path": "docs/evidence/2026-09-05/seam-ledger.json",
         "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-05/proof-tape.json",
+        "exists": true
       }
     ],
-    "summary": "Migrated SessionSeam, AuthContextSeam, and CreationStoreSeam to canonical self-contained seam packages with fixture modules, in-memory mocks, self-contained contract suites, canonical adapters, and backward-compatible re-export stubs.",
-    "risks": "Concurrent multi-tab localStorage writes could lead to race conditions if two tabs write simultaneously; localStorage access may throw SecurityError in locked-down iframes."
+    "summary": "Added an optional `styleSelection` to `CreationRecordSchema` and `DraftRecordSchema` so a saved page carries the theme, voice, glitter and wig that composed its `Vibe:` line, reusing `MeechieStudioVoiceSettingsSchema` rather than restating three enums.",
+    "risks": "A record naming a theme that a later release removes falls back to the first theme rather than failing; the field is optional, so a record written by an older build restores no style and is reported as unknown rather than guessed at."
   },
-  "latestChangeMs": 1788584952059.3674,
+  "latestChangeMs": 1788617895608.0608,
   "status": "ok"
 }

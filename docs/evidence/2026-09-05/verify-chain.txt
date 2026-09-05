@@ -6,20 +6,14 @@
 #      why a file carries a freshness marker.
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
-# Run 5 of the worst-feature routine — the wig try-on becomes a shop you can browse and a look you
-# can keep.
+# Run 7 of the worst-feature routine — the home studio's Page Controls panel becomes something that
+# remembers, explains and reports itself.
 #
-# Two heads are represented here, and the Results section below is the authoritative split:
-#   - the CODE head, merged as cc5f622 (PR #297), which e2e.txt and the two rewind files describe;
-#   - the close-out head that follows it, which every other artifact here was regenerated on.
-#
-# The code head fixed fifteen review findings across seven Codex rounds and one self-audit, twelve of
-# them one family — something on the page and the thing describing it drifting apart, across an
-# await, a restore, a serialisation, a rebuild, a replacement under a stable key, or a value
-# invented to satisfy a schema and then believed. The close-out that followed drew further rounds,
-# every one of them a statement about evidence that was looser than the evidence. Rather than
-# restate a total that keeps moving, the running count lives in WORST_TO_BEST_LOG.md under Run 5's
-# close-outs, which is append-only and cannot go stale the way this line just did.
+# This file described Run 5 until this head. It was the one artifact in the folder that a re-run
+# does not regenerate, so it went on describing a merged change while every file beside it described
+# this one — the same "the page and the thing describing it have drifted apart" that Run 7 is about,
+# in Run 7's own evidence folder. Rewritten rather than appended to, because a summary of two runs
+# is a summary of neither.
 
 ## The chain (npm run verify) — exit 0, transcript in verify-outer.txt
 
@@ -35,13 +29,12 @@
 ## The order these are run in, which is load-bearing
 
 Two artifacts in this folder are written by commands outside the chain but inventoried by a stage
-inside it, so the order is not a matter of taste:
+inside it, so the order is not a matter of taste. It is stated in docs/evidence/README.md and
+followed here:
 
   1. npm run check / lint / build
   2. npm run cipher:gate      <- BEFORE verify, so proof-tape inventories the committed
-                                 cipher-gate.json rather than the previous run's. Running it after
-                                 left proof-tape describing a file that no longer existed on disk,
-                                 and labelling the committed one as predating a run it postdated.
+                                 cipher-gate.json rather than the previous run's.
   3. npm run verify           <- writes chamber-lock, verify.txt, test.txt, shaolin-lint,
                                  assumption-alarm, seam-ledger, clan-chain and the proof tape
   4. the outer transcript     <- captured to a scratch path and moved to verify-outer.txt AFTER the
@@ -53,116 +46,127 @@ inside it, so the order is not a matter of taste:
 - npm run lint   -> lint.txt   (exit 0; eslint prints nothing on success)
 - npm run build  -> build.txt  (exit 0)
 - npm run cipher:gate -> cipher-gate.json (exit 0)
-- npm run rewind -- --seam WigCatalogSeam -> rewind-wig-catalog-seam.txt (27 passed) [CODE HEAD]
-- npx playwright test -> e2e.txt (32 passed; baseline on main at 1dab4cf was 28) [CODE HEAD]
+- npm run rewind -- --seam "CreationStoreSeam (self-contained)"
+                 -> rewind-CreationStoreSeam-self-contained.txt
+- npx playwright test -> e2e.txt
 
-e2e.txt, rewind-wig-catalog-seam.txt and rewind-WigCatalogSeam.txt are the three artifacts in this
-folder not regenerated on the close-out head; everything else here is.
+Every one of these was re-run on this head, and so was every artifact the chain writes. The
+exception, stated rather than glossed: the `rewind-*.txt` files naming any seam OTHER than
+`CreationStoreSeam (self-contained)` are an earlier run's, and are left that way deliberately. This
+change touches one seam; those files describe seams it does not touch, and re-running them would
+produce identical output while implying a scope this change does not have. The rule, rather than a
+count that goes stale: a rewind artifact here is current if and only if its name is the seam in the
+Cipher Gate entry. Which files that leaves is answerable from the repository —
 
-proof-tape.md flags a longer list than that, and says of it: "These files were written by an earlier
-run, so they describe a different run than the one this tape summarizes." For e2e.txt and the two
-rewind files that is exactly right. For build.txt, cipher-gate.json, lint.txt and this file it
-over-reads its own test, which is a modification-time comparison against chamber-lock.json rather
-than a record of which run produced a file. The artifacts settle it themselves, from committed
-content rather than from anything about the working tree:
+  git diff --name-only <base>..HEAD -- 'docs/evidence/2026-09-05/rewind-*'
+
+— rather than from a number typed into this file.
+
+## Why proof-tape.md flags files this file says are current
+
+proof-tape.md lists `build.txt`, `cipher-gate.json`, `e2e.txt`, `lint.txt`, every `rewind-*.txt`,
+`verify-chain.txt` and `verify-outer.txt` as "older than this run's chamber-lock.json", and says of
+them: "These files were written by an earlier run."
+
+For the other seams' rewinds that is exactly right — see the paragraph above. For the rest it
+over-reads its own test, which is a modification-time comparison against one artifact inside the
+chain rather than a record of which run produced a file. Every one of them is written *before* the
+chain, because the capture order requires it: the chain inventories them, and a file cannot be
+inventoried before it exists. `cipher-gate.json` in particular can never clear the test, by
+construction. `verify-outer.txt` is the mirror image — written *after* the chain, for the reason
+under Results — and is flagged for the opposite reason.
+
+The stamps written INTO the artifacts by the tools that produce them settle the ordering, and
+survive a clone, a checkout and a squash in a way a file's modification time does not:
 
   grep -h '"generatedAt"' docs/evidence/2026-09-05/{cipher-gate.json,chamber-lock.json,proof-tape.json}
 
-Those three stamps are written INTO the files by the tools that produce them, so they survive a
-clone, a checkout and a squash; cipher-gate's precedes chamber-lock's, which precedes the tape's,
-which is the ordering the section above requires and the opposite of an earlier run. lint.txt and
-build.txt carry no such stamp - nothing here claims a measured gap for them, only that the sequence
-above put them in this push.
+cipher-gate's precedes chamber-lock's, which precedes the tape's, which is the ordering the section
+above requires. `lint.txt`, `build.txt` and `e2e.txt` carry no such stamp; nothing here claims a
+measured gap for them, only that the sequence above put them in this push.
 
-Three earlier attempts at this paragraph are worth recording, because each failed differently and
-the last two failed as fixes for the first. Pasting a timestamp table went stale the moment the
-next push regenerated it, twice, and left the surrounding arithmetic contradicting the table it
-described. Replacing the table with `stat` looked durable and is not: git sets modification times
-at checkout, so in any fresh clone that command reports when the files were written to disk, not
-when they were produced - it would show a reader near-identical times and prove nothing.
+This is a limitation of the generator, recorded rather than worked around. Teaching proof-tape.mjs
+to compare against the start of the current push rather than against one artifact inside it would
+fix it properly, and belongs in its own change with its own tests.
 
-Only content committed inside the artifacts survives all of that, which is why it is what is cited.
+## The seam name, which is not the obvious one
 
-This is a limitation of the generator, recorded rather than worked around: cipher-gate.json in
-particular can never clear the test, because it has to be written before the chain in order to be
-inventoried correctly at all. Teaching proof-tape.mjs to compare against the start of the current
-push rather than against one artifact inside it would fix it properly, and belongs in its own change
-with its own tests rather than in a close-out.
+`docs/seams.md` carries two rows for this seam: the legacy flat-layout `CreationStoreSeam` and the
+self-contained `CreationStoreSeam (self-contained)`. `npm run rewind -- --seam CreationStoreSeam`
+resolves to the LEGACY row and runs its 4 contract tests — none of which touch the field this change
+adds. The change is to `src/lib/seams/creation-store-seam/`, so the seam-scoped evidence is the
+suffixed name and its 7 tests, in rewind-CreationStoreSeam-self-contained.txt.
 
-## Re-run on the close-out head
+An earlier push of this change cited the unsuffixed run. It was green and it was the wrong seam;
+the file is kept alongside rather than deleted, so the distinction stays visible.
 
-The command lists above name what the run consists of, not what any single commit was validated
-against. Provenance is per artifact, and the Results section below is the authoritative split;
-this paragraph only says why there is a split at all.
+## What `npx playwright test` does and does not report here
 
-The worst-feature routine requires check, lint, test and build before *every* push and the full
-verify chain, so all of those were re-run on the Markdown-only close-out head that follows the code
-head, and their artifacts here are that re-run's. A review caught that the first close-out push
-cited the merged head's evidence instead of regenerating it; the numbers are identical because no
-code changed, which is the claim the re-run establishes rather than assumes.
+The mandated command FAILS in this container, and not because of the code. The image ships Chromium
+build 1194 while `@playwright/test` pins 1208, so every test errors before its body runs, at browser
+launch. `playwright install` is not available in this environment.
 
-`npx playwright test` and `npm run rewind` are the exceptions, and are not re-run: the routine
-scopes end-to-end runs to user-facing changes, and a log entry is not one. Their artifacts still
-carry the code head's results and are labelled as such below.
+e2e.txt therefore carries two rows, and both are true:
+
+- `npx playwright test` (the mandated command, unmodified): fails at launch, 0 tests run.
+- The same suite against the browser the container actually has, via a scratch config that sets
+  `launchOptions.executablePath` to /opt/pw-browsers/chromium: 38 passed.
+
+The scratch config is not committed and is not part of the suite. It is excluded through
+.git/info/exclude rather than .gitignore, so the exclusion is local to the machine that needs it and
+no repository file claims a harness that does not ship. An earlier run of this routine let a
+root-level copy of that config into a commit through `git add -A`, while its own log said the file
+was never committed; that is why the exclusion is now mechanical rather than remembered.
 
 ## Results
 
-Re-run on the close-out head (this commit):
-
 - npm run check: 0 errors, 0 warnings
 - npm run lint: exit 0
-- npm test: 1252 passed, 1 skipped (baseline on main at 1dab4cf: 1187 passed, 1 skipped)
+- npm test: 1369 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped)
 - npm run build: exit 0
 - npm run verify: exit 0, all eight stages (its own transcript is verify-outer.txt; verify.txt is
-  only the inner verify-runner stage, so the audit gate and the chain's exit status used to be
-  asserted here rather than captured)
+  only the inner verify-runner stage, so the audit gate and the chain's exit status are captured
+  there and nowhere else)
 
   verify-outer.txt is intentionally NOT listed in proof-tape.json/.md. It is the transcript OF the
-  run that writes the proof tape, so it is written after the chain returns. The first attempt
+  run that writes the proof tape, so it is written after the chain returns. An earlier attempt
   captured it in place while the chain ran, and proof-tape inventoried the still-open file at 1901
-  bytes against a committed 1908 - it had not yet seen the transcript's own closing exit line. A
-  file cannot inventory itself mid-write, so the transcript is now written after the chain and is
-  absent from that chain's inventory rather than present in it with a wrong size.
+  bytes against a committed 1908 — it had not yet seen the transcript's own closing exit line. A
+  file cannot inventory itself mid-write, so the transcript is written after the chain and is absent
+  from that chain's inventory rather than present in it with a wrong size.
+
+  A review of this change caught verify-outer.txt still holding an earlier head's run, reporting
+  1252 tests against this head's 1369 — the file that exists precisely to carry the outer command's
+  own output, carrying somebody else's. It is regenerated here, and the count above is the check on
+  that: verify-outer.txt and verify.txt must report the same total, or one of them is stale.
 - npm run cipher:gate: exit 0
-
-Captured on the code head that merged as cc5f622, and NOT re-run since:
-
-- npx playwright test: 32 passed (baseline on main at 1dab4cf: 28)
-- npm run rewind -- --seam WigCatalogSeam: 27 passed
-
-Those two cover the code, which is what they are about; no code has changed since. Presenting them
-under a "this head" heading would have claimed a run that did not happen, which is the distinction
-this split exists to keep.
+- npm run rewind -- --seam "CreationStoreSeam (self-contained)": 7 passed
+- npx playwright test: see the section above — the mandated command fails on a browser-version
+  mismatch; the suite passes 38/38 against the installed browser.
 
 ## The Cipher Gate entry, and what it claims
 
-- cipher-gate.json is now in this folder, and DECISIONS.md carries a Cipher Gate entry dated
-  2026-09-05 for WigCatalogSeam. It was added after a review finding argued that moving the UI from
-  bypassing the seam to consuming listWigs() makes seam outcomes newly observable, and AGENTS.md
-  says to treat doubt as a seam change.
-- The entry does not claim the seam changed, and neither does this file. No file under contracts/,
-  probes/, fixtures/, src/lib/mocks/, tests/contract/, src/lib/adapters/ or src/lib/seams/ is in the
-  diff; all six of WigCatalogSeam's artifacts pre-date this work; no contract shape moved. The seam
-  returns exactly what it returned before for the same input.
-- rewind-wig-catalog-seam.txt is the positive evidence for that: the seam's contract verifies on the
-  CODE head, 27 tests passed. It is not re-run on the close-out head and does not claim to be — no
-  code has changed since, which is what makes carrying it forward legitimate rather than stale.
-- wig-catalog-seam carries a documented manual probe with no runProbe export (docs/seams.md records
-  N/A in its probe-date column), which pre-dates this change. So the seam's automated evidence here
-  is its contract test via rewind plus chamber-lock's artifact-presence gate, not a fresh probe run.
+- DECISIONS.md carries a Cipher Gate entry dated 2026-09-05 for CreationStoreSeam, and this time it
+  is a real seam change rather than a doubt resolved in favour of one: `CreationRecordSchema` and
+  `DraftRecordSchema` each gain an optional `styleSelection`, and the seam gains the `validators.ts`
+  artifact it was missing.
+- The field is optional, and that is load-bearing rather than tidy. The production adapter parses
+  every record out of localStorage through these schemas, so a required field would have failed
+  validation on every record already in a reader's browser and emptied their vault on upgrade. The
+  contract test parses a record with the key deleted, and making the field required turns ten vault
+  tests red — measured, not asserted.
+- chamber-lock.json is the artifact-presence gate for the seam's six files; rewind is its contract
+  verification. Both are on this head.
 
 ## What this evidence does not prove
 
-- The behavioural guards in this change are invisible from the outside, so a green suite does
-  not establish them. Each was confirmed by deleting it and watching a named test fail; those
-  mutation runs are recorded in WORST_TO_BEST_LOG.md under Run 5, not in this folder.
-- SonarCloud's duplication gate reports a percentage and no location and cannot be run locally. An
-  n-gram scan over the changed .ts files was used instead, before each push. It removed a 10-line
-  repeat between two new tests before the first push (the gate then passed at 0.0%), and removed the
-  same shape again after a Codex round added two more staleness tests. On this head it reports no
-  repeated block at all among the changed .ts files.
-- SonarCloud reports 2 new issues beside its passed gate whose locations are not readable from this
-  environment: the check run's annotation text is empty, no inline comment was posted, and the
-  network policy returns 403 for sonarcloud.io. They are not gate-blocking, not security alerts, and
-  not duplication or coverage — the gate passed with 0.0% duplication on new code and 0 security
-  hotspots. Recorded unresolved rather than guessed at.
+- The provenance guards in this change are invisible from the outside — a green suite cannot tell a
+  page filed under the style that made it from a page filed under the controls that happen to be up.
+  Each guard was confirmed by breaking it and watching a named test fail. Those mutation runs are
+  recorded in WORST_TO_BEST_LOG.md under Run 7, not in this folder.
+- Nothing here exercises the real xAI provider. Every generation in the unit suite and the
+  end-to-end suite is a stubbed fetch, so what is proved is what the studio does with a response,
+  not what a provider returns.
+- SonarCloud's duplication gate reports a percentage and no location and cannot be run locally; the
+  network policy returns 403 for sonarcloud.io. Its result is read from the pull request's check
+  run, not from this folder.
