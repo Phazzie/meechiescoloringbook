@@ -17,6 +17,7 @@ import type { AppOriginSeam } from '../../src/lib/seams/app-origin-seam/contract
 import { createMockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
 import type { MockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
 import { specValidationAdapter } from '../../src/lib/adapters/spec-validation-seam';
+import { MAX_DEDICATION_LENGTH } from '../../src/lib/seams/spec-validation-seam/contract';
 import { StudioState } from '../../src/routes/studio-state.svelte';
 import { VAULT_CAPACITY } from '../../src/lib/core/vault-gallery';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
@@ -1874,6 +1875,53 @@ describe('StudioState quote vault', () => {
 	 * in the app the vault would not take: the button was disabled on `textOutput` alone, so the
 	 * portrait the reader had paid a generation for died with the tab.
 	 */
+	// `settingsError` and `settingsIssues` are the Page Controls panel's two report regions, and the
+	// field's own doc comment claimed they were written only by the panel's handler. They were not:
+	// the wig selector and the try-on page generator both called that handler for its rebuild, and
+	// got its reporting with it. These two cover the halves of that — one writes into the panel about
+	// something it does not own, the other wipes what the panel is already saying.
+	it('does not report a wig change under Page Controls', async () => {
+		const studio = await initVault([]);
+
+		// A page that does not pass its check, for a reason that has nothing to do with the panel:
+		// the reader typed a dedication one character over the limit.
+		studio.handleDedicationInput('D'.repeat(MAX_DEDICATION_LENGTH + 1));
+		await vi.waitFor(() => expect(studio.validationIssues.length).toBeGreaterThan(0));
+
+		// The panel is quiet, correctly — the reader has not touched a Page Control.
+		expect(studio.settingsIssues).toEqual([]);
+
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+
+		// The wig belongs to the try-on studio; the panel's summary deliberately does not even name
+		// it. Reporting here read as "That change was applied. The page did not pass its check" over
+		// a row of controls the reader never went near.
+		expect(studio.settingsIssues).toEqual([]);
+		expect(studio.settingsError).toBe('');
+		// And the failure is still reported — through the field that always carried it.
+		expect(studio.validationIssues.length).toBeGreaterThan(0);
+	});
+
+	it('does not report a refused try-on generation under Page Controls', async () => {
+		const studio = await initVault([]);
+
+		studio.handleDedicationInput('D'.repeat(MAX_DEDICATION_LENGTH + 1));
+		await vi.waitFor(() => expect(studio.validationIssues.length).toBeGreaterThan(0));
+
+		await makeTryOnPage(studio);
+
+		// The generation is refused — no portrait reached the paper — and says so on the try-on
+		// studio's own line.
+		expect(studio.images).toHaveLength(0);
+		expect(studio.generationError).toBe('Fix the page settings before generating.');
+		// It used to say so twice. `handleGenerateTryOnPage` rebuilt the spec through the panel's
+		// handler, which copied the finding into `settingsIssues` — so pressing a try-on button
+		// printed "That change was applied. The page did not pass its check" under a row of controls
+		// the reader had not touched, alongside the correct message above.
+		expect(studio.settingsIssues).toEqual([]);
+		expect(studio.settingsError).toBe('');
+	});
+
 	it('saves a try-on coloring page that has no verdict behind it', async () => {
 		const studio = await initVault([]);
 

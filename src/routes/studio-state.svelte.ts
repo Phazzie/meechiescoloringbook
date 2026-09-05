@@ -222,6 +222,12 @@ export class StudioState {
 	 * every one of its runs. Mirroring `validationIssues` wholesale would have parked a generation's
 	 * or a reopen's findings under the settings panel, blaming the controls for something that
 	 * happened before the reader touched them.
+	 *
+	 * That sentence was false when it was written, which is why the rebuild is now split. The wig
+	 * selector and the try-on page generator both called `syncSpecFromCurrentText`, so both wrote
+	 * here; the try-on path in particular left a finished, valid page reporting a failure about the
+	 * intermediate spec it had already thrown away. They call `rebuildSpecFromCurrentText` instead,
+	 * and the claim holds by construction rather than by everyone remembering it.
 	 */
 	settingsIssues = $state<string[]>([]);
 	/**
@@ -1032,13 +1038,38 @@ export class StudioState {
 		};
 	}
 
+	/**
+	 * Rebuild the spec from whatever text is current. Reports nothing to Page Controls.
+	 *
+	 * Separate from `syncSpecFromCurrentText` below because that one is the *panel's handler* and
+	 * writes the panel's two error regions. It was doing both jobs, and the wig selector and the
+	 * try-on page generator both called it — so a try-on whose intermediate spec did not validate
+	 * (a provider title over the length limit, say) copied that into `settingsIssues`, then replaced
+	 * the invalid fields with a valid title-only spec, re-validated successfully, and left the
+	 * finished page reporting under Page Controls that it had failed its check. A control the reader
+	 * never touched, blamed for a page that passed.
+	 *
+	 * The field's own doc comment claimed "written only by the panel's own handler". It was not, and
+	 * the split is what makes the claim true rather than aspirational: reporting now lives in the one
+	 * caller that owns those regions, so a new caller cannot leak into them by forgetting to.
+	 */
+	private rebuildSpecFromCurrentText = async (
+		source: SettingChangeSource = 'setting'
+	): Promise<void> => {
+		await this.applyTextToSpec(this.rebuildSourceText(), source);
+	};
+
+	/**
+	 * The Page Controls panel's handler: rebuild the spec, then report the outcome beside the
+	 * control the reader just moved. The only writer of `settingsError` and `settingsIssues`.
+	 */
 	syncSpecFromCurrentText = async (
 		source: SettingChangeSource = 'setting'
 	): Promise<void> => {
 		this.settingsError = '';
 		this.settingsIssues = [];
 		try {
-			await this.applyTextToSpec(this.rebuildSourceText(), source);
+			await this.rebuildSpecFromCurrentText(source);
 			// `applyTextToSpec` has already run the check and stored what it found, so this reads
 			// that answer rather than paying for a second call to the seam that could disagree with
 			// the first. Empty on a pass, which is also what the clear above leaves behind.
@@ -1095,7 +1126,18 @@ export class StudioState {
 			// and the previous wig's portrait is still there when the reader goes back to compare.
 			this.resetTryOnPageState();
 		}
-		await this.syncSpecFromCurrentText();
+		// Not the panel's handler: the wig is the try-on studio's control, and the panel's summary
+		// deliberately does not name it. A rebuild that fails here belongs on the try-on studio's own
+		// error line, not filed under settings the reader did not touch.
+		//
+		// Still swallowed rather than rethrown — this is a DOM event handler, and rethrowing produced
+		// an unhandled rejection that told nobody anything.
+		try {
+			await this.rebuildSpecFromCurrentText();
+		} catch (error) {
+			this.generationError =
+				error instanceof Error ? error.message : 'Page settings could not be checked.';
+		}
 	};
 
 	setSelfieForTryOn = (
@@ -1382,7 +1424,13 @@ export class StudioState {
 			// page gets is built from these controls, so reading them again afterwards could record
 			// a style the page was not built with.
 			const requestedStyle = this.currentStyleSelection();
-			await this.syncSpecFromCurrentText();
+			// The bare rebuild, not the panel's handler. The spec it builds here is an intermediate —
+			// `asTryOnPageSpec` replaces the title-bearing half of it four lines down and the result
+			// is re-validated — so reporting this one's findings under Page Controls announced a
+			// failure about a spec that no longer exists, on a page that went on to pass. The enclosing
+			// catch turns a genuine failure here into `generationError`, which is where a try-on that
+			// could not be made belongs.
+			await this.rebuildSpecFromCurrentText();
 			if (pageToken !== this.pageLoadToken) return;
 			const portraitImage = this.parseTryOnPortraitImage(portraitUrl);
 			if (!portraitImage) {

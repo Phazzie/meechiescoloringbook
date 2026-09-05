@@ -5740,3 +5740,57 @@ Playwright 38 passed against the installed browser · `node probes/browser-seams
 
 Both `docs/seams.md` rows for this seam now carry a last-probe date of 2026-09-05 rather than
 2026-02-05 and `N/A`.
+
+## Run 7 close-out — round eleven: a plan disagreeing with its own file list, and a report filed under the wrong control
+
+Two findings. Both are the run's own subject pointed back at the run.
+
+### The plan contradicted its own inventory
+
+`DECISIONS.md`'s `Seams:` line said "adapter and mock unchanged", with a reason that was true when it
+was written: the adapter validates through these schemas and stores JSON, so an added optional field
+needs no adapter change. Three lines below it, the file inventory listed `[MODIFY]` against both the
+adapter and the mock — because round seven found `validators.ts` present and imported by nothing with
+the adapter still calling `safeParse` at four sites, and round nine found the mock replaying its
+fixture for records the adapter refuses. Both were fixed. Neither correction reached the summary
+sentence above them.
+
+So the mandatory planning gate held two descriptions of the same change, disagreeing, in a change
+whose entire subject is two descriptions of the same thing drifting apart. The summary now defers to
+the inventory as the authoritative list and says what moved it, rather than being quietly rewritten
+as though it had always been right.
+
+### The panel was reporting on controls nobody had touched
+
+`syncSpecFromCurrentText` did two jobs: rebuild the spec, and write the Page Controls panel's two
+error regions. Three callers used it — the panel, the wig selector, and the try-on page generator —
+so the second and third got the reporting along with the rebuild. Picking a wig, or pressing the
+try-on button on a page that does not pass its check, printed "That change was applied. The page did
+not pass its check" under a row of controls the reader had never gone near. The wig in particular is
+deliberately absent from that panel's own summary, on the grounds that it belongs to the try-on
+studio — and then its failures were being filed there anyway.
+
+The field's doc comment said, in as many words, "written only by `syncSpecFromCurrentText`, the
+panel's own handler". That sentence was false the day it was written, and it is the reason the leak
+was invisible: the invariant was documented instead of enforced. The rebuild is now
+`rebuildSpecFromCurrentText`, which reports nothing; `syncSpecFromCurrentText` is the panel's handler
+and the only writer of those two regions. A new caller cannot leak into them by forgetting to.
+
+**One correction to the finding as filed, which I would rather state than quietly work around.** It
+described a completed try-on page left reporting a stale failure, via a provider title over the
+length limit. That exact sequence is not reachable: `normalizeSpecTitle` clamps the title before it
+reaches the spec, so the intermediate never fails for that reason, and every other field
+`asTryOnPageSpec` replaces is either normalised on the way in or bounded by the text seam's own
+schema. What is reachable is the misattribution above, and a refused generation reporting itself
+twice — once correctly on the try-on line, once wrongly under Page Controls. The diagnosis of the
+cause was right; the worked example was not, and the fix is the one the diagnosis called for.
+
+Two tests, each red without the split: a wig change on a page with a failing check, and a refused
+try-on generation. Mutations: routing either caller back through the panel's handler (1 red each).
+Running total for this run: **46**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1390 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser.
