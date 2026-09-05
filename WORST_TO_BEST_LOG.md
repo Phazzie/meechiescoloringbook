@@ -6338,3 +6338,44 @@ SonarCloud's gate passes on the previous head (2.1% duplication) and now reports
 than 1. Neither is blocking and neither is identified; the local sonarjs reproduction still finds
 nothing on changed lines. Recorded as the same open loose end, with the count updated rather than
 left saying 1.
+
+## Run 7 — blocked before merge: a Vercel account limit, and a conflict in the evidence folder
+
+### The blocker, which is not the code
+
+`Vercel` went red on `4e486608`:
+
+    Resource is limited - try again in 24 hours
+    (more than 100, code: "api-deployments-free-per-day")
+
+An account-level quota on the free plan, not a build error. The previous head deployed successfully
+minutes earlier and the diff since is a log entry and regenerated evidence, so nothing in the change
+can clear it. The single re-run reserved for a suspected flake would be wasted: the limit is
+time-based, so a retry returns the same status, and no PR anywhere fixes a quota. It clears by
+waiting out the reset or by upgrading the plan — both the account owner's call.
+
+Worth recording rather than filing under "external": **this PR pushed roughly twenty heads today, one
+per review round, each triggering a preview deployment.** Working the rounds one push at a time is a
+real part of what exhausted the quota. Batching several rounds behind one push would have cost less,
+at the price of longer gaps between a finding and its fix. That is a genuine tradeoff and I picked
+one side of it twenty times without noticing I was spending something.
+
+### The conflict, which is this run's own theme again
+
+The PR went `dirty` mid-round. Every conflict was inside `docs/evidence/2026-09-05/` — `main` had
+refreshed the same dated folder for itself, so both branches were writing generated artifacts to one
+path. No source file conflicted.
+
+Resolved by taking this branch's side and re-running the chain, never by hand-editing the artifacts:
+a hand-merged proof tape is a proof of nothing. That is the rule the folder exists to enforce, and a
+merge conflict is exactly where it is most tempting to break it.
+
+The dated folder is a shared mutable path that two branches both regenerate, which makes this
+collision structural rather than bad luck. It will happen to the next run too. Naming it here rather
+than fixing it: the folder's naming scheme is not this change's to redesign.
+
+### Not merged
+
+CI on the code is green, the quality gate passes, every review thread is answered and resolved. The
+one red status is an account quota, and merging past a required check is a decision about somebody's
+Vercel plan rather than about this diff — so it goes to the owner rather than getting taken here.
