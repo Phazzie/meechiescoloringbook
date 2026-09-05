@@ -4,11 +4,15 @@
  * Info flow: Records -> localStorage -> parse (valid records + skipped indices) -> retrieval by owner/id.
  * Invariants: Maximum 50 creations stored; corrupted entries are skipped with indices tracked; operations require browser environment.
  */
+import { MAX_CREATIONS } from '../../seams/creation-store-seam/contract';
+// The seam's own validators, rather than its schemas re-parsed here. Four `safeParse` calls used to
+// live in this file, which left `validators.ts` — an artifact `src/lib/seams/AGENTS.md` requires —
+// imported by nothing while the duplicate parsing it exists to remove stayed put.
 import {
-	CreationRecordSchema,
-	DraftRecordSchema,
-	MAX_CREATIONS
-} from '../../seams/creation-store-seam/contract';
+	parseCreationRecord,
+	parseDraftRecord,
+	validateDraftRecord
+} from '../../seams/creation-store-seam/validators';
 import type {
 	CreationRecord,
 	CreationStoreSeam,
@@ -86,12 +90,12 @@ export const parseRecords = (value: unknown): Result<ParsedRecords> => {
 	const records: CreationRecord[] = [];
 	const skippedIndices: number[] = [];
 	for (const [index, record] of value.entries()) {
-		const parsed = CreationRecordSchema.safeParse(record);
-		if (!parsed.success) {
+		const parsed = parseCreationRecord(record);
+		if (!parsed.ok) {
 			skippedIndices.push(index);
 			continue;
 		}
-		records.push(parsed.data);
+		records.push(parsed.value);
 	}
 	if (skippedIndices.length > 0) {
 		console.warn(
@@ -138,8 +142,8 @@ const parseDraft = (value: unknown | null): Result<DraftRecord | null> => {
 	if (value === null) {
 		return { ok: true, value: null };
 	}
-	const parsed = DraftRecordSchema.safeParse(value);
-	if (!parsed.success) {
+	const parsed = parseDraftRecord(value);
+	if (!parsed.ok) {
 		return {
 			ok: false,
 			error: {
@@ -148,7 +152,7 @@ const parseDraft = (value: unknown | null): Result<DraftRecord | null> => {
 			}
 		};
 	}
-	return { ok: true, value: parsed.data };
+	return { ok: true, value: parsed.value };
 };
 
 export const creationStoreAdapter: CreationStoreSeam = {
@@ -156,8 +160,8 @@ export const creationStoreAdapter: CreationStoreSeam = {
 		if (typeof localStorage === 'undefined') {
 			return browserGuard('Creation store requires a browser environment.');
 		}
-		const parsedRecord = CreationRecordSchema.safeParse(input.record);
-		if (!parsedRecord.success) {
+		const parsedRecord = parseCreationRecord(input.record);
+		if (!parsedRecord.ok) {
 			return {
 				ok: false,
 				error: {
@@ -170,12 +174,12 @@ export const creationStoreAdapter: CreationStoreSeam = {
 		if (!existing.ok) {
 			return existing;
 		}
-		const updated = upsertRecord(existing.value.records, parsedRecord.data);
+		const updated = upsertRecord(existing.value.records, parsedRecord.value);
 		const stored = saveRecords(updated);
 		if (!stored.ok) {
 			return stored;
 		}
-		return { ok: true, value: parsedRecord.data };
+		return { ok: true, value: parsedRecord.value };
 	},
 	listCreations: async (input) => {
 		if (typeof localStorage === 'undefined') {
@@ -224,7 +228,7 @@ export const creationStoreAdapter: CreationStoreSeam = {
 		if (typeof localStorage === 'undefined') {
 			return browserGuard('Creation store requires a browser environment.');
 		}
-		const draft = DraftRecordSchema.parse(input.draft);
+		const draft = validateDraftRecord(input.draft);
 		const stored = writeJson(DRAFT_KEY, draft);
 		if (!stored.ok) {
 			return stored;

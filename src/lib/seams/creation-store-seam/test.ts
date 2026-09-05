@@ -8,6 +8,13 @@ import { describe, expect, it } from 'vitest';
 import { CreationRecordSchema, DraftRecordSchema } from './contract';
 import { creationStoreSampleFixture, creationStoreFaultFixture } from './fixtures';
 import { createCreationStoreMock } from './mock';
+import {
+	parseCreationRecord,
+	parseDraftRecord,
+	validateCreationRecord,
+	validateDraftRecord,
+	validateStyleSelection
+} from './validators';
 
 describe('CreationStoreSeam contract (self-contained)', () => {
 	it('accepts optional Meechie studio text snapshots on creations and drafts', () => {
@@ -73,6 +80,53 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 
 		const parsed = CreationRecordSchema.parse(legacyRecord);
 		expect(parsed.styleSelection).toBeUndefined();
+	});
+
+	// The validators are the seam's only parse of stored JSON — the production adapter routes all
+	// four of its parse sites through them. They were added as the required artifact and imported by
+	// nowhere, so these exercise the two shapes the adapter actually depends on: reporting without
+	// throwing, and throwing where a failure is a programming error.
+	it('reports a bad record rather than throwing, and hands back the parsed one', () => {
+		const record = creationStoreSampleFixture.input.saveCreation.record;
+
+		const good = parseCreationRecord(record);
+		expect(good.ok).toBe(true);
+		// The parsed value, not just a verdict: the vault read keeps what parses and skips the rest,
+		// so a validator that answered only yes/no could not be used by the path it exists for.
+		expect(good.ok && good.value.id).toBe(record.id);
+
+		expect(parseCreationRecord({ id: 'no-such-shape' }).ok).toBe(false);
+		expect(parseCreationRecord(null).ok).toBe(false);
+	});
+
+	it('reports a bad draft the same way', () => {
+		const draft = creationStoreSampleFixture.input.saveDraft.draft;
+
+		const good = parseDraftRecord(draft);
+		expect(good.ok).toBe(true);
+		expect(good.ok && good.value.intent.title).toBe(draft.intent.title);
+
+		expect(parseDraftRecord({ updatedAtISO: 'not a draft' }).ok).toBe(false);
+	});
+
+	it('throws where a failure is a programming error rather than bad stored data', () => {
+		expect(validateCreationRecord(creationStoreSampleFixture.input.saveCreation.record)).toEqual(
+			creationStoreSampleFixture.input.saveCreation.record
+		);
+		expect(validateDraftRecord(creationStoreSampleFixture.input.saveDraft.draft)).toEqual(
+			creationStoreSampleFixture.input.saveDraft.draft
+		);
+		expect(() => validateCreationRecord({})).toThrow();
+		expect(() => validateDraftRecord({})).toThrow();
+	});
+
+	it('validates a style selection on its own, for a caller holding only that', () => {
+		const styleSelection = creationStoreSampleFixture.input.saveCreation.record.styleSelection;
+		expect(styleSelection).toBeDefined();
+		expect(validateStyleSelection(styleSelection)).toEqual(styleSelection);
+		expect(() =>
+			validateStyleSelection({ themeId: '', voice: {}, glitter: false })
+		).toThrow();
 	});
 
 	it('rejects a style selection whose voice is not one the text seam accepts', () => {
