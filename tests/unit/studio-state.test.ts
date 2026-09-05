@@ -3584,6 +3584,33 @@ describe('StudioState page style', () => {
 		expect(saveSpy.mock.calls[0][0].record.styleSelection).toBeUndefined();
 	});
 
+	it('reads re-picking the theme already showing as the reader adopting it', async () => {
+		// The one authorship a comparison cannot see, and the reason `SettingChangeSource` has a
+		// `theme` value at all: clicking the chip that is already active leaves every field
+		// identical and is still the reader asking for that theme.
+		//
+		// It lands on exactly the case the supersede exists for. A reader with a non-default theme
+		// up opens a legacy record, decides to keep that theme for it, and clicks it — the most
+		// direct way to say so — and the equality test called it no choice at all. The autosave kept
+		// writing `undefined` and the refresh still lost the theme.
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-01T00:00:00.000Z',
+			intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A LEGACY DRAFT' }
+		});
+		const alreadyShowing = studio.selectedThemeId;
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		// The reader clicks the theme that is already active. Nothing measurable changes.
+		draftSpy.mockClear();
+		await studio.syncSpecFromCurrentText('theme');
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		expect(studio.selectedThemeId).toBe(alreadyShowing);
+		expect(studio.styleSelectionUnknown).toBe(false);
+		expect(draftSpy.mock.calls.at(-1)?.[0].draft.styleSelection?.themeId).toBe(alreadyShowing);
+	});
+
 	it('does not read a moved page size as a style the reader chose', async () => {
 		// Page size and border reach the studio through the same handler as the theme and are not
 		// style — they live in the intent. So the supersede is a comparison against the controls as

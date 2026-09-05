@@ -372,6 +372,22 @@ export class StudioState {
 	 */
 	private unknownStyleBaseline = $state<StyleSelection | null>(null);
 	/**
+	 * The reader clicked a theme chip since the restore, whatever it changed.
+	 *
+	 * The one authorship a comparison cannot see, and the reason `SettingChangeSource` has a `theme`
+	 * value at all: clicking the chip that is already active leaves every field identical and is
+	 * still the reader asking for that theme. Its doc comment says exactly that, about the
+	 * neighbouring question of recomputing presentation, and the comparison below was written as if
+	 * it did not.
+	 *
+	 * It matters on the case this whole rule is about. Open a legacy record with a non-default theme
+	 * already up, adopt it by clicking it, and the equality test says nothing was chosen — so the
+	 * autosave keeps writing `undefined` and the refresh still loses the theme, which is the defect
+	 * the supersede was added to remove, surviving in the one gesture that expresses the intent most
+	 * directly.
+	 */
+	private readerClaimedTheme = $state(false);
+	/**
 	 * The reader has chosen a style for a restored page that recorded none.
 	 *
 	 * Two conditions, and the second is the one that keeps this from undoing the rest of the change.
@@ -388,7 +404,8 @@ export class StudioState {
 	private readerChoseStyleSinceRestore = $derived(
 		this.generatedSpec === undefined &&
 			this.unknownStyleBaseline !== null &&
-			!isSameStyleSelection(this.currentStyleSelection(), this.unknownStyleBaseline)
+			(this.readerClaimedTheme ||
+				!isSameStyleSelection(this.currentStyleSelection(), this.unknownStyleBaseline))
 	);
 	/**
 	 * True when the page on the paper has no style of its own on file.
@@ -1083,9 +1100,11 @@ export class StudioState {
 		// A fact about the page being replaced, so it goes with it. `loadCreation` calls this first
 		// and sets it after, which is the same order the two artifact snapshots above use.
 		this.restoredStyleUnknown = false;
-		// Goes with the flag it qualifies. Left standing it would have the next page's controls
-		// compared against the previous page's restore, which is a difference about nothing.
+		// Both go with the flag they qualify. Left standing, the baseline would have the next page's
+		// controls compared against the previous page's restore — a difference about nothing — and
+		// the claim would carry a click made about a page that is no longer here.
 		this.unknownStyleBaseline = null;
+		this.readerClaimedTheme = false;
 	}
 
 	/**
@@ -1236,6 +1255,12 @@ export class StudioState {
 			// that clears them clears the panel too instead of leaving it insisting on a failure the
 			// page no longer has.
 			this.settingsReported = true;
+			// A theme click is the reader naming a style even when it changes nothing measurable, so
+			// it is recorded here rather than inferred from the values. Only on a rebuild that
+			// succeeded: a click whose spec did not survive its own check has not authored anything.
+			if (source === 'theme') {
+				this.readerClaimedTheme = true;
+			}
 		} catch (error) {
 			// Reported where the reader is looking — beside the control they just moved — instead of
 			// as "Draft not saved:" in the evidence panel, which is what a settings failure used to
