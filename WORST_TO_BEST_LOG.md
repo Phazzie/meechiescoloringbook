@@ -6243,3 +6243,58 @@ leak in committed files and worth doing soon — on a checkout under `/Users/<na
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3, 2,
 7, 2, 5, 1, 4, 2 — **one hundred and eleven findings across forty rounds.**
+
+---
+
+## Run 4, round 41 — 2026-09-05 — first review round with no findings
+
+Appended, not edited. Recorded because every other round in this run has an entry and a zero is a
+data point, not an absence of one.
+
+Codex reviewed `c650c8d` and posted nothing. Verified rather than inferred from silence: the PR's
+review-thread count was 106 before the review and 106 after, and every thread on the last page is
+resolved. CI on that head: both `verify` jobs, CodeQL, both CodeQL Analyze jobs and SonarCloud's
+quality gate all green. Rosentic remains red and remains a cross-branch finding between
+`claude/sweet-mendel-LJ9Iu` and `claude/great-bell-koj4d9`, neither of which is this branch.
+
+### What the last eight rounds cost and bought
+
+`scripts/capture-evidence.mjs` went from 233 lines at `ecf9f94` to 442 at `c650c8d`. Every added
+line came from a review finding, and the findings were real: the script could not have run on
+Windows at all; a 1 MiB pipe would have truncated exactly the verbose failures whose output matters
+most; stdout and stderr were reordered against each other; committed evidence carried an absolute
+checkout path; and three separate checks confirmed a filename where they should have read a result.
+
+It is now twice the size of `proof-tape.mjs` and five times `verify-runner.mjs`, which does a
+similar job. That is worth stating plainly rather than filing as a win: the defects were all real
+and all latent in the shell block this replaced, where nothing could review them — but 442 lines of
+build tooling to sequence twenty-four commands is disproportionate, and whether it belongs in this
+close-out is the owner's call, not something to settle by continuing to fix.
+
+SonarCloud's new-issue count tracked the growth: 0, 2, 3, 6. The gate passes, so none is
+security-rated. **They have not been read.** `sonarcloud.io` is unreachable from this environment
+(the agent proxy returns 403 on CONNECT), the GitHub MCP tools here expose no code-scanning reader,
+and non-security Sonar issues are not mirrored into review comments. Correction 36 guessed at that
+count once and guessed wrong — the real finding turned out to be PATH resolution — so this run does
+not guess again. Six issues, unenumerated, is the honest state.
+
+### Open follow-ups, none of them fixable inside this close-out's scope
+
+- **11.** `rewind.mjs:88-91` spawns its inner vitest with the default 1 MiB `maxBuffer`; a verbose
+  failure is killed with `ENOBUFS` and a truncated artifact is written anyway.
+- **12.** `sanitizeEvidenceOutput` (`evidence-reporting.mjs:35-42`) matches the repo root only before
+  end-of-string, a slash or whitespace, so an ANSI escape immediately after it defeats the sanitizer.
+  This is why `verify.txt` and `test.txt` still commit absolute paths despite being sanitized.
+- **13.** `rewind.mjs` never calls the sanitizer at all — nineteen leaking artifacts per run.
+
+12 and 13 together put an absolute checkout path in twenty-one committed files. On a checkout under
+`/Users/<name>/` or `C:\Users\<name>\` that is a person's name in the repository, which makes them
+worth doing sooner than the rest. Both are one-line changes to verification machinery this close-out
+has deliberately not edited.
+
+### Running total
+
+**One hundred and eleven findings across forty rounds, then one round with none.** Rounds 1-33 were
+about prose describing finished work; rounds 34-40 were about code, and found ten real defects there.
+The application itself — the `/m/<slug>` rebuild that was the point of this run — shipped in round 1
+and has been live since, unchanged by any of it.
