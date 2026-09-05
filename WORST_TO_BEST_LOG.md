@@ -8481,3 +8481,42 @@ re-ran all eleven mutation directions, because the refactor invalidates them in 
 6 rules pass · eleven mutation directions verified after the refactor · full chain re-run: check 0/0,
 1445 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41 with `e2e exit=0`
 recorded, probe complete.
+
+### Addendum — the vacuous scan, and least privilege on the verify workflow
+
+SonarCloud went 1 → 2 new issues on `e2e9a63b`, so this branch introduced one. Since sonarcloud.io is
+unreachable from this container, I ran a differential: the all-rules local scan against the previous
+head's copy of `evidence-guard.mjs` and the current one, on the theory that a newly introduced rule
+class would show up as a difference.
+
+**The first attempt returned nothing on both sides, and that was not a result.** The config's
+`files: ['**/*.mjs']` glob resolves against the working directory, and I had copied both versions to
+absolute scratch paths, so eslint matched neither file and reported zero problems. Zero problems from
+a scan that never scanned looks exactly like zero problems from a clean file.
+
+> **This is the defect this entire pull request is about, committed by me, while investigating this
+> pull request.** I very nearly reported "no new findings" on the strength of a check that had not
+> run. What saved it was asking why *both* sides were empty when the previous head was known to have
+> findings — the same question that has caught every other version of this: not "is the answer good"
+> but "could this have produced any other answer".
+
+Re-run from the repository root, the differential is one additional `arrow-function-convention` —
+a style rule outside SonarCloud's default profile, from the arrow functions in the new
+`replayedFrom()`. No new rule class in the JavaScript. The remaining candidate is `verify.yml`, which
+`eslint-plugin-sonarjs` cannot analyse at all, and which this branch has changed substantially.
+**Recorded as narrowed, not identified** — I cannot see the issue and will not name it from a guess.
+
+Separately, and on its own merits: `verify.yml` declared no `permissions` block, while `rosentic.yml`
+— the only other workflow here — declares `contents: read` and `pull-requests: write`. That
+deviation matters more after round thirty-nine than before it. That round established that this job
+runs code from the branch under review, via `npm install` executing `prepare`; on a same-repo branch
+that code inherits the default `GITHUB_TOKEN` permissions. The workflow checks out, guards evidence
+and runs the chain — it writes nothing — so it now declares `contents: read`.
+
+Whether that is the second SonarCloud issue is **unconfirmed**. It is a correct change regardless,
+which is the only reason it is here: chasing an invisible finding with a speculative edit is how the
+last three wrong guesses in this log were made.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean on the file · `npm run evidence:guard`
+6 rules pass · full chain re-run: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0,
+rewind 17, Playwright 41 with `e2e exit=0` recorded, probe complete.

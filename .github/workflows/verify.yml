@@ -7,6 +7,14 @@ on:
   push:
   pull_request:
 
+# Least privilege, matching `rosentic.yml`, which is the only other workflow here and already
+# declares it. This job runs `npm install`, and this repository's `prepare` script therefore runs
+# code from the branch under review — on a same-repo branch that code inherits whatever the default
+# GITHUB_TOKEN permissions are. Nothing in this workflow writes to the repository or the pull
+# request: it checks out, guards the committed evidence and runs the chain. Read is all it needs.
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
