@@ -143,7 +143,7 @@ drops a field on the way out is red rather than invisible.
 
 - npm run check: 0 errors, 0 warnings
 - npm run lint: exit 0
-- npm test: 1393 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped)
+- npm test: 1395 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped)
 - npm run build: exit 0
 - npm run verify: exit 0, all eight stages (its own transcript is verify-outer.txt; verify.txt is
   only the inner verify-runner stage, so the audit gate and the chain's exit status are captured
@@ -164,9 +164,10 @@ drops a field on the way out is red rather than invisible.
 - npm run rewind -- --seam "CreationStoreSeam (self-contained)": 16 passed
 - npx playwright test: see the section above — the mandated command fails on a browser-version
   mismatch; the suite passes 38/38 against the installed browser.
-- node probes/browser-seams.probe.mjs: complete; rewrote fixtures/creation-store/sample.json (the
-  session and auth-context fixtures came back byte-identical). Same browser-version caveat as the
-  e2e suite, recorded in probe-browser-seams.txt.
+- node probes/browser-seams.probe.mjs: complete; all three fixtures came back byte-identical on this
+  head, the creation-store one included — the run that first found its `studioText` divergence
+  rewrote it, and this run reproduces that capture rather than changing it again. Same
+  browser-version caveat as the e2e suite, recorded in probe-browser-seams.txt.
 
 ## The Cipher Gate entry, and what it claims
 

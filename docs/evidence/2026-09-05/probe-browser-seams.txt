@@ -48,3 +48,11 @@ outputs was green against the wrong value.
 
 `src/lib/seams/creation-store-seam/test.ts` now pins the read-back outputs against the inputs, so a
 future hand-edit that drops a field on the way out is red rather than invisible.
+
+Re-run on this head
+-------------------
+Re-run after the round-15 review fixes, which touch the studio rather than the seam. All three
+fixtures came back byte-identical this time — including `fixtures/creation-store/sample.json`, whose
+`studioText` divergence above was fixed by the capture that first found it. Identical output twice is
+the point of saying so: the capture is repeatable, so the fixture now records what browser storage
+does rather than one run's accident.

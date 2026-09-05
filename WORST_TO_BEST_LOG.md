@@ -6000,3 +6000,58 @@ Running total for this run: **50**.
 `npm run check` 0/0 · `npm run lint` clean · **1393 passed, 1 skipped** · `npm run build` built ·
 `npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
 Playwright 38 passed against the installed browser.
+
+## Run 7 close-out — round fifteen: the pair, not the accessor
+
+Round eleven's fix was "one accessor, so the vault and the draft cannot answer the same question
+differently". Round fifteen is the bill for that sentence being half right.
+
+### One rule was shared; the wrong one
+
+The two writers do share a rule: the live controls cannot claim a style the page never recorded.
+What they do *not* share is which spec they are storing. The vault stores the artifact's spec, so it
+files the artifact's style beside it. The draft stores the **live** spec — it is work in progress,
+not a finished page — and it was filing the artifact's style beside that.
+
+So: generate a page under one theme, move a control to another without regenerating. The debounced
+autosave writes an intent rebuilt for the new theme next to the old theme's selection. Refresh, and
+the old theme is reapplied over the new intent — the control the reader just moved silently undone,
+and `decorations`, which is derived from the style hint, describing a theme the stored selection
+contradicts. One record, two answers, again.
+
+The fix is not another shared accessor. It is that the *pairing* is the invariant: each writer files
+the style belonging to the intent it is about to store. `authoredStyleSelection` holds the rule they
+genuinely share; `artifactStyleSelection` is the vault's snapshot on top of it. Deduplication that
+merges two callers who differ is not deduplication, it is a coin flip resolved in favour of whoever
+wrote the function.
+
+### An error nobody could clear
+
+A wig pick rebuilds the spec, and a failure there lands on the try-on studio's error line. The only
+thing that cleared that line was `resetGeneratedPage`, which runs when the wig *changes* — and
+re-picking the wig already selected is exactly how a reader retries after reading the message. So the
+one gesture the message invites was the one gesture that could not clear it: the failure sat there
+through every later success, describing an attempt that had already been retried.
+
+### A header that stopped short
+
+`tests/e2e/page-controls.spec.ts` opens with Purpose / Why / Info flow and stops. Every test in it
+waits for `[data-hydrated="true"]` first, because clicking earlier races the browser's own `<details>`
+toggle against Svelte's and the panel reads as broken when it is only early — a failure that looks
+exactly like the feature. That is the file's critical invariant and it was written as a note beside
+one helper, where a test added later would not meet it. It is in the header now, which is what the
+file-header rule in `AGENTS.md` is for.
+
+### Mutations
+
+Four, all red. Draft pointed back at the artifact's style (1 red). Vault pointed at the live style
+(4 red). The error clear removed (1 red). The unknown-style rule dropped from
+`authoredStyleSelection` (2 red — one test per writer, which is the check that splitting the accessor
+did not split the rule). Running total for this run: **54**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1395 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser · the browser probe re-run, all three fixtures
+byte-identical.
