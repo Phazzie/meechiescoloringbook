@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-05T19:18:48.777Z",
+  "generatedAt": "2026-09-05T19:33:52.626Z",
   "cipher": {
     "date": "2026-09-05",
     "seams": "CreationStoreSeam",
@@ -29,6 +29,6 @@
     "summary": "Added an optional `styleSelection` to `CreationRecordSchema` and `DraftRecordSchema` so a saved page carries the theme, voice, glitter and wig that composed its `Vibe:` line, reusing `MeechieStudioVoiceSettingsSchema` rather than restating three enums.",
     "risks": "A record naming a theme that a later release removes falls back to the first theme rather than failing; the field is optional, so a record written by an older build restores no style and is reported as unknown rather than guessed at."
   },
-  "latestChangeMs": 1788635901984.721,
+  "latestChangeMs": 1788636598060.7463,
   "status": "ok"
 }

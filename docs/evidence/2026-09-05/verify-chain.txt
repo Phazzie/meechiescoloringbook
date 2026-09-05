@@ -129,7 +129,7 @@ e2e.txt therefore carries two rows, and both are true:
 
 - `npx playwright test` (the mandated command, unmodified): fails at launch, 0 tests run.
 - The same suite against the browser the container actually has, via a scratch config that sets
-  `launchOptions.executablePath` to /opt/pw-browsers/chromium: 38 passed.
+  `launchOptions.executablePath` to /opt/pw-browsers/chromium: 41 passed.
 
 The scratch config is not committed and is not part of the suite. It is excluded through
 .git/info/exclude rather than .gitignore, so the exclusion is local to the machine that needs it and
@@ -161,7 +161,9 @@ drops a field on the way out is red rather than invisible.
 
 - npm run check: 0 errors, 0 warnings
 - npm run lint: exit 0
-- npm test: 1407 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped)
+- npm test: 1445 passed, 1 skipped (baseline on main at f02cfc4: 1252 passed, 1 skipped). This head
+  merges origin/main, which brought a sibling run's 38 tests with it; this change's own contribution
+  is 1407, the total on the head before the merge.
 - npm run build: exit 0
 - npm run verify: exit 0, all eight stages (its own transcript is verify-outer.txt; verify.txt is
   only the inner verify-runner stage, so the audit gate and the chain's exit status are captured
@@ -181,7 +183,8 @@ drops a field on the way out is red rather than invisible.
 - npm run cipher:gate: exit 0
 - npm run rewind -- --seam "CreationStoreSeam (self-contained)": 17 passed
 - npx playwright test: see the section above — the mandated command fails on a browser-version
-  mismatch; the suite passes 38/38 against the installed browser.
+  mismatch; the suite passes 41/41 against the installed browser (38 from this change, 3 brought
+  in by the merge from main).
 - node probes/browser-seams.probe.mjs: complete; all three fixtures came back byte-identical on this
   head, the creation-store one included — the run that first found its `studioText` divergence
   rewrote it, and this run reproduces that capture rather than changing it again. Same

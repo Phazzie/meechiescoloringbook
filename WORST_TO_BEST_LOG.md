@@ -7029,3 +7029,72 @@ Running total: **69**.
 `npm run verify` exit 0, transcript 66 lines carrying its own exit status ·
 `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed · Playwright 38 passed ·
 browser probe complete.
+
+---
+
+## Run 8 close-out — round twenty-three: two runs of this routine collided
+
+A sibling run of this same routine — `claude/great-bell-94oma2`, the AI budget meter — merged to
+`main` as `db32d458` while this branch was waiting on CI. Both had picked their feature the same
+day, both rebuilt part of `StudioState`, and both wrote themselves into the same three documents.
+
+### What actually conflicted, and what only looked like it
+
+`git merge` reported fifteen conflicted files. Exactly two of them were code:
+
+- **`src/routes/studio-state.svelte.ts`** — one hunk, and not a real disagreement. Both sides edited
+  adjacent lines of the state block: this branch changed `glitter` to read from
+  `DEFAULT_STYLE_SELECTION`, main added a doc comment to `revisionBudget` on the line below. Two
+  different fields; both sides kept.
+- **`tests/unit/studio-state.test.ts`** — both sides appended a `describe` block at the end of the
+  file, so git diffed my 1328 lines against their 402 as though they were one edit. Neither
+  overlaps. Reconstructed from the three merge stages rather than by hand-editing the markers:
+  `git show :2:` and `:3:` give the two sides, the shared prefix was already merged in the worktree,
+  and the two blocks were concatenated. Checked by counting `describe(` headers before and after.
+
+The other thirteen were `docs/evidence/2026-09-05/`, which both runs regenerate into the same dated
+folder, and the three governance documents.
+
+### The one that needed a decision
+
+Both entries were numbered **Run 7**. main's merged first, so it owns the number, and this one is
+renumbered to Run 8 — thirty occurrences, plus the evidence summary's header — with a note under
+its heading saying why.
+
+Left alone, the log would have carried two different sections answering to the same name, in a
+document whose entire subject is a name and the thing it points at drifting apart. The number is
+the cheapest possible instance of that, and the one nobody would have caught later, because both
+sections are individually correct.
+
+### Two guards in my own capture script were made of remembered numbers
+
+The script that gates this evidence refused to stage it, twice, and both refusals were right:
+
+- `grep -q "1405 passed\|1406 passed\|1407 passed"` — a hardcoded list of acceptable test totals.
+  The merge brought the suite to 1445 and the guard fired.
+- `grep -q "38 passed"` for the end-to-end suite. The merge brought three specs with it; 41 now.
+
+Both were doing real work — the first one is why the truncated transcript got caught two rounds ago
+— and both were written as a number I had to remember to update. That is the same defect as a doc
+comment describing code it no longer matches, in the tool built to catch that defect.
+
+Replaced with checks that measure instead of remember:
+
+- the outer transcript's total must **equal `test.txt`'s** total. They are two records of one run,
+  so disagreement means one is stale — which is the actual thing worth catching, and it is what
+  `verify-chain.txt` already claimed as its rule without anything enforcing it.
+- the e2e guard asks for *at least* the 38 this branch ships and **no** failed or flaky line, rather
+  than an exact count a merge can move.
+
+**The rule this buys, and it is the twenty-third round's version of the same one: a check written as
+a literal is a second copy of the truth. It goes stale exactly like prose does, and it does it
+silently, because a stale guard still passes — right up until it fails for the wrong reason.**
+
+### Verification, on the merge head
+
+`npm run check` 0/0 · `npm run lint` clean · **1445 passed, 1 skipped** (1407 from this change, 38
+brought in by the merge) · `npm run build` built · `npm run verify` exit 0, transcript 66 lines
+carrying its own exit status · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17
+passed · Playwright **41 passed** against the installed browser · browser probe complete.
+
+No mutation this round — nothing behavioural changed. Running total stays at **69**.
