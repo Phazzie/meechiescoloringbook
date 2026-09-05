@@ -5828,3 +5828,54 @@ real duplication by luck; the second took ten minutes and found the actual line.
 `npm run check` 0/0 · `npm run lint` clean · **1390 passed, 1 skipped** · `npm run build` built ·
 `npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
 Playwright 38 passed against the installed browser.
+
+## Run 7 close-out — round twelve: the snapshot taken where there is no artifact, through the last door
+
+One finding, and it is the round-six defect reached by the one entrance round six did not check.
+
+`loadCreation` set both artifact snapshots — `generatedSpec` and `generatedStyleSelection` — for every
+record it reopened. `saveToVault` prefers the artifact spec over the live one, deliberately: a
+finished page must be filed under the picture it was saved beside, not under whatever the controls
+say afterwards. But a record saved from a verdict *before any image was generated* has no picture.
+There is nothing for a later control change to contradict, so the snapshot made `saveToVault` prefer
+the old intent and throw the reader's change away — they moved Page Size, pressed save, and watched
+it go nowhere, with no error and no explanation.
+
+Round six corrected exactly this shape at two doors: a restored draft, and a generation that came
+back with no picture. This was the third door. The comment above the two assignments read "set
+together at the one restore path that has an artifact" — a claim about the code rather than a
+description of it, which is now the third such comment this review has caught. The snapshots are
+gated on the restored record actually putting a picture on the paper, measured from
+`restoreCreationImages` rather than from `creation.images`, so a record whose stored bytes do not
+decode is treated as what the reader is actually looking at rather than as what the record claims.
+
+### One field answering two questions
+
+`styleSelectionUnknown` read `generatedSpec !== undefined && !generatedStyleSelection`, which made
+one field answer both "is there a picture whose spec must not be overwritten?" and "did this record
+store a style?". Those are the same for a generated page and come apart for an image-less one — so
+gating the snapshots would have silently stopped the panel reporting unknown provenance for records
+it should still report. The second question now has its own field, `restoredStyleUnknown`, set only
+by `loadCreation` and cleared only by `resetGeneratedPage`.
+
+### Two existing tests were passing next to the reason they gave
+
+Both of the tests that broke turned out to be about a *finished page* — "keeps a reopened page filed
+under its own paper when a control moves", and the glitter overlay being a claim about somebody
+else's picture — and both were written against a fixture with no picture in it. They passed, and
+they were not testing what they said.
+
+They now use a fixture with real PNG bytes on it, and the image-less case has its own test asserting
+the opposite: the reader's control change survives the save. That is the third time this run a green
+test has turned out to be green for a reason adjacent to the one it names, and the first time the
+fixture rather than the assertion was what made it so.
+
+Mutations: removing the image gate (1 red — the new test), and pointing `styleSelectionUnknown` back
+at `generatedSpec` (1 red — the glitter test, which the gate would otherwise have quietly changed).
+Running total for this run: **48**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1391 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser.

@@ -327,10 +327,23 @@ export class StudioState {
 	 * This asked `assembledPrompt !== ''` until a review pointed at the gap: the prompt is assigned
 	 * *before* the check for a response that came back with no picture, deliberately, so System
 	 * Trace still shows what was asked for. So a generation that produced nothing looked like an
-	 * artifact. `generatedSpec` is the honest test, because it is now set only where a page actually
-	 * exists — and it is `undefined` for a restored draft, which is a page the controls do describe.
+	 * artifact.
+	 *
+	 * It then read `generatedSpec !== undefined && !generatedStyleSelection`, which made one field
+	 * answer two different questions: "is there a picture whose spec must not be overwritten?" and
+	 * "did the record on screen store a style?". Those come apart on a record saved without ever
+	 * generating an image, and a review found them apart — see `restoredStyleUnknown` and
+	 * `loadCreation`. This is now the second question only, which is the one the panel asks.
 	 */
-	styleSelectionUnknown = $derived(this.generatedSpec !== undefined && !this.generatedStyleSelection);
+	/**
+	 * The page on the paper was restored from a record that stored no style of its own.
+	 *
+	 * Its own field because it is a fact about the *restore*, not about an artifact. Only
+	 * `loadCreation` sets it and only `resetGeneratedPage` clears it, so every path that replaces
+	 * the paper clears it exactly once.
+	 */
+	private restoredStyleUnknown = $state(false);
+	styleSelectionUnknown = $derived(this.restoredStyleUnknown);
 	/**
 	 * The glitter the paper on screen should be wearing — the page's, not the control's.
 	 *
@@ -941,6 +954,9 @@ export class StudioState {
 		// same stale-report defect in miniature.
 		this.settingsError = '';
 		this.settingsIssues = [];
+		// A fact about the page being replaced, so it goes with it. `loadCreation` calls this first
+		// and sets it after, which is the same order the two artifact snapshots above use.
+		this.restoredStyleUnknown = false;
 	}
 
 	/**
@@ -1694,6 +1710,11 @@ export class StudioState {
 		// `null` for a page that prints no items — a reopened try-on portrait, say. Nothing on that
 		// page is a verdict, so nothing is restored as one; see `buildStudioTextFromSpec`.
 		const restoredText = buildStudioTextFromCreationRecord(creation);
+		// Decoded up here rather than at the assignment below, because whether this record puts a
+		// picture on the paper is what decides the artifact snapshots — and a record whose stored
+		// bytes do not decode restores none. Asking `creation.images` would be asking what the
+		// record claims; this asks what the reader is actually looking at.
+		const restoredImages = restoreCreationImages(creation);
 		this.resetGeneratedPage();
 		this.spec = creation.intent;
 		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
@@ -1707,16 +1728,24 @@ export class StudioState {
 		// controls, so seeding first would describe a page that was never on screen — and that seed
 		// is what the next setting change is decided against.
 		this.applyRestoredStyleSelection(creation.styleSelection);
-		// The two artifact snapshots, set together at the one restore path that has an artifact.
+		// Whether this record stored a style is a fact about the record, true whether or not it also
+		// carries a picture. Held apart from the snapshots below, which are about the picture.
+		this.restoredStyleUnknown = creation.styleSelection === undefined;
+		// The two artifact snapshots — but only when this record actually put a picture on the paper.
 		//
-		// The spec has no unknown case: it *is* the record, so every record ever written carries
-		// one. Without it, reopening a page, changing a setting and saving again wrote the rebuilt
-		// spec over the old picture — the drift the snapshot at generate time closes, reached by the
-		// other door. The style is left `undefined` for a record written before the field existed,
-		// which is what `styleSelectionUnknown` reports rather than the panel presenting the
-		// reader's controls as that page's choices.
-		this.generatedSpec = creation.intent;
-		this.generatedStyleSelection = creation.styleSelection;
+		// They exist so that reopening a page, changing a setting and saving again cannot write the
+		// rebuilt spec over the picture the record was saved with. A record saved before any image
+		// was generated has no such picture, so there is nothing for the reader's later changes to
+		// contradict, and taking a snapshot there made `saveToVault` prefer the old intent and throw
+		// their changes away on the next save.
+		//
+		// This is the same "snapshot taken where there is no artifact" the generate paths were
+		// corrected for two rounds earlier — the restore door, missed then. The comment here used to
+		// read "the one restore path that has an artifact", which was the claim rather than the code.
+		if (restoredImages.length > 0) {
+			this.generatedSpec = creation.intent;
+			this.generatedStyleSelection = creation.styleSelection;
+		}
 		// The wig belongs with them: it is this page's, not the carousel's, and regenerating a
 		// reopened page must keep it rather than reach for whatever the reader has selected now.
 		// Left `null` for a record with no stored style, which is the case the panel reports as
@@ -1744,7 +1773,7 @@ export class StudioState {
 		// Reopening a saved page used to hand back the words and drop the picture, so the only
 		// way to see your own page again was to pay for another generation. The record already
 		// carries the image bytes and the trace, so give all of it back.
-		this.images = restoreCreationImages(creation);
+		this.images = restoredImages;
 		this.assembledPrompt = creation.assembledPrompt;
 		this.revisedPrompt = creation.revisedPrompt ?? '';
 		this.violations = creation.violations ?? [];

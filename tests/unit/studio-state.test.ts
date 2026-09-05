@@ -2404,6 +2404,24 @@ describe('StudioState page style', () => {
 	});
 
 	/**
+	 * The same record with a picture actually on it.
+	 *
+	 * Several tests below are about what a *finished page* does when a control moves, and were
+	 * written against the image-less record above — so they passed for a reason next to the one they
+	 * describe. A record with no picture has no artifact for a later control change to contradict,
+	 * and now behaves accordingly (see `loadCreation`), which is what separated the two.
+	 *
+	 * Real PNG bytes, because `restoreCreationImages` checks the byte signature and drops anything it
+	 * cannot recognise — a stub payload would restore no picture and put the fixture straight back
+	 * where it was.
+	 */
+	const makePicturedCreation = (overrides: Partial<CreationRecord> = {}): CreationRecord =>
+		makeStyledCreation({
+			images: [{ b64: ONE_PIXEL_PNG_BASE64 }],
+			...overrides
+		});
+
+	/**
 	 * Runs a real generation so the page on screen has a prompt and a picture.
 	 *
 	 * The style is now captured where the artifact is made, so a test that wants a *saveable* page
@@ -2904,7 +2922,7 @@ describe('StudioState page style', () => {
 		const { studio, saveSpy } = await savingStudio();
 
 		await studio.loadCreation(
-			makeStyledCreation({
+			makePicturedCreation({
 				intent: {
 					...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
 					title: 'A STYLED PAGE',
@@ -2919,6 +2937,34 @@ describe('StudioState page style', () => {
 
 		expect(saveSpy.mock.calls[0][0].record.intent.pageSize).toBe('A4');
 		expect(saveSpy.mock.calls[0][0].record.intent.border).toBe('plain');
+	});
+
+	it('keeps a reopened image-less page under the controls the reader just moved', async () => {
+		// The mirror of the test above, and the case it was silently standing in for. A record saved
+		// from a verdict before any image was generated has no picture, so there is no artifact for a
+		// later control change to contradict — the reader's change is the only authorship there is.
+		//
+		// Snapshotting the record's intent on reopen made `saveToVault` prefer it over the rebuilt
+		// live spec, so the reader changed Page Size, pressed save, and watched their change go
+		// nowhere with no error and no explanation. Same shape as the snapshots taken on a restored
+		// draft and on a failed generation, corrected two rounds earlier; this was the restore door.
+		const { studio, saveSpy } = await savingStudio();
+
+		await studio.loadCreation(
+			makeStyledCreation({
+				intent: {
+					...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+					title: 'A PAGE WITH NO PICTURE',
+					pageSize: 'A4',
+					border: 'plain'
+				}
+			})
+		);
+		studio.pageSize = 'US_Letter';
+		await studio.syncSpecFromCurrentText('setting');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.intent.pageSize).toBe('US_Letter');
 	});
 
 	it('never files a style and a decoration density that disagree about one picture', async () => {
@@ -3246,7 +3292,7 @@ describe('StudioState page style', () => {
 		await studio.init();
 		studio.glitter = true;
 
-		await studio.loadCreation(makeStyledCreation());
+		await studio.loadCreation(makePicturedCreation());
 
 		expect(studio.styleSelectionUnknown).toBe(true);
 		expect(studio.pageGlitter).toBe(false);
@@ -3257,7 +3303,7 @@ describe('StudioState page style', () => {
 		await studio.init();
 		studio.glitter = false;
 
-		await studio.loadCreation(makeStyledCreation({ styleSelection }));
+		await studio.loadCreation(makePicturedCreation({ styleSelection }));
 
 		expect(studio.pageGlitter).toBe(true);
 	});
