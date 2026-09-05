@@ -65,11 +65,11 @@ rewind files that is exactly right. For build.txt, cipher-gate.json, lint.txt an
 over-reads its own test, which is a modification-time comparison against chamber-lock.json rather
 than a record of which run produced a file. On this head:
 
-  lint.txt          04:18:04
-  build.txt         04:18:14
-  cipher-gate.json  04:18:14
-  chamber-lock.json 04:18:24   <- the comparison point
-  proof-tape.json   04:19:39
+  lint.txt          04:25:42
+  build.txt         04:25:51
+  cipher-gate.json  04:25:51
+  chamber-lock.json 04:26:02   <- the comparison point
+  proof-tape.json   04:27:17
 
 Six to sixteen seconds earlier, in this same push, by the ordering the section above requires - not
 an earlier run. Those timestamps are given so a reader can check the claim instead of choosing
