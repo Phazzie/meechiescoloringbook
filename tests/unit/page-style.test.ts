@@ -4,6 +4,17 @@
  * Why: The style hint is the page's whole art direction and the input the decoration density is
  *      derived from. An encoding change nothing notices restyles every page the studio makes.
  * Info flow: StyleSelection -> buildStyleHint -> `Vibe:` line; StyleSelection -> panel prose.
+ *
+ * Critical invariants, both about not writing a test that agrees with itself:
+ *
+ *   1. Every expected `Vibe:` string below is written out literally. Rebuilding an expectation from
+ *      the same pieces the subject assembles it from would make an encoding change pass, which is
+ *      the one change this file exists to catch — it would restyle every page the studio makes and
+ *      nothing else in the suite would notice.
+ *   2. Option coverage is driven from the seam schemas (`MeechieStudioVoiceSettingsSchema`,
+ *      `PageSizeSchema`, `BorderStyleSchema`) rather than from a list typed here. A value added to
+ *      a contract must arrive in this file as a *failure* about missing prose, not as a silence.
+ *      A hand-kept list would go stale on exactly the change that needs catching.
  */
 import { describe, expect, it } from 'vitest';
 import {

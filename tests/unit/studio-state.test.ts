@@ -23,6 +23,7 @@ import { VAULT_CAPACITY } from '../../src/lib/core/vault-gallery';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
 import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-text.contract';
 import type { Wig } from '../../src/lib/seams/wig-catalog-seam/contract';
+import type { StyleSelection } from '../../src/lib/core/page-style';
 
 const SAMPLE_WIG: Wig = {
 	id: 'wig-1',
@@ -2505,13 +2506,71 @@ describe('StudioState page style', () => {
 		return { studio, saveSpy: vi.spyOn(creationStoreAdapter, 'saveCreation') };
 	};
 
-	it('saves the theme, voice and glitter that composed the page', async () => {
-		const { studio, saveSpy } = await savingStudio();
+	/**
+	 * The controls set to `styleSelection`, with no page made from them yet.
+	 *
+	 * Every test in this block that is about provenance has to put a *known* style on the controls
+	 * first, and they were each spelling out the same three assignments — including the voice
+	 * literal, which is `styleSelection.voice` and now says so. A test whose setup silently drifted
+	 * from the constant it asserts against would be green for the wrong reason.
+	 */
+	const putStyleOnControls = (studio: StudioState): void => {
+		studio.selectedThemeId = styleSelection.themeId;
+		studio.voice = { ...styleSelection.voice };
+		studio.glitter = styleSelection.glitter;
+	};
 
-		studio.selectedThemeId = 'receipts';
-		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
-		studio.glitter = true;
-		await generatePage(studio);
+	/**
+	 * A saving studio with a real page on the paper, made from `styleSelection`.
+	 *
+	 * The prologue of every test about what a *finished* page files itself under. It has to be a
+	 * real generation rather than an assigned prompt — see `generatePage` — so it is seven lines
+	 * before the test's own first sentence, repeated verbatim each time.
+	 */
+	const styledPageOnScreen = async () => {
+		const saving = await savingStudio();
+		putStyleOnControls(saving.studio);
+		await generatePage(saving.studio);
+		return saving;
+	};
+
+	/**
+	 * The reader changes their mind after the picture exists, and does not regenerate.
+	 *
+	 * The move at the centre of this whole block: it is the moment the controls and the page stop
+	 * describing the same thing, and what each writer does about that is what the tests below are
+	 * checking. Named because "which theme" is not the point of it — "after, without regenerating"
+	 * is.
+	 */
+	const restyleWithoutRegenerating = async (studio: StudioState): Promise<void> => {
+		studio.selectedThemeId = 'church-glam';
+		studio.glitter = false;
+		await studio.syncSpecFromCurrentText('theme');
+	};
+
+	/**
+	 * A saving studio started from a stored draft, which is what a refresh actually is.
+	 *
+	 * `initFromDraft` writes to localStorage and builds a bare studio; this stubs the seam and adds
+	 * the session, because a draft-restore test that is about what gets *saved* next needs both. The
+	 * draft body was written out twice verbatim, so the one field each test varies — the style — is
+	 * the parameter, and the rest cannot drift between them.
+	 */
+	const initFromStoredDraft = async (draftStyle: StyleSelection | undefined) => {
+		vi.spyOn(creationStoreAdapter, 'getDraft').mockResolvedValue({
+			ok: true,
+			value: {
+				updatedAtISO: '2026-09-01T00:00:00.000Z',
+				intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A DRAFTED PAGE' },
+				studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+				styleSelection: draftStyle
+			}
+		});
+		return savingStudio();
+	};
+
+	it('saves the theme, voice and glitter that composed the page', async () => {
+		const { studio, saveSpy } = await styledPageOnScreen();
 
 		await studio.saveToVault();
 
@@ -2678,24 +2737,10 @@ describe('StudioState page style', () => {
 		// The defect this PR exists to remove, one step further along: generate a page, then move a
 		// control, then save. The image and the prompt are the old style's; reading the live controls
 		// would file them under a style that never made them.
-		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-			ok: true,
-			value: { sessionId: SESSION_ID }
-		});
-		const studio = registerInitialized(new StudioState());
-		await studio.init();
-		studio.selectedThemeId = 'receipts';
-		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
-		studio.glitter = true;
-		await generatePage(studio);
+		const { studio, saveSpy } = await styledPageOnScreen();
 		expect(studio.assembledPrompt).toBe('the prompt this page was made with');
 
-		// The reader changes their mind after the picture exists, but does not regenerate.
-		studio.selectedThemeId = 'church-glam';
-		studio.glitter = false;
-		await studio.syncSpecFromCurrentText('theme');
-
-		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		await restyleWithoutRegenerating(studio);
 		await studio.saveToVault();
 
 		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
@@ -2709,23 +2754,10 @@ describe('StudioState page style', () => {
 		// selection. Restoring that draft reapplied the old theme over the new intent: the control
 		// the reader had just moved undone on every refresh, and `decorations`, which is derived from
 		// the style hint, describing a theme the stored selection contradicts.
-		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-			ok: true,
-			value: { sessionId: SESSION_ID }
-		});
-		const studio = registerInitialized(new StudioState());
-		await studio.init();
-		studio.selectedThemeId = 'receipts';
-		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
-		studio.glitter = true;
-		await generatePage(studio);
+		const { studio, saveSpy } = await styledPageOnScreen();
 
 		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
-		// The same move as the vault test above: the reader changes their mind after the picture
-		// exists, and does not regenerate.
-		studio.selectedThemeId = 'church-glam';
-		studio.glitter = false;
-		await studio.syncSpecFromCurrentText('theme');
+		await restyleWithoutRegenerating(studio);
 		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
 
 		const savedDraft = draftSpy.mock.calls.at(-1)?.[0].draft;
@@ -2744,7 +2776,6 @@ describe('StudioState page style', () => {
 
 		// And the vault still files the picture under the style that made it — the two writers now
 		// disagree on purpose, because they are storing two different specs.
-		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
 		await studio.saveToVault();
 		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
 	});
@@ -2753,15 +2784,11 @@ describe('StudioState page style', () => {
 		// The Page Controls stay enabled during a generation and moving one does not advance
 		// `pageLoadToken`, so reading the controls after the await recorded a style the picture was
 		// not drawn from.
-		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-			ok: true,
-			value: { sessionId: SESSION_ID }
-		});
-		const studio = registerInitialized(new StudioState());
-		await studio.init();
-		studio.selectedThemeId = 'receipts';
-		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
-		studio.glitter = true;
+		//
+		// Not `styledPageOnScreen`: this one needs its own fetch stub, because the control move has
+		// to happen *inside* the request rather than after it.
+		const { studio } = await savingStudio();
+		putStyleOnControls(studio);
 		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
 
 		let sentHint = '';
@@ -2861,20 +2888,12 @@ describe('StudioState page style', () => {
 		// has no artifact snapshot, because only the generate paths take one. Its controls did author
 		// the spec being saved, so they are its style; filing it as "not on file" would report an
 		// unknown for a page whose style is perfectly well known.
-		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-			ok: true,
-			value: { sessionId: SESSION_ID }
-		});
-		const studio = registerInitialized(new StudioState());
-		await studio.init();
-		studio.selectedThemeId = 'receipts';
-		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
-		studio.glitter = true;
+		const { studio, saveSpy } = await savingStudio();
+		putStyleOnControls(studio);
 		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
 		expect(studio.assembledPrompt).toBe('');
 		expect(studio.styleSelectionUnknown).toBe(false);
 
-		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
 		await studio.saveToVault();
 
 		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
@@ -2884,16 +2903,10 @@ describe('StudioState page style', () => {
 		// The other side of the case above: here the prompt and picture came from choices nobody
 		// wrote down, so the controls are the reader's and not the page's. Re-saving must not invent
 		// provenance for it.
-		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-			ok: true,
-			value: { sessionId: SESSION_ID }
-		});
-		const studio = registerInitialized(new StudioState());
-		await studio.init();
+		const { studio, saveSpy } = await savingStudio();
 		await studio.loadCreation(makeStyledCreation());
 		expect(studio.styleSelectionUnknown).toBe(true);
 
-		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
 		await studio.saveToVault();
 
 		expect(saveSpy.mock.calls[0][0].record.styleSelection).toBeUndefined();
@@ -2906,12 +2919,7 @@ describe('StudioState page style', () => {
 		// page back after a reload wearing the reader's controls as its own — the unknown-style notice
 		// gone, the invented values now restorable, and a later vault save able to pair them with that
 		// record's intent for good.
-		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-			ok: true,
-			value: { sessionId: SESSION_ID }
-		});
-		const studio = registerInitialized(new StudioState());
-		await studio.init();
+		const { studio } = await savingStudio();
 
 		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
 		await studio.loadCreation(makeStyledCreation());
@@ -3146,22 +3154,7 @@ describe('StudioState page style', () => {
 		// on the controls *and* recorded it as the page's. Drafts restore no prompt and no image, so
 		// a reader who came back after a refresh, changed a theme and saved got a record holding the
 		// draft's old style beside a spec rebuilt from the new controls.
-		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-			ok: true,
-			value: { sessionId: SESSION_ID }
-		});
-		vi.spyOn(creationStoreAdapter, 'getDraft').mockResolvedValue({
-			ok: true,
-			value: {
-				updatedAtISO: '2026-09-01T00:00:00.000Z',
-				intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A DRAFTED PAGE' },
-				studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
-				styleSelection
-			}
-		});
-		const studio = registerInitialized(new StudioState());
-		await studio.init();
-		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		const { studio, saveSpy } = await initFromStoredDraft(styleSelection);
 
 		// The draft's style is on the controls, which is the half that was always right.
 		expect(studio.selectedThemeId).toBe('receipts');
@@ -3327,21 +3320,10 @@ describe('StudioState page style', () => {
 		// of its own — the carousel reads `selectedWig`, which stays null. `handleGeneratePage` reads
 		// that fallback before the reset clears it, so a refresh could spend a paid generation on a
 		// wig chosen invisibly.
-		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-			ok: true,
-			value: { sessionId: SESSION_ID }
+		const { studio } = await initFromStoredDraft({
+			...styleSelection,
+			wig: { name: 'Honey Drip', style: 'body wave' }
 		});
-		vi.spyOn(creationStoreAdapter, 'getDraft').mockResolvedValue({
-			ok: true,
-			value: {
-				updatedAtISO: '2026-09-01T00:00:00.000Z',
-				intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A DRAFTED PAGE' },
-				studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
-				styleSelection: { ...styleSelection, wig: { name: 'Honey Drip', style: 'body wave' } }
-			}
-		});
-		const studio = registerInitialized(new StudioState());
-		await studio.init();
 
 		// Nothing on screen names a wig.
 		expect(studio.selectedWig).toBeNull();
