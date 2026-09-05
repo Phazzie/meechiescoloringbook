@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-05T01:08:15.545Z",
+  "generatedAt": "2026-09-05T01:30:20.529Z",
   "cipher": {
     "date": "2026-09-05",
     "seams": "WigCatalogSeam (existing; no contract, validator, mock, probe, fixture or adapter changed). The change is a new *consumer*: the UI stops bypassing the seam and starts calling `listWigs()` through the existing adapter, as `/api/wig-try-on` already does. CreationStoreSeam, SpecValidationSeam and OutputPackagingSeam are likewise consumed through their existing adapters, unchanged.",
@@ -69,6 +69,6 @@
     "summary": "`WigCarousel.svelte` previously read the catalog with `import wigData from '$lib/data/wigs.json'` and `wigData as unknown as Wig[]`, so `validateWigCatalog` never ran for the UI and the seam's `WIG_CATALOG_LOAD_FAILED` and `WIG_CATALOG_EMPTY` results had no path to a reader - a malformed or empty catalog rendered as an empty row with no message. The component now calls `createWigCatalogSeam().listWigs()` and renders a loading state, an error state carrying the seam's own message, and the validated wigs. This is recorded as a Cipher Gate entry because the integration makes seam outcomes newly observable in the UI, which a reviewer reasonably read as crossing the boundary, and `AGENTS.md` says to treat doubt as a seam change. What the entry does not claim is a seam change: the seam's six artifacts all pre-date this work and none is in the diff (`git diff origin/main...HEAD --name-only` matches nothing under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` or `src/lib/seams/`), no contract shape moved, and the seam returns exactly what it returned before for the same input. `npm run rewind -- --seam WigCatalogSeam` passes 27 tests on this head.",
     "risks": "The carousel is now asynchronous where it was a synchronous import, so it has a loading state it did not have and a first paint with no cards; an `$effect` that never resolves would leave \"Loading the wig wall...\" on screen indefinitely rather than falling back to the raw JSON, which is the honest failure but a louder one. The seam caches after its first successful parse, so a `wigs.json` edited in a running dev server is not re-read until reload - previously the import had the same property, so this is unchanged in practice. `wig-catalog-seam` carries a documented manual probe with no `runProbe` export and `N/A` in the registry's probe-date column; that pre-dates this change and is untouched by it, so the seam's automated evidence here is its contract test via rewind and chamber-lock's artifact-presence gate, not a fresh probe run. Making the failure paths visible also means a reader can now be shown a catalog error where they previously saw an empty row, which is better but is a new user-facing string on a path that had none."
   },
-  "latestChangeMs": 1788570135167.5056,
+  "latestChangeMs": 1788571274500.8735,
   "status": "ok"
 }

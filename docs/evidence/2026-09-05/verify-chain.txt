@@ -7,7 +7,9 @@
 # Info flow: npm run verify + standalone checks -> their evidence files -> this summary -> review.
 #
 # Run 5 of the worst-feature routine — the wig try-on becomes a shop you can browse and a look you
-# can keep. Head 6c5a151, captured 2026-09-05T00:49:01Z.
+# can keep. Head e33c959, captured 2026-09-05T01:31:30Z, after both Codex rounds (five real findings fixed:
+# the replaced-selfie portrait, the seed body on try-on records, the stranded facet chip, the
+# server-rendered catalog, and the laundered seed text on resave).
 
 ## The chain (npm run verify) — exit 0
 
@@ -31,9 +33,9 @@
 ## Results on this head
 
 - npm run check: 0 errors, 0 warnings
-- npm test: 1238 passed, 1 skipped (baseline on main at 1dab4cf: 1187 passed, 1 skipped)
+- npm test: 1241 passed, 1 skipped (baseline on main at 1dab4cf: 1187 passed, 1 skipped)
 - npm run build: exit 0
-- npx playwright test: 31 passed
+- npx playwright test: 32 passed
 - npm run verify: exit 0, all eight stages
 
 ## The Cipher Gate entry, and what it claims
