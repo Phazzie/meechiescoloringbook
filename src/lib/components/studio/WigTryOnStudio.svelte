@@ -30,6 +30,8 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 	let {
 		selectedWigId,
 		selectedWig,
+		wigs,
+		wigCatalogError,
 		tryOnPortraitUrl,
 		tryOnPortraits,
 		canCompareTryOns,
@@ -44,6 +46,8 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 	}: {
 		selectedWigId: string | null;
 		selectedWig: Wig | null;
+		wigs: Wig[];
+		wigCatalogError: string;
 		tryOnPortraitUrl: string;
 		tryOnPortraits: TryOnPortrait[];
 		canCompareTryOns: boolean;
@@ -76,6 +80,8 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 
 	<WigCarousel
 		{selectedWigId}
+		{wigs}
+		loadError={wigCatalogError}
 		onSelect={(wig) => void onWigSelect(wig)}
 	/>
 

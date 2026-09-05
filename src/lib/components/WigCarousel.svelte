@@ -2,13 +2,14 @@
   Purpose: Browse the wig catalog — search, filter, sort — and pick one to try on.
   Why: The catalog raw-imported wigs.json and cast it to Wig[], so WigCatalogSeam's validation
        never ran and its WIG_CATALOG_EMPTY / WIG_CATALOG_LOAD_FAILED errors could not reach a
-       reader: a broken catalog rendered as an empty row with no message. It now loads through the
-       seam, says what went wrong, and lets you shop on the metadata every wig already carries.
-  Info flow: WigCatalogSeam.listWigs -> buildWigFacets/applyWigQuery -> cards -> onSelect callback.
+       reader: a broken catalog rendered as an empty row with no message. The seam now reads it, in
+       the page's `load` so the cards and their affiliate links are server-rendered, and this
+       component is presentational: it is handed the wigs, or the reason there are none.
+  Info flow: +page.ts load (WigCatalogSeam.listWigs) -> props -> buildWigFacets/applyWigQuery ->
+             cards -> onSelect callback.
 -->
 <script lang="ts">
 	import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
-	import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam';
 	import {
 		DEFAULT_WIG_QUERY,
 		WIG_SORT_OPTIONS,
@@ -23,33 +24,17 @@
 
 	let {
 		selectedWigId = null,
+		wigs,
+		loadError,
 		onSelect
 	}: {
 		selectedWigId: string | null;
+		wigs: Wig[];
+		loadError: string;
 		onSelect: (_wig: Wig) => void;
 	} = $props();
 
-	const catalog = createWigCatalogSeam();
-
-	let wigs = $state<Wig[]>([]);
-	let loadError = $state('');
-	let isLoading = $state(true);
 	let query = $state<WigQuery>({ ...DEFAULT_WIG_QUERY });
-
-	// The seam caches after its first parse, so this costs one validation for the page's lifetime.
-	$effect(() => {
-		void (async () => {
-			const result = await catalog.listWigs();
-			if (result.ok) {
-				wigs = result.value;
-				loadError = '';
-			} else {
-				wigs = [];
-				loadError = result.error.message;
-			}
-			isLoading = false;
-		})();
-	});
 
 	const facets = $derived(buildWigFacets(wigs, query));
 	const visibleWigs = $derived(applyWigQuery(wigs, query));
@@ -61,9 +46,7 @@
 </script>
 
 <div class="wig-browser">
-	{#if isLoading}
-		<p class="catalog-status" data-testid="wig-catalog-loading">Loading the wig wall...</p>
-	{:else if loadError}
+	{#if loadError}
 		<p class="catalog-error" role="alert" data-testid="wig-catalog-error">
 			The wig wall could not be loaded: {loadError}
 		</p>

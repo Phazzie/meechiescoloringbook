@@ -15,6 +15,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	import VerdictRow from '$lib/components/studio/VerdictRow.svelte';
 	import SystemTrace from '$lib/components/studio/SystemTrace.svelte';
 
+	let { data } = $props();
+
 	const studio = new StudioState();
 
 	onMount(async () => {
@@ -93,6 +95,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	<WigTryOnStudio
 		selectedWigId={studio.selectedWigId}
 		selectedWig={studio.selectedWig}
+		wigs={data.wigs}
+		wigCatalogError={data.wigCatalogError}
 		tryOnPortraitUrl={studio.tryOnPortraitUrl}
 		tryOnPortraits={studio.tryOnPortraits}
 		canCompareTryOns={studio.canCompareTryOns}

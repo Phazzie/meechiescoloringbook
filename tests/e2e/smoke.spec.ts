@@ -385,6 +385,30 @@ test('the wig catalog can be searched and filtered, and its counts never promise
 	await expect(wigCards.first()).toContainText('Short Cut Boss');
 });
 
+/**
+ * The catalog used to be a module-scope `import wigs.json`, so its cards and affiliate links were
+ * in the server-rendered markup. Moving the read onto the seam inside an `$effect` moved it after
+ * hydration, which emptied the initial HTML — invisible in a browser, and total for a crawler, a
+ * reader with JavaScript off, or a failed hydration. The read is in the page's `load` for that
+ * reason, and this test asserts the markup itself rather than what the hydrated page shows.
+ */
+test('the wig catalog and its affiliate links are server-rendered', async ({
+	page
+}) => {
+	const response = await page.goto('/');
+	const html = await response!.text();
+
+	expect(html).toContain('Sleek Straight Goddess');
+	expect(html).toContain('Kinky Coily Naturalista');
+	// The affiliate link is what this section exists to carry, so it is the one that must be there.
+	expect(html).toContain('beautyforever.com');
+	expect(html).toContain('utm_source=meechie');
+	// The metadata line and the result count come from the same data, so they prove it is the real
+	// catalog and not a placeholder.
+	expect(html).toContain('Medium · Human hair · Natural Black');
+	expect(html).toContain('8 wigs');
+});
+
 test('a filter invalidated by a later search can still be switched off', async ({
 	page
 }) => {

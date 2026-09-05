@@ -8,6 +8,8 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- The wig catalog is in the page again before any JavaScript runs, so the wigs and their shop links are there for a search engine, a reader with scripting off, or a page that failed to finish loading. Moving the catalog behind its seam had quietly made it appear only after the page came alive.
+- Reopening a saved wig try-on and saving it again no longer writes the example page's lines onto it, and asking Meechie to rework such a page no longer sends her three lines nobody wrote.
 - A wig try-on that is still being made when you upload a new photo is now discarded instead of being added to your looks. It was a picture of the previous photo, and it would have sat beside the new ones as though it were the same person.
 - A coloring page made from a wig try-on no longer carries the example page's list. Reopening a saved try-on used to put "The rent", "The dopeman" and "What it cost" into the preview and into the evidence box, where they became the words your next verdict was asked about.
 - A wig filter you have already chosen can always be switched off, even when a later search leaves it matching nothing. It used to grey itself out, so the only way to undo it was Clear, which threw away your search too.

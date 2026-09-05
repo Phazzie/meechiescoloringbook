@@ -3992,3 +3992,80 @@ gate-blocking, not a security alert, and not duplication or coverage — every e
 green. It is recorded here unresolved rather than guessed at, because run 4's own lesson is that a
 finding you cannot read is an instruction to measure, and the measurement is unavailable from this
 environment.
+
+---
+
+## Run 5, second close-out — 2026-09-05 — the Codex round on `70f1385`
+
+Appended, not edited. Two findings, **both accepted and fixed**, and both are second-order
+consequences of the *first* round's fixes rather than defects the first round missed.
+
+| Severity | Finding | Outcome |
+|---|---|---|
+| P2 | The catalog stopped being server-rendered. `$effect` runs only after hydration, so the initial HTML held `Loading the wig wall...` and none of the cards — or their **affiliate links** — where the old module-scope `import wigs.json` had rendered all of it. | **Real, and the most consequential defect of the whole run.** The seam read moved into `src/routes/+page.ts`'s `load`, which runs on the server and the client, and the carousel became presentational. |
+| P2 | Reopening a saved try-on and saving it again laundered the seed into the record. `buildStudioTextFromSpec` falls back to `DEFAULT_STUDIO_TEXT_OUTPUT.pageItems` when `intent.items` is empty — which is precisely the shape round one's fix created — so the resave persisted THE RENT / THE DOPEMAN / WHAT IT COST as real `studioText`, and a later revision action sent them as `currentText`. | **Real.** A `restoredSeedPageItems` flag now carries the provenance: invented text is neither saved as real nor sent to the provider. |
+
+### The SSR one is the finding this run should have caught itself
+
+Round one's entry says, twice, that the wig try-on is "the only feature that sells anything" and
+that the affiliate link is the app's monetization. The change then **removed those links from the
+server-rendered HTML** — invisible in a browser, total for a crawler, a reader with JavaScript
+disabled, or a hydration that fails. A run whose stated case rests on the commercial value of a
+surface deleted that surface from the markup and did not notice, because every check it ran drove a
+hydrated browser.
+
+The e2e test for it asserts the *response body*, not the rendered page, and was confirmed by
+reproducing the defect exactly — gating the catalog on `browser` — rather than by reasoning about
+when `$effect` runs.
+
+There is a general shape here worth keeping. Moving a read behind a seam is normally strictly better
+and was the right call; but a seam contract is `async` by construction, and moving a *synchronous
+module import* onto one silently converts server-rendered markup into client-only markup. The seam
+was not the mistake. Doing it inside the component was, and the fix is that a seam read belongs in
+`load`, where SvelteKit will run it on both sides.
+
+### The second one is the cost of the first round's fix, and was not visible from it
+
+Round one emptied `intent.items` so a try-on record would stop carrying the demo seed. That is
+right, and it moved the problem: the restore path *needs* two page items, because
+`MeechieStudioTextOutputSchema` requires `pageItems.min(2)`, so an item-less record is exactly the
+input for which synthesis has nothing to draw on and reaches for the seed.
+
+So the seed could not be removed from the restore, and the fix had to be provenance instead: mark
+the one combination whose page items are invented — no `studioText` **and** no `intent.items` — and
+refuse to treat that text as the reader's. The flag is deliberately that narrow: a record with real
+`intent.items` and no `studioText` synthesizes *the page's own words*, which are the reader's and
+must keep working.
+
+### The duplication gate, a fourth time, and what it is actually telling us
+
+Two new pairs, both the shared opening of two tests: the `initVault` + portrait + generate sequence,
+and the fetch-stub + revision + parse-body sequence. Extracted as `makeTryOnPage` and
+`payloadSentByRevision`.
+
+That is now four times in this repository, and the pattern has never once been "the same logic
+written twice by accident". It is always **a second test written by copying the first**, because in
+a test the setup *is* the subject and the second case differs only in one step. The gate is
+detecting a real thing about how these tests get written. The counter-move is to write the pair as
+one parameterised helper from the start, not to reach for the extraction after the scan flags it.
+
+### Evidence on this head
+
+`npm run check` 0 errors / 0 warnings. `npm run lint` exit 0. `npm test` **1241 passed, 1 skipped**
+(from 1238). `npm run build` exit 0. `npx playwright test` **32 passed** (from 31).
+`npm run verify` exit 0, all eight stages. `npm run cipher:gate` exit 0.
+
+**Both fixes proven by mutation.** Gating the carousel's wigs on `browser` — which reproduces the
+`$effect`-only behaviour exactly — fails `the wig catalog and its affiliate links are
+server-rendered`. Restoring the unconditional `studioText` write fails `does not persist the
+invented seed text when a reopened try-on is saved again`, and removing the `currentTextPayload`
+guard fails `does not send invented seed items to the provider as the reader's current text`.
+
+### A note the next run should not have to rediscover
+
+Both rounds' findings were in code this run wrote, and none was found by the eight-stage verify
+chain, the 1241 unit tests, or the 32 e2e tests before review. Four of the five were about *state
+that outlives the moment it was written* — a portrait outliving its selfie, a seed outliving the
+page it seeded, a filter outliving the search that emptied it, markup outliving the server. That is
+not a coincidence about this feature; it is what a review is for, and it is the argument for not
+merging a green PR before the review round lands.

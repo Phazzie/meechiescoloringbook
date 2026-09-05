@@ -831,6 +831,44 @@ describe('StudioState quote vault', () => {
 		vi.restoreAllMocks();
 	});
 
+	/**
+	 * The opening both try-on vault tests share: a studio holding a portrait, turned into a page.
+	 * Extracted rather than repeated — repeating a test's opening is how this repository has tripped
+	 * the duplication gate four times now, and here the opening *is* the shared subject.
+	 */
+	const makeTryOnPage = async (studio: StudioState): Promise<void> => {
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: { files: [] }
+		});
+		studio.selectedWig = SAMPLE_WIG;
+		studio.tryOnPortraits = [{ wig: SAMPLE_WIG, portraitUrl: 'data:image/png;base64,ZmFrZQ==' }];
+		await studio.handleGenerateTryOnPage();
+	};
+
+	/**
+	 * Runs a revision action and hands back the request body it sent, so a test can assert what the
+	 * provider was actually told. The response is a rejection because these tests care only about
+	 * what went out, never what came back.
+	 */
+	const payloadSentByRevision = async (
+		studio: StudioState,
+		evidence: string
+	): Promise<{ currentText?: unknown }> => {
+		const fetchSpy = vi.fn().mockResolvedValue(
+			new Response(
+				JSON.stringify({ ok: false, error: { code: 'X', message: 'no' } }),
+				{ status: 200, statusText: 'OK' }
+			)
+		);
+		vi.stubGlobal('fetch', fetchSpy);
+		studio.evidence = evidence;
+		await studio.runTextAction('make_meaner');
+		const body = JSON.parse(fetchSpy.mock.calls[0][1].body as string);
+		vi.unstubAllGlobals();
+		return body;
+	};
+
 	// A studio left open across UTC midnight kept rendering yesterday's labels, because `nowMs`
 	// only advanced when the vault was read or written. Both refresh paths are covered because
 	// they answer different failure modes: the foreground reader sees nothing without the timer,
@@ -1551,14 +1589,8 @@ describe('StudioState quote vault', () => {
 	 */
 	it('saves a try-on coloring page that has no verdict behind it', async () => {
 		const studio = await initVault([]);
-		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
-			ok: true,
-			value: { files: [] }
-		});
-		studio.selectedWig = SAMPLE_WIG;
-		studio.tryOnPortraits = [{ wig: SAMPLE_WIG, portraitUrl: 'data:image/png;base64,ZmFrZQ==' }];
 
-		await studio.handleGenerateTryOnPage();
+		await makeTryOnPage(studio);
 
 		expect(studio.textOutput).toBeNull();
 		expect(studio.canSaveToVault).toBe(true);
@@ -1586,6 +1618,61 @@ describe('StudioState quote vault', () => {
 
 		expect(studio.evidence).not.toContain('THE RENT');
 		expect(studio.evidence).not.toContain('DOPEMAN');
+	});
+
+	/**
+	 * Reopening a no-verdict try-on has to invent a `MeechieStudioTextOutput` — the contract needs
+	 * two page items and the record has none — so it falls back to the demo seed. Resaving must not
+	 * launder those invented words into the record as though the reader had written them.
+	 */
+	it('does not persist the invented seed text when a reopened try-on is saved again', async () => {
+		const studio = await initVault([]);
+		await makeTryOnPage(studio);
+		await studio.saveToVault();
+		const firstSave = studio.creations[0];
+		expect(firstSave.studioText).toBeUndefined();
+
+		await studio.loadCreation(firstSave);
+
+		// The restore does invent a verdict, and the seed is where it comes from.
+		expect(studio.textOutput?.pageItems.map((item) => item.label)).toEqual([
+			'THE RENT',
+			'THE DOPEMAN',
+			'WHAT IT COST'
+		]);
+
+		await studio.saveToVault();
+
+		const resaved = studio.creations.find((record) => record.id !== firstSave.id);
+		expect(resaved).toBeDefined();
+		expect(resaved?.studioText).toBeUndefined();
+	});
+
+	it('does not send invented seed items to the provider as the reader\'s current text', async () => {
+		const studio = await initVault([
+			makeCreation('try-on-1', { studioText: undefined, intent: {
+				...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+				title: 'Wig Try-On - Sample Wig',
+				listMode: 'title_only',
+				items: [],
+				footerItem: undefined
+			} })
+		]);
+		await studio.loadCreation(studio.creations[0]);
+
+		const body = await payloadSentByRevision(studio, 'He said the wig was his idea.');
+
+		expect(body.currentText).toBeUndefined();
+	});
+
+	it('still sends a reopened page\'s own words when they are really the page\'s', async () => {
+		const studio = await initVault([makeCreation('listed-1', { studioText: undefined })]);
+		await studio.loadCreation(studio.creations[0]);
+
+		const body = await payloadSentByRevision(studio, 'Still the same situation.');
+
+		// This record has real intent.items, so the synthesized text is the page's own words.
+		expect(body.currentText).toBeDefined();
 	});
 
 	it('still refuses to save when there is neither a verdict nor a page', async () => {

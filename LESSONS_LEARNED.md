@@ -322,3 +322,25 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Action: When a comment states an invariant, enumerate the paths it has to hold on and check each
   one, rather than trusting the comment at the site where it was first satisfied. In particular, an
   async handler with two inputs needs a staleness token per input, not per handler.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: Run 5's second review round. Moving the wig catalog from a module-scope `import
+  wigs.json` onto `WigCatalogSeam` inside a component `$effect` removed the cards and their
+  affiliate links from the server-rendered HTML.
+- Lesson: A seam contract is asynchronous by construction, so replacing a synchronous module import
+  with a seam call inside a component silently converts server-rendered markup into client-only
+  markup. Nothing in a hydrated browser shows it, which is why every check passed.
+- Action: A seam read that feeds initial markup belongs in a `load` function, not a component
+  `$effect`. When a change moves a read behind a seam, assert the response body rather than the
+  rendered page.
+
+## 2026-09-05
+- Date: 2026-09-05
+- Context: The duplication gate flagged a fourth pair of near-identical test openings in this
+  repository, again between a test and the second test written by copying it.
+- Lesson: Every instance has been a second test copying the first, never the same logic written
+  twice by accident. In a staleness or provenance test the setup *is* the subject, so the second
+  case differs from the first in exactly one step.
+- Action: When writing the second test of a pair that differs in one step, write both through one
+  helper parameterised by that step, rather than extracting after a scan flags it.

@@ -342,6 +342,22 @@ export class StudioState {
 	 * and image quota on an incomplete page.
 	 */
 	private restoredPageLayout = false;
+	/**
+	 * Whether the verdict on screen was *invented* by reopening, rather than restored.
+	 *
+	 * `buildStudioTextFromCreationRecord` must return a `MeechieStudioTextOutput`, and the contract
+	 * requires at least two `pageItems`, so for a record with no `studioText` and no `intent.items`
+	 * — exactly the shape a wig try-on page saves — it falls back to the demo seed's THE RENT /
+	 * THE DOPEMAN / WHAT IT COST. Those words are not on the page and were never Meechie's.
+	 *
+	 * Two things must therefore not treat that text as the reader's: resaving must not persist it as
+	 * real `studioText`, which would launder the seed into the record; and a revision action must
+	 * not send it as `currentText`, which would ask the provider to rewrite lines nobody wrote.
+	 *
+	 * Only set when the synthesis actually fell back. A record with real `intent.items` and no
+	 * `studioText` synthesizes *the page's own words*, which are the reader's and stay usable.
+	 */
+	private restoredSeedPageItems = false;
 	// Whether the last rebuild's style hint asked for dense decoration — the derivation's answer,
 	// not its input. Seeded at restore time so the first unrelated setting change on a reopened page
 	// compares equal and preserves what was restored.
@@ -551,6 +567,8 @@ export class StudioState {
 	}
 
 	private currentTextPayload() {
+		// Nothing here to revise: the words on screen were invented by the restore, not written.
+		if (this.restoredSeedPageItems) return undefined;
 		return this.textOutput
 			? {
 					verdict: this.textOutput.verdict,
@@ -618,6 +636,8 @@ export class StudioState {
 			this.textOutput = null;
 			this.resetGeneratedPage();
 			this.restoredPageLayout = false;
+			// The invented text goes with it: there is either no verdict now, or a real one.
+			this.restoredSeedPageItems = false;
 		}
 		this.scheduleDraftSave();
 	};
@@ -708,6 +728,8 @@ export class StudioState {
 			// into a numbered list whenever the action then failed, timed out, or was rejected —
 			// while its text was still the text on screen.
 			this.restoredPageLayout = false;
+			// The invented text goes with it: there is either no verdict now, or a real one.
+			this.restoredSeedPageItems = false;
 			await this.applyTextToSpec(parsed.data.value);
 		} catch (error) {
 			this.textError =
@@ -976,7 +998,12 @@ export class StudioState {
 					createdAtISO: new Date().toISOString(),
 					intent: $state.snapshot(this.spec),
 					assembledPrompt,
-					studioText: textOutput ? $state.snapshot(textOutput) : undefined,
+					// Invented text is never saved as though it were real: resaving a reopened
+					// try-on would otherwise turn the demo seed into this record's own studioText.
+					studioText:
+						textOutput && !this.restoredSeedPageItems
+							? $state.snapshot(textOutput)
+							: undefined,
 					revisedPrompt: this.revisedPrompt || undefined,
 					images: storedImages.length > 0 ? storedImages : undefined,
 					violations: $state.snapshot(this.violations),
@@ -996,6 +1023,8 @@ export class StudioState {
 
 	loadCreation = async (creation: CreationRecord): Promise<void> => {
 		const restoredText = buildStudioTextFromCreationRecord(creation);
+		// See `restoredSeedPageItems`: this is the one combination whose page items are invented.
+		this.restoredSeedPageItems = !creation.studioText && creation.intent.items.length === 0;
 		this.resetGeneratedPage();
 		this.spec = creation.intent;
 		// This page's layout is the saved page's, not the studio's, until a new verdict replaces it.
