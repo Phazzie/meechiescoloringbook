@@ -2,11 +2,13 @@
 // Why: The panel's whole job is telling the truth about the page — which theme is on, what each
 //      value does, whether it is open. Those are rendering facts a unit test cannot see.
 // Info flow: Home page -> Page Controls panel -> summary/affordance/help/pressed state.
+// Critical invariant: every test here waits for `[data-hydrated="true"]` before touching the panel,
+//      including the ones that do not go through `openPanel`. Clicking before that races the
+//      browser's own <details> toggle against Svelte's, and the panel reads as broken when it is
+//      only early — a failure that looks like the feature and is not. A test added below without
+//      that wait is not testing this panel.
 import { expect, test } from '@playwright/test';
 
-// Every assertion below is about hydrated behaviour, so each test waits for the studio to say it is
-// hydrated. Clicking before that races the browser's own <details> toggle against Svelte's, and the
-// panel reads as broken when it is only early.
 const openPanel = async (page: import('@playwright/test').Page) => {
 	await page.goto('/');
 	await page.waitForSelector('[data-hydrated="true"]');

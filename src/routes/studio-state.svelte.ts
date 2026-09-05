@@ -811,25 +811,47 @@ export class StudioState {
 	}
 
 	/**
-	 * The style a save should file the page under.
+	 * The style the live controls are entitled to claim.
 	 *
-	 * The artifact's, when there is one; the live controls when they genuinely authored the page;
-	 * and nothing at all when the page's own style is not on file, so nothing invents provenance for
-	 * a record that never had any.
+	 * The controls themselves, except when the page on the paper was restored from a record that
+	 * stored no style: there they are the reader's own settings sitting next to somebody else's
+	 * page, and writing them down would invent provenance the record never had. That is the case
+	 * `styleSelectionUnknown` exists to name, and it is the one rule the vault and the draft share.
 	 *
-	 * One accessor because the vault and the autosaved draft are two writers of the same field and
-	 * they had drifted: the vault applied this rule, the draft wrote the live controls
-	 * unconditionally. So reopening a record with no stored style, waiting for the autosave and
-	 * refreshing brought the page back wearing the reader's controls as its own — the unknown-style
-	 * notice gone, the invented values now restorable, and a later vault save able to pair them with
-	 * that record's intent permanently. The whole point of the field is that it is absent when the
-	 * answer is not known.
+	 * Shared through one function because the two writers of this field had drifted once already:
+	 * the vault applied this rule, the draft wrote the live controls unconditionally. So reopening
+	 * a record with no stored style, waiting for the autosave and refreshing brought the page back
+	 * wearing the reader's controls as its own — the unknown-style notice gone, the invented values
+	 * now restorable, and a later vault save able to pair them with that record's intent
+	 * permanently. The whole point of the field is that it is absent when the answer is not known.
 	 */
-	private styleSelectionToFile(): StyleSelection | undefined {
-		return (
-			$state.snapshot(this.generatedStyleSelection) ??
-			(this.styleSelectionUnknown ? undefined : this.currentStyleSelection())
-		);
+	private authoredStyleSelection(): StyleSelection | undefined {
+		return this.styleSelectionUnknown ? undefined : this.currentStyleSelection();
+	}
+
+	/**
+	 * The style the *vault* should file a page under: the artifact's.
+	 *
+	 * Captured when the picture was made, so a control moved afterwards cannot file the page under a
+	 * style that never produced it. With no artifact snapshot — a page saved before any generation —
+	 * the controls genuinely authored the spec being saved, so they are its style, subject to the
+	 * unknown rule above.
+	 *
+	 * This is the vault's rule and only the vault's, and that separation is the point. Both writers
+	 * used to call one accessor, which paired the artifact's style with whatever intent the caller
+	 * happened to save — right for the vault, which saves the artifact's spec beside it, and wrong
+	 * for the draft, which saves the live one. A review found the pair coming apart: generate under
+	 * one theme, move a control to another without regenerating, and the debounced draft wrote an
+	 * intent rebuilt for the new theme beside the old theme's selection. A refresh then reapplied
+	 * the old theme over the new intent — the reader's latest choice gone, and `decorations`, which
+	 * is derived from the style hint, describing a theme the stored selection contradicts.
+	 *
+	 * So the rule is the pairing, not the accessor: each writer files the style belonging to the
+	 * intent it is about to store. See `saveDraft`, which files `authoredStyleSelection` beside the
+	 * live spec.
+	 */
+	private artifactStyleSelection(): StyleSelection | undefined {
+		return $state.snapshot(this.generatedStyleSelection) ?? this.authoredStyleSelection();
 	}
 
 	private currentDedication(): string | undefined {
@@ -858,10 +880,20 @@ export class StudioState {
 					// draft is restored on every refresh, so a draft without the style was a page
 					// whose look changed every time the reader came back to it.
 					//
-					// Through the same accessor the vault uses, not a second copy of the rule. This
-					// wrote the live controls unconditionally, which is how a reopened record with no
-					// stored style came back from a refresh wearing provenance nobody had recorded.
-					styleSelection: this.styleSelectionToFile()
+					// The *live* style, because the line above stores the *live* spec. A draft is
+					// the reader's work in progress, not a finished artifact, and the two fields
+					// have to describe the same moment or restoring it reapplies one over the
+					// other. Filing the artifact's style here — which this did, through the
+					// accessor the vault uses — meant a control moved after generating was written
+					// into `intent` and then overwritten on the next refresh by the style it had
+					// replaced.
+					//
+					// Still not a second copy of the "no stored style" rule: that lives in
+					// `authoredStyleSelection`, which the vault reaches through
+					// `artifactStyleSelection`. Writing the live controls unconditionally is how a
+					// reopened record with no stored style came back from a refresh wearing
+					// provenance nobody had recorded.
+					styleSelection: this.authoredStyleSelection()
 				}
 			});
 			if (result.ok) {
@@ -1182,6 +1214,13 @@ export class StudioState {
 			// and the previous wig's portrait is still there when the reader goes back to compare.
 			this.resetTryOnPageState();
 		}
+		// The previous attempt's failure is about the previous attempt. On the `wigChanged` path
+		// `resetGeneratedPage` already clears it along with the page; on the same-wig path nothing
+		// did, so a rebuild that failed once stayed on screen through every later success — and
+		// re-picking the selected wig is exactly how a reader retries after seeing it. Cleared
+		// before the attempt rather than after it, so the line is empty while the retry runs
+		// instead of showing a stale sentence about a rebuild that is no longer happening.
+		this.generationError = '';
 		// Not the panel's handler: the wig is the try-on studio's control, and the panel's summary
 		// deliberately does not name it. A rebuild that fails here belongs on the try-on studio's own
 		// error line, not filed under settings the reader did not touch.
@@ -1717,7 +1756,7 @@ export class StudioState {
 					// they are its style. `styleSelectionUnknown` is precisely the case where they are
 					// *not*: a record restored without a stored style, whose prompt and picture came
 					// from choices nobody wrote down.
-					styleSelection: this.styleSelectionToFile(),
+					styleSelection: this.artifactStyleSelection(),
 					owner
 				}
 			});

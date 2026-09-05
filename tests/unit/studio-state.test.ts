@@ -1924,6 +1924,28 @@ describe('StudioState quote vault', () => {
 		expect(studio.settingsError).toBe('');
 	});
 
+	it('clears a failed wig pick when the reader retries the wig already selected', async () => {
+		// Re-picking the selected wig is how a reader retries after seeing that line, and it is the
+		// one path that did not clear it: `resetGeneratedPage` clears the error along with the page,
+		// but only runs when the wig actually changed. So a rebuild that failed once stayed on screen
+		// through every later success, indefinitely, describing an attempt that had already been
+		// retried.
+		const studio = await initVault([]);
+		const validate = vi
+			.spyOn(specValidationAdapter, 'validate')
+			.mockRejectedValue(new Error('spec rebuild exploded'));
+
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+		expect(studio.generationError).toBe('spec rebuild exploded');
+
+		// Whatever made it fail is over, and the reader clicks the same wig again.
+		validate.mockRestore();
+		await studio.selectWigForTryOn(SAMPLE_WIG);
+
+		expect(studio.selectedWigId).toBe(SAMPLE_WIG.id);
+		expect(studio.generationError).toBe('');
+	});
+
 	it('saves a try-on coloring page that has no verdict behind it', async () => {
 		const studio = await initVault([]);
 
@@ -2676,6 +2698,54 @@ describe('StudioState page style', () => {
 		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
 		await studio.saveToVault();
 
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
+	});
+
+	it('files the autosaved draft under the controls its own intent was built from', async () => {
+		// The sibling of the test above, on the other writer, and the pairing goes the opposite way.
+		// The vault stores the *artifact's* spec, so it files the artifact's style beside it. A draft
+		// stores the *live* spec — it is work in progress, not a finished page — so filing the
+		// artifact's style there put an intent rebuilt for the new theme next to the old theme's
+		// selection. Restoring that draft reapplied the old theme over the new intent: the control
+		// the reader had just moved undone on every refresh, and `decorations`, which is derived from
+		// the style hint, describing a theme the stored selection contradicts.
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.selectedThemeId = 'receipts';
+		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
+		studio.glitter = true;
+		await generatePage(studio);
+
+		const draftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		// The same move as the vault test above: the reader changes their mind after the picture
+		// exists, and does not regenerate.
+		studio.selectedThemeId = 'church-glam';
+		studio.glitter = false;
+		await studio.syncSpecFromCurrentText('theme');
+		await vi.waitFor(() => expect(draftSpy).toHaveBeenCalled());
+
+		const savedDraft = draftSpy.mock.calls.at(-1)?.[0].draft;
+		expect(savedDraft?.styleSelection).toEqual({
+			themeId: 'church-glam',
+			voice: styleSelection.voice,
+			glitter: false
+		});
+
+		// The pairing is the point, so the round trip is what proves it: the draft comes back as the
+		// reader left it rather than as the picture they did not remake.
+		const refreshed = await initFromDraft(savedDraft!);
+		expect(refreshed.selectedThemeId).toBe('church-glam');
+		expect(refreshed.glitter).toBe(false);
+		expect(refreshed.spec.decorations).toBe(savedDraft?.intent.decorations);
+
+		// And the vault still files the picture under the style that made it — the two writers now
+		// disagree on purpose, because they are storing two different specs.
+		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		await studio.saveToVault();
 		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
 	});
 
