@@ -5308,10 +5308,18 @@ invalid, and it is: those later pushes carried real source changes (the hero acc
 `verdictToken`), so a success on the older head cannot establish that the newer ones would deploy.
 It shows the project deploys; it does not clear the later heads.
 
-The evidence that does hold is the same signature on a head with no code in it at all: PR #306 — the
-close-out this entry belongs to, which changes one Markdown file and nothing else — draws the
-identical `api-deployments-free-per-day` failure. A cap that fires on a diff containing no code is
-not a statement about code.
+The evidence that does hold is on a head with no code in it at all. PR #306 — the close-out this
+entry belongs to — changes one Markdown file and nothing else. Its first head, `1aa46c6`, drew the
+identical `api-deployments-free-per-day` failure. Its second, `03b2ffc`, **deployed successfully**,
+with the Markdown edited in between and not a line of source touched by either. A signal that both
+fails and succeeds on a diff containing no code is measuring something other than the code.
+
+That second half arrived after this paragraph was first written, and it caught the paragraph out:
+the original said PR #306 "draws" that failure, present tense, which stopped being true about the
+current head an hour later. A statement that was accurate when written and silently expired — which
+is, exactly, the defect this run's feature exists to prevent, committed in the sentence describing
+the run. It is written here in the past tense, tied to the two commits it is about, so it cannot
+expire again.
 
 **Rosentic** — 157 findings, 5 graded breaking. Re-derived from scratch rather than inheriting the
 previous entry's dismissal, which that entry itself records as right-for-the-wrong-reason. Five ways,
