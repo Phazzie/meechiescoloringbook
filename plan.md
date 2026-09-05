@@ -95,7 +95,10 @@ concession the `ClockSeam` plan in run 1 had to make.
   - Chain-generated: `chamber-lock.json`, `shaolin-lint.json`, `assumption-alarm.json`,
     `seam-ledger.json`, `seam-ledger.md`, `clan-chain.json`, `clan-chain.md`, `proof-tape.json`,
     `proof-tape.md`; plus `cipher-gate.json` from the standalone gate.
-  - The nineteen rewind artifacts, named individually in the command block below.
+  - The nineteen rewind artifacts, named individually in the command block below. **Do not
+    redirect `npm run rewind`'s stdout into them** — `scripts/rewind.mjs:98-99` writes each
+    artifact itself, with the Purpose/Why/Info-flow header, and a shell redirect to the same path
+    clobbers it with the raw npm banner. Capture the exit code only.
 - **Commands:** `npm run verify`, `npm run check`, `npm run lint`, `npm test`, `npm run build`,
   `npx playwright test`, `npm run cipher:gate`, `npm run proof:tape`, and
   `npm run rewind -- --seam <name>` for **every seam on the paths this
@@ -107,8 +110,12 @@ concession the `ClockSeam` plan in run 1 had to make.
     what was actually run. The literal invocations:
 
     ```sh
-    # The chain, captured — not bare `npm run verify`. The redirection IS the requirement:
-    { npm run verify 2>&1; printf 'EXIT=%s\n' "$?"; } > docs/evidence/<date>/verify-chain-run.txt
+    # The chain, captured — not bare `npm run verify`. Capturing IS the requirement, and so is
+    # keeping the failure status: a `{ cmd; printf ...; }` group returns *printf's* status, so it
+    # exits 0 even when the chain failed and an unattended run sails on to push. Save $? first.
+    npm run verify > docs/evidence/<date>/verify-chain-run.txt 2>&1; code=$?
+    printf 'EXIT=%s\n' "$code" >> docs/evidence/<date>/verify-chain-run.txt
+    [ "$code" -eq 0 ] || exit "$code"
     npm run cipher:gate        # not in the verify chain; run on its own. exit 0
     npm run proof:tape         # LAST, after every artifact above. exit 0
     ```

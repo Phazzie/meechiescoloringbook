@@ -1,10 +1,9 @@
 # Purpose: Record the OUTER `npm run verify` command — its output and its exit status.
 # Why: verify.txt stores only the inner verify-runner stage, and the final proof:tape overwrites
-#      stage 8, so nothing else retains the outer chain result.
+#      stage 8, so nothing else retains the outer chain result. Captured with the status saved
+#      first, because a `{ cmd; printf; }` group returns printf's status and would hide a failure.
 # Info flow: npm run verify -> this file -> verify-chain.txt points here.
 #
-# npm run verify — 2026-09-05T00:46:45Z
-
 
 > meechies-coloringbook@0.1.0 verify
 > npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
@@ -32,8 +31,8 @@ svelte-check found 0 errors and 0 warnings
 
 [2m Test Files [22m [1m[32m82 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (83)[39m
 [2m      Tests [22m [1m[32m1187 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1188)[39m
-[2m   Start at [22m 00:46:58
-[2m   Duration [22m 55.88s[2m (transform 2.45s, setup 666ms, import 4.75s, tests 2.34s, environment 37.10s)[22m
+[2m   Start at [22m 00:57:25
+[2m   Duration [22m 54.02s[2m (transform 2.42s, setup 598ms, import 4.62s, tests 2.24s, environment 35.78s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

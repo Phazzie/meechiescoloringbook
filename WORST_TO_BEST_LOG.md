@@ -5699,3 +5699,61 @@ commit, which is the strongest possible evidence for that claim.
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2 —
 **eighty-five findings across thirty-two rounds**, none in the application.
+
+---
+
+## Run 4, correction 33 — 2026-09-05 — the capture wrapper swallowed the failure it existed to record
+
+Appended, not edited. Three findings on `28bbd3a` — two P1, one P2.
+
+### 1. P1 — the wrapper records `EXIT=1` and returns 0
+
+Correction 32 wrote this into the mandatory plan as the required way to capture the chain:
+
+```sh
+{ npm run verify 2>&1; printf 'EXIT=%s\n' "$?"; } > verify-chain-run.txt
+```
+
+A brace group returns the status of its **last** command, which is `printf`. Demonstrated rather
+than reasoned about:
+
+```
+$ { false 2>&1; printf 'EXIT=%s\n' "$?"; } > /tmp/t.txt; echo "status: $?  file: $(cat /tmp/t.txt)"
+status: 0  file: EXIT=1
+```
+
+So the file would say the chain failed while the shell said it succeeded, and **an unattended run
+would carry straight on to the remaining commands and push after a failed mandatory gate.** The
+artifact added two rounds ago to stop a green claim outliving a red chain would itself have let a red
+chain pass silently.
+
+Now saves `$?` first, appends it, and exits with the saved status.
+
+### 2. P1 — nineteen evidence files with no header, and the cause was my own redirect
+
+All nineteen `docs/evidence/2026-09-04/rewind-*.txt` began with a blank line and the npm banner
+instead of the required header. The cause is not a missing step — **`scripts/rewind.mjs:98-99`
+writes each artifact itself, header included**, and my `npm run rewind ... > file` redirect was
+clobbering it with raw stdout at the same path.
+
+So the fix is to the procedure, not the files: **do not redirect rewind's stdout.** Let the script
+write its own artifact and capture only the exit code. `plan.md` now says so with the reason.
+
+The nineteen clobbered `2026-09-04/` copies are deleted rather than patched. They were added by this
+PR, `2026-09-05/` is the record of this head (correction 29), and its copies carry the proper header
+because there the script's write survived. Adding hand-written headers to nineteen corrupted
+duplicates would have preserved the bug and doubled the artifacts.
+
+### 3. P2 — two more "follow-up 11" references
+
+`verify-chain.txt:41` and `:81` still said follow-up 11 after correction 32 renumbered it to 10.
+**Seventh time in this close-out.** I said two rounds ago it needs a mechanical grep instead of
+another resolution; this time I ran one —
+`grep -rn "follow-up 11" --include=*.txt --include=*.md .` — found exactly these two plus the
+append-only entries that correctly quote the old number, and fixed them. It took one command, which
+is the entire point.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3 —
+**eighty-eight findings across thirty-three rounds**, none in the application.
