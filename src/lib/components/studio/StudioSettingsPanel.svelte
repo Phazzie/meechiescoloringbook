@@ -111,9 +111,13 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange reb
 
 	<div class="settings-content">
 		{#if styleSelectionUnknown}
+			<!-- The last clause used to read "changing any of them will restyle the page", which was
+			     true when it was written and stopped being true two rounds later: the page on screen
+			     is now built from the snapshot taken with the artifact, so a control change leaves it
+			     alone. It was also contradicting the lede directly below it. -->
 			<p class="settings-notice" data-testid="home-style-unknown">
 				This page's own look was not stored with it. These controls still show your settings, not
-				the ones that made it — changing any of them will restyle the page.
+				the ones that made it — so they describe the next page you make, not this one.
 			</p>
 		{/if}
 

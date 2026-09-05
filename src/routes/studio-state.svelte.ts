@@ -730,7 +730,19 @@ export class StudioState {
 		this.selectedThemeId = themeForSelection(selection).id;
 		this.voice = { ...selection.voice };
 		this.glitter = selection.glitter;
-		this.restoredStyleWig = { value: selection.wig };
+		// The wig is deliberately NOT applied here, and this is the third field to move out of this
+		// function for the same reason: it is artifact provenance, not a control.
+		//
+		// Nothing shows it. `restoredStyleWig` has no control of its own — the carousel reads
+		// `selectedWig`, which stays null — so applying it here on the draft path put a wig into the
+		// next `Vibe:` line that the reader could neither see nor deselect, and `handleGeneratePage`
+		// reads that fallback *before* the reset clears it. A refresh could therefore spend a paid
+		// generation on a wig from a draft, chosen invisibly. Restoring a visible catalog selection
+		// instead is not available: a stored selection carries the wig's name and style, not its
+		// catalog id, and the catalog is not loaded on this path.
+		//
+		// `loadCreation` sets it, because there the wig belongs to a page that is actually on the
+		// paper — see the artifact snapshot there.
 	}
 
 	/**
@@ -1216,10 +1228,20 @@ export class StudioState {
 	 * not take the other down with it: the seam returns on its first error, so asking for print and
 	 * square together loses the print PDF whenever the square rasterisation is the thing that breaks.
 	 */
-	private async attachPageExports(fileBaseName: string, pageToken: number): Promise<void> {
+	/**
+	 * `pageSize` is passed in rather than read off `this.spec`, because by the time this runs the
+	 * live spec may already be somebody else's. The Page Controls stay enabled while a generation is
+	 * in flight and moving Page Size rebuilds `this.spec` without advancing `pageLoadToken`, so
+	 * reading it here packaged the PDF and the share image for different paper than the picture and
+	 * the saved record — the same drift the artifact snapshot removes, one step further down.
+	 */
+	private async attachPageExports(
+		fileBaseName: string,
+		pageToken: number,
+		pageSize: ColoringPageSpec['pageSize']
+	): Promise<void> {
 		if (this.images.length === 0) return;
 		const images = $state.snapshot(this.images);
-		const pageSize = this.spec.pageSize;
 		// Set before packaging, not after: the provider's own image is downloadable the moment the
 		// page lands, and packaging takes seconds. Naming it only afterwards would hand anyone who
 		// grabbed it early a file named after no page in particular. Safe against a late attempt for
@@ -1316,7 +1338,11 @@ export class StudioState {
 			this.generatedSpec = requestedSpec;
 
 			const creationId = this.generateCreationId();
-			await this.attachPageExports(`meechie-coloring-page-${creationId}`, pageToken);
+			await this.attachPageExports(
+				`meechie-coloring-page-${creationId}`,
+				pageToken,
+				requestedSpec.pageSize
+			);
 		} catch (error) {
 			this.generationError =
 				error instanceof Error ? error.message : 'Coloring page generation failed.';
@@ -1402,7 +1428,8 @@ export class StudioState {
 			const creationId = this.generateCreationId();
 			await this.attachPageExports(
 				`meechie-try-on-coloring-page-${creationId}`,
-				pageToken
+				pageToken,
+				requestedSpec.pageSize
 			);
 		} catch (error) {
 			this.generationError =
@@ -1625,6 +1652,13 @@ export class StudioState {
 		// reader's controls as that page's choices.
 		this.generatedSpec = creation.intent;
 		this.generatedStyleSelection = creation.styleSelection;
+		// The wig belongs with them: it is this page's, not the carousel's, and regenerating a
+		// reopened page must keep it rather than reach for whatever the reader has selected now.
+		// Left `null` for a record with no stored style, which is the case the panel reports as
+		// unknown rather than guesses at.
+		if (creation.styleSelection) {
+			this.restoredStyleWig = { value: creation.styleSelection.wig };
+		}
 		// Seed the derivation input at restore time, so the first setting change that does not touch
 		// it compares equal and keeps the density the saved page was built with.
 		this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
@@ -1656,7 +1690,8 @@ export class StudioState {
 		// button with no reason, which is what its own near-copy of this used to do.
 		await this.attachPageExports(
 			`meechie-coloring-page-${this.generateCreationId()}`,
-			this.pageLoadToken
+			this.pageLoadToken,
+			creation.intent.pageSize
 		);
 		this.scheduleDraftSave();
 	};

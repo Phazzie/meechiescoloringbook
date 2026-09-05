@@ -2997,6 +2997,110 @@ describe('StudioState page style', () => {
 		expect(saveSpy.mock.calls[0][0].record.styleSelection?.themeId).toBe('crown-energy');
 	});
 
+	it('packages the downloads for the paper the picture was drawn on', async () => {
+		// The snapshot kept the record honest; the packaging call was still reading the live spec, so
+		// a Page Size moved while the generation was in flight produced a PDF and a share image for
+		// different paper than the image and the saved intent.
+		const { studio } = await savingStudio();
+		const packageSpy = vi
+			.spyOn(outputPackagingAdapter, 'package')
+			.mockResolvedValue({ ok: true, value: { files: [] } });
+
+		studio.pageSize = 'US_Letter';
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(async () => {
+				// The reader moves Page Size while the request is in flight. Nothing advances
+				// `pageLoadToken`, so the generation is still the one that lands.
+				studio.pageSize = 'A4';
+				await studio.syncSpecFromCurrentText('setting');
+				return new Response(
+					JSON.stringify({
+						ok: true,
+						value: {
+							prompt: 'the prompt this page was made with',
+							templateVersion: 'v2',
+							images: [
+								{
+									id: 'image-1',
+									format: 'png',
+									mimeType: 'image/png',
+									data: PAGE_STYLE_PNG_BASE64,
+									encoding: 'base64'
+								}
+							],
+							violations: [],
+							recommendedFixes: []
+						}
+					}),
+					{ status: 200, statusText: 'OK' }
+				);
+			})
+		);
+
+		await studio.handleGeneratePage();
+
+		expect(studio.spec.pageSize).toBe('A4');
+		expect(packageSpy).toHaveBeenCalled();
+		for (const call of packageSpy.mock.calls) {
+			expect(call[0].pageSize).toBe('US_Letter');
+		}
+	});
+
+	it('does not send a draft’s wig on a generation the reader cannot see it in', async () => {
+		// A restored draft used to put its stored wig into `restoredStyleWig`, which has no control
+		// of its own — the carousel reads `selectedWig`, which stays null. `handleGeneratePage` reads
+		// that fallback before the reset clears it, so a refresh could spend a paid generation on a
+		// wig chosen invisibly.
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		vi.spyOn(creationStoreAdapter, 'getDraft').mockResolvedValue({
+			ok: true,
+			value: {
+				updatedAtISO: '2026-09-01T00:00:00.000Z',
+				intent: { ...buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT), title: 'A DRAFTED PAGE' },
+				studioText: DEFAULT_STUDIO_TEXT_OUTPUT,
+				styleSelection: { ...styleSelection, wig: { name: 'Honey Drip', style: 'body wave' } }
+			}
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		// Nothing on screen names a wig.
+		expect(studio.selectedWig).toBeNull();
+
+		await generatePage(studio);
+
+		const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[][] } };
+		const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as {
+			styleHint: string;
+		};
+		expect(body.styleHint).not.toContain('Honey Drip');
+	});
+
+	it('still sends a reopened page’s own wig, which is on the paper', async () => {
+		// The other half of the same rule: a vault record's wig belongs to a page that exists, so
+		// regenerating it must keep that wig rather than reach for the carousel.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		await studio.loadCreation(
+			makeStyledCreation({
+				styleSelection: { ...styleSelection, wig: { name: 'Honey Drip', style: 'body wave' } }
+			})
+		);
+		await generatePage(studio);
+
+		const fetchMock = globalThis.fetch as unknown as { mock: { calls: unknown[][] } };
+		const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as {
+			styleHint: string;
+		};
+		expect(body.styleHint).toContain('Honey Drip');
+	});
+
 	it('files a page saved before any generation under the controls that authored it', async () => {
 		// The fallback the snapshot leaves in place. Nothing was generated, so there is no artifact
 		// for the controls to disagree with — they *are* this page's paper.

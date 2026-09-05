@@ -134,5 +134,125 @@
         "message": "Creation store requires a browser environment."
       }
     }
+  },
+  "rejected": {
+    "creationWithUnacceptableVoice": {
+      "id": "creation-bad-voice",
+      "createdAtISO": "2026-01-22T00:00:00.000Z",
+      "intent": {
+        "title": "Dream Big",
+        "items": [
+          {
+            "number": 1,
+            "label": "Shine"
+          }
+        ],
+        "alignment": "left",
+        "numberAlignment": "strict",
+        "whitespaceScale": 50,
+        "textSize": "small",
+        "colorMode": "black_and_white_only",
+        "decorations": "none",
+        "illustrations": "none",
+        "shading": "none",
+        "variations": 1,
+        "outputFormat": "pdf",
+        "pageSize": "US_Letter",
+        "listMode": "list",
+        "listGutter": "normal",
+        "fontStyle": "rounded",
+        "textStrokeWidth": 6,
+        "border": "plain",
+        "borderThickness": 8
+      },
+      "assembledPrompt": "Create a black-and-white coloring book page for print.",
+      "owner": {
+        "kind": "anonymous",
+        "sessionId": "session-123"
+      },
+      "styleSelection": {
+        "themeId": "receipts",
+        "voice": {
+          "intensity": "polite",
+          "rawness": "raw",
+          "thirdPerson": "always"
+        },
+        "glitter": false
+      }
+    },
+    "creationWithEmptyThemeId": {
+      "id": "creation-bad-theme",
+      "createdAtISO": "2026-01-22T00:00:00.000Z",
+      "intent": {
+        "title": "Dream Big",
+        "items": [
+          {
+            "number": 1,
+            "label": "Shine"
+          }
+        ],
+        "alignment": "left",
+        "numberAlignment": "strict",
+        "whitespaceScale": 50,
+        "textSize": "small",
+        "colorMode": "black_and_white_only",
+        "decorations": "none",
+        "illustrations": "none",
+        "shading": "none",
+        "variations": 1,
+        "outputFormat": "pdf",
+        "pageSize": "US_Letter",
+        "listMode": "list",
+        "listGutter": "normal",
+        "fontStyle": "rounded",
+        "textStrokeWidth": 6,
+        "border": "plain",
+        "borderThickness": 8
+      },
+      "assembledPrompt": "Create a black-and-white coloring book page for print.",
+      "owner": {
+        "kind": "anonymous",
+        "sessionId": "session-123"
+      },
+      "styleSelection": {
+        "themeId": "",
+        "voice": {
+          "intensity": "no_mercy",
+          "rawness": "raw",
+          "thirdPerson": "always"
+        },
+        "glitter": true
+      }
+    },
+    "draftWithStyleSelectionAsText": {
+      "updatedAtISO": "2026-01-22T00:00:00.000Z",
+      "intent": {
+        "title": "Dream Big",
+        "items": [
+          {
+            "number": 1,
+            "label": "Shine"
+          }
+        ],
+        "alignment": "left",
+        "numberAlignment": "strict",
+        "whitespaceScale": 50,
+        "textSize": "small",
+        "colorMode": "black_and_white_only",
+        "decorations": "none",
+        "illustrations": "none",
+        "shading": "none",
+        "variations": 1,
+        "outputFormat": "pdf",
+        "pageSize": "US_Letter",
+        "listMode": "list",
+        "listGutter": "normal",
+        "fontStyle": "rounded",
+        "textStrokeWidth": 6,
+        "border": "plain",
+        "borderThickness": 8
+      },
+      "styleSelection": "crown energy, loud, glittery"
+    }
   }
 }

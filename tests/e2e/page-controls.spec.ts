@@ -136,7 +136,14 @@ test('the closed panel says so when a page carries no style of its own', async (
 		"This page's style is not on file · US Letter · decorative border"
 	);
 	await panel.locator('summary').click();
+	// The notice's own wording matters, not just its presence: it used to end "changing any of them
+	// will restyle the page", which the artifact snapshot later made false and which contradicted the
+	// lede directly beneath it.
 	await expect(panel.getByTestId('home-style-unknown')).toBeVisible();
+	await expect(panel.getByTestId('home-style-unknown')).toContainText(
+		'they describe the next page you make, not this one'
+	);
+	await expect(panel.getByTestId('home-style-unknown')).not.toContainText('will restyle the page');
 });
 
 test('every control the panel holds reaches the shut summary', async ({ page }) => {

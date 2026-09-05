@@ -6,7 +6,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CreationRecordSchema, DraftRecordSchema } from './contract';
-import { creationStoreSampleFixture, creationStoreFaultFixture } from './fixtures';
+import {
+	creationStoreSampleFixture,
+	creationStoreFaultFixture,
+	creationStoreRejectedFixtures
+} from './fixtures';
 import { createCreationStoreMock } from './mock';
 import {
 	parseCreationRecord,
@@ -127,6 +131,43 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 		expect(() =>
 			validateStyleSelection({ themeId: '', voice: {}, glitter: false })
 		).toThrow();
+	});
+
+	// The fault fixture's own inputs are valid records — its fault is that every output is
+	// BROWSER_REQUIRED — so it proved the seam reports an unusable environment and nothing about a
+	// record whose stored style is wrong. These drive the fixture's `rejected` payloads through the
+	// validators the adapter uses, which is the red proof the style field never had.
+	it('refuses every record the fault fixture says it must, through the adapter’s own validators', () => {
+		const { creationWithUnacceptableVoice, creationWithEmptyThemeId, draftWithStyleSelectionAsText } =
+			creationStoreRejectedFixtures;
+
+		expect(parseCreationRecord(creationWithUnacceptableVoice).ok).toBe(false);
+		expect(parseCreationRecord(creationWithEmptyThemeId).ok).toBe(false);
+		expect(parseDraftRecord(draftWithStyleSelectionAsText).ok).toBe(false);
+
+		expect(() => validateCreationRecord(creationWithUnacceptableVoice)).toThrow();
+		expect(() => validateDraftRecord(draftWithStyleSelectionAsText)).toThrow();
+	});
+
+	it('refuses them for the style, not for something else in the record', () => {
+		// Without this the previous test would pass for a fixture that is malformed in some unrelated
+		// way — green for the wrong reason, which is the failure mode a fault fixture is most prone
+		// to. Each payload is the fault fixture's own valid record with only `styleSelection`
+		// replaced, so stripping that field must make it parse.
+		for (const rejected of [
+			creationStoreRejectedFixtures.creationWithUnacceptableVoice,
+			creationStoreRejectedFixtures.creationWithEmptyThemeId
+		]) {
+			const withoutStyle = { ...(rejected as Record<string, unknown>) };
+			delete withoutStyle.styleSelection;
+			expect(parseCreationRecord(withoutStyle).ok).toBe(true);
+		}
+
+		const draftWithoutStyle = {
+			...(creationStoreRejectedFixtures.draftWithStyleSelectionAsText as Record<string, unknown>)
+		};
+		delete draftWithoutStyle.styleSelection;
+		expect(parseDraftRecord(draftWithoutStyle).ok).toBe(true);
 	});
 
 	it('rejects a style selection whose voice is not one the text seam accepts', () => {
