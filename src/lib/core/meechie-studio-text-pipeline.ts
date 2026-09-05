@@ -1,6 +1,7 @@
 // Purpose: Centralize Meechie studio AI text endpoint orchestration.
 // Why: Keep provider calls, JSON parsing, contract validation, and quota metering testable.
 // Info flow: Request body -> local validation -> QuotaGate -> ProviderAdapterSeam -> structured studio text result.
+import { STUDIO_TEXT_QUOTA_COST } from '$lib/core/ai-quota';
 import { findDisallowedKeywords } from '$lib/core/constants';
 import { TEXT_MODEL } from '$lib/core/models';
 import { toPublicProviderError } from '$lib/core/public-provider-error';
@@ -144,13 +145,17 @@ export type MeechieStudioTextPipelineDeps = {
 	isProduction?: boolean;
 };
 
-/**
- * Worst-case billable provider calls for one request: the first call plus the single bounded
- * correction retry in runProviderExchange. Charged once, up front, because charging 1 would let
- * a caller burn double their quota's worth of spend, and charging again before the retry could
- * be denied after the caller already paid for work in flight - worse than slightly overcharging.
+/*
+ * The cost charged here — worst-case billable provider calls for one request: the first call plus
+ * the single bounded correction retry in runProviderExchange. Charged once, up front, because
+ * charging 1 would let a caller burn double their quota's worth of spend, and charging again
+ * before the retry could be denied after the caller already paid for work in flight - worse than
+ * slightly overcharging.
+ *
+ * It is defined in `$lib/core/ai-quota` rather than here because the studio reads it too, to turn
+ * the remaining units this charge leaves behind into a count of actions the reader can still take.
+ * One definition, so the meter cannot disagree with the charge.
  */
-const STUDIO_TEXT_QUOTA_COST = 2;
 
 type ProviderTextFailureKind = 'json_syntax_error' | 'schema_error';
 

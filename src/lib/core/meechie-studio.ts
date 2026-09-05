@@ -10,6 +10,16 @@ import type { CreationRecord, DraftRecord } from '$lib/seams/creation-store-seam
 import type { MeechieStudioTextAction, MeechieStudioTextOutput } from '$lib/seams/meechie-studio-text-seam/contract';
 import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract';
 
+/**
+ * How many times the reader may rework one verdict before Meechie asks them for new facts instead.
+ *
+ * It counts *rewrites of the answer on screen*, not the act of asking. Asking is what refills it:
+ * a new verdict starts a new round with the full allowance, so the studio can never reach a state
+ * where the reader has nothing on the paper and no way to put anything there.
+ *
+ * It is a churn guardrail, not a spend control. Spend is metered server-side, per caller, by the
+ * quota gate on `/api/meechie-studio-text` — which is the number `AiQuotaSnapshot` reports.
+ */
 export const DEFAULT_REVISION_BUDGET = 3;
 
 // Seed and fallback used for the internal spec and legacy records. It is not the idle
@@ -29,13 +39,24 @@ export const DEFAULT_STUDIO_TEXT_OUTPUT: MeechieStudioTextOutput = {
 	revisionNote: 'Approved preview line. Generate to get yours.'
 };
 
-export type CostClass = 'free' | 'paid' | 'unclassified';
+/**
+ * What an action costs.
+ *
+ * `paid` means it reaches the AI text provider and is charged against the caller's server-side
+ * quota; `free` means it happens in the browser and costs nothing. There used to be a third grade,
+ * `unclassified`, and every one of the five provider-calling actions carried it — so the app could
+ * not say whether the thing it was rationing cost anything, and no code outside a unit test ever
+ * read the field. They are provider calls. They are paid.
+ */
+export type CostClass = 'free' | 'paid';
 
 type StudioActionDefinition = {
 	id: string;
 	label: string;
 	costClass: CostClass;
 	countsAgainstRevisionBudget: boolean;
+	/** Puts a new question to Meechie, and so refills the rewrite allowance. See `studioActionStartsRound`. */
+	startsRound?: boolean;
 	aiAction?: MeechieStudioTextAction;
 };
 
@@ -43,35 +64,40 @@ export const studioActions = [
 	{
 		id: 'generate_text',
 		label: 'Generate Verdict',
-		costClass: 'unclassified',
-		countsAgainstRevisionBudget: true,
+		costClass: 'paid',
+		// Asking is not a rewrite. This is the action that *starts* a round, so counting it against
+		// the round's own rewrite allowance made the meter's first number a lie ("3 left" bought one
+		// verdict and two rewrites) and let the studio strand a reader with an empty page and every
+		// button disabled. See `studioActionStartsRound`.
+		countsAgainstRevisionBudget: false,
+		startsRound: true,
 		aiAction: 'generate'
 	},
 	{
 		id: 'regenerate',
 		label: 'Regenerate',
-		costClass: 'unclassified',
+		costClass: 'paid',
 		countsAgainstRevisionBudget: true,
 		aiAction: 'regenerate'
 	},
 	{
 		id: 'make_prettier',
 		label: 'Make Prettier',
-		costClass: 'unclassified',
+		costClass: 'paid',
 		countsAgainstRevisionBudget: true,
 		aiAction: 'make_prettier'
 	},
 	{
 		id: 'make_meaner',
 		label: 'Make Meaner',
-		costClass: 'unclassified',
+		costClass: 'paid',
 		countsAgainstRevisionBudget: true,
 		aiAction: 'make_meaner'
 	},
 	{
 		id: 'make_more_specific',
 		label: 'More Specific',
-		costClass: 'unclassified',
+		costClass: 'paid',
 		countsAgainstRevisionBudget: true,
 		aiAction: 'make_more_specific'
 	},
@@ -328,12 +354,38 @@ export const consumeStudioActionBudget = (remainingBudget: number, actionId: Stu
 	return action.countsAgainstRevisionBudget ? Math.max(remainingBudget - 1, 0) : remainingBudget;
 };
 
+/**
+ * Does this action start a fresh round — a new question put to Meechie — rather than rework the
+ * answer already on screen?
+ *
+ * Only `generate_text` does. It is what refills the rewrite allowance, which is why the allowance
+ * can honestly call itself per-verdict: the reader always has a way to get more that does not
+ * involve reloading the page.
+ */
+export const studioActionStartsRound = (actionId: StudioActionId): boolean => {
+	const action = getStudioAction(actionId);
+	return 'startsRound' in action && action.startsRound === true;
+};
+
+/**
+ * Is this action one that spends money — a call to the AI text provider?
+ *
+ * Read off the metadata rather than the budget flag. The two used to be the same field, which is
+ * how `generate_text` ended up blocked by a counter meant for rewrites: the only guard that knew a
+ * request was already in flight was the budget's.
+ */
+const isBillableStudioAction = (actionId: StudioActionId): boolean =>
+	isStudioTextAction(getStudioAction(actionId));
+
 export const canRunStudioAction = (
 	actionId: StudioActionId,
 	state: { remainingBudget: number; isRunning: boolean }
 ): boolean => {
 	const action = getStudioAction(actionId);
-	if (state.isRunning && action.countsAgainstRevisionBudget) {
+	// Every provider call waits for the one in flight, whether or not it spends the rewrite
+	// allowance. Keying this off `countsAgainstRevisionBudget` would leave Generate Verdict
+	// double-submittable the moment it stopped counting against the allowance.
+	if (state.isRunning && isBillableStudioAction(actionId)) {
 		return false;
 	}
 	if (action.countsAgainstRevisionBudget && state.remainingBudget <= 0) {

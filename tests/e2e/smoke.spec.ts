@@ -1346,3 +1346,127 @@ test('a replacement saying drops a dedication chosen for the previous one', asyn
 		'He had time.'
 	);
 });
+
+// The AI budget meter, in a browser. Its predecessor - an invented per-tab counter that called the
+// first verdict a revision and never refilled - had no test of any kind, in any layer, which is how
+// it survived six feature rebuilds. These drive the two numbers the panel now shows through the
+// real DOM: the server's quota, read off response headers, and the per-verdict rewrite allowance.
+test('the AI meter reports the server quota and refills rewrites on a new verdict', async ({
+	page
+}) => {
+	// A quota the server states, rather than one the page invents: 14 units left of 20, at two
+	// units an action, is seven more calls.
+	await page.route('**/api/meechie-studio-text', async (route) => {
+		await route.fulfill({
+			headers: {
+				'RateLimit-Limit': '20',
+				'RateLimit-Remaining': '14',
+				'RateLimit-Reset': '45'
+			},
+			json: { ok: true, value: textOutput }
+		});
+	});
+	await page.route('**/api/generate', async (route) => {
+		await route.fulfill({ json: generatedPage });
+	});
+
+	await gotoHydrated(page, '/');
+
+	// Before any verdict, the panel offers no number for something that cannot be done yet, and
+	// says nothing at all about a quota no server has reported.
+	await expect(page.getByTestId('home-rewrites-left')).toContainText(
+		'Rewrites unlock'
+	);
+	await expect(page.getByTestId('home-ai-quota')).toHaveCount(0);
+
+	await page.getByTestId('home-evidence').fill('He said traffic made him late.');
+	await page.getByTestId('home-generate-verdict').click();
+	await expect(page.getByTestId('home-verdict-quote')).toBeVisible();
+
+	// Asking is not a rewrite: the allowance is untouched, and the quota line is now the
+	// server's own arithmetic.
+	await expect(page.getByTestId('home-rewrites-left')).toContainText(
+		'3 rewrites left for this verdict'
+	);
+	await expect(page.getByTestId('home-ai-quota')).toContainText('7 AI calls left');
+
+	// Three rewrites spend the allowance, one each.
+	await page.getByRole('button', { name: 'Make Meaner' }).click();
+	await expect(page.getByTestId('home-rewrites-left')).toContainText(
+		'2 rewrites left'
+	);
+	await page.getByRole('button', { name: 'Make Prettier' }).click();
+	await page.getByRole('button', { name: 'Regenerate' }).click();
+	await expect(page.getByTestId('home-rewrites-left')).toContainText(
+		'0 rewrites left'
+	);
+	await expect(page.getByTestId('home-rewrites-spent')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Make Meaner' })).toBeDisabled();
+
+	// The way out the message names is real: Generate Verdict is still available, and it refills.
+	await expect(page.getByTestId('home-generate-verdict')).toBeEnabled();
+	await page.getByTestId('home-generate-verdict').click();
+	await expect(page.getByTestId('home-rewrites-left')).toContainText(
+		'3 rewrites left'
+	);
+	await expect(page.getByRole('button', { name: 'Make Meaner' })).toBeEnabled();
+});
+
+test('switching mode after spending the rewrites does not strand the studio', async ({ page }) => {
+	await stubApis(page);
+	const [initialMode, switchedMode] = getWeeklyModes();
+
+	await gotoHydrated(page, '/');
+	await expect(page.getByTestId('home-active-mode-heading')).toHaveText(
+		initialMode.label
+	);
+	await page.getByTestId('home-evidence').fill('He said traffic made him late.');
+	await page.getByTestId('home-generate-verdict').click();
+	await expect(page.getByTestId('home-verdict-quote')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Make Meaner' }).click();
+	await page.getByRole('button', { name: 'Make Prettier' }).click();
+	await page.getByRole('button', { name: 'Regenerate' }).click();
+	await expect(page.getByTestId('home-rewrites-left')).toContainText(
+		'0 rewrites left'
+	);
+
+	// The switch throws the verdict away. Keeping the spend here is what used to leave an empty
+	// studio with every AI button disabled and no stated way forward but a page reload.
+	await page.getByTestId(`home-mode-${switchedMode.id}`).click();
+	await expect(page.getByTestId('home-active-mode-heading')).toHaveText(
+		switchedMode.label
+	);
+	await expect(page.getByTestId('home-generate-verdict')).toBeEnabled();
+	await page.getByTestId('home-evidence').fill('She said the club photo was old.');
+	await page.getByTestId('home-generate-verdict').click();
+	await expect(page.getByTestId('home-verdict-quote')).toBeVisible();
+	await expect(page.getByTestId('home-rewrites-left')).toContainText(
+		'3 rewrites left'
+	);
+});
+
+// Every button gated by the quota — including the hero's, which is the page's primary action and
+// lives in a different component from the meter that explains it — has to name that explanation.
+test('every quota-gated button points at the meter that explains it', async ({ page }) => {
+	await stubApis(page);
+	await gotoHydrated(page, '/');
+
+	await expect(page.getByTestId('home-hero-generate')).toHaveAttribute(
+		'aria-describedby',
+		'ai-budget'
+	);
+	await expect(page.getByTestId('home-generate-verdict')).toHaveAttribute(
+		'aria-describedby',
+		'ai-budget'
+	);
+	for (const label of ['Regenerate', 'Make Prettier', 'Make Meaner', 'More Specific']) {
+		await expect(page.getByRole('button', { name: label })).toHaveAttribute(
+			'aria-describedby',
+			'ai-budget'
+		);
+	}
+
+	// The target has to exist, or every one of those references points at nothing.
+	await expect(page.locator('#ai-budget')).toHaveCount(1);
+});

@@ -12,142 +12,21 @@ $ npm run check
 Loading svelte-check in workspace: <REPO_ROOT>
 Getting Svelte diagnostics...
 
-[32msvelte-check found 0 errors and 0 warnings
-[39m
+svelte-check found 0 errors and 0 warnings
+
 $ npm test -- --pool=forks --maxWorkers=1
 
 > meechies-coloringbook@0.1.0 test
 > vitest run --pool=forks --maxWorkers=1
 
 
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90mC:/Users/shiva/meechiescoloringbook[39m
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
 
- [32m✓[39m tests/unit/studio-state.test.ts [2m([22m[2m89 tests[22m[2m)[22m[33m 919[2mms[22m[39m
-     [33m[2m✓[22m[39m does not write invented seed text into the draft it saves back [33m 345[2mms[22m[39m
-     [33m[2m✓[22m[39m keeps an unrelated verdict out of the draft as well as the vault [33m 305[2mms[22m[39m
- [32m✓[39m tests/unit/probe-entrypoints.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 486[2mms[22m[39m
- [32m✓[39m tests/unit/verdict-page-state.test.ts [2m([22m[2m45 tests[22m[2m)[22m[32m 49[2mms[22m[39m
- [32m✓[39m src/lib/seams/clock-seam/test.ts [2m([22m[2m31 tests[22m[2m)[22m[33m 389[2mms[22m[39m
- [32m✓[39m tests/unit/vault-gallery.test.ts [2m([22m[2m86 tests[22m[2m)[22m[32m 60[2mms[22m[39m
- [32m✓[39m tests/unit/tool-page-recipe.test.ts [2m([22m[2m75 tests[22m[2m)[22m[32m 45[2mms[22m[39m
- [32m✓[39m tests/unit/creation-store-helpers.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 58[2mms[22m[39m
- [32m✓[39m tests/unit/api-generate.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 24[2mms[22m[39m
- [32m✓[39m tests/unit/rate-limit-memory-store.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 19[2mms[22m[39m
- [32m✓[39m src/lib/seams/wig-try-on-seam/test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 15[2mms[22m[39m
- [32m✓[39m tests/unit/image-generation-pipeline.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 19[2mms[22m[39m
- [32m✓[39m tests/unit/output-packaging-helpers.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 22[2mms[22m[39m
- [32m✓[39m tests/unit/api-image-generation.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 21[2mms[22m[39m
- [32m✓[39m tests/unit/rate-limit-guard.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 17[2mms[22m[39m
- [32m✓[39m tests/unit/api-wig-try-on.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 18[2mms[22m[39m
- [32m✓[39m tests/unit/http-resilience.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 22[2mms[22m[39m
- [32m✓[39m tests/unit/provider-adapter-helpers.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 15[2mms[22m[39m
- [32m✓[39m tests/unit/wig-try-on-pipeline.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 17[2mms[22m[39m
- [32m✓[39m tests/unit/api-chat-interpretation.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 18[2mms[22m[39m
- [32m✓[39m tests/unit/api-meechie-studio-text-endpoint.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 16[2mms[22m[39m
- [32m✓[39m src/lib/seams/rate-limit-seam/test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 18[2mms[22m[39m
- [32m✓[39m tests/unit/api-tools.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 16[2mms[22m[39m
- [32m✓[39m tests/unit/http-client.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 12[2mms[22m[39m
- [32m✓[39m tests/unit/meechie-studio-text-pipeline.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 12[2mms[22m[39m
- [32m✓[39m tests/unit/rate-limit-route.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 14[2mms[22m[39m
- [32m✓[39m tests/unit/constants.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m tests/unit/evidence-reporting.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 5[2mms[22m[39m
- [32m✓[39m tests/unit/pipeline-edge-cases.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 13[2mms[22m[39m
- [32m✓[39m tests/contract/image-generation.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 12[2mms[22m[39m
- [32m✓[39m tests/unit/evidence-gate-selection.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 12[2mms[22m[39m
- [32m✓[39m tests/contract/spec-validation.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 8[2mms[22m[39m
- [32m✓[39m tests/contract/provider-adapter.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 11[2mms[22m[39m
- [32m✓[39m tests/unit/rate-limit-identity.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 11[2mms[22m[39m
- [32m✓[39m src/lib/seams/cache-seam/test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 9[2mms[22m[39m
- [32m✓[39m tests/unit/meechie-studio.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 13[2mms[22m[39m
- [32m✓[39m src/lib/seams/wig-catalog-seam/test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 12[2mms[22m[39m
- [32m✓[39m tests/unit/page-exports.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 9[2mms[22m[39m
- [32m✓[39m tests/unit/prompt-template.test.ts [2m([22m[2m39 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m tests/integration/provider-wiring.fake.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 10[2mms[22m[39m
- [32m✓[39m src/lib/seams/prompt-assembly-seam/test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 9[2mms[22m[39m
- [32m✓[39m tests/unit/meechie-tool-adapter.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 7[2mms[22m[39m
- [32m✓[39m tests/unit/shared-contract.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 8[2mms[22m[39m
- [32m✓[39m src/lib/seams/app-origin-seam/test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 7[2mms[22m[39m
- [32m✓[39m tests/unit/wig-catalog-gallery.test.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 8[2mms[22m[39m
- [32m✓[39m src/lib/seams/spec-validation-seam/test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 7[2mms[22m[39m
- [32m✓[39m src/lib/seams/page-visibility-seam/test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 8[2mms[22m[39m
- [32m✓[39m tests/contract/output-packaging.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m src/lib/seams/safety-policy-seam/test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 7[2mms[22m[39m
- [32m✓[39m tests/unit/mode-catalog.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 7[2mms[22m[39m
- [32m✓[39m src/lib/seams/meechie-voice-seam/test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 7[2mms[22m[39m
- [32m✓[39m tests/unit/parse-request-body.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m src/lib/seams/gallery-store-seam/test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m tests/contract/chat-interpretation.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m src/lib/seams/provider-adapter-seam/test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
- [32m✓[39m tests/unit/hooks-server.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m tests/unit/drift-detection-helpers.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m tests/unit/meechie-tool-adapter.responses.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m tests/unit/image-generation-validators.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 8[2mms[22m[39m
- [32m✓[39m tests/contract/prompt-assembly.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 5[2mms[22m[39m
- [32m✓[39m tests/unit/meechie-tools-parity.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
- [32m✓[39m tests/unit/session-auth-helpers.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 5[2mms[22m[39m
- [32m✓[39m src/lib/seams/image-generation-seam/test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
- [32m✓[39m src/lib/seams/prompt-compiler-seam/test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m tests/unit/meechie-quote-scoring.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m src/lib/seams/image-provider-config-seam/test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 5[2mms[22m[39m
- [32m✓[39m tests/unit/app-config-seam.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m src/lib/seams/meechie-tool-seam/test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m tests/unit/coloring-page-title.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
- [32m✓[39m tests/unit/generated-image-preview.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m src/lib/seams/app-config-seam/test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m src/lib/seams/creation-store-seam/test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
- [32m✓[39m tests/contract/meechie-studio-text.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m src/lib/seams/drift-detection-seam/test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m tests/contract/drift-detection.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m tests/contract/creation-store.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
- [32m✓[39m src/lib/seams/output-packaging-seam/test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m tests/unit/raster-image-format.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 3[2mms[22m[39m
- [32m✓[39m src/lib/seams/meechie-studio-text-seam/test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
- [32m✓[39m tests/contract/meechie-tool.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m tests/contract/session.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
- [32m✓[39m src/lib/seams/auth-context-seam/test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m tests/unit/models.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
- [32m✓[39m src/lib/seams/chat-interpretation-seam/test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
- [32m✓[39m tests/unit/public-provider-error.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
- [32m✓[39m tests/unit/alignment-line.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 3[2mms[22m[39m
- [32m✓[39m tests/contract/meechie-voice.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
- [32m✓[39m tests/contract/auth-context.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
- [32m✓[39m src/lib/seams/telemetry-seam/test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
- [32m✓[39m src/lib/seams/session-seam/test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
- [32m✓[39m tests/unit/selfie-upload.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
- [32m✓[39m tests/unit/ordinal.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 2[2mms[22m[39m
- [2m[90m↓[39m[22m tests/integration/image-generation-seam.test.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m
 
-[2m Test Files [22m [1m[32m91 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (92)[39m
-[2m      Tests [22m [1m[32m1319 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1320)[39m
-[2m   Start at [22m 13:39:49
-[2m   Duration [22m 65.91s[2m (transform 2.86s, setup 713ms, import 5.21s, tests 2.72s, environment 45.56s)[22m
-
-[90mstderr[2m | tests/unit/creation-store-helpers.test.ts[2m > [22m[2mcreation-store adapter[2m > [22m[2mcorrupted storage[2m > [22m[2mlists valid records in order when malformed records are interleaved
-[22m[39m[CreationStore] Skipped 1 malformed creation record(s) at indices: 1
-
-[90mstderr[2m | tests/unit/creation-store-helpers.test.ts[2m > [22m[2mcreation-store adapter[2m > [22m[2mcorrupted storage[2m > [22m[2msaves into mixed storage and rewrites only valid records plus the saved record
-[22m[39m[CreationStore] Skipped 1 malformed creation record(s) at indices: 1
-
-[90mstderr[2m | tests/unit/creation-store-helpers.test.ts[2m > [22m[2mcreation-store adapter[2m > [22m[2mcorrupted storage[2m > [22m[2mdeletes from mixed storage and rewrites the surviving valid records
-[22m[39m[CreationStore] Skipped 1 malformed creation record(s) at indices: 1
-
-[90mstderr[2m | tests/unit/creation-store-helpers.test.ts[2m > [22m[2mcreation-store adapter[2m > [22m[2mcorrupted storage[2m > [22m[2mreturns an empty list when every stored creation record fails validation
-[22m[39m[CreationStore] Skipped 2 malformed creation record(s) at indices: 0, 1
-
-[90mstderr[2m | tests/unit/creation-store-helpers.test.ts[2m > [22m[2mcreation-store adapter[2m > [22m[2mcorrupted storage[2m > [22m[2mkeeps write failures hard when deleting from mixed storage
-[22m[39m[CreationStore] Skipped 1 malformed creation record(s) at indices: 1
-
-[90mstderr[2m | tests/unit/creation-store-helpers.test.ts[2m > [22m[2mcreation-store adapter[2m > [22m[2mcorrupted storage[2m > [22m[2mkeeps write failures hard when saving into mixed storage
-[22m[39m[CreationStore] Skipped 1 malformed creation record(s) at indices: 1
-
-[90mstderr[2m | tests/unit/creation-store-helpers.test.ts[2m > [22m[2mcreation-store adapter[2m > [22m[2mparseRecords skip signal[2m > [22m[2mreports exactly one skipped record when the middle entry fails validation
-[22m[39m[CreationStore] Skipped 1 malformed creation record(s) at indices: 1
-
-[90mstderr[2m | tests/unit/creation-store-helpers.test.ts[2m > [22m[2mcreation-store adapter[2m > [22m[2mparseRecords skip signal[2m > [22m[2mreports every index when all stored entries are bad
-[22m[39m[CreationStore] Skipped 2 malformed creation record(s) at indices: 0, 1
-
-[90mstderr[2m | tests/unit/creation-store-helpers.test.ts[2m > [22m[2mcreation-store adapter[2m > [22m[2mparseRecords skip signal[2m > [22m[2mdoes not leak skipped record contents into the signal
-[22m[39m[CreationStore] Skipped 1 malformed creation record(s) at indices: 0
+[2m Test Files [22m [1m[32m92 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (93)[39m
+[2m      Tests [22m [1m[32m1357 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1358)[39m
+[2m   Start at [22m 19:21:10
+[2m   Duration [22m 77.51s[2m (transform 3.27s, setup 803ms, import 6.21s, tests 3.43s, environment 52.11s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

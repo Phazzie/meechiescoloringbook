@@ -11,6 +11,8 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		dedication = $bindable(),
 		activeMode,
 		revisionBudget,
+		aiQuotaMessage,
+		hasVerdict,
 		textError,
 		isTextWorking,
 		draftSaveError,
@@ -26,7 +28,12 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		evidence: string;
 		dedication: string;
 		activeMode: StudioMode;
+		/** Rewrites left for the verdict on screen. Meaningless until there is one — see `hasVerdict`. */
 		revisionBudget: number;
+		/** The server's own quota reading, already worded. Empty string when it has not reported one. */
+		aiQuotaMessage: string;
+		/** Whether a verdict is on the paper, which is what makes a rewrite count something to show. */
+		hasVerdict: boolean;
 		textError: string;
 		isTextWorking: boolean;
 		draftSaveError: string;
@@ -75,12 +82,30 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		placeholder="Optional dedication"
 	/>
 
-	<div class="budget">
-		<span>{revisionBudget} AI text action{revisionBudget === 1 ? '' : 's'} left</span>
-		{#if revisionBudget === 0}
-			<p>
-				You used the wording changes for this page. Export, copy, theme, and
-				vault still work.
+	<!--
+		Two numbers, both real, kept apart on purpose: what the server will let this caller spend,
+		and how many rewrites of the verdict on screen are left. The panel used to show one invented
+		number instead — a per-tab counter that called the first verdict a revision, never refilled,
+		and described itself as being "for this page".
+	-->
+	<div class="budget" id="ai-budget" aria-live="polite">
+		{#if hasVerdict}
+			<span data-testid="home-rewrites-left">
+				{revisionBudget} rewrite{revisionBudget === 1 ? '' : 's'} left for this verdict
+			</span>
+		{:else}
+			<span data-testid="home-rewrites-left">Rewrites unlock once Meechie has ruled.</span>
+		{/if}
+
+		{#if aiQuotaMessage}
+			<span class="quota" data-testid="home-ai-quota">{aiQuotaMessage}</span>
+		{/if}
+
+		{#if hasVerdict && revisionBudget === 0}
+			<p data-testid="home-rewrites-spent">
+				You have used every rewrite for this verdict. Generate a new one — change the
+				evidence first if the facts changed — for a fresh set. Export, copy, theme, and
+				vault never counted against it.
 			</p>
 		{/if}
 	</div>
@@ -92,6 +117,7 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 			data-testid="home-generate-verdict"
 			onclick={() => onRunTextAction('generate_text')}
 			disabled={!canGenerateText}
+			aria-describedby="ai-budget"
 		>
 			{isTextWorking ? 'Reading...' : getStudioAction('generate_text').label}
 		</button>
@@ -99,6 +125,7 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 			type="button"
 			onclick={() => onRunTextAction('regenerate')}
 			disabled={!canRegenerateText}
+			aria-describedby="ai-budget"
 		>
 			{getStudioAction('regenerate').label}
 		</button>
@@ -106,6 +133,7 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 			type="button"
 			onclick={() => onRunTextAction('make_prettier')}
 			disabled={!canMakePrettier}
+			aria-describedby="ai-budget"
 		>
 			{getStudioAction('make_prettier').label}
 		</button>
@@ -113,6 +141,7 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 			type="button"
 			onclick={() => onRunTextAction('make_meaner')}
 			disabled={!canMakeMeaner}
+			aria-describedby="ai-budget"
 		>
 			{getStudioAction('make_meaner').label}
 		</button>
@@ -120,6 +149,7 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 			type="button"
 			onclick={() => onRunTextAction('make_more_specific')}
 			disabled={!canMakeMoreSpecific}
+			aria-describedby="ai-budget"
 		>
 			{getStudioAction('make_more_specific').label}
 		</button>
