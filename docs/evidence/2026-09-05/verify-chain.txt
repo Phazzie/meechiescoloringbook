@@ -63,19 +63,25 @@ proof-tape.md flags a longer list than that, and says of it: "These files were w
 run, so they describe a different run than the one this tape summarizes." For e2e.txt and the two
 rewind files that is exactly right. For build.txt, cipher-gate.json, lint.txt and this file it
 over-reads its own test, which is a modification-time comparison against chamber-lock.json rather
-than a record of which run produced a file. Check it directly rather than taking either file's word:
+than a record of which run produced a file. The artifacts settle it themselves, from committed
+content rather than from anything about the working tree:
 
-  stat -c '%y  %n' docs/evidence/2026-09-05/{lint.txt,build.txt,cipher-gate.json,chamber-lock.json}
+  grep -h '"generatedAt"' docs/evidence/2026-09-05/{cipher-gate.json,chamber-lock.json,proof-tape.json}
 
-Those three are written seconds before chamber-lock.json, in this same push, by the ordering the
-section above requires - not by an earlier run. The command is cited instead of its output on
-purpose. Two earlier attempts pasted the numbers in, and both went wrong the moment the next push
-regenerated them: once the prose said "six to sixteen seconds" while the table showed fractions of
-a second, and once it said the files "land in the same second" while lint.txt was ten seconds out.
-Worse, a table of this run's timestamps can only be written *after* the chain, and this file is
-itself inventoried *by* that chain - so pasting them here guaranteed proof-tape would record a
-size this file no longer had. Citing the command removes the numbers, the arithmetic and the
-post-chain edit together.
+Those three stamps are written INTO the files by the tools that produce them, so they survive a
+clone, a checkout and a squash; cipher-gate's precedes chamber-lock's, which precedes the tape's,
+which is the ordering the section above requires and the opposite of an earlier run. lint.txt and
+build.txt carry no such stamp - nothing here claims a measured gap for them, only that the sequence
+above put them in this push.
+
+Three earlier attempts at this paragraph are worth recording, because each failed differently and
+the last two failed as fixes for the first. Pasting a timestamp table went stale the moment the
+next push regenerated it, twice, and left the surrounding arithmetic contradicting the table it
+described. Replacing the table with `stat` looked durable and is not: git sets modification times
+at checkout, so in any fresh clone that command reports when the files were written to disk, not
+when they were produced - it would show a reader near-identical times and prove nothing.
+
+Only content committed inside the artifacts survives all of that, which is why it is what is cited.
 
 This is a limitation of the generator, recorded rather than worked around: cipher-gate.json in
 particular can never clear the test, because it has to be written before the chain in order to be

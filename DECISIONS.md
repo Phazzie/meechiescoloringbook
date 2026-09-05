@@ -73,11 +73,13 @@ Short, durable decisions with context and tradeoffs.
     what establishes it. `npm run build` exits 0 and every emitted chunk keeps its byte size, and
     `npm test` is unchanged at 1252 passed / 1 skipped. Note what those do *not* show: the hashed
     filenames differ between two builds of identical source, so a green build is not evidence of an
-    identical bundle and is not offered as any. Reproduce with
-    `git diff a1d7f31..aa8fd33 -- docs/evidence/2026-09-05/build.txt` - two close-out commits that
-    change no application source, where four emitted chunks change filename at byte-identical sizes.
-    That command is cited rather than the hashes themselves: a specific hash quoted here would be
-    wrong again on the next build, which is the failure this very sentence is documenting.
+    identical bundle and is not offered as any. Reproduce it from a clean tree with
+    `npm run build && cp -r .svelte-kit/output /tmp/a && npm run build` and compare the emitted
+    filenames: four chunks change name at byte-identical sizes with no source edit between them.
+    Neither a hash nor a commit range is cited here on purpose. A hash quoted in prose is wrong on
+    the next build, which is the very instability being documented; and a range of close-out commits
+    is not guaranteed to remain reachable once this branch is merged and its ref deleted. Running
+    the build twice needs neither.
 - Self-critique (micro): The riskiest thing here is not the diff, it is the prose. Every review
   finding on this close-out has been a sentence about evidence that was looser than the evidence,
   and twice the looseness was introduced by the commit fixing the previous instance - a stale
