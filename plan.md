@@ -92,6 +92,12 @@ concession the `ClockSeam` plan in run 1 had to make.
   rounds' artifacts and is **history, not the record of this head**. Enumerated rather than left as a directory
   placeholder, since a plan that says `*` cannot be audited against what was actually touched:
   - Hand-written summaries: `verify-chain.txt`, `seam-rewind-exit-codes.md`.
+  - The two final gates' own records: `cipher-gate-run.txt` and `proof-tape-run.txt` — each gate's
+    output and `EXIT=` line. Added because both gates previously printed and exited: `cipher-gate.json`
+    is not written at all when the gate rejects, and the tape is the last command, so a close-out that
+    failed at either one retained no file saying what it had said. `proof-tape-run.txt` is written
+    *after* the tape and is therefore not in the tape's own inventory, which is why the run deletes
+    any earlier copy before the tape runs rather than letting it report a file about to be replaced.
   - The outer chain's own record: `verify-chain-run.txt` — the `npm run verify` command, its full
     output and its `EXIT=` line. **Not optional and not the same as `verify.txt`**, which stores only
     the inner `verify-runner` stage; without this file nothing retains the outer command's exit and

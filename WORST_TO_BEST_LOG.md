@@ -6400,3 +6400,61 @@ run an accurate scoreboard.
 ### Running total
 
 With this round's three: **one hundred and sixteen findings across forty-three rounds.**
+
+---
+
+## Run 4, correction 44 — 2026-09-05 — four more, and the fourth-and-fifth instance of one habit
+
+Appended, not edited. Four P2s on `51e51a8`. All four are consequences of the previous round's fix,
+which is now the reliable shape of this close-out.
+
+### 1. An unreadable capture would have passed as a success
+
+`npmRun` caught a `readFileSync` failure, substituted `(capture file could not be read)`, and then
+returned **the child's status**. A child exiting 0 whose capture could not be read therefore produced
+a green step and an artifact whose entire body was that placeholder. A green run with no evidence is
+the single outcome this script exists to make impossible, and it had a path straight to it.
+
+Now a read failure returns exit 1 regardless of the child's own status, and the message carries the
+underlying error rather than a bare placeholder.
+
+### 2. Two runs on the same UTC day could shred each other's evidence
+
+Every filename in the dated folder is fixed, so two overlapping `evidence:capture` invocations write
+over each other — and a rewind deleting an artifact the other run is mid-way through producing can
+leave a folder where both runs' final checks still pass. Two green commands, one incoherent evidence
+set, no error anywhere.
+
+`mkdirSync` on a lock directory fails with `EEXIST` if it already exists, which makes claiming the
+folder atomic. Released via `process.on('exit')`, which covers every `process.exit()` in this file.
+If a run is killed outright the lock survives, so the message says so and names the directory to
+remove. Verified both directions: a pre-existing lock is rejected with exit 1, and a normal run
+leaves none behind.
+
+### 3. The tape inventoried a file that was about to be replaced
+
+`proof-tape-run.txt` is written *after* the tape, so on a second run the same day the previous copy
+was still there while the tape inventoried the folder — recording a size and mtime, possibly flagging
+it as predating the run, for a file overwritten seconds later. Deleted before the tape runs.
+
+Introduced by correction 43, one round old.
+
+### 4. The plan's exhaustive evidence list did not mention the two artifacts correction 43 added
+
+**Fourth instance of the same habit**, after "nothing executable is touched", the Files list, and the
+`cipher:gate` paragraph. I add something, and the mandatory plan's description of the change goes
+stale in the same commit that makes it stale. Both now listed, with the reason `proof-tape-run.txt`
+sits outside the tape's inventory.
+
+### And one I caught myself, which is worth recording because it is the exception
+
+The new lock message printed the **absolute** lock path to stderr. Same class as correction 40's
+committed path leak, one round after writing that entry. I noticed while reading the test output
+rather than being told, and made it relative before pushing. One out of many is not a trend, but it
+is the first time in this close-out the loop closed without a reviewer in it.
+
+### Running total
+
+**One hundred and twenty findings across forty-four rounds.** The last four rounds have found 3, 2,
+3 and 4 — the rate is flat, and every one of them has been in the file I added to fix the round
+before. That is now stated in `plan.md`, in the Cipher Gate entry's Risks field, and here.

@@ -30,8 +30,8 @@ svelte-check found 0 errors and 0 warnings
 
  Test Files  82 passed | 1 skipped (83)
       Tests  1187 passed | 1 skipped (1188)
-   Start at  02:54:28
-   Duration  54.76s (transform 2.46s, setup 608ms, import 4.74s, tests 2.28s, environment 36.48s)
+   Start at  03:06:15
+   Duration  53.97s (transform 2.44s, setup 589ms, import 4.69s, tests 2.28s, environment 35.88s)
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

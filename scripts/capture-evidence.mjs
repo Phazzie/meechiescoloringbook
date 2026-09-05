@@ -7,7 +7,15 @@
 //      defect landed the same way. This file is executed instead of transcribed, so it cannot drift
 //      from what actually ran.
 // Info flow: this script -> docs/evidence/<UTC date>/*.txt|*.md -> review.
-import { promises as fs, closeSync, mkdtempSync, openSync, readFileSync, rmSync } from 'node:fs';
+import {
+	promises as fs,
+	closeSync,
+	mkdirSync,
+	mkdtempSync,
+	openSync,
+	readFileSync,
+	rmSync
+} from 'node:fs';
 import os from 'node:os';
 import { sanitizeEvidenceOutput } from './evidence-reporting.mjs';
 import { spawnSync } from 'node:child_process';
@@ -140,15 +148,24 @@ const npmRun = (script, scriptArgs = []) => {
 		closeSync(captureFd);
 	}
 	let output = '';
+	// A capture that cannot be read is a failed capture, whatever the child's own status was.
+	// Returning the child's zero here would let the sequence finish green having committed an
+	// artifact whose entire body is "capture file could not be read" — a green run with no evidence,
+	// which is the one outcome this script exists to make impossible.
+	let readFailure = null;
 	try {
 		output = readFileSync(capturePath, 'utf8');
-	} catch {
-		output = '(capture file could not be read)\n';
+	} catch (error) {
+		readFailure = error;
+		output = `(capture file could not be read: ${error.message})\n`;
 	}
 	rmSync(captureDir, { force: true, recursive: true });
 	if (result.error) {
 		// Kept, not replaced: whatever the child managed to emit is the evidence.
 		return { output: `${output}\nnpm run ${script} error: ${result.error.message}\n`, code: 1 };
+	}
+	if (readFailure) {
+		return { output, code: 1 };
 	}
 	return { output, code: result.status ?? 1 };
 };
@@ -238,6 +255,37 @@ const assertTapeCoversThisRun = async (dir) => {
 	}
 };
 
+/**
+ * Refuses to run while another capture holds the same dated directory.
+ *
+ * Two overlapping runs select the same folder and every filename in it is fixed, so they overwrite
+ * each other's captures — and a rewind deleting an artifact the other run is producing can leave a
+ * mixed evidence set that both runs' final checks still accept. Two green commands, one incoherent
+ * folder. `mkdirSync` fails with EEXIST if the lock is already there, which makes the claim atomic.
+ * @param {string} dir
+ * @returns {string} the lock path, to be removed when the run ends
+ */
+const acquireRunLock = (dir) => {
+	const lockPath = path.join(dir, '.capture-evidence.lock');
+	try {
+		mkdirSync(lockPath);
+	} catch (error) {
+		if (error.code === 'EEXIST') {
+			process.stderr.write(
+				`Another capture-evidence run holds ${path.relative(ROOT, lockPath)}.\n` +
+					'Two runs sharing a dated folder overwrite each other and can leave a mixed evidence\n' +
+					'set that still passes every check. Wait for it to finish. If no run is active, a\n' +
+					'previous one was killed before it could clean up — remove that directory and re-run.\n'
+			);
+			process.exit(1);
+		}
+		throw error;
+	}
+	// Covers the ordinary exits, including every process.exit() in this file.
+	process.on('exit', () => rmSync(lockPath, { force: true, recursive: true }));
+	return lockPath;
+};
+
 const main = async () => {
 	const startDate = utcDate();
 	const dir = path.join(EVIDENCE_ROOT, startDate);
@@ -245,6 +293,7 @@ const main = async () => {
 	// which is to say, after the first thing written here. On the first run of a new UTC day that
 	// ordering left nothing to write into.
 	await fs.mkdir(dir, { recursive: true });
+	acquireRunLock(dir);
 
 	await captureChain(dir);
 	assertNoDateRollover(startDate);
@@ -276,6 +325,13 @@ const main = async () => {
 	exitIfFailed(cipher, 'npm run cipher:gate');
 
 	// The tape, last, so its inventory covers every artifact above.
+	//
+	// proof-tape-run.txt is removed first. It is written *after* the tape, so on a second run the
+	// same day the previous one is still present while the tape inventories the folder — and the
+	// tape would record its size and mtime, possibly flagging it as predating this run, for a file
+	// this run then overwrites. Removing it means the tape cannot report metadata for a file that
+	// will not survive the next few lines.
+	await fs.rm(path.join(dir, 'proof-tape-run.txt'), { force: true });
 	assertNoDateRollover(startDate);
 	const tape = npmRun('proof:tape');
 	process.stdout.write(tape.output);
