@@ -7885,3 +7885,78 @@ The workflow's own next run is the real test, and this entry will be wrong if th
 `--- docs/evidence/2026-09-05` followed by the guard's output. That is stated here before it runs.
 
 Mutation total for the feature stays at **69**.
+
+---
+
+## Run 8 close-out — round thirty: five more, and one of them is a correction to this log's prose
+
+Five findings against the guard and the entry above it. All five right, and the fourth is the first
+time this log has recorded a false *technical rule* rather than a false claim about the work.
+
+### The correction to round twenty-nine's explanation
+
+Round twenty-nine says the CI step's failure was hidden because "a command substitution's exit status
+is swallowed by the assignment — `set -e` never sees it." **That is wrong, and it needs saying
+plainly because a future run would copy it:**
+
+    x=$(false)        -> $? is 1.   Assignments do NOT swallow it.
+    x=$(false | sort) -> $? is 0.   The pipeline does, without `pipefail`.
+
+The real mechanism: the substitution contained `git diff … | cut | sort`, and a pipeline's status is
+its **last** command's. `sort` succeeded on empty input, so the failing `git diff` was invisible.
+Which is also exactly why adding `set -euo pipefail` to the step mattered — a fact the wrong
+explanation made look like a coincidence.
+
+Measured above rather than reasoned about, which is what the previous entry did not do.
+
+### The four against the guard
+
+**The `proof` marker was satisfiable by the header.** The stage-marker rule looked for `proof`, and
+`proof-tape.mjs` appears in the echoed `npm run verify` command at the top of every transcript. So a
+transcript truncated right after the test summary with an exit line appended satisfied all three
+markers while none of the post-test stages had run. **A marker the header can supply is not a
+marker.**
+
+The stages after the tests print nothing distinctive, so the transcript cannot show they ran. They
+are now proved from their artifacts: `proof-tape.json` must be stamped no earlier than
+`chamber-lock.json`. The lock is written near the chain's start and the tape at its end, so the
+ordering is evidence the chain reached its last stage — and it survives a clone and a squash, which
+a modification time does not. `verify-chain.txt` already documented these stamps as the thing that
+settles ordering; nothing had ever checked them.
+
+**Equal totals are not the same run.** The rule compared `1445 passed` against `1445 passed`. Two
+heads with an unchanged suite size produce the same number, so a `test.txt` from the parent commit
+satisfied it. Now the run's start time and duration must match too — the runner stamps both files
+with the same pair, which is what makes them one run rather than two that agree.
+
+**A passing count is not a passing run.** Playwright prints `1 passed` and `40 failed` together, and
+the Row 2 rule accepted the first while ignoring the second. Now any `failed`, `flaky`,
+`did not run` or `interrupted` count fails it.
+
+**The zero SHA on branch creation.** `github.event.before` is all zeros on a branch's first push, so
+the unreachable-base check added last round would turn every new branch red. Handled as its own case:
+compare against the default branch.
+
+### The test that tested nothing
+
+Worth recording. The first attempt at the Row 2 exploit did a literal `replace` of `41 passed
+(59.3s)` — and the capture had re-run since, so the duration was `57.1s`, nothing matched, the file
+was unchanged, and the guard passed. **I nearly recorded that pass as proof the fix worked.** What
+caught it was printing the mutated file instead of trusting the exit code.
+
+> **A test that does not fail before the fix has not tested the fix.** Confirm the mutation landed,
+> not just that the assertion agreed with you — a setup that silently no-ops produces exactly the
+> result you were hoping for.
+
+Which is the same shape as round twenty-nine's CI step: the reassuring outcome and the broken one
+are indistinguishable unless you look at what actually happened.
+
+### Every rule re-proved red
+
+| Exploit | Result |
+|---|---|
+| Transcript truncated after the tests, exit line appended | caught by the stamp ordering |
+| `test.txt` from the parent commit, same total | `21:12:07 / 92.39s` vs `20:03:50 / 70.79s` — different runs |
+| Row 2 reporting `1 passed` and `40 failed` | `"40 failed"; a summary line that also counts passes does not make the run green` |
+
+Five rules now, all passing on this head.

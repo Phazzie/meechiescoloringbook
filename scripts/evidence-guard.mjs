@@ -66,14 +66,15 @@ const RULES = [
 			if (outer === null) return 'verify-outer.txt is missing; the chain has no transcript.';
 			if (!/verify exit=0/.test(outer))
 				return 'verify-outer.txt does not contain "verify exit=0" — it was captured before the chain finished, or the chain failed.';
-			// Every stage the chain runs must have left its mark. A line count was the first version of
-			// this and was a proxy for "did the whole thing run" — it would fail a legitimately compact
-			// transcript after a reporter change, and pass a long one that stopped early. These are the
-			// stages themselves.
+			// Markers that only stage OUTPUT produces. An earlier version looked for 'proof', which
+			// appears in the echoed `npm run verify` command line at the top of the transcript — so a
+			// transcript truncated right after the test summary, with an exit line appended, satisfied
+			// it while none of the post-test stages had run. A marker that the header can supply is not
+			// a marker. The stages after the tests print nothing distinctive, so they are proved from
+			// their artifacts below rather than from this file.
 			const STAGE_MARKERS = [
 				{ marker: 'svelte-check found', stage: 'the check stage' },
-				{ marker: 'Test Files', stage: 'the test stage' },
-				{ marker: 'proof', stage: 'the proof-tape stage' }
+				{ marker: 'Test Files', stage: 'the test stage' }
 			];
 			const missing = STAGE_MARKERS.filter(({ marker }) => !outer.includes(marker));
 			if (missing.length > 0)
@@ -94,6 +95,51 @@ const RULES = [
 			if (innerTotal === null) return 'test.txt reports no test total.';
 			if (outerTotal !== innerTotal)
 				return `verify-outer.txt reports ${outerTotal} passed and test.txt reports ${innerTotal}; they are two records of one run, so one of them is from a different head.`;
+			// Totals alone do not identify a run. Two heads with the same suite size produce the same
+			// number, so a stale test.txt satisfied this rule while reporting a different start time
+			// than the transcript that supposedly contains it. The runner stamps both files with the
+			// same start and duration, which is what makes them one run rather than two that agree.
+			const identity = (text) => {
+				const clean = stripAnsi(text);
+				const startedAt = /Start at\s+([0-9:]{1,8})/.exec(clean)?.[1];
+				const duration = /Duration\s+([0-9.]{1,12}s)/.exec(clean)?.[1];
+				return startedAt && duration ? `${startedAt} / ${duration}` : null;
+			};
+			const outerRun = identity(outer);
+			const innerRun = identity(inner);
+			if (outerRun === null || innerRun === null)
+				return 'verify-outer.txt or test.txt carries no run start and duration, so the two cannot be shown to be the same run rather than two that happen to agree.';
+			if (outerRun !== innerRun)
+				return `verify-outer.txt records the run at ${outerRun} and test.txt at ${innerRun}; they report the same total but are different runs, so one is from an earlier head.`;
+			return null;
+		}
+	},
+	{
+		name: 'the chain stages after the tests actually ran',
+		check: (dir) => {
+			// The transcript cannot show this: shaolin-lint, seam-ledger, clan-chain and proof-tape
+			// print nothing distinctive. Their stamps can. chamber-lock is written near the start of
+			// the chain and the proof tape at the end, so the tape being no older than the lock is
+			// evidence the chain reached its last stage — and it survives a clone and a squash, which a
+			// file's modification time does not.
+			const readStamp = (name) => {
+				const raw = read(dir, name);
+				if (raw === null) return null;
+				try {
+					const at = JSON.parse(raw).generatedAt;
+					return typeof at === 'string' ? Date.parse(at) : null;
+				} catch {
+					return null;
+				}
+			};
+			const lock = readStamp('chamber-lock.json');
+			const tape = readStamp('proof-tape.json');
+			if (lock === null) return 'chamber-lock.json is missing or carries no generatedAt stamp.';
+			if (tape === null) return 'proof-tape.json is missing or carries no generatedAt stamp.';
+			if (Number.isNaN(lock) || Number.isNaN(tape))
+				return 'a chain artifact carries a generatedAt that is not a date.';
+			if (tape < lock)
+				return `proof-tape.json is stamped before chamber-lock.json (${new Date(tape).toISOString()} < ${new Date(lock).toISOString()}); the tape is from an earlier run than the chain that was supposed to write it.`;
 			return null;
 		}
 	},
@@ -114,6 +160,11 @@ const RULES = [
 				return 'e2e.txt Row 2 has no "<n> passed" line; the transcript was spliced in against a header that did not match, so the run it records cannot be audited.';
 			if (!/\.spec\.[tj]s/.test(row2))
 				return 'e2e.txt Row 2 has a summary but no per-test lines; the summary cannot be checked against anything.';
+			// A passing count is not a passing run. Playwright prints "<n> passed" alongside "<n> failed"
+			// when both happen, so a row with one pass and forty failures satisfied every check above.
+			const broken = /(\d{1,9}) (failed|flaky|did not run|interrupted)/.exec(stripAnsi(row2));
+			if (broken !== null)
+				return `e2e.txt Row 2 reports "${broken[0]}"; a summary line that also counts passes does not make the run green.`;
 			return null;
 		}
 	},

@@ -33,10 +33,20 @@ jobs:
         run: |
           set -euo pipefail
           base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          # A push that creates a branch reports an all-zero `before`, because there is no previous
+          # commit on it. That is a real event with a real answer — compare against the default
+          # branch — not the unreachable-base error below, which would turn every new branch's first
+          # push red.
+          if [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            git fetch --no-tags origin "${{ github.event.repository.default_branch }}" >/dev/null 2>&1 || true
+            base=$(git rev-parse FETCH_HEAD 2>/dev/null || true)
+            echo "Branch creation: comparing against the default branch at ${base:-<unresolved>}."
+          fi
           # An unreachable base is a failure, not an empty result. The first version of this step
-          # computed the folder list inside $( ), where a failing git command sets no exit status the
-          # shell can see: the diff died, `dirs` was empty, and the step announced "nothing to guard"
-          # and went green. Establish the base can be read BEFORE relying on a diff against it.
+          # computed the folder list inside $( ) with a pipeline and no `pipefail`, so the exit
+          # status came from the trailing `sort` and the failing `git diff` was invisible: the diff
+          # died, `dirs` was empty, and the step announced "nothing to guard" and went green.
+          # Establish the base can be read BEFORE relying on a diff against it.
           if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
             echo "Base commit '$base' is not in this clone, so which evidence folders this change" >&2
             echo "touches cannot be determined. Refusing to report success for a check that did not run." >&2
