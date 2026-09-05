@@ -2397,14 +2397,25 @@ describe('StudioState page style', () => {
 		vi.restoreAllMocks();
 	});
 
-	it('saves the theme, voice and glitter that composed the page', async () => {
+	/**
+	 * An initialised studio with a session, and a spy on the vault write.
+	 *
+	 * Six lines repeated verbatim in every test that asserts on what reaches the vault. Extracted
+	 * because a saved record's provenance is what this block is about, and the setup was starting to
+	 * outweigh the assertion in each one.
+	 */
+	const savingStudio = async () => {
 		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
 			ok: true,
 			value: { sessionId: SESSION_ID }
 		});
 		const studio = registerInitialized(new StudioState());
 		await studio.init();
-		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		return { studio, saveSpy: vi.spyOn(creationStoreAdapter, 'saveCreation') };
+	};
+
+	it('saves the theme, voice and glitter that composed the page', async () => {
+		const { studio, saveSpy } = await savingStudio();
 
 		studio.selectedThemeId = 'receipts';
 		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
@@ -2417,13 +2428,7 @@ describe('StudioState page style', () => {
 	});
 
 	it('records the wig in the saved style when one was on the page', async () => {
-		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-			ok: true,
-			value: { sessionId: SESSION_ID }
-		});
-		const studio = registerInitialized(new StudioState());
-		await studio.init();
-		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		const { studio, saveSpy } = await savingStudio();
 
 		studio.selectedWig = SAMPLE_WIG;
 		await generatePage(studio);
@@ -2822,13 +2827,7 @@ describe('StudioState page style', () => {
 		// spec, which `applyTextToSpec` rebuilds on every setting change. So generating on US Letter
 		// with a decorative border, switching to A4 with no border and saving filed the old image,
 		// prompt and downloads under dimensions and a frame that never produced them.
-		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-			ok: true,
-			value: { sessionId: SESSION_ID }
-		});
-		const studio = registerInitialized(new StudioState());
-		await studio.init();
-		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		const { studio, saveSpy } = await savingStudio();
 
 		studio.pageSize = 'US_Letter';
 		studio.border = 'decorative';
@@ -2851,13 +2850,7 @@ describe('StudioState page style', () => {
 		// The same drift through the other door: a record's paper is in `intent`, so it is known
 		// even for one written before styles were stored, and re-saving must not overwrite it with
 		// whatever the panel says now.
-		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-			ok: true,
-			value: { sessionId: SESSION_ID }
-		});
-		const studio = registerInitialized(new StudioState());
-		await studio.init();
-		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		const { studio, saveSpy } = await savingStudio();
 
 		await studio.loadCreation(
 			makeStyledCreation({
@@ -2880,13 +2873,7 @@ describe('StudioState page style', () => {
 	it('files a page saved before any generation under the controls that authored it', async () => {
 		// The fallback the snapshot leaves in place. Nothing was generated, so there is no artifact
 		// for the controls to disagree with — they *are* this page's paper.
-		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-			ok: true,
-			value: { sessionId: SESSION_ID }
-		});
-		const studio = registerInitialized(new StudioState());
-		await studio.init();
-		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		const { studio, saveSpy } = await savingStudio();
 
 		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
 		studio.pageSize = 'A4';
