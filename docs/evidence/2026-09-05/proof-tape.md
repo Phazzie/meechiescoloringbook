@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-05T03:08:41.399Z
+Generated at: 2026-09-05T03:24:02.928Z
 Evidence folder: docs/evidence/2026-09-05
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -17,7 +17,7 @@ after this inventory is taken, so they are not listed):
 - chamber-lock.json (28496 bytes)
 - cipher-gate-run.txt (429 bytes)
   Commands: meechies-coloringbook@0.1.0 cipher:gate | node scripts/cipher-gate.mjs
-- cipher-gate.json (4164 bytes)
+- cipher-gate.json (4165 bytes)
 - clan-chain.json (2532 bytes)
 - clan-chain.md (1559 bytes)
 - e2e.txt (3980 bytes)
@@ -39,14 +39,14 @@ after this inventory is taken, so they are not listed):
 - rewind-PromptAssemblySeam.txt (539 bytes)
 - rewind-ProviderAdapterSeam.txt (540 bytes)
 - rewind-RateLimitSeam.txt (540 bytes)
-- rewind-SafetyPolicySeam.txt (542 bytes)
+- rewind-SafetyPolicySeam.txt (541 bytes)
 - rewind-SessionSeam.txt (537 bytes)
 - rewind-SpecValidationSeam(self-contained).txt (542 bytes)
 - rewind-SpecValidationSeam.txt (542 bytes)
 - seam-ledger.json (30250 bytes)
 - seam-ledger.md (2409 bytes)
 - seam-rewind-exit-codes.md (2021 bytes)
-- shaolin-lint.json (518 bytes)
+- shaolin-lint.json (519 bytes)
 - test.txt (1031 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-chain-run.txt (1556 bytes)

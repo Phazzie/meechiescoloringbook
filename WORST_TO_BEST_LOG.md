@@ -6458,3 +6458,63 @@ is the first time in this close-out the loop closed without a reviewer in it.
 **One hundred and twenty findings across forty-four rounds.** The last four rounds have found 3, 2,
 3 and 4 — the rate is flat, and every one of them has been in the file I added to fix the round
 before. That is now stated in `plan.md`, in the Cipher Gate entry's Risks field, and here.
+
+---
+
+## Run 4, correction 45 — 2026-09-05 — the lock had a hole, and a failed gate kept a green badge
+
+Appended, not edited. Two P2s on `396bdff`, both second-order consequences of the lock added one
+round earlier. That is the pattern of the last six rounds without exception: each fix is correct and
+each one creates the next finding.
+
+### 1. A per-folder lock does not exclude a pair of runs straddling midnight
+
+The lock lived *inside* the dated folder, so two runs on either side of midnight UTC take different
+locks and neither blocks. That is not merely theoretical here: the first run's child generators each
+recompute the date independently (`rewind.mjs:98`, `proof-tape.mjs:197-199`), so a run that started
+before midnight begins writing into the **second** run's folder before its own rollover check
+notices. The lock excluded the case I was thinking about and not the adjacent one — exactly what
+correction 39's rollover guard did, one fix earlier.
+
+Moved to `docs/evidence/.capture-evidence.lock`, outside every dated folder, so one capture runs at
+a time regardless of which day each thinks it is in. Verified it still rejects.
+
+### 2. A gate that failed could leave the previous run's success artifact standing
+
+`cipher:gate` writes `cipher-gate.json` only when it passes. So a second run the same day whose gate
+**rejects** wrote a red `cipher-gate-run.txt` and left the earlier run's `cipher-gate.json` — with
+`"status": "ok"` — sitting beside it. Machine-readable success for a gate that had just failed, in
+the folder that is supposed to be this run's evidence. Same for the tape's `proof-tape.json`/`.md`.
+
+Each gate's own outputs are now removed before it is invoked, so a failing gate leaves an absence
+rather than someone else's pass.
+
+**Demonstrated rather than argued.** I broke the gate deliberately — pointed one Evidence path in the
+2026-09-05 Cipher Gate entry at a file that does not exist — and ran the sequence:
+
+```
+Cipher Gate: evidence paths missing.
+npm run cipher:gate failed (exit 1); stopping.          SEQUENCE EXIT=1
+
+$ ls docs/evidence/2026-09-05/cipher-gate.json
+ls: cannot access ...: No such file or directory        <- no stale green artifact
+$ tail -1 docs/evidence/2026-09-05/cipher-gate-run.txt
+EXIT=1                                                  <- and the failure is recorded
+```
+
+`DECISIONS.md` was restored from backup afterwards and `git diff --quiet` confirms it is byte-identical;
+the sequence was then re-run clean, `cipher-gate.json` back to `status: ok` over fourteen paths.
+The lock was also released after the *failed* run, which is the `process.on('exit')` path rather than
+the happy one.
+
+### The shape of this, stated plainly
+
+Six consecutive rounds, every finding inside `scripts/capture-evidence.mjs`, every one a real defect,
+and every one created by the previous round's fix. The file is doing something genuinely hard —
+capturing twenty-four commands' output truthfully under failure, concurrency and clock movement — and
+each correct step reveals the next unhandled case. That is normal for this kind of code and it is
+also why 442 lines of it does not belong in a documentation close-out, which is on the owner's list.
+
+### Running total
+
+**One hundred and twenty-two findings across forty-five rounds.**

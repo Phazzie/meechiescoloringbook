@@ -256,17 +256,23 @@ const assertTapeCoversThisRun = async (dir) => {
 };
 
 /**
- * Refuses to run while another capture holds the same dated directory.
+ * Refuses to run while another capture is in progress, anywhere.
  *
- * Two overlapping runs select the same folder and every filename in it is fixed, so they overwrite
- * each other's captures — and a rewind deleting an artifact the other run is producing can leave a
- * mixed evidence set that both runs' final checks still accept. Two green commands, one incoherent
- * folder. `mkdirSync` fails with EEXIST if the lock is already there, which makes the claim atomic.
- * @param {string} dir
- * @returns {string} the lock path, to be removed when the run ends
+ * Two overlapping runs write the same fixed filenames, so they overwrite each other's captures — and
+ * a rewind deleting an artifact the other run is producing can leave a mixed evidence set that both
+ * runs' final checks still accept. Two green commands, one incoherent folder.
+ *
+ * The lock lives at the evidence ROOT, not inside the dated folder, and that is deliberate: a lock
+ * per folder does not exclude a pair of runs straddling midnight UTC. They would take different
+ * locks, while the first run's child generators — `rewind.mjs:98`, `proof-tape.mjs:197-199` and the
+ * rest — each recompute the date independently and start writing into the *second* run's folder
+ * before the first run's own rollover check notices. A single global lock excludes that pair too.
+ *
+ * `mkdirSync` fails with EEXIST if the lock is already there, which makes claiming it atomic.
+ * @returns {string} the lock path, removed when the run ends
  */
-const acquireRunLock = (dir) => {
-	const lockPath = path.join(dir, '.capture-evidence.lock');
+const acquireRunLock = () => {
+	const lockPath = path.join(EVIDENCE_ROOT, '.capture-evidence.lock');
 	try {
 		mkdirSync(lockPath);
 	} catch (error) {
@@ -293,7 +299,7 @@ const main = async () => {
 	// which is to say, after the first thing written here. On the first run of a new UTC day that
 	// ordering left nothing to write into.
 	await fs.mkdir(dir, { recursive: true });
-	acquireRunLock(dir);
+	acquireRunLock();
 
 	await captureChain(dir);
 	assertNoDateRollover(startDate);
@@ -308,6 +314,11 @@ const main = async () => {
 	// capture — so a close-out that failed here left no file containing the gate's own output, in a
 	// sequence whose entire purpose is retaining what each command said. An unattended run would have
 	// had a red exit code and nothing to read.
+	// The gate's own artifact is removed first. Without this, a second run the same day whose gate
+	// REJECTS leaves the previous run's `cipher-gate.json` — `"status": "ok"` and all — sitting beside
+	// this run's red `cipher-gate-run.txt`. The folder would then present machine-readable success for
+	// a gate that just failed, which is worse than presenting nothing.
+	await fs.rm(path.join(dir, 'cipher-gate.json'), { force: true });
 	const cipher = npmRun('cipher:gate');
 	process.stdout.write(cipher.output);
 	await writeArtifact(
@@ -331,7 +342,13 @@ const main = async () => {
 	// tape would record its size and mtime, possibly flagging it as predating this run, for a file
 	// this run then overwrites. Removing it means the tape cannot report metadata for a file that
 	// will not survive the next few lines.
+	// Same reasoning as the gate above, plus the tape's own two outputs: a failing tape must not leave
+	// the previous run's green `proof-tape.json`/`.md` behind as this run's inventory.
+	// `proof-tape-run.txt` additionally has to go because it is written *after* the tape, so a copy
+	// left from an earlier run would otherwise be inventoried and then immediately overwritten.
 	await fs.rm(path.join(dir, 'proof-tape-run.txt'), { force: true });
+	await fs.rm(path.join(dir, 'proof-tape.json'), { force: true });
+	await fs.rm(path.join(dir, 'proof-tape.md'), { force: true });
 	assertNoDateRollover(startDate);
 	const tape = npmRun('proof:tape');
 	process.stdout.write(tape.output);
