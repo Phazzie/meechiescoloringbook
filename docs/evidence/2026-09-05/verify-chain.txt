@@ -65,17 +65,32 @@ Cipher Gate entry. Which files that leaves is answerable from the repository —
 
 ## Why proof-tape.md flags files this file says are current
 
-proof-tape.md lists `build.txt`, `cipher-gate.json`, `e2e.txt`, `lint.txt`, every `rewind-*.txt`,
-`verify-chain.txt` and `verify-outer.txt` as "older than this run's chamber-lock.json", and says of
-them: "These files were written by an earlier run."
+proof-tape.md flags some artifacts as "older than this run's chamber-lock.json" and says of them:
+"These files were written by an earlier run."
 
-For the other seams' rewinds that is exactly right — see the paragraph above. For the rest it
-over-reads its own test, which is a modification-time comparison against one artifact inside the
-chain rather than a record of which run produced a file. Every one of them is written *before* the
-chain, because the capture order requires it: the chain inventories them, and a file cannot be
-inventoried before it exists. `cipher-gate.json` in particular can never clear the test, by
-construction. `verify-outer.txt` is the mirror image — written *after* the chain, for the reason
-under Results — and is flagged for the opposite reason.
+WHICH files it flags is deliberately not listed here. It depends on how long before the chain each
+standalone command happened to run, so any list written down goes stale on the next push — this
+paragraph did enumerate one, and it was wrong within a day, which is the same drift the whole change
+is about. The current set is answerable from the repository:
+
+  python3 -c "import json;print(json.load(open('docs/evidence/2026-09-05/proof-tape.json'))['filesPredatingRun'])"
+
+(The first version of that line named a key the file does not have and would have thrown. Caught by
+running it. A document that tells you to run something broken is the same defect as one that
+describes code it does not match, which is what this whole change is about.)
+
+The rule, which does not go stale:
+
+  - For a `rewind-*.txt` naming a seam OTHER than the one in the Cipher Gate entry, the flag is
+    exactly right — see the paragraph above. Those are an earlier run's, deliberately.
+  - For everything else, the flag over-reads its own test. It is a modification-time comparison
+    against one artifact inside the chain, not a record of which run produced a file. These are
+    written *before* the chain because the capture order requires it: the chain inventories them,
+    and a file cannot be inventoried before it exists. `cipher-gate.json` in particular can never
+    clear the test, by construction.
+  - `verify-outer.txt` is the mirror image — written *after* the chain, for the reason under Results
+    — so whether it is flagged depends on whether the previous run's copy was still on disk when
+    this chain inventoried it. Either state is expected and neither says anything about the code.
 
 The stamps written INTO the artifacts by the tools that produce them settle the ordering, and
 survive a clone, a checkout and a squash in a way a file's modification time does not:
