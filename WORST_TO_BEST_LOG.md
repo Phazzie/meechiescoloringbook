@@ -4453,3 +4453,84 @@ build and e2e results are unchanged from the previous close-out — this change 
 
 **Fifteen** real findings across seven review rounds and one self-audit. One declined, with the
 `git diff` and `rewind` output that disproves it.
+
+## Run 5, merge close-out — 2026-09-05 — PR #297 merged as `cc5f622`
+
+The wig try-on is Run 5's worst→best feature, and it is on `main`. Merged under the `AGENTS.md`
+green gate, which merges without asking rather than waiting to be told.
+
+### Why this feature, restated now that it is done
+
+Three runs passed it over, each citing the one before: *"works, and was already repaired in the v1.1
+recovery."* Run 4's own log warns that an inherited claim is not evidence. Re-measuring it on `main`
+at `1dab4cf` found **six** defects, including a catalog that bypassed the seam it owns, three error
+codes that could not reach a reader, and a second try-on that destroyed the first — in a feature
+whose entire purpose is choosing between looks, at one paid image generation each.
+
+The deferral was the finding. A feature nobody re-measures accumulates exactly the defects nobody
+is looking for.
+
+### What the gate required, and what it found
+
+| Condition | State at merge |
+|---|---|
+| CI green on the current head, **both** surfaces | Check runs and commit statuses read on `2544069`. `verify` ×2, CodeQL, Analyze (javascript-typescript), Analyze (actions), SonarCloud, Vercel Preview Comments: success. Vercel: **deployed**. |
+| Every review comment addressed | Seven Codex rounds, one self-audit, Rosentic, Sourcery, CodeRabbit. Fifteen findings: fourteen fixed, one declined with the output disproving it. |
+| `npm run verify` and `npm test` green, evidence committed | Exit 0; 1252 passed / 1 skipped; `docs/evidence/2026-09-05/`. |
+| No unpushed work, no merge conflict | Clean. |
+
+None of the four exclusions applied: every review was a bot, so no human change request was
+outstanding; no contract, schema or data migration is in the diff (`git diff origin/main...HEAD`
+matches nothing under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`,
+`src/lib/adapters/` or `src/lib/seams/`); no open Assumption covers the shipped behaviour — the
+open `WigTryOnSeam` one is about whether the live xAI account accepts the provider payload, and no
+file on that request path is in the diff; and no owner hold.
+
+### The one red check at merge, and how it was cleared
+
+Rosentic, on the same signature it produced every run: two branches said to have "changed"
+`derivesDenseDecorations` / `isKnownDraftSeed` / `normalizeSpecText` "by removing" their parameters.
+Both have **no common ancestor** with `main` — `git merge-base` exits 1 — and their tips
+(2026-06-08, 2026-07-01) predate the symbols by two to three months. A branch cannot remove the
+parameters of a function that did not exist while it was alive. Its suggested fix would turn CI red.
+Re-established on the merge head and written to the PR before merging, as the gate requires.
+
+Vercel's earlier failures were the account-wide free-tier daily deploy cap, and it **deployed
+successfully on the merge head** once the window reopened — the difference between a quota and a
+defect, shown rather than argued.
+
+### What this run is actually about
+
+Fifteen findings, and twelve are one family: **something on the page and the thing describing it,
+drifting apart** — across an await, a restore, a serialisation, a settings rebuild, a replacement
+under a stable key, and a value invented to satisfy a schema and then believed.
+
+Three of them had the same root cause and the same fix, and the fix was never "add the missing
+check":
+
+1. `attachPackagedPage` — eleven lines written twice, the staleness check in neither.
+2. `describingStudioText()` — vault and draft answering "is this text about this page?" separately.
+3. `buildStudioTextFromSpec` returning `null` — a value invented for `pageItems.min(2)`, guarded at
+   two call sites and reaching two more.
+
+**Delete the second copy.** Writing the rule down did not prevent the next occurrence; this run
+proved that by recording the lesson and then committing the same mistake in the very next commit.
+Removing the thing that can diverge did prevent it.
+
+### The two findings that should worry the next run
+
+- **A test can pass for the wrong reason in more than one way.** Three did here: a mock that
+  resolved with an empty file list, a stubbed response that failed schema validation and never
+  reached the guarded line, and a fixture whose four bytes spelled "fake" so the vault correctly
+  refused to rebuild it and every reopen in that block asserted about an empty page. Only the third
+  was found by writing a *new* assertion rather than by mutating.
+- **Prose has no type-checker.** The Cipher Gate entry described an implementation this PR's own
+  second review round had replaced five commits earlier, and `npm run cipher:gate` passed on every
+  push — because it verifies an entry *exists*, not that it is *true*. Three other documents
+  carried the same stale description. A governance file is as capable of drifting from the code as
+  any cache is.
+
+### For the next run
+
+The next worst feature is not named here. Measure it rather than inherit it — that is the whole
+reason this feature was still broken after three runs said it was fine.
