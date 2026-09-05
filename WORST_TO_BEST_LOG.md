@@ -7488,3 +7488,65 @@ One winner, five refusals, no leftovers. Before the fix, several of those six wo
 ### Running total
 
 **One hundred and twenty-seven findings across forty-eight rounds.**
+
+---
+
+## Run 4, correction 50 — 2026-09-05 — my cleanup destroyed another run's committed evidence
+
+Appended, not edited. Two P2s on `dab137b`. The first is the most serious defect this close-out has
+produced, because it did not merely risk damage — **it had already caused it, and it silently
+inflated a claim I made one round earlier.**
+
+### 1. The `rewind-*.txt` wildcard deleted files it did not own
+
+`clearOwnedOutputs` globbed every `rewind-*.txt` as this run's to delete. But this run regenerates
+only the nineteen seams in `SEAMS`; anything else matching that pattern is someone else's evidence —
+a same-day `npm run rewind -- --seam WigCatalogSeam`, or, as actually happened, another branch's
+artifacts arriving through a merge.
+
+Verified against `origin/main`:
+
+```
+in main's docs/evidence/2026-09-05/ : rewind-WigCatalogSeam.txt, rewind-wig-catalog-seam.txt
+on this branch after correction 48 : both absent
+```
+
+Run 5's evidence for `WigCatalogSeam`, merged in at correction 46 and deleted by the very next
+capture. Both restored from `origin/main` and confirmed byte-identical after a full run.
+
+The cleanup set is now built from `SEAMS` — `rewind-<Seam>.txt` and its `-capture.txt` companion —
+so it names exactly what this run produces. **Owning a filename pattern is not the same as owning
+the files that match it**, and a glob cannot tell the difference.
+
+### The part that matters more than the bug
+
+Correction 48 reported `before: 21 leaking files → after: 0`. That was true of the files this script
+writes. It was true of the *folder* partly because two files had been deleted rather than fixed.
+The number was right and the impression it gave was not.
+
+Restoring them puts the folder back to **2** leaking files — both `rewind.mjs`'s, from Run 5, both
+still carrying the checkout path. I am not rewriting them: they are another run's committed evidence
+and this run did not produce them. That is the line correction 48 should have drawn explicitly —
+**this close-out sanitizes what it produces, not what it finds** — and it is why `verify.txt` and
+`test.txt` are fair game (this run regenerates them) while these two are not. They remain follow-up
+13's problem, which is the fix that actually belongs in `rewind.mjs`.
+
+### 2. Not fixed — a killed wrapper can leave its child still writing
+
+If the wrapper is killed mid-`spawnSync`, the npm child can survive and keep writing evidence while
+the lock records only the dead wrapper's pid. The next run reclaims and starts clearing files
+underneath it.
+
+Real, and not fixable by another patch to the lock. `spawnSync` does not surface the child's pid
+until it has already exited, so there is nothing to record while it is running, and the same blocking
+call is why the signal handlers do not fire (correction 47). Both symptoms have one cause: this
+script is synchronous. The fix is `spawn` plus `await`, which would let it track the live child, kill
+the tree on a signal, and handle signals at all.
+
+That is a rewrite of a file already at four hundred lines and already flagged to the owner as
+disproportionate for a documentation close-out. I am not making that call unilaterally at round 49.
+**Follow-up 15.**
+
+### Running total
+
+**One hundred and twenty-nine findings across forty-nine rounds.**

@@ -14,7 +14,6 @@ import {
 	mkdtempSync,
 	openSync,
 	readFileSync,
-	readdirSync,
 	renameSync,
 	rmSync,
 	writeFileSync
@@ -443,14 +442,16 @@ const clearOwnedOutputs = async (dir) => {
 		// written by the standalone gate
 		'cipher-gate.json'
 	];
-	let existing = [];
-	try {
-		existing = readdirSync(dir);
-	} catch {
-		existing = [];
-	}
-	// rewind.mjs names its own artifacts, and this run's companion captures sit beside them.
-	const rewinds = existing.filter((name) => name.startsWith('rewind-') && name.endsWith('.txt'));
+	// Derived from SEAMS, never globbed. A `rewind-*.txt` wildcard also claims artifacts for seams
+	// this run does not regenerate — a same-day `npm run rewind -- --seam WigCatalogSeam`, or another
+	// branch's evidence arriving through a merge — and deleting those destroys command evidence this
+	// run cannot replace. It is not hypothetical: the wildcard removed main's `rewind-WigCatalogSeam.txt`
+	// and `rewind-wig-catalog-seam.txt` after they merged in, and they had to be restored from
+	// `origin/main`. Owning a filename pattern is not the same as owning the files that match it.
+	const rewinds = SEAMS.flatMap((seam) => {
+		const base = `rewind-${seam.replace(/\s+/g, '')}`;
+		return [`${base}.txt`, `${base}-capture.txt`];
+	});
 	await Promise.all(
 		[...owned, ...rewinds].map((name) => fs.rm(path.join(dir, name), { force: true }))
 	);
