@@ -46,20 +46,28 @@ const stripAnsi = (text) =>
  * anchored while the pass pattern next to it was not, and the Row 2 rule was anchored while its twin
  * in the rewind rule was not. Prose in a test title then counted as a result, in both directions.
  *
- * A summary line begins the line (allowing the reporter's indent) and starts with a count or one of
- * the reporter's own labels. A sentence a developer wrote inside a test name cannot reach it.
+ * A summary line begins the line (allowing the reporter's indent) and is either a count followed by
+ * one of the reporter's own status words, or one of its labels. A sentence a developer wrote inside
+ * a test name cannot reach it.
  *
- * `Vitest caught` is in the list because it is a summary that begins with neither. Routing every
- * rule through this filter without it silently dropped the unhandled-error line the rewind rule
- * had just been taught to catch — a gate added to stop prose getting in, which also stopped a
- * result getting in.
+ * The count branch names the statuses rather than accepting `\d+ \w`. Anchoring alone was not
+ * enough: a test that prints its own progress puts an unindented `1 passed` on stdout, the
+ * transcript interleaves it with the reporter's, and a truncated run then carried a result it had
+ * not earned. A closed vocabulary is narrower, and the exit status that rule 4 now requires is
+ * narrower still — this filter decides which lines are summaries, not whether a run went well.
+ *
+ * `Vitest caught` is a label because it is a summary that begins with neither. Routing every rule
+ * through this filter without it silently dropped the unhandled-error line the rewind rule had just
+ * been taught to catch — a gate added to stop prose getting in, which also stopped a result getting
+ * in.
  */
+const BARE_COUNT_SUMMARY =
+	/^\s{0,8}\d{1,9} (passed|failed|flaky|skipped|interrupted|did not run|errors?)\b/;
+const LABELLED_SUMMARY = /^\s{0,8}(Tests|Test Files|Errors|Vitest caught)\s/;
 const summaryLines = (text) =>
 	stripAnsi(text)
 		.split('\n')
-		.filter((line) =>
-			/^\s{0,8}(\d{1,9} \w|Tests\s|Test Files\s|Errors\s|Vitest caught\s)/.test(line)
-		);
+		.filter((line) => BARE_COUNT_SUMMARY.test(line) || LABELLED_SUMMARY.test(line));
 
 /** The last `<n> passed` in a transcript, as a number, or null when the transcript has no result. */
 const lastPassedCount = (text) => {
@@ -185,6 +193,26 @@ const RULES = [
 			// Present is not current. A run that stops invoking an intermediate stage leaves the previous
 			// artifact in place, and the tape then flags it as predating this run while everything else
 			// looks finished. The tape already computes that; nothing was reading it.
+			//
+			// Before the staleness question can be asked, the tape has to have an answer to it. Asking
+			// `some(name matches && predatesRun)` returns false in two different situations — the tape
+			// says the artifact is current, and the tape does not mention the artifact at all — and only
+			// the first is a pass. An artifact the inventory omits is skipped by the drift check below
+			// for the same reason, so a file the tape stops scanning becomes invisible to this rule
+			// rather than suspect. That is invariant 3 at the top of this file, inverted: a rule that
+			// cannot be evaluated was reporting success.
+			//
+			// `proof-tape.json` is the one chain artifact its own inventory cannot contain: the tape is
+			// written from the scan, so it is not in the scan. This folder's tape has exactly one entry
+			// for each of the other seven and none for itself, which is what that exclusion is measured
+			// against rather than assumed from. Its currency is what the stamp comparison below is for.
+			const TAPE = 'proof-tape.json';
+			const uninventoried = CHAIN_ARTIFACTS.filter(
+				(name) =>
+					name !== TAPE && inventory.filter((entry) => entry.name === name).length !== 1
+			);
+			if (uninventoried.length > 0)
+				return `the proof tape does not carry exactly one inventory entry for: ${uninventoried.join(', ')}; whether those artifacts belong to this run cannot be read off a tape that does not describe them.`;
 			const stale = CHAIN_ARTIFACTS.filter((name) =>
 				inventory.some((entry) => entry.name === name && entry.predatesRun === true)
 			);
@@ -235,10 +263,27 @@ const RULES = [
 			// and the splice failure this rule exists to catch would then pass. Row 2 is the row whose
 			// result gets cited, so Row 2 is what gets checked.
 			const row2 = e2e.slice(marker);
+			// The run's own exit status, which is the only line here that answers "did this pass"
+			// without inferring it from counts. Every version of this rule before it asked the
+			// transcript to describe itself, and each was defeated by a transcript that described
+			// itself wrongly: an empty splice, a green summary beside forty failures, and a passing
+			// count that a test printed to its own stdout. `docs/evidence/README.md` carries the
+			// convention, so a folder that ships an e2e.txt ships this line; a folder with none is
+			// untouched by this rule.
+			if (!/e2e exit=0/.test(row2))
+				return 'e2e.txt Row 2 does not contain "e2e exit=0"; the run it records either failed or was captured without its exit status, and the counts beneath it cannot settle which.';
 			if (lastPassedCount(row2) === null)
 				return 'e2e.txt Row 2 has no "<n> passed" line; the transcript was spliced in against a header that did not match, so the run it records cannot be audited.';
 			if (!/\.spec\.[tj]s/.test(row2))
 				return 'e2e.txt Row 2 has a summary but no per-test lines; the summary cannot be checked against anything.';
+			// A row run under a config override has to carry that config. This container cannot launch
+			// the browser the mandated command wants, so Row 2 runs under a scratch config that is not
+			// in the repository — and for four heads this section described that file instead of
+			// showing it, in a sentence that turned out to be false about its own contents. A reviewer
+			// cannot check test selection, workers or retries against a file they cannot open, which
+			// makes the row's result unauditable however green it is.
+			if (/--config=/.test(row2) && !/```[a-z]{0,8}\n[\s\S]{0,20000}defineConfig/.test(row2))
+				return 'e2e.txt Row 2 names a --config override but does not reproduce it; the run cannot be audited against a configuration that is not in the evidence.';
 			// A passing count is not a passing run. Playwright prints "<n> passed" alongside "<n> failed"
 			// when both happen, so a row with one pass and forty failures satisfied every check above.
 			// "error" is in here because Playwright's list reporter prints "<n> passed" beside

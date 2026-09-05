@@ -28,6 +28,27 @@ Store command outputs and probe metadata tied to seam changes.
   - `cipher-gate.json` (cipher gate proof summary report)
   - `assumption-alarm.json` (assumption coverage report)
   - `ci-verify.txt` (optional CI verification output, if captured)
+  - `e2e.txt` (optional end-to-end transcript — see the exit-status rule below)
+  - `lint.txt` / `build.txt` (optional `npm run lint` / `npm run build` transcripts, for the
+    routines that mandate them; the chain writes neither)
+
+## Exit statuses
+A transcript must carry the exit status of the command that produced it, on its own line, as
+`<name> exit=<code>`: `verify exit=0` in `verify-outer.txt`, `lint exit=0`, `build exit=0`,
+`e2e exit=0` at the end of `e2e.txt`'s Row 2.
+
+This is not decoration. Counts in a transcript describe a run; only the exit status reports it.
+Three times a transcript here has been green by every count it contained and wrong anyway — an
+empty section spliced under a heading, a passing total printed beside failures, a count that came
+from a test's own stdout rather than the reporter's. Capture the status from the command with `$?`
+and append it; do not type it in from what the output appeared to say.
+
+## The guard
+`npm run evidence:guard [dir]` reads a committed folder and refuses it when a transcript does not
+carry its own result. It defaults to today's folder — deliberately not "whichever is newest", so a
+run that wrote nothing fails instead of validating its predecessor's work. CI runs it over exactly
+the dated folders a change touches, before `npm run verify`, so what is judged is what the author
+committed rather than what the chain has just rewritten.
 
 ## Capture order
 Two artifacts are written by commands outside the chain but inventoried by a stage inside it, so
