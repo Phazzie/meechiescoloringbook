@@ -205,8 +205,28 @@ test('home mode switching and generation controls work', async ({ page }) => {
 		'The story folded before the receipt opened.'
 	);
 
+	// Before a page exists the row says so, instead of showing buttons that are disabled for
+	// a reason nobody states.
+	await expect(page.getByTestId('home-export-empty')).toBeVisible();
+	await expect(page.getByTestId('home-export-link')).toHaveCount(0);
+
 	await page.getByTestId('home-create-page').click();
 	await expect(page.getByTestId('home-generated-image')).toBeVisible();
+
+	// The mainline path out of the studio: a printable file, a share image, and the bytes on
+	// screen — each naming itself and its size, where there used to be one repeated label.
+	const homeExports = page.getByTestId('home-export-link');
+	await expect(homeExports).toHaveCount(3);
+	await expect(homeExports.nth(0)).toContainText('Printable PDF');
+	await expect(homeExports.nth(1)).toContainText('Square PNG');
+	await expect(homeExports.nth(2)).toContainText('Original PNG');
+	// Sizes are measured from the bytes behind each link, so none of them can read as empty.
+	for (const kind of ['print', 'square', 'original']) {
+		await expect(
+			page.locator(`[data-testid="home-export-link"][data-export-kind="${kind}"]`)
+		).toContainText(/\d+(\.\d+)? (B|KB|MB)/);
+	}
+	await expect(page.getByTestId('home-export-error')).toHaveCount(0);
 
 	await page.getByTestId('home-copy-quote').click();
 	await expect(page.getByTestId('home-status')).toContainText(
@@ -304,16 +324,30 @@ test('wig try-on demo works end to end without provider traffic', async ({
 			isPortraitBytes: true,
 			decoded: true
 		});
-	await expect(page.getByRole('link', { name: 'Download PDF' })).toBeVisible();
-	// The export link hands the browser a filename, so its extension has to match the
-	// bytes behind it. These are the stubbed JPEG portrait bytes, so the download is
-	// `.jpg` and the label names the format the user actually receives.
-	const exportLink = page.getByRole('link', { name: /^Export / });
-	await expect(exportLink).toHaveAttribute(
+	// Every download names itself: what it is, what it is for, and how big it is. This row
+	// used to render one hardcoded "Download PDF" per packaged file, plus a second link
+	// handing back the provider's raw bytes under a label derived from nothing.
+	const exportLinks = page.getByTestId('home-export-link');
+	await expect(exportLinks).toHaveCount(3);
+	await expect(exportLinks.nth(0)).toContainText('Printable PDF');
+	await expect(exportLinks.nth(0)).toContainText('US Letter');
+	// The share image the studio could not produce at all before this: the app is about
+	// receipts you show people, and its front door could print a page but not post one.
+	await expect(exportLinks.nth(1)).toContainText('Square PNG');
+	await expect(exportLinks.nth(2)).toContainText('Original JPG');
+	// A download's filename has to match the bytes behind it. These are the stubbed JPEG
+	// portrait bytes, so the original is `.jpg` — and every file is named after this page
+	// rather than after a constant that collides with every other page ever downloaded.
+	await expect(exportLinks.nth(2)).toHaveAttribute(
 		'download',
-		'meechie-coloring-page.jpg'
+		/^meechie-try-on-coloring-page-.+-original\.jpg$/
 	);
-	await expect(exportLink).toHaveText('Export JPG');
+	await expect(exportLinks.nth(0)).toHaveAttribute(
+		'download',
+		/^meechie-try-on-coloring-page-.+\.pdf$/
+	);
+	// Nothing failed, so nothing is claimed to have failed.
+	await expect(page.getByTestId('home-export-error')).toHaveCount(0);
 
 	// A try-on page has no verdict behind it, and used to be the one page in the app the vault
 	// would not take — the Save button was disabled on the verdict alone, so the portrait died

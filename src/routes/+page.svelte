@@ -66,7 +66,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		<StudioPreviewPanel
 			previewOutput={studio.previewOutput}
 			imagePreviews={studio.imagePreviews}
-			packagedFiles={studio.packagedFiles}
+			pageExports={studio.pageExports}
+			exportError={studio.exportError}
 			generationError={studio.generationError}
 			isGenerating={studio.isGenerating}
 			textOutput={studio.textOutput}
@@ -470,6 +471,73 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		border: none;
 		background: linear-gradient(112deg, #e8006a, #8b16c2 52%, #c9a227);
 		color: #fff;
+	}
+
+	/* The export row. Each download is two lines — what it is, then what it is for and how big —
+	   because a row of identical-looking buttons is what let this panel print the same constant
+	   label once per file without anyone noticing. The list is a real <ul> so a screen reader is
+	   told how many ways out of the app there are before reading them. */
+	:global(.studio .exports) {
+		margin-top: 1rem;
+		padding-top: 0.9rem;
+		border-top: 1px solid rgba(201, 162, 39, 0.16);
+	}
+
+	:global(.studio .export-list) {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+		gap: 0.5rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	:global(.studio .export-link) {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.15rem;
+		width: 100%;
+		height: 100%;
+		box-sizing: border-box;
+		padding: 0.55rem 0.7rem;
+		text-align: left;
+	}
+
+	:global(.studio .export-label) {
+		font-size: 0.76rem;
+		color: var(--gold-bright);
+	}
+
+	/* Sentence case and unspaced against the label above it, which carries the panel's uppercase
+	   label type. The size and purpose are read, not scanned. No font-family of its own — the same
+	   treatment `.mode-help` gets, and one fewer copy of a font stack to drift. */
+	:global(.studio .export-meta) {
+		font-size: 0.68rem;
+		font-weight: 400;
+		letter-spacing: 0;
+		text-transform: none;
+		color: var(--lavender);
+	}
+
+	:global(.studio .export-empty) {
+		margin: 0;
+		font-size: 0.8rem;
+		font-style: italic;
+		color: var(--lavender);
+	}
+
+	/* Gold, not the error pink: what it reports is a missing download, above a page that is
+	   finished and still worth keeping. Named for the feature rather than `.notice`, so a later
+	   panel under `.studio` cannot inherit this styling by picking a generic class name. */
+	:global(.studio .export-notice) {
+		margin: 0.7rem 0 0;
+		padding: 0.5rem 0.65rem;
+		border: 1px solid rgba(201, 162, 39, 0.32);
+		border-radius: 6px;
+		background: rgba(201, 162, 39, 0.09);
+		color: var(--gold-bright);
+		font-size: 0.8rem;
 	}
 
 	:global(.studio .preview-head) {

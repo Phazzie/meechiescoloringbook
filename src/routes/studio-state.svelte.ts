@@ -33,6 +33,13 @@ import {
 	generatedImageDataUrl
 } from '$lib/core/generated-image-preview';
 import {
+	describeOriginalImageExport,
+	describePackagedExports,
+	summarisePageExportFailures,
+	type PageExport,
+	type PageExportAttempt
+} from '$lib/core/page-exports';
+import {
 	VAULT_CAPACITY,
 	VAULT_PREVIEW_COUNT,
 	buildVaultEntries,
@@ -86,6 +93,24 @@ export type TryOnPortrait = {
 };
 
 const DRAFT_SAVE_DEBOUNCE_MS = 300;
+
+/**
+ * The name downloads fall back to before a page has been packaged.
+ *
+ * Only reachable for the provider's own image, which the export row can describe the moment the
+ * page lands — a beat before packaging finishes and names it after the page.
+ */
+const DEFAULT_PAGE_FILE_BASE_NAME = 'meechie-coloring-page';
+
+/**
+ * The variants every finished page is packaged into, in the order they appear in the export row.
+ *
+ * Matches what the tools hub and the mode routes already build, so the front door stops being the
+ * one page-making surface in the app that could print a page but not post it. `chat` is deliberately
+ * not requested: each extra variant is another full canvas rasterisation per generation, and a third
+ * one buys a size the square already covers.
+ */
+const STUDIO_EXPORT_VARIANTS = ['print', 'square'] as const;
 
 type DraftSeedTextSignature = {
 	title: string;
@@ -159,7 +184,22 @@ export class StudioState {
 	violations = $state<Violation[]>([]);
 	recommendedFixes = $state<DriftDetectionOutput['recommendedFixes']>([]);
 	images = $state<GeneratedImage[]>([]);
-	packagedFiles = $state<PackagedFile[]>([]);
+	/**
+	 * Every call made to the packaging seam for the page on the paper: the variant asked for, the
+	 * files that came back, and the error if it could not be built.
+	 *
+	 * The stored form is the *attempts* rather than a flat file list because the variant is the one
+	 * thing the export row needs and a filename cannot be trusted to carry. Everything the UI reads
+	 * — the files, the described downloads, the failure sentence — is derived from this, so there is
+	 * one thing to keep correct instead of three that can disagree.
+	 */
+	packageAttempts = $state<PageExportAttempt[]>([]);
+	/**
+	 * The base name every download for this page shares, so a printable PDF, its share image and the
+	 * provider's own bytes arrive in the reader's Downloads folder named after the same page. Empty
+	 * until a page has been packaged.
+	 */
+	pageFileBaseName = $state('');
 	creations = $state<CreationRecord[]>([]);
 	isSaving = $state(false);
 
@@ -281,6 +321,33 @@ export class StudioState {
 	imagePreviews = $derived(
 		this.images.map((image) => generatedImageDataUrl(image) ?? '')
 	);
+	/** The bytes of every file packaged for the page on the paper. */
+	packagedFiles = $derived<PackagedFile[]>(
+		this.packageAttempts.flatMap((attempt) => attempt.files)
+	);
+	/**
+	 * The export row: each packaged file, then the provider's own image, every one of them carrying
+	 * what it is, what it is for and how big it is.
+	 *
+	 * The original comes last and is derived from `images` rather than stored, so it appears and
+	 * disappears with the page it belongs to and can never be left behind by a reset.
+	 */
+	pageExports = $derived.by((): PageExport[] => {
+		const packaged = describePackagedExports(this.packageAttempts, this.spec.pageSize);
+		const original = describeOriginalImageExport(
+			this.images[0],
+			this.pageFileBaseName || DEFAULT_PAGE_FILE_BASE_NAME
+		);
+		return original ? [...packaged, original] : packaged;
+	});
+	/**
+	 * What could not be packaged, phrased so it can never be read as "the generation failed".
+	 *
+	 * A separate field from `generationError` on purpose. Both used to be written to the same string,
+	 * so a page that generated perfectly and then failed to become a PDF showed the same red line as
+	 * a page that never generated — above the finished page itself.
+	 */
+	exportError = $derived(summarisePageExportFailures(this.packageAttempts));
 	canTryOn = $derived(!!this.selectedWigId && !!this.selfieBase64 && !this.isTryingOn);
 	// The portrait on screen is whichever belongs to the wig on screen. Selecting a wig that was
 	// already tried on brings its portrait back rather than showing an empty result panel.
@@ -584,7 +651,12 @@ export class StudioState {
 		this.violations = [];
 		this.recommendedFixes = [];
 		this.images = [];
-		this.packagedFiles = [];
+		// Clears the packaged files, the described export row and the export failure sentence in one
+		// assignment, because all three are derived from it. `pageExports` also loses the provider's
+		// own image through `this.images` above, so nothing from the previous page can be left behind
+		// in the row.
+		this.packageAttempts = [];
+		this.pageFileBaseName = '';
 		// Whatever replaces the paper is not a try-on portrait until a try-on generation says so.
 		this.tryOnPageOnScreen = false;
 		this.tryOnPageTitle = '';
@@ -826,27 +898,75 @@ export class StudioState {
 	};
 
 	/**
-	 * Packages what is on the paper and attaches the result — unless the page was replaced while
-	 * packaging ran, in which case the late PDF belongs to a page nobody is looking at.
+	 * Package one variant of what is on the paper, turning every way it can go wrong into an
+	 * attempt that names its own failure.
 	 *
-	 * Shared by both generation paths on purpose. These eleven lines were written twice, and the
-	 * staleness check existed in neither: copying the block is precisely how one path came to be
-	 * guarded and the other not. One implementation is the only way both stay correct.
+	 * The seam reports a refusal in its `Result` and can still reject outright — pdf-lib throwing on
+	 * bytes it cannot embed, a missing canvas — and both mean the same thing to a reader: this
+	 * download is not available, and here is why. Catching here is what keeps a packaging failure out
+	 * of the caller's `catch`, which writes `generationError` and would report a finished page as a
+	 * failed generation.
 	 */
-	private async attachPackagedPage(fileBaseName: string, pageToken: number): Promise<void> {
-		const packagingResult = await outputPackagingAdapter.package({
-			images: $state.snapshot(this.images),
-			outputFormat: 'pdf',
-			fileBaseName,
-			pageSize: this.spec.pageSize,
-			variants: ['print']
-		});
-		if (pageToken !== this.pageLoadToken) return;
-		if (packagingResult.ok) {
-			this.packagedFiles = packagingResult.value.files;
-		} else {
-			this.generationError = packagingResult.error.message;
+	private async packageVariant(
+		variant: (typeof STUDIO_EXPORT_VARIANTS)[number],
+		images: GeneratedImage[],
+		fileBaseName: string,
+		pageSize: PageSize
+	): Promise<PageExportAttempt> {
+		try {
+			const result = await outputPackagingAdapter.package({
+				images,
+				outputFormat: 'pdf',
+				fileBaseName,
+				pageSize,
+				variants: [variant]
+			});
+			return result.ok
+				? { variant, files: result.value.files, error: null }
+				: { variant, files: [], error: result.error.message };
+		} catch (error) {
+			return {
+				variant,
+				files: [],
+				error: error instanceof Error ? error.message : 'Packaging failed.'
+			};
 		}
+	}
+
+	/**
+	 * Build every download for what is on the paper — unless the page was replaced while packaging
+	 * ran, in which case the late files belong to a page nobody is looking at.
+	 *
+	 * The one implementation for all three paths that put a page on the paper: a generation, a
+	 * try-on page, and reopening a saved one. Reopening used to have its own near-copy of this, and
+	 * the copies had already diverged — that one swallowed every failure, so a reopened page whose
+	 * PDF could not be rebuilt showed a disabled Download button and no reason, forever. Deleting the
+	 * second copy is what stops them diverging again.
+	 *
+	 * Both variants are packaged in sequence rather than in one call, so a variant that fails does
+	 * not take the other down with it: the seam returns on its first error, so asking for print and
+	 * square together loses the print PDF whenever the square rasterisation is the thing that breaks.
+	 */
+	private async attachPageExports(fileBaseName: string, pageToken: number): Promise<void> {
+		if (this.images.length === 0) return;
+		const images = $state.snapshot(this.images);
+		const pageSize = this.spec.pageSize;
+		// Set before packaging, not after: the provider's own image is downloadable the moment the
+		// page lands, and packaging takes seconds. Naming it only afterwards would hand anyone who
+		// grabbed it early a file named after no page in particular. Safe against a late attempt for
+		// a replaced page, because the only thing that makes an attempt stale is `resetGeneratedPage`,
+		// which clears this field on its way past.
+		this.pageFileBaseName = fileBaseName;
+		const attempts: PageExportAttempt[] = [];
+		for (const variant of STUDIO_EXPORT_VARIANTS) {
+			const attempt = await this.packageVariant(variant, images, fileBaseName, pageSize);
+			// Checked between variants, not only at the end: the square variant rasterises a fresh
+			// canvas, and starting that for a page the reader has already replaced spends time and
+			// memory on a result that is guaranteed to be thrown away.
+			if (pageToken !== this.pageLoadToken) return;
+			attempts.push(attempt);
+		}
+		this.packageAttempts = attempts;
 	}
 
 	handleGeneratePage = async (): Promise<void> => {
@@ -892,8 +1012,19 @@ export class StudioState {
 			this.violations = parsed.data.value.violations;
 			this.recommendedFixes = parsed.data.value.recommendedFixes;
 
+			// A generate response can be schema-valid and still carry no picture: `images` is
+			// `z.array(...)` with no minimum. That used to reach the packaging seam and come back as
+			// "No images provided for packaging." — a message about a step that should never have
+			// been entered, in a field the reader has no way to connect to what happened. The trace
+			// above is assigned first so the System Trace still shows what was asked for.
+			if (this.images.length === 0) {
+				this.generationError =
+					'Meechie sent the words back without a picture. Try creating the page again.';
+				return;
+			}
+
 			const creationId = this.generateCreationId();
-			await this.attachPackagedPage(`meechie-coloring-page-${creationId}`, pageToken);
+			await this.attachPageExports(`meechie-coloring-page-${creationId}`, pageToken);
 		} catch (error) {
 			this.generationError =
 				error instanceof Error ? error.message : 'Coloring page generation failed.';
@@ -965,7 +1096,7 @@ export class StudioState {
 			// From here the paper is a portrait, so no verdict describes it. See `tryOnPageOnScreen`.
 			this.tryOnPageOnScreen = true;
 			const creationId = this.generateCreationId();
-			await this.attachPackagedPage(
+			await this.attachPageExports(
 				`meechie-try-on-coloring-page-${creationId}`,
 				pageToken
 			);
@@ -1162,37 +1293,15 @@ export class StudioState {
 		this.violations = creation.violations ?? [];
 		this.vaultStatus = `Reopened "${creation.intent.title}".`;
 		await this.validateSpec();
-		await this.repackageRestoredImages(this.pageLoadToken);
+		// The same builder the two generation paths use, so a reopened page gets the same downloads a
+		// freshly generated one does — and reports what it could not build instead of leaving a dead
+		// button with no reason, which is what its own near-copy of this used to do.
+		await this.attachPageExports(
+			`meechie-coloring-page-${this.generateCreationId()}`,
+			this.pageLoadToken
+		);
 		this.scheduleDraftSave();
 	};
-
-	// Rebuild the printable PDF for a reopened page so Download PDF works on it. Best effort:
-	// the packaging adapter needs a browser canvas for some formats, and a page that cannot be
-	// re-packaged still previews and still exports as an image, so a failure here is not an error
-	// worth putting in front of the reader.
-	private async repackageRestoredImages(loadToken: number): Promise<void> {
-		if (this.images.length === 0) return;
-		try {
-			const packagingResult = await outputPackagingAdapter.package({
-				images: $state.snapshot(this.images),
-				outputFormat: 'pdf',
-				fileBaseName: `meechie-coloring-page-${this.generateCreationId()}`,
-				pageSize: this.spec.pageSize,
-				variants: ['print']
-			});
-			// Packaging is slow enough that the reader can open another page, or start a new
-			// generation, while it runs. Without this guard the late result would attach the
-			// previous page's PDF to whatever is on screen now, so Download PDF would hand back a
-			// different page than the one displayed.
-			if (loadToken !== this.pageLoadToken) return;
-			if (packagingResult.ok) {
-				this.packagedFiles = packagingResult.value.files;
-			}
-		} catch {
-			if (loadToken !== this.pageLoadToken) return;
-			this.packagedFiles = [];
-		}
-	}
 
 	setVaultQuery = (value: string): void => {
 		this.vaultQuery = value;

@@ -8,6 +8,12 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- The home studio's downloads now say what they are. Every file names itself, what it is for and how big it is, instead of every link on the row reading "Download PDF" whatever was behind it.
+- A coloring page made on the home page now comes with a square share image as well as the printable PDF. The tools hub and the mode routes already made both; the front door — the page most people use — could print a page but not post one, in an app about receipts you show people.
+- A page that generates fine but cannot be turned into a PDF now says exactly that, in a notice above a page you can still keep. It used to show the same red error a failed generation shows, which invited paying for a second generation to fix a free step that runs in your own browser.
+- Reopening a saved page whose PDF cannot be rebuilt now tells you so, instead of leaving the download quietly disabled with no reason given, forever.
+- The download for the picture itself is now named after the page it belongs to, so two pages saved on the same day no longer arrive in your Downloads folder under the same filename.
+- A generation that comes back with words but no picture now says so, rather than surfacing as a message about packaging.
 - Completed Seam Migration v2.0 across all seven core app seams (SessionSeam, AuthContextSeam, CreationStoreSeam, OutputPackagingSeam, ChatInterpretationSeam, MeechieStudioTextSeam, ProviderAdapterSeam), modularizing all contracts, fixture suites, mocks, and production adapters into canonical self-contained packages with immediate socket cancellation on client abort, strict type validation, and full backward compatibility.
 - A reopened or refreshed wig try-on no longer shows the example page's lines on the paper. The page is a portrait and the wig's name, and those three lines were put there by the reopen itself — they printed as the page's own list and lit up Save to Vault for a page that had nothing in it to save.
 - Changing a page setting on a reopened wig try-on no longer renames it. It kept the picture and the layout but took the example page's heading, so a page you had saved under a wig's name came back under someone else's.
