@@ -7306,3 +7306,77 @@ script writes.
 
 **One hundred and twenty-two findings across forty-five rounds**, unchanged — this was a merge, not a
 review round.
+
+---
+
+## Run 4, correction 47 — 2026-09-05 — a lock that could deadlock the routine, and greens that outlived their run
+
+Appended, not edited. Three P2s on `c1a2ff4`. Two are fixed; one cannot be fixed inside this file and
+is recorded as a follow-up. Testing the first fix falsified part of it, which is the entry's point.
+
+### 1. The lock could have blocked the routine permanently — and my signal handlers do not work
+
+`process.on('exit')` does not run on `SIGTERM`, so a scheduled run killed by a timeout would leave
+`.capture-evidence.lock` behind and **every later invocation would exit `EEXIST` for ever**. The
+reviewer's framing is what makes this a P2 rather than a nit: this routine runs unattended, so a
+message telling a human to delete a directory is not a recovery path.
+
+Fixed by writing the owner's pid into the lock and reclaiming it when that process is gone
+(`process.kill(pid, 0)`; `EPERM` counts as alive, since that means another user's process). Verified
+both ways:
+
+```
+live owner   -> exit 1, "Another capture-evidence run (pid 17270) holds ..."
+dead owner   -> "Reclaiming ...: its owner (pid 999999) is no longer running", run proceeds
+```
+
+**Then I tested the signal handlers I had just added, and they do not fire.** Sending `SIGTERM`
+directly to the node process mid-chain leaves the lock in place. The reason is structural:
+`spawnSync` blocks the event loop, and this script spends nearly all its wall time inside one, so a
+signal cannot be delivered to JS until the current child returns. The handlers are real only in the
+gaps between children.
+
+I left them in — they do help in those gaps — but the comment now says plainly that **the recovery
+which actually works is the next run reclaiming a dead owner's lock.** Shipping them with a comment
+claiming they handle SIGTERM would have been a third instance of this close-out's oldest habit:
+asserting behaviour I had not run.
+
+### 2. An early chain failure left the previous run's successes standing
+
+If `npm run verify` failed at its audit gate, this run wrote a red `verify-chain-run.txt` and exited
+— while that day's earlier `verify.txt`, `chamber-lock.json`, `cipher-gate.json` and proof tape all
+survived. A folder combining this run's failure with machine-readable success from another one. The
+per-gate deletions added in correction 45 could not help: on that path they are never reached.
+
+Every output this run owns is now deleted **before** the chain starts. Demonstrated by pointing
+`npm run verify` at `node -e "process.exit(3)"`:
+
+```
+exit=3
+verify.txt        absent
+chamber-lock.json absent
+cipher-gate.json  absent
+proof-tape.json   absent
+verify-chain-run.txt: EXIT=3
+```
+
+`package.json` restored afterwards and confirmed byte-identical with `git diff --quiet`.
+
+`verify-chain.txt` is deliberately excluded from that list: it is hand-written *before* the run, and
+the documented ordering depends on it already being there.
+
+### 3. Not fixed — the lock is not shared with the other evidence writers
+
+A plain `npm run verify` or `npm run rewind` in the same checkout never consults the lock and writes
+the same fixed filenames. A required gate run directly can therefore overwrite artifacts while this
+wrapper runs, and both processes finish successfully over a mixed folder.
+
+Correct, and **not fixable here by construction** — the other writers have to participate, which
+means editing `verify-runner.mjs`, `rewind.mjs` and the rest. That is verification machinery this
+close-out has stayed out of for forty rounds. **Follow-up 14**, and it belongs with follow-up 12's
+`--date` argument: both are the same underlying admission that the dated evidence folder is a shared
+name with no owner.
+
+### Running total
+
+**One hundred and twenty-five findings across forty-six rounds.**

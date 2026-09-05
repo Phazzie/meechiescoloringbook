@@ -14,7 +14,9 @@ import {
 	mkdtempSync,
 	openSync,
 	readFileSync,
-	rmSync
+	readdirSync,
+	rmSync,
+	writeFileSync
 } from 'node:fs';
 import os from 'node:os';
 import { sanitizeEvidenceOutput } from './evidence-reporting.mjs';
@@ -273,23 +275,130 @@ const assertTapeCoversThisRun = async (dir) => {
  */
 const acquireRunLock = () => {
 	const lockPath = path.join(EVIDENCE_ROOT, '.capture-evidence.lock');
-	try {
+	const shown = path.relative(ROOT, lockPath);
+	const claim = () => {
 		mkdirSync(lockPath);
+		writeFileSync(path.join(lockPath, 'pid'), String(process.pid), 'utf8');
+	};
+	try {
+		claim();
 	} catch (error) {
-		if (error.code === 'EEXIST') {
+		if (error.code !== 'EEXIST') {
+			throw error;
+		}
+		// The holder's pid decides whether this lock is live or abandoned. `process.on('exit')` does
+		// NOT run on SIGTERM, so a scheduled run killed by a timeout leaves the directory behind — and
+		// this routine runs unattended, so "a human should delete it" is not a recovery path: every
+		// later invocation would exit EEXIST for ever. A lock whose owner is gone is reclaimed.
+		const holder = Number.parseInt(readOwnerPid(lockPath) ?? '', 10);
+		if (Number.isInteger(holder) && isProcessAlive(holder)) {
 			process.stderr.write(
-				`Another capture-evidence run holds ${path.relative(ROOT, lockPath)}.\n` +
+				`Another capture-evidence run (pid ${holder}) holds ${shown}.\n` +
 					'Two runs sharing a dated folder overwrite each other and can leave a mixed evidence\n' +
-					'set that still passes every check. Wait for it to finish. If no run is active, a\n' +
-					'previous one was killed before it could clean up — remove that directory and re-run.\n'
+					'set that still passes every check. Wait for it to finish.\n'
 			);
 			process.exit(1);
 		}
-		throw error;
+		process.stderr.write(
+			`Reclaiming ${shown}: its owner${
+				Number.isInteger(holder) ? ` (pid ${holder})` : ''
+			} is no longer running, so a previous run was killed before it could clean up.\n`
+		);
+		rmSync(lockPath, { force: true, recursive: true });
+		claim();
 	}
-	// Covers the ordinary exits, including every process.exit() in this file.
-	process.on('exit', () => rmSync(lockPath, { force: true, recursive: true }));
+	const release = () => rmSync(lockPath, { force: true, recursive: true });
+	process.on('exit', release);
+	// These handlers only fire in the gaps BETWEEN children, and that is not a caveat — it is most of
+	// the reason the pid check above exists. `spawnSync` blocks the event loop, and this script spends
+	// nearly all of its wall time inside one, so a signal arriving mid-`npm run verify` cannot be
+	// delivered to JS until that child returns. Measured: sending SIGTERM to the node process during
+	// the chain leaves the lock directory in place. The handlers still help in the gaps; **the
+	// recovery that actually works is the next run finding a dead owner pid and reclaiming.**
+	for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+		process.on(signal, () => {
+			release();
+			process.exit(signal === 'SIGINT' ? 130 : 143);
+		});
+	}
 	return lockPath;
+};
+
+/**
+ * @param {string} lockPath
+ * @returns {string | null}
+ */
+const readOwnerPid = (lockPath) => {
+	try {
+		return readFileSync(path.join(lockPath, 'pid'), 'utf8').trim();
+	} catch {
+		return null;
+	}
+};
+
+/**
+ * Signal 0 checks for the process without touching it. EPERM means it exists under another user.
+ * @param {number} pid
+ * @returns {boolean}
+ */
+const isProcessAlive = (pid) => {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		return error.code === 'EPERM';
+	}
+};
+
+/**
+ * Deletes every artifact this run is going to produce, before anything runs.
+ *
+ * Without this, a run that fails EARLY leaves the previous run's successes standing: the chain
+ * aborting at the audit gate writes a red `verify-chain-run.txt` and exits, while that day's earlier
+ * `verify.txt`, `chamber-lock.json`, `cipher-gate.json` and proof tape all survive — a folder
+ * combining this run's failure with machine-readable success from another one. The per-gate deletions
+ * further down cannot help, because on that path they are never reached.
+ *
+ * `verify-chain.txt` is deliberately NOT in this list: it is hand-written before the run rather than
+ * produced by it, and the whole ordering depends on it already being there.
+ * @param {string} dir
+ */
+const clearOwnedOutputs = async (dir) => {
+	const owned = [
+		// written by this script
+		'verify-chain-run.txt',
+		'lint.txt',
+		'build.txt',
+		'e2e.txt',
+		'seam-rewind-exit-codes.md',
+		'cipher-gate-run.txt',
+		'proof-tape-run.txt',
+		// written by the chain's stages
+		'verify.txt',
+		'test.txt',
+		'chamber-lock.json',
+		'shaolin-lint.json',
+		'assumption-alarm.json',
+		'seam-ledger.json',
+		'seam-ledger.md',
+		'clan-chain.json',
+		'clan-chain.md',
+		'proof-tape.json',
+		'proof-tape.md',
+		// written by the standalone gate
+		'cipher-gate.json'
+	];
+	let existing = [];
+	try {
+		existing = readdirSync(dir);
+	} catch {
+		existing = [];
+	}
+	// rewind.mjs names its own artifacts, and this run's companion captures sit beside them.
+	const rewinds = existing.filter((name) => name.startsWith('rewind-') && name.endsWith('.txt'));
+	await Promise.all(
+		[...owned, ...rewinds].map((name) => fs.rm(path.join(dir, name), { force: true }))
+	);
 };
 
 const main = async () => {
@@ -300,6 +409,7 @@ const main = async () => {
 	// ordering left nothing to write into.
 	await fs.mkdir(dir, { recursive: true });
 	acquireRunLock();
+	await clearOwnedOutputs(dir);
 
 	await captureChain(dir);
 	assertNoDateRollover(startDate);
