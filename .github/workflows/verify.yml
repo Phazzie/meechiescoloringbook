@@ -49,6 +49,15 @@ jobs:
             git fetch --no-tags origin "${{ github.event.repository.default_branch }}" >/dev/null 2>&1 || true
             base=$(git rev-parse FETCH_HEAD 2>/dev/null || true)
             echo "Comparing against the default branch at ${base:-<unresolved>}."
+            # Force-pushing the default branch itself lands here, and the fetch then resolves to the
+            # commit already checked out. Diffing HEAD against HEAD is empty, which this step would
+            # read as "no evidence touched" — a green pass over a push that may have changed all of
+            # it. Fail closed instead: an unknowable comparison is not a clean one.
+            if [ "$base" = "$(git rev-parse HEAD)" ]; then
+              echo "The fallback resolved to HEAD itself, so nothing can be compared. Refusing to" >&2
+              echo "report success for a check with no baseline." >&2
+              exit 1
+            fi
           fi
           # An unreachable base is a failure, not an empty result. The first version of this step
           # computed the folder list inside $( ) with a pipeline and no `pipefail`, so the exit

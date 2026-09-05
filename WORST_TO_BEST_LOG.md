@@ -8190,3 +8190,62 @@ in Row 2 · probe complete.
 
 Each fix proved: the three false positives now pass, the two gaps now fail, each isolated so that the
 rule under test is the rule that fired.
+
+---
+
+## Run 8 close-out — round thirty-four: I broke my own rule about breaking rules
+
+Four findings. Two of them are the pattern I wrote down in round thirty-one, applied to me, in the
+round where I was fixing that very pattern.
+
+### The rule, and me breaking it while quoting it
+
+Round thirty-one's lesson was:
+
+> when a rule is corrected, every rule shaped like it is now wrong too.
+
+Round thirty-three then anchored the Row 2 **failure** pattern to reporter summary lines, so a test
+title could not be read as a failure. And left, untouched, ten lines away:
+
+- the Row 2 **pass** detection, still scanning everything — so a transcript truncated after a test
+  titled `shows 1 passed badge` counted as a completed run;
+- the **rewind rule's** failure pattern, still scanning everything — so a passing test titled
+  `recovers after 1 failed request` made correct evidence fail CI.
+
+One fix, two untouched siblings: the other direction of the same rule, and the same direction of the
+neighbouring rule. **I corrected an instance while quoting the rule that says not to.**
+
+### So the instances are gone
+
+There is now one `summaryLines()` that defines what a reporter summary line is, and **every question
+either rule asks goes through it** — pass and fail, Playwright and Vitest. Not four patterns kept in
+agreement by attention; one definition with nothing to drift against.
+
+That is the difference between the previous six rounds' fixes and this one. Each of those corrected
+the thing named in the finding. This removes the place where the inconsistency could live.
+
+> **When the same defect arrives twice, stop fixing defects and delete the space they occur in.**
+> A rule you have to remember to apply in four places is four rules, and three of them are wrong the
+> moment you touch one.
+
+### The other two
+
+**Present is not current.** Every mandatory chain artifact had to exist, but a run that stops
+invoking a stage leaves the previous file in place. `proof-tape.json` already computes `predatesRun`
+for exactly this and nothing was reading it — a flag the tooling maintained for nobody.
+
+**Force-pushing the default branch made the guard skip everything.** The fallback fetches the default
+branch, which on that push resolves to the commit already checked out; `HEAD...HEAD` is empty, and the
+step reports nothing to guard over a push that may have rewritten all of it. Now fails closed:
+**an unknowable comparison is not a clean one.**
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1445 passed, 1 skipped** · `npm run build` built ·
+`npm run cipher:gate` 0 · `npm run verify` exit 0 · `npm run evidence:guard` **6 rules pass** ·
+rewind 17 · mandated Playwright exit 1 with 41 launch failures · installed-browser 41 passed · probe
+complete · YAML valid.
+
+Each proved in the direction it needed: a rewind whose test title says `1 failed` passes; a Row 2
+truncated to a title saying `1 passed` fails; an artifact the tape marks as predating the run fails;
+a fallback resolving to HEAD refuses.

@@ -38,12 +38,28 @@ const stripAnsi = (text) =>
 		.map((part, index) => (index === 0 ? part : part.replace(/^\[[0-9;]{0,16}m/, '')))
 		.join('');
 
+/**
+ * A reporter's summary lines, and nothing else.
+ *
+ * Every rule that asks "did this run pass" or "did this run fail" goes through here. Both questions,
+ * both reporters, one definition — because the alternative was tried: the failure pattern was
+ * anchored while the pass pattern next to it was not, and the Row 2 rule was anchored while its twin
+ * in the rewind rule was not. Prose in a test title then counted as a result, in both directions.
+ *
+ * A summary line begins the line (allowing the reporter's indent) and starts with a count or one of
+ * the reporter's own labels. A sentence a developer wrote inside a test name cannot reach it.
+ */
+const summaryLines = (text) =>
+	stripAnsi(text)
+		.split('\n')
+		.filter((line) => /^\s{0,8}(\d{1,9} \w|Tests\s|Test Files\s|Errors\s)/.test(line));
+
 /** The last `<n> passed` in a transcript, as a number, or null when the transcript has no result. */
 const lastPassedCount = (text) => {
 	// Bounded rather than `\d+`: an unbounded quantifier before a literal backtracks, which
 	// `sonarjs/super-linear-regex` flags and which is a real cost on a long transcript. No suite
 	// reports a ten-digit total.
-	const matches = stripAnsi(text).match(/(\d{1,9}) passed/g);
+	const matches = summaryLines(text).join('\n').match(/(\d{1,9}) passed/g);
 	if (!matches || matches.length === 0) return null;
 	return Number(matches[matches.length - 1].split(' ')[0]);
 };
@@ -147,9 +163,26 @@ const RULES = [
 				'clan-chain.json',
 				'proof-tape.json'
 			];
+			const inventory = [];
+			const collect = (node) => {
+				if (Array.isArray(node)) return node.forEach(collect);
+				if (node === null || typeof node !== 'object') return;
+				if (typeof node.name === 'string' && typeof node.sizeBytes === 'number')
+					inventory.push({ name: node.name, sizeBytes: node.sizeBytes, predatesRun: node.predatesRun });
+				Object.values(node).forEach(collect);
+			};
+			collect(JSON.parse(read(dir, 'proof-tape.json') ?? '{}'));
 			const absent = CHAIN_ARTIFACTS.filter((name) => read(dir, name) === null);
 			if (absent.length > 0)
 				return `these chain stages left no artifact: ${absent.join(', ')}; the chain did not run all of them.`;
+			// Present is not current. A run that stops invoking an intermediate stage leaves the previous
+			// artifact in place, and the tape then flags it as predating this run while everything else
+			// looks finished. The tape already computes that; nothing was reading it.
+			const stale = CHAIN_ARTIFACTS.filter((name) =>
+				inventory.some((entry) => entry.name === name && entry.predatesRun === true)
+			);
+			if (stale.length > 0)
+				return `the proof tape marks these chain artifacts as predating its own run: ${stale.join(', ')}; that stage did not run this time.`;
 			if (lock === null) return 'chamber-lock.json is missing or carries no generatedAt stamp.';
 			if (tape === null) return 'proof-tape.json is missing or carries no generatedAt stamp.';
 			if (Number.isNaN(lock) || Number.isNaN(tape))
@@ -160,15 +193,7 @@ const RULES = [
 			// artifact edited after the tape was written leaves the tape newer than the lock and
 			// describing a different file. That exact mismatch shipped once — the tape recorded 1233
 			// bytes for a 6677-byte e2e.txt — and was found by a reviewer, not by anything here.
-			const inventory = [];
-			const collect = (node) => {
-				if (Array.isArray(node)) return node.forEach(collect);
-				if (node === null || typeof node !== 'object') return;
-				if (typeof node.name === 'string' && typeof node.sizeBytes === 'number')
-					inventory.push({ name: node.name, sizeBytes: node.sizeBytes });
-				Object.values(node).forEach(collect);
-			};
-			collect(JSON.parse(read(dir, 'proof-tape.json') ?? '{}'));
+
 			// verify-outer.txt is the one artifact written AFTER the chain, by design — the transcript
 			// of the run that writes the tape cannot be inventoried by it. docs/evidence/README.md says
 			// so, and I wrote that section. The tape nonetheless lists the PREVIOUS run's copy, so
@@ -215,8 +240,7 @@ const RULES = [
 			// Anchored to the reporter's own summary lines. Scanning the whole transcript meant a
 			// passing test *titled* "shows 1 error message accessibly" failed the rule — valid evidence
 			// rejected because a human sentence contained a number and a word.
-			const broken = stripAnsi(row2)
-				.split('\n')
+			const broken = summaryLines(row2)
 				.map((line) => /^\s{0,8}(\d{1,9}) (failed|flaky|did not run|interrupted|errors?)\b/.exec(line))
 				.find((match) => match !== null && match !== undefined);
 			if (broken !== undefined)
@@ -243,8 +267,10 @@ const RULES = [
 			// Playwright's "1 error was not a part of any test" and was missed here for the same reason:
 			// the pattern was written from the failures I had seen rather than from how the reporter
 			// says a run went wrong.
-			const FAILING = /(\d{1,9}) (failed|errors?)\b|unhandled error/;
-			const failing = rewinds.filter((f) => FAILING.test(stripAnsi(read(dir, f) ?? '')));
+			const FAILING = /^\s{0,8}(Tests|Errors)?\s{0,8}(\d{1,9}) (failed|errors?)\b|^\s{0,8}Vitest caught \d{1,9} unhandled error/;
+			const failing = rewinds.filter((f) =>
+				summaryLines(read(dir, f) ?? '').some((line) => FAILING.test(line))
+			);
 			if (failing.length > 0)
 				return `these rewind transcripts report failures beside their passes: ${failing.join(', ')}.`;
 			return null;
