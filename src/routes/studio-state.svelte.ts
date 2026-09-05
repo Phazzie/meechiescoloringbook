@@ -70,6 +70,7 @@ import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 import {
 	buildStyleHint,
 	DEFAULT_STYLE_SELECTION,
+	themeForSelection,
 	type StyleSelection,
 	type StyleWig
 } from '$lib/core/page-style';
@@ -195,19 +196,37 @@ export class StudioState {
 	 */
 	private restoredStyleWig: StyleWig | undefined = undefined;
 	/**
-	 * True when the page on screen was saved before styles were stored with them.
+	 * The style that produced the page currently on the paper.
 	 *
-	 * Such a record has no `styleSelection`, so the panel genuinely does not know what made the
-	 * page. The controls therefore keep showing the reader's own settings — and the panel says so,
-	 * rather than presenting them as this page's choices.
+	 * Captured where the artifact is — beside `assembledPrompt` and `images` — rather than read off
+	 * the live controls when the reader saves. Generating a page and *then* moving a control leaves
+	 * the picture and the prompt describing the old style while the controls describe the new one;
+	 * saving the controls would have written a record whose stored style never made its own image,
+	 * which is the silent-restyling defect this run exists to remove, one step further along.
+	 *
+	 * `undefined` means "no page, or a page whose style is not on file" — see `styleSelectionUnknown`.
+	 * Not `$state`: nothing renders it directly.
 	 */
-	styleSelectionUnknown = $state(false);
+	private generatedStyleSelection: StyleSelection | undefined = undefined;
 	isTextWorking = $state(false);
 	isGenerating = $state(false);
 	copyStatus = $state('');
 	vaultStatus = $state('');
 	validationIssues = $state<SpecValidationOutput['issues']>([]);
 	assembledPrompt = $state('');
+	/**
+	 * True when there is a page on the paper and its own style is not on file.
+	 *
+	 * Declared after `assembledPrompt` because a `$derived` initialiser runs in field order, and
+	 * derived rather than assigned, from the two facts that decide it: `assembledPrompt` is set
+	 * exactly when a generated artifact is on screen, and `generatedStyleSelection` is set exactly
+	 * when that artifact's style is known. A separate flag had to be written correctly at four
+	 * sites, and a fifth would have been added silently.
+	 *
+	 * A record written before styles were stored restores a prompt and no selection, so the panel
+	 * says the page's style is not on file and leaves the reader's own controls alone.
+	 */
+	styleSelectionUnknown = $derived(this.assembledPrompt !== '' && !this.generatedStyleSelection);
 	revisedPrompt = $state('');
 	violations = $state<Violation[]>([]);
 	recommendedFixes = $state<DriftDetectionOutput['recommendedFixes']>([]);
@@ -584,7 +603,12 @@ export class StudioState {
 	 * silently dropped by a three-field copy.
 	 */
 	private applyStyleSelection(selection: StyleSelection): void {
-		this.selectedThemeId = selection.themeId;
+		// Resolved through the same fallback the encoder and the summary use, rather than assigned
+		// raw. A stored id can name a theme a later release removed — the schema accepts it and
+		// `themeForSelection` falls back — and putting the dead id on the control split the panel
+		// against itself: the summary named the fallback theme while every chip compared against the
+		// dead id and reported `aria-pressed="false"`, so no chip looked selected.
+		this.selectedThemeId = themeForSelection(selection).id;
 		this.voice = { ...selection.voice };
 		this.glitter = selection.glitter;
 		this.restoredStyleWig = selection.wig;
@@ -611,7 +635,10 @@ export class StudioState {
 		if (selection) {
 			this.applyStyleSelection(selection);
 		}
-		this.styleSelectionUnknown = !selection;
+		// The record's own style, which is what the page on the paper was made with. Left `undefined`
+		// for a record written before the field existed, so `styleSelectionUnknown` reports it rather
+		// than the panel presenting the reader's controls as that page's choices.
+		this.generatedStyleSelection = selection;
 	}
 
 	private currentDedication(): string | undefined {
@@ -751,7 +778,7 @@ export class StudioState {
 		// `loadCreation` calls this first and applies the restored style after, so a reopen still
 		// gets its own values; every other caller is starting a page the controls genuinely describe.
 		this.restoredStyleWig = undefined;
-		this.styleSelectionUnknown = false;
+		this.generatedStyleSelection = undefined;
 	}
 
 	/**
@@ -877,8 +904,14 @@ export class StudioState {
 			// Swallowed rather than rethrown. The only caller is a DOM event handler, so rethrowing
 			// produced an unhandled rejection and told nobody anything; the message above is the
 			// whole report either way.
+			//
+			// The wording says the change was *not checked*, not that it did not happen. By the time
+			// anything here can throw, `applyTextToSpec` has already moved the control and assigned
+			// the rebuilt spec; the failure is in validating or recording it. Saying "that change did
+			// not apply" over a control that visibly did move was a second thing the panel was wrong
+			// about, in a run about a panel that misreports itself.
 			this.settingsError =
-				error instanceof Error ? error.message : 'Page settings could not be applied.';
+				error instanceof Error ? error.message : 'Page settings could not be checked.';
 		}
 	};
 
@@ -1106,6 +1139,10 @@ export class StudioState {
 				return;
 			}
 			this.assembledPrompt = parsed.data.value.prompt;
+			// Captured here, with the prompt and the picture it belongs to. `applyTextToSpec` above
+			// composed the hint from these same controls, so this is the selection that was actually
+			// sent — not whatever the panel says by the time the reader presses Save.
+			this.generatedStyleSelection = this.currentStyleSelection();
 			this.images = parsed.data.value.images;
 			this.revisedPrompt = parsed.data.value.revisedPrompt || '';
 			this.violations = parsed.data.value.violations;
@@ -1184,6 +1221,8 @@ export class StudioState {
 			// as the reader's facts on their next Generate Verdict — the defect recorded at that
 			// call site.
 			this.assembledPrompt = `Wig try-on portrait — ${wig.name} (${wig.style}).`;
+			// Same capture as the normal generate path, for the same reason.
+			this.generatedStyleSelection = this.currentStyleSelection();
 			// Re-validated because the title above was written after `syncSpecFromCurrentText` had
 			// already validated. Checking the issues it left would be checking the previous spec.
 			await this.validateSpec();
@@ -1346,11 +1385,14 @@ export class StudioState {
 					violations: $state.snapshot(this.violations),
 					fixesApplied: this.recommendedFixes.map((fix) => fix.code),
 					authContext: this.authContext ?? undefined,
-					// What the page actually looks like. `intent` carries page size and border; the
-					// theme, voice and glitter that composed its `Vibe:` line reach the page only
-					// through the style hint, so without this the record describes the layout of a
-					// page and none of its look.
-					styleSelection: this.currentStyleSelection(),
+					// The style that produced this page — captured when the picture was made, not read
+					// off the controls now. `intent` carries page size and border; the theme, voice
+					// and glitter that composed the `Vibe:` line reach the page only through the
+					// style hint, so without this the record describes a page's layout and none of
+					// its look. Reading it live would store whatever the panel happens to say at save
+					// time, which after a post-generation control change is a style that never made
+					// this image.
+					styleSelection: this.generatedStyleSelection,
 					owner
 				}
 			});

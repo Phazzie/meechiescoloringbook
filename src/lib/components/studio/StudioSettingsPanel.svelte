@@ -224,7 +224,7 @@ Info flow: User picks a setting → bind syncs to parent → onSettingChange reb
 
 		{#if settingsError}
 			<p class="settings-error" role="alert" data-testid="home-settings-error">
-				That change did not apply: {settingsError}
+				That change was applied but could not be checked: {settingsError}
 			</p>
 		{/if}
 	</div>

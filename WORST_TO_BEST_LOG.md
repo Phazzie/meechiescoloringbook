@@ -4997,14 +4997,25 @@ have been a false claim about Svelte sitting in the codebase forever.
 | `npm run build` | built |
 | `npm run verify` | **exit 0**, evidence refreshed in `docs/evidence/2026-09-05/` |
 | `npm run rewind -- --seam CreationStoreSeam` | 4 passed |
-| `npx playwright test` | 32 existing + 4 new = 36 passed |
+| `npx playwright test` | **fails in this container** — all 36 error before any test body runs; see below |
+| Playwright against the installed browser | 36 passed (32 existing + 4 new) |
 
-**The e2e suite needs a note.** `npx playwright test` fails all 32 tests in this environment with
-`Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1208/...`. That is not a code
-failure: the container ships Chromium build **1194** and the installed `@playwright/test` pins
-**1208**. Running against the installed binary via `launchOptions.executablePath =
-'/opt/pw-browsers/chromium'` passes all 36. The override config was temporary and is not committed —
-a future run that sees 32 red e2e tests should check the build number before believing them.
+**The e2e row says "fails", because it did.** The exact command `AGENTS.md` mandates —
+`npx playwright test` — exits red in this container: every test errors with `Executable doesn't
+exist at /opt/pw-browsers/chromium_headless_shell-1208/...` before any test body runs. The container
+ships Chromium build **1194**; the installed `@playwright/test` pins **1208**.
+
+The suite itself is green: pointing Playwright at the installed binary
+(`launchOptions.executablePath = '/opt/pw-browsers/chromium'`) passes all 36. That override was a
+scratch config and is **not committed**, because committing it would hard-code a container-specific
+path into a config CI uses, where the pinned browser *is* present — so it would trade a local red
+for a possible CI red.
+
+Both facts are in the table rather than one of them, because the mandated command and the suite are
+different claims and only one of them was green. A future run that sees 36 red e2e tests should
+check the build number before believing the code is broken; a future run that wants the mandated
+command to pass needs the environment's browser and the pinned version reconciled, which is outside
+this feature's scope.
 
 **The tests were mutation-checked rather than assumed.** Eight mutations, each reverted after:
 
@@ -5077,3 +5088,85 @@ seven controls and only the two that happened to be schema fields survived a sav
 reader could see.
 
 Do not inherit this entry's "measured on `main`" claims. Re-measure.
+
+## Run 7, first close-out — 2026-09-05 — the Codex round on `8d0ec19`
+
+Five findings, and **four of them were right**. Sourcery was out of review budget and CodeRabbit
+skipped the repo, so Codex was the only bot that read this diff — which is a reminder that "no bot
+produced a finding" (this log's Run 6 close-out) is a statement about budgets, not about a diff.
+
+### The one that matters: the run's own defect, one step further along
+
+**P1 — the vault saved the controls, not the style that made the page.** `saveToVault` wrote
+`styleSelection: this.currentStyleSelection()`, read live at save time. But `images` and
+`assembledPrompt` are captured at *generation* time. Generate a page, move the Theme chip without
+regenerating, press Save — and the record stores a style that never produced its own picture.
+
+That is precisely the defect this run exists to remove, displaced by one step. The fix I shipped
+closed the reopen path and left the save path open, because I checked that the *record* carried a
+style and never asked whether it carried the *right* one.
+
+The style is now captured beside the artifact it belongs to — `generatedStyleSelection`, assigned in
+the same block as `assembledPrompt` on both generate paths, cleared by `resetGeneratedPage`, and set
+from the record on reopen. Saving persists that snapshot.
+
+**And `styleSelectionUnknown` became `$derived` rather than assigned.** Once the snapshot exists the
+flag is a function of two facts already on the object — `assembledPrompt !== '' && !generatedStyleSelection`
+— so the four sites that had to write it correctly became zero, and the fifth that a later change
+would have forgotten cannot exist. This is Run 6's "one stored source, three derived views" applied
+to a flag rather than to a row.
+
+### The three others, all real
+
+- **P2 — a removed theme id went onto the control raw.** `applyStyleSelection` assigned
+  `selection.themeId` directly. The schema deliberately accepts an id a later release removed, and
+  `themeForSelection` falls back — so the summary named the fallback theme while every chip compared
+  against the dead id and reported `aria-pressed="false"`. The panel disagreed with itself about
+  which theme was on, in the one case I had written a fallback *for*. Now resolved through the same
+  fallback before it reaches the control.
+- **P2 — "That change did not apply" was false.** By the time `syncSpecFromCurrentText` can catch
+  anything, `applyTextToSpec` has already moved the control and assigned the rebuilt spec; what
+  failed is validating or recording it. The panel now says the change was applied but could not be
+  checked. A run about a panel that misreports itself had shipped a second misreport.
+- **P1 — the verification table claimed a green `npx playwright test`.** It was not green; the
+  paragraph below it said so, and the table said the opposite. Corrected above: the mandated command
+  **fails** in this container on a browser-version mismatch, and the suite passes against the
+  installed binary. Two rows, because they are two claims and only one was green.
+
+### The one I did not take, with the reason
+
+Codex's remaining P1 asked me to omit `styleSelection` from the auto-saved draft while the style is
+unknown, on the grounds that a refresh would convert an explicit unknown into false metadata. The
+concern is right and the fix is no longer needed: a draft restores **neither `assembledPrompt` nor
+`images`** — checked, not assumed — so after a refresh there is no artifact whose provenance could be
+misstated, and the derived flag reads false because there is no page rather than because a style was
+invented. Omitting the field would instead discard the reader's working control settings, which is
+the destruction the vault-restore path was already corrected for once in this run. The draft keeps
+the live controls because a draft *is* the working state; the vault keeps the snapshot because a
+record *is* an artifact.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1350 passed, 1 skipped** (+3 on this round) ·
+`npm run build` built · `npm run verify` exit 0 · Playwright 36 passed against the installed browser.
+
+Four more mutations, each reverted after:
+
+| Mutation | Caught by |
+|---|---|
+| vault saves the live controls again | 1 test |
+| removed theme id assigned raw to the control | 1 test |
+| the unknown-style notice can never show | 3 tests |
+| the generate path never captures the style | 3 tests |
+
+### The process failure, repeated
+
+The mutation harness reverted uncommitted work a **second** time in this run — same command,
+`git checkout -- <path>`, same cause: the fixes being mutation-tested had not been committed first.
+The first occurrence is recorded in the Run 7 entry above with the correct rule written out, and the
+rule was still not followed on the next occasion, because it was written as a note rather than built
+into the harness.
+
+The durable version is not "remember to commit": it is that a harness which reverts by path must
+refuse to run against a dirty tree. A future run building one should make it check
+`git diff --quiet` first and stop, rather than trusting the operator to have committed.

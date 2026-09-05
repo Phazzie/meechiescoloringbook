@@ -2330,6 +2330,8 @@ describe('StudioState page exports', () => {
 describe('StudioState page style', () => {
 	const SESSION_ID = 'style-session';
 
+	const PAGE_STYLE_PNG_BASE64 = Buffer.from(new Uint8Array(4096).fill(9)).toString('base64');
+
 	const styleSelection = {
 		themeId: 'receipts',
 		voice: {
@@ -2350,8 +2352,48 @@ describe('StudioState page style', () => {
 		...overrides
 	});
 
+	/**
+	 * Runs a real generation so the page on screen has a prompt and a picture.
+	 *
+	 * The style is now captured where the artifact is made, so a test that wants a *saveable* page
+	 * has to make one. Assigning `assembledPrompt` by hand produced a page with no recorded style,
+	 * which is exactly the state the code now refuses to file under the live controls.
+	 */
+	const generatePage = async (studio: StudioState): Promise<void> => {
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(
+				async () =>
+					new Response(
+						JSON.stringify({
+							ok: true,
+							value: {
+								prompt: 'the prompt this page was made with',
+								templateVersion: 'v2',
+								images: [
+									{
+										id: 'image-1',
+										format: 'png',
+										mimeType: 'image/png',
+										data: PAGE_STYLE_PNG_BASE64,
+										encoding: 'base64'
+									}
+								],
+								violations: [],
+								recommendedFixes: []
+							}
+						}),
+						{ status: 200, statusText: 'OK' }
+					)
+			)
+		);
+		await studio.handleGeneratePage();
+	};
+
 	afterEach(() => {
 		destroyInitializedStudios();
+		vi.unstubAllGlobals();
 		vi.restoreAllMocks();
 	});
 
@@ -2367,8 +2409,7 @@ describe('StudioState page style', () => {
 		studio.selectedThemeId = 'receipts';
 		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
 		studio.glitter = true;
-		studio.textOutput = DEFAULT_STUDIO_TEXT_OUTPUT;
-		studio.assembledPrompt = 'a prompt';
+		await generatePage(studio);
 
 		await studio.saveToVault();
 
@@ -2385,8 +2426,7 @@ describe('StudioState page style', () => {
 		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
 
 		studio.selectedWig = SAMPLE_WIG;
-		studio.textOutput = DEFAULT_STUDIO_TEXT_OUTPUT;
-		studio.assembledPrompt = 'a prompt';
+		await generatePage(studio);
 		await studio.saveToVault();
 
 		// The two strings the hint prints, and deliberately not the catalog id.
@@ -2536,6 +2576,62 @@ describe('StudioState page style', () => {
 
 		expect(studio.settingsError).toBe('spec rebuild exploded');
 		expect(studio.draftSaveError).toBe('');
+	});
+
+	it('saves the style that produced the page, not the controls at save time', async () => {
+		// The defect this PR exists to remove, one step further along: generate a page, then move a
+		// control, then save. The image and the prompt are the old style's; reading the live controls
+		// would file them under a style that never made them.
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: SESSION_ID }
+		});
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		studio.selectedThemeId = 'receipts';
+		studio.voice = { intensity: 'no_mercy', rawness: 'raw', thirdPerson: 'always' };
+		studio.glitter = true;
+		await generatePage(studio);
+		expect(studio.assembledPrompt).toBe('the prompt this page was made with');
+
+		// The reader changes their mind after the picture exists, but does not regenerate.
+		studio.selectedThemeId = 'church-glam';
+		studio.glitter = false;
+		await studio.syncSpecFromCurrentText('theme');
+
+		const saveSpy = vi.spyOn(creationStoreAdapter, 'saveCreation');
+		await studio.saveToVault();
+
+		expect(saveSpy.mock.calls[0][0].record.styleSelection).toEqual(styleSelection);
+	});
+
+	it('reports a page whose style is not on file, and stops once a new page is made', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+		expect(studio.styleSelectionUnknown).toBe(false);
+
+		await studio.loadCreation(makeStyledCreation());
+		expect(studio.styleSelectionUnknown).toBe(true);
+
+		await studio.loadCreation(makeStyledCreation({ styleSelection }));
+		expect(studio.styleSelectionUnknown).toBe(false);
+	});
+
+	it('puts a stored theme that no longer exists onto the control as its fallback', async () => {
+		// The schema accepts an id a later release removed and `themeForSelection` falls back, so
+		// assigning the dead id raw split the panel against itself: the summary named the fallback
+		// while every chip compared against the dead id and reported not-pressed.
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		await studio.loadCreation(
+			makeStyledCreation({
+				styleSelection: { ...styleSelection, themeId: 'a-theme-that-was-deleted' }
+			})
+		);
+
+		expect(studio.selectedThemeId).toBe(studioThemes[0].id);
+		expect(studioThemes.some((theme) => theme.id === studio.selectedThemeId)).toBe(true);
 	});
 
 	it('clears a previous settings error when the next change succeeds', async () => {
