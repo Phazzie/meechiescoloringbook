@@ -5124,3 +5124,69 @@ to four minutes after the server stopped standing behind it. Anticipating stalen
 (which is why the reset is a clock instant rather than a countdown) is not the same as noticing that
 the *count* has a lifetime too — and the reasoning that produced the good decision sat one inch from
 the bad one without touching it.
+
+---
+
+## Run 7, second close-out — 2026-09-05 — the Codex round on `e03888b`
+
+Four findings on the fixes from the previous round. Two fixed, two answered.
+
+### The panel and the buttons were reading different numbers (P2, fixed)
+
+The strongest finding of either round, and again the same defect wearing a new costume. When the
+server reported a bucket too low to pay for another action, the meter said "Meechie's desk is full"
+— and every button under it stayed enabled, so the reader could keep firing requests the studio
+already knew would be refused. A sentence and a guard disagreeing about the same number is exactly
+what this feature was written to end; I had fixed the sentence and left the guard reading the old
+one.
+
+`aiQuotaExhausted` now gates all five AI actions and the `runTextAction` entry point. Two properties
+matter and are both tested: it is only ever true while a reading is present *and* unexpired, so the
+block lifts by itself when the window closes rather than waiting for a refusal to teach the page
+that the bucket refilled; and `null` — "not known" — never blocks anything, so the studio refuses a
+click only on a server statement it currently holds, never on a guess.
+
+This also makes the previous round's anchoring fix load-bearing in a way that was not obvious when
+it was made: because the reset is anchored at the request rather than the response, the snapshot
+clears slightly *early* rather than late, so the guard fails open. Had it stayed anchored at the
+response, this new guard would have kept the buttons disabled for up to four minutes after the
+quota came back.
+
+### The build evidence was stale (P1, fixed)
+
+`npm run build` had been run on the head — it passed — but `docs/evidence/2026-09-05/build.txt` was
+never refreshed with it, and `npm run verify` does not regenerate that file. The routine's
+verification list is not satisfied by having run a command; it is satisfied by the evidence. Both
+`build.txt` and `lint.txt` are now written from this head, after the chain.
+
+### Two answered rather than fixed
+
+**"Run the ClockSeam change through the seam workflow" (P1).** `ClockSeam` is an existing registered
+seam with a contract, probe, fixtures, mock, tests and adapter. This change *consumes* it through
+its published contract, and drives it from its mock in tests — which is what the clock/time rule
+asks for. Reaching for `setTimeout` is what that rule forbids, and `studio-state.svelte.ts` already
+scheduled its day-boundary label refresh through the same method before this PR. No seam gains,
+loses or alters an operation. The finding did land one fair hit, though: `DECISIONS.md` said "Seams:
+none changed" without saying which seams the change *uses*, which reads like an undeclared
+dependency. It now says "none changed; two used" and names them.
+
+**"Anchor quota reset to the actual server charge" (P2).** Correct in direction and worth recording
+precisely. The charge happens after body parsing and validation, so the true reset instant lies
+somewhere in `[requestStart + reset, responseReceipt + reset]`. The previous round moved the anchor
+from the upper bound to the lower one. The upper bound was wrong by the whole provider call — up to
+230 seconds against a 60-second window. The lower bound is wrong by server-side pre-charge latency,
+typically milliseconds and at worst a cold start, and it errs toward clearing the reading early,
+which renders as *silence* rather than as a false claim, and which fails the new guard open rather
+than shut. Both error directions are stated in the reply rather than the fix being called exact. The
+exact fix is a server-emitted absolute instant, which means changing what the rate-limit guard puts
+on every response for every route — a wider change than this PR, and one that would deserve its own.
+
+### What both rounds have in common
+
+Every real finding across the two rounds was the same mistake: some part of the studio continuing to
+assert something the server had stopped standing behind. First the count outliving its window, then
+the label rounding away the seconds, then the reset measured from the wrong end of the request, then
+the buttons ignoring the sentence above them. Writing the feature whose whole subject is "do not
+display what the server has not said" did not stop me shipping four instances of it in two commits.
+The mechanism that caught all four was an adversarial reader with no stake in the framing — worth
+more here than the framing itself was.

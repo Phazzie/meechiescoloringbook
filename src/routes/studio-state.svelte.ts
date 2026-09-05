@@ -29,6 +29,7 @@ import {
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 import {
+	aiActionsLeft,
 	describeAiQuota,
 	readAiQuota,
 	type AiQuotaSnapshot
@@ -321,14 +322,29 @@ export class StudioState {
 			})
 		)
 	);
+	/**
+	 * The server has told us, and not yet un-told us, that it will refuse the next AI call.
+	 *
+	 * Only ever true while a reading is both present and unexpired — the expiry timer nulls the
+	 * snapshot at the reset instant, so this cannot outlive the window it came from. `null` means
+	 * "not known", which never blocks anything: the studio refuses a click only on a server
+	 * statement it currently holds, never on a guess.
+	 *
+	 * It exists because a panel that says the desk is full above buttons that still submit is the
+	 * same disagreement between the screen and the server that this whole feature was written to
+	 * end — the sentence and the guard have to be reading the same number.
+	 */
+	aiQuotaExhausted = $derived(this.aiQuota !== null && aiActionsLeft(this.aiQuota) === 0);
 	canGenerateText = $derived(
-		canRunStudioAction('generate_text', {
-			remainingBudget: this.revisionBudget,
-			isRunning: this.isTextWorking
-		})
+		!this.aiQuotaExhausted &&
+			canRunStudioAction('generate_text', {
+				remainingBudget: this.revisionBudget,
+				isRunning: this.isTextWorking
+			})
 	);
 	canRegenerateText = $derived(
 		!!this.textOutput &&
+			!this.aiQuotaExhausted &&
 			canRunStudioAction('regenerate', {
 				remainingBudget: this.revisionBudget,
 				isRunning: this.isTextWorking
@@ -336,6 +352,7 @@ export class StudioState {
 	);
 	canMakePrettier = $derived(
 		!!this.textOutput &&
+			!this.aiQuotaExhausted &&
 			canRunStudioAction('make_prettier', {
 				remainingBudget: this.revisionBudget,
 				isRunning: this.isTextWorking
@@ -343,6 +360,7 @@ export class StudioState {
 	);
 	canMakeMeaner = $derived(
 		!!this.textOutput &&
+			!this.aiQuotaExhausted &&
 			canRunStudioAction('make_meaner', {
 				remainingBudget: this.revisionBudget,
 				isRunning: this.isTextWorking
@@ -350,6 +368,7 @@ export class StudioState {
 	);
 	canMakeMoreSpecific = $derived(
 		!!this.textOutput &&
+			!this.aiQuotaExhausted &&
 			canRunStudioAction('make_more_specific', {
 				remainingBudget: this.revisionBudget,
 				isRunning: this.isTextWorking
@@ -916,6 +935,7 @@ export class StudioState {
 			return;
 		}
 		if (
+			this.aiQuotaExhausted ||
 			!canRunStudioAction(actionId, {
 				remainingBudget: this.revisionBudget,
 				isRunning: this.isTextWorking

@@ -8,6 +8,7 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- The AI buttons now stop accepting clicks the studio already knows will be refused. The panel could say the limit was reached while the buttons under it still sent requests, so a reader could keep spending taps on a refusal. The buttons come back on their own the moment the limit lifts, without needing a refused request first.
 - The AI counter now stops reporting a number the moment the server stops standing behind it. The limit resets on a fixed sixty-second window, so a reader who is told to wait and does was previously told to keep waiting after the wait was over.
 - The time the counter says you can try again is now the real one, to the second. It was measured from when the answer came back rather than when the request went out — on a slow call that put the reset minutes after the limit had actually lifted — and it was rounded to the minute, which invited trying again up to a minute early.
 - The AI counter under the evidence box now shows the limit that actually exists. It reads the remaining calls off the studio's own responses and tells you the time they refill, instead of the invented "3 AI text actions left" — a number no server ever agreed to, which allowed less than a third of the real limit and never came back until you reloaded the page.

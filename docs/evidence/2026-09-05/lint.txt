@@ -1,5 +1,7 @@
+# npm run lint — PR #305, head with the Codex round 2 fixes. Date: 2026-09-05
+
 
 > meechies-coloringbook@0.1.0 lint
 > eslint .
 
-lint exit=0
+(eslint exit 0, no output = clean)

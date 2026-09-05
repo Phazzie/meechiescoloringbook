@@ -2565,4 +2565,73 @@ describe('StudioState AI budget meter', () => {
 		// Truncating to the minute would drop these, and invite a retry up to 59 seconds early.
 		expect(shown).toMatch(/\d{2}:\d{2}/);
 	});
+	// The panel said the desk was full while the buttons still submitted — the same disagreement
+	// between the screen and the server that this feature exists to end.
+	it('refuses the click the server has already said it will refuse', async () => {
+		const clock = createMockClockSeam(NOW_MS);
+		const studio = arrangeStudioWithEvidence();
+		studio.clock = clock;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() =>
+				Promise.resolve(
+					studioTextResponse({
+						'RateLimit-Limit': '20',
+						'RateLimit-Remaining': '0',
+						'RateLimit-Reset': '45',
+						'Retry-After': '45'
+					})
+				)
+			)
+		);
+
+		await studio.runTextAction('generate_text');
+		expect(studio.aiQuotaExhausted).toBe(true);
+		expect(studio.aiQuotaMessage).toContain("Meechie's desk is full");
+		// The sentence and the guard now read the same number.
+		expect(studio.canGenerateText).toBe(false);
+		expect(studio.canRegenerateText).toBe(false);
+		expect(studio.canMakeMeaner).toBe(false);
+
+		// And the block lifts by itself when the window it came from closes, without needing a
+		// refused request to teach the page that the bucket refilled.
+		clock.advanceTo(NOW_MS + 45_000);
+		expect(studio.aiQuotaExhausted).toBe(false);
+		expect(studio.canGenerateText).toBe(true);
+	});
+
+	// A bucket with one unit left cannot pay for a two-unit action, so the guard has to treat it
+	// as exhausted even though the bucket is not empty.
+	it('treats a bucket too low to pay for an action as exhausted', async () => {
+		const clock = createMockClockSeam(NOW_MS);
+		const studio = arrangeStudioWithEvidence();
+		studio.clock = clock;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(() =>
+				Promise.resolve(
+					studioTextResponse({
+						'RateLimit-Limit': '20',
+						'RateLimit-Remaining': '1',
+						'RateLimit-Reset': '20'
+					})
+				)
+			)
+		);
+
+		await studio.runTextAction('generate_text');
+
+		expect(studio.aiQuotaExhausted).toBe(true);
+		expect(studio.canGenerateText).toBe(false);
+	});
+
+	// "Not known" must never block: before the server has said anything, and after a reading has
+	// expired, the studio works exactly as it did.
+	it('never blocks on a quota it has not been told about', () => {
+		const studio = arrangeStudioWithEvidence();
+
+		expect(studio.aiQuota).toBeNull();
+		expect(studio.aiQuotaExhausted).toBe(false);
+		expect(studio.canGenerateText).toBe(true);
+	});
 });
