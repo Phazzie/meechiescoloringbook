@@ -1,9 +1,8 @@
 # Purpose: Store the single-seam contract verification for WigCatalogSeam on this head.
-# Why: Cited by the Cipher Gate entry in DECISIONS.md dated 2026-09-05. The seam is unchanged and
-#      none of its artifacts is in the diff, so the evidence is that its contract still verifies.
+# Why: Cited by the Cipher Gate entry in DECISIONS.md dated 2026-09-05.
 # Info flow: npm run rewind --seam WigCatalogSeam -> this evidence file -> review.
 #
-# npm run rewind -- --seam WigCatalogSeam — 2026-09-05T01:28:47Z (head e33c959)
+# npm run rewind -- --seam WigCatalogSeam — 2026-09-05T01:43:37Z (head 49288d9)
 #
 
 > meechies-coloringbook@0.1.0 rewind
@@ -15,7 +14,7 @@
 
 [2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
 [2m      Tests [22m [1m[32m27 passed[39m[22m[90m (27)[39m
-[2m   Start at [22m 01:29:04
-[2m   Duration [22m 827ms[2m (transform 97ms, setup 39ms, import 90ms, tests 15ms, environment 529ms)[22m
+[2m   Start at [22m 01:43:53
+[2m   Duration [22m 813ms[2m (transform 87ms, setup 40ms, import 81ms, tests 15ms, environment 522ms)[22m
 
 exit=0
