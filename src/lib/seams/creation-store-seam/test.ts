@@ -155,7 +155,10 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 	// and a consumer verified against the mock would only find out in a browser. This is the
 	// mock/adapter agreement the fault fixture exists to prove.
 	it('mock refuses a record the adapter would refuse, rather than replaying its fixture', async () => {
-		const mock = createCreationStoreMock('fault');
+		// The SAMPLE scenario, which is the one that has a browser. A review caught this asserted
+		// against `fault`, where the adapter never reaches its validator at all — so the test proved
+		// the mock validates, in the one scenario where validating is the wrong answer.
+		const mock = createCreationStoreMock('sample');
 
 		const refused = await mock.saveCreation({
 			record: creationStoreRejectedFixtures.creationWithUnacceptableVoice as CreationRecord
@@ -166,16 +169,16 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 		// And the same mock still replays its fixture for a record that does parse, so the refusal
 		// above is about the record rather than about the scenario.
 		const replayed = await mock.saveCreation({
-			record: creationStoreFaultFixture.input.saveCreation.record
+			record: creationStoreSampleFixture.input.saveCreation.record
 		});
-		expect(replayed.ok === false && replayed.error.code).toBe('BROWSER_REQUIRED');
+		expect(replayed.ok).toBe(true);
 	});
 
 	it('mock refuses a draft the adapter would refuse, the same way the adapter does', async () => {
 		// The adapter's `saveDraft` throws rather than returning a failure. The mock mirrors that
 		// deliberately: reporting a failure where the real thing throws would let a consumer write a
 		// handler that never runs in production.
-		const mock = createCreationStoreMock('fault');
+		const mock = createCreationStoreMock('sample');
 
 		await expect(
 			mock.saveDraft({
@@ -184,8 +187,32 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 		).rejects.toThrow();
 
 		await expect(
-			mock.saveDraft({ draft: creationStoreFaultFixture.input.saveDraft.draft })
-		).resolves.toMatchObject({ ok: false });
+			mock.saveDraft({ draft: creationStoreSampleFixture.input.saveDraft.draft })
+		).resolves.toMatchObject({ ok: true });
+	});
+
+	it('refuses on the missing browser before it looks at the record at all', async () => {
+		// The order is the finding, and it is the adapter's: every guarded operation opens with
+		// `typeof localStorage === 'undefined'` and returns BROWSER_REQUIRED *before* parsing. The
+		// mock validated first, so the fault scenario answered a malformed record with
+		// CREATION_SCHEMA_MISMATCH and a malformed draft with a thrown error — two results the
+		// adapter cannot produce with no browser. A consumer verified against this mock could write a
+		// handler for a case that never happens, which is the same "greener than the real thing" the
+		// validation was added to stop, one step further in.
+		const mock = createCreationStoreMock('fault');
+
+		const refused = await mock.saveCreation({
+			record: creationStoreRejectedFixtures.creationWithUnacceptableVoice as CreationRecord
+		});
+		expect(refused.ok === false && refused.error.code).toBe('BROWSER_REQUIRED');
+
+		// And the draft resolves rather than throwing, for the same reason: the validator is never
+		// reached.
+		await expect(
+			mock.saveDraft({
+				draft: creationStoreRejectedFixtures.draftWithStyleSelectionAsText as DraftRecord
+			})
+		).resolves.toMatchObject({ ok: false, error: { code: 'BROWSER_REQUIRED' } });
 	});
 
 	it('refuses them for the style, not for something else in the record', () => {

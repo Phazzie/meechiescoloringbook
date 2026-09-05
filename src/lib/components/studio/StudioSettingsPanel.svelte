@@ -5,6 +5,21 @@ Why: This is the app's only say over what a coloring page looks like, and it use
      theme is announced rather than merely tinted, and a change that fails says so here instead of
      surfacing in another panel as a draft problem.
 Info flow: User picks a setting → bind syncs to parent → onSettingChange rebuilds the spec.
+Critical invariants — this panel describes a page, so it must never describe one that is not there:
+
+  1. A finished page keeps the style it was made with. The controls stop speaking for a page once
+     it has a picture on it, which is why the summary reads the page's captured style rather than
+     the live values and why the lede below says "once a page has a picture on it". Binding any
+     display here straight to a control undoes that: the glitter overlay was, and toggling the
+     checkbox visibly restyled a page nobody had remade.
+  2. Live controls are never attributed to a page whose stored style is unknown. A record saved
+     before styles were stored restores no style, and this panel says so rather than presenting the
+     reader's own settings as that page's. What the reader may still do is *choose* one, when there
+     is no picture to contradict them — the notice goes then, because the answer is now known.
+  3. Everything this panel reports about a check is about a check it caused. `settingsIssues` is
+     derived, not copied, so it cannot outlive the finding it describes, and it empties as soon as
+     anything else re-checks the spec. Copying a value here is how a fixed page went on being
+     reported as broken.
 -->
 <script lang="ts">
 	import { studioThemes } from '$lib/core/meechie-studio';
