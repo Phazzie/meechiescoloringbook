@@ -12,6 +12,19 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
+/**
+ * @param {string} target
+ * @returns {Promise<boolean>}
+ */
+const fileExists = async (target) => {
+	try {
+		await fs.access(target);
+		return true;
+	} catch {
+		return false;
+	}
+};
+
 const ROOT = process.cwd();
 const EVIDENCE_ROOT = path.join(ROOT, 'docs', 'evidence');
 
@@ -47,25 +60,47 @@ const SEAMS = [
 	'MeechieToolSeam (self-contained)'
 ];
 
+// spawnSync's default maxBuffer is 1 MiB. A verbose failure — a vitest run printing every failing
+// assertion, a playwright report with traces — passes that easily, and the child is then killed with
+// ENOBUFS: exactly the run whose diagnostics matter most is the one that would be truncated, and a
+// command that would have succeeded fails instead. Raised well past any plausible run.
+const MAX_OUTPUT_BYTES = 64 * 1024 * 1024;
+
 /**
- * Runs one of this package's npm scripts and returns its combined output and exit status. The
- * status is read from this spawn result and never from a later command's, which is the mistake the
- * shell version of this sequence kept making. `shell: false` keeps arguments as argv entries, so a
- * seam name containing spaces and parentheses cannot be word-split.
+ * Runs one of this package's npm scripts and returns its combined output and exit status.
+ *
+ * Three things here follow scripts/verify-runner.mjs:24-41, which solved the same problems first:
+ *  - Windows exposes npm as `npm.cmd`, so `spawnSync('npm', ...)` with `shell: false` cannot start
+ *    it. The command goes through ComSpec there, as verify-runner does.
+ *  - Output is preserved even when the spawn reports an error. ENOBUFS sets `error` *and* leaves the
+ *    output captured up to that point; discarding it would throw away the diagnostics this tool
+ *    exists to keep, and replace them with a misleading "failed to start".
+ *  - The status is read from this spawn result and never from a later command's, which is the
+ *    mistake the shell version of this sequence kept making.
+ *
+ * On non-Windows the arguments stay argv entries, so a seam name containing spaces and parentheses
+ * cannot be word-split.
  * @param {string} script npm script name, as in package.json
  * @param {string[]} [scriptArgs] arguments forwarded to the script after `--`
  * @returns {{ output: string, code: number }}
  */
 const npmRun = (script, scriptArgs = []) => {
 	const args = ['run', script, ...(scriptArgs.length > 0 ? ['--', ...scriptArgs] : [])];
-	const result = spawnSync('npm', args, { cwd: ROOT, encoding: 'utf8', shell: false });
+	const isWindows = process.platform === 'win32';
+	const executable = isWindows ? process.env.ComSpec || 'cmd.exe' : 'npm';
+	const executableArgs = isWindows ? ['/d', '/s', '/c', ['npm', ...args].join(' ')] : args;
+	const result = spawnSync(executable, executableArgs, {
+		cwd: ROOT,
+		encoding: 'utf8',
+		shell: false,
+		maxBuffer: MAX_OUTPUT_BYTES
+	});
+	const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
 	if (result.error) {
-		return { output: `Failed to start npm run ${script}: ${result.error.message}\n`, code: 1 };
+		// Kept, not replaced: whatever the child managed to emit is the evidence.
+		return { output: `${output}\nnpm run ${script} error: ${result.error.message}\n`, code: 1 };
 	}
-	return {
-		output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
-		code: result.status ?? 1
-	};
+	return { output, code: result.status ?? 1 };
 };
 
 /**
@@ -138,6 +173,18 @@ const main = async () => {
 	const tape = npmRun('proof:tape');
 	process.stdout.write(tape.output);
 	exitIfFailed(tape, 'npm run proof:tape');
+
+	// Checking before the spawn is not enough: proof-tape.mjs:197-199 recomputes the date itself, so
+	// a tape that *starts* after midnight writes into tomorrow's folder while this run's check has
+	// already passed. Re-check, and confirm the tape actually landed where this run's artifacts are.
+	assertNoDateRollover(startDate);
+	if (!(await fileExists(path.join(dir, 'proof-tape.md')))) {
+		process.stderr.write(
+			`proof:tape reported success but wrote no proof-tape.md into ${dir}. Its output went to a\n` +
+				'different folder, so this run\'s evidence is split and its inventory is incomplete.\n'
+		);
+		process.exit(1);
+	}
 
 	process.stdout.write(`Evidence captured in docs/evidence/${startDate}/\n`);
 };

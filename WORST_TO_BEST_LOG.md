@@ -5928,3 +5928,91 @@ why, and the real ones are still open.
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3, 2,
 7, 2 — **ninety-nine findings across thirty-six rounds**. The two here are the first in this
 close-out that came from a tool reporting on code I wrote rather than on prose about code.
+
+---
+
+## Run 4, correction 37 — 2026-09-05 — three real bugs in the new script, and one decline
+
+Appended, not edited. Four findings on `ecf9f94`, all against `scripts/capture-evidence.mjs` — the
+first round in this close-out where the findings are in **code I wrote** rather than in prose about
+code. Three are genuine bugs. One I am declining, with evidence.
+
+### 1. P2 — `spawnSync` would have destroyed exactly the output worth keeping. Fixed.
+
+`spawnSync`'s default `maxBuffer` is 1 MiB. A verbose failure — vitest printing every failing
+assertion, a playwright report with traces — passes that easily, and the child is then killed with
+`ENOBUFS`. My code did this:
+
+```js
+if (result.error) {
+    return { output: `Failed to start npm run ${script}: ...`, code: 1 };
+}
+```
+
+`result.error` is set on `ENOBUFS` **and `result.stdout` still holds everything captured up to that
+point.** So the run whose diagnostics matter most is the one whose diagnostics I threw away, and
+replaced with "failed to start" — a message that is also false. A command that would have succeeded
+fails too.
+
+The galling part: `scripts/verify-runner.mjs:34-39` already had this right, returning
+`` `${output}${errorOutput}` `` rather than discarding. I read that file this session to check its
+`new Date()` call and did not notice it solving a problem I was about to reintroduce.
+
+Now `maxBuffer: 64 MiB`, and the captured output is preserved and appended to on any spawn error.
+
+### 2. P2 — the script could not run on Windows at all. Fixed.
+
+npm is exposed on Windows as `npm.cmd`, so `spawnSync('npm', ..., { shell: false })` cannot start
+it: the first invocation fails and the sequence stops before verification. `verify-runner.mjs:25-27`
+already handles this by going through `ComSpec`, which is the precedent the finding cites and the
+one I've now mirrored. Same file, twelve lines apart from the previous finding.
+
+### 3. P2 — the rollover guard had a race. Fixed.
+
+Correction 35 added a date check *before* spawning the tape. But `proof-tape.mjs:197-199` recomputes
+the date itself, so a tape that **starts** after midnight writes into tomorrow's folder while this
+run's check has already passed — and the wrapper then reports success over a split inventory. The
+guard prevented the case it was written for and not the adjacent one.
+
+Now re-checked after the tape returns, plus a direct assertion that `proof-tape.md` actually exists
+in this run's folder. A guard that only checks a clock is checking a proxy; checking the file checks
+the thing.
+
+### 4. P1 — declined: the seam workflow does not apply to the verification tooling.
+
+The finding says `capture-evidence.mjs` does filesystem I/O, process execution and wall-clock reads
+directly, so it needs contract, probe, fixtures, mock and test.
+
+Measured, rather than argued. Every script in the verify chain does exactly the same:
+
+| script | `node:fs` | `spawnSync` | `new Date()` |
+|---|---|---|---|
+| `chamber-lock.mjs` | yes | — | 2 |
+| `verify-runner.mjs` | yes | 2 | 1 |
+| `rewind.mjs` | yes | 2 | 1 |
+| `proof-tape.mjs` | yes | — | 3 |
+| `seam-ledger.mjs` | yes | — | 2 |
+| `clan-chain.mjs` | yes | — | 3 |
+| `cipher-gate.mjs` | yes | — | 2 |
+
+Not one routes its own host access through a seam. The three files under `scripts/` that mention
+`lib/seams` do so to *read* seam files as data, not to route their own I/O.
+
+The seam workflow governs the **application's** I/O — the `src/routes` → pipeline → adapter request
+path `CLAUDE.md` describes. Applying it to the tooling that enforces it is circular: `chamber-lock`
+checks seam artifacts are present, so a `ChamberLockSeam` would need chamber-lock to verify the seam
+that chamber-lock runs behind. The same holds here — a seam for the script that runs the whole gate
+would be verified by the gate it runs.
+
+This is the second finding in this close-out asking for the seam workflow where I read the rule
+differently, and like the first, it is on the open list for the owner rather than resolved away by
+me. If the owner reads `AGENTS.md:82-86` as covering build tooling, the consequence is worth stating
+before ruling: all seven scripts above are in violation today, not just mine.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3, 2,
+7, 2, 4 — **one hundred and three findings across thirty-seven rounds.** Three of the four here are
+the first genuine code defects found in this close-out, which is what happens when the close-out
+starts containing code. That is an argument for the script being reviewed, not an argument against
+having written it: the same three bugs were in the shell block, unexaminable.
