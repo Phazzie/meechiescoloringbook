@@ -1,0 +1,50 @@
+probes/browser-seams.probe.mjs — CreationStoreSeam, SessionSeam, AuthContextSeam
+Run 2026-09-05 for the `styleSelection` contract change on CreationStoreSeam.
+
+Why this run exists
+-------------------
+The self-contained seam's `probe.ts` is a delegation note: CreationStoreSeam is probed by
+`probes/browser-seams.probe.mjs`, which writes the fixture inputs into a real browser's
+localStorage and reads them back out. The contract changed (records and drafts gained an optional
+`styleSelection`) and the sample fixture's inputs were updated to carry it — but the probe had not
+been re-run since, so the outputs beside those inputs were hand-maintained rather than captured.
+Schema, fixture and mock tests all read those outputs, so none of them could tell the difference.
+
+Command
+-------
+    node probes/browser-seams.probe.mjs
+
+In this container that command fails at browser launch:
+
+    browserType.launch: Executable doesn't exist at
+    /opt/pw-browsers/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell
+
+Not a probe failure: the image ships Chromium 1194 while the pinned Playwright expects 1208. The
+run below is the same script with `chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })`
+— the installed browser — and nothing else changed. That override lives in an untracked scratch copy
+and is deliberately not committed, the same arrangement the e2e suite uses.
+
+Output
+------
+    Browser seam probe complete.
+    Session id: session-123
+    Auth kind: anonymous
+    Creation count: 1
+
+What it changed
+---------------
+    fixtures/session/sample.json          unchanged (byte-identical)
+    fixtures/auth-context/sample.json     unchanged (byte-identical)
+    fixtures/creation-store/sample.json   output.getCreation gained `studioText`
+
+The style-bearing creation and draft round-trip through real browser storage intact:
+`output.getCreation.value` and `output.getDraft.value` now equal, field for field, the record and
+draft written in — `styleSelection` (theme, voice, glitter, wig) included.
+
+The one divergence the capture found is `studioText`. The committed `getCreation` output claimed a
+record read back out of localStorage carries no `studioText`, while the record saved into it does.
+Browser storage keeps it. The hand-maintained copy was wrong, and every test that reads these
+outputs was green against the wrong value.
+
+`src/lib/seams/creation-store-seam/test.ts` now pins the read-back outputs against the inputs, so a
+future hand-edit that drops a field on the way out is red rather than invisible.

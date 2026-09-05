@@ -253,6 +253,26 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 		);
 	});
 
+	it('reads back out of storage exactly what went in, per the probe capture', () => {
+		// The outputs in `fixtures/creation-store/sample.json` are what
+		// `probes/browser-seams.probe.mjs` read back out of a real browser's `localStorage` after
+		// writing the inputs into it. That distinction had gone missing: the outputs were being
+		// hand-maintained alongside the inputs, and had drifted — the committed `getCreation` carried
+		// no `studioText` while the record saved into storage does, so the fixture asserted that
+		// browser storage drops a field it in fact keeps.
+		//
+		// Every schema and mock test above runs against these outputs, so a hand-edit that quietly
+		// loses `styleSelection` on the way back out would leave all of them green. This is the one
+		// that goes red, and it is the reason to re-run the probe rather than edit the file.
+		const { input, output } = creationStoreSampleFixture;
+
+		expect(output.getCreation.ok && output.getCreation.value).toEqual(input.saveCreation.record);
+		expect(output.getDraft.ok && output.getDraft.value).toEqual(input.saveDraft.draft);
+		expect(output.listCreations.ok && output.listCreations.value).toContainEqual(
+			input.saveCreation.record
+		);
+	});
+
 	it('mock returns sample fixture outputs', async () => {
 		const mock = createCreationStoreMock('sample');
 		expect(await mock.saveCreation(creationStoreSampleFixture.input.saveCreation)).toEqual(
