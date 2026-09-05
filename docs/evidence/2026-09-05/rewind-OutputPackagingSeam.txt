@@ -8,7 +8,7 @@
 
  Test Files  1 passed (1)
       Tests  4 passed (4)
-   Start at  03:59:48
-   Duration  932ms (transform 120ms, setup 39ms, import 213ms, tests 11ms, environment 518ms)
+   Start at  04:04:50
+   Duration  878ms (transform 128ms, setup 37ms, import 219ms, tests 10ms, environment 467ms)
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

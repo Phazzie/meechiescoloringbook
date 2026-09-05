@@ -7438,3 +7438,53 @@ directory in twenty-one committed files for eight rounds after I first wrote it 
 ### Running total
 
 **One hundred and twenty-six findings across forty-seven rounds.**
+
+---
+
+## Run 4, correction 49 — 2026-09-05 — the fix for the lock race had a lock race in it
+
+Appended, not edited. One P2 on `a302d12`, against the reclaim added one round earlier.
+
+### The finding
+
+Correction 47's reclaim was **read-then-delete-then-create**, with no atomicity between the steps.
+Two runs starting together after an abandoned lock both see the dead owner; the first removes it and
+claims; the second — already past its own check — then removes the *first process's brand-new lock*
+and claims it in turn. Two live captures over one folder, which is the exact collision the lock was
+added to prevent. And `release()` deleted the lock unconditionally, so either process could remove
+the other's on the way out.
+
+So the fix for the concurrency finding contained the same class of bug as the thing it fixed. That is
+the sixth time in this file a correction has introduced its own successor.
+
+### The fix
+
+`rename` is atomic and single-winner. A run that finds a dead owner tries to move the stale directory
+aside; exactly one process can succeed, and that one earns the right to recreate the lock. The losers
+get `ENOENT`, retry, and by then the winner's lock is present, so they take the live-holder branch and
+refuse. Bounded at four attempts so a pathological loop cannot spin.
+
+`release()` now removes the lock **only if the pid file still names this process**, so a run whose
+lock was legitimately reclaimed cannot delete its successor's.
+
+### Demonstrated, not argued
+
+Six processes launched simultaneously against one abandoned lock (`pid 999999`), running the shipped
+`acquireRunLock` extracted verbatim from the file:
+
+```
+Reclaiming docs/evidence/.capture-evidence.lock: its owner (pid 999999) is no longer running...
+WON 32369
+REFUSED 32372   ← all five name pid 32369, the winner, as the live holder
+REFUSED 32373
+REFUSED 32371
+REFUSED 32370
+REFUSED 32374
+stale dirs left behind: 0
+```
+
+One winner, five refusals, no leftovers. Before the fix, several of those six would have won.
+
+### Running total
+
+**One hundred and twenty-seven findings across forty-eight rounds.**

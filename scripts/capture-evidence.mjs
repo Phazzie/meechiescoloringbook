@@ -15,6 +15,7 @@ import {
 	openSync,
 	readFileSync,
 	readdirSync,
+	renameSync,
 	rmSync,
 	writeFileSync
 } from 'node:fs';
@@ -306,34 +307,62 @@ const acquireRunLock = () => {
 		mkdirSync(lockPath);
 		writeFileSync(path.join(lockPath, 'pid'), String(process.pid), 'utf8');
 	};
-	try {
-		claim();
-	} catch (error) {
-		if (error.code !== 'EEXIST') {
-			throw error;
-		}
-		// The holder's pid decides whether this lock is live or abandoned. `process.on('exit')` does
-		// NOT run on SIGTERM, so a scheduled run killed by a timeout leaves the directory behind — and
-		// this routine runs unattended, so "a human should delete it" is not a recovery path: every
-		// later invocation would exit EEXIST for ever. A lock whose owner is gone is reclaimed.
-		const holder = Number.parseInt(readOwnerPid(lockPath) ?? '', 10);
-		if (Number.isInteger(holder) && isProcessAlive(holder)) {
+	// Bounded, because each attempt either wins the lock, loses a race and retries, or exits.
+	for (let attempt = 0; ; attempt += 1) {
+		try {
+			claim();
+			break;
+		} catch (error) {
+			if (error.code !== 'EEXIST') {
+				throw error;
+			}
+			// The holder's pid decides whether this lock is live or abandoned. `process.on('exit')`
+			// does NOT run on SIGTERM, so a scheduled run killed by a timeout leaves the directory
+			// behind — and this routine is unattended, so "a human should delete it" is not a recovery
+			// path: every later invocation would exit EEXIST for ever.
+			const holder = Number.parseInt(readOwnerPid(lockPath) ?? '', 10);
+			if (Number.isInteger(holder) && isProcessAlive(holder)) {
+				process.stderr.write(
+					`Another capture-evidence run (pid ${holder}) holds ${shown}.\n` +
+						'Two runs sharing a dated folder overwrite each other and can leave a mixed evidence\n' +
+						'set that still passes every check. Wait for it to finish.\n'
+				);
+				process.exit(1);
+			}
+			if (attempt >= 3) {
+				process.stderr.write(`Could not settle ownership of ${shown} after ${attempt} attempts.\n`);
+				process.exit(1);
+			}
+			// Reclaiming has to be ATOMIC, or it reintroduces the collision it exists to prevent: two
+			// runs starting together both see the dead owner, the first removes and claims, and the
+			// second then removes the FIRST's brand-new lock and claims it in turn — two live captures
+			// over one folder. `rename` is atomic and single-winner: whoever moves the stale directory
+			// aside owns the right to recreate it, and the losers get ENOENT and simply retry, by which
+			// point the winner's lock is in place and they take the live-holder branch above.
+			const stale = `${lockPath}.stale-${process.pid}-${Date.now()}`;
+			try {
+				renameSync(lockPath, stale);
+			} catch (renameError) {
+				if (renameError.code === 'ENOENT') {
+					continue;
+				}
+				throw renameError;
+			}
 			process.stderr.write(
-				`Another capture-evidence run (pid ${holder}) holds ${shown}.\n` +
-					'Two runs sharing a dated folder overwrite each other and can leave a mixed evidence\n' +
-					'set that still passes every check. Wait for it to finish.\n'
+				`Reclaiming ${shown}: its owner${
+					Number.isInteger(holder) ? ` (pid ${holder})` : ''
+				} is no longer running, so a previous run was killed before it could clean up.\n`
 			);
-			process.exit(1);
+			rmSync(stale, { force: true, recursive: true });
 		}
-		process.stderr.write(
-			`Reclaiming ${shown}: its owner${
-				Number.isInteger(holder) ? ` (pid ${holder})` : ''
-			} is no longer running, so a previous run was killed before it could clean up.\n`
-		);
-		rmSync(lockPath, { force: true, recursive: true });
-		claim();
 	}
-	const release = () => rmSync(lockPath, { force: true, recursive: true });
+	// Only ever removes a lock this process still owns. Without the check, a run whose lock had
+	// already been reclaimed by someone else would delete the new owner's lock on its way out.
+	const release = () => {
+		if (readOwnerPid(lockPath) === String(process.pid)) {
+			rmSync(lockPath, { force: true, recursive: true });
+		}
+	};
 	process.on('exit', release);
 	// These handlers only fire in the gaps BETWEEN children, and that is not a caveat — it is most of
 	// the reason the pid check above exists. `spawnSync` blocks the event loop, and this script spends
