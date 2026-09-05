@@ -7347,7 +7347,9 @@ collision with a sibling run of this same routine.
 | `npm run build` | built |
 | `npm run verify` | exit 0, 66-line transcript carrying its own exit status |
 | `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` | 17 passed |
-| Playwright | 41 passed against the installed browser |
+| `npm run cipher:gate` | exit 0 — listed separately because the chain does not invoke it, which is what round 24 corrected |
+| `npx playwright test`, the mandated command | **FAILS, exit 1** — all 41 error at browser launch, before any test body runs (Chromium 1194 installed, 1208 pinned) |
+| Same suite against the installed browser, via `launchOptions.executablePath` | 41 passed |
 | Browser probe | complete |
 | SonarCloud quality gate | passed, 2.0% duplication on new code |
 | CodeQL, both analyses | success |
@@ -7356,17 +7358,46 @@ collision with a sibling run of this same routine.
 
 **Rosentic is the one red check, and it is deliberate rather than tolerated.** Its findings are
 generated against unmerged sibling branches — `sweet-mendel-LJ9Iu`, `trusting-volta-bb8mvr` — and
-describe hypothetical merges with code that is not on `main`. It regenerated roughly two hundred
-findings on every push, ending at 1241 review threads on one pull request. The disproof is direct:
-this branch merged with `main` twice, cleanly, and the merged tree type-checks at 0/0 and runs 1445
-green. One standing-down comment was posted, the single permitted re-run was spent, and no second
-comment was owed after that.
+describe what would happen if this branch and those branches were combined. It regenerated roughly
+two hundred findings on every push, ending at 1241 review threads on one pull request.
+
+**What was NOT a disproof, and was written here as one.** The first version of this entry offered
+"this branch merged with `main` cleanly and the merged tree type-checks and runs 1445 green" as
+direct disproof. It is not. A clean merge with `main` says nothing whatever about merging with
+`sweet-mendel-LJ9Iu`; the two are different operations against different code, and the green suite
+was never evidence about the branch pair Rosentic named. A reviewer caught it, and it is worth
+keeping visible rather than quietly replacing, because a merge close-out is exactly where a weak
+argument would go on to justify the next red merge.
+
+**What the disposition actually rests on** is the scope of the check rather than a per-finding
+refutation: Rosentic reports on the repository's whole branch matrix, not on this pull request's
+diff. Two things establish that, and neither is a claim about the findings being wrong. The check
+reported findings on PR #307 that name four branches and do not name #307's branch at all — a red
+about work the pull request has no part in. And the postscript below: the same code, green as `main`
+and red as a branch. The honest statement is that these findings are about a repository-wide branch
+backlog and are not actionable from inside one pull request, not that they are false.
 
 ### What the routine actually cost, and where the cost went
 
-Not one of the twenty-four rounds found the feature work wrong. Every single one found a *description*
-wrong — a comment, a plan, an inventory, a count, a transcript, a guard. The feature landed in the
-first push. The other twenty-three rounds were the change learning to describe itself honestly.
+The first version of this paragraph said "not one of the twenty-four rounds found the feature work
+wrong — every single one found a *description* wrong, and the feature landed in the first push."
+That is false, and the log three thousand lines above it says so. A reviewer pointed at three
+counter-examples and all three hold:
+
+- the **first close-out** changed what a vault snapshot captures;
+- **round six** stopped a failed generation and a restored draft from being saved as artifacts —
+  a reader could save a page that was never made;
+- **round eighteen** fixed autosave losing a theme the reader had chosen, on every refresh.
+
+Those are user-visible defects in the feature, not descriptions of it.
+
+What is true, and is the smaller claim worth making: the *majority* of the twenty-four rounds found a
+description wrong rather than behaviour — a comment, a plan, an inventory, a count, a transcript, a
+guard — and every round from nineteen on was of that kind. Rounding "most" up to "every" made a
+tidier story, and it made this entry the twenty-fifth instance of the defect the entry is about: an
+assertion that outran what had been measured, in the document whose whole subject is assertions
+outrunning their evidence. Future runs are required to read this log as history, so the count has to
+be the real one.
 
 The rounds that mattered most were the ones where the defect had moved into the machinery built to
 catch the defect:
@@ -7398,11 +7429,21 @@ fails for the wrong reason.
 
 ### Open, and deliberately so
 
-- **One unidentified SonarCloud issue**, open since mid-run. `sonarcloud.io` is unreachable from the
-  build container and the local `eslint-plugin-sonarjs` reproduction finds nothing on changed lines.
-  Recorded rather than closed with a guess. The quality gate passes regardless.
-- **Two review threads left open on purpose**: the round-1 draft-provenance request and the round-13
-  try-on provenance decline. Both were declined on measurement, both explained, neither pushed back on.
+- **One SonarCloud finding, identified and deliberately not fixed here.** The first version of this
+  entry called it "unidentified" and said the local reproduction found nothing — which contradicted a
+  section of this same log, written earlier in this same run, that identifies both findings and shows
+  the commands. The real state: `sonarjs/no-invariant-returns` was mine, introduced by the round-19
+  fix, and is fixed. `sonarjs/no-nested-conditional` at `studio-state.svelte.ts:1054` is pre-existing
+  code on `main` that this diff does not touch; Sonar attributes it as new because this change shifts
+  the line. Left for whoever extracts it. Nothing here is unidentified, and calling it so left a
+  phantom deferred item for the next reader of this log.
+- **One review thread left open on purpose**: the round-13 try-on provenance decline, declined on
+  measurement, explained, never pushed back on. The first version of this entry listed a second — the
+  round-1 draft-provenance request — as also deliberately open. It is not open: round 13 implemented
+  exactly the rule round 1 asked for, and `authoredStyleSelection()` and its test now return and
+  persist `undefined` for that case. Round 1 declined it as unnecessary; round 13 found the case that
+  made it necessary and did it. Recording a fixed thing as outstanding is the same defect as
+  recording an outstanding thing as fixed.
 - **`proof-tape.mjs` compares file times against one artifact inside the chain** rather than against
   the start of the push, so it flags files that are current. Documented in `verify-chain.txt`;
   fixing it properly belongs in its own change with its own tests.
@@ -7432,3 +7473,60 @@ That is the disproof stated as a measurement rather than as a claim: the same co
 repository, red as a branch and green as `main`. Which is what "these describe hypothetical merges
 with code that is not on `main`" means, and it is worth having it on the record as an observation
 instead of an assertion — since assertions outliving their evidence is the entire subject of this run.
+
+---
+
+## Run 8 close-out — round twenty-five: the close-out was the twenty-fifth instance
+
+Six findings on the merge close-out itself, arriving after both pull requests had merged. All six
+were checkable against this log, and all six were right. The entry written to summarise a run about
+descriptions drifting from what they describe had drifted from the log three thousand lines above it.
+
+Corrected in place above, with the wrong version quoted rather than deleted, since a correction that
+hides what it corrected teaches nothing.
+
+| Finding | Verdict |
+|---|---|
+| "Every round fixed only a description" contradicts three recorded rounds | Right. Rounds 1-close-out, 6 and 18 fixed user-visible behaviour. |
+| The "unidentified SonarCloud issue" was identified earlier in this log | Right. Both findings identified; one fixed, one traced to `main`. |
+| The gate table omits `npm run cipher:gate` | Right — and it is what round 24 was about. |
+| The Rosentic disproof does not disprove anything | Right. A clean merge with `main` is not evidence about a different branch pair. |
+| The Playwright row omits the mandated command's failure | Right. `e2e.txt` carries two rows; the table showed one. |
+| The round-1 draft-provenance thread was fixed in round 13, not left declined | Right. |
+
+### The two that matter
+
+**The overclaim.** "Not one round found the feature work wrong" was a better story than "most rounds
+found a description wrong", and it was false. The evidence against it was in the same file, in
+sections I wrote. Nothing external changed to make it wrong — it was wrong when written, and it was
+wrong because summarising twenty-four rounds from memory is not the same as reading them.
+
+**The invalid disproof.** "This branch merged with `main` cleanly and the tree runs green" was
+offered as direct disproof of findings about merging with `sweet-mendel-LJ9Iu`. Those are different
+merges. The suite passing says nothing about the branch pair named. It reads as evidence because it
+is true and adjacent, which is precisely what makes it dangerous in a document whose job is to
+justify merging with a red check.
+
+### The rule, and it is a different one from round 24's
+
+Round 24's rule was about a fact changing under a sentence that stayed put. This is the opposite
+failure and needs saying separately:
+
+> A summary is not a smaller version of the thing it summarises — it is a new claim, and it needs
+> checking against the source like any other. The risk is highest exactly where the summary is most
+> confident, because confidence is what stops you going back to look.
+
+And its corollary, from the Rosentic paragraph:
+
+> True, adjacent, and reassuring is not the same as relevant. A green suite next to a red check is
+> evidence about the suite. Asking "what would this have to compare to be a disproof?" is a
+> different question from "is this true?", and only the first one was needed here.
+
+### Verification
+
+Documentation only, one file, no code and no generated artifact. `npm run verify` is deliberately not
+re-run: nothing it inspects changes, and re-running it would rewrite the dated evidence folder that
+#304's verification is filed in — replacing a transcript of the head that shipped with one from a head
+that did not.
+
+Running mutation total for Run 8 stays at **69**.
