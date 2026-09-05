@@ -5757,3 +5757,54 @@ is the entire point.
 
 3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3 —
 **eighty-eight findings across thirty-three rounds**, none in the application.
+
+---
+
+## Run 4, correction 34 — 2026-09-05 — the "literal" command could not run, and lost the header it required
+
+Appended, not edited. Two findings on `bcd9d19`, both against the three lines correction 33 wrote
+into the mandatory plan.
+
+### 1. P1 — `<date>` is not a placeholder to a shell, it is two redirections
+
+The command read:
+
+```sh
+npm run verify > docs/evidence/<date>/verify-chain-run.txt 2>&1; code=$?
+```
+
+Bash parses `<` and `>` as redirection operators. Demonstrated:
+
+```
+$ bash -c 'echo hi > docs/evidence/<date>/f.txt 2>&1'
+bash: docs/evidence/: No such file or directory
+```
+
+**`npm run verify` never executes.** A future run copying the block from the plan gets a shell error
+where the mandatory verification gate should be — and this is a block the plan presents as literal,
+after round 12 established that placeholders in exact commands are themselves the defect.
+
+Now `D="docs/evidence/$(date -u +%F)"`, quoted at every use.
+
+### 2. P2 — the redirect loses the header it is supposed to have
+
+`>` truncates and writes the npm banner as line 1. The committed artifact has its Purpose/Why/Info-
+flow header only because I prepended it with a separate Python step **that is not in the plan** — so
+following the plan produces a headerless file.
+
+This is the identical defect I diagnosed one round earlier for the rewind artifacts, where my
+redirect clobbered `rewind.mjs`'s own header. I wrote that diagnosis and then, in the same commit,
+shipped a command with the same shape. Now: header written first, command output appended.
+
+### The shape of the last three rounds
+
+Correction 32 added a capture command. 33 found it swallowed the failure status. 34 found it could
+not run at all and lost the header. **Three rounds on four lines of shell**, each finding real, each
+about the same small artifact — because I kept writing the command and never once ran the version I
+had written. The three fixes are now annotated inline with what each is for, so the next reader can
+see why the ugly form is the correct one.
+
+### Running total
+
+3, 3, 3, 2, 5, 2, 3, 2, 1, 3, 4, 3, 4, 3, 3, 2, 3, 1, 4, 1, 3, 2, 1, 2, 3, 3, 2, 1, 5, 4, 2, 2, 3, 2 —
+**ninety findings across thirty-four rounds**, none in the application.

@@ -1,10 +1,7 @@
-# Purpose: Store npm run lint output for this head as evidence.
-# Why: AGENTS.md requires lint before every push; eslint prints nothing on success, so the
-#      recorded exit status is the only thing distinguishing a clean run from one that never ran.
-# Info flow: eslint output -> this evidence file -> review and the proof tape.
+# Purpose: Record `npm run lint` (eslint) on this head.
+# Why: lint is not a stage of the verify chain; nothing else captures it.
+# Info flow: npm run lint -> this file -> verify-chain.txt points here.
 #
-# npm run lint — 2026-09-05T00:58:34Z
-
 
 > meechies-coloringbook@0.1.0 lint
 > eslint .

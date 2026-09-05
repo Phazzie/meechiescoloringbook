@@ -110,11 +110,19 @@ concession the `ClockSeam` plan in run 1 had to make.
     what was actually run. The literal invocations:
 
     ```sh
-    # The chain, captured — not bare `npm run verify`. Capturing IS the requirement, and so is
-    # keeping the failure status: a `{ cmd; printf ...; }` group returns *printf's* status, so it
-    # exits 0 even when the chain failed and an unattended run sails on to push. Save $? first.
-    npm run verify > docs/evidence/<date>/verify-chain-run.txt 2>&1; code=$?
-    printf 'EXIT=%s\n' "$code" >> docs/evidence/<date>/verify-chain-run.txt
+    # The chain, captured. Three things here are load-bearing and each was a separate review finding:
+    #   1. NO `<date>` placeholder. Bash reads `< >` as redirection, so `> docs/evidence/<date>/f`
+    #      fails with "docs/evidence/: Is a directory" and npm run verify never runs at all.
+    #      Use a real variable, quoted.
+    #   2. Header FIRST, output APPENDED. A bare `>` truncates and puts the npm banner on line 1,
+    #      losing the required Purpose/Why/Info-flow header — the same defect as redirecting the
+    #      rewind artifacts.
+    #   3. Save `$?` before printing it. `{ cmd; printf ...; }` returns *printf's* status, so the
+    #      group exits 0 on a failed chain and an unattended run pushes past a red gate.
+    D="docs/evidence/$(date -u +%F)"
+    printf '# Purpose: Record the OUTER `npm run verify` command, its output and its exit status.\n# Why: verify.txt holds only the inner verify-runner stage and proof:tape overwrites stage 8,\n#      so nothing else retains the outer chain result.\n# Info flow: npm run verify -> this file -> verify-chain.txt points here.\n#\n' > "$D/verify-chain-run.txt"
+    npm run verify >> "$D/verify-chain-run.txt" 2>&1; code=$?
+    printf 'EXIT=%s\n' "$code" >> "$D/verify-chain-run.txt"
     [ "$code" -eq 0 ] || exit "$code"
     npm run cipher:gate        # not in the verify chain; run on its own. exit 0
     npm run proof:tape         # LAST, after every artifact above. exit 0
