@@ -69,6 +69,31 @@ const summaryLines = (text) =>
 		.split('\n')
 		.filter((line) => BARE_COUNT_SUMMARY.test(line) || LABELLED_SUMMARY.test(line));
 
+/**
+ * The exit status a transcript records for one named command, or a sentence saying why it cannot be
+ * read as one. `null` means the transcript is fine.
+ *
+ * One definition for every `<name> exit=<code>` line in this folder, because the alternative was
+ * tried twice and failed twice. `/verify exit=0/.test(text)` asks whether a success appears
+ * ANYWHERE, so a transcript appended to during a retry inherits the earlier run's pass: a capture
+ * ending `verify exit=1` beneath an older `verify exit=0` satisfied it. That was reported against
+ * `e2e exit=0`, I fixed that one instance, and left the identical bug in `verify`, `lint` and
+ * `build` — three of which one reviewer then found, and two of which nobody had.
+ *
+ * Exactly one status, on its own line, equal to zero. Two statuses is itself the finding: one run
+ * reports one status, so a second means the file was appended to rather than replaced and it no
+ * longer says which run it describes.
+ */
+const EXIT_LINE = /^([a-z][a-z0-9-]{0,32}) exit=(\d{1,3})$/gm;
+const exitStatusProblem = (text, name) => {
+	const found = [...stripAnsi(text).matchAll(EXIT_LINE)].filter(([, who]) => who === name);
+	if (found.length === 0) return `carries no "${name} exit=<code>" line of its own`;
+	if (found.length > 1)
+		return `carries ${found.length} "${name} exit=" lines (${found.map(([line]) => line).join(', ')}); one run reports one status, so this was appended to rather than replaced and it no longer says which run it describes`;
+	if (found[0][2] !== '0') return `reports "${found[0][0]}", so that run failed`;
+	return null;
+};
+
 /** The last `<n> passed` in a transcript, as a number, or null when the transcript has no result. */
 const lastPassedCount = (text) => {
 	// Bounded rather than `\d+`: an unbounded quantifier before a literal backtracks, which
@@ -95,8 +120,9 @@ const RULES = [
 		check: (dir) => {
 			const outer = read(dir, 'verify-outer.txt');
 			if (outer === null) return 'verify-outer.txt is missing; the chain has no transcript.';
-			if (!/verify exit=0/.test(outer))
-				return 'verify-outer.txt does not contain "verify exit=0" — it was captured before the chain finished, or the chain failed.';
+			const outerExit = exitStatusProblem(outer, 'verify');
+			if (outerExit !== null)
+				return `verify-outer.txt ${outerExit}; it was captured before the chain finished, or the chain failed.`;
 			// Markers that only stage OUTPUT produces. An earlier version looked for 'proof', which
 			// appears in the echoed `npm run verify` command line at the top of the transcript — so a
 			// transcript truncated right after the test summary, with an exit line appended, satisfied
@@ -276,13 +302,9 @@ const RULES = [
 			// row ending `e2e exit=1` under an older `e2e exit=0` satisfied it. One run produces one
 			// status, so two is a splice that did not replace what it was supposed to, and the rule
 			// that exists to stop this row inheriting a result must not itself let it.
-			const statuses = [...row2.matchAll(/^e2e exit=(\d{1,3})$/gm)];
-			if (statuses.length === 0)
-				return 'e2e.txt Row 2 carries no "e2e exit=<code>" line of its own; the run it records either failed or was captured without its exit status, and the counts beneath it cannot settle which.';
-			if (statuses.length > 1)
-				return `e2e.txt Row 2 carries ${statuses.length} exit statuses (${statuses.map((m) => m[0]).join(', ')}); one run reports one status, so this row was appended to rather than replaced and it is not clear which run it describes.`;
-			if (statuses[0][1] !== '0')
-				return `e2e.txt Row 2 reports "${statuses[0][0]}"; the run it records failed.`;
+			const row2Exit = exitStatusProblem(row2, 'e2e');
+			if (row2Exit !== null)
+				return `e2e.txt Row 2 ${row2Exit}; the counts beneath it cannot settle what this rule needs the status to answer.`;
 			if (lastPassedCount(row2) === null)
 				return 'e2e.txt Row 2 has no "<n> passed" line; the transcript was spliced in against a header that did not match, so the run it records cannot be audited.';
 			if (!/\.spec\.[tj]s/.test(row2))
@@ -345,7 +367,12 @@ const RULES = [
 			// regex-complexity against a limit of 20, and the honest fix for a regex that is hard to
 			// read is fewer branches, not cleverer ones. They are also two different questions — a
 			// counted failure, and a crash the reporter attributes to no test.
-			const COUNTED_FAILURE = /^\s{0,8}(Tests|Errors)?\s{0,8}\d{1,9} (failed|errors?)\b/;
+			// `Test Files` is in the label list because Vitest reports an afterAll failure as
+			// `Test Files 1 failed` beside `Tests 1 passed` — the run exits 1 while the line this rule
+			// reads says everything passed. It was left out because the labels here were written from
+			// the failures I had seen, which is the same reason `Errors` and `Vitest caught` were each
+			// missing in turn. `summaryLines` already admits it; only this pattern did not.
+			const COUNTED_FAILURE = /^\s{0,8}(Test Files|Tests|Errors)?\s{0,8}\d{1,9} (failed|errors?)\b/;
 			const UNHANDLED = /^\s{0,8}Vitest caught \d{1,9} unhandled error/;
 			const failing = rewinds.filter((f) =>
 				summaryLines(read(dir, f) ?? '').some(
@@ -364,10 +391,10 @@ const RULES = [
 			// and test; lint and build are captured by hand beside it, so nothing was reading them and
 			// both could be absent or red while every other rule passed.
 			const REQUIRED = [
-				{ file: 'lint.txt', ok: /lint exit=0/, ran: 'npm run lint' },
-				{ file: 'build.txt', ok: /build exit=0/, ran: 'npm run build' }
+				{ file: 'lint.txt', name: 'lint', ran: 'npm run lint' },
+				{ file: 'build.txt', name: 'build', ran: 'npm run build' }
 			];
-			for (const { file, ok, ran } of REQUIRED) {
+			for (const { file, name, ran } of REQUIRED) {
 				const text = read(dir, file);
 				// Absence is not judged here. `npm run verify` writes neither of these, so an ordinary
 				// seam change's folder legitimately has no lint.txt — and requiring one turned CI red on
@@ -375,8 +402,9 @@ const RULES = [
 				// classifying the change, which is the policy-engine work declined in round 32 and
 				// recorded as follow-up. What is here must be green; what is absent is somebody else's rule.
 				if (text === null) continue;
-				if (!ok.test(stripAnsi(text)))
-					return `${file} does not record a successful exit; ${ran} either failed or was captured without its result.`;
+				const problem = exitStatusProblem(text, name);
+				if (problem !== null)
+					return `${file} ${problem}; ${ran} either failed or was captured without its result.`;
 			}
 			return null;
 		}

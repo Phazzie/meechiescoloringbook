@@ -32,7 +32,7 @@ computing gzip size...
 .svelte-kit/output/client/_app/immutable/chunks/B2P3B-av.js                        1.01 kB │ gzip:   0.60 kB
 .svelte-kit/output/client/_app/immutable/chunks/wbPk3Yxo.js                        1.37 kB │ gzip:   0.66 kB
 .svelte-kit/output/client/_app/immutable/chunks/B2IWFRYF.js                        1.50 kB │ gzip:   0.86 kB
-.svelte-kit/output/client/_app/immutable/nodes/1.BcmoQXZs.js                       1.52 kB │ gzip:   0.79 kB
+.svelte-kit/output/client/_app/immutable/nodes/1.DqKxZj1I.js                       1.52 kB │ gzip:   0.79 kB
 .svelte-kit/output/client/_app/immutable/chunks/C8WXPCIH.js                        1.81 kB │ gzip:   0.84 kB
 .svelte-kit/output/client/_app/immutable/chunks/Bz091UuU.js                        2.15 kB │ gzip:   0.94 kB
 .svelte-kit/output/client/_app/immutable/chunks/DVWcfxq5.js                        2.61 kB │ gzip:   1.41 kB
@@ -42,18 +42,18 @@ computing gzip size...
 .svelte-kit/output/client/_app/immutable/nodes/0.D__K79RP.js                       5.01 kB │ gzip:   2.07 kB
 .svelte-kit/output/client/_app/immutable/chunks/DEzMXtAD.js                        5.29 kB │ gzip:   2.38 kB
 .svelte-kit/output/client/_app/immutable/nodes/3.BMZjfAU0.js                       5.64 kB │ gzip:   2.36 kB
-.svelte-kit/output/client/_app/immutable/chunks/BgnhIPDu.js                        6.52 kB │ gzip:   3.01 kB
+.svelte-kit/output/client/_app/immutable/chunks/jS67KSq5.js                        6.52 kB │ gzip:   3.01 kB
 .svelte-kit/output/client/_app/immutable/chunks/V2Jn_18j.js                        7.31 kB │ gzip:   3.15 kB
-.svelte-kit/output/client/_app/immutable/entry/app.CLJ2BWzi.js                     7.53 kB │ gzip:   3.35 kB
+.svelte-kit/output/client/_app/immutable/entry/app.CFDeKPIT.js                     7.53 kB │ gzip:   3.35 kB
 .svelte-kit/output/client/_app/immutable/chunks/TDZpUrIs.js                        7.83 kB │ gzip:   3.00 kB
 .svelte-kit/output/client/_app/immutable/chunks/CSgFSTor.js                       11.94 kB │ gzip:   4.29 kB
 .svelte-kit/output/client/_app/immutable/nodes/4.BIFfhpAq.js                      16.14 kB │ gzip:   6.00 kB
-.svelte-kit/output/client/_app/immutable/entry/start.2aUcZej3.js                  22.74 kB │ gzip:   8.94 kB
+.svelte-kit/output/client/_app/immutable/entry/start.B-_n693G.js                  22.74 kB │ gzip:   8.95 kB
 .svelte-kit/output/client/_app/immutable/chunks/Day77MLV.js                       25.54 kB │ gzip:   9.94 kB
 .svelte-kit/output/client/_app/immutable/chunks/BGrBdwUS.js                       63.01 kB │ gzip:  15.97 kB
 .svelte-kit/output/client/_app/immutable/nodes/2.CJWVL4Ua.js                      85.95 kB │ gzip:  27.27 kB
 .svelte-kit/output/client/_app/immutable/chunks/wiBdIc2G.js                      445.65 kB │ gzip: 183.91 kB
-✓ built in 3.70s
+✓ built in 3.48s
 vite v7.3.6 building client environment for production...
 transforming...
 ✓ 4 modules transformed.
@@ -124,7 +124,7 @@ computing gzip size...
 .svelte-kit/output/server/chunks/root.js                                            86.50 kB
 .svelte-kit/output/server/index.js                                                 132.31 kB
 .svelte-kit/output/server/entries/pages/_page.svelte.js                            138.20 kB
-✓ built in 8.98s
+✓ built in 8.55s
 
 Run npm run preview to preview your production build locally.
 

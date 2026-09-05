@@ -8394,3 +8394,40 @@ both fire, and real evidence still passes.
 `npm run lint` clean · `sonarjs.configs.recommended` clean on the file · `npm run evidence:guard`
 6 rules pass · full chain re-run: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0,
 rewind 17, Playwright 41 with `e2e exit=0` recorded, probe complete.
+
+### Addendum — round thirty-eight: the same bug, in the three places I did not look
+
+Codex reviewed `b0965618` and found two more. Both accepted. The first one is the one worth writing
+down, because it is not a new defect — it is the previous round's defect, in the places I did not
+change while fixing it.
+
+Round thirty-seven's finding was that `/e2e exit=0/.test(row2)` asks whether a success appears
+*anywhere*, so an appended retry inherits an earlier pass. I accepted that, fixed `e2e`, wrote an
+addendum about it, and left `verify exit=0`, `lint exit=0` and `build exit=0` untouched — three
+lines carrying the identical bug, two of them in the same file, one of them nine lines above the
+fix. Codex found `verify`. **Nobody found `lint` or `build`; I found those by grepping for
+`exit=0` after reading the finding, and only because I asked how many there were instead of
+whether the named one was real.**
+
+> **A reviewer reports the instance they can see. The instance is a sample, not the population.**
+> Round thirty-four already produced the rule — stop patching instances, delete the space the defect
+> occurs in — and I recorded it, agreed with it, and then two rounds later patched exactly one
+> instance of a four-instance defect and moved on. Knowing a rule is not the same as reaching for
+> it, and the moment you are least likely to reach for it is when a reviewer has handed you a
+> specific line to go fix.
+
+There is now one `exitStatusProblem(text, name)` and four callers. Exactly one status per transcript,
+on its own line, equal to zero — and two statuses is itself the finding, because one run reports one
+status and a second means the file was appended to rather than replaced. All four sites verified
+firing on an appended `exit=1`.
+
+**The second: `Test Files 1 failed` was not a failure.** Vitest reports an `afterAll` failure as
+`Test Files 1 failed` beside `Tests 1 passed` and exits 1 — a run that fails while the line this
+rule reads says everything passed. `summaryLines` already admitted the label; only the failure
+pattern left it out. That pattern has now been extended three times, for `Errors`, for
+`Vitest caught`, and now for `Test Files`, each time because it was written from the failures I had
+happened to see rather than from the reporter's own vocabulary of them.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean on the file · `npm run evidence:guard`
+6 rules pass · full chain re-run: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0,
+rewind 17, Playwright 41 with `e2e exit=0` recorded, probe complete.
