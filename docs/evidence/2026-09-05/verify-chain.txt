@@ -65,11 +65,15 @@ rewind files that is exactly right. For build.txt, cipher-gate.json, lint.txt an
 over-reads its own test, which is a modification-time comparison against chamber-lock.json rather
 than a record of which run produced a file. On this head:
 
-  lint.txt          04:25:42
-  build.txt         04:25:51
-  cipher-gate.json  04:25:51
-  chamber-lock.json 04:26:02   <- the comparison point
-  proof-tape.json   04:27:17
+  lint.txt          04:32:24.447
+  build.txt         04:32:34.023
+  cipher-gate.json  04:32:34.215
+  chamber-lock.json 04:32:34.987   <- the comparison point
+  proof-tape.json   04:33:49.327
+
+Sub-second precision, because on this run the three artifacts and the comparison point land in the
+same second and a whole-second table would look like it refutes the flag rather than explaining it.
+The gap is under a second and is still the same push.
 
 Six to sixteen seconds earlier, in this same push, by the ordering the section above requires - not
 an earlier run. Those timestamps are given so a reader can check the claim instead of choosing

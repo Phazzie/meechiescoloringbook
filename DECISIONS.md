@@ -72,9 +72,12 @@ Short, durable decisions with context and tradeoffs.
     is no code whose behaviour could differ - that, and not any property of the build output, is
     what establishes it. `npm run build` exits 0 and every emitted chunk keeps its byte size, and
     `npm test` is unchanged at 1252 passed / 1 skipped. Note what those do *not* show: the hashed
-    filenames differ between two builds of identical source (`app.DNy7a25O.js` became
-    `app.GDO2OsbE.js` at the same 7.53 kB), so a green build is not evidence of an identical bundle
-    and is not offered as any.
+    filenames differ between two builds of identical source, so a green build is not evidence of an
+    identical bundle and is not offered as any. Reproduce with
+    `git diff a1d7f31..aa8fd33 -- docs/evidence/2026-09-05/build.txt` - two close-out commits that
+    change no application source, where four emitted chunks change filename at byte-identical sizes.
+    That command is cited rather than the hashes themselves: a specific hash quoted here would be
+    wrong again on the next build, which is the failure this very sentence is documenting.
 - Self-critique (micro): The riskiest thing here is not the diff, it is the prose. Every review
   finding on this close-out has been a sentence about evidence that was looser than the evidence,
   and twice the looseness was introduced by the commit fixing the previous instance - a stale
