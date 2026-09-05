@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CreationRecordSchema, DraftRecordSchema } from './contract';
+import type { CreationRecord, DraftRecord } from './contract';
 import {
 	creationStoreSampleFixture,
 	creationStoreFaultFixture,
@@ -147,6 +148,44 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 
 		expect(() => validateCreationRecord(creationWithUnacceptableVoice)).toThrow();
 		expect(() => validateDraftRecord(draftWithStyleSelectionAsText)).toThrow();
+	});
+
+	// Driven through the MOCK, not only through the validators. The mock used to return its canned
+	// fixture output whatever it was handed, so a record the adapter refuses would sail through it —
+	// and a consumer verified against the mock would only find out in a browser. This is the
+	// mock/adapter agreement the fault fixture exists to prove.
+	it('mock refuses a record the adapter would refuse, rather than replaying its fixture', async () => {
+		const mock = createCreationStoreMock('fault');
+
+		const refused = await mock.saveCreation({
+			record: creationStoreRejectedFixtures.creationWithUnacceptableVoice as CreationRecord
+		});
+		expect(refused.ok).toBe(false);
+		expect(refused.ok === false && refused.error.code).toBe('CREATION_SCHEMA_MISMATCH');
+
+		// And the same mock still replays its fixture for a record that does parse, so the refusal
+		// above is about the record rather than about the scenario.
+		const replayed = await mock.saveCreation({
+			record: creationStoreFaultFixture.input.saveCreation.record
+		});
+		expect(replayed.ok === false && replayed.error.code).toBe('BROWSER_REQUIRED');
+	});
+
+	it('mock refuses a draft the adapter would refuse, the same way the adapter does', async () => {
+		// The adapter's `saveDraft` throws rather than returning a failure. The mock mirrors that
+		// deliberately: reporting a failure where the real thing throws would let a consumer write a
+		// handler that never runs in production.
+		const mock = createCreationStoreMock('fault');
+
+		await expect(
+			mock.saveDraft({
+				draft: creationStoreRejectedFixtures.draftWithStyleSelectionAsText as DraftRecord
+			})
+		).rejects.toThrow();
+
+		await expect(
+			mock.saveDraft({ draft: creationStoreFaultFixture.input.saveDraft.draft })
+		).resolves.toMatchObject({ ok: false });
 	});
 
 	it('refuses them for the style, not for something else in the record', () => {

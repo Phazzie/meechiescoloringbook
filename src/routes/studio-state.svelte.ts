@@ -487,7 +487,9 @@ export class StudioState {
 	 * disappears with the page it belongs to and can never be left behind by a reset.
 	 */
 	pageExports = $derived.by((): PageExport[] => {
-		const packaged = describePackagedExports(this.packageAttempts, this.spec.pageSize);
+		// No page size passed: each attempt carries the one it was packaged for, so the row cannot
+		// describe a file as paper it was not made on.
+		const packaged = describePackagedExports(this.packageAttempts);
 		const original = describeOriginalImageExport(
 			this.images[0],
 			this.pageFileBaseName || DEFAULT_PAGE_FILE_BASE_NAME
@@ -1203,13 +1205,14 @@ export class StudioState {
 				variants: [variant]
 			});
 			return result.ok
-				? { variant, files: result.value.files, error: null }
-				: { variant, files: [], error: result.error.message };
+				? { variant, files: result.value.files, error: null, pageSize }
+				: { variant, files: [], error: result.error.message, pageSize };
 		} catch (error) {
 			return {
 				variant,
 				files: [],
-				error: error instanceof Error ? error.message : 'Packaging failed.'
+				error: error instanceof Error ? error.message : 'Packaging failed.',
+				pageSize
 			};
 		}
 	}

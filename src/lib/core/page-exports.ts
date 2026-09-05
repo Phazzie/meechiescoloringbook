@@ -50,6 +50,16 @@ export type PageExportAttempt = {
 	files: PackagedFile[];
 	/** The seam's message when the variant could not be built, or `null` when it was. */
 	error: string | null;
+	/**
+	 * The paper this attempt was packaged for.
+	 *
+	 * Carried on the attempt rather than passed alongside it, because it is a fact about the files
+	 * that came back and the caller's live value is a different thing. Describing the row from the
+	 * live spec labelled a US Letter PDF "A4 — ready to print" whenever the reader moved Page Size
+	 * while a generation was in flight. Keeping it here removes the drift rather than relocating it:
+	 * there is no second page size for the label to disagree with.
+	 */
+	pageSize: ColoringPageSpec['pageSize'];
 };
 
 const FILE_TYPE_LABELS: Record<string, string> = {
@@ -179,12 +189,9 @@ export const describePackagedExport = (
 };
 
 /** Describe every file that was successfully packaged, in the order the variants were requested. */
-export const describePackagedExports = (
-	attempts: readonly PageExportAttempt[],
-	pageSize: ColoringPageSpec['pageSize']
-): PageExport[] =>
+export const describePackagedExports = (attempts: readonly PageExportAttempt[]): PageExport[] =>
 	attempts.flatMap((attempt) =>
-		attempt.files.map((file) => describePackagedExport(attempt.variant, file, pageSize))
+		attempt.files.map((file) => describePackagedExport(attempt.variant, file, attempt.pageSize))
 	);
 
 /**

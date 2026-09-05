@@ -74,7 +74,8 @@ const arrangePackagedPage = (studio: StudioState): void => {
 			files: [
 				{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
 			],
-			error: null
+			error: null,
+			pageSize: 'US_Letter'
 		}
 	];
 };
@@ -3045,6 +3046,60 @@ describe('StudioState page style', () => {
 		expect(packageSpy).toHaveBeenCalled();
 		for (const call of packageSpy.mock.calls) {
 			expect(call[0].pageSize).toBe('US_Letter');
+		}
+	});
+
+	it('describes those downloads as the paper they were made on, not the live setting', async () => {
+		// The other half: packaging for the right paper and then labelling the row from the live spec
+		// presented a US Letter PDF as "A4 — ready to print".
+		const { studio } = await savingStudio();
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: {
+				files: [
+					{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' }
+				]
+			}
+		});
+
+		studio.pageSize = 'US_Letter';
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(async () => {
+				studio.pageSize = 'A4';
+				await studio.syncSpecFromCurrentText('setting');
+				return new Response(
+					JSON.stringify({
+						ok: true,
+						value: {
+							prompt: 'the prompt this page was made with',
+							templateVersion: 'v2',
+							images: [
+								{
+									id: 'image-1',
+									format: 'png',
+									mimeType: 'image/png',
+									data: PAGE_STYLE_PNG_BASE64,
+									encoding: 'base64'
+								}
+							],
+							violations: [],
+							recommendedFixes: []
+						}
+					}),
+					{ status: 200, statusText: 'OK' }
+				);
+			})
+		);
+
+		await studio.handleGeneratePage();
+
+		const printed = studio.pageExports.filter((item) => item.kind === 'print');
+		expect(printed.length).toBeGreaterThan(0);
+		for (const item of printed) {
+			expect(item.purpose).toContain('US Letter');
+			expect(item.purpose).not.toContain('A4');
 		}
 	});
 
