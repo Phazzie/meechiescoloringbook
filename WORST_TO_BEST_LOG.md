@@ -8431,3 +8431,53 @@ happened to see rather than from the reporter's own vocabulary of them.
 `npm run lint` clean · `sonarjs.configs.recommended` clean on the file · `npm run evidence:guard`
 6 rules pass · full chain re-run: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0,
 rewind 17, Playwright 41 with `e2e exit=0` recorded, probe complete.
+
+### Addendum — round thirty-nine: the guard was not reading committed bytes
+
+Codex reviewed `ae9c051b`. Four findings, all accepted, and one of them says the whole thing had been
+measuring the wrong file.
+
+**`npm install` runs before the guard, and `npm install` runs this repository's code.**
+`package.json` defines `prepare: svelte-kit sync`, which npm executes on install — arbitrary code
+from the branch under review, with write access to the working tree, running *before* the step that
+inspects `docs/evidence/`. A pull request could repair an invalid committed transcript during
+installation and collect a green guard result on the repaired bytes.
+
+> **Invariant 1 of this file is that every rule reads a COMMITTED artifact. The rules do. The step
+> that runs them did not.** I checked the rules against that invariant repeatedly and never once
+> checked the thing that invokes them, because the invariant was written about rules and I read it
+> as being about rules.
+
+The step now runs *before* `npm install`, and invokes `node scripts/evidence-guard.mjs` rather than
+`npm run evidence:guard` — npm would execute a `preevidence:guard` hook if one were ever added,
+which is the same hole from the other side. The guard imports only `node:` builtins, verified by
+deleting `node_modules` and running it: exit 0.
+
+**An entire old run could be replayed under a new date.** Copying `2026-09-05` to `2099-01-01` passed
+all six rules — every artifact genuinely agreeing with every other, all of them from a run with
+nothing to do with the change. The tape has recorded `evidenceDir` and `generatedAt` this whole time
+and no rule read either.
+
+> **Consistency is not identity.** Every rule asked whether these files agree with each other, and a
+> perfect copy agrees with itself perfectly. Nothing asked whether they are the files this change
+> produced — the one question a folder of evidence exists to answer.
+
+**A status that is not the last line is not the transcript's result.** "Exactly one, and it is zero"
+still accepted a retry appended after it that died before writing its own status. Now the status must
+terminate the file.
+
+**And `-cFILE` is a config flag.** Playwright accepts the attached short form, so requiring a
+delimiter after `-c` let it through. This pattern has now been widened twice: first for the
+documented `--config <file>` and `-c <file>`, now for the attached form. The flag ends where the
+value begins, and nothing separates them, so there was never a delimiter to require.
+
+Two more found by running `sonarjs.configs.recommended` locally before pushing: the new identity
+check took a function past the cognitive-complexity limit, and two patterns backtracked
+(`super-linear-regex`) — one of them a hand-rolled trailing-separator strip that `basename` does
+correctly on its own. Extracted `replayedFrom()`, replaced the other with two `indexOf` calls. Then
+re-ran all eleven mutation directions, because the refactor invalidates them in both directions.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean on the file · `npm run evidence:guard`
+6 rules pass · eleven mutation directions verified after the refactor · full chain re-run: check 0/0,
+1445 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41 with `e2e exit=0`
+recorded, probe complete.

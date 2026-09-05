@@ -22,10 +22,13 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: npm
-      - name: Install dependencies
-        run: npm install
-      # Before `verify`, because `verify` rewrites the dated folder and the thing being checked is
-      # what the author committed. Scoped to the evidence folders this change actually touches, so a
+      # Before `npm install`, and before `verify`. Both orderings are about the same word:
+      # COMMITTED. `verify` rewrites the dated folder, so running after it would check the chain's
+      # own fresh output. And `npm install` executes this repository's `prepare` script — arbitrary
+      # code from the branch under review, running with write access to the working tree — so
+      # running after it would check bytes that a pull request had an opportunity to repair. The
+      # guard's first invariant is that it reads what the author committed; installing first quietly
+      # broke it. Scoped to the evidence folders this change actually touches, so a
       # change that ships no evidence is not asked to justify somebody else's, and no folder has to
       # be guessed at. Three times this repository committed evidence that proved nothing and looked
       # fine; each was found by a person opening the file, which is what this step automates.
@@ -111,7 +114,15 @@ jobs:
           fi
           for dir in $dirs; do
             echo "--- $dir"
-            npm run evidence:guard -- "$dir"
+            # `node`, not `npm run`. This step runs before `npm install` on purpose (see the step
+            # comment), and `npm run evidence:guard` would reintroduce the same hole from the other
+            # side: npm executes a `preevidence:guard` hook if one is ever added, which is
+            # repository-controlled code running immediately before the check reads the files. The
+            # guard imports only node: builtins, so it needs no dependencies — verified by deleting
+            # node_modules and running it.
+            node scripts/evidence-guard.mjs "$dir"
           done
+      - name: Install dependencies
+        run: npm install
       - name: Verify
         run: npm run verify

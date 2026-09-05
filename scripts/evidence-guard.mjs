@@ -21,7 +21,7 @@
 //      this script is for.
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 import process from 'node:process';
 import { toDateFolder } from './evidence-reporting.mjs';
 
@@ -91,6 +91,17 @@ const exitStatusProblem = (text, name) => {
 	if (found.length > 1)
 		return `carries ${found.length} "${name} exit=" lines (${found.map(([line]) => line).join(', ')}); one run reports one status, so this was appended to rather than replaced and it no longer says which run it describes`;
 	if (found[0][2] !== '0') return `reports "${found[0][0]}", so that run failed`;
+	// And it has to be the last thing in the file. "Exactly one, and it is zero" still accepts a
+	// retry that was appended and then died before writing its own status: the earlier run's lone
+	// `exit=0` stays, a fresh command's output follows it, and the transcript ends mid-run reporting
+	// a success that belongs to the run before. A status that does not terminate its transcript is
+	// not that transcript's result.
+	const lines = stripAnsi(text)
+		.split('\n')
+		.filter((line) => line.trim() !== '');
+	const last = lines[lines.length - 1];
+	if (last !== found[0][0])
+		return `records "${found[0][0]}" but does not end there — "${last.trim().slice(0, 70)}" follows it, so a later run was captured over it without recording a status of its own`;
 	return null;
 };
 
@@ -108,6 +119,33 @@ const read = (dir, name) => {
 	const path = join(dir, name);
 	if (!existsSync(path)) return null;
 	return readFileSync(path, 'utf8');
+};
+
+/**
+ * Whether this folder is a copy of some other run's evidence, as a sentence, or `null` if it is not.
+ *
+ * The tape records `evidenceDir` and `generatedAt` and nothing was reading either, so an entire
+ * internally consistent old run could be copied to a new dated path and satisfy every other rule —
+ * each artifact genuinely agreeing with the others, all of them from a run with nothing to do with
+ * this change. Copying `2026-09-05` to `2099-01-01` passed all six. The identity was already in the
+ * file; the guard simply never asked for it.
+ */
+const replayedFrom = (dir, tape) => {
+	// `basename` strips trailing separators itself; the hand-rolled strip that used to be here was
+	// both redundant and, per sonarjs/super-linear-regex, a backtracking pattern.
+	const here = basename(dir);
+	const claimed = typeof tape.evidenceDir === 'string' ? basename(tape.evidenceDir) : null;
+	if (claimed === null)
+		return 'proof-tape.json records no evidenceDir, so it cannot be shown to describe this folder rather than another one.';
+	if (claimed !== here)
+		return `proof-tape.json says it describes "${claimed}" but it is committed in "${here}"; this folder is a copy of another run's evidence, not evidence of this one.`;
+	// The run's own clock has to agree with the folder it is filed under. A dated folder names a day;
+	// a tape stamped on a different day is a replay filed under a fresh name.
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(here)) return null;
+	const stamped = typeof tape.generatedAt === 'string' ? tape.generatedAt.slice(0, 10) : null;
+	if (stamped !== here)
+		return `proof-tape.json is stamped ${stamped ?? '<no generatedAt>'} but filed under ${here}; the run and the folder disagree about when it happened.`;
+	return null;
 };
 
 /**
@@ -216,6 +254,15 @@ const RULES = [
 			const absent = CHAIN_ARTIFACTS.filter((name) => read(dir, name) === null);
 			if (absent.length > 0)
 				return `these chain stages left no artifact: ${absent.join(', ')}; the chain did not run all of them.`;
+			// The tape has to be describing THIS folder. It already records `evidenceDir` and
+			// `generatedAt`, and nothing here read either, so an entire internally consistent old run
+			// could be copied to a new dated path and satisfy every rule below — each artifact
+			// genuinely agreeing with the others, all of them from a run that has nothing to do with
+			// this change. Copying `2026-09-05` to `2099-01-01` passed all six. The identity was
+			// already in the file; the guard simply never asked for it.
+			const misfiled = replayedFrom(dir, JSON.parse(read(dir, 'proof-tape.json') ?? '{}'));
+			if (misfiled !== null) return misfiled;
+
 			// Present is not current. A run that stops invoking an intermediate stage leaves the previous
 			// artifact in place, and the tape then flags it as predating this run while everything else
 			// looks finished. The tape already computes that; nothing was reading it.
@@ -315,18 +362,23 @@ const RULES = [
 			// showing it, in a sentence that turned out to be false about its own contents. A reviewer
 			// cannot check test selection, workers or retries against a file they cannot open, which
 			// makes the row's result unauditable however green it is.
-			// Every spelling Playwright accepts, not the one this capture happens to use. `--config=`
-			// alone matched only my own command line: `test --help` documents `-c, --config <file>`,
-			// so `--config pw.local.config.ts` and `-c pw.local.config.ts` name the same override and
-			// slipped past. A rule written from the one example in front of you is a rule about that
-			// example.
+			// Every spelling Playwright accepts, not the one this capture happens to use. This pattern
+			// has now been widened twice for the same reason. `--config=` alone matched only my own
+			// command line, so the documented `--config <file>` and `-c <file>` walked past it. Then
+			// requiring a delimiter after `-c` let the ATTACHED form through — `-cpw.local.config.ts`
+			// is accepted by the CLI and names a config just as much. The flag ends where the value
+			// begins, and nothing separates them, so there is no delimiter to require.
 			// `[^\w-]` before the short form, not `\s`. The first attempt required whitespace and its
 			// own mutation test passed the `-c` case, because Row 2 names the command inside backticks
 			// and a backtick is not whitespace. The delimiter around a flag in prose is punctuation as
 			// often as space.
-			const NAMES_CONFIG = /--config[=\s]|[^\w-]-c[=\s]/;
-			const REPRODUCES_CONFIG = /```[a-z]{0,8}\n[\s\S]{0,20000}defineConfig/;
-			if (NAMES_CONFIG.test(row2) && !REPRODUCES_CONFIG.test(row2))
+			const NAMES_CONFIG = /--config[=\s]|[^\w-]-c/;
+			// indexOf, not a regex. `/```[a-z]*\n[\s\S]{0,20000}defineConfig/` scans a bounded wildcard
+			// up to a literal, which backtracks on every fence that is not followed by one —
+			// sonarjs/super-linear-regex, caught locally before SonarCloud saw it.
+			const fence = row2.indexOf('```');
+			const reproducesConfig = fence !== -1 && row2.indexOf('defineConfig', fence) !== -1;
+			if (NAMES_CONFIG.test(row2) && !reproducesConfig)
 				return 'e2e.txt Row 2 names a config override but does not reproduce it; the run cannot be audited against a configuration that is not in the evidence.';
 			// A passing count is not a passing run. Playwright prints "<n> passed" alongside "<n> failed"
 			// when both happen, so a row with one pass and forty failures satisfied every check above.
