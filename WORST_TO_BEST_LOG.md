@@ -7644,3 +7644,64 @@ follow-up 15's territory.
 ### Running total
 
 **One hundred and thirty-two findings across fifty-one rounds.**
+
+---
+
+## Run 4, correction 53 — 2026-09-05 — three gaps in three of the last four fixes
+
+Appended, not edited. Four P2s on `9ed048c`. Three are holes in corrections 51, 48 and 52
+respectively — each in the fix, not in the thing it fixed — and one is the 2026-09-04 tape again.
+
+### 1. The heartbeat was written non-atomically (hole in correction 51)
+
+`writeFileSync` truncates before it writes. A concurrent run reading `heartbeat` inside that window
+sees an empty file, `isLeaseFresh` returns false, and it reclaims a lock whose owner is alive and
+working. The lease added to stop a stale lock blocking the routine could therefore cause the exact
+collision the lock exists to prevent.
+
+Correction 49 made the *reclaim* atomic via `rename` and I did not apply the same reasoning to the
+value the reclaim decision reads. Now written to a sibling and renamed, so a reader sees either the
+old timestamp or the new one.
+
+### 2. A late chain failure kept the absolute paths (hole in correction 48)
+
+`verify-runner` writes `verify.txt` and `test.txt` at its own stage. If a *later* stage of the chain
+fails, those files exist — and the sanitizing step sat after `exitIfFailed`, so it never ran. Failed
+runs committed exactly the checkout paths correction 48 was about, and failed runs are the ones whose
+output gets read closely.
+
+Sanitizing now happens before the status is propagated.
+
+### 3. The tape's postcondition bypassed its own invalidation (hole in correction 52)
+
+Correction 52 removes `cipher-gate.json` when `proof:tape` exits nonzero. But
+`assertTapeCoversThisRun` runs *after* a tape that exited **0** and rejects it for inventorying the
+wrong folder — past that branch. So the run would reject its own tape and leave a green gate report
+beside it: the defect the branch was written for, on the path written to detect it.
+
+Every exit in that function now invalidates the gate first, including the JSON-parse failure that had
+no handler at all. Verified in isolation:
+
+```
+tape names a different folder -> REJECTED, cipher-gate.json removed
+tape names this folder        -> ACCEPTED, cipher-gate.json kept
+```
+
+### 4. Not fixed — the 2026-09-04 tape, raised a second time
+
+Now against `proof-tape.json` rather than the `.md`. The finding is the same and so is the answer:
+`proof-tape.mjs` writes only into today's folder, so that day's tape cannot be regenerated; the
+twenty-one files it names were deleted **because they were corrupt** (a redirect had overwritten
+each one's header), so restoring them would restore damage; and hand-editing a generated evidence
+artifact to agree with a directory listing is worse than a stale dated one.
+
+The constraint has changed in one respect worth recording: `cipher-gate.json` now selects this
+close-out's 2026-09-05 block, so the 2026-09-04 block's paths are **no longer checked by the gate**.
+The folder is still cited as that entry's evidence in `DECISIONS.md`, which is a historical record
+rather than a live dependency. That makes deleting the whole folder *possible* where it previously
+was not — and it is still not mine to do unasked, because it would erase the record another entry
+points at. Left open for the owner with that correction attached.
+
+### Running total
+
+**One hundred and thirty-six findings across fifty-two rounds.**

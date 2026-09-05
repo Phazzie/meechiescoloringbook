@@ -269,20 +269,32 @@ const assertNoDateRollover = (startDate) => {
  * @param {string} dir
  */
 const assertTapeCoversThisRun = async (dir) => {
+	// Every exit below invalidates the gate first. These are postcondition failures on a tape that
+	// exited 0, so they run *past* the nonzero-exit branch that removes cipher-gate.json — and
+	// without this the run would reject its own tape while leaving a green gate report beside it.
+	// Same defect as the one that branch was added for, on the path added to detect it.
+	const rejectTape = async (message) => {
+		await fs.rm(path.join(dir, 'cipher-gate.json'), { force: true });
+		process.stderr.write(message);
+		process.exit(1);
+	};
 	const reportPath = path.join(dir, 'proof-tape.json');
 	if (!(await fileExists(reportPath))) {
-		process.stderr.write(`proof:tape reported success but wrote no proof-tape.json into ${dir}.\n`);
-		process.exit(1);
+		await rejectTape(`proof:tape reported success but wrote no proof-tape.json into ${dir}.\n`);
 	}
-	const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+	let report;
+	try {
+		report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+	} catch (error) {
+		await rejectTape(`proof:tape wrote a proof-tape.json this run cannot parse: ${error.message}\n`);
+	}
 	const inventoried = path.resolve(ROOT, report.evidenceDir ?? '');
 	if (inventoried !== path.resolve(dir)) {
-		process.stderr.write(
+		await rejectTape(
 			`proof:tape inventoried ${report.evidenceDir} but this run's evidence is in ${dir}.\n` +
 				'The tape in this folder describes a different one and lists none of this run\'s\n' +
 				'captures. Remove or correct the stray dated folder and re-run.\n'
 		);
-		process.exit(1);
 	}
 };
 
@@ -313,7 +325,13 @@ const touchLease = () => {
 		return;
 	}
 	try {
-		writeFileSync(path.join(heldLockPath, 'heartbeat'), String(Date.now()), 'utf8');
+		// Written to a sibling and renamed, never truncated in place. `writeFileSync` empties the file
+		// before it writes, and a concurrent reader landing in that window sees a blank heartbeat,
+		// reads the lease as expired, and reclaims a lock whose owner is very much alive. `rename` is
+		// atomic: readers see either the old timestamp or the new one.
+		const pending = path.join(heldLockPath, `heartbeat.${process.pid}.tmp`);
+		writeFileSync(pending, String(Date.now()), 'utf8');
+		renameSync(pending, path.join(heldLockPath, 'heartbeat'));
 	} catch {
 		// A lease we cannot refresh is not worth aborting a green run over; the age check below
 		// treats it as abandoned, which is the safe direction.
@@ -327,6 +345,7 @@ const acquireRunLock = () => {
 		mkdirSync(lockPath);
 		writeFileSync(path.join(lockPath, 'pid'), String(process.pid), 'utf8');
 		writeFileSync(path.join(lockPath, 'heartbeat'), String(Date.now()), 'utf8');
+		// From here on the heartbeat is only ever replaced atomically; see touchLease.
 	};
 	// Bounded, because each attempt either wins the lock, loses a race and retries, or exits.
 	for (let attempt = 0; ; attempt += 1) {
@@ -657,15 +676,14 @@ const captureChain = async (dir) => {
 		verify.output,
 		verify.code
 	);
-	exitIfFailed(verify, 'npm run verify');
-	// The chain's own two captures leak too, for a subtler reason than the rewinds: verify-runner.mjs
-	// DOES call sanitizeEvidenceOutput, but that helper only matches the repo root before end-of-line,
-	// a slash or whitespace, and vitest prints its root wrapped in ANSI colour codes — so the escape
-	// defeats it. De-escaping first and re-sanitizing closes it here. The helper's own lookahead is
-	// still the real fix and is follow-up 12; this stops the leak reaching the repository meanwhile.
+	// Sanitized BEFORE the status is propagated. verify-runner writes verify.txt and test.txt at its
+	// own stage, so a chain that fails at any LATER stage has already produced them — and exiting
+	// first would commit exactly the absolute paths this step exists to remove, on precisely the runs
+	// whose output someone will be reading closely.
 	for (const name of ['verify.txt', 'test.txt']) {
 		await sanitizeArtifactInPlace(path.join(dir, name));
 	}
+	exitIfFailed(verify, 'npm run verify');
 };
 
 /**
