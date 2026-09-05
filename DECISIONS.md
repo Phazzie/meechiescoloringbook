@@ -7,6 +7,29 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-05 - Consumer Import Re-routing and Mock Synchronization (Batch 3 Seam Migration v2.0)
+
+- Date: 2026-09-05
+- Decision: Re-route all consumer imports across API routes, core pipelines, studio state stores, UI components, and mode page factories to canonical self-contained seam packages (`$lib/seams/<name>-seam/contract` and `$lib/adapters/<name>-seam`), and synchronize legacy mock files in `src/lib/mocks/` to re-export canonical modular mocks for all 7 migrated seams (`SessionSeam`, `AuthContextSeam`, `CreationStoreSeam`, `OutputPackagingSeam`, `ChatInterpretationSeam`, `MeechieStudioTextSeam`, `ProviderAdapterSeam`).
+- Context: Batches 1 & 2 established modular seam directories, contracts, fixture modules, in-memory mocks, and canonical adapters, while providing backward-compatibility re-exports. Batch 3 eliminates downstream coupling to legacy paths across the entire codebase and aligns all legacy mock entrypoints with their modular equivalents.
+- Alternatives: Keep legacy mocks with separate fixture parsers; rejected because duplicate fixture parsing creates drift between legacy and canonical contract test runners.
+- Consequences: All consumers import directly from canonical modular paths, legacy mocks delegate cleanly without code duplication, contract tests pass across both legacy and self-contained paths, and full verification suite passes.
+- Revisit criteria: Any future seam additions should follow the self-contained blueprint directly (`docs/SEAM_BLUEPRINT.md`).
+- Self-critique: Riskiest assumption is that an unmigrated test or third-party consumer relies on internal mock details; disproved by running the complete vitest suite across all 1,279+ tests and full `npm run verify`.
+- Evidence: docs/evidence/2026-09-05/verify.txt; docs/evidence/2026-09-05/test.txt; docs/evidence/2026-09-05/chamber-lock.json; docs/evidence/2026-09-05/seam-ledger.json; docs/evidence/2026-09-05/proof-tape.json
+- Plan:
+  - Goal: Re-route consumer imports and synchronize legacy mocks for the 7 migrated seams, then run full verification.
+  - Seams: SessionSeam, AuthContextSeam, CreationStoreSeam, OutputPackagingSeam, ChatInterpretationSeam, MeechieStudioTextSeam, ProviderAdapterSeam.
+  - Files: `src/routes/api/meechie-studio-text/+server.ts`, `tests/unit/api-meechie-studio-text-endpoint.test.ts`, `src/lib/core/chat-interpretation-pipeline.ts`, `src/lib/core/meechie-studio.ts`, `src/lib/core/meechie-studio-text-pipeline.ts`, `src/routes/studio-state.svelte.ts`, `src/lib/components/studio/StudioPreviewPanel.svelte`, `src/lib/components/studio/VerdictRow.svelte`, `src/lib/components/verdict-page-state.svelte.ts`, `src/lib/components/MeechieTools.svelte`, `src/lib/mocks/session.mock.ts`, `src/lib/mocks/auth-context.mock.ts`, `src/lib/mocks/creation-store.mock.ts`, `src/lib/mocks/output-packaging.mock.ts`, `src/lib/mocks/chat-interpretation.mock.ts`, `src/lib/mocks/meechie-studio-text.mock.ts`, `src/lib/mocks/provider-adapter.mock.ts`, `docs/seams.md`, `CHANGELOG.md`, `DECISIONS.md`, `plan.md`.
+  - Commands: `npm run check`, `npm run lint`, `npm test`, `npm run verify`.
+
+- Cipher Gate:
+  - Date: 2026-09-05
+  - Seams: SessionSeam, AuthContextSeam, CreationStoreSeam, OutputPackagingSeam, ChatInterpretationSeam, MeechieStudioTextSeam, ProviderAdapterSeam
+  - Evidence: docs/evidence/2026-09-05/verify.txt; docs/evidence/2026-09-05/test.txt; docs/evidence/2026-09-05/chamber-lock.json; docs/evidence/2026-09-05/seam-ledger.json; docs/evidence/2026-09-05/proof-tape.json
+  - Summary: Completed Batch 3 consumer import re-routing and mock re-export synchronization across all 7 migrated seams.
+  - Risks: Runtime browser environment missing canvas implementation during packaging; potential intermittent network timeouts during xAI provider calls.
+
 ## 2026-09-05 - Modularize Batch 2 Generation and Transport Seams (OutputPackagingSeam, ChatInterpretationSeam, MeechieStudioTextSeam, ProviderAdapterSeam)
 
 - Date: 2026-09-05

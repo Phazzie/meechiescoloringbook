@@ -7,8 +7,8 @@ Info flow: Parent passes derived image data and callbacks; user actions propagat
 	import { getStudioAction } from '$lib/core/meechie-studio';
 	import type { StudioTheme } from '$lib/core/meechie-studio';
 	import { imageFileExtension } from './WigTryOnStudio.svelte';
-	import type { MeechieStudioTextOutput } from '../../../../contracts/meechie-studio-text.contract';
-	import type { PackagedFile } from '../../../../contracts/output-packaging.contract';
+	import type { MeechieStudioTextOutput } from '$lib/seams/meechie-studio-text-seam/contract';
+	import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
 
 	let {
 		previewOutput,

@@ -4,7 +4,7 @@ Why: Keep AI text generation server-side, schema-validated, and rate limited per
 Info flow: Client request -> parse guard -> text-bucket quota gate -> studio text pipeline -> JSON response.
 */
 import { env } from '$env/dynamic/private';
-import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
+import { createProviderAdapter } from '$lib/adapters/provider-adapter-seam';
 import { json } from '@sveltejs/kit';
 import {
 	runMeechieStudioTextPipeline,

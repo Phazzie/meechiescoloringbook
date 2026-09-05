@@ -18,13 +18,13 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		MeechieToolResultSchema
 	} from '../../../contracts/meechie-tool.contract';
 	import type { GeneratedImage } from '../../../contracts/image-generation.contract';
-	import type { PackagedFile } from '../../../contracts/output-packaging.contract';
-	import type { CreationOwner } from '../../../contracts/creation-store.contract';
+	import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
+	import type { CreationOwner } from '$lib/seams/creation-store-seam/contract';
 	import { GenerateResultSchema } from '../../../contracts/generate.contract';
 	import type { GenerateResponseValue } from '../../../contracts/generate.contract';
-	import { outputPackagingAdapter } from '$lib/adapters/output-packaging.adapter';
-	import { creationStoreAdapter } from '$lib/adapters/creation-store.adapter';
-	import { sessionAdapter } from '$lib/adapters/session.adapter';
+	import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
+	import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
+	import { sessionAdapter } from '$lib/adapters/session-seam';
 	import {
 		buildToolPageRecipe,
 		buildToolStudioText

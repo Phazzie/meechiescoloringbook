@@ -1,7 +1,7 @@
 // Purpose: Centralize chat-interpretation endpoint orchestration in a reusable core pipeline.
 // Why: Keep route handlers thin and make chat/spec validation behavior easy to test in isolation.
 // Info flow: Raw request body -> cancellation/schema checks -> quota charge -> provider completion -> JSON extraction + validation -> contract response.
-import { providerAdapter } from '$lib/adapters/provider-adapter.adapter';
+import { providerAdapter } from '$lib/adapters/provider-adapter-seam';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { TEXT_MODEL } from '$lib/core/models';
@@ -11,7 +11,7 @@ import type { QuotaGate } from '$lib/server/rate-limit-route';
 import {
 	ChatInterpretationInputSchema,
 	ChatInterpretationResultSchema
-} from '../../../contracts/chat-interpretation.contract';
+} from '$lib/seams/chat-interpretation-seam/contract';
 import {
 	ColoringPageSpecSchema,
 	RawColoringPageSpecSchema

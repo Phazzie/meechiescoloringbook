@@ -3,7 +3,7 @@
 // Info flow: Raw request -> parse guard/quota gate/provider pipeline -> contract-safe JSON response.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$lib/adapters/provider-adapter.adapter', () => ({
+vi.mock('$lib/adapters/provider-adapter-seam', () => ({
 	createProviderAdapter: vi.fn()
 }));
 
@@ -11,7 +11,7 @@ vi.mock('$lib/server/rate-limit-route', () => ({
 	createQuotaGate: vi.fn()
 }));
 
-import { createProviderAdapter } from '$lib/adapters/provider-adapter.adapter';
+import { createProviderAdapter } from '$lib/adapters/provider-adapter-seam';
 import {
 	createQuotaGate,
 	type QuotaDecision

@@ -50,16 +50,16 @@ This section is the sole active implementation plan. It supersedes older dated e
   - [x] `TICK-MIG-07a`: `ProviderAdapterSeam` Contract with Injected `AbortSignal` Support
   - [x] `TICK-MIG-07b`: `ProviderAdapterSeam` Fixtures Module, Mock & Secret Redaction Canary Test
   - [x] `TICK-MIG-07c`: `ProviderAdapterSeam` Canonical Adapter with Socket Cancellation & Stream Redaction
-  - [ ] `PR-BATCH-2`: Open PR, verify CI checks (`gh pr checks`), address feedback, auto-merge to `main`
+  - [x] `PR-BATCH-2`: Open PR, verify CI checks (`gh pr checks`), address feedback, auto-merge to `main`
 - [ ] **Batch 3: Stub Synchronization & Clean Consumer Imports (`feat/retire-legacy-seam-stubs`)**
-  - [ ] `TICK-MIG-08a`: Re-route Consumer Imports in API Route & Test Mock (`src/routes/api/meechie-studio-text/+server.ts`, `tests/unit/api-meechie-studio-text-endpoint.test.ts`)
-  - [ ] `TICK-MIG-08b`: Re-route Consumer Imports in Core Pipelines & Domain (`chat-interpretation-pipeline.ts`, `meechie-studio.ts`, `meechie-studio-text-pipeline.ts`)
-  - [ ] `TICK-MIG-08c`: Re-route Consumer Imports in Studio State & Components (`studio-state.svelte.ts`, `StudioPreviewPanel.svelte`, `VerdictRow.svelte`)
-  - [ ] `TICK-MIG-08d`: Re-route Consumer Imports in Mode Pages (`who-fucked-up/+page.svelte`, `random/+page.svelte`, `rate-his-excuse/+page.svelte`)
-  - [ ] `TICK-MIG-09a`: Re-export Synchronization for Legacy Mocks (Identity & Storage: `session`, `auth-context`, `creation-store`)
-  - [ ] `TICK-MIG-09b`: Re-export Synchronization for Legacy Mocks (Generation: `output-packaging`, `chat-interpretation`)
-  - [ ] `TICK-MIG-09c`: Re-export Synchronization for Legacy Mocks (Transport & Studio: `meechie-studio-text`, `provider-adapter`)
-  - [ ] `TICK-MIG-10`: Final Full Verification Chain, Chamber Lock, Seam Ledger & Proof Tape
+  - [x] `TICK-MIG-08a`: Re-route Consumer Imports in API Route & Test Mock (`src/routes/api/meechie-studio-text/+server.ts`, `tests/unit/api-meechie-studio-text-endpoint.test.ts`)
+  - [x] `TICK-MIG-08b`: Re-route Consumer Imports in Core Pipelines & Domain (`chat-interpretation-pipeline.ts`, `meechie-studio.ts`, `meechie-studio-text-pipeline.ts`)
+  - [x] `TICK-MIG-08c`: Re-route Consumer Imports in Studio State & Components (`studio-state.svelte.ts`, `StudioPreviewPanel.svelte`, `VerdictRow.svelte`)
+  - [x] `TICK-MIG-08d`: Re-route Consumer Imports in Mode Pages (`who-fucked-up/+page.svelte`, `random/+page.svelte`, `rate-his-excuse/+page.svelte`)
+  - [x] `TICK-MIG-09a`: Re-export Synchronization for Legacy Mocks (Identity & Storage: `session`, `auth-context`, `creation-store`)
+  - [x] `TICK-MIG-09b`: Re-export Synchronization for Legacy Mocks (Generation: `output-packaging`, `chat-interpretation`)
+  - [x] `TICK-MIG-09c`: Re-export Synchronization for Legacy Mocks (Transport & Studio: `meechie-studio-text`, `provider-adapter`)
+  - [x] `TICK-MIG-10`: Final Full Verification Chain, Chamber Lock, Seam Ledger & Proof Tape
   - [ ] `PR-BATCH-3`: Open PR, verify CI checks, auto-merge to `main`
 
 ---
