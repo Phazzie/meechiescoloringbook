@@ -6509,3 +6509,72 @@ Running total: **67**.
 `npm run verify` exit 0, **transcript 66 lines and carrying its own exit status** ·
 `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed · Playwright 38 passed
 against the installed browser · browser probe complete.
+
+## Run 7 — merge close-out
+
+### What the gate required, and what it found
+
+- `npm run check` 0 errors, 0 warnings
+- `npm run lint` clean
+- **1406 passed, 1 skipped** (baseline on `main` at `f02cfc4`: 1252 passed, 1 skipped — **+154**)
+- `npm run build` built
+- `npm run verify` exit 0, transcript carrying its own exit status
+- `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 17 passed
+- Playwright 38 passed against the installed browser; the mandated command still fails at launch on
+  the container's Chromium 1194 against a pinned 1208, recorded in `e2e.txt` under both rows
+- browser probe re-run, all three fixtures byte-identical
+- **67 mutations, every one confirmed red**
+
+On the pull request: `verify`, CodeQL, both Analyze jobs, SonarCloud Code Analysis and Vercel green.
+SonarCloud's quality gate passes at 2.0% duplication on new code against a 3% ceiling.
+
+### The two things still red, and why they are not blockers
+
+**Rosentic** reports ~196 findings and marks 8 "Breaking". Every one is a conflict against a
+*different unmerged branch* — `sweet-mendel-LJ9Iu`, `trusting-volta-bb8mvr`, `great-bell-94oma2` —
+which changed signatures this branch still calls with their current arity. Against `main`, which is
+what this merges into, nothing is broken: `derivesDenseDecorations` takes `styleHint` on this head,
+the calls pass one argument, `npm run check` is 0/0 and the suite is green. Commented once on the PR
+with six proofs; the disposition has not changed across twenty-one rounds.
+
+**One SonarCloud issue** — the nested ternary at `studio-state.svelte.ts:1054`. Established as
+pre-existing on `main` (`73a8f053`, an ancestor of `origin/main`, and absent from this diff), and
+left alone deliberately: rewriting untouched logic to satisfy a metric is how a focused change
+becomes an unreviewable one.
+
+### What twenty-one review rounds actually found
+
+One defect family, over and over: **something on the page and the thing describing it drifting
+apart.** Not a coincidence — it is what the feature was chosen for, and it turned out to run deeper
+than the feature.
+
+Three doc comments asserted invariants the code beneath them broke. The plan in `DECISIONS.md`
+drifted twice. The PR description sat six hours claiming 1347 tests and citing a rewind command that
+resolves to the wrong seam. The mock written to stop lying was fixed in the wrong order and kept
+lying. The reporting mechanism I added to fix the panel was itself a copy that went stale. And the
+evidence transcript — the file whose entire job is to be checkable — shipped without its own result.
+
+**Five tests were green next to their reason rather than for it.** Four came from a fixture with no
+image; the fifth from a scenario with no browser. Each passed, each described the right behaviour,
+and each proved it somewhere the behaviour does not live.
+
+The remedy was the same every time, and it is the run's one durable lesson: **a check that exists
+only in an intention is not a check.** The panel's promise had to become a `$derived`. The mock's
+ordering had to become a test. The capture rule had to become a script guard. In every case the prose
+was already correct — I had written the rule down, sometimes in the file that then broke it. Writing
+a lesson into this log does not install it anywhere that acts.
+
+### What I would tell the next run
+
+- **Mutate the condition, not just the fix.** Twice a guard's *reason* was untested while its happy
+  path was covered, and only a mutation asked. The test written alongside a fix exercises the path
+  that made you write it.
+- **Reproduce the checker's configuration, not just the checker.** Two local reproductions reported
+  "nothing found" because they ran every rule instead of the recommended set. I recorded that as
+  evidence about the code; it was evidence about my config.
+- **Citations are the part that must be measured.** Three times I published a figure I had not
+  looked up — two test counts and a commit hash — always in the part of a claim that exists so
+  somebody else can check it.
+- **Pushing costs something.** Twenty-odd pushes, one per review round, exhausted a Vercel daily
+  deployment quota and regenerate ~200 bot comments each. Batching rounds is cheaper and I did not
+  notice I was spending anything until the quota ran out.
