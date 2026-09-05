@@ -6281,7 +6281,11 @@ not guess again. Six issues, unenumerated, is the honest state.
 ### Open follow-ups, none of them fixable inside this close-out's scope
 
 - **11.** `rewind.mjs:88-91` spawns its inner vitest with the default 1 MiB `maxBuffer`; a verbose
-  failure is killed with `ENOBUFS` and a truncated artifact is written anyway.
+  failure is killed with `ENOBUFS` and a truncated artifact is written anyway. **The same two lines
+  also destroy output ordering**: `:92` joins `stdout + stderr` after the fact, so every artifact
+  interleaves wrongly — a diagnostic emitted *during* the run is filed *below* vitest's closing
+  summary. Both are the same fix (capture both descriptors into one unbounded sink) and neither can
+  be done from outside `rewind.mjs`; correction 54 establishes that by trying.
 - **12.** `sanitizeEvidenceOutput` (`evidence-reporting.mjs:35-42`) matches the repo root only before
   end-of-string, a slash or whitespace, so an ANSI escape immediately after it defeats the sanitizer.
   This is why `verify.txt` and `test.txt` still commit absolute paths despite being sanitized.
@@ -7705,3 +7709,89 @@ points at. Left open for the owner with that correction attached.
 ### Running total
 
 **One hundred and thirty-six findings across fifty-two rounds.**
+
+## Run 4, correction 54 — 2026-09-05 — a fix that could not work, proved by shipping it and looking
+
+Three findings on `8179bc5`. Two were straightforward. The third I fixed, verified, and **reverted**,
+because the verification showed the fix did nothing — and that is the entry worth writing.
+
+### 1. Not fixable here — the rewind artifact's ordering (attempted, reverted)
+
+The finding: `sanitizeArtifactInPlace` rewrites `rewind-<Seam>.txt` in place, discarding the ordered
+capture this run already holds, so the committed artifact keeps rewind's flattened interleaving —
+in `rewind-OutputPackagingSeam.txt` the jsdom canvas diagnostic sits *below* vitest's `Duration`
+summary, though it was emitted during the run. It asked for one of two things: preserve the ordered
+capture when rewriting, **or fix rewind's capture itself**.
+
+I built the first. `adoptOrderedBody` kept the artifact's `#` header lines — its provenance — and
+replaced the body with this run's capture, which comes from a single file descriptor shared by both
+streams and is therefore in true emission order. The comment I wrote for it said: *"it is the same
+bytes, correctly sequenced."*
+
+Then I ran it and looked at the result:
+
+```
+=== is the canvas diagnostic now BEFORE the summary? ===
+16:   Duration  806ms (...)
+18:Not implemented: HTMLCanvasElement's getContext() method: ...
+```
+
+Unchanged. The reason is one line up the stack from where I was working:
+
+```js
+// rewind.mjs:92
+const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+process.stdout.write(output);
+```
+
+`rewind.mjs` concatenates the two buffers *itself* and writes the joined string to its own stdout.
+By the time my wrapper receives anything, it is receiving that already-flattened string down one
+pipe. My capture is faithful; what it is faithful to is output that was reordered before it was
+emitted. Confirmed directly against rewind's own stdout, with no artifact involved:
+
+```
+$ npm run rewind -- --seam OutputPackagingSeam | grep -n "Duration \|Not implemented"
+12:   Duration  765ms (...)
+14:Not implemented: HTMLCanvasElement's getContext() method: ...
+```
+
+So the helper was reverted. Not softened, not left in with a hedge — removed, along with the comment
+that asserted a property it did not have. A no-op that reads like a fix is worse than no fix: it
+closes the finding in the reviewer's list while the artifact stays wrong, and the next person to
+read that comment has to redo this measurement to learn it was false.
+
+The finding's second option is the real one, and it is the two lines of follow-up 11 — the same two
+lines as the missing `maxBuffer`, which is why the follow-up now names both. `rewind.mjs` is
+verification machinery this close-out has stayed out of by policy, and reaching into it to reorder
+its output would be exactly the unplanned `scripts/` edit `CLAUDE.md` warns against.
+
+**What this round is not:** a fix. The artifacts still interleave wrongly. That is stated here, on
+the thread, and in the follow-up, rather than being absorbed into a green round.
+
+### 2. The rollover check left a green gate behind (hole in correction 52)
+
+Correction 52 made every exit past `proof:tape` invalidate `cipher-gate.json` first. `assertNoDateRollover`
+is also called past that gate — twice — and exited without doing so, leaving a passing gate report
+describing a folder the run was walking away from. It now removes the file before exiting, guarded so
+it is harmless on the earlier call where the gate has not yet run.
+
+### 3. "Full capture ... no size ceiling" was not true
+
+The failure-companion header claimed it held the *full* output because it writes to a file with no
+size limit. True of my file, false of the thing it captures: `rewind.mjs:88-91` pipes its inner vitest
+with the default 1 MiB buffer, so a verbose failure is truncated one level down, before this run sees
+a byte. Removing my own ceiling cannot recover output that was never emitted. The header now says
+exactly that, and names follow-up 11 as where the remaining truncation lives.
+
+### What the round cost
+
+Two real fixes and one honest retraction. The retraction took longer than either fix, because the
+only way to establish it was to build the thing, run it, and read the output instead of the diff.
+That is the same standard as correction 51's signal handlers: a comment claiming behaviour I had not
+run is this PR's oldest habit, and the cure has never been more careful writing — it is executing the
+claim.
+
+### Running total
+
+**One hundred and thirty-nine findings across fifty-three rounds.** Two of the three fixed; the third
+proved unfixable at this layer and is recorded as such.

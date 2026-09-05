@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-05T04:38:40.067Z
+Generated at: 2026-09-05T04:57:06.887Z
 Evidence folder: docs/evidence/2026-09-05
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -32,13 +32,13 @@ after this inventory is taken, so they are not listed):
 - rewind-ImageProviderConfigSeam.txt (375 bytes)
 - rewind-MeechieToolSeam(self-contained).txt (377 bytes)
 - rewind-MeechieToolSeam.txt (377 bytes)
-- rewind-MeechieVoiceSeam(self-contained).txt (378 bytes)
-- rewind-MeechieVoiceSeam.txt (377 bytes)
+- rewind-MeechieVoiceSeam(self-contained).txt (379 bytes)
+- rewind-MeechieVoiceSeam.txt (375 bytes)
 - rewind-OutputPackagingSeam.txt (478 bytes)
 - rewind-PromptAssemblySeam(self-contained).txt (380 bytes)
 - rewind-PromptAssemblySeam.txt (377 bytes)
 - rewind-ProviderAdapterSeam.txt (378 bytes)
-- rewind-RateLimitSeam.txt (376 bytes)
+- rewind-RateLimitSeam.txt (377 bytes)
 - rewind-SafetyPolicySeam.txt (377 bytes)
 - rewind-SessionSeam.txt (375 bytes)
 - rewind-SpecValidationSeam(self-contained).txt (380 bytes)

@@ -252,9 +252,15 @@ const writeArtifact = async (dir, name, header, body, code) => {
  * that split silently is worse than one that stops, so this aborts instead.
  * @param {string} startDate
  */
-const assertNoDateRollover = (startDate) => {
+const assertNoDateRollover = async (startDate, dir) => {
 	const now = utcDate();
 	if (now !== startDate) {
+		// A rollover after cipher:gate has passed leaves a green cipher-gate.json describing a folder
+		// this run is abandoning. Same reasoning as the tape's postcondition: every exit past the gate
+		// invalidates it first. Harmless before the gate has run, since the file will not be there.
+		if (dir) {
+			await fs.rm(path.join(dir, 'cipher-gate.json'), { force: true });
+		}
 		process.stderr.write(
 			`UTC date rolled over mid-run (${startDate} -> ${now}). The evidence for this run would be\n` +
 				'split across two folders and the final tape would inventory only part of it. Re-run the\n' +
@@ -569,7 +575,7 @@ const main = async () => {
 	await clearOwnedOutputs(dir);
 
 	await captureChain(dir);
-	assertNoDateRollover(startDate);
+	await assertNoDateRollover(startDate, dir);
 	await captureStandaloneChecks(dir);
 	await captureRewinds(dir, startDate);
 
@@ -616,7 +622,7 @@ const main = async () => {
 	await fs.rm(path.join(dir, 'proof-tape-run.txt'), { force: true });
 	await fs.rm(path.join(dir, 'proof-tape.json'), { force: true });
 	await fs.rm(path.join(dir, 'proof-tape.md'), { force: true });
-	assertNoDateRollover(startDate);
+	await assertNoDateRollover(startDate, dir);
 	const tape = npmRun('proof:tape');
 	process.stdout.write(tape.output);
 	await writeArtifact(
@@ -646,7 +652,7 @@ const main = async () => {
 	// Checking before the spawn is not enough: proof-tape.mjs:197-199 recomputes the date itself, so
 	// a tape that *starts* after midnight writes into tomorrow's folder while this run's check has
 	// already passed.
-	assertNoDateRollover(startDate);
+	await assertNoDateRollover(startDate, dir);
 	// And the file being here is not enough either. proof-tape.mjs inventories getLatestEvidenceDir()
 	// — the lexicographically last dated folder — but writes its report into *today's*. A folder
 	// dated ahead of today (committed by a machine whose clock ran fast) makes it inventory that one
@@ -777,19 +783,27 @@ const captureRewinds = async (dir, startDate) => {
 				dir,
 				companion,
 				[
-					`Purpose: This run's full capture of \`npm run rewind -- --seam ${seam}\`, which failed.`,
-					'Why: rewind.mjs wrote its own artifact, but its inner vitest spawn uses the default',
-					'     1 MiB pipe buffer, so that artifact can be truncated and its spawn error reaches',
-					'     stderr only. This capture goes to a file with no size ceiling.',
+					`Purpose: This run's capture of \`npm run rewind -- --seam ${seam}\`, which failed.`,
+					'Why: rewind.mjs wrote its own artifact, but its spawn error reaches stderr only, so',
+					'     that artifact can omit why the rewind failed. This capture keeps it.',
+					'NOT complete, and the distinction matters: rewind.mjs:88-91 pipes its inner vitest',
+					'     with the DEFAULT 1 MiB buffer, so a verbose failure is already truncated before',
+					'     this run sees a byte. Removing that ceiling is follow-up 11 and cannot be done',
+					'     from here. This file has no ceiling of its own; it cannot recover what rewind',
+					'     never emitted.',
 					`Info flow: npm run rewind -> ${artifact} (rewind's, possibly truncated) + this file.`
 				],
 				result.output,
 				result.code
 			);
 		}
-		// rewind.mjs's own artifact has never been through a sanitizer; this run's companion already
-		// has. Applying to both is idempotent and means no path can reach the repository by either
-		// route.
+		// Only sanitized, not reordered — and the distinction was measured rather than assumed.
+		// rewind.mjs joins `stdout + stderr` itself (`rewind.mjs:92`) and writes the joined string to
+		// ITS stdout, so the interleaving is already lost before this wrapper receives a byte: taking
+		// this run's capture as the artifact's body reproduces exactly the same wrong order. Verified
+		// by doing it — the canvas diagnostic still landed below vitest's Duration summary. The fix
+		// has to be in rewind.mjs's own capture; follow-up 11 covers it alongside its missing
+		// maxBuffer, since both are the same two lines.
 		await sanitizeArtifactInPlace(artifactPath);
 		rows.push({ seam, code: result.code, artifact, ownArtifact: wroteOwnArtifact, companion });
 		if (result.code !== 0) {
