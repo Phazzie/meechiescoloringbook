@@ -6113,3 +6113,54 @@ The mutation is what asks the reason. Running total for this run: **58**.
 `npm run check` 0/0 · `npm run lint` clean · **1399 passed, 1 skipped** · `npm run build` built ·
 `npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
 Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
+
+## Run 7 close-out — round seventeen: a gate I broke myself, and a header
+
+### SonarCloud stopped passing, and it was right
+
+The quality gate had passed every push in this run until round fifteen's, when it started failing on
+**duplication in new code** — 3.7%, then 3.5% against a 3% ceiling. My own diff, and a real finding
+rather than a threshold quibble.
+
+The cause was embarrassing in a specific way. A `savingStudio()` helper already existed in this test
+block, with a doc comment saying it was extracted because "six lines repeated verbatim in every test
+that asserts on what reaches the vault" — and six later tests, mine among them, spelled its body out
+instead of calling it. The two draft-restore tests wrote the same fourteen-line stored draft twice.
+My round-fifteen test then repeated thirteen successive statements from the test directly above it.
+
+So: a helper existed, its comment said why, and the tests written after it did not use it. The same
+shape as everything else this run has found — a thing that describes itself correctly while the code
+beside it says otherwise.
+
+Fixed structurally rather than by trimming to fit the metric: `putStyleOnControls`,
+`styledPageOnScreen`, `restyleWithoutRegenerating` and `initFromStoredDraft`, each named for the
+*step* rather than the values. The one worth more than the duplication number is
+`putStyleOnControls`, which now assigns from `styleSelection` instead of retyping its fields — a
+setup that drifts from the constant it asserts against would be green for the wrong reason, which is
+this run's own recurring defect wearing a test's clothes.
+
+**I could not run SonarCloud to confirm the fix.** The network policy 403s sonarcloud.io, and jscpd
+at Sonar-like thresholds finds no clones in these files either way — Sonar's TypeScript detector
+counts successive duplicated *statements* rather than tokens, so the local tool cannot answer the
+question. What I did instead was remove the duplication I could name and count, and let the gate on
+the next push be the measurement. If it still fails, the fix was aimed wrong and the log will say so.
+
+### A second header that stopped short
+
+`tests/unit/page-style.test.ts` opened with Purpose / Why / Info flow, while two constraints that
+decide whether the file proves anything lived only in the body: every expected `Vibe:` string is
+written out literally rather than rebuilt from the pieces the subject assembles, and option coverage
+is driven from the seam schemas rather than a hand-kept list. Both exist to stop the file agreeing
+with itself. Both are now in the header, which is where a person adding a test reads.
+
+### Mutations
+
+None new. The eight guards from rounds fifteen and sixteen were re-run against the refactored suite
+and all eight are still red, which is the point of re-running them: a refactor that leaves the suite
+green is not evidence the refactor kept anything. Running total: **58**.
+
+### Verification
+
+`npm run check` 0/0 · `npm run lint` clean · **1399 passed, 1 skipped** · `npm run build` built ·
+`npm run verify` exit 0 · `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` 16 passed ·
+Playwright 38 passed against the installed browser · browser probe re-run, fixtures byte-identical.
