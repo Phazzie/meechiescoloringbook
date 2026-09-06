@@ -25,12 +25,24 @@ This section is the sole active implementation plan. It supersedes older dated e
 - BATCH 8: God Component De-monolithization & CSS Extraction (Branch: refactor/god-component-decomposition)
 - BATCH 9: Unified Adversarial Verification Suite & Release Gate (Branch: test/unified-adversarial-verification-and-release)
 
-FOR EVERY SINGLE BATCH:
-1. RED PROOF FIRST: Author or run a failing negative/fault test proving the vulnerability or defect before editing implementation code.
-2. MINIMAL ATOMIC DIFF: Touch only the 1-3 files allowed for that ticket. Zero cross-seam contamination.
-3. 2ND-PASS ADVERSARIAL AUDIT: Inspect git diff, trace seam/process isolation, verify async teardown/unhandled rejections, and document at least 2 hypothetical failure vectors before committing.
-4. LOCAL VERIFICATION: Execute the Definition of Done CLI exiting code 0.
-5. INCREMENTAL PR & MERGE GATE: Open a branch PR against main, verify CI checks exit code 0, and auto-merge per AGENTS.md before starting the next batch.
+FOR EVERY SINGLE BATCH (AUTONOMOUS EXECUTION PROTOCOL):
+1. RED PROOF FIRST: Author or run a failing negative/fault test proving the defect/vulnerability before touching implementation code.
+2. MINIMAL ATOMIC DIFF: Touch strictly the 1-3 files allocated for that ticket. Zero cross-seam contamination.
+3. LOCAL VERIFICATION SUITE: Execute the ticket Definition of Done CLI, plus `npm run check` and `npm test` exiting code 0.
+4. PERIODIC 2ND-PASS ADVERSARIAL AUDIT & SELF-CRITIQUE:
+   - Run `git diff` inspection before committing.
+   - Audit seam/process isolation (Node vs Browser globals, no unmounted state updates).
+   - Trace asynchronous lifecycle & unhandled promise rejection handlers.
+   - Formulate self-critique: What could be wrong? What must be proven? Riskiest assumption? Evidence disproving it.
+   - Explicitly document at least 2 hypothetical failure vectors for the batch.
+5. PR CREATION & CI MONITORING:
+   - Push branch and open a focused PR against `main` via `gh pr create`.
+   - Monitor CI check runs and commit statuses via `gh pr checks`.
+6. PR REVIEW HARVESTING & COMMENT RESOLUTION:
+   - Harvest bot and human review comments via `gh pr view --json comments,reviews`.
+   - For every comment/finding: fix the underlying issue immediately or provide factual technical justification on the PR thread.
+   - Enforce AGENTS.md "Merge When The Gates Are Green" rule: once all checks pass and all comments are resolved, squash-merge and delete branch without waiting.
+   - Pull updated `main` into local workspace before initiating the next batch.
 ```
 
 ### Base, Ownership, and Scope Lock
@@ -45,44 +57,44 @@ FOR EVERY SINGLE BATCH:
 #### 📦 Batch 1: Storage & Identity Seam Hardening (PR 1: `fix/storage-seam-hardening`)
 - [ ] `TICK-01`: `CreationStoreSeam` Safe Draft Validation & Null Guard (`src/lib/adapters/creation-store-seam/index.ts`)
 - [ ] `TICK-02`: `SessionSeam` Defensive Storage Exception Enclosure (`src/lib/adapters/session-seam/index.ts`)
-- [ ] `GATE-PR-01`: Adversarial Audit, Red Proof verification, PR 1 opened, CI green, auto-merged to `main`.
+- [ ] `GATE-PR-01`: Red Proof verified, DoD CLI green, 2nd-Pass Adversarial Audit & Self-Critique (2 failure vectors), PR 1 opened, CI checks green, PR review comments harvested & resolved, auto-merged to `main`.
 
 #### 📦 Batch 2: Media & Transport Exception Containment (PR 2: `fix/provider-and-packaging-hardening`)
 - [ ] `TICK-03`: `ProviderAdapterSeam` Chat Network Catch Secret Redaction (`src/lib/adapters/provider-adapter-seam/index.ts`)
 - [ ] `TICK-04`: `ProviderAdapterSeam` Image Network Catch Secret Redaction & Timeout Parity (`src/lib/adapters/provider-adapter-seam/index.ts`)
 - [ ] `TICK-05`: `OutputPackagingSeam` Canvas `onload` `try/catch` & 10s Timeout Guard (`src/lib/adapters/output-packaging-seam/index.ts`)
 - [ ] `TICK-06`: `OutputPackagingSeam` `pdf-lib` & `atob` Exception Containment (`src/lib/adapters/output-packaging-seam/index.ts`)
-- [ ] `GATE-PR-02`: Adversarial Audit, Red Proof verification, PR 2 opened, CI green, auto-merged to `main`.
+- [ ] `GATE-PR-02`: Red Proof verified, DoD CLI green, 2nd-Pass Adversarial Audit & Self-Critique (2 failure vectors), PR 2 opened, CI checks green, PR review comments harvested & resolved, auto-merged to `main`.
 
 #### 📦 Batch 3: Contract Validation & Tool Seams (PR 3: `fix/validation-and-tool-seams`)
 - [ ] `TICK-07`: `AuthContextSeam` Strict Non-Empty Session ID Validation (`src/lib/adapters/auth-context-seam/index.ts`)
 - [ ] `TICK-08`: `SpecValidationSeam` Safe Issue Normalization (`src/lib/adapters/spec-validation-seam/index.ts`)
 - [ ] `TICK-09`: `MeechieToolSeam` Exhaustive Tool ID Typed Error Return (`src/lib/adapters/meechie-tool-seam/index.ts`)
-- [ ] `GATE-PR-03`: Adversarial Audit, Red Proof verification, PR 3 opened, CI green, auto-merged to `main`.
+- [ ] `GATE-PR-03`: Red Proof verified, DoD CLI green, 2nd-Pass Adversarial Audit & Self-Critique (2 failure vectors), PR 3 opened, CI checks green, PR review comments harvested & resolved, auto-merged to `main`.
 
 #### 📦 Batch 4: Legacy Adapter Re-export Conversion (PR 4: `refactor/legacy-adapter-re-exports`)
 - [ ] `TICK-10`: `drift-detection.adapter.ts` Re-export Conversion (Purges 243 duplicate lines)
 - [ ] `TICK-11`: `meechie-voice.adapter.ts` Re-export Conversion (Purges 31 duplicate lines)
-- [ ] `GATE-PR-04`: Adversarial Audit, Contract test parity, PR 4 opened, CI green, auto-merged to `main`.
+- [ ] `GATE-PR-04`: Contract test parity verified, DoD CLI green, 2nd-Pass Adversarial Audit & Self-Critique (2 failure vectors), PR 4 opened, CI checks green, PR review comments harvested & resolved, auto-merged to `main`.
 
 #### 📦 Batch 5: UI Consumer Simplification & Private Browsing (PR 5: `refactor/ui-consumer-simplification`)
 - [ ] `TICK-12`: `VerdictPageState` Compensation Removal & Session Simplification (`src/lib/components/verdict-page-state.svelte.ts`)
 - [ ] `TICK-13`: `StudioState` Compensation Removal & Graceful Private Browsing `init()` (`src/routes/studio-state.svelte.ts`)
 - [ ] `TICK-14`: `MeechieTools` Compensation Removal & `loadOwner` Safety (`src/lib/components/MeechieTools.svelte`)
-- [ ] `GATE-PR-05`: Adversarial Audit, Unit test verification, PR 5 opened, CI green, auto-merged to `main`.
+- [ ] `GATE-PR-05`: Svelte check & unit verification green, 2nd-Pass Adversarial Audit & Self-Critique (2 failure vectors), PR 5 opened, CI checks green, PR review comments harvested & resolved, auto-merged to `main`.
 
 #### 📦 Batch 6: Determinism & Shared Utility Consolidation (PR 6: `refactor/core-utilities-deduplication`)
 - [ ] `TICK-15`: Universal `ClockSeam` Ingestion in `studio-state` & `MeechieTools` (Purges naked `new Date()`)
 - [ ] `TICK-16`: Canonical 8KB-Chunked Base64 Utility (`$lib/utils/base64.ts`)
 - [ ] `TICK-17`: Canonical CSPRNG UUID Utility (`$lib/utils/id.ts`)
 - [ ] `TICK-18`: Shared Client Image Decodability Prober (`$lib/core/image-decoder.ts`)
-- [ ] `GATE-PR-06`: Adversarial Audit, Unit & Utility test verification, PR 6 opened, CI green, auto-merged to `main`.
+- [ ] `GATE-PR-06`: Unit & Utility tests green, 2nd-Pass Adversarial Audit & Self-Critique (2 failure vectors), PR 6 opened, CI checks green, PR review comments harvested & resolved, auto-merged to `main`.
 
 #### 📦 Batch 7: Lifecycle Teardown & Floating Promise Guards (PR 7: `fix/lifecycle-teardown-and-floating-promises`)
 - [ ] `TICK-19`: `VerdictPageState.destroy()` Teardown Method Implementation (`src/lib/components/verdict-page-state.svelte.ts`)
 - [ ] `TICK-20`: Multi-Route Teardown Subscriptions (`onDestroy` in `/who-fucked-up`, `/rate-his-excuse`, `/random`)
 - [ ] `TICK-21`: Global Floating Promise Rejection Guards (Explicit `.catch()` logging across all routes)
-- [ ] `GATE-PR-07`: Adversarial Audit, Svelte check verification, PR 7 opened, CI green, auto-merged to `main`.
+- [ ] `GATE-PR-07`: Svelte check & route teardown verified, 2nd-Pass Adversarial Audit & Self-Critique (2 failure vectors), PR 7 opened, CI checks green, PR review comments harvested & resolved, auto-merged to `main`.
 
 #### 📦 Batch 8: God Component De-monolithization (PR 8: `refactor/god-component-decomposition`)
 - [ ] `TICK-22`: `+page.svelte` CSS Extraction (Removes 1,000 lines into `$lib/styles/studio.css`)
@@ -91,12 +103,12 @@ FOR EVERY SINGLE BATCH:
 - [ ] `TICK-25`: `StudioExportController` Extraction from `studio-state.svelte.ts` (~100 lines)
 - [ ] `TICK-26`: `StudioDraftManager` Extraction from `studio-state.svelte.ts` (~80 lines)
 - [ ] `TICK-27`: `MeechieTools.svelte` Orchestration Delegation to `VerdictPageState`
-- [ ] `GATE-PR-08`: Adversarial Audit, Svelte check & unit verification, PR 8 opened, CI green, auto-merged to `main`.
+- [ ] `GATE-PR-08`: Svelte check & unit verification green, 2nd-Pass Adversarial Audit & Self-Critique (2 failure vectors), PR 8 opened, CI checks green, PR review comments harvested & resolved, auto-merged to `main`.
 
 #### 📦 Batch 9: Unified Adversarial Verification Suite & Release Gate (PR 9: `test/unified-adversarial-verification-and-release`)
 - [ ] `TICK-28`: Unified Adversarial Fuzz & Fault Test Suite (`tests/adversarial/seams-adversarial.test.ts`)
 - [ ] `TICK-29`: Full Verification Chain (`npm run verify`), Chamber Lock, Proof Tape & Release Auto-Merge
-- [ ] `GATE-PR-09`: Full verification chain green, Cipher Gate recorded in `DECISIONS.md`, PR 9 merged to `main`.
+- [ ] `GATE-PR-09`: Full verification chain green, Cipher Gate recorded in `DECISIONS.md`, PR 9 opened, CI green, PR review comments harvested & resolved, auto-merged to `main`.
 
 ---
 
