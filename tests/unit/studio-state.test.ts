@@ -2179,7 +2179,48 @@ describe('StudioState quote vault', () => {
 		expect(studio.verdictReport.pageCaution).not.toBeNull();
 	});
 
-	it('believes no standing read back out of a record, whatever it stored', async () => {
+	it('keeps a blocked standing across the refresh that autosaves it', async () => {
+		// The case that made the earlier "believe nothing restored" rule too wide, and the one the
+		// feature exists for: a reader gets a verdict Meechie could not rule on, the draft autosaves,
+		// they reload — and the warning she asked for was gone. `modelMetadata` is the stamp
+		// `parseProviderText` puts on every accepted studio response and neither inventing producer
+		// can forge, so the standing survives.
+		const fromTheProvider: MeechieStudioTextOutput = {
+			...DEFAULT_STUDIO_TEXT_OUTPUT,
+			qualityState: 'blocked',
+			revisionNote: 'Tell me what he actually said.',
+			modelMetadata: { provider: 'xai', model: 'grok-text' }
+		};
+
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-06T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			studioText: fromTheProvider
+		});
+
+		expect(studio.verdictReport.standing?.code).toBe('blocked');
+		expect(studio.verdictReport.pageCaution).not.toBeNull();
+		expect(studio.verdictReport.note).toBe('Tell me what he actually said.');
+	});
+
+	it('keeps the standing of a reopened page that carries the provider stamp', async () => {
+		const studio = await initVault([]);
+		const fromTheProvider: MeechieStudioTextOutput = {
+			...DEFAULT_STUDIO_TEXT_OUTPUT,
+			qualityState: 'needs_more_evidence',
+			revisionNote: 'Give me the date.',
+			modelMetadata: { provider: 'xai', model: 'grok-text' }
+		};
+
+		await studio.loadCreation(
+			makeCreation('stamped', { studioText: fromTheProvider })
+		);
+
+		expect(studio.verdictReport.standing?.code).toBe('needs_more_evidence');
+		expect(studio.verdictReport.pageCaution).not.toBeNull();
+	});
+
+	it('believes no standing read back out of a record with no provider stamp', async () => {
 		// This assertion is the reverse of the one first written here, and the reversal is the point.
 		// Three kinds of record carry a `qualityState` and only one carries a *reported* one: a
 		// studio page from a real response, a toolkit page whose `'ready'` `buildToolStudioText` has

@@ -16,10 +16,12 @@
 //             Nothing in here infers a standing from the presence of text. `qualityState` is a
 //             *required* contract field, so it always holds a value, and two separate producers have
 //             to invent one: `buildStudioTextFromSpec`, rebuilding a record that stored no text, and
-//             `buildToolStudioText`, whose `MeechieToolOutput` has no such field at all. Only a live
-//             studio response carries a reported standing, and `standingWasReported` is how the
-//             caller says which it is holding — the card then shows the words either way and claims
-//             an approval only when one was actually given.
+//             `buildToolStudioText`, whose `MeechieToolOutput` has no such field at all. A standing
+//             is Meechie's only when a studio response wrote it — proven by a live call, or by the
+//             `modelMetadata` stamp the pipeline puts on every accepted response and neither
+//             inventing producer can forge. `standingWasReported` is how the caller says which it is
+//             holding; the card shows the words either way and claims an approval only when one was
+//             actually given. See `warrantForRestoredVerdict`.
 
 import type {
 	MeechieStudioQualityState,
@@ -169,13 +171,49 @@ export type VerdictReport = {
 	 * saved from the toolkit carries the `'ready'` `buildToolStudioText` must write; a page saved
 	 * before this change may carry one the studio reconstructed; a page saved from a real response
 	 * carries Meechie's own. Nothing on a record separates the three, so none of them is read as
-	 * hers — provenance arrives as its own input and only a live response sets it.
+	 * hers — provenance arrives as its own input, set by a live response and by a record carrying the
+	 * pipeline's `modelMetadata` stamp, which is the one thing the inventing producers cannot forge.
 	 */
 	standing: VerdictStanding | null;
 	/** `revisionNote`, trimmed. `null` when the provider sent none, or sent only whitespace. */
 	note: string | null;
 	/** The one line beside the paid page button, or `null`. */
 	pageCaution: string | null;
+};
+
+/**
+ * What warrant there is for the standing on a verdict, and what may be done with the words.
+ *
+ * - `'reported'` — the `qualityState` is Meechie's own. The card may repeat it.
+ * - `'stored'` — real words out of a record, with a `qualityState` that cannot be shown to be hers.
+ *   Written back to storage; never claimed.
+ * - `'derived'` — rebuilt from the page by `buildStudioTextFromSpec`. Claimed nothing, stored
+ *   nothing: every field of it already exists on `intent`.
+ * - `'none'` — no verdict on screen.
+ */
+export type VerdictWarrant = 'reported' | 'stored' | 'derived' | 'none';
+
+/**
+ * How much to believe a verdict read back out of a record or a draft.
+ *
+ * `modelMetadata` is the discriminator, and it is a provenance *stamp* rather than a shape
+ * heuristic: `parseProviderText` attaches it to **every** accepted studio-provider response, in the
+ * pipeline, unconditionally — the model does not choose it and cannot omit it. Neither producer that
+ * has to invent a `qualityState` can produce it: `buildToolStudioText` composes its object without
+ * one, and `buildStudioTextFromSpec` rebuilds from `intent`, which has no such field.
+ *
+ * So its presence proves a studio response wrote this text, and the standing beside it is Meechie's
+ * — which is what lets a `blocked` verdict survive a refresh. Without this, the autosaved draft came
+ * back classified as merely `'stored'` and the warning she asked for disappeared on reload, which is
+ * the feature deleting itself in the name of caution. Its *absence* proves nothing and is treated as
+ * `'stored'`: a studio record written before the stamp existed is silent rather than doubted aloud.
+ */
+export const warrantForRestoredVerdict = (
+	stored: Pick<MeechieStudioTextOutput, 'modelMetadata'> | undefined
+): Exclude<VerdictWarrant, 'none'> => {
+	if (stored === undefined) return 'derived';
+	if (stored.modelMetadata !== undefined) return 'reported';
+	return 'stored';
 };
 
 /** What the card says with nothing on it. Here rather than in the markup so a test can read it. */
@@ -250,12 +288,12 @@ export const readVerdictSeverity = (
  * Run 9's `promptWasSent` and Run 10's `driftChecked`: a required contract field always holds a
  * value, so the value alone can never say whether anybody actually reported it.
  *
- * Only a live studio response sets it, and the reason is worth keeping: three kinds of record carry
- * a `qualityState` and only one of them carries a *reported* one. A studio page saved from a real
- * response does. A page saved from the toolkit has the `'ready'` that `buildToolStudioText` must
- * write because `MeechieToolOutput` has no such field at all. A page saved before this change may
- * carry a `'ready'` the studio itself reconstructed. Nothing on the record tells the three apart —
- * so a standing read back out of storage is not believed, whichever it is.
+ * Three kinds of record carry a `qualityState` and only one carries a *reported* one. A studio page
+ * saved from a real response does. A page saved from the toolkit has the `'ready'` that
+ * `buildToolStudioText` must write because `MeechieToolOutput` has no such field at all. A page
+ * saved before the studio stored its text carries one the reconstruction invented. The first is told
+ * from the other two by the `modelMetadata` stamp — see `warrantForRestoredVerdict` — and only the
+ * first is believed.
  */
 export const buildVerdictReport = (input: {
 	output: MeechieStudioTextOutput | null;

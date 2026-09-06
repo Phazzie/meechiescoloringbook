@@ -10153,3 +10153,64 @@ the wrong reason:
 
 `check` 0/0 · `lint` exit=0 · `build` exit=0 · `npm run verify` exit=0. Unit, e2e and the rest are
 unchanged from the previous round — this round edited two prose paragraphs in `DECISIONS.md`.
+
+### Run 11, sixth close-out — 2026-09-06 — the correction that recovered a feature the previous correction deleted
+
+Codex on `d4b95cd`, and this is the best finding of the run:
+
+> *After a live `needs_more_evidence` or `blocked` verdict is autosaved and the user reloads,
+> `init()` classifies the draft as `stored`, so this predicate hides the standing and
+> page-generation caution even though Meechie actually reported them … `modelMetadata` … therefore
+> records with that metadata can be distinguished from toolkit or derived text instead of discarding
+> the feature on every refresh.*
+
+**Correct on both halves, and the second half is one I had reasoned my way out of.**
+
+**The cost it names is real and I shipped it.** The studio autosaves a draft as the reader works. So
+the rule the second close-out was so pleased with — *no restored standing is believed* — meant a
+`blocked` verdict lost its warning the moment the reader reloaded the page. **The feature deleting
+itself in the name of caution**, at the one moment the reader most needed it, and no test caught it
+because every test of the new rule asserted the withholding.
+
+**The discriminator was there the whole time, and I had explicitly considered and rejected the idea
+of one.** My reasoning, written down two rounds earlier: inferring provenance from a field's presence
+is the mechanism this log condemns in four separate runs, so I would not do it. That objection does
+not survive contact with *this* field:
+
+| | who writes it | can it be absent from a studio response? |
+|---|---|---|
+| `revisionNote` (what I was thinking of) | the model | yes — the contract makes it optional |
+| `modelMetadata` | **`parseProviderText`, in our own pipeline** | no — attached unconditionally to every accepted response |
+
+And neither inventing producer can forge it: `buildToolStudioText` composes its object without one,
+`buildStudioTextFromSpec` rebuilds from `intent`, which has no such field. So its presence *proves* a
+studio response wrote the text. Its absence proves nothing and is read as `'stored'` — silent, not
+doubted aloud.
+
+The rule I had been applying was too coarse. The narrower one, which is what this round earns:
+**a stamp your own pipeline applies unconditionally is evidence; a value your source may choose to
+include is not.** Rejecting the whole class cost this run a feature until a reviewer looked again.
+
+The provenance field is renamed with the change, because it stopped being about origin and became
+about warrant: `verdictWarrant: 'reported' | 'stored' | 'derived' | 'none'`, with
+`warrantForRestoredVerdict` the one place the first two are told apart. `'reported'` now covers a
+live response *and* a stamped record; `'stored'` and `'derived'` are unchanged.
+
+Mutation-checked in both directions, which matters here because the guard has two ways to be wrong:
+
+| Mutation | Result |
+|---|---|
+| ignore the stamp (everything restored is `'stored'`) | 3 failed — including the refresh case |
+| believe every restored record | 5 failed — including the toolkit page |
+
+**And the sweep.** Six sentences described the model this replaced — the file header and two
+docblocks in `verdict-report.ts`, `VerdictRow`'s Invariants, the CHANGELOG line claiming *no*
+reopened page ever shows a ruling, and the `Decision:` statement in `DECISIONS.md` that the round
+before had just rewritten. All corrected in the same commit, which is the third time this run has had
+to do that pass and the reason it is now the first thing done after a behaviour change rather than
+the last.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1596 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**49 passed** · `npm run verify` exit=0.

@@ -57,7 +57,11 @@ import {
 } from '$lib/core/ai-quota';
 import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 import { buildQualityReport } from '$lib/core/quality-report';
-import { buildVerdictReport } from '$lib/core/verdict-report';
+import {
+	buildVerdictReport,
+	warrantForRestoredVerdict,
+	type VerdictWarrant
+} from '$lib/core/verdict-report';
 import {
 	GENERATED_IMAGE_MIME_TYPES,
 	generatedImageDataUrl
@@ -260,18 +264,19 @@ export class StudioState {
 	 * Where the verdict on screen came from. Two separate questions turn on it, and conflating them
 	 * was this change's own first defect — a review caught it.
 	 *
-	 * - `'live'` — a studio provider response. Its `qualityState` is Meechie's own.
-	 * - `'stored'` — read back out of a record or draft that saved studio text. The words are real
-	 *   and must be kept; **the standing is not believed.** Three kinds of record carry a
-	 *   `qualityState` and only one carries a reported one: a studio page from a real response, a
-	 *   toolkit page whose `'ready'` `buildToolStudioText` must invent because `MeechieToolOutput`
-	 *   has no such field, and a page saved before this change carrying a reconstruction. Nothing on
-	 *   the record tells them apart.
+	 * - `'reported'` — a live studio response, or a record carrying the `modelMetadata` stamp that
+	 *   only a studio response can have. Its `qualityState` is Meechie's own.
+	 * - `'stored'` — real words out of a record whose standing cannot be shown to be hers: a toolkit
+	 *   page, whose `'ready'` `buildToolStudioText` must invent because `MeechieToolOutput` has no
+	 *   such field, or a studio page written before the stamp existed. The words are kept; the
+	 *   standing is not claimed.
 	 * - `'derived'` — rebuilt from the page itself by `buildStudioTextFromSpec`, because the record
 	 *   stored no text. No standing, and nothing to write down: every field of it comes from
 	 *   `intent`, so storing it would add only the invented `'ready'`.
+	 *
+	 * See `warrantForRestoredVerdict`, which is where the first two are told apart.
 	 */
-	private verdictSource = $state<'live' | 'stored' | 'derived' | 'none'>('none');
+	private verdictWarrant = $state<VerdictWarrant>('none');
 	/**
 	 * The verdict on screen. Read-only from outside on purpose.
 	 *
@@ -651,9 +656,7 @@ export class StudioState {
 	verdictReport = $derived(
 		buildVerdictReport({
 			output: this.textOutput,
-			// Only a live response. See `verdictSource`: a standing read back out of storage cannot be
-			// told apart from one the toolkit or an older studio build had to invent.
-			standingWasReported: this.verdictSource === 'live'
+			standingWasReported: this.verdictWarrant === 'reported'
 		})
 	);
 	/**
@@ -934,7 +937,7 @@ export class StudioState {
 		// real words — a verdict is not usually its page title — and dropping it to avoid carrying a
 		// standing nobody believes anyway would lose the page's own sentences. Those are two
 		// questions, and answering both with one flag was this change's first defect.
-		if (this.verdictSource === 'derived') return undefined;
+		if (this.verdictWarrant === 'derived') return undefined;
 		return $state.snapshot(this.textOutput);
 	}
 
@@ -948,10 +951,10 @@ export class StudioState {
 	 */
 	private setVerdict(
 		value: MeechieStudioTextOutput,
-		source: 'live' | 'stored' | 'derived'
+		warrant: Exclude<VerdictWarrant, 'none'>
 	): void {
 		this.verdictOnScreen = value;
-		this.verdictSource = source;
+		this.verdictWarrant = warrant;
 	}
 
 	/**
@@ -962,25 +965,26 @@ export class StudioState {
 	 * repeat what she said about it.
 	 */
 	acceptVerdict = (value: MeechieStudioTextOutput): void => {
-		this.setVerdict(value, 'live');
+		this.setVerdict(value, 'reported');
 	};
 
 	/** Nothing on the paper and nothing said about it. */
 	private clearVerdict(): void {
 		this.verdictOnScreen = null;
-		this.verdictSource = 'none';
+		this.verdictWarrant = 'none';
 	}
 
 	/**
 	 * A verdict brought back from a record or a draft, which may be nothing at all — a page with no
-	 * printed items restores no text. Never `'live'`: no standing on a record is believed.
+	 * printed items restores no text. `stored` is the record's own `studioText`, or `undefined` when
+	 * it saved none; `warrantForRestoredVerdict` reads the provenance stamp off it.
 	 */
 	private restoreVerdict(
 		value: MeechieStudioTextOutput | null,
-		source: 'stored' | 'derived'
+		stored: MeechieStudioTextOutput | undefined
 	): void {
 		if (value === null) this.clearVerdict();
-		else this.setVerdict(value, source);
+		else this.setVerdict(value, warrantForRestoredVerdict(stored));
 	}
 
 	/** The title-only shape a try-on page always has: the wig's name, a picture, and nothing else. */
@@ -2328,9 +2332,7 @@ export class StudioState {
 		this.dedication = creation.intent.dedication ?? '';
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;
-		// Never `'live'`: no standing on a record is believed. The distinction that remains is whether
-		// the words are the record's own or were rebuilt from the page — see `verdictSource`.
-		this.restoreVerdict(restoredText, creation.studioText === undefined ? 'derived' : 'stored');
+		this.restoreVerdict(restoredText, creation.studioText);
 		// A reopened page is a verdict the reader has not reworked in this session, and its rewrite
 		// buttons light up the moment `textOutput` is set above. Handing it whatever was left of
 		// some earlier page's allowance would let a saved page arrive with none.
@@ -2549,7 +2551,7 @@ export class StudioState {
 			if (draft.value.studioText || !isKnownDraftSeed(draft.value.intent)) {
 				this.restoreVerdict(
 					buildStudioTextFromDraftRecord(draft.value),
-					draft.value.studioText === undefined ? 'derived' : 'stored'
+					draft.value.studioText
 				);
 			}
 		}

@@ -19,7 +19,8 @@ import {
 	buildStudioQualityStateList,
 	buildStudioQualityStateUnion,
 	buildVerdictReport,
-	readVerdictSeverity
+	readVerdictSeverity,
+	warrantForRestoredVerdict
 } from '$lib/core/verdict-report';
 import {
 	MeechieStudioQualityStateSchema,
@@ -89,6 +90,29 @@ describe('the standing table', () => {
 			'"ready" | "needs_more_evidence" | "blocked"'
 		);
 		expect(buildStudioQualityStateUnion(['ready'])).toBe('"ready"');
+	});
+});
+
+describe('warrantForRestoredVerdict', () => {
+	// `modelMetadata` is a provenance *stamp*, not a shape heuristic: `parseProviderText` attaches it
+	// to every accepted studio-provider response in the pipeline, and neither producer that has to
+	// invent a `qualityState` can produce one.
+	it('believes a record carrying the provider stamp', () => {
+		expect(
+			warrantForRestoredVerdict({
+				modelMetadata: { provider: 'xai', model: 'grok' }
+			})
+		).toBe('reported');
+	});
+
+	it('does not believe a record without it, and does not doubt it aloud either', () => {
+		// A toolkit page, or a studio page written before the stamp existed. The words are kept and
+		// written back; only the claim is withheld.
+		expect(warrantForRestoredVerdict({ modelMetadata: undefined })).toBe('stored');
+	});
+
+	it('treats a record that stored no text at all as derived', () => {
+		expect(warrantForRestoredVerdict(undefined)).toBe('derived');
 	});
 });
 

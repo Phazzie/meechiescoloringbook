@@ -17,8 +17,8 @@ Invariants: Nothing here reads `textOutput.qualityState`. A standing is shown on
             carries one, because a required contract field always holds a value and the value alone
             cannot say whether anybody reported it. Two producers have to invent one —
             `buildStudioTextFromSpec` rebuilding a record that stored no text, and
-            `buildToolStudioText`, whose `MeechieToolOutput` has no such field — so only a live
-            studio response carries a standing this card may repeat.
+            `buildToolStudioText`, whose `MeechieToolOutput` has no such field — so the card repeats
+            a standing only when a studio response is known to have written it.
 -->
 <script lang="ts">
 	import type { CreationRecord } from '$lib/seams/creation-store-seam/contract';
