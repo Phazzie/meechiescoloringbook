@@ -9030,3 +9030,47 @@ three earlier no-op mutations that fooled me.
 `npm run lint` clean · `npm run evidence:guard` 8 rules pass · 12 guard tests pass · full chain:
 1457 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41 under the override,
 mandated row under a dated waiver, probe complete.
+
+### Addendum, round 49 — the two artifacts nothing could reach
+
+Codex, reviewing the head that fixed the hardcoded count, found two more places where the guard
+certified evidence it had never actually read. Both were reproduced before being fixed, and both are
+the same defect in different clothes.
+
+**The rewind that ran nothing.** The zero-total fix went into `lastPassedCount`, which every rule
+that reads a suite total goes through — except the rewind rule, which does not use it, because it
+needs the `Tests` line specifically rather than any `<n> passed`. So the rewind rule kept the old
+reading: a digit is a result. Replacing `17 passed` with `0 passed` in the committed rewind, and
+fixing the inventoried byte count, left all eight rules passing — a certified folder whose only
+record of a seam's contract tests says none of them ran. Vitest's `--passWithNoTests` exits 0 when
+discovery finds nothing, so a contract file renamed out of the glob produces exactly that transcript.
+
+> **The sixth sibling.** A fix applied where it was reported and not where the same question is
+> asked. The tally is now: the exit status; the file headers; `notTiedToRun`; `cipher-gate.json`;
+> the audit result marker; and now zero-as-a-result. Each was fixed properly at the site that was
+> named, and each left a sibling standing three lines away.
+
+**The summary nothing could vouch for.** `proof-tape.mjs` writes `proof-tape.json` and
+`proof-tape.md` after it takes its inventory, so neither file appears in it. Every rule in the guard
+that asks "is this artifact current" asks the inventory — so the plain-English summary, which the
+chain is required to produce, was the one mandatory artifact no rule could reach. Deleting it left
+eight rules passing. So did rewriting its byte counts to describe files that are not there.
+
+The fix reads the Markdown against the JSON: same run stamp, same folder, same files, same sizes,
+same freshness marks. It is re-derived here rather than checked by importing `renderProofTapeLines`
+from the chain — importing it would compare the committed file against a function from the same
+branch under review, which agrees with whatever the change made it say, in exactly the case the
+check exists for. This guard runs before `npm install` for that reason; it should not execute
+repository code to decide whether repository evidence is honest.
+
+> **An artifact excluded from the index is not thereby exempt from the check.** The tape cannot list
+> its own outputs — that is a fact about the tape, and the guard had quietly turned it into a
+> permission.
+
+While fixing them: every rejection case in `tests/unit/evidence-guard.test.ts` now asserts the
+sentence the guard must give, not just the exit code. The fixture is one edit away from tripping
+several rules at once, so "status 1" was a test that could pass while the rule under test had
+stopped firing entirely.
+
+`npm run lint` clean · `npm run evidence:guard` 8 rules pass · 15 guard tests pass · both reported
+defeats re-run against the fix and refused, each by exactly one rule, with the sentence naming it.

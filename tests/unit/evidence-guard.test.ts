@@ -76,6 +76,21 @@ const coloured = (before: string, after: string, flags = ''): RegExp =>
 const runGuard = (dir: string) =>
 	spawnSync(process.execPath, ['scripts/evidence-guard.mjs', dir], { encoding: 'utf8' });
 
+/**
+ * A folder the guard must refuse, and the reason it must give.
+ *
+ * Status alone is a weak assertion: this fixture is one edit away from tripping several rules at
+ * once, so a mutation that broke something incidental would look exactly like the rule under test
+ * doing its job. Every case below therefore names the sentence it expects, and a rule that stops
+ * firing is a failure here even while some other rule keeps the exit code at 1.
+ */
+const expectRefused = (dir: string, because: string | RegExp): void => {
+	const result = runGuard(dir);
+	const said = result.stdout + result.stderr;
+	expect(said, 'the guard refused the folder, but not for the reason under test').toMatch(because);
+	expect(result.status).toBe(1);
+};
+
 let pristineRoot: string;
 let workRoot: string;
 let pristine: string;
@@ -103,7 +118,12 @@ const mutate = (dir: string, file: string, pattern: RegExp, replacement: string)
 		before
 	);
 	writeFileSync(path, after);
-	resize(dir);
+	// Never re-derive the file that was just mutated. Both helpers below rewrite a size from what is
+	// on disk, so running them over their own target would quietly restore it — and `mutate` would
+	// have asserted a change that no longer exists by the time the guard reads the folder, which is
+	// invariant 2 of this file defeating itself.
+	if (file !== 'proof-tape.json') resize(dir);
+	if (file !== 'proof-tape.md') resummarise(dir);
 };
 
 /** Keep the proof tape's recorded sizes honest, so the drift rule does not mask the rule under test. */
@@ -125,6 +145,31 @@ const resize = (dir: string): void => {
 	};
 	walk(tape);
 	writeFileSync(path, JSON.stringify(tape, null, 2));
+};
+
+/**
+ * Keep the plain-English summary's byte counts honest for the same reason `resize` does.
+ *
+ * The guard now reads `proof-tape.md` against `proof-tape.json`, and the two are written together by
+ * a real run — so a fixture that edits an artifact and updates only the JSON is a folder no chain
+ * could produce, and every case here would fail on that instead of on the rule it is testing.
+ */
+const resummarise = (dir: string): void => {
+	const path = join(dir, 'proof-tape.md');
+	const summary = readFileSync(path, 'utf8')
+		.split('\n')
+		.map((line) => {
+			const entry = /^- (.+) \(\d{1,12} bytes\)/.exec(line);
+			if (entry === null) return line;
+			try {
+				const size = statSync(join(dir, entry[1])).size;
+				return line.replace(/\(\d{1,12} bytes\)/, `(${size} bytes)`);
+			} catch {
+				return line;
+			}
+		})
+		.join('\n');
+	writeFileSync(path, summary);
 };
 
 beforeAll(() => {
@@ -153,6 +198,7 @@ beforeAll(() => {
 	if (text.includes('Waiver-Expires:')) {
 		writeFileSync(e2e, text.replace(/Waiver-Expires: \d{4}-\d{2}-\d{2}/, 'Waiver-Expires: 2999-12-31'));
 		resize(pristine);
+		resummarise(pristine);
 	}
 });
 
@@ -169,20 +215,19 @@ describe('evidence-guard', () => {
 	});
 
 	it('refuses a folder that does not exist, rather than reporting success for nothing', () => {
-		const result = runGuard(join(workRoot, 'no-such-folder'));
-		expect(result.status).toBe(1);
+		expectRefused(join(workRoot, 'no-such-folder'), 'does not exist');
 	});
 
 	it('rejects a chain transcript with no exit status of its own', () => {
 		const dir = fresh();
 		mutate(dir, 'verify-outer.txt', /verify exit=0/, 'verify finished');
-		expect(runGuard(dir).status).toBe(1);
+		expectRefused(dir, 'verify-outer.txt carries the chain exit status');
 	});
 
 	it('rejects a chain transcript whose own summary reports a failure', () => {
 		const dir = fresh();
 		mutate(dir, 'test.txt', coloured('1 (', ')?skipped'), '1 $1failed');
-		expect(runGuard(dir).status).toBe(1);
+		expectRefused(dir, 'verify-outer.txt and test.txt agree on the suite total');
 	});
 
 	it('accepts a reporter that spells out its zeroes', () => {
@@ -198,13 +243,14 @@ describe('evidence-guard', () => {
 		cpSync(dir, replay, { recursive: true });
 		const result = runGuard(replay);
 		rmSync(replay, { recursive: true, force: true });
+		expect(result.stdout + result.stderr).toMatch("copy of another run's evidence");
 		expect(result.status).toBe(1);
 	});
 
 	it('rejects a chain artifact whose summary disagrees with its own detail', () => {
 		const dir = fresh();
 		mutate(dir, 'chamber-lock.json', /"status": "ok"/, '"status": "no"');
-		expect(runGuard(dir).status).toBe(1);
+		expectRefused(dir, "chamber-lock.json's summary disagrees with its own seams");
 	});
 
 	it('rejects a transcript the proof tape does not inventory', () => {
@@ -220,19 +266,19 @@ describe('evidence-guard', () => {
 			return Object.fromEntries(Object.entries(node).map(([key, value]) => [key, strip(value)]));
 		};
 		writeFileSync(path, JSON.stringify(strip(tape), null, 2));
-		expect(runGuard(dir).status).toBe(1);
+		expectRefused(dir, 'inventory entries for it');
 	});
 
 	it('rejects a mandated row whose waiver has expired', () => {
 		const dir = fresh();
 		mutate(dir, 'e2e.txt', /Waiver-Expires: \d{4}-\d{2}-\d{2}/, 'Waiver-Expires: 2020-01-01');
-		expect(runGuard(dir).status).toBe(1);
+		expectRefused(dir, 'carries a waiver that expired on 2020-01-01');
 	});
 
 	it('rejects a waiver expiry that is not a real calendar date', () => {
 		const dir = fresh();
 		mutate(dir, 'e2e.txt', /Waiver-Expires: \d{4}-\d{2}-\d{2}/, 'Waiver-Expires: 9999-99-99');
-		expect(runGuard(dir).status).toBe(1);
+		expectRefused(dir, 'which is not a real date');
 	});
 
 	it('rejects a run that passed zero tests', () => {
@@ -246,12 +292,38 @@ describe('evidence-guard', () => {
 		const anyTotal = coloured('\\d{1,9} (', ')?passed', 'g');
 		mutate(dir, 'test.txt', anyTotal, '0 $1passed');
 		mutate(dir, 'verify-outer.txt', anyTotal, '0 $1passed');
-		expect(runGuard(dir).status).toBe(1);
+		expectRefused(dir, 'verify-outer.txt and test.txt agree on the suite total');
+	});
+
+	it('rejects a rewind whose contract tests did not run', () => {
+		// `Tests 0 passed` is what `--passWithNoTests` prints when a rename takes a seam's contract
+		// file out of the glob: exit 0, a summary line, and nothing executed. The rule read the digit
+		// as evidence that a number was there rather than asking what the number said.
+		// Named groups because the replacement puts a digit straight after a reference, and `$10`
+		// reads as group 10.
+		const dir = fresh();
+		const rewindTests = new RegExp(`(?<pre>Tests(?:\\s|${ESC}\\[[0-9;]*m)*)\\d{1,9}(?<post> passed)`);
+		mutate(dir, 'rewind-CreationStoreSeam-self-contained.txt', rewindTests, '$<pre>0$<post>');
+		expectRefused(dir, 'report "Tests 0 passed"');
+	});
+
+	it('rejects a folder with no plain-English proof summary', () => {
+		// The tape writes both of its outputs after taking its inventory, so neither is in it — which
+		// made `proof-tape.md` the one mandatory artifact no rule could reach.
+		const dir = fresh();
+		rmSync(join(dir, 'proof-tape.md'));
+		expectRefused(dir, 'left no artifact: proof-tape.md');
+	});
+
+	it('rejects a proof summary that misstates what the report says', () => {
+		const dir = fresh();
+		mutate(dir, 'proof-tape.md', /\((\d{1,12}) bytes\)/, '(1 bytes)');
+		expectRefused(dir, 'proof-tape.md disagrees with proof-tape.json');
 	});
 
 	it('rejects a Cipher Gate artifact that did not come back ok', () => {
 		const dir = fresh();
 		mutate(dir, 'cipher-gate.json', /"status": "ok"/, '"status": "blocked"');
-		expect(runGuard(dir).status).toBe(1);
+		expectRefused(dir, 'the Cipher Gate did not pass');
 	});
 });

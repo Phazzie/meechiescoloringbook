@@ -45,7 +45,10 @@ and append it; do not type it in from what the output appeared to say.
 
 ## The guard
 `npm run evidence:guard [dir]` reads a committed folder and refuses it when a transcript does not
-carry its own result. It defaults to today's folder — deliberately not "whichever is newest", so a
+carry its own result, when a run reports no tests at all (`0 passed` is a number, not a result), or
+when `proof-tape.md` is missing or says something `proof-tape.json` does not — the tape writes both
+of its own outputs after taking its inventory, so the Markdown summary is the one required artifact
+the inventory structurally cannot vouch for. It defaults to today's folder — deliberately not "whichever is newest", so a
 run that wrote nothing fails instead of validating its predecessor's work. CI runs it over exactly
 the dated folders a change touches, before `npm run verify`, so what is judged is what the author
 committed rather than what the chain has just rewritten.

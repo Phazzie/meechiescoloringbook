@@ -363,6 +363,83 @@ const replayedFrom = (dir, tape) => {
 	return null;
 };
 
+/** The two files the tape writes after taking its inventory, and therefore cannot list. */
+const TAPE_OWN_OUTPUTS = ['proof-tape.json', 'proof-tape.md'];
+
+// `- <name> (<n> bytes)[ — <freshness>]`, the one line shape `scripts/proof-tape.mjs` renders per
+// inventoried file. The name is greedy and the size is anchored to the end, so a filename that
+// itself contains a parenthesis — this folder ships one — still parses.
+const MD_ENTRY = /^- (.+) \((\d{1,12}) bytes\)(.*)$/;
+const PREDATES_MARKER = ' — PREDATES THIS VERIFY RUN';
+const UNKNOWN_MARKER = ' — FRESHNESS UNKNOWN';
+const freshnessMarker = (predatesRun) => {
+	if (predatesRun === true) return PREDATES_MARKER;
+	if (predatesRun === null) return UNKNOWN_MARKER;
+	return '';
+};
+
+/**
+ * Whether `proof-tape.md` still says what `proof-tape.json` says, as a sentence, or `null`.
+ *
+ * The tape writes both of its own outputs after taking its inventory, so neither appears in it —
+ * which left the plain-English summary as the one mandatory artifact no rule could reach. Deleting
+ * it, truncating it, or rewriting its byte counts left every rule passing, because the only thing
+ * that would have noticed was an inventory that structurally cannot contain it. The chain is
+ * required to produce that summary; the guard was certifying folders without one, and folders whose
+ * summary described a different run than the report beside it.
+ *
+ * Re-derived from the JSON rather than by re-running the renderer. Importing
+ * `scripts/proof-tape.mjs` would compare the committed file against a function from the same branch
+ * under review — a check that agrees with whatever the change made it say, in exactly the case it
+ * exists for. This guard executes no repository code by design: CI runs it before `npm install`, and
+ * with `node` rather than `npm run`, for that same reason.
+ */
+/** The summary's per-file rows, keyed by name. */
+const summaryRows = (md) => {
+	const rows = new Map();
+	for (const line of md.split('\n')) {
+		const entry = MD_ENTRY.exec(line);
+		if (entry !== null) rows.set(entry[1], { sizeBytes: Number(entry[2]), marker: entry[3] });
+	}
+	return rows;
+};
+
+/** Every point on which the summary's rows and the report's inventory differ, as sentences. */
+const summaryDisagreements = (inventory, rows) => {
+	const said = [];
+	for (const { name, sizeBytes, predatesRun } of inventory) {
+		const row = rows.get(name);
+		if (row === undefined) {
+			said.push(`${name} is inventoried but the summary does not mention it`);
+		} else if (row.sizeBytes !== sizeBytes) {
+			said.push(`${name} is inventoried at ${sizeBytes} bytes and summarised as ${row.sizeBytes}`);
+		} else if (row.marker !== freshnessMarker(predatesRun)) {
+			const claim = row.marker.trim() || 'part of this run';
+			said.push(`${name} is summarised as "${claim}" and the report says otherwise`);
+		}
+	}
+	const inventoried = new Set(inventory.map((entry) => entry.name));
+	for (const name of rows.keys())
+		if (!inventoried.has(name))
+			said.push(`${name} is summarised but the report inventories no such file`);
+	return said;
+};
+
+const proofSummaryProblem = (dir, inventory, tape) => {
+	const md = read(dir, 'proof-tape.md');
+	if (md === null)
+		return 'proof-tape.md is missing; the chain writes a plain-English summary beside the JSON, and it is the half of the tape a reader who is not reading JSON will read.';
+	const carries = (label, value) =>
+		typeof value === 'string' && md.includes(`\n${label}: ${value}\n`);
+	if (!carries('Generated at', tape.generatedAt))
+		return `proof-tape.md does not carry "Generated at: ${tape.generatedAt}"; the summary and the report it summarises describe different runs.`;
+	if (!carries('Evidence folder', tape.evidenceDir))
+		return `proof-tape.md does not carry "Evidence folder: ${tape.evidenceDir}"; the summary and the report it summarises describe different folders.`;
+	const disagreements = summaryDisagreements(inventory, summaryRows(md));
+	if (disagreements.length === 0) return null;
+	return `proof-tape.md disagrees with proof-tape.json: ${disagreements.join('; ')}; a summary is a new claim, not a smaller copy of its source, and this one is making a claim the report does not support.`;
+};
+
 /**
  * Every rule, as data. Each returns `null` when it holds, or a sentence naming what is wrong —
  * phrased so the failure says what it means rather than which assertion tripped.
@@ -514,7 +591,14 @@ const RULES = [
 				'proof-tape.json'
 			];
 			const inventory = tapeInventory(dir);
-			const absent = CHAIN_ARTIFACTS.filter((name) => read(dir, name) === null);
+			// `proof-tape.md` is required here and is NOT a member of the list above, because every
+			// check below asks the inventory about each name and the tape cannot inventory its own
+			// outputs. That exemption was the hole: the mandatory-artifact list stopped at
+			// `proof-tape.json`, so the plain-English summary the chain must write was the one
+			// artifact no rule read — deleting it left all eight rules passing.
+			const absent = [...CHAIN_ARTIFACTS, 'proof-tape.md'].filter(
+				(name) => read(dir, name) === null
+			);
 			if (absent.length > 0)
 				return `these chain stages left no artifact: ${absent.join(', ')}; the chain did not run all of them.`;
 			// The tape has to be describing THIS folder. It already records `evidenceDir` and
@@ -523,8 +607,27 @@ const RULES = [
 			// genuinely agreeing with the others, all of them from a run that has nothing to do with
 			// this change. Copying `2026-09-05` to `2099-01-01` passed all six. The identity was
 			// already in the file; the guard simply never asked for it.
-			const misfiled = replayedFrom(dir, JSON.parse(read(dir, 'proof-tape.json') ?? '{}'));
+			const tapeReport = JSON.parse(read(dir, 'proof-tape.json') ?? '{}');
+			const misfiled = replayedFrom(dir, tapeReport);
 			if (misfiled !== null) return misfiled;
+
+			// The tape SAYS which files it left out, and nothing read that either. The exemption below
+			// is granted to two names on the grounds that the tape cannot list them; a tape that
+			// quietly started excluding a third would have been given the same grounds by a guard that
+			// never asked what it excluded. (An excluded chain artifact is still caught by the entry
+			// count below — this catches the claim itself, one step earlier.)
+			const excluded = Array.isArray(tapeReport.excludedFromInventory)
+				? [...tapeReport.excludedFromInventory].sort()
+				: null;
+			if (excluded === null || excluded.join(',') !== [...TAPE_OWN_OUTPUTS].sort().join(',')) {
+				const names = excluded === null ? 'files it does not name' : excluded.join(', ');
+				return `proof-tape.json excludes ${names} from its inventory; the only files it cannot list are its own two outputs, and an inventory that omits anything else is not an inventory of this folder.`;
+			}
+
+			// The plain-English half of the tape, checked against the machine-readable half. Neither
+			// appears in the inventory, so nothing downstream of here can reach it.
+			const summarised = proofSummaryProblem(dir, inventory, tapeReport);
+			if (summarised !== null) return summarised;
 
 			// Present is not current. A run that stops invoking an intermediate stage leaves the previous
 			// artifact in place, and the tape then flags it as predating this run while everything else
@@ -710,12 +813,27 @@ const RULES = [
 			// The `Tests` summary specifically. `lastPassedCount` also matches "Test Files 1 passed", so
 			// a transcript truncated after that line — before any contract test result — counted as a
 			// pass. A file count is not a test count.
-			const TESTS_SUMMARY = /^\s{0,8}Tests\s+\d{1,9} passed/m;
+			// The COUNT, not just a digit. This pattern read `Tests 0 passed` as a summary and the rule
+			// stopped there, so a seam run that executed nothing was certified: `lastPassedCount` had
+			// already been taught that zero is not a result, and this rule — which does not use it,
+			// because it needs the `Tests` line specifically rather than any `<n> passed` — kept the old
+			// reading. That is this run's sibling defect for the sixth time: a fix applied where it was
+			// reported and not where the same question is asked. Vitest's `--passWithNoTests` exits 0
+			// when discovery finds nothing, so a contract file renamed out of the glob would otherwise
+			// ship a green rewind proving that no contract test ran.
+			const TESTS_SUMMARY = /^\s{0,8}Tests\s+(\d{1,9}) passed/m;
 			const untied = rewinds.map((f) => notTiedToRun(dir, f)).find((entry) => entry !== null);
 			if (untied !== undefined) return `${untied}.`;
-			const empty = rewinds.filter((f) => !TESTS_SUMMARY.test(stripAnsi(read(dir, f) ?? '')));
+			const counted = rewinds.map((f) => ({
+				file: f,
+				passed: TESTS_SUMMARY.exec(stripAnsi(read(dir, f) ?? ''))?.[1]
+			}));
+			const empty = counted.filter((entry) => entry.passed === undefined).map((e) => e.file);
 			if (empty.length > 0)
 				return `these rewind transcripts carry no "Tests <n> passed" summary: ${empty.join(', ')}.`;
+			const ranNothing = counted.filter((entry) => Number(entry.passed) === 0).map((e) => e.file);
+			if (ranNothing.length > 0)
+				return `these rewind transcripts report "Tests 0 passed": ${ranNothing.join(', ')}; a seam whose contract tests did not run is not a verified seam, and a runner that passes with no tests exits 0 while proving nothing.`;
 			// A seam run that reports "1 failed | 16 passed" has a passing count and is not a pass.
 			// Same shape as the end-to-end rule above, and it was missing here for the same reason:
 			// the rule asked whether a number was present rather than what the numbers said.
