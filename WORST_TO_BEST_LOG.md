@@ -9170,3 +9170,35 @@ dependencies' install hooks and can leave a toolchain half-built: installed that
 `npm run check`, `npm run build` and the full suite — 0 errors, build ok, 26 guard tests pass.
 `prepare` is `svelte-kit sync`, which `npm run check` runs again as the chain's first stage, so
 nothing downstream needed it.
+
+### Addendum, round 51 — who is checking whom
+
+Two findings on the gate check added last round, and both are about the same thing: a check is only
+as trustworthy as its distance from what it checks.
+
+**Substrings are not commands.** `chain-intact.mjs` asked whether the `verify` script *contained*
+each stage's invocation. Rewriting all eight as `echo node scripts/chamber-lock.mjs` satisfies every
+one of those checks, keeps the `&&` chain, exits 0 — and prints the names of the stages it no longer
+runs. Reproduced, then fixed by comparing the normalised command sequence against the exact chain,
+in order.
+
+> **A substring is evidence that some text is present, never that a command runs.** Fourth time this
+> run has confused the shape of a thing with the thing: a date-shaped waiver, a `Tests` line with a
+> zero in it, a summary column that adds up, and now a stage name inside an `echo`.
+
+**The checker was in the branch it polices.** A change that edits `package.json` *and*
+`scripts/chain-intact.mjs` together gets marked correct by a checker it just rewrote. The workflow
+now runs the copy from the pull request's base commit — bytes that have not been through this pull
+request — and falls back to the branch's copy only when the base has none, saying so loudly.
+
+That fallback is live right now, because this pull request is where the file is introduced. So this
+round's protection does not protect this round. It starts working on the next change, which is the
+honest shape of "a check that arrives in the same commit as the thing it checks".
+
+One hole stays open and cannot be closed from inside the repository: the workflow file is in the
+branch too, so a change can edit the step that runs any of this. What closes it is a required status
+check configured on the repository — the owner's setting, not something a branch can grant itself.
+It is written in the workflow and in the script header rather than left for someone to discover.
+
+`npm run lint` clean · `sonarjs` recommended clean · 28 tests across the two guard suites · both
+findings reproduced against the fix and refused.

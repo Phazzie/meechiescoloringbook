@@ -21,14 +21,24 @@
 //
 // Runs before `npm install` in CI, like the evidence guard and for the same reason: `npm install`
 // executes this repository's `prepare` script, which is code from the branch under review.
+//
+// WHO IS CHECKING WHOM. This file is itself in the branch it polices, so a change that edits both it
+// and `package.json` could make it approve its own hollowing-out. The workflow therefore runs the
+// copy from the pull request's BASE commit when there is one, not the copy in the branch. That
+// leaves one hole nothing in this repository can close: the workflow file is in the branch too, so a
+// change may edit the step that runs this. Closing that needs a required status check configured on
+// the repository, which is the owner's to set and not a branch's to grant itself. Said plainly here
+// because a check that is vague about its own limits gets trusted for what it never did.
 
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
 
-// Each stage of the chain, by the text that invokes it. Matched as substrings of the `verify`
-// script, so `node scripts/clan-chain.mjs` counts and a comment mentioning it would not — nothing
-// in a package script is a comment.
-const REQUIRED_STAGES = [
+// The chain, as the exact sequence of commands `verify` must run. Compared as a normalised command
+// list rather than by substring: `includes('node scripts/chamber-lock.mjs')` is satisfied by
+// `echo node scripts/chamber-lock.mjs`, which was reproduced against this file — all eight stages
+// turned into echoes, every check passing, and `npm run verify` printing the names of the stages it
+// no longer runs. A substring is evidence that some text is present, never that a command runs.
+const REQUIRED_CHAIN = [
 	'npm run audit:gate',
 	'node scripts/chamber-lock.mjs',
 	'node scripts/verify-runner.mjs',
@@ -40,19 +50,23 @@ const REQUIRED_STAGES = [
 ];
 
 // `verify-runner.mjs` runs `npm run check` and `npm run test`, so those two scripts are part of the
-// gate as surely as the stages above. A `test` script that no longer runs the suite would take every
-// unit test — including the ones that exercise the evidence guard — out of CI silently.
+// gate as surely as the stages above, and a `test` script that no longer runs the suite would take
+// every unit test — including the ones that exercise the evidence guard — out of CI silently. Exact
+// values for the same reason as the chain: a script that merely mentions its tool does not run it.
 const REQUIRED_SCRIPTS = [
-	{ name: 'test', invokes: 'vitest' },
-	{ name: 'check', invokes: 'svelte-check' },
-	{ name: 'lint', invokes: 'eslint' },
-	{ name: 'build', invokes: 'vite build' },
-	{ name: 'audit:gate', invokes: 'npm audit' }
+	{ name: 'test', command: 'vitest run' },
+	{ name: 'check', command: 'svelte-kit sync && svelte-check --tsconfig ./tsconfig.json' },
+	{ name: 'lint', command: 'eslint .' },
+	{ name: 'build', command: 'vite build' },
+	{ name: 'audit:gate', command: 'npm audit --audit-level=high' }
 ];
 
-// A stage that cannot fail the chain is not a stage. `;` between stages, or a trailing `|| true`,
-// leaves every required substring present while the exit status stops depending on them.
-const SWALLOWS_FAILURE = [' || true', ' || :', ' || exit 0'];
+/** A script's commands, split on `&&` and whitespace-normalised, so formatting is not a difference. */
+const commandsOf = (script) =>
+	script
+		.split('&&')
+		.map((command) => command.trim().replace(/\s+/g, ' '))
+		.filter((command) => command !== '');
 
 const problems = [];
 let manifest;
@@ -69,18 +83,16 @@ const verify = typeof scripts.verify === 'string' ? scripts.verify : null;
 if (verify === null) {
 	problems.push('package.json defines no "verify" script, so CI has no gate to run.');
 } else {
-	const missing = REQUIRED_STAGES.filter((stage) => !verify.includes(stage));
-	if (missing.length > 0)
+	const ran = commandsOf(verify);
+	const wrong = ran.length !== REQUIRED_CHAIN.length || ran.some((command, at) => command !== REQUIRED_CHAIN[at]);
+	if (wrong)
 		problems.push(
-			`the "verify" script no longer invokes: ${missing.join(', ')}. CI runs this script as its ` +
-				'only verification, so a stage removed here is a stage that stops running.'
+			`the "verify" script is not the chain. It runs:\n      ${ran.join('\n      ')}\n    and it must run, in this order:\n      ${REQUIRED_CHAIN.join('\n      ')}`
 		);
-	const swallowed = SWALLOWS_FAILURE.filter((form) => verify.includes(form));
-	if (swallowed.length > 0)
-		problems.push(
-			`the "verify" script contains ${swallowed.join(', ')}, which keeps the chain green when a ` +
-				'stage fails; a stage that cannot fail the chain is not a stage.'
-		);
+	// Belt and braces on the separator: `commandsOf` splits on `&&`, so a `;` between two stages
+	// would leave one "command" containing both and the comparison above would already fail. This
+	// says which of the two it is, because "not the chain" and "the chain, unable to fail" are
+	// different repairs.
 	if (verify.includes(';'))
 		problems.push(
 			'the "verify" script separates commands with ";", so a failing stage does not stop the ' +
@@ -88,16 +100,16 @@ if (verify === null) {
 		);
 }
 
-for (const { name, invokes } of REQUIRED_SCRIPTS) {
+for (const { name, command } of REQUIRED_SCRIPTS) {
 	const script = scripts[name];
 	if (typeof script !== 'string') {
 		problems.push(`package.json defines no "${name}" script, which the chain and the routine rely on.`);
 		continue;
 	}
-	if (!script.includes(invokes))
+	if (commandsOf(script).join(' && ') !== commandsOf(command).join(' && '))
 		problems.push(
-			`the "${name}" script no longer invokes ${invokes}: it is "${script}". A script that is ` +
-				'called by the gate but no longer does its job leaves a green check over nothing.'
+			`the "${name}" script is "${script}" and must be "${command}". A script that is called by ` +
+				'the gate but no longer does its job leaves a green check over nothing.'
 		);
 }
 
@@ -111,4 +123,7 @@ if (problems.length > 0) {
 	process.exit(1);
 }
 
-console.log(`chain-intact: the verify gate still invokes all ${REQUIRED_STAGES.length} stages.`);
+console.log(
+	`chain-intact: the verify gate runs exactly the ${REQUIRED_CHAIN.length} stages of the chain, ` +
+		`and the ${REQUIRED_SCRIPTS.length} scripts it depends on are unchanged.`
+);

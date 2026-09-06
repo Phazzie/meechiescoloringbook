@@ -50,7 +50,7 @@ afterAll(() => {
 describe('chain-intact', () => {
 	it('accepts the gate this repository commits', () => {
 		const result = run(manifestWith(() => {}));
-		expect(result.stdout + result.stderr).toContain('still invokes all');
+		expect(result.stdout + result.stderr).toContain('runs exactly the');
 		expect(result.status).toBe(0);
 	});
 
@@ -58,21 +58,44 @@ describe('chain-intact', () => {
 		const dir = manifestWith((scripts) => {
 			scripts.verify = 'true';
 		});
-		expect(refusalOf(dir)).toMatch('no longer invokes');
+		expect(refusalOf(dir)).toMatch('is not the chain');
+	});
+
+	it('refuses stages turned into echoes of themselves', () => {
+		// Every stage name is still present, and a substring check passes on all eight while
+		// `npm run verify` prints the names of the stages it no longer runs. A substring is evidence
+		// that some text is there, never that a command runs.
+		const dir = manifestWith((scripts) => {
+			scripts.verify = scripts.verify
+				.split(' && ')
+				.map((command: string) => `echo ${command}`)
+				.join(' && ');
+		});
+		expect(refusalOf(dir)).toMatch('echo npm run audit:gate');
+	});
+
+	it('refuses stages reordered', () => {
+		// The proof tape inventories what the stages before it wrote; running it first inventories
+		// the previous run's work. Order is part of what the chain is.
+		const dir = manifestWith((scripts) => {
+			const stages = scripts.verify.split(' && ');
+			scripts.verify = [stages[stages.length - 1], ...stages.slice(0, -1)].join(' && ');
+		});
+		expect(refusalOf(dir)).toMatch('is not the chain');
 	});
 
 	it('refuses a chain with one stage dropped', () => {
 		const dir = manifestWith((scripts) => {
 			scripts.verify = scripts.verify.replace(' && node scripts/proof-tape.mjs', '');
 		});
-		expect(refusalOf(dir)).toMatch('node scripts/proof-tape.mjs');
+		expect(refusalOf(dir)).toMatch('is not the chain');
 	});
 
-	it('refuses a chain whose stages cannot fail it', () => {
+	it('refuses a chain whose last stage cannot fail it', () => {
 		const dir = manifestWith((scripts) => {
 			scripts.verify = `${scripts.verify} || true`;
 		});
-		expect(refusalOf(dir)).toMatch('cannot fail the chain is not a stage');
+		expect(refusalOf(dir)).toMatch('is not the chain');
 	});
 
 	it('refuses stages separated by semicolons', () => {
@@ -88,7 +111,7 @@ describe('chain-intact', () => {
 		const dir = manifestWith((scripts) => {
 			scripts.test = 'echo skipped';
 		});
-		expect(refusalOf(dir)).toMatch('no longer invokes vitest');
+		expect(refusalOf(dir)).toMatch('must be "vitest run"');
 	});
 
 	it('refuses a manifest with no verify script at all', () => {

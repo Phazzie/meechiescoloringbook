@@ -222,7 +222,31 @@ jobs:
       # this workflow green having verified nothing, and takes the tests that guard the evidence out
       # of CI in the same edit. This reads the committed definition before running it.
       - name: Check the verification gate is intact
-        run: node scripts/chain-intact.mjs
+        # Run the checker from the pull request's BASE commit, not from this branch. The step above
+        # is scoped to evidence; this one reads `package.json` — and a change that edits BOTH the
+        # manifest AND `scripts/chain-intact.mjs` would otherwise be marked correct by a checker it
+        # had just rewritten. The base copy has not been through this pull request.
+        #
+        # One hole remains, and it is not closeable from inside the repository: this workflow file is
+        # in the branch too, so a change can edit the step you are reading. What closes that is a
+        # required status check configured on the repository — the owner's setting, not something a
+        # branch can grant itself. Recorded rather than papered over.
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          checker=scripts/chain-intact.mjs
+          trusted="$(mktemp)"
+          if [ -n "${BASE_SHA:-}" ] && git cat-file -e "$BASE_SHA:$checker" 2>/dev/null; then
+            git show "$BASE_SHA:$checker" > "$trusted"
+            echo "Checking against $checker as of the base commit $BASE_SHA, not this branch's copy."
+          else
+            cp "$checker" "$trusted"
+            echo "NOTE: the base commit has no $checker (it is being introduced here, or this is a"
+            echo "push event with no base). Running this branch's own copy, which cannot catch a"
+            echo "change that edits the checker and the manifest together."
+          fi
+          node "$trusted"
       # `npm ci`, not `npm install`. `install` may rewrite `package-lock.json` inside the ephemeral
       # checkout, so CI would verify a dependency graph that differs from the committed one and
       # silently repair the very inconsistency a reviewer needs to see. `ci` fails on that instead,
