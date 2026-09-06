@@ -313,6 +313,18 @@ const selfAgreementProblem = (raw, file, list) => {
 	// fixture module or an adapter a seam does not have, and demanding `ok` from every check would
 	// reject the evidence this repository actually produces. Measured before it was written, because
 	// four earlier rules in this file rejected correct evidence by assuming what a value meant.
+	// An `ok` check names the artifact it found, and the name was never resolved. Renaming a contract
+	// to `contract.zz` in the artifact — same width, inventory intact — left the seam ok and every
+	// rule passing while the file it cites does not exist. Same shape as the Cipher Gate citations,
+	// one artifact along: a recorded finding is a claim about a past scan, and the tree is what CI
+	// has. `na` checks are excluded because their `path` is prose ("N/A (fixture module: …)"), which
+	// is the honest way to record "there is nothing here to find".
+	const missingArtifacts = entries
+		.flatMap((entry) => (Array.isArray(entry?.checks) ? entry.checks : []))
+		.filter((check) => check?.status === 'ok' && (typeof check.path !== 'string' || !existsSync(check.path)))
+		.map((check) => `${check?.kind} at "${check?.path}"`);
+	if (missingArtifacts.length > 0)
+		return `${file} reports these checks ok while the files they name are not in this tree: ${[...new Set(missingArtifacts)].join(', ')}; a check records what a scan found, and the tree is what is being reviewed.`;
 	const ROLLED_UP = new Set(['ok', 'na']);
 	const contradicted = entries
 		.filter((entry) => entry?.status === 'ok')
@@ -803,20 +815,37 @@ const proofSummaryProblem = (dir, inventory, tape) => {
  */
 const misdatedStages = (dir, artifacts) => {
 	const here = basename(dir);
-	if (!/^\d{4}-\d{2}-\d{2}$/.test(here)) return null;
-	const stampedElsewhere = artifacts.filter((name) => {
+	const stampOf = (name) => {
 		const raw = name.endsWith('.json') ? read(dir, name) : null;
-		if (raw === null) return false;
-		let at;
+		if (raw === null) return undefined;
 		try {
-			at = JSON.parse(raw).generatedAt;
+			return JSON.parse(raw).generatedAt;
 		} catch {
-			return false; // an unreadable artifact is its own rule's finding
+			return undefined; // an unreadable artifact is its own rule's finding
 		}
-		return typeof at !== 'string' || at.slice(0, 10) !== here;
+	};
+	if (/^\d{4}-\d{2}-\d{2}$/.test(here)) {
+		const stampedElsewhere = artifacts.filter((name) => {
+			const at = stampOf(name);
+			return at !== undefined && (typeof at !== 'string' || at.slice(0, 10) !== here);
+		});
+		if (stampedElsewhere.length > 0)
+			return `these chain artifacts are stamped on a different day from the folder they are filed under (${here}): ${stampedElsewhere.join(', ')}; a stage that ran on another day did not run for this evidence.`;
+	}
+	// Inside the run, not merely on its day. Comparing the date alone accepts a ledger stamped
+	// 00:00:00 — before this run's chamber lock, by hours — so a stale artifact from an earlier run
+	// on the same day was certified as part of this chain. The lock opens the run and the tape closes
+	// it, so every stage between them must be stamped between them.
+	const opened = Date.parse(stampOf('chamber-lock.json') ?? '');
+	const closed = Date.parse(stampOf('proof-tape.json') ?? '');
+	if (Number.isNaN(opened) || Number.isNaN(closed)) return null; // rule 3 reports a missing stamp
+	const outside = artifacts.filter((name) => {
+		const at = Date.parse(stampOf(name) ?? '');
+		return !Number.isNaN(at) && (at < opened || at > closed);
 	});
-	if (stampedElsewhere.length === 0) return null;
-	return `these chain artifacts are stamped on a different day from the folder they are filed under (${here}): ${stampedElsewhere.join(', ')}; a stage that ran on another day did not run for this evidence.`;
+	if (outside.length > 0)
+		return `these chain artifacts are stamped outside this run's window (${new Date(opened).toISOString()} to ${new Date(closed).toISOString()}): ${outside.join(', ')}; the lock opens the run and the tape closes it, so a stage stamped outside them belongs to a different one.`;
+	return null;
 };
 
 /**
@@ -1324,17 +1353,35 @@ const RULES = [
 			// cannot append its own exit status — it is the command — so demanding one from every file
 			// would reject a folder for containing the chain's own output. Writing this rule the strict
 			// way first is how that came out: it failed on committed evidence that is correct.
-			const statuses = rewinds.map((file) => ({
-				file,
-				problem: exitStatusProblem(read(dir, file) ?? '', 'rewind')
-			}));
+			const statuses = rewinds.map((file) => {
+				const text = stripAnsi(read(dir, file) ?? '');
+				return {
+					file,
+					problem: exitStatusProblem(text, 'rewind'),
+					// The reporter's own clock, which is what makes two transcripts one run. The tool's
+					// copy and the capture's copy of the same invocation both say `Start at 03:27:51`;
+					// a transcript from a different run says something else.
+					startedAt: /^\s{0,8}Start at\s+(\S+)/m.exec(text)?.[1] ?? null
+				};
+			});
 			const red = statuses.find(
 				(entry) => entry.problem !== null && !entry.problem.startsWith('carries no')
 			);
 			if (red !== undefined)
 				return `${red.file} ${red.problem}; a seam-scoped run's counts describe it, and only its status reports it.`;
-			if (rewinds.length > 0 && statuses.every((entry) => entry.problem !== null))
+			const reported = statuses.filter((entry) => entry.problem === null);
+			if (rewinds.length > 0 && reported.length === 0)
 				return `no rewind transcript carries a "rewind exit=<code>" line: ${rewinds.join(', ')}; the counts describe these runs and nothing reports them.`;
+			// A status-less transcript is only excused by being the SAME run as one that has a status.
+			// "At least one carries it" let a second seam's run — or a later, failed one — ride along on
+			// a status it had nothing to do with: changing one transcript's `Start at` by an hour left
+			// every rule passing while the two files demonstrably described different runs.
+			const vouched = new Set(reported.map((entry) => entry.startedAt));
+			const borrowed = statuses
+				.filter((entry) => entry.problem !== null && !vouched.has(entry.startedAt))
+				.map((entry) => `${entry.file} (started ${entry.startedAt ?? 'at no stated time'})`);
+			if (borrowed.length > 0)
+				return `these rewind transcripts carry no status of their own and match no run that does: ${borrowed.join(', ')}; a run without a result cannot borrow one from a different run.`;
 			return null;
 		}
 	},

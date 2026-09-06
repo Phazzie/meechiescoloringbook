@@ -9361,3 +9361,41 @@ extracts the whole `scripts/` directory from the base commit.
 
 `sonarjs` recommended clean (two complexity findings in the new code, split before the push) ·
 45 tests across the two suites · all six findings re-run against the fix.
+
+### Addendum, round 55 — the variable that was never set
+
+Four findings. The first is the worst thing on this branch so far, because it is a check that
+reported itself working while doing nothing.
+
+**The trusted-guard mechanism never engaged.** The step read `${BASE_SHA:-}`, and `BASE_SHA` is
+defined in the *gate-check* step's environment, not this one. So `from_base` was always `no`, the
+base commit's guard was never fetched, and every run took the fallback path — printing a note that
+reads like an explanation while the entire protection added last round was absent.
+
+It passed my testing because my harness exported `BASE_SHA` by hand. I extracted the step from the
+YAML, which was the right instinct, and then supplied an environment the real workflow does not.
+
+> **The thing I tested was not the thing that ships, and the difference was one variable I provided
+> myself.** This is the failure the whole workflow exists to prevent, committed in the step that
+> exists to prevent it, one round after "run the step rather than reading it" was the lesson.
+
+The step now uses `$base`, which it already resolves for its own diff, and the run above was redone
+with **no variables set by me** — `env -u BASE_SHA`, only the `${{ }}` expressions substituted as
+Actions substitutes them. It now prints `Also checking with scripts/evidence-guard.mjs as of the base
+commit c2bbba47…`, which the previous version never did. The fallback notice is a `::warning`
+annotation now: a degraded run should be visible on the checks page, not buried in a log where it
+survived a review.
+
+Three more in the artifacts, each reproduced first:
+
+| Defeat | What it turned on |
+|---|---|
+| An `ok` check citing `contract.zz` | a recorded finding is a claim about a past scan; the tree is what CI has. All 192 ok checks cite paths that exist — measured before the rule was written |
+| `seam-ledger.json` stamped `00:00:00`, same day | the date comparison passes it; the lock opens the run and the tape closes it, so a stage between them must be stamped between them |
+| A status-less rewind with `Start at` moved by an hour | "at least one carries a status" let a different run borrow a result. The two transcripts of one run share their start time; that is what makes them one run |
+
+And `mutate` caught its fourth ANSI-blind pattern: `Start at` and the time have colour codes between
+them, so the plain pattern matched nothing and the case would have passed against an unmodified file.
+
+`sonarjs` clean · 48 tests · every finding re-run against the fix · the workflow step run in its
+shipped shape.

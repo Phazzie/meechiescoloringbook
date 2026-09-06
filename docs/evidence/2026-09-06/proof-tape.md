@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-06T05:18:19.096Z
+Generated at: 2026-09-06T05:34:20.325Z
 Evidence folder: docs/evidence/2026-09-06
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -28,11 +28,11 @@ after this inventory is taken, so they are not listed):
 - seam-ledger.json (37460 bytes)
 - seam-ledger.md (2981 bytes)
 - shaolin-lint.json (519 bytes)
-- test.txt (3132 bytes)
+- test.txt (3131 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify-outer.txt (4438 bytes) — PREDATES THIS VERIFY RUN
+- verify-outer.txt (4439 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify.txt (3457 bytes)
+- verify.txt (3456 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 
 Older than this run's chamber-lock.json: build.txt, cipher-gate.json, e2e.txt, lint.txt, probe-browser-seams.txt, rewind-CreationStoreSeam(self-contained).txt, rewind-CreationStoreSeam-self-contained.txt, verify-outer.txt.

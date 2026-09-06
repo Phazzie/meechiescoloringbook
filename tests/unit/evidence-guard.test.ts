@@ -465,6 +465,36 @@ describe('evidence-guard', () => {
 		expect(refusalOf(dir)).toMatch('in no inventory entry');
 	});
 
+	it('rejects an ok check that names a file which is not here', () => {
+		// A check records what a scan found; the tree is what is being reviewed. All 192 ok checks in
+		// this fixture cite paths that exist, which is what makes requiring it safe — measured before
+		// the rule was written, since `na` checks carry prose instead of a path.
+		const dir = fresh();
+		mutate(dir, 'chamber-lock.json', /app-config-seam\/contract\.ts/, 'app-config-seam/contract.zz');
+		expect(refusalOf(dir)).toMatch('while the files they name are not in this tree');
+	});
+
+	it('rejects a stage stamped outside the run it claims to be part of', () => {
+		// Same day, hours before the chamber lock: the date comparison accepts it, and it is a stale
+		// artifact from an earlier run on the same date. The lock opens the run and the tape closes it.
+		const dir = fresh();
+		mutate(dir, 'seam-ledger.json', /"generatedAt": "2026-09-06T\d\d:/, '"generatedAt": "2026-09-06T00:');
+		expect(refusalOf(dir)).toMatch("stamped outside this run's window");
+	});
+
+	it('rejects a status-less rewind that belongs to a different run', () => {
+		// `scripts/rewind.mjs` writes its own transcript and cannot append an exit status, so a
+		// status-less transcript is excused by being the SAME run as one that has a status — both say
+		// `Start at 03:27:51`. Changing that by an hour makes it a different run borrowing a result.
+		const dir = fresh();
+		// Through `coloured`, because the reporter puts its colour codes between "Start at" and the
+		// time — a plain pattern matches nothing here, and `mutate` said so rather than letting the
+		// case pass against an unmodified file. Fourth time on this branch.
+		const startedAt = new RegExp(`(?<pre>Start at\\s{0,8}${ESC}\\[[0-9;]*m\\s{0,8})03:`);
+		mutate(dir, 'rewind-CreationStoreSeam(self-contained).txt', startedAt, '$<pre>04:');
+		expect(refusalOf(dir)).toMatch('match no run that does');
+	});
+
 	it('rejects a Cipher Gate artifact that did not come back ok', () => {
 		const dir = fresh();
 		mutate(dir, 'cipher-gate.json', /"status": "ok"/, '"status": "blocked"');

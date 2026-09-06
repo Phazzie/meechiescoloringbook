@@ -219,13 +219,22 @@ jobs:
           trustedroot="$(mktemp -d)"
           trusted="$trustedroot/$guard"
           from_base=no
-          if [ -n "${BASE_SHA:-}" ] && git cat-file -e "$BASE_SHA:$guard" 2>/dev/null; then
-            git archive "$BASE_SHA" scripts | tar -x -C "$trustedroot"
+          # `$base`, the base this step already resolved above — NOT `$BASE_SHA`, which is defined in
+          # the environment of the gate-check step below and is empty here. Written as `${BASE_SHA:-}`
+          # it degraded silently: `from_base` stayed `no`, the trusted copy was never used, and the
+          # step reported the fallback notice while looking exactly like a working mechanism. It
+          # passed my own testing because the harness exported BASE_SHA by hand — the thing tested was
+          # not the thing that ships, which is the failure this whole workflow exists to prevent.
+          if [ -n "$base" ] && git cat-file -e "$base:$guard" 2>/dev/null; then
+            git archive "$base" scripts | tar -x -C "$trustedroot"
             from_base=yes
-            echo "Also checking with $guard as of the base commit $BASE_SHA."
+            echo "Also checking with $guard as of the base commit $base."
           else
-            echo "NOTE: the base commit has no $guard (it is being introduced here, or this is a push"
-            echo "event with no base), so only this branch's copy runs."
+            # A warning annotation, not a log line. The whole mechanism degraded silently once
+            # already — an empty variable sent every run down this path while the step still looked
+            # like it was working — and a fallback that only whispers is how that survived a review
+            # and a hand-run test. On the checks page this is visible without opening the log.
+            echo "::warning title=Evidence guard not cross-checked::The base commit has no $guard (it is being introduced here, or this is a push event with no base), so only this branch's own copy ran."
           fi
           for dir in $dirs; do
             echo "--- $dir"
@@ -235,14 +244,14 @@ jobs:
             # branch is what is under review. Unchanged guard: that is an error. Changed guard: the
             # diff goes in the log with a warning annotation, and a reviewer decides.
             if [ "$from_base" = yes ] && ! node "$trusted" "$dir"; then
-              if git diff --quiet "$BASE_SHA" HEAD -- "$guard"; then
+              if git diff --quiet "$base" HEAD -- "$guard"; then
                 echo "The base commit's evidence guard refuses $dir and this branch does not change" >&2
                 echo "the guard, so this is the committed evidence failing, not a rule being changed." >&2
                 exit 1
               fi
               echo "::warning title=Evidence guard changed::The base commit's guard refuses $dir and this pull request changes the guard. CI cannot tell a corrected rule from a weakened one; a human reviewer decides."
               echo "--- how the guard changes in this pull request ---"
-              git --no-pager diff "$BASE_SHA" HEAD -- "$guard"
+              git --no-pager diff "$base" HEAD -- "$guard"
             fi
             # `node`, not `npm run`. This step runs before `npm install` on purpose (see the step
             # comment), and `npm run evidence:guard` would reintroduce the same hole from the other
