@@ -10793,9 +10793,17 @@ The app has eight modes. The home page's mode strip is the only place most of th
 showed three, and it linked three, and which three was decided by reading the host clock.
 
 That is not a description of a rotation with a small flaw. On any given day **five of this app's
-eight features had no link anywhere in the application** — not in the site nav, not on the home
-page, not from `/meechie`. The only way to reach them was to type `/m/<slug>` at a URL bar with no
-way of knowing the slug existed.
+eight features had no link on any page a reader arrives at on purpose** — not in the site nav, not
+on the home page, not from `/meechie`. The only links to them in the whole application were on
+`/offline` and the 404 page, which a reader reaches only when something has already gone wrong.
+Short of that, the way in was to type `/m/<slug>` at a URL bar with no way of knowing the slug
+existed.
+
+*(Corrected after merge. The first version of this sentence said "no link anywhere in the
+application", which the same entry disproves four paragraphs down where it points out that
+`/offline` and `+error.svelte` both list all eight. A CodeRabbit review caught the contradiction on
+PR #315; it arrived while the merge was in flight and is fixed here rather than quietly. An entry
+that overstates its own finding is exactly the failure this log is supposed to be immune to.)*
 
 The measurement, run against `main` at `901464c` on the day of this run:
 
@@ -10977,3 +10985,231 @@ Candidates, unranked, weaker than this one by this log's own measure:
 
 Do not inherit this entry's measurements. Re-measure — `getWeeklyModes` is now a function of an
 instant you supply, so the simulations above are three lines to reproduce.
+
+## Run 12 — merge close-out — PR #315 merged as `fa32bc7`
+
+**Head merged:** `13062a3` · **Base:** `main` at `901464c` · 3 commits, 23 files, +1035 / −111
+
+### Gate state at merge
+
+| Check | Conclusion |
+|---|---|
+| `verify` (both workflow runs) | success |
+| `SonarCloud` / `SonarCloud Code Analysis` | success — Quality Gate passed |
+| `CodeQL`, `Analyze (actions)`, `Analyze (javascript-typescript)` | success |
+| `Vercel` deployment status, `Vercel Preview Comments` | success |
+| `CodeRabbit` status | success |
+| `Sourcery review` | skipped (budget) |
+| **`Rosentic - Conflict Detection`** | **failure — dispositioned, see below** |
+
+`mergeable_state` was `unstable`, not `blocked` — which is GitHub's way of saying the red check is
+not a required one. Merged with squash.
+
+### The one red check, and why it was not a reason to wait
+
+Rosentic compares the branch against every other open branch. Two of its six findings name this
+diff: `getMonthlyMode` and `getWeeklyModes` now require `epochMs`, and two branches still call them
+with none. **So it was red because of this change.** That is stated plainly because the tempting
+write-up — "flaky", "not ours" — is false and would be dangerous to inherit: `Rosentic` was
+**green** on #311, so it is not a blanket-red check, and a future run that learns "Rosentic is
+noise" from this entry will wave through a real cross-branch break.
+
+What made it non-blocking was specific:
+
+1. **Its proposed fix would have undone the pull request.** Rosentic suggests "give `epochMs` a
+   default value". The only available default is `Date.now()` — an unseamed host-clock read inside
+   core logic, which is the exact defect the change removes and the thing that froze the strip into
+   the prerendered HTML at build time.
+2. **The affected branches cannot merge into today's `main` regardless.** `claude/sweet-mendel-LJ9Iu`
+   (PR #151, 2026-06-08) and `claude/trusting-volta-bb8mvr` (PR #208, 2026-07-01) are each
+   **297 commits behind** — `git rev-list --count origin/<branch>..origin/main`.
+3. **Four of the six findings are those branches conflicting with `main`, not with this diff.** They
+   are those branches' own parameter removals from `currentStyleSelection`,
+   `derivesDenseDecorations`, `specOwnQuote` and `studioActionStartsRound`, colliding with call
+   sites this branch inherits unchanged. Established, not asserted:
+   `git diff origin/main...HEAD -- src/routes/studio-state.svelte.ts src/lib/core/meechie-studio.ts |
+   grep -E "(derivesDenseDecorations|specOwnQuote|studioActionStartsRound|matchesDraftSeedText|currentStyleSelection)"`
+   returns nothing.
+4. **No re-run was spent.** The check is deterministic over branch contents; it is not a flake and
+   re-running it would produce the same six findings. Saying "flake" here would have been a lie.
+5. Precedent: **#313 merged as `b1a6cfc` with this same check red.**
+6. **Confirmed afterwards, which is the part worth trusting.** The close-out pull request that
+   carries this entry changes no signature — it is prose — and `Rosentic - Conflict Detection`
+   came back **`success`** on it, on a branch cut from the `main` that now contains the merged
+   change. So the red on #315 tracked the signature change exactly: present while the change was
+   unmerged and two stale branches still called the old form, gone once `main` carried it. That is
+   the prediction this disposition implied, and it held. Had #316 come back red as well, the
+   disposition would have been wrong and this entry would say so.
+
+The real remedy is #151 and #208 rebasing. That is their authors' call; pushing to someone else's
+branch is out.
+
+### The worst mistake this run made: it merged past a review it had not read
+
+**CodeRabbit posted a full review with four actionable comments at 18:57:56Z. PR #315 was merged at
+19:01:24Z — three and a half minutes later. The review was sitting in an undelivered notification
+queue the whole time.**
+
+*(Both timestamps corrected. The first version of this paragraph said 18:57:59 and 19:01:26, which
+were the instants the **notification queue** stamped the events — not GitHub's. The authoritative
+values are `submitted_at` on `GET /pulls/315/reviews` and `merged_at` on `GET /pulls/315`, and a
+CodeRabbit review on the close-out pull request caught the discrepancy. Two or three seconds change
+nothing about the argument, which is the point: the numbers were wrong in a way that could not
+matter, in a paragraph whose entire subject is being accurate, and they were wrong because they came
+from the nearest source rather than the authoritative one. That is the same mistake as the one the
+paragraph describes, one level down. **Timestamps in this log come from the GitHub API.**)*
+
+What happened, precisely: asking `@coderabbitai review` produced *two* separate outputs. The first
+was a targeted reply to the two questions the request named, and it said *"No actionable findings."*
+That reply was read, and it was treated as the review. The second was the bot's ordinary full-diff
+review, which landed a minute later with four comments, and it had not been delivered when the merge
+gate was evaluated. Every check was green, every *seen* comment was addressed, and the merge went
+ahead on a picture that was two minutes stale.
+
+The lesson is not "wait longer", which is unfalsifiable. It is: **a reviewer's answer to the question
+you asked is not the same artifact as its review of your diff, and a run must not treat the first as
+the second.** Before merging, re-read the pull request's review threads at that moment rather than
+relying on what arrived in the queue earlier.
+
+All four findings were addressed in the close-out pull request, which is where this entry lives:
+
+| Finding | Verdict | Action |
+|---|---|---|
+| "no link anywhere in the app" overclaims — the same entry says `/offline` and the 404 page listed all eight | **Correct, and the most serious of the four.** The entry contradicted itself four paragraphs apart | Fixed in `CHANGELOG.md`, `CLAUDE.md` and above, marked as a correction |
+| `plan.md` omits `npm run test:e2e` from its commands and definition of done, while the diff edits `smoke.spec.ts` | **Correct.** Every other plan in the file lists it; this one's stated bar was weaker than the work done | Fixed, marked as a correction |
+| `LESSONS_LEARNED.md`: six duplicate `## 2026-09-06` headings (MD024) and no blank line below them (MD022) | Declined | That is the file's convention — ~200 entries use bare `## YYYY-MM-DD` with fields immediately below, and duplicate dates already recur throughout. markdownlint is not in CI. Six entries in a different shape would be the inconsistent ones |
+| `WORST_TO_BEST_LOG.md`: three new fences lack a language identifier (MD040) | Declined | Same reason, measured: `grep -o '^```[a-z]*'` over this file gives **66 bare fences to 8 tagged** |
+
+The first two are the kind of defect this log exists to catch — a claim wider than its own evidence,
+and a completion gate narrower than the work. Both were in prose *this run wrote about accuracy*.
+
+**And then the review of this entry found two more of exactly the same kind.** Reviewing the
+close-out pull request, CodeRabbit reported:
+
+| Finding | Verdict | Action |
+|---|---|---|
+| The micro plan's file table said `WORST_TO_BEST_LOG.md` gets "one appended section; no existing line edited" — but the corrections above edit the existing Run 12 entry | **Correct.** The plan described a narrower change than its own diff | Fixed in `plan.md`, marked as a correction |
+| The two timestamps in this section did not match GitHub's API — `18:57:59`/`19:01:26` against `18:57:56Z`/`19:01:24Z` | **Correct.** They were the notification queue's stamps, not GitHub's | Fixed above and independently re-verified against `submitted_at` and `merged_at` before accepting |
+
+Neither changes an argument. Both are the same failure at a smaller scale: **a plan that no longer
+matched its diff, and a precise-looking number taken from the nearest source instead of the
+authoritative one.**
+
+**A fourth round then found that the fix for the first finding had itself overclaimed** — in the
+opposite direction. The corrected `CHANGELOG.md` line said the only place in the app that listed the
+five modes was "the page you land on when you lose your connection". `+error.svelte` lists them too.
+So the sentence written *to stop overstating* where the modes were missing went on to understate
+where they were present, in the same clause, while citing the very evidence it was getting wrong.
+That one is the most useful entry in this table, because it is not a lapse of care — the correction
+was written deliberately, checked, and still narrowed a two-item list to one. Alongside it, the same
+round found `npm run verify` missing from the plan's literal definition of done while sitting in its
+commands list one line above: the identical defect as the `test:e2e` finding, uncaught when that one
+was fixed, in a repository whose governance makes verify mandatory.
+
+**Four review rounds, six real findings, every single one a documentation claim that outran or
+undershot its evidence. None was in the code.** That is the honest shape of this run: the
+implementation held up to an eleven-thousand-boundary independent check and to 1,618 unit tests and
+49 end-to-end tests without a single correction, and the prose about it needed six.
+
+The pattern worth carrying forward is not "be careful with prose". It is that **this run's
+corrections were as error-prone as the text they corrected, and at the same rate.** A correction is
+a new claim. It gets checked like one, or it becomes the next finding.
+
+Method note for the next run, earned the hard way: **verify a reviewer's factual claim against the
+primary source before accepting it, and against the primary source before writing it.** The
+timestamps here were re-read from `GET /pulls/315/reviews` and `GET /pulls/315` rather than taken on
+the reviewer's word — which happened to confirm it, but is the step that would have caught the error
+in the first place.
+
+### What the reviews cost and bought
+
+**Every automated reviewer was rate-limited at once**, which is worth recording because it changes
+what a run should do:
+
+- **Codex** — over its usage limit for code reviews. No findings.
+- **Sourcery** — over its 250,000-character 7-day diff budget. Posted a Reviewer's Guide, no findings.
+- **CodeRabbit** — automatic review is off for repositories under 10 stars.
+
+Left alone, this pull request would have merged **with no code review at all**. Asking CodeRabbit
+explicitly (`@coderabbitai review`) cost one comment and was the single highest-value action of the
+review phase — it produced both the targeted reply *and* the four-comment review above. On the two
+questions it was asked, it ran an independent Python check over **11,323 UTC day boundaries from
+2000 through 2030**, confirming every computed `changesAtMs` was a future UTC midnight, and
+confirmed the hydration gate has exactly one expression. On the diff as a whole it found four
+documentation defects, two of them real. **A future run that finds all three bots quiet should ask,
+not assume the diff is clean — and should then wait for the full review, not just the reply.**
+
+### The two defects this run caught on itself, after opening the pull request
+
+Both were found by doing the thing the self-critique in `plan.md` admitted was missing, rather than
+by a reviewer:
+
+1. **The strip laid out as 6 + 2 with a hole four cards wide.** `repeat(auto-fill, minmax(190px,
+   1fr))` fits six columns in the 1195px content box. Found by *screenshotting the page at 1280,
+   900 and 420px* instead of reasoning about the rules. Fixed to `repeat(4, minmax(0, 1fr))` — eight
+   divides by four and by two and by nothing else useful. The animation stagger went 90ms → 45ms in
+   the same commit: it is a per-card delay, so eight cards made the last one arrive 630ms after the
+   first.
+2. **The hydration gate was expressed twice** — once in `StudioState.spotlightNote` and once in
+   `+page.svelte` as `studio.isBrowser ? studio.spotlight : null`. Two independent copies of one
+   rule, free to drift. Consolidated into the single `$derived` before the first push. This is the
+   thing CodeRabbit was explicitly asked to check and found already correct.
+
+### The SonarCloud method, reused from Run 8 and confirmed working
+
+`sonarcloud.io` is blocked by this container's egress policy (`curl` → `CONNECT tunnel failed,
+response 403`; `WebFetch` → `EGRESS_BLOCKED`), and the check-run output carries only the summary
+counts. Run 8's recorded technique reproduced the count exactly on the first try:
+
+```
+npm install --no-save eslint-plugin-sonarjs      # 4.2.0
+# a throwaway flat config using ONLY sonarjs.configs.recommended.rules
+```
+
+Enabling every rule the plugin ships is what made two earlier attempts fail; `recommended` is what
+Sonar runs. Result — two errors on the touched files, of which **one was mine**:
+
+| Finding | Provenance | Disposition |
+|---|---|---|
+| `mode-spotlight.test.ts:53` `prefer-specific-assertions` | this PR | fixed — `toHaveLength(8)` |
+| `studio-state.svelte.ts:1384` `no-nested-conditional` | `73a8f05`, on `main` | left alone — the same line Run 8 dispositioned, shifted down by this diff |
+| `smoke.spec.ts:112, 668` | `3c110d9`, on `main` | not this PR's |
+| `smoke.spec.ts:260` `super-linear-regex` | `2d3c383`, on `main` | not this PR's |
+
+Provenance for each: `git log -L <line>,<line>:<file>` then
+`git merge-base --is-ancestor <commit> origin/main`. The plugin was installed with `--no-save` and
+the config deleted; `package.json` and `package-lock.json` are unchanged in the merged diff.
+
+**Run 8's lesson held, and is now confirmed twice: reproduce the checker's *configuration*, not just
+the checker.**
+
+### Environment limits this run hit, for the next one
+
+- **`sonarcloud.io` is egress-blocked.** Use the local `sonarjs` `recommended` reproduction above.
+- **The Vercel preview domain is egress-blocked too**, so the deployed page cannot be fetched and
+  checked from here. Build locally and grep `.svelte-kit/output/prerendered/` — it is the same
+  output the deploy serves, and it is what proved both the before and after states of this run.
+- **Playwright cannot launch unmodified.** The container ships Chromium build 1194;
+  `@playwright/test@1.58.2` looks for 1208, and `npx playwright install` is not permitted here. Run
+  the suite once with `launchOptions.executablePath:
+  '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'`, then **revert `playwright.config.ts`** — it
+  must not appear in the diff. 49 tests passed that way.
+- **Watch the exit code you are actually reading.** `npm run test:e2e 2>&1 | tail -40` reports
+  `tail`'s exit code, not Playwright's. This run read a `0` from a piped run and briefly believed
+  the e2e suite had passed when every test had failed to launch a browser. Capture to a file and
+  check `$?` directly.
+
+### Deferred, and still the strongest candidate
+
+**The reader's chosen mode is not persisted.** `handleModeSelect` ends in `scheduleDraftSave()`, but
+`DraftRecordSchema` has no mode field. Pick a mode, type evidence, refresh: the evidence returns
+under a different question, wired to a different `toolId`. Blocked only by `AGENTS.md`'s rule that a
+pull request carrying a schema or contract change must not be auto-merged — a scheduled run has no
+human to wait for. **A run that can hold a pull request open should take this first.**
+
+Also still open, both carried forward: `ChatInterpretationSeam` (a complete provider-backed billable
+seam with a live endpoint and zero consumers — `grep -rn "chatInterpretationAdapter" src/routes
+src/lib/components` returns nothing), and `MeechieToolOutput.quoteScore` / `modelMetadata` from Run
+11's list.
+
+Do not inherit this entry's measurements. Re-measure.

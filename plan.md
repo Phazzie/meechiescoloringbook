@@ -8,7 +8,51 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
-## Run 12 (2026-09-06) — the mode strip: all eight modes, and a spotlight that knows what day it is
+## Run 12 close-out (2026-09-06) — micro plan, PR for the merge record
+
+Required by `AGENTS.md` L108: a governance-only documentation change still needs a plan listing the
+seams, files, commands, and how behaviour stays unchanged. Run 11's close-out recorded that PR #312
+opened without one and a review caught it; writing this first is the point of that finding existing.
+
+**Goal:** record the Run 12 merge close-out in the append-only log — the gate state at merge, the
+evidence behind the one red check, what the review rounds cost and bought, and the candidates a
+future run should weigh.
+
+**Seams:** none. No seam is named, read or changed.
+
+| File | Action | What changes |
+|---|---|---|
+| `WORST_TO_BEST_LOG.md` | [MODIFY] | the appended close-out section, **and a correction to the existing Run 12 entry** — its "no link anywhere in the application" claim, which the same entry disproves |
+| `plan.md` | [MODIFY] | this micro plan, Run 12's own plan retired below it, and a correction to that plan's definition of done |
+| `CHANGELOG.md`, `CLAUDE.md` | [MODIFY] | the same "no link anywhere" correction, in the two other places it was written |
+
+*(This table originally said "one appended section; no existing line edited", and by the time the
+scope had grown to include the review corrections that was false — the plan described a narrower
+change than the diff made. A CodeRabbit review caught it. Corrected here rather than left, because a
+plan that does not match its own diff is worth less than no plan: it certifies a scope nobody
+checked.)*
+
+**Anti-goals:** no file under `src/`, `tests/`, `contracts/`, `probes/`, `fixtures/`,
+`src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/`, `static/` or `docs/evidence/`. No evidence
+regeneration: the chain already ran on the head that merged and its outputs describe that code —
+re-running it here would replace evidence for the change with evidence for a Markdown append.
+
+**How behaviour stays unchanged:** the diff is prose. No import, export, route, contract, schema,
+prompt string or build input is touched, so nothing the application does can differ.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run verify`.
+
+**Self-critique.** The risk is not to the codebase — it is that a wrong close-out is copied forward
+by a future unattended run that treats this log as its record of prior results. The specific hazard
+here is the Rosentic disposition: it would be easy, and wrong, to write it up as "a flaky check" or
+"not this PR's". It was neither. It was a real consequence of this PR's signature change, whose only
+proposed remedy would have undone the PR, against two branches that cannot merge into today's `main`
+anyway. If a future run inherits "Rosentic is noise" from a sloppy sentence here, it will wave
+through a genuine cross-branch break. The entry therefore states plainly that the check was red
+*because of this diff*, and that #311 was green on the same check — so nobody can read it as a
+blanket dismissal.
+
+## Run 12 (2026-09-06) — the mode strip: all eight modes, and a spotlight that knows what day it is — **merged as `fa32bc7`; retired**
 
 **Process note, recorded before anything else.** `AGENTS.md` requires the plan before the code
 changes. The investigation and the design decisions below were made before any file was edited, but
@@ -50,12 +94,22 @@ which `AGENTS.md` says must not be auto-merged. It is reported in `LESSONS_LEARN
 run that can wait for a human. Do not alter the site nav, `/m/[mode]`, `mode-catalog.ts`,
 `modeCatalog()`, the `/offline` or 404 mode lists, or any `data-testid` other than the ones added.
 
-**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`.
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run test:e2e`, `npm run build`,
+`npm run verify`.
 
-**Definition of done (literal):** `npm run check && npm run lint && npm test && npm run build`
-exits 0, and `.svelte-kit/output/prerendered/pages/index.html` contains eight
+**Definition of done (literal):** `npm run check && npm run lint && npm test && npm run test:e2e &&
+npm run build && npm run verify` exits 0, and `.svelte-kit/output/prerendered/pages/index.html` contains eight
 `data-testid="home-mode-…"` attributes, eight `href="/m/…"` links, zero `mode-featured-badge`
 occurrences and zero `home-mode-schedule` occurrences.
+
+*(`npm run test:e2e` and `npm run verify` both added after merge. This plan changed `tests/e2e/smoke.spec.ts` and the suite was
+run — 49 passing — but the gate as written did not name it, so the plan's stated completion bar was
+weaker than the work actually done, and weaker than every other plan in this file, which all list it.
+A CodeRabbit review on PR #315 caught the missing `test:e2e`; a second round on PR #316 caught that
+`npm run verify` was in the commands list and not in the chain, which is the same defect a second
+time — `AGENTS.md` makes verify mandatory for this repo, so a gate a run could satisfy without it was
+the weakest possible reading of "done". Corrected rather than left, because a definition of done that
+omits what the diff touches is how a future run learns to skip it.)*
 
 **Self-critique.**
 
