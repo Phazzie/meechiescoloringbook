@@ -8564,3 +8564,67 @@ that is history and stays readable.
 Round 11 ended by declaring the rule for when to stop. Round 12 then found two real defects, one of
 them in that very entry's reasoning. The rule is unchanged and I still hold to it — but stating it
 before the round that disproved its premise is worth leaving on the record next to it, unedited.
+
+---
+
+## Run 9 — merge close-out
+
+**Merged as `f94059f` (PR #309, squash), 2026-09-06.** Base `85a7b34` → head `7f7cba1`, 16 commits,
+39 files, +7017 / −115.
+
+### Final state at merge
+
+`check` 0/0 · `lint` exit=0 · **1475 passed**, 1 skipped · `build` exit=0 · e2e **42 passed** ·
+`verify` exit=0 · rewind 5 passed · proof tape flags nothing.
+
+CI on the merged head: `verify` ×2, CodeQL, Analyze (actions), Analyze (javascript-typescript),
+SonarCloud and SonarCloud Code Analysis all green; Vercel deployed Ready. SonarCloud quality gate
+passed with 0 new issues, 0 hotspots, and duplication on new code down from **4.5% to 2.3%** —
+the component extraction, measured rather than asserted.
+
+**Rosentic red at merge, dispositioned by measurement**, not by opinion: all nine functions it named
+have zero changed lines in `origin/main..HEAD`; its six "breaking" call sites are byte-identical to
+`main` with only line numbers moved; its suggested fix would break `main`. Its last two findings
+argue against themselves in their own words — *"changed the accepted arguments … from  to ."* and
+*"this call sends no arguments to a function that requires no."* One standing-down comment, and the
+single permitted re-run deliberately left unspent, because a re-run cannot disprove a static claim.
+Two of its threads are left **unresolved** on the merged PR: I did not act on them, and resolving
+feedback you did not act on is tidying, not closing.
+
+### Twelve review rounds
+
+Rounds 1–9 found genuine defects. Round 10 was one documentation class, swept exhaustively rather
+than fixed four times. Round 11 found a regression introduced by round 7's own fix. Round 12 found
+the same defect class in round 11's *reasoning*, and a second in this run's own `DECISIONS.md` entry.
+
+**Every one of the ~40 findings was a claim wider than its evidence.** Not one was a crash. Not one
+was a failing test. Two mechanisms recurred often enough to name:
+
+1. **Inferring a fact from a shape when only the caller knows it.** Fixed four separate times, and
+   the fix was the same sentence every time: stop deducing, pass it in.
+2. **Checking the case I had in mind rather than its neighbour.** Pictureless-with-findings, but not
+   pictureless-with-findings-*and-then-the-user-types*.
+
+### What I got wrong, kept in one place
+
+- Claimed a reviewer fix I had never made, in a reply and in this log. Corrected both.
+- Read a Codex summary flipped to "Completed" as no-findings; five comments landed seconds later. I
+  nearly merged on that reading. Every later round used a grace period before trusting that signal.
+- Wrote "Vercel has succeeded on this head" as though green permanently. It went red on the next
+  push. Corrected — and it went green again on the two heads after that, which is what a
+  red-green-red-green sequence across four near-identical heads was always going to show.
+- Shipped `tryOnPageOnScreen` as a plain field where a `$derived` read it. Compiler and tests were
+  both happy. Found by re-reading my own diff.
+- Told the user "all 34 threads answered" while only 3 of 38 were *resolved*. Answered and resolved
+  are different states; the sentence was true of the first and read as the second. All 33 threads I
+  addressed are resolved as of merge.
+- Rewrote the PR description at merge time. The version opened at `b2831a6` still described the
+  reserved violation code, the `check-failed` weight, and a diff touching no contract — all three
+  overturned in review, all three about to become the permanent merge record.
+
+### The stopping rule, as it actually played out
+
+I stated it after round 11: work anything substantive, merge when a round comes back with nothing
+substantive left. Round 12 then produced two real findings, one of them in the entry that stated the
+rule. The rule held anyway — round 13 came back clean on `7f7cba1`, and that is what merged. Stating
+it one round early is left on the record next to what followed, unedited.
