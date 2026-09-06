@@ -8946,3 +8946,53 @@ Re-run through the colour codes, the failure fires. Six directions verified in b
 `npm run evidence:guard` 8 rules pass · full chain: check 0/0, 1445 passed / 1 skipped, build ok,
 verify exit 0, rewind 17, Playwright 41 under the override, mandated row under a dated waiver, probe
 complete.
+
+### Addendum — round forty-eight: the guard finally gets tests, and the tests repeat the defect twice
+
+Codex reviewed `ddae95ff`. Three findings, all accepted, all introduced by the previous commit.
+
+**The CI hack I added to exercise the guard carried a time bomb.** Round forty-seven pointed the
+guard at "the newest dated folder" when its own implementation changed. That folder's mandated-row
+waiver expires on 2026-10-06, and the guard compares waivers to today — so from that date, a
+maintenance-only change to the guard would have failed CI for the expiry of evidence it never
+touched. A fix whose correctness depends on the date is the same defect as a hardcoded count, and I
+had already written that lesson twice in this log.
+
+It is replaced by `tests/unit/evidence-guard.test.ts`: twelve cases, run by `npm test` inside the
+chain on every change, in both polarities. That also answers round forty-seven's other point — that
+nothing tested this script at all — and it lets the test neutralise the clock in its own copy, which
+a CI step cannot. **The CI block is gone rather than fixed**, which is the better outcome of the two.
+
+**Zero passing tests was a passing run.** `--passWithNoTests` and `--pass-with-no-tests` both exit 0
+when discovery finds nothing, so a change that switched test discovery off shipped `0 passed` under
+an exit status of zero and was certified. And **a pull request targeting a non-default branch** had
+its evidence compared against the default tip rather than its own base, so a folder matching the
+default branch but genuinely changed against the real target was silently dropped.
+
+**Then the test I wrote to fix all this failed twice, both times for reasons worth keeping.**
+
+First, its baseline was rejected: the fixture lived in `evidence-guard-work-XXXX/`, and the guard
+requires the proof tape's `evidenceDir` to name the folder it sits in. That is the replay rule
+working, on the person writing tests for it.
+
+Second — and this is the one — the test read `docs/evidence/` off the working tree. `npm test` runs
+INSIDE `npm run verify`, which rewrites that folder as it goes, so the fixture was copied mid-rewrite
+with the tape not yet regenerated, and the guard correctly refused an inconsistent folder. **The test
+was reading something while it was being written.**
+
+> **That is this pull request's own defect, committed inside the test written to defend against it.**
+> Not an analogy — the same mechanism: something consulted a thing that was still changing and drew a
+> conclusion from the state it happened to catch. Forty-eight rounds of writing about this did not
+> stop me doing it; noticing that `npm test` runs inside the chain did.
+
+The fixture now comes from `git archive HEAD`, which is not a workaround for the race but what it
+should always have been: the guard's first invariant is that it judges COMMITTED bytes, so its test
+reads committed bytes, and no concurrent chain can move them.
+
+Lint also caught a literal escape character in the test's regexes — `no-control-regex`, the same rule
+that caught `evidence-guard.mjs` on its first run, now catching the test written for it.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean · `npm run check` 0/0 ·
+`npm run cipher:gate` exit 0 · `npm run evidence:guard` 8 rules pass · **12 guard tests pass inside
+the chain** · full chain: 1457 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41
+under the override, mandated row under a dated waiver, probe complete.

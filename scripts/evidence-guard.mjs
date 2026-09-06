@@ -134,7 +134,13 @@ const lastPassedCount = (text) => {
 	// reports a ten-digit total.
 	const matches = summaryLines(text).join('\n').match(/(\d{1,9}) passed/g);
 	if (!matches || matches.length === 0) return null;
-	return Number(matches[matches.length - 1].split(' ')[0]);
+	const total = Number(matches[matches.length - 1].split(' ')[0]);
+	// Zero passing tests is not a result. Vitest's `--passWithNoTests` and Playwright's
+	// `--pass-with-no-tests` both exit 0 when discovery finds nothing, so a change that switched test
+	// discovery off would have shipped `0 passed` with an exit status of zero beneath it and been
+	// certified. Callers reject `null`, so reporting a total of none as "no total" is what makes them
+	// reject it — the number is real, and it is not evidence that anything ran.
+	return total > 0 ? total : null;
 };
 
 const read = (dir, name) => {

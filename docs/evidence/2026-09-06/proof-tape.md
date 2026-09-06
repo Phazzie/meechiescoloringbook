@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-06T02:16:55.313Z
+Generated at: 2026-09-06T02:46:52.452Z
 Evidence folder: docs/evidence/2026-09-06
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -18,7 +18,7 @@ after this inventory is taken, so they are not listed):
 - cipher-gate.json (2549 bytes) — PREDATES THIS VERIFY RUN
 - clan-chain.json (3181 bytes)
 - clan-chain.md (1956 bytes)
-- e2e.txt (8713 bytes) — PREDATES THIS VERIFY RUN
+- e2e.txt (8714 bytes) — PREDATES THIS VERIFY RUN
 - lint.txt (462 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - probe-browser-seams.txt (506 bytes) — PREDATES THIS VERIFY RUN
@@ -27,7 +27,7 @@ after this inventory is taken, so they are not listed):
   Commands: meechies-coloringbook@0.1.0 rewind | node scripts/rewind.mjs --seam CreationStoreSeam (self-contained)
 - seam-ledger.json (37460 bytes)
 - seam-ledger.md (2981 bytes)
-- shaolin-lint.json (519 bytes)
+- shaolin-lint.json (516 bytes)
 - test.txt (3131 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-outer.txt (4438 bytes) — PREDATES THIS VERIFY RUN
