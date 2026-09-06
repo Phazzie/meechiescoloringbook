@@ -7620,3 +7620,82 @@ fail-open, was wrong for as long as it had existed. The schema validated it the 
 a schema can prove a value is well-formed and can never prove anyone is looking at it.
 
 > An output nothing renders is not a feature that is finished. It is an assertion nobody has checked.
+
+---
+
+## Run 9, first close-out — 2026-09-06 — the SonarCloud round on `b2831a6`
+
+Three findings, all in the new file, all real, all fixed. Worth recording because of *how* they were
+read, not what they said.
+
+### The findings
+
+| Line | Finding | Fix |
+|---|---|---|
+| 18, 19 | `'../../../contracts/drift-detection.contract' imported multiple times` | one import |
+| 210 | `Prefer .at(…) over [….length - index]` | `parts.at(-1)` |
+
+The duplicate import was two `import type` statements from the same module — one for `Violation`,
+one for `RecommendedFixSchema` — plus a third import of `zod` solely to write
+`z.infer<typeof RecommendedFixSchema>`. Replaced by `DriftDetectionOutput['recommendedFixes'][number]`,
+which is one import, no `zod`, and names the type from the shape the pipeline actually returns
+rather than re-inferring it from the schema.
+
+`parts.at(-1)` returns `string | undefined`. Taken as `?? ''` rather than `!`: every caller reaches
+`formatList` from a `flagged` report, which guarantees a non-empty array, but a non-null assertion
+is a claim the compiler cannot check and an empty tail would at least be *visible*. Same posture as
+the rest of this run — do not assert what you have not shown.
+
+### The part worth keeping
+
+Run 8 closed with **one unidentified SonarCloud issue**, open since mid-run, recorded as unreadable
+because `sonarcloud.io` is blocked by the egress proxy and the local `eslint-plugin-sonarjs`
+reproduction found nothing.
+
+It was readable the whole time. Run 1's sixth close-out had already written down the recipe —
+SonarCloud posts its findings as **annotations on its GitHub check run**, and `api.github.com` is
+reachable:
+
+```sh
+curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" \
+  "https://api.github.com/repos/Phazzie/meechiescoloringbook/check-runs/<id>/annotations"
+```
+
+The check run to ask is **"SonarCloud Code Analysis"**, not the one named "SonarCloud" — the latter
+carries no annotations. All three findings came back in one call with path, line, level and rule.
+
+So the note Run 1 wrote — *"'a service is blocked' is a fact about one route, not about the
+information"* — was correct, was in this file, and was not applied by the run that needed it. That
+is a different failure from the ones this log usually records. Not a claim that outlived its
+evidence: **a lesson that was written down correctly and then not read.** The log is only worth its
+length if a run searches it for the problem in front of it rather than only appending to it.
+
+`npm run lint` passes both before and after these fixes, which is the other thing to note: the
+repo's eslint config does not carry these two `sonarjs` rules, so local lint cannot stand in for the
+annotations. Read them.
+
+### Verified on the fixed head
+
+Re-ran the whole chain rather than the changed test alone, in the order that leaves the evidence
+folder internally consistent (chain first, then `lint`/`build`/`e2e`/`rewind`, then `proof:tape` to
+re-inventory — because `proof-tape.mjs` compares against `chamber-lock.json`, written at the chain's
+*start*).
+
+`check` 0/0 · `lint` exit=0 · 1458 passed, 1 skipped · `build` exit=0 · e2e 42 passed · `verify`
+exit=0 · rewind 5 passed · proof tape flags nothing.
+
+### Rosentic, and why there is no second comment
+
+Red again on the same head, as expected. Already dispositioned in one comment on the PR, and the
+disposition was reached by measurement this time rather than by citing Run 8:
+
+- All nine functions Rosentic names have **zero** added-or-removed lines in `origin/main..HEAD`.
+- The six "breaking" call sites are byte-identical to `main`'s; only the line numbers moved
+  (1084→1114, 1311→1342, 1540→1571, 2073→2108, 2083→2118, 2255→2295), by exactly the lines this PR
+  inserts above them.
+- **Its suggested fix would break `main`.** `derivesDenseDecorations` does take `styleHint` there;
+  removing it, as the report instructs, turns a green PR red.
+
+The single permitted re-run is deliberately unspent. A re-run exists to confirm a failure reproduces
+before calling it environmental; this one's cause is established directly, and it is a deterministic
+computation over the repository's unmerged branch backlog, not a flake.

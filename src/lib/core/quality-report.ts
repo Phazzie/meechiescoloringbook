@@ -15,11 +15,11 @@
 //             must say which by passing `hasGeneratedPage`. Violations and fixes are reported as two
 //             lists and never zipped into pairs — see `QualityReport.fixes`.
 
-import type { Violation } from '../../../contracts/drift-detection.contract';
-import type { RecommendedFixSchema } from '../../../contracts/drift-detection.contract';
-import type { z } from 'zod';
+import type { DriftDetectionOutput, Violation } from '../../../contracts/drift-detection.contract';
 
-type RecommendedFix = z.infer<typeof RecommendedFixSchema>;
+// Derived from the output type rather than re-inferred from `RecommendedFixSchema`, so this file
+// needs neither a second import of the contract nor a dependency on `zod` to name one of its types.
+type RecommendedFix = DriftDetectionOutput['recommendedFixes'][number];
 
 /**
  * The violation code the generate pipeline emits when the drift check itself could not return a
@@ -203,11 +203,16 @@ export const describeQualityReport = (report: QualityReport): string | null => {
 
 /** "a", "a and b", "a, b and c" — the serial comma left out to match the rest of the studio's copy. */
 const formatList = (parts: string[]): string => {
+	// Every caller reaches here from a `flagged` report, which guarantees a non-empty `parts`. The
+	// `?? ''` keeps that a typed fallback rather than a non-null assertion — an empty tail would
+	// read as a missing clause, which is visible, where `!` would be a claim the compiler cannot
+	// check.
+	const last = parts.at(-1) ?? '';
 	if (parts.length === 1) {
-		return capitalize(parts[0]);
+		return capitalize(last);
 	}
 	const head = parts.slice(0, -1).join(', ');
-	return capitalize(`${head} and ${parts[parts.length - 1]}`);
+	return capitalize(`${head} and ${last}`);
 };
 
 const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
