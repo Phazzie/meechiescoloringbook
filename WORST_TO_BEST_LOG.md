@@ -9623,3 +9623,109 @@ the platform before being believed**, in a Node one-liner, before a single line 
 `check` 0/0 · `lint` exit=0 · `npm test` **1559 passed**, 1 skipped · `build` exit=0 · `test:e2e`
 **46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
 `probes/cache-seam.probe.mjs` **12/12**.
+
+## Run 10 — merge close-out — PR #311 merged as `1b67d30`
+
+The installable app is on `main`. Base `ad3bfe7` → head `6e4d3a5`, squashed to `1b67d30`.
+**12 commits, 46 files, +4001 / −205.** Ten review rounds.
+
+### What the gate required, and what it found
+
+| Condition | State at merge (`6e4d3a5`) |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **1559 passed**, 1 skipped (1475 on `main`) |
+| `npm run build` | exit 0 |
+| `npm run test:e2e` | **46 passed** (42 on `main`) |
+| `npm run verify` | exit 0 |
+| `npm run rewind -- --seam CacheSeam` | 14 passed |
+| `probes/cache-seam.probe.mjs` | **12/12**, in a real browser |
+| Check runs | **9 of 9 green** — `verify` ×2, CodeQL, Analyze ×2, SonarCloud ×2, Rosentic, Vercel Preview Comments |
+| SonarCloud quality gate | passed — security rating A, 0 hotspots, 0.0% duplication |
+| Codex | **clean on `6e4d3a5`**, after twelve findings across eight earlier passes |
+| Review threads | 13 of 13 resolved |
+| Merge conflict | none |
+| Schema / contract / data migration | **none** — the `CacheSeam` contract is untouched, which is the design decision the run turned on |
+| Open Assumption in `DECISIONS.md` | none; `assumption-alarm` green inside the chain |
+
+**One red signal at merge, dispositioned by signature rather than tolerated.** The `Vercel` commit
+status failed with `api-deployments-free-per-day` — an account-wide rolling cap, not a build error:
+nothing compiled and nothing failed to compile. Established, not asserted: the immediately preceding
+head deployed **Ready** minutes earlier, and `git diff --stat` between the two touches no application
+file at all. One standing-down comment was posted. `mergeable_state` therefore read `unstable`
+rather than `clean`, and that is what `unstable` means here.
+
+### What was actually wrong, in one paragraph
+
+A manifest saying `display: standalone`, four icons, a service worker registering on every page
+load — and **3,462,111 bytes pre-cached containing zero bytes of HTML**. Nothing was prerendered, so
+no document existed to cache; offline the cache missed, `fetch` rejected, and a rejected
+`respondWith` is exactly how a browser draws its own network-error page. In standalone mode there is
+no address bar and no tabs, so that error page *was* the app. It is now fourteen prerendered
+documents in a graded precache, a network-first navigation strategy, a real offline page a
+navigation is redirected to, and a worker with no decisions left in it.
+
+### Where the findings came from
+
+**Twenty-one findings. Two came from me.**
+
+| Source | Findings | Disproved |
+|---|---|---|
+| Codex | 12 | 0 |
+| Browser probe (`probes/cache-seam.probe.mjs`) | 3 | — |
+| SonarCloud | 4 | — |
+| Re-reading my own diff | 2 | **1** |
+
+The four that no unit test could have caught were the ones that mattered: **the security headers**
+prerendering silently dropped, **the missing reality probe**, **a worker that cached everything and
+controlled nothing**, and **a ReDoS in the navigation path** measured at 3,108 ms against 0 ms.
+
+### The rule this run is worth
+
+Every close-out here has tried to name one. The honest one is narrower than any of them:
+
+> **A fix is new code, and it gets reviewed like new code.**
+
+Three times a fix for a review finding introduced a defect of a different class than the one it
+fixed. The trailing-slash trim was right about slashes and wrong about backtracking. The redirect was
+right about SvelteKit's router and wrong about building a URL from a request. `safeReturnPath` — a
+validator written specifically to stop an open redirect — admitted one, because URL parsers strip
+whitespace before parsing and every check in it was a string-prefix test. **The local gate was green
+for all three.**
+
+And the corollary, which cost this run the most time and is the least flattering:
+
+> **Before ruling anything out by reasoning, check whether something already knows.**
+
+The SonarCloud security failure was diagnosed by reasoning about which of my lines looked riskiest.
+It was wrong. The answer had been delivered to this session as a review comment naming the file and
+the line, and was sitting unread while the reasoning happened.
+
+### Open, and deliberately so
+
+- **Five SonarCloud issues, gate passing.** Three identified as pre-existing lines in
+  `tests/e2e/smoke.spec.ts` outside this diff; **two unidentified** — `sonarcloud.io` is unreachable
+  from this container and the local reproduction is clean on everything this change wrote. Chasing
+  them further was stopped on purpose: guessing at that check's contents is what produced this run's
+  worst misdiagnosis.
+- **No `CacheSeam` write operation**, so nothing outside the build can ever be cached.
+- **The web fonts are not available offline**, and cannot be through this seam.
+- **You still cannot make a coloring page offline.** The offline page says so in those words.
+- Run 8's two items are still open: the tools hub and mode routes save no style, and the home studio
+  exposes none of `colorMode`, `textSize`, `fontStyle`, `alignment`, `textStrokeWidth`,
+  `borderThickness`, `illustrations` or `shading`.
+
+### For the next run
+
+The pick came from asking which feature the app advertises **outside its own surfaces** — where the
+reader cannot see the gap until they are already relying on it. Nine runs had rebuilt things you can
+look at; this was a thing you install.
+
+The generalisable version, unchanged from the first entry because nothing in ten rounds contradicted
+it: **look for the feature whose failure mode is a different program's error message.** The service
+worker's bug rendered as Chrome's dinosaur — invisible to every test, every screenshot and every
+review of this codebase, and legible to the reader as "the internet is broken" rather than "this app
+did not prepare".
+
+Do not inherit this entry's measurements. Re-measure.
