@@ -57,6 +57,7 @@ import {
 } from '$lib/core/ai-quota';
 import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 import { buildQualityReport } from '$lib/core/quality-report';
+import { buildVerdictReport } from '$lib/core/verdict-report';
 import {
 	GENERATED_IMAGE_MIME_TYPES,
 	generatedImageDataUrl
@@ -254,7 +255,29 @@ export class StudioState {
 	 * fresh guess.
 	 */
 	aiQuota = $state<AiQuotaSnapshot | null>(null);
-	textOutput = $state<MeechieStudioTextOutput | null>(null);
+	private verdictOnScreen = $state<MeechieStudioTextOutput | null>(null);
+	/**
+	 * Whether the `qualityState` on the verdict on screen is one Meechie actually reported.
+	 *
+	 * `qualityState` is a *required* field on `MeechieStudioTextOutputSchema`, so it always holds a
+	 * value — including on text rebuilt from a page that never stored any, where
+	 * `buildStudioTextFromSpec` has to write `'ready'` to satisfy the schema. Reading that value as
+	 * her own would put an approval on screen she never gave, and re-saving would write it down as
+	 * if she had. So the fact of it being reported travels beside the value, the same way
+	 * `promptWasSent` travels beside the prompt and `driftChecked` beside the findings.
+	 */
+	private verdictStandingReported = $state(false);
+	/**
+	 * The verdict on screen. Read-only from outside on purpose.
+	 *
+	 * It was a plain field, and a plain field can be assigned without answering the question above —
+	 * so the value and its provenance would be two things to remember instead of one. Every write
+	 * goes through `setVerdict`, and assigning this property is now a type error rather than a
+	 * verdict of unknown origin.
+	 */
+	get textOutput(): MeechieStudioTextOutput | null {
+		return this.verdictOnScreen;
+	}
 	textError = $state('');
 	generationError = $state('');
 	draftSaveError = $state('');
@@ -612,6 +635,20 @@ export class StudioState {
 	);
 	previewOutput = $derived(this.textOutput);
 	/**
+	 * Everything the verdict card shows about the answer on screen.
+	 *
+	 * Built here rather than in the component so the card renders a value instead of computing one,
+	 * and so every rule about what may be claimed — that an unreported standing claims nothing, that
+	 * an absent rating shows nothing, that a whitespace note is no note — is unit-tested in
+	 * `verdict-report.ts` rather than in markup.
+	 */
+	verdictReport = $derived(
+		buildVerdictReport({
+			output: this.textOutput,
+			standingWasReported: this.verdictStandingReported
+		})
+	);
+	/**
 	 * What the server said about this caller's quota, in a sentence, or `''` when it has not said
 	 * anything yet.
 	 *
@@ -879,7 +916,45 @@ export class StudioState {
 	private describingStudioText(): MeechieStudioTextOutput | undefined {
 		if (!this.textOutput) return undefined;
 		if (this.tryOnPageOnScreen) return undefined;
+		// Text nobody reported a standing for is text this studio rebuilt from the page itself, and
+		// every field of it — verdict, quote, title, items — is derived from `intent` by
+		// `buildStudioTextFromSpec`. Writing it back would add nothing the record does not already
+		// hold except the `'ready'` that function had to invent, and the next reopen would read that
+		// invention as Meechie's own. So a record that stored no studio text keeps storing none, and
+		// the words come back the same way they came out.
+		if (!this.verdictStandingReported) return undefined;
 		return $state.snapshot(this.textOutput);
+	}
+
+	/**
+	 * The only way the verdict on screen is written.
+	 *
+	 * A single writer because the value and whether its standing was reported are one fact in two
+	 * fields, and two assignment sites are two chances to set one and forget the other — which is
+	 * exactly how a reopened page would come to claim an approval nobody gave.
+	 */
+	private setVerdict(
+		value: MeechieStudioTextOutput | null,
+		standingWasReported: boolean
+	): void {
+		this.verdictOnScreen = value;
+		this.verdictStandingReported = value !== null && standingWasReported;
+	}
+
+	/**
+	 * A verdict Meechie just gave. Its `qualityState` is hers, whatever it says.
+	 *
+	 * Also the arrangement a test reaches for when it wants "a verdict is on screen": that is what a
+	 * reader has after pressing the button, and it is the state in which the card is entitled to
+	 * repeat what she said about it.
+	 */
+	acceptVerdict = (value: MeechieStudioTextOutput): void => {
+		this.setVerdict(value, true);
+	};
+
+	/** Nothing on the paper and nothing said about it. */
+	private clearVerdict(): void {
+		this.setVerdict(null, false);
 	}
 
 	/** The title-only shape a try-on page always has: the wig's name, a picture, and nothing else. */
@@ -1525,7 +1600,7 @@ export class StudioState {
 		this.activeModeId = modeId;
 		this.textError = '';
 		if (modeChanged) {
-			this.textOutput = null;
+			this.clearVerdict();
 			this.resetGeneratedPage();
 			this.restoredPageLayout = false;
 			// The switch just deleted the verdict the spent rewrites were spent on. Carrying the
@@ -1668,7 +1743,8 @@ export class StudioState {
 				this.textError = parsed.data.error.message;
 				return;
 			}
-			this.textOutput = parsed.data.value;
+			// A live response: this `qualityState` is Meechie's own, whatever it says.
+			this.acceptVerdict(parsed.data.value);
 			// Order matters: a round-starting action refills the allowance for the verdict it just
 			// produced, and a rewrite spends one of the allowance the verdict on screen came with.
 			// Both are applied only on an accepted verdict, so a failure, a timeout or an
@@ -2226,7 +2302,10 @@ export class StudioState {
 		this.dedication = creation.intent.dedication ?? '';
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;
-		this.textOutput = restoredText;
+		// The standing is the record's own only when the record stored studio text. Without it,
+		// `buildStudioTextFromCreationRecord` rebuilds the words from the page and has to invent the
+		// required `qualityState` to do it — see `verdictStandingReported`.
+		this.setVerdict(restoredText, creation.studioText !== undefined);
 		// A reopened page is a verdict the reader has not reworked in this session, and its rewrite
 		// buttons light up the moment `textOutput` is set above. Handing it whatever was left of
 		// some earlier page's allowance would let a saved page arrive with none.
@@ -2443,7 +2522,10 @@ export class StudioState {
 			// record holding nothing. `buildStudioTextFromDraftRecord` returns null for that page,
 			// which is why the assignment is safe to make unconditionally once past this check.
 			if (draft.value.studioText || !isKnownDraftSeed(draft.value.intent)) {
-				this.textOutput = buildStudioTextFromDraftRecord(draft.value);
+				this.setVerdict(
+					buildStudioTextFromDraftRecord(draft.value),
+					draft.value.studioText !== undefined
+				);
 			}
 		}
 		await this.validateSpec();

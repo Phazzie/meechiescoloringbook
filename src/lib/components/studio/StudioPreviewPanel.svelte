@@ -29,6 +29,7 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		canSaveToVault,
 		glitter,
 		activeTheme,
+		pageCaution,
 		onGeneratePage,
 		onCopyQuote,
 		onSaveToVault
@@ -54,6 +55,16 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		 */
 		glitter: boolean;
 		activeTheme: StudioTheme;
+		/**
+		 * What Meechie said about the verdict this page would be made from, when she flagged it.
+		 *
+		 * `''` whenever she did not — including when nothing reported a standing at all. Never a
+		 * reason to disable the button: the reader owns the decision, and a model that over-used
+		 * `blocked` would otherwise switch the studio off. What they were owed is the warning, which
+		 * belongs here rather than only up in the verdict card, because this is the button that
+		 * spends an image generation.
+		 */
+		pageCaution: string;
 		onGeneratePage: () => Promise<void>;
 		onCopyQuote: () => Promise<void>;
 		onSaveToVault: () => Promise<void>;
@@ -104,6 +115,14 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 	{#if generationError}
 		<p class="error" data-testid="home-generation-error">
 			{generationError}
+		</p>
+	{/if}
+
+	{#if pageCaution}
+		<!-- Above the button, not below it: a caution the reader meets after they have already
+		     pressed the thing it is about has cost them the generation it was warning them off. -->
+		<p class="page-caution" data-testid="home-page-caution" role="status">
+			{pageCaution}
 		</p>
 	{/if}
 
@@ -186,3 +205,22 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		</p>
 	{/if}
 </section>
+
+<style>
+	/*
+	 * The panel's own frame and buttons are `:global` rules in `+page.svelte`. This is the one thing
+	 * new to it. Gold rather than the error pink: nothing has failed, and styling it as a failure
+	 * would tell the reader the studio refused them when what happened is that Meechie flagged her
+	 * own answer.
+	 */
+	.page-caution {
+		margin: 0 0 0.7rem;
+		padding: 0.55rem 0.75rem;
+		border-radius: 0.7rem;
+		border: 1px solid rgba(201, 162, 39, 0.5);
+		background: rgba(7, 7, 15, 0.55);
+		color: var(--cream);
+		font-size: 0.86rem;
+		font-weight: 600;
+	}
+</style>

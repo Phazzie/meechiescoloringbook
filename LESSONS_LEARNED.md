@@ -587,3 +587,43 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
   the function must stay pure, reject every character below 0x21 rather than enumerating the
   dangerous ones — and assert the precondition in the test against the real parser, so the test
   cannot be more optimistic than the guard.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 11 — `qualityState` and `revisionNote` are required of the provider on every studio
+  text call under a `strict: true` JSON schema, and had no consumer anywhere in the application.
+  Both were validated by the contract, stored in the vault, and rendered nowhere.
+- Lesson: A field can be *required*, *validated*, *paid for* and *dead* at the same time, and none
+  of the repository's gates notice. `chamber-lock`, the contract tests and the seam ledger all check
+  that a field is declared and parsed correctly; not one of them asks whether anything reads it.
+  The tell was mechanical and cheap: `grep -rn needs_more_evidence src tests fixtures` returned five
+  lines, every one of them the prompt asking for the value or the schema accepting it.
+- Action: When judging whether a feature delivers what it promises, enumerate the fields its
+  contract returns and grep each one for a consumer. A field the provider is *required* to send and
+  nothing reads is a promise the app is billing for and not keeping.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 11 — a required contract field always holds a value, so `buildStudioTextFromSpec` has
+  to invent `qualityState: 'ready'` to rebuild a legacy record's words. The moment that field
+  reached the screen, the invention became an on-screen claim of approval.
+- Lesson: This is the third run to arrive at the same shape — Run 9's `promptWasSent`, Run 10's
+  `driftChecked`, and now `standingWasReported`. **Whether something was reported is a different
+  fact from what it said, and a required field cannot carry both.** Making a field required does not
+  make its value true; it only guarantees that something wrote one.
+- Action: Before rendering a required field for the first time, find every producer and ask which of
+  them knows the value rather than supplying one. Where a producer has to invent it, carry the
+  provenance beside the value as its own input, and stop the invented value being written back to
+  storage — otherwise the next read cannot tell an invention from a report.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 11 — the provenance flag was first added as a second public field beside a public,
+  writable `textOutput`. Sixteen test sites assigned `textOutput` directly, which would have left
+  every one of them silently on the "nothing reported" path.
+- Lesson: A pair of fields that must agree is a comment asking to be obeyed. Two of the tests it
+  would have quietly weakened were tests of *other* guards, which would have kept passing for a
+  reason nobody intended.
+- Action: When one fact needs two fields, make the second unreachable without the first — a getter
+  and a single named writer, so the wrong combination is a type error rather than a convention. The
+  cost here was one `sed` over sixteen arrangements; the alternative was a rule enforced by hope.

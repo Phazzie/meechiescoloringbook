@@ -9,6 +9,7 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 	let {
 		evidence = $bindable(),
 		dedication = $bindable(),
+		evidenceField = $bindable(null),
 		activeMode,
 		revisionBudget,
 		aiQuotaMessage,
@@ -27,6 +28,15 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 	}: {
 		evidence: string;
 		dedication: string;
+		/**
+		 * The evidence box itself, handed back so the verdict card's "give her more evidence" can put
+		 * the cursor in it.
+		 *
+		 * A binding rather than a `getElementById` in the parent: the element's id is this
+		 * component's business, and a lookup by that id in another file is a second copy of it that
+		 * goes stale the first time it is renamed, silently — the button would simply stop working.
+		 */
+		evidenceField: HTMLTextAreaElement | null;
 		activeMode: StudioMode;
 		/** Rewrites left for the verdict on screen. Meaningless until there is one — see `hasVerdict`. */
 		revisionBudget: number;
@@ -68,6 +78,7 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		id="evidence"
 		data-testid="home-evidence"
 		rows="8"
+		bind:this={evidenceField}
 		bind:value={evidence}
 		oninput={onScheduleDraftSave}
 		placeholder={activeMode.placeholder}
