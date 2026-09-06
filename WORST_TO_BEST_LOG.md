@@ -9889,6 +9889,7 @@ mode — later passes append rather than displace, and any total is recoverable 
 | `ca48ebf` | 5 | the closing command discarding `verify`'s exit status |
 | `48e7bc2` | 3 | — |
 | `3f412c1` | 3 | — |
+| `8af5bff` | 1 | — |
 
 **The P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
 A merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
@@ -9971,7 +9972,9 @@ claiming 97 test files where the transcript reports 98 — 97 passing plus 1 ski
 block three times over: reporting success when the transcript failed to install, referencing a
 `$SCRATCH` it never assigned so the paths expanded to the filesystem root, and naming
 `lint`/`build`/`verify` without the redirections that actually write `lint.txt` and `build.txt` —
-so following it as written reproduced the stale-evidence failure this entry opens with.
+so following it as written reproduced the stale-evidence failure this entry opens with; and its
+`mktemp -d` called without checking, which on failure leaves the scratch variable empty and puts
+every path back at the filesystem root — the hazard the variable was introduced to remove.
 
 All the same disease: a fact restated where it cannot be checked against its source. The reason this
 section is the entry's longest is that it is the one part with no mechanical check behind it. Every

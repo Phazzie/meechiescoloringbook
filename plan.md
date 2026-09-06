@@ -74,17 +74,24 @@ own scratch directory, writes every evidence artifact the inventory above promis
 non-zero if any step fails.
 
 ```sh
-SCRATCH="$(mktemp -d)"
-EV=docs/evidence/2026-09-06
+set -u
 
-{ npm run lint 2>&1; lint=$?; echo "lint exit=$lint"; } > "$EV/lint.txt"
+EV=docs/evidence/2026-09-06
+[ -d "$EV" ] || { echo "no $EV" >&2; exit 1; }
+
+SCRATCH="$(mktemp -d)" || exit 1
+[ -n "$SCRATCH" ] && [ -d "$SCRATCH" ] || { echo "no scratch dir" >&2; exit 1; }
+
+{ npm run lint 2>&1; lint=$?; echo "lint exit=$lint"; } > "$EV/lint.txt" || exit 1
 [ "$lint" -eq 0 ] || exit "$lint"
 
-{ npm run build 2>&1; build=$?; echo "build exit=$build"; } > "$EV/build.txt"
+{ npm run build 2>&1; build=$?; echo "build exit=$build"; } > "$EV/build.txt" || exit 1
 [ "$build" -eq 0 ] || exit "$build"
 
-[ -e "$EV/verify-outer.txt" ] && mv "$EV/verify-outer.txt" "$SCRATCH/previous.txt"
-{ npm run verify 2>&1; status=$?; echo "verify exit=$status"; } > "$SCRATCH/verify-outer.txt"
+if [ -e "$EV/verify-outer.txt" ]; then
+  mv "$EV/verify-outer.txt" "$SCRATCH/previous.txt" || exit 1
+fi
+{ npm run verify 2>&1; status=$?; echo "verify exit=$status"; } > "$SCRATCH/verify-outer.txt" || exit 1
 mv "$SCRATCH/verify-outer.txt" "$EV/verify-outer.txt" || exit 1
 exit "$status"
 ```
@@ -92,8 +99,8 @@ exit "$status"
 Expected: exit 0, with `verify` reporting 1559 tests passed and 1 skipped across 97 passing test
 files plus 1 skipped — `98` in the transcript's own parenthesis.
 
-Four things in that block are there because each was a review finding on this pull request, and each
-looks like a detail until it fires:
+Every guard in that block is there because something on this pull request went wrong without one,
+and each looks like a detail until it fires:
 
 - **`npm run lint && npm run build && npm run verify` is not the gate.** Neither `lint` nor `build`
   writes an evidence file, so running that line leaves `lint.txt` and `build.txt` exactly as stale as
@@ -108,6 +115,15 @@ looks like a detail until it fires:
   did — a failing chain reporting success while its own transcript reads `verify exit=1`.
 - **`|| exit 1` on the move.** Preserving `verify`'s status and then discarding the move's is the
   same defect one step later: a green chain whose evidence never lands, reported clean.
+- **`mktemp -d` is checked, not just called.** If it fails, the unguarded assignment leaves `SCRATCH`
+  empty and every later path falls back to the filesystem root — reintroducing, silently, the exact
+  hazard the assignment was added to remove. `set -u` alone does not catch it, because the variable
+  is set; it is set to nothing.
+- **The other unchecked steps, fixed in the same pass rather than waiting to be told.** A missing
+  `$EV` directory, a redirect that cannot open its file, and the move of the previous transcript all
+  now stop the run. This block has drawn a finding on four consecutive review passes, each one a
+  failure path the previous fix left unguarded; the pattern is that I kept repairing the step that
+  was named.
 
 And the transcript is captured to scratch and moved in **after** the chain returns, with any previous
 copy moved out first, per `docs/evidence/README.md`. It is therefore absent from that chain's own
