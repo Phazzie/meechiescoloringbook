@@ -2,6 +2,20 @@
 // Why: Extracts the 690-line script from +page.svelte into a testable, self-contained
 //      state module; the page component becomes a thin lifecycle wrapper.
 // Info flow: User actions -> StudioState methods -> reactive $state updates -> component props.
+// Invariants: Three distinctions here are load-bearing and must never be collapsed into one
+//             another, because each collapse produced a report that said something untrue.
+//             (1) `images.length > 0` (a page exists) is INDEPENDENT of `driftReported` (a check
+//             spoke about it): inferring either from the other reported a picture-less generation
+//             as "came back exactly as asked", and a reopened record as "nothing on the paper yet"
+//             while its page was on screen.
+//             (2) `checkResultUnrecorded` (nothing was stored) is NOT `driftCheckFailure` (the
+//             check named a defect): a saved record cannot tell a completed-but-unsaved result
+//             from a failed one, so it must claim neither.
+//             (3) `promptWasSent` is NOT "`assembledPrompt` is non-empty": the try-on flow stores a
+//             human description there purely to satisfy the vault record's non-empty requirement
+//             and never calls a provider.
+//             `tryOnPageOnScreen` is `$state` rather than a plain field because `qualityReport`
+//             derives from it; a plain field would be read once and never follow the paper.
 import { authContextAdapter } from '$lib/adapters/auth-context-seam';
 import { appOriginSeam } from '$lib/adapters/app-origin-seam';
 import { clockSeam } from '$lib/adapters/clock-seam';

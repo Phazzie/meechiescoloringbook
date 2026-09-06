@@ -6,6 +6,11 @@ Why: The three standalone mode routes each owned a private copy of this markup, 
      print/share downloads, and the vault save that only the studio and the tools hub had, and a
      fix to any of them lands on all three at once.
 Info flow: VerdictPageState (props) -> user actions -> state methods -> reactive redraw.
+Invariants: The quality report is rendered ONLY through `QualityReportPanel`, never re-implemented
+            here. A private copy is exactly how this surface previously came to render a warning
+            identically to an error, show no recommended fix at all, and drop two of the report's
+            states while the tools hub kept them. One renderer is the fix; a second one is the bug
+            coming back.
 -->
 <script lang="ts">
 	import type { VerdictPageState } from './verdict-page-state.svelte';

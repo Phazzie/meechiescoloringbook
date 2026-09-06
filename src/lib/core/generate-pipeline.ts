@@ -1,6 +1,14 @@
 // Purpose: Centralize generation endpoint orchestration in a reusable core pipeline.
 // Why: Keep route handlers thin and isolate seam composition logic from transport concerns.
 // Info flow: Raw request body -> validation/seams -> quota charge -> precharged image pipeline -> contract-shaped response payload.
+// Invariants: A drift check that declines to grade is still a SUCCESSFUL generation — the page
+//             exists and is downloadable — so the response stays `ok: true` and carries
+//             `driftCheckFailure` with `violations` and `recommendedFixes` both empty. Never map
+//             that branch to bare empty arrays again: every consumer reads an empty violation list
+//             as "nothing wrong", so doing so reported the seam's most serious finding as a clean
+//             page. `DriftDetectionSeam` returns `{ ok: false }` only for a defect it has
+//             identified; an inability to run would throw, and a throw never reaches here as a
+//             `Result`. The exclusivity is enforced by `GenerateResponseValueSchema`'s refinement.
 import { driftDetectionAdapter } from '$lib/adapters/drift-detection-seam';
 import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly-seam';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';

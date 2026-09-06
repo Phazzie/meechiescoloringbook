@@ -3,6 +3,11 @@ Purpose: Main Meechie coloring-page studio with wig try-on.
 Why: Generate AI-backed Meechie wording, printable coloring pages, and wig try-on portraits.
 Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/store seams.
            Wig selection + selfie -> /api/wig-try-on -> xAI portrait -> coloring page.
+Invariants: `SystemTrace` receives `promptWasSent` from the state and must never be left to infer
+            it from `assembledPrompt` being non-empty — the try-on flow fills that field with a
+            description it never sent. Likewise `report` is passed whole: the panel switches on its
+            state, so handing it loose arrays would put the "empty means clean" inference back in a
+            component.
 -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';

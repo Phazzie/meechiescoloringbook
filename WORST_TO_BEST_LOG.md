@@ -8396,3 +8396,45 @@ smaller and smaller increments, by the same mechanism, for nine rounds.
 > Reasoning cannot catch an overclaim, because the reasoning is what produced it. Only reading the
 > thing the sentence is about, with the sentence next to it, can — and that is a different act from
 > thinking harder, which is why doing it alone is so unreliable.
+
+---
+
+## Run 9, tenth close-out — 2026-09-06 — four findings of one kind, and the sweep I should have done three rounds ago
+
+Codex returned four P1s on `f870c3a`, and all four were the same finding: a file this change gave a
+new invariant to, whose top-level header did not state it. `MeechieTools.svelte`,
+`studio-state.svelte.ts`, `verdict-page-state.svelte.ts`, `generate-pipeline.ts`.
+
+I had already been told about this three times, on three different files, and each time I fixed the
+one I was pointed at. In the *previous* close-out I even wrote that this was a habit rather than an
+instance — and then did not act on my own sentence. Naming a pattern is not the same as applying it.
+
+**So this round is a sweep, not four fixes.** Every source file in
+`git diff --name-only origin/main..HEAD` now carries an `Invariants` block, verified by iterating
+that list rather than by going down Codex's:
+
+| File | Invariant now stated at the top |
+|---|---|
+| `generate-pipeline.ts` | a declined check is still `ok: true`, carries `driftCheckFailure`, and must never map back to bare empty arrays |
+| `studio-state.svelte.ts` | the three distinctions — page vs check, unrecorded vs failed, prompt text vs transmission — and why `tryOnPageOnScreen` must be `$state` |
+| `verdict-page-state.svelte.ts` | `driftReported` independent of `violations.length` and of page presence; a protected page keeps its own report |
+| `MeechieTools.svelte` | the same two rules |
+| `VerdictPageStudio.svelte` | the report renders **only** through `QualityReportPanel` — a private copy is how this surface diverged in the first place |
+| `+page.svelte` | `promptWasSent` is passed, never inferred; `report` is passed whole |
+| `contracts/generate.contract.ts`, `quality-report.ts`, `QualityFindings.svelte`, `QualityReportPanel.svelte`, `SystemTrace.svelte` | already had theirs |
+
+The last two were not in Codex's list. They are pass-through files, and it would have been easy to
+call them exempt — but `VerdictPageStudio` re-implementing the report block is *precisely* the defect
+this run removed, and that is worth writing at the top of the file where the next person will start.
+
+### Verified
+
+`check` 0/0 · `lint` exit=0 · **1471 passed**, 1 skipped · `build` exit=0 · e2e 42 passed ·
+`verify` exit=0 · rewind 5 passed · proof tape flags nothing.
+
+### Vercel went green on its own, which settles the disposition by measurement
+
+The Vercel deployment has succeeded on this head. Nothing in the diff changed to cause that — the
+account's 100-deployments-per-day window rolled over. That is the disposition confirmed rather than
+argued: it was an account-level cap the whole time, exactly as the standing-down comment said, and
+the proof arrived by waiting rather than by reasoning.

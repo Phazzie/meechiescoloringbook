@@ -5,6 +5,12 @@ Why: Keep non-technical users in one place while reusing seam-backed tools. Ever
      missing, so each verdict now prints, downloads, and saves to the vault.
 Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api/generate ->
            preview + packaged files -> CreationStoreSeam.
+Invariants: `driftReported` is independent of `violations.length` and of page presence, and must
+            stay so: an empty violation list means both "checked, nothing wrong" and "no check has
+            spoken", and only this flag tells them apart. When a replacement generation returns no
+            decodable image, the page on screen keeps both its picture and its report; the new
+            request's findings are surfaced only when there is no page to protect, because
+            attaching them to a page they do not describe is what this reporting exists to stop.
 -->
 <script lang="ts">
 	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';

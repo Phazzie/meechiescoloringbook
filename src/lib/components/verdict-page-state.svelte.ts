@@ -8,6 +8,13 @@
 //      once, here, is the only way it stays fixed.
 // Info flow: tool input -> /api/tools -> verdict -> buildToolPageRecipe -> /api/generate ->
 //            previews + packaged files -> CreationStoreSeam.
+// Invariants: `driftReported` is independent of both `violations.length` and page presence, and the
+//             lifecycle must never collapse them again: an empty violation list means "checked,
+//             nothing wrong" AND "no check has spoken", which are opposite claims, and only this
+//             flag separates them. When a replacement generation returns no decodable image, the
+//             page already on screen keeps BOTH its picture and its report — the new request's
+//             findings are surfaced only when there is no page to protect, because attaching them
+//             to a page they do not describe is the conflation this reporting exists to remove.
 import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
 import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
 import { sessionAdapter } from '$lib/adapters/session-seam';
