@@ -9235,3 +9235,67 @@ states.**
 is read as a literal path, and I had written `probes/cache-seam.probe.mjs (see …)` into it. The
 parenthetical is in the Notes column now. Worth recording because the gate did exactly its job —
 the registry names an artifact that exists, and a helpful annotation is not an artifact.
+
+### Run 10, third close-out — 2026-09-06 — two more, and one of them was already fixed for a different reason
+
+A second Codex pass on `cd6985c` returned two more findings. **Both correct.**
+
+#### P2 — the offline fallback could not survive being served at depth
+
+*"The built fallback document uses depth-relative assets such as `./_app/...`, so at `/m/unknown`
+the browser requests `/m/_app/...` instead of the precached `/_app/...`; its styles and hydration
+scripts therefore fail, leaving the retry button and live connection state inert."*
+
+Verified against the build rather than taken on trust — SvelteKit does emit depth-relative paths:
+
+```
+offline.html      href="./_app/immutable/entry/start.C-H59XTi.js"
+m/clapback.html   "../_app/immutable/entry/start.C-H59XTi.js"
+```
+
+**Already fixed, by the redirect the browser probe forced two hours earlier** — and that is the
+interesting part. I changed the fallback from "return the cached bytes" to "302 to `/offline`"
+because the probe showed SvelteKit's client router rendering a 404 over the served document. Codex
+found a *second, independent* reason the same approach was broken. One symptom was visible to a
+browser and invisible to reasoning; the other was visible to reasoning and invisible to the probe,
+which had only ever asserted text that lives in the prerendered HTML and therefore proves nothing
+about whether the page's scripts ran.
+
+So the probe gained a tenth check that does prove it: `offline-connection = "Still no connection."`
+— a line that exists **only** after `onMount` has read `navigator.onLine`, which requires the
+document's assets to have resolved at whatever URL it was served from. **10/10.** The gap Codex
+named is now the thing the probe measures, rather than a thing the probe happened not to contradict.
+
+#### P1 — the plan's file inventory was a blanket statement
+
+`AGENTS.md` requires an exact inventory with `[NEW]` / `[MODIFY]` / `[DELETE]` and forbids blanket
+entries. The plan carried the line *"`CHANGELOG.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`,
+`WORST_TO_BEST_LOG.md`, `plan.md`"* — no markers, and missing `CLAUDE.md` and all sixteen files
+under `docs/evidence/2026-09-06/`.
+
+Replaced with a **46-row table generated from `git diff --name-status origin/main..HEAD`**, which is
+the form Run 9 used and the reason it used it: a hand-kept inventory is a second copy of the truth
+and this is precisely how it goes stale. Mine went stale the same way inside one run.
+
+#### Three sentences in the plan that had quietly become false
+
+Found by re-reading the plan after changing it, which is the Run 8 rule — *when a fix changes what
+is true, the place to look is everywhere that explains why the thing you edited was the way it was*:
+
+- **"Seams (existing, none modified): `CacheSeam`."** True when written. False from the moment the
+  probe was automated: `src/lib/seams/cache-seam/probe.ts` and the `docs/seams.md` row both changed.
+- **The anti-goals still listed `probes/` and `src/lib/seams/`**, which this run went on to touch —
+  so the list forbade the very work a review had correctly demanded.
+- **The Commands line** never mentioned the probe it now depends on.
+
+**The anti-goal list was wrong twice in one run, in the same way both times.** `vercel.json`, whose
+exclusion cost every prerendered page its security headers. `probes/`, whose exclusion cost the
+change its only reality capture. Both were listed to keep the diff narrow. Narrowness is not a
+property worth a frameable page, and it is not worth an unrun probe. **An anti-goal is a prediction
+about what a change will not need; when the prediction is wrong the plan gives way, not the change.**
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1546 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **10/10**.

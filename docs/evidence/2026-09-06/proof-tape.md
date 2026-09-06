@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-06T07:41:18.890Z
+Generated at: 2026-09-06T07:47:03.113Z
 Evidence folder: docs/evidence/2026-09-06
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -21,7 +21,7 @@ after this inventory is taken, so they are not listed):
   Commands: meechies-coloringbook@0.1.0 test:e2e | playwright test
 - lint.txt (60 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
-- probe-cache-seam.txt (1099 bytes) — PREDATES THIS VERIFY RUN
+- probe-cache-seam.txt (1242 bytes) — PREDATES THIS VERIFY RUN
 - rewind-CacheSeam.txt (555 bytes) — PREDATES THIS VERIFY RUN
 - rewind-DriftDetectionSeam(self-contained).txt (539 bytes) — PREDATES THIS VERIFY RUN
 - rewind-DriftDetectionSeam-self-contained.txt (473 bytes) — PREDATES THIS VERIFY RUN

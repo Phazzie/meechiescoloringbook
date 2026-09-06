@@ -204,6 +204,22 @@ const run = async () => {
 			fallbackPath === '/offline' && (fallbackText ?? '').includes('Nothing you saved is lost'),
 			`status ${fallbackNav?.status()}, landed ${fallbackPath}, offline-message = ${JSON.stringify((fallbackText ?? '').slice(0, 40))}`
 		);
+
+		// The text above is in the prerendered HTML, so it proves the document arrived and nothing
+		// more. This line only exists after `onMount` has read `navigator.onLine`, which requires
+		// the page's scripts to have loaded and run — and *that* is what the URL has to be right
+		// for. SvelteKit emits depth-relative asset paths (`./_app/…` at /offline, `../_app/…` at
+		// /m/clapback), so the offline document served at, say, /m/unknown would ask for
+		// /m/_app/… and get nothing: unstyled, unhydrated, with a dead retry button. Redirecting
+		// rather than returning the bytes is what makes this assertion possible at all.
+		const fallbackConnection = await fallback.page
+			.textContent('[data-testid="offline-connection"]', { timeout: 10000 })
+			.catch(() => '');
+		record(
+			'the offline page hydrates there, so its assets resolved and its retry button is live',
+			(fallbackConnection ?? '').includes('Still no connection'),
+			`offline-connection = ${JSON.stringify((fallbackConnection ?? '').trim())}`
+		);
 		await fallback.context.close();
 
 		// 6. The rule that keeps a cache away from anything that costs a provider call.

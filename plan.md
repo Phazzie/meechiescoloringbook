@@ -17,40 +17,100 @@ with no network showed the browser's error page — and, since there is no addre
 mode, that error page was the app. Measured on `main` at `ad3bfe7` by parsing
 `.svelte-kit/output/client/service-worker.js`, not inferred from source.
 
-**Seams (existing, in `docs/seams.md`, none modified):** `CacheSeam`.
+**Seam: `CacheSeam`** (existing, in `docs/seams.md`). Its contract, mock, fixtures, validators,
+adapter and contract tests are unchanged, and `npm run rewind -- --seam CacheSeam` is 14 passed.
+Its **probe is not**: `src/lib/seams/cache-seam/probe.ts` and the registry row now describe
+`probes/cache-seam.probe.mjs`, which is automated and has actually been run. This line first read
+"none modified", which was true when written and stopped being true the moment a review pointed
+out that the probe had never been executed. Cipher Gate entry in `DECISIONS.md`.
 
-**Files:**
-- `src/lib/core/offline-cache.ts` **[NEW]** — `planPrecache`, `primePrecache`, `chooseStrategy`,
-  `cacheKeyFor`, `handleFetch`, `offlineNotice`, `OFFLINE_FALLBACK_PATH`. Reaches the Cache API only
-  through `CacheSeam`, which is what lets it run against `createMockCacheSeam` in a unit test.
-- `src/service-worker.ts` **[MODIFY]** — reduced to wiring: read `$service-worker`, call the module.
-  No `caches.*` call and no decision remains in it.
-- `src/routes/offline/+page.svelte`, `src/routes/offline/+page.ts` **[NEW]** — the prerendered page a
-  navigation falls back to.
-- `src/routes/+page.ts` **[MODIFY]**, `src/routes/{who-fucked-up,rate-his-excuse,random,meechie}/+page.ts`
-  **[NEW]** — `export const prerender = true`.
-- `src/routes/m/[mode]/+page.ts` **[MODIFY]** — `prerender = 'auto'` plus `entries` over the
-  canonical slugs, so the five `SLUG_ALIASES` URLs still resolve through the function.
-- `src/routes/+layout.svelte` **[MODIFY]** — connection banner from `offlineNotice`, registration
-  resolved through `navigator.serviceWorker.ready` instead of `.catch(() => {})`, `<meta
-  name="description">`, `apple-touch-icon`. No layout `<title>` (every route sets its own).
-- `src/app.html` **[MODIFY]** — `theme-color` to `#07070f`.
-- `static/manifest.webmanifest` **[MODIFY]** — `background_color`/`theme_color` to the colour the app
-  paints, `id`, `scope`, `lang`, `dir`, `orientation`, `categories`, SVG `sizes: "any"`.
-- `tests/unit/offline-cache.test.ts` **[NEW]**, `tests/unit/install-metadata.test.ts` **[NEW]**,
-  `tests/e2e/smoke.spec.ts` **[MODIFY]**.
-- `CHANGELOG.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`, `plan.md`.
+**Exact file inventory.** Regenerated from `git diff --name-status origin/main..HEAD` rather than
+written by hand, because a hand-kept inventory is a second copy of the truth and goes stale
+silently — which is exactly what happened to the version of this section a review replaced: it
+carried a blanket "`CHANGELOG.md`, `DECISIONS.md`, …" line with no action markers, and omitted
+`CLAUDE.md` and every file under `docs/evidence/2026-09-06/`. 46 files.
 
-**Added during review, after a finding this plan's anti-goals had actually got wrong:**
-- `vercel.json` **[MODIFY]**, `src/hooks.server.ts` **[MODIFY]** (its scope comment),
-  `tests/unit/security-headers.test.ts` **[NEW]**. See the anti-goal correction below.
+| File | Action |
+|---|---|
+| `CHANGELOG.md` | [MODIFY] |
+| `CLAUDE.md` | [MODIFY] |
+| `DECISIONS.md` | [MODIFY] |
+| `LESSONS_LEARNED.md` | [MODIFY] |
+| `WORST_TO_BEST_LOG.md` | [MODIFY] |
+| `docs/evidence/2026-09-06/assumption-alarm.json` | [MODIFY] |
+| `docs/evidence/2026-09-06/build.txt` | [MODIFY] |
+| `docs/evidence/2026-09-06/chamber-lock.json` | [MODIFY] |
+| `docs/evidence/2026-09-06/clan-chain.json` | [MODIFY] |
+| `docs/evidence/2026-09-06/clan-chain.md` | [MODIFY] |
+| `docs/evidence/2026-09-06/e2e.txt` | [MODIFY] |
+| `docs/evidence/2026-09-06/lint.txt` | [MODIFY] |
+| `docs/evidence/2026-09-06/probe-cache-seam.txt` | **[NEW]** |
+| `docs/evidence/2026-09-06/proof-tape.json` | [MODIFY] |
+| `docs/evidence/2026-09-06/proof-tape.md` | [MODIFY] |
+| `docs/evidence/2026-09-06/rewind-CacheSeam.txt` | **[NEW]** |
+| `docs/evidence/2026-09-06/seam-ledger.json` | [MODIFY] |
+| `docs/evidence/2026-09-06/seam-ledger.md` | [MODIFY] |
+| `docs/evidence/2026-09-06/shaolin-lint.json` | [MODIFY] |
+| `docs/evidence/2026-09-06/test.txt` | [MODIFY] |
+| `docs/evidence/2026-09-06/verify-outer.txt` | [MODIFY] |
+| `docs/evidence/2026-09-06/verify.txt` | [MODIFY] |
+| `docs/seams.md` | [MODIFY] |
+| `eslint.config.js` | [MODIFY] |
+| `plan.md` | [MODIFY] |
+| `probes/cache-seam.probe.mjs` | **[NEW]** |
+| `src/app.html` | [MODIFY] |
+| `src/hooks.server.ts` | [MODIFY] |
+| `src/lib/core/offline-cache.ts` | **[NEW]** |
+| `src/lib/seams/cache-seam/probe.ts` | [MODIFY] |
+| `src/routes/+layout.svelte` | [MODIFY] |
+| `src/routes/+page.ts` | [MODIFY] |
+| `src/routes/m/[mode]/+page.ts` | [MODIFY] |
+| `src/routes/meechie/+page.ts` | **[NEW]** |
+| `src/routes/offline/+page.svelte` | **[NEW]** |
+| `src/routes/offline/+page.ts` | **[NEW]** |
+| `src/routes/random/+page.ts` | **[NEW]** |
+| `src/routes/rate-his-excuse/+page.ts` | **[NEW]** |
+| `src/routes/who-fucked-up/+page.ts` | **[NEW]** |
+| `src/service-worker.ts` | [MODIFY] |
+| `static/manifest.webmanifest` | [MODIFY] |
+| `tests/e2e/smoke.spec.ts` | [MODIFY] |
+| `tests/unit/install-metadata.test.ts` | **[NEW]** |
+| `tests/unit/offline-cache.test.ts` | **[NEW]** |
+| `tests/unit/security-headers.test.ts` | **[NEW]** |
+| `vercel.json` | [MODIFY] |
 
-**Anti-goals (do not touch):** `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
-`src/lib/adapters/`, `src/lib/seams/`, `playwright.config.ts`, `svelte.config.js`.
-Do not add an operation to `CacheSeam`. Do not change any localStorage key or `ColoringPageSpec`
-field.
+What each non-obvious one is for:
+- `src/lib/core/offline-cache.ts` — the whole policy: `planPrecache`, `primePrecache`,
+  `chooseStrategy`, `cacheKeyFor`, `handleFetch`, `offlineCopyIsReady`, `offlineNotice`.
+- `src/service-worker.ts` — reduced to event wiring; no `caches.*` call and no decision left in it.
+- `src/routes/**/+page.ts` — `export const prerender`, `true` everywhere except `'auto'` on
+  `m/[mode]`, which also gains `entries` over the canonical slugs.
+- `src/routes/+layout.svelte` — connection banner, registration measured through `CacheSeam`
+  instead of `navigator.serviceWorker.ready`, `<meta name="description">`, `apple-touch-icon`.
+- `src/hooks.server.ts` — its scope comment only; `SECURITY_HEADERS` and `handle` are unchanged.
+- `vercel.json` — document-route headers for the paths prerendering moved off the function.
+- `eslint.config.js` — `caches` added to the probes block's globals, for `page.evaluate` bodies.
+- `probes/cache-seam.probe.mjs`, `src/lib/seams/cache-seam/probe.ts`, `docs/seams.md` — the
+  automated CacheSeam probe, what it establishes, and the registry row that now dates it.
+- `docs/evidence/2026-09-06/**` — outputs of the commands below. Listed because they are in the
+  diff, and a plan that cannot be checked against the diff mechanically is not doing its job.
 
-**Anti-goal correction — `vercel.json` was on this list and should not have been.** Prerendering
+**Anti-goals (do not touch):** `contracts/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`,
+`tests/contract/`, `playwright.config.ts`, `svelte.config.js`. Do not add an operation to
+`CacheSeam`. Do not change any localStorage key or `ColoringPageSpec` field. All of these held.
+
+**Anti-goal corrections — this list was wrong twice, in the same way both times.** Written to keep
+the diff narrow, and narrowness is not a property worth either of the things it cost. An anti-goal
+is a prediction about what a change will not need; when the prediction is wrong, the plan gives way,
+not the change.
+
+**`probes/` and `src/lib/seams/` were on this list and should not have been.** Declaring them
+untouchable is what let the plan ship a rewrite of the service worker's entire caching behaviour
+with no reality capture — while `src/lib/seams/cache-seam/probe.ts` had said since 2026-05-15 that
+its verification was manual, and nobody had performed it. A review said so; it was right. The probe
+that resulted found three defects every unit and end-to-end test had passed over. See `DECISIONS.md`.
+
+**`vercel.json` was on this list and should not have been.** Prerendering
 moves every document from the SvelteKit function to the filesystem layer, and `src/hooks.server.ts`
 — which attaches `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`,
 `Permissions-Policy` and `Strict-Transport-Security` — only sees what the function renders. Its own
@@ -60,7 +120,8 @@ required shipping every page frameable. A plan's anti-goals can be wrong, and th
 correct move is to widen the plan and say why, not to keep the promise and lose the header.
 
 **Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run test:e2e`,
-`npm run verify`, `npm run rewind -- --seam CacheSeam`.
+`npm run verify`, `npm run rewind -- --seam CacheSeam`, and `node probes/cache-seam.probe.mjs`
+(after `npm run build`; `PROBE_CHROMIUM_PATH=<chromium>` where Playwright's browser is not installed).
 
 **Self-critique:**
 - *Riskiest assumption:* that prerendering is behaviour-neutral. It is the one change that alters
