@@ -77,18 +77,21 @@ const runGuard = (dir: string) =>
 	spawnSync(process.execPath, ['scripts/evidence-guard.mjs', dir], { encoding: 'utf8' });
 
 /**
- * A folder the guard must refuse, and the reason it must give.
+ * What the guard said while refusing a folder, having first established that it did refuse it.
  *
  * Status alone is a weak assertion: this fixture is one edit away from tripping several rules at
  * once, so a mutation that broke something incidental would look exactly like the rule under test
- * doing its job. Every case below therefore names the sentence it expects, and a rule that stops
- * firing is a failure here even while some other rule keeps the exit code at 1.
+ * doing its job. Every case below therefore matches the sentence it expects against this, and a rule
+ * that stops firing fails here even while some other rule keeps the exit code at 1.
+ *
+ * The reason is matched in the test body rather than inside this helper so that each case carries a
+ * visible assertion of its own — a test whose only assertion is behind a call reads, to a static
+ * analyser and to a person skimming, as a test that asserts nothing.
  */
-const expectRefused = (dir: string, because: string | RegExp): void => {
+const refusalOf = (dir: string): string => {
 	const result = runGuard(dir);
-	const said = result.stdout + result.stderr;
-	expect(said, 'the guard refused the folder, but not for the reason under test').toMatch(because);
-	expect(result.status).toBe(1);
+	expect(result.status, `the guard did not refuse ${dir}`).toBe(1);
+	return result.stdout + result.stderr;
 };
 
 let pristineRoot: string;
@@ -215,19 +218,19 @@ describe('evidence-guard', () => {
 	});
 
 	it('refuses a folder that does not exist, rather than reporting success for nothing', () => {
-		expectRefused(join(workRoot, 'no-such-folder'), 'does not exist');
+		expect(refusalOf(join(workRoot, 'no-such-folder'))).toMatch('does not exist');
 	});
 
 	it('rejects a chain transcript with no exit status of its own', () => {
 		const dir = fresh();
 		mutate(dir, 'verify-outer.txt', /verify exit=0/, 'verify finished');
-		expectRefused(dir, 'verify-outer.txt carries the chain exit status');
+		expect(refusalOf(dir)).toMatch('verify-outer.txt carries the chain exit status');
 	});
 
 	it('rejects a chain transcript whose own summary reports a failure', () => {
 		const dir = fresh();
 		mutate(dir, 'test.txt', coloured('1 (', ')?skipped'), '1 $1failed');
-		expectRefused(dir, 'verify-outer.txt and test.txt agree on the suite total');
+		expect(refusalOf(dir)).toMatch('verify-outer.txt and test.txt agree on the suite total');
 	});
 
 	it('accepts a reporter that spells out its zeroes', () => {
@@ -250,7 +253,7 @@ describe('evidence-guard', () => {
 	it('rejects a chain artifact whose summary disagrees with its own detail', () => {
 		const dir = fresh();
 		mutate(dir, 'chamber-lock.json', /"status": "ok"/, '"status": "no"');
-		expectRefused(dir, "chamber-lock.json's summary disagrees with its own seams");
+		expect(refusalOf(dir)).toMatch("chamber-lock.json's summary disagrees with its own seams");
 	});
 
 	it('rejects a transcript the proof tape does not inventory', () => {
@@ -266,19 +269,19 @@ describe('evidence-guard', () => {
 			return Object.fromEntries(Object.entries(node).map(([key, value]) => [key, strip(value)]));
 		};
 		writeFileSync(path, JSON.stringify(strip(tape), null, 2));
-		expectRefused(dir, 'inventory entries for it');
+		expect(refusalOf(dir)).toMatch('inventory entries for it');
 	});
 
 	it('rejects a mandated row whose waiver has expired', () => {
 		const dir = fresh();
 		mutate(dir, 'e2e.txt', /Waiver-Expires: \d{4}-\d{2}-\d{2}/, 'Waiver-Expires: 2020-01-01');
-		expectRefused(dir, 'carries a waiver that expired on 2020-01-01');
+		expect(refusalOf(dir)).toMatch('carries a waiver that expired on 2020-01-01');
 	});
 
 	it('rejects a waiver expiry that is not a real calendar date', () => {
 		const dir = fresh();
 		mutate(dir, 'e2e.txt', /Waiver-Expires: \d{4}-\d{2}-\d{2}/, 'Waiver-Expires: 9999-99-99');
-		expectRefused(dir, 'which is not a real date');
+		expect(refusalOf(dir)).toMatch('which is not a real date');
 	});
 
 	it('rejects a run that passed zero tests', () => {
@@ -292,7 +295,7 @@ describe('evidence-guard', () => {
 		const anyTotal = coloured('\\d{1,9} (', ')?passed', 'g');
 		mutate(dir, 'test.txt', anyTotal, '0 $1passed');
 		mutate(dir, 'verify-outer.txt', anyTotal, '0 $1passed');
-		expectRefused(dir, 'verify-outer.txt and test.txt agree on the suite total');
+		expect(refusalOf(dir)).toMatch('verify-outer.txt and test.txt agree on the suite total');
 	});
 
 	it('rejects a rewind whose contract tests did not run', () => {
@@ -304,7 +307,7 @@ describe('evidence-guard', () => {
 		const dir = fresh();
 		const rewindTests = new RegExp(`(?<pre>Tests(?:\\s|${ESC}\\[[0-9;]*m)*)\\d{1,9}(?<post> passed)`);
 		mutate(dir, 'rewind-CreationStoreSeam-self-contained.txt', rewindTests, '$<pre>0$<post>');
-		expectRefused(dir, 'report "Tests 0 passed"');
+		expect(refusalOf(dir)).toMatch('report "Tests 0 passed"');
 	});
 
 	it('rejects a folder with no plain-English proof summary', () => {
@@ -312,18 +315,18 @@ describe('evidence-guard', () => {
 		// made `proof-tape.md` the one mandatory artifact no rule could reach.
 		const dir = fresh();
 		rmSync(join(dir, 'proof-tape.md'));
-		expectRefused(dir, 'left no artifact: proof-tape.md');
+		expect(refusalOf(dir)).toMatch('left no artifact: proof-tape.md');
 	});
 
 	it('rejects a proof summary that misstates what the report says', () => {
 		const dir = fresh();
 		mutate(dir, 'proof-tape.md', /\((\d{1,12}) bytes\)/, '(1 bytes)');
-		expectRefused(dir, 'proof-tape.md disagrees with proof-tape.json');
+		expect(refusalOf(dir)).toMatch('proof-tape.md disagrees with proof-tape.json');
 	});
 
 	it('rejects a Cipher Gate artifact that did not come back ok', () => {
 		const dir = fresh();
 		mutate(dir, 'cipher-gate.json', /"status": "ok"/, '"status": "blocked"');
-		expectRefused(dir, 'the Cipher Gate did not pass');
+		expect(refusalOf(dir)).toMatch('the Cipher Gate did not pass');
 	});
 });

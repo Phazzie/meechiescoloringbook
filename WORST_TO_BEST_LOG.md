@@ -9074,3 +9074,12 @@ stopped firing entirely.
 
 `npm run lint` clean · `npm run evidence:guard` 8 rules pass · 15 guard tests pass · both reported
 defeats re-run against the fix and refused, each by exactly one rule, with the sentence naming it.
+
+**Postscript to round 49 — the check that made the tests look empty.** Moving the reason assertion
+into an `expectRefused` helper turned SonarCloud's quality gate red: `D Reliability Rating on New
+Code`. Thirteen test cases whose only assertion sat behind a call read, to S2699 and to anyone
+skimming, as tests that assert nothing. The helper now returns what the guard said and each case
+matches the sentence itself — the same two assertions, one of them back where a reader can see it.
+
+> **A test whose assertion is out of sight is a test nobody can check at a glance.** The static
+> analyser was making a point about legibility, not about types.
