@@ -10107,3 +10107,49 @@ rather than re-deriving it.
 
 `check` 0/0 · `lint` exit=0 · `npm test` **1591 passed**, 1 skipped · `build` exit=0 · `test:e2e`
 **49 passed** · `npm run verify` exit=0.
+
+### Run 11, fifth close-out — 2026-09-06 — the decision entry was describing a design that no longer exists
+
+Codex on `d4b95cd`, a P2 on `DECISIONS.md` rather than on code:
+
+> *It describes a nonexistent `verdictStandingReported` boolean and says all text with an unreported
+> standing is withheld, while the implemented invariant uses the four-state `verdictSource` and
+> deliberately persists `'stored'` text while withholding only `'derived'` text … leaving the primary
+> `Decision` statement contradictory can steer a subsequent change back toward the boolean behavior
+> that lost stored verdict words.*
+
+**Correct, and it is this run's own thesis landing on this run's own paperwork.** I appended two
+corrections describing the three-valued design and left the `Decision:` line describing the boolean
+— a record outliving the thing it describes, which is the defect Run 8 wrote the rule about and the
+defect the whole feature is about. Worse than a stale log entry, because `DECISIONS.md` is named in
+`AGENTS.md` as a source of truth and is not append-only: the drift-check entry two sections below
+was corrected in place for exactly this reason, so the practice was already established here and I
+did not follow it.
+
+The `Decision:` statement now states the final invariant — `verdictSource`, only `'live'` claimed,
+only `'derived'` withheld from storage, `'stored'` written back because those are somebody's real
+words — and says in its own first clause that it was rewritten after review and that the corrections
+below are the more instructive half. The Consequences line is corrected with it.
+
+**Vercel is red on the current head and it is being stood down, once, here and in a comment on the
+PR** — not silently, and not on "Vercel is usually the quota", which this log has twice recorded as
+the wrong reason:
+
+- The status description names `api-deployments-free-per-day` — *"Resource is limited - try again in
+  24 hours (more than 100)"* — an **account-wide daily deployment quota**. It is a property of the
+  Vercel account and the calendar day. No change to this repository can cause or avoid it.
+- The stronger evidence, available on this PR and not needing that argument at all: **the same
+  branch deployed successfully at 13:38 on `85e54f4`, then failed at 13:45 and 13:51** on `d4b95cd`
+  and `66b7078`. A deployment failure caused by the diff cannot pass and then fail seven minutes
+  later, when the commits between them are a test, a documentation file, and a one-line change to a
+  default parameter. The counter crossed 100; the code did not change in a way a build could notice.
+- `npm run build` is exit 0 on this head, captured in `docs/evidence/2026-09-06/build.txt`, so it is
+  not a build failure being misreported.
+- No re-run is spent on it: the limit is a 24-hour window, so re-running would fail identically and
+  consume more of the quota that is the problem. `AGENTS.md` records this failure as standing
+  pre-existing noise for both scheduled routines.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `build` exit=0 · `npm run verify` exit=0. Unit, e2e and the rest are
+unchanged from the previous round — this round edited two prose paragraphs in `DECISIONS.md`.
