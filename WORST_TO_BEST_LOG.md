@@ -9698,8 +9698,18 @@ list `Strict-Transport-Security`, while the `src/hooks.server.ts` header comment
 `vercel.json` sources omit it *because* the edge sets it. That was true of the asset rules the
 comment was written about and is now false of the document rules beside them. Nothing breaks — a
 repeated HSTS is not the hazard a repeated `X-Frame-Options` is, and the hook no longer serves these
-paths — but the config and its stated rationale disagree. The fix is to drop the HSTS entry from
-those three rules, restoring the rationale, rather than to edit the rationale to match the drift.
+paths — but the config and its stated rationale disagree.
+
+**And the obvious fix does not compile, which is why it is written down here rather than attempted.**
+An earlier draft recommended simply dropping the HSTS entry from those three rules. That would fail
+`tests/unit/security-headers.test.ts`, whose per-path assertion iterates `SECURITY_HEADERS` —
+imported from `src/hooks.server.ts`, all five of them — and requires every one to appear on each of
+the fourteen prerendered documents. The test encodes "the platform must set everything the hook
+would have set", which is the right rule for the four contingent headers and wrong for the one the
+edge supplies anyway. So the follow-up is **two** changes, not one: split the expected set so HSTS
+is asserted for the hook's own paths and not required of the `vercel.json` document rules, then drop
+the entries. Doing only the second turns CI red. Recommending it without checking is how a
+close-out hands the next run a task that cannot pass its own gate.
 
 What a green `assumption-alarm` established is narrower than the row claimed: the entry is present
 and structurally valid. The script checks that Assumptions are recorded, not that they are true. An
@@ -9932,7 +9942,8 @@ whole is how a partial check passes for a complete one.**
   fetching — enough for the build manifest, which is the whole of what this run needed. What has no
   operation is `put(request, response)`: taking a response already in hand and keeping it. The
   practical consequence is narrower than "nothing outside the build can be cached", which is what an
-  earlier draft said and is wrong — `primeCache` accepts any URL, and `DECISIONS.md:2788` already
+  earlier draft said and is wrong — `primeCache` accepts any URL, and the 2026-09-06 prerendering
+  decision in `DECISIONS.md`, under `Alternatives` **(a) Add `putResponse` to `CacheSeam`**, already
   weighs calling it with visited ones. It is that keeping a response the worker just served costs a
   second fetch of the same URL, so runtime caching would double the network it is meant to save.
   Fixing that is a contract change, which is why this run did not attempt it.
