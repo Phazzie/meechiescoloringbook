@@ -9573,3 +9573,45 @@ itself is a different thing from a rule quietly ignored.
 `check` 0/0 · `lint` exit=0 · `npm test` **1557 passed**, 1 skipped · `build` exit=0 · `test:e2e`
 **46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
 `probes/cache-seam.probe.mjs` **12/12**.
+
+### Run 10, ninth close-out — 2026-09-06 — an open redirect I wrote while closing an open redirect
+
+`safeReturnPath` was written two rounds ago *because* the retry button's destination now comes from
+the URL bar, and it refused `//evil.example`, `https://evil.example` and `/\evil.example`. Re-reading
+it, one input gets past all three:
+
+```
+new URL('/\t/evil.example', 'https://meechie.example')  ->  https://evil.example/
+```
+
+**A URL parser strips tab, newline and carriage return before it parses.** So `/<TAB>/evil.example`
+begins with a single slash to every check I had written and with two to the browser — a
+protocol-relative URL, handed to `location.assign`, sending the reader to another site. The
+validator written to prevent exactly this class admitted a member of exactly this class.
+
+Fixed by rejecting every character below `0x21` outright rather than enumerating the three that are
+dangerous today: a real path percent-encodes them, the cost is nil, and the enumeration is the part
+that goes stale. **The test asserts the precondition against the platform's own parser** —
+`expect(new URL(raw, ORIGIN).origin).not.toBe(ORIGIN)` — so it cannot be more optimistic than the
+thing it guards.
+
+And it immediately caught me being exactly that. The first version of that test included `/ /` among
+the escaping inputs. A space is percent-encoded, not stripped, so it does **not** escape, and the
+assertion failed. The guard still refuses it — deliberately, for the reason above — but the test now
+says only what is true, and the difference between "refused" and "escapes" is written down.
+
+**Neither Codex nor SonarCloud nor CodeQL found this.** SonarCloud's count did rise 3 → 4 on
+`81d517d`, and the local reproduction still finds only the three pre-existing `smoke.spec.ts`
+issues, so the fourth remains unidentified — the gate passes, the security rating is A, and no
+code-scanning alert was relayed, which is what says it is not this. **The two are not connected and
+this entry does not claim they are.** I found the redirect by reading the function again.
+
+That is the second finding of this run to come from re-reading my own diff. The first was imagined.
+This one was not, and the difference is not judgement — it is that this one was **checked against
+the platform before being believed**, in a Node one-liner, before a single line was changed.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1559 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **12/12**.

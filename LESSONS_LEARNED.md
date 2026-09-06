@@ -575,3 +575,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Action: A check on service-worker behaviour needs a cold navigation in its own context. More
   generally: when a mutation does not fail a check, do not conclude the code is unnecessary until
   you have confirmed the check can observe it at all.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 10 — `safeReturnPath`, written to stop the offline page's retry button leaving the
+  origin, accepted `/\t/evil.example`.
+- Lesson: URL parsers strip tab, newline and carriage return *before* parsing, so a string that
+  begins with one slash to a `startsWith('/')` check begins with two to the browser. Every
+  string-prefix check on a URL is a claim about a parser, made without asking it.
+- Action: Validate a URL by asking the platform (`new URL(raw, origin).origin === origin`) or, where
+  the function must stay pure, reject every character below 0x21 rather than enumerating the
+  dangerous ones — and assert the precondition in the test against the real parser, so the test
+  cannot be more optimistic than the guard.

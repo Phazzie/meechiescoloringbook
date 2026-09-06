@@ -541,6 +541,20 @@ export const handleFetch = async (
  */
 export const safeReturnPath = (raw: string | null): string | null => {
 	if (!raw || raw.length < 1) return null;
+
+	// Control characters first, and this is the check that matters most. A URL parser **strips**
+	// tab, newline and carriage return before it parses, so `/<TAB>/evil.example` — which begins
+	// with a single `/` and satisfies every test below — becomes `//evil.example`, a
+	// protocol-relative URL, and `location.assign` sends the reader to another site. Verified with
+	// the platform's own parser rather than reasoned about:
+	//     new URL('/\t/evil.example', 'https://meechie.example')  ->  https://evil.example/
+	// Nothing legitimate arrives here with a raw control character in it; a real path percent-encodes
+	// them. Found by re-reading this function, not by any checker.
+	for (let index = 0; index < raw.length; index += 1) {
+		const code = raw.charCodeAt(index);
+		if (code <= 0x20 || code === 0x7f) return null;
+	}
+
 	if (!raw.startsWith('/')) return null;
 	if (raw.startsWith('//') || raw.startsWith('/\\')) return null;
 	if (raw === OFFLINE_FALLBACK_PATH || raw.startsWith(`${OFFLINE_FALLBACK_PATH}?`)) return null;

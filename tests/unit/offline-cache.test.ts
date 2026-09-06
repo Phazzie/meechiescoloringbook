@@ -325,6 +325,31 @@ describe('safeReturnPath', () => {
 		expect(safeReturnPath('javascript:alert(1)')).toBeNull();
 	});
 
+	// The one that gets past every string check above. A URL parser strips tab, newline and
+	// carriage return *before* parsing, so this begins with one slash to a reader and with two to
+	// the browser. Asserted against the platform's own parser so the test cannot be more optimistic
+	// than the thing it is protecting against.
+	it('refuses a path whose control characters a URL parser would strip', () => {
+		// Tab, newline and carriage return are *removed* before parsing, so each of these begins
+		// with one slash to a reader and two to the browser. The precondition is asserted against
+		// the platform's own parser so this test cannot be more optimistic than the thing it guards.
+		for (const raw of ['/\t/evil.example', '/\n/evil.example', '/\r/evil.example']) {
+			expect(new URL(raw, ORIGIN).origin, `${JSON.stringify(raw)} really does escape`).not.toBe(
+				ORIGIN
+			);
+			expect(safeReturnPath(raw), `${JSON.stringify(raw)} must be refused`).toBeNull();
+		}
+	});
+
+	// A space is percent-encoded rather than stripped, so it does *not* escape — checked, because an
+	// earlier version of the test above asserted that it did and was wrong. Refused anyway: the
+	// guard rejects every character below 0x21 rather than enumerating the three that are dangerous
+	// today, since the cost is nil and the enumeration is the part that goes stale.
+	it('refuses other control characters too, without claiming they escape', () => {
+		expect(new URL('/ /evil.example', ORIGIN).origin).toBe(ORIGIN);
+		expect(safeReturnPath('/ /evil.example')).toBeNull();
+	});
+
 	it('refuses the offline page itself, which would be a button that does nothing', () => {
 		expect(safeReturnPath('/offline')).toBeNull();
 		expect(safeReturnPath('/offline?from=%2Fx')).toBeNull();
