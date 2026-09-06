@@ -141,20 +141,35 @@ describe('buildQualityReport', () => {
 			hasPage: true,
 			driftChecked: false,
 			violations: [],
-			recommendedFixes: []
+			recommendedFixes: [],
+			checkResultUnrecorded: true
 		});
 
 		if (report.state !== 'flagged') throw new Error('expected a flagged report');
 		expect(report.findings).toEqual([
 			{
 				code: CHECK_RESULT_UNRECORDED_CODE,
-				message:
-					'This page was saved before its check result was recorded, so it is not on file.',
+				message: "This page's check result is not on file, so there is nothing to report about it.",
 				weight: 'check-failed',
 				source: 'prompt'
 			}
 		]);
 		expect(report.hasIncompleteCheck).toBe(true);
+	});
+
+	it('does not flag a page that simply was not produced by a checked flow', () => {
+		// A wig try-on page is installed without ever calling `/api/generate`, so it has a page and no
+		// drift result — the same shape as a vault record with no stored findings. Inferring the
+		// unrecorded finding from that shape told a page that had never been saved that it had been
+		// saved before its result was recorded, so the caller now says which case it is.
+		const report = buildQualityReport({
+			hasPage: true,
+			driftChecked: false,
+			violations: [],
+			recommendedFixes: []
+		});
+
+		expect(report.state).toBe('unchecked');
 	});
 
 	it('surfaces the recommended fixes, which the old panel computed and never showed', () => {

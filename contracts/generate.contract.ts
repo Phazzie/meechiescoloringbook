@@ -13,7 +13,7 @@ export const GenerateRequestSchema = z.object({
 	styleHint: NonEmptyStringSchema.optional()
 });
 
-export const GenerateResponseValueSchema = z.object({
+export const GenerateResponseValueBaseSchema = z.object({
 	prompt: PromptAssemblyOutputSchema.shape.prompt,
 	templateVersion: PromptAssemblyOutputSchema.shape.templateVersion,
 	images: ImageGenerationOutputSchema.shape.images,
@@ -42,6 +42,26 @@ export const GenerateResponseValueSchema = z.object({
 		.object({ code: NonEmptyStringSchema, message: NonEmptyStringSchema })
 		.optional()
 });
+
+/**
+ * A drift check either graded the prompt or it did not — never both.
+ *
+ * Without this, a response carrying `driftCheckFailure` *and* violations parsed clean, and every
+ * consumer would then report page findings and "the check never finished" in the same breath. The
+ * field's own documentation states the invariant; a documented invariant that the schema does not
+ * enforce is exactly the "assert more than you have shown" defect this contract change exists to
+ * close, so it is enforced here rather than described.
+ */
+export const GenerateResponseValueSchema = GenerateResponseValueBaseSchema.refine(
+	(value) =>
+		value.driftCheckFailure === undefined ||
+		(value.violations.length === 0 && value.recommendedFixes.length === 0),
+	{
+		message:
+			'driftCheckFailure means the check graded nothing, so violations and recommendedFixes must be empty.',
+		path: ['driftCheckFailure']
+	}
+);
 
 export const GenerateResultSchema = resultSchema(GenerateResponseValueSchema);
 

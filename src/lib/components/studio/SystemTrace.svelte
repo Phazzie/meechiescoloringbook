@@ -15,6 +15,7 @@ Info flow: Parent passes the report built by `buildQualityReport` plus the two p
 		describeQualityReport,
 		type QualityReport
 	} from '$lib/core/quality-report';
+	import QualityFindings from '../QualityFindings.svelte';
 
 	let {
 		assembledPrompt,
@@ -60,33 +61,11 @@ Info flow: Parent passes the report built by `buildQualityReport` plus the two p
 			{:else}
 				<p class="headline" data-testid="system-trace-headline">{headline}</p>
 
-				<ul class="findings">
-					<!-- Deliberately unkeyed: `code` is not unique across findings — two lines can
-					     breach the same rule — and a duplicate key is a runtime error in Svelte. -->
-					{#each report.findings as finding}
-						<li class={finding.weight} data-code={finding.code}>
-							<span class="tag">
-								{#if finding.weight === 'check-failed'}Unchecked{:else if finding.weight === 'note'}Noted{:else if finding.source === 'settings'}Setting{:else}Dropped{/if}
-							</span>
-							<span class="finding-message">{finding.message}</span>
-						</li>
-					{/each}
-				</ul>
-
-				{#if report.fixes.length > 0}
-					<div class="fixes" data-testid="system-trace-fixes">
-						<p class="eyebrow">What Closes It</p>
-						<!-- Listed as their own block rather than under the findings above. The seam
-						     returns violations and fixes as two independent arrays and promises no
-						     pairing between them, so putting a fix under a finding would be this
-						     component inventing a link the contract never made. -->
-						<ul>
-							{#each report.fixes as fix}
-								<li>{fix}</li>
-							{/each}
-						</ul>
-					</div>
-				{/if}
+				<QualityFindings
+					findings={report.findings}
+					fixes={report.fixes}
+					fixesTestId="system-trace-fixes"
+				/>
 			{/if}
 		</section>
 
@@ -144,9 +123,6 @@ Info flow: Parent passes the report built by `buildQualityReport` plus the two p
 		color: var(--gold);
 	}
 
-	.fixes .eyebrow {
-		margin-top: 0.9rem;
-	}
 
 	.empty {
 		margin: 0;
@@ -166,66 +142,15 @@ Info flow: Parent passes the report built by `buildQualityReport` plus the two p
 		font-weight: 700;
 	}
 
-	.findings {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-		display: grid;
-		gap: 0.45rem;
-	}
 
-	.findings li {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
-		gap: 0.55rem;
-		align-items: baseline;
-		padding: 0.5rem 0.6rem;
-		border-radius: 0.6rem;
-		background: rgba(7, 7, 15, 0.5);
-		border: 1px solid rgba(201, 162, 39, 0.16);
-	}
 
-	.tag {
-		font-size: 0.68rem;
-		font-weight: 800;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		white-space: nowrap;
-	}
 
-	.findings li.blocker {
-		border-color: rgba(232, 0, 106, 0.35);
-	}
 
-	.findings li.blocker .tag {
-		color: #ff8ab3;
-	}
 
-	.findings li.note .tag {
-		color: var(--gold-bright);
-	}
 
-	.findings li.check-failed {
-		border-color: rgba(184, 170, 207, 0.35);
-	}
 
-	.findings li.check-failed .tag {
-		color: var(--lavender);
-	}
 
-	.finding-message {
-		color: var(--cream);
-		font-size: 0.9rem;
-	}
 
-	.fixes ul {
-		margin: 0;
-		padding-left: 1.1rem;
-		display: grid;
-		gap: 0.3rem;
-		color: var(--cream);
-		font-size: 0.9rem;
-	}
 
 	.prompts textarea {
 		width: 100%;

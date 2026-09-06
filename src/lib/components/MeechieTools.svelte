@@ -9,6 +9,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 <script lang="ts">
 	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 	import { buildQualityReport, describeQualityReport } from '$lib/core/quality-report';
+	import QualityFindings from './QualityFindings.svelte';
 	import type {
 		MeechieToolInput,
 		MeechieToolOutput
@@ -838,27 +839,11 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			{:else if qualityReport.state === 'flagged'}
 				<div class="drift" data-testid="meechie-tool-violations">
 					<p class="drift-title">{describeQualityReport(qualityReport)}</p>
-					<ul>
-						{#each qualityReport.findings as finding}
-							<li class={finding.weight} data-code={finding.code}>
-								<span class="tag"
-									>{#if finding.weight === 'check-failed'}Unchecked{:else if finding.weight === 'note'}Noted{:else if finding.source === 'settings'}Setting{:else}Dropped{/if}</span
-								>
-								<span>{finding.message}</span>
-							</li>
-						{/each}
-					</ul>
-
-					{#if qualityReport.fixes.length > 0}
-						<!-- Their own list, not annotations on the findings above: the drift seam returns
-						     the two arrays independently and promises no pairing between them. -->
-						<p class="drift-title fixes-title">What closes it</p>
-						<ul class="fixes" data-testid="meechie-tool-fixes">
-							{#each qualityReport.fixes as fix}
-								<li>{fix}</li>
-							{/each}
-						</ul>
-					{/if}
+					<QualityFindings
+						findings={qualityReport.findings}
+						fixes={qualityReport.fixes}
+						fixesTestId="meechie-tool-fixes"
+					/>
 				</div>
 			{/if}
 
@@ -1323,55 +1308,15 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		color: var(--gold-bright, #f0c44a);
 	}
 
-	.drift ul {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-		display: grid;
-		gap: 0.35rem;
-		line-height: 1.5;
-	}
 
-	.drift ul li {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
-		gap: 0.5rem;
-		align-items: baseline;
-	}
 
-	.drift .tag {
-		font-size: 0.66rem;
-		font-weight: 800;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		white-space: nowrap;
-	}
 
-	.drift li.blocker .tag {
-		color: #ff8fab;
-	}
 
-	.drift li.note .tag {
-		color: var(--gold-bright, #f0c44a);
-	}
 
-	.drift li.check-failed .tag {
-		color: var(--lavender, #b8aacf);
-	}
 
-	.fixes-title {
-		margin-top: 0.7rem;
-	}
 
 	/* The fixes carry no severity, so they get no tag column. */
-	.drift ul.fixes {
-		padding-left: 1.1rem;
-		list-style: disc;
-	}
 
-	.drift ul.fixes li {
-		display: list-item;
-	}
 
 	.page-actions {
 		display: flex;

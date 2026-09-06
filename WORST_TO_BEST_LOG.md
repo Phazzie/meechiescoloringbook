@@ -7980,3 +7980,113 @@ whose entire purpose is closing exactly that gap in a feature that had it.
 
 > The overclaim is not a thing you remove from a codebase once. It is a habit, and it follows you
 > into the fix.
+
+---
+
+## Run 9, fourth close-out — 2026-09-06 — six more findings, and the false clean came back
+
+Codex's round on `5d721cf` found six things. One of them is the run's own headline defect,
+resurrected on a path this run had not looked at. SonarCloud also failed its gate for the first time
+in this PR, on duplication.
+
+### The false clean came back, via the vault (P1)
+
+The whole run exists to stop an unchecked page reporting as clean. Codex found it doing exactly that,
+one round trip later.
+
+Save a page whose drift check failed. `CreationRecordSchema` has a field for `violations` and none
+for the failure reason, so the record stores `violations: []`. Reopen it: my own reopen code said
+`driftReported = creation.violations !== undefined` → true → checked, no findings → **`clean`**.
+
+I had written that `!== undefined` deliberately, in an earlier close-out, and explained it as the
+careful choice: a record predating stored findings has no `violations` key, and `?? []` would turn
+that absence into a clean bill. All true. **And it missed that a stored empty array is ambiguous in
+the same way** — it is written both by a page that passed and by a page whose check failed, because
+a failed check also produces no violations. I checked the absent case and not the empty one.
+
+Fixed without a contract change, by refusing to guess: stored findings mean the check reported and
+are shown; **a stored empty array is a result that is not on file, and says so.** The genuine clean
+case is undersold rather than the failed one oversold. Persisting the distinction properly needs a
+`CreationRecordSchema` field and the full workflow — deferred, and recorded below rather than
+half-done.
+
+### A brand-new try-on page was being told it had been saved (P2)
+
+The "check result is not on file" finding was *inferred* from `hasPage && !driftChecked`. A wig
+try-on page is installed by `handleGenerateTryOnPage` without ever calling `/api/generate`, so it
+matches that shape exactly — and every freshly made try-on page was told "this page was saved before
+its check result was recorded", about a page that had never been saved at all.
+
+Inference from a shape, again, where only the caller knows the fact. It is now an explicit
+`checkResultUnrecorded` flag set by `loadCreation` and nothing else, and the `unchecked` copy no
+longer says "nothing on the paper yet" — which was itself false whenever a try-on page was on the
+paper.
+
+### The schema documented an invariant it did not enforce (P2)
+
+`driftCheckFailure`'s own doc comment says a present failure means `violations` is empty. Nothing
+stopped a response carrying both, and all three consumers would then have reported page findings and
+"the check never finished" together. A documented-but-unenforced invariant is the same defect as an
+undocumented one, dressed better. Now a `.refine()` rejects it, with a test.
+
+### The full workflow, again (P1)
+
+Codex held its position: `contracts/` changes take the full workflow regardless of whether
+`/api/generate` has a registry row, and my "no probe, fixtures, mock, contract test or adapter"
+answer described the gap rather than closing it.
+
+Half right, and the half that is right is the actionable one. There is genuinely no probe, fixture or
+mock to write — the route does no I/O of its own; it composes seams that have theirs. But
+**"no contract test" was a gap I could close and had not.** `tests/unit/api-generate.test.ts` now
+carries three, and the first one is the good one: it drives the **real** `driftDetectionAdapter` with
+a provider-style rewritten prompt — prose, no headings — and asserts the response carries
+`MISSING_REQUIRED_SECTION`. That is the production scenario this entire run is about, reproduced
+rather than simulated, and it would have caught the original fail-open.
+
+### Two deferrals, stated rather than fixed (P2 each)
+
+- **Recommended fixes are lost on a vault round trip.** The home save stores fix *codes* in
+  `fixesApplied`, the mode save stores none, and reopening restores none. So "What closes it"
+  disappears while the findings remain. Storing the messages is `CreationRecordSchema`.
+- **The failure reason is not persisted**, which is what forced the undersell above.
+
+Both are the same missing field, and both belong in one `CreationStoreSeam` change with a probe, a
+fixture and a Cipher Gate — not bolted onto this PR. The log's scope rule is explicit: do the
+workflow properly or pick work that does not need it, never half-do it.
+
+### The architecture map described a symbol that no longer exists (P2)
+
+`CLAUDE.md` still said `quality-report.ts` owns `DRIFT_CHECK_FAILED_CODE` and that the pipeline emits
+it. I deleted that constant two commits earlier and did not go back to the file map that explains it.
+That is Run 8's rule verbatim — *when a fix changes what is true, the fix is not done until every
+sentence asserting the old truth has been found* — and it caught me in the same run that quotes it.
+
+### SonarCloud: 4.1% duplication on new code, gate failed
+
+Three surfaces rendering the same findings list, and the tag logic — which weight and source render
+as which word — written out three times. The duplication was real, and it was the *specific* kind
+this run is about: three copies is how the surfaces diverged in the first place.
+
+Extracted `src/lib/components/QualityFindings.svelte`. One rendering, one tag rule, used by System
+Trace, `VerdictPageStudio` and `MeechieTools`. The orphaned CSS came out of all three.
+
+### Verified
+
+`check` 0/0 · `lint` exit=0 · **1466 passed**, 1 skipped · `build` exit=0 · e2e 42 passed ·
+`verify` exit=0 · rewind 5 passed · proof tape flags nothing. Outer transcript cross-checked against
+`test.txt`: 1466 and 94 in both.
+
+### Fourteen findings in, the shape has not changed once
+
+Not one has been "this code does not work". Every single one has been a claim wider than its
+evidence, and the two commonest sources are now unmistakable:
+
+1. **Inference from a shape where only the caller knows the fact.** `hasGeneratedPage` fed a check
+   flag. `hasPage && !driftChecked` inferred "came from the vault". An absent `revisedPrompt`
+   inferred "used verbatim". Each time the fix was the same: stop deducing it, pass it in.
+2. **Checking the case I had in mind and not its neighbour.** The absent `violations` key, carefully
+   handled; the empty `violations` array, not. A contract shape, checked; a contract semantic, not.
+
+> Both are the same error at different scales: answering the question you framed instead of the one
+> in front of you. Reasoning cannot catch it, because the reasoning is sound. Only someone else
+> looking, or a test written from the outside, can.

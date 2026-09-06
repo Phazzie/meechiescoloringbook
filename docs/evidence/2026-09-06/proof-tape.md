@@ -5,19 +5,19 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-06T01:19:36.778Z
+Generated at: 2026-09-06T01:30:53.297Z
 Evidence folder: docs/evidence/2026-09-06
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
 after this inventory is taken, so they are not listed):
 
 - assumption-alarm.json (12123 bytes)
-- build.txt (11225 bytes)
+- build.txt (11429 bytes)
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (35321 bytes)
 - clan-chain.json (3181 bytes)
 - clan-chain.md (1956 bytes)
-- e2e.txt (5631 bytes)
+- e2e.txt (5629 bytes)
   Commands: meechies-coloringbook@0.1.0 test:e2e | playwright test
 - lint.txt (55 bytes)
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
@@ -26,7 +26,7 @@ after this inventory is taken, so they are not listed):
   Commands: meechies-coloringbook@0.1.0 rewind | node scripts/rewind.mjs --seam DriftDetectionSeam (self-contained)
 - seam-ledger.json (37460 bytes)
 - seam-ledger.md (2981 bytes)
-- shaolin-lint.json (519 bytes)
+- shaolin-lint.json (517 bytes)
 - test.txt (3131 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-outer.txt (3547 bytes)

@@ -33,8 +33,9 @@ export type DriftCheckFailure = { code: string; message: string };
  * The finding code for a page whose stored check result is missing rather than empty.
  *
  * Not a wire value and never sent by the server: this is synthesized here for a reopened vault
- * record saved before findings were persisted. Such a record has a page and no `violations` at all,
- * which is a check result that is *unknown* — and unknown must not render as clean.
+ * record whose findings are not on file. Such a record has a page and nothing that distinguishes
+ * "checked, clean" from "the check failed and nothing was stored" — a result that is *unknown*, and
+ * unknown must not render as clean.
  */
 export const CHECK_RESULT_UNRECORDED_CODE = 'CHECK_RESULT_UNRECORDED';
 
@@ -143,6 +144,16 @@ export const buildQualityReport = (input: {
 	 */
 	driftCheckFailure?: DriftCheckFailure;
 	/**
+	 * True when the page on screen came from a stored record whose check result is not on file.
+	 *
+	 * Passed in explicitly rather than inferred from `hasPage && !driftChecked`, which is what the
+	 * first version did and which was wrong for a whole flow: a wig try-on page is installed without
+	 * ever calling `/api/generate`, so it has a page and no drift result and had never been saved —
+	 * and got told it "was saved before its check result was recorded". Only the caller knows a page
+	 * came out of the vault, so only the caller says so.
+	 */
+	checkResultUnrecorded?: boolean;
+	/**
 	 * Spec-validation issues, which are about the request rather than the result.
 	 *
 	 * Optional because the mode routes do not run a separate spec check the way the home studio
@@ -182,12 +193,12 @@ export const buildQualityReport = (input: {
 			weight: 'check-failed',
 			source: 'prompt'
 		});
-	} else if (input.hasPage && !input.driftChecked) {
+	} else if (input.checkResultUnrecorded) {
 		// A page whose check result is not on file. Distinct from a failed check and from a clean
 		// one, and it must not borrow either's wording.
 		findings.push({
 			code: CHECK_RESULT_UNRECORDED_CODE,
-			message: 'This page was saved before its check result was recorded, so it is not on file.',
+			message: "This page's check result is not on file, so there is nothing to report about it.",
 			weight: 'check-failed',
 			source: 'prompt'
 		});

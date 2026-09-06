@@ -475,6 +475,15 @@ export class StudioState {
 	private driftReported = $state(false);
 	/** Why the drift check returned no verdict, when `/api/generate` said it returned none. */
 	private driftCheckFailure = $state<GenerateResponseValue['driftCheckFailure']>(undefined);
+	/**
+	 * True when the page on screen came out of the vault without its check result.
+	 *
+	 * Set only by `loadCreation`. Deliberately not derived from "there is a page and no drift result":
+	 * a wig try-on page is installed without ever calling `/api/generate` and matches that shape
+	 * exactly, and was being told it had been saved before its result was recorded — about a page
+	 * that had never been saved at all.
+	 */
+	private checkResultUnrecorded = $state(false);
 	images = $state<GeneratedImage[]>([]);
 	/**
 	 * Every call made to the packaging seam for the page on the paper: the variant asked for, the
@@ -671,6 +680,7 @@ export class StudioState {
 			violations: this.violations,
 			recommendedFixes: this.recommendedFixes,
 			driftCheckFailure: this.driftCheckFailure,
+			checkResultUnrecorded: this.checkResultUnrecorded,
 			validationIssues: this.validationIssues
 		})
 	);
@@ -1180,6 +1190,7 @@ export class StudioState {
 		this.recommendedFixes = [];
 		this.driftReported = false;
 		this.driftCheckFailure = undefined;
+		this.checkResultUnrecorded = false;
 		this.images = [];
 		// Clears the packaged files, the described export row and the export failure sentence in one
 		// assignment, because all three are derived from it. `pageExports` also loses the provider's
@@ -2149,10 +2160,20 @@ export class StudioState {
 		// `violations` at all, and `?? []` above turns that absence into an empty array — which the
 		// report would otherwise read as "checked, nothing wrong". A record that never wrote down its
 		// findings is a page whose check result is unknown, and unknown is not clean.
-		this.driftReported = creation.violations !== undefined;
-		// A saved record carries no failure reason; `resetGeneratedPage` already cleared any. When a
-		// record predates stored findings, `driftReported` is false and the report says the result is
-		// not on file — which is the honest thing, and is not a failed check.
+		// `.length > 0`, not `!== undefined`. A record stores `violations` and nothing else about the
+		// check, so a stored *empty* array is ambiguous in exactly the way this whole change exists to
+		// remove: it is written both by a page that passed and by a page whose check failed, because
+		// a failed check also produces no violations. Treating it as "checked" resurrected the false
+		// clean on the vault path — the same defect, one round trip later.
+		//
+		// So: stored findings mean the check reported, and are shown. Anything else is a result that
+		// is not on file, and says so. The genuine clean case is undersold rather than the failed one
+		// oversold; persisting the distinction needs a `CreationRecordSchema` field and the full
+		// Seam-Driven Development workflow, and is recorded as deferred.
+		const storedFindings = creation.violations ?? [];
+		this.driftReported = storedFindings.length > 0;
+		this.checkResultUnrecorded = storedFindings.length === 0;
+		// A saved record carries no failure reason; `resetGeneratedPage` already cleared any.
 		this.driftCheckFailure = undefined;
 		this.vaultStatus = `Reopened "${creation.intent.title}".`;
 		await this.validateSpec();

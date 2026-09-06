@@ -10,6 +10,7 @@ Info flow: VerdictPageState (props) -> user actions -> state methods -> reactive
 <script lang="ts">
 	import type { VerdictPageState } from './verdict-page-state.svelte';
 	import { describeQualityReport } from '$lib/core/quality-report';
+	import QualityFindings from './QualityFindings.svelte';
 
 	let {
 		studio,
@@ -102,30 +103,11 @@ Info flow: VerdictPageState (props) -> user actions -> state methods -> reactive
 	{:else if studio.qualityReport.state === 'flagged'}
 		<div class="drift" data-testid="verdict-page-violations">
 			<p class="drift-title">{describeQualityReport(studio.qualityReport)}</p>
-			<ul>
-				<!-- Deliberately unkeyed: `code` is not unique across findings (two lines can
-				     breach the same rule), and a duplicate key is a runtime error in Svelte. -->
-				{#each studio.qualityReport.findings as finding}
-					<li class={finding.weight} data-code={finding.code}>
-						<span class="tag"
-							>{#if finding.weight === 'check-failed'}Unchecked{:else if finding.weight === 'note'}Noted{:else if finding.source === 'settings'}Setting{:else}Dropped{/if}</span
-						>
-						<span>{finding.message}</span>
-					</li>
-				{/each}
-			</ul>
-
-			{#if studio.qualityReport.fixes.length > 0}
-				<!-- Two lists, not one annotated list. The drift seam returns violations and fixes as
-				     independent arrays with no promised pairing between them, so showing a fix under
-				     a finding would assert a link the contract never made. -->
-				<p class="drift-title fixes-title">What closes it</p>
-				<ul class="fixes" data-testid="verdict-page-fixes">
-					{#each studio.qualityReport.fixes as fix}
-						<li>{fix}</li>
-					{/each}
-				</ul>
-			{/if}
+			<QualityFindings
+				findings={studio.qualityReport.findings}
+				fixes={studio.qualityReport.fixes}
+				fixesTestId="verdict-page-fixes"
+			/>
 		</div>
 	{/if}
 
@@ -355,56 +337,15 @@ Info flow: VerdictPageState (props) -> user actions -> state methods -> reactive
 		color: var(--gold-bright, #f0c44a);
 	}
 
-	.drift ul {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-		display: grid;
-		gap: 0.35rem;
-		font-size: 0.86rem;
-		color: var(--lavender, #b8aacf);
-	}
 
-	.drift ul li {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
-		gap: 0.5rem;
-		align-items: baseline;
-	}
 
-	.drift .tag {
-		font-size: 0.66rem;
-		font-weight: 800;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		white-space: nowrap;
-	}
 
-	.drift li.blocker .tag {
-		color: #ff8fab;
-	}
 
-	.drift li.note .tag {
-		color: var(--gold-bright, #f0c44a);
-	}
 
-	.drift li.check-failed .tag {
-		color: var(--lavender, #b8aacf);
-	}
 
-	.fixes-title {
-		margin-top: 0.75rem;
-	}
 
 	/* The fixes are a plain list — they carry no severity, so they get no tag column. */
-	.drift ul.fixes {
-		padding-left: 1.1rem;
-		list-style: disc;
-	}
 
-	.drift ul.fixes li {
-		display: list-item;
-	}
 
 	.preview-grid {
 		display: grid;
