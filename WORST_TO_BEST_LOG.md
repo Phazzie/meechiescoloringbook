@@ -9269,3 +9269,15 @@ was tested and the shell around it had never been executed.
 
 `npm run lint` clean · 8 rules pass on the fixture and on today's folder · 26 evidence-guard tests ·
 9 chain-intact tests.
+
+**Postscript to round 52 — pushed before reading the scan.** The three regexes written for those
+fixes were all backtracking (`sonarjs/super-linear-regex`), and I ran the scan *after* the push
+rather than before it. The commit was already on the branch when the output appeared.
+
+The fixes are not clever patterns; two of them are not patterns at all. Trailing separators are
+trimmed by a loop over the end of the string, a Markdown table row is split on the delimiter that
+defines it, and the reporter-record pattern uses `[^\s:]` so a path cannot run through the colons it
+is anchored to and then backtrack.
+
+> **Running a check after the push makes it a report, not a gate.** The whole branch is about that
+> distinction, and the order of two commands is all it takes to fall on the wrong side of it.

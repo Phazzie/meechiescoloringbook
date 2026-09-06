@@ -430,7 +430,15 @@ const replayedFrom = (dir, tape) => {
 	// character — it would return the whole string and this rule would reject valid evidence as a
 	// replay. That is the rule doing the opposite of its job: three of this guard's earlier bugs were
 	// correct evidence refused, and this one was introduced by the fix for evidence wrongly accepted.
-	const slashed = (value) => value.replace(/\\/g, '/').replace(/\/+$/, '');
+	// Trailing separators trimmed without a regex: `/\/+$/` backtracks, which `sonarjs/super-linear-regex`
+	// flags and which is a real cost on a long path. A loop over the end of the string is linear and
+	// says what it does.
+	const slashed = (value) => {
+		const forward = value.replace(/\\/g, '/');
+		let end = forward.length;
+		while (end > 0 && forward[end - 1] === '/') end -= 1;
+		return forward.slice(0, end);
+	};
 	const here = basename(slashed(dir));
 	const claimed = typeof tape.evidenceDir === 'string' ? slashed(tape.evidenceDir) : null;
 	if (claimed === null)
@@ -526,10 +534,14 @@ const seamLedgerSummaryProblem = (dir) => {
 	const seams = Array.isArray(ledger.seams) ? ledger.seams.map((entry) => entry?.seam) : null;
 	if (seams === null) return 'seam-ledger.json carries no seams list, so its table describes nothing.';
 	// The first column of each table row, skipping the header and its divider.
+	// Split rather than matched. `/^\|\s*([^|]+?)\s*\|/` is a lazy group between two `\s*`, which
+	// backtracks; a Markdown row is delimited text, so splitting on the delimiter is both linear and
+	// the more honest reading of the format.
 	const tabled = md
 		.split('\n')
-		.map((line) => /^\|\s*([^|]+?)\s*\|/.exec(line)?.[1])
-		.filter((name) => name !== undefined && name !== 'Seam' && !/^-+$/.test(name));
+		.filter((line) => line.startsWith('|'))
+		.map((line) => line.split('|')[1]?.trim())
+		.filter((name) => name !== undefined && name !== '' && name !== 'Seam' && !/^-{1,64}$/.test(name));
 	const missing = seams.filter((seam) => !tabled.includes(seam));
 	const extra = tabled.filter((seam) => !seams.includes(seam));
 	if (missing.length === 0 && extra.length === 0) return null;
@@ -982,7 +994,9 @@ const RULES = [
 			// per-test line while keeping `41 passed` and one mention of `tests/e2e/smoke.spec.ts` left
 			// this rule satisfied and the summary again checkable against nothing. A reporter record
 			// cites `file:line:column`; prose cites a file.
-			const records = row2.match(/\S+\.(spec|test)\.[cm]?[jt]sx?:\d{1,6}:\d{1,6}/g) ?? [];
+			// `[^\s:]` rather than `\S`, so the path cannot run through the colons it is anchored to and
+			// then backtrack, and bounded so it cannot run away on a long line.
+			const records = row2.match(/[^\s:]{1,200}\.(spec|test)\.[cm]?[jt]sx?:\d{1,6}:\d{1,6}/g) ?? [];
 			const passed = lastPassedCount(row2);
 			if (records.length < passed)
 				return `e2e.txt Row 2 reports ${passed} passed and carries ${records.length} per-test records; a summary with fewer records than passes cannot be checked against the run it claims to describe.`;
