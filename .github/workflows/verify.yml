@@ -227,7 +227,15 @@ jobs:
       # checkout, so CI would verify a dependency graph that differs from the committed one and
       # silently repair the very inconsistency a reviewer needs to see. `ci` fails on that instead,
       # and installs exactly what the lockfile says.
+      #
+      # `--ignore-scripts` because installation would otherwise execute lifecycle scripts — this
+      # repository's own `prepare`, and any dependency's install hook — as arbitrary code from the
+      # branch under review, with the checkout writable. That is the same reason the two checks above
+      # run before this step, and leaving it out would have put the code they exist to guard against
+      # back in, one line below them. `prepare` here is `svelte-kit sync`, which `npm run check` runs
+      # again as the chain's first stage, so nothing downstream needs it: verified by installing this
+      # way and running check, build and the full suite.
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
       - name: Verify
         run: npm run verify

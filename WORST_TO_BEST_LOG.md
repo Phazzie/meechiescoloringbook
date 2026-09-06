@@ -9149,3 +9149,24 @@ the check instead of being silently repaired inside the ephemeral checkout.
 
 `npm run lint` clean · `sonarjs` recommended clean · `npm run evidence:guard` 8 rules pass ·
 26 unit tests across the two guard suites · all seven findings re-run against the fix and refused.
+
+**Postscript to round 50 — the fix that opened a hole one line below the check for it.** Switching CI
+to `npm ci` turned the quality gate red again, this time `C Security Rating on New Code`, and for
+once the finding arrived legibly: SonarCloud, relayed through GitHub Advanced Security, on
+`.github/workflows/verify.yml` — *"JavaScript package manager scripts should not be executed during
+installation. Omitting `--ignore-scripts` allows lifecycle scripts to run during package
+installation."*
+
+It is right, and the sting is where it lands. Two steps above that line, this workflow runs the
+evidence guard and the gate check *before* installation, with a comment saying why: `npm install`
+executes this repository's `prepare` script, which is arbitrary code from the branch under review.
+Then the next step ran that code anyway.
+
+> **A check placed before a danger does not remove the danger.** I had written the reasoning down,
+> in the same file, eight lines apart, and still shipped the install that made it moot.
+
+`npm ci --ignore-scripts` now. Verified rather than assumed, because `--ignore-scripts` also skips
+dependencies' install hooks and can leave a toolchain half-built: installed that way here, then ran
+`npm run check`, `npm run build` and the full suite — 0 errors, build ok, 26 guard tests pass.
+`prepare` is `svelte-kit sync`, which `npm run check` runs again as the chain's first stage, so
+nothing downstream needed it.
