@@ -8610,8 +8610,9 @@ was a failing test. Two mechanisms recurred often enough to name:
 2. **Checking the case I had in mind rather than its neighbour.** Pictureless-with-findings, but not
    pictureless-with-findings-*and-then-the-user-types*.
 
-**Corrected on review of the close-out itself.** The bolded sentence above is an overclaim, and the
-exceptions are documented *in this same file, by me, earlier in this run*:
+**Corrected on review of the close-out itself.** The bolded sentence above is an overclaim. These
+exceptions are documented *in this same file, by me, earlier in this run* — and the list is **not
+offered as exhaustive**, because every claim of exhaustiveness this entry has made has been wrong:
 
 - The **forbidden `zod` import** — recorded at the eight-finding round as "only one was a plain
   coding error", in exactly those words.
@@ -8622,10 +8623,18 @@ exceptions are documented *in this same file, by me, earlier in this run*:
 - **The unmade edit**, which the entry above at "Nineteen findings, and the one that is different"
   already separates out explicitly: *"The nineteenth is not like the others."* It was a false
   description of my own work, not an inference about the system.
+- **The missing `Invariants` headers** — the whole class. "And the third missing Invariants header",
+  then the four P1s at "four findings of one kind, and the sweep I should have done three rounds
+  ago". A required comment block that is absent is not a claim at all, wide or narrow; it is a rule
+  in `AGENTS.md` that the file did not follow. This class was missing from the list until Codex
+  named it, which is the second time the *catalogue of exceptions* has been caught understating
+  itself — and note what it means: at least five findings this run were of a kind I had twice
+  written summaries excluding.
 
-The accurate statement is: **the large majority were claims wider than their evidence, and the
-exceptions are the ones enumerated just above.** No total is given, because none of the ones this run
-produced survived checking.
+The accurate statement is: **the large majority were claims wider than their evidence, with at least
+the classes of exception enumerated just above.** No total is given, because none of the ones this
+run produced survived checking, and no exhaustiveness is claimed for the exception list either — its
+last addition came from a reviewer, not from me.
 
 That includes the one I first reached for here. An earlier version of this paragraph cited the run's
 own *"eighteen of nineteen"* as the arithmetic already done correctly. **It was not correct either.**
