@@ -9,6 +9,13 @@
 import { createWigCatalogSeam } from '$lib/adapters/wig-catalog-seam';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
+// Prerendered so the studio's HTML is a real file the service worker can cache at install. Nothing
+// in this `load` depends on the request — it reads a JSON module that ships with the build — so
+// rendering it once at build time produces exactly the document rendering it per request produces,
+// and it is what lets an installed app open the studio with no network. See
+// `src/lib/core/offline-cache.ts` for what the cache does with it.
+export const prerender = true;
+
 export type StudioPageData = {
 	wigs: Wig[];
 	wigCatalogError: string;

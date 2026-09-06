@@ -9,7 +9,8 @@ Info flow: SvelteKit injects head/body -> browser renders app.
 		<meta charset="utf-8" />
 		<link rel="icon" href="/icon.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="theme-color" content="#1c1712" />
+		<!-- Must equal `theme_color` in static/manifest.webmanifest and `--dark-base` in +layout.svelte. -->
+		<meta name="theme-color" content="#07070f" />
 		<link rel="manifest" href="/manifest.webmanifest" />
 		%sveltekit.head%
 	</head>

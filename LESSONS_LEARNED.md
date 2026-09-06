@@ -433,3 +433,157 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
   replaced a confusing message with silence.
 - Action: When an early return replaces a call, ask what the old call was reporting for the inputs
   the early return now swallows, and report it where it actually happens.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Rebuilding the installable app's offline layer (`WORST_TO_BEST_LOG.md` Run 10).
+- Lesson: `grep … | head -20` that returns exactly twenty lines looks identical to a grep that
+  returned everything. I read a truncated list of `<title>` tags as the complete set, concluded the
+  home page had none, and wrote a comment and nearly a log entry around the conclusion.
+  `src/routes/+page.svelte:37` had had one all along.
+- Action: When a search's result is going to become a claim about what does *not* exist, re-run it
+  with no `head`. A truncated list can only ever support "at least these"; absence needs the whole
+  output.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same run — choosing between adding a `CacheSeam` operation and prerendering the routes.
+- Lesson: "The seam is missing an operation" was the wrong diagnosis for "the cache holds no HTML".
+  The cache held no HTML because nothing was prerendered, and nothing was prerendered for no reason
+  — not one route's `load` depended on the request. The textbook fix (`putResponse`, runtime
+  caching) would have been a contract change that bought *less*: a page cached on first visit is
+  still missing on the first offline launch.
+- Action: Before widening a contract to make a consumer's job possible, check whether the consumer
+  is being handed the wrong input. The seam's shape was fine; the build's output was not.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same run — the manifest's `background_color`, `theme_color` and the app's `--dark-base`.
+- Lesson: Three files stated the same colour and all three disagreed, for as long as the app has
+  existed, because the agreement was a convention and conventions are not checked. Writing "must
+  equal" in a comment would have been a fourth copy of the same unchecked truth.
+- Action: When two files have to agree, read both in a test and compare them. See
+  `tests/unit/install-metadata.test.ts`, which parses the value out of `+layout.svelte` rather than
+  restating it.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 10 review — prerendering moved every document off the SvelteKit function, and
+  `src/hooks.server.ts` stopped attaching five security headers to them.
+- Lesson: The file that broke had a header comment saying exactly what would break it — "`vercel.json`
+  carries the headers for those paths; the two must be changed together" — and I never opened it,
+  because the change did not touch it. A change to *how* something is served invalidates every
+  assumption held by whatever used to serve it, and those assumptions live in files the diff will
+  never mention.
+- Action: When a change alters the serving layer (prerendering, redirects, a rewrite, a CDN rule),
+  read the hooks, middleware and platform config *first* and ask what each one stops seeing. Then
+  write the relationship down as a test — `tests/unit/security-headers.test.ts` derives the covered
+  paths from the routes' own `prerender` flags, so the next person cannot make this mistake quietly.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same run — a four-month-old probe file reading "automated Node.js probing is not possible".
+- Lesson: That sentence was true and had been read as "not automatable", which is a different claim.
+  The Web Cache API does not exist in Node; it exists in the browser this repository was already
+  driving for another probe. The gap cost the seam its only reality check: step 5 of the manual
+  procedure was "go offline and reload", nobody had run it, and it would have failed.
+- Action: When a probe says a thing cannot be automated, check whether it says *where*. And when a
+  probe finally does run, expect it to find things: this one found three defects that 42 unit tests
+  and 46 end-to-end tests had all passed over, because none of them runs a service worker.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same run — the probe's first version waited for `registration.active.state === 'activated'`
+  and read an empty cache; `+layout.svelte` used `navigator.serviceWorker.ready` and would have
+  promised an offline copy that did not exist.
+- Lesson: The same mistake twice in one change, in the harness and in the product: waiting on a
+  signal that stands *near* the fact instead of on the fact. A registration's state is not the
+  contents of a cache, and neither is a promise that resolved.
+- Action: Wait on the thing you are about to assert. Both are now `caches.match('/offline')` — the
+  question the code actually needs answered.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same run — `page.waitForFunction(async () => …)` in a Playwright probe.
+- Lesson: A polling predicate that returns a Promise is truthy on its first evaluation, so the check
+  passed instantly and read the store mid-`addAll`. `page.evaluate` awaits what it is given;
+  `waitForFunction`'s polling does not.
+- Action: Poll async conditions from Node around `page.evaluate`, never as an async predicate inside
+  `waitForFunction`.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 10 — SonarCloud failed the quality gate with "B Security Rating on New Code" and no
+  readable detail, because `sonarcloud.io` is blocked from this container.
+- Lesson: I reasoned about which of my own new lines most resembled a vulnerability, picked the
+  redirect built from the request URL, and was wrong. The real finding was
+  `spawn('npm', …)` in a probe — "OS commands should not rely on PATH resolution" — and it had
+  already been delivered to this session as a review comment naming the file and the line. The
+  claim "I cannot read the tool's output" was false: a different surface was carrying it.
+- Action: Before ruling out or diagnosing a failure by reasoning, check every channel that might
+  already carry the answer — code-scanning alerts and relayed review comments as well as the check
+  run's own summary. "Which of these looks riskiest" is not a criterion that can be right.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same finding — the probe spawned `npm run preview`.
+- Lesson: Resolving a command by name means the probe's result depends on the environment's PATH,
+  and the npm wrapper process is also what made the dev server outlive its own kill signal and hold
+  the port into the next run. One cause, two symptoms; I had fixed only the symptom I could see.
+- Action: Spawn `process.execPath` with an entry point resolved from the installed package. No PATH
+  lookup, no wrapper process, and the cleanup problem disappears with it.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 10 — SonarCloud flagged `sonarjs/super-linear-regex` on `pathname.replace(/\/+$/, '')`
+  in `cacheKeyFor`, which runs in the service worker on every navigation.
+- Lesson: A trailing-slash trim looked like the most boring line in the change and was a denial of
+  service. Measured: 3,108 ms against a path of 50,000 slashes, versus 0 ms for a linear scan — three
+  seconds of the visitor's CPU for anyone who follows such a link.
+- Action: No regex on a path, a URL, or anything else a request supplies, when a scan will do. And
+  when a checker names a regex, measure it before deciding it is theoretical.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same run — the local `eslint-plugin-sonarjs` reproduction was configured `files: ['**/*.ts']`.
+- Lesson: The probe is a `.mjs` file, so four rounds of "reproduced locally, clean" had never looked
+  at it once. Both findings in this round were in files that glob excluded. A reproduction that
+  silently covers less than the checker it stands in for reports clean for the wrong reason.
+- Action: When reproducing a checker locally, confirm the file set matches too, not just the rules —
+  print what it analysed if there is any doubt.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 10 — I reasoned my way to a stale-banner bug after `clients.claim()`, wrote two fixes
+  and a probe check for it.
+- Lesson: The mutation check said both fixes were unreachable — `register().then(…)` already resolves
+  after the claim, so the first measurement was correct all along. Worse, my *first* mutation was
+  faulty: it removed the initial call but left the re-measure in the `offline` handler, so it passed
+  for a reason I had not intended and nearly confirmed a fix that fixed nothing.
+- Action: A mutation test that passes has told you nothing until you have checked it removed what
+  you meant it to. And when a defect is found by reasoning rather than by a tool, treat it as a
+  hypothesis until something fails without the fix.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 10 — a browser-probe check for the trailing-slash redirect passed with the redirect
+  removed.
+- Lesson: The check navigated from an already-hydrated SvelteKit page, so the client router resolved
+  the URL and the service worker never saw the request. The check was measuring the framework, not
+  the code under test — and it had been written specifically to test that code. Given a cold
+  context, the same mutation fails with `landed /meechie/, 19 assets at the wrong depth`.
+- Action: A check on service-worker behaviour needs a cold navigation in its own context. More
+  generally: when a mutation does not fail a check, do not conclude the code is unnecessary until
+  you have confirmed the check can observe it at all.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 10 — `safeReturnPath`, written to stop the offline page's retry button leaving the
+  origin, accepted `/\t/evil.example`.
+- Lesson: URL parsers strip tab, newline and carriage return *before* parsing, so a string that
+  begins with one slash to a `startsWith('/')` check begins with two to the browser. Every
+  string-prefix check on a URL is a claim about a parser, made without asking it.
+- Action: Validate a URL by asking the platform (`new URL(raw, origin).origin === origin`) or, where
+  the function must stay pure, reject every character below 0x21 rather than enumerating the
+  dangerous ones — and assert the precondition in the test against the real parser, so the test
+  cannot be more optimistic than the guard.

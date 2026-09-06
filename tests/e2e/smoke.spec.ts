@@ -1525,3 +1525,83 @@ test('every quota-gated button points at the meter that explains it', async ({ p
 	// The target has to exist, or every one of those references points at nothing.
 	await expect(page.locator('#ai-budget')).toHaveCount(1);
 });
+
+// --- The offline layer -------------------------------------------------------------------------
+//
+// The service worker itself is not registered in dev (`+layout.svelte` guards on `!dev`), so these
+// tests cover the two surfaces a reader actually meets: the page the worker falls back to, and the
+// banner that names the connection state. The worker's own rules — which requests it answers, what
+// it caches, and what it serves when the network is gone — are held by
+// `tests/unit/offline-cache.test.ts`, which runs them against the cache seam's mock.
+
+// The install prompt, a share card and a search result all read this, and nothing in the app set
+// one. It is on the layout rather than on each page because it is the same sentence everywhere and
+// the manifest carries the same one.
+test('every page carries a description for an install prompt to read', async ({ page }) => {
+	await stubApis(page);
+	await gotoHydrated(page, '/');
+
+	await expect(page.locator('head meta[name="description"]')).toHaveAttribute(
+		'content',
+		/printable coloring page/
+	);
+	// Matched at the end rather than whole: the DOM resolves an `href` against the document, so the
+	// attribute reads back absolute and an equality check would be an assertion about the host.
+	await expect(page.locator('head link[rel="apple-touch-icon"]')).toHaveAttribute(
+		'href',
+		/\/icons\/icon-192\.png$/
+	);
+
+	// Each route still names itself; the layout adds no title of its own to go stale behind them.
+	await expect(page).toHaveTitle("Meechie's Coloring Book Studio");
+});
+
+test('the offline page says what still works and offers a way back', async ({ page }) => {
+	await gotoHydrated(page, '/offline');
+
+	await expect(page.getByTestId('offline-message')).toContainText('Nothing you saved is lost');
+	await expect(page.getByTestId('offline-retry')).toBeEnabled();
+	await expect(page.getByRole('link', { name: 'Open the coloring book' })).toHaveAttribute(
+		'href',
+		'/'
+	);
+
+	// Every mode is reachable from here, because all of them are prerendered and cached.
+	for (const mode of getWeeklyModes()) {
+		await expect(page.locator(`a[href="/m/${mode.id}"]`)).toHaveCount(1);
+	}
+});
+
+test('the offline page reports this device connection rather than asserting one', async ({
+	page,
+	context
+}) => {
+	await gotoHydrated(page, '/offline');
+	await expect(page.getByTestId('offline-connection')).toContainText('connection is back');
+
+	await context.setOffline(true);
+	await expect(page.getByTestId('offline-connection')).toContainText('Still no connection');
+
+	await context.setOffline(false);
+	await expect(page.getByTestId('offline-connection')).toContainText('connection is back');
+});
+
+test('losing the network says so, and says nothing while the network is there', async ({
+	page,
+	context
+}) => {
+	await stubApis(page);
+	await gotoHydrated(page, '/');
+
+	await expect(page.getByTestId('connection-banner')).toHaveCount(0);
+
+	await context.setOffline(true);
+	// No service worker in dev, so this device has no offline copy — and the banner has to say the
+	// harsher of the two sentences rather than promise saved pages it cannot open.
+	await expect(page.getByTestId('connection-banner')).toContainText(
+		'has not finished saving an offline copy'
+	);
+
+	await context.setOffline(false);
+	await expect(page.getByTestId('connection-banner')).toHaveCount(0);
+});

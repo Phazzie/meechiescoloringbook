@@ -64,11 +64,16 @@ export default [
   },
   {
     // Probe scripts run in Node (process, fetch) with occasional browser API references.
+    // Those references are real code, but they run inside `page.evaluate` — in the browser the
+    // probe is driving, not in the Node process that lints. Named one at a time rather than by
+    // pulling in `globals.browser` wholesale, so this list keeps saying which browser APIs the
+    // probes actually reach for. `caches` is CacheStorage, read by probes/cache-seam.probe.mjs.
     files: ['probes/**/*.mjs'],
     languageOptions: {
       globals: {
         ...globals.node,
-        fetch: 'readonly'
+        fetch: 'readonly',
+        caches: 'readonly'
       }
     }
   }

@@ -8783,3 +8783,843 @@ I stated it after round 11: work anything substantive, merge when a round comes 
 substantive left. Round 12 then produced two real findings, one of them in the entry that stated the
 rule. The rule held anyway — round 13 came back clean on `7f7cba1`, and that is what merged. Stating
 it one round early is left on the record next to what followed, unedited.
+
+---
+
+## Run 10 — 2026-09-06 — The installable app (the manifest, the service worker, and what offline means)
+
+**Branch:** `claude/great-bell-w39zim` · **Base:** `main` at `ad3bfe7`
+
+### The feature, and why it was the worst
+
+This app ships a web app manifest with `display: standalone`, three PNG icons and a maskable one,
+and registers a service worker on every single page load. That is not accidental: it is a
+deliberate, wired-up feature, and it is the one feature the *operating system* advertises on the
+app's behalf. A browser reads that manifest and offers to install Meechie's Coloring Book. The
+reader accepts, and gets an icon on their home screen.
+
+It was the worst feature because **there was nothing behind the icon.** Not "less than promised" —
+nothing. The installed app, launched with no network, showed the browser's own network-error page,
+because `display: standalone` means that error page *is* the app: no address bar, no tabs, no way
+back. And the machinery whose file header reads *"Provide offline-capable caching for PWA
+installation"* was, at the same time, the most expensive thing on a first visit.
+
+Measured on `main` at `ad3bfe7`, by reading the built worker rather than the source:
+
+1. **It pre-cached 3,462,111 bytes and not one byte of HTML.** `ASSETS = [...build, ...files]`
+   resolved to **63 URLs, 3.30 MB** — every wig photograph (796 KB), every piece of Meechie
+   artwork (1.8 MB, including a 440 KB banner), and `robots.txt`. `build` is JavaScript and CSS;
+   `files` is `static/`. **Neither contains a page.** Nothing was prerendered, so under
+   `adapter-vercel` every route was server-rendered per request and no document existed to cache.
+   The command that establishes it:
+
+   ```
+   node -e "…parse .svelte-kit/output/client/service-worker.js…"
+   → total urls in SW arrays: 63 ; bytes referenced: 3462111 = 3.30 MB
+   ```
+
+2. **So the fetch handler could not answer a navigation, and its fallback was the failure.**
+   `event.respondWith(match(...).then(r => r.ok && r.value !== null ? r.value : fetch(request)))`.
+   Offline, the cache misses (nothing navigable was in it) and `fetch` rejects — and a rejected
+   promise handed to `respondWith` is exactly how the browser produces its error page. **The
+   feature's central case had no branch.**
+
+3. **The 3.3 MB went in one `cache.addAll`, which is atomic.** One 404 among 63 URLs and *nothing*
+   was cached — the install rejected, the reader had no offline copy at all, and the wig photograph
+   that failed took the application code down with it.
+
+4. **Every layer of that failure was silent.** `navigator.serviceWorker.register(...).catch(() => {})`
+   in `+layout.svelte`, with the comment "Service worker registration is best-effort." A device
+   where the worker had installed and one where it never had were indistinguishable to the app —
+   and they behave completely differently the moment the network goes.
+
+5. **It intercepted every GET on the page, including cross-origin.** Google Fonts, and — had a GET
+   endpoint ever been added — `/api/*`. Nothing in the worker distinguished a request that costs a
+   provider call from a request for a PNG.
+
+6. **It was the only file in this app with no tests.** Every seam here is contract-tested; the one
+   piece of code that runs on every page load for every visitor, and that can serve stale bytes
+   forever, had none — because its decisions were tangled with `$service-worker` and the Web
+   Cache API and could not be reached from a test.
+
+7. **The install metadata described a different app.** `background_color: "#fffaf4"`, a cream, on
+   an app whose `body` has painted `#07070f` since it was written — so the launch splash flashed
+   white before a dark app. `theme_color: "#1c1712"`, a brown that appears nowhere in the palette,
+   and stated twice (`app.html` and the manifest) with no check that the two agreed. The SVG icon
+   declared `sizes: "512x512"`, which is a pixel count for a file that has none. No `id`, no
+   `scope`, no `lang`, no `apple-touch-icon` — which is the only icon iOS reads when a reader adds
+   the app to their home screen.
+
+8. **Nothing in the app ever said the reader was offline.** A verdict that failed because the
+   network was gone produced the same error text as one the provider refused, so the reader's next
+   move — wait, or change the evidence — was a guess.
+
+### Plan (per `AGENTS.md` "Plan + Self-Critique")
+
+**Seams (existing, in `docs/seams.md`, none modified):** `CacheSeam`.
+
+| File | Action |
+|---|---|
+| `src/lib/core/offline-cache.ts` | `[NEW]` the entire policy, pure + seam-injected |
+| `src/service-worker.ts` | `[MODIFY]` reduced to wiring; no decisions left in it |
+| `src/routes/offline/+page.svelte` | `[NEW]` the page an offline navigation lands on |
+| `src/routes/offline/+page.ts` | `[NEW]` `prerender = true` |
+| `src/routes/+page.ts` | `[MODIFY]` add `prerender = true` |
+| `src/routes/{who-fucked-up,rate-his-excuse,random,meechie}/+page.ts` | `[NEW]` `prerender = true` |
+| `src/routes/m/[mode]/+page.ts` | `[MODIFY]` `prerender = 'auto'` + `entries` |
+| `src/routes/+layout.svelte` | `[MODIFY]` connection banner, description, apple-touch-icon, honest registration |
+| `src/app.html` | `[MODIFY]` `theme-color` to the colour the app paints |
+| `static/manifest.webmanifest` | `[MODIFY]` colours, `id`, `scope`, `lang`, icon sizes |
+| `tests/unit/offline-cache.test.ts` | `[NEW]` |
+| `tests/unit/install-metadata.test.ts` | `[NEW]` |
+| `tests/e2e/smoke.spec.ts` | `[MODIFY]` four tests appended |
+
+**Anti-goals (forbidden):** `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/`, `src/lib/seams/`, `playwright.config.ts`, `svelte.config.js`, `vercel.json`.
+Do not add an operation to `CacheSeam`.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run test:e2e`,
+`npm run verify`, `npm run rewind -- --seam CacheSeam`.
+
+> **This plan is as it was written, and nine close-out rounds below changed parts of it.** Left
+> standing rather than rewritten, because a plan edited to match its outcome stops being a record of
+> what was predicted. Two of its statements are now false and the corrections are below, in full:
+> **`probes/` and `vercel.json` are on the anti-goal list and should not have been** — excluding the
+> first cost the change its only reality capture, excluding the second would have shipped every page
+> frameable. The live inventory, generated from the diff rather than kept by hand, is in `plan.md`.
+
+
+### The one design decision worth defending: no contract change
+
+The obvious rebuild adds `putResponse` to `CacheSeam` and caches documents as the reader visits
+them. It is the textbook answer, and it is what "runtime caching" means. **It was not taken.**
+
+`CacheSeam` can only bulk-prime at install and read back. So the question became: what could
+possibly be in the cache at install time? And the answer was not "add a write operation" — it was
+that **there were no documents to cache because nothing was prerendered.** Every page in this app
+renders from a bundled JSON catalog and the reader's own typing; every provider call happens after
+hydration. Not one route depended on the request. They were being rendered per request for no
+reason, and that — not a missing seam operation — is why the cache held no HTML.
+
+So all fourteen routes are prerendered, and `$service-worker`'s `prerendered` list joins the
+critical precache set. The whole app is now in the cache at install, and it got there through the
+seam exactly as it stands. **150 KB of HTML bought what a contract change would have bought, and it
+is better**, because a prerendered document is in the cache before the reader's *first* offline
+moment rather than after their second visit to each page.
+
+It also means this pull request carries no schema, contract, or data migration — the condition
+`AGENTS.md` names as a reason not to merge without asking.
+
+`/m/[mode]` is `'auto'` rather than `true`, and that distinction is load-bearing. `true` would
+prerender the eight canonical slugs and 404 at the CDN for everything else, including the five
+aliases `resolveModeSlug` accepts (`/m/receipts`, `/m/caption-this`, …). Verified against the
+built routing table rather than asserted: `.vercel/output/config.json` still carries
+`{"src":"^/m/([^/]+?)/?(?:/__data.json)?$","dest":"/m/[mode]"}` after the `filesystem` handle, so a
+canonical slug is served as static HTML and an alias still reaches the function.
+
+### Self-critique, and what it changed
+
+**The riskiest assumption was that prerendering is behaviour-neutral.** It is the one change here
+that alters how every page is served in production. Two things had to hold: that no `load` depends
+on the request, and that CSP still works. The first is readable — `/`'s `load` calls
+`WigCatalogSeam.listWigs()`, which resolves a bundled `wigs.json` import; `/m/[mode]`'s calls
+`resolveModeSlug`. The second is not, so it was checked: `svelte.config.js` sets `csp.mode: 'auto'`,
+which *hashes* prerendered pages instead of noncing them, and the built
+`.svelte-kit/output/prerendered/pages/offline.html` carries
+`script-src 'self' 'sha256-BOgqSlf9I34…'`. All 46 e2e tests pass.
+
+**The second thing the critique changed was the navigation strategy.** Cache-first would have been
+faster and is what most service workers do with precached HTML. It is wrong here. A cached document
+is a whole deploy behind, and this app ships fixes to *what it says* — the last four runs of this
+routine were almost entirely corrections to sentences the app showed people. Navigations are
+network-first: fresh whenever there is a network, cached when there is not. Route data
+(`__data.json`) too, for the same reason, and because serving a versioned data file beside a
+freshly-fetched document is how a page renders last deploy's data under this deploy's markup.
+
+**The third was the fallback's own guard.** `planPrecache` reports `fallbackAvailable` from whether
+`/offline` was actually in the prerendered manifest, and `handleFetch` will not reach for a fallback
+that flag says false. Without it, a route that quietly stopped being prerendered would have the
+worker answer navigations from a path it never stored — which renders as a blank frame, strictly
+worse than the browser saying it could not connect. A test pins both directions.
+
+### What shipped
+
+- **The whole app is cached, in three graded buckets.** `planPrecache` sorts the build manifest into
+  *critical* (43 application chunks, all 14 prerendered pages, the manifest and 4 icons — **62 URLs**;
+  fails the install if it cannot be stored), *optional* (**15** artwork files; batched, and on
+  failure retried one at a time with the failures named), and *skipped* (**1**, `robots.txt`, which
+  only a crawler requests). One unreachable wig photograph now costs a wig photograph.
+
+  Counted by running `planPrecache` against the real built manifest rather than by adding the
+  buckets up in prose: `CRITICAL 62 OPTIONAL 15 SKIPPED 1 FALLBACK true`, over the same 78 URLs the
+  worker now references (63 before, plus the 14 pages and the offline one). **An earlier draft of
+  this line said 66**, which was arithmetic done in a sentence; the measurement is 62.
+- **An offline navigation lands on the app.** Network-first, then the cached document, then the
+  prerendered `/offline` page — which says what still works on this device (the vault, its pictures,
+  the downloads, every mode's questions) and what waits for a connection (a verdict, a page, the
+  wig try-on), links to all eight modes, and reports this device's live connection rather than
+  asserting one.
+- **A navigation's cache key drops its query string.** `cache.addAll` files a page under its bare
+  path, and `CacheSeam` exposes no `ignoreSearch`, so `/who-fucked-up?from=share` would otherwise
+  have missed a page sitting in the cache.
+- **`/api/*`, cross-origin and non-GET are never answered from a cache** — and are not intercepted
+  at all, so they behave exactly as they would with no worker installed.
+- **The banner says which offline this is.** Registration now resolves through
+  `navigator.serviceWorker.ready` and records the result, so `offlineNotice` can distinguish a
+  device that has the app from one that does not, and say two different sentences.
+- **The install metadata matches the app**, and a test reads all three files and compares them
+  rather than a comment asserting they agree.
+- **The worker has tests.** 34 in `offline-cache.test.ts`, which drive the real orchestrators
+  against `createMockCacheSeam` — including a seam that errors, an install where one file is
+  missing, and a navigation with no network. Beside them, 7 in `install-metadata.test.ts`, which
+  read the three metadata files off disk and compare them, and 4 e2e over the offline page and the
+  connection banner. 45 in total, against 0.
+
+### Evidence
+
+`check` 0 errors / 0 warnings · `lint` exit=0 · `npm test` **1516 passed**, 1 skipped (was 1475 on
+`main`) · `build` exit=0 · `test:e2e` **46 passed** (was 42) · `npm run verify` exit=0 ·
+`rewind -- --seam CacheSeam` 14 passed. All captured in `docs/evidence/2026-09-06/`.
+
+The unit total reads 1516 and not 1517 because round two below **deleted** a test rather than
+rewriting it. Recorded here rather than left as the higher number: this file has been wrong about
+its own totals before, and a count that only ever goes up is a count nobody is reading.
+
+`proof-tape.md` flags `build.txt`, `e2e.txt`, `lint.txt` and `rewind-CacheSeam.txt` as predating the
+verify run. That is the `proof-tape.mjs` limitation Run 8 documented — it compares file times
+against `chamber-lock.json`, which the chain rewrites *after* those captures — not a stale capture:
+all four were written minutes before the chain, on this head. Recorded rather than worked around.
+
+### Scope, and what was deliberately left alone
+
+- **`CacheSeam` gained no operation.** Reasoned above. The consequence is honest and worth stating:
+  a page that is *not* part of the build — there are none today — could never be cached, and neither
+  can a provider response. Both are correct for this app.
+- **The `SLUG_ALIASES` URLs are not prerendered**, so an alias needs a connection while its
+  canonical slug does not. Prerendering them would file five extra copies of identical HTML under
+  names nothing in the app links to.
+- **The web fonts are not available offline**, and cannot be through this seam: Google Fonts is
+  cross-origin, `chooseStrategy` bypasses it deliberately, and `$service-worker` cannot list a URL
+  it does not build. So an installed app opened offline renders in fallback faces. This is not a
+  regression — the old worker never held them either, since nothing put a cross-origin response in
+  the cache — and it is survivable rather than broken, which was checked rather than assumed: every
+  `font-family` in `src/**/*.svelte` either ends in a generic family or resolves through a `var()`
+  whose definition does. The grep that establishes it, which returns nothing:
+  `grep -rhn "font-family:" src --include=*.svelte | sort -u | grep -vE "(sans-serif|serif|monospace|inherit|var\()"`
+- **Nothing was done about the app being useless offline in the way that matters most** — you still
+  cannot make a coloring page without a network, because making one is a provider call. The offline
+  page says so in those words rather than implying otherwise.
+- **The two stale `rewind-DriftDetectionSeam*` evidence files** from Run 9 are still in
+  `docs/evidence/2026-09-06/`, one of them under a filename containing parentheses. Not this run's
+  to clean, and deleting evidence is not a side effect to take on quietly.
+- Run 8's two carried-forward items are still open: the tools hub and the mode routes save no
+  style, and the home studio exposes none of `colorMode`, `textSize`, `fontStyle`, `alignment`,
+  `textStrokeWidth`, `borderThickness`, `illustrations` or `shading`.
+
+### The correction this run owes itself, made before it shipped
+
+I wrote, in a comment in `+layout.svelte` and nearly into this entry, that **the home page had no
+`<title>`** and that a layout-level default therefore fixed a real gap. It was false.
+`src/routes/+page.svelte:37` has had `<title>Meechie's Coloring Book Studio</title>` all along.
+
+The mechanism is worth naming because it is not carelessness in the usual sense. I ran
+`grep '<title>' src/routes … | head -20`, got exactly twenty lines back, and read a truncated list
+as a complete one. **The truncation is invisible in the output**: twenty results and "all the
+results" look identical. An e2e assertion caught it, which is the only reason it is here as a
+correction rather than as a claim.
+
+The fix was not to soften the sentence. The layout `<title>` was **removed**: every route already
+sets one, so it would have been a fallback nothing can reach — a second copy of a truth, free to go
+stale with nothing to notice. The `<meta name="description">` and the `apple-touch-icon` stayed,
+because a grep with no `head` confirms neither existed anywhere in `src`.
+
+### For the next run
+
+The pick came from asking which feature the app *advertises to the operating system* — the one
+promise made outside the app's own surfaces, where the reader cannot see the gap until they are
+already relying on it. Nine runs had rebuilt things you can look at. This was a thing you install.
+
+The generalisable version: **look for the feature whose failure mode is a different program's error
+message.** The service worker's bug did not render as a bad panel or a wrong sentence; it rendered
+as Chrome's dinosaur, which is invisible to every test, every screenshot and every review of this
+codebase, and reads to the user as "the internet is broken" rather than "this app did not prepare".
+
+Do not inherit this entry's measurements. Re-measure.
+
+### Run 10, first close-out — 2026-09-06 — two findings on `4fb41f2`, one mine and one Sonar's
+
+**All ten checks were green on `4fb41f2`** — `verify` ×2, CodeQL, Analyze (actions), Analyze
+(javascript-typescript), SonarCloud, SonarCloud Code Analysis, Rosentic, Vercel Ready; Sourcery
+skipped on its own 7-day budget, which is not a finding. Two things still needed doing.
+
+**Rosentic passed this time, and the difference is worth recording.** It was red on #304 and #309
+and its comment here still reports two cross-branch breaks — but every one names
+`claude/sweet-mendel-*` and `claude/trusting-volta-*`, and the two files it cites,
+`src/lib/core/http-resilience.ts` and `tests/unit/wig-try-on-pipeline.test.ts`, are not in this
+diff at all (`git diff --name-only origin/main...HEAD` lists 37 files; neither is among them). The
+**check run itself concluded `success`**, so nothing was owed and no standing-down comment was
+posted. Run 8's postscript predicted exactly this: the red was a function of the branch backlog
+against the diff, not of the diff.
+
+**SonarCloud passed its gate with 2 new issues, and `sonarcloud.io` is blocked** by this
+container's egress policy — `curl: (56) CONNECT tunnel failed, response 403` — the same wall Run 8
+hit. So the finding was reproduced locally with `eslint-plugin-sonarjs`, **under its recommended
+ruleset rather than every rule**, which is the correction Run 8 wrote down after twice reporting
+"nothing found" from a misconfigured reproduction:
+
+```
+src/lib/core/offline-cache.ts
+  306:29  error  Refactor this function to reduce its Cognitive Complexity from 18 to the 15 allowed
+```
+
+The fix is not a fix for the metric. `matchRequest` reports **two different kinds of nothing** —
+the seam failed (`ok: false`) and the seam succeeded with no entry (`value: null`) — and
+`handleFetch` collapsed them with an identical `ok && value !== null` in three separate places.
+Three chances to get one of them wrong, in the function where getting it wrong serves a blank
+frame. It is one named `cachedResponse` now, which says once why both are treated alike: neither is
+a reason to fail a request the network can still serve. `cacheFirst` and `networkFirst` came out
+beside it. Behaviour is unchanged — a `Response` is never falsy, so `if (cached)` is the same test
+as `!== null` — and the same 34 tests pass untouched.
+
+**The second Sonar issue could not be read and is not guessed at.** After the fix,
+`eslint-plugin-sonarjs` scoped to this change's own files is clean, and so are both changed
+`.svelte` files under the Svelte parser. Whether that closes one issue or two is a *measurement*
+available on the next head's comment, not something to assert here.
+
+### Round two: a dead branch I wrote myself, found by re-reading the diff
+
+Nobody reported this one. Re-reading `service-worker.ts` adversarially before ending the wake:
+
+```ts
+if (strategy === 'bypass') return;
+event.respondWith(handleFetch(...).then((response) => response ?? fetch(event.request)));
+```
+
+`handleFetch` returned `null` for exactly one input — `strategy: 'bypass'` — and the line above
+guarantees that input never arrives. **The `??` branch was unreachable**, and it existed only
+because the parameter type allowed a value the caller had already excluded.
+
+Patching the call site would have left the same hole one type away. `handleFetch` now takes
+`AnsweredStrategy = Exclude<RequestStrategy, 'bypass'>` and returns `Promise<Response>`, so a
+bypass reaching it is a type error rather than a case to handle, and the early return in the worker
+is the only place a bypass is dealt with. `svelte-check` at 0/0 is the proof the narrowing holds.
+
+The test asserting `handleFetch` returns `null` for a bypass was **deleted, not rewritten** — 35
+unit tests to 34. It tested a branch that existed to be tested. What must never be answered from a
+cache is pinned where the decision is actually made, in the `chooseStrategy` cases for `/api/*`,
+cross-origin and non-GET, which are unchanged.
+
+That is this run's own thesis pointed at its own diff: the original defect was a service worker
+whose central case had **no branch**, and the first thing to go wrong in the rebuild was a branch
+with no case.
+
+### Run 10, second close-out — 2026-09-06 — six findings from Codex, and the probe that found three more
+
+Codex reviewed `4fb41f2` and returned **three P1s and three P2s. Every one was correct.** No
+measurement disproved any of them, which has not been true of a review round in this log for some
+time, and two were things no check in this repository could have caught.
+
+**SonarCloud went from 2 new issues to 1** on `53f7cc6`, so the cognitive-complexity fix closed
+exactly one of them. The remaining one is still unreadable from this container and is still not
+guessed at.
+
+#### P1 — the prerendered pages lost their security headers
+
+The worst finding, and mine to have prevented. `src/hooks.server.ts` attaches `X-Frame-Options:
+DENY`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` and
+`Strict-Transport-Security` to every response the SvelteKit function renders. Prerendering moves
+all fourteen documents to the filesystem layer, which is served *before* the function — so `/`,
+`/meechie`, every mode page and the offline page shipped with none of them. Frameable by anyone.
+A CSP `<meta>` cannot substitute: browsers ignore `frame-ancestors` there.
+
+**The file I broke says so, in its own header, in a sentence I never read:** *"`vercel.json`
+carries the headers for those paths; the two must be changed together."* I read `svelte.config.js`
+and `vercel.json`, concluded the CSP survived prerendering, and never opened `hooks.server.ts` —
+because nothing in the change touched it. That is precisely the file a change like this has to be
+read *from*.
+
+Fixed by naming each prerendered document path in `vercel.json`, and by
+`tests/unit/security-headers.test.ts`, which derives that list from the routes' own `prerender`
+flags and `modeCatalog()` rather than restating it, then asserts every one carries all five
+headers — and that none of them matches a path the function still serves, since a header set twice
+is dropped outright by some browsers, which is why the original file named prefixes instead of
+`/(.*)`. Mutation-checked: deleting `X-Frame-Options` from one rule fails eight assertions by name.
+
+#### P1 — the plan was appended where the document declares entries inactive
+
+`plan.md` opens with *"Current active plan is listed first"*, and Run 9's section claimed to be
+*"the sole active implementation plan"*. Appending Run 10 to the bottom therefore filed the plan the
+work was actually done under as history. Run 10 is now at the top and Run 9 is explicitly retired.
+
+#### P1 — "run the CacheSeam change through the full workflow"
+
+The one I expected to decline, and I was wrong to expect that. The letter of it is answerable by
+measurement: no file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` was in the diff, and the seam's three
+operations are called with the same argument types as before.
+
+**The substance of it was right.** `src/lib/seams/cache-seam/probe.ts` had said since 2026-05-15
+that *"automated Node.js probing is not possible"* and listed six manual DevTools steps instead, of
+which **step 5 is "Throttle the network to Offline and reload — the app should load from cache"**.
+Nobody had ever run it. On `main` it would have failed. And "not possible in Node" is not the same
+claim as "not automatable" — this repository already drives a real browser for
+`probes/browser-seams.probe.mjs`.
+
+So the probe was written: `probes/cache-seam.probe.mjs`, a real Chromium over `vite preview` of the
+production build, nine checks, exit non-zero on any failure. **9/9 —
+`docs/evidence/2026-09-06/probe-cache-seam.txt`.** It is the first evidence in this run that the
+feature works at all, as opposed to that its parts are correct.
+
+**It found three defects that 42 unit tests and 46 end-to-end tests had all passed over**, because
+not one of them runs a service worker:
+
+1. **The worker cached everything and controlled nothing.** No `clients.claim()`, so a freshly
+   installed worker controls no page until the next load. The probe's own words: 14 documents
+   cached, and the very next navigation `ERR_INTERNET_DISCONNECTED`. A reader whose first visit is
+   also the visit they lose signal got the browser's error page with a complete copy of the app
+   sitting unreachable on their own device. `clients.claim()` added in activate — deliberately
+   *not* paired with `skipWaiting()`, which would hand a running page to a newer version
+   mid-session so its next lazy chunk could come from a different build than its HTML.
+2. **The fallback served the offline page's bytes under the requested URL.** The document hydrates,
+   SvelteKit's client router resolves the address bar's path, finds no route, and renders its 404
+   over the top: `title "404 — Meechie's Coloring Book"`, offline text nowhere on screen. It is a
+   `302` to `/offline` now, so the document that arrives is the route it claims to be.
+3. **The probe read the cache before it was filled.** Its first version waited on
+   `registration.active.state === 'activated'` and then found zero entries — the same substitution
+   of a nearby signal for the fact that this run had just corrected in `+layout.svelte` for
+   `navigator.serviceWorker.ready`. Arrived at twice independently: once because a reviewer said
+   so, once because the browser did.
+
+Along the way it also leaked `vite preview` processes — `kill` reached the npm wrapper and not its
+child — so a later run silently measured an *earlier* build. That is the failure mode a probe must
+not have, and it is fixed with a process group and a SIGKILL follow-up.
+
+#### P2 — `navigator.serviceWorker.ready` reports the wrong worker on an upgrade
+
+`ready` resolves immediately with the **previously active** registration while the new one is still
+installing. On this deploy the previous registration is the version that cached no HTML, so the
+banner would promise a working offline copy at the one moment there certainly is not one.
+
+Replaced with a measurement rather than a better proxy: `offlineCopyIsReady` requires the offline
+document to be **read back out of the cache** through `CacheSeam`, *and* a worker to be controlling
+this page, *and* no worker of this registration to be installing or waiting — that last condition
+being exactly the upgrade window. The bias is deliberate: saying "no offline copy" when there is one
+costs a sentence; the reverse is the defect this run is about.
+
+#### P2 — the trailing-slash form of every route missed its cached page
+
+`/meechie/` 308s to `/meechie`, and a redirect is the *network's* job. Offline there is no network
+to perform it, and the precache holds only the bare path. `cacheKeyFor` now drops trailing slashes
+from a navigation, keeping the root's. The probe confirms it in a real browser: `/meechie/` with the
+network off, `status 200, title "Meechie's Tools — Meechie's Coloring Book"`.
+
+#### P2 — the offline page announced that the connection was back
+
+`isOnline` started `true`, so the prerendered HTML — the exact document the worker serves *during an
+outage* — opened with **"Your connection is back. Reload and carry on."** until hydration ran, and
+forever if hydration could not start, which on a dead network is not a remote case. The page whose
+whole job is honesty about the network was shipping the one sentence guaranteed false at the moment
+it appeared.
+
+`isOnline` is `boolean | null` now and says nothing until asked. In `+layout.svelte` the old default
+of `true` happened to render nothing, so the bug never showed there — and that is the point:
+**a default that is right by coincidence is one edit away from being wrong**, which is the Run 8
+lesson arriving in this run's own new code.
+
+#### What this round costs the run's own account of itself
+
+The first close-out said the offline layer was proven. It was proven *correct in its parts*. The
+probe is what proved it worked, and it did so by first proving it did not: cached and unreachable,
+then reachable and mislabelled. **Every check in this repository was green across all three of those
+states.**
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1546 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **9/9**.
+
+`chamber-lock` failed once during this round and the failure was mine: `docs/seams.md`'s Probe cell
+is read as a literal path, and I had written `probes/cache-seam.probe.mjs (see …)` into it. The
+parenthetical is in the Notes column now. Worth recording because the gate did exactly its job —
+the registry names an artifact that exists, and a helpful annotation is not an artifact.
+
+### Run 10, third close-out — 2026-09-06 — two more, and one of them was already fixed for a different reason
+
+A second Codex pass on `cd6985c` returned two more findings. **Both correct.**
+
+#### P2 — the offline fallback could not survive being served at depth
+
+*"The built fallback document uses depth-relative assets such as `./_app/...`, so at `/m/unknown`
+the browser requests `/m/_app/...` instead of the precached `/_app/...`; its styles and hydration
+scripts therefore fail, leaving the retry button and live connection state inert."*
+
+Verified against the build rather than taken on trust — SvelteKit does emit depth-relative paths:
+
+```
+offline.html      href="./_app/immutable/entry/start.C-H59XTi.js"
+m/clapback.html   "../_app/immutable/entry/start.C-H59XTi.js"
+```
+
+**Already fixed, by the redirect the browser probe forced two hours earlier** — and that is the
+interesting part. I changed the fallback from "return the cached bytes" to "302 to `/offline`"
+because the probe showed SvelteKit's client router rendering a 404 over the served document. Codex
+found a *second, independent* reason the same approach was broken. One symptom was visible to a
+browser and invisible to reasoning; the other was visible to reasoning and invisible to the probe,
+which had only ever asserted text that lives in the prerendered HTML and therefore proves nothing
+about whether the page's scripts ran.
+
+So the probe gained a tenth check that does prove it: `offline-connection = "Still no connection."`
+— a line that exists **only** after `onMount` has read `navigator.onLine`, which requires the
+document's assets to have resolved at whatever URL it was served from. **10/10.** The gap Codex
+named is now the thing the probe measures, rather than a thing the probe happened not to contradict.
+
+#### P1 — the plan's file inventory was a blanket statement
+
+`AGENTS.md` requires an exact inventory with `[NEW]` / `[MODIFY]` / `[DELETE]` and forbids blanket
+entries. The plan carried the line *"`CHANGELOG.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`,
+`WORST_TO_BEST_LOG.md`, `plan.md`"* — no markers, and missing `CLAUDE.md` and all sixteen files
+under `docs/evidence/2026-09-06/`.
+
+Replaced with a **46-row table generated from `git diff --name-status origin/main..HEAD`**, which is
+the form Run 9 used and the reason it used it: a hand-kept inventory is a second copy of the truth
+and this is precisely how it goes stale. Mine went stale the same way inside one run.
+
+#### Three sentences in the plan that had quietly become false
+
+Found by re-reading the plan after changing it, which is the Run 8 rule — *when a fix changes what
+is true, the place to look is everywhere that explains why the thing you edited was the way it was*:
+
+- **"Seams (existing, none modified): `CacheSeam`."** True when written. False from the moment the
+  probe was automated: `src/lib/seams/cache-seam/probe.ts` and the `docs/seams.md` row both changed.
+- **The anti-goals still listed `probes/` and `src/lib/seams/`**, which this run went on to touch —
+  so the list forbade the very work a review had correctly demanded.
+- **The Commands line** never mentioned the probe it now depends on.
+
+**The anti-goal list was wrong twice in one run, in the same way both times.** `vercel.json`, whose
+exclusion cost every prerendered page its security headers. `probes/`, whose exclusion cost the
+change its only reality capture. Both were listed to keep the diff narrow. Narrowness is not a
+property worth a frameable page, and it is not worth an unrun probe. **An anti-goal is a prediction
+about what a change will not need; when the prediction is wrong the plan gives way, not the change.**
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1546 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **10/10**.
+
+### Run 10, fourth close-out — 2026-09-06 — the fix for one finding created a security finding
+
+**SonarCloud's quality gate went red on `63a64fa`**: *"B Security Rating on New Code (required ≥ A)"*.
+It had been green with 2 new issues, then green with 1, and now it fails outright — and the change
+that did it is the redirect added two rounds earlier to fix Codex's fallback finding.
+
+```ts
+const target = new URL(OFFLINE_FALLBACK_PATH, requestUrl).toString();
+return new Response(null, { status: 302, headers: { location: target } });
+```
+
+A redirect whose target is built from the request URL. **It is not exploitable** — `chooseStrategy`
+bypasses every cross-origin request before `handleFetch` can be reached, so `requestUrl`'s origin is
+always this app's — but that is a guarantee three functions away, and "safe because of something
+enforced elsewhere" is the shape of an open redirect whether or not it is one.
+
+The fix is to stop constructing it: the `Location` is now the bare constant `/offline`. HTTP allows a
+relative `Location` and the browser resolves it against the request, so it reaches the same page
+while containing **no** request-derived data. The probe confirms the behaviour is unchanged in a real
+browser — still 10/10, still `offline-connection = "Still no connection."` on the fallback.
+
+**What is honestly not known:** whether that was the finding. `sonarcloud.io` remains unreachable from
+this container, so the rating is all that is legible, and there is a second plausible candidate in
+the same diff — `new RegExp(\`^${source}$\`)` in `tests/unit/security-headers.test.ts`, built from
+`vercel.json`'s contents. That one is left alone deliberately: those sources *are* regex patterns by
+design, so building a `RegExp` from them is the correct reading of the file, and changing correct
+code on a guess is how a run acquires damage it cannot see. **The next SonarCloud run is the
+measurement.** If the rating returns to A, the redirect was it; if it stays B, it was not, and the
+guess will have cost nothing because the relative `Location` is the better code either way.
+
+**The shape of this round is worth naming.** Round two fixed a real defect the browser probe found.
+That fix introduced a security-rated finding. Nothing was careless about either step — the redirect
+is genuinely the right answer to "SvelteKit re-renders 404 over a document served at the wrong URL",
+and it is genuinely a redirect built from request data. **A fix is a change, and a change gets
+reviewed like any other.** Three separate reviewers — a browser, a static analyser, and a language
+model — each found something the other two could not, on code the full local gate called clean at
+every step.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1546 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **10/10**.
+
+### Run 10, fifth close-out — 2026-09-06 — the guess was wrong, and the guessing was the error
+
+The previous entry said the security rating had "very likely" been dropped by the redirect built
+from the request URL, fixed that, and left a second candidate alone on the grounds that changing
+correct code on a guess is how a run acquires damage it cannot see.
+
+**It was neither.** GitHub Advanced Security relayed the actual finding, with its issue key:
+
+> **SonarCloud / OS commands should not rely on PATH resolution**
+> `probes/cache-seam.probe.mjs`, line 67 — *Make sure the "PATH" variable only contains fixed,
+> unwriteable directories.*
+
+`spawn('npm', ['run', 'preview', …])` — in the probe written two rounds earlier. It arrived on
+`f69cff3`, the exact commit that added the probe, which the timestamps said plainly and I did not
+check before reasoning about which of my *own* new lines looked most suspicious.
+
+And SonarCloud is right. A probe whose result depends on what `npm` resolves to on the PATH is a
+probe whose result depends on the environment. It now spawns `process.execPath` — this Node binary,
+absolute — with vite's entry point resolved from the installed package rather than found by name.
+Two absolute paths, no lookup. **10/10, unchanged.** It also deletes the npm wrapper process, which
+is what made the server outlive its own kill signal and hold the port into the next run; that
+defect and this one had the same cause and I had fixed only the symptom.
+
+**The relative `Location` stays.** It is better code and the previous entry said so before knowing
+whether it was the culprit — a redirect target built from the request is the shape of an open
+redirect whether or not the analyser was pointing at it. But that entry's *account* was wrong, and
+the correction is not "one guess missed":
+
+**The error was guessing at all, while a channel that would have said so was open.** The finding
+was delivered to this very session as a review comment naming the file and the line. It was
+sitting in the queue. I reasoned about which of my lines looked most like a vulnerability instead
+of reading what the tool had already reported — the same move as inferring a fact from a shape when
+something authoritative could just be asked, which is the mechanism this log has now recorded in
+four separate runs, and which the previous entry congratulated itself for avoiding by declining to
+touch the `RegExp`.
+
+Declining that second change was still right, and for the reason given. But it was right the way a
+stopped clock is: the *criterion* — "which of these looks riskiest" — had no way of being right
+about either.
+
+The rule this run earns, then, is narrower and less flattering than the one two entries ago:
+**before ruling out a failure by reasoning, check whether anything already knows the answer.** Not
+because reasoning is bad, but because "I could not read the tool's output" was itself untrue — a
+different surface was carrying it the whole time.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `build` exit=0 · `probes/cache-seam.probe.mjs` **10/10**, and zero
+leaked `vite` processes for the first time.
+
+### Run 10, sixth close-out — 2026-09-06 — a denial of service I wrote into the navigation path
+
+SonarCloud's gate **passes** on `1ee3c66` — the security rating is back to A, so the PATH fix was the
+finding, exactly as the relay said. But its new-issue count went **1 → 4**, because the probe and the
+headers test are new files nothing had analysed yet.
+
+This time I did not guess. The local reproduction had never been run over a `.mjs` file at all —
+every earlier pass covered only `**/*.ts`, so the probe had never been looked at by anything but the
+compiler. Adding `.mjs` to the config found two, and one of them is serious:
+
+```
+src/lib/core/offline-cache.ts:280
+  Simplify this regular expression to reduce its runtime, as it has super-linear
+  performance due to backtracking            sonarjs/super-linear-regex
+```
+
+That is `pathname.replace(/\/+$/, '')` — the trailing-slash trim added two rounds ago to fix Codex's
+P2. **It runs in the service worker, on every navigation, against a path the person browsing
+supplies.** Measured rather than described:
+
+```
+scan (new):     0 ms
+regex (old): 3108 ms      ← path of 50,000 slashes followed by one character
+```
+
+**Three seconds of a stranger's CPU per link.** Not a crash, not a wrong answer — a link that costs
+whoever follows it. It is now a linear scan whose `> 1` bound keeps the root's slash without a
+special case, and a test pins the timing at under a second, which the old expression fails by a
+factor of three.
+
+The second finding was a one-line assertion style fix (`toHaveLength`). Whether those were 2 of the
+4 or 2 of something else is unknown; the remaining count is recorded, not guessed at.
+
+**The pattern this run keeps producing, now for the third time:** a fix for a review finding
+introduced a defect of a different class than the finding it fixed. The trailing-slash trim was
+correct about trailing slashes and wrong about backtracking. The redirect was correct about
+SvelteKit's router and wrong about building a URL from a request. The probe was correct about
+needing a server and wrong about how to start one. **Every one was caught by a reviewer that was not
+looking at the thing being fixed** — and the run's own local gate was green for all three.
+
+The narrower rule, which is the one I would hand forward: **a fix is new code and gets the full
+treatment — every checker, every file type.** The `.mjs` gap is the whole story of this round: a file
+I wrote to check the app was itself unchecked, for four rounds, because a glob said `.ts`.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1547 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **10/10**.
+
+### Run 10, seventh close-out — 2026-09-06 — I found a gap that was not there, and the mutation said so
+
+While CI ran I re-read the diff adversarially, on the reasoning that this run's pattern is fixes
+introducing defects. I concluded that `clients.claim()` had fixed the *worker* while leaving the
+*banner* stale: measured once after `register()`, before the claim could have landed, so a
+first-time visitor who lost signal in that session would be told there was no offline copy while a
+complete one sat on their device.
+
+It was a good story. **It was not true.** A `controllerchange` listener and a re-measure on the
+`offline` event were written, an eleventh probe check was added to pin them — and then the
+mutation check, which this codebase requires of any new guard, was run:
+
+| Mutation | Probe's banner check |
+|---|---|
+| both re-measure paths removed | **still PASS** |
+
+`register().then(…)` already resolves after `clients.claim()` has run, so the very first
+measurement is correct and neither addition changed any observable behaviour. My first attempt at
+the mutation was *also* wrong — it deleted the initial call while leaving `remeasure()` inside the
+`offline` handler, and passed for a reason I had not intended. Catching that took a second look at
+my own mutation, which is the part worth writing down: **a mutation test that passes has told you
+nothing until you have checked that it removed what you meant it to.**
+
+So the `controllerchange` listener was **deleted, not kept** — its only claimed benefit was updating
+a banner already on screen, in a case nothing could stage, and a branch nothing reaches is precisely
+the defect this run already fixed once in `service-worker.ts`. The re-measure on the `offline` event
+stays, one line, with a comment that says plainly it is unreachable in the probe and why it is kept
+anyway: a reader who loses signal in the milliseconds before registration resolves, and the run's
+own rule that a claim is measured where it is made. **That is a defensive choice stated as one, not
+a fix presented as one.**
+
+The eleventh probe check stays too, and earns its place by a different argument than the one it was
+written for: it does not prove `controllerchange`, it proves that **the banner tells a first-time
+visitor the truth** — a thing nothing else asserts, and the reassurance this whole feature exists to
+make honest.
+
+The uncomfortable observation: this is the first finding of the run that came from *me*, and it was
+the only one that turned out not to be real. Eight from Codex, four from SonarCloud, three from the
+browser probe — all genuine. One from re-reading my own diff — imagined.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1547 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **11/11**.
+
+### Run 10, eighth close-out — 2026-09-06 — four more, and the probe check that was measuring the framework
+
+Codex on `052ef86`: one P1 and three P2s. **All four correct.** That is twelve findings from Codex
+across the run, none disproved.
+
+#### P1 — the probe could leak a server and then measure a stale build
+
+`chromium.launch()` sat *outside* the `try`, so if the browser is missing or `PROBE_CHROMIUM_PATH` is
+wrong, the rejection skips the `finally` and the detached preview server survives. The next run's
+`waitForServer` accepts the first thing answering 200 — **and silently probes the previous build,
+filing the result as seam evidence.** That is the worst failure a probe can have: not "it broke" but
+"it was confidently wrong", and it had already happened once earlier in this run, when I fixed the
+`kill` and not the window before it.
+
+Both halves fixed: the browser is opened *inside* the cleanup scope, and `refuseIfPortBusy()` now
+aborts before spawning if anything is already listening — because the probe cannot tell its own
+server from somebody else's, and guessing is how it lies.
+
+#### P2 — the trailing-slash redirect, and a check that never tested it
+
+Codex: `/meechie/` finds the slashless cached document but returns it **under the trailing-slash
+URL**, so the depth-relative `./_app/…` resolves to `/meechie/_app/…` and nothing loads. Same defect
+as the fallback, one case over — and it noted the probe's own check "waits only for
+`domcontentloaded` and reads the prerendered title", both of which arrive whether or not a script
+runs.
+
+It was worse than that. The check ran as another `goto` from an already-hydrated page, so
+**SvelteKit's client router** resolved the URL itself and the service worker was never involved.
+Mutation-checked twice to establish it: with the redirect deliberately removed the check still
+passed, and the mutation was verified to have applied (`0 occurrences`) before that was believed.
+Given its own cold context, the same mutation now reads:
+
+```
+FAIL  the trailing-slash form of a route lands on the canonical URL, with its assets resolved
+      status 200, landed /meechie/, 39 /_app/ resources loaded, 19 at the wrong depth
+```
+
+**Nineteen assets fetched from `/meechie/_app/…`.** Codex's finding, its fix, and the check that
+holds it, each demonstrated rather than argued. The worker now performs the redirect the network's
+308 performs online.
+
+#### P2 — "Try again" retried the wrong page
+
+After the redirect, the button reloaded `/offline` rather than the `/m/receipts` the reader wanted —
+discarding their destination even once the connection returned. The attempted path now rides along
+as `?from=`, and the button reads **"Try that page again"**.
+
+That puts a value from the URL bar into a navigation, so it is parsed in core with tests rather than
+trusted: `safeReturnPath` refuses anything not beginning with a single `/`, including
+`//evil.example` (protocol-relative), `https://evil.example`, and `/\evil.example` (browsers
+normalise the backslash). The same reasoning made `canonicalPathname` collapse *leading* slashes
+too — a `Location:` built from a path beginning `//` is a redirect off this origin, and
+`https://host//evil.example` is same-origin, so it reaches the code.
+
+#### P2 — the counts said 9/9 in three places
+
+`docs/seams.md`, `src/lib/seams/cache-seam/probe.ts` and the Cipher Gate all still advertised 9/9
+after checks ten and eleven were added. The exact "a fix changes what is true, find every sentence"
+failure, in my own documentation, in the same run that keeps naming it. All three now say **12/12**
+and enumerate what each check establishes.
+
+### And one nobody found: a rule I broke where nobody was looking
+
+Re-reading `src/lib/seams/CLAUDE.md` surfaced `app-origin-seam`, whose adapter states it is *"the
+single place in the application permitted to read `location.origin`"*. My `chooseStrategy` call site
+read `self.location.origin` directly. No reviewer or checker raised it.
+
+**Both options were measured before choosing.** The seam works in a worker — its adapter reads
+`globalThis.location` — and using it takes the built service worker from **7,670 bytes to 60,991**,
+because the seam validates with zod: 53 KB parsed and executed before the worker can install, on
+every visitor, to read one string. Worse, its failure mode is wrong here: it degrades to `''`, which
+in a page correctly refuses to treat a *stored* URL as same-origin, and in the worker would make
+every request look cross-origin and switch the entire offline layer off.
+
+So the direct read stays, as a **stated exception with its measurement at the call site** and a
+`DECISIONS.md` entry carrying the byte counts and the revisit criteria. An exception that names
+itself is a different thing from a rule quietly ignored.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1557 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **12/12**.
+
+### Run 10, ninth close-out — 2026-09-06 — an open redirect I wrote while closing an open redirect
+
+`safeReturnPath` was written two rounds ago *because* the retry button's destination now comes from
+the URL bar, and it refused `//evil.example`, `https://evil.example` and `/\evil.example`. Re-reading
+it, one input gets past all three:
+
+```
+new URL('/\t/evil.example', 'https://meechie.example')  ->  https://evil.example/
+```
+
+**A URL parser strips tab, newline and carriage return before it parses.** So `/<TAB>/evil.example`
+begins with a single slash to every check I had written and with two to the browser — a
+protocol-relative URL, handed to `location.assign`, sending the reader to another site. The
+validator written to prevent exactly this class admitted a member of exactly this class.
+
+Fixed by rejecting every character below `0x21` outright rather than enumerating the three that are
+dangerous today: a real path percent-encodes them, the cost is nil, and the enumeration is the part
+that goes stale. **The test asserts the precondition against the platform's own parser** —
+`expect(new URL(raw, ORIGIN).origin).not.toBe(ORIGIN)` — so it cannot be more optimistic than the
+thing it guards.
+
+And it immediately caught me being exactly that. The first version of that test included `/ /` among
+the escaping inputs. A space is percent-encoded, not stripped, so it does **not** escape, and the
+assertion failed. The guard still refuses it — deliberately, for the reason above — but the test now
+says only what is true, and the difference between "refused" and "escapes" is written down.
+
+**Neither Codex nor SonarCloud nor CodeQL found this.** SonarCloud's count did rise 3 → 4 on
+`81d517d`, and the local reproduction still finds only the three pre-existing `smoke.spec.ts`
+issues, so the fourth remains unidentified — the gate passes, the security rating is A, and no
+code-scanning alert was relayed, which is what says it is not this. **The two are not connected and
+this entry does not claim they are.** I found the redirect by reading the function again.
+
+That is the second finding of this run to come from re-reading my own diff. The first was imagined.
+This one was not, and the difference is not judgement — it is that this one was **checked against
+the platform before being believed**, in a Node one-liner, before a single line was changed.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1559 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **12/12**.

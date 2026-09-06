@@ -7,6 +7,12 @@ Info flow: Layout renders children -> pages render within layout.
 	import { onMount } from 'svelte';
 	import { dev } from '$app/environment';
 	import favicon from '$lib/assets/favicon.svg';
+	import { createCacheSeam } from '$lib/adapters/cache-seam';
+	import {
+		OFFLINE_FALLBACK_PATH,
+		offlineCopyIsReady,
+		offlineNotice
+	} from '$lib/core/offline-cache';
 
 	let { children } = $props();
 
@@ -14,22 +20,116 @@ Info flow: Layout renders children -> pages render within layout.
 	function toggleMenu() { mobileMenuOpen = !mobileMenuOpen; }
 	function closeMenu() { mobileMenuOpen = false; }
 
+	// `null`, not `true`. The server cannot know, and this same HTML is what the service worker
+	// caches and replays during an outage — so a default of `true` would be a document asserting a
+	// connection at the one moment there is none. `offlineNotice` renders nothing for `null`, which
+	// is the same output `true` produced, and that coincidence is exactly why it needed a name.
+	let isOnline = $state<boolean | null>(null);
+	let offlineCopyReady = $state(false);
+
+	// The whole reason this is a piece of state and not a constant: registration used to end in
+	// `.catch(() => {})`, so a device where the service worker never installed was indistinguishable
+	// from one where it had. Those two devices behave completely differently the moment the network
+	// goes — one still opens the app, the other cannot — and `offlineNotice` says so in different
+	// words because it is told which one this is.
+	const connectionNotice = $derived(offlineNotice({ isOnline, offlineCopyReady }));
+
+	/**
+	 * Ask the cache whether the offline copy exists, rather than inferring it from the registration.
+	 *
+	 * `navigator.serviceWorker.ready` was the first version of this and it is wrong on an upgrade:
+	 * it resolves with the previously active registration — on this deploy, the worker that cached
+	 * no HTML at all — while the new one is still installing. Reading the fallback document back
+	 * out of the cache measures the thing the banner promises. Through the seam, like everything
+	 * else that touches the Cache API.
+	 */
+	const measureOfflineCopy = async (registration: ServiceWorkerRegistration): Promise<void> => {
+		const fallback = await createCacheSeam().matchRequest(OFFLINE_FALLBACK_PATH);
+		offlineCopyReady = offlineCopyIsReady({
+			fallbackCached: fallback.ok && fallback.value !== null,
+			hasController: navigator.serviceWorker.controller !== null,
+			hasPendingWorker: registration.installing !== null || registration.waiting !== null
+		});
+	};
+
 	onMount(() => {
+		let registration: ServiceWorkerRegistration | null = null;
+		const remeasure = () => {
+			if (registration) void measureOfflineCopy(registration);
+		};
+
+		const syncOnline = () => {
+			isOnline = navigator.onLine;
+			// Re-measured at the moment the banner is about to speak, rather than trusted from
+			// whenever registration happened to resolve.
+			//
+			// Honestly: the browser probe shows this is not currently *reachable*. Removing it, and
+			// a `controllerchange` listener tried alongside it, leaves the probe's banner check
+			// passing — because `register().then(…)` already resolves after `clients.claim()` has
+			// landed, so the first measurement is correct. It is kept for the one case the probe
+			// cannot stage, a reader who loses signal in the milliseconds before registration
+			// resolves, and because the whole run's rule is to measure a claim when it is made. The
+			// `controllerchange` listener was dropped instead of kept on the same reasoning: its
+			// only benefit was updating a banner already on screen, in a case nothing could produce,
+			// and a branch nothing reaches is the defect this run has already fixed once.
+			remeasure();
+		};
+		syncOnline();
+		globalThis.addEventListener('online', syncOnline);
+		globalThis.addEventListener('offline', syncOnline);
+
 		if (!dev && 'serviceWorker' in navigator) {
-			navigator.serviceWorker.register('/service-worker.js').catch(() => {
-				// Service worker registration is best-effort.
-			});
+			navigator.serviceWorker
+				.register('/service-worker.js')
+				.then((result) => {
+					registration = result;
+					return measureOfflineCopy(result);
+				})
+				.catch(() => {
+					// Still not surfaced as an error, because an online reader loses nothing by it.
+					// It is no longer *forgotten*: `offlineCopyReady` stays false, and that is what
+					// the banner reads when the connection goes.
+					offlineCopyReady = false;
+				});
 		}
+
+		return () => {
+			globalThis.removeEventListener('online', syncOnline);
+			globalThis.removeEventListener('offline', syncOnline);
+		};
 	});
 </script>
 
 
 <svelte:head>
+	<!--
+		Deliberately no `<title>` here. Every route in this app already sets its own, so a layout
+		title would be a fallback nothing can reach — a second copy of a truth, free to go stale
+		with nothing to notice. The description is the opposite case: no route set one, so this is
+		the only sentence an install prompt, a share card or a search result has to go on.
+	-->
+	<meta
+		name="description"
+		content="Tell Meechie what happened, get the verdict and the quote, then turn it into a printable coloring page."
+	/>
 	<link rel="icon" href={favicon} />
+	<!-- iOS reads this, not the manifest's icons, when a reader adds the app to their home screen. -->
+	<link rel="apple-touch-icon" href="/icons/icon-192.png" />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 	<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Fraunces:ital,opsz,wght@0,9..144,700;1,9..144,800&display=swap" rel="stylesheet" />
 </svelte:head>
+
+<!--
+	Rendered only when there is something true to say. Nothing in this app told a reader they were
+	offline: a verdict that failed because the network was gone produced the same error text as one
+	the provider refused, so the reader's next move — wait, or change the evidence — was a guess.
+-->
+{#if connectionNotice}
+	<p class="connection-banner" data-testid="connection-banner" role="status">
+		{connectionNotice}
+	</p>
+{/if}
 
 <header class="site-nav">
 	<div class="nav-inner">
@@ -255,6 +355,23 @@ Info flow: Layout renders children -> pages render within layout.
 		.mobile-menu {
 			display: flex;
 		}
+	}
+
+	/*
+		Above the sticky nav rather than floating over the page: it changes the height of what is
+		below it, which is the honest rendering of a state that changes what the app can do. Gold
+		rather than the fuchsia used for errors — being offline is a condition, not a failure.
+	*/
+	.connection-banner {
+		margin: 0;
+		padding: 0.6rem 1.2rem;
+		text-align: center;
+		font-family: 'Barlow Condensed', 'Avenir Next Condensed', 'Avenir Next', sans-serif;
+		font-size: 0.9rem;
+		font-weight: 600;
+		letter-spacing: 0.03em;
+		color: #0d0a14;
+		background: linear-gradient(120deg, #c9a227, #f0c44a 50%, #c9a227);
 	}
 
 	/* Base reset and palette */
