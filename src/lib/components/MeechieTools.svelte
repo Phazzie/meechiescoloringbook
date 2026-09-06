@@ -144,12 +144,17 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	// cannot stand in for this: an empty list is both "checked, nothing wrong" and "not checked",
 	// and the block below used to render the second as the first by showing nothing at all.
 	let driftReported = false;
+	// Why the drift check returned no verdict, when `/api/generate` said it returned none.
+	let driftCheckFailure: GenerateResponseValue['driftCheckFailure'] = undefined;
 	// The same transform the home studio and the mode routes use, so all three surfaces agree on
 	// what a warning is, what an unfinished check is, and when silence means clean.
 	$: qualityReport = buildQualityReport({
-		hasGeneratedPage: driftReported,
+		// Page presence and check completion are separate facts; see `buildQualityReport`.
+		hasPage: imagePreviews.length > 0,
+		driftChecked: driftReported,
 		violations,
-		recommendedFixes
+		recommendedFixes,
+		driftCheckFailure
 	});
 	let lastRecipe: ToolPageRecipe | null = null;
 	// The verdict the currently displayed page was built from. Kept separate from `output`, which
@@ -201,6 +206,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		violations = [];
 		recommendedFixes = [];
 		driftReported = false;
+		driftCheckFailure = undefined;
 		lastRecipe = null;
 		pageVerdict = null;
 		vaultStatus = '';
@@ -356,6 +362,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			violations = parsed.data.value.violations;
 			recommendedFixes = parsed.data.value.recommendedFixes;
 			driftReported = true;
+			driftCheckFailure = parsed.data.value.driftCheckFailure;
 			imagePreviews = usable
 				.map((entry) => entry.preview)
 				.filter((url): url is string => url !== null);
@@ -821,7 +828,14 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 				{/if}
 			</button>
 
-			{#if qualityReport.state === 'flagged'}
+			<!-- `clean` is rendered too, not just `flagged`: a page that passed every check and a page
+			     nothing has looked at must not both render as nothing. `unchecked` stays silent here,
+			     where the block sits under the generate button and there is visibly no page. -->
+			{#if qualityReport.state === 'clean'}
+				<p class="drift-clean" data-testid="meechie-tool-clean">
+					{describeQualityReport(qualityReport)}
+				</p>
+			{:else if qualityReport.state === 'flagged'}
 				<div class="drift" data-testid="meechie-tool-violations">
 					<p class="drift-title">{describeQualityReport(qualityReport)}</p>
 					<ul>
@@ -1287,6 +1301,16 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		border: 1px solid rgba(201, 162, 39, 0.35);
 		color: rgba(253, 246, 227, 0.88);
 		font-size: 0.87rem;
+	}
+
+	.drift-clean {
+		margin: 0;
+		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		font-size: 0.78rem;
+		color: var(--emerald, #00c896);
 	}
 
 	.drift-title {

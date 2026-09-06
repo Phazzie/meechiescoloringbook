@@ -4,7 +4,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runChatInterpretationPipeline } from '../../src/lib/core/chat-interpretation-pipeline';
 import { runToolsPipeline } from '../../src/lib/core/tools-pipeline';
-import { DRIFT_CHECK_FAILED_CODE } from '../../src/lib/core/quality-report';
 import {
 	runGeneratePipeline,
 	type GeneratePipelineDeps
@@ -590,16 +589,43 @@ describe('generate-pipeline edge cases', () => {
 		expect(result.status).toBe(200);
 		expect(result.body.ok).toBe(true);
 		if (result.body.ok) {
-			expect(result.body.value.violations).toEqual([
-				{
-					code: DRIFT_CHECK_FAILED_CODE,
-					message: 'The page could not be checked against what was asked for: Detection failed',
-					severity: 'error'
-				}
-			]);
-			// Still empty, and correctly so: the seam returned no fixes because it never graded the
-			// prompt. The report shows the finding without inventing a remedy for it.
+			// `violations` is still empty, and now says why: the seam graded nothing, so it found
+			// nothing. `driftCheckFailure` is the field that makes that empty array honest — without
+			// it, the seam's most serious outcome and its cleanest one are the same response.
+			expect(result.body.value.violations).toEqual([]);
 			expect(result.body.value.recommendedFixes).toEqual([]);
+			expect(result.body.value.driftCheckFailure).toEqual({
+				code: 'DRIFT_ERROR',
+				message: 'Detection failed'
+			});
+		}
+	});
+
+	it('omits driftCheckFailure entirely when the drift check did return a verdict', async () => {
+		const result = await runGeneratePipeline(
+			{ spec: validSpec },
+			buildGenerateDeps({
+				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
+				assemblePrompt: vi.fn().mockResolvedValue({
+					ok: true,
+					value: { prompt: 'assembled prompt', templateVersion: 'v2' }
+				}),
+				generateImage: vi.fn().mockResolvedValue({
+					status: 200,
+					body: imageSuccessBody
+				}),
+				detectDrift: vi.fn().mockResolvedValue({
+					ok: true,
+					value: { violations: [], confidenceScore: 1, recommendedFixes: [] }
+				})
+			})
+		);
+		expect(result.status).toBe(200);
+		expect(result.body.ok).toBe(true);
+		if (result.body.ok) {
+			// Absent, not `undefined`-valued: its absence is what tells a consumer the empty
+			// violation list is a real verdict.
+			expect('driftCheckFailure' in result.body.value).toBe(false);
 		}
 	});
 });

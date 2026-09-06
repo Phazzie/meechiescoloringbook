@@ -164,6 +164,15 @@ const makePageAndKeepIt = async (page: Page): Promise<void> => {
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 	await expect(page.getByTestId('verdict-page-download').first()).toBeVisible();
 
+	// The mode routes report a clean check, not just a drifted one. Rendering only `flagged` here
+	// left a page that passed every check and a page nothing had ever looked at producing identical
+	// empty output — the conflation this whole change exists to remove, surviving on two of the
+	// three surfaces.
+	await expect(page.getByTestId('verdict-page-clean')).toContainText(
+		'The page came back exactly as asked.'
+	);
+	await expect(page.getByTestId('verdict-page-violations')).toHaveCount(0);
+
 	await page.getByTestId('verdict-page-save-vault').click();
 	await expect(page.getByTestId('verdict-page-vault-status')).toContainText(
 		'Saved to the vault'

@@ -7796,3 +7796,110 @@ evidence: a lesson recorded correctly, and then not read.
 
 > This file is only worth its length if a run searches it for the problem in front of it. Appending
 > to it is the cheap half.
+
+---
+
+## Run 9, second close-out — 2026-09-06 — the Codex round on `b2831a6`, and a correction to a close-out
+
+**First, a correction.** The merge close-out above states "Codex Code Review — completed, no findings
+comment". That was wrong when written. Codex's summary comment flipped to Completed *before* its
+review comments arrived, and I read the summary and concluded from it. Five findings landed seconds
+later. The close-out asserted an absence from a status field rather than from the thing the status
+described — which is, precisely, the failure mode this entire run is about, committed by the run's
+own author while writing the entry that explains it.
+
+The merge did not happen. Five findings, four of them real, all now fixed.
+
+### P1 — the reserved code was the wrong shape, and I knew it
+
+Codex's argument: the pipeline was minting a **new public semantic** on `/api/generate` while
+leaving the contract silent about it. A consumer reading `violations` gets what looks like an
+ordinary page violation; only this app's UI knows `DRIFT_CHECK_FAILED` means "check incomplete".
+
+My `DECISIONS.md` entry had four checks and all four were true — no seam artifact touched, the
+violation synthesized after the seam returned, `ViolationSchema` accepts any non-empty code, no
+consumer matched on codes. The error was not in the checks. **It was in the question they answered.**
+They asked whether the change altered a *contracted shape*. The objection was that it introduced a
+*semantic the contract does not describe*. That a schema accepts a value is exactly why it could not
+carry the distinction — `NonEmptyStringSchema` accepts everything, which makes it a poor place to
+hide meaning.
+
+And the entry had already conceded the point in its own "Revisit criteria", calling the reserved code
+"a compromise, not the right shape". Writing down that something is the wrong shape is not the same
+as declining to build it. That is the finding, and it is mine, not Codex's.
+
+Fixed properly: `contracts/generate.contract.ts` gains an optional
+`driftCheckFailure: { code, message }`. Present means the check declined to grade and `violations` is
+empty because nothing was looked at; absent means the empty array is a real verdict. `/api/generate`
+is a route, not a seam — no row in `docs/seams.md`, no probe, fixtures, mock, contract test or
+adapter — so the applicable workflow is contract, consumers, tests, Cipher Gate. All four done.
+
+The **absence** of the field is load-bearing, so a test pins that the key is absent rather than
+`undefined`-valued on a successful check.
+
+### P2 — one flag was carrying two facts, and was wrong in both directions
+
+The sharpest finding. `buildQualityReport` took a parameter named `hasGeneratedPage` and every caller
+passed `driftReported` into it. Two facts, one flag, and it broke symmetrically:
+
+- A generation returning a contract-valid success with `images: []` and no violations is *checked*
+  but has no page. Reading the check flag as page presence made it **`clean`** — "the page came back
+  exactly as asked" — printed beside a generation error saying no picture came back.
+- A vault record saved before findings were persisted *has* a page and no stored `violations`.
+  Reading page presence off the check flag made it **`unchecked`** — "nothing on the paper yet" —
+  about a page the reader was looking at.
+
+Both directions, from one conflation, in the module whose entire purpose is refusing to conflate
+"checked and clean" with "never checked". The parameter's own name said `hasGeneratedPage` and it was
+never handed that. **A name that disagrees with its argument is a defect with a label on it**, and it
+survived because every call site was written by whoever wrote the parameter.
+
+Now `hasPage` and `driftChecked` are separate arguments, neither inferred from the other, and a
+record with a page but no recorded result gets its own `check-failed` finding — "saved before its
+check result was recorded" — instead of borrowing either wording. Two tests, one per direction.
+
+### P2 — the clean state existed on one surface out of three
+
+`VerdictPageStudio` and `MeechieTools` rendered only `flagged`, so a page that passed every check and
+a page nothing had looked at still produced identical empty output. The PR body claimed all three
+surfaces route through the shared report; they did — and then two of them threw away two of its three
+states. Both now render `clean`. `unchecked` stays silent on those two deliberately, and for a reason
+worth stating: unlike the home studio's always-present panel, that block sits directly under the
+generate button, where "nothing on the paper yet" is a caption on an empty space the reader can
+already see. An e2e assertion covers the clean line on a mode route.
+
+### P1 — zod in core, already fixed
+
+Codex flagged the type-only `zod` import in the new core module as violating the built-ins-only rule
+for core domain logic, and recommended `DriftDetectionOutput['recommendedFixes'][number]`. That is
+character-for-character the fix already pushed in `ba6244b`, arrived at from SonarCloud's duplicate-
+import finding rather than from the rule. Two reviewers, two different routes, one answer.
+
+### P1 — `plan.md` was not updated
+
+`AGENTS.md` L47-50 requires `plan.md` to carry explicit specs and self-checks for autonomous
+deep-work refactors. I put the plan in this log instead, following what Runs 1–5 did, and `plan.md`
+still named the completed Seam Migration v2.0 as its sole active plan. Following precedent is not
+the same as following the rule, and the rule is the one `AGENTS.md` states. `plan.md` now leads with
+the Run 9 plan — inventory, anti-goals, self-checks, definition-of-done — and marks the migration
+plan complete.
+
+### Verified
+
+`check` 0/0 · `lint` exit=0 · **1461 passed**, 1 skipped · `build` exit=0 · e2e 42 passed ·
+`verify` exit=0 · rewind 5 passed · proof tape flags nothing. Outer transcript totals cross-checked
+against `test.txt`: 1461 and 94 in both.
+
+### What this round is actually about
+
+Four of the five findings were places where I had **reasoned correctly to the wrong conclusion**. The
+seam-scope analysis was sound and answered a narrower question than the one at issue. The `plan.md`
+omission followed real precedent from five prior runs. The single flag had a name that stated the
+right requirement and an argument that did not meet it. The clean-state gap sat directly beneath a
+sentence in the PR body claiming it had been closed.
+
+None of that is carelessness, and calling it carelessness would miss the mechanism. Every one came
+from checking the thing I had decided to check.
+
+> The hardest defect to catch is not the one you did not look at. It is the one where you looked,
+> saw what you expected, and were right about the thing you were looking at.

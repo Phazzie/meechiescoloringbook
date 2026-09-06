@@ -56,6 +56,7 @@ import {
 	sortVaultCreations
 } from '$lib/core/vault-gallery';
 import { GenerateResultSchema } from '../../contracts/generate.contract';
+import type { GenerateResponseValue } from '../../contracts/generate.contract';
 import { WigTryOnResultSchema } from '../../contracts/wig-try-on.contract';
 import {
 	MeechieStudioTextResultSchema,
@@ -472,6 +473,8 @@ export class StudioState {
 	 * exactly the three sites that already write `violations`, and nowhere else.
 	 */
 	private driftReported = $state(false);
+	/** Why the drift check returned no verdict, when `/api/generate` said it returned none. */
+	private driftCheckFailure = $state<GenerateResponseValue['driftCheckFailure']>(undefined);
 	images = $state<GeneratedImage[]>([]);
 	/**
 	 * Every call made to the packaging seam for the page on the paper: the variant asked for, the
@@ -658,9 +661,16 @@ export class StudioState {
 	 */
 	qualityReport = $derived(
 		buildQualityReport({
-			hasGeneratedPage: this.driftReported,
+			// Two separate facts, deliberately. `images.length > 0` is whether there is a page;
+			// `driftReported` is whether the check spoke about it. Passing the second as both — the
+			// first draft of this — reported a picture-less generation as "came back exactly as
+			// asked", and a reopened legacy record as "nothing on the paper yet" while its page was
+			// on screen.
+			hasPage: this.images.length > 0,
+			driftChecked: this.driftReported,
 			violations: this.violations,
 			recommendedFixes: this.recommendedFixes,
+			driftCheckFailure: this.driftCheckFailure,
 			validationIssues: this.validationIssues
 		})
 	);
@@ -1169,6 +1179,7 @@ export class StudioState {
 		this.violations = [];
 		this.recommendedFixes = [];
 		this.driftReported = false;
+		this.driftCheckFailure = undefined;
 		this.images = [];
 		// Clears the packaged files, the described export row and the export failure sentence in one
 		// assignment, because all three are derived from it. `pageExports` also loses the provider's
@@ -1737,6 +1748,7 @@ export class StudioState {
 			// own comment gives: a response that carries findings but no image has still been
 			// checked, and its findings are the most useful thing on screen.
 			this.driftReported = true;
+			this.driftCheckFailure = parsed.data.value.driftCheckFailure;
 
 			// A generate response can be schema-valid and still carry no picture: `images` is
 			// `z.array(...)` with no minimum. That used to reach the packaging seam and come back as
@@ -2138,6 +2150,10 @@ export class StudioState {
 		// report would otherwise read as "checked, nothing wrong". A record that never wrote down its
 		// findings is a page whose check result is unknown, and unknown is not clean.
 		this.driftReported = creation.violations !== undefined;
+		// A saved record carries no failure reason; `resetGeneratedPage` already cleared any. When a
+		// record predates stored findings, `driftReported` is false and the report says the result is
+		// not on file — which is the honest thing, and is not a failed check.
+		this.driftCheckFailure = undefined;
 		this.vaultStatus = `Reopened "${creation.intent.title}".`;
 		await this.validateSpec();
 		// The same builder the two generation paths use, so a reopened page gets the same downloads a

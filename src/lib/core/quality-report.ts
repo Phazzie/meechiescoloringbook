@@ -23,22 +23,17 @@ import type { DriftDetectionOutput, Violation } from '../../../contracts/drift-d
 // needs neither a second import of the contract nor a dependency on `zod` to name one of its types.
 type RecommendedFix = DriftDetectionOutput['recommendedFixes'][number];
 
+/** Why the drift check returned no verdict — the shape `/api/generate` reports it in. */
+export type DriftCheckFailure = { code: string; message: string };
+
 /**
- * The violation code the generate pipeline emits when the drift check itself could not return a
- * verdict.
+ * The finding code for a page whose stored check result is missing rather than empty.
  *
- * The drift seam reports a prompt so malformed it will not grade the rest — a missing required
- * section — as `{ ok: false }` rather than as a violation. The pipeline used to map that to
- * `violations: []`, so the single most serious thing the checker can find arrived at the studio
- * looking exactly like a page with nothing wrong with it. The pipeline now emits this code instead,
- * carrying the seam's own code and message in the text.
- *
- * Defined here, in the dependency-free core, and imported by both the pipeline that writes it and
- * the report that reads it. Two string literals in two files is a second copy of one truth, and the
- * copy goes stale silently — a report that stops recognising the code does not fail, it just
- * quietly starts calling a failed check a drift finding again.
+ * Not a wire value and never sent by the server: this is synthesized here for a reopened vault
+ * record saved before findings were persisted. Such a record has a page and no `violations` at all,
+ * which is a check result that is *unknown* — and unknown must not render as clean.
  */
-export const DRIFT_CHECK_FAILED_CODE = 'DRIFT_CHECK_FAILED';
+export const CHECK_RESULT_UNRECORDED_CODE = 'CHECK_RESULT_UNRECORDED';
 
 /** One thing a check found wrong, in the reader's words rather than the checker's. */
 export type QualityFinding = {
@@ -97,25 +92,43 @@ const WEIGHT_ORDER: Record<QualityFinding['weight'], number> = {
 	note: 2
 };
 
-const weighViolation = (violation: Violation): QualityFinding['weight'] => {
-	if (violation.code === DRIFT_CHECK_FAILED_CODE) {
-		return 'check-failed';
-	}
-	return violation.severity === 'warning' ? 'note' : 'blocker';
-};
+const weighViolation = (violation: Violation): QualityFinding['weight'] =>
+	violation.severity === 'warning' ? 'note' : 'blocker';
 
 /**
  * Build the report for the page on the paper.
  *
- * `hasGeneratedPage` is a required argument rather than something inferred from the arrays, because
- * it is the one fact the arrays cannot carry: an empty `violations` means "nothing found" for a page
- * that exists and "nothing asked" for a page that does not, and those are opposite claims. The
- * caller knows which — it is holding the images — so it says so.
+ * `hasPage` and `driftChecked` are two arguments rather than one because they are two facts, and
+ * the first draft of this module collapsed them — it took a single `hasGeneratedPage` and was
+ * handed the check-completion flag for it. That was wrong in both directions at once, which is what
+ * collapsing two facts into one always costs:
+ *
+ * - A generation that returns a contract-valid success with `images: []` and no violations has been
+ *   checked but produced no page. Reading the check flag as page presence made it `clean` — "the
+ *   page came back exactly as asked" — beside a generation error saying no picture came back.
+ * - A vault record saved before findings were persisted has a page and no stored `violations`.
+ *   Reading page presence off the check flag made it `unchecked` — "nothing on the paper yet" —
+ *   about a page the reader was looking at.
+ *
+ * So: `hasPage` is whether there is a picture, `driftChecked` is whether the check reported on it,
+ * and neither is inferred from the other.
  */
 export const buildQualityReport = (input: {
-	hasGeneratedPage: boolean;
+	/** True when there is a generated image on screen. */
+	hasPage: boolean;
+	/** True when the drift check reported on the page currently on screen. */
+	driftChecked: boolean;
 	violations: readonly Violation[];
 	recommendedFixes: readonly RecommendedFix[];
+	/**
+	 * Why the drift check returned no verdict, straight from `/api/generate`.
+	 *
+	 * Present means `violations` is empty because nothing was graded, not because nothing was
+	 * wrong. Carried as its own field rather than as a reserved code inside `violations`, so the
+	 * distinction is in the contract every consumer reads instead of in a string only this module
+	 * knows how to interpret.
+	 */
+	driftCheckFailure?: DriftCheckFailure;
 	/**
 	 * Spec-validation issues, which are about the request rather than the result.
 	 *
@@ -123,51 +136,64 @@ export const buildQualityReport = (input: {
 	 * does. They are folded in as blockers: a spec that failed its own contract is a page that was
 	 * never going to match what was asked for.
 	 *
-	 * These are the one thing `hasGeneratedPage` does *not* gate, and deliberately. A failing spec
-	 * check is a fact about the settings on screen right now, not about a past generation — in fact
-	 * it is the reason there is no page, since the studio refuses to generate while it holds any.
-	 * Gating them would have hidden a live, fixable complaint behind the absence of the very thing
-	 * the complaint is preventing.
+	 * These are the one thing `hasPage` does *not* gate, and deliberately. A failing spec check is a
+	 * fact about the settings on screen right now, not about a past generation — in fact it is the
+	 * reason there is no page, since the studio refuses to generate while it holds any. Gating them
+	 * would have hidden a live, fixable complaint behind the absence of the very thing the complaint
+	 * is preventing.
 	 */
 	validationIssues?: readonly { field: string; message: string }[];
 }): QualityReport => {
-	const specFindings: QualityFinding[] = (input.validationIssues ?? []).map((issue) => ({
+	const findings: QualityFinding[] = (input.validationIssues ?? []).map((issue) => ({
 		code: issue.field,
 		message: issue.message,
 		weight: 'blocker' as const
 	}));
 
-	if (!input.hasGeneratedPage && specFindings.length === 0) {
-		return { state: 'unchecked' };
+	if (input.driftChecked) {
+		for (const violation of input.violations) {
+			findings.push({
+				code: violation.code,
+				message: violation.message,
+				weight: weighViolation(violation)
+			});
+		}
 	}
 
-	const findings: QualityFinding[] = [
-		...specFindings,
-		...(input.hasGeneratedPage
-			? input.violations.map((violation) => ({
-					code: violation.code,
-					message: violation.message,
-					weight: weighViolation(violation)
-				}))
-			: [])
-	];
-
-	if (findings.length === 0) {
-		return { state: 'clean' };
+	if (input.driftCheckFailure) {
+		findings.push({
+			code: input.driftCheckFailure.code,
+			message: `The page could not be checked against what was asked for: ${input.driftCheckFailure.message}`,
+			weight: 'check-failed'
+		});
+	} else if (input.hasPage && !input.driftChecked) {
+		// A page whose check result is not on file. Distinct from a failed check and from a clean
+		// one, and it must not borrow either's wording.
+		findings.push({
+			code: CHECK_RESULT_UNRECORDED_CODE,
+			message: 'This page was saved before its check result was recorded, so it is not on file.',
+			weight: 'check-failed'
+		});
 	}
 
-	// A stable sort by weight: `Array.prototype.sort` is required to be stable, so findings of equal
-	// weight stay in the order the checkers reported them rather than in an order this module made up.
-	const ordered = [...findings].sort((a, b) => WEIGHT_ORDER[a.weight] - WEIGHT_ORDER[b.weight]);
+	if (findings.length > 0) {
+		// A stable sort by weight: `Array.prototype.sort` is required to be stable, so findings of
+		// equal weight stay in the order the checkers reported them rather than in an order this
+		// module made up.
+		const ordered = [...findings].sort((a, b) => WEIGHT_ORDER[a.weight] - WEIGHT_ORDER[b.weight]);
+		return {
+			state: 'flagged',
+			findings: ordered,
+			// Gated on the check having run, which is what the fixes answer. A check that did not
+			// report has no remedies to offer, whatever is on the paper.
+			fixes: input.driftChecked ? input.recommendedFixes.map((fix) => fix.message) : [],
+			hasIncompleteCheck: ordered.some((finding) => finding.weight === 'check-failed')
+		};
+	}
 
-	return {
-		state: 'flagged',
-		findings: ordered,
-		// Gated on the same fact as the violations they answer: the fixes come from the drift seam,
-		// so with no page there is no drift run and nothing they could be remedies for.
-		fixes: input.hasGeneratedPage ? input.recommendedFixes.map((fix) => fix.message) : [],
-		hasIncompleteCheck: ordered.some((finding) => finding.weight === 'check-failed')
-	};
+	// No findings. `clean` requires both halves: a page to be clean about, and a check that looked at
+	// it. Missing either one is `unchecked`, which says nothing rather than something untrue.
+	return input.hasPage && input.driftChecked ? { state: 'clean' } : { state: 'unchecked' };
 };
 
 /**

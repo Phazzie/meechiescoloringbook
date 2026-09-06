@@ -8,9 +8,77 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 9 — The quality report: close the drift fail-open and rebuild all three reporting surfaces (2026-09-06)
+
+This section is the sole active implementation plan. It supersedes every dated entry below,
+including the Seam Migration v2.0 plan, which is complete and merged.
+
+### Goal
+
+The app's quality report — `System Trace` on the home studio, the drift block in
+`VerdictPageStudio` (shared by the mode routes), and a third private copy in `MeechieTools.svelte` —
+reports a page as having nothing wrong with it when the drift check could not grade it at all. Make
+an ungradable check visible, surface the remedies already being computed, keep severity, and stop
+the panel claiming a clean page it has never checked.
+
+### Seams touched
+
+**None.** `DriftDetectionSeam (self-contained)` and `SpecValidationSeam (self-contained)` are read
+and unchanged: no contract, probe, fixture, mock, adapter or registry entry under
+`src/lib/seams/` or `src/lib/adapters/` is modified.
+
+One **route contract** changes: `contracts/generate.contract.ts` gains an optional
+`driftCheckFailure`. `/api/generate` is a route, not a seam — it appears in no row of
+`docs/seams.md` and has no probe, fixtures, mock, contract test or adapter — so the workflow steps
+that apply are contract, consumers, tests, and a Cipher Gate entry in `DECISIONS.md`.
+
+### Exact file inventory
+
+| File | Action | What changes |
+|---|---|---|
+| `contracts/generate.contract.ts` | `[MODIFY]` | add optional `driftCheckFailure: { code, message }` to `GenerateResponseValueSchema` |
+| `src/lib/core/quality-report.ts` | `[NEW]` | `buildQualityReport`, `describeQualityReport`, `CHECK_RESULT_UNRECORDED_CODE` |
+| `src/lib/core/generate-pipeline.ts` | `[MODIFY]` | populate `driftCheckFailure` from `detectDrift`'s error instead of erasing it |
+| `src/lib/components/studio/SystemTrace.svelte` | `[MODIFY]` | render the report; drop raw codes and unlabelled textareas |
+| `src/lib/components/VerdictPageStudio.svelte` | `[MODIFY]` | render `clean` and `flagged` from the shared report |
+| `src/lib/components/MeechieTools.svelte` | `[MODIFY]` | same, replacing its private copy |
+| `src/routes/studio-state.svelte.ts` | `[MODIFY]` | `driftReported`, `driftCheckFailure`, derived `qualityReport` |
+| `src/lib/components/verdict-page-state.svelte.ts` | `[MODIFY]` | same three |
+| `src/routes/+page.svelte` | `[MODIFY]` | pass `report`; delete orphaned `.diagnostics-grid` CSS |
+| `tests/unit/quality-report.test.ts` | `[NEW]` | state, severity, ordering, fixes, non-pairing |
+| `tests/unit/pipeline-edge-cases.test.ts` | `[MODIFY]` | replace the test asserting the fail-open |
+| `tests/e2e/smoke.spec.ts` | `[MODIFY]` | unchecked state; severity and fixes on screen |
+| `DECISIONS.md`, `CHANGELOG.md`, `CLAUDE.md`, `WORST_TO_BEST_LOG.md` | `[MODIFY]` | Cipher Gate, user-visible changes, file map, run log |
+
+### Anti-goals — do not touch
+
+- Anything under `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/`.
+- `DriftDetectionOutputSchema` itself, and the drift adapter's grading rules.
+- `playwright.config.ts` — the container's Chromium build mismatch is an environment fact.
+- `confidenceScore`: computed by the seam and dropped at the pipeline. Surfacing it is a second
+  contract change with no consumer waiting for it; deferred deliberately, recorded in `DECISIONS.md`.
+- Do not pair `violations` to `recommendedFixes` by index or by code.
+
+### Self-checks
+
+1. **Riskiest assumption: that violations and fixes correspond.** The seam pushes them in lockstep,
+   so index pairing looks right. Disproof: `DriftDetectionOutputSchema` promises no ordering, equal
+   length or shared key, and two branches append one violation per offending line. Pinned by a test
+   with two violations and one fix asserting no pairing is claimed.
+2. **That one flag can carry both "there is a page" and "the check reported".** It cannot — proven
+   by two tests: a generation returning `images: []` with no violations must not read `clean`, and a
+   reopened record with a page and no stored findings must not read "nothing on the paper yet".
+3. **That an absent `driftCheckFailure` is distinguishable from a present one.** Pinned by a test
+   asserting the key is absent, not `undefined`-valued, on a successful check.
+4. **Definition of done:** `npm run check` 0/0, `npm run lint` exit 0, `npm test` all green,
+   `npm run build` exit 0, `npm run test:e2e` all green, `npm run verify` exit 0, and
+   `npm run rewind -- --seam "DriftDetectionSeam (self-contained)"` exit 0.
+
+---
+
 ## Seam Migration v2.0 — Modularization of 7 Flat Seams, Anti-Fragile Hardening, and CI Auto-Merge (2026-09-05)
 
-This section is the sole active implementation plan. It supersedes older dated entries below.
+Complete and merged. Retained below as historical context; superseded by the Run 9 plan above.
 
 ### Base, Ownership, and Dependency Lock
 - **Base:** `main` at commit `9663a04c9db9a011a9fb22a06e0c9d1e92ceade8`. Baseline `npm test` passed 843/844 tests (1 skipped), `npm run check` reported 0 errors, `npm run lint` exited 0.

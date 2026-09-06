@@ -241,12 +241,17 @@ export class VerdictPageState {
 	 * reset above.
 	 */
 	private driftReported = $state(false);
+	/** Why the drift check returned no verdict, when `/api/generate` said it returned none. */
+	private driftCheckFailure = $state<GenerateResponseValue['driftCheckFailure']>(undefined);
 	/** What the drift block says about the page currently installed. */
 	qualityReport = $derived(
 		buildQualityReport({
-			hasGeneratedPage: this.driftReported,
+			// Page presence and check completion are separate facts; see `buildQualityReport`.
+			hasPage: this.imagePreviews.length > 0,
+			driftChecked: this.driftReported,
 			violations: this.violations,
-			recommendedFixes: this.recommendedFixes
+			recommendedFixes: this.recommendedFixes,
+			driftCheckFailure: this.driftCheckFailure
 		})
 	);
 
@@ -360,6 +365,7 @@ export class VerdictPageState {
 		this.violations = [];
 		this.recommendedFixes = [];
 		this.driftReported = false;
+		this.driftCheckFailure = undefined;
 		this.vaultStatus = '';
 		this.copyStatus = '';
 		this.generatedImages = [];
@@ -534,6 +540,7 @@ export class VerdictPageState {
 			this.violations = parsed.data.value.violations;
 			this.recommendedFixes = parsed.data.value.recommendedFixes;
 			this.driftReported = true;
+			this.driftCheckFailure = parsed.data.value.driftCheckFailure;
 			this.imagePreviews = usable
 				.map((entry) => entry.preview)
 				.filter((url): url is string => url !== null);
