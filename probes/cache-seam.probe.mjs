@@ -23,8 +23,17 @@ Invariants:
   - Exits non-zero if any check fails, so it can be read as a gate and not only as a transcript.
 */
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
+import path from 'node:path';
 import process from 'node:process';
 import { chromium } from 'playwright';
+
+/** Resolved from the installed package, so the path is real rather than assumed to be real. */
+const VITE_BIN = path.join(
+	path.dirname(createRequire(import.meta.url).resolve('vite/package.json')),
+	'bin',
+	'vite.js'
+);
 
 const PORT = 4399;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -60,12 +69,18 @@ const waitForServer = async () => {
 };
 
 const run = async () => {
-	// `detached` so the whole process group can be signalled at the end. `npm run` spawns `vite`
-	// as a child, and killing only the npm wrapper leaves `vite` holding the port — after which the
-	// next run of this probe silently measures the *previous* build, which is worse than failing.
+	// Two absolute paths and no PATH lookup: `process.execPath` is this Node binary, and the vite
+	// entry point is resolved from the repository rather than found by name. The first version was
+	// `spawn('npm', ['run', 'preview', ...])`, which SonarCloud failed the pull request over —
+	// "OS commands should not rely on PATH resolution" — and it was right: a probe that runs
+	// whatever `npm` happens to resolve to is a probe whose result depends on the environment's
+	// PATH. It also removes the npm wrapper process, which is what made the server outlive its own
+	// kill signal and hold the port into the next run.
+	//
+	// `detached` so the whole process group can still be signalled at the end.
 	const server = spawn(
-		'npm',
-		['run', 'preview', '--', '--port', String(PORT), '--host', '127.0.0.1'],
+		process.execPath,
+		[VITE_BIN, 'preview', '--port', String(PORT), '--host', '127.0.0.1'],
 		{ stdio: 'ignore', detached: true }
 	);
 

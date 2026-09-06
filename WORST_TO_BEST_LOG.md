@@ -9343,3 +9343,53 @@ every step.
 `check` 0/0 · `lint` exit=0 · `npm test` **1546 passed**, 1 skipped · `build` exit=0 · `test:e2e`
 **46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
 `probes/cache-seam.probe.mjs` **10/10**.
+
+### Run 10, fifth close-out — 2026-09-06 — the guess was wrong, and the guessing was the error
+
+The previous entry said the security rating had "very likely" been dropped by the redirect built
+from the request URL, fixed that, and left a second candidate alone on the grounds that changing
+correct code on a guess is how a run acquires damage it cannot see.
+
+**It was neither.** GitHub Advanced Security relayed the actual finding, with its issue key:
+
+> **SonarCloud / OS commands should not rely on PATH resolution**
+> `probes/cache-seam.probe.mjs`, line 67 — *Make sure the "PATH" variable only contains fixed,
+> unwriteable directories.*
+
+`spawn('npm', ['run', 'preview', …])` — in the probe written two rounds earlier. It arrived on
+`f69cff3`, the exact commit that added the probe, which the timestamps said plainly and I did not
+check before reasoning about which of my *own* new lines looked most suspicious.
+
+And SonarCloud is right. A probe whose result depends on what `npm` resolves to on the PATH is a
+probe whose result depends on the environment. It now spawns `process.execPath` — this Node binary,
+absolute — with vite's entry point resolved from the installed package rather than found by name.
+Two absolute paths, no lookup. **10/10, unchanged.** It also deletes the npm wrapper process, which
+is what made the server outlive its own kill signal and hold the port into the next run; that
+defect and this one had the same cause and I had fixed only the symptom.
+
+**The relative `Location` stays.** It is better code and the previous entry said so before knowing
+whether it was the culprit — a redirect target built from the request is the shape of an open
+redirect whether or not the analyser was pointing at it. But that entry's *account* was wrong, and
+the correction is not "one guess missed":
+
+**The error was guessing at all, while a channel that would have said so was open.** The finding
+was delivered to this very session as a review comment naming the file and the line. It was
+sitting in the queue. I reasoned about which of my lines looked most like a vulnerability instead
+of reading what the tool had already reported — the same move as inferring a fact from a shape when
+something authoritative could just be asked, which is the mechanism this log has now recorded in
+four separate runs, and which the previous entry congratulated itself for avoiding by declining to
+touch the `RegExp`.
+
+Declining that second change was still right, and for the reason given. But it was right the way a
+stopped clock is: the *criterion* — "which of these looks riskiest" — had no way of being right
+about either.
+
+The rule this run earns, then, is narrower and less flattering than the one two entries ago:
+**before ruling out a failure by reasoning, check whether anything already knows the answer.** Not
+because reasoning is bad, but because "I could not read the tool's output" was itself untrue — a
+different surface was carrying it the whole time.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `build` exit=0 · `probes/cache-seam.probe.mjs` **10/10**, and zero
+leaked `vite` processes for the first time.

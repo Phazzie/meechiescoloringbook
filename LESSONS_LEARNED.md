@@ -510,3 +510,25 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
   `waitForFunction`'s polling does not.
 - Action: Poll async conditions from Node around `page.evaluate`, never as an async predicate inside
   `waitForFunction`.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 10 — SonarCloud failed the quality gate with "B Security Rating on New Code" and no
+  readable detail, because `sonarcloud.io` is blocked from this container.
+- Lesson: I reasoned about which of my own new lines most resembled a vulnerability, picked the
+  redirect built from the request URL, and was wrong. The real finding was
+  `spawn('npm', …)` in a probe — "OS commands should not rely on PATH resolution" — and it had
+  already been delivered to this session as a review comment naming the file and the line. The
+  claim "I cannot read the tool's output" was false: a different surface was carrying it.
+- Action: Before ruling out or diagnosing a failure by reasoning, check every channel that might
+  already carry the answer — code-scanning alerts and relayed review comments as well as the check
+  run's own summary. "Which of these looks riskiest" is not a criterion that can be right.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same finding — the probe spawned `npm run preview`.
+- Lesson: Resolving a command by name means the probe's result depends on the environment's PATH,
+  and the npm wrapper process is also what made the dev server outlive its own kill signal and hold
+  the port into the next run. One cause, two symptoms; I had fixed only the symptom I could see.
+- Action: Spawn `process.execPath` with an entry point resolved from the installed package. No PATH
+  lookup, no wrapper process, and the cleanup problem disappears with it.
