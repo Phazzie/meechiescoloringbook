@@ -90,23 +90,40 @@ const summaryLines = (text) =>
  * longer says which run it describes.
  */
 const EXIT_LINE = /^([a-z][a-z0-9-]{0,32}) exit=(\d{1,3})$/gm;
-const exitStatusProblem = (text, name) => {
+
+/**
+ * The one terminal status a transcript records for `name`, as `{ code, line }`, or `{ problem }`
+ * when it does not record exactly one that terminates the file.
+ *
+ * The two are separated because the waiver path needs to tell them apart. `exitStatusProblem` folds
+ * a non-zero code into "this failed", which is right for a command that must pass — but Row 1's
+ * command is ALLOWED to fail under a waiver, and the first version of that branch reached the waiver
+ * whenever any problem was reported. A row with two statuses, or a truncated retry after an old one,
+ * is not a failing run to be waived; it is a row that does not say what happened, which no waiver
+ * covers.
+ */
+const terminalExitStatus = (text, name) => {
 	const found = [...stripAnsi(text).matchAll(EXIT_LINE)].filter(([, who]) => who === name);
-	if (found.length === 0) return `carries no "${name} exit=<code>" line of its own`;
+	if (found.length === 0) return { problem: `carries no "${name} exit=<code>" line of its own` };
 	if (found.length > 1)
-		return `carries ${found.length} "${name} exit=" lines (${found.map(([line]) => line).join(', ')}); one run reports one status, so this was appended to rather than replaced and it no longer says which run it describes`;
-	if (found[0][2] !== '0') return `reports "${found[0][0]}", so that run failed`;
-	// And it has to be the last thing in the file. "Exactly one, and it is zero" still accepts a
-	// retry that was appended and then died before writing its own status: the earlier run's lone
-	// `exit=0` stays, a fresh command's output follows it, and the transcript ends mid-run reporting
-	// a success that belongs to the run before. A status that does not terminate its transcript is
-	// not that transcript's result.
+		return {
+			problem: `carries ${found.length} "${name} exit=" lines (${found.map(([line]) => line).join(', ')}); one run reports one status, so this was appended to rather than replaced and it no longer says which run it describes`
+		};
 	const lines = stripAnsi(text)
 		.split('\n')
 		.filter((line) => line.trim() !== '');
 	const last = lines[lines.length - 1];
 	if (last !== found[0][0])
-		return `records "${found[0][0]}" but does not end there — "${last.trim().slice(0, 70)}" follows it, so a later run was captured over it without recording a status of its own`;
+		return {
+			problem: `records "${found[0][0]}" but does not end there — "${last.trim().slice(0, 70)}" follows it, so a later run was captured over it without recording a status of its own`
+		};
+	return { code: found[0][2], line: found[0][0] };
+};
+
+const exitStatusProblem = (text, name) => {
+	const status = terminalExitStatus(text, name);
+	if (status.problem !== undefined) return status.problem;
+	if (status.code !== '0') return `reports "${status.line}", so that run failed`;
 	return null;
 };
 
@@ -178,10 +195,12 @@ const asCalendarDate = (value) => {
  * is reported as unmet — turned into something a machine refuses to forget.
  */
 const mandatedRowProblem = (row1) => {
-	const problem = exitStatusProblem(row1, 'e2e-mandated');
-	if (problem === null) return null;
-	if (!/^e2e-mandated exit=[1-9]/m.test(row1))
-		return `${problem}; the mandated command's own result is what this row is for.`;
+	const status = terminalExitStatus(row1, 'e2e-mandated');
+	// An ill-formed status is never waivable. A waiver excuses a command that FAILED; it cannot
+	// excuse a row that does not say what the command did.
+	if (status.problem !== undefined)
+		return `${status.problem}; the mandated command's own result is what this row is for, and no waiver covers a row that does not state it.`;
+	if (status.code === '0') return null;
 	const stated = /^Waiver-Expires: (\d{4}-\d{2}-\d{2})$/m.exec(row1)?.[1];
 	if (stated === undefined || !/^Waiver-Reason: \S/m.test(row1))
 		return 'records a failing mandated command with no waiver; a gate that cannot be met is reported as unmet, with a reason and an expiry, not passed over.';
@@ -239,8 +258,15 @@ const selfAgreementProblem = (raw, file, list) => {
  * byte count left all eight rules passing. The verify chain does not run `cipher:gate`, so this
  * artifact is the only record that the gate was met. An unread result is the same as no result.
  */
-const cipherGateProblem = (raw) => {
+const cipherGateProblem = (dir, raw) => {
 	if (raw === null) return null;
+	// Tied to the run, like every other transcript. This was the FOURTH artifact to need this, and it
+	// was missed in the very commit whose log entry was about missing siblings — the tie went onto
+	// e2e, the probes, the rewinds, lint and build, and not onto the one artifact that is the sole
+	// record of a gate the chain does not run. Found this time by enumerating what the guard
+	// validates and asking which of those are tied, instead of patching the one that was reported.
+	const untied = notTiedToRun(dir, 'cipher-gate.json');
+	if (untied !== null) return `${untied}, so its status cannot be trusted as this run's.`;
 	let status;
 	try {
 		status = JSON.parse(raw).status;
@@ -368,10 +394,27 @@ const RULES = [
 				{ pattern: /svelte-check found 0 errors/, stage: 'a clean check stage' },
 				{ pattern: /Test Files/, stage: 'the test stage' }
 			];
-			// `--audit-level=high` makes high and critical advisories a non-zero exit, so a transcript
-			// reporting one alongside `verify exit=0` means a branch-owned `audit:gate` masked it.
-			// Low and moderate findings are a passing audit and stay allowed.
-			if (/(high|critical) severity/.test(stripAnsi(outer)))
+			// Scoped to the audit stage's own output. `verify-outer.txt` carries the whole chain, so
+			// searching all of it for "high severity" rejected valid evidence the moment a test was
+			// named `security test prints high severity classification` — a guard failing a folder for
+			// what a developer called a test, which is the fourth false rejection this file has had
+			// and the same mistake as reading a result out of a test title.
+			//
+			// The audit section runs from npm's banner for the sub-script to the next banner.
+			const clean = stripAnsi(outer);
+			const auditStart = clean.search(/^> \S{1,80} audit:gate$/m);
+			const afterBanner = auditStart === -1 ? '' : clean.slice(auditStart + 1);
+			// npm's script banner is `> <name>@<version> <script>`; the line right after it is the
+			// command echo, `> npm audit --audit-level=high`, which has no `@` in its first token. The
+			// first attempt matched both, so the section ended immediately after the banner and was
+			// empty — the check scoped itself out of existence and reported nothing wrong, which is
+			// how a vacuous check looks from the outside. Caught by running the true-positive case.
+			const nextBanner = afterBanner.search(/^> \S{1,80}@\S{1,40} \S/m);
+			const auditSection = nextBanner === -1 ? afterBanner : afterBanner.slice(0, nextBanner);
+			// `--audit-level=high` makes high and critical advisories a non-zero exit, so one reported
+			// here alongside `verify exit=0` means a branch-owned `audit:gate` masked it. Low and
+			// moderate findings are a passing audit and stay allowed.
+			if (/(high|critical) severity/.test(auditSection))
 				return 'verify-outer.txt reports a high or critical severity advisory; --audit-level=high makes that a failing audit, so the chain exiting zero means its own audit script masked the result.';
 			const missing = STAGE_MARKERS.filter(({ pattern }) => !pattern.test(outer));
 			if (missing.length > 0)
@@ -700,7 +743,7 @@ const RULES = [
 			// read it: setting it to "blocked" and fixing the inventoried byte count left all eight
 			// rules passing. The chain does not run `cipher:gate`, so this artifact is the only record
 			// that the gate was met — an unread result is the same as no result.
-			const cipherProblem = cipherGateProblem(read(dir, 'cipher-gate.json'));
+			const cipherProblem = cipherGateProblem(dir, read(dir, 'cipher-gate.json'));
 			if (cipherProblem !== null) return cipherProblem;
 			// assumption-alarm states its result as two arrays rather than a summary, so the
 			// summary-based check below could not reach it and nothing else looked: filling

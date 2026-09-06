@@ -8854,3 +8854,46 @@ broken.
 `npm run evidence:guard` 8 rules pass · seven mutation directions verified · full chain: check 0/0,
 1445 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41 under the override,
 mandated row under a dated waiver, probe complete.
+
+### Addendum — round forty-six: the fourth time, in the commit that was about the third time
+
+Codex reviewed `7ae0ce45`. Three findings. All three were introduced by the previous commit.
+
+**`cipher-gate.json` was not tied to the run.** The previous commit added `notTiedToRun` and applied
+it to `e2e.txt`, the probes, the rewinds, `lint.txt` and `build.txt`. It did not apply it to
+`cipher-gate.json` — the one artifact that is the *sole* record of a gate the verify chain does not
+run. Deleting its inventory entry left all eight rules passing.
+
+That commit's log entry is titled *"the third time I fixed one instance and left the siblings"*. It
+contains a table of the three previous occurrences and the sentence "deleting one instance of a
+defect is not deleting the defect." It is the commit that introduced the fourth occurrence.
+
+> **Naming a pattern is not the same as escaping it.** I wrote the rule, tabulated its three prior
+> instances, and committed a fresh instance in the same change — because I applied the fix to the
+> files I had been *thinking about* rather than to the set the fix was defined over. The remedy is
+> not a better resolution; it is enumerating the set. This time I listed every artifact the guard
+> validates and asked, mechanically, which of them are tied to the run. `cipher-gate.json` was the
+> only gap, and I know that because I checked rather than because a reviewer told me.
+
+**A waiver could excuse a row that never said what happened.** Row 1's status check folded every
+problem into one value, so a row with two `e2e-mandated exit=` lines, or a truncated retry after an
+old status, reached the waiver branch and was excused. A waiver excuses a command that FAILED; it
+cannot excuse a row that does not state a result. The status now comes back as a code or a problem,
+and only a clean non-zero code is waivable.
+
+**And the high-severity check rejected valid evidence.** Added one round ago, it searched the whole
+chain transcript, so a test named `security test prints high severity classification` would have
+failed the folder — the fourth false rejection this file has produced, and the same mistake as
+reading a result out of a test title.
+
+**Then my own fix for it scoped itself out of existence.** Bounding the search to the audit section,
+I took "the next npm banner" as the end — but the line immediately after the banner is the command
+echo `> npm audit --audit-level=high`, which matched the same pattern. The section was empty, so the
+check passed everything, silently. A vacuous check and a clean one are indistinguishable from the
+outside; the true-positive case is what tells them apart, and running it is the only reason this is
+not in the commit.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean · `npm run cipher:gate` exit 0 ·
+`npm run evidence:guard` 8 rules pass · six mutation directions verified, both polarities of the
+audit scan · full chain: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0, rewind 17,
+Playwright 41 under the override, mandated row under a dated waiver, probe complete.
