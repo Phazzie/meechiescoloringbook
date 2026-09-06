@@ -8,9 +8,284 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
-## Seam Migration v2.0 — Modularization of 7 Flat Seams, Anti-Fragile Hardening, and CI Auto-Merge (2026-09-05)
+## Seam Defensive Hardening & Adversarial Verification Suite (2026-09-05)
 
 This section is the sole active implementation plan. It supersedes older dated entries below.
+
+### Base, Ownership, and Scope Lock
+- **Base:** `main` at commit `52d23824` (1,319 unit/contract tests passing, 0 errors from `svelte-check`, 0 lint warnings).
+- **Integrator:** Antigravity (operating under Seam-Driven Development and the Zero-Trust Adversarial Operating Rule).
+- **Target Branch:** `fix/seam-defensive-hardening-and-adversarial-suite`
+- **Seams Touched:** `CreationStoreSeam`, `SessionSeam`, `ProviderAdapterSeam`, `OutputPackagingSeam`, `AuthContextSeam`.
+- **Dependency Graph:**
+  `TICK-HARDEN-01 -> TICK-HARDEN-02 -> TICK-HARDEN-03 -> TICK-HARDEN-04 -> TICK-HARDEN-05 -> TICK-HARDEN-06 -> TICK-HARDEN-07 -> PR -> Merge to main`.
+
+### Master Hardening Checklist Gate
+- [ ] `TICK-HARDEN-01`: `CreationStoreSeam` Safe Draft Validation
+- [ ] `TICK-HARDEN-02`: `SessionSeam` Defensive Storage Exception Enclosure
+- [ ] `TICK-HARDEN-03`: `ProviderAdapterSeam` Network Error Credential Redaction
+- [ ] `TICK-HARDEN-04`: `OutputPackagingSeam` Exception Containment (`pdf-lib` & Timeout Guard)
+- [ ] `TICK-HARDEN-05`: `AuthContextSeam` Strict Session ID Schema Validation
+- [ ] `TICK-HARDEN-06`: UI Consumer Simplification & Compensation Removal
+- [ ] `TICK-HARDEN-07`: Unified Adversarial & Boundary Fuzz Test Suite (`tests/adversarial/seams-adversarial.test.ts`)
+- [ ] `TICK-HARDEN-08`: Full Verification Chain, Chamber Lock Refresh, Proof Tape & Auto-Merge
+
+### Plan + Self-Critique
+- **Goal:** Defensively harden canonical adapters against unhandled exceptions, eliminate compensatory UI boilerplate in consumers, and author an active adversarial fuzz suite to verify boundary isolation and crash resilience.
+- **Exact Seam Names:** `CreationStoreSeam`, `SessionSeam`, `ProviderAdapterSeam`, `OutputPackagingSeam`, `AuthContextSeam`.
+- **Exact File Paths:**
+  - `src/lib/adapters/creation-store-seam/index.ts`
+  - `src/lib/seams/creation-store-seam/test.ts`
+  - `src/lib/adapters/session-seam/index.ts`
+  - `src/lib/seams/session-seam/test.ts`
+  - `src/lib/adapters/provider-adapter-seam/index.ts`
+  - `src/lib/seams/provider-adapter-seam/test.ts`
+  - `src/lib/adapters/output-packaging-seam/index.ts`
+  - `src/lib/seams/output-packaging-seam/test.ts`
+  - `src/lib/adapters/auth-context-seam/index.ts`
+  - `src/lib/seams/auth-context-seam/test.ts`
+  - `src/lib/components/verdict-page-state.svelte.ts`
+  - `src/lib/components/MeechieTools.svelte`
+  - `tests/adversarial/seams-adversarial.test.ts`
+- **Exact Commands:**
+  - `npx vitest run src/lib/seams/creation-store-seam/test.ts tests/contract/creation-store.test.ts`
+  - `npx vitest run src/lib/seams/session-seam/test.ts tests/contract/session.test.ts`
+  - `npx vitest run src/lib/seams/provider-adapter-seam/test.ts tests/contract/provider-adapter.test.ts`
+  - `npx vitest run src/lib/seams/output-packaging-seam/test.ts tests/contract/output-packaging.test.ts`
+  - `npx vitest run src/lib/seams/auth-context-seam/test.ts tests/contract/auth-context.test.ts`
+  - `npm run check ; npx vitest run tests/unit/verdict-page-state.test.ts tests/unit/meechie-tools-parity.test.ts`
+  - `npx vitest run tests/adversarial/seams-adversarial.test.ts`
+  - `npm run check ; npm run lint ; npm test ; npm run verify`
+- **Self-Critique:**
+  - *What could be wrong:* Changing `saveDraft` in `CreationStoreSeam` to return `DRAFT_SCHEMA_MISMATCH` instead of throwing could alter callers expecting an exception; however, callers expect `Result<T>` envelopes.
+  - *What must be proven:* That each adapter returns a typed failure `Result` without letting any synchronous or asynchronous exception propagate to caller frames.
+  - *Riskiest assumption:* That `pdf-lib` errors during `pdfDoc.save()` or `pdfDoc.embedPng()` can be cleanly wrapped into `PDF_ENCODING_FAILED` without corrupting downstream memory.
+  - *Evidence that will prove/disprove it:* Negative adversarial tests feeding malformed image byte arrays into `OutputPackagingSeam.package()`.
+
+---
+
+### 🎫 Ticket ID: TICK-HARDEN-01 — CreationStoreSeam Safe Draft Validation
+- **Role Title:** Storage Seam Resilience Engineer
+- **Files Allowed:**
+  - `[MODIFY] src/lib/adapters/creation-store-seam/index.ts`
+  - `[MODIFY] src/lib/seams/creation-store-seam/test.ts`
+- **What NOT To Touch:** `CREATIONS_KEY`, `DRAFT_KEY`, `MAX_CREATIONS = 50`.
+- **Exact Touch Blueprint:**
+  - In `src/lib/adapters/creation-store-seam/index.ts:227`:
+    Replace throwing `DraftRecordSchema.parse()` with:
+    ```ts
+    const parsedDraft = DraftRecordSchema.safeParse(input.draft);
+    if (!parsedDraft.success) {
+        return {
+            ok: false,
+            error: {
+                code: 'DRAFT_SCHEMA_MISMATCH',
+                message: 'Draft record failed schema validation.'
+            }
+        };
+    }
+    const stored = writeJson(DRAFT_KEY, parsedDraft.data);
+    if (!stored.ok) {
+        return stored;
+    }
+    return { ok: true, value: parsedDraft.data };
+    ```
+  - In `src/lib/seams/creation-store-seam/test.ts`: Add test asserting that `saveDraft` returns `DRAFT_SCHEMA_MISMATCH` when given malformed input.
+- **Definition of Done CLI:**
+  ```powershell
+  npx vitest run src/lib/seams/creation-store-seam/test.ts tests/contract/creation-store.test.ts
+  ```
+
+---
+
+### 🎫 Ticket ID: TICK-HARDEN-02 — SessionSeam Defensive Storage Exception Enclosure
+- **Role Title:** Browser Storage Boundary Engineer
+- **Files Allowed:**
+  - `[MODIFY] src/lib/adapters/session-seam/index.ts`
+  - `[MODIFY] src/lib/seams/session-seam/test.ts`
+- **What NOT To Touch:** `SESSION_KEY`, `generateSessionId()`.
+- **Exact Touch Blueprint:**
+  - In `src/lib/adapters/session-seam/index.ts:42-50`:
+    Wrap `localStorage.getItem` and `localStorage.setItem` inside `try / catch`:
+    ```ts
+    try {
+        const existing = localStorage.getItem(SESSION_KEY);
+        if (existing && existing.length > 0) {
+            return { ok: true, value: { sessionId: existing } };
+        }
+        const sessionId = generateSessionId();
+        localStorage.setItem(SESSION_KEY, sessionId);
+        return { ok: true, value: { sessionId } };
+    } catch (error) {
+        return {
+            ok: false,
+            error: {
+                code: 'STORAGE_UNAVAILABLE',
+                message: error instanceof Error ? error.message : 'Browser storage access was denied or restricted.'
+            }
+        };
+    }
+    ```
+  - In `src/lib/seams/session-seam/test.ts`: Add test mocking `localStorage.getItem` to throw `DOMException('The operation is insecure.', 'SecurityError')` and asserting clean `STORAGE_UNAVAILABLE` return.
+- **Definition of Done CLI:**
+  ```powershell
+  npx vitest run src/lib/seams/session-seam/test.ts tests/contract/session.test.ts
+  ```
+
+---
+
+### 🎫 Ticket ID: TICK-HARDEN-03 — ProviderAdapterSeam Network Error Credential Redaction
+- **Role Title:** Security Boundary Engineer
+- **Files Allowed:**
+  - `[MODIFY] src/lib/adapters/provider-adapter-seam/index.ts`
+  - `[MODIFY] src/lib/seams/provider-adapter-seam/test.ts`
+- **What NOT To Touch:** `CHAT_TIMEOUT_MS`, `IMAGE_TIMEOUT_MS`, `redactProviderMessage()`.
+- **Exact Touch Blueprint:**
+  - In `src/lib/adapters/provider-adapter-seam/index.ts:228,282`:
+    Pass the catch block error message through `redactProviderMessage()`:
+    ```ts
+    const rawMessage = isAbortError(error) || isTimeoutError(error)
+        ? 'Chat completion request timed out.'
+        : error instanceof Error ? error.message : 'Provider request failed.';
+    return {
+        ok: false,
+        error: buildError(
+            'PROVIDER_NETWORK_ERROR',
+            redactProviderMessage(rawMessage)
+        )
+    };
+    ```
+  - In `src/lib/seams/provider-adapter-seam/test.ts`: Add test verifying that network error strings containing fake bearer keys (`sk-canary-secret-123`) have the key redacted.
+- **Definition of Done CLI:**
+  ```powershell
+  npx vitest run src/lib/seams/provider-adapter-seam/test.ts tests/contract/provider-adapter.test.ts
+  ```
+
+---
+
+### 🎫 Ticket ID: TICK-HARDEN-04 — OutputPackagingSeam Exception Containment (`pdf-lib` & Timeout Guard)
+- **Role Title:** Async Reliability Engineer
+- **Files Allowed:**
+  - `[MODIFY] src/lib/adapters/output-packaging-seam/index.ts`
+  - `[MODIFY] src/lib/seams/output-packaging-seam/test.ts`
+- **What NOT To Touch:** `CHUNK_SIZE = 8192`, `parseSvgSize()`.
+- **Exact Touch Blueprint:**
+  - In `src/lib/adapters/output-packaging-seam/index.ts`:
+    1. Define `const IMAGE_LOAD_TIMEOUT_MS = 10_000;`.
+    2. Add timeout guard with `clearTimeout` to `svgToPngBase64` and `drawImageToCanvas`, returning `IMAGE_DECODE_TIMEOUT` on expiration.
+    3. In `outputPackagingAdapter.package`: Wrap the entire inner `pdf-lib` block (lines 362-393) inside a `try / catch`:
+       ```ts
+       try {
+           // existing pdfDoc creation, embedPng/embedJpg, drawImage, save
+       } catch (error) {
+           return {
+               ok: false,
+               error: {
+                   code: 'PDF_ENCODING_FAILED',
+                   message: error instanceof Error ? error.message : 'Failed to generate PDF document.'
+               }
+           };
+       }
+       ```
+  - In `src/lib/seams/output-packaging-seam/test.ts`: Add tests asserting that corrupt image data during PDF embedding returns `PDF_ENCODING_FAILED` without throwing unhandled exceptions.
+- **Definition of Done CLI:**
+  ```powershell
+  npx vitest run src/lib/seams/output-packaging-seam/test.ts tests/contract/output-packaging.test.ts
+  ```
+
+---
+
+### 🎫 Ticket ID: TICK-HARDEN-05 — AuthContextSeam Strict Session ID Schema Validation
+- **Role Title:** Identity Contract Specialist
+- **Files Allowed:**
+  - `[MODIFY] src/lib/adapters/auth-context-seam/index.ts`
+  - `[MODIFY] src/lib/seams/auth-context-seam/test.ts`
+- **What NOT To Touch:** `buildAnonymousContext()`, `AuthContextSchema`.
+- **Exact Touch Blueprint:**
+  - In `src/lib/adapters/auth-context-seam/index.ts:20`:
+    Replace truthiness check with strict non-empty string check:
+    ```ts
+    if (input.sessionId !== undefined) {
+        if (!input.sessionId || input.sessionId.trim().length === 0 || !SESSION_ID_PATTERN.test(input.sessionId)) {
+            return {
+                ok: false,
+                error: {
+                    code: 'SESSION_ID_INVALID',
+                    message: 'Session ID must be a non-empty alphanumeric string.'
+                }
+            };
+        }
+    }
+    ```
+  - In `src/lib/seams/auth-context-seam/test.ts`: Add test asserting that `{ sessionId: "" }` and `{ sessionId: "   " }` return `SESSION_ID_INVALID`.
+- **Definition of Done CLI:**
+  ```powershell
+  npx vitest run src/lib/seams/auth-context-seam/test.ts tests/contract/auth-context.test.ts
+  ```
+
+---
+
+### 🎫 Ticket ID: TICK-HARDEN-06 — UI Consumer Simplification & Compensation Removal
+- **Role Title:** Svelte Clean Architecture Specialist
+- **Files Allowed:**
+  - `[MODIFY] src/lib/components/verdict-page-state.svelte.ts`
+  - `[MODIFY] src/lib/components/MeechieTools.svelte`
+- **What NOT To Touch:** Component UI layouts, reactive runes (`$state`).
+- **Exact Touch Blueprint:**
+  - In `src/lib/components/verdict-page-state.svelte.ts`:
+    1. Remove the compensatory `try / catch` and comment at lines 99-130 in `packageOneVariant`, replacing it with clean delegation to `outputPackagingAdapter.package()` now that it guarantees a `Result` envelope.
+    2. Simplify `ownerPromise` resolution (lines 304-313), removing the redundant catch for thrown `SecurityError`s from `sessionAdapter.getSession()`.
+  - In `src/lib/components/MeechieTools.svelte:161-167`:
+    Ensure `loadOwner()` handles `result.ok === false` cleanly without floating promise side-effects.
+- **Definition of Done CLI:**
+  ```powershell
+  npm run check ; npx vitest run tests/unit/verdict-page-state.test.ts tests/unit/meechie-tools-parity.test.ts
+  ```
+
+---
+
+### 🎫 Ticket ID: TICK-HARDEN-07 — Unified Adversarial & Boundary Fuzz Test Suite
+- **Role Title:** Principal Adversarial QA Specialist
+- **Files Allowed:**
+  - `[NEW] tests/adversarial/seams-adversarial.test.ts`
+- **What NOT To Touch:** All production adapter and contract code is READ-ONLY.
+- **The Exact Touch Blueprint:**
+  - Create `tests/adversarial/seams-adversarial.test.ts` importing all 5 hardened adapters:
+    1. Fuzz `CreationStoreSeam.saveDraft` with corrupted inputs, asserting 0 uncaught exceptions and consistent `DRAFT_SCHEMA_MISMATCH` returns.
+    2. Drive `SessionSeam.getSession` against throwing `localStorage` proxies (SecurityError, QuotaExceededError) asserting clean `STORAGE_UNAVAILABLE` results.
+    3. Drive `ProviderAdapterSeam` against simulated network crashes embedding canary API keys, asserting credential scrubbing.
+    4. Drive `OutputPackagingSeam` against non-terminating image loaders asserting clean `IMAGE_DECODE_TIMEOUT` Result returns, and corrupt PDF bytes asserting `PDF_ENCODING_FAILED`.
+    5. Drive `AuthContextSeam` against SQL/XSS injections and empty strings asserting consistent `SESSION_ID_INVALID` rejections.
+- **Definition of Done CLI:**
+  ```powershell
+  npx vitest run tests/adversarial/seams-adversarial.test.ts
+  ```
+
+---
+
+### 🎫 Ticket ID: TICK-HARDEN-08 — Full Verification Chain, Chamber Lock Refresh, Proof Tape & Auto-Merge
+- **Role Title:** Principal Security Auditor
+- **Files Allowed:**
+  - `[MODIFY] plan.md`
+  - `[MODIFY] DECISIONS.md`
+  - `[MODIFY] CHANGELOG.md`
+  - `[MODIFY] docs/evidence/2026-09-05/*`
+- **The Exact Touch Blueprint:**
+  - Record the Cipher Gate entry in `DECISIONS.md`.
+  - Update `CHANGELOG.md`.
+  - Run `npm run verify` to generate clean evidence.
+  - Open PR `fix/seam-defensive-hardening-and-adversarial-suite`.
+  - Verify CI checks green and auto-merge to `main`.
+- **Definition of Done CLI:**
+  ```powershell
+  npm run verify
+  ```
+
+---
+
+---
+
+## Seam Migration v2.0 — Modularization of 7 Flat Seams, Anti-Fragile Hardening, and CI Auto-Merge (2026-09-05) [COMPLETED & MERGED]
 
 ### Base, Ownership, and Dependency Lock
 - **Base:** `main` at commit `9663a04c9db9a011a9fb22a06e0c9d1e92ceade8`. Baseline `npm test` passed 843/844 tests (1 skipped), `npm run check` reported 0 errors, `npm run lint` exited 0.
