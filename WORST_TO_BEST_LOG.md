@@ -9887,6 +9887,7 @@ mode — later passes append rather than displace, and any total is recoverable 
 | `51b09d9` | 5 | that transcript then inventoried while still being written; the plan's evidence inventory given as a wildcard |
 | `552c99d` | 7 | the plan's rows carrying no action marker; the plan never closing on a literal command |
 | `ca48ebf` | 5 | the closing command discarding `verify`'s exit status |
+| `48e7bc2` | 3 | — |
 
 **The P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
 A merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
@@ -9938,9 +9939,12 @@ could have caught" two defects whose unit tests this run wrote; a missing probe 
 defects it failed to catch; "all five headers" when the edge supplies one of them independently;
 and "every page" when five alias slugs still resolve through the function; a recommended follow-up
 patch that could not have compiled, since removing HSTS from the document rules fails fourteen
-assertions in a test that iterates all five `SECURITY_HEADERS`; and the `.html` gap above, which is
-the only finding on this pull request that names a defect in the shipped configuration rather than
-in the writing about it.
+assertions in a test that iterates all five `SECURITY_HEADERS`; a structured `Statement` still
+claiming every filesystem-served path after the `.html` exception was written in prose the parser
+does not read; **"the test asserts all five `SLUG_ALIASES` match no rule" when it lists three** —
+`/m/rate-his-excuse` and `/m/what-would-meechie-do` are absent, and I had cited that test as the
+guarantee twice; and the `.html` gap above, the one finding on this pull request that names a defect
+in the shipped configuration rather than in the writing about it.
 
 *Procedure and reference defects*, which are the ones that could mislead a future run into
 **doing** the wrong thing rather than believing it: a close-out instruction that validated the
@@ -9957,8 +9961,17 @@ producing evidence that described something other than the tree it was committed
 Plus this ledger's own anchoring, a stale `DECISIONS.md` line range, a `DECISIONS.md` reference
 whose line number my own edits above it had moved, and — after the ledger was rebuilt to be
 append-only precisely so this could not happen — **two passes left off it entirely**, which silently
-made these inventories wrong as well, since they are derived from it. All the same disease: a fact
-restated where it cannot be checked against its source.
+made these inventories wrong as well, since they are derived from it. Then the same derivation
+failed twice more: the two transcript P1s attributed to the wrong passes, because I wrote the rows
+from memory of what I had just fixed rather than from the review record, and a fix always lands one
+commit after its finding; and the `ca48ebf` row appended without its four P2s reaching this list.
+A correction-count that had gone stale twice, now removed rather than reset. And a Definition of
+Done claiming 97 test files where the transcript reports 98 — 97 passing plus 1 skipped.
+
+All the same disease: a fact restated where it cannot be checked against its source. The reason this
+section is the entry's longest is that it is the one part with no mechanical check behind it. Every
+other claim here now points at a file, a line, a command or a table; this list is maintained by
+hand, and it has been wrong at every pass that touched it.
 
 > **Correcting the instance is not correcting the belief.**
 

@@ -51,7 +51,8 @@ to #311's run and no command here rewrites them.
 
 **Commands:** `npm run lint`, `npm run build`, `npm run verify`. All three, every push — `verify`
 alone is not the checklist, which is a lesson this PR learned as a P1 finding rather than by
-reading. Latest: lint 0, build 0, verify 0, 1559 passed / 1 skipped across 97 files.
+reading. Latest: lint 0, build 0, verify 0; 1559 tests passed and 1 skipped, across 97 passing
+test files plus 1 skipped file — 98 in total, which is the figure `test.txt` reports.
 
 **How behaviour stays unchanged:** nothing under `src/` is modified, so no route, seam, worker or
 response header changes. The only non-Markdown files touched are regenerated evidence artifacts,
@@ -74,16 +75,22 @@ command in this plan regenerates them.
 npm run lint && npm run build && npm run verify
 ```
 
-Exits 0, with `verify` reporting 1559 passed / 1 skipped across 97 test files. The outer transcript
+Exits 0, with `verify` reporting 1559 tests passed and 1 skipped, across 97 passing test files
+plus 1 skipped — `98` in the transcript's own parenthesis. The outer transcript
 is captured separately, to a scratch path and moved in after the chain returns, per
 `docs/evidence/README.md`:
 
 ```sh
 mv docs/evidence/2026-09-06/verify-outer.txt "$SCRATCH/previous.txt"
 { npm run verify 2>&1; status=$?; echo "verify exit=$status"; } > "$SCRATCH/verify-outer.txt"
-mv "$SCRATCH/verify-outer.txt" docs/evidence/2026-09-06/verify-outer.txt
+mv "$SCRATCH/verify-outer.txt" docs/evidence/2026-09-06/verify-outer.txt || exit 1
 exit "$status"
 ```
+
+The `|| exit 1` matters for the same reason as the rest: a successful `verify` whose transcript then
+fails to install — unwritable destination, missing scratch file — would otherwise reach
+`exit "$status"` with the saved `0` and report a clean close-out while the required evidence is
+absent or stale. Preserving `verify`'s status and dropping `mv`'s is the same defect one step later.
 
 `status` is captured before the `echo`, because `echo` succeeds unconditionally: writing
 `echo "verify exit=$?"` as the last command in the group makes the group's own status `0` whatever
