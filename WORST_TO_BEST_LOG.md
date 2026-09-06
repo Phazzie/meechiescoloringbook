@@ -9782,9 +9782,12 @@ the line, and was sitting unread while the reasoning happened.
 - **`CacheSeam` cannot store a Response it did not fetch itself.** Its write is
   `primeCache(cacheName, urls)`, which hands a URL list to `cache.addAll` and lets the seam do the
   fetching — enough for the build manifest, which is the whole of what this run needed. What has no
-  operation is `put(request, response)`: taking a response already in hand and keeping it. So a
-  page's own runtime traffic can never enter the cache, and the offline copy is exactly the build
-  and nothing a reader visited. Adding it is a contract change, which is why this run did not.
+  operation is `put(request, response)`: taking a response already in hand and keeping it. The
+  practical consequence is narrower than "nothing outside the build can be cached", which is what an
+  earlier draft said and is wrong — `primeCache` accepts any URL, and `DECISIONS.md:2788` already
+  weighs calling it with visited ones. It is that keeping a response the worker just served costs a
+  second fetch of the same URL, so runtime caching would double the network it is meant to save.
+  Fixing that is a contract change, which is why this run did not attempt it.
 - **The web fonts are not available offline**, and cannot be through this seam.
 - **You still cannot make a coloring page offline.** The offline page says so in those words.
 - Run 8's two items are still open: the tools hub and mode routes save no style, and the home studio
