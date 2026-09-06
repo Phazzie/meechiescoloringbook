@@ -9624,6 +9624,423 @@ the platform before being believed**, in a Node one-liner, before a single line 
 **46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
 `probes/cache-seam.probe.mjs` **12/12**.
 
+## Run 10 — merge close-out — PR #311 merged as `1b67d30`
+
+The installable app is on `main`. Base `ad3bfe7` → head `6e4d3a5`, squashed to `1b67d30`.
+**12 commits, 46 files, +4001 / −205.** Nine close-out rounds, listed above by name.
+
+### What the gate required, and what it found
+
+| Condition | State at merge (`6e4d3a5`) |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **1559 passed**, 1 skipped (1475 on `main`) |
+| `npm run build` | exit 0 |
+| `npm run test:e2e` | **46 passed** (42 on `main`) |
+| `npm run verify` | exit 0 |
+| `npm run rewind -- --seam CacheSeam` | 14 passed |
+| `probes/cache-seam.probe.mjs` | **12/12**, in a real browser |
+| Check runs | **9 of 9 green** — `verify` ×2, CodeQL, Analyze ×2, SonarCloud ×2, Rosentic, Vercel Preview Comments |
+| SonarCloud quality gate | passed — security rating A, 0 hotspots, 0.0% duplication |
+| Codex | **clean on `6e4d3a5`**, after the passes enumerated in the findings table below — three that returned findings, one earlier clean |
+| Review threads | 13 of 13 resolved |
+| Merge conflict | none |
+| Schema / contract / data migration | **none** — the `CacheSeam` contract is untouched, which is the design decision the run turned on |
+| Open Assumption in `DECISIONS.md` | **one, and this run newly depends on it** — see below |
+
+**The open Assumption, which an earlier draft of this table recorded as "none".** That was wrong,
+and wrong in the direction that hides a gate rather than raising one. The entry — `DECISIONS.md`
+the `Assumption` block dated **2026-09-03** whose `Statement` begins "The `headers` rules in
+`vercel.json` attach", which is what to search for; it was around lines 678-685 while this PR was
+open, and no line number here is worth trusting for long. The first version of this reference gave
+only a range, which broke when the entry grew. The second gave the entry's `Seams:` line as a search
+string, which broke when review corrected that field's wording — an anchor is only stable if it
+anchors to something nobody has reason to edit. The `Statement`'s opening clause is the least
+volatile part of it, and even that is a bet. It carries
+an Assumption dated 2026-09-03 — three days before this run — stating that the `headers` rules in
+`vercel.json` attach the security headers to the paths `src/hooks.server.ts` never sees, with
+`Status: Open - pending first deploy`. Read the `Statement` there for which headers; restating the
+list here is what made this sentence stale once already, when the entry gained `Permissions-Policy`
+and this paragraph kept saying three. Nothing local can
+close it: `vite preview` does not read `vercel.json`, and the pull request's own preview deployment
+sits behind deployment protection and 302s to `vercel.com/sso-api`, so no header of the app itself
+is reachable unauthenticated.
+
+This run did not merely leave that Assumption standing. **It moved seven route patterns — every one
+the app has — onto exactly the path the Assumption is about.** They are `/`, `/offline`,
+`/meechie`, `/who-fucked-up`, `/rate-his-excuse`, `/random` and `/m/[mode]`, and the last expands to
+the eight canonical mode slugs, which is where the fourteen documents counted below come from.
+Before this change those documents were served by the SvelteKit function, where `hooks.server.ts`
+attaches the headers in code that a test can run. Prerendering makes them files, and Vercel's
+`{"handle":"filesystem"}` precedes the SSR rewrite, so their headers now come from the `vercel.json`
+rules. `tests/unit/security-headers.test.ts` proves the
+rules *cover* every prerendered path — it derives the list from the routes' own `prerender` flags
+rather than restating it — and that is the whole of what it proves. Whether Vercel then *applies*
+them is the Assumption, and it is the same one, now load-bearing where it was previously only
+tidy.
+
+**"Every page" is the fourteen canonical documents, not every URL.** `/m/[mode]` is
+`prerender = 'auto'`, so the five `SLUG_ALIASES` — `/m/receipts`, `/m/caption-this`,
+`/m/apology-translator` and the rest — still resolve through the function, and so does the catchall
+that renders `+error.svelte`. Those keep getting their headers from `hooks.server.ts`, and the same
+test asserts that three of the five — `/m/receipts`, `/m/caption-this`, `/m/apology-translator` —
+match **no** `vercel.json` rule, because a header set twice is worse than one set once. Three of
+five, not five: `/m/rate-his-excuse` and `/m/what-would-meechie-do` are absent from that list, so a
+rule accidentally matching either would slip past the guard. I described this test as asserting all
+five until review checked the cases. Adding the two is a one-line change and belongs in the same
+follow-up as the `.html` rules. So the guarantee is split across two files and a future header change has to touch both. That
+this correction came from review rather than from me is the awkward part: the assertions naming
+those three alias paths are in a test this run wrote.
+
+**And the rules have a hole this run did not find.** Review did, on the last pass: the build emits
+`index.html`, `offline.html` and `m/<slug>.html`, and Vercel's filesystem handler serves those URLs
+directly. Every `vercel.json` document rule names the extensionless form, so `/offline.html` matches
+nothing and arrives **without the four contingent headers** — `X-Content-Type-Options`,
+`X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`. Not without any: `Strict-Transport-Security`
+still comes from the edge, which is the same distinction drawn two paragraphs up and which I
+restated wrongly here on first writing. Four missing rather than five is the difference between a
+follow-up that repairs the right set and one that goes looking for a header that was never gone. `tests/unit/security-headers.test.ts` cannot see it either, because it derives its paths from
+the routes rather than from the build output, which is the limit of deriving a test from the same
+source as the thing it checks. Recorded in the Assumption as explicitly out of scope rather than
+quietly folded in, since closing that Assumption will say nothing about these URLs.
+
+**Four headers ride on it, not five.** An earlier draft said all five came from those rules "and
+from nothing else", which overstated the exposure and was caught in review. `Strict-Transport-Security`
+is set independently by Vercel's edge — that is what the 2026-09-03 entry records finding in
+production, where it was the *only* header the deployed site sent — so it survives the rules failing
+to apply. What is actually contingent is `X-Content-Type-Options`, `X-Frame-Options`,
+`Referrer-Policy` and `Permissions-Policy`.
+
+Correcting that turned up a real inconsistency this run introduced, recorded rather than fixed
+because this is a documentation change: the three document rules #311 added to `vercel.json` **do**
+list `Strict-Transport-Security`, while the `src/hooks.server.ts` header comment says the
+`vercel.json` sources omit it *because* the edge sets it. That was true of the asset rules the
+comment was written about and is now false of the document rules beside them. Nothing breaks — a
+repeated HSTS is not the hazard a repeated `X-Frame-Options` is, and the hook no longer serves these
+paths — but the config and its stated rationale disagree.
+
+**And the obvious fix does not compile, which is why it is written down here rather than attempted.**
+An earlier draft recommended simply dropping the HSTS entry from those three rules. That would fail
+`tests/unit/security-headers.test.ts`, whose per-path assertion iterates `SECURITY_HEADERS` —
+imported from `src/hooks.server.ts`, all five of them — and requires every one to appear on each of
+the fourteen prerendered documents. The test encodes "the platform must set everything the hook
+would have set", which is the right rule for the four contingent headers and wrong for the one the
+edge supplies anyway. So the follow-up is **two** changes, not one: split the expected set so HSTS
+is asserted for the hook's own paths and not required of the `vercel.json` document rules, then drop
+the entries. Doing only the second turns CI red. Recommending it without checking is how a
+close-out hands the next run a task that cannot pass its own gate.
+
+What a green `assumption-alarm` established is narrower than the row claimed: the entry is present
+and structurally valid. The script checks that Assumptions are recorded, not that they are true. An
+open Assumption passing the alarm is the alarm working, and reading it as "no open Assumption" is
+the mistake.
+
+**To close it**, after this deploys to production and not on a preview, from
+`https://meechiescoloringbook.vercel.app`. The Assumption has **two halves under different
+`vercel.json` rules**, and both have to pass — an earlier draft of this paragraph named only the
+first, which would have let a future run mark it `Closed` on half the evidence:
+
+1. **The documents** (`/`, `/offline`, `/m/clapback`) — confirm the four contingent headers:
+   `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`. Not five.
+   `Strict-Transport-Security` arrives from the edge either way and proves nothing here.
+2. **The assets** (`/service-worker.js` and an `/_app/immutable` file) — the original half of this
+   Assumption, matched by the two asset rules, which carry three headers rather than five. Today
+   production returns these **without the three headers this repository sets on assets**, which is
+   the gap the entry exists to close. Strict-Transport-Security is there, from the edge — the same
+   distinction as everywhere else in this section, and the third place I had to be told it.
+
+And one control: request an alias such as `/m/receipts`. It is server-rendered, matches no
+`vercel.json` rule, and must carry all five from `hooks.server.ts`. If the four are present there
+and missing on `/m/clapback`, the rules are what failed rather than the deploy.
+
+Only with all three results in hand does the entry move to `Status: Closed`, with the observed
+values recorded.
+
+**One red signal at merge, and the rule's test for standing it down was not met.** The `Vercel`
+commit status failed with `api-deployments-free-per-day` — "Deployment rate limited — retry in 24
+hours", an account-wide rolling cap. One standing-down comment was posted.
+
+An earlier draft of this paragraph called that "dispositioned by signature" and argued it from two
+facts: the immediately preceding head deployed **Ready** minutes earlier, and `git diff --stat`
+between the two touches no application file. **Neither is a signature match, and this log already
+knows it.** The #305 entry above records a reviewer invalidating the mirror image of the first
+argument — a *successful* older head cannot establish anything about a later one — and the same
+objection applies to a successful *preceding* head here. The second fact is a statement about the
+diff, and showing a diff could not have broken a build is not the same as reproducing the failure
+somewhere the diff is absent. `AGENTS.md` L138 asks for the signature "on the base commit or an
+unrelated head", and L139 says explicitly that "it is red elsewhere too" is not evidence.
+
+**That test was not met at the moment #311 merged. It is recorded here as a gap rather than argued
+away.** What the disposition actually rested on is the error string: `api-deployments-free-per-day`
+names a cap on deployments per account per day, so it is a claim about the account and the date and
+not about a diff — and Vercel never started a build, so there is no compile result of this change to
+have failed. That is a reading of the message, which is weaker than a reproduction.
+
+Supporting but explicitly not sufficient: this close-out's own head `6b7a2be` — a single Markdown
+file — carries the identical status. It is a different head, but it is *this* branch and it sits on
+top of the merged code, so it is not the unrelated head the rule asks for. The comparator that would
+settle it is the base commit's own deployment status, and this container has no way to read a commit
+status for an arbitrary ref: the available GitHub tooling exposes statuses only through a pull
+request. The honest record is that the merge went ahead on a message reading, with the required
+reproduction absent.
+
+`mergeable_state` therefore read `unstable` rather than `clean`.
+
+### What was actually wrong, in one paragraph
+
+A manifest saying `display: standalone`, four icons, a service worker registering on every page
+load — and **3,462,111 bytes pre-cached containing zero bytes of HTML**. Nothing was prerendered, so
+no document existed to cache; offline the cache missed, `fetch` rejected, and a rejected
+`respondWith` is exactly how a browser draws its own network-error page. In standalone mode there is
+no address bar and no tabs, so that error page *was* the app. It is now fourteen prerendered
+documents in a graded precache, a network-first navigation strategy, a real offline page a
+navigation is redirected to, and a worker with no decisions left in it.
+
+### Where the findings came from
+
+**No grand total is given, and that is deliberate** — for the reason Run 9's close-out reached the
+hard way: a document that counts the reviews *of itself* cannot state a total while those reviews
+are still arriving, and every total this routine has published has been wrong by the next round.
+An earlier draft of this section said "Twenty-one findings. Two came from me." **Both numbers were
+wrong**, caught by checking them against this file rather than by anyone reporting it. The four
+sources are enumerated instead, each with its basis, so a reader can count them for themselves.
+
+| Source | What it found | Basis |
+|---|---|---|
+| **Codex** | 6 on `4fb41f2`, 2 on `cd6985c`, 4 on `052ef86`; clean on `81d517d` and `6e4d3a5` | the review threads, all resolved |
+| **Browser probe** | the worker controlling nothing; the fallback served under the wrong URL; the probe reading the cache before it was filled | `docs/evidence/2026-09-06/probe-cache-seam.txt` |
+| **SonarCloud** | cognitive complexity; `spawn('npm')` PATH resolution; the super-linear regex; an assertion style | its own gate transitions, plus the code-scanning relay for the security one |
+| **Re-reading my own work** | a dead branch in the worker; a stale-banner bug that **was not real**; the `app-origin-seam` rule broken where nobody was looking; an open redirect in the validator written to stop open redirects | the commits that fixed or reverted each |
+
+**Not one of Codex's was disproved. One of mine was** — the stale banner, which the mutation check
+refuted and which was reverted rather than kept.
+
+The four that the **pre-existing** suite did not catch were the ones that mattered: **the security
+headers** prerendering silently dropped, **a ReDoS in the navigation path** measured at 3,108 ms
+against 0 ms, **a worker that cached everything and controlled nothing**, and **a fallback that
+answered the requested URL with the offline page's bytes**, so SvelteKit's client router rendered
+its 404 over the top.
+
+An earlier draft listed **the missing reality probe** as the second of these, and that was a
+category error worth naming rather than quietly fixing: the absent probe is not a defect the suite
+missed, it is *the reason* the last two went unseen. It belongs one level up, as cause. Putting it
+in the list also pushed a real defect out of it — the fallback navigation — and then the paragraph
+below silently substituted that defect back in when it came to explain the four, which is how the
+inconsistency became visible.
+
+"No unit test could have caught them" is what that draft also said, and for the first two it is
+plainly false — this run wrote the unit tests that catch them. `tests/unit/security-headers.test.ts`
+holds the header coverage, and `tests/unit/offline-cache.test.ts:256-267` holds the ReDoS, as a
+wall-clock assertion on 50,000 slashes. The true division is not testable versus untestable. It is
+that the suite had no test *addressed to these questions*, because nothing in it ever asked what the
+cache contained or what a document's response headers were. The last two are the ones a unit test
+genuinely cannot reach: whether the worker controls the page, and whether an offline navigation
+lands somewhere usable — both facts about a real browser, which is why they needed the probe, and
+why the probe found them within a minute of first running.
+
+### The rule this run is worth
+
+Every close-out here has tried to name one. The honest one is narrower than any of them:
+
+> **A fix is new code, and it gets reviewed like new code.**
+
+**Four times** during #311 a fix for a review finding introduced a defect of a different class than
+the one it fixed. The trailing-slash trim was right about slashes and wrong about backtracking. The
+redirect was right about SvelteKit's router and wrong about building a URL from a request. The
+`CacheSeam` probe — itself written to answer a review finding — spawned `npm` through `PATH`, which
+is what SonarCloud's security rating was actually about and what `process.execPath` fixed. And
+`safeReturnPath`, a validator written specifically to stop an open redirect, admitted one, because
+URL parsers strip whitespace before parsing and every check in it was a string-prefix test. **The
+local gate was green for all four.** An earlier draft of this paragraph said three, having dropped
+the probe to make room for the validator — the same displacement that the findings ledger below was
+restructured to prevent, in the sentence naming the habit.
+
+And the corollary, which cost this run the most time and is the least flattering:
+
+> **Before ruling anything out by reasoning, check whether something already knows.**
+
+The SonarCloud security failure was diagnosed by reasoning about which of my lines looked riskiest.
+It was wrong. The answer had been delivered to this session as a review comment naming the file and
+the line, and was sitting unread while the reasoning happened.
+
+And a third, which this close-out earned on its own account. **Every finding in the ledger below was
+correct — on #312, a pull request containing no code.** The totals are not restated here; add the
+column up. Restating them is what produced four of the findings in it.
+
+The ledger below is the **third** attempt at recording this, and the first two are worth naming
+because each failed in a way the next one fixed. The first gave a total anchored to one commit — and
+I then edited the anchored list as later findings arrived, inserting one raised against `e6beced`
+into a list stamped `840df85` and dropping an earlier item to fit. An anchor you edit is worse than
+no anchor, because it looks checkable. The second was a per-pass table with the priorities
+summarised in prose beneath it; that removed the displacement failure and left the derivation one,
+and the prose was wrong on five consecutive passes — four of the rows below are that drift. This one
+has no derived summary at all: the table is the record, and every claim about it is a claim about a
+row someone can read.
+
+| Pass | # | Priority | Finding |
+|---|---|---|---|
+| `8297c31` | 1 | **P1** | an open Assumption reported as absent, on the feature that made it load-bearing |
+| `8297c31` | 2 | **P1** | a merge-gate stand-down argued from evidence this log records a reviewer rejecting on #305 |
+| `8297c31` | 3 | P2 | the findings total, and the self-found defect dropped from it |
+| `8297c31` | 4 | P2 | "no unit test could have caught" two defects whose unit tests this run wrote |
+| `8297c31` | 5 | P2 | "no `CacheSeam` write operation" when `primeCache` is one |
+| `1002807` | 6 | **P1** | the verify chain refreshed in part — only the two scripts I expected to object |
+| `1002807` | 7 | P2 | "six routes" above a list of seven |
+| `6a5c923` | 8 | P2 | web fonts called a seam limitation when only the strategy refuses them |
+| `180ab72` | — | — | *clean* |
+| `fc8fc4b` | 9 | P2 | the four-item defect list disagreeing with the paragraph explaining it |
+| `840df85` | 10 | P2 | the review-round count |
+| `e6beced` | 11 | P2 | two P1s recorded where there were three |
+| `e6beced` | 12 | P2 | "all five headers … and from nothing else" when the edge supplies one |
+| `8a58e92` | 13 | **P1** | `lint.txt` and `build.txt` never refreshed — `verify` runs neither |
+| `8a58e92` | 14 | P2 | the structured `Statement` naming three headers while the prose said four |
+| `8a58e92` | 15 | P2 | a findings total anchored to a commit and then edited |
+| `8a58e92` | 16 | P2 | "every page" when five alias slugs still reach the hook |
+| `d38dcfe` | 17 | P2 | "all ten" beneath a ledger that had outgrown it |
+| `d38dcfe` | 18 | P2 | a close-out step that would have closed the Assumption on its document half |
+| `2244765` | 19 | **P1** | no micro Plan for a governance-only change (`AGENTS.md` L108) |
+| `2244765` | 20 | P2 | the P2 inventory naming twelve where the ledger implied fourteen |
+| `2244765` | 21 | P2 | a `DECISIONS.md` line range my own edits had shifted |
+| `28ea7c7` | 22 | **P1** | `verify-outer.txt`, the only full-chain transcript, never regenerated |
+| `28ea7c7` | 23 | P2 | the header list restated as three after the `Statement` was corrected to four |
+| `28ea7c7` | 24 | P2 | "twelve findings across eight earlier passes" for #311, where the table says three |
+| `51b09d9` | 25 | **P1** | that transcript then inventoried while still being written |
+| `51b09d9` | 26 | **P1** | the plan's evidence inventory given as a wildcard |
+| `51b09d9` | 27 | P2 | a recommended HSTS patch that fails fourteen assertions |
+| `51b09d9` | 28 | P2 | the structured `Seams` scope left at assets only |
+| `51b09d9` | 29 | P2 | a `DECISIONS.md` line reference shifted by my own edits |
+| `552c99d` | 30 | **P1** | the plan's rows carrying no `[MODIFY]` marker and no exact touch |
+| `552c99d` | 31 | **P1** | the plan never closing on a literal command (`AGENTS.md` L76) |
+| `552c99d` | 32 | P2 | the previous transcript left in place, so the tape described a different file |
+| `552c99d` | 33 | P2 | two passes never appended to this ledger |
+| `552c99d` | 34 | P2 | a prose comma in `Seams`, which `assumption-alarm` splits on |
+| `552c99d` | 35 | P2 | **the emitted `.html` filenames matching no header rule** |
+| `552c99d` | 36 | P2 | the probe's `PATH` defect dropped from the repeated-fix count |
+| `ca48ebf` | 37 | **P1** | the closing command discarding `verify`'s exit status behind an `echo` |
+| `ca48ebf` | 38 | P2 | the structured `Statement` still claiming every filesystem-served path |
+| `ca48ebf` | 39 | P2 | a correction count that had gone stale twice |
+| `ca48ebf` | 40 | P2 | "the test asserts all five `SLUG_ALIASES`" when it lists three |
+| `ca48ebf` | 41 | P2 | both transcript P1s attributed to the wrong passes |
+| `48e7bc2` | 42 | P2 | the transcript move's failure discarded by `exit "$status"` |
+| `48e7bc2` | 43 | P2 | 97 test files where the transcript reports 98 |
+| `48e7bc2` | 44 | P2 | the `ca48ebf` findings never reaching the derived inventory |
+| `3f412c1` | 45 | P2 | `$SCRATCH` referenced and never assigned |
+| `3f412c1` | 46 | P2 | `lint` and `build` named without the redirections that write their evidence |
+| `3f412c1` | 47 | P2 | the transcript-move defect never reaching the derived inventory |
+| `8af5bff` | 48 | P2 | `mktemp -d` called unchecked, putting every path back at the filesystem root |
+| `552ffa6` | 49 | P2 | `/offline.html` said to carry no security headers when it lacks four |
+| `552ffa6` | 50 | P2 | "one code-level defect" above anti-goals listing two |
+| `82a47c5` | 51 | P2 | the asset baseline said to carry none when it lacks three |
+| `04c7c00` | 52 | P2 | "no script writes either" transcript, when `verify-runner.mjs` writes `verify.txt` |
+| `04c7c00` | 53 | P2 | the `552ffa6` code-defect finding never reaching the derived inventory |
+
+**This table replaced a prose inventory that was wrong on five consecutive passes.** Every version
+of it was maintained by hand from the ledger beside it, and every version drifted: findings appended
+in one place and not the other, priorities filed by where I met them rather than what they were,
+totals that went stale between passes. Four separate findings above are that drift. The table is now
+the only record — one row per finding, checkable line by line against the review thread, with no
+derived summary to fall out of step with it.
+
+What the rows are worth reading for, since the count is not the point:
+
+**Most of the P1 rows — the bolded ones — are about verification rather than content.** The chain
+run in part; `lint` and `build` never refreshed; the transcript never regenerated, then inventoried
+mid-write; a plan with no file inventory and no closing command; a closing command that discarded
+the exit status it existed to report. Every one is a check that reported success while not checking.
+The close-out's subject is a feature that was advertised and absent; its own review kept finding the
+same shape in the machinery I was using to verify the write-up.
+
+(That sentence began as "Nine P1s, and seven of them" — there are eleven, and I put a restated count
+into the paragraph explaining why restated counts fail. It is a pointer to the bolded rows now,
+which is the only form of the claim that stays true as rows are added.)
+
+**One finding names a defect in the shipped configuration** — number 35, the emitted `.html`
+filenames matching no header rule. Everything else on this pull request is an error in the writing.
+That one is a live hole, and it was found by review reading the build output rather than by me
+writing about what I had built.
+
+**The repeated shape, which the table makes countable:** a correction introducing a fresh defect.
+Numbers 25, 32, 37, 42, 45, 46, 48 are one continuous chain on a single twelve-line shell block,
+each link the fix for the link before it going one step short. Numbers 44, 47 and 53 are the same
+chain in the inventory. Fixing the instance you were shown, and not the class it belongs to, is what
+this entry is about — and the entry demonstrated it more often than it described it.
+
+
+> **Correcting the instance is not correcting the belief.**
+
+That is the pattern under every finding in the ledger above — including, when this sentence said
+"all ten" while the ledger beside it had long since outgrown that, itself. Each fix was locally right and
+left the same false premise standing a few lines away: the write-operation correction did not reach
+the fonts bullet two bullets below it, which repeated it verbatim; scoping the header claim to four
+in the prose left the structured `Statement` naming three.
+
+Corrections introducing fresh errors is the run's most repeated shape, and no count is given here
+on purpose — the count itself went stale twice. The chain of them: a rewritten sentence overstated
+in the other direction; a "validation" ran exactly the two scripts I had predicted would object,
+leaving the evidence directory half-refreshed and therefore *looking* verified; the fix for that
+re-ran the chain after every edit while `lint.txt` and `build.txt`, which the chain does not touch,
+stayed older than the first commit of this entry; the fix for **that** redirected the chain into the
+transcript and had it inventoried mid-write; the fix for that left the previous transcript in the
+directory, so the tape described a different file than the one committed; rewriting the `Seams`
+field for a parser I had not read put a phantom entry into the alarm report; appending the ledger
+rows without working through the inventories derived from them left both stale; and the command
+written to close all of this discarded `verify`'s exit status behind an `echo`.
+
+The pattern is the first rule one level up: **a correction is new work, and it gets checked like new
+work — including against every other place the same claim was made.** The corollary this run had to
+learn twice: **running the part you are thinking about and reading its green as coverage of the
+whole is how a partial check passes for a complete one.**
+
+### Open, and deliberately so
+
+- **Five SonarCloud issues, gate passing.** Three identified as pre-existing lines in
+  `tests/e2e/smoke.spec.ts` outside this diff; **two unidentified** — `sonarcloud.io` is unreachable
+  from this container and the local reproduction is clean on everything this change wrote. Chasing
+  them further was stopped on purpose: guessing at that check's contents is what produced this run's
+  worst misdiagnosis.
+- **`CacheSeam` cannot store a Response it did not fetch itself.** Its write is
+  `primeCache(cacheName, urls)`, which hands a URL list to `cache.addAll` and lets the seam do the
+  fetching — enough for the build manifest, which is the whole of what this run needed. What has no
+  operation is `put(request, response)`: taking a response already in hand and keeping it. The
+  practical consequence is narrower than "nothing outside the build can be cached", which is what an
+  earlier draft said and is wrong — `primeCache` accepts any URL, and the 2026-09-06 prerendering
+  decision in `DECISIONS.md`, under `Alternatives` **(a) Add `putResponse` to `CacheSeam`**, already
+  weighs calling it with visited ones. It is that keeping a response the worker just served costs a
+  second fetch of the same URL, so runtime caching would double the network it is meant to save.
+  Fixing that is a contract change, which is why this run did not attempt it.
+- **The web fonts are not available offline**, so an installed app opened with no connection renders
+  in fallback faces. This is a **policy** limitation, not a seam one, and the entry above at the
+  Run 10 write-up says "cannot be through this seam", which is wrong — corrected here rather than
+  edited there, since the log is append-only. What actually blocks it is one line:
+  `chooseStrategy` returns `'bypass'` for any cross-origin URL (`src/lib/core/offline-cache.ts:252`),
+  on the reasoning that a cross-origin response is frequently opaque and therefore useless to cache.
+  The seam is not the obstacle — `primeCache` takes arbitrary URLs and hands them to `cache.addAll`,
+  and `matchRequest` would find them again. Fonts could be cached by priming the Google Fonts URLs
+  and narrowing that bypass, with **no contract change at all**. The reason not to do it blind is
+  that `cache.addAll` rejects the whole batch on any non-`ok` response, so it would need the
+  stylesheet's own `@font-face` URLs, which are not knowable at build time from
+  `$service-worker`, and an opaque response would take the install down with it. That is a real
+  design problem worth measuring, and it is a different and much smaller one than "the seam cannot".
+- **You still cannot make a coloring page offline.** The offline page says so in those words.
+- Run 8's two items are still open: the tools hub and mode routes save no style, and the home studio
+  exposes none of `colorMode`, `textSize`, `fontStyle`, `alignment`, `textStrokeWidth`,
+  `borderThickness`, `illustrations` or `shading`.
+
+### For the next run
+
+The pick came from asking which feature the app advertises **outside its own surfaces** — where the
+reader cannot see the gap until they are already relying on it. Nine runs had rebuilt things you can
+look at; this was a thing you install.
+
+The generalisable version, unchanged from the first entry because nothing in ten rounds contradicted
+it: **look for the feature whose failure mode is a different program's error message.** The service
+worker's bug rendered as Chrome's dinosaur — invisible to every test, every screenshot and every
+review of this codebase, and legible to the reader as "the internet is broken" rather than "this app
+did not prepare".
+
+Do not inherit this entry's measurements. Re-measure.
+
 ## Run 11 — 2026-09-06 — The verdict: what Meechie said, and what she said about saying it
 
 **Branch:** `claude/great-bell-kb90rj` · **Base:** `main` at `1b67d30`
