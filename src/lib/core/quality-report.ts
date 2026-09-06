@@ -48,9 +48,15 @@ export type QualityFinding = {
 	/**
 	 * How much it matters. `blocker` is a drift `error`, `note` is a drift `warning`, and
 	 * `check-failed` is the check not completing — which is neither, because an incomplete check
-	 * says nothing about the page either way.
+	 * says nothing about the prompt either way.
+	 *
+	 * `unrecorded` is separate from `check-failed` on purpose. A stored record with no findings
+	 * cannot distinguish a check that completed and was not persisted from one that failed, so
+	 * counting it as "a check that never finished" replaces one unknown-state overclaim with
+	 * another. It gets its own weight and its own sentence, both of which say only that nothing was
+	 * stored.
 	 */
-	weight: 'blocker' | 'note' | 'check-failed';
+	weight: 'blocker' | 'note' | 'check-failed' | 'unrecorded';
 	/**
 	 * Which check said so, because the two are about different things and must not be counted
 	 * together.
@@ -75,6 +81,15 @@ export type QualityFinding = {
  */
 export type QualityReport =
 	| { state: 'unchecked' }
+	/**
+	 * There is a page, and no prompt check applies to it.
+	 *
+	 * The wig try-on flow installs a portrait without ever calling `/api/generate`, so there is no
+	 * prompt for the drift seam to grade. That is not "not checked yet" — nothing is coming — and
+	 * rendering it as `unchecked` had System Trace say "Nothing on the paper yet" about a portrait
+	 * the reader was looking at.
+	 */
+	| { state: 'not-applicable' }
 	| { state: 'clean' }
 	| {
 			state: 'flagged';
@@ -103,7 +118,8 @@ export type QualityReport =
 const WEIGHT_ORDER: Record<QualityFinding['weight'], number> = {
 	blocker: 0,
 	'check-failed': 1,
-	note: 2
+	unrecorded: 2,
+	note: 3
 };
 
 const weighViolation = (violation: Violation): QualityFinding['weight'] =>
@@ -154,6 +170,14 @@ export const buildQualityReport = (input: {
 	 */
 	checkResultUnrecorded?: boolean;
 	/**
+	 * False when the page on screen was not produced by a prompt the drift seam could grade.
+	 *
+	 * Defaults to true, because every flow except the wig try-on goes through `/api/generate`.
+	 * Passed in rather than inferred, for the third time in this module and for the same reason:
+	 * only the caller knows which flow made the page.
+	 */
+	checkApplicable?: boolean;
+	/**
 	 * Spec-validation issues, which are about the request rather than the result.
 	 *
 	 * Optional because the mode routes do not run a separate spec check the way the home studio
@@ -198,8 +222,11 @@ export const buildQualityReport = (input: {
 		// one, and it must not borrow either's wording.
 		findings.push({
 			code: CHECK_RESULT_UNRECORDED_CODE,
-			message: "This page's check result is not on file, so there is nothing to report about it.",
-			weight: 'check-failed',
+			// Says only what is known. It does not say a check failed, and it does not say one was
+			// due: a saved record carries no marker for which flow produced it, so a reopened wig
+			// try-on portrait and a reopened generated page look identical here.
+			message: 'No check result was stored with this page.',
+			weight: 'unrecorded',
 			source: 'prompt'
 		});
 	}
@@ -220,7 +247,11 @@ export const buildQualityReport = (input: {
 	}
 
 	// No findings. `clean` requires both halves: a page to be clean about, and a check that looked at
-	// it. Missing either one is `unchecked`, which says nothing rather than something untrue.
+	// it. A page no check applies to is `not-applicable`; anything else missing either half is
+	// `unchecked`, which says nothing rather than something untrue.
+	if (input.hasPage && input.checkApplicable === false) {
+		return { state: 'not-applicable' };
+	}
 	return input.hasPage && input.driftChecked ? { state: 'clean' } : { state: 'unchecked' };
 };
 
@@ -234,13 +265,14 @@ export const describeQualityReport = (report: QualityReport): string | null => {
 	if (report.state === 'unchecked') {
 		return null;
 	}
+	if (report.state === 'not-applicable') {
+		return 'This page was not built from a prompt, so there is nothing to check.';
+	}
 	if (report.state === 'clean') {
 		// Deliberately about the prompt, not the page. `detectDrift` is handed `spec`, `promptSent`
 		// and `revisedPrompt` and reads nothing else — the adapter never sees the generated image. So
 		// a clean result proves every requirement survived into the prompt that was sent; it proves
-		// nothing about whether the provider then drew them. The earlier wording, "The page came back
-		// exactly as asked", claimed the second from evidence for the first, which is the same species
-		// of overclaim this module exists to remove.
+		// nothing about whether the provider then drew them.
 		return 'Everything asked for made it into the prompt.';
 	}
 
@@ -251,26 +283,36 @@ export const describeQualityReport = (report: QualityReport): string | null => {
 		(finding) => finding.source === 'prompt' && finding.weight === 'blocker'
 	).length;
 	const notes = report.findings.filter((finding) => finding.weight === 'note').length;
+	const failed = report.findings.filter((finding) => finding.weight === 'check-failed').length;
+	const unrecorded = report.findings.filter((finding) => finding.weight === 'unrecorded').length;
 
 	const parts: string[] = [];
 	if (settingsBlockers > 0) {
 		// Counted apart from prompt findings, and worded as the request rather than the result: a
-		// spec-validation issue is usually why there is no page at all, so calling it something "the
-		// page got wrong" reported a failure of a page that does not exist.
+		// spec-validation issue is usually why there is no page at all.
 		parts.push(`${settingsBlockers} ${settingsBlockers === 1 ? 'setting' : 'settings'} to fix`);
 	}
 	if (promptBlockers > 0) {
-		parts.push(`${promptBlockers} ${promptBlockers === 1 ? 'thing' : 'things'} the prompt dropped`);
+		// "wrong with the prompt", not "the prompt dropped". Not every error is a missing line: the
+		// adapter also emits `FORBIDDEN_TOKEN` for a token that is *present*, and calling that a drop
+		// contradicts the finding printed directly underneath it.
+		parts.push(`${promptBlockers} ${promptBlockers === 1 ? 'thing' : 'things'} wrong with the prompt`);
 	}
 	if (notes > 0) {
 		parts.push(`${notes} worth noting`);
 	}
-	if (report.hasIncompleteCheck) {
+	if (failed > 0) {
 		parts.push('one check that never finished');
+	}
+	if (unrecorded > 0) {
+		// Never folded into the sentence above. A record with no stored findings cannot say whether
+		// the check completed and went unsaved or failed, so claiming it "never finished" would be a
+		// second guess dressed as a fact.
+		parts.push('one result that was never recorded');
 	}
 
 	// `parts` cannot be empty: `flagged` guarantees a non-empty `findings`, and every finding is
-	// counted by exactly one of the four branches above.
+	// counted by exactly one of the five branches above.
 	return `${formatList(parts)}.`;
 };
 

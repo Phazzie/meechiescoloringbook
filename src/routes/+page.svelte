@@ -145,6 +145,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	<SystemTrace
 		assembledPrompt={studio.assembledPrompt}
 		revisedPrompt={studio.revisedPrompt}
+		promptWasSent={studio.promptWasSent}
 		report={studio.qualityReport}
 	/>
 </main>

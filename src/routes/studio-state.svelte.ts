@@ -484,6 +484,14 @@ export class StudioState {
 	 * that had never been saved at all.
 	 */
 	private checkResultUnrecorded = $state(false);
+	/**
+	 * True when `assembledPrompt` was actually sent to a provider.
+	 *
+	 * The try-on path writes a human description into `assembledPrompt` only because a vault record
+	 * requires a non-empty one; no request is made. Without this, System Trace filed that description
+	 * under "What Was Sent".
+	 */
+	promptWasSent = $state(false);
 	images = $state<GeneratedImage[]>([]);
 	/**
 	 * Every call made to the packaging seam for the page on the paper: the variant asked for, the
@@ -668,6 +676,17 @@ export class StudioState {
 	 * dependency-free core so the same transform — and the same refusal to call an unchecked page
 	 * clean — is available to the mode routes, which build their own from the same function.
 	 */
+	/**
+	 * Read by `qualityReport` above its own declaration, which a field reference cannot do.
+	 *
+	 * `tryOnPageOnScreen` is declared far below with the rest of the try-on state, and a `$derived`
+	 * initialiser referencing a later field is a use-before-initialisation error. A getter is
+	 * evaluated when the derived runs, not when the class is constructed, so the ordering stops
+	 * mattering — and the flag stays where it is documented.
+	 */
+	private get pageIsTryOnPortrait(): boolean {
+		return this.tryOnPageOnScreen;
+	}
 	qualityReport = $derived(
 		buildQualityReport({
 			// Two separate facts, deliberately. `images.length > 0` is whether there is a page;
@@ -681,6 +700,9 @@ export class StudioState {
 			recommendedFixes: this.recommendedFixes,
 			driftCheckFailure: this.driftCheckFailure,
 			checkResultUnrecorded: this.checkResultUnrecorded,
+			// A try-on portrait is installed without a prompt, so no drift check is coming for it —
+			// which is a different thing from one not having arrived yet.
+			checkApplicable: !this.pageIsTryOnPortrait,
 			validationIssues: this.validationIssues
 		})
 	);
@@ -803,7 +825,10 @@ export class StudioState {
 	 *
 	 * Cleared in `resetGeneratedPage`, which every path replacing the paper goes through.
 	 */
-	private tryOnPageOnScreen = false;
+	// `$state`, not a plain field: `qualityReport` derives from it, and a plain class field is not
+	// reactive in runes mode — the report would have been computed once and then never followed the
+	// paper changing from a portrait to a generated page or back.
+	private tryOnPageOnScreen = $state(false);
 
 	/**
 	 * The title of the try-on page on the paper, kept so its shape can be restored after a rebuild.
@@ -1191,6 +1216,7 @@ export class StudioState {
 		this.driftReported = false;
 		this.driftCheckFailure = undefined;
 		this.checkResultUnrecorded = false;
+		this.promptWasSent = false;
 		this.images = [];
 		// Clears the packaged files, the described export row and the export failure sentence in one
 		// assignment, because all three are derived from it. `pageExports` also loses the provider's
@@ -1759,6 +1785,7 @@ export class StudioState {
 			// own comment gives: a response that carries findings but no image has still been
 			// checked, and its findings are the most useful thing on screen.
 			this.driftReported = true;
+			this.promptWasSent = true;
 			this.driftCheckFailure = parsed.data.value.driftCheckFailure;
 
 			// A generate response can be schema-valid and still carry no picture: `images` is

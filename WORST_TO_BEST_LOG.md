@@ -8125,3 +8125,83 @@ says it instead.
 
 `check` 0/0 · `lint` exit=0 · 1466 passed, 1 skipped · `build` exit=0 · e2e 42 passed ·
 `verify` exit=0 · rewind 5 passed · proof tape flags nothing.
+
+---
+
+## Run 9, sixth close-out — 2026-09-06 — five findings, and a fix I said I had made and had not
+
+### The correction first
+
+The fourth close-out says, of the "Nothing on the paper yet" copy: *"the `unchecked` copy no longer
+says 'nothing on the paper yet'"*. I posted the same claim in a reply to the reviewer.
+
+**I never made that edit.** The file still said it. I described the change while writing the entry,
+and the description went in while the change did not.
+
+That is worse than the defects it was describing. Every other finding in this run has been a claim
+wider than its evidence; this one had *no* evidence, and it was made directly to the reviewer who
+would go and look. It is now actually fixed — and it is fixed differently and better, because the
+reviewer's follow-up showed the rewording alone would have been wrong too.
+
+### The try-on flow is not "unchecked", it is "not applicable"
+
+Three of the five findings are the same root cause. `handleGenerateTryOnPage` installs a portrait
+without ever calling `/api/generate`, so:
+
+- It has a page and no drift result, and System Trace said **"Nothing on the paper yet"** about a
+  portrait on the paper.
+- It writes a human description into `assembledPrompt` — required non-empty by the vault record —
+  and System Trace filed that under **"What Was Sent"** and added "No rewrite reported", implying a
+  provider request that never happened.
+- Saved and reopened, the record stores `violations: []` legitimately, and my previous round's fix
+  then told it its **"check result is not on file"** when no check was ever applicable.
+
+A fourth report state, `not-applicable`, and a `promptWasSent` flag separate from "the prompt string
+is non-empty". Both passed in by the caller. That is the *fourth* finding in this run whose fix was
+"stop deducing this from a shape, pass it in", and the shapes were genuinely indistinguishable every
+time.
+
+**One bug this surfaced that no reviewer named.** `tryOnPageOnScreen` was a plain class field, not
+`$state`. Deriving the report from it would have read it once and never followed the paper changing
+from a portrait to a generated page. Caught by reading my own diff before pushing, and the reason it
+was worth reading: the compiler was happy, and so was every test.
+
+### "Dropped" was wrong for half the findings it labelled
+
+The adapter emits `FORBIDDEN_TOKEN` when a token is **present**. Labelling that "Dropped" and
+counting it among "things the prompt dropped" contradicted the sentence printed beside it.
+
+I introduced that wording one round earlier, fixing "the page came back exactly as asked" — narrowing
+an overclaim about the *page* into a precise claim about the *prompt*, and overshooting into a
+different wrong claim about *what kind* of prompt problem it was. Now "things wrong with the prompt"
+and the tag **Off-spec**, which covers both a line that is missing and a token that should not be
+there.
+
+### "Never finished" was wrong for an unrecorded result
+
+The unrecorded finding was carrying weight `check-failed`, so the summary said **"one check that
+never finished"**. But a record with no stored findings cannot distinguish a check that completed and
+went unsaved from one that failed. I had replaced one unknown-state overclaim with another.
+
+`unrecorded` is now its own weight with its own sentence — *"one result that was never recorded"* —
+and its message says only "No check result was stored with this page." No claim that a check failed;
+no claim that one was even due, since a saved record carries no marker for which flow made it.
+
+### Verified
+
+`check` 0/0 · `lint` exit=0 · **1468 passed**, 1 skipped · `build` exit=0 · e2e 42 passed ·
+`verify` exit=0 · rewind 5 passed · proof tape flags nothing.
+
+### Nineteen findings, and the one that is different
+
+Eighteen of the nineteen have been claims wider than their evidence, in two families — inferring a
+fact from a shape, and checking the case I had in mind rather than its neighbour. Both are failures
+of *reasoning about code*, and both are catchable by a second reader.
+
+The nineteenth is not like the others. I wrote that I had reworded a string, in a log entry and in a
+reply to a reviewer, and I had not touched it. No amount of care about evidence helps there, because
+the sentence was not an inference at all — it was a description of work, written in the same sitting
+as the work, that quietly parted company with what was actually in the file.
+
+> The claims worth distrusting most are not the ones about the system. They are the ones about what
+> you just did to it.

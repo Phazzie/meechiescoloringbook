@@ -20,10 +20,20 @@ Info flow: Parent passes the report built by `buildQualityReport` plus the two p
 	let {
 		assembledPrompt,
 		revisedPrompt,
+		promptWasSent,
 		report
 	}: {
 		assembledPrompt: string;
 		revisedPrompt: string;
+		/**
+		 * Whether `assembledPrompt` was actually sent to a provider.
+		 *
+		 * Not the same as "it is non-empty". The try-on flow writes a human description into
+		 * `assembledPrompt` purely because a vault record requires a non-empty one, and no request
+		 * is ever made — so treating any non-empty string as sent put that description under "What
+		 * Was Sent" and reported "No rewrite reported" beneath it, implying a provider call.
+		 */
+		promptWasSent: boolean;
 		report: QualityReport;
 	} = $props();
 
@@ -35,7 +45,7 @@ Info flow: Parent passes the report built by `buildQualityReport` plus the two p
 	// Whether anything was sent at all. Without this the rewrite branch spoke about a prompt that
 	// does not exist — on a freshly opened studio it sat directly under "No prompt sent yet" and
 	// said the model had used it.
-	const hasPrompt = $derived(assembledPrompt.length > 0);
+	const hasPrompt = $derived(promptWasSent && assembledPrompt.length > 0);
 </script>
 
 <details class="diagnostics">
@@ -56,6 +66,10 @@ Info flow: Parent passes the report built by `buildQualityReport` plus the two p
 				<p class="empty" data-testid="system-trace-unchecked">
 					Nothing on the paper yet. Make a page and the check reports here.
 				</p>
+			{:else if report.state === 'not-applicable'}
+				<!-- A wig try-on portrait is installed without a prompt, so no check is coming. Saying
+				     "nothing on the paper yet" about it was false while the portrait was on screen. -->
+				<p class="empty" data-testid="system-trace-not-applicable">{headline}</p>
 			{:else if report.state === 'clean'}
 				<p class="clean" data-testid="system-trace-clean">{headline}</p>
 			{:else}
@@ -71,7 +85,7 @@ Info flow: Parent passes the report built by `buildQualityReport` plus the two p
 
 		<section class="prompts">
 			<p class="eyebrow">What Was Sent</p>
-			{#if assembledPrompt.length > 0}
+			{#if hasPrompt}
 				<textarea rows="6" readonly value={assembledPrompt} aria-label="Prompt sent"></textarea>
 			{:else}
 				<p class="empty">No prompt sent yet.</p>

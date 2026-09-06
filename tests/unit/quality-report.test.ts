@@ -149,12 +149,51 @@ describe('buildQualityReport', () => {
 		expect(report.findings).toEqual([
 			{
 				code: CHECK_RESULT_UNRECORDED_CODE,
-				message: "This page's check result is not on file, so there is nothing to report about it.",
-				weight: 'check-failed',
+				message: 'No check result was stored with this page.',
+				weight: 'unrecorded',
 				source: 'prompt'
 			}
 		]);
-		expect(report.hasIncompleteCheck).toBe(true);
+		// Not "a check that never finished". A record with no stored findings cannot say whether the
+		// check completed and went unsaved or failed, so claiming either is a second guess.
+		expect(describeQualityReport(report)).toBe('One result that was never recorded.');
+	});
+
+	it('reports a page no check applies to as not-applicable, not unchecked', () => {
+		// A wig try-on portrait is installed without a prompt, so no drift check is coming — which is
+		// a different thing from one not having arrived yet. Rendering it as `unchecked` had System
+		// Trace say "Nothing on the paper yet" about a portrait the reader was looking at.
+		const report = buildQualityReport({
+			hasPage: true,
+			driftChecked: false,
+			violations: [],
+			recommendedFixes: [],
+			checkApplicable: false
+		});
+
+		expect(report.state).toBe('not-applicable');
+		expect(describeQualityReport(report)).toBe(
+			'This page was not built from a prompt, so there is nothing to check.'
+		);
+	});
+
+	it('prefers a known failure over "not recorded" when both could apply', () => {
+		// The two are mutually exclusive in practice — `driftCheckFailure` comes from a fresh
+		// generation and `checkResultUnrecorded` from a reopen, and the reset clears both — but if
+		// they ever met, the one that says *why* wins. Reporting "no result was stored" beside a
+		// reason we are holding would be throwing away the more specific truth.
+		const report = buildQualityReport({
+			hasPage: true,
+			driftChecked: false,
+			violations: [],
+			recommendedFixes: [],
+			checkResultUnrecorded: true,
+			driftCheckFailure: { code: 'MISSING_REQUIRED_SECTION', message: 'no heading' }
+		});
+
+		if (report.state !== 'flagged') throw new Error('expected a flagged report');
+		expect(report.findings.map((finding) => finding.weight)).toEqual(['check-failed']);
+		expect(describeQualityReport(report)).toBe('One check that never finished.');
 	});
 
 	it('does not flag a page that simply was not produced by a checked flow', () => {
@@ -215,7 +254,7 @@ describe('buildQualityReport', () => {
 		});
 
 		expect(describeQualityReport(report)).toBe(
-			'1 setting to fix and 1 thing the prompt dropped.'
+			'1 setting to fix and 1 thing wrong with the prompt.'
 		);
 	});
 
@@ -269,7 +308,7 @@ describe('describeQualityReport', () => {
 			recommendedFixes: []
 		});
 
-		expect(describeQualityReport(report)).toBe('2 things the prompt dropped and 1 worth noting.');
+		expect(describeQualityReport(report)).toBe('2 things wrong with the prompt and 1 worth noting.');
 	});
 
 	it('uses the singular for a single blocker', () => {
@@ -280,7 +319,7 @@ describe('describeQualityReport', () => {
 			recommendedFixes: []
 		});
 
-		expect(describeQualityReport(report)).toBe('1 thing the prompt dropped.');
+		expect(describeQualityReport(report)).toBe('1 thing wrong with the prompt.');
 	});
 
 	it('joins all three kinds with commas and a trailing "and"', () => {
@@ -293,7 +332,7 @@ describe('describeQualityReport', () => {
 		});
 
 		expect(describeQualityReport(report)).toBe(
-			'1 thing the prompt dropped, 1 worth noting and one check that never finished.'
+			'1 thing wrong with the prompt, 1 worth noting and one check that never finished.'
 		);
 	});
 });

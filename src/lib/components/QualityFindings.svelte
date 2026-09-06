@@ -27,14 +27,19 @@ Info flow: A `flagged` QualityReport in -> findings list + fixes list out. Prese
 	/**
 	 * The word shown against a finding.
 	 *
-	 * `check-failed` is tested before severity because an unfinished check is not a severity at all —
-	 * it says nothing about the prompt either way. `settings` before the fallback because a spec
-	 * problem is about the request on screen, not about what the prompt dropped.
+	 * The two unknown-state weights are tested before severity because neither is a severity: an
+	 * unfinished check and an unrecorded result each say nothing about the prompt either way, and
+	 * they are kept apart from each other because a missing record cannot tell them apart. `settings`
+	 * before the fallback because a spec problem is about the request on screen rather than the
+	 * prompt.
 	 */
 	const tagFor = (finding: QualityFinding): string => {
 		if (finding.weight === 'check-failed') return 'Unchecked';
+		if (finding.weight === 'unrecorded') return 'Unrecorded';
 		if (finding.weight === 'note') return 'Noted';
-		return finding.source === 'settings' ? 'Setting' : 'Dropped';
+		// "Off-spec", not "Dropped": the adapter emits `FORBIDDEN_TOKEN` for a token that is
+		// *present*, so a tag meaning "missing" contradicted the sentence beside it.
+		return finding.source === 'settings' ? 'Setting' : 'Off-spec';
 	};
 </script>
 
@@ -94,7 +99,8 @@ Info flow: A `flagged` QualityReport in -> findings list + fixes list out. Prese
 		color: var(--gold-bright, #f0c44a);
 	}
 
-	.findings li.check-failed .tag {
+	.findings li.check-failed .tag,
+	.findings li.unrecorded .tag {
 		color: var(--lavender, #b8aacf);
 	}
 

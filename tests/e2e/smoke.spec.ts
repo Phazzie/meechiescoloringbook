@@ -1001,7 +1001,9 @@ test('editing the dedication drops the page it was not generated with, and drift
 	const findings = page.getByTestId('meechie-tool-violations').locator('ul').first().locator('li');
 	await expect(findings.filter({ hasText: 'Missing option line' })).toHaveClass(/blocker/);
 	// The tag says what the check actually established: a requirement the prompt dropped.
-	await expect(findings.filter({ hasText: 'Missing option line' })).toContainText('Dropped');
+	// "Off-spec", not "Dropped": the adapter also flags tokens that are *present*, so a tag meaning
+	// "missing" would contradict half the findings it sits beside.
+	await expect(findings.filter({ hasText: 'Missing option line' })).toContainText('Off-spec');
 	await expect(findings.filter({ hasText: 'lost a word' })).toHaveClass(/note/);
 	// The blocker sorts above the note regardless of the order the seam reported them in.
 	await expect(findings.first()).toContainText('Missing option line: Border: thin.');
