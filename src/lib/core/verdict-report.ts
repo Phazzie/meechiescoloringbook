@@ -107,6 +107,18 @@ export const buildStudioQualityStateGuidance = (): string =>
 	).join(', ');
 
 /**
+ * The enum values as a quoted union, the way the required-field list spells them: `"a" | "b"`.
+ *
+ * A function rather than an expression at the call site: inline it was a template literal inside a
+ * template literal, which SonarCloud flags (`no-nested-template-literals`) and which is genuinely
+ * harder to read. It also gives the test something to assert *against* — the first version of that
+ * assertion pinned the string by recomputing it, which is a test agreeing with itself.
+ */
+export const buildStudioQualityStateUnion = (
+	states: readonly string[] = STUDIO_QUALITY_STATE_ORDER
+): string => states.map((state) => `"${state}"`).join(' | ');
+
+/**
  * The enum values, as the prompt lists them in prose: `a, b, or c`.
  *
  * Takes the list rather than closing over it so the one-item case is reachable from a test. A naive

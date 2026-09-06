@@ -17,6 +17,7 @@ import {
 	STUDIO_QUALITY_STATE_ORDER,
 	buildStudioQualityStateGuidance,
 	buildStudioQualityStateList,
+	buildStudioQualityStateUnion,
 	buildVerdictReport,
 	readVerdictSeverity
 } from '$lib/core/verdict-report';
@@ -84,9 +85,10 @@ describe('the standing table', () => {
 		expect(buildStudioQualityStateList(['ready', 'blocked'])).toBe('ready, or blocked');
 		expect(buildStudioQualityStateList(['ready'])).toBe('ready');
 		expect(buildStudioQualityStateList([])).toBe('');
-		expect(
-			STUDIO_QUALITY_STATE_ORDER.map((state) => `"${state}"`).join(' | ')
-		).toBe('"ready" | "needs_more_evidence" | "blocked"');
+		expect(buildStudioQualityStateUnion()).toBe(
+			'"ready" | "needs_more_evidence" | "blocked"'
+		);
+		expect(buildStudioQualityStateUnion(['ready'])).toBe('"ready"');
 	});
 });
 

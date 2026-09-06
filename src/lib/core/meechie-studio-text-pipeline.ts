@@ -12,7 +12,8 @@ import { toPublicProviderError } from '$lib/core/public-provider-error';
 import {
 	STUDIO_QUALITY_STATE_ORDER,
 	buildStudioQualityStateGuidance,
-	buildStudioQualityStateList
+	buildStudioQualityStateList,
+	buildStudioQualityStateUnion
 } from '$lib/core/verdict-report';
 import { meechieVoicePack } from '$lib/seams/meechie-voice-seam/voice-pack';
 import type { QuotaGate } from '$lib/server/rate-limit-route';
@@ -41,7 +42,7 @@ const STUDIO_TEXT_REQUIRED_FIELD_GUIDANCE = [
 	'pageTitle (string)',
 	'pageItems (array of 2-6 objects each with integer "number" and string "label")',
 	'rating (integer 1-10)',
-	`qualityState (${STUDIO_QUALITY_STATE_ORDER.map((state) => `"${state}"`).join(' | ')})`,
+	`qualityState (${buildStudioQualityStateUnion()})`,
 	'revisionNote (string)'
 ] as const;
 

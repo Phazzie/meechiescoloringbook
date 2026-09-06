@@ -9862,3 +9862,65 @@ program's error message; this one's is to look for the feature whose failure mod
 no error, no wrong pixel, just an answer the reader paid for and never saw.
 
 Do not inherit this entry's measurements. Re-measure.
+
+### Run 11, first close-out — 2026-09-06 — all eight checks green on `a7830a9`, and the one new SonarCloud issue
+
+**Every check passed on the first head.** `verify`, CodeQL, Analyze (actions), Analyze
+(javascript-typescript), SonarCloud, SonarCloud Code Analysis, Vercel Preview Comments — all
+`success`. Sourcery skipped on its own 7-day diff budget, which is not a finding, and CodeRabbit
+declines to auto-review a repository under ten stars. Neither is this diff's problem and neither is
+treated as one.
+
+**SonarCloud's gate passed with 3 new issues**, and `sonarcloud.io` is still unreachable from this
+container — `curl: (56) CONNECT tunnel failed, response 403`, the same wall Runs 8 and 10 hit. So
+the findings were reproduced locally with `eslint-plugin-sonarjs` under its **recommended** ruleset
+(the correction Run 8 wrote down after twice reporting "nothing found" from a misconfigured
+reproduction) — and, this time, **with a baseline**, which is the part the previous runs did not do.
+
+The exact procedure, written down so the next run does not re-derive it a fourth time:
+
+```
+npm i --no-save eslint-plugin-sonarjs
+# a config using the repo's own parsers, covering *.ts, *.mjs, *.js and *.svelte,
+# spreading sonarjs.configs.recommended — it must live inside the repo, since
+# eslint refuses a config outside the base path and cannot resolve plugins from /tmp
+npx eslint --no-config-lookup -c ./sonar.eslint.config.mjs <changed files>
+# then the same run against origin/main's copies of those files, written into a
+# directory inside the repo, because "new issue" means new — not "issue".
+```
+
+Seven findings on this head. **Six of them are on `main` too**, at the same rules and the same code:
+two in the pipeline's JSON-extraction path (cognitive complexity 32, a super-linear regex) that
+merely shifted line numbers when this change added an import, one nested ternary in
+`studio-state.svelte.ts`, and the three in `smoke.spec.ts` that Run 10 also left unidentified.
+**One was mine:**
+
+```
+src/lib/core/meechie-studio-text-pipeline.ts:44:61
+  Refactor this code to not use nested template literals   sonarjs/no-nested-template-literals
+```
+
+`` `qualityState (${STUDIO_QUALITY_STATE_ORDER.map((state) => `"${state}"`).join(' | ')})` `` — a
+template literal inside a template literal, written by this change. Fixed as
+`buildStudioQualityStateUnion()` in `verdict-report.ts`, beside the two builders it belongs with, so
+all three prompt fragments now come from the one table by the same route.
+
+**And the fix exposed a weak test.** The assertion pinning that string had been
+
+```ts
+expect(STUDIO_QUALITY_STATE_ORDER.map((state) => `"${state}"`).join(' | ')).toBe('…')
+```
+
+— the test recomputing the implementation and then agreeing with itself. It calls the function now.
+
+**The remaining two of SonarCloud's three are not identified, and are not guessed at.** The local
+reproduction is clean on every file this change touches after the fix. SonarCloud runs rules this
+plugin does not, so "I cannot reproduce them" is the honest state; the next head's comment is the
+measurement.
+
+**The prompt's bytes were proven unchanged, mechanically.** The three fragments are now built rather
+than written, and "a test asserts the literal" is only as good as where the literal came from — mine
+came from reading the file. So a one-off script extracted all three from
+`git show origin/main:…pipeline.ts` with regexes and compared them to the builders' output at
+runtime: **three SAME, exit 0.** The unit test's hardcoded expectations are the same strings, now
+known to be main's rather than remembered as main's.
