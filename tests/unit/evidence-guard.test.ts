@@ -238,9 +238,14 @@ describe('evidence-guard', () => {
 	it('rejects a run that passed zero tests', () => {
 		// `--passWithNoTests` and `--pass-with-no-tests` exit 0 when discovery finds nothing, so a
 		// change that switched test discovery off would otherwise ship a certified folder.
+		// The count is READ, not typed. Writing `1445` here failed on the very commit that added this
+		// file — twelve new tests moved the suite to 1457, the mutation matched nothing, and the
+		// `mutate` guard above caught it in CI. That is invariant 2 of the script under test ("no rule
+		// hardcodes a count; counts move") broken inside its own test, and it took one commit to bite.
 		const dir = fresh();
-		mutate(dir, 'test.txt', coloured('1445 (', ')?passed', 'g'), '0 $1passed');
-		mutate(dir, 'verify-outer.txt', coloured('1445 (', ')?passed', 'g'), '0 $1passed');
+		const anyTotal = coloured('\\d{1,9} (', ')?passed', 'g');
+		mutate(dir, 'test.txt', anyTotal, '0 $1passed');
+		mutate(dir, 'verify-outer.txt', anyTotal, '0 $1passed');
 		expect(runGuard(dir).status).toBe(1);
 	});
 

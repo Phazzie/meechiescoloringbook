@@ -8996,3 +8996,37 @@ that caught `evidence-guard.mjs` on its first run, now catching the test written
 `npm run cipher:gate` exit 0 · `npm run evidence:guard` 8 rules pass · **12 guard tests pass inside
 the chain** · full chain: 1457 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41
 under the override, mandated row under a dated waiver, probe complete.
+
+### Addendum — CI red: the guard's own test hardcoded a count, and lasted one commit
+
+The push adding `tests/unit/evidence-guard.test.ts` turned `verify` red on both jobs. The failing
+case was `rejects a run that passed zero tests`, and the message was my own:
+
+```
+mutation of test.txt changed nothing — the test would prove nothing
+```
+
+The mutation searched for `1445 passed`. Adding twelve guard tests moved the suite to **1457**, so on
+the very commit that introduced the test, the number it was written against no longer existed. The
+mutation matched nothing, and the assertion I had put there to stop exactly that — a mutation that
+silently proves nothing — failed the build.
+
+> **Invariant 2 of the script under test is "no rule hardcodes a count; counts move."** It is written
+> at the top of `evidence-guard.mjs`, above the reason: the suite went 1407 → 1445 when a sibling
+> branch merged, and every remembered copy of that number broke. I typed 1445 into the test written
+> for that script, and it went stale in **one commit** — the same commit, by the act of adding the
+> tests themselves.
+
+The count is read from the fixture now rather than typed.
+
+Two things are worth separating here. The mistake is dull: a literal where a pattern belonged, the
+oldest defect in this log. What is not dull is that **the check I wrote against lying mutations
+caught it, in CI, on its author, one commit after being written** — and that it caught it by
+failing loudly rather than by passing quietly, which is the whole difference between this and the
+three earlier no-op mutations that fooled me.
+
+> **The reason to build a check that refuses to be vacuous is that you are the one it will catch.**
+
+`npm run lint` clean · `npm run evidence:guard` 8 rules pass · 12 guard tests pass · full chain:
+1457 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41 under the override,
+mandated row under a dated waiver, probe complete.
