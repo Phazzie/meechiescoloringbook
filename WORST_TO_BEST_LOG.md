@@ -8881,6 +8881,14 @@ Do not add an operation to `CacheSeam`.
 **Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run test:e2e`,
 `npm run verify`, `npm run rewind -- --seam CacheSeam`.
 
+> **This plan is as it was written, and nine close-out rounds below changed parts of it.** Left
+> standing rather than rewritten, because a plan edited to match its outcome stops being a record of
+> what was predicted. Two of its statements are now false and the corrections are below, in full:
+> **`probes/` and `vercel.json` are on the anti-goal list and should not have been** — excluding the
+> first cost the change its only reality capture, excluding the second would have shipped every page
+> frameable. The live inventory, generated from the diff rather than kept by hand, is in `plan.md`.
+
+
 ### The one design decision worth defending: no contract change
 
 The obvious rebuild adds `putResponse` to `CacheSeam` and caches documents as the reader visits
