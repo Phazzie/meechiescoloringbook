@@ -8637,22 +8637,29 @@ claim wider than its evidence was itself a claim wider than its evidence** — a
 counter-examples I had already written down and counted. Caught by Codex on the close-out PR — the
 run's own thesis, applied to the sentence stating it.
 
-This paragraph originally called that **"the run's last finding."** It was not, and saying so was the
-same mistake a third time in one entry. **Five** more findings landed on the three commits after it:
+This paragraph originally called that **"the run's last finding."** It was not. Findings kept landing
+on the commits after it — this table is the record, and it carries no total:
 
 | Head | Findings |
 |---|---|
 | `fbe8136` | the premature merge close-out; the uncounted thirteenth round |
 | `83d566d` | the P1 on editing an append-only file; "ten more rounds" when it was twelve; the stale "last finding" claim |
-| `a4dd1ac` | "false in its entirety", which discarded real measurements; this count, first written as three |
+| `a4dd1ac` | "false in its entirety", which discarded real measurements; the count below, first written as three |
+| `e7d7807` | that count again — corrected to five, and five was already stale |
 
-A finding is only the last one once no further look has happened, and at the moment of writing, three
-more looks were still to come. Nothing is described as last in this file again; the close-out simply
-stops where the reviews stopped.
+A finding is only the last one once no further look has happened. Nothing is described as last in
+this file again; the close-out stops where the reviews stopped.
 
-The count in this paragraph first read **three**, listing only `fbe8136`'s two and the P1 — and it
-was written in the sentence correcting an overclaim, inside the bullet list of overclaims. Naming a
-number is not the same as counting one.
+**The count is deliberately absent, and that is the fix.** This paragraph said "three", then "five",
+and each was accurate when written and wrong by the next round — because a document that counts the
+reviews *of itself* cannot state a total while those reviews are still arriving. Bumping five to
+seven would have been wrong again on the round that flagged it. The table converges; the sentence in
+front of it never can. Three separate findings were spent discovering that, which is two more than it
+should have taken: the first correction already said *"enumerated or tabulated, not asserted"*, and I
+then left a running total standing in front of the enumeration.
+
+So: **no count in this close-out is stated in prose.** Where a number matters it is a list or a table
+whose rows a reader can check, and where a total would go stale it is simply not written.
 
 ### What I got wrong, kept in one place
 
