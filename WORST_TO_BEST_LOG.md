@@ -9658,11 +9658,14 @@ close it: `vite preview` does not read `vercel.json`, and the pull request's own
 sits behind deployment protection and 302s to `vercel.com/sso-api`, so no header of the app itself
 is reachable unauthenticated.
 
-This run did not merely leave that Assumption standing. **It moved six routes onto exactly the path
-the Assumption is about.** Before this change those documents were served by the SvelteKit function,
-where `hooks.server.ts` attaches the headers in code that a test can run. Prerendering makes them
-files, and Vercel's `{"handle":"filesystem"}` precedes the SSR rewrite, so their headers now come
-from the `vercel.json` rules and from nothing else. `tests/unit/security-headers.test.ts` proves the
+This run did not merely leave that Assumption standing. **It moved seven route patterns — every one
+the app has — onto exactly the path the Assumption is about.** They are `/`, `/offline`,
+`/meechie`, `/who-fucked-up`, `/rate-his-excuse`, `/random` and `/m/[mode]`, and the last expands to
+the eight canonical mode slugs, which is where the fourteen documents counted below come from.
+Before this change those documents were served by the SvelteKit function, where `hooks.server.ts`
+attaches the headers in code that a test can run. Prerendering makes them files, and Vercel's
+`{"handle":"filesystem"}` precedes the SSR rewrite, so their headers now come from the `vercel.json`
+rules and from nothing else. `tests/unit/security-headers.test.ts` proves the
 rules *cover* every prerendered path — it derives the list from the routes' own `prerender` flags
 rather than restating it — and that is the whole of what it proves. Whether Vercel then *applies*
 them is the Assumption, and it is the same one, now load-bearing where it was previously only
