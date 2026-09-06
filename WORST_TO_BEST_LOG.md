@@ -8758,3 +8758,47 @@ like the other two it was tested for what it lets through.
 `npm run lint` clean · `sonarjs.configs.recommended` clean · `npm run evidence:guard` 8 rules pass ·
 full chain: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41
 under the override, mandated row under a dated waiver, probe complete.
+
+### Addendum — round forty-four: the decision record drifted from the decision
+
+Codex reviewed `1c542f58`. Four findings, all accepted, and the first is this run's own defect
+arriving in the last place left for it to hide.
+
+**`DECISIONS.md` said seven rules. There were eight.** The entry written to record what CI enforces
+had fallen behind what CI enforces, in the same commit range that added the eighth rule. A maintainer
+reading the decision record — which `AGENTS.md` makes the source of truth — would have been told
+something false about the gate protecting them.
+
+> **The document describing the check drifted from the check.** That is the sentence this entire pull
+> request is about, and it happened in the file where I wrote down what the pull request was about,
+> while I was writing it. There is no level at which this stops being possible; there is only whether
+> something reads both sides.
+
+Corrected, and the correction is now checkable: the count in `DECISIONS.md` was compared against the
+number of rules the implementation actually defines rather than retyped from memory.
+
+**A red transcript could pass with a green exit code.** The chain's stage markers proved the stages
+*spoke*, not what they *said*. A branch-owned `check` or `test` script that masks its command with
+`|| true` leaves `npm run verify` exiting zero over a transcript that reports failures. The marker
+now requires `svelte-check found 0 errors`, and the chain transcript and `test.txt` are both read for
+reported failures using the same definition the rewind rule uses.
+
+**And my first version of that check missed the case it was written for.** The failure pattern was
+anchored to the count immediately after the reporter's label, so it caught `Tests 1 failed | 16
+passed` and missed `Tests 1445 passed | 1 failed`. Whether a red run was detected depended on the
+order the reporter happened to print its counts in. Caught by running the mutation Codex described
+instead of the one I had in mind.
+
+**A waiver expiry of `9999-99-99` was permanent.** It satisfies the `\d{4}-\d{2}-\d{2}` shape and
+string-compares later than every real date, so the exception I added one round ago to be *temporary*
+could be made to never expire. A pattern that matches the shape of a date is not a date; the value
+now has to round-trip through a real calendar day.
+
+**`.spec.ts` was a rule about this repository.** Playwright's documented default glob is
+`**/*.@(spec|test).?(c|m)[jt]s?(x)`, so a suite named `page.test.ts` or `.spec.mjs` is ordinary and
+would have been rejected.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean · `npm run cipher:gate` exit 0 ·
+`npm run evidence:guard` 8 rules pass · six mutation directions verified, including both orderings of
+a reporter's counts · full chain: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0, rewind
+17, Playwright 41 under the override, mandated row under a dated waiver, probe complete.

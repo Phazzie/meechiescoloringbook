@@ -127,6 +127,45 @@ const read = (dir, name) => {
 };
 
 /**
+ * Whether a transcript's reporter summaries report any failure, as a sentence, or `null`.
+ *
+ * `Test Files` is in the labels because Vitest reports an afterAll failure as `Test Files 1 failed`
+ * beside `Tests 1 passed`. Two patterns rather than one alternation: the combined form measured 21
+ * against Sonar's regex-complexity limit of 20, and they are two different questions — a counted
+ * failure, and a crash the reporter attributes to no test.
+ *
+ * Used by the chain transcript, `test.txt` and every rewind. It lived inline in the rewind rule
+ * while the other two checked only that a marker was PRESENT, so a chain whose own script masked a
+ * failure — `|| true` in a branch-owned `check` or `test` — exited zero with a red transcript and
+ * every rule passed.
+ */
+// Anywhere in the line, not anchored after the label. The anchored form caught
+// `Tests 1 failed | 16 passed` and missed `Tests 1445 passed | 1 failed`, because it required the
+// FIRST count after the label to be the failing one — so whether a red run was detected depended on
+// which order the reporter happened to print its counts in. `summaryLines` has already established
+// that this is a reporter summary; within one, a count of failures is a count of failures wherever
+// it sits.
+const COUNTED_FAILURE = /\b\d{1,9} (failed|errors?)\b/;
+const UNHANDLED = /^\s{0,8}Vitest caught \d{1,9} unhandled error/;
+const reportedFailure = (text) => {
+	const line = summaryLines(text).find((entry) => COUNTED_FAILURE.test(entry) || UNHANDLED.test(entry));
+	return line === undefined ? null : line.trim();
+};
+
+/**
+ * A `YYYY-MM-DD` string that names a real calendar day, or `null`.
+ *
+ * The shape check alone accepted `9999-99-99`, which string-compares later than every real date and
+ * so granted a permanent waiver while naming no day at all. A pattern that matches the shape of a
+ * date is not a date.
+ */
+const asCalendarDate = (value) => {
+	const parsed = new Date(`${value}T00:00:00Z`);
+	if (Number.isNaN(parsed.getTime())) return null;
+	return toDateFolder(parsed) === value ? value : null;
+};
+
+/**
  * What is wrong with `e2e.txt`'s Row 1 — the MANDATED `npx playwright test` — or `null`.
  *
  * The rule used to slice straight to Row 2 and never read this row at all, so a run whose mandated
@@ -143,9 +182,12 @@ const mandatedRowProblem = (row1) => {
 	if (problem === null) return null;
 	if (!/^e2e-mandated exit=[1-9]/m.test(row1))
 		return `${problem}; the mandated command's own result is what this row is for.`;
-	const expiry = /^Waiver-Expires: (\d{4}-\d{2}-\d{2})$/m.exec(row1)?.[1];
-	if (expiry === undefined || !/^Waiver-Reason: \S/m.test(row1))
+	const stated = /^Waiver-Expires: (\d{4}-\d{2}-\d{2})$/m.exec(row1)?.[1];
+	if (stated === undefined || !/^Waiver-Reason: \S/m.test(row1))
 		return 'records a failing mandated command with no waiver; a gate that cannot be met is reported as unmet, with a reason and an expiry, not passed over.';
+	const expiry = asCalendarDate(stated);
+	if (expiry === null)
+		return `carries the waiver expiry "${stated}", which is not a real date; a value shaped like a date compares later than every real one, which is a permanent exception wearing a deadline.`;
 	if (expiry < toDateFolder(new Date()))
 		return `carries a waiver that expired on ${expiry}; the mandated command has been failing longer than the exception granted for it.`;
 	return null;
@@ -303,12 +345,19 @@ const RULES = [
 			const STAGE_MARKERS = [
 				{ pattern: /^> \S{1,80} audit:gate$/m, stage: 'the audit gate' },
 				{ pattern: /found \d{1,9}( \w{1,12}){0,2} vulnerabilit/, stage: "the audit gate's result" },
-				{ pattern: /svelte-check found/, stage: 'the check stage' },
+				{ pattern: /svelte-check found 0 errors/, stage: 'a clean check stage' },
 				{ pattern: /Test Files/, stage: 'the test stage' }
 			];
 			const missing = STAGE_MARKERS.filter(({ pattern }) => !pattern.test(outer));
 			if (missing.length > 0)
 				return `verify-outer.txt is missing ${missing.map((m) => m.stage).join(', ')}; it carries an exit line but not the run that earned it.`;
+			// The chain's exit status is the chain's, not each stage's. A branch-owned `check` or
+			// `test` script that masks its command — `|| true` — leaves the outer command exiting zero
+			// over a transcript that says, in the reporter's own words, that something failed. The
+			// markers above proved the stages spoke; this asks what they said.
+			const outerFailure = reportedFailure(outer);
+			if (outerFailure !== null)
+				return `verify-outer.txt exits zero but its own summary reports "${outerFailure}"; the chain's exit status is not each stage's result.`;
 			return null;
 		}
 	},
@@ -339,6 +388,9 @@ const RULES = [
 			const innerRun = identity(inner);
 			if (outerRun === null || innerRun === null)
 				return 'verify-outer.txt or test.txt carries no run start and duration, so the two cannot be shown to be the same run rather than two that happen to agree.';
+			const innerFailure = reportedFailure(inner);
+			if (innerFailure !== null)
+				return `test.txt reports "${innerFailure}"; the totals agreeing does not make the run green.`;
 			if (outerRun !== innerRun)
 				return `verify-outer.txt records the run at ${outerRun} and test.txt at ${innerRun}; they report the same total but are different runs, so one is from an earlier head.`;
 			return null;
@@ -495,7 +547,10 @@ const RULES = [
 				return `e2e.txt Row 2 ${row2Exit}; the counts beneath it cannot settle what this rule needs the status to answer.`;
 			if (lastPassedCount(row2) === null)
 				return 'e2e.txt Row 2 has no "<n> passed" line; the transcript was spliced in against a header that did not match, so the run it records cannot be audited.';
-			if (!/\.spec\.[tj]s/.test(row2))
+			// Playwright's documented default glob is `**/*.@(spec|test).?(c|m)[jt]s?(x)`, so a suite
+			// named `page.test.ts` or `.spec.mjs` is ordinary and was being rejected. A proxy built
+			// from the one filename this repository happens to use is a rule about this repository.
+			if (!/\.(spec|test)\.[cm]?[jt]sx?\b/.test(row2))
 				return 'e2e.txt Row 2 has a summary but no per-test lines; the summary cannot be checked against anything.';
 			// A row run under a config override has to carry that config. This container cannot launch
 			// the browser the mandated command wants, so Row 2 runs under a scratch config that is not
@@ -586,13 +641,11 @@ const RULES = [
 			// reads says everything passed. It was left out because the labels here were written from
 			// the failures I had seen, which is the same reason `Errors` and `Vitest caught` were each
 			// missing in turn. `summaryLines` already admits it; only this pattern did not.
-			const COUNTED_FAILURE = /^\s{0,8}(Test Files|Tests|Errors)?\s{0,8}\d{1,9} (failed|errors?)\b/;
-			const UNHANDLED = /^\s{0,8}Vitest caught \d{1,9} unhandled error/;
-			const failing = rewinds.filter((f) =>
-				summaryLines(read(dir, f) ?? '').some(
-					(line) => COUNTED_FAILURE.test(line) || UNHANDLED.test(line)
-				)
-			);
+			// Through the shared `reportedFailure` now. These two patterns lived here, inline, while the
+			// chain transcript and test.txt beside them were checked only for the PRESENCE of a marker
+			// — the strictest reading of "did this fail" applied to the seam runs and the loosest to
+			// the whole chain.
+			const failing = rewinds.filter((f) => reportedFailure(read(dir, f) ?? '') !== null);
 			if (failing.length > 0)
 				return `these rewind transcripts report failures beside their passes: ${failing.join(', ')}.`;
 			return null;
