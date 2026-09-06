@@ -8961,17 +8961,21 @@ worse than the browser saying it could not connect. A test pins both directions.
   device that has the app from one that does not, and say two different sentences.
 - **The install metadata matches the app**, and a test reads all three files and compares them
   rather than a comment asserting they agree.
-- **The worker has tests.** 35 in `offline-cache.test.ts`, which drive the real orchestrators
+- **The worker has tests.** 34 in `offline-cache.test.ts`, which drive the real orchestrators
   against `createMockCacheSeam` — including a seam that errors, an install where one file is
   missing, and a navigation with no network. Beside them, 7 in `install-metadata.test.ts`, which
   read the three metadata files off disk and compare them, and 4 e2e over the offline page and the
-  connection banner. 46 in total, against 0.
+  connection banner. 45 in total, against 0.
 
 ### Evidence
 
-`check` 0 errors / 0 warnings · `lint` exit=0 · `npm test` **1517 passed**, 1 skipped (was 1475 on
+`check` 0 errors / 0 warnings · `lint` exit=0 · `npm test` **1516 passed**, 1 skipped (was 1475 on
 `main`) · `build` exit=0 · `test:e2e` **46 passed** (was 42) · `npm run verify` exit=0 ·
 `rewind -- --seam CacheSeam` 14 passed. All captured in `docs/evidence/2026-09-06/`.
+
+The unit total reads 1516 and not 1517 because round two below **deleted** a test rather than
+rewriting it. Recorded here rather than left as the higher number: this file has been wrong about
+its own totals before, and a count that only ever goes up is a count nobody is reading.
 
 `proof-tape.md` flags `build.txt`, `e2e.txt`, `lint.txt` and `rewind-CacheSeam.txt` as predating the
 verify run. That is the `proof-tape.mjs` limitation Run 8 documented — it compares file times
@@ -8986,6 +8990,14 @@ all four were written minutes before the chain, on this head. Recorded rather th
 - **The `SLUG_ALIASES` URLs are not prerendered**, so an alias needs a connection while its
   canonical slug does not. Prerendering them would file five extra copies of identical HTML under
   names nothing in the app links to.
+- **The web fonts are not available offline**, and cannot be through this seam: Google Fonts is
+  cross-origin, `chooseStrategy` bypasses it deliberately, and `$service-worker` cannot list a URL
+  it does not build. So an installed app opened offline renders in fallback faces. This is not a
+  regression — the old worker never held them either, since nothing put a cross-origin response in
+  the cache — and it is survivable rather than broken, which was checked rather than assumed: every
+  `font-family` in `src/**/*.svelte` either ends in a generic family or resolves through a `var()`
+  whose definition does. The grep that establishes it, which returns nothing:
+  `grep -rhn "font-family:" src --include=*.svelte | sort -u | grep -vE "(sans-serif|serif|monospace|inherit|var\()"`
 - **Nothing was done about the app being useless offline in the way that matters most** — you still
   cannot make a coloring page without a network, because making one is a provider call. The offline
   page says so in those words rather than implying otherwise.
@@ -9025,3 +9037,70 @@ as Chrome's dinosaur, which is invisible to every test, every screenshot and eve
 codebase, and reads to the user as "the internet is broken" rather than "this app did not prepare".
 
 Do not inherit this entry's measurements. Re-measure.
+
+### Run 10, first close-out — 2026-09-06 — two findings on `4fb41f2`, one mine and one Sonar's
+
+**All ten checks were green on `4fb41f2`** — `verify` ×2, CodeQL, Analyze (actions), Analyze
+(javascript-typescript), SonarCloud, SonarCloud Code Analysis, Rosentic, Vercel Ready; Sourcery
+skipped on its own 7-day budget, which is not a finding. Two things still needed doing.
+
+**Rosentic passed this time, and the difference is worth recording.** It was red on #304 and #309
+and its comment here still reports two cross-branch breaks — but every one names
+`claude/sweet-mendel-*` and `claude/trusting-volta-*`, and the two files it cites,
+`src/lib/core/http-resilience.ts` and `tests/unit/wig-try-on-pipeline.test.ts`, are not in this
+diff at all (`git diff --name-only origin/main...HEAD` lists 37 files; neither is among them). The
+**check run itself concluded `success`**, so nothing was owed and no standing-down comment was
+posted. Run 8's postscript predicted exactly this: the red was a function of the branch backlog
+against the diff, not of the diff.
+
+**SonarCloud passed its gate with 2 new issues, and `sonarcloud.io` is blocked** by this
+container's egress policy — `curl: (56) CONNECT tunnel failed, response 403` — the same wall Run 8
+hit. So the finding was reproduced locally with `eslint-plugin-sonarjs`, **under its recommended
+ruleset rather than every rule**, which is the correction Run 8 wrote down after twice reporting
+"nothing found" from a misconfigured reproduction:
+
+```
+src/lib/core/offline-cache.ts
+  306:29  error  Refactor this function to reduce its Cognitive Complexity from 18 to the 15 allowed
+```
+
+The fix is not a fix for the metric. `matchRequest` reports **two different kinds of nothing** —
+the seam failed (`ok: false`) and the seam succeeded with no entry (`value: null`) — and
+`handleFetch` collapsed them with an identical `ok && value !== null` in three separate places.
+Three chances to get one of them wrong, in the function where getting it wrong serves a blank
+frame. It is one named `cachedResponse` now, which says once why both are treated alike: neither is
+a reason to fail a request the network can still serve. `cacheFirst` and `networkFirst` came out
+beside it. Behaviour is unchanged — a `Response` is never falsy, so `if (cached)` is the same test
+as `!== null` — and the same 34 tests pass untouched.
+
+**The second Sonar issue could not be read and is not guessed at.** After the fix,
+`eslint-plugin-sonarjs` scoped to this change's own files is clean, and so are both changed
+`.svelte` files under the Svelte parser. Whether that closes one issue or two is a *measurement*
+available on the next head's comment, not something to assert here.
+
+### Round two: a dead branch I wrote myself, found by re-reading the diff
+
+Nobody reported this one. Re-reading `service-worker.ts` adversarially before ending the wake:
+
+```ts
+if (strategy === 'bypass') return;
+event.respondWith(handleFetch(...).then((response) => response ?? fetch(event.request)));
+```
+
+`handleFetch` returned `null` for exactly one input — `strategy: 'bypass'` — and the line above
+guarantees that input never arrives. **The `??` branch was unreachable**, and it existed only
+because the parameter type allowed a value the caller had already excluded.
+
+Patching the call site would have left the same hole one type away. `handleFetch` now takes
+`AnsweredStrategy = Exclude<RequestStrategy, 'bypass'>` and returns `Promise<Response>`, so a
+bypass reaching it is a type error rather than a case to handle, and the early return in the worker
+is the only place a bypass is dealt with. `svelte-check` at 0/0 is the proof the narrowing holds.
+
+The test asserting `handleFetch` returns `null` for a bypass was **deleted, not rewritten** — 35
+unit tests to 34. It tested a branch that existed to be tested. What must never be answered from a
+cache is pinned where the decision is actually made, in the `chooseStrategy` cases for `/api/*`,
+cross-origin and non-GET, which are unchanged.
+
+That is this run's own thesis pointed at its own diff: the original defect was a service worker
+whose central case had **no branch**, and the first thing to go wrong in the rebuild was a branch
+with no case.

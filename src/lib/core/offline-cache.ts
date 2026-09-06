@@ -346,23 +346,30 @@ const networkFirst = async (
 };
 
 /**
+ * A strategy that produces an answer. `bypass` is deliberately not one of them.
+ *
+ * A bypassed request is not answered *badly* — it is not answered at all: the worker never calls
+ * `respondWith`, and the browser does exactly what it would with no service worker installed.
+ * There is no Response to return for that case, so the type does not offer one, and the caller
+ * cannot reach `handleFetch` without having already dealt with it.
+ */
+export type AnsweredStrategy = Exclude<RequestStrategy, 'bypass'>;
+
+/**
  * Answer one request, given a strategy and the plan that says whether a fallback exists.
  *
- * Returns `null` for `bypass`, which the service worker reads as "do not call `respondWith`" — the
- * request then behaves exactly as it would with no service worker registered.
+ * Always returns a Response — the cache's, the network's, the offline page, or a synthesized 503.
  */
 export const handleFetch = async (
 	seam: CacheSeam,
 	input: {
 		readonly request: Request;
-		readonly strategy: RequestStrategy;
+		readonly strategy: AnsweredStrategy;
 		readonly isNavigation: boolean;
 		readonly fallbackAvailable: boolean;
 		readonly fetchFn: FetchLike;
 	}
-): Promise<Response | null> => {
-	if (input.strategy === 'bypass') return null;
-
+): Promise<Response> => {
 	const key = cacheKeyFor(input.request.url, input.isNavigation);
 
 	return input.strategy === 'cache-first'

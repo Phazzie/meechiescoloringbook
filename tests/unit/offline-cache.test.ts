@@ -248,17 +248,10 @@ describe('handleFetch', () => {
 	};
 	const offline = () => Promise.reject(new TypeError('Failed to fetch'));
 
-	it('returns null for a bypass, so the worker leaves the request alone', async () => {
-		const response = await handleFetch(createMockCacheSeam(), {
-			request: request(`${ORIGIN}/api/generate`, { method: 'POST' }),
-			strategy: 'bypass',
-			isNavigation: false,
-			fallbackAvailable: true,
-			fetchFn: neverCalled
-		});
-
-		expect(response).toBeNull();
-	});
+	// There is deliberately no test here for `strategy: 'bypass'`. `handleFetch` accepts
+	// `AnsweredStrategy`, which excludes it, so a bypass reaching this function is a type error
+	// rather than a case to handle — and a branch that cannot be reached is a branch that can rot.
+	// What must never be answered is pinned in `chooseStrategy` above, where the decision is made.
 
 	it('serves a cached asset without touching the network', async () => {
 		const seam = createMockCacheSeam();

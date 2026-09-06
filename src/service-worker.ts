@@ -71,6 +71,9 @@ self.addEventListener('fetch', (event) => {
 		isNavigation
 	});
 
+	// The only place a bypass is handled, and the reason `handleFetch` does not accept one: not
+	// calling `respondWith` is what makes the request behave as if no worker were installed. There
+	// is no Response that means that, so there is no second place this could be got wrong.
 	if (strategy === 'bypass') return;
 
 	event.respondWith(
@@ -80,6 +83,6 @@ self.addEventListener('fetch', (event) => {
 			isNavigation,
 			fallbackAvailable: plan.fallbackAvailable,
 			fetchFn: (request) => fetch(request)
-		}).then((response) => response ?? fetch(event.request))
+		})
 	);
 });
