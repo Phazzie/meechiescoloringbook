@@ -10669,3 +10669,116 @@ is also what `plan.md` says, because that table is generated and the commit mess
 commit stands as pushed rather than being rewritten; the correction lives here, where this file's
 own history of miscounting itself is already recorded three times. The number in the artifact was
 right and the number in the prose was wrong, which is the argument for generating the artifact.
+
+## Run 11 — merge close-out — PR #313 merged as `b1a6cfc`
+
+The verdict card is on `main`. Base `1b67d30` → merged head `c408ecc`, squashed to `b1a6cfc`.
+**12 commits, 31 files.** Six review rounds, listed above by name.
+
+### What the gate required, and what it found
+
+`AGENTS.md`'s merge conditions, each answered rather than asserted:
+
+| Condition | State at merge |
+|---|---|
+| CI green on the current head, **both** surfaces | `verify` ×2, CodeQL, Analyze (actions), Analyze (javascript-typescript), SonarCloud, SonarCloud Code Analysis — all `success` on `c408ecc`. Two red, both dispositioned below. Sourcery `skipped` on its own 7-day budget, which is not a finding |
+| Every review comment addressed | 6 threads, every one replied to and resolved. Seven findings: six fixed, one declined with the grep |
+| `verify` and `npm test` green, evidence committed | `verify` exit=0 · 1596 passed / 1 skipped · `docs/evidence/2026-09-06/`, regenerated on the merged head |
+| No unpushed work, no conflict | `main` moved mid-review and was merged in; local head byte-equal to the pushed head, checked before merging |
+
+And the four reasons *not* to merge, each checked rather than skipped: no human reviewer had requested
+changes (every reviewer was a bot); the pull request carries **no schema, contract or data migration**
+— no file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`,
+`src/lib/seams/` or `tests/contract/` is in the diff; no open Assumption in `DECISIONS.md` covers this
+behaviour (the open ones are the CSP-fonts and `vercel.json`-headers items pending a first deploy, and
+two infrastructure ones about the rate-limit store and live provider calls); and the owner had said
+nothing about holding it.
+
+### The two red checks, and why neither blocked
+
+**Both were stood down with a written comparison before merging, not with a habit.** This log has
+twice recorded a Vercel stand-down that reached the right conclusion by the wrong argument, so the bar
+is the failure *signature* matched against the base or an unrelated head.
+
+- **Vercel** — `api-deployments-free-per-day`, *"more than 100"*: an account-wide daily quota, a
+  property of the account and the calendar day. The decisive evidence was same-branch and needed no
+  appeal to that: `85e54f4` **deployed successfully at 13:38**, and `d4b95cd` and `66b7078` failed at
+  13:45 and 13:51 on commits touching a test, a doc, and one default parameter. A deployment failure
+  caused by the diff cannot pass and then fail seven minutes later. `npm run build` is exit 0 on the
+  head.
+- **Rosentic — Conflict Detection** — 4 breaking findings over 78 branch pairs, every one a
+  hypothetical about merging this branch with `claude/sweet-mendel-LJ9Iu` (PR #151, June) or
+  `claude/trusting-volta-bb8mvr` (PR #208, August), neither of which this run touched. The four
+  functions it names are `specOwnQuote`, `derivesDenseDecorations`, `studioActionStartsRound` and
+  `currentStyleSelection`, and **this diff touches none of them**:
+
+  ```
+  $ git diff origin/main..HEAD -- src tests \
+      | grep -E "^[+-].*(specOwnQuote|derivesDenseDecorations|studioActionStartsRound|currentStyleSelection)"
+  (no output)
+  ```
+
+  Call counts identical on both sides — 4/4, 7/7, 4/4, 10/10 — and the single cited site inside a file
+  this pull request edits, `tests/unit/tool-page-recipe.test.ts:419`, is at line 419 on `main` too,
+  byte-identical. **The incompatibility is between PR #151 and `main`.** This branch is implicated
+  only because it inherits `main`'s call sites, and the findings will still be there after this merge.
+  No re-run spent: the input is the open-PR backlog, not the diff.
+
+### What the six review rounds actually cost, and bought
+
+Seven findings. **Six were correct and fixed; one was declined with a measurement.** Not one was
+disproved by argument alone.
+
+The two that mattered most were both about the *same mistake at different depths*, and both were mine:
+
+1. **A boolean was answering two questions.** *May the card claim this standing?* and *should this
+   text be written back?* have different answers, and one flag gave the right one to both only for the
+   cases I had considered — all from the home studio, when the field has three producers.
+2. **Then the fix over-corrected and deleted the feature on refresh.** "Believe nothing restored" met
+   the autosaved draft, and a `blocked` verdict lost its warning the moment the reader reloaded. The
+   discriminator — `modelMetadata`, stamped by our own pipeline on every accepted response — had been
+   there the whole time, and I had rejected the *idea* of one on a rule that was too coarse.
+
+The rule that survives, and the one this run would hand forward on that point: **a stamp your own
+pipeline applies unconditionally is evidence; a value your source may choose to include is not.**
+
+The other four: a nested template literal (SonarCloud, mine — the six others it found reproduce on
+`main`); a Rate This Excuse score relabelled as severity, which predated this change and which the
+change made *legible* by putting words under the number; a severity label wrongly suppressed on live
+numeric verdicts, which was a finding on a fix from the round before; and a `DECISIONS.md` statement
+still describing the design two reviews had replaced.
+
+**The declined one was the P1**, and declining it is on the record with the evidence: no artifact of
+`CreationStoreSeam` describes `rating`, so the seam workflow was not owed — but the compatibility
+question underneath it was real, and is now pinned by a test that loads a Rate This Excuse page in the
+exact shape it was saved in.
+
+### Three ways this run corrected itself before anyone asked
+
+Worth separating from the review findings, because they are the ones a review would not have caught:
+
+- The log's first draft claimed the tool seam drops a rating for ten of eleven tools. Reading the two
+  response-format schemas disproved it. The claim came from `parseResponse` — inferring what was
+  *asked for* from what was *parsed*, when the request was three functions up and readable.
+- A commit message said the inventory was "34 files" when the generated table said 31. The artifact
+  was right and the prose beside it was wrong, which is the argument for generating the artifact.
+- An evidence line said 1591 tests when the runner said 1590.
+
+### For the next run
+
+The pick came from one command per contract field: **what reads this?** Nine runs had looked at
+surfaces and asked what they showed; this one looked at the response and asked what was thrown away.
+
+**A field can be required, validated, paid for and dead at the same time, and nothing in this
+repository notices.** `chamber-lock`, the contract tests and the seam ledger all check that a field is
+declared and parsed correctly. Not one asks whether anything reads it. Run 10's lesson was to look for
+the feature whose failure mode is a different program's error message; this one's is to look for the
+feature whose failure mode is **silence** — no error, no wrong pixel, just an answer the reader paid
+for and never saw.
+
+Two candidates are named above with their reasoning: `MeechieToolOutput.quoteScore`, declared in a
+contract and never populated while a complete 10-check rubric sits unused in
+`src/lib/core/meechie-quote-scoring.ts`; and `modelMetadata`, which still reaches no screen. Both are
+weaker picks than this one was, by this log's own measure, because neither is promised to the reader.
+
+Do not inherit this entry's measurements. Re-measure.
