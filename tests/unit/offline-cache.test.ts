@@ -250,6 +250,18 @@ describe('cacheKeyFor', () => {
 		expect(cacheKeyFor(`${ORIGIN}//`, true)).toBe(`${ORIGIN}/`);
 	});
 
+	// This ran `replace(/\/+$/, '')`, which backtracks super-linearly — in the service worker, on
+	// every navigation, against a path the person browsing supplies. The assertion that matters is
+	// the time: the old expression takes seconds on this input, the scan that replaced it is linear.
+	it('trims a pathological run of slashes without pathological cost', () => {
+		const many = '/'.repeat(50_000);
+		const started = Date.now();
+
+		expect(cacheKeyFor(`${ORIGIN}${many}x`, true)).toBe(`${ORIGIN}${many}x`);
+		expect(cacheKeyFor(`${ORIGIN}${many}`, true)).toBe(`${ORIGIN}/`);
+		expect(Date.now() - started).toBeLessThan(1000);
+	});
+
 	it('keeps the query on a subresource, where it is part of which file this is', () => {
 		expect(cacheKeyFor(`${ORIGIN}/_app/x.js?v=2`, false)).toBe(`${ORIGIN}/_app/x.js?v=2`);
 	});

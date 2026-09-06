@@ -9393,3 +9393,53 @@ different surface was carrying it the whole time.
 
 `check` 0/0 · `lint` exit=0 · `build` exit=0 · `probes/cache-seam.probe.mjs` **10/10**, and zero
 leaked `vite` processes for the first time.
+
+### Run 10, sixth close-out — 2026-09-06 — a denial of service I wrote into the navigation path
+
+SonarCloud's gate **passes** on `1ee3c66` — the security rating is back to A, so the PATH fix was the
+finding, exactly as the relay said. But its new-issue count went **1 → 4**, because the probe and the
+headers test are new files nothing had analysed yet.
+
+This time I did not guess. The local reproduction had never been run over a `.mjs` file at all —
+every earlier pass covered only `**/*.ts`, so the probe had never been looked at by anything but the
+compiler. Adding `.mjs` to the config found two, and one of them is serious:
+
+```
+src/lib/core/offline-cache.ts:280
+  Simplify this regular expression to reduce its runtime, as it has super-linear
+  performance due to backtracking            sonarjs/super-linear-regex
+```
+
+That is `pathname.replace(/\/+$/, '')` — the trailing-slash trim added two rounds ago to fix Codex's
+P2. **It runs in the service worker, on every navigation, against a path the person browsing
+supplies.** Measured rather than described:
+
+```
+scan (new):     0 ms
+regex (old): 3108 ms      ← path of 50,000 slashes followed by one character
+```
+
+**Three seconds of a stranger's CPU per link.** Not a crash, not a wrong answer — a link that costs
+whoever follows it. It is now a linear scan whose `> 1` bound keeps the root's slash without a
+special case, and a test pins the timing at under a second, which the old expression fails by a
+factor of three.
+
+The second finding was a one-line assertion style fix (`toHaveLength`). Whether those were 2 of the
+4 or 2 of something else is unknown; the remaining count is recorded, not guessed at.
+
+**The pattern this run keeps producing, now for the third time:** a fix for a review finding
+introduced a defect of a different class than the finding it fixed. The trailing-slash trim was
+correct about trailing slashes and wrong about backtracking. The redirect was correct about
+SvelteKit's router and wrong about building a URL from a request. The probe was correct about
+needing a server and wrong about how to start one. **Every one was caught by a reviewer that was not
+looking at the thing being fixed** — and the run's own local gate was green for all three.
+
+The narrower rule, which is the one I would hand forward: **a fix is new code and gets the full
+treatment — every checker, every file type.** The `.mjs` gap is the whole story of this round: a file
+I wrote to check the app was itself unchecked, for four rounds, because a glob said `.ts`.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1547 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **10/10**.

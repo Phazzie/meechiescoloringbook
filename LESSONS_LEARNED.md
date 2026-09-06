@@ -532,3 +532,22 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
   the port into the next run. One cause, two symptoms; I had fixed only the symptom I could see.
 - Action: Spawn `process.execPath` with an entry point resolved from the installed package. No PATH
   lookup, no wrapper process, and the cleanup problem disappears with it.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 10 — SonarCloud flagged `sonarjs/super-linear-regex` on `pathname.replace(/\/+$/, '')`
+  in `cacheKeyFor`, which runs in the service worker on every navigation.
+- Lesson: A trailing-slash trim looked like the most boring line in the change and was a denial of
+  service. Measured: 3,108 ms against a path of 50,000 slashes, versus 0 ms for a linear scan — three
+  seconds of the visitor's CPU for anyone who follows such a link.
+- Action: No regex on a path, a URL, or anything else a request supplies, when a scan will do. And
+  when a checker names a regex, measure it before deciding it is theoretical.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same run — the local `eslint-plugin-sonarjs` reproduction was configured `files: ['**/*.ts']`.
+- Lesson: The probe is a `.mjs` file, so four rounds of "reproduced locally, clean" had never looked
+  at it once. Both findings in this round were in files that glob excluded. A reproduction that
+  silently covers less than the checker it stands in for reports clean for the wrong reason.
+- Action: When reproducing a checker locally, confirm the file set matches too, not just the rules —
+  print what it analysed if there is any doubt.

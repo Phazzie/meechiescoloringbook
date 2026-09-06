@@ -277,12 +277,29 @@ export const cacheKeyFor = (url: string, isNavigation: boolean): string => {
 		const parsed = new URL(url);
 		parsed.search = '';
 		parsed.hash = '';
-		const trimmed = parsed.pathname.replace(/\/+$/, '');
-		parsed.pathname = trimmed === '' ? '/' : trimmed;
+		parsed.pathname = withoutTrailingSlashes(parsed.pathname);
 		return parsed.toString();
 	} catch {
 		return url;
 	}
+};
+
+/**
+ * Drop trailing slashes, keeping the root's.
+ *
+ * A scan rather than `replace(/\/+$/, '')`, and not for style. That regular expression has
+ * super-linear backtracking: a path of many slashes makes the engine try quadratically many splits
+ * before failing. This function runs in the service worker on **every navigation**, against a path
+ * the person browsing supplies — so a link to `/////…/x` with a few thousand slashes is a request
+ * that costs the worker measurable CPU on someone else's device. Flagged by SonarCloud on this pull
+ * request; the loop is linear, and the `> 1` bound is what keeps `/` a path instead of an empty
+ * string, without needing a special case for it.
+ */
+const withoutTrailingSlashes = (pathname: string): string => {
+	const SLASH = 47;
+	let end = pathname.length;
+	while (end > 1 && pathname.charCodeAt(end - 1) === SLASH) end -= 1;
+	return pathname.slice(0, end);
 };
 
 /**
