@@ -169,7 +169,7 @@ const makePageAndKeepIt = async (page: Page): Promise<void> => {
 	// empty output — the conflation this whole change exists to remove, surviving on two of the
 	// three surfaces.
 	await expect(page.getByTestId('verdict-page-clean')).toContainText(
-		'Everything asked for made it into the prompt.'
+		'Settings, list and dedication all made it into the prompt.'
 	);
 	await expect(page.getByTestId('verdict-page-violations')).toHaveCount(0);
 

@@ -1,6 +1,12 @@
 // Purpose: Define the `/api/generate` orchestration request and response contract.
 // Why: Keep client/server generation orchestration deterministic and schema-validated.
 // Info flow: UI spec input -> server orchestration -> prompt/images/drift payload.
+// Invariants: `driftCheckFailure` is mutually exclusive with findings, and the schema enforces it
+//             rather than describing it — a present failure means the drift check graded nothing, so
+//             `violations` and `recommendedFixes` MUST both be empty. Its *absence* is equally
+//             load-bearing: that is what tells a consumer an empty `violations` is a real verdict
+//             rather than a check that never ran. Do not relax the refinement below into a comment;
+//             a documented-but-unenforced invariant is the same defect as an undocumented one.
 import { z } from 'zod';
 import { DriftDetectionOutputSchema } from './drift-detection.contract';
 import { ImageGenerationOutputSchema } from './image-generation.contract';

@@ -217,9 +217,13 @@ export const buildQualityReport = (input: {
 			weight: 'check-failed',
 			source: 'prompt'
 		});
-	} else if (input.checkResultUnrecorded) {
+	} else if (input.checkResultUnrecorded && input.hasPage) {
 		// A page whose check result is not on file. Distinct from a failed check and from a clean
 		// one, and it must not borrow either's wording.
+		//
+		// `hasPage` is load-bearing: `canSaveToVault` accepts a words-only save, so a record can be
+		// stored with no images at all. Reopening one used to report that its check result was never
+		// stored — about a page that was never generated and had nothing for the check to inspect.
 		findings.push({
 			code: CHECK_RESULT_UNRECORDED_CODE,
 			// Says only what is known. It does not say a check failed, and it does not say one was
@@ -269,11 +273,19 @@ export const describeQualityReport = (report: QualityReport): string | null => {
 		return 'This page was not built from a prompt, so there is nothing to check.';
 	}
 	if (report.state === 'clean') {
-		// Deliberately about the prompt, not the page. `detectDrift` is handed `spec`, `promptSent`
-		// and `revisedPrompt` and reads nothing else — the adapter never sees the generated image. So
-		// a clean result proves every requirement survived into the prompt that was sent; it proves
-		// nothing about whether the provider then drew them.
-		return 'Everything asked for made it into the prompt.';
+		// Named line by line, because "everything asked for" was still wider than the check.
+		//
+		// Two narrowings, both from review. First: `detectDrift` is handed `spec`, `promptSent` and
+		// `revisedPrompt` and reads nothing else — it never sees the generated image — so this is
+		// about the prompt, not the page. Second, and easy to miss: within the prompt the adapter
+		// compares only the option lines, the list line, the dedication, alignment, page size, the
+		// required phrases and the negative block. It never looks at `spec.title` or
+		// `spec.footerItem` (grep the adapter: neither word appears). A provider rewrite can change
+		// the headline and this check returns clean.
+		//
+		// So the sentence names what was compared and leaves the reader to notice what is absent
+		// from it, rather than covering the gap with a word like "everything".
+		return 'Settings, list and dedication all made it into the prompt.';
 	}
 
 	const settingsBlockers = report.findings.filter(

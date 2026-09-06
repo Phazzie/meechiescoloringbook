@@ -2200,6 +2200,18 @@ export class StudioState {
 		const storedFindings = creation.violations ?? [];
 		this.driftReported = storedFindings.length > 0;
 		this.checkResultUnrecorded = storedFindings.length === 0;
+		// Stored findings are proof the record went through `/api/generate`, which is the only path
+		// that produces them — so its `assembledPrompt` is a prompt that really was sent, and System
+		// Trace can show it as one. Without this, a reopened flagged page listed prompt-derived
+		// findings directly beside "No prompt sent yet", and its stored rewrite appeared underneath
+		// that denial.
+		//
+		// A record with no stored findings stays `false`: it is either a try-on portrait, whose
+		// `assembledPrompt` is a description that was never sent, or a generated page whose result
+		// was not persisted. The record carries no marker telling them apart, so this understates
+		// rather than guesses — the same posture as `checkResultUnrecorded` above, and the same
+		// `CreationRecordSchema` field would settle both.
+		this.promptWasSent = storedFindings.length > 0;
 		// A saved record carries no failure reason; `resetGeneratedPage` already cleared any.
 		this.driftCheckFailure = undefined;
 		this.vaultStatus = `Reopened "${creation.intent.title}".`;

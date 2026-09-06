@@ -49,7 +49,9 @@ describe('buildQualityReport', () => {
 		});
 
 		expect(report.state).toBe('clean');
-		expect(describeQualityReport(report)).toBe('Everything asked for made it into the prompt.');
+		expect(describeQualityReport(report)).toBe(
+			'Settings, list and dedication all made it into the prompt.'
+		);
 	});
 
 	it('keeps an error and a warning apart instead of flattening them', () => {
@@ -194,6 +196,21 @@ describe('buildQualityReport', () => {
 		if (report.state !== 'flagged') throw new Error('expected a flagged report');
 		expect(report.findings.map((finding) => finding.weight)).toEqual(['check-failed']);
 		expect(describeQualityReport(report)).toBe('One check that never finished.');
+	});
+
+	it('does not report an unrecorded result for a record that has no page', () => {
+		// `canSaveToVault` accepts a words-only save, so a record can be stored with no images at
+		// all. Reopening one used to say its check result was never stored — about a page that was
+		// never generated and had nothing for the check to inspect.
+		const report = buildQualityReport({
+			hasPage: false,
+			driftChecked: false,
+			violations: [],
+			recommendedFixes: [],
+			checkResultUnrecorded: true
+		});
+
+		expect(report.state).toBe('unchecked');
 	});
 
 	it('does not flag a page that simply was not produced by a checked flow', () => {

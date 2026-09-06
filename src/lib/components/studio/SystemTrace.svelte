@@ -92,7 +92,10 @@ Info flow: Parent passes the report built by `buildQualityReport` plus the two p
 			{/if}
 
 			<p class="eyebrow">What The Model Made Of It</p>
-			{#if hasRewrite}
+			<!-- Gated on `hasPrompt` as well, not just on there being a rewrite. The two branches were
+			     independent, so a reopened record could render its stored rewrite directly beneath
+			     "No prompt sent yet" — the panel contradicting itself in adjacent lines. -->
+			{#if hasPrompt && hasRewrite}
 				<textarea rows="6" readonly value={revisedPrompt} aria-label="Model rewrite"></textarea>
 			{:else if hasPrompt}
 				<!-- "No rewrite reported", not "the model used the prompt as written". `revisedPrompt`

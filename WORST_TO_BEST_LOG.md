@@ -8223,3 +8223,70 @@ as the work, that quietly parted company with what was actually in the file.
   prohibition on the next editor rather than a description of the current code, which is what an
   invariant is for: index pairing is right *usually*, and "usually" is exactly what makes it
   dangerous to leave for someone to rediscover.
+
+---
+
+## Run 9, seventh close-out — 2026-09-06 — the clean verdict was still too wide
+
+Four findings on `058408e`. The first is the best single finding of the whole run.
+
+### "Everything asked for made it into the prompt" was still an overclaim
+
+Two rounds ago the clean line said *"The page came back exactly as asked"*, and review narrowed it:
+the drift seam reads only `spec`, `promptSent` and `revisedPrompt`, never the image, so it can speak
+about the prompt and not the page. I fixed that and thought the sentence was now exact.
+
+It was not. **Within the prompt, the adapter compares only some of it.** Its expected lines cover the
+option lines, the list, the dedication, alignment, page size, the required phrases and the negative
+block. It never looks at `spec.title` or `spec.footerItem` — grep the adapter and neither word
+appears. A provider rewrite can change the headline of the page and the check still returns clean.
+
+So the sentence claimed *everything*, from a check that covers most things. Now:
+
+> Settings, list and dedication all made it into the prompt.
+
+It names what was compared and lets the reader notice what is absent from the list, instead of
+covering the gap with a word like "everything".
+
+**This is the third narrowing of the same sentence, each one from review.** Page → prompt → the
+parts of the prompt actually compared. Each version was written believing it was precise, and each
+was wider than the check behind it by one layer that had not been looked at. There was no point at
+which the sentence felt like a guess.
+
+### Three more, all mine, all introduced by earlier fixes in this run
+
+- **The unrecorded finding fired for records with no page.** `canSaveToVault` accepts a words-only
+  save, so a record can be stored with no images at all. Reopening one reported that its check
+  result was never stored — about a page that was never generated. Gated on `hasPage`.
+- **`promptWasSent` was not restored on reopen**, so a reopened flagged page listed prompt-derived
+  findings directly beside "No prompt sent yet" — and its stored rewrite rendered *underneath that
+  denial*, because the two branches were independent conditions. The panel contradicting itself in
+  adjacent lines. Stored findings are proof the record went through `/api/generate`, so they restore
+  the flag; a record without them stays `false` and understates rather than guessing.
+- **`contracts/generate.contract.ts` had no `Invariants` header**, the same gap as
+  `QualityFindings.svelte` last round. The exclusivity rule is now at the top, including the part
+  that is easiest to lose: the *absence* of `driftCheckFailure` is what makes an empty `violations`
+  a real verdict.
+
+Two of the three were created by this run's own earlier fixes. `promptWasSent` in particular was
+added last round to stop the try-on flow claiming a prompt was sent, and it introduced a worse
+contradiction on a path I did not re-check after adding it.
+
+### Verified
+
+`check` 0/0 · `lint` exit=0 · **1469 passed**, 1 skipped · `build` exit=0 · e2e 42 passed ·
+`verify` exit=0 · rewind 5 passed · proof tape flags nothing.
+
+### Twenty-five findings, and what actually explains them
+
+The count is high enough now to be the interesting thing about this run. It is not that the work was
+careless — every finding was a considered decision that turned out to be one layer too confident.
+What review kept supplying was not care. It was **the layer below the one I had stopped at**.
+
+The clean sentence is the clearest instance: three rounds, three narrowings, each written believing
+it was now exact. I could not have found the third by trying harder on the second, because the
+second felt finished. Someone had to go and read what the adapter compares, line by line, while
+holding the sentence next to it.
+
+> A claim is not verified by being reasoned about. It is verified by opening the thing it describes
+> and reading it against the words. Everything else is a well-founded guess.
