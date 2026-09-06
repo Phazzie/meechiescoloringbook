@@ -9888,6 +9888,7 @@ mode — later passes append rather than displace, and any total is recoverable 
 | `552c99d` | 7 | the plan's rows carrying no action marker; the plan never closing on a literal command |
 | `ca48ebf` | 5 | the closing command discarding `verify`'s exit status |
 | `48e7bc2` | 3 | — |
+| `3f412c1` | 3 | — |
 
 **The P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
 A merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
@@ -9965,8 +9966,12 @@ made these inventories wrong as well, since they are derived from it. Then the s
 failed twice more: the two transcript P1s attributed to the wrong passes, because I wrote the rows
 from memory of what I had just fixed rather than from the review record, and a fix always lands one
 commit after its finding; and the `ca48ebf` row appended without its four P2s reaching this list.
-A correction-count that had gone stale twice, now removed rather than reset. And a Definition of
-Done claiming 97 test files where the transcript reports 98 — 97 passing plus 1 skipped.
+A correction-count that had gone stale twice, now removed rather than reset. A Definition of Done
+claiming 97 test files where the transcript reports 98 — 97 passing plus 1 skipped. And that same
+block three times over: reporting success when the transcript failed to install, referencing a
+`$SCRATCH` it never assigned so the paths expanded to the filesystem root, and naming
+`lint`/`build`/`verify` without the redirections that actually write `lint.txt` and `build.txt` —
+so following it as written reproduced the stale-evidence failure this entry opens with.
 
 All the same disease: a fact restated where it cannot be checked against its source. The reason this
 section is the entry's longest is that it is the one part with no mechanical check behind it. Every

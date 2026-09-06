@@ -69,35 +69,52 @@ either turns this into a change that needs code review and its own test work. Do
 `e2e.txt`, `probe-cache-seam.txt` or the `rewind-*.txt` evidence: they belong to #311's run and no
 command in this plan regenerates them.
 
-**Definition of Done:**
+**Definition of Done:** one self-contained block, runnable from the repository root. It assigns its
+own scratch directory, writes every evidence artifact the inventory above promises, and exits
+non-zero if any step fails.
 
 ```sh
-npm run lint && npm run build && npm run verify
-```
+SCRATCH="$(mktemp -d)"
+EV=docs/evidence/2026-09-06
 
-Exits 0, with `verify` reporting 1559 tests passed and 1 skipped, across 97 passing test files
-plus 1 skipped — `98` in the transcript's own parenthesis. The outer transcript
-is captured separately, to a scratch path and moved in after the chain returns, per
-`docs/evidence/README.md`:
+{ npm run lint 2>&1; lint=$?; echo "lint exit=$lint"; } > "$EV/lint.txt"
+[ "$lint" -eq 0 ] || exit "$lint"
 
-```sh
-mv docs/evidence/2026-09-06/verify-outer.txt "$SCRATCH/previous.txt"
+{ npm run build 2>&1; build=$?; echo "build exit=$build"; } > "$EV/build.txt"
+[ "$build" -eq 0 ] || exit "$build"
+
+[ -e "$EV/verify-outer.txt" ] && mv "$EV/verify-outer.txt" "$SCRATCH/previous.txt"
 { npm run verify 2>&1; status=$?; echo "verify exit=$status"; } > "$SCRATCH/verify-outer.txt"
-mv "$SCRATCH/verify-outer.txt" docs/evidence/2026-09-06/verify-outer.txt || exit 1
+mv "$SCRATCH/verify-outer.txt" "$EV/verify-outer.txt" || exit 1
 exit "$status"
 ```
 
-The `|| exit 1` matters for the same reason as the rest: a successful `verify` whose transcript then
-fails to install — unwritable destination, missing scratch file — would otherwise reach
-`exit "$status"` with the saved `0` and report a clean close-out while the required evidence is
-absent or stale. Preserving `verify`'s status and dropping `mv`'s is the same defect one step later.
+Expected: exit 0, with `verify` reporting 1559 tests passed and 1 skipped across 97 passing test
+files plus 1 skipped — `98` in the transcript's own parenthesis.
 
-`status` is captured before the `echo`, because `echo` succeeds unconditionally: writing
-`echo "verify exit=$?"` as the last command in the group makes the group's own status `0` whatever
-`verify` did, so a `&& mv` after it installs a failed transcript and the whole thing exits clean.
-An earlier version of this block had exactly that bug. The transcript would have read
-`verify exit=1` while the command reported success — evidence contradicting its own exit code, which
-is the failure mode this file is supposed to make impossible.
+Four things in that block are there because each was a review finding on this pull request, and each
+looks like a detail until it fires:
+
+- **`npm run lint && npm run build && npm run verify` is not the gate.** Neither `lint` nor `build`
+  writes an evidence file, so running that line leaves `lint.txt` and `build.txt` exactly as stale as
+  they were — which is how this pull request shipped both older than its own first commit while the
+  plan claimed all three ran every push. The redirections are the gate; the bare command is a
+  description of it.
+- **`SCRATCH` must be assigned here.** An earlier version referenced `"$SCRATCH"` with no assignment
+  anywhere in the plan, so the block as written expanded to `/previous.txt` and `/verify-outer.txt`:
+  a failure for an ordinary user, and writes into the filesystem root for a privileged one.
+- **`status` is captured before the `echo`.** `echo` succeeds unconditionally, so
+  `echo "verify exit=$?"` as the group's last command makes the group exit `0` whatever `verify`
+  did — a failing chain reporting success while its own transcript reads `verify exit=1`.
+- **`|| exit 1` on the move.** Preserving `verify`'s status and then discarding the move's is the
+  same defect one step later: a green chain whose evidence never lands, reported clean.
+
+And the transcript is captured to scratch and moved in **after** the chain returns, with any previous
+copy moved out first, per `docs/evidence/README.md`. It is therefore absent from that chain's own
+`proof-tape` inventory, which is correct and not staleness. Redirecting the chain straight into the
+file instead makes the tape record a byte count 14 short — the missing `verify exit=0` — and leaving
+the old copy in place makes the tape describe a different file than the one committed. Both were
+tried on this pull request before this block was right.
 
 **Self-critique:** the risk here is not to the codebase, it is that a wrong close-out is copied
 forward by a future unattended run that treats this log as its source of prior results. That risk
