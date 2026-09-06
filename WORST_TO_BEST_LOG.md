@@ -9791,7 +9791,19 @@ the line, and was sitting unread while the reasoning happened.
   weighs calling it with visited ones. It is that keeping a response the worker just served costs a
   second fetch of the same URL, so runtime caching would double the network it is meant to save.
   Fixing that is a contract change, which is why this run did not attempt it.
-- **The web fonts are not available offline**, and cannot be through this seam.
+- **The web fonts are not available offline**, so an installed app opened with no connection renders
+  in fallback faces. This is a **policy** limitation, not a seam one, and the entry above at the
+  Run 10 write-up says "cannot be through this seam", which is wrong — corrected here rather than
+  edited there, since the log is append-only. What actually blocks it is one line:
+  `chooseStrategy` returns `'bypass'` for any cross-origin URL (`src/lib/core/offline-cache.ts:252`),
+  on the reasoning that a cross-origin response is frequently opaque and therefore useless to cache.
+  The seam is not the obstacle — `primeCache` takes arbitrary URLs and hands them to `cache.addAll`,
+  and `matchRequest` would find them again. Fonts could be cached by priming the Google Fonts URLs
+  and narrowing that bypass, with **no contract change at all**. The reason not to do it blind is
+  that `cache.addAll` rejects the whole batch on any non-`ok` response, so it would need the
+  stylesheet's own `@font-face` URLs, which are not knowable at build time from
+  `$service-worker`, and an opaque response would take the install down with it. That is a real
+  design problem worth measuring, and it is a different and much smaller one than "the seam cannot".
 - **You still cannot make a coloring page offline.** The offline page says so in those words.
 - Run 8's two items are still open: the tools hub and mode routes save no style, and the home studio
   exposes none of `colorMode`, `textSize`, `fontStyle`, `alignment`, `textStrokeWidth`,
