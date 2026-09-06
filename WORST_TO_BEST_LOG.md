@@ -7432,3 +7432,191 @@ That is the disproof stated as a measurement rather than as a claim: the same co
 repository, red as a branch and green as `main`. Which is what "these describe hypothetical merges
 with code that is not on `main`" means, and it is worth having it on the record as an observation
 instead of an assertion — since assertions outliving their evidence is the entire subject of this run.
+
+---
+
+## Run 9 — 2026-09-06 — The quality report (System Trace, and the drift block on every other surface)
+
+**Branch:** `claude/great-bell-bcm57s` · **Base:** `main` at `85a7b34`
+
+### The feature, and why it was the worst
+
+The quality report is the app's only answer to "did the page I got match the page I asked for". It
+appears three times: `System Trace` on the home studio, the drift block in `VerdictPageStudio`
+(shared by the three mode routes and `/m/<slug>`), and a third private copy inside
+`MeechieTools.svelte`. Behind all three sit two checks that run on every single generation —
+`SpecValidationSeam` on the request and `DriftDetectionSeam` on the result.
+
+It was the worst feature because **it is blind in exactly the case it was built for, and its silence
+is indistinguishable from a clean bill of health.**
+
+Measured on `main` at `85a7b34`, not inherited:
+
+1. **A drift check that could not run was reported as a page with nothing wrong with it.**
+   `generate-pipeline.ts:320` read `violations: driftResult.ok ? driftResult.value.violations : []`.
+   All three surfaces render an empty violation list as nothing at all. So the seam's `{ ok: false }`
+   branch — the most serious thing it can report — arrived looking exactly like a clean page.
+2. **And that branch is the common one, not the rare one.** The seam grades `revisedPrompt` in
+   preference to `promptSent` (`drift-detection-seam/index.ts:92-95`), and `revisedPrompt` comes
+   straight off the provider's own `revised_prompt` field (`image-generation-seam/index.ts:161`). A
+   provider rewrite is prose; it carries none of `PROMPT_REQUIRED_HEADINGS`, so `findMissingHeading`
+   returns non-null and the seam declines to grade. **The provider silently discarding your
+   constraints — the precise event drift detection exists to catch — produced the feature's most
+   reassuring output.**
+3. **A unit test had locked this in.** `tests/unit/pipeline-edge-cases.test.ts` contained
+   `it('includes empty violations when drift detection fails')`. The defect was not merely
+   unnoticed; it was pinned as intended behaviour.
+4. **Every remedy was computed and thrown away.** The seam pushes a `recommendedFix` next to almost
+   every violation. Those were stored in `studio-state.svelte.ts:459`, in
+   `verdict-page-state.svelte.ts:233`, in `MeechieTools.svelte:141`, and written into saved vault
+   records as `fixesApplied` — and rendered in **zero** places. Run 3 handed this forward; Runs 4
+   through 8 each carried it on without picking it up.
+5. **`severity` was discarded.** `ViolationSchema` distinguishes `error` from `warning`
+   (`FORBIDDEN_HEADING` is the warning; everything else is an error). All three renderers printed
+   every finding identically.
+6. **"No quality flags" was shown before anything existed.** `violations` and `validationIssues`
+   both start `[]`, so a studio you had just opened reported that its non-existent page had passed.
+   The same sentence a genuinely clean page got. This is the Run 8 defect — a panel asserting a
+   state it cannot know — one panel over.
+7. **Machine codes were shown to humans**, as a redundant prefix on a message that already said it:
+   `MISSING_OPTION_LINE: Missing option line: Border: thin.`
+8. **Two unlabelled prompt textareas**, both empty before generation, with nothing saying what they
+   were or why they differ.
+
+### Plan (per `AGENTS.md` "Plan + Self-Critique")
+
+**Seams (existing, in `docs/seams.md`, none modified):** `DriftDetectionSeam (self-contained)`,
+`SpecValidationSeam (self-contained)`.
+
+| File | Action |
+|---|---|
+| `src/lib/core/quality-report.ts` | `[NEW]` pure transforms + `DRIFT_CHECK_FAILED_CODE` |
+| `src/lib/core/generate-pipeline.ts` | `[MODIFY]` the fail-open at the drift call site |
+| `src/lib/components/studio/SystemTrace.svelte` | `[MODIFY]` rebuild on the report |
+| `src/lib/components/VerdictPageStudio.svelte` | `[MODIFY]` drift block on the report |
+| `src/lib/components/MeechieTools.svelte` | `[MODIFY]` third copy onto the same report |
+| `src/routes/studio-state.svelte.ts` | `[MODIFY]` `driftReported` + derived `qualityReport` |
+| `src/lib/components/verdict-page-state.svelte.ts` | `[MODIFY]` same two |
+| `src/routes/+page.svelte` | `[MODIFY]` props + orphaned CSS |
+| `tests/unit/quality-report.test.ts` | `[NEW]` |
+| `tests/unit/pipeline-edge-cases.test.ts` | `[MODIFY]` the test that pinned the defect |
+| `tests/e2e/smoke.spec.ts` | `[MODIFY]` severity, fixes, and the honest empty state |
+
+**Anti-goals (forbidden):** `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/`, `src/lib/seams/`, `playwright.config.ts`. Do not add `confidenceScore` to
+`GenerateResponseSchema` — that is a contract change and therefore a different piece of work.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run test:e2e`,
+`npm run verify`, `npm run rewind -- --seam "DriftDetectionSeam (self-contained)"`.
+
+### Self-critique, and what it changed
+
+**The riskiest assumption was that violations and fixes correspond.** They visually do — the adapter
+pushes a fix next to each violation in lockstep — and the obvious implementation renders
+`findings[n]` with `fixes[n]` beneath it. I did not do that, and this is the one design decision in
+the run worth defending. `DriftDetectionOutputSchema` declares two independent arrays. It promises
+no ordering, no equal length, and no shared key — the codes differ *by design*
+(`MISSING_PAGE_SIZE` against `ADD_PAGE_SIZE`). Two violation branches append one entry per offending
+line. So index pairing is right *usually*, and a rendering that is right usually puts a remedy under
+a finding it does not answer, silently and only sometimes. The report shows two lists and asserts
+nothing about which fix answers which finding. A test pins it: two violations, one fix, no pairing.
+
+**The second thing the critique changed** was the empty-state gate. My first cut gated the whole
+report on `hasGeneratedPage`, which would have *hidden* spec-validation issues — the one finding
+that is meaningful when no page exists, because a failing spec check is precisely why there is no
+page (the studio refuses to generate while it holds any). Gating them would have buried the only
+actionable complaint behind the absence of the thing the complaint was preventing. Spec findings are
+now the one thing the gate does not cover, and a test pins that too.
+
+**The third** was `driftReported` on a reopened vault record. The obvious write is
+`this.driftReported = true`, but `creation.violations` is optional and `?? []` turns a record saved
+before findings were stored into an empty array — which the report would read as "checked, nothing
+wrong". It is `creation.violations !== undefined`. A record that never wrote down its findings has
+an unknown check result, and unknown is not clean. That is Run 8's lesson applied before a reviewer
+had to apply it for me.
+
+### What shipped
+
+- **The fail-open is closed.** A drift check that cannot return a verdict now produces a violation
+  carrying the seam's own code and message. `DRIFT_CHECK_FAILED_CODE` is defined once, in core, and
+  imported by both the pipeline that writes it and the report that reads it — not two string
+  literals in two files, which is the stale-second-copy defect Run 8 spent three rounds on.
+- **`recommendedFixes` reaches the screen**, on all three surfaces, for the first time since it was
+  written.
+- **Severity survives.** `error` renders as *Wrong*, `warning` as *Noted*, and a check that did not
+  finish as *Unchecked* — deliberately a third weight, neither blocker nor note, because an
+  incomplete check says nothing about the page in either direction and must not be counted among
+  the things it got wrong. Findings sort blockers first, notes last, stable within a weight.
+- **"Nothing on the paper yet" is a distinct state** from "The page came back exactly as asked."
+- **Plain language throughout**, and the prompt boxes now say what they are — with "The model used
+  the prompt as written" instead of an empty box labelled *Model Rewrite*.
+- **The third copy is gone as a divergent implementation.** All three surfaces call
+  `buildQualityReport`, so they cannot drift on what a warning is or when silence means clean.
+
+### Deliberately not done (for a future run)
+
+- **`confidenceScore` is still computed and dropped.** The seam produces it on every generation
+  (`Math.max(0, 1 - violations.length / 10)`), the schema validates it, a test asserts its range —
+  and `GenerateResponseSchema` has no field for it, so the pipeline discards it. Surfacing it is a
+  contract change and therefore the full Seam-Driven Development workflow. Left out rather than
+  half-wired. Recorded in `DECISIONS.md`.
+- **`fixesApplied` on saved records is still written and never read.** This run fixed the *display*
+  half of Run 3's follow-up; the persisted half remains. A reopened page shows its findings without
+  its fixes, because the record stores fix *codes* and the report renders fix *messages*. Filling
+  that gap honestly means storing the messages, which is `CreationRecordSchema` — a contract change.
+- **`DRIFT_CHECK_FAILED` as a reserved code is a compromise, not the right shape.** The right shape
+  is a real field on `DriftDetectionOutputSchema`. The `DECISIONS.md` entry says so explicitly and
+  states that this does not create a standing exemption for encoding states as reserved codes.
+- The three carried-forward items from Runs 6–8 that this run did not touch: raw filenames in
+  `VerdictPageStudio`/`MeechieTools`, the tools hub and mode routes saving no style, and
+  `proof-tape.mjs` comparing file times against an artifact inside its own chain.
+
+### Evidence
+
+All in `docs/evidence/2026-09-06/`, and the proof tape flags nothing as predating the run.
+
+| Check | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | `exit=0` |
+| `npm test` | 1458 passed, 1 skipped (94 files) |
+| `npm run build` | `exit=0` |
+| `npm run test:e2e` | 42 passed |
+| `npm run verify` | `exit=0`, captured in `verify-outer.txt` with its own exit line |
+| `npm run rewind -- --seam "DriftDetectionSeam (self-contained)"` | 5 passed, `exit=0` |
+
+The suite went 1445 → 1458: 13 new unit tests in `quality-report.test.ts`, plus one renamed and
+re-pointed in `pipeline-edge-cases.test.ts`, and e2e 41 → 42. The outer transcript's totals were
+cross-checked against `test.txt` by measurement rather than by a remembered number — 1458 and 94 in
+both — which is round 23's rule from Run 8.
+
+**On the e2e browser.** Run 4's note still applies and the mismatch has moved: the container ships
+Chromium 1194 laid out as `chrome-linux/headless_shell`, while the pinned `@playwright/test`
+resolves 1208 at `chrome-headless-shell-linux64/chrome-headless-shell`. Symlinked the 1208 path to
+the 1194 binary. `playwright.config.ts` is deliberately **not** in the diff — the mismatch is an
+environment fact, not a repository defect.
+
+**On the evidence ordering.** `lint.txt`, `build.txt` and `e2e.txt` were regenerated *after* the
+verify chain and the tape re-run, because `proof-tape.mjs` compares file times against
+`chamber-lock.json` — an artifact written at the *start* of the chain — and so flags files that are
+current. That is the known limitation Run 8 documented and did not fix. Working around it here is
+not fixing it; it stays open.
+
+### Two things a future run should know
+
+**A test can be the defect's strongest defender.** `includes empty violations when drift detection
+fails` was green, deliberate, and named after the behaviour it protected. Nothing in the suite was
+red. The feature was broken in the one case it existed for, and the suite was the reason nobody
+noticed — a green test asserting the wrong thing is worse than no test, because it converts an
+absence of coverage into a positive claim of correctness. When you are auditing a feature, read what
+its tests *assert*, not whether they pass.
+
+**And this run's own version of Run 8's rule, arrived at from the other direction.** Run 8 found that
+a fix invalidates the sentences that explained the old truth. This run found the mirror image: **a
+value computed and never read will not stay correct, and nothing will tell you.** `confidenceScore`,
+`recommendedFixes`, `severity` and `fixesApplied` were all produced, validated, tested, persisted —
+and unobserved. Three of the four turned out to be fine and merely wasted; the fourth, the
+fail-open, was wrong for as long as it had existed. The schema validated it the whole time, because
+a schema can prove a value is well-formed and can never prove anyone is looking at it.
+
+> An output nothing renders is not a feature that is finished. It is an assertion nobody has checked.

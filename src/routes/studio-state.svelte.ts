@@ -35,6 +35,7 @@ import {
 	type AiQuotaSnapshot
 } from '$lib/core/ai-quota';
 import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
+import { buildQualityReport } from '$lib/core/quality-report';
 import {
 	GENERATED_IMAGE_MIME_TYPES,
 	generatedImageDataUrl
@@ -457,6 +458,20 @@ export class StudioState {
 	revisedPrompt = $state('');
 	violations = $state<Violation[]>([]);
 	recommendedFixes = $state<DriftDetectionOutput['recommendedFixes']>([]);
+	/**
+	 * True when the drift check has actually reported on the page currently on the paper.
+	 *
+	 * This exists because `violations.length === 0` answers two opposite questions with the same
+	 * value: "the check ran and found nothing" and "no check has run". System Trace read it as the
+	 * first and so told a reader who had generated nothing that their page was clean.
+	 *
+	 * It cannot be derived. Every candidate proxy is wrong in a case that actually happens:
+	 * `images.length > 0` misses the generation that returns words without a picture, which assigns
+	 * the trace above that guard on purpose so the findings survive; `assembledPrompt !== ''` is
+	 * true for a reopened record whose findings were never stored. So it is written explicitly, at
+	 * exactly the three sites that already write `violations`, and nowhere else.
+	 */
+	private driftReported = $state(false);
 	images = $state<GeneratedImage[]>([]);
 	/**
 	 * Every call made to the packaging seam for the page on the paper: the variant asked for, the
@@ -633,6 +648,21 @@ export class StudioState {
 	// the wrong image.
 	imagePreviews = $derived(
 		this.images.map((image) => generatedImageDataUrl(image) ?? '')
+	);
+	/**
+	 * What System Trace says about the page on the paper.
+	 *
+	 * Derived rather than assigned, so it cannot lag the four facts it reports on. Built by the
+	 * dependency-free core so the same transform — and the same refusal to call an unchecked page
+	 * clean — is available to the mode routes, which build their own from the same function.
+	 */
+	qualityReport = $derived(
+		buildQualityReport({
+			hasGeneratedPage: this.driftReported,
+			violations: this.violations,
+			recommendedFixes: this.recommendedFixes,
+			validationIssues: this.validationIssues
+		})
 	);
 	/** The bytes of every file packaged for the page on the paper. */
 	packagedFiles = $derived<PackagedFile[]>(
@@ -1138,6 +1168,7 @@ export class StudioState {
 		this.revisedPrompt = '';
 		this.violations = [];
 		this.recommendedFixes = [];
+		this.driftReported = false;
 		this.images = [];
 		// Clears the packaged files, the described export row and the export failure sentence in one
 		// assignment, because all three are derived from it. `pageExports` also loses the provider's
@@ -1702,6 +1733,10 @@ export class StudioState {
 			this.revisedPrompt = parsed.data.value.revisedPrompt || '';
 			this.violations = parsed.data.value.violations;
 			this.recommendedFixes = parsed.data.value.recommendedFixes;
+			// Set with the trace and above the no-picture guard below, for the reason that guard's
+			// own comment gives: a response that carries findings but no image has still been
+			// checked, and its findings are the most useful thing on screen.
+			this.driftReported = true;
 
 			// A generate response can be schema-valid and still carry no picture: `images` is
 			// `z.array(...)` with no minimum. That used to reach the packaging seam and come back as
@@ -2098,6 +2133,11 @@ export class StudioState {
 		this.assembledPrompt = creation.assembledPrompt;
 		this.revisedPrompt = creation.revisedPrompt ?? '';
 		this.violations = creation.violations ?? [];
+		// `!== undefined`, not `.length > 0`. A record saved before the vault stored findings has no
+		// `violations` at all, and `?? []` above turns that absence into an empty array — which the
+		// report would otherwise read as "checked, nothing wrong". A record that never wrote down its
+		// findings is a page whose check result is unknown, and unknown is not clean.
+		this.driftReported = creation.violations !== undefined;
 		this.vaultStatus = `Reopened "${creation.intent.title}".`;
 		await this.validateSpec();
 		// The same builder the two generation paths use, so a reopened page gets the same downloads a

@@ -8,6 +8,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 -->
 <script lang="ts">
 	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
+	import { buildQualityReport, describeQualityReport } from '$lib/core/quality-report';
 	import type {
 		MeechieToolInput,
 		MeechieToolOutput
@@ -139,6 +140,17 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	// what the studio flow does.
 	let violations: GenerateResponseValue['violations'] = [];
 	let recommendedFixes: GenerateResponseValue['recommendedFixes'] = [];
+	// True once the drift check has reported on the page currently on screen. `violations.length`
+	// cannot stand in for this: an empty list is both "checked, nothing wrong" and "not checked",
+	// and the block below used to render the second as the first by showing nothing at all.
+	let driftReported = false;
+	// The same transform the home studio and the mode routes use, so all three surfaces agree on
+	// what a warning is, what an unfinished check is, and when silence means clean.
+	$: qualityReport = buildQualityReport({
+		hasGeneratedPage: driftReported,
+		violations,
+		recommendedFixes
+	});
 	let lastRecipe: ToolPageRecipe | null = null;
 	// The verdict the currently displayed page was built from. Kept separate from `output`, which
 	// changes the moment the user switches tools or asks for a new take.
@@ -188,6 +200,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		revisedPrompt = '';
 		violations = [];
 		recommendedFixes = [];
+		driftReported = false;
 		lastRecipe = null;
 		pageVerdict = null;
 		vaultStatus = '';
@@ -342,6 +355,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			revisedPrompt = parsed.data.value.revisedPrompt ?? '';
 			violations = parsed.data.value.violations;
 			recommendedFixes = parsed.data.value.recommendedFixes;
+			driftReported = true;
 			imagePreviews = usable
 				.map((entry) => entry.preview)
 				.filter((url): url is string => url !== null);
@@ -807,14 +821,30 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 				{/if}
 			</button>
 
-			{#if violations.length > 0}
+			{#if qualityReport.state === 'flagged'}
 				<div class="drift" data-testid="meechie-tool-violations">
-					<p class="drift-title">The page drifted from what was asked for</p>
+					<p class="drift-title">{describeQualityReport(qualityReport)}</p>
 					<ul>
-						{#each violations as violation}
-							<li>{violation.message}</li>
+						{#each qualityReport.findings as finding}
+							<li class={finding.weight} data-code={finding.code}>
+								<span class="tag"
+									>{#if finding.weight === 'blocker'}Wrong{:else if finding.weight === 'note'}Noted{:else}Unchecked{/if}</span
+								>
+								<span>{finding.message}</span>
+							</li>
 						{/each}
 					</ul>
+
+					{#if qualityReport.fixes.length > 0}
+						<!-- Their own list, not annotations on the findings above: the drift seam returns
+						     the two arrays independently and promises no pairing between them. -->
+						<p class="drift-title fixes-title">What closes it</p>
+						<ul class="fixes" data-testid="meechie-tool-fixes">
+							{#each qualityReport.fixes as fix}
+								<li>{fix}</li>
+							{/each}
+						</ul>
+					{/if}
 				</div>
 			{/if}
 
@@ -1271,8 +1301,52 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 
 	.drift ul {
 		margin: 0;
-		padding-left: 1.1rem;
+		padding: 0;
+		list-style: none;
+		display: grid;
+		gap: 0.35rem;
 		line-height: 1.5;
+	}
+
+	.drift ul li {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.5rem;
+		align-items: baseline;
+	}
+
+	.drift .tag {
+		font-size: 0.66rem;
+		font-weight: 800;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		white-space: nowrap;
+	}
+
+	.drift li.blocker .tag {
+		color: #ff8fab;
+	}
+
+	.drift li.note .tag {
+		color: var(--gold-bright, #f0c44a);
+	}
+
+	.drift li.check-failed .tag {
+		color: var(--lavender, #b8aacf);
+	}
+
+	.fixes-title {
+		margin-top: 0.7rem;
+	}
+
+	/* The fixes carry no severity, so they get no tag column. */
+	.drift ul.fixes {
+		padding-left: 1.1rem;
+		list-style: disc;
+	}
+
+	.drift ul.fixes li {
+		display: list-item;
 	}
 
 	.page-actions {

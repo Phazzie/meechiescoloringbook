@@ -6,6 +6,8 @@ import { promptAssemblyAdapter } from '$lib/adapters/prompt-assembly-seam';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import type { ImageQuota } from '$lib/core/image-generation-pipeline';
 import { toPublicProviderError } from '$lib/core/public-provider-error';
+import { DRIFT_CHECK_FAILED_CODE } from '$lib/core/quality-report';
+import type { DriftDetectionOutput } from '$lib/seams/drift-detection-seam/contract';
 import type {
 	SafetyPolicyError,
 	SafetyPolicyGenerateInput,
@@ -97,6 +99,37 @@ const safetyErrorDetails = (error: SafetyPolicyError) => {
 		details.policyDetails = error.details.join(' | ');
 	}
 	return details;
+};
+
+/**
+ * The violations to report for a drift check that may not have completed.
+ *
+ * A drift check that returns `{ ok: false }` has not found the page clean — it has declined to
+ * grade it. The seam does that for the most serious thing it can detect: a prompt missing a
+ * required section entirely. This mattered far more often than it looks, because the seam grades
+ * `revisedPrompt` in preference to `promptSent`, and `revisedPrompt` is whatever the image provider
+ * rewrote the request into. A provider rewrite is prose and carries none of the `STYLE:` /
+ * `TEXT (exact):` / `NEGATIVE PROMPT:` headings, so the provider silently discarding the page's
+ * constraints — precisely the event drift detection exists to catch — took the `ok: false` branch
+ * every time.
+ *
+ * That branch used to be `[]`. The studio renders an empty violation list as nothing wrong, so the
+ * feature reported its cleanest possible result in its worst case. It now reports the failure as a
+ * violation carrying the seam's own code and message, which is what actually happened.
+ */
+const driftViolations = (
+	driftResult: Awaited<ReturnType<GeneratePipelineAdapterDeps['detectDrift']>>
+): DriftDetectionOutput['violations'] => {
+	if (driftResult.ok) {
+		return driftResult.value.violations;
+	}
+	return [
+		{
+			code: DRIFT_CHECK_FAILED_CODE,
+			message: `The page could not be checked against what was asked for: ${driftResult.error.message}`,
+			severity: 'error'
+		}
+	];
 };
 
 const imageExceptionResponse = (error: unknown): PipelineResponse => {
@@ -317,7 +350,7 @@ export const runGeneratePipeline = async (
 			images: parsedImageResult.data.value.images,
 			revisedPrompt: parsedImageResult.data.value.revisedPrompt,
 			modelMetadata: parsedImageResult.data.value.modelMetadata,
-			violations: driftResult.ok ? driftResult.value.violations : [],
+			violations: driftViolations(driftResult),
 			recommendedFixes: driftResult.ok ? driftResult.value.recommendedFixes : []
 		}
 	};

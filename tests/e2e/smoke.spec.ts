@@ -177,6 +177,25 @@ test.beforeEach(async ({ page }) => {
 	await stubApis(page);
 });
 
+test('System Trace does not call an ungenerated page clean', async ({ page }) => {
+	// The defect the quality report was built for. `violations` starts empty, and the panel used to
+	// render an empty list as "No quality flags" — the identical sentence it showed for a page that
+	// had genuinely passed every check. A reader who had generated nothing was told their page was
+	// fine.
+	await gotoHydrated(page, '/');
+
+	const trace = page.getByTestId('system-trace-quality');
+	await page.locator('details.diagnostics summary').click();
+
+	await expect(trace).toHaveAttribute('data-state', 'unchecked');
+	await expect(page.getByTestId('system-trace-unchecked')).toContainText(
+		'Nothing on the paper yet.'
+	);
+	// The clean verdict is absent, not merely worded differently.
+	await expect(page.getByTestId('system-trace-clean')).toHaveCount(0);
+	await expect(page.getByTestId('system-trace-flag-count')).toHaveCount(0);
+});
+
 test('home mode switching and generation controls work', async ({ page }) => {
 	// The mode strip is rotated by calendar week/month, so the visible ids change over
 	// time. Derive them from the same source the page renders from instead of hardcoding.
@@ -937,7 +956,18 @@ test('editing the dedication drops the page it was not generated with, and drift
 					code: 'TEXT_DRIFT',
 					message: 'The printed title lost a word.',
 					severity: 'warning'
+				},
+				{
+					code: 'MISSING_OPTION_LINE',
+					message: 'Missing option line: Border: thin.',
+					severity: 'error'
 				}
+			],
+			// The seam computes one of these next to nearly every violation. Until this run the app
+			// stored them, wrote them into saved records as `fixesApplied`, and showed them to
+			// nobody.
+			recommendedFixes: [
+				{ code: 'ADD_OPTION_LINE', message: 'Add option line: Border: thin.' }
 			]
 		}
 	};
@@ -956,6 +986,18 @@ test('editing the dedication drops the page it was not generated with, and drift
 	// Drift diagnostics are shown rather than discarded behind a page that looks clean.
 	await expect(page.getByTestId('meechie-tool-violations')).toContainText(
 		'The printed title lost a word.'
+	);
+
+	// The error and the warning are told apart rather than rendered identically.
+	const findings = page.getByTestId('meechie-tool-violations').locator('ul').first().locator('li');
+	await expect(findings.filter({ hasText: 'Missing option line' })).toHaveClass(/blocker/);
+	await expect(findings.filter({ hasText: 'lost a word' })).toHaveClass(/note/);
+	// The blocker sorts above the note regardless of the order the seam reported them in.
+	await expect(findings.first()).toContainText('Missing option line: Border: thin.');
+
+	// And the remedy the seam computed alongside them is on screen.
+	await expect(page.getByTestId('meechie-tool-fixes')).toContainText(
+		'Add option line: Border: thin.'
 	);
 
 	// Changing the dedication invalidates the page generated for the previous one, so there is no

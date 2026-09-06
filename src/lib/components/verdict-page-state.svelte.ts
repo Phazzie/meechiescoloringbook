@@ -23,6 +23,7 @@ import {
 	buildToolStudioText
 } from '$lib/core/tool-page-recipe';
 import type { ToolPageRecipe } from '$lib/core/tool-page-recipe';
+import { buildQualityReport } from '$lib/core/quality-report';
 import {
 	MeechieToolInputSchema,
 	MeechieToolResultSchema
@@ -231,6 +232,23 @@ export class VerdictPageState {
 	 */
 	violations = $state<GenerateResponseValue['violations']>([]);
 	recommendedFixes = $state<GenerateResponseValue['recommendedFixes']>([]);
+	/**
+	 * True when the drift check has reported on the page currently installed.
+	 *
+	 * Same reason as the home studio's field of this name: an empty `violations` means both "checked
+	 * and clean" and "never checked", and the drift block used to render the second as the first by
+	 * showing nothing at all. Written only where `violations` is written — the install below and the
+	 * reset above.
+	 */
+	private driftReported = $state(false);
+	/** What the drift block says about the page currently installed. */
+	qualityReport = $derived(
+		buildQualityReport({
+			hasGeneratedPage: this.driftReported,
+			violations: this.violations,
+			recommendedFixes: this.recommendedFixes
+		})
+	);
 
 	// --- Page controls ---
 	dedication = $state('');
@@ -341,6 +359,7 @@ export class VerdictPageState {
 		this.revisedPrompt = '';
 		this.violations = [];
 		this.recommendedFixes = [];
+		this.driftReported = false;
 		this.vaultStatus = '';
 		this.copyStatus = '';
 		this.generatedImages = [];
@@ -514,6 +533,7 @@ export class VerdictPageState {
 			this.revisedPrompt = parsed.data.value.revisedPrompt ?? '';
 			this.violations = parsed.data.value.violations;
 			this.recommendedFixes = parsed.data.value.recommendedFixes;
+			this.driftReported = true;
 			this.imagePreviews = usable
 				.map((entry) => entry.preview)
 				.filter((url): url is string => url !== null);

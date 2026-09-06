@@ -145,8 +145,7 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	<SystemTrace
 		assembledPrompt={studio.assembledPrompt}
 		revisedPrompt={studio.revisedPrompt}
-		validationIssues={studio.validationIssues}
-		violations={studio.violations}
+		report={studio.qualityReport}
 	/>
 </main>
 
@@ -1053,13 +1052,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		font-weight: 800;
 	}
 
-	:global(.studio .diagnostics-grid) {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 1rem;
-		margin-top: 1rem;
-	}
-
 	@media (max-width: 1100px) {
 		:global(.studio .workbench) {
 			grid-template-columns: 1fr;
@@ -1121,7 +1113,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 
 		:global(.studio .verdict-row),
-		:global(.studio .diagnostics-grid),
 		:global(.studio .settings-panel[open] .settings-content) {
 			grid-template-columns: 1fr;
 		}

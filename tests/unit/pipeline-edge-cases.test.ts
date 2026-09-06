@@ -4,6 +4,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runChatInterpretationPipeline } from '../../src/lib/core/chat-interpretation-pipeline';
 import { runToolsPipeline } from '../../src/lib/core/tools-pipeline';
+import { DRIFT_CHECK_FAILED_CODE } from '../../src/lib/core/quality-report';
 import {
 	runGeneratePipeline,
 	type GeneratePipelineDeps
@@ -561,7 +562,13 @@ describe('generate-pipeline edge cases', () => {
 		}
 	});
 
-	it('includes empty violations when drift detection fails', async () => {
+	// Renamed from "includes empty violations when drift detection fails", which is what it used to
+	// assert. An empty violation list is how the studio says "nothing wrong with this page", so the
+	// old expectation locked in a report that gave its most reassuring answer for the drift seam's
+	// most serious finding. This matters more than the name suggests: the seam grades `revisedPrompt`
+	// over `promptSent`, and a provider rewrite carries none of the required headings, so a provider
+	// discarding the page's constraints took this branch every time and was reported as clean.
+	it('reports a failed drift check as a violation rather than as a clean page', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			buildGenerateDeps({
@@ -583,7 +590,15 @@ describe('generate-pipeline edge cases', () => {
 		expect(result.status).toBe(200);
 		expect(result.body.ok).toBe(true);
 		if (result.body.ok) {
-			expect(result.body.value.violations).toEqual([]);
+			expect(result.body.value.violations).toEqual([
+				{
+					code: DRIFT_CHECK_FAILED_CODE,
+					message: 'The page could not be checked against what was asked for: Detection failed',
+					severity: 'error'
+				}
+			]);
+			// Still empty, and correctly so: the seam returned no fixes because it never graded the
+			// prompt. The report shows the finding without inventing a remedy for it.
 			expect(result.body.value.recommendedFixes).toEqual([]);
 		}
 	});
