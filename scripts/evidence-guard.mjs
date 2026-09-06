@@ -273,6 +273,26 @@ const tapeInventory = (dir) => {
 };
 
 /**
+ * Whether the tape ties one file to this run, as a sentence, or `null`.
+ *
+ * Exactly one inventory entry. The tape inventories this folder as the chain's last stage, and the
+ * drift check compares that entry's size to the committed bytes — so a file the tape lists is a file
+ * that existed, at that length, when this run's chain executed. A transcript copied in afterwards is
+ * not inventoried at all.
+ *
+ * This is the THIRD time a fix has been applied to one artifact and left its siblings: the exit
+ * status went into `e2e` while `verify`, `lint` and `build` kept the old check; the file header went
+ * onto lint and build while the rewind transcript kept none; and the inventory requirement went onto
+ * lint and build while `e2e.txt`, the probes and the rewinds — the artifacts that carry the mandated
+ * results — were never asked for one. Deleting one instance of a defect is not deleting the defect.
+ */
+const notTiedToRun = (dir, file) => {
+	const entries = tapeInventory(dir).filter((entry) => entry.name === file);
+	if (entries.length === 1) return null;
+	return `${file} is present but the proof tape carries ${entries.length} inventory entries for it, so it cannot be shown to belong to this run rather than an earlier one`;
+};
+
+/**
  * Whether this folder is a copy of some other run's evidence, as a sentence, or `null` if it is not.
  *
  * The tape records `evidenceDir` and `generatedAt` and nothing was reading either, so an entire
@@ -348,6 +368,11 @@ const RULES = [
 				{ pattern: /svelte-check found 0 errors/, stage: 'a clean check stage' },
 				{ pattern: /Test Files/, stage: 'the test stage' }
 			];
+			// `--audit-level=high` makes high and critical advisories a non-zero exit, so a transcript
+			// reporting one alongside `verify exit=0` means a branch-owned `audit:gate` masked it.
+			// Low and moderate findings are a passing audit and stay allowed.
+			if (/(high|critical) severity/.test(stripAnsi(outer)))
+				return 'verify-outer.txt reports a high or critical severity advisory; --audit-level=high makes that a failing audit, so the chain exiting zero means its own audit script masked the result.';
 			const missing = STAGE_MARKERS.filter(({ pattern }) => !pattern.test(outer));
 			if (missing.length > 0)
 				return `verify-outer.txt is missing ${missing.map((m) => m.stage).join(', ')}; it carries an exit line but not the run that earned it.`;
@@ -514,6 +539,8 @@ const RULES = [
 		check: (dir) => {
 			const e2e = read(dir, 'e2e.txt');
 			if (e2e === null) return null; // not every change runs the end-to-end suite
+			const e2eUntied = notTiedToRun(dir, 'e2e.txt');
+			if (e2eUntied !== null) return `${e2eUntied}; the mandated end-to-end result cannot rest on a transcript the chain never saw.`;
 			const marker = e2e.indexOf('## Row 2');
 			if (marker === -1)
 				return 'e2e.txt has no "## Row 2" section; the mandated command and the run that actually executes are both meant to be recorded.';
@@ -606,6 +633,8 @@ const RULES = [
 			// defect this whole run is about, written by me, in the conventions file for the guard.
 			const probes = readdirSync(dir).filter((f) => f.startsWith('probe-') && f.endsWith('.txt'));
 			for (const file of probes) {
+				const untied = notTiedToRun(dir, file);
+				if (untied !== null) return `${untied}.`;
 				const problem = exitStatusProblem(read(dir, file) ?? '', 'probe');
 				if (problem !== null)
 					return `${file} ${problem}; a probe transcript with no result cannot show the probe ran.`;
@@ -621,6 +650,8 @@ const RULES = [
 			// a transcript truncated after that line — before any contract test result — counted as a
 			// pass. A file count is not a test count.
 			const TESTS_SUMMARY = /^\s{0,8}Tests\s+\d{1,9} passed/m;
+			const untied = rewinds.map((f) => notTiedToRun(dir, f)).find((entry) => entry !== null);
+			if (untied !== undefined) return `${untied}.`;
 			const empty = rewinds.filter((f) => !TESTS_SUMMARY.test(stripAnsi(read(dir, f) ?? '')));
 			if (empty.length > 0)
 				return `these rewind transcripts carry no "Tests <n> passed" summary: ${empty.join(', ')}.`;
@@ -671,6 +702,27 @@ const RULES = [
 			// that the gate was met — an unread result is the same as no result.
 			const cipherProblem = cipherGateProblem(read(dir, 'cipher-gate.json'));
 			if (cipherProblem !== null) return cipherProblem;
+			// assumption-alarm states its result as two arrays rather than a summary, so the
+			// summary-based check below could not reach it and nothing else looked: filling
+			// `invalidAssumptions` while preserving the byte count left every rule passing.
+			// `scripts/assumption-alarm.mjs` exits 1 on either array being non-empty, which is the
+			// result this reads.
+			const alarmRaw = read(dir, 'assumption-alarm.json');
+			if (alarmRaw !== null) {
+				let alarm;
+				try {
+					alarm = JSON.parse(alarmRaw);
+				} catch {
+					return 'assumption-alarm.json is not readable as JSON, so its result cannot be established.';
+				}
+				for (const field of ['invalidAssumptions', 'missingSeamCoverage']) {
+					const value = alarm[field];
+					if (!Array.isArray(value))
+						return `assumption-alarm.json has no "${field}" array, so the alarm's result cannot be read.`;
+					if (value.length > 0)
+						return `assumption-alarm.json reports ${value.length} entries in "${field}"; the assumption alarm did not come back clean.`;
+				}
+			}
 			const SUMMARISED = [
 				{ file: 'chamber-lock.json', list: 'seams' },
 				{ file: 'seam-ledger.json', list: 'seams' },
@@ -704,9 +756,8 @@ const RULES = [
 				// Present and green is not enough: an older passing capture copied into a later run's
 				// folder satisfies both. The tape inventories this folder, so it is what ties the file
 				// to the run — and nothing was asking it to.
-				const entries = tapeInventory(dir).filter((entry) => entry.name === file);
-				if (entries.length !== 1)
-					return `${file} is present but the proof tape carries ${entries.length} inventory entries for it; it cannot be shown to belong to this run.`;
+				const untied = notTiedToRun(dir, file);
+				if (untied !== null) return `${untied}.`;
 				// Deliberately NOT `predatesRun === false` here, though that is what the chain-stage rule
 				// requires of chain outputs. `predatesRun` means "older than chamber-lock.json", and the
 				// capture order in docs/evidence/README.md requires lint, build, e2e, the probe and the

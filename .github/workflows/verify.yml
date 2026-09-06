@@ -62,6 +62,7 @@ jobs:
             exit 0
           fi
           base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          fellback=no
           # A push that creates a branch reports an all-zero `before`, because there is no previous
           # commit on it. That is a real event with a real answer — compare against the default
           # branch — not the unreachable-base error below, which would turn every new branch's first
@@ -75,6 +76,7 @@ jobs:
           if [ "$base" = "0000000000000000000000000000000000000000" ] || \
              { [ -n "$base" ] && ! git cat-file -e "$base^{commit}" 2>/dev/null; }; then
             echo "Base '$base' is not usable (branch creation or force-push); falling back to the default branch."
+            fellback=yes
             git fetch --no-tags origin "$DEFAULT_BRANCH" >/dev/null 2>&1 || true
             base=$(git rev-parse FETCH_HEAD 2>/dev/null || true)
             echo "Comparing against the default branch at ${base:-<unresolved>}."
@@ -129,7 +131,22 @@ jobs:
           # reachable through another ref makes `A...B` empty (the merge base is B itself) while
           # `A..B` reports the evidence file that changed. The three-dot form then prints "nothing to
           # guard" for a reset that rewrote evidence.
-          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then range="$base...HEAD"; else range="$base..HEAD"; fi
+          # Three dots when the base is a FORK POINT, two when it is this ref's previous tip.
+          #
+          # A pull request's base is a fork point, so `A...B` — merge-base to B — is what review
+          # wants. An ordinary push names the ref's own previous commit, where `A..B` is what that
+          # push did, and the difference matters for a default-branch reset.
+          #
+          # Branch creation is the third case and was being given the second's answer. Its `before`
+          # is all zeros, so the fallback above substitutes the default-branch TIP, which is a fork
+          # point, not a previous tip: two-dot then compares two endpoint trees, and every evidence
+          # folder added to the default branch since the new branch forked reads as a deletion by
+          # that branch. Folders that do not exist in its checkout would then be handed to the guard.
+          if [ -n "${{ github.event.pull_request.base.sha }}" ] || [ "$fellback" = "yes" ]; then
+            range="$base...HEAD"
+          else
+            range="$base..HEAD"
+          fi
           changed=$(git diff --name-only "$range" -- 'docs/evidence/*')
           dirs=$(printf '%s\n' "$changed" \
             | grep -E '^docs/evidence/[0-9]{4}-[0-9]{2}-[0-9]{2}/' \

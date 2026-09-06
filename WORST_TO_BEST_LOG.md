@@ -8802,3 +8802,55 @@ would have been rejected.
 `npm run evidence:guard` 8 rules pass · six mutation directions verified, including both orderings of
 a reporter's counts · full chain: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0, rewind
 17, Playwright 41 under the override, mandated row under a dated waiver, probe complete.
+
+### Addendum — round forty-five: the third time I fixed one instance and left the siblings
+
+Codex reviewed `51183274`. Five findings: four accepted, one declined for the second time.
+
+**The inventory requirement went onto lint and build, and nowhere else.** Deleting `e2e.txt` from
+`proof-tape.json` while leaving the transcript untouched left all eight rules passing, and the same
+was true of the probe and rewind transcripts — the three files carrying the *mandated* results. Two
+rounds ago a reviewer pointed out that a present, green `lint.txt` proves nothing about which run
+produced it. I fixed lint and build.
+
+That is the third time in this run:
+
+| Fixed | Left behind | Found by |
+|---|---|---|
+| `e2e exit=0` checked with `.test()` | `verify`, `lint`, `build` | reviewer found `verify`; I found the other two by grepping |
+| file header on `lint.txt`, `build.txt` | the rewind transcript | reviewer, one round later |
+| tape entry required for lint, build | `e2e.txt`, probes, rewinds | reviewer, two rounds later |
+
+> **Deleting one instance of a defect is not deleting the defect.** Round thirty-four produced that
+> rule and I have now broken it three times in eleven rounds — each time because a reviewer handed me
+> a specific line, and fixing the specific line felt like finishing. The question that would have
+> caught all three is the same one every time: *where else is this shape?*
+
+There is one `notTiedToRun(dir, file)` now, and every external transcript the guard validates goes
+through it.
+
+**`assumption-alarm.json` states its result as two arrays**, not a summary, so the self-agreement rule
+could not reach it — the same shape as `cipher-gate.json` last round. Filling `invalidAssumptions`
+while preserving the byte count left every rule passing. `scripts/assumption-alarm.mjs` exits 1 on
+either array being non-empty, which is now what the guard reads.
+
+**A high-severity advisory could pass.** The audit-result pattern accepted `found 1 high severity
+vulnerability` as evidence the gate ran, which it is — but `--audit-level=high` makes exactly that a
+failing audit, so seeing it beside `verify exit=0` means a branch-owned `audit:gate` masked the
+result. Low and moderate advisories remain a passing audit and stay allowed.
+
+**A new branch forked from a stale commit would have gone red.** Its `before` is all zeros, the
+fallback substitutes the default-branch *tip* — a fork point, not a previous tip — and a two-dot
+range then reads every folder added to the default branch since the fork as a deletion by the new
+branch. Three-dot when the fallback is taken, two-dot for an ordinary push, three-dot for a pull
+request: the range now follows what the base actually *is*.
+
+**Declined a second time: route the guard's reads through a seam adapter.** No new argument was
+offered and the measurement stands — all thirteen scripts in `scripts/` read `node:fs` directly, and
+a guard that reaches the filesystem through the application cannot report that the application is
+broken.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean · `npm run cipher:gate` exit 0 ·
+`npm run evidence:guard` 8 rules pass · seven mutation directions verified · full chain: check 0/0,
+1445 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41 under the override,
+mandated row under a dated waiver, probe complete.
