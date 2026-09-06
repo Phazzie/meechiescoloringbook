@@ -10662,3 +10662,10 @@ failure commented on that way needs no second comment, and no re-run is spent on
 
 `check` 0/0 · `lint` exit=0 · `npm test` **1596 passed**, 1 skipped · `build` exit=0 · `test:e2e`
 **49 passed** · `npm run verify` exit=0.
+
+**Correction to the commit message of `072ad72`:** it says the inventory was regenerated to "34
+files". It is **31** — `git diff --name-status origin/main..HEAD | wc -l` on the merged head, which
+is also what `plan.md` says, because that table is generated and the commit message was typed. The
+commit stands as pushed rather than being rewritten; the correction lives here, where this file's
+own history of miscounting itself is already recorded three times. The number in the artifact was
+right and the number in the prose was wrong, which is the argument for generating the artifact.
