@@ -31,6 +31,9 @@ import { toDateFolder } from './evidence-reporting.mjs';
  * so — the capture pipeline refused to go on, which is the pipeline working. Splitting on the escape
  * and trimming the sequence off each following piece needs no control character in a pattern.
  */
+/** Where dated evidence folders live, as the proof tape records them. */
+const EVIDENCE_ROOT = 'docs/evidence';
+
 const ESC = String.fromCharCode(27);
 const stripAnsi = (text) =>
 	text
@@ -211,7 +214,16 @@ const mandatedRowProblem = (row1) => {
 	// excuse a row that does not say what the command did.
 	if (status.problem !== undefined)
 		return `${status.problem}; the mandated command's own result is what this row is for, and no waiver covers a row that does not state it.`;
-	if (status.code === '0') return null;
+	if (status.code === '0') {
+		// A zero status and a red summary is a contradiction, and the row was accepted on the status
+		// alone. `41 failed` above `e2e-mandated exit=0` passed every rule: a command whose result was
+		// captured from the wrong place, or masked by a `|| true`, looks exactly like this. The status
+		// answers "did it fail"; the summary answers "did anything in it fail", and a mandated run
+		// needs both to agree.
+		const contradicted = reportedFailure(row1);
+		if (contradicted === null) return null;
+		return `records a successful mandated command whose own summary reports failures ("${contradicted}"); a zero exit status beside a red summary means the status did not come from the run it claims to describe.`;
+	}
 	const stated = /^Waiver-Expires: (\d{4}-\d{2}-\d{2})$/m.exec(row1)?.[1];
 	if (stated === undefined || !/^Waiver-Reason: \S/m.test(row1))
 		return 'records a failing mandated command with no waiver; a gate that cannot be met is reported as unmet, with a reason and an expiry, not passed over.';
@@ -321,6 +333,16 @@ const cipherGateProblem = (dir, raw) => {
 		.map((entry) => (typeof entry?.path === 'string' && entry.path !== '' ? entry.path : '<no path>'));
 	if (unconfirmed.length > 0)
 		return `cipher-gate.json reports status ok while these cited files are not confirmed to exist: ${unconfirmed.join(', ')}; the gate's status is a summary of exactly these entries.`;
+	// `exists: true` is what the gate believed when it ran. Whether the file is here now is a
+	// different question, and only the second one can be answered from the committed tree: renaming a
+	// cited path to `scripts/evidence-guard.zzz` while leaving the boolean alone kept every rule
+	// passing, so a file could be deleted or renamed after the gate ran and the evidence stayed
+	// certified. A recorded boolean is a claim about the past; `existsSync` is the check.
+	const vanished = entries
+		.map((entry) => entry.path)
+		.filter((path) => !existsSync(path));
+	if (vanished.length > 0)
+		return `cipher-gate.json cites files that are not in this tree: ${vanished.join(', ')}; the gate recorded them as existing, and a recorded boolean is not the file.`;
 	return null;
 };
 
@@ -408,13 +430,18 @@ const replayedFrom = (dir, tape) => {
 	// character — it would return the whole string and this rule would reject valid evidence as a
 	// replay. That is the rule doing the opposite of its job: three of this guard's earlier bugs were
 	// correct evidence refused, and this one was introduced by the fix for evidence wrongly accepted.
-	const named = (value) => basename(value.replace(/\\/g, '/'));
-	const here = named(dir);
-	const claimed = typeof tape.evidenceDir === 'string' ? named(tape.evidenceDir) : null;
+	const slashed = (value) => value.replace(/\\/g, '/').replace(/\/+$/, '');
+	const here = basename(slashed(dir));
+	const claimed = typeof tape.evidenceDir === 'string' ? slashed(tape.evidenceDir) : null;
 	if (claimed === null)
 		return 'proof-tape.json records no evidenceDir, so it cannot be shown to describe this folder rather than another one.';
-	if (claimed !== here)
-		return `proof-tape.json says it describes "${claimed}" but it is committed in "${here}"; this folder is a copy of another run's evidence, not evidence of this one.`;
+	// The WHOLE path, not its last segment. Comparing basenames asked whether the tape names a folder
+	// with the same name, which `fake/evidence/2026-09-06` also satisfies — a tape generated for, or
+	// edited to name, some other directory was certified as describing this repository's evidence.
+	// The one thing normalised is the separator, because `proof-tape.mjs` joins this path and a tape
+	// written on Windows records `docs\evidence\2026-09-06`, which is the same folder.
+	if (claimed !== `${EVIDENCE_ROOT}/${here}`)
+		return `proof-tape.json says it describes "${claimed}" but it is committed in "${EVIDENCE_ROOT}/${here}"; this folder is a copy of another run's evidence, or the tape was written for a different directory.`;
 	// The run's own clock has to agree with the folder it is filed under. A dated folder names a day;
 	// a tape stamped on a different day is a replay filed under a fresh name.
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(here)) return null;
@@ -478,6 +505,43 @@ const namedUnder = (md, heading, next) => {
 };
 
 /**
+ * Whether `seam-ledger.md` names the same seams as `seam-ledger.json`, as a sentence, or `null`.
+ *
+ * The ledger stage writes both, and only the JSON was required: a folder could omit the table a
+ * non-coder actually reads, be absent from both proof-tape outputs as a result, and pass every rule.
+ * Requiring it to exist is half the fix — a summary that exists and disagrees is the defect this
+ * whole branch is about — so it is compared with the JSON the way the Clan Chain's two outputs are.
+ */
+const seamLedgerSummaryProblem = (dir) => {
+	const md = read(dir, 'seam-ledger.md');
+	if (md === null) return 'seam-ledger.md is missing; the ledger stage writes a table beside its JSON.';
+	const raw = read(dir, 'seam-ledger.json');
+	if (raw === null) return 'seam-ledger.json is missing; it is a mandatory chain artifact.';
+	let ledger;
+	try {
+		ledger = JSON.parse(raw);
+	} catch {
+		return 'seam-ledger.json is not readable as JSON, so the table cannot be checked against it.';
+	}
+	const seams = Array.isArray(ledger.seams) ? ledger.seams.map((entry) => entry?.seam) : null;
+	if (seams === null) return 'seam-ledger.json carries no seams list, so its table describes nothing.';
+	// The first column of each table row, skipping the header and its divider.
+	const tabled = md
+		.split('\n')
+		.map((line) => /^\|\s*([^|]+?)\s*\|/.exec(line)?.[1])
+		.filter((name) => name !== undefined && name !== 'Seam' && !/^-+$/.test(name));
+	const missing = seams.filter((seam) => !tabled.includes(seam));
+	const extra = tabled.filter((seam) => !seams.includes(seam));
+	if (missing.length === 0 && extra.length === 0) return null;
+	return `seam-ledger.md and seam-ledger.json disagree about which seams exist: ${[
+		missing.length > 0 ? `the JSON lists these and the table omits them: ${missing.join(', ')}` : null,
+		extra.length > 0 ? `the table lists these and the JSON does not: ${extra.join(', ')}` : null
+	]
+		.filter((part) => part !== null)
+		.join('; ')}.`;
+};
+
+/**
  * Whether the Clan Chain agrees with the ledger it is derived from and with its own summary, as a
  * sentence, or `null`.
  *
@@ -506,12 +570,25 @@ const clanChainProblem = (dir) => {
 	const ledgerRaw = read(dir, 'seam-ledger.json');
 	const ledger = ledgerRaw === null ? null : JSON.parse(ledgerRaw);
 	const ledgerOk = Array.isArray(ledger?.seams)
-		? ledger.seams.filter((entry) => entry?.status === 'ok').length
+		? ledger.seams.filter((entry) => entry?.status === 'ok').map((entry) => entry?.seam)
 		: null;
 	if (ledgerOk === null)
 		return 'seam-ledger.json carries no seams list, so the Clan Chain cannot be checked against it.';
-	if (clean.length !== ledgerOk)
-		return `clan-chain.json calls ${clean.length} seams clean and seam-ledger.json reports ${ledgerOk} ok; the chain and the ledger it is derived from describe different runs.`;
+	// The NAMES, not the count. Comparing cardinality asks whether two lists are the same length,
+	// which they remain when one clean seam is replaced by an equal-length invention — in both chain
+	// outputs at once, so they agree with each other about a seam the ledger has never heard of. The
+	// chain is derived from the ledger; "derived from" is a claim about which seams, not how many.
+	const chainNames = new Set(clean.map((entry) => entry?.seam));
+	const ledgerNames = new Set(ledgerOk);
+	const invented = [...chainNames].filter((seam) => !ledgerNames.has(seam));
+	const dropped = [...ledgerNames].filter((seam) => !chainNames.has(seam));
+	if (invented.length > 0 || dropped.length > 0)
+		return `clan-chain.json and seam-ledger.json disagree about which seams are clean: ${[
+			invented.length > 0 ? `the chain calls these clean and the ledger does not list them: ${invented.join(', ')}` : null,
+			dropped.length > 0 ? `the ledger reports these ok and the chain omits them: ${dropped.join(', ')}` : null
+		]
+			.filter((part) => part !== null)
+			.join('; ')}.`;
 	return chainSummaryProblem(dir, clean);
 };
 
@@ -731,7 +808,9 @@ const RULES = [
 				'shaolin-lint.json',
 				'assumption-alarm.json',
 				'seam-ledger.json',
+				'seam-ledger.md',
 				'clan-chain.json',
+				'clan-chain.md',
 				'proof-tape.json'
 			];
 			const inventory = tapeInventory(dir);
@@ -740,6 +819,11 @@ const RULES = [
 			// outputs. That exemption was the hole: the mandatory-artifact list stopped at
 			// `proof-tape.json`, so the plain-English summary the chain must write was the one
 			// artifact no rule read — deleting it left all eight rules passing.
+			// `seam-ledger.md` and `clan-chain.md` are written by their stages exactly as the JSON is,
+			// and the list stopped at the JSON — so a folder could omit the human-readable ledger, be
+			// missing from both proof-tape outputs as a result, and pass. They are in the inventory
+			// (unlike the tape's own two outputs), so they are required here AND carried through the
+			// checks below rather than exempted.
 			const absent = [...CHAIN_ARTIFACTS, 'proof-tape.md'].filter(
 				(name) => read(dir, name) === null
 			);
@@ -887,11 +971,21 @@ const RULES = [
 				return `e2e.txt Row 2 ${row2Exit}; the counts beneath it cannot settle what this rule needs the status to answer.`;
 			if (lastPassedCount(row2) === null)
 				return 'e2e.txt Row 2 has no "<n> passed" line; the transcript was spliced in against a header that did not match, so the run it records cannot be audited.';
+
 			// Playwright's documented default glob is `**/*.@(spec|test).?(c|m)[jt]s?(x)`, so a suite
 			// named `page.test.ts` or `.spec.mjs` is ordinary and was being rejected. A proxy built
 			// from the one filename this repository happens to use is a rule about this repository.
-			if (!/\.(spec|test)\.[cm]?[jt]sx?\b/.test(row2))
-				return 'e2e.txt Row 2 has a summary but no per-test lines; the summary cannot be checked against anything.';
+			//
+			// A LOCATION, not a filename, and enough of them to account for the total. The unanchored
+			// suffix search asked whether the row mentions a spec file anywhere — which the command
+			// line does, and the reproduced config does, and a sentence of prose does. Deleting every
+			// per-test line while keeping `41 passed` and one mention of `tests/e2e/smoke.spec.ts` left
+			// this rule satisfied and the summary again checkable against nothing. A reporter record
+			// cites `file:line:column`; prose cites a file.
+			const records = row2.match(/\S+\.(spec|test)\.[cm]?[jt]sx?:\d{1,6}:\d{1,6}/g) ?? [];
+			const passed = lastPassedCount(row2);
+			if (records.length < passed)
+				return `e2e.txt Row 2 reports ${passed} passed and carries ${records.length} per-test records; a summary with fewer records than passes cannot be checked against the run it claims to describe.`;
 			// A row run under a config override has to carry that config. This container cannot launch
 			// the browser the mandated command wants, so Row 2 runs under a scratch config that is not
 			// in the repository — and for four heads this section described that file instead of
@@ -1009,6 +1103,33 @@ const RULES = [
 			const failing = rewinds.filter((f) => reportedFailure(read(dir, f) ?? '') !== null);
 			if (failing.length > 0)
 				return `these rewind transcripts report failures beside their passes: ${failing.join(', ')}.`;
+			// The run's own status, which the probes and the end-to-end row have carried for several
+			// rounds and the rewinds did not. `rewind exit=1` beneath a green summary passed every
+			// rule: `docs/evidence/README.md` says every transcript records the status of the command
+			// that produced it, and this was the last transcript in the folder where that sentence
+			// described a check nobody had written.
+			//
+			// Seventh sibling. The exit-status requirement went onto `verify-outer`, then `e2e`, then
+			// lint and build, then the probes — and each time the rewinds sat beside them, being asked
+			// only what their counts said.
+			//
+			// "At least one carries it, and none contradicts it", rather than "every file carries it",
+			// because two transcripts here describe the SAME run: `scripts/rewind.mjs` writes its own,
+			// named for the seam, and the capture wraps that run and appends the status. The tool
+			// cannot append its own exit status — it is the command — so demanding one from every file
+			// would reject a folder for containing the chain's own output. Writing this rule the strict
+			// way first is how that came out: it failed on committed evidence that is correct.
+			const statuses = rewinds.map((file) => ({
+				file,
+				problem: exitStatusProblem(read(dir, file) ?? '', 'rewind')
+			}));
+			const red = statuses.find(
+				(entry) => entry.problem !== null && !entry.problem.startsWith('carries no')
+			);
+			if (red !== undefined)
+				return `${red.file} ${red.problem}; a seam-scoped run's counts describe it, and only its status reports it.`;
+			if (rewinds.length > 0 && statuses.every((entry) => entry.problem !== null))
+				return `no rewind transcript carries a "rewind exit=<code>" line: ${rewinds.join(', ')}; the counts describe these runs and nothing reports them.`;
 			return null;
 		}
 	},
@@ -1036,6 +1157,11 @@ const RULES = [
 			// check below cannot reach it either.
 			const chainProblem = clanChainProblem(dir);
 			if (chainProblem !== null) return chainProblem;
+			// The ledger's Markdown, against the ledger's JSON — the same question asked of the chain's
+			// two outputs, and for the same reason: the human-readable half is what a non-coder reads,
+			// and it was required to exist without being required to say the same thing.
+			const ledgerProblem = seamLedgerSummaryProblem(dir);
+			if (ledgerProblem !== null) return ledgerProblem;
 			// assumption-alarm states its result as two arrays rather than a summary, so the
 			// summary-based check below could not reach it and nothing else looked: filling
 			// `invalidAssumptions` while preserving the byte count left every rule passing.

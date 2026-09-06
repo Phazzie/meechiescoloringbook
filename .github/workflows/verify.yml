@@ -242,16 +242,37 @@ jobs:
           # run: the check that reads the gate could not be started, which CI reported as the gate
           # failing. A directory plus the real filename keeps the name and needs no GNU-only flag.
           trusted="$(mktemp -d)/chain-intact.mjs"
-          if [ -n "${BASE_SHA:-}" ] && git cat-file -e "$BASE_SHA:$checker" 2>/dev/null; then
-            git show "$BASE_SHA:$checker" > "$trusted"
-            echo "Checking against $checker as of the base commit $BASE_SHA, not this branch's copy."
-          else
-            cp "$checker" "$trusted"
+          if [ -z "${BASE_SHA:-}" ] || ! git cat-file -e "$BASE_SHA:$checker" 2>/dev/null; then
             echo "NOTE: the base commit has no $checker (it is being introduced here, or this is a"
             echo "push event with no base). Running this branch's own copy, which cannot catch a"
             echo "change that edits the checker and the manifest together."
+            node "$checker"
+            exit 0
           fi
-          node "$trusted"
+          git show "$BASE_SHA:$checker" > "$trusted"
+          echo "Checking against $checker as of the base commit $BASE_SHA, not this branch's copy."
+          if node "$trusted"; then
+            exit 0
+          fi
+          # The base checker refused. That is either the case it exists for — a branch hollowing out
+          # its own gate — or the one legitimate reason the two can disagree: the chain itself is
+          # being changed, in this pull request, together with the checker that records what the
+          # chain is. Enforcing the base copy unconditionally makes that change impossible: the
+          # request is red for not matching the chain it is replacing, and updating the checker first
+          # only moves the failure to the merge commit, where the new checker meets the old manifest.
+          #
+          # The two cases cannot be told apart by anything in the branch, because everything in the
+          # branch is what is under review. What CI can do is refuse to let it happen quietly.
+          if git diff --quiet "$BASE_SHA" HEAD -- "$checker"; then
+            echo "The gate check failed and this branch does not change $checker, so the chain is" >&2
+            echo "not being updated here: the manifest no longer matches the gate it must run." >&2
+            exit 1
+          fi
+          echo "::warning title=Verification gate changed::This pull request changes the definition of the verification chain AND the checker that enforces it. CI cannot tell a legitimate chain update from a branch weakening its own gate; a human reviewer decides."
+          echo "--- how the gate's definition changes in this pull request ---"
+          git --no-pager diff "$BASE_SHA" HEAD -- "$checker" package.json
+          echo "--- re-checking with this branch's own checker ---"
+          node "$checker"
       # `npm ci`, not `npm install`. `install` may rewrite `package-lock.json` inside the ephemeral
       # checkout, so CI would verify a dependency graph that differs from the committed one and
       # silently repair the very inconsistency a reviewer needs to see. `ci` fails on that instead,

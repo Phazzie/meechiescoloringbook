@@ -9224,3 +9224,48 @@ script was tested; the step that runs the script was written straight into CI an
 Fixed with `"$(mktemp -d)/chain-intact.mjs"`, which keeps the extension and needs no GNU-only flag,
 and verified by running both branches of the step verbatim — the base-revision path and the fallback
 — rather than by reasoning about them.
+
+### Addendum, round 52 — eight more, and the gate that could never change
+
+Every one reproduced against the frozen fixture before being fixed, and re-run after. Three of my
+first reproductions tripped the *size* rule instead of the rule under test, because I had edited
+files without correcting the inventory — Codex's write-ups say plainly that they corrected it. A
+reproduction that fails for the wrong reason is the same nothing as a mutation that changes nothing,
+so they were redone faithfully.
+
+| Defeat | What the rule was asking | What it asks now |
+|---|---|---|
+| `rewind exit=1` under a green summary | what the counts said | the run's own status, like the probes and the e2e row |
+| A clean seam renamed, same length, in both chain outputs | whether the lists are the same *length* as the ledger's | whether they name the same *seams* |
+| A cited Cipher Gate path renamed to a file that does not exist | the artifact's recorded `exists: true` | `existsSync` in the tree being reviewed |
+| Every per-test line deleted, `41 passed` kept, one spec filename left in prose | whether a spec filename appears anywhere | at least as many `file:line:column` records as passes |
+| `seam-ledger.md` omitted | nothing — only the JSON was required | present, and naming the same seams as the JSON |
+| The tape naming `fake/evidence/2026-09-06` | whether the *basename* matches | the whole `docs/evidence/<date>` path |
+| `41 failed` above `e2e-mandated exit=0` | the status alone | the status and the summary, which must agree |
+
+> **Seventh sibling, and the pattern is now the finding itself.** The exit-status requirement went
+> onto `verify-outer`, then `e2e`, then lint and build, then the probes — and the rewinds sat beside
+> them for six rounds being asked only what their counts said. Fixing one instance is not fixing the
+> defect; I have written that sentence in this log four times and been caught by it again.
+
+Writing the rewind rule the strict way first — "every rewind transcript carries `rewind exit=`" —
+failed on correct committed evidence, because `scripts/rewind.mjs` writes its own transcript and a
+command cannot append its own exit status. The rule is "at least one carries it, none contradicts
+it", which is what the folder actually contains.
+
+**And the gate could never legitimately change.** Running the checker from the base commit makes a
+real chain update impossible: the request is red for not matching the chain it is replacing, and
+updating the checker first only moves the failure to the merge commit, where the new checker meets
+the old manifest. Nothing in the branch can distinguish that from a branch hollowing out its own
+gate, because everything in the branch is what is under review. So CI now refuses to let it happen
+*quietly*: when the base checker rejects and the checker itself is unchanged, the step fails; when
+the checker is part of the change, the step prints a GitHub warning annotation and the diff of both
+files, then re-checks with the branch's copy. The authentication is the reviewer, and that is said
+in the step rather than implied.
+
+All three paths were run against the step's actual text, extracted from the workflow file so that
+the thing tested is the thing that ships — which is the lesson from the last round, where the script
+was tested and the shell around it had never been executed.
+
+`npm run lint` clean · 8 rules pass on the fixture and on today's folder · 26 evidence-guard tests ·
+9 chain-intact tests.

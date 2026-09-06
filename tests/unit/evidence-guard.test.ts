@@ -329,6 +329,66 @@ describe('evidence-guard', () => {
 		expect(said).toMatch('which is after today');
 	});
 
+	it('rejects a rewind whose own exit status reports a failure', () => {
+		// The counts describe a run; only the status reports it. Six other transcripts had carried
+		// this requirement for several rounds while the rewinds were asked only what their counts said.
+		const dir = fresh();
+		mutate(dir, 'rewind-CreationStoreSeam-self-contained.txt', /rewind exit=0/, 'rewind exit=1');
+		expect(refusalOf(dir)).toMatch('so that run failed');
+	});
+
+	it('rejects a Clan Chain naming a seam the ledger has never heard of', () => {
+		// Same length, and changed in BOTH chain outputs, so they agree with each other about a seam
+		// that does not exist. Comparing list lengths cannot see it; comparing names can.
+		const dir = fresh();
+		mutate(dir, 'clan-chain.json', /AppConfigSeam/, 'AppBogusXSeam');
+		mutate(dir, 'clan-chain.md', /AppConfigSeam/, 'AppBogusXSeam');
+		expect(refusalOf(dir)).toMatch('disagree about which seams are clean');
+	});
+
+	it('rejects a Cipher Gate citing a file that is not in the tree', () => {
+		// `exists: true` is what the gate believed when it ran. Whether the file is here now is a
+		// different question, and the only one the committed tree can answer.
+		const dir = fresh();
+		mutate(dir, 'cipher-gate.json', /scripts\/evidence-guard\.mjs/, 'scripts/evidence-guard.zzz');
+		expect(refusalOf(dir)).toMatch('cites files that are not in this tree');
+	});
+
+	it('rejects an end-to-end row whose summary outruns its per-test records', () => {
+		// Deleting every reporter record while keeping `41 passed` and a mention of a spec file in
+		// prose satisfied the old filename search. A record cites file:line:column; prose cites a file.
+		const dir = fresh();
+		const path = join(dir, 'e2e.txt');
+		const kept = readFileSync(path, 'utf8')
+			.split('\n')
+			.filter((line) => !/\.(spec|test)\.[cm]?[jt]sx?:\d+:\d+/.test(line));
+		expect(kept.join('\n'), 'no per-test records were removed').not.toBe(readFileSync(path, 'utf8'));
+		writeFileSync(path, kept.join('\n'));
+		resize(dir);
+		resummarise(dir);
+		expect(refusalOf(dir)).toMatch('per-test records');
+	});
+
+	it('rejects a mandated row reporting failures beside a successful status', () => {
+		const dir = fresh();
+		mutate(dir, 'e2e.txt', /e2e-mandated exit=1/, '  41 failed\ne2e-mandated exit=0');
+		expect(refusalOf(dir)).toMatch('whose own summary reports failures');
+	});
+
+	it('rejects a folder whose tape names a different evidence directory', () => {
+		// The basename matches; the path does not. `fake/evidence/2026-09-06` is not this folder.
+		const dir = fresh();
+		mutate(dir, 'proof-tape.json', /docs\/evidence\//, 'fake/evidence/');
+		mutate(dir, 'proof-tape.md', /docs\/evidence\//, 'fake/evidence/');
+		expect(refusalOf(dir)).toMatch('the tape was written for a different directory');
+	});
+
+	it('rejects a folder with no human-readable seam ledger', () => {
+		const dir = fresh();
+		rmSync(join(dir, 'seam-ledger.md'));
+		expect(refusalOf(dir)).toMatch('left no artifact: seam-ledger.md');
+	});
+
 	it('rejects a Cipher Gate artifact that did not come back ok', () => {
 		const dir = fresh();
 		mutate(dir, 'cipher-gate.json', /"status": "ok"/, '"status": "blocked"');
