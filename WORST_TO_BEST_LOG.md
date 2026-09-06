@@ -10977,3 +10977,145 @@ Candidates, unranked, weaker than this one by this log's own measure:
 
 Do not inherit this entry's measurements. Re-measure — `getWeeklyModes` is now a function of an
 instant you supply, so the simulations above are three lines to reproduce.
+
+## Run 12 — merge close-out — PR #315 merged as `fa32bc7`
+
+**Head merged:** `13062a3` · **Base:** `main` at `901464c` · 3 commits, 23 files, +1035 / −111
+
+### Gate state at merge
+
+| Check | Conclusion |
+|---|---|
+| `verify` (both workflow runs) | success |
+| `SonarCloud` / `SonarCloud Code Analysis` | success — Quality Gate passed |
+| `CodeQL`, `Analyze (actions)`, `Analyze (javascript-typescript)` | success |
+| `Vercel` deployment status, `Vercel Preview Comments` | success |
+| `CodeRabbit` status | success |
+| `Sourcery review` | skipped (budget) |
+| **`Rosentic - Conflict Detection`** | **failure — dispositioned, see below** |
+
+`mergeable_state` was `unstable`, not `blocked` — which is GitHub's way of saying the red check is
+not a required one. Merged with squash.
+
+### The one red check, and why it was not a reason to wait
+
+Rosentic compares the branch against every other open branch. Two of its six findings name this
+diff: `getMonthlyMode` and `getWeeklyModes` now require `epochMs`, and two branches still call them
+with none. **So it was red because of this change.** That is stated plainly because the tempting
+write-up — "flaky", "not ours" — is false and would be dangerous to inherit: `Rosentic` was
+**green** on #311, so it is not a blanket-red check, and a future run that learns "Rosentic is
+noise" from this entry will wave through a real cross-branch break.
+
+What made it non-blocking was specific:
+
+1. **Its proposed fix would have undone the pull request.** Rosentic suggests "give `epochMs` a
+   default value". The only available default is `Date.now()` — an unseamed host-clock read inside
+   core logic, which is the exact defect the change removes and the thing that froze the strip into
+   the prerendered HTML at build time.
+2. **The affected branches cannot merge into today's `main` regardless.** `claude/sweet-mendel-LJ9Iu`
+   (PR #151, 2026-06-08) and `claude/trusting-volta-bb8mvr` (PR #208, 2026-07-01) are each
+   **297 commits behind** — `git rev-list --count origin/<branch>..origin/main`.
+3. **Four of the six findings are those branches conflicting with `main`, not with this diff.** They
+   are those branches' own parameter removals from `currentStyleSelection`,
+   `derivesDenseDecorations`, `specOwnQuote` and `studioActionStartsRound`, colliding with call
+   sites this branch inherits unchanged. Established, not asserted:
+   `git diff origin/main...HEAD -- src/routes/studio-state.svelte.ts src/lib/core/meechie-studio.ts |
+   grep -E "(derivesDenseDecorations|specOwnQuote|studioActionStartsRound|matchesDraftSeedText|currentStyleSelection)"`
+   returns nothing.
+4. **No re-run was spent.** The check is deterministic over branch contents; it is not a flake and
+   re-running it would produce the same six findings. Saying "flake" here would have been a lie.
+5. Precedent: **#313 merged as `b1a6cfc` with this same check red.**
+
+The real remedy is #151 and #208 rebasing. That is their authors' call; pushing to someone else's
+branch is out.
+
+### What the reviews cost and bought
+
+**Every automated reviewer was rate-limited at once**, which is worth recording because it changes
+what a run should do:
+
+- **Codex** — over its usage limit for code reviews. No findings.
+- **Sourcery** — over its 250,000-character 7-day diff budget. Posted a Reviewer's Guide, no findings.
+- **CodeRabbit** — automatic review is off for repositories under 10 stars.
+
+Left alone, this pull request would have merged **with no code review at all**. Asking CodeRabbit
+explicitly (`@coderabbitai review`) cost one comment and was the single highest-value action of the
+review phase. Its verdict: *"No actionable findings."* It ran an independent Python check over
+**11,323 UTC day boundaries from 2000 through 2030**, confirming every computed `changesAtMs` was a
+future UTC midnight, and confirmed the hydration gate has exactly one expression. **A future run
+that finds all three bots quiet should ask, not assume the diff is clean.**
+
+### The two defects this run caught on itself, after opening the pull request
+
+Both were found by doing the thing the self-critique in `plan.md` admitted was missing, rather than
+by a reviewer:
+
+1. **The strip laid out as 6 + 2 with a hole four cards wide.** `repeat(auto-fill, minmax(190px,
+   1fr))` fits six columns in the 1195px content box. Found by *screenshotting the page at 1280,
+   900 and 420px* instead of reasoning about the rules. Fixed to `repeat(4, minmax(0, 1fr))` — eight
+   divides by four and by two and by nothing else useful. The animation stagger went 90ms → 45ms in
+   the same commit: it is a per-card delay, so eight cards made the last one arrive 630ms after the
+   first.
+2. **The hydration gate was expressed twice** — once in `StudioState.spotlightNote` and once in
+   `+page.svelte` as `studio.isBrowser ? studio.spotlight : null`. Two independent copies of one
+   rule, free to drift. Consolidated into the single `$derived` before the first push. This is the
+   thing CodeRabbit was explicitly asked to check and found already correct.
+
+### The SonarCloud method, reused from Run 8 and confirmed working
+
+`sonarcloud.io` is blocked by this container's egress policy (`curl` → `CONNECT tunnel failed,
+response 403`; `WebFetch` → `EGRESS_BLOCKED`), and the check-run output carries only the summary
+counts. Run 8's recorded technique reproduced the count exactly on the first try:
+
+```
+npm install --no-save eslint-plugin-sonarjs      # 4.2.0
+# a throwaway flat config using ONLY sonarjs.configs.recommended.rules
+```
+
+Enabling every rule the plugin ships is what made two earlier attempts fail; `recommended` is what
+Sonar runs. Result — two errors on the touched files, of which **one was mine**:
+
+| Finding | Provenance | Disposition |
+|---|---|---|
+| `mode-spotlight.test.ts:53` `prefer-specific-assertions` | this PR | fixed — `toHaveLength(8)` |
+| `studio-state.svelte.ts:1384` `no-nested-conditional` | `73a8f05`, on `main` | left alone — the same line Run 8 dispositioned, shifted down by this diff |
+| `smoke.spec.ts:112, 668` | `3c110d9`, on `main` | not this PR's |
+| `smoke.spec.ts:260` `super-linear-regex` | `2d3c383`, on `main` | not this PR's |
+
+Provenance for each: `git log -L <line>,<line>:<file>` then
+`git merge-base --is-ancestor <commit> origin/main`. The plugin was installed with `--no-save` and
+the config deleted; `package.json` and `package-lock.json` are unchanged in the merged diff.
+
+**Run 8's lesson held, and is now confirmed twice: reproduce the checker's *configuration*, not just
+the checker.**
+
+### Environment limits this run hit, for the next one
+
+- **`sonarcloud.io` is egress-blocked.** Use the local `sonarjs` `recommended` reproduction above.
+- **The Vercel preview domain is egress-blocked too**, so the deployed page cannot be fetched and
+  checked from here. Build locally and grep `.svelte-kit/output/prerendered/` — it is the same
+  output the deploy serves, and it is what proved both the before and after states of this run.
+- **Playwright cannot launch unmodified.** The container ships Chromium build 1194;
+  `@playwright/test@1.58.2` looks for 1208, and `npx playwright install` is not permitted here. Run
+  the suite once with `launchOptions.executablePath:
+  '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'`, then **revert `playwright.config.ts`** — it
+  must not appear in the diff. 49 tests passed that way.
+- **Watch the exit code you are actually reading.** `npm run test:e2e 2>&1 | tail -40` reports
+  `tail`'s exit code, not Playwright's. This run read a `0` from a piped run and briefly believed
+  the e2e suite had passed when every test had failed to launch a browser. Capture to a file and
+  check `$?` directly.
+
+### Deferred, and still the strongest candidate
+
+**The reader's chosen mode is not persisted.** `handleModeSelect` ends in `scheduleDraftSave()`, but
+`DraftRecordSchema` has no mode field. Pick a mode, type evidence, refresh: the evidence returns
+under a different question, wired to a different `toolId`. Blocked only by `AGENTS.md`'s rule that a
+pull request carrying a schema or contract change must not be auto-merged — a scheduled run has no
+human to wait for. **A run that can hold a pull request open should take this first.**
+
+Also still open, both carried forward: `ChatInterpretationSeam` (a complete provider-backed billable
+seam with a live endpoint and zero consumers — `grep -rn "chatInterpretationAdapter" src/routes
+src/lib/components` returns nothing), and `MeechieToolOutput.quoteScore` / `modelMetadata` from Run
+11's list.
+
+Do not inherit this entry's measurements. Re-measure.

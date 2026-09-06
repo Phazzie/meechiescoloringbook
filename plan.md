@@ -8,7 +8,44 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
-## Run 12 (2026-09-06) — the mode strip: all eight modes, and a spotlight that knows what day it is
+## Run 12 close-out (2026-09-06) — micro plan, PR for the merge record
+
+Required by `AGENTS.md` L108: a governance-only documentation change still needs a plan listing the
+seams, files, commands, and how behaviour stays unchanged. Run 11's close-out recorded that PR #312
+opened without one and a review caught it; writing this first is the point of that finding existing.
+
+**Goal:** record the Run 12 merge close-out in the append-only log — the gate state at merge, the
+evidence behind the one red check, what the review rounds cost and bought, and the candidates a
+future run should weigh.
+
+**Seams:** none. No seam is named, read or changed.
+
+| File | Action | What changes |
+|---|---|---|
+| `WORST_TO_BEST_LOG.md` | [MODIFY] | one appended section; no existing line edited |
+| `plan.md` | [MODIFY] | this micro plan, and Run 12's own plan retired below it |
+
+**Anti-goals:** no file under `src/`, `tests/`, `contracts/`, `probes/`, `fixtures/`,
+`src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/`, `static/` or `docs/evidence/`. No evidence
+regeneration: the chain already ran on the head that merged and its outputs describe that code —
+re-running it here would replace evidence for the change with evidence for a Markdown append.
+
+**How behaviour stays unchanged:** the diff is prose. No import, export, route, contract, schema,
+prompt string or build input is touched, so nothing the application does can differ.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run verify`.
+
+**Self-critique.** The risk is not to the codebase — it is that a wrong close-out is copied forward
+by a future unattended run that treats this log as its record of prior results. The specific hazard
+here is the Rosentic disposition: it would be easy, and wrong, to write it up as "a flaky check" or
+"not this PR's". It was neither. It was a real consequence of this PR's signature change, whose only
+proposed remedy would have undone the PR, against two branches that cannot merge into today's `main`
+anyway. If a future run inherits "Rosentic is noise" from a sloppy sentence here, it will wave
+through a genuine cross-branch break. The entry therefore states plainly that the check was red
+*because of this diff*, and that #311 was green on the same check — so nobody can read it as a
+blanket dismissal.
+
+## Run 12 (2026-09-06) — the mode strip: all eight modes, and a spotlight that knows what day it is — **merged as `fa32bc7`; retired**
 
 **Process note, recorded before anything else.** `AGENTS.md` requires the plan before the code
 changes. The investigation and the design decisions below were made before any file was edited, but
