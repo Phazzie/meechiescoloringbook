@@ -9202,3 +9202,25 @@ It is written in the workflow and in the script header rather than left for some
 
 `npm run lint` clean · `sonarjs` recommended clean · 28 tests across the two guard suites · both
 findings reproduced against the fix and refused.
+
+**Postscript to round 51 — the check that could not start.** The push turned `verify` red, in the
+step added to protect the gate:
+
+```
+TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".jh3SdOiYKU" for /tmp/tmp.jh3SdOiYKU
+```
+
+`mktemp` yields `/tmp/tmp.XXXXXXXX`, and this package is not `"type": "module"`, so the `.mjs`
+extension is the only thing that makes a file ESM. Copying the trusted checker to a name without it
+meant node would not load it at all.
+
+I had run `node scripts/chain-intact.mjs` many times and never once run the shell around it. The
+script was tested; the step that runs the script was written straight into CI and shipped unrun.
+
+> **A check is not only its logic. The thing that starts it is part of it, and mine had never been
+> executed.** Same family as everything else here: `verify.yml` is a file no test covers, so the
+> only way to know it works is to run its commands — which took ten seconds, afterwards.
+
+Fixed with `"$(mktemp -d)/chain-intact.mjs"`, which keeps the extension and needs no GNU-only flag,
+and verified by running both branches of the step verbatim — the base-revision path and the fallback
+— rather than by reasoning about them.
