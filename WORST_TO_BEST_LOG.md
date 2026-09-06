@@ -9701,9 +9701,25 @@ and structurally valid. The script checks that Assumptions are recorded, not tha
 open Assumption passing the alarm is the alarm working, and reading it as "no open Assumption" is
 the mistake.
 
-**To close it**, after this deploys to production and not on a preview: request `/`, `/offline` and
-`/m/clapback` from `https://meechiescoloringbook.vercel.app` and confirm all five headers are
-present on the responses, then move the entry to `Status: Closed` with the observed values.
+**To close it**, after this deploys to production and not on a preview, from
+`https://meechiescoloringbook.vercel.app`. The Assumption has **two halves under different
+`vercel.json` rules**, and both have to pass — an earlier draft of this paragraph named only the
+first, which would have let a future run mark it `Closed` on half the evidence:
+
+1. **The documents** (`/`, `/offline`, `/m/clapback`) — confirm the four contingent headers:
+   `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`. Not five.
+   `Strict-Transport-Security` arrives from the edge either way and proves nothing here.
+2. **The assets** (`/service-worker.js` and an `/_app/immutable` file) — the original half of this
+   Assumption, matched by the two asset rules, which carry three headers rather than five. Today
+   production returns these with **no security headers at all**, which is the gap the entry exists
+   to close.
+
+And one control: request an alias such as `/m/receipts`. It is server-rendered, matches no
+`vercel.json` rule, and must carry all five from `hooks.server.ts`. If the four are present there
+and missing on `/m/clapback`, the rules are what failed rather than the deploy.
+
+Only with all three results in hand does the entry move to `Status: Closed`, with the observed
+values recorded.
 
 **One red signal at merge, and the rule's test for standing it down was not met.** The `Vercel`
 commit status failed with `api-deployments-free-per-day` — "Deployment rate limited — retry in 24
@@ -9808,9 +9824,9 @@ The SonarCloud security failure was diagnosed by reasoning about which of my lin
 It was wrong. The answer had been delivered to this session as a review comment naming the file and
 the line, and was sitting unread while the reasoning happened.
 
-And a third, which this close-out earned on its own account. **Sixteen findings across seven Codex
-passes on #312 — a pull request containing no code — with an eighth returning clean, and every one
-of the sixteen correct.**
+And a third, which this close-out earned on its own account. **Eighteen findings across eight Codex
+passes on #312 — a pull request containing no code — with a ninth returning clean, and every one of
+the eighteen correct.**
 
 The ledger below is per pass and append-only, which is the second attempt at recording this. The
 first attempt gave a total anchored to one commit, and review caught the flaw in that immediately:
@@ -9829,6 +9845,7 @@ mode — later passes append rather than displace, and any total is recoverable 
 | `840df85` | 1 | — |
 | `e6beced` | 2 | — |
 | `8a58e92` | 4 | `lint` and `build` evidence never refreshed |
+| `d38dcfe` | 2 | — |
 
 **Four P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
 A merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
@@ -9838,7 +9855,7 @@ verified and is not. And **`lint` and `build` evidence never refreshed at all**,
 defect one layer down: `npm run verify` runs neither, so re-running the chain each time did nothing
 for those two files and I never noticed, because I was watching the chain rather than the checklist.
 
-**The twelve P2s** were counts and capability claims: "six routes" above a list of seven; "no
+**The fourteen P2s** were counts and capability claims: "six routes" above a list of seven; "no
 `CacheSeam` write operation" when `primeCache` is one; "no unit test could have caught" two defects
 whose unit tests this run wrote; fonts called a seam limitation when the seam permits them; a
 missing probe listed among the defects it failed to catch; the findings total; the round count; two
@@ -9848,14 +9865,22 @@ when five alias slugs still reach the hook; and this ledger's own anchoring.
 
 > **Correcting the instance is not correcting the belief.**
 
-That is the pattern under all ten. Each fix was locally right and left the same false premise
-standing a few lines away: the write-operation correction did not reach the fonts bullet two bullets
-below it, which repeated it verbatim. Twice a correction introduced a fresh error — a rewritten
-sentence that overstated in the other direction, and a "validation" run of exactly the two scripts I
-had predicted would object, which left the evidence directory half-refreshed and therefore *looking*
-verified. The pattern is the same one the first rule names, one level up: **a correction is new
-work, and it gets checked like new work — including against every other place the same claim was
-made.**
+That is the pattern under every finding in the ledger above — including, when this sentence said
+"all ten" after the ledger beside it had grown to sixteen, itself. Each fix was locally right and
+left the same false premise standing a few lines away: the write-operation correction did not reach
+the fonts bullet two bullets below it, which repeated it verbatim; scoping the header claim to four
+in the prose left the structured `Statement` naming three.
+
+Three times a correction introduced a fresh error. A rewritten sentence overstated in the other
+direction. A "validation" ran exactly the two scripts I had predicted would object, leaving the
+evidence directory half-refreshed and therefore *looking* verified — and the fix for **that** then
+re-ran the chain after every subsequent edit while `lint.txt` and `build.txt`, which the chain does
+not touch, stayed older than the first commit of this entry.
+
+The pattern is the first rule one level up: **a correction is new work, and it gets checked like new
+work — including against every other place the same claim was made.** The corollary this run had to
+learn twice: **running the part you are thinking about and reading its green as coverage of the
+whole is how a partial check passes for a complete one.**
 
 ### Open, and deliberately so
 

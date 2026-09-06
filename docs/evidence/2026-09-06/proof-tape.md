@@ -5,14 +5,14 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-06T10:05:16.848Z
+Generated at: 2026-09-06T10:18:05.177Z
 Evidence folder: docs/evidence/2026-09-06
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
 after this inventory is taken, so they are not listed):
 
 - assumption-alarm.json (13003 bytes)
-- build.txt (12513 bytes) — PREDATES THIS VERIFY RUN
+- build.txt (12512 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (35315 bytes)
 - clan-chain.json (3181 bytes)
