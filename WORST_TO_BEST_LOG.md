@@ -8897,3 +8897,52 @@ not in the commit.
 `npm run evidence:guard` 8 rules pass · six mutation directions verified, both polarities of the
 audit scan · full chain: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0, rewind 17,
 Playwright 41 under the override, mandated row under a dated waiver, probe complete.
+
+### Addendum — round forty-seven: a fifth sibling, and a mutation that mutated nothing
+
+Codex reviewed `8cb29d91`. Four findings, all accepted.
+
+**The audit-result marker was never scoped, while the severity check beside it was.** Last round I
+bounded the high-severity search to the audit section and left `found <n> vulnerabilit` searching the
+whole transcript — so moving the committed audit result down past the Vitest output still satisfied
+it, and an `audit:gate` that produced no result at all could be certified by text from a later stage.
+
+That is the fifth instance of the same shape. The previous four were separated by files or by rounds.
+**These two were three lines apart, in the same expression, written in the same minute.**
+
+> **Proximity is not attention.** I have been treating this pattern as a failure to search widely
+> enough, and it is not: the sibling was directly under the cursor. What actually differs between the
+> two lines is that one of them was the thing the reviewer had named. Being handed a specific target
+> narrows what you see to that target — and the narrowing is strongest at the smallest distances,
+> because the neighbouring line does not feel like a different place.
+
+**Zero-valued counters were read as failures**, in both the chain-transcript check and the Row 2
+check. A reporter that spells out `1445 passed | 0 failed` was rejected for being explicit. Both were
+fixed, together, this time.
+
+**A deleted evidence folder failed CI.** `git diff --name-only` still names a removed path, and the
+guard was then pointed at a directory that no longer exists and exited 1 for its absence — which
+would have blocked the ordinary remediation of deleting a folder that should not have been committed.
+
+**A change to the guard itself never ran the guard.** A pull request touching only
+`scripts/evidence-guard.mjs` ships no evidence, so the folder list was empty and the script that
+decides whether CI trusts a folder could be broken or quietly weakened and merge unexercised. When
+its implementation changes, it now runs against the newest committed dated folder — known-good
+evidence, so a regression fails in the pull request that caused it.
+
+**And one of my own mutation tests mutated nothing, again.** Testing that a real `1 failed` still
+fires, I string-replaced `1 skipped` in `test.txt` — which is stored with ANSI colour codes between
+its tokens, so nothing matched, and the guard's *correct* silence read as a miss. I reported it as
+MISSED, went looking for the defect, and found the defect was in my test.
+
+> **A mutation that changes nothing and a guard that catches nothing produce the same output.** This
+> is the third time in this run. Every previous instance was caught by asking why the result looked
+> the way it did rather than accepting it — which is the only tool that works here, because the
+> failure mode is indistinguishable from success at the point of reading.
+
+Re-run through the colour codes, the failure fires. Six directions verified in both polarities.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean · `npm run cipher:gate` exit 0 ·
+`npm run evidence:guard` 8 rules pass · full chain: check 0/0, 1445 passed / 1 skipped, build ok,
+verify exit 0, rewind 17, Playwright 41 under the override, mandated row under a dated waiver, probe
+complete.

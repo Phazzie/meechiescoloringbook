@@ -162,11 +162,16 @@ const read = (dir, name) => {
 // which order the reporter happened to print its counts in. `summaryLines` has already established
 // that this is a reporter summary; within one, a count of failures is a count of failures wherever
 // it sits.
-const COUNTED_FAILURE = /\b\d{1,9} (failed|errors?)\b/;
+// The COUNT, not just its presence. A reporter that spells out its zeroes — `1445 passed | 0
+// failed` — was read as a failure, which would reject a perfectly green run for being explicit.
+const COUNTED_FAILURE = /\b(\d{1,9}) (failed|errors?)\b/;
 const UNHANDLED = /^\s{0,8}Vitest caught \d{1,9} unhandled error/;
 const reportedFailure = (text) => {
-	const line = summaryLines(text).find((entry) => COUNTED_FAILURE.test(entry) || UNHANDLED.test(entry));
-	return line === undefined ? null : line.trim();
+	for (const line of summaryLines(text)) {
+		const counted = COUNTED_FAILURE.exec(line);
+		if ((counted !== null && Number(counted[1]) > 0) || UNHANDLED.test(line)) return line.trim();
+	}
+	return null;
 };
 
 /**
@@ -388,35 +393,40 @@ const RULES = [
 			// version said all of this in a comment and then matched only `found <n> vulnerabilit`,
 			// which rejects every audit that is passing but not perfectly clean. The comment was
 			// right and the code beneath it was not, which is the defect this whole guard is about.
-			const STAGE_MARKERS = [
-				{ pattern: /^> \S{1,80} audit:gate$/m, stage: 'the audit gate' },
-				{ pattern: /found \d{1,9}( \w{1,12}){0,2} vulnerabilit/, stage: "the audit gate's result" },
-				{ pattern: /svelte-check found 0 errors/, stage: 'a clean check stage' },
-				{ pattern: /Test Files/, stage: 'the test stage' }
-			];
-			// Scoped to the audit stage's own output. `verify-outer.txt` carries the whole chain, so
-			// searching all of it for "high severity" rejected valid evidence the moment a test was
-			// named `security test prints high severity classification` — a guard failing a folder for
-			// what a developer called a test, which is the fourth false rejection this file has had
-			// and the same mistake as reading a result out of a test title.
-			//
-			// The audit section runs from npm's banner for the sub-script to the next banner.
+			// The audit section, computed before the markers so the audit's own result can be required
+			// INSIDE it. Scoping the severity check and leaving the result marker searching the whole
+			// transcript is the fifth time in this run a fix landed on one of two adjacent things —
+			// and this pair sat three lines apart in the same block. Moving the committed
+			// `found 0 vulnerabilities` line down past the Vitest output still satisfied the marker,
+			// so an audit that produced no result at all could be certified by a later stage's text.
 			const clean = stripAnsi(outer);
 			const auditStart = clean.search(/^> \S{1,80} audit:gate$/m);
 			const afterBanner = auditStart === -1 ? '' : clean.slice(auditStart + 1);
 			// npm's script banner is `> <name>@<version> <script>`; the line right after it is the
-			// command echo, `> npm audit --audit-level=high`, which has no `@` in its first token. The
-			// first attempt matched both, so the section ended immediately after the banner and was
-			// empty — the check scoped itself out of existence and reported nothing wrong, which is
-			// how a vacuous check looks from the outside. Caught by running the true-positive case.
+			// command echo, `> npm audit --audit-level=high`, which has no `@` in its first token. An
+			// earlier attempt matched both, so the section ended immediately and was empty — the check
+			// scoped itself out of existence and reported nothing wrong, which is how a vacuous check
+			// looks from the outside.
 			const nextBanner = afterBanner.search(/^> \S{1,80}@\S{1,40} \S/m);
 			const auditSection = nextBanner === -1 ? afterBanner : afterBanner.slice(0, nextBanner);
+			const STAGE_MARKERS = [
+				{ pattern: /^> \S{1,80} audit:gate$/m, stage: 'the audit gate' },
+				{
+					pattern: /found \d{1,9}( \w{1,12}){0,2} vulnerabilit/,
+					stage: "the audit gate's result",
+					within: 'audit'
+				},
+				{ pattern: /svelte-check found 0 errors/, stage: 'a clean check stage' },
+				{ pattern: /Test Files/, stage: 'the test stage' }
+			];
 			// `--audit-level=high` makes high and critical advisories a non-zero exit, so one reported
 			// here alongside `verify exit=0` means a branch-owned `audit:gate` masked it. Low and
 			// moderate findings are a passing audit and stay allowed.
 			if (/(high|critical) severity/.test(auditSection))
 				return 'verify-outer.txt reports a high or critical severity advisory; --audit-level=high makes that a failing audit, so the chain exiting zero means its own audit script masked the result.';
-			const missing = STAGE_MARKERS.filter(({ pattern }) => !pattern.test(outer));
+			const missing = STAGE_MARKERS.filter(
+				({ pattern, within }) => !pattern.test(within === 'audit' ? auditSection : outer)
+			);
 			if (missing.length > 0)
 				return `verify-outer.txt is missing ${missing.map((m) => m.stage).join(', ')}; it carries an exit line but not the run that earned it.`;
 			// The chain's exit status is the chain's, not each stage's. A branch-owned `check` or
@@ -661,7 +671,9 @@ const RULES = [
 			// rejected because a human sentence contained a number and a word.
 			const broken = summaryLines(row2)
 				.map((line) => /^\s{0,8}(\d{1,9}) (failed|flaky|did not run|interrupted|errors?)\b/.exec(line))
-				.find((match) => match !== null && match !== undefined);
+				// Zero is not a failure here either — Playwright can print `0 flaky`, and the sibling
+				// check above was fixed for exactly this while this one was left, again.
+				.find((match) => match !== null && match !== undefined && Number(match[1]) > 0);
 			if (broken !== undefined)
 				return `e2e.txt Row 2 reports "${broken[0].trim()}"; a summary line that also counts passes does not make the run green.`;
 			return null;

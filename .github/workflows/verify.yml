@@ -175,6 +175,28 @@ jobs:
               dirs="$kept"
             fi
           fi
+          # A folder the change DELETES is still named by `git diff --name-only`, and the guard would
+          # then be pointed at a directory that does not exist in this tree and exit 1 for its
+          # absence. Removing an evidence folder is a legitimate change — most obviously the
+          # remediation when something was committed into one that should not have been — and this
+          # step must not be the reason that cannot be done.
+          present=""
+          for dir in $dirs; do
+            if [ -d "$dir" ]; then present="$present $dir"; else echo "--- $dir was removed by this change; nothing to guard in it."; fi
+          done
+          dirs="$present"
+          # A change to the guard ITSELF ships no evidence, so `dirs` is empty and the guard never
+          # runs — a script that decides whether CI trusts a folder could be broken, or quietly
+          # weakened, and merge without once being executed. When its implementation changes, run it
+          # against the newest committed dated folder, which is known-good evidence: if the change
+          # breaks the guard, this fails here rather than in someone else's pull request.
+          if ! git diff --quiet "$range" -- scripts/evidence-guard.mjs scripts/evidence-reporting.mjs; then
+            newest=$(git ls-tree -d --name-only HEAD docs/evidence/ | grep -E '[0-9]{4}-[0-9]{2}-[0-9]{2}$' | sort | tail -1)
+            if [ -n "$newest" ] && ! printf '%s\n' $dirs | grep -qx "$newest"; then
+              echo "--- the guard's own implementation changed; exercising it against $newest"
+              dirs="$dirs $newest"
+            fi
+          fi
           if [ -z "$dirs" ]; then
             echo "No evidence folder introduced or changed by this branch; nothing to guard."
             exit 0

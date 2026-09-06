@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-06T02:01:27.335Z
+Generated at: 2026-09-06T02:16:55.313Z
 Evidence folder: docs/evidence/2026-09-06
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -15,7 +15,7 @@ after this inventory is taken, so they are not listed):
 - build.txt (11635 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (35321 bytes)
-- cipher-gate.json (2550 bytes) — PREDATES THIS VERIFY RUN
+- cipher-gate.json (2549 bytes) — PREDATES THIS VERIFY RUN
 - clan-chain.json (3181 bytes)
 - clan-chain.md (1956 bytes)
 - e2e.txt (8713 bytes) — PREDATES THIS VERIFY RUN
