@@ -1,0 +1,66 @@
+# Purpose: Capture the OUTER 'npm run verify' command's own output and exit status.
+# Why: verify.txt holds only the inner verify-runner stage, despite its name. Without this
+#      file the audit:gate result and the chain's exit status were asserted in
+#      verify-chain.txt rather than captured, which a review flagged as unauditable.
+# Info flow: npm run verify -> this transcript -> verify-chain.txt's summary of it.
+# Not in proof-tape: this is the transcript OF the run that writes the proof tape, so it is
+#      written after the chain returns and is absent from that chain's inventory. Capturing it
+#      in place instead made proof-tape record 1901 bytes for a 1908-byte file - it had not yet
+#      seen this file's own closing exit line. The convention and capture order are recorded
+#      in docs/evidence/README.md so a future run does not have to rediscover them.
+
+
+> meechies-coloringbook@0.1.0 verify
+> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
+
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
+found 0 vulnerabilities
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+
+
+[2m Test Files [22m [1m[32m93 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (94)[39m
+[2m      Tests [22m [1m[32m1445 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1446)[39m
+[2m   Start at [22m 00:19:38
+[2m   Duration [22m 98.16s[2m (transform 3.77s, setup 976ms, import 7.30s, tests 7.21s, environment 64.64s)[22m
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+verify exit=0

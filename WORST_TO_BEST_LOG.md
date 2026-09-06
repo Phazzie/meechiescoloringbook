@@ -8569,3 +8569,52 @@ rewind 17, Playwright 41 with `e2e exit=0` recorded, probe complete.
 disconfirmed. It was labelled unconfirmed when it was made and stands on least privilege alone; the
 second issue remains genuinely unidentified, with the file narrowed to `verify.yml` and the reason
 recorded rather than guessed at.
+
+### Addendum — round forty-one, and a date roll that broke three things at once
+
+Codex reviewed `4991b4e8`. Four findings: three fixed, one declined for the third time.
+
+**A same-length edit was invisible.** The drift check compares each artifact's length against the
+length the tape recorded, so changing one seam's status in `chamber-lock.json` from `"ok"` to `"no"`
+— identical byte count — left the tape matching and every rule passing while a mandatory stage
+reported failure. The complete fix is a content digest in the tape, which needs a schema change in
+`proof-tape.mjs` and stays recorded as follow-up. What needed nothing: these artifacts each carry a
+summary *and* the detail it summarises, so a seventh rule now asks whether they agree with
+themselves, and requires `overallStatus: ok`. Codex's exact mutation fires it — file size unchanged
+at 35321 bytes.
+
+**Unknown freshness was counted as fresh.** The staleness filter rejected only `predatesRun === true`,
+so an entry whose value is `null` or absent — the tape saying it *cannot* date the file — passed.
+That is the third time in this one file that "unknown" has been read as "fine", after the missing
+inventory entry and the absent lint transcript. It now requires `=== false`.
+
+**CRLF.** A transcript captured on Windows leaves `\r` on every line, so a terminal `verify exit=0`
+was not equal to itself and the guard rejected valid evidence. Same family as last round's backslash
+in `evidenceDir`: this script kept assuming the machine that wrote the evidence was this one.
+
+**Declined a third time: require an evidence folder for seam-changing diffs.** Recorded again with
+the same reason. It asks CI to classify a diff by path and decide what a change *is*, which is repo
+policy binding every future contributor, not a property of the folder in front of the guard. It is in
+`DECISIONS.md` as a revisit criterion rather than smuggled in here.
+
+**Then the UTC date rolled, and three things broke at once.** All three were mine.
+
+1. The capture script hardcoded `docs/evidence/2026-09-05` while `verify-runner.mjs` writes
+   `toDateFolder(new Date())`. One more run would have put the chain's output in one folder and the
+   hand-captured lint, build and e2e in another — the split-brain evidence the new identity rule was
+   written to catch. Caught by reading the script after noticing the roll, not by running it.
+2. `npm run cipher:gate` went stale, because its entry was dated yesterday and today's edits are
+   newer. The capture ran it as `> /dev/null 2>&1`, so it died under `set -e` with **no output at
+   all** and an empty evidence folder behind it. A check whose failure says nothing is barely a
+   check. Now reported, and a Cipher Gate entry for this work is in `DECISIONS.md`.
+3. The "previous folder" glob selected the newest dated directory — which, after the aborted run had
+   already created today's, was today's own empty folder. The templates were read from a directory
+   with nothing in it.
+
+> **A literal date is a claim that time will not pass.** Every one of these was a value that was
+> true when written and silently stopped being true, which is this run's defect wearing a clock.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean on the file · `npm run cipher:gate` exit 0 ·
+`npm run evidence:guard` 7 rules pass on **both** `2026-09-05` and `2026-09-06` · full chain: check
+0/0, 1445 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41 with `e2e exit=0`,
+probe complete.

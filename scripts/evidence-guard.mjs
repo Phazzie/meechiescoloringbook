@@ -34,6 +34,11 @@ import { toDateFolder } from './evidence-reporting.mjs';
 const ESC = String.fromCharCode(27);
 const stripAnsi = (text) =>
 	text
+		// CRLF first. A transcript captured on Windows ends its lines `\r\n`, and every rule here
+		// splits on `\n` and compares whole lines, so the stray `\r` made a terminal `verify exit=0`
+		// unequal to itself and the guard rejected valid evidence. Same family as the backslash in
+		// `evidenceDir`: this script kept assuming the machine that wrote the evidence was this one.
+		.replace(/\r\n/g, '\n')
 		.split(ESC)
 		.map((part, index) => (index === 0 ? part : part.replace(/^\[[0-9;]{0,16}m/, '')))
 		.join('');
@@ -312,11 +317,18 @@ const RULES = [
 			);
 			if (uninventoried.length > 0)
 				return `the proof tape does not carry exactly one inventory entry for: ${uninventoried.join(', ')}; whether those artifacts belong to this run cannot be read off a tape that does not describe them.`;
-			const stale = CHAIN_ARTIFACTS.filter((name) =>
-				inventory.some((entry) => entry.name === name && entry.predatesRun === true)
-			);
-			if (stale.length > 0)
-				return `the proof tape marks these chain artifacts as predating its own run: ${stale.join(', ')}; that stage did not run this time.`;
+			// `=== false`, not `!== true`. An entry whose `predatesRun` is null or absent reports that the
+			// tape could not establish the file's freshness, and rejecting only `true` read that as
+			// fresh — the third time in this file that "unknown" has been counted as "fine", after the
+			// missing inventory entry and the absent lint transcript. The tape says false for every
+			// chain artifact it can date, which is what this is measured against.
+			const unfresh = CHAIN_ARTIFACTS.filter((name) => {
+				if (name === TAPE) return false;
+				const entry = inventory.find((candidate) => candidate.name === name);
+				return entry?.predatesRun !== false;
+			});
+			if (unfresh.length > 0)
+				return `the proof tape does not report these chain artifacts as belonging to its own run: ${unfresh.join(', ')}; it marks them as predating it, or cannot say.`;
 			if (lock === null) return 'chamber-lock.json is missing or carries no generatedAt stamp.';
 			if (tape === null) return 'proof-tape.json is missing or carries no generatedAt stamp.';
 			if (Number.isNaN(lock) || Number.isNaN(tape))
@@ -459,6 +471,56 @@ const RULES = [
 			);
 			if (failing.length > 0)
 				return `these rewind transcripts report failures beside their passes: ${failing.join(', ')}.`;
+			return null;
+		}
+	},
+	{
+		name: 'each chain artifact agrees with itself, and reports success',
+		check: (dir) => {
+			// Byte counts are not identity. The drift check compares each artifact's length to the
+			// length the tape recorded, and a same-length edit is invisible to it: changing one seam's
+			// status from "ok" to "no" in chamber-lock.json keeps the file exactly as long, so the tape
+			// still matched and every rule passed while a mandatory stage reported a failure.
+			//
+			// The complete fix is a content digest in the tape, which needs a schema change in
+			// proof-tape.mjs and is recorded as follow-up. This is the part that needs nothing: these
+			// artifacts each carry a summary AND the detail it summarises, so they can be asked whether
+			// they agree with themselves. Editing a status without also editing the count that
+			// describes it breaks that agreement — which is this whole run's defect, appearing one last
+			// time inside the artifacts themselves.
+			const SUMMARISED = [
+				{ file: 'chamber-lock.json', list: 'seams' },
+				{ file: 'seam-ledger.json', list: 'seams' },
+				{ file: 'shaolin-lint.json', list: 'evidence' }
+			];
+			for (const { file, list } of SUMMARISED) {
+				const raw = read(dir, file);
+				if (raw === null) return `${file} is missing; it is a mandatory chain artifact.`;
+				let parsed;
+				try {
+					parsed = JSON.parse(raw);
+				} catch {
+					return `${file} is not readable as JSON, so what it reports cannot be established.`;
+				}
+				const summary = parsed.summary;
+				if (summary === null || typeof summary !== 'object')
+					return `${file} carries no summary, so it states no overall result.`;
+				if (summary.overallStatus !== 'ok')
+					return `${file} reports overallStatus "${summary.overallStatus}"; a chain artifact that did not come back ok is not evidence of a passing run.`;
+				const entries = Array.isArray(parsed[list]) ? parsed[list] : null;
+				if (entries === null)
+					return `${file} has no "${list}" list, so its summary cannot be checked against anything.`;
+				// Every count the summary states, measured against the list it claims to describe.
+				const disagreements = Object.entries(summary)
+					.filter(([, value]) => typeof value === 'number')
+					.map(([status, claimed]) => {
+						const actual = entries.filter((entry) => entry?.status === status).length;
+						return actual === claimed ? null : `${status} (says ${claimed}, ${list} shows ${actual})`;
+					})
+					.filter((entry) => entry !== null);
+				if (disagreements.length > 0)
+					return `${file}'s summary disagrees with its own ${list}: ${disagreements.join('; ')}; the file was edited after it was written, or the stage that wrote it is inconsistent.`;
+			}
 			return null;
 		}
 	},
