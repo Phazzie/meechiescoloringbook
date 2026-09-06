@@ -50,7 +50,7 @@ describe('the spotlight is a pure function of a UTC instant', () => {
 		const lit = new Set([spotlight.monthlyId, ...spotlight.weeklyIds]);
 		expect(lit.size).toBe(3);
 		// The assertion the old rotation could not make, because the five were not rendered at all.
-		expect(studioModes.length).toBe(8);
+		expect(studioModes).toHaveLength(8);
 		expect(studioModes.filter((mode) => !lit.has(mode.id))).toHaveLength(5);
 	});
 
