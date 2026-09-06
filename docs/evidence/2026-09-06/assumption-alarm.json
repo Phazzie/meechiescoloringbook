@@ -1,6 +1,6 @@
 {
   "tool": "assumption-alarm",
-  "generatedAt": "2026-09-06T08:48:07.923Z",
+  "generatedAt": "2026-09-06T09:07:58.258Z",
   "blockedSeams": [
     "ImageGenerationSeam",
     "RateLimitSeam",
@@ -34,7 +34,7 @@
       "date": "2026-09-03",
       "seams": "None registered - static-asset response headers served by the Vercel edge",
       "statement": "The `headers` rules in `vercel.json` attach X-Content-Type-Options, X-Frame-Options and Referrer-Policy to the filesystem-served paths that `src/hooks.server.ts` never sees.",
-      "validation": "Not exercised locally - `vite preview` does not read `vercel.json`, so no local run can confirm it. Verification against the pull request's own Vercel preview was attempted and is also impossible: the preview is behind deployment protection and every request 302s to `vercel.com/sso-api`, so no response body or header of the app itself is reachable unauthenticated. The gap being closed is nonetheless confirmed on live production, which does not yet carry this change - `https://meechiescoloringbook.vercel.app/service-worker.js` returns 200 with no security headers at all. Validate after this merges and deploys to production, not on a preview: request `/service-worker.js` and an `/_app/immutable` asset from `https://meechiescoloringbook.vercel.app` and confirm X-Content-Type-Options, X-Frame-Options and Referrer-Policy are present.",
+      "validation": "Not exercised locally - `vite preview` does not read `vercel.json`, so no local run can confirm it. Verification against the pull request's own Vercel preview was attempted and is also impossible: the preview is behind deployment protection and every request 302s to `vercel.com/sso-api`, so no response body or header of the app itself is reachable unauthenticated. The gap being closed is nonetheless confirmed on live production, which does not yet carry this change - `https://meechiescoloringbook.vercel.app/service-worker.js` returns 200 with no security headers at all. Validate after this merges and deploys to production, not on a preview: request `/service-worker.js` and an `/_app/immutable` asset from `https://meechiescoloringbook.vercel.app` and confirm X-Content-Type-Options, X-Frame-Options and Referrer-Policy are present. Since #311, also request the documents `/`, `/offline` and `/m/clapback` and confirm all five headers on each - those are prerendered now, so they are served by the same filesystem handler and are covered by nothing else.",
       "status": "Open - pending first deploy.",
       "seamList": [
         "None registered - static-asset response headers served by the Vercel edge"

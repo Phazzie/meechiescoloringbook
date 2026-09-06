@@ -9647,14 +9647,65 @@ The installable app is on `main`. Base `ad3bfe7` → head `6e4d3a5`, squashed to
 | Review threads | 13 of 13 resolved |
 | Merge conflict | none |
 | Schema / contract / data migration | **none** — the `CacheSeam` contract is untouched, which is the design decision the run turned on |
-| Open Assumption in `DECISIONS.md` | none; `assumption-alarm` green inside the chain |
+| Open Assumption in `DECISIONS.md` | **one, and this run newly depends on it** — see below |
 
-**One red signal at merge, dispositioned by signature rather than tolerated.** The `Vercel` commit
-status failed with `api-deployments-free-per-day` — an account-wide rolling cap, not a build error:
-nothing compiled and nothing failed to compile. Established, not asserted: the immediately preceding
-head deployed **Ready** minutes earlier, and `git diff --stat` between the two touches no application
-file at all. One standing-down comment was posted. `mergeable_state` therefore read `unstable`
-rather than `clean`, and that is what `unstable` means here.
+**The open Assumption, which an earlier draft of this table recorded as "none".** That was wrong,
+and wrong in the direction that hides a gate rather than raising one. `DECISIONS.md:680-683` carries
+an Assumption dated 2026-09-03 — three days before this run — stating that the `headers` rules in
+`vercel.json` attach `X-Content-Type-Options`, `X-Frame-Options` and `Referrer-Policy` to the paths
+`src/hooks.server.ts` never sees, with `Status: Open - pending first deploy`. Nothing local can
+close it: `vite preview` does not read `vercel.json`, and the pull request's own preview deployment
+sits behind deployment protection and 302s to `vercel.com/sso-api`, so no header of the app itself
+is reachable unauthenticated.
+
+This run did not merely leave that Assumption standing. **It moved six routes onto exactly the path
+the Assumption is about.** Before this change those documents were served by the SvelteKit function,
+where `hooks.server.ts` attaches the headers in code that a test can run. Prerendering makes them
+files, and Vercel's `{"handle":"filesystem"}` precedes the SSR rewrite, so their headers now come
+from the `vercel.json` rules and from nothing else. `tests/unit/security-headers.test.ts` proves the
+rules *cover* every prerendered path — it derives the list from the routes' own `prerender` flags
+rather than restating it — and that is the whole of what it proves. Whether Vercel then *applies*
+them is the Assumption, and it is the same one, now load-bearing where it was previously only
+tidy.
+
+What a green `assumption-alarm` established is narrower than the row claimed: the entry is present
+and structurally valid. The script checks that Assumptions are recorded, not that they are true. An
+open Assumption passing the alarm is the alarm working, and reading it as "no open Assumption" is
+the mistake.
+
+**To close it**, after this deploys to production and not on a preview: request `/`, `/offline` and
+`/m/clapback` from `https://meechiescoloringbook.vercel.app` and confirm all five headers are
+present on the responses, then move the entry to `Status: Closed` with the observed values.
+
+**One red signal at merge, and the rule's test for standing it down was not met.** The `Vercel`
+commit status failed with `api-deployments-free-per-day` — "Deployment rate limited — retry in 24
+hours", an account-wide rolling cap. One standing-down comment was posted.
+
+An earlier draft of this paragraph called that "dispositioned by signature" and argued it from two
+facts: the immediately preceding head deployed **Ready** minutes earlier, and `git diff --stat`
+between the two touches no application file. **Neither is a signature match, and this log already
+knows it.** The #305 entry above records a reviewer invalidating the mirror image of the first
+argument — a *successful* older head cannot establish anything about a later one — and the same
+objection applies to a successful *preceding* head here. The second fact is a statement about the
+diff, and showing a diff could not have broken a build is not the same as reproducing the failure
+somewhere the diff is absent. `AGENTS.md` L138 asks for the signature "on the base commit or an
+unrelated head", and L139 says explicitly that "it is red elsewhere too" is not evidence.
+
+**That test was not met at the moment #311 merged. It is recorded here as a gap rather than argued
+away.** What the disposition actually rested on is the error string: `api-deployments-free-per-day`
+names a cap on deployments per account per day, so it is a claim about the account and the date and
+not about a diff — and Vercel never started a build, so there is no compile result of this change to
+have failed. That is a reading of the message, which is weaker than a reproduction.
+
+Supporting but explicitly not sufficient: this close-out's own head `6b7a2be` — a single Markdown
+file — carries the identical status. It is a different head, but it is *this* branch and it sits on
+top of the merged code, so it is not the unrelated head the rule asks for. The comparator that would
+settle it is the base commit's own deployment status, and this container has no way to read a commit
+status for an arbitrary ref: the available GitHub tooling exposes statuses only through a pull
+request. The honest record is that the merge went ahead on a message reading, with the required
+reproduction absent.
+
+`mergeable_state` therefore read `unstable` rather than `clean`.
 
 ### What was actually wrong, in one paragraph
 
@@ -9685,9 +9736,20 @@ sources are enumerated instead, each with its basis, so a reader can count them 
 **Not one of Codex's was disproved. One of mine was** — the stale banner, which the mutation check
 refuted and which was reverted rather than kept.
 
-The four that no unit test could have caught were the ones that mattered: **the security headers**
-prerendering silently dropped, **the missing reality probe**, **a worker that cached everything and
-controlled nothing**, and **a ReDoS in the navigation path** measured at 3,108 ms against 0 ms.
+The four that the **pre-existing** suite did not catch were the ones that mattered: **the security
+headers** prerendering silently dropped, **the missing reality probe**, **a worker that cached
+everything and controlled nothing**, and **a ReDoS in the navigation path** measured at 3,108 ms
+against 0 ms.
+
+"No unit test could have caught them" is what an earlier draft said, and for two of the four it is
+plainly false — this run wrote the unit tests that catch them. `tests/unit/security-headers.test.ts`
+holds the header coverage, and `tests/unit/offline-cache.test.ts:256-267` holds the ReDoS, as a
+wall-clock assertion on 50,000 slashes. The true division is not testable versus untestable. It is
+that the suite had no test *addressed to these questions*, because nothing in it ever asked what the
+cache contained or what a document's response headers were. The other two are the ones a unit test
+genuinely cannot reach: whether the worker controls the page, and whether an offline navigation
+lands — both facts about a real browser, which is why they needed the probe and why the probe found
+them within a minute of first running.
 
 ### The rule this run is worth
 
@@ -9717,7 +9779,12 @@ the line, and was sitting unread while the reasoning happened.
   from this container and the local reproduction is clean on everything this change wrote. Chasing
   them further was stopped on purpose: guessing at that check's contents is what produced this run's
   worst misdiagnosis.
-- **No `CacheSeam` write operation**, so nothing outside the build can ever be cached.
+- **`CacheSeam` cannot store a Response it did not fetch itself.** Its write is
+  `primeCache(cacheName, urls)`, which hands a URL list to `cache.addAll` and lets the seam do the
+  fetching — enough for the build manifest, which is the whole of what this run needed. What has no
+  operation is `put(request, response)`: taking a response already in hand and keeping it. So a
+  page's own runtime traffic can never enter the cache, and the offline copy is exactly the build
+  and nothing a reader visited. Adding it is a contract change, which is why this run did not.
 - **The web fonts are not available offline**, and cannot be through this seam.
 - **You still cannot make a coloring page offline.** The offline page says so in those words.
 - Run 8's two items are still open: the tools hub and mode routes save no style, and the home studio
