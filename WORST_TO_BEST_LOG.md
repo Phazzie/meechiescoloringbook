@@ -9740,19 +9740,27 @@ sources are enumerated instead, each with its basis, so a reader can count them 
 refuted and which was reverted rather than kept.
 
 The four that the **pre-existing** suite did not catch were the ones that mattered: **the security
-headers** prerendering silently dropped, **the missing reality probe**, **a worker that cached
-everything and controlled nothing**, and **a ReDoS in the navigation path** measured at 3,108 ms
-against 0 ms.
+headers** prerendering silently dropped, **a ReDoS in the navigation path** measured at 3,108 ms
+against 0 ms, **a worker that cached everything and controlled nothing**, and **a fallback that
+answered the requested URL with the offline page's bytes**, so SvelteKit's client router rendered
+its 404 over the top.
 
-"No unit test could have caught them" is what an earlier draft said, and for two of the four it is
+An earlier draft listed **the missing reality probe** as the second of these, and that was a
+category error worth naming rather than quietly fixing: the absent probe is not a defect the suite
+missed, it is *the reason* the last two went unseen. It belongs one level up, as cause. Putting it
+in the list also pushed a real defect out of it — the fallback navigation — and then the paragraph
+below silently substituted that defect back in when it came to explain the four, which is how the
+inconsistency became visible.
+
+"No unit test could have caught them" is what that draft also said, and for the first two it is
 plainly false — this run wrote the unit tests that catch them. `tests/unit/security-headers.test.ts`
 holds the header coverage, and `tests/unit/offline-cache.test.ts:256-267` holds the ReDoS, as a
 wall-clock assertion on 50,000 slashes. The true division is not testable versus untestable. It is
 that the suite had no test *addressed to these questions*, because nothing in it ever asked what the
-cache contained or what a document's response headers were. The other two are the ones a unit test
+cache contained or what a document's response headers were. The last two are the ones a unit test
 genuinely cannot reach: whether the worker controls the page, and whether an offline navigation
-lands — both facts about a real browser, which is why they needed the probe and why the probe found
-them within a minute of first running.
+lands somewhere usable — both facts about a real browser, which is why they needed the probe, and
+why the probe found them within a minute of first running.
 
 ### The rule this run is worth
 
