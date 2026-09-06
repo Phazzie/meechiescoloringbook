@@ -422,12 +422,22 @@ describe('buildToolStudioText keeps a saved page faithful when reopened', () => 
 		expect(quote).not.toContain('STYLE:');
 	});
 
-	it('carries the rate_excuse score across a save', () => {
+	// This test used to assert the opposite — `expect(studioText.rating).toBe(2)` — and the
+	// behaviour it pinned was wrong. The two `rating` fields share a name and a 1-10 range and
+	// measure opposite things: the studio's is severity ("1-10 severity. Be honest. Don't undersell
+	// it."), and Rate This Excuse's is credibility ("1 means insulting everyone in the room. 10
+	// means barely credible."). Copying one into the other made an excuse scored 2 — an insult —
+	// arrive in the studio as a *low* severity, and the verdict card now labels that number in
+	// words, which is what turned a quiet mismatch into a sentence on screen.
+	it('does not carry the rate_excuse score into the studio severity field', () => {
 		const { studioText } = save('rate_excuse', 'The location stayed live.', {
 			headline: '2/10',
 			rating: 2
 		});
-		expect(studioText.rating).toBe(2);
+		expect(studioText.rating).toBeUndefined();
+		// Nothing is lost: that tool's headline *is* the score, so the number survives the save with
+		// the meaning it was given.
+		expect(studioText.verdict).toBe('2/10');
 	});
 });
 

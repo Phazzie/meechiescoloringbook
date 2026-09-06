@@ -18,6 +18,11 @@ import { createMockPageVisibilitySeam } from '../../src/lib/seams/page-visibilit
 import type { MockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
 import { specValidationAdapter } from '../../src/lib/adapters/spec-validation-seam';
 import { MAX_DEDICATION_LENGTH } from '../../src/lib/seams/spec-validation-seam/contract';
+import {
+	buildToolPageRecipe,
+	buildToolStudioText
+} from '../../src/lib/core/tool-page-recipe';
+import type { MeechieToolOutput } from '../../src/lib/seams/meechie-tool-seam/contract';
 import { StudioState } from '../../src/routes/studio-state.svelte';
 import { VAULT_CAPACITY } from '../../src/lib/core/vault-gallery';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
@@ -2174,7 +2179,14 @@ describe('StudioState quote vault', () => {
 		expect(studio.verdictReport.pageCaution).not.toBeNull();
 	});
 
-	it('keeps the standing of a record that stored its own studio text', async () => {
+	it('believes no standing read back out of a record, whatever it stored', async () => {
+		// This assertion is the reverse of the one first written here, and the reversal is the point.
+		// Three kinds of record carry a `qualityState` and only one carries a *reported* one: a
+		// studio page from a real response, a toolkit page whose `'ready'` `buildToolStudioText` has
+		// to invent because `MeechieToolOutput` has no such field, and a page saved before this
+		// change carrying a reconstruction. Nothing on a record tells them apart, so believing the
+		// stored value would put "Meechie had enough to work with" under every toolkit page ever
+		// saved. Codex caught this on PR #313.
 		const studio = await initVault([]);
 		const stored: MeechieStudioTextOutput = {
 			...DEFAULT_STUDIO_TEXT_OUTPUT,
@@ -2184,8 +2196,32 @@ describe('StudioState quote vault', () => {
 
 		await studio.loadCreation(makeCreation('stored-text', { studioText: stored }));
 
-		expect(studio.verdictReport.standing?.code).toBe('needs_more_evidence');
+		expect(studio.verdictReport.standing).toBeNull();
+		expect(studio.verdictReport.pageCaution).toBeNull();
+		// The note is not a standing. It is a line Meechie wrote, stored verbatim, and showing it
+		// claims nothing about whether she approved the page.
 		expect(studio.verdictReport.note).toBe('Give me the date.');
+	});
+
+	it('keeps the words of a record that stored its own studio text, and rewrites them back', async () => {
+		// The other half of the same correction: withholding the *standing* must not cost the page
+		// its *words*. A stored verdict is rarely its page title, so dropping `studioText` on resave
+		// would lose sentences the reader paid for — which is why provenance is three-valued and not
+		// a boolean.
+		const studio = await initVault([]);
+		const stored: MeechieStudioTextOutput = {
+			...DEFAULT_STUDIO_TEXT_OUTPUT,
+			verdict: 'The phone did not die. The effort did.',
+			qualityState: 'ready'
+		};
+
+		await studio.loadCreation(makeCreation('stored-text', { studioText: stored }));
+		expect(studio.verdictReport.verdict).toBe('The phone did not die. The effort did.');
+
+		await studio.saveToVault();
+
+		const resaved = studio.creations.find((record) => record.id !== 'stored-text');
+		expect(resaved?.studioText?.verdict).toBe('The phone did not die. The effort did.');
 	});
 
 	it('claims no standing for a record that stored none', async () => {
@@ -2259,8 +2295,44 @@ describe('StudioState quote vault', () => {
 		expect(studio.creations[0].studioText?.qualityState).toBe('needs_more_evidence');
 		expect(studio.creations[0].studioText?.revisionNote).toBe('Give me the date.');
 
+		// Reopened, the standing is no longer claimed — the record cannot prove it was reported —
+		// but the words and the note come back whole.
 		await studio.loadCreation(studio.creations[0]);
-		expect(studio.verdictReport.standing?.code).toBe('needs_more_evidence');
+		expect(studio.verdictReport.standing).toBeNull();
+		expect(studio.verdictReport.note).toBe('Give me the date.');
+	});
+
+	it('claims nothing about a page saved from the toolkit', async () => {
+		// The finding, end to end and through the real producer rather than a hand-written record:
+		// `buildToolStudioText` must write a `qualityState` because the schema requires one and
+		// `MeechieToolOutput` has none to give. Reopening such a page in the studio used to print
+		// "Meechie had enough to work with" over an assessment she never made.
+		const studio = await initVault([]);
+		const toolOutput: MeechieToolOutput = {
+			toolId: 'rate_excuse',
+			headline: '2/10',
+			response: 'A dead phone with a live story is still a confession.',
+			rating: 2
+		};
+		const recipe = buildToolPageRecipe(toolOutput, {});
+		const toolText = buildToolStudioText(toolOutput, recipe);
+		expect(toolText).not.toBeNull();
+		expect(toolText?.qualityState).toBe('ready');
+
+		await studio.loadCreation(
+			makeCreation('from-the-toolkit', { studioText: toolText ?? undefined })
+		);
+
+		expect(studio.verdictReport.standing).toBeNull();
+		expect(studio.verdictReport.pageCaution).toBeNull();
+		// And the excuse's credibility score is not relabelled as the situation's severity — twice
+		// over: the producer no longer copies it, and the card would refuse it anyway because the
+		// headline already *is* the number.
+		expect(toolText?.rating).toBeUndefined();
+		expect(studio.verdictReport.severity).toBeNull();
+		// The words she did write are all still there.
+		expect(studio.verdictReport.verdict).toBe('2/10');
+		expect(studio.verdictReport.quote).toBe(toolOutput.response);
 	});
 
 	it('says nothing about a standing once the verdict is gone', async () => {

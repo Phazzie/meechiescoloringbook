@@ -9924,3 +9924,97 @@ came from reading the file. So a one-off script extracted all three from
 `git show origin/main:…pipeline.ts` with regexes and compared them to the builders' output at
 runtime: **three SAME, exit 0.** The unit test's hardcoded expectations are the same strings, now
 known to be main's rather than remembered as main's.
+
+### Run 11, second close-out — 2026-09-06 — two from Codex, both correct, and one of them says my design conflated two questions
+
+Codex reviewed `a7830a9` and returned **two P2s. Both were right**, both were verified against the
+code rather than accepted, and the first one is the more valuable finding of the two because it
+shows the *shape* of the mistake rather than an instance of it.
+
+#### P2 — a page saved from the toolkit claimed a standing Meechie never gave
+
+`src/lib/core/tool-page-recipe.ts:683` — `qualityState: 'ready' as const`, written by
+`buildToolStudioText` **because the storage schema requires the field and `MeechieToolOutput` has no
+such thing**. My provenance test was `creation.studioText !== undefined`, which reads that as a
+report. So from this change onward, **every toolkit page ever saved would have said "Meechie had
+enough to work with"** on reopening.
+
+The finding is specific; what it exposes is not. I had written one flag and asked it two questions:
+
+1. *May the card claim a standing?*
+2. *Should this text be written back into the record?*
+
+They have different answers. Three kinds of record carry a `qualityState`, and only one carries a
+*reported* one — a studio page from a live response; a toolkit page with the placeholder above; and
+a page saved before this change carrying a reconstruction the studio itself invented. **Nothing on a
+record tells the three apart.** So the honest answer to (1) is that no restored standing is
+believed, ever. But the answer to (2) is not the same: a stored verdict is rarely its page title, so
+refusing to write it back would lose sentences the reader paid for.
+
+The flag is a three-valued `verdictSource` now — `'live' | 'stored' | 'derived'` — and each value
+answers both questions differently. `'live'` claims a standing and is written down. `'stored'`
+claims nothing and is written down. `'derived'` claims nothing and is not, because every field of it
+comes from `intent`. A fourth state, `'none'`, exists only because there can be no verdict at all,
+and `clearVerdict` is its own writer so that no call can pair "nothing on screen" with a source
+saying otherwise.
+
+**The cost of the fix, stated plainly:** a reader who reopens their own genuinely-saved studio page
+no longer sees its standing. That is a real loss and it is the right one — the alternative is
+claiming a standing for two kinds of record that never had one, and the app cannot tell which it is
+holding. Her note still shows, because a stored `revisionNote` is a line she wrote and repeating it
+claims nothing about approval.
+
+#### P2 — the Rate This Excuse score is not a severity, and this change had just started saying it was
+
+The second finding is the first one's twin, one field over. Both `rating` fields are called `rating`
+and both are 1-10, and they measure close to opposite things:
+
+| | 1 means | 10 means |
+|---|---|---|
+| studio (`meechie-studio-text-pipeline.ts:96`) | barely anything | *"1-10 severity. Be honest. Don't undersell it."* |
+| Rate This Excuse (`meechie-tool-seam/index.ts:103`) | *"insulting everyone in the room"* | *"barely credible"* |
+
+`buildToolStudioText` copied one into the other. Nothing had ever *said* what the number meant, so
+the mismatch stayed quiet — until this change put the words "Severity 2 of 10 — Meechie's read on
+how bad the situation is" under it. **An excuse scored 2 for being an insult would have been
+presented as a mild situation.** The label did not create the bug; it made an existing one legible,
+which is the argument for labelling things.
+
+Two fixes, at two levels, deliberately:
+
+1. **The producer stops copying it.** `buildToolStudioText` no longer writes `rating`, with the two
+   definitions quoted at the line. Nothing is lost — that tool's headline **is** the score — and the
+   studio's `rating` field regains a single meaning. The test that pinned the old behaviour
+   (`expect(studioText.rating).toBe(2)`) is rewritten to assert the opposite and to say why.
+2. **The card refuses to say the number twice.** Records already saved carry the old value, so
+   `readVerdictSeverity` returns `null` when the verdict *is* the score — `verdict.trim() ===
+   `${rating}/10``. Derived from the record's own two fields rather than matched against a known
+   headline shape or a list of tool ids: the question it answers is "would this card print the same
+   number twice?", which is the same question in every case that matters and needs no knowledge of
+   which tool wrote the record.
+
+#### Four mutations, each confirmed red
+
+| Mutation | Result |
+|---|---|
+| believe a standing from any record (`!== 'none'`) | 5 failed |
+| refuse to write `'stored'` text as well as `'derived'` | 1 failed — the words-survive-a-resave test |
+| drop the score-is-the-headline guard | 1 failed |
+| copy the tool rating back into `studioText` | 2 failed |
+
+#### What this round costs the run's own account of itself
+
+The first close-out's design section said provenance-beside-the-value was the shape three runs in a
+row had arrived at, and treated that as settled. It was the right shape and the wrong arity. **A
+boolean was enough for `promptWasSent` and `driftChecked` because each answered one question; here
+there were two, and I did not notice because one flag happened to give the right answer to both in
+every case I had thought of.** Every case I had thought of came from the home studio. The toolkit
+writes to the same store and I never opened its producer.
+
+The narrower rule: **when a provenance flag governs more than one decision, check each decision
+separately against every producer that writes the field** — not against the one you were looking at.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1589 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**49 passed** · `npm run verify` exit=0.

@@ -177,6 +177,22 @@ describe('buildVerdictReport severity', () => {
 		expect(SEVERITY_MEANING).toContain('not a score for her answer');
 	});
 
+	it('says nothing about a score that is already the headline', () => {
+		// Rate This Excuse builds its headline as "N/10" and scores an excuse's *credibility* — 1 is
+		// insulting, 10 is barely credible — which is close to the opposite of situation severity.
+		// `buildToolStudioText` no longer copies that number into the studio's `rating`, but records
+		// saved before that fix still carry it, and the card must not print it twice with the second
+		// copy relabelled. Derived from the record's own two fields, not matched against a list of
+		// tools: the question is whether this card would say the same number twice.
+		expect(readVerdictSeverity(2, '2/10')).toBeNull();
+		expect(readVerdictSeverity(2, '  2/10  ')).toBeNull();
+		expect(reportFor({ rating: 2, verdict: '2/10' }).severity).toBeNull();
+		// A headline that merely mentions the number is not the number.
+		expect(readVerdictSeverity(2, 'He scored 2/10 on effort')?.value).toBe(2);
+		// And a real verdict beside a real severity is untouched.
+		expect(readVerdictSeverity(8, 'The phone did not die.')?.label).toBe('Severity 8 of 10');
+	});
+
 	it('reports nothing at all when the response carried no rating', () => {
 		// Not a zero, not a dash, not "unrated". An absent rating is not a low one.
 		expect(reportFor({ rating: undefined }).severity).toBeNull();

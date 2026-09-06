@@ -205,15 +205,26 @@ const severityWeight = (value: number): VerdictSeverity['weight'] => {
 };
 
 /**
- * The severity reading, or `null` when the response carried no rating.
+ * The severity reading, or `null` when there is none to give.
  *
  * `null` renders as nothing at all. An absent rating is not a low one, and a card that fills the gap
  * with a zero, a dash or "unrated" would be describing a judgement Meechie did not make.
+ *
+ * `verdict` is taken as well, for one case that is not about absence. When the verdict *is* the
+ * score — a headline of exactly `"2/10"` — the number is already the largest thing on the card, and
+ * it is there under its own meaning. Rate This Excuse builds its headline that way and scores an
+ * excuse's credibility, not a situation's severity, so a page saved from it and reopened here would
+ * otherwise print the same number twice with the second copy relabelled to mean something close to
+ * the opposite. Derived from the record's own two fields rather than matched against a known
+ * headline shape: the question is whether *this* card would say the number twice, which is the same
+ * question in every case that matters and needs no list of tools to answer.
  */
 export const readVerdictSeverity = (
-	rating: number | undefined
+	rating: number | undefined,
+	verdict = ''
 ): VerdictSeverity | null => {
 	if (rating === undefined) return null;
+	if (verdict.trim() === `${rating}/10`) return null;
 	return {
 		value: rating,
 		outOf: 10,
@@ -229,6 +240,13 @@ export const readVerdictSeverity = (
  * `standingWasReported` is separate from the output on purpose, and is the same shape of input as
  * Run 9's `promptWasSent` and Run 10's `driftChecked`: a required contract field always holds a
  * value, so the value alone can never say whether anybody actually reported it.
+ *
+ * Only a live studio response sets it, and the reason is worth keeping: three kinds of record carry
+ * a `qualityState` and only one of them carries a *reported* one. A studio page saved from a real
+ * response does. A page saved from the toolkit has the `'ready'` that `buildToolStudioText` must
+ * write because `MeechieToolOutput` has no such field at all. A page saved before this change may
+ * carry a `'ready'` the studio itself reconstructed. Nothing on the record tells the three apart —
+ * so a standing read back out of storage is not believed, whichever it is.
  */
 export const buildVerdictReport = (input: {
 	output: MeechieStudioTextOutput | null;
@@ -258,7 +276,7 @@ export const buildVerdictReport = (input: {
 		hasVerdict: true,
 		verdict: output.verdict,
 		quote: output.quote,
-		severity: readVerdictSeverity(output.rating),
+		severity: readVerdictSeverity(output.rating, output.verdict),
 		standing: facts
 			? {
 					code: output.qualityState,
