@@ -98,15 +98,18 @@ run that can wait for a human. Do not alter the site nav, `/m/[mode]`, `mode-cat
 `npm run verify`.
 
 **Definition of done (literal):** `npm run check && npm run lint && npm test && npm run test:e2e &&
-npm run build` exits 0, and `.svelte-kit/output/prerendered/pages/index.html` contains eight
+npm run build && npm run verify` exits 0, and `.svelte-kit/output/prerendered/pages/index.html` contains eight
 `data-testid="home-mode-…"` attributes, eight `href="/m/…"` links, zero `mode-featured-badge`
 occurrences and zero `home-mode-schedule` occurrences.
 
-*(`npm run test:e2e` added after merge. This plan changed `tests/e2e/smoke.spec.ts` and the suite was
+*(`npm run test:e2e` and `npm run verify` both added after merge. This plan changed `tests/e2e/smoke.spec.ts` and the suite was
 run — 49 passing — but the gate as written did not name it, so the plan's stated completion bar was
 weaker than the work actually done, and weaker than every other plan in this file, which all list it.
-A CodeRabbit review on PR #315 caught it. Corrected rather than left, because a definition of done
-that omits a suite the diff edits is how a future run learns to skip it.)*
+A CodeRabbit review on PR #315 caught the missing `test:e2e`; a second round on PR #316 caught that
+`npm run verify` was in the commands list and not in the chain, which is the same defect a second
+time — `AGENTS.md` makes verify mandatory for this repo, so a gate a run could satisfy without it was
+the weakest possible reading of "done". Corrected rather than left, because a definition of done that
+omits what the diff touches is how a future run learns to skip it.)*
 
 **Self-critique.**
 

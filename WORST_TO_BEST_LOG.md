@@ -11093,10 +11093,27 @@ close-out pull request, CodeRabbit reported:
 
 Neither changes an argument. Both are the same failure at a smaller scale: **a plan that no longer
 matched its diff, and a precise-looking number taken from the nearest source instead of the
-authoritative one.** Three review rounds on this run have now produced four real findings, and
-*every one of them* was a documentation claim that outran its evidence — none was in the code. That
-is the honest shape of this run: the implementation held up to an eleven-thousand-boundary
-independent check, and the prose about it needed four corrections.
+authoritative one.**
+
+**A fourth round then found that the fix for the first finding had itself overclaimed** — in the
+opposite direction. The corrected `CHANGELOG.md` line said the only place in the app that listed the
+five modes was "the page you land on when you lose your connection". `+error.svelte` lists them too.
+So the sentence written *to stop overstating* where the modes were missing went on to understate
+where they were present, in the same clause, while citing the very evidence it was getting wrong.
+That one is the most useful entry in this table, because it is not a lapse of care — the correction
+was written deliberately, checked, and still narrowed a two-item list to one. Alongside it, the same
+round found `npm run verify` missing from the plan's literal definition of done while sitting in its
+commands list one line above: the identical defect as the `test:e2e` finding, uncaught when that one
+was fixed, in a repository whose governance makes verify mandatory.
+
+**Four review rounds, six real findings, every single one a documentation claim that outran or
+undershot its evidence. None was in the code.** That is the honest shape of this run: the
+implementation held up to an eleven-thousand-boundary independent check and to 1,618 unit tests and
+49 end-to-end tests without a single correction, and the prose about it needed six.
+
+The pattern worth carrying forward is not "be careful with prose". It is that **this run's
+corrections were as error-prone as the text they corrected, and at the same rate.** A correction is
+a new claim. It gets checked like one, or it becomes the next finding.
 
 Method note for the next run, earned the hard way: **verify a reviewer's factual claim against the
 primary source before accepting it, and against the primary source before writing it.** The
