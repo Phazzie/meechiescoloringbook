@@ -8650,13 +8650,29 @@ on the commits after it — this table is the record, and it carries no total:
 A finding is only the last one once no further look has happened. Nothing is described as last in
 this file again; the close-out stops where the reviews stopped.
 
-**The count is deliberately absent, and that is the fix.** This paragraph said "three", then "five",
-and each was accurate when written and wrong by the next round — because a document that counts the
-reviews *of itself* cannot state a total while those reviews are still arriving. Bumping five to
-seven would have been wrong again on the round that flagged it. The table converges; the sentence in
-front of it never can. Three separate findings were spent discovering that, which is two more than it
-should have taken: the first correction already said *"enumerated or tabulated, not asserted"*, and I
-then left a running total standing in front of the enumeration.
+**The count is deliberately absent, and that is the fix.** Bumping the total each round would have
+been wrong again on the round that flagged it: a document that counts the reviews *of itself* cannot
+state a total while those reviews are still arriving. The table converges as rows are appended; a
+sentence in front of it never can.
+
+**Neither total was ever right, and I should not have written that they were.** An earlier version of
+this paragraph said the two totals were "accurate when written and wrong by the next round". That is
+a flattering account and it is false — checkable against this file's own history:
+
+| Written | Said | On the record at that moment | Missing |
+|---|---|---|---|
+| `a4dd1ac` | three | five (`fbe8136`'s two, `83d566d`'s three) | two of the three findings that commit was fixing |
+| `e7d7807` | five | seven — **the table printed directly beneath the sentence** | the two `a4dd1ac` findings its own table listed |
+
+The second is the one to keep: **the total contradicted the enumeration immediately below it**, in the
+commit whose message said the count was now "tabulated so it is checkable rather than asserted". So
+these were never a staleness problem. Staleness would mean the number was true and time passed. I
+never counted at all — I wrote the number that fit the sentence, twice, while the correct number sat
+in the table under my cursor.
+
+Three separate findings went into reaching a fix the first of them had already described: it said
+*"enumerated or tabulated, not asserted"*, and I then left a running total standing in front of the
+enumeration.
 
 So: **no count in this close-out is stated in prose.** Where a number matters it is a list or a table
 whose rows a reader can check, and where a total would go stale it is simply not written.
