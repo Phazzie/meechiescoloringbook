@@ -289,6 +289,63 @@ const unavailableResponse = (): Response =>
 export type FetchLike = (request: Request) => Promise<Response>;
 
 /**
+ * "The cache had it" as one question with one answer.
+ *
+ * `matchRequest` reports two different kinds of nothing — the seam failed (`ok: false`) and the
+ * seam succeeded and the entry is absent (`value: null`) — and every caller here treats them the
+ * same way, because neither is a reason to fail a request the network can still serve. Written out
+ * three times, that identical `ok && value !== null` was three chances to get one of them wrong.
+ */
+const cachedResponse = async (seam: CacheSeam, key: string): Promise<Response | null> => {
+	const result = await seam.matchRequest(key);
+	return result.ok ? result.value : null;
+};
+
+/** Versioned, immutable bytes: the cache is authoritative, the network is the miss path. */
+const cacheFirst = async (
+	seam: CacheSeam,
+	request: Request,
+	key: string,
+	fetchFn: FetchLike
+): Promise<Response> => {
+	const cached = await cachedResponse(seam, key);
+	if (cached) return cached;
+	try {
+		return await fetchFn(request);
+	} catch {
+		return unavailableResponse();
+	}
+};
+
+/**
+ * A document or its route data. Freshness wins while there is a network, because a cached document
+ * is a whole deploy behind and this app ships fixes to what it *says*, not only to how it looks.
+ *
+ * The fallback is offered to navigations only. A `__data.json` request answered with the offline
+ * page would have SvelteKit's client parse an HTML document as JSON.
+ */
+const networkFirst = async (
+	seam: CacheSeam,
+	request: Request,
+	key: string,
+	options: { fetchFn: FetchLike; isNavigation: boolean; fallbackAvailable: boolean }
+): Promise<Response> => {
+	try {
+		return await options.fetchFn(request);
+	} catch {
+		const cached = await cachedResponse(seam, key);
+		if (cached) return cached;
+
+		if (options.isNavigation && options.fallbackAvailable) {
+			const fallback = await cachedResponse(seam, OFFLINE_FALLBACK_PATH);
+			if (fallback) return fallback;
+		}
+
+		return unavailableResponse();
+	}
+};
+
+/**
  * Answer one request, given a strategy and the plan that says whether a fallback exists.
  *
  * Returns `null` for `bypass`, which the service worker reads as "do not call `respondWith`" — the
@@ -308,32 +365,13 @@ export const handleFetch = async (
 
 	const key = cacheKeyFor(input.request.url, input.isNavigation);
 
-	if (input.strategy === 'cache-first') {
-		const cached = await seam.matchRequest(key);
-		if (cached.ok && cached.value !== null) return cached.value;
-		try {
-			return await input.fetchFn(input.request);
-		} catch {
-			return unavailableResponse();
-		}
-	}
-
-	// network-first: a document or its route data. Freshness wins while there is a network,
-	// because a cached document is a whole deploy behind and this app ships fixes to what it
-	// *says*, not only to how it looks.
-	try {
-		return await input.fetchFn(input.request);
-	} catch {
-		const cached = await seam.matchRequest(key);
-		if (cached.ok && cached.value !== null) return cached.value;
-
-		if (input.isNavigation && input.fallbackAvailable) {
-			const fallback = await seam.matchRequest(OFFLINE_FALLBACK_PATH);
-			if (fallback.ok && fallback.value !== null) return fallback.value;
-		}
-
-		return unavailableResponse();
-	}
+	return input.strategy === 'cache-first'
+		? cacheFirst(seam, input.request, key, input.fetchFn)
+		: networkFirst(seam, input.request, key, {
+				fetchFn: input.fetchFn,
+				isNavigation: input.isNavigation,
+				fallbackAvailable: input.fallbackAvailable
+			});
 };
 
 /**
