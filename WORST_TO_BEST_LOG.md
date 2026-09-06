@@ -9650,7 +9650,10 @@ The installable app is on `main`. Base `ad3bfe7` → head `6e4d3a5`, squashed to
 | Open Assumption in `DECISIONS.md` | **one, and this run newly depends on it** — see below |
 
 **The open Assumption, which an earlier draft of this table recorded as "none".** That was wrong,
-and wrong in the direction that hides a gate rather than raising one. `DECISIONS.md:680-683` carries
+and wrong in the direction that hides a gate rather than raising one. The entry — `DECISIONS.md`
+lines 678-685 as of `2244765`, and findable by its `Seams: None registered - static-asset response
+headers served by the Vercel edge` line, which is what to search for once these numbers drift —
+carries
 an Assumption dated 2026-09-03 — three days before this run — stating that the `headers` rules in
 `vercel.json` attach `X-Content-Type-Options`, `X-Frame-Options` and `Referrer-Policy` to the paths
 `src/hooks.server.ts` never sees, with `Status: Open - pending first deploy`. Nothing local can
@@ -9824,9 +9827,9 @@ The SonarCloud security failure was diagnosed by reasoning about which of my lin
 It was wrong. The answer had been delivered to this session as a review comment naming the file and
 the line, and was sitting unread while the reasoning happened.
 
-And a third, which this close-out earned on its own account. **Eighteen findings across eight Codex
-passes on #312 — a pull request containing no code — with a ninth returning clean, and every one of
-the eighteen correct.**
+And a third, which this close-out earned on its own account. **Twenty-one findings across nine Codex
+passes on #312 — a pull request containing no code — with a tenth returning clean, and every one of
+the twenty-one correct.**
 
 The ledger below is per pass and append-only, which is the second attempt at recording this. The
 first attempt gave a total anchored to one commit, and review caught the flaw in that immediately:
@@ -9846,22 +9849,43 @@ mode — later passes append rather than displace, and any total is recoverable 
 | `e6beced` | 2 | — |
 | `8a58e92` | 4 | `lint` and `build` evidence never refreshed |
 | `d38dcfe` | 2 | — |
+| `2244765` | 3 | no micro Plan + Self-Critique for a governance-only change |
 
-**Four P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
+**Five P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
 A merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
 **A verify chain refreshed in part** — fixing the first two I ran only the two scripts I expected to
 object, leaving four downstream artifacts describing an older tree, a directory that reads as
 verified and is not. And **`lint` and `build` evidence never refreshed at all**, which is the same
 defect one layer down: `npm run verify` runs neither, so re-running the chain each time did nothing
 for those two files and I never noticed, because I was watching the chain rather than the checklist.
+And **no micro Plan for this pull request at all**: `AGENTS.md` L108 requires one even for a
+governance-only documentation change — the seams, the files, the commands, and how behaviour stays
+unchanged — and this PR opened inheriting Run 10's pre-merge plan, which describes work that had
+already merged as `1b67d30`. A plan that documents finished work is not a plan. It is in `plan.md`
+now, with the Self-Critique the rule also asks for.
 
-**The fourteen P2s** were counts and capability claims: "six routes" above a list of seven; "no
-`CacheSeam` write operation" when `primeCache` is one; "no unit test could have caught" two defects
-whose unit tests this run wrote; fonts called a seam limitation when the seam permits them; a
-missing probe listed among the defects it failed to catch; the findings total; the round count; two
-P1s counted where there were three; "all five headers" when the edge supplies one of them; a
-structured `Statement` left naming three headers while the prose beside it said four; "every page"
-when five alias slugs still reach the hook; and this ledger's own anchoring.
+**The P2s**, in three kinds rather than one. An earlier draft called them all counts and capability
+claims and then listed twelve where the ledger implied fourteen — miscounting the list of
+miscounts, which is the joke this entry keeps making at its own expense.
+
+*Counts* (6): the findings total; the round count; two P1s recorded where there were three; the
+list of prerendered routes reading "six" above seven of them; the P2 inventory naming twelve of
+fourteen; and a total left at ten in the sentence directly beneath a ledger reading sixteen.
+
+*Capability and scope claims* (6): "no `CacheSeam` write operation" when `primeCache` is one; fonts
+called a seam limitation when the seam permits them and only the strategy refuses; "no unit test
+could have caught" two defects whose unit tests this run wrote; a missing probe listed among the
+defects it failed to catch; "all five headers" when the edge supplies one of them independently;
+and "every page" when five alias slugs still resolve through the function.
+
+*Procedure and reference defects* (2), which are the two that could mislead a future run into
+**doing** the wrong thing rather than believing it: a close-out instruction that validated the
+document rules and then said to mark the Assumption `Closed`, leaving its asset half — the original
+half — unchecked; and a structured `Statement` left naming three headers while the prose beside it
+said four, where `assumption-alarm` parses the field and not the paragraph.
+
+Plus this ledger's own anchoring, and a stale `DECISIONS.md` line range, both of which are the same
+disease as the counts: a fact restated where it cannot be checked against its source.
 
 > **Correcting the instance is not correcting the belief.**
 
