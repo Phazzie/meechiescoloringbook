@@ -8605,6 +8605,33 @@ was a failing test. Two mechanisms recurred often enough to name:
 2. **Checking the case I had in mind rather than its neighbour.** Pictureless-with-findings, but not
    pictureless-with-findings-*and-then-the-user-types*.
 
+**Corrected on review of the close-out itself.** The bolded sentence above is an overclaim, and the
+exceptions are documented *in this same file, by me, earlier in this run*:
+
+- The **forbidden `zod` import** — recorded at the eight-finding round as "only one was a plain
+  coding error", in exactly those words.
+- **SonarCloud's three findings on `b2831a6`** — a duplicated contract import and a `[length - 1]`
+  index. Plain coding defects; neither is a claim about anything.
+- **SonarCloud's duplication gate**, 4.5% → 4.1% → 3.3% against a 3% ceiling. A *measure*, not an
+  assertion — the one category of finding that cannot be an overclaim by construction.
+- **The unmade edit**, which the entry above at "Nineteen findings, and the one that is different"
+  already separates out explicitly: *"The nineteenth is not like the others."* It was a false
+  description of my own work, not an inference about the system.
+
+The accurate statement is: **the large majority were claims wider than their evidence, and the run
+did that arithmetic once already — eighteen of nineteen at that point.** I did not recount for the
+final tally, and "~40" was an estimate, so the honest form names the pattern and its exceptions
+rather than asserting a number over both.
+
+The same overclaim stands at two earlier points in this run's entries — "the pattern never once
+varied" in Run 9's close-out, and "every finding in this run" in Round 12. Both are left as written,
+with this correction pointing at them, because that is how every other correction in this file works.
+
+It is worth being plain about what happened here: **the sentence claiming that every defect was a
+claim wider than its evidence was itself a claim wider than its evidence** — and it erased
+counter-examples I had already written down and counted. Caught by Codex on the close-out PR, which
+means the run's last finding is the run's own thesis, applied to the sentence stating it.
+
 ### What I got wrong, kept in one place
 
 - Claimed a reviewer fix I had never made, in a reply and in this log. Corrected both.
@@ -8621,6 +8648,11 @@ was a failing test. Two mechanisms recurred often enough to name:
 - Rewrote the PR description at merge time. The version opened at `b2831a6` still described the
   reserved violation code, the `check-failed` weight, and a diff touching no contract — all three
   overturned in review, all three about to become the permanent merge record.
+- Wrote "every one of the ~40 findings was a claim wider than its evidence" three times — twice in
+  this run's entries and once in this close-out — while this same file already recorded the
+  exceptions and had already counted them as *eighteen of nineteen*. I did not reread my own
+  arithmetic before generalising past it. Corrected above; also corrected in the descriptions of
+  PR #309 and PR #310, which both carried the claim, and in what I told the user.
 
 ### The stopping rule, as it actually played out
 
