@@ -8628,9 +8628,20 @@ did that arithmetic once already — eighteen of nineteen at that point.** I did
 final tally, and "~40" was an estimate, so the honest form names the pattern and its exceptions
 rather than asserting a number over both.
 
-The same overclaim stands at two earlier points in this run's entries — "the pattern never once
-varied" in Run 9's close-out, and "every finding in this run" in Round 12. Both are left as written,
-with this correction pointing at them, because that is how every other correction in this file works.
+The same overclaim stands at these earlier points in this run's entries, each left as written with
+this correction pointing at it, because that is how every other correction in this file works:
+
+- *"Fourteen findings in, the shape has not changed once"* — **"Every single one has been a claim
+  wider than its evidence."** Disproved by this same file four sections earlier, where the `zod`
+  import is recorded as a plain coding error inside those very fourteen.
+- *"The single sentence this run earns"* — **"Twenty-nine findings, and the pattern never once
+  varied: every one was a claim wider than its evidence."**
+- Round 12, *"Why this is the run's own pattern, again"* — **"Every finding in this run has been a
+  claim wider than its evidence."**
+
+That list was itself first written as "two earlier points", omitting the fourteen-findings one — the
+same defect, in the sentence cataloguing the defect, for the second time. It is enumerated by heading
+now rather than counted, so a reader can check it against the file instead of trusting me.
 
 It is worth being plain about what happened here: **the sentence claiming that every defect was a
 claim wider than its evidence was itself a claim wider than its evidence** — and it erased
@@ -8638,14 +8649,18 @@ counter-examples I had already written down and counted. Caught by Codex on the 
 run's own thesis, applied to the sentence stating it.
 
 This paragraph originally called that **"the run's last finding."** It was not. Findings kept landing
-on the commits after it — this table is the record, and it carries no total:
+on the commits after it. **The complete and authoritative record of them is the review thread on
+PR #310**, which maintains itself; the table below is a reading aid that lags it by one round and
+does not attempt to be exhaustive — it cannot be, because each round reviews the very entry that
+would have to list it. It carries no total for the same reason:
 
 | Head | Findings |
 |---|---|
 | `fbe8136` | the premature merge close-out; the uncounted thirteenth round |
 | `83d566d` | the P1 on editing an append-only file; "ten more rounds" when it was twelve; the stale "last finding" claim |
 | `a4dd1ac` | "false in its entirety", which discarded real measurements; the count below, first written as three |
-| `e7d7807` | that count again — corrected to five, and five was already stale |
+| `e7d7807` | that count again — corrected to five, and five was already wrong |
+| `6433a77` | calling both stale totals "accurate when written", which they never were |
 
 A finding is only the last one once no further look has happened. Nothing is described as last in
 this file again; the close-out stops where the reviews stopped.
