@@ -43,9 +43,11 @@ import {
 	consumeStudioActionBudget,
 	studioActionStartsRound,
 	getStudioTextAction,
-	getMonthlyMode,
-	getWeeklyModes,
+	getModeSpotlight,
+	describeSpotlightSchedule,
+	studioModes,
 	studioThemes,
+	type ModeSpotlight,
 	type StudioTextActionId
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
@@ -230,12 +232,41 @@ const isKnownDraftSeed = (intent: ColoringPageSpec): boolean =>
 	DRAFT_SEED_TEXT_SIGNATURES.some((seed) => matchesDraftSeedText(intent, seed));
 
 export class StudioState {
-	// Computed per-instance so week/month rotation stays fresh on each page mount.
-	readonly weeklyModes = getWeeklyModes();
-	readonly monthlyModeId = getMonthlyMode().id;
+	/**
+	 * Every mode, in catalogue order, on every render.
+	 *
+	 * This used to be `getWeeklyModes()` — three of the eight, chosen by reading the clock in a
+	 * field initializer. Two things were wrong with that beyond the five modes it hid. The comment
+	 * on it said "computed per-instance so week/month rotation stays fresh on each page mount",
+	 * which is true of the *browser's* instance and false of the one that matters: `/` is
+	 * prerendered, so the instance whose HTML ships — and which the service worker caches for the
+	 * installed app — is constructed at **build time**, and its three cards were dated to the
+	 * build. And nothing refreshed it afterwards: a `readonly` field on a page that an installed
+	 * app keeps open for days could not change, in a studio that already schedules a UTC
+	 * day-boundary refresh for something as small as a "Saved today" label.
+	 *
+	 * A constant list has neither problem, because it is the same list on every day and in every
+	 * timezone. What the clock decides now is only which cards are *badged*, and that is derived
+	 * from `nowMs` below, which the existing day-boundary timer already moves.
+	 */
+	readonly modes = studioModes;
 
 	// --- Reactive state (template-bound) ---
-	activeModeId = $state(this.weeklyModes[0].id);
+	/**
+	 * False until `init()` has run, which happens only in a browser.
+	 *
+	 * Declared here rather than beside the other lifecycle fields further down because
+	 * `spotlightNote` reads it: class field initializers run in declaration order, and a `$derived`
+	 * declared above it would be reading a field TypeScript can prove is not initialized yet.
+	 */
+	isBrowser = $state(false);
+	/**
+	 * The mode the studio is set to. Defaults to the first in the catalogue, deliberately not to
+	 * the spotlit one: the default decides the heading, the help line, the placeholder, the button
+	 * and — through `activeMode.toolId` — which tool the verdict is asked of, and a clock-dependent
+	 * default meant the prerendered document and the hydrated page could disagree about all five.
+	 */
+	activeModeId = $state(studioModes[0].id);
 	// The studio's starting style and `DEFAULT_STYLE_SELECTION` were the same three values written
 	// out twice. Spread rather than shared, so one instance's voice is not another's.
 	selectedThemeId = $state(DEFAULT_STYLE_SELECTION.themeId);
@@ -638,8 +669,45 @@ export class StudioState {
 	);
 
 	// --- Derived state ---
+	/**
+	 * Resolved against the whole catalogue, not against a rotating subset of it.
+	 *
+	 * The previous version searched the three modes on the strip and fell back to the first of
+	 * them. That fallback is silent, and it is the studio changing the reader's question: the id
+	 * would still say one mode while the heading, help, placeholder, button and `toolId` all came
+	 * from another. It could not fire while the only way to pick a mode was the same three cards —
+	 * but that is exactly the condition this run removed, so resolving against `studioModes` is
+	 * what makes the other five safe to select.
+	 */
 	activeMode = $derived(
-		this.weeklyModes.find((m) => m.id === this.activeModeId) ?? this.weeklyModes[0]
+		this.modes.find((m) => m.id === this.activeModeId) ?? this.modes[0]
+	);
+	/**
+	 * Which modes are called out right now and when that stops being true, or `null` when the app
+	 * is not in a position to say.
+	 *
+	 * Two things are going on here, and the `null` is the more important one.
+	 *
+	 * `null` before hydration, because `/` is prerendered once: any dated claim baked into that
+	 * HTML is a claim about the *build*, and the service worker caches that document and replays it
+	 * for days. Both the badges and `spotlightNote` are gated on this one value rather than each
+	 * re-testing `isBrowser`, so there is no second copy of the rule to drift. Every mode's card and
+	 * `/m/` link is in the prerendered markup either way — a crawler, a reader with JavaScript off
+	 * and an installed app opening from cache all still get the complete menu. They get it without
+	 * a spotlight, which is the honest rendering of a document that cannot know today's date.
+	 *
+	 * Derived from `nowMs` rather than read from the clock here, so it inherits the refresh the
+	 * vault labels already have: `startSavedLabelRefresh` moves `nowMs` at every UTC day boundary
+	 * and whenever a backgrounded tab comes back. Every instant a spotlight can change on — a
+	 * Monday, a first-of-month — is a UTC day boundary, so that timer already fires on each of them
+	 * and no second one is needed.
+	 */
+	spotlight = $derived<ModeSpotlight | null>(
+		this.isBrowser ? getModeSpotlight(this.nowMs) : null
+	);
+	/** The sentence under the strip explaining the badges, or `''` when there are none to explain. */
+	spotlightNote = $derived(
+		this.spotlight ? describeSpotlightSchedule(this.spotlight) : ''
 	);
 	activeTheme = $derived(
 		studioThemes.find((t) => t.id === this.selectedThemeId) ?? studioThemes[0]
@@ -1021,7 +1089,6 @@ export class StudioState {
 	 * new one and charges the new round's allowance for it.
 	 */
 	private verdictToken = 0;
-	isBrowser = $state(false);
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
 	private stopVisibilityWatch: (() => void) | null = null;
 	private cancelDayBoundaryRefresh: (() => void) | null = null;
@@ -2494,6 +2561,14 @@ export class StudioState {
 		// replaced `origin` after construction, and the value captured then would be the default
 		// adapter's. The clock and visibility seams are consulted here for the same reason.
 		this.appOrigin = this.origin.getOrigin();
+		// The same re-read, for the same reason, and it was missing. `nowMs`'s field initializer
+		// ran against whatever `clock` was at construction — the default adapter — so an injected
+		// clock did not reach it until the first day boundary fired or the vault was read. Every
+		// existing test happened to survive that because they all advance the clock explicitly
+		// before asserting on it; the spotlight does not have that luxury, because what it shows is
+		// a function of the instant at the moment the page renders and nothing has to move for it
+		// to be wrong.
+		this.nowMs = this.clock.now();
 		this.startSavedLabelRefresh();
 		const [sessionResult, draft] = await Promise.all([
 			sessionAdapter.getSession(),

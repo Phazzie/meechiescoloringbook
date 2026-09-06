@@ -656,3 +656,39 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
   labelling values rather than printing them bare, and an obligation to fix whatever the label
   turns up. Before rendering a number with its meaning attached, find every producer that writes
   that field and check each one's definition of it, not just the field's name.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: The home page's mode strip showed 3 of 8 modes and linked only those 3.
+- Lesson: A feature can be invisibly broken because the app never shows you what is missing. The strip did not look wrong — it looked like a tidy three-card row — so no amount of using the app would surface that five features had no link anywhere in it. What surfaced it was counting the catalogue (`studioModes.length === 8`) against what the front door rendered (3).
+- Action: When auditing a surface that renders a subset of a collection, compare the rendered count to the collection's length before looking at anything else. `/offline` and `/+error.svelte` already listed all eight through `modeCatalog()`; the error pages were a better feature directory than the home page.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: `prerender = true` on `/`, with `getWeeklyModes()` read from the host clock in a `StudioState` field initializer.
+- Lesson: "Nothing in this `load` depends on the request" is not the same as "nothing in this page depends on when it is rendered". `+page.ts` carried that justification in a comment while the component tree beneath it read the clock at construction — so the prerendered document, which the service worker caches and replays offline for days, was dated to the build.
+- Action: On a prerendered route, treat any clock or locale read reachable from the component tree as a build-time constant. Render the parts that cannot be known server-side only once `isBrowser` is true, and keep the complete, dateless content in the server HTML so a crawler, a no-JavaScript reader and a cached offline copy all still get it.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: The only test naming the mode rotation called `getWeeklyModes()` to compute its own expectation.
+- Lesson: A test that derives its expectation from the function under test cannot fail. It is worse than no test, because it reports coverage. The same file's offline check ran `for (const mode of getWeeklyModes())` under the comment "Every mode is reachable from here" — iterating three while claiming eight, so the five modes with no home-page link were also the five nothing checked.
+- Action: Assert against a written-down constant or an explicit `Date.UTC(...)` instant, never against a second call to the code being tested. When a comment says "every", make the loop iterate the collection the word refers to.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: `Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000))` used as a week number.
+- Lesson: Epoch-anchored week arithmetic rolls over on **Thursday**, because 1970-01-01 was one. Nothing in the code said so, and the surface it drove said nothing about a boundary at all.
+- Action: Anchor week arithmetic on a named weekday (`FIRST_MONDAY_EPOCH_DAY = 4`) and put the boundary on screen where the reader can see whether it matches what they observe.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: `StudioState.init()` re-read `appOrigin` from the injected seam but not `nowMs` from the injected clock.
+- Lesson: Field initializers run before a test can inject anything, so a `$state` seeded from a seam captures the *default* adapter. Every existing clock test survived it only because they all advance the clock explicitly before asserting; anything whose value is a function of the instant at render would have been reading the host clock.
+- Action: When `init()` re-reads one injected seam because the field initializer could not, re-read all of them. A partial re-read is a trap that fires on the next feature.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Found during Run 12 and deliberately not fixed — `handleModeSelect` calls `scheduleDraftSave()`, but `DraftRecordSchema` has no mode field.
+- Lesson: The reader's chosen mode is not persisted. Pick a mode, type evidence, refresh: the evidence returns under a different question, wired to a different `toolId`. The save call implies otherwise, which is why it took a schema read to notice.
+- Action: Left for a run that can hold a pull request open — `AGENTS.md` forbids auto-merging a change that carries a schema or contract change, and a scheduled run has no human to wait for. Do not half-fix it by persisting the mode outside the store seam.

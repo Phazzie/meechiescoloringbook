@@ -8,6 +8,83 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 12 (2026-09-06) — the mode strip: all eight modes, and a spotlight that knows what day it is
+
+**Process note, recorded before anything else.** `AGENTS.md` requires the plan before the code
+changes. The investigation and the design decisions below were made before any file was edited, but
+this entry was *written* after the implementation was working. That is the wrong order and it is
+recorded rather than tidied: a plan written after the fact cannot fail, which is the only reason
+writing it first is worth anything.
+
+**Goal.** The home page's mode strip is the only place most of this app's eight modes are named. It
+showed three of them, chosen by reading the host clock inside core logic, and linked only those
+three — so five modes had no link anywhere in the application on any given day, while `/offline` and
+the 404 page both listed all eight through `modeCatalog()`. Show every mode, always. Keep the
+rotation as a *spotlight* on top of the full list, make it a pure function of an explicit UTC
+instant so it is testable and so the prerendered document and the browser agree, refresh it while
+the page is open, and put one sentence on screen saying what it is.
+
+**Seams: none changed.** No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/`, `src/lib/seams/` or `tests/contract/` is in the diff, so there is no Cipher
+Gate entry and this pull request carries no schema, contract or data migration. `ClockSeam` is
+*consulted* — `StudioState` already holds an injected one — but its contract is untouched. That is
+the direction of travel: this run removes two unseamed `new Date()` / `Date.now()` calls from core
+logic, it does not add any.
+
+| File | Action | What changes |
+|---|---|---|
+| `src/lib/core/meechie-studio.ts` | [MODIFY] | `getMonthlyMode` / `getWeeklyModes` take an `epochMs` instead of reading the clock; new `getModeSpotlight`, `describeSpotlightSchedule`, `utcWeekIndex`, `utcMonthIndex`, `ModeSpotlight`; week boundary moves from the epoch Thursday to Monday 00:00 UTC; month index moves from local to UTC |
+| `src/routes/studio-state.svelte.ts` | [MODIFY] | `weeklyModes`/`monthlyModeId` → `modes` (the whole catalogue); `spotlight`/`spotlightNote` derived from `nowMs`; `activeMode` resolves against all eight; default mode no longer clock-dependent; `isBrowser` declared earlier; `init()` re-reads `nowMs` from the injected clock |
+| `src/lib/components/studio/StudioHero.svelte` | [MODIFY] | renders every mode as a card and a `/m/` link; two badge branches gated on a nullable `spotlight`; the schedule sentence |
+| `src/routes/+page.svelte` | [MODIFY] | new props; `.mode-strip` becomes `auto-fill`; `.mode-featured-badge.week` and `.mode-schedule` rules; two responsive overrides |
+| `tests/unit/mode-spotlight.test.ts` | [NEW] | 15 tests over explicit `Date.UTC(...)` instants |
+| `tests/unit/studio-state.test.ts` | [MODIFY] | `studio.weeklyModes` → `studio.modes`; three strip tests; a new `StudioState mode spotlight` block driving a mock clock across a Monday and a first-of-month |
+| `tests/e2e/smoke.spec.ts` | [MODIFY] | stops calling the clock-reading function to decide what to expect; the offline-page loop checks all eight, which is what its comment already claimed |
+| `CLAUDE.md`, `CHANGELOG.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`, `plan.md` | [MODIFY] | documentation |
+
+**Anti-goals — do not touch.** No contract, schema, fixture, mock, probe or adapter. In particular
+**do not add a mode field to `DraftRecordSchema`**, however tempting: the reader's chosen mode is not
+persisted, so a refresh returns their evidence under a different question and sends it to a different
+`toolId`. That is a real defect, it was found by this run, and fixing it requires a contract change —
+which `AGENTS.md` says must not be auto-merged. It is reported in `LESSONS_LEARNED.md` and left for a
+run that can wait for a human. Do not alter the site nav, `/m/[mode]`, `mode-catalog.ts`,
+`modeCatalog()`, the `/offline` or 404 mode lists, or any `data-testid` other than the ones added.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`.
+
+**Definition of done (literal):** `npm run check && npm run lint && npm test && npm run build`
+exits 0, and `.svelte-kit/output/prerendered/pages/index.html` contains eight
+`data-testid="home-mode-…"` attributes, eight `href="/m/…"` links, zero `mode-featured-badge`
+occurrences and zero `home-mode-schedule` occurrences.
+
+**Self-critique.**
+
+*The riskiest assumption* is that showing eight cards instead of three is an improvement rather than
+the "overwhelming" strip the replaced comment was written to avoid. I cannot A/B test it, so the
+argument has to stand on its own: `/meechie` already renders **eleven** tool cards in a grid, and
+`/offline` and the 404 page already list all eight modes — so the app's own answer to "how many is
+too many" is not three, and the strip was the only surface applying a limit nothing else applied.
+What I can say without hedging is that the previous design's cost was *measured* and it was total:
+five features with no link at all.
+
+*What could still be wrong.* The `auto-fill` grid is judged from the rules, not from a screenshot at
+every width — the three breakpoints are exercised by eye in the CSS, not by a visual test, and this
+run adds none. Eight cards at 190px minimum will wrap to two rows on a typical desktop, which is a
+visual change to the page's most prominent element that no automated check will catch if it is ugly.
+
+*What must be proven, and is.* That the prerendered document is the one that changed — because that
+is the document the service worker caches and an installed app opens offline, and asserting it from
+the source is not the same as reading it. Both states were built and grepped; the before/after
+appears in `WORST_TO_BEST_LOG.md`.
+
+*What I got wrong while writing it.* The first version of the coverage test asserted that the weekly
+pair walks all seven non-monthly modes within seven consecutive weeks. It fails: seven weeks always
+crosses a month boundary, the pool changes composition on the first, and the walk restarts. The test
+now asserts what is actually true — consecutive weeks inside one month are disjoint, and every mode
+gets a week over a year. I had also written, in an earlier draft of the analysis, that the rotation
+gave the eight modes *unequal* exposure. Simulating 105 weeks showed 37-41 appearances each against
+an even share of 39.4. That claim was dropped rather than softened.
+
 ## Run 11 close-out (2026-09-06) — micro plan, PR #314
 
 Required by `AGENTS.md` L108: a governance-only documentation change still needs a plan listing the
