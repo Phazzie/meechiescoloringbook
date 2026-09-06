@@ -221,8 +221,15 @@ const mandatedRowProblem = (row1) => {
 		// answers "did it fail"; the summary answers "did anything in it fail", and a mandated run
 		// needs both to agree.
 		const contradicted = reportedFailure(row1);
-		if (contradicted === null) return null;
-		return `records a successful mandated command whose own summary reports failures ("${contradicted}"); a zero exit status beside a red summary means the status did not come from the run it claims to describe.`;
+		if (contradicted !== null)
+			return `records a successful mandated command whose own summary reports failures ("${contradicted}"); a zero exit status beside a red summary means the status did not come from the run it claims to describe.`;
+		// A status and nothing else is not a run. Deleting every line of the mandated command's output
+		// and leaving `e2e-mandated exit=0` behind satisfied "no failure reported", because a row with
+		// no summary reports nothing at all — the same "absence reads as success" that this file has
+		// now been caught by five times.
+		if (lastPassedCount(row1) === null)
+			return 'records a successful mandated command with no passing result beneath it; a status says how a command ended and the summary says what it did, and a row with only the first is a claim with nothing under it.';
+		return null;
 	}
 	const stated = /^Waiver-Expires: (\d{4}-\d{2}-\d{2})$/m.exec(row1)?.[1];
 	if (stated === undefined || !/^Waiver-Reason: \S/m.test(row1))
@@ -290,6 +297,22 @@ const selfAgreementProblem = (raw, file, list) => {
 		disagreements.push(
 			`these statuses appear in ${list} and in no summary column: ${unaccounted.join(', ')}`
 		);
+	// A seam's status is a rollup of the checks beneath it, and only the rollup was being read. Setting
+	// one nested check to "no" while the seam stays "ok" keeps every count truthful and every column
+	// covered — the artifact then reports a seam as complete while recording that one of its artifacts
+	// is not. `na` is a real status here and not a failure: 36 of these 38 seams carry one, for a
+	// fixture module or an adapter a seam does not have, and demanding `ok` from every check would
+	// reject the evidence this repository actually produces. Measured before it was written, because
+	// four earlier rules in this file rejected correct evidence by assuming what a value meant.
+	const ROLLED_UP = new Set(['ok', 'na']);
+	const contradicted = entries
+		.filter((entry) => entry?.status === 'ok')
+		.flatMap((entry) =>
+			(Array.isArray(entry.checks) ? entry.checks : [])
+				.filter((check) => !ROLLED_UP.has(check?.status))
+				.map((check) => `${entry.seam} is ok while its ${check?.kind} check reports "${check?.status}"`)
+		);
+	if (contradicted.length > 0) disagreements.push(...contradicted);
 	if (disagreements.length === 0) return null;
 	return `${file}'s summary disagrees with its own ${list}: ${disagreements.join('; ')}; the file was edited after it was written, or the stage that wrote it is inconsistent.`;
 };
@@ -385,7 +408,15 @@ const tapeInventory = (dir) => {
 		if (Array.isArray(node)) return node.forEach(collect);
 		if (node === null || typeof node !== 'object') return;
 		if (typeof node.name === 'string' && typeof node.sizeBytes === 'number')
-			inventory.push({ name: node.name, sizeBytes: node.sizeBytes, predatesRun: node.predatesRun });
+			inventory.push({
+				name: node.name,
+				sizeBytes: node.sizeBytes,
+				predatesRun: node.predatesRun,
+				// Carried through rather than dropped: every rule downstream resolves `name` against the
+				// folder it is reading, so a `path` pointing somewhere else was simply discarded, and a
+				// tape could name `fake/evidence/<date>/test.txt` while every rule passed.
+				path: node.path
+			});
 		Object.values(node).forEach(collect);
 	};
 	collect(JSON.parse(read(dir, 'proof-tape.json') ?? '{}'));
@@ -512,6 +543,42 @@ const namedUnder = (md, heading, next) => {
 		.filter((name) => name !== undefined);
 };
 
+/** `scripts/seam-ledger.mjs` renders each status as one of these; anything else is "?" there too. */
+const STATUS_CELL = { ok: '\u2705', missing: '\u274c', blocked: '\u26d4', na: '\u2014' };
+
+/**
+ * Whether every status cell in the ledger table says what the JSON says, as a sentence, or `null`.
+ *
+ * Comparing the seam names alone leaves the columns unread: a cell flipped from ok to missing, in the
+ * table a non-coder actually looks at, disagrees with the JSON beside it and nothing noticed. The
+ * cells are the ledger's content; the names are only its index.
+ */
+const cellsProblem = (md, ledger) => {
+	const rows = md
+		.split('\n')
+		.filter((line) => line.startsWith('|'))
+		.map((line) => line.split('|').slice(1, -1).map((cell) => cell.trim()));
+	const header = rows.find((cells) => cells[0] === 'Seam');
+	if (header === undefined) return 'seam-ledger.md has no header row, so its columns cannot be read.';
+	const disagreements = [];
+	for (const seam of ledger.seams) {
+		const row = rows.find((cells) => cells[0] === seam?.seam);
+		if (row === undefined) continue; // the name comparison above owns that case
+		const compare = (column, status) => {
+			const at = header.findIndex((name) => name.toLowerCase() === column);
+			if (at === -1) return;
+			const wanted = STATUS_CELL[status] ?? '?';
+			if (row[at] !== wanted)
+				disagreements.push(`${seam.seam}'s ${column} cell reads "${row[at]}" and the JSON says "${status}"`);
+		};
+		compare('status', seam?.status);
+		for (const check of Array.isArray(seam?.checks) ? seam.checks : [])
+			compare(String(check?.kind).toLowerCase(), check?.status);
+	}
+	if (disagreements.length === 0) return null;
+	return `seam-ledger.md and seam-ledger.json disagree cell by cell: ${disagreements.join('; ')}.`;
+};
+
 /**
  * Whether `seam-ledger.md` names the same seams as `seam-ledger.json`, as a sentence, or `null`.
  *
@@ -544,7 +611,7 @@ const seamLedgerSummaryProblem = (dir) => {
 		.filter((name) => name !== undefined && name !== '' && name !== 'Seam' && !/^-{1,64}$/.test(name));
 	const missing = seams.filter((seam) => !tabled.includes(seam));
 	const extra = tabled.filter((seam) => !seams.includes(seam));
-	if (missing.length === 0 && extra.length === 0) return null;
+	if (missing.length === 0 && extra.length === 0) return cellsProblem(md, ledger);
 	return `seam-ledger.md and seam-ledger.json disagree about which seams exist: ${[
 		missing.length > 0 ? `the JSON lists these and the table omits them: ${missing.join(', ')}` : null,
 		extra.length > 0 ? `the table lists these and the JSON does not: ${extra.join(', ')}` : null
@@ -671,6 +738,38 @@ const proofSummaryProblem = (dir, inventory, tape) => {
 	const disagreements = summaryDisagreements(inventory, summaryRows(md));
 	if (disagreements.length === 0) return null;
 	return `proof-tape.md disagrees with proof-tape.json: ${disagreements.join('; ')}; a summary is a new claim, not a smaller copy of its source, and this one is making a claim the report does not support.`;
+};
+
+/**
+ * Whether every inventory entry describes a file in this folder, at the length recorded, or `null`.
+ *
+ * Two questions, both about the same entries: where the tape says the file is, and how big it says
+ * it is. The second was checked from the start and the first was thrown away by the collector, so a
+ * tape could record `fake/evidence/<date>/test.txt` with a correct name and size and every rule
+ * passed — every other rule resolves `name` against the folder it is reading, so nothing ever
+ * consulted the path.
+ */
+const inventoryProblem = (dir, inventory, postTape) => {
+	const here = `${EVIDENCE_ROOT}/${basename(dir)}`;
+	const misplaced = inventory
+		.filter(({ name, path: recorded }) =>
+			typeof recorded !== 'string' ? true : recorded.replace(/\\/g, '/') !== `${here}/${name}`
+		)
+		.map(({ name, path: recorded }) => `${name} is recorded at "${recorded ?? '<no path>'}"`);
+	if (misplaced.length > 0)
+		return `the proof tape records files outside the folder it describes: ${misplaced.join('; ')}; every entry belongs to ${here}.`;
+	const drifted = inventory
+		.filter(({ name }) => !postTape.has(name))
+		.map(({ name, sizeBytes }) => {
+			const path = join(dir, name);
+			if (!existsSync(path)) return `${name} is inventoried but not present`;
+			const actual = statSync(path).size;
+			return actual === sizeBytes ? null : `${name} is inventoried at ${sizeBytes} bytes and is ${actual}`;
+		})
+		.filter((entry) => entry !== null);
+	if (drifted.length > 0)
+		return `the proof tape describes files that are not the ones committed: ${drifted.join('; ')}.`;
+	return null;
 };
 
 /**
@@ -929,18 +1028,12 @@ const RULES = [
 			// changes between runs. It passes today only because both copies happen to be 4438 bytes.
 			// Its freshness is rule 1's job, which reads its contents rather than its size.
 			const POST_TAPE = new Set(['verify-outer.txt']);
-			const drifted = inventory
-				.filter(({ name }) => !POST_TAPE.has(name))
-				.map(({ name, sizeBytes }) => {
-					const path = join(dir, name);
-					if (!existsSync(path)) return `${name} is inventoried but not present`;
-					const actual = statSync(path).size;
-					return actual === sizeBytes ? null : `${name} is inventoried at ${sizeBytes} bytes and is ${actual}`;
-				})
-				.filter((entry) => entry !== null);
-			if (drifted.length > 0)
-				return `the proof tape describes files that are not the ones committed: ${drifted.join('; ')}.`;
-			return null;
+			// Where the tape says each file is, not only how big it is. Every rule here resolves an
+			// entry's `name` against the folder being read, so an entry whose `path` points outside it
+			// was never contradicted by anything: `fake/evidence/<date>/test.txt` passed with the name
+			// and the size intact. A tape that cannot say where its files are is not an inventory of
+			// this folder.
+			return inventoryProblem(dir, inventory, POST_TAPE);
 		}
 	},
 	{

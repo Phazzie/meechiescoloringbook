@@ -389,6 +389,50 @@ describe('evidence-guard', () => {
 		expect(refusalOf(dir)).toMatch('left no artifact: seam-ledger.md');
 	});
 
+	it('rejects a seam reported ok while one of its own checks failed', () => {
+		// The seam status is a rollup of the checks beneath it, and only the rollup was read. `na` is a
+		// real status here — 36 of these 38 seams carry one — so the rule is "no check outside ok or
+		// na", measured against the artifact rather than assumed.
+		const dir = fresh();
+		// A NESTED check, not the first `"status": "ok"` in the file — which belongs to the seam and
+		// trips the count rule instead. The first version of this test did exactly that and would have
+		// credited the new rule with a catch it never made.
+		mutate(
+			dir,
+			'chamber-lock.json',
+			/(?<before>"kind": "contract",[^}]{0,300}"status": ")ok/,
+			'$<before>no'
+		);
+		expect(refusalOf(dir)).toMatch('while its contract check reports');
+	});
+
+	it('rejects a ledger table cell that disagrees with the ledger JSON', () => {
+		// Flipped in the Markdown only: the seam names still match, and the cells are the content.
+		const dir = fresh();
+		mutate(dir, 'seam-ledger.md', /\| AppConfigSeam \| ✅/, '| AppConfigSeam | ❌');
+		expect(refusalOf(dir)).toMatch('disagree cell by cell');
+	});
+
+	it('rejects a mandated row that carries a status and no result', () => {
+		// `e2e-mandated exit=0` with every line of output deleted reports nothing at all, and "no
+		// failure reported" was reading that absence as success.
+		const dir = fresh();
+		const path = join(dir, 'e2e.txt');
+		const [, row2] = readFileSync(path, 'utf8').split('## Row 2');
+		writeFileSync(path, `# Row 1 — the mandated command\n\ne2e-mandated exit=0\n\n## Row 2${row2}`);
+		resize(dir);
+		resummarise(dir);
+		expect(refusalOf(dir)).toMatch('no passing result beneath it');
+	});
+
+	it('rejects an inventory entry that points outside the folder', () => {
+		// Name and size intact, path moved. Every other rule resolves the name against the folder it
+		// is reading, so nothing contradicted a path that named somewhere else.
+		const dir = fresh();
+		mutate(dir, 'proof-tape.json', /"path": "docs\/evidence\//, '"path": "fake/evidence/');
+		expect(refusalOf(dir)).toMatch('records files outside the folder it describes');
+	});
+
 	it('rejects a Cipher Gate artifact that did not come back ok', () => {
 		const dir = fresh();
 		mutate(dir, 'cipher-gate.json', /"status": "ok"/, '"status": "blocked"');

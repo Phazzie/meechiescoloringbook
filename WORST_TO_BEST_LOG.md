@@ -9281,3 +9281,40 @@ is anchored to and then backtrack.
 
 > **Running a check after the push makes it a report, not a gate.** The whole branch is about that
 > distinction, and the order of two commands is all it takes to fall on the wrong side of it.
+
+### Addendum, round 53 — the rollup, the cells, and the path that was thrown away
+
+Three findings, all reproduced first, and one of my own tests caught doing the thing the tests exist
+to prevent.
+
+**A seam reported `ok` while one of its checks failed.** The seam status is a rollup of the checks
+beneath it, and only the rollup was read: setting a nested `contract` check to `"no"` kept every
+count truthful, every column covered, and the artifact certified. Before writing the rule I measured
+what a check status can be: `na` is real and appears on 36 of the 38 seams — a fixture module or an
+adapter a seam does not have — so "every check must be ok" would have rejected the evidence this
+repository actually produces. Four earlier rules in this file rejected correct evidence by assuming
+what a value meant; this one asked first.
+
+**The ledger's cells said nothing to anybody.** `seam-ledger.md` was compared with its JSON by seam
+*name*, and the names are only the index — the ✅/❌/—/⛔ cells are the content. A cell flipped in the
+table alone now fails, cell by cell, against the status the JSON records for that check.
+
+**An inventory entry could point anywhere.** The collector kept `name` and `sizeBytes` and threw the
+`path` away, and every rule downstream resolves the name against the folder it is reading — so
+nothing in the guard ever consulted a path, and `fake/evidence/<date>/test.txt` passed with the name
+and the size intact. Each entry must now name `docs/evidence/<date>/<name>`.
+
+**And the test I wrote for the first fix tested the second thing it touched.** Mutating the first
+`"status": "ok"` in `chamber-lock.json` changes a *seam's* status, not a check's, so the case passed
+by tripping the count rule — the new rule never ran, and the test would have reported it working
+forever.
+
+> **A test that fails is not thereby a test of what it says.** The mutation has to reach the thing
+> under test, and "the file was rejected" is not evidence that it was rejected for the reason on the
+> label. This is the same lesson as the reproductions last round that tripped the size rule, one
+> level in: it happened inside the test suite that exists to stop it.
+
+`sonarjs` recommended clean — including two problems in the fixes themselves, a local helper I had
+named `expect` (which reads as an assertion to the analyser and to a person) and a rule body over the
+complexity limit, both **before** the push this time rather than after. 39 tests across the two
+suites.
