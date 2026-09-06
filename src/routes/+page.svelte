@@ -62,8 +62,9 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 
 <main class="studio" data-testid="studio-root" data-hydrated={studio.isBrowser ? 'true' : 'false'}>
 	<StudioHero
-		weeklyModes={studio.weeklyModes}
-		monthlyModeId={studio.monthlyModeId}
+		modes={studio.modes}
+		spotlight={studio.spotlight}
+		spotlightNote={studio.spotlightNote}
 		activeModeId={studio.activeModeId}
 		activeMode={studio.activeMode}
 		isTextWorking={studio.isTextWorking}
@@ -282,15 +283,18 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 		}
 	}
 
+	/* `auto-fill` rather than a fixed `repeat(3, 1fr)`: the strip now carries all eight modes, and
+	   the count is a property of the catalogue rather than of this rule — adding a ninth must not
+	   need a CSS edit to be visible. */
 	:global(.studio .mode-strip) {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
+		grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 		gap: 0.65rem;
 		margin: 1rem 0;
 	}
 
 	:global(.studio .mode-card) {
-		min-height: 210px;
+		min-height: 190px;
 		padding: 0.8rem;
 		border: 1px solid rgba(201, 162, 39, 0.22);
 		border-radius: 8px;
@@ -340,6 +344,23 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 		padding: 0.15rem 0.45rem;
 		border-radius: 4px;
 		line-height: 1.4;
+	}
+
+	/* The week badge is the quieter of the two on purpose: one mode is the month's and two are the
+	   week's, so giving all three the same solid fill would make the monthly call-out the least
+	   distinctive thing on a strip of eight. */
+	:global(.studio .mode-featured-badge.week) {
+		background: rgba(7, 7, 15, 0.78);
+		color: var(--cream);
+		border: 1px solid var(--mode-color);
+	}
+
+	:global(.studio .mode-schedule) {
+		margin: -0.35rem 0 0.9rem;
+		font-family: var(--font-label);
+		font-size: 0.76rem;
+		letter-spacing: 0.04em;
+		color: rgba(253, 246, 227, 0.6);
 	}
 
 	:global(.studio .mode-icon) {
@@ -1137,7 +1158,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 		}
 
 		:global(.studio .mode-strip) {
-			grid-template-columns: repeat(3, 1fr);
+			grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 		}
 
 		:global(.studio .mode-card) {
@@ -1175,8 +1196,11 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 			min-height: 420px;
 		}
 
+		/* Two across, not three. At this width a third column leaves each card too narrow for its
+		   label to survive on one line, and the strip is eight cards deep now rather than three —
+		   four short rows read better than three cramped ones. */
 		:global(.studio .mode-strip) {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 
 		:global(.studio .mode-card) {

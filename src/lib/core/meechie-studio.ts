@@ -241,28 +241,152 @@ export const studioModes: StudioMode[] = [
 	}
 ];
 
-// --- Mode rotation helpers ---
-// Why: Show 3 modes at a time so the strip isn't overwhelming.
-//      1 mode rotates monthly (changes on the 1st), 2 rotate weekly.
-//      All 8 modes get equal exposure over time.
+// --- The mode spotlight ---
+//
+// What rotates is a *highlight*, not the menu. Every one of the eight modes is on the strip on
+// every day of the year; the spotlight calls one out for the calendar month and two more for the
+// calendar week, so a reader who comes back is pointed somewhere new without anything having been
+// taken away from them.
+//
+// It used to be the menu. `getWeeklyModes()` returned three modes and the strip rendered exactly
+// those, with a `/m/<slug>` link for each — so on any given day five of the eight had no link
+// anywhere in the application. Not a hidden corner of it: the *home page*, which is the only place
+// most of these modes are named at all. The `/offline` apology and the 404 page both list all eight
+// through `modeCatalog()`, so the app's error pages were a better directory of its features than
+// its front door. And the three were not even reliably three *new* ones: the site nav carries
+// permanent links to `who-fucked-up`, `rate-excuse` and `random`, and the rotation draws blind from
+// the same eight, so it lands on some of them constantly. Simulating every week of 2026-2027 (105
+// weeks), the strip showed nothing the nav did not already have in 9 of them and at most one new
+// mode in 33 — including 2026-09-06, the day this was measured, when the three featured modes were
+// exactly the three already in the nav bar.
+//
+// Everything below is a pure function of an explicit instant — milliseconds since the Unix epoch —
+// and asks every calendar question in UTC. Both properties are load-bearing:
+//
+//   - `AGENTS.md` classifies clock/time as a seam. The previous versions called `new Date()` and
+//     `Date.now()` directly, inside core logic, which is what `ClockSeam` exists to forbid and what
+//     `vault-gallery.ts` explicitly declines to do. It also made the rotation untestable: the only
+//     test that named it (`tests/e2e/smoke.spec.ts`) called the same clock-reading function to work
+//     out what to expect, so it could do nothing but agree with itself, and no test anywhere could
+//     stage "the first of the month".
+//   - `/` is prerendered. The old month came from `new Date().getMonth()` — *local* time — while
+//     the week came off the UTC epoch, so the build machine (UTC) and a reader west of it disagreed
+//     about which mode was the month's for the first hours of every month, and the strip changed
+//     under the reader on hydration. Reading both in UTC makes the answer the same everywhere.
+//
+// `new Date(epochMs)` below is calendar arithmetic on an instant the caller supplied, not a clock
+// read: it never asks the host what time it is.
 
-const getMonthKey = (): number => {
-	const now = new Date();
-	return now.getFullYear() * 12 + now.getMonth();
+/** Milliseconds in one UTC day. */
+const DAY_MS = 86_400_000;
+
+/**
+ * The epoch day index of the first Monday, 1970-01-05.
+ *
+ * 1970-01-01 was a Thursday, so an unshifted `epochMs / (7 * DAY_MS)` counts weeks that roll over
+ * on Thursdays — which is what the old rotation did, and what no comment in it ever said. Weeks
+ * here start on Monday, which is the boundary `describeSpotlightSchedule` puts on screen.
+ */
+const FIRST_MONDAY_EPOCH_DAY = 4;
+
+/** Non-negative remainder, so instants before 1970 index modes rather than crashing on `-1`. */
+const mod = (value: number, size: number): number => ((value % size) + size) % size;
+
+/** Index of the UTC week containing `epochMs`, counting weeks that begin Monday 00:00 UTC. */
+export const utcWeekIndex = (epochMs: number): number =>
+	Math.floor((Math.floor(epochMs / DAY_MS) - FIRST_MONDAY_EPOCH_DAY) / 7);
+
+/** Months since year 0 for the UTC month containing `epochMs`. */
+export const utcMonthIndex = (epochMs: number): number => {
+	const at = new Date(epochMs);
+	return at.getUTCFullYear() * 12 + at.getUTCMonth();
 };
 
-const getWeekNumber = (): number =>
-	Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+/** The first instant of the UTC week after the one containing `epochMs` — a Monday, 00:00 UTC. */
+const nextUtcWeekStart = (epochMs: number): number =>
+	((utcWeekIndex(epochMs) + 1) * 7 + FIRST_MONDAY_EPOCH_DAY) * DAY_MS;
 
-export const getMonthlyMode = (): StudioMode =>
-	studioModes[getMonthKey() % studioModes.length];
+/** The first instant of the UTC month after the one containing `epochMs`. */
+const nextUtcMonthStart = (epochMs: number): number => {
+	const at = new Date(epochMs);
+	return Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + 1, 1);
+};
 
-export const getWeeklyModes = (): StudioMode[] => {
-	const monthly = getMonthlyMode();
-	const pool = studioModes.filter((m) => m.id !== monthly.id);
-	const offset = (getWeekNumber() * 2) % pool.length;
-	const weekly = [pool[offset], pool[(offset + 1) % pool.length]];
-	return [monthly, ...weekly];
+/**
+ * Which modes are called out at `epochMs`, and when that stops being true.
+ *
+ * One value rather than three separate accessors, because the three answers have to agree: a
+ * `monthlyId` read at one instant beside a `weeklyIds` read at another can name the same mode
+ * twice, and the strip would badge one card "This Month" and "This Week" at once. `weeklyIds`
+ * therefore excludes `monthlyId` by construction.
+ */
+export type ModeSpotlight = {
+	/** The mode called out for this UTC calendar month. */
+	readonly monthlyId: string;
+	/** The two called out for this UTC calendar week. Never contains `monthlyId`. */
+	readonly weeklyIds: readonly string[];
+	/**
+	 * The instant this spotlight stops being true: the next UTC Monday or the next first-of-month,
+	 * whichever comes first. Always strictly after `epochMs`, including when `epochMs` is itself
+	 * exactly a boundary — so a caller that re-arms a timer on it cannot spin.
+	 */
+	readonly changesAtMs: number;
+};
+
+/** The mode called out for the UTC calendar month containing `epochMs`. */
+export const getMonthlyMode = (epochMs: number): StudioMode =>
+	studioModes[mod(utcMonthIndex(epochMs), studioModes.length)];
+
+/**
+ * The two modes called out for the UTC calendar week containing `epochMs`.
+ *
+ * Drawn from the seven that are not the month's, two per week, advancing by two each week. Seven
+ * and two are coprime, so the pair walks the whole pool before repeating.
+ */
+export const getWeeklyModes = (epochMs: number): StudioMode[] => {
+	const monthly = getMonthlyMode(epochMs);
+	const pool = studioModes.filter((mode) => mode.id !== monthly.id);
+	const offset = mod(utcWeekIndex(epochMs) * 2, pool.length);
+	return [pool[offset], pool[(offset + 1) % pool.length]];
+};
+
+export const getModeSpotlight = (epochMs: number): ModeSpotlight => ({
+	monthlyId: getMonthlyMode(epochMs).id,
+	weeklyIds: getWeeklyModes(epochMs).map((mode) => mode.id),
+	changesAtMs: Math.min(nextUtcWeekStart(epochMs), nextUtcMonthStart(epochMs))
+});
+
+const UTC_MONTH_NAMES = [
+	'January',
+	'February',
+	'March',
+	'April',
+	'May',
+	'June',
+	'July',
+	'August',
+	'September',
+	'October',
+	'November',
+	'December'
+];
+
+/**
+ * The one sentence the strip says about itself.
+ *
+ * Nothing told the reader that the badges meant anything, that there was a schedule behind them, or
+ * when it next moved — a card simply wore "This Month" and the reader was left to guess whether
+ * that was a rotation, a promotion, or a label someone typed once.
+ *
+ * The date is formatted here, in UTC, from a fixed month table rather than through `Intl`: the
+ * spotlight's boundary *is* a UTC instant, so rendering it in the reader's zone would name a
+ * different day than the one the rotation actually turns on for readers either side of midnight.
+ */
+export const describeSpotlightSchedule = (spotlight: ModeSpotlight): string => {
+	const changesAt = new Date(spotlight.changesAtMs);
+	const day = changesAt.getUTCDate();
+	const month = UTC_MONTH_NAMES[changesAt.getUTCMonth()];
+	return `All ${studioModes.length} modes, always. Two are spotlighted each week and one each month — this set changes ${month} ${day} (UTC).`;
 };
 
 export type StudioTheme = {

@@ -10782,3 +10782,198 @@ contract and never populated while a complete 10-check rubric sits unused in
 weaker picks than this one was, by this log's own measure, because neither is promised to the reader.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 12 — 2026-09-06 — The mode strip (the home page's front door, and the five features behind it)
+
+**Branch:** `claude/great-bell-giavlf` · **Base:** `main` at `901464c`
+
+### The feature, and why it was the worst
+
+The app has eight modes. The home page's mode strip is the only place most of them are named. It
+showed three, and it linked three, and which three was decided by reading the host clock.
+
+That is not a description of a rotation with a small flaw. On any given day **five of this app's
+eight features had no link anywhere in the application** — not in the site nav, not on the home
+page, not from `/meechie`. The only way to reach them was to type `/m/<slug>` at a URL bar with no
+way of knowing the slug existed.
+
+The measurement, run against `main` at `901464c` on the day of this run:
+
+```
+$ node -e "…getWeeklyModes() on 2026-09-06…"
+today 2026-09-06 -> who-fucked-up, random, rate-excuse
+hidden from the home page today: apology-autopsy, receipt-check, clapback, caption, meechie-move
+```
+
+Read the first line again. `+layout.svelte:141-143` carries permanent nav links to **Who Fucked
+Up?**, **Rate His Excuse** and **Random**. On the day this was measured the strip's three featured
+modes were *exactly those three*. The app's feature-discovery surface was discovering nothing.
+
+That collision is structural, not bad luck: three of the eight have permanent nav links and the
+rotation draws blind from the same eight. Simulating every week of 2026-2027:
+
+```
+weeks sampled: 105
+weeks where the strip shows N modes the nav does not already have:
+  N=0: 9 (8.6%)     N=1: 24 (22.9%)     N=2: 44 (41.9%)     N=3: 28 (26.7%)
+```
+
+Nearly a third of all weeks, the strip added at most one mode to what the nav already offered.
+
+**And the app's error pages were a better directory of its features than its front door.**
+`src/routes/offline/+page.svelte:121` and `src/routes/+error.svelte:34` both iterate
+`modeCatalog()` and list **all eight** with `/m/` links. So a reader who lost their connection, or
+mistyped a URL, was shown the complete menu. A reader who arrived at the home page was shown three.
+
+Then the smaller things, each real:
+
+**1. Two unseamed clock reads, in core logic.** `meechie-studio.ts:250` called `new Date()` and
+`:255` called `Date.now()`. `AGENTS.md` classifies clock/time as a seam; `ClockSeam` exists and is
+documented in `docs/seams.md` as "the only place permitted to call `Date.now()`/`setTimeout` for
+wall-clock purposes"; `vault-gallery.ts:536` contains a comment explaining why it declines to do
+exactly this. The rotation did it anyway, twice.
+
+**2. The strip was dated to the build, in the document an installed app opens offline.** `/` is
+prerendered (`+page.ts:17`), and `+page.ts`'s own comment justifies that with: *"Nothing in this
+`load` depends on the request … so rendering it once at build time produces exactly the document
+rendering it per request produces."* The mode strip is the counterexample, sitting in the same
+file's output. `StudioState` computed `readonly weeklyModes = getWeeklyModes()` in a **field
+initializer**, so the instance whose HTML ships is the one constructed at build time. Built from
+`main` and grepped:
+
+```
+=== BEFORE (main) prerendered /  (.svelte-kit/output/prerendered/pages/index.html) ===
+data-testid="home-mode-random"
+data-testid="home-mode-rate-excuse"
+data-testid="home-mode-who-fucked-up"
+-- badges --   mode-featured-badge">This Month<   (1)
+-- /m/ links -- /m/random  /m/rate-excuse  /m/who-fucked-up
+```
+
+Three cards, three links, and a hardcoded-into-the-build **"This Month"**. Run 10 made this app
+installable and taught the service worker to cache exactly this document and serve it with no
+network. So the offline app's front door named three modes chosen on build day and asserted which
+month it was.
+
+**3. Nothing refreshed it while the app was open.** `readonly`, on a page an installed app keeps
+open for days — in a studio that already schedules a UTC day-boundary timer and a
+`visibilitychange` listener so a *"Saved today"* label cannot go stale (`studio-state.svelte.ts`,
+`startSavedLabelRefresh`). The much smaller staleness had a timer. This one could not change at all.
+
+**4. The month was local and the week was UTC.** `getMonthKey()` used `new Date().getFullYear()` and
+`.getMonth()` — the reader's zone. `getWeekNumber()` used `Date.now()` against the epoch. The build
+machine renders in UTC. For the first hours of every month, a reader west of UTC hydrated into a
+different monthly mode than the one in the HTML they had just been served, and the strip changed
+under them.
+
+**5. The week rolled over on a Thursday.** `Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000))` is
+anchored at the epoch, and 1970-01-01 was a Thursday. Confirmed: `week rolls over on 2026-09-03
+Thu`. The comment above it said the monthly mode "changes on the 1st" and said nothing whatever
+about the weekly boundary — and nothing on screen said there was a boundary.
+
+**6. Nothing on screen said any of it was a rotation.** One card wore a "This Month" badge. There
+was no sentence explaining what that meant, how many modes existed, that they rotated, or when the
+set next changed. A reader had no way to distinguish a schedule from a label somebody typed once.
+
+**7. It had no unit test.** Not one. The only test that named the rotation is
+`tests/e2e/smoke.spec.ts`, which called `getWeeklyModes()` to work out what to expect — asking the
+same clock-reading function the page used, so it could do nothing but agree with itself whatever
+either of them did. And its offline-page check ran `for (const mode of getWeeklyModes())` under the
+comment *"Every mode is reachable from here"* — iterating three while claiming eight, so the five
+modes with no home-page link were also the five nothing checked anywhere.
+
+**8. `activeMode` would silently substitute a different mode.**
+`this.weeklyModes.find(m => m.id === this.activeModeId) ?? this.weeklyModes[0]` — a fallback that
+leaves `activeModeId` naming one mode while the heading, help line, placeholder, button label and
+`toolId` all come from another. Unreachable while the only way to pick a mode was those same three
+cards, which is precisely the condition this run removed.
+
+### What shipped
+
+**The menu stopped rotating. The spotlight kept rotating.**
+
+- **All eight modes, on every day, in the prerendered HTML.** `StudioState.modes` is
+  `studioModes`, a constant. Every mode gets a card and a `/m/` link. Verified against the built
+  artifact rather than asserted: eight `home-mode-…` test ids and eight `/m/` links in
+  `.svelte-kit/output/prerendered/pages/index.html`, against three of each before.
+- **The spotlight is a pure function of an explicit UTC instant.** `getModeSpotlight(epochMs)`
+  returns one value — `monthlyId`, `weeklyIds`, `changesAtMs` — rather than three accessors that
+  could be read at three instants and badge one card twice. No clock read anywhere in
+  `meechie-studio.ts`.
+- **Both calendar questions are asked in UTC**, so the build machine and every reader agree.
+- **The week rolls over on Monday 00:00 UTC**, and the page says so.
+- **The badges render only after hydration**, so the cached prerendered document makes no dated
+  claim: zero `mode-featured-badge` and zero `home-mode-schedule` in the built HTML. Every card and
+  every link is still in it, so a crawler, a reader with JavaScript off, and an installed app
+  opening from cache all get the complete menu — without a spotlight, which is the honest rendering
+  of a document that cannot know today's date.
+- **The strip explains itself**, in one sentence naming the count, the schedule and the next
+  change: *"All 8 modes, always. Two are spotlighted each week and one each month — this set changes
+  September 7 (UTC)."* The date is formatted from a fixed month table in UTC, not through `Intl`:
+  the boundary is a UTC instant, and rendering it in the reader's zone would name a different day
+  to readers either side of midnight about the same event.
+- **It refreshes while the page is open, with no new timer.** The spotlight is `$derived` from
+  `nowMs`, which `startSavedLabelRefresh` already moves at every UTC day boundary and whenever a
+  backgrounded tab returns. Every instant a spotlight can change on is a UTC day boundary — asserted
+  for all 365 days of 2026 — so the existing timer is already firing on each of them.
+- **`activeMode` resolves against all eight**, and the default mode is `studioModes[0]` rather than
+  the clock-dependent monthly one, so the prerendered document and the hydrated page cannot disagree
+  about which tool the reader's evidence goes to.
+- **`init()` re-reads `nowMs` from the injected clock**, exactly as it already re-read the origin and
+  for the reason written there. It did not, so an injected clock never reached `nowMs` until
+  something else moved it — survivable for the vault labels, which every test advances explicitly,
+  and not survivable for a spotlight whose whole content is a function of the instant at render.
+- **19 new tests**, every instant written as an explicit `Date.UTC(...)`: 15 in
+  `tests/unit/mode-spotlight.test.ts` (the Thursday→Monday boundary, the local→UTC month, both
+  `changesAtMs` branches, boundary instants reporting strictly ahead of themselves so a re-arming
+  timer cannot spin, every change landing on a day boundary, the coprime walk) and 4 in a new
+  `StudioState mode spotlight` block driving a mock clock across a Monday and a first-of-month with
+  the page open.
+
+### What was found and deliberately not fixed
+
+**The reader's chosen mode is not persisted, and choosing one saves a draft that cannot hold it.**
+`handleModeSelect` (`studio-state.svelte.ts:1628`) ends in `this.scheduleDraftSave()`, but
+`DraftRecordSchema` (`creation-store-seam/contract.ts:85-91`) has no mode field. So: pick *Rate His
+Excuse*, type an excuse, refresh. The evidence comes back. The mode does not — it resets, and the
+evidence is now sitting under a different question, wired to a different `toolId`. Under the old
+code it reset to the *monthly* mode, so the same draft reopened under a different question in a
+different month.
+
+Not fixed here because the fix is a field on `DraftRecordSchema`, and `AGENTS.md`'s merge gate says
+a pull request carrying a schema or contract change must not be auto-merged. This run has no human
+to wait for. Half-doing it would have been worse than reporting it. It is the strongest candidate
+in this log for the next run that can hold a pull request open.
+
+### Numbers this run got wrong before it got them right
+
+- An early draft of the analysis claimed the rotation gave the eight modes **unequal** exposure.
+  Simulated over 105 weeks: 37-41 appearances each against an even share of 39.4. The claim was
+  dropped, not softened. The replaced comment's *"All 8 modes get equal exposure over time"* was
+  true; it was the only true sentence in it.
+- The first coverage test asserted the weekly pair walks all seven non-monthly modes within seven
+  consecutive weeks. It fails, and it should: seven weeks always crosses a month boundary, the pool
+  changes composition on the first, and the walk restarts. The test now asserts what is true.
+
+### For the next run
+
+The pattern this run adds to the list: **look for the feature whose defect is invisible in the
+running app because the app never shows you what is missing.** Run 11's failure mode was silence — a
+field paid for and never displayed. This one's is narrower and worse: the strip did not look broken.
+It looked like a tidy three-card row. Nothing on the page hinted that five more existed, so no
+amount of using the app would surface it. What surfaced it was counting `studioModes` (8) against
+what the front door rendered (3).
+
+Candidates, unranked, weaker than this one by this log's own measure:
+
+- **The draft's missing mode**, above. Strongest, blocked only on the auto-merge rule.
+- **`ChatInterpretationSeam`** — a complete, provider-backed, billable seam: contract, probe,
+  fixtures, mock, adapter, contract tests, and a live `/api/chat-interpretation` endpoint. Zero
+  consumers. `grep -rn "chatInterpretationAdapter" src/routes src/lib/components` returns nothing.
+  Weaker than this run's pick because it is promised to nobody: no reader is missing a feature they
+  can see, and the honest fix might be deletion.
+- **`MeechieToolOutput.quoteScore`** and **`modelMetadata`**, both carried forward unfixed from Run
+  11's entry.
+
+Do not inherit this entry's measurements. Re-measure — `getWeeklyModes` is now a function of an
+instant you supply, so the simulations above are three lines to reproduce.

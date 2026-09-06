@@ -4,7 +4,7 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
-import { getWeeklyModes } from '../../src/lib/core/meechie-studio';
+import { studioModes } from '../../src/lib/core/meechie-studio';
 
 test.setTimeout(120000);
 // Parallel, not serial: every test owns its own browser context (localStorage is the
@@ -206,12 +206,17 @@ test('System Trace does not call an ungenerated page clean', async ({ page }) =>
 });
 
 test('home mode switching and generation controls work', async ({ page }) => {
-	// The mode strip is rotated by calendar week/month, so the visible ids change over
-	// time. Derive them from the same source the page renders from instead of hardcoding.
-	const [initialMode, switchedMode] = getWeeklyModes();
+	// Every mode is on the strip on every day, and the studio starts on the first of them — both
+	// facts independent of when this suite runs. The previous version of this test called
+	// `getWeeklyModes()` to find out which three cards existed today, which meant it asked the same
+	// clock-reading function the page used and could only ever agree with itself.
+	const [initialMode, switchedMode] = studioModes;
 
 	await gotoHydrated(page, '/');
-	await expect(page.getByTestId(`home-mode-${switchedMode.id}`)).toBeVisible();
+	// All eight, not the three that used to rotate through here.
+	for (const mode of studioModes) {
+		await expect(page.getByTestId(`home-mode-${mode.id}`)).toBeVisible();
+	}
 
 	await expect(page.getByTestId('home-active-mode-heading')).toHaveText(
 		initialMode.label
@@ -1469,7 +1474,7 @@ test('the AI meter reports the server quota and refills rewrites on a new verdic
 
 test('switching mode after spending the rewrites does not strand the studio', async ({ page }) => {
 	await stubApis(page);
-	const [initialMode, switchedMode] = getWeeklyModes();
+	const [initialMode, switchedMode] = studioModes;
 
 	await gotoHydrated(page, '/');
 	await expect(page.getByTestId('home-active-mode-heading')).toHaveText(
@@ -1566,8 +1571,11 @@ test('the offline page says what still works and offers a way back', async ({ pa
 		'/'
 	);
 
-	// Every mode is reachable from here, because all of them are prerendered and cached.
-	for (const mode of getWeeklyModes()) {
+	// Every mode is reachable from here, because all of them are prerendered and cached. This said
+	// "every mode" while iterating the three the rotation happened to have surfaced that week — so
+	// the five it did not name were exactly the five with no link on the home page either, and
+	// nothing checked them anywhere.
+	for (const mode of studioModes) {
 		await expect(page.locator(`a[href="/m/${mode.id}"]`)).toHaveCount(1);
 	}
 });

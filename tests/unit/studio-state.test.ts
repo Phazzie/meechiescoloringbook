@@ -8,6 +8,8 @@ import { sessionAdapter } from '../../src/lib/adapters/session.adapter';
 import {
 	DEFAULT_STUDIO_TEXT_OUTPUT,
 	buildColoringPageSpecFromMeechieText,
+	getModeSpotlight,
+	studioModes,
 	studioThemes
 } from '../../src/lib/core/meechie-studio';
 import { createMockClockSeam } from '../../src/lib/seams/clock-seam/mock';
@@ -270,7 +272,7 @@ describe('StudioState', () => {
 
 	it('updates the active mode when a mode card is selected', () => {
 		const studio = new StudioState();
-		const targetMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
+		const targetMode = studio.modes.find((mode) => mode.id !== studio.activeModeId);
 		expect(targetMode).toBeDefined();
 
 		studio.handleModeSelect(targetMode!.id);
@@ -282,12 +284,46 @@ describe('StudioState', () => {
 	it('clears the previous mode\'s AI text output when a different mode card is selected', () => {
 		const studio = new StudioState();
 		studio.acceptVerdict(DEFAULT_STUDIO_TEXT_OUTPUT);
-		const targetMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
+		const targetMode = studio.modes.find((mode) => mode.id !== studio.activeModeId);
 		expect(targetMode).toBeDefined();
 
 		studio.handleModeSelect(targetMode!.id);
 
 		expect(studio.textOutput).toBeNull();
+	});
+
+	// --- The mode strip: every mode, on every day ------------------------------------------------
+
+	it('offers every mode, not the three a rotation happened to surface', () => {
+		// The list the strip renders. It used to be `getWeeklyModes()` — three of the eight — which
+		// is why the other five had no card, no `/m/` link, and no way to be selected here.
+		const studio = new StudioState();
+		expect(studio.modes.map((mode) => mode.id)).toEqual(
+			studioModes.map((mode) => mode.id)
+		);
+	});
+
+	it('starts on the same mode whatever day it is', () => {
+		// The default used to be `weeklyModes[0]` — the month's mode, read from the clock. It sets
+		// the heading, the help line, the placeholder, the button and `activeMode.toolId`, so a
+		// clock-dependent default meant the prerendered document and the hydrated page could
+		// disagree about which tool the reader's evidence would be sent to.
+		expect(new StudioState().activeModeId).toBe(studioModes[0].id);
+	});
+
+	it('resolves a mode outside the spotlight instead of silently substituting another', () => {
+		// `activeMode` searched the three rotating modes and fell back to the first of them. The
+		// fallback is silent and it changes the reader's question: the id says one mode, the label,
+		// help, placeholder and tool come from another. Selecting any of the eight is exactly what
+		// this run made possible, so it has to resolve against all eight.
+		const studio = new StudioState();
+		const clapback = studioModes.find((mode) => mode.id === 'clapback');
+		expect(clapback).toBeDefined();
+
+		studio.handleModeSelect('clapback');
+
+		expect(studio.activeMode.id).toBe('clapback');
+		expect(studio.activeMode.toolId).toBe(clapback!.toolId);
 	});
 
 	it('preserves the current AI text output when the already-active mode card is reselected', () => {
@@ -916,7 +952,7 @@ describe('StudioState wig try-on comparison', () => {
 		expect(fetchSpy).toHaveBeenCalledOnce();
 
 		// Switching mode clears the page and advances the token, exactly as a new verdict would.
-		studio.handleModeSelect(studio.weeklyModes[1].id);
+		studio.handleModeSelect(studio.modes[1].id);
 		releaseGenerate(
 			new Response(
 				JSON.stringify({
@@ -1582,7 +1618,7 @@ describe('StudioState quote vault', () => {
 		await studio.syncSpecFromCurrentText();
 		expect(studio.spec.listMode).toBe('title_only');
 
-		const nextMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
+		const nextMode = studio.modes.find((mode) => mode.id !== studio.activeModeId);
 		studio.handleModeSelect(nextMode!.id);
 		await studio.syncSpecFromCurrentText();
 		expect(studio.spec.listMode).toBe('list');
@@ -1659,7 +1695,7 @@ describe('StudioState quote vault', () => {
 		await studio.syncSpecFromCurrentText();
 		expect(studio.spec.footerItem).toBeUndefined();
 
-		const nextMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
+		const nextMode = studio.modes.find((mode) => mode.id !== studio.activeModeId);
 		studio.handleModeSelect(nextMode!.id);
 		await studio.syncSpecFromCurrentText();
 		expect(studio.spec.footerItem).toBeDefined();
@@ -1701,7 +1737,7 @@ describe('StudioState quote vault', () => {
 		expect(studio.spec.whitespaceScale).toBe(35);
 
 		// And a fresh studio verdict goes back to the studio's own presentation.
-		const nextMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
+		const nextMode = studio.modes.find((mode) => mode.id !== studio.activeModeId);
 		studio.handleModeSelect(nextMode!.id);
 		await studio.syncSpecFromCurrentText();
 		expect(studio.spec.alignment).toBe('left');
@@ -2412,7 +2448,7 @@ describe('StudioState quote vault', () => {
 		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT, qualityState: 'blocked' });
 		expect(studio.verdictReport.standing?.code).toBe('blocked');
 
-		studio.handleModeSelect(studio.weeklyModes[1].id);
+		studio.handleModeSelect(studio.modes[1].id);
 
 		expect(studio.textOutput).toBeNull();
 		expect(studio.verdictReport.hasVerdict).toBe(false);
@@ -2757,7 +2793,7 @@ describe('StudioState page exports', () => {
 		await studio.handleGeneratePage();
 		expect(studio.exportError).not.toBe('');
 
-		studio.handleModeSelect(studio.weeklyModes[1].id);
+		studio.handleModeSelect(studio.modes[1].id);
 
 		// The files, the described row, the failure sentence and the shared file name all go, because
 		// all four are derived from the one thing `resetGeneratedPage` clears.
@@ -3027,7 +3063,7 @@ describe('StudioState page style', () => {
 		await studio.loadCreation(makeStyledCreation());
 		expect(studio.styleSelectionUnknown).toBe(true);
 
-		studio.handleModeSelect(studio.weeklyModes[1].id);
+		studio.handleModeSelect(studio.modes[1].id);
 
 		expect(studio.styleSelectionUnknown).toBe(false);
 	});
@@ -4170,7 +4206,7 @@ describe('StudioState AI budget meter', () => {
 		await studio.runTextAction('regenerate');
 		expect(studio.revisionBudget).toBe(0);
 
-		studio.handleModeSelect(studio.weeklyModes[1].id);
+		studio.handleModeSelect(studio.modes[1].id);
 
 		expect(studio.textOutput).toBeNull();
 		expect(studio.revisionBudget).toBe(3);
@@ -4430,7 +4466,7 @@ describe('StudioState AI budget meter', () => {
 		const pending = studio.runTextAction('make_meaner');
 
 		// The reader moves on before it lands.
-		studio.handleModeSelect(studio.weeklyModes[1].id);
+		studio.handleModeSelect(studio.modes[1].id);
 		expect(studio.textOutput).toBeNull();
 		expect(studio.revisionBudget).toBe(3);
 
@@ -4459,7 +4495,7 @@ describe('StudioState AI budget meter', () => {
 		);
 		const pending = studio.runTextAction('generate_text');
 
-		studio.handleModeSelect(studio.weeklyModes[1].id);
+		studio.handleModeSelect(studio.modes[1].id);
 		fail(new Error('provider unavailable'));
 		await pending;
 
@@ -4484,7 +4520,7 @@ describe('StudioState AI budget meter', () => {
 		);
 		const pending = studio.runTextAction('generate_text');
 
-		studio.handleModeSelect(studio.weeklyModes[1].id);
+		studio.handleModeSelect(studio.modes[1].id);
 		release(
 			studioTextResponse({
 				'RateLimit-Limit': '20',
@@ -4497,5 +4533,99 @@ describe('StudioState AI budget meter', () => {
 		expect(studio.textOutput).toBeNull();
 		expect(studio.aiQuota?.remaining).toBe(14);
 		expect(studio.aiQuotaMessage).toContain('7 AI calls left');
+	});
+});
+
+describe('StudioState mode spotlight', () => {
+	/** 2026-09-06T12:00Z — a Sunday. The spotlight changes at the Monday 12 hours later. */
+	const SUNDAY_MS = Date.UTC(2026, 8, 6, 12, 0, 0);
+	const MONDAY_MS = Date.UTC(2026, 8, 7);
+
+	const open = async (clock: ClockSeam): Promise<StudioState> => {
+		vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
+			ok: true,
+			value: { sessionId: 'session-spotlight' }
+		});
+		const studio = new StudioState();
+		studio.clock = clock;
+		await studio.init();
+		return studio;
+	};
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('says nothing about the calendar until it is in a browser', async () => {
+		// `/` is prerendered once, so anything dated in that HTML is dated to the build — and the
+		// service worker caches that document and replays it for days. The note names a specific
+		// calendar date, which is the most obviously wrong thing a stale document could carry.
+		const unhydrated = new StudioState();
+		expect(unhydrated.isBrowser).toBe(false);
+		expect(unhydrated.spotlight).toBeNull();
+		expect(unhydrated.spotlightNote).toBe('');
+
+		const studio = await open(createMockClockSeam(SUNDAY_MS));
+		try {
+			expect(studio.spotlightNote).toBe(
+				'All 8 modes, always. Two are spotlighted each week and one each month — this set changes September 7 (UTC).'
+			);
+		} finally {
+			studio.destroy();
+		}
+	});
+
+	it('reads the injected clock rather than the one the field initializer saw', async () => {
+		// `nowMs`'s initializer runs before a test can inject anything, so it captured the default
+		// adapter's reading of the real host clock. `init()` re-reads it, exactly as it already
+		// re-read the origin — without that, this whole describe block would be asserting against
+		// whatever day the suite happened to run on.
+		const studio = await open(createMockClockSeam(SUNDAY_MS));
+		try {
+			expect(studio.nowMs).toBe(SUNDAY_MS);
+			expect(studio.spotlight).toEqual(getModeSpotlight(SUNDAY_MS));
+		} finally {
+			studio.destroy();
+		}
+	});
+
+	it('moves the spotlight on when the clock crosses a boundary with the page still open', async () => {
+		// The old rotation was a `readonly` field computed once in a field initializer, on a page an
+		// installed app can keep open for days — nothing could refresh it. This rides the UTC
+		// day-boundary timer the vault labels already use, which is why no second timer exists.
+		const clock = createMockClockSeam(SUNDAY_MS);
+		const studio = await open(clock);
+		try {
+			const before = studio.spotlight;
+			expect(before?.changesAtMs).toBe(MONDAY_MS);
+
+			clock.advanceTo(MONDAY_MS);
+
+			expect(studio.spotlight?.weeklyIds).not.toEqual(before?.weeklyIds);
+			expect(studio.spotlight?.changesAtMs).toBeGreaterThan(MONDAY_MS);
+			expect(studio.spotlightNote).toContain('September 14 (UTC)');
+		} finally {
+			studio.destroy();
+		}
+	});
+
+	it('keeps the reader on the mode they picked when the spotlight moves under them', async () => {
+		// The spotlight decides what is badged and nothing else. If it could still decide what was
+		// *selectable*, a rollover would take the reader's chosen mode off the strip mid-session —
+		// and `activeMode` would have quietly substituted another one under their evidence.
+		const clock = createMockClockSeam(SUNDAY_MS);
+		const studio = await open(clock);
+		try {
+			studio.handleModeSelect('clapback');
+			studio.evidence = 'She said I am doing too much.';
+
+			clock.advanceTo(Date.UTC(2026, 9, 1));
+
+			expect(studio.activeModeId).toBe('clapback');
+			expect(studio.activeMode.id).toBe('clapback');
+			expect(studio.evidence).toBe('She said I am doing too much.');
+		} finally {
+			studio.destroy();
+		}
 	});
 });
