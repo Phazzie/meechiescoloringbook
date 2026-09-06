@@ -18,6 +18,11 @@ import { createMockPageVisibilitySeam } from '../../src/lib/seams/page-visibilit
 import type { MockPageVisibilitySeam } from '../../src/lib/seams/page-visibility-seam/mock';
 import { specValidationAdapter } from '../../src/lib/adapters/spec-validation-seam';
 import { MAX_DEDICATION_LENGTH } from '../../src/lib/seams/spec-validation-seam/contract';
+import {
+	buildToolPageRecipe,
+	buildToolStudioText
+} from '../../src/lib/core/tool-page-recipe';
+import type { MeechieToolOutput } from '../../src/lib/seams/meechie-tool-seam/contract';
 import { StudioState } from '../../src/routes/studio-state.svelte';
 import { VAULT_CAPACITY } from '../../src/lib/core/vault-gallery';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
@@ -276,7 +281,7 @@ describe('StudioState', () => {
 
 	it('clears the previous mode\'s AI text output when a different mode card is selected', () => {
 		const studio = new StudioState();
-		studio.textOutput = DEFAULT_STUDIO_TEXT_OUTPUT;
+		studio.acceptVerdict(DEFAULT_STUDIO_TEXT_OUTPUT);
 		const targetMode = studio.weeklyModes.find((mode) => mode.id !== studio.activeModeId);
 		expect(targetMode).toBeDefined();
 
@@ -287,7 +292,7 @@ describe('StudioState', () => {
 
 	it('preserves the current AI text output when the already-active mode card is reselected', () => {
 		const studio = new StudioState();
-		studio.textOutput = DEFAULT_STUDIO_TEXT_OUTPUT;
+		studio.acceptVerdict(DEFAULT_STUDIO_TEXT_OUTPUT);
 
 		studio.handleModeSelect(studio.activeModeId);
 
@@ -895,7 +900,7 @@ describe('StudioState wig try-on comparison', () => {
 	 */
 	it('does not land a slow generation on a page the reader has already replaced', async () => {
 		const studio = new StudioState();
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT });
 		let releaseGenerate: (value: Response) => void = () => {};
 		const fetchSpy = vi.fn().mockReturnValue(
 			new Promise<Response>((resolve) => {
@@ -2043,7 +2048,7 @@ describe('StudioState quote vault', () => {
 	 */
 	it('does not save a verdict that has nothing to do with the try-on page', async () => {
 		const studio = await initVault([]);
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about something else.' };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about something else.' });
 
 		await makeTryOnPage(studio);
 
@@ -2059,7 +2064,7 @@ describe('StudioState quote vault', () => {
 
 	it('saves the verdict again once a fresh verdict replaces the try-on page', async () => {
 		const studio = await initVault([]);
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about something else.' };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about something else.' });
 		await makeTryOnPage(studio);
 
 		// A new verdict goes through resetGeneratedPage, which is where the try-on marking clears.
@@ -2116,7 +2121,7 @@ describe('StudioState quote vault', () => {
 	it('keeps an unrelated verdict out of the draft as well as the vault', async () => {
 		const studio = await initVault([]);
 		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about something else.' };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT, quote: 'A verdict about something else.' });
 		await makeTryOnPage(studio);
 
 		saveDraftSpy.mockClear();
@@ -2135,6 +2140,284 @@ describe('StudioState quote vault', () => {
 
 		expect(studio.vaultStatus).toBe('Make a page before saving it.');
 		expect(studio.creations).toHaveLength(0);
+	});
+
+	// --- What Meechie said about her own answer ----------------------------------------------
+	//
+	// `qualityState` is required of the provider on every call and had no consumer anywhere in the
+	// application, so none of this had a test either. The field is required on the *contract* too,
+	// which is the whole difficulty: a value is always present, and the value alone cannot say
+	// whether anybody reported it.
+
+	it('carries the standing of a verdict Meechie just gave, whatever it says', async () => {
+		const studio = await initVault([]);
+		studio.evidence = 'He said his phone died, then posted from the party.';
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						ok: true,
+						value: {
+							...DEFAULT_STUDIO_TEXT_OUTPUT,
+							qualityState: 'blocked',
+							revisionNote: 'Tell me what he actually said.'
+						}
+					}),
+					{ status: 200, headers: { 'Content-Type': 'application/json' } }
+				)
+			)
+		);
+
+		await studio.runTextAction('generate_text');
+
+		// Through the real response path, not through `acceptVerdict`: this is the one assignment
+		// site that is entitled to say the standing is Meechie's, and it has to actually say it.
+		expect(studio.verdictReport.standing?.code).toBe('blocked');
+		expect(studio.verdictReport.note).toBe('Tell me what he actually said.');
+		// And the caution reaches the button that spends an image generation.
+		expect(studio.verdictReport.pageCaution).not.toBeNull();
+	});
+
+	it('keeps a blocked standing across the refresh that autosaves it', async () => {
+		// The case that made the earlier "believe nothing restored" rule too wide, and the one the
+		// feature exists for: a reader gets a verdict Meechie could not rule on, the draft autosaves,
+		// they reload — and the warning she asked for was gone. `modelMetadata` is the stamp
+		// `parseProviderText` puts on every accepted studio response and neither inventing producer
+		// can forge, so the standing survives.
+		const fromTheProvider: MeechieStudioTextOutput = {
+			...DEFAULT_STUDIO_TEXT_OUTPUT,
+			qualityState: 'blocked',
+			revisionNote: 'Tell me what he actually said.',
+			modelMetadata: { provider: 'xai', model: 'grok-text' }
+		};
+
+		const studio = await initFromDraft({
+			updatedAtISO: '2026-09-06T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			studioText: fromTheProvider
+		});
+
+		expect(studio.verdictReport.standing?.code).toBe('blocked');
+		expect(studio.verdictReport.pageCaution).not.toBeNull();
+		expect(studio.verdictReport.note).toBe('Tell me what he actually said.');
+	});
+
+	it('keeps the standing of a reopened page that carries the provider stamp', async () => {
+		const studio = await initVault([]);
+		const fromTheProvider: MeechieStudioTextOutput = {
+			...DEFAULT_STUDIO_TEXT_OUTPUT,
+			qualityState: 'needs_more_evidence',
+			revisionNote: 'Give me the date.',
+			modelMetadata: { provider: 'xai', model: 'grok-text' }
+		};
+
+		await studio.loadCreation(
+			makeCreation('stamped', { studioText: fromTheProvider })
+		);
+
+		expect(studio.verdictReport.standing?.code).toBe('needs_more_evidence');
+		expect(studio.verdictReport.pageCaution).not.toBeNull();
+	});
+
+	it('believes no standing read back out of a record with no provider stamp', async () => {
+		// This assertion is the reverse of the one first written here, and the reversal is the point.
+		// Three kinds of record carry a `qualityState` and only one carries a *reported* one: a
+		// studio page from a real response, a toolkit page whose `'ready'` `buildToolStudioText` has
+		// to invent because `MeechieToolOutput` has no such field, and a page saved before this
+		// change carrying a reconstruction. Nothing on a record tells them apart, so believing the
+		// stored value would put "Meechie had enough to work with" under every toolkit page ever
+		// saved. Codex caught this on PR #313.
+		const studio = await initVault([]);
+		const stored: MeechieStudioTextOutput = {
+			...DEFAULT_STUDIO_TEXT_OUTPUT,
+			qualityState: 'needs_more_evidence',
+			revisionNote: 'Give me the date.'
+		};
+
+		await studio.loadCreation(makeCreation('stored-text', { studioText: stored }));
+
+		expect(studio.verdictReport.standing).toBeNull();
+		expect(studio.verdictReport.pageCaution).toBeNull();
+		// The note is not a standing. It is a line Meechie wrote, stored verbatim, and showing it
+		// claims nothing about whether she approved the page.
+		expect(studio.verdictReport.note).toBe('Give me the date.');
+	});
+
+	it('keeps the words of a record that stored its own studio text, and rewrites them back', async () => {
+		// The other half of the same correction: withholding the *standing* must not cost the page
+		// its *words*. A stored verdict is rarely its page title, so dropping `studioText` on resave
+		// would lose sentences the reader paid for — which is why provenance is three-valued and not
+		// a boolean.
+		const studio = await initVault([]);
+		const stored: MeechieStudioTextOutput = {
+			...DEFAULT_STUDIO_TEXT_OUTPUT,
+			verdict: 'The phone did not die. The effort did.',
+			qualityState: 'ready'
+		};
+
+		await studio.loadCreation(makeCreation('stored-text', { studioText: stored }));
+		expect(studio.verdictReport.verdict).toBe('The phone did not die. The effort did.');
+
+		await studio.saveToVault();
+
+		const resaved = studio.creations.find((record) => record.id !== 'stored-text');
+		expect(resaved?.studioText?.verdict).toBe('The phone did not die. The effort did.');
+	});
+
+	it('claims no standing for a record that stored none', async () => {
+		const studio = await initVault([]);
+
+		// A record from before the studio wrote its text down. `buildStudioTextFromCreationRecord`
+		// rebuilds the words from `intent` and has to invent `qualityState: 'ready'` to satisfy the
+		// contract — the exact value that must not reach the screen as Meechie's approval.
+		await studio.loadCreation(makeCreation('no-stored-text'));
+
+		expect(studio.textOutput).not.toBeNull();
+		expect(studio.textOutput?.qualityState).toBe('ready');
+		expect(studio.verdictReport.standing).toBeNull();
+		expect(studio.verdictReport.pageCaution).toBeNull();
+		// The words are still hers and still shown. Only the claim about them is withheld.
+		expect(studio.verdictReport.hasVerdict).toBe(true);
+		expect(studio.verdictReport.verdict).toBe(studio.textOutput?.verdict);
+	});
+
+	it('does not write down a standing nobody reported, and loses no words doing it', async () => {
+		const studio = await initVault([]);
+		await studio.loadCreation(makeCreation('no-stored-text'));
+		const rebuilt = studio.textOutput;
+		expect(rebuilt).not.toBeNull();
+
+		await studio.saveToVault();
+
+		const saved = studio.creations.find((record) => record.id !== 'no-stored-text');
+		expect(saved).toBeDefined();
+		// The invented `'ready'` is not laundered into storage, where the next reopen would read it
+		// back as reported. This is the Run 5 defect — a seed value resaved as genuine — in the one
+		// field that says whether Meechie stood behind the page.
+		expect(saved?.studioText).toBeUndefined();
+
+		// And the exclusion costs nothing, which is the only reason it is safe: every field
+		// `buildStudioTextFromSpec` produces is derived from `intent`, so the words survive the
+		// round trip untouched. If that function ever grows an input, this is the test that fails.
+		await studio.loadCreation(saved!);
+		expect(studio.textOutput).toEqual(rebuilt);
+		expect(studio.verdictReport.standing).toBeNull();
+	});
+
+	it('keeps an unreported standing out of the draft as well as the vault', async () => {
+		// The draft is the other writer of studio text, and the two have drifted before — the vault
+		// learned to exclude a verdict belonging to a different page and the draft did not, so a
+		// refresh put it back as genuine. Both go through `describingStudioText`, and this is the
+		// assertion that says so for this guard rather than assuming it.
+		const studio = await initVault([]);
+		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		await studio.loadCreation(makeCreation('no-stored-text'));
+
+		saveDraftSpy.mockClear();
+		await studio.syncSpecFromCurrentText();
+		await vi.waitFor(() => expect(saveDraftSpy).toHaveBeenCalled());
+
+		expect(saveDraftSpy.mock.calls.at(-1)?.[0].draft.studioText).toBeUndefined();
+	});
+
+	it('writes the standing down when the verdict really is Meechie’s', async () => {
+		const studio = await initVault([]);
+		studio.acceptVerdict({
+			...DEFAULT_STUDIO_TEXT_OUTPUT,
+			qualityState: 'needs_more_evidence',
+			revisionNote: 'Give me the date.'
+		});
+
+		await studio.saveToVault();
+
+		// The mirror of the test above. Without it, "stores nothing" passes for a guard that stores
+		// nothing ever, which is a vault that forgets every verdict.
+		expect(studio.creations[0].studioText?.qualityState).toBe('needs_more_evidence');
+		expect(studio.creations[0].studioText?.revisionNote).toBe('Give me the date.');
+
+		// Reopened, the standing is no longer claimed — the record cannot prove it was reported —
+		// but the words and the note come back whole.
+		await studio.loadCreation(studio.creations[0]);
+		expect(studio.verdictReport.standing).toBeNull();
+		expect(studio.verdictReport.note).toBe('Give me the date.');
+	});
+
+	it('claims nothing about a page saved from the toolkit', async () => {
+		// The finding, end to end and through the real producer rather than a hand-written record:
+		// `buildToolStudioText` must write a `qualityState` because the schema requires one and
+		// `MeechieToolOutput` has none to give. Reopening such a page in the studio used to print
+		// "Meechie had enough to work with" over an assessment she never made.
+		const studio = await initVault([]);
+		const toolOutput: MeechieToolOutput = {
+			toolId: 'rate_excuse',
+			headline: '2/10',
+			response: 'A dead phone with a live story is still a confession.',
+			rating: 2
+		};
+		const recipe = buildToolPageRecipe(toolOutput, {});
+		const toolText = buildToolStudioText(toolOutput, recipe);
+		expect(toolText).not.toBeNull();
+		expect(toolText?.qualityState).toBe('ready');
+
+		await studio.loadCreation(
+			makeCreation('from-the-toolkit', { studioText: toolText ?? undefined })
+		);
+
+		expect(studio.verdictReport.standing).toBeNull();
+		expect(studio.verdictReport.pageCaution).toBeNull();
+		// And the excuse's credibility score is not relabelled as the situation's severity — twice
+		// over: the producer no longer copies it, and the card would refuse it anyway because the
+		// headline already *is* the number.
+		expect(toolText?.rating).toBeUndefined();
+		expect(studio.verdictReport.severity).toBeNull();
+		// The words she did write are all still there.
+		expect(studio.verdictReport.verdict).toBe('2/10');
+		expect(studio.verdictReport.quote).toBe(toolOutput.response);
+	});
+
+	it('reopens a toolkit page saved before the producer was fixed', async () => {
+		// The records already in readers' browsers. `buildToolStudioText` used to copy the excuse's
+		// credibility score into `studioText.rating`, and those records are not rewritten by this
+		// change — `rating` is optional on the contract, so they still validate and still load. What
+		// must not happen is the card relabelling that number as situation severity, which is what
+		// the score-is-the-headline guard is for. Written as the shape a Rate This Excuse save
+		// actually had, not as a hypothetical.
+		const studio = await initVault([]);
+		const asSavedBefore: MeechieStudioTextOutput = {
+			verdict: '2/10',
+			quote: 'A dead phone with a live story is still a confession.',
+			pageTitle: 'THE PHONE HAD SERVICE',
+			pageItems: [
+				{ number: 1, label: 'CHECK THE TIMESTAMP' },
+				{ number: 2, label: 'BELIEVE THE POST' }
+			],
+			rating: 2,
+			qualityState: 'ready'
+		};
+
+		await studio.loadCreation(makeCreation('old-toolkit-page', { studioText: asSavedBefore }));
+
+		expect(studio.verdictReport.severity).toBeNull();
+		expect(studio.verdictReport.standing).toBeNull();
+		// And the record is not quietly rewritten: what it stored is what it keeps, rating included.
+		await studio.saveToVault();
+		const resaved = studio.creations.find((record) => record.id !== 'old-toolkit-page');
+		expect(resaved?.studioText?.rating).toBe(2);
+		expect(resaved?.studioText?.verdict).toBe('2/10');
+	});
+
+	it('says nothing about a standing once the verdict is gone', async () => {
+		const studio = await initVault([]);
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT, qualityState: 'blocked' });
+		expect(studio.verdictReport.standing?.code).toBe('blocked');
+
+		studio.handleModeSelect(studio.weeklyModes[1].id);
+
+		expect(studio.textOutput).toBeNull();
+		expect(studio.verdictReport.hasVerdict).toBe(false);
+		expect(studio.verdictReport.standing).toBeNull();
+		expect(studio.verdictReport.pageCaution).toBeNull();
 	});
 });
 
@@ -2177,7 +2460,7 @@ describe('StudioState page exports', () => {
 
 	const arrangeGeneratedPage = (): StudioState => {
 		const studio = new StudioState();
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT });
 		vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => generateResponse()));
 		return studio;
 	};
@@ -2347,7 +2630,7 @@ describe('StudioState page exports', () => {
 
 	it('names a picture-less response for what it is instead of blaming the packager', async () => {
 		const studio = new StudioState();
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT });
 		vi.stubGlobal(
 			'fetch',
 			vi.fn().mockImplementation(
@@ -2383,7 +2666,7 @@ describe('StudioState page exports', () => {
 	/** A completed generation that carried findings but no usable image. */
 	const arrangePagelessFindings = async (): Promise<StudioState> => {
 		const studio = new StudioState();
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT });
 		vi.stubGlobal(
 			'fetch',
 			vi.fn().mockImplementation(
@@ -2536,7 +2819,7 @@ describe('StudioState page style', () => {
 	 * which is exactly the state the code now refuses to file under the live controls.
 	 */
 	const generatePage = async (studio: StudioState): Promise<void> => {
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT });
 		vi.stubGlobal(
 			'fetch',
 			vi.fn().mockImplementation(
@@ -2873,7 +3156,7 @@ describe('StudioState page style', () => {
 		// to happen *inside* the request rather than after it.
 		const { studio } = await savingStudio();
 		putStyleOnControls(studio);
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT });
 
 		let sentHint = '';
 		vi.stubGlobal(
@@ -2974,7 +3257,7 @@ describe('StudioState page style', () => {
 		// unknown for a page whose style is perfectly well known.
 		const { studio, saveSpy } = await savingStudio();
 		putStyleOnControls(studio);
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT });
 		expect(studio.assembledPrompt).toBe('');
 		expect(studio.styleSelectionUnknown).toBe(false);
 
@@ -3259,7 +3542,7 @@ describe('StudioState page style', () => {
 		// doing so after the reader had moved every control.
 		const { studio, saveSpy } = await savingStudio();
 
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT });
 		studio.selectedThemeId = 'receipts';
 		vi.stubGlobal(
 			'fetch',
@@ -3304,7 +3587,7 @@ describe('StudioState page style', () => {
 			.mockResolvedValue({ ok: true, value: { files: [] } });
 
 		studio.pageSize = 'US_Letter';
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT });
 		vi.stubGlobal(
 			'fetch',
 			vi.fn().mockImplementation(async () => {
@@ -3359,7 +3642,7 @@ describe('StudioState page style', () => {
 		});
 
 		studio.pageSize = 'US_Letter';
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT });
 		vi.stubGlobal(
 			'fetch',
 			vi.fn().mockImplementation(async () => {
@@ -3446,7 +3729,7 @@ describe('StudioState page style', () => {
 		// for the controls to disagree with — they *are* this page's paper.
 		const { studio, saveSpy } = await savingStudio();
 
-		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT });
 		studio.pageSize = 'A4';
 		await studio.syncSpecFromCurrentText('setting');
 		await studio.saveToVault();

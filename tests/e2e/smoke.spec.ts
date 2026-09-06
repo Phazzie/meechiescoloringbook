@@ -1605,3 +1605,79 @@ test('losing the network says so, and says nothing while the network is there', 
 	await context.setOffline(false);
 	await expect(page.getByTestId('connection-banner')).toHaveCount(0);
 });
+
+// --- The verdict card ---------------------------------------------------------------------------
+//
+// The studio requires seven fields of the provider on every call, under a `strict: true` JSON
+// schema, and rendered three of them. `qualityState` — Meechie's own statement of whether she could
+// rule on this at all — had no consumer in the application, so `blocked` looked exactly like a
+// finished verdict and the paid page button was lit for it. These drive the difference in a real
+// browser, because it is a difference the reader is supposed to see.
+
+test('an empty verdict card says only that it is empty', async ({ page }) => {
+	await stubApis(page);
+	await gotoHydrated(page, '/');
+
+	await expect(page.getByTestId('home-verdict-headline')).toHaveText('No verdict yet.');
+	// No severity, no standing, no note, and no caution beside a button that has nothing to make a
+	// page from. The card that says nothing has to actually say nothing.
+	await expect(page.getByTestId('home-verdict-severity')).toHaveCount(0);
+	await expect(page.getByTestId('home-verdict-standing')).toHaveCount(0);
+	await expect(page.getByTestId('home-verdict-note')).toHaveCount(0);
+	await expect(page.getByTestId('home-page-caution')).toHaveCount(0);
+});
+
+test('a verdict shows her severity read, her standing, and her note', async ({ page }) => {
+	await stubApis(page);
+	await gotoHydrated(page, '/');
+
+	await page.getByTestId('home-evidence').fill('He said his phone died, then posted.');
+	await page.getByTestId('home-generate-verdict').click();
+	await expect(page.getByTestId('home-verdict-quote')).toBeVisible();
+
+	// The rating was a bare "2/10" beside the verdict, which reads as a grade for the verdict.
+	await expect(page.getByTestId('home-verdict-severity')).toContainText('Severity 2 of 10');
+	await expect(page.getByTestId('home-verdict-severity')).toContainText(
+		'not a score for her answer'
+	);
+	// `qualityState: 'ready'` from the stub, on screen for the first time.
+	await expect(page.getByTestId('home-verdict-standing')).toHaveAttribute('data-state', 'ready');
+	// `revisionNote` is required of the provider on every call and reached no screen until now.
+	await expect(page.getByTestId('home-verdict-note')).toContainText('Smoke fixture.');
+	// Nothing is wrong, so nothing warns.
+	await expect(page.getByTestId('home-page-caution')).toHaveCount(0);
+	await expect(page.getByTestId('home-verdict-add-evidence')).toHaveCount(0);
+});
+
+test('a verdict Meechie could not rule on says so, and warns the button that costs money', async ({
+	page
+}) => {
+	await stubApis(page);
+	await page.route('**/api/meechie-studio-text', async (route) => {
+		await route.fulfill({
+			json: {
+				ok: true,
+				value: {
+					...textOutput,
+					qualityState: 'blocked',
+					revisionNote: 'Tell me what he actually said, word for word.'
+				}
+			}
+		});
+	});
+	await gotoHydrated(page, '/');
+
+	await page.getByTestId('home-evidence').fill('idk');
+	await page.getByTestId('home-generate-verdict').click();
+	await expect(page.getByTestId('home-verdict-standing')).toHaveAttribute('data-state', 'blocked');
+	await expect(page.getByTestId('home-verdict-standing')).toContainText('could not rule');
+
+	// The caution sits with the button that spends an image generation, above it rather than under
+	// it, and the button stays enabled: the reader owns the decision, the app owes them the warning.
+	await expect(page.getByTestId('home-page-caution')).toContainText('could not rule');
+	await expect(page.getByTestId('home-create-page')).toBeEnabled();
+
+	// And the way out is a control, not a suggestion: it puts the cursor in the evidence box.
+	await page.getByTestId('home-verdict-add-evidence').click();
+	await expect(page.getByTestId('home-evidence')).toBeFocused();
+});

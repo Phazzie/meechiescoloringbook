@@ -58,6 +58,11 @@ import {
 import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 import { buildQualityReport } from '$lib/core/quality-report';
 import {
+	buildVerdictReport,
+	warrantForRestoredVerdict,
+	type VerdictWarrant
+} from '$lib/core/verdict-report';
+import {
 	GENERATED_IMAGE_MIME_TYPES,
 	generatedImageDataUrl
 } from '$lib/core/generated-image-preview';
@@ -254,7 +259,36 @@ export class StudioState {
 	 * fresh guess.
 	 */
 	aiQuota = $state<AiQuotaSnapshot | null>(null);
-	textOutput = $state<MeechieStudioTextOutput | null>(null);
+	private verdictOnScreen = $state<MeechieStudioTextOutput | null>(null);
+	/**
+	 * Where the verdict on screen came from. Two separate questions turn on it, and conflating them
+	 * was this change's own first defect — a review caught it.
+	 *
+	 * - `'reported'` — a live studio response, or a record carrying the `modelMetadata` stamp that
+	 *   only a studio response can have. Its `qualityState` is Meechie's own.
+	 * - `'stored'` — real words out of a record whose standing cannot be shown to be hers: a toolkit
+	 *   page, whose `'ready'` `buildToolStudioText` must invent because `MeechieToolOutput` has no
+	 *   such field, or a studio page written before the stamp existed. The words are kept; the
+	 *   standing is not claimed.
+	 * - `'derived'` — rebuilt from the page itself by `buildStudioTextFromSpec`, because the record
+	 *   stored no text. No standing, and nothing to write down: every field of it comes from
+	 *   `intent`, so storing it would add only the invented `'ready'`.
+	 *
+	 * See `warrantForRestoredVerdict`, which is where the first two are told apart.
+	 */
+	private verdictWarrant = $state<VerdictWarrant>('none');
+	/**
+	 * The verdict on screen. Read-only from outside on purpose.
+	 *
+	 * It was a plain field, and a plain field can be assigned without answering the question above —
+	 * so the value and its provenance would be two things to remember instead of one. There are
+	 * exactly two writers, `setVerdict` and `clearVerdict`, and neither can produce an inconsistent
+	 * pair: the first takes a verdict and a required source, the second takes nothing. Assigning
+	 * this property is a type error rather than a verdict of unknown origin.
+	 */
+	get textOutput(): MeechieStudioTextOutput | null {
+		return this.verdictOnScreen;
+	}
 	textError = $state('');
 	generationError = $state('');
 	draftSaveError = $state('');
@@ -612,6 +646,20 @@ export class StudioState {
 	);
 	previewOutput = $derived(this.textOutput);
 	/**
+	 * Everything the verdict card shows about the answer on screen.
+	 *
+	 * Built here rather than in the component so the card renders a value instead of computing one,
+	 * and so every rule about what may be claimed — that an unreported standing claims nothing, that
+	 * an absent rating shows nothing, that a whitespace note is no note — is unit-tested in
+	 * `verdict-report.ts` rather than in markup.
+	 */
+	verdictReport = $derived(
+		buildVerdictReport({
+			output: this.textOutput,
+			standingWasReported: this.verdictWarrant === 'reported'
+		})
+	);
+	/**
 	 * What the server said about this caller's quota, in a sentence, or `''` when it has not said
 	 * anything yet.
 	 *
@@ -879,7 +927,64 @@ export class StudioState {
 	private describingStudioText(): MeechieStudioTextOutput | undefined {
 		if (!this.textOutput) return undefined;
 		if (this.tryOnPageOnScreen) return undefined;
+		// `'derived'` text is text this studio rebuilt from the page itself, and every field of it —
+		// verdict, quote, title, items — comes from `intent` by way of `buildStudioTextFromSpec`.
+		// Writing it back would add nothing the record does not already hold except the `'ready'`
+		// that function had to invent. So a record that stored no studio text keeps storing none, and
+		// the words come back the same way they came out.
+		//
+		// Keyed on `'derived'` and not on "was the standing reported": `'stored'` text is somebody's
+		// real words — a verdict is not usually its page title — and dropping it to avoid carrying a
+		// standing nobody believes anyway would lose the page's own sentences. Those are two
+		// questions, and answering both with one flag was this change's first defect.
+		if (this.verdictWarrant === 'derived') return undefined;
 		return $state.snapshot(this.textOutput);
+	}
+
+	/**
+	 * The only way a verdict is put on screen.
+	 *
+	 * `source` is required and has no default, so a caller cannot put a verdict up without saying
+	 * where it came from — the value and its provenance are one fact, and two assignment sites are
+	 * two chances to set one and forget the other. `null` has its own writer below rather than being
+	 * a case here, so no call can pair "there is no verdict" with a source that says there is one.
+	 */
+	private setVerdict(
+		value: MeechieStudioTextOutput,
+		warrant: Exclude<VerdictWarrant, 'none'>
+	): void {
+		this.verdictOnScreen = value;
+		this.verdictWarrant = warrant;
+	}
+
+	/**
+	 * A verdict Meechie just gave. Its `qualityState` is hers, whatever it says.
+	 *
+	 * Also the arrangement a test reaches for when it wants "a verdict is on screen": that is what a
+	 * reader has after pressing the button, and it is the state in which the card is entitled to
+	 * repeat what she said about it.
+	 */
+	acceptVerdict = (value: MeechieStudioTextOutput): void => {
+		this.setVerdict(value, 'reported');
+	};
+
+	/** Nothing on the paper and nothing said about it. */
+	private clearVerdict(): void {
+		this.verdictOnScreen = null;
+		this.verdictWarrant = 'none';
+	}
+
+	/**
+	 * A verdict brought back from a record or a draft, which may be nothing at all — a page with no
+	 * printed items restores no text. `stored` is the record's own `studioText`, or `undefined` when
+	 * it saved none; `warrantForRestoredVerdict` reads the provenance stamp off it.
+	 */
+	private restoreVerdict(
+		value: MeechieStudioTextOutput | null,
+		stored: MeechieStudioTextOutput | undefined
+	): void {
+		if (value === null) this.clearVerdict();
+		else this.setVerdict(value, warrantForRestoredVerdict(stored));
 	}
 
 	/** The title-only shape a try-on page always has: the wig's name, a picture, and nothing else. */
@@ -1525,7 +1630,7 @@ export class StudioState {
 		this.activeModeId = modeId;
 		this.textError = '';
 		if (modeChanged) {
-			this.textOutput = null;
+			this.clearVerdict();
 			this.resetGeneratedPage();
 			this.restoredPageLayout = false;
 			// The switch just deleted the verdict the spent rewrites were spent on. Carrying the
@@ -1668,7 +1773,8 @@ export class StudioState {
 				this.textError = parsed.data.error.message;
 				return;
 			}
-			this.textOutput = parsed.data.value;
+			// A live response: this `qualityState` is Meechie's own, whatever it says.
+			this.acceptVerdict(parsed.data.value);
 			// Order matters: a round-starting action refills the allowance for the verdict it just
 			// produced, and a rewrite spends one of the allowance the verdict on screen came with.
 			// Both are applied only on an accepted verdict, so a failure, a timeout or an
@@ -2226,7 +2332,7 @@ export class StudioState {
 		this.dedication = creation.intent.dedication ?? '';
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;
-		this.textOutput = restoredText;
+		this.restoreVerdict(restoredText, creation.studioText);
 		// A reopened page is a verdict the reader has not reworked in this session, and its rewrite
 		// buttons light up the moment `textOutput` is set above. Handing it whatever was left of
 		// some earlier page's allowance would let a saved page arrive with none.
@@ -2443,7 +2549,10 @@ export class StudioState {
 			// record holding nothing. `buildStudioTextFromDraftRecord` returns null for that page,
 			// which is why the assignment is safe to make unconditionally once past this check.
 			if (draft.value.studioText || !isKnownDraftSeed(draft.value.intent)) {
-				this.textOutput = buildStudioTextFromDraftRecord(draft.value);
+				this.restoreVerdict(
+					buildStudioTextFromDraftRecord(draft.value),
+					draft.value.studioText
+				);
 			}
 		}
 		await this.validateSpec();

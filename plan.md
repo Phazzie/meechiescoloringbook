@@ -8,7 +8,131 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
-## Run 10 close-out (2026-09-06) — micro plan, PR #312
+## Run 11 (2026-09-06) — the verdict: what Meechie said, and what she said about saying it
+
+**Goal:** The home studio asks the provider for seven fields under a `strict: true` JSON schema and
+shows three of them. The four it drops are the four that tell the reader whether the answer is worth
+acting on, and one of them is the answer to the question the rewrite buttons cost money to guess at.
+
+**The measurement, on `main` at `1b67d30`, from the code rather than from a description:**
+
+- `src/lib/core/meechie-studio-text-pipeline.ts:39-72` sends `STUDIO_TEXT_RESPONSE_FORMAT` with
+  `strict: true` and `required: ['verdict','quote','pageTitle','pageItems','rating','qualityState','revisionNote']`.
+  Every call is obliged to return all seven. Every call is billed for all seven.
+- `src/lib/components/studio/VerdictRow.svelte:63-74` renders `verdict`, `quote`, and `rating`.
+- `qualityState` has **no consumer in the application**. `grep -rn "needs_more_evidence" src tests
+  fixtures probes` returns five lines: the prompt that asks for it, the JSON schema that requires
+  it, the guidance list, the enum in the contract, and nothing else. No branch, no test, no fixture,
+  no pixel. `blocked` — the model saying it could not rule on this at all — renders identically to
+  `ready`, and `StudioPreviewPanel.svelte:116` enables the paid page generation for it.
+- `revisionNote` — the prompt defines it at line 98 as *"What you'd need to do this better"* — is
+  rendered nowhere. The reader instead gets three unlabelled rewrite buttons and a finite budget
+  (Run 7), so they spend paid rewrites guessing at what the response already told them.
+- `rating` renders as a bare `{rating}/10` with no label. The prompt defines it at line 96 as
+  *"1-10 severity"* of the situation. Unlabelled beside a verdict, a naked "8/10" reads as a score
+  of the verdict.
+- `src/lib/core/meechie-studio.ts:465` fabricates `qualityState: 'ready'` when rebuilding text from
+  a record that stored none — so the moment the field reaches the screen, a legacy record claims an
+  approval Meechie never gave, and re-saving would write that claim down.
+
+**Seams:** none. No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/`, `src/lib/seams/` or `tests/contract/` is touched. Provenance travels as a
+separate input the way `promptWasSent` (Run 9) and `driftChecked` (Run 10) do, rather than as a new
+contract field — which also keeps this pull request clear of the schema/contract/migration condition
+`AGENTS.md` names as a reason not to merge.
+
+**Exact file inventory**, generated from `git diff --name-status origin/main..HEAD` rather than
+kept by hand — a hand-kept inventory is a second copy of the truth and goes stale silently, which
+Run 10 established twice inside one run. 31 files.
+
+| File | Action |
+|---|---|
+| `CHANGELOG.md` | [MODIFY] |
+| `DECISIONS.md` | [MODIFY] |
+| `LESSONS_LEARNED.md` | [MODIFY] |
+| `WORST_TO_BEST_LOG.md` | [MODIFY] |
+| `docs/evidence/2026-09-06/assumption-alarm.json` | [MODIFY] |
+| `docs/evidence/2026-09-06/build.txt` | [MODIFY] |
+| `docs/evidence/2026-09-06/chamber-lock.json` | [MODIFY] |
+| `docs/evidence/2026-09-06/clan-chain.json` | [MODIFY] |
+| `docs/evidence/2026-09-06/clan-chain.md` | [MODIFY] |
+| `docs/evidence/2026-09-06/e2e.txt` | [MODIFY] |
+| `docs/evidence/2026-09-06/proof-tape.json` | [MODIFY] |
+| `docs/evidence/2026-09-06/proof-tape.md` | [MODIFY] |
+| `docs/evidence/2026-09-06/seam-ledger.json` | [MODIFY] |
+| `docs/evidence/2026-09-06/seam-ledger.md` | [MODIFY] |
+| `docs/evidence/2026-09-06/shaolin-lint.json` | [MODIFY] |
+| `docs/evidence/2026-09-06/test.txt` | [MODIFY] |
+| `docs/evidence/2026-09-06/verify-outer.txt` | [MODIFY] |
+| `docs/evidence/2026-09-06/verify.txt` | [MODIFY] |
+| `plan.md` | [MODIFY] |
+| `src/lib/components/studio/StudioInputPanel.svelte` | [MODIFY] |
+| `src/lib/components/studio/StudioPreviewPanel.svelte` | [MODIFY] |
+| `src/lib/components/studio/VerdictRow.svelte` | [MODIFY] |
+| `src/lib/core/meechie-studio-text-pipeline.ts` | [MODIFY] |
+| `src/lib/core/tool-page-recipe.ts` | [MODIFY] |
+| `src/lib/core/verdict-report.ts` | **[NEW]** |
+| `src/routes/+page.svelte` | [MODIFY] |
+| `src/routes/studio-state.svelte.ts` | [MODIFY] |
+| `tests/e2e/smoke.spec.ts` | [MODIFY] |
+| `tests/unit/studio-state.test.ts` | [MODIFY] |
+| `tests/unit/tool-page-recipe.test.ts` | [MODIFY] |
+| `tests/unit/verdict-report.test.ts` | **[NEW]** |
+
+**Where the prediction was wrong:** `src/lib/components/studio/StudioInputPanel.svelte` was not in
+the predicted list. The "give her more evidence" button needs the evidence box, and the first
+version reached it with `document.getElementById('evidence')` in `+page.svelte` — which is a second
+copy of an id that lives in that panel, and would have broken silently the first time it was
+renamed. Binding the element up out of the panel is one prop and no duplicated id, and it costs the
+prediction one row.
+
+**And `src/lib/core/tool-page-recipe.ts` was not in it either, which is an anti-goal argued with
+rather than quietly stretched.** The list said "do not touch the tool seam, the mode routes,
+`MeechieTools.svelte` or `VerdictPageStudio.svelte`", and this file is none of those — it is core,
+and no file under `src/lib/seams/meechie-tool-seam/` or `src/lib/adapters/meechie-tool-seam/` is in
+the diff. But the intent of that line was to keep this change on one surface, and a review found
+that impossible to honour: `buildToolStudioText` writes into the *same store the home studio reads*,
+and it invents both of the values this change started rendering. A rebuild that renders a field
+correctly on one surface while a second producer fills it with a placeholder has not rendered it
+correctly. Run 10's rule applies unchanged — an anti-goal is a prediction about what a change will
+not need, and when the prediction is wrong the plan gives way, not the change.
+
+The rest of the anti-goals held: no contract, seam, adapter, mock, fixture or probe file is in the
+diff; no mode route or toolkit *component* is; the page button is still not disabled on a flagged
+standing; and the system prompt's bytes are unchanged, pinned by a test and re-proven against
+`origin/main` at runtime.
+
+**Anti-goals (forbidden).** Do not add a field to `MeechieStudioTextOutputSchema` or any other
+contract. Do not touch the tool seam, the mode routes, `MeechieTools.svelte` or
+`VerdictPageStudio.svelte` — the tool verdict's own dropped fields are recorded in
+`WORST_TO_BEST_LOG.md` as a future run's pick, with the reason. Do not disable the page button on a
+flagged standing: the reader owns the decision, the app owes them the warning. Do not change the
+bytes of `MEECHIE_SYSTEM_PROMPT` — the guidance line is rebuilt from the table and pinned
+byte-for-byte by a test, because changing the prompt changes every generation in the app.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run test:e2e`,
+`npm run verify`.
+
+**Self-critique.**
+
+- *The riskiest assumption is that `revisionNote` is worth showing at all.* If the provider fills it
+  with filler on a healthy verdict, the card gains a permanent line of noise. What must be proven:
+  that the card renders nothing when the field is absent or blank after trimming, and that the note
+  is attributed rather than presented as the app's own advice. What cannot be proven from here: what
+  a live model actually writes there — `XAI_API_KEY` is not available in this container, and the one
+  fixture carrying the field (`fixtures/meechie-studio-text/sample.json`) is hand-built, with
+  `"provider": "fixture"`. So the design must survive a useless note, which is why the note is
+  labelled with whose it is and never gates anything.
+- *The second is that excluding an unreported standing from the write path is lossless.* It is only
+  safe because every field `buildStudioTextFromSpec` reconstructs is derived from `intent` — title,
+  items and `specOwnQuote`. If that stops being true the exclusion silently drops words. A test
+  asserts the round trip, and it is the test to re-run if that function ever grows an input.
+- *The third is that a standing sentence is not me putting words in Meechie's mouth.* The wording is
+  lifted from the app's own definition of each enum value — the same string the provider is given —
+  so the reader and the model are told the value means the same thing. That is the point of building
+  the prompt line from the table rather than beside it.
+
+## Run 10 close-out (2026-09-06) — micro plan, PR #312 — **retired, superseded by Run 11 above**
 
 Required by `AGENTS.md` L108: a governance-only documentation change still needs a plan that lists
 the seams, files, commands and how behaviour stays unchanged. This PR opened without one, inheriting
@@ -142,7 +266,7 @@ and that the findings ledger is per pass and append-only so a later correction c
 displace an earlier one. What remains unmitigated: this entry is long, and length is itself a way
 for a wrong sentence to survive, since each review pass has more surface to cover than the last.
 
-## Run 10 (2026-09-06) — the installable app: manifest, service worker, and offline
+## Run 10 (2026-09-06) — the installable app: manifest, service worker, and offline — **retired, superseded by Run 11 above**
 
 **Goal:** Make the feature the operating system advertises on this app's behalf actually exist. The
 manifest declares `display: standalone` and a service worker registers on every page load, but the

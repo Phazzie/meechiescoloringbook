@@ -679,7 +679,18 @@ export const buildToolStudioText = (
 		quote: output.response,
 		pageTitle: recipe.spec.title,
 		pageItems: items.slice(0, MAX_TOOL_PAGE_ITEMS),
-		...(typeof output.rating === 'number' ? { rating: output.rating } : {}),
+		// `rating` is deliberately NOT copied across, though both fields are called `rating` and both
+		// are 1-10. They measure opposite things. The studio's is severity — "1-10 severity. Be
+		// honest. Don't undersell it." — and the only tool that produces one, Rate This Excuse, is
+		// scored "1 means insulting everyone in the room, 10 means barely credible". Copying it made
+		// an excuse scored 2 arrive in the studio as a *low* severity when what it means is that the
+		// excuse was an insult. Nothing is lost: that tool's headline **is** the score, so the number
+		// is still on the page, still meaning what it meant.
+		//
+		// `qualityState` has no equivalent on `MeechieToolOutput` at all, and the schema requires
+		// one, so `'ready'` here is a placeholder and not a report. Nothing may read it as Meechie's:
+		// `StudioState` treats a standing restored from any record as unreported for exactly this
+		// reason.
 		qualityState: 'ready' as const
 	};
 

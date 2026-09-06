@@ -31,6 +31,29 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 	onDestroy(() => {
 		studio.destroy();
 	});
+
+	/**
+	 * The evidence box, bound up out of `StudioInputPanel` so the verdict card can send the reader
+	 * back to it. `null` until that panel has rendered.
+	 */
+	let evidenceField = $state<HTMLTextAreaElement | null>(null);
+
+	/**
+	 * Take the reader to the evidence box, from the verdict card's "give her more evidence".
+	 *
+	 * Here rather than in `VerdictRow`, which owns neither the field nor the panel it sits in, and
+	 * rather than in `StudioState`, where every rule in this studio is unit-tested and a DOM handle
+	 * has no business being.
+	 */
+	const focusEvidenceField = (): void => {
+		const field = evidenceField;
+		if (!field) return;
+		// The reader asked to be taken somewhere, so the scroll is not decoration — but a reader who
+		// has asked their system for less motion gets the jump instead of the glide.
+		const wantsLessMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		field.scrollIntoView({ block: 'center', behavior: wantsLessMotion ? 'auto' : 'smooth' });
+		field.focus();
+	};
 </script>
 
 <svelte:head>
@@ -53,6 +76,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 		<StudioInputPanel
 			bind:evidence={studio.evidence}
 			bind:dedication={studio.dedication}
+			bind:evidenceField
 			activeMode={studio.activeMode}
 			revisionBudget={studio.revisionBudget}
 			aiQuotaMessage={studio.aiQuotaMessage}
@@ -83,6 +107,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 			canSaveToVault={studio.canSaveToVault}
 			glitter={studio.pageGlitter}
 			activeTheme={studio.activeTheme}
+			pageCaution={studio.verdictReport.pageCaution ?? ''}
 			onGeneratePage={studio.handleGeneratePage}
 			onCopyQuote={studio.copyQuote}
 			onSaveToVault={studio.saveToVault}
@@ -123,7 +148,8 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 	/>
 
 	<VerdictRow
-		textOutput={studio.textOutput}
+		report={studio.verdictReport}
+		onAddEvidence={focusEvidenceField}
 		vaultEntries={studio.vaultEntries}
 		visibleVaultEntries={studio.visibleVaultEntries}
 		hiddenVaultCount={studio.hiddenVaultCount}

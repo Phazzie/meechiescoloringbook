@@ -10040,3 +10040,632 @@ review of this codebase, and legible to the reader as "the internet is broken" r
 did not prepare".
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 11 — 2026-09-06 — The verdict: what Meechie said, and what she said about saying it
+
+**Branch:** `claude/great-bell-kb90rj` · **Base:** `main` at `1b67d30`
+
+### The feature, and why it was the worst
+
+The hero of the home page makes one promise: *"Tell Meechie what happened, get the verdict and
+quote."* The verdict card is where that promise is kept. It is the app's primary output — nine runs
+of this routine have rebuilt the things *around* it — and it showed **three of the seven fields the
+studio requires of the provider on every call.**
+
+Not "did not use". *Required.* `src/lib/core/meechie-studio-text-pipeline.ts:39-72` sends a
+`strict: true` JSON schema whose `required` is `[...STUDIO_TEXT_REQUIRED_FIELDS]` — the tuple
+declared eighteen lines above it:
+
+```
+verdict · quote · pageTitle · pageItems · rating · qualityState · revisionNote
+```
+
+so every response is obliged to carry all seven, and every response is billed for all seven. The
+card rendered `verdict`, `quote`, and a bare number.
+
+**1. `qualityState` had no consumer anywhere in the application.** Not a branch, not a test, not a
+fixture, not a pixel. The measurement, which took one command:
+
+```
+$ grep -rn "needs_more_evidence" src tests fixtures probes
+src/lib/core/meechie-studio-text-pipeline.ts:35   ← the guidance list asking for it
+src/lib/core/meechie-studio-text-pipeline.ts:66   ← the JSON schema requiring it
+src/lib/core/meechie-studio-text-pipeline.ts:97   ← the field guide defining it
+src/lib/core/meechie-studio-text-pipeline.ts:120  ← the closing instruction repeating it
+src/lib/seams/meechie-studio-text-seam/contract.ts:46  ← the enum accepting it
+```
+
+Five lines, and every one of them is the app *asking for* the value. Nothing on the other side.
+`grep -rn "'blocked'" src tests fixtures` adds nothing but an unrelated evidence-rollup status.
+The one fixture that carries the field (`fixtures/meechie-studio-text/sample.json:28`) says
+`'ready'`, and so did every one of the sixteen arrangements in `tests/unit/studio-state.test.ts`
+that put a verdict on screen.
+
+The prompt defines the three values at line 97: *ready (enough to work with), needs_more_evidence
+(need more tea), blocked (genuinely can't work with this)*. So **`blocked` — Meechie stating she
+could not rule on this at all — rendered identically to a finished verdict**, in the same serif
+italic, over the same quote, above a **"Create Coloring Page" button gated only on
+`!textOutput || isGenerating`** (`StudioPreviewPanel.svelte:116`). The reader spends a paid image
+generation on an answer the model disclaimed, and nothing anywhere says otherwise.
+
+**2. `revisionNote` is the answer to the question the rewrite buttons cost money to guess at.** The
+prompt defines it at line 98: *"What you'd need to do this better. Be direct, not polite."* It is
+required on every call. It reached no screen. What the reader got instead was three buttons labelled
+Prettier, Meaner and More Specific, and a finite allowance of them — Run 7 built the meter that
+rations exactly this. **The app charged for the advice, rationed the retries, and hid the advice.**
+
+There is a small monument to it in the code: `DEFAULT_STUDIO_TEXT_OUTPUT` at
+`meechie-studio.ts:39` carries `revisionNote: 'Approved preview line. Generate to get yours.'` — a
+default written, and maintained through at least one owner ruling, for a surface that never existed.
+
+**3. The rating said the wrong thing by saying too little.** `VerdictRow.svelte:72` rendered
+`{textOutput.rating}/10` and nothing else. The prompt defines it at line 96 as *"1-10 severity"* of
+the situation. A bare **"8/10" beside a verdict is a mark out of ten for the verdict** — the reader
+has no way to know it is Meechie's read on how bad the *situation* is, and the two readings run in
+opposite directions.
+
+**4. The idle card spoke in internal vocabulary.** *"Meechie will put the quote here after the AI
+text action runs."* "AI text action" is a `StudioTextActionId`. It appears on no button.
+
+**5. And the field would have started lying the moment it was shown.** `meechie-studio.ts:465`
+rebuilds a legacy record's words from the page and must write `qualityState: 'ready'` to satisfy the
+contract's *required* field. Rendering that value would put an approval on screen that Meechie never
+gave — and `describingStudioText()` would then have written it into the record on the next save,
+which is Run 5's laundering defect in the one field that says whether she stood behind the page.
+
+### Plan (per `AGENTS.md` "Plan + Self-Critique")
+
+In `plan.md`, at the top, with Run 10's retired. **Seams: none** — no file under `contracts/`,
+`probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/` or `tests/contract/`
+is in the diff, so there is no Cipher Gate entry and this pull request carries no schema, contract
+or data migration. The file inventory in `plan.md` is generated from
+`git diff --name-status origin/main..HEAD`, not kept by hand — Run 10 lost that argument twice.
+
+### The design decision worth defending: provenance beside the value, not inside it
+
+The obvious rebuild adds `'unstated'` to `MeechieStudioQualityStateSchema`. It is the shape the data
+wants. **It was not taken**, and the reason is not only that a contract change is a condition
+`AGENTS.md` names for not merging without asking.
+
+It would not have worked. Every record already in a reader's browser holds `'ready'` — written
+there by the same reconstruction — so a new enum value cannot retroactively tell a reported standing
+from an invented one in data that is already on disk. The distinction is not a property of the
+value; it is a property of *where the value came from*, and only the code that loaded it knows.
+
+So it travels as its own input, `standingWasReported`, exactly as Run 9's `promptWasSent` and
+Run 10's `driftChecked` do. **That is the third run in a row to arrive at the same shape**, which is
+the generalisation this entry is most confident of: a required field always holds a value, so the
+value can never say whether anybody reported it.
+
+The corollary is enforced rather than requested. A provenance flag beside a public, writable
+`textOutput` is a pair of fields that must agree — and sixteen test arrangements assigned
+`textOutput` directly, every one of which would have landed silently on the "nothing reported" path
+and quietly weakened two tests of *other* guards. `textOutput` is a getter now, `setVerdict` is the
+only writer, and the wrong combination is a type error.
+
+### Self-critique, and what it changed
+
+**The riskiest assumption is that `revisionNote` is worth showing at all.** If a live model fills it
+with filler, the card gains a permanent line of noise. It cannot be settled from here: `XAI_API_KEY`
+is not available in this container, and `fixtures/meechie-studio-text/sample.json` — the one fixture
+carrying the field — is hand-built, with `"provider": "fixture"`. It is evidence of the shape and
+not of the content, and this entry does not claim otherwise. So the design is built to survive a
+useless note: it is attributed to Meechie rather than presented as the app's advice, it gates
+nothing, and a note that is absent or whitespace-only renders nothing at all. That last case is
+reachable, not theoretical — `NonEmptyStringSchema` is `z.string().min(1)` and does not trim, so
+three spaces is a contract-valid note that would render as a labelled empty box.
+
+**The second is that withholding an unreported standing from the write path is lossless.** It is
+only safe because every field `buildStudioTextFromSpec` produces is derived from `intent` — title,
+items, and `specOwnQuote`. A test asserts the round trip rather than the reasoning, and it is the
+test that fails if that function ever grows an input it cannot rebuild from the record.
+
+**The third changed the plan.** A flagged standing was going to disable the page button. It does
+not. A model that over-used `blocked` would switch the studio off for its readers, and the decision
+about their own page is theirs — what they were owed is the warning, which now sits directly above
+the button that spends the generation rather than only up in the card.
+
+### What shipped
+
+- **`src/lib/core/verdict-report.ts`** — the whole transform, pure, no third-party imports (the
+  quality-state type comes in as a type-only import so nothing pulls zod into core).
+- **The standing, in Meechie's own terms.** `STUDIO_QUALITY_STATE_FACTS` holds, in one row per
+  state, the parenthetical the *provider* is given and the sentence the *reader* is shown — and the
+  system prompt's `qualityState` lines are now **built from that row**. There were four copies of
+  the enum in one file beside a fifth in the contract, all describing a value nothing read. A test
+  pins the rebuilt prompt lines byte-for-byte, because the prompt's wording drives every generation
+  in the app and this refactor was supposed to change none of it.
+- **A way out, not just a warning.** `needs_more_evidence` and `blocked` put a *"Give her more
+  evidence"* button on the card that focuses the evidence box — through a `bind:this` handed up from
+  `StudioInputPanel`, not a `getElementById` in the parent, because the field's id is that
+  component's business and a lookup by it elsewhere is a second copy that breaks silently on rename.
+  It honours `prefers-reduced-motion` for the scroll.
+- **The severity says what it is a reading of.** *"Severity 8 of 10"* and, beside it, *"Meechie's
+  read on how bad the situation is — not a score for her answer."* The colour band is styling only
+  and adds no word to the screen, so it cannot over-claim. An absent rating renders nothing — not a
+  zero, not a dash, not "unrated".
+- **The note is on screen, attributed.** Under *"What would sharpen it"*, on a clean verdict as well
+  as a flagged one, because "what would make this better" is worth the same either way.
+- **A legacy record no longer acquires an approval.** It shows its words and claims nothing about
+  them, and the invented `'ready'` is kept out of both writers of studio text — the vault and the
+  draft, through the one `describingStudioText()` accessor they share.
+- **The idle card says "Tell her what happened and her take lands here."**
+
+### Evidence
+
+`check` 0 errors / 0 warnings · `lint` exit=0 · `npm test` **1586 passed**, 1 skipped (1559 on
+`main`) · `build` exit=0 · `test:e2e` **49 passed** (46 on `main`) · `npm run verify` exit=0. All
+captured in `docs/evidence/2026-09-06/`. No `rewind` line, and its absence is the point: no seam is
+in the diff.
+
+`proof-tape.md` flags `build.txt`, `e2e.txt`, `lint.txt` and `verify-outer.txt` as predating the
+verify run, along with the four probe and rewind captures this run did not touch. That is the
+`proof-tape.mjs` limitation Run 8 documented and Run 10 hit again — it compares file times against
+`chamber-lock.json`, which the chain rewrites *after* those captures, so a capture taken minutes
+before the chain can never be newer than it. All four were written on this head. Recorded rather
+than worked around, for the third run running; the tool is wrong about this and the fix is a change
+to `scripts/proof-tape.mjs`, which is out of scope here and is now a standing candidate.
+
+**Five mutations, each confirmed red before the guard it covers was believed:**
+
+| Mutation | Result |
+|---|---|
+| delete the write-path guard in `describingStudioText` | 2 failed — the vault and the draft |
+| `setVerdict(restoredText, true)` on load | 2 failed |
+| read `qualityState` regardless of provenance in core | 3 failed |
+| drop the `.trim()` on the note | 2 failed |
+| delete `bind:this={evidenceField}` | 1 failed — the e2e focus check |
+
+The three states were also photographed in a real browser rather than reasoned about, which is how
+the `ok` tone got its quieter treatment: at the same weight as the other two, a verdict Meechie was
+happy with shouted as loudly as one she refused.
+
+### Scope, and what was deliberately left alone
+
+- **`MeechieToolOutput.quoteScore` is declared and never populated.** `src/lib/core/
+  meechie-quote-scoring.ts` is a complete, unit-tested, 10-check quality rubric with bands
+  (`Approved` / `Revise` / `Rewrite` / `Reject`) and per-check reasons. Nothing calls it. Its
+  `MeechieQuoteScoreDetailsSchema` is wired into the tool contract at line 136, and the only
+  reference in the whole repository is a test asserting the field is `undefined`. Populating it is
+  an adapter change and needs the full Seam-Driven Development workflow. **A strong candidate for a
+  future run** — but weaker than this one by this log's own measure, because no promise about scored
+  quotes is ever made to the reader.
+- **The tool seam's `rating` is *not* a second instance of this defect, and the first draft of this
+  entry said it was.** Written from `parseResponse`
+  (`src/lib/adapters/meechie-tool-seam/index.ts:218-243`), which returns `rating` only for
+  `rate_excuse` and drops it for the other ten tools, I wrote that every tool was asked for a rating
+  and ten of the answers were thrown away. Then I opened the schemas: `STANDARD_RESPONSE_FORMAT`
+  (line 16) requires **`headline` and `response` only**. `RATE_EXCUSE_RESPONSE_FORMAT` (line 33) is
+  the one that asks for a rating, it is used by the one tool, and that tool renders it — as its
+  headline. Nothing is dropped. Recorded rather than quietly deleted, because the shape of the error
+  is this run's own thesis pointed backwards: I inferred what was *asked for* from what was *parsed*,
+  when the request was three functions up and readable. Open PR #218 is titled "rating display" and
+  has sat since 2026-08-24; this run did not read, touch or rebase it, per the standing rule about
+  pull requests a run did not create, and does not claim to know what it contains.
+- **The mode routes and the tools hub are untouched.** Their verdicts come from a different seam
+  with a different shape (`headline` / `response`), and Runs 2, 3 and 4 rebuilt those surfaces.
+- **`modelMetadata` still reaches no screen.** System Trace shows what was sent and what came back
+  but not which model answered. Run 9 owns that panel and it is one line to add; left out to keep
+  this diff to one surface, and named here so it is a decision rather than an oversight.
+- **The two stale `rewind-DriftDetectionSeam*` evidence files** from Run 9 are still in
+  `docs/evidence/2026-09-06/`, one under a filename containing parentheses. Still not this run's to
+  clean, for the reason Run 10 gave.
+- Run 8's two carried-forward items remain open: the tools hub and the mode routes save no style,
+  and the home studio exposes none of `colorMode`, `textSize`, `fontStyle`, `alignment`,
+  `textStrokeWidth`, `borderThickness`, `illustrations` or `shading`.
+
+### A note on this container, so the next run does not lose an hour to it
+
+`npm run test:e2e` failed every test in 3 ms with *"Executable doesn't exist at
+/opt/pw-browsers/chromium_headless_shell-1208"*. The image ships build **1194**; the pinned
+`@playwright/test` wants **1208**. This is an environment mismatch, not a repository problem, and it
+was fixed in the environment rather than in `playwright.config.ts` — symlinking the 1194 binaries
+into the 1208 layout the driver looks for, including the renamed
+`chrome-headless-shell-linux64/chrome-headless-shell`. Do not run `playwright install`, and do not
+patch the config: a workaround committed to the repository would outlive the container it was for.
+
+### For the next run
+
+The pick came from a question that costs one command: **for each field the contract returns, what
+reads it?** Nine runs had looked at surfaces and asked what they showed. This one looked at the
+response and asked what was thrown away — and found two fields the app *requires* of the provider,
+is billed for on every call, validates on arrival, stores in the vault, and shows nobody.
+
+The generalisable version: **a field can be required, validated, paid for and dead at the same
+time, and nothing in this repository notices.** `chamber-lock`, the contract tests and the seam
+ledger all check that a field is declared and parsed correctly. Not one of them asks whether
+anything reads it. Run 10's lesson was to look for the feature whose failure mode is a different
+program's error message; this one's is to look for the feature whose failure mode is *silence* —
+no error, no wrong pixel, just an answer the reader paid for and never saw.
+
+Do not inherit this entry's measurements. Re-measure.
+
+### Run 11, first close-out — 2026-09-06 — all eight checks green on `a7830a9`, and the one new SonarCloud issue
+
+**Every check passed on the first head.** `verify`, CodeQL, Analyze (actions), Analyze
+(javascript-typescript), SonarCloud, SonarCloud Code Analysis, Vercel Preview Comments — all
+`success`. Sourcery skipped on its own 7-day diff budget, which is not a finding, and CodeRabbit
+declines to auto-review a repository under ten stars. Neither is this diff's problem and neither is
+treated as one.
+
+**SonarCloud's gate passed with 3 new issues**, and `sonarcloud.io` is still unreachable from this
+container — `curl: (56) CONNECT tunnel failed, response 403`, the same wall Runs 8 and 10 hit. So
+the findings were reproduced locally with `eslint-plugin-sonarjs` under its **recommended** ruleset
+(the correction Run 8 wrote down after twice reporting "nothing found" from a misconfigured
+reproduction) — and, this time, **with a baseline**, which is the part the previous runs did not do.
+
+The exact procedure, written down so the next run does not re-derive it a fourth time:
+
+```
+npm i --no-save eslint-plugin-sonarjs
+# a config using the repo's own parsers, covering *.ts, *.mjs, *.js and *.svelte,
+# spreading sonarjs.configs.recommended — it must live inside the repo, since
+# eslint refuses a config outside the base path and cannot resolve plugins from /tmp
+npx eslint --no-config-lookup -c ./sonar.eslint.config.mjs <changed files>
+# then the same run against origin/main's copies of those files, written into a
+# directory inside the repo, because "new issue" means new — not "issue".
+```
+
+Seven findings on this head. **Six of them are on `main` too**, at the same rules and the same code:
+two in the pipeline's JSON-extraction path (cognitive complexity 32, a super-linear regex) that
+merely shifted line numbers when this change added an import, one nested ternary in
+`studio-state.svelte.ts`, and the three in `smoke.spec.ts` that Run 10 also left unidentified.
+**One was mine:**
+
+```
+src/lib/core/meechie-studio-text-pipeline.ts:44:61
+  Refactor this code to not use nested template literals   sonarjs/no-nested-template-literals
+```
+
+`` `qualityState (${STUDIO_QUALITY_STATE_ORDER.map((state) => `"${state}"`).join(' | ')})` `` — a
+template literal inside a template literal, written by this change. Fixed as
+`buildStudioQualityStateUnion()` in `verdict-report.ts`, beside the two builders it belongs with, so
+all three prompt fragments now come from the one table by the same route.
+
+**And the fix exposed a weak test.** The assertion pinning that string had been
+
+```ts
+expect(STUDIO_QUALITY_STATE_ORDER.map((state) => `"${state}"`).join(' | ')).toBe('…')
+```
+
+— the test recomputing the implementation and then agreeing with itself. It calls the function now.
+
+**The remaining two of SonarCloud's three are not identified, and are not guessed at.** The local
+reproduction is clean on every file this change touches after the fix. SonarCloud runs rules this
+plugin does not, so "I cannot reproduce them" is the honest state; the next head's comment is the
+measurement.
+
+**The prompt's bytes were proven unchanged, mechanically.** The three fragments are now built rather
+than written, and "a test asserts the literal" is only as good as where the literal came from — mine
+came from reading the file. So a one-off script extracted all three from
+`git show origin/main:…pipeline.ts` with regexes and compared them to the builders' output at
+runtime: **three SAME, exit 0.** The unit test's hardcoded expectations are the same strings, now
+known to be main's rather than remembered as main's.
+
+### Run 11, second close-out — 2026-09-06 — two from Codex, both correct, and one of them says my design conflated two questions
+
+Codex reviewed `a7830a9` and returned **two P2s. Both were right**, both were verified against the
+code rather than accepted, and the first one is the more valuable finding of the two because it
+shows the *shape* of the mistake rather than an instance of it.
+
+#### P2 — a page saved from the toolkit claimed a standing Meechie never gave
+
+`src/lib/core/tool-page-recipe.ts:683` — `qualityState: 'ready' as const`, written by
+`buildToolStudioText` **because the storage schema requires the field and `MeechieToolOutput` has no
+such thing**. My provenance test was `creation.studioText !== undefined`, which reads that as a
+report. So from this change onward, **every toolkit page ever saved would have said "Meechie had
+enough to work with"** on reopening.
+
+The finding is specific; what it exposes is not. I had written one flag and asked it two questions:
+
+1. *May the card claim a standing?*
+2. *Should this text be written back into the record?*
+
+They have different answers. Three kinds of record carry a `qualityState`, and only one carries a
+*reported* one — a studio page from a live response; a toolkit page with the placeholder above; and
+a page saved before this change carrying a reconstruction the studio itself invented. **Nothing on a
+record tells the three apart.** So the honest answer to (1) is that no restored standing is
+believed, ever. But the answer to (2) is not the same: a stored verdict is rarely its page title, so
+refusing to write it back would lose sentences the reader paid for.
+
+The flag is a three-valued `verdictSource` now — `'live' | 'stored' | 'derived'` — and each value
+answers both questions differently. `'live'` claims a standing and is written down. `'stored'`
+claims nothing and is written down. `'derived'` claims nothing and is not, because every field of it
+comes from `intent`. A fourth state, `'none'`, exists only because there can be no verdict at all,
+and `clearVerdict` is its own writer so that no call can pair "nothing on screen" with a source
+saying otherwise.
+
+**The cost of the fix, stated plainly:** a reader who reopens their own genuinely-saved studio page
+no longer sees its standing. That is a real loss and it is the right one — the alternative is
+claiming a standing for two kinds of record that never had one, and the app cannot tell which it is
+holding. Her note still shows, because a stored `revisionNote` is a line she wrote and repeating it
+claims nothing about approval.
+
+#### P2 — the Rate This Excuse score is not a severity, and this change had just started saying it was
+
+The second finding is the first one's twin, one field over. Both `rating` fields are called `rating`
+and both are 1-10, and they measure close to opposite things:
+
+| | 1 means | 10 means |
+|---|---|---|
+| studio (`meechie-studio-text-pipeline.ts:96`) | barely anything | *"1-10 severity. Be honest. Don't undersell it."* |
+| Rate This Excuse (`meechie-tool-seam/index.ts:103`) | *"insulting everyone in the room"* | *"barely credible"* |
+
+`buildToolStudioText` copied one into the other. Nothing had ever *said* what the number meant, so
+the mismatch stayed quiet — until this change put the words "Severity 2 of 10 — Meechie's read on
+how bad the situation is" under it. **An excuse scored 2 for being an insult would have been
+presented as a mild situation.** The label did not create the bug; it made an existing one legible,
+which is the argument for labelling things.
+
+Two fixes, at two levels, deliberately:
+
+1. **The producer stops copying it.** `buildToolStudioText` no longer writes `rating`, with the two
+   definitions quoted at the line. Nothing is lost — that tool's headline **is** the score — and the
+   studio's `rating` field regains a single meaning. The test that pinned the old behaviour
+   (`expect(studioText.rating).toBe(2)`) is rewritten to assert the opposite and to say why.
+2. **The card refuses to say the number twice.** Records already saved carry the old value, so
+   `readVerdictSeverity` returns `null` when the verdict *is* the score — `verdict.trim() ===
+   `${rating}/10``. Derived from the record's own two fields rather than matched against a known
+   headline shape or a list of tool ids: the question it answers is "would this card print the same
+   number twice?", which is the same question in every case that matters and needs no knowledge of
+   which tool wrote the record.
+
+#### Four mutations, each confirmed red
+
+| Mutation | Result |
+|---|---|
+| believe a standing from any record (`!== 'none'`) | 5 failed |
+| refuse to write `'stored'` text as well as `'derived'` | 1 failed — the words-survive-a-resave test |
+| drop the score-is-the-headline guard | 1 failed |
+| copy the tool rating back into `studioText` | 2 failed |
+
+#### What this round costs the run's own account of itself
+
+The first close-out's design section said provenance-beside-the-value was the shape three runs in a
+row had arrived at, and treated that as settled. It was the right shape and the wrong arity. **A
+boolean was enough for `promptWasSent` and `driftChecked` because each answered one question; here
+there were two, and I did not notice because one flag happened to give the right answer to both in
+every case I had thought of.** Every case I had thought of came from the home studio. The toolkit
+writes to the same store and I never opened its producer.
+
+The narrower rule: **when a provenance flag governs more than one decision, check each decision
+separately against every producer that writes the field** — not against the one you were looking at.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1589 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**49 passed** · `npm run verify` exit=0.
+
+### Run 11, third close-out — 2026-09-06 — one more from Codex, on the fix from the round before
+
+`8550ef8` drew a third P2, and it is a finding **on the previous round's fix rather than on the
+original change** — which is now the fourth time in two runs of this routine that a fix has needed
+one of its own.
+
+> *When a valid live studio response uses a numeric ruling such as `verdict: '8/10'` with
+> `rating: 8`, this branch discards the studio severity and leaves the same bare, ambiguous `8/10`
+> display this change aims to fix.*
+
+**Correct.** The guard suppresses the severity label whenever the verdict *is* the score, and I
+applied it to every verdict. A live studio `rating` is a severity by construction, so for a live
+response the label is right in every case — including the freak one where the model answers a
+four-to-eight-word verdict with `"8/10"`. Suppressing it there leaves exactly the unexplained number
+this run exists to stop showing. **A redundant true label beats an unexplained number**, and I had
+traded the second for the first without noticing I was making that trade.
+
+Codex also supplied the argument for the narrower gate, from my own diff: the previous round stopped
+`buildToolStudioText` copying tool ratings, so the only records that can reach this case are ones
+written *before* that fix — which are restored by definition. The verdict is now passed to
+`readVerdictSeverity` only when the standing was not reported, and the parameter is named
+`verdictThatMightBeTheScore` so a future caller cannot pass it out of habit.
+
+Mutation-checked: applying the guard to live responses again fails `still labels a live response
+whose verdict happens to be the score`.
+
+**Vercel's rate limit is not a finding.** `8550ef8` carried a failed commit status —
+*"Deployment rate limited — retry in 24 hours"*, `api-deployments-free-per-day` — which `AGENTS.md`
+names as pre-existing free-tier noise. No standing-down comment was posted, because it did not
+survive to need one: Vercel deployed `85e54f4` successfully, and the PR's combined status on the
+current head is `success`. Recorded rather than acted on.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1590 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**49 passed** · `npm run verify` exit=0.
+
+That total is 1590 and not the 1591 this entry first claimed — 1589 plus the one test this round
+adds. Arithmetic done in a sentence, corrected against the runner before the entry shipped. This
+file has been wrong about its own totals before and the habit is worth breaking rather than
+repeating.
+
+### Run 11, fourth close-out — 2026-09-06 — a P1 that says the last fix needed the seam workflow, declined with a measurement
+
+Codex on `85e54f4`, its first P1 of the run:
+
+> *When a Rate This Excuse page is saved, omitting `rating` here changes the `studioText` payload
+> persisted through `CreationStoreSeam`, so this is observable behavior across a storage seam even
+> though the plan classifies the change as having no seams … complete the full Seam-Driven
+> Development workflow.*
+
+**Declined — and declined with the grep rather than with an opinion, because "I don't think so" is
+not a reason and this log has a rule about that.**
+
+```
+$ grep -rn "rating" contracts/creation-store.contract.ts \
+    src/lib/seams/creation-store-seam/ src/lib/adapters/creation-store-seam/ \
+    src/lib/adapters/creation-store.adapter.ts src/lib/mocks/creation-store.mock.ts \
+    tests/contract/creation-store.test.ts
+(nothing)
+```
+
+**No artifact of that seam describes `rating`, so none of them is made stale.** The seam reaches
+`studioText` only as `MeechieStudioTextOutputSchema.optional()`, in which `rating` is optional and
+unchanged; the contract, probe, fixtures, mock, adapter and contract tests all still describe the
+seam's behaviour correctly, because the seam's behaviour is *store what you are given and give it
+back*. What changed is what a pure core function composes before handing a record over.
+
+And the reading does not survive being applied consistently. If composing a different value for
+storage is a seam change, then so is the `describingStudioText` exclusion in the same commit — which
+the same review did not flag — and so is Run 5's fix for laundering seed items into records, and so
+is any edit to what the app decides to save. The rule would have no boundary. **Compare Run 8, which
+did run the full workflow and had to: it added a field to the contract.** That is the line.
+
+**But the finding has a substantive half, and that half was worth the round.** Records already in
+readers' browsers were written in the old shape, and this change does not rewrite them. Rather than
+assert they are fine, there is now a test that loads one — a Rate This Excuse page carrying both
+`verdict: '2/10'` and `rating: 2`, exactly as it was saved — and asserts it still validates, still
+loads, keeps its `rating` on a resave, and has that number **suppressed rather than relabelled**.
+That is the compatibility claim the P1 was really about, and it is pinned now instead of reasoned.
+
+The disposition and the measurement are both in `DECISIONS.md`, so the next run finds the answer
+rather than re-deriving it.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1591 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**49 passed** · `npm run verify` exit=0.
+
+### Run 11, fifth close-out — 2026-09-06 — the decision entry was describing a design that no longer exists
+
+Codex on `d4b95cd`, a P2 on `DECISIONS.md` rather than on code:
+
+> *It describes a nonexistent `verdictStandingReported` boolean and says all text with an unreported
+> standing is withheld, while the implemented invariant uses the four-state `verdictSource` and
+> deliberately persists `'stored'` text while withholding only `'derived'` text … leaving the primary
+> `Decision` statement contradictory can steer a subsequent change back toward the boolean behavior
+> that lost stored verdict words.*
+
+**Correct, and it is this run's own thesis landing on this run's own paperwork.** I appended two
+corrections describing the three-valued design and left the `Decision:` line describing the boolean
+— a record outliving the thing it describes, which is the defect Run 8 wrote the rule about and the
+defect the whole feature is about. Worse than a stale log entry, because `DECISIONS.md` is named in
+`AGENTS.md` as a source of truth and is not append-only: the drift-check entry two sections below
+was corrected in place for exactly this reason, so the practice was already established here and I
+did not follow it.
+
+The `Decision:` statement now states the final invariant — `verdictSource`, only `'live'` claimed,
+only `'derived'` withheld from storage, `'stored'` written back because those are somebody's real
+words — and says in its own first clause that it was rewritten after review and that the corrections
+below are the more instructive half. The Consequences line is corrected with it.
+
+**Vercel is red on the current head and it is being stood down, once, here and in a comment on the
+PR** — not silently, and not on "Vercel is usually the quota", which this log has twice recorded as
+the wrong reason:
+
+- The status description names `api-deployments-free-per-day` — *"Resource is limited - try again in
+  24 hours (more than 100)"* — an **account-wide daily deployment quota**. It is a property of the
+  Vercel account and the calendar day. No change to this repository can cause or avoid it.
+- The stronger evidence, available on this PR and not needing that argument at all: **the same
+  branch deployed successfully at 13:38 on `85e54f4`, then failed at 13:45 and 13:51** on `d4b95cd`
+  and `66b7078`. A deployment failure caused by the diff cannot pass and then fail seven minutes
+  later, when the commits between them are a test, a documentation file, and a one-line change to a
+  default parameter. The counter crossed 100; the code did not change in a way a build could notice.
+- `npm run build` is exit 0 on this head, captured in `docs/evidence/2026-09-06/build.txt`, so it is
+  not a build failure being misreported.
+- No re-run is spent on it: the limit is a 24-hour window, so re-running would fail identically and
+  consume more of the quota that is the problem. `AGENTS.md` records this failure as standing
+  pre-existing noise for both scheduled routines.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `build` exit=0 · `npm run verify` exit=0. Unit, e2e and the rest are
+unchanged from the previous round — this round edited two prose paragraphs in `DECISIONS.md`.
+
+### Run 11, sixth close-out — 2026-09-06 — the correction that recovered a feature the previous correction deleted
+
+Codex on `d4b95cd`, and this is the best finding of the run:
+
+> *After a live `needs_more_evidence` or `blocked` verdict is autosaved and the user reloads,
+> `init()` classifies the draft as `stored`, so this predicate hides the standing and
+> page-generation caution even though Meechie actually reported them … `modelMetadata` … therefore
+> records with that metadata can be distinguished from toolkit or derived text instead of discarding
+> the feature on every refresh.*
+
+**Correct on both halves, and the second half is one I had reasoned my way out of.**
+
+**The cost it names is real and I shipped it.** The studio autosaves a draft as the reader works. So
+the rule the second close-out was so pleased with — *no restored standing is believed* — meant a
+`blocked` verdict lost its warning the moment the reader reloaded the page. **The feature deleting
+itself in the name of caution**, at the one moment the reader most needed it, and no test caught it
+because every test of the new rule asserted the withholding.
+
+**The discriminator was there the whole time, and I had explicitly considered and rejected the idea
+of one.** My reasoning, written down two rounds earlier: inferring provenance from a field's presence
+is the mechanism this log condemns in four separate runs, so I would not do it. That objection does
+not survive contact with *this* field:
+
+| | who writes it | can it be absent from a studio response? |
+|---|---|---|
+| `revisionNote` (what I was thinking of) | the model | yes — the contract makes it optional |
+| `modelMetadata` | **`parseProviderText`, in our own pipeline** | no — attached unconditionally to every accepted response |
+
+And neither inventing producer can forge it: `buildToolStudioText` composes its object without one,
+`buildStudioTextFromSpec` rebuilds from `intent`, which has no such field. So its presence *proves* a
+studio response wrote the text. Its absence proves nothing and is read as `'stored'` — silent, not
+doubted aloud.
+
+The rule I had been applying was too coarse. The narrower one, which is what this round earns:
+**a stamp your own pipeline applies unconditionally is evidence; a value your source may choose to
+include is not.** Rejecting the whole class cost this run a feature until a reviewer looked again.
+
+The provenance field is renamed with the change, because it stopped being about origin and became
+about warrant: `verdictWarrant: 'reported' | 'stored' | 'derived' | 'none'`, with
+`warrantForRestoredVerdict` the one place the first two are told apart. `'reported'` now covers a
+live response *and* a stamped record; `'stored'` and `'derived'` are unchanged.
+
+Mutation-checked in both directions, which matters here because the guard has two ways to be wrong:
+
+| Mutation | Result |
+|---|---|
+| ignore the stamp (everything restored is `'stored'`) | 3 failed — including the refresh case |
+| believe every restored record | 5 failed — including the toolkit page |
+
+**And the sweep.** Six sentences described the model this replaced — the file header and two
+docblocks in `verdict-report.ts`, `VerdictRow`'s Invariants, the CHANGELOG line claiming *no*
+reopened page ever shows a ruling, and the `Decision:` statement in `DECISIONS.md` that the round
+before had just rewritten. All corrected in the same commit, which is the third time this run has had
+to do that pass and the reason it is now the first thing done after a behaviour change rather than
+the last.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1596 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**49 passed** · `npm run verify` exit=0.
+
+### Run 11, seventh close-out — 2026-09-06 — `main` moved, and Codex ran out of budget
+
+**`main` moved to `4896336` while this pull request was in review** — PR #312, Run 10's merge
+close-out. Docs and evidence only: `git diff --name-only 1b67d30 origin/main` lists sixteen files
+and not one is under `src/`, so nothing here needed re-testing for content, only re-running on the
+merged tree.
+
+Merged rather than rebased, and the three conflicts resolved by what each file *is*:
+
+- **`WORST_TO_BEST_LOG.md`** — append-only, so both sides survive and the only question is order.
+  Run 10's merge close-out precedes the Run 11 entry.
+- **`plan.md`** — the document's own first line says the active plan comes first. Run 11 stays at
+  the top; #312's Run 10 close-out micro plan is marked retired beside Run 10's own, rather than
+  dropped or left claiming to be active.
+- **`docs/evidence/2026-09-06/*`** — regenerated by the repo's tooling on the merged head, never
+  hand-resolved. Evidence describing neither parent would be worse than either.
+
+**Codex has stopped reviewing:** *"You have reached your Codex usage limits for code reviews."* Six
+findings across five rounds, every one correct and every one fixed or answered. It is a budget
+ceiling, not a verdict, and it is recorded here so a future run does not read the absence of new
+findings on the last head as a clean bill.
+
+**Vercel is red again on `b5a67fd`,** same `api-deployments-free-per-day` signature. Already
+stood down in one comment on the pull request with the head-by-head comparison; the rule says a
+failure commented on that way needs no second comment, and no re-run is spent on a 24-hour window.
+
+### Evidence on the merged head
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1596 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**49 passed** · `npm run verify` exit=0.
+
+**Correction to the commit message of `072ad72`:** it says the inventory was regenerated to "34
+files". It is **31** — `git diff --name-status origin/main..HEAD | wc -l` on the merged head, which
+is also what `plan.md` says, because that table is generated and the commit message was typed. The
+commit stands as pushed rather than being rewritten; the correction lives here, where this file's
+own history of miscounting itself is already recorded three times. The number in the artifact was
+right and the number in the prose was wrong, which is the argument for generating the artifact.
