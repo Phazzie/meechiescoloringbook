@@ -7,7 +7,17 @@ Why: The home studio, the mode routes and the tools hub each grew their own copy
      whether a warning looked different from an error and whether a remedy was shown at all. One
      component means a later change to what a finding looks like cannot land on two surfaces out of
      three.
-Info flow: A `flagged` QualityReport in -> findings list + fixes list out. Presentational only.
+Info flow: A `flagged` QualityReport's findings and fixes in -> tagged list + fixes list out.
+           Presentational only: no state, no callbacks, no transforms.
+Invariants: The fixes are rendered as their own list and are NEVER paired with a finding — not by
+            index, not by code. `DriftDetectionOutputSchema` declares two independent arrays and
+            guarantees no ordering, no equal length and no shared key: the codes differ by design
+            (`MISSING_PAGE_SIZE` against `ADD_PAGE_SIZE`), and two violation branches append one
+            entry per offending line. Index pairing is right *usually*, which is exactly the danger
+            — it would render a remedy under a finding it does not answer, silently and only
+            sometimes. A future renderer must not infer a relationship the contract never made.
+            The tag words are likewise scoped to what the check establishes: `Off-spec`, not
+            `Dropped`, because the adapter also flags tokens that are present.
 -->
 <script lang="ts">
 	import type { QualityFinding } from '$lib/core/quality-report';

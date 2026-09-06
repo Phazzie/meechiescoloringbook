@@ -34,21 +34,66 @@ that apply are contract, consumers, tests, and a Cipher Gate entry in `DECISIONS
 
 ### Exact file inventory
 
-| File | Action | What changes |
+Every path in `git diff --name-status origin/main..HEAD`, listed separately so the plan can be
+checked mechanically against the final diff. Regenerated from that command rather than written by
+hand, because a hand-kept inventory is a second copy of the truth and goes stale silently.
+
+**Source — contract**
+
+| File | Action | Exact edit |
 |---|---|---|
-| `contracts/generate.contract.ts` | `[MODIFY]` | add optional `driftCheckFailure: { code, message }` to `GenerateResponseValueSchema` |
-| `src/lib/core/quality-report.ts` | `[NEW]` | `buildQualityReport`, `describeQualityReport`, `CHECK_RESULT_UNRECORDED_CODE` |
-| `src/lib/core/generate-pipeline.ts` | `[MODIFY]` | populate `driftCheckFailure` from `detectDrift`'s error instead of erasing it |
-| `src/lib/components/studio/SystemTrace.svelte` | `[MODIFY]` | render the report; drop raw codes and unlabelled textareas |
-| `src/lib/components/VerdictPageStudio.svelte` | `[MODIFY]` | render `clean` and `flagged` from the shared report |
-| `src/lib/components/MeechieTools.svelte` | `[MODIFY]` | same, replacing its private copy |
-| `src/routes/studio-state.svelte.ts` | `[MODIFY]` | `driftReported`, `driftCheckFailure`, derived `qualityReport` |
-| `src/lib/components/verdict-page-state.svelte.ts` | `[MODIFY]` | same three |
-| `src/routes/+page.svelte` | `[MODIFY]` | pass `report`; delete orphaned `.diagnostics-grid` CSS |
-| `tests/unit/quality-report.test.ts` | `[NEW]` | state, severity, ordering, fixes, non-pairing |
-| `tests/unit/pipeline-edge-cases.test.ts` | `[MODIFY]` | replace the test asserting the fail-open |
-| `tests/e2e/smoke.spec.ts` | `[MODIFY]` | unchecked state; severity and fixes on screen |
-| `DECISIONS.md`, `CHANGELOG.md`, `CLAUDE.md`, `WORST_TO_BEST_LOG.md` | `[MODIFY]` | Cipher Gate, user-visible changes, file map, run log |
+| `contracts/generate.contract.ts` | `[MODIFY]` | rename the object to `GenerateResponseValueBaseSchema`; add optional `driftCheckFailure: { code, message }`; export `GenerateResponseValueSchema` as a `.refine()` rejecting a failure alongside non-empty `violations`/`recommendedFixes` |
+
+**Source — core**
+
+| File | Action | Exact edit |
+|---|---|---|
+| `src/lib/core/quality-report.ts` | `[NEW]` | `buildQualityReport`, `describeQualityReport`, `QualityFinding`, `QualityReport` (four states), `DriftCheckFailure`, `CHECK_RESULT_UNRECORDED_CODE` |
+| `src/lib/core/generate-pipeline.ts` | `[MODIFY]` | populate `driftCheckFailure` from `detectDrift`'s error instead of erasing it; remove the `DRIFT_CHECK_FAILED_CODE` import and helper |
+
+**Source — components**
+
+| File | Action | Exact edit |
+|---|---|---|
+| `src/lib/components/QualityFindings.svelte` | `[NEW]` | the findings list, the one `tagFor` rule, and the unpaired fixes list |
+| `src/lib/components/QualityReportPanel.svelte` | `[NEW]` | the clean line / boxed findings wrapper and its CSS, shared by the two mode surfaces |
+| `src/lib/components/studio/SystemTrace.svelte` | `[MODIFY]` | render the report; add the `promptWasSent` prop; `not-applicable` branch; drop raw codes and the orphaned CSS |
+| `src/lib/components/VerdictPageStudio.svelte` | `[MODIFY]` | replace the private drift block with `QualityReportPanel`; delete `.drift*` CSS |
+| `src/lib/components/MeechieTools.svelte` | `[MODIFY]` | same replacement; add `driftReported`, `driftCheckFailure`, the `$:` report; delete `.drift*` CSS |
+| `src/lib/components/verdict-page-state.svelte.ts` | `[MODIFY]` | `driftReported`, `driftCheckFailure`, derived `qualityReport` |
+
+**Source — routes**
+
+| File | Action | Exact edit |
+|---|---|---|
+| `src/routes/studio-state.svelte.ts` | `[MODIFY]` | `driftReported`, `driftCheckFailure`, `checkResultUnrecorded`, `promptWasSent`, `pageIsTryOnPortrait` getter, derived `qualityReport`; `tryOnPageOnScreen` becomes `$state`; reopen path reads stored findings by length |
+| `src/routes/+page.svelte` | `[MODIFY]` | pass `report` and `promptWasSent`; delete the orphaned `.diagnostics-grid` rules |
+
+**Tests**
+
+| File | Action | Exact edit |
+|---|---|---|
+| `tests/unit/quality-report.test.ts` | `[NEW]` | states, severity, ordering, fixes non-pairing, the two page/check directions, try-on, unrecorded |
+| `tests/unit/pipeline-edge-cases.test.ts` | `[MODIFY]` | replace the test asserting the fail-open; add the absent-key assertion |
+| `tests/unit/api-generate.test.ts` | `[MODIFY]` | three route-level contract tests, one driving the real `driftDetectionAdapter` |
+| `tests/e2e/smoke.spec.ts` | `[MODIFY]` | unchecked state on the home studio; severity, ordering, tag and fixes on the tools hub; clean line on a mode route |
+
+**Docs**
+
+| File | Action | Exact edit |
+|---|---|---|
+| `plan.md` | `[MODIFY]` | this plan; mark Seam Migration v2.0 complete |
+| `DECISIONS.md` | `[MODIFY]` | the `driftCheckFailure` decision and its Cipher Gate; mark the reserved-code entry superseded |
+| `CHANGELOG.md` | `[MODIFY]` | the user-visible lines for this change |
+| `CLAUDE.md` | `[MODIFY]` | file-map rows for `quality-report.ts`, `QualityFindings.svelte`, `QualityReportPanel.svelte` |
+| `WORST_TO_BEST_LOG.md` | `[MODIFY]` | the Run 9 entry and its close-outs |
+
+**Evidence** — `[NEW]`, all under `docs/evidence/2026-09-06/`, written by the verify chain and the
+capture commands rather than by hand: `assumption-alarm.json`, `build.txt`, `chamber-lock.json`,
+`clan-chain.json`, `clan-chain.md`, `e2e.txt`, `lint.txt`, `proof-tape.json`, `proof-tape.md`,
+`rewind-DriftDetectionSeam(self-contained).txt`, `rewind-DriftDetectionSeam-self-contained.txt`,
+`seam-ledger.json`, `seam-ledger.md`, `shaolin-lint.json`, `test.txt`, `verify-outer.txt`,
+`verify.txt`.
 
 ### Anti-goals — do not touch
 

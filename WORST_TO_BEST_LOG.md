@@ -8205,3 +8205,21 @@ as the work, that quietly parted company with what was actually in the file.
 
 > The claims worth distrusting most are not the ones about the system. They are the ones about what
 > you just did to it.
+
+### Two more in the same round: the plan's inventory, and a missing Invariants block
+
+- **`plan.md` listed the plan I set out with, not the change I built.** It named neither
+  `QualityFindings.svelte` nor `QualityReportPanel.svelte` — both created *during* review — nor the
+  `api-generate.test.ts` edit, nor any evidence file, and it folded four documentation paths into one
+  blanket row. `AGENTS.md` requires an inventory that can be checked mechanically against the diff,
+  and this one could not be.
+  Now generated from `git diff --name-status origin/main..HEAD` rather than written by hand, grouped
+  by area, every path with its action and its exact edit — and verified: every path in the diff
+  appears in the plan. A hand-kept inventory is a second copy of the truth, and it should not be the
+  thing listing the files of a change about second copies going stale.
+- **`QualityFindings.svelte` had no `Invariants` block.** The non-pairing rule — the one design
+  decision in this whole run worth defending — was documented sixty lines down, next to the code it
+  governs, and absent from the header `AGENTS.md` requires. It is now stated at the top as a
+  prohibition on the next editor rather than a description of the current code, which is what an
+  invariant is for: index pairing is right *usually*, and "usually" is exactly what makes it
+  dangerous to leave for someone to rediscover.
