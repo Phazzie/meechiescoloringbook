@@ -9299,3 +9299,47 @@ about what a change will not need; when the prediction is wrong the plan gives w
 `check` 0/0 · `lint` exit=0 · `npm test` **1546 passed**, 1 skipped · `build` exit=0 · `test:e2e`
 **46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
 `probes/cache-seam.probe.mjs` **10/10**.
+
+### Run 10, fourth close-out — 2026-09-06 — the fix for one finding created a security finding
+
+**SonarCloud's quality gate went red on `63a64fa`**: *"B Security Rating on New Code (required ≥ A)"*.
+It had been green with 2 new issues, then green with 1, and now it fails outright — and the change
+that did it is the redirect added two rounds earlier to fix Codex's fallback finding.
+
+```ts
+const target = new URL(OFFLINE_FALLBACK_PATH, requestUrl).toString();
+return new Response(null, { status: 302, headers: { location: target } });
+```
+
+A redirect whose target is built from the request URL. **It is not exploitable** — `chooseStrategy`
+bypasses every cross-origin request before `handleFetch` can be reached, so `requestUrl`'s origin is
+always this app's — but that is a guarantee three functions away, and "safe because of something
+enforced elsewhere" is the shape of an open redirect whether or not it is one.
+
+The fix is to stop constructing it: the `Location` is now the bare constant `/offline`. HTTP allows a
+relative `Location` and the browser resolves it against the request, so it reaches the same page
+while containing **no** request-derived data. The probe confirms the behaviour is unchanged in a real
+browser — still 10/10, still `offline-connection = "Still no connection."` on the fallback.
+
+**What is honestly not known:** whether that was the finding. `sonarcloud.io` remains unreachable from
+this container, so the rating is all that is legible, and there is a second plausible candidate in
+the same diff — `new RegExp(\`^${source}$\`)` in `tests/unit/security-headers.test.ts`, built from
+`vercel.json`'s contents. That one is left alone deliberately: those sources *are* regex patterns by
+design, so building a `RegExp` from them is the correct reading of the file, and changing correct
+code on a guess is how a run acquires damage it cannot see. **The next SonarCloud run is the
+measurement.** If the rating returns to A, the redirect was it; if it stays B, it was not, and the
+guess will have cost nothing because the relative `Location` is the better code either way.
+
+**The shape of this round is worth naming.** Round two fixed a real defect the browser probe found.
+That fix introduced a security-rated finding. Nothing was careless about either step — the redirect
+is genuinely the right answer to "SvelteKit re-renders 404 over a document served at the wrong URL",
+and it is genuinely a redirect built from request data. **A fix is a change, and a change gets
+reviewed like any other.** Three separate reviewers — a browser, a static analyser, and a language
+model — each found something the other two could not, on code the full local gate called clean at
+every step.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1546 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **10/10**.

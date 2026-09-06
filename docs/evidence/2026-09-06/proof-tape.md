@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-06T07:47:03.113Z
+Generated at: 2026-09-06T07:53:48.214Z
 Evidence folder: docs/evidence/2026-09-06
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -22,13 +22,13 @@ after this inventory is taken, so they are not listed):
 - lint.txt (60 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - probe-cache-seam.txt (1242 bytes) — PREDATES THIS VERIFY RUN
-- rewind-CacheSeam.txt (555 bytes) — PREDATES THIS VERIFY RUN
+- rewind-CacheSeam.txt (556 bytes) — PREDATES THIS VERIFY RUN
 - rewind-DriftDetectionSeam(self-contained).txt (539 bytes) — PREDATES THIS VERIFY RUN
 - rewind-DriftDetectionSeam-self-contained.txt (473 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 rewind | node scripts/rewind.mjs --seam DriftDetectionSeam (self-contained)
 - seam-ledger.json (37509 bytes)
 - seam-ledger.md (2981 bytes)
-- shaolin-lint.json (515 bytes)
+- shaolin-lint.json (519 bytes)
 - test.txt (3231 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-outer.txt (3640 bytes)

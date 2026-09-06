@@ -399,7 +399,10 @@ describe('handleFetch', () => {
 		});
 
 		expect(response.status).toBe(302);
-		expect(response.headers.get('location')).toBe(`${ORIGIN}/offline`);
+		// A bare relative path, carrying nothing from the request. The browser resolves it against
+		// the request itself, so it reaches the same page without the redirect target ever being
+		// built out of attacker-influenced data.
+		expect(response.headers.get('location')).toBe('/offline');
 	});
 
 	// The plan can say the build produced the page while this device has not stored it. Redirecting

@@ -300,15 +300,22 @@ const unavailableResponse = (): Response =>
 	});
 
 /**
- * Send an unreachable navigation to the offline page, resolved against the request's own origin.
+ * Send an unreachable navigation to the offline page.
+ *
+ * The `Location` is the bare constant `/offline`, not a URL built from the request. HTTP allows a
+ * relative `Location` and the browser resolves it against the request itself, so this reaches the
+ * same page while containing no attacker-influenced data at all — where the first version read
+ * `new URL(OFFLINE_FALLBACK_PATH, request.url)`. That was same-origin by construction, because
+ * `chooseStrategy` bypasses every cross-origin request before this can be reached, but "safe
+ * because of a guarantee three functions away" is the shape of an open redirect even when it is not
+ * one, and SonarCloud's security rating on this pull request dropped to B when it appeared. A
+ * constant cannot be redirected anywhere.
  *
  * `302`, not `301`: being offline is the most temporary condition there is, and a permanent
  * redirect is the one kind a browser is entitled to remember after the network comes back.
  */
-const redirectToOfflinePage = (requestUrl: string): Response => {
-	const target = new URL(OFFLINE_FALLBACK_PATH, requestUrl).toString();
-	return new Response(null, { status: 302, headers: { location: target } });
-};
+const redirectToOfflinePage = (): Response =>
+	new Response(null, { status: 302, headers: { location: OFFLINE_FALLBACK_PATH } });
 
 export type FetchLike = (request: Request) => Promise<Response>;
 
@@ -373,7 +380,7 @@ const networkFirst = async (
 			// says this device actually stored it. Redirecting to a path with nothing behind it
 			// would turn one failed navigation into two.
 			const fallback = await cachedResponse(seam, OFFLINE_FALLBACK_PATH);
-			if (fallback) return redirectToOfflinePage(request.url);
+			if (fallback) return redirectToOfflinePage();
 		}
 
 		return unavailableResponse();
