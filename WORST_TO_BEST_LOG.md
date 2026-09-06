@@ -9696,8 +9696,11 @@ those three alias paths are in a test this run wrote.
 **And the rules have a hole this run did not find.** Review did, on the last pass: the build emits
 `index.html`, `offline.html` and `m/<slug>.html`, and Vercel's filesystem handler serves those URLs
 directly. Every `vercel.json` document rule names the extensionless form, so `/offline.html` matches
-nothing and carries no security headers — the same defect this run set out to fix, one path shape
-over. `tests/unit/security-headers.test.ts` cannot see it either, because it derives its paths from
+nothing and arrives **without the four contingent headers** — `X-Content-Type-Options`,
+`X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`. Not without any: `Strict-Transport-Security`
+still comes from the edge, which is the same distinction drawn two paragraphs up and which I
+restated wrongly here on first writing. Four missing rather than five is the difference between a
+follow-up that repairs the right set and one that goes looking for a header that was never gone. `tests/unit/security-headers.test.ts` cannot see it either, because it derives its paths from
 the routes rather than from the build output, which is the limit of deriving a test from the same
 source as the thing it checks. Recorded in the Assumption as explicitly out of scope rather than
 quietly folded in, since closing that Assumption will say nothing about these URLs.
@@ -9890,6 +9893,7 @@ mode — later passes append rather than displace, and any total is recoverable 
 | `48e7bc2` | 3 | — |
 | `3f412c1` | 3 | — |
 | `8af5bff` | 1 | — |
+| `552ffa6` | 2 | — |
 
 **The P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
 A merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
@@ -9974,7 +9978,10 @@ block three times over: reporting success when the transcript failed to install,
 `lint`/`build`/`verify` without the redirections that actually write `lint.txt` and `build.txt` —
 so following it as written reproduced the stale-evidence failure this entry opens with; and its
 `mktemp -d` called without checking, which on failure leaves the scratch variable empty and puts
-every path back at the filesystem root — the hazard the variable was introduced to remove.
+every path back at the filesystem root — the hazard the variable was introduced to remove. And,
+twice, `/offline.html` described as carrying **no** security headers when it carries HSTS from the
+edge and is missing the other four: the same overstatement corrected two paragraphs earlier in this
+entry, reintroduced in the sentence recording the gap it applies to.
 
 All the same disease: a fact restated where it cannot be checked against its source. The reason this
 section is the entry's longest is that it is the one part with no mechanical check behind it. Every

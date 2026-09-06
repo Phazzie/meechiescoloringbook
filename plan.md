@@ -56,10 +56,11 @@ test files plus 1 skipped file — 98 in total, which is the figure `test.txt` r
 
 **How behaviour stays unchanged:** nothing under `src/` is modified, so no route, seam, worker or
 response header changes. The only non-Markdown files touched are regenerated evidence artifacts,
-which nothing imports. The one code-level defect this PR found — `vercel.json` listing HSTS on the
-document rules while `src/hooks.server.ts` documents it as omitted — is **recorded, not fixed**,
-precisely so that this stays a documentation change; the recommended patch is written down for a
-separate PR.
+which nothing imports. **Two** code-level defects this PR found are **recorded, not fixed**, precisely so that this stays a
+documentation change; both have a recommended patch written down for a separate PR, and the
+anti-goals below repeat them as things not to touch here. They are `vercel.json` listing HSTS on the
+document rules while `src/hooks.server.ts` documents it as omitted, and those same rules not
+covering the `.html` filenames the build emits.
 
 **Do not touch:** anything under `src/`, `tests/`, `contracts/`, `scripts/` or `vercel.json`. Two
 code-level defects were found while writing this close-out — `vercel.json` listing HSTS on the
