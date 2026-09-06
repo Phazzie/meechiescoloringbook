@@ -8717,3 +8717,44 @@ does not run on the default branch.
 `npm run lint` clean · `sonarjs.configs.recommended` clean · `npm run evidence:guard` 8 rules pass ·
 full chain: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41
 under the override, mandated row under a dated waiver, probe complete.
+
+### Addendum — round forty-three: three fixed, two declined to the same place as the others
+
+Codex reviewed `62947558`. Five findings.
+
+**`cipher-gate.json` stated a result and nothing read it.** Setting `"status": "blocked"` and fixing
+the inventoried byte count left all eight rules passing. It states its result in a bare `status`
+rather than a `summary`, so the self-agreement rule added last round did not reach it, and no other
+rule looked. The verify chain does not run `cipher:gate`, so this artifact is the only record that
+the gate was met — and an unread result is the same as no result. That is the third distinct shape of
+"a value exists and nothing consults it" in this file, after the un-inventoried artifact and the
+undeterminable `predatesRun`.
+
+**The rewind transcript this capture writes had no file header**, the same omission as `lint.txt` and
+`build.txt` last round. Fixed the same way. Finding the same defect twice in consecutive rounds, in
+files written by the same three lines of script, is the argument for the header being generated
+rather than remembered — which it now is.
+
+**A tag push would have gone red.** A new tag reports an all-zero `before` exactly like a new branch,
+so the branch-baseline fallback would compare a historical tagged snapshot against today's default
+branch and read every folder added since as a deletion. Tagging an old release would fail Verify. Tag
+pushes now exit early: a tag introduces no evidence. That is the third `exit 0` path in this step, and
+like the other two it was tested for what it lets through.
+
+**Declined, to the same place as the earlier two:**
+
+- *Require a terminal status on every rewind transcript.* The one this capture writes has one. The
+  other, `rewind-CreationStoreSeam(self-contained).txt`, is written by `scripts/rewind.mjs` — a
+  verify-chain script. Requiring a status in it is a change to that script, which is the same
+  category as the proof-tape schema change the content digest needs, and this repository asks that
+  `scripts/` not be edited without a plan. Recorded in `DECISIONS.md` rather than half-done.
+- *Canonicalise bytes across platforms.* Real: a Windows contributor with `core.autocrlf=true` has
+  the tape record CRLF working-tree sizes while git stores LF, so the Ubuntu checkout is smaller and
+  every affected transcript reads as drifted. The fix is to take identity from the staged git blob
+  instead of `statSync`, which changes what the tape records — the same schema change again. Three
+  separate findings now converge on it, which is the strongest argument yet that it is the right next
+  piece of work and the reason it is written down rather than improvised here.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean · `npm run evidence:guard` 8 rules pass ·
+full chain: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41
+under the override, mandated row under a dated waiver, probe complete.

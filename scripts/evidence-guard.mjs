@@ -152,6 +152,64 @@ const mandatedRowProblem = (row1) => {
 };
 
 /**
+ * Whether one chain artifact agrees with itself: it reports `overallStatus: ok`, and every count in
+ * its summary matches the list that summary describes.
+ *
+ * Byte counts are not identity. The drift check compares each artifact's length to the length the
+ * tape recorded, and a same-length edit is invisible to it — changing one seam's status from "ok" to
+ * "no" keeps the file exactly as long. These artifacts carry a summary AND the detail it summarises,
+ * so they can be asked whether the two still agree; editing a status without also editing the count
+ * that describes it breaks that agreement. Which is this whole run's defect, one last time, inside
+ * the artifacts themselves.
+ */
+const selfAgreementProblem = (raw, file, list) => {
+	if (raw === null) return `${file} is missing; it is a mandatory chain artifact.`;
+	let parsed;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return `${file} is not readable as JSON, so what it reports cannot be established.`;
+	}
+	const summary = parsed.summary;
+	if (summary === null || typeof summary !== 'object')
+		return `${file} carries no summary, so it states no overall result.`;
+	if (summary.overallStatus !== 'ok')
+		return `${file} reports overallStatus "${summary.overallStatus}"; a chain artifact that did not come back ok is not evidence of a passing run.`;
+	const entries = Array.isArray(parsed[list]) ? parsed[list] : null;
+	if (entries === null)
+		return `${file} has no "${list}" list, so its summary cannot be checked against anything.`;
+	const disagreements = Object.entries(summary)
+		.filter(([, value]) => typeof value === 'number')
+		.map(([status, claimed]) => {
+			const actual = entries.filter((entry) => entry?.status === status).length;
+			return actual === claimed ? null : `${status} (says ${claimed}, ${list} shows ${actual})`;
+		})
+		.filter((entry) => entry !== null);
+	if (disagreements.length === 0) return null;
+	return `${file}'s summary disagrees with its own ${list}: ${disagreements.join('; ')}; the file was edited after it was written, or the stage that wrote it is inconsistent.`;
+};
+
+/**
+ * What is wrong with a `cipher-gate.json`, or `null` — including when there isn't one.
+ *
+ * It states its result in a bare `status` rather than a summary, so the self-agreement rule below
+ * did not reach it, and nothing else did either: setting it to "blocked" and fixing the inventoried
+ * byte count left all eight rules passing. The verify chain does not run `cipher:gate`, so this
+ * artifact is the only record that the gate was met. An unread result is the same as no result.
+ */
+const cipherGateProblem = (raw) => {
+	if (raw === null) return null;
+	let status;
+	try {
+		status = JSON.parse(raw).status;
+	} catch {
+		return 'cipher-gate.json is not readable as JSON, so the gate result cannot be established.';
+	}
+	if (status === 'ok') return null;
+	return `cipher-gate.json reports status "${status}"; the Cipher Gate did not pass, and the verify chain does not run it, so this file is the only place that would say so.`;
+};
+
+/**
  * Every file the proof tape inventories, flattened out of whatever shape it nests them in.
  *
  * One definition, because two rules now ask the tape what it lists: the chain-stage rule and the
@@ -554,38 +612,20 @@ const RULES = [
 			// they agree with themselves. Editing a status without also editing the count that
 			// describes it breaks that agreement — which is this whole run's defect, appearing one last
 			// time inside the artifacts themselves.
+			// cipher-gate.json states its result in a bare `status` rather than a summary, and nothing
+			// read it: setting it to "blocked" and fixing the inventoried byte count left all eight
+			// rules passing. The chain does not run `cipher:gate`, so this artifact is the only record
+			// that the gate was met — an unread result is the same as no result.
+			const cipherProblem = cipherGateProblem(read(dir, 'cipher-gate.json'));
+			if (cipherProblem !== null) return cipherProblem;
 			const SUMMARISED = [
 				{ file: 'chamber-lock.json', list: 'seams' },
 				{ file: 'seam-ledger.json', list: 'seams' },
 				{ file: 'shaolin-lint.json', list: 'evidence' }
 			];
 			for (const { file, list } of SUMMARISED) {
-				const raw = read(dir, file);
-				if (raw === null) return `${file} is missing; it is a mandatory chain artifact.`;
-				let parsed;
-				try {
-					parsed = JSON.parse(raw);
-				} catch {
-					return `${file} is not readable as JSON, so what it reports cannot be established.`;
-				}
-				const summary = parsed.summary;
-				if (summary === null || typeof summary !== 'object')
-					return `${file} carries no summary, so it states no overall result.`;
-				if (summary.overallStatus !== 'ok')
-					return `${file} reports overallStatus "${summary.overallStatus}"; a chain artifact that did not come back ok is not evidence of a passing run.`;
-				const entries = Array.isArray(parsed[list]) ? parsed[list] : null;
-				if (entries === null)
-					return `${file} has no "${list}" list, so its summary cannot be checked against anything.`;
-				// Every count the summary states, measured against the list it claims to describe.
-				const disagreements = Object.entries(summary)
-					.filter(([, value]) => typeof value === 'number')
-					.map(([status, claimed]) => {
-						const actual = entries.filter((entry) => entry?.status === status).length;
-						return actual === claimed ? null : `${status} (says ${claimed}, ${list} shows ${actual})`;
-					})
-					.filter((entry) => entry !== null);
-				if (disagreements.length > 0)
-					return `${file}'s summary disagrees with its own ${list}: ${disagreements.join('; ')}; the file was edited after it was written, or the stage that wrote it is inconsistent.`;
+				const problem = selfAgreementProblem(read(dir, file), file, list);
+				if (problem !== null) return problem;
 			}
 			return null;
 		}

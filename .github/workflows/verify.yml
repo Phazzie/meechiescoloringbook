@@ -48,9 +48,19 @@ jobs:
         # The SHAs below are hexadecimal and safe to interpolate, but the branch names are not.
         env:
           REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
+          # A tag push introduces no evidence. It reports an all-zero `before` exactly like a new
+          # branch, so the branch-baseline logic below would compare a historical tagged snapshot
+          # against today's default branch and read every folder added since as a deletion — a red
+          # Verify run for tagging an old release, which is the guard failing a change that changed
+          # nothing.
+          if [ "${REF_TYPE:-branch}" = "tag" ]; then
+            echo "This is a tag push; it adds no evidence of its own and there is nothing to guard."
+            exit 0
+          fi
           base="${{ github.event.pull_request.base.sha || github.event.before }}"
           # A push that creates a branch reports an all-zero `before`, because there is no previous
           # commit on it. That is a real event with a real answer — compare against the default
