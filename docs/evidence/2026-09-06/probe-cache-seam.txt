@@ -1,0 +1,21 @@
+PASS  a versioned cache exists
+      caches.keys() = ["cb-cache-1788680021170"]
+PASS  the cache holds the app documents, not only its assets
+      14 documents of 77 entries; e.g. http://127.0.0.1:4399/, http://127.0.0.1:4399/meechie, http://127.0.0.1:4399/offline
+PASS  the offline fallback document is one of them
+      /offline is in Cache Storage
+PASS  robots.txt was skipped rather than cached
+      no /robots.txt entry
+PASS  the worker controls this page without waiting for a second visit
+      navigator.serviceWorker.controller is set on the first load
+PASS  a prerendered route opens with the network off
+      status 200, <h1> = "Who Fucked Up?"
+PASS  the trailing-slash form of a route opens too
+      status 200, title = "Meechie's Tools — Meechie's Coloring Book"
+PASS  an unbuilt path lands on the offline page, not the browser error page
+      status 200, landed /offline, offline-message = "That page needed the network and the net"
+PASS  an API call is never answered from the cache while offline
+      POST /api/generate -> rejected: TypeError
+
+9/9 checks passed.
+probe exit=0

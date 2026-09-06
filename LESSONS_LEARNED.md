@@ -465,3 +465,48 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Action: When two files have to agree, read both in a test and compare them. See
   `tests/unit/install-metadata.test.ts`, which parses the value out of `+layout.svelte` rather than
   restating it.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 10 review — prerendering moved every document off the SvelteKit function, and
+  `src/hooks.server.ts` stopped attaching five security headers to them.
+- Lesson: The file that broke had a header comment saying exactly what would break it — "`vercel.json`
+  carries the headers for those paths; the two must be changed together" — and I never opened it,
+  because the change did not touch it. A change to *how* something is served invalidates every
+  assumption held by whatever used to serve it, and those assumptions live in files the diff will
+  never mention.
+- Action: When a change alters the serving layer (prerendering, redirects, a rewrite, a CDN rule),
+  read the hooks, middleware and platform config *first* and ask what each one stops seeing. Then
+  write the relationship down as a test — `tests/unit/security-headers.test.ts` derives the covered
+  paths from the routes' own `prerender` flags, so the next person cannot make this mistake quietly.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same run — a four-month-old probe file reading "automated Node.js probing is not possible".
+- Lesson: That sentence was true and had been read as "not automatable", which is a different claim.
+  The Web Cache API does not exist in Node; it exists in the browser this repository was already
+  driving for another probe. The gap cost the seam its only reality check: step 5 of the manual
+  procedure was "go offline and reload", nobody had run it, and it would have failed.
+- Action: When a probe says a thing cannot be automated, check whether it says *where*. And when a
+  probe finally does run, expect it to find things: this one found three defects that 42 unit tests
+  and 46 end-to-end tests had all passed over, because none of them runs a service worker.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same run — the probe's first version waited for `registration.active.state === 'activated'`
+  and read an empty cache; `+layout.svelte` used `navigator.serviceWorker.ready` and would have
+  promised an offline copy that did not exist.
+- Lesson: The same mistake twice in one change, in the harness and in the product: waiting on a
+  signal that stands *near* the fact instead of on the fact. A registration's state is not the
+  contents of a cache, and neither is a promise that resolved.
+- Action: Wait on the thing you are about to assert. Both are now `caches.match('/offline')` — the
+  question the code actually needs answered.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same run — `page.waitForFunction(async () => …)` in a Playwright probe.
+- Lesson: A polling predicate that returns a Promise is truthy on its first evaluation, so the check
+  passed instantly and read the store mid-`addAll`. `page.evaluate` awaits what it is given;
+  `waitForFunction`'s polling does not.
+- Action: Poll async conditions from Node around `page.evaluate`, never as an async predicate inside
+  `waitForFunction`.

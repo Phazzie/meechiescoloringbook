@@ -16,6 +16,7 @@ import {
 	cacheKeyFor,
 	chooseStrategy,
 	handleFetch,
+	offlineCopyIsReady,
 	offlineNotice,
 	planPrecache,
 	primePrecache
@@ -233,8 +234,28 @@ describe('cacheKeyFor', () => {
 		);
 	});
 
+	// The generated routing table 308s `/meechie/` to `/meechie`, and a redirect is the network's
+	// job. Offline there is no network to perform it, and the precache holds only the bare path.
+	it('drops a trailing slash from a navigation, which offline nothing is left to redirect', () => {
+		expect(cacheKeyFor(`${ORIGIN}/meechie/`, true)).toBe(`${ORIGIN}/meechie`);
+		expect(cacheKeyFor(`${ORIGIN}/m/clapback/`, true)).toBe(`${ORIGIN}/m/clapback`);
+		expect(cacheKeyFor(`${ORIGIN}/who-fucked-up/?from=share`, true)).toBe(
+			`${ORIGIN}/who-fucked-up`
+		);
+	});
+
+	// The one path whose slash is not trailing decoration.
+	it('leaves the root alone', () => {
+		expect(cacheKeyFor(`${ORIGIN}/`, true)).toBe(`${ORIGIN}/`);
+		expect(cacheKeyFor(`${ORIGIN}//`, true)).toBe(`${ORIGIN}/`);
+	});
+
 	it('keeps the query on a subresource, where it is part of which file this is', () => {
 		expect(cacheKeyFor(`${ORIGIN}/_app/x.js?v=2`, false)).toBe(`${ORIGIN}/_app/x.js?v=2`);
+	});
+
+	it('leaves a subresource path untouched, trailing slash and all', () => {
+		expect(cacheKeyFor(`${ORIGIN}/wigs/x.jpg`, false)).toBe(`${ORIGIN}/wigs/x.jpg`);
 	});
 
 	it('returns an unparseable URL untouched', () => {
@@ -265,7 +286,7 @@ describe('handleFetch', () => {
 			fetchFn: neverCalled
 		});
 
-		expect(response?.status).toBe(200);
+		expect(response.status).toBe(200);
 	});
 
 	it('falls through to the network when an asset is not cached', async () => {
@@ -280,7 +301,7 @@ describe('handleFetch', () => {
 		});
 
 		expect(fetchFn).toHaveBeenCalledTimes(1);
-		expect(await response?.text()).toBe('fresh');
+		expect(await response.text()).toBe('fresh');
 	});
 
 	it('answers a missing asset with a 503 rather than a rejected promise', async () => {
@@ -292,7 +313,7 @@ describe('handleFetch', () => {
 			fetchFn: offline
 		});
 
-		expect(response?.status).toBe(503);
+		expect(response.status).toBe(503);
 	});
 
 	// A cache that errors is not a cache that is empty, and neither is a reason to fail the
@@ -309,7 +330,7 @@ describe('handleFetch', () => {
 		});
 
 		expect(fetchFn).toHaveBeenCalledTimes(1);
-		expect(response?.status).toBe(200);
+		expect(response.status).toBe(200);
 	});
 
 	it('prefers the network for a document, even when one is cached', async () => {
@@ -325,7 +346,7 @@ describe('handleFetch', () => {
 			fetchFn
 		});
 
-		expect(await response?.text()).toBe('fresh document');
+		expect(await response.text()).toBe('fresh document');
 	});
 
 	// The case the whole run exists for: an installed app, launched with no network.
@@ -341,7 +362,7 @@ describe('handleFetch', () => {
 			fetchFn: offline
 		});
 
-		expect(response?.status).toBe(200);
+		expect(response.status).toBe(200);
 	});
 
 	it('finds a cached document for a shared link that carries a query string', async () => {
@@ -356,12 +377,14 @@ describe('handleFetch', () => {
 			fetchFn: offline
 		});
 
-		expect(response?.status).toBe(200);
+		expect(response.status).toBe(200);
 	});
 
-	it('falls back to the offline page for an uncached document with no network', async () => {
+	// A redirect, not the cached bytes. Serving /offline's HTML under a different URL makes
+	// SvelteKit's client router resolve the address bar's path, find no route, and render its 404
+	// over the top — which the browser probe observed before this was changed.
+	it('redirects an uncached document with no network to the offline page', async () => {
 		const seam = createMockCacheSeam();
-		await seam.primeCache('c', [OFFLINE_FALLBACK_PATH]);
 		const fallback = new Response('the offline page', { status: 200 });
 		vi.spyOn(seam, 'matchRequest').mockImplementation(async (req) =>
 			req === OFFLINE_FALLBACK_PATH ? { ok: true, value: fallback } : { ok: true, value: null }
@@ -375,7 +398,22 @@ describe('handleFetch', () => {
 			fetchFn: offline
 		});
 
-		expect(await response?.text()).toBe('the offline page');
+		expect(response.status).toBe(302);
+		expect(response.headers.get('location')).toBe(`${ORIGIN}/offline`);
+	});
+
+	// The plan can say the build produced the page while this device has not stored it. Redirecting
+	// then would turn one failed navigation into two.
+	it('does not redirect to an offline page this device has not cached', async () => {
+		const response = await handleFetch(createMockCacheSeam(), {
+			request: request(`${ORIGIN}/never-built`),
+			strategy: 'network-first',
+			isNavigation: true,
+			fallbackAvailable: true,
+			fetchFn: offline
+		});
+
+		expect(response.status).toBe(503);
 	});
 
 	// Without this the worker would answer a navigation from a path it never stored, which renders
@@ -392,7 +430,7 @@ describe('handleFetch', () => {
 			fetchFn: offline
 		});
 
-		expect(response?.status).toBe(503);
+		expect(response.status).toBe(503);
 		expect(matchRequest).toHaveBeenCalledTimes(1);
 	});
 
@@ -410,11 +448,49 @@ describe('handleFetch', () => {
 			fetchFn: offline
 		});
 
-		expect(response?.status).toBe(503);
+		expect(response.status).toBe(503);
+	});
+});
+
+describe('offlineCopyIsReady', () => {
+	it('is true only when the fallback is cached and a worker is controlling this page', () => {
+		expect(
+			offlineCopyIsReady({ fallbackCached: true, hasController: true, hasPendingWorker: false })
+		).toBe(true);
+	});
+
+	// A registration is not a cache. This is the hole `navigator.serviceWorker.ready` left open.
+	it('is false when the offline document is not actually in a cache', () => {
+		expect(
+			offlineCopyIsReady({ fallbackCached: false, hasController: true, hasPendingWorker: false })
+		).toBe(false);
+	});
+
+	// A freshly installed worker controls nothing until the next load, so nothing it cached can be
+	// served to this page however full the cache is.
+	it('is false while no worker controls this page', () => {
+		expect(
+			offlineCopyIsReady({ fallbackCached: true, hasController: false, hasPendingWorker: false })
+		).toBe(false);
+	});
+
+	// The upgrade window, and the reason this predicate exists: the new worker has filled the new
+	// cache, the old one — the version that cached no HTML — is still answering from the old.
+	it('is false while a worker is still installing or waiting', () => {
+		expect(
+			offlineCopyIsReady({ fallbackCached: true, hasController: true, hasPendingWorker: true })
+		).toBe(false);
 	});
 });
 
 describe('offlineNotice', () => {
+	// The prerendered offline page is served *during* an outage, so a default of `true` would have
+	// it open by asserting a connection at the one moment there is none.
+	it('says nothing before this device has been asked', () => {
+		expect(offlineNotice({ isOnline: null, offlineCopyReady: true })).toBe('');
+		expect(offlineNotice({ isOnline: null, offlineCopyReady: false })).toBe('');
+	});
+
 	it('says nothing at all while the connection is up', () => {
 		expect(offlineNotice({ isOnline: true, offlineCopyReady: true })).toBe('');
 		expect(offlineNotice({ isOnline: true, offlineCopyReady: false })).toBe('');

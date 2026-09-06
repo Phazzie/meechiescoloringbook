@@ -9104,3 +9104,134 @@ cross-origin and non-GET, which are unchanged.
 That is this run's own thesis pointed at its own diff: the original defect was a service worker
 whose central case had **no branch**, and the first thing to go wrong in the rebuild was a branch
 with no case.
+
+### Run 10, second close-out — 2026-09-06 — six findings from Codex, and the probe that found three more
+
+Codex reviewed `4fb41f2` and returned **three P1s and three P2s. Every one was correct.** No
+measurement disproved any of them, which has not been true of a review round in this log for some
+time, and two were things no check in this repository could have caught.
+
+**SonarCloud went from 2 new issues to 1** on `53f7cc6`, so the cognitive-complexity fix closed
+exactly one of them. The remaining one is still unreadable from this container and is still not
+guessed at.
+
+#### P1 — the prerendered pages lost their security headers
+
+The worst finding, and mine to have prevented. `src/hooks.server.ts` attaches `X-Frame-Options:
+DENY`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` and
+`Strict-Transport-Security` to every response the SvelteKit function renders. Prerendering moves
+all fourteen documents to the filesystem layer, which is served *before* the function — so `/`,
+`/meechie`, every mode page and the offline page shipped with none of them. Frameable by anyone.
+A CSP `<meta>` cannot substitute: browsers ignore `frame-ancestors` there.
+
+**The file I broke says so, in its own header, in a sentence I never read:** *"`vercel.json`
+carries the headers for those paths; the two must be changed together."* I read `svelte.config.js`
+and `vercel.json`, concluded the CSP survived prerendering, and never opened `hooks.server.ts` —
+because nothing in the change touched it. That is precisely the file a change like this has to be
+read *from*.
+
+Fixed by naming each prerendered document path in `vercel.json`, and by
+`tests/unit/security-headers.test.ts`, which derives that list from the routes' own `prerender`
+flags and `modeCatalog()` rather than restating it, then asserts every one carries all five
+headers — and that none of them matches a path the function still serves, since a header set twice
+is dropped outright by some browsers, which is why the original file named prefixes instead of
+`/(.*)`. Mutation-checked: deleting `X-Frame-Options` from one rule fails eight assertions by name.
+
+#### P1 — the plan was appended where the document declares entries inactive
+
+`plan.md` opens with *"Current active plan is listed first"*, and Run 9's section claimed to be
+*"the sole active implementation plan"*. Appending Run 10 to the bottom therefore filed the plan the
+work was actually done under as history. Run 10 is now at the top and Run 9 is explicitly retired.
+
+#### P1 — "run the CacheSeam change through the full workflow"
+
+The one I expected to decline, and I was wrong to expect that. The letter of it is answerable by
+measurement: no file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`tests/contract/`, `src/lib/adapters/` or `src/lib/seams/` was in the diff, and the seam's three
+operations are called with the same argument types as before.
+
+**The substance of it was right.** `src/lib/seams/cache-seam/probe.ts` had said since 2026-05-15
+that *"automated Node.js probing is not possible"* and listed six manual DevTools steps instead, of
+which **step 5 is "Throttle the network to Offline and reload — the app should load from cache"**.
+Nobody had ever run it. On `main` it would have failed. And "not possible in Node" is not the same
+claim as "not automatable" — this repository already drives a real browser for
+`probes/browser-seams.probe.mjs`.
+
+So the probe was written: `probes/cache-seam.probe.mjs`, a real Chromium over `vite preview` of the
+production build, nine checks, exit non-zero on any failure. **9/9 —
+`docs/evidence/2026-09-06/probe-cache-seam.txt`.** It is the first evidence in this run that the
+feature works at all, as opposed to that its parts are correct.
+
+**It found three defects that 42 unit tests and 46 end-to-end tests had all passed over**, because
+not one of them runs a service worker:
+
+1. **The worker cached everything and controlled nothing.** No `clients.claim()`, so a freshly
+   installed worker controls no page until the next load. The probe's own words: 14 documents
+   cached, and the very next navigation `ERR_INTERNET_DISCONNECTED`. A reader whose first visit is
+   also the visit they lose signal got the browser's error page with a complete copy of the app
+   sitting unreachable on their own device. `clients.claim()` added in activate — deliberately
+   *not* paired with `skipWaiting()`, which would hand a running page to a newer version
+   mid-session so its next lazy chunk could come from a different build than its HTML.
+2. **The fallback served the offline page's bytes under the requested URL.** The document hydrates,
+   SvelteKit's client router resolves the address bar's path, finds no route, and renders its 404
+   over the top: `title "404 — Meechie's Coloring Book"`, offline text nowhere on screen. It is a
+   `302` to `/offline` now, so the document that arrives is the route it claims to be.
+3. **The probe read the cache before it was filled.** Its first version waited on
+   `registration.active.state === 'activated'` and then found zero entries — the same substitution
+   of a nearby signal for the fact that this run had just corrected in `+layout.svelte` for
+   `navigator.serviceWorker.ready`. Arrived at twice independently: once because a reviewer said
+   so, once because the browser did.
+
+Along the way it also leaked `vite preview` processes — `kill` reached the npm wrapper and not its
+child — so a later run silently measured an *earlier* build. That is the failure mode a probe must
+not have, and it is fixed with a process group and a SIGKILL follow-up.
+
+#### P2 — `navigator.serviceWorker.ready` reports the wrong worker on an upgrade
+
+`ready` resolves immediately with the **previously active** registration while the new one is still
+installing. On this deploy the previous registration is the version that cached no HTML, so the
+banner would promise a working offline copy at the one moment there certainly is not one.
+
+Replaced with a measurement rather than a better proxy: `offlineCopyIsReady` requires the offline
+document to be **read back out of the cache** through `CacheSeam`, *and* a worker to be controlling
+this page, *and* no worker of this registration to be installing or waiting — that last condition
+being exactly the upgrade window. The bias is deliberate: saying "no offline copy" when there is one
+costs a sentence; the reverse is the defect this run is about.
+
+#### P2 — the trailing-slash form of every route missed its cached page
+
+`/meechie/` 308s to `/meechie`, and a redirect is the *network's* job. Offline there is no network
+to perform it, and the precache holds only the bare path. `cacheKeyFor` now drops trailing slashes
+from a navigation, keeping the root's. The probe confirms it in a real browser: `/meechie/` with the
+network off, `status 200, title "Meechie's Tools — Meechie's Coloring Book"`.
+
+#### P2 — the offline page announced that the connection was back
+
+`isOnline` started `true`, so the prerendered HTML — the exact document the worker serves *during an
+outage* — opened with **"Your connection is back. Reload and carry on."** until hydration ran, and
+forever if hydration could not start, which on a dead network is not a remote case. The page whose
+whole job is honesty about the network was shipping the one sentence guaranteed false at the moment
+it appeared.
+
+`isOnline` is `boolean | null` now and says nothing until asked. In `+layout.svelte` the old default
+of `true` happened to render nothing, so the bug never showed there — and that is the point:
+**a default that is right by coincidence is one edit away from being wrong**, which is the Run 8
+lesson arriving in this run's own new code.
+
+#### What this round costs the run's own account of itself
+
+The first close-out said the offline layer was proven. It was proven *correct in its parts*. The
+probe is what proved it worked, and it did so by first proving it did not: cached and unreachable,
+then reachable and mislabelled. **Every check in this repository was green across all three of those
+states.**
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1546 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **9/9**.
+
+`chamber-lock` failed once during this round and the failure was mine: `docs/seams.md`'s Probe cell
+is read as a literal path, and I had written `probes/cache-seam.probe.mjs (see …)` into it. The
+parenthetical is in the Notes column now. Worth recording because the gate did exactly its job —
+the registry names an artifact that exists, and a helpful annotation is not an artifact.

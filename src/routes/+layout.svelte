@@ -7,7 +7,12 @@ Info flow: Layout renders children -> pages render within layout.
 	import { onMount } from 'svelte';
 	import { dev } from '$app/environment';
 	import favicon from '$lib/assets/favicon.svg';
-	import { offlineNotice } from '$lib/core/offline-cache';
+	import { createCacheSeam } from '$lib/adapters/cache-seam';
+	import {
+		OFFLINE_FALLBACK_PATH,
+		offlineCopyIsReady,
+		offlineNotice
+	} from '$lib/core/offline-cache';
 
 	let { children } = $props();
 
@@ -15,12 +20,11 @@ Info flow: Layout renders children -> pages render within layout.
 	function toggleMenu() { mobileMenuOpen = !mobileMenuOpen; }
 	function closeMenu() { mobileMenuOpen = false; }
 
-	// Both start in the state that claims the least. The server cannot know either, and the
-	// server-rendered HTML is also the HTML the service worker caches and replays — so a default
-	// that asserted "offline" would have every reader open a cached page to a false banner for one
-	// frame, and a default that asserted "your offline copy is ready" would be a promise made by a
-	// document that predates the registration it is describing.
-	let isOnline = $state(true);
+	// `null`, not `true`. The server cannot know, and this same HTML is what the service worker
+	// caches and replays during an outage — so a default of `true` would be a document asserting a
+	// connection at the one moment there is none. `offlineNotice` renders nothing for `null`, which
+	// is the same output `true` produced, and that coincidence is exactly why it needed a name.
+	let isOnline = $state<boolean | null>(null);
 	let offlineCopyReady = $state(false);
 
 	// The whole reason this is a piece of state and not a constant: registration used to end in
@@ -29,6 +33,24 @@ Info flow: Layout renders children -> pages render within layout.
 	// goes — one still opens the app, the other cannot — and `offlineNotice` says so in different
 	// words because it is told which one this is.
 	const connectionNotice = $derived(offlineNotice({ isOnline, offlineCopyReady }));
+
+	/**
+	 * Ask the cache whether the offline copy exists, rather than inferring it from the registration.
+	 *
+	 * `navigator.serviceWorker.ready` was the first version of this and it is wrong on an upgrade:
+	 * it resolves with the previously active registration — on this deploy, the worker that cached
+	 * no HTML at all — while the new one is still installing. Reading the fallback document back
+	 * out of the cache measures the thing the banner promises. Through the seam, like everything
+	 * else that touches the Cache API.
+	 */
+	const measureOfflineCopy = async (registration: ServiceWorkerRegistration): Promise<void> => {
+		const fallback = await createCacheSeam().matchRequest(OFFLINE_FALLBACK_PATH);
+		offlineCopyReady = offlineCopyIsReady({
+			fallbackCached: fallback.ok && fallback.value !== null,
+			hasController: navigator.serviceWorker.controller !== null,
+			hasPendingWorker: registration.installing !== null || registration.waiting !== null
+		});
+	};
 
 	onMount(() => {
 		const syncOnline = () => {
@@ -41,13 +63,7 @@ Info flow: Layout renders children -> pages render within layout.
 		if (!dev && 'serviceWorker' in navigator) {
 			navigator.serviceWorker
 				.register('/service-worker.js')
-				// `ready` rather than the registration promise: registering only means the browser
-				// accepted the file. `ready` resolves when a worker is *active* on this page, which
-				// is the point at which an offline copy actually exists to be opened.
-				.then(() => navigator.serviceWorker.ready)
-				.then(() => {
-					offlineCopyReady = true;
-				})
+				.then(measureOfflineCopy)
 				.catch(() => {
 					// Still not surfaced as an error, because an online reader loses nothing by it.
 					// It is no longer *forgotten*: `offlineCopyReady` stays false, and that is what

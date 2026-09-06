@@ -255,10 +255,21 @@ export const chooseStrategy = (input: {
 /**
  * The cache key for a request.
  *
- * A navigation drops its query string, because `cache.addAll('/who-fucked-up')` files the document
- * under the bare path and a reader arriving at `/who-fucked-up?from=share` would otherwise miss a
- * page that is sitting right there. Subresources keep theirs: a query string on an asset URL is
- * part of which asset it is.
+ * A navigation is canonicalized to the form `cache.addAll` filed the document under: bare path, no
+ * query, no fragment, no trailing slash. Two separate ways a perfectly valid URL misses a page
+ * that is sitting in the cache:
+ *
+ * - **The query string.** `/who-fucked-up?from=share` — a shared link. The seam exposes no
+ *   `ignoreSearch`, so the key is normalized here instead.
+ * - **The trailing slash.** The generated routing table redirects `/meechie/` to `/meechie` with a
+ *   308, and the precache holds only the slashless path. That redirect is the *network's* job, and
+ *   during an outage there is no network to perform it — so offline, `/meechie/` would have missed
+ *   its cached page and landed on the generic offline fallback.
+ *
+ * The root is the one path whose slash is not trailing decoration, and it keeps it.
+ *
+ * Subresources are left exactly as they are: a query string on an asset URL is part of which asset
+ * it is, and a directory-ish path is not a thing the build produces.
  */
 export const cacheKeyFor = (url: string, isNavigation: boolean): string => {
 	if (!isNavigation) return url;
@@ -266,6 +277,8 @@ export const cacheKeyFor = (url: string, isNavigation: boolean): string => {
 		const parsed = new URL(url);
 		parsed.search = '';
 		parsed.hash = '';
+		const trimmed = parsed.pathname.replace(/\/+$/, '');
+		parsed.pathname = trimmed === '' ? '/' : trimmed;
 		return parsed.toString();
 	} catch {
 		return url;
@@ -285,6 +298,17 @@ const unavailableResponse = (): Response =>
 		statusText: 'Offline',
 		headers: { 'content-type': 'text/plain; charset=utf-8' }
 	});
+
+/**
+ * Send an unreachable navigation to the offline page, resolved against the request's own origin.
+ *
+ * `302`, not `301`: being offline is the most temporary condition there is, and a permanent
+ * redirect is the one kind a browser is entitled to remember after the network comes back.
+ */
+const redirectToOfflinePage = (requestUrl: string): Response => {
+	const target = new URL(OFFLINE_FALLBACK_PATH, requestUrl).toString();
+	return new Response(null, { status: 302, headers: { location: target } });
+};
 
 export type FetchLike = (request: Request) => Promise<Response>;
 
@@ -323,6 +347,14 @@ const cacheFirst = async (
  *
  * The fallback is offered to navigations only. A `__data.json` request answered with the offline
  * page would have SvelteKit's client parse an HTML document as JSON.
+ *
+ * And it is offered as a **redirect**, not as the cached document's bytes. Handing `/offline`'s
+ * HTML back under some other URL is the obvious implementation and it does not work in this app:
+ * the document hydrates, SvelteKit's client router resolves the address bar's path, finds no route
+ * for it, and client-renders the 404 page over the top. The browser probe caught precisely that —
+ * `title "404 — Meechie's Coloring Book"`, with the offline page's own text nowhere on screen.
+ * Redirecting moves the URL to `/offline`, so the document that arrives is the route it claims to
+ * be, and the worker answers that second navigation from the same cache.
  */
 const networkFirst = async (
 	seam: CacheSeam,
@@ -337,8 +369,11 @@ const networkFirst = async (
 		if (cached) return cached;
 
 		if (options.isNavigation && options.fallbackAvailable) {
+			// Checked, not assumed: `fallbackAvailable` says the build produced the page, and this
+			// says this device actually stored it. Redirecting to a path with nothing behind it
+			// would turn one failed navigation into two.
 			const fallback = await cachedResponse(seam, OFFLINE_FALLBACK_PATH);
-			if (fallback) return fallback;
+			if (fallback) return redirectToOfflinePage(request.url);
 		}
 
 		return unavailableResponse();
@@ -382,20 +417,52 @@ export const handleFetch = async (
 };
 
 /**
+ * Whether this device can actually open the app with no network — measured, not inferred.
+ *
+ * The tempting signal is `navigator.serviceWorker.ready`. It is wrong, and wrong in the direction
+ * that matters: on an upgrade it resolves immediately with the **previous** active registration,
+ * while the newly registered worker is still installing or waiting. On the deploy that ships this
+ * change, that previous registration is precisely the version that cached no HTML — so `ready`
+ * would report an offline copy at the one moment there certainly is not one.
+ *
+ * Three conditions, each closing a different hole:
+ *
+ * - `fallbackCached` — the offline document is really in a cache on this device, read back through
+ *   `CacheSeam` rather than deduced from the fact that an install was requested.
+ * - `hasController` — a worker is controlling *this page*. A freshly installed worker does not,
+ *   until the next load, and a page no worker controls gets no cached response whatever is stored.
+ * - `!hasPendingWorker` — no worker of this registration is installing or waiting. That is exactly
+ *   the upgrade window: the new worker has filled the new cache, the old one is still answering
+ *   from the old, and the two disagree about what offline means.
+ *
+ * The bias is deliberate. Saying "no offline copy" when there is one costs the reader a sentence;
+ * saying "your saved pages still open" when they do not is the defect this whole run is about.
+ */
+export const offlineCopyIsReady = (input: {
+	readonly fallbackCached: boolean;
+	readonly hasController: boolean;
+	readonly hasPendingWorker: boolean;
+}): boolean => input.fallbackCached && input.hasController && !input.hasPendingWorker;
+
+/**
  * The one sentence the app shows about its own connection, worded from what is actually known
  * rather than from `navigator.onLine` alone.
  *
- * `onLine` false means the device has no network. Whether that is survivable depends entirely on
- * whether this device ever finished caching the app, which only the service worker registration
- * knows — and which the old code discarded inside `.catch(() => {})`. The two cases read
- * differently because they are different: one is an inconvenience, the other is the end of the
- * session.
+ * `isOnline` is `null` before anything has read `navigator.onLine` — on the server, and in the
+ * prerendered HTML the service worker replays during an outage. That case says **nothing**, and it
+ * is a separate value rather than a default of `true` because "not asked yet" and "asked, and the
+ * connection is up" are different facts that happen to render the same way today. A default that
+ * is right by coincidence is the failure this run exists to fix, one file over.
+ *
+ * When it is known: whether being offline is survivable depends entirely on whether this device
+ * finished caching the app, which the old `.catch(() => {})` discarded. The two cases read
+ * differently because they are different — one is an inconvenience, the other ends the session.
  */
 export const offlineNotice = (input: {
-	readonly isOnline: boolean;
+	readonly isOnline: boolean | null;
 	readonly offlineCopyReady: boolean;
 }): string => {
-	if (input.isOnline) return '';
+	if (input.isOnline === null || input.isOnline) return '';
 	if (input.offlineCopyReady) {
 		return 'Offline. Your saved pages and everything already on this device still open — a new verdict or coloring page needs a connection.';
 	}

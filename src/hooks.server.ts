@@ -5,12 +5,23 @@
 //      which left the site embeddable in any attacker's iframe. The Content
 //      Security Policy itself is configured separately, via `kit.csp` in
 //      svelte.config.js, so SvelteKit can manage its own inline-script nonces.
-// Scope: this hook only sees responses the SvelteKit function renders - pages and
-//      /api routes. Static files do not reach it: the adapter's generated route
-//      table places `{"handle":"filesystem"}` ahead of the SSR rewrites, so
-//      /_app/immutable assets, /service-worker.js and everything under static/
-//      are served before the function runs. `vercel.json` carries the headers for
-//      those paths; the two must be changed together.
+// Scope: this hook only sees responses the SvelteKit function renders. Static
+//      files do not reach it: the adapter's generated route table places
+//      `{"handle":"filesystem"}` ahead of the SSR rewrites, so /_app/immutable
+//      assets, /service-worker.js and everything under static/ are served before
+//      the function runs. `vercel.json` carries the headers for those paths; the
+//      two must be changed together.
+// Scope, since every page route became prerendered: that list is no longer just
+//      assets. All fourteen documents are written to disk at build time and are
+//      therefore served by the filesystem layer too, so this hook now covers only
+//      /api routes, the `SLUG_ALIASES` under /m/ that `prerender = 'auto'` leaves
+//      dynamic, and the catchall that renders +error.svelte. `vercel.json` names
+//      each prerendered document path explicitly and `tests/unit/security-headers.test.ts`
+//      derives that list from the routes' own `prerender` flags, so a new
+//      prerendered route without headers fails the suite instead of silently
+//      shipping a frameable page. It names paths rather than /(.*) for the reason
+//      below: a path this hook still serves must not also match, or the header is
+//      set twice.
 // Note: `vercel.json` has no header comment of its own because Vercel validates
 //      it against a strict schema that rejects any unknown property, a `"//"`
 //      documentation key included - that was tried and it failed the deployment.

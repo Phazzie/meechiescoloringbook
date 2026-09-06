@@ -49,11 +49,26 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
 	event.waitUntil(
-		cacheSeam.evictStaleCaches(CACHE).then((result) => {
-			if (!result.ok) {
-				throw new Error(`Cache activation failed: ${result.error.message}`);
-			}
-		})
+		cacheSeam
+			.evictStaleCaches(CACHE)
+			.then((result) => {
+				if (!result.ok) {
+					throw new Error(`Cache activation failed: ${result.error.message}`);
+				}
+			})
+			// Take control of pages that are already open. Without this a worker installs, fills its
+			// cache, and then controls nothing until the next load — so a reader whose first visit
+			// is also the visit where they lose signal gets the browser's error page while a
+			// complete copy of the app sits in Cache Storage on their own device, unreachable. The
+			// browser probe found exactly that: 14 documents cached, and the very next navigation
+			// `ERR_INTERNET_DISCONNECTED`.
+			//
+			// Deliberately *not* paired with `skipWaiting()` in install. Claiming clients hands this
+			// page to a worker of the version it was already loaded from; skipping the wait would
+			// hand a running page to a *newer* version mid-session, so its next lazily-loaded chunk
+			// could come from a different build than its HTML. The first is a fix, the second is a
+			// class of bug.
+			.then(() => self.clients.claim())
 	);
 });
 

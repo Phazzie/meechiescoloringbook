@@ -8,6 +8,12 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Every page now sends the security headers it always did. Making the pages load offline moved them to a different part of the serving stack, which quietly dropped the header that stops the site being embedded in someone else's page. Caught in review before release.
+- The app now works offline from the first visit rather than the second. It used to save a full copy of itself and then not be allowed to use it until you opened it again.
+- Going somewhere the app cannot reach offline now actually shows the offline page. It was being handed to the browser under the wrong address, so the app showed its "page not found" screen instead.
+- Addresses with a trailing slash — `/meechie/` rather than `/meechie` — now open offline too. Online the server fixes those up for you; offline there is no server to do it.
+- The offline page no longer opens by telling you your connection is back. That is the one page you see when it is not.
+- The app no longer promises that your saved pages will open offline while it is still in the middle of updating itself. It checks that the offline copy is really on the device before saying so.
 - The app can now be installed and opened without a connection. It already offered to install itself — the icon, the standalone window, all of it — but nothing behind that icon worked offline: launching it with no network showed the browser's own "you are not connected" page, because none of the app's pages had ever been saved to the device. Every page is now saved when the app installs, so the studio, the toolkit, all eight modes and your Quote Vault open with no connection.
 - What the app saves for offline use no longer costs 3.3 MB of photographs on your first visit before it saves a single page. The app itself comes first; the artwork follows, and a picture that fails to save no longer means nothing at all was saved.
 - Going somewhere the app cannot reach offline now lands on a Meechie page that says what still works on this device and what is waiting for a connection, instead of the browser's error page with no way back.

@@ -1,6 +1,6 @@
 {
   "tool": "chamber-lock",
-  "generatedAt": "2026-09-06T07:10:25.013Z",
+  "generatedAt": "2026-09-06T07:39:30.285Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -1345,7 +1345,7 @@
         },
         {
           "kind": "probe",
-          "path": "src/lib/seams/cache-seam/probe.ts",
+          "path": "probes/cache-seam.probe.mjs",
           "status": "ok"
         },
         {

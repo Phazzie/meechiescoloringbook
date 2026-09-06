@@ -20,11 +20,15 @@ Invariants:
 
 	const modes = modeCatalog();
 
-	// Starts true so the server-rendered HTML never asserts a connection state it cannot know.
-	// `onMount` replaces it with this device's own reading, and the `online`/`offline` events keep
-	// it current — a reader who reconnects while looking at this page should see it change without
-	// having to guess and click.
-	let isOnline = $state(true);
+	// `null` until `navigator.onLine` has been read, and the line below renders nothing for `null`.
+	//
+	// This started as `true`, and `true` was the worst possible default *here* of all places: this
+	// document is the one the service worker serves during an actual outage, so its prerendered
+	// HTML would have opened with "Your connection is back. Reload and carry on." — until hydration
+	// ran, and forever if hydration could not start, which on a dead network is not a remote case.
+	// The page whose entire job is to be honest about the network was shipping the one sentence
+	// that is guaranteed false at the moment it appears.
+	let isOnline = $state<boolean | null>(null);
 
 	onMount(() => {
 		const sync = () => {
@@ -54,7 +58,9 @@ Invariants:
 	</p>
 
 	<p class="connection" data-testid="offline-connection" aria-live="polite">
-		{#if isOnline}
+		{#if isOnline === null}
+			<!-- Nothing. Said before this device has been asked, it would be a guess either way. -->
+		{:else if isOnline}
 			Your connection is back. Reload and carry on.
 		{:else}
 			Still no connection.
