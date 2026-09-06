@@ -627,3 +627,32 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Action: When one fact needs two fields, make the second unreachable without the first — a getter
   and a single named writer, so the wrong combination is a type error rather than a convention. The
   cost here was one `sed` over sixteen arrangements; the alternative was a rule enforced by hope.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 11, PR #313 — the provenance flag carrying "was this standing reported?" was a
+  boolean, keyed on whether the record stored studio text. Codex pointed out that a page saved from
+  the *toolkit* stores studio text whose `qualityState` `buildToolStudioText` had to invent, so every
+  such page would have reopened claiming an approval Meechie never gave.
+- Lesson: The flag was answering two questions — *may this be claimed?* and *should this be written
+  back?* — and a boolean can only answer one. It looked correct because both answers coincided in
+  every case I had considered, and every case I had considered came from the one producer I was
+  looking at. The field had two others.
+- Action: When a provenance flag governs more than one decision, enumerate the decisions and the
+  producers separately, and check every producer against every decision. Where the answers differ,
+  the flag is not a boolean. And prefer refusing to believe a whole class — "no restored standing is
+  trusted" — over detecting the one bad producer: the detection goes stale when a fourth producer
+  appears, the refusal does not.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 11, PR #313 — `rating` on the studio seam means severity (1-10, "don't undersell
+  it"); `rating` on the tool seam means an excuse's credibility (1 = insulting, 10 = barely
+  credible). `buildToolStudioText` had copied one into the other since it was written.
+- Lesson: The mismatch was silent for as long as nothing said what the number meant. The moment this
+  change rendered "Severity 2 of 10 — Meechie's read on how bad the situation is", an old bug became
+  a sentence on screen. Two fields sharing a name and a range is not evidence they share a meaning.
+- Action: A label does not create a semantic mismatch, it exposes one — which is an argument for
+  labelling values rather than printing them bare, and an obligation to fix whatever the label
+  turns up. Before rendering a number with its meaning attached, find every producer that writes
+  that field and check each one's definition of it, not just the field's name.

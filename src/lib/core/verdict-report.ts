@@ -13,11 +13,13 @@
 //            buildVerdictReport -> VerdictReport -> VerdictRow / StudioPreviewPanel.
 // Invariants: Pure. No I/O, no clock, no third-party imports — the quality-state type comes in as a
 //             type-only import, so nothing here pulls zod into the core.
-//             Nothing in here infers a standing from the presence of text. A verdict rebuilt from a
-//             stored page carries no standing of its own, and `standingWasReported: false` is how it
-//             says so: the card then shows the words and says nothing about whether Meechie approved
-//             them, rather than showing the `'ready'` that `buildStudioTextFromSpec` has to invent
-//             to satisfy the contract's required field.
+//             Nothing in here infers a standing from the presence of text. `qualityState` is a
+//             *required* contract field, so it always holds a value, and two separate producers have
+//             to invent one: `buildStudioTextFromSpec`, rebuilding a record that stored no text, and
+//             `buildToolStudioText`, whose `MeechieToolOutput` has no such field at all. Only a live
+//             studio response carries a reported standing, and `standingWasReported` is how the
+//             caller says which it is holding — the card then shows the words either way and claims
+//             an approval only when one was actually given.
 
 import type {
 	MeechieStudioQualityState,
@@ -163,10 +165,11 @@ export type VerdictReport = {
 	/**
 	 * `null` means *nothing was reported*, not `'ready'`.
 	 *
-	 * A page reopened from a record saved before the studio stored its text has its words rebuilt
-	 * from the page itself, and `buildStudioTextFromSpec` must put *some* value in the contract's
-	 * required `qualityState` field to do that. Reading that invented `'ready'` as Meechie's own
-	 * would put an approval on screen that she never gave, so provenance arrives as its own input.
+	 * `null` on every reopened page, not only on the ones with an obviously invented value. A page
+	 * saved from the toolkit carries the `'ready'` `buildToolStudioText` must write; a page saved
+	 * before this change may carry one the studio reconstructed; a page saved from a real response
+	 * carries Meechie's own. Nothing on a record separates the three, so none of them is read as
+	 * hers — provenance arrives as its own input and only a live response sets it.
 	 */
 	standing: VerdictStanding | null;
 	/** `revisionNote`, trimmed. `null` when the provider sent none, or sent only whitespace. */

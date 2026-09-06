@@ -15,8 +15,10 @@ Info flow: Parent passes a `VerdictReport` built by `buildVerdictReport` + prepa
            open/pin/delete/undo/search and "give her more evidence" propagate via callbacks.
 Invariants: Nothing here reads `textOutput.qualityState`. A standing is shown only when the report
             carries one, because a required contract field always holds a value and the value alone
-            cannot say whether anybody reported it — a page rebuilt from a stored record has a
-            `'ready'` that `buildStudioTextFromSpec` had to invent to satisfy the schema.
+            cannot say whether anybody reported it. Two producers have to invent one —
+            `buildStudioTextFromSpec` rebuilding a record that stored no text, and
+            `buildToolStudioText`, whose `MeechieToolOutput` has no such field — so only a live
+            studio response carries a standing this card may repeat.
 -->
 <script lang="ts">
 	import type { CreationRecord } from '$lib/seams/creation-store-seam/contract';

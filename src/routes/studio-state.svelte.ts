@@ -276,9 +276,10 @@ export class StudioState {
 	 * The verdict on screen. Read-only from outside on purpose.
 	 *
 	 * It was a plain field, and a plain field can be assigned without answering the question above —
-	 * so the value and its provenance would be two things to remember instead of one. Every write
-	 * goes through `setVerdict`, and assigning this property is now a type error rather than a
-	 * verdict of unknown origin.
+	 * so the value and its provenance would be two things to remember instead of one. There are
+	 * exactly two writers, `setVerdict` and `clearVerdict`, and neither can produce an inconsistent
+	 * pair: the first takes a verdict and a required source, the second takes nothing. Assigning
+	 * this property is a type error rather than a verdict of unknown origin.
 	 */
 	get textOutput(): MeechieStudioTextOutput | null {
 		return this.verdictOnScreen;

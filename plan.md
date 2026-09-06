@@ -43,7 +43,7 @@ contract field — which also keeps this pull request clear of the schema/contra
 
 **Exact file inventory**, generated from `git diff --name-status origin/main..HEAD` rather than
 kept by hand — a hand-kept inventory is a second copy of the truth and goes stale silently, which
-Run 10 established twice inside one run. 29 files.
+Run 10 established twice inside one run. 31 files.
 
 | File | Action |
 |---|---|
@@ -70,11 +70,13 @@ Run 10 established twice inside one run. 29 files.
 | `src/lib/components/studio/StudioPreviewPanel.svelte` | [MODIFY] |
 | `src/lib/components/studio/VerdictRow.svelte` | [MODIFY] |
 | `src/lib/core/meechie-studio-text-pipeline.ts` | [MODIFY] |
+| `src/lib/core/tool-page-recipe.ts` | [MODIFY] |
 | `src/lib/core/verdict-report.ts` | **[NEW]** |
 | `src/routes/+page.svelte` | [MODIFY] |
 | `src/routes/studio-state.svelte.ts` | [MODIFY] |
 | `tests/e2e/smoke.spec.ts` | [MODIFY] |
 | `tests/unit/studio-state.test.ts` | [MODIFY] |
+| `tests/unit/tool-page-recipe.test.ts` | [MODIFY] |
 | `tests/unit/verdict-report.test.ts` | **[NEW]** |
 
 **Where the prediction was wrong:** `src/lib/components/studio/StudioInputPanel.svelte` was not in
@@ -82,8 +84,23 @@ the predicted list. The "give her more evidence" button needs the evidence box, 
 version reached it with `document.getElementById('evidence')` in `+page.svelte` — which is a second
 copy of an id that lives in that panel, and would have broken silently the first time it was
 renamed. Binding the element up out of the panel is one prop and no duplicated id, and it costs the
-prediction one row. The anti-goals held: no contract, seam, adapter, mock, fixture, probe or
-tool-surface file is in the diff, and the system prompt's bytes are unchanged and pinned by a test.
+prediction one row.
+
+**And `src/lib/core/tool-page-recipe.ts` was not in it either, which is an anti-goal argued with
+rather than quietly stretched.** The list said "do not touch the tool seam, the mode routes,
+`MeechieTools.svelte` or `VerdictPageStudio.svelte`", and this file is none of those — it is core,
+and no file under `src/lib/seams/meechie-tool-seam/` or `src/lib/adapters/meechie-tool-seam/` is in
+the diff. But the intent of that line was to keep this change on one surface, and a review found
+that impossible to honour: `buildToolStudioText` writes into the *same store the home studio reads*,
+and it invents both of the values this change started rendering. A rebuild that renders a field
+correctly on one surface while a second producer fills it with a placeholder has not rendered it
+correctly. Run 10's rule applies unchanged — an anti-goal is a prediction about what a change will
+not need, and when the prediction is wrong the plan gives way, not the change.
+
+The rest of the anti-goals held: no contract, seam, adapter, mock, fixture or probe file is in the
+diff; no mode route or toolkit *component* is; the page button is still not disabled on a flagged
+standing; and the system prompt's bytes are unchanged, pinned by a test and re-proven against
+`origin/main` at runtime.
 
 **Anti-goals (forbidden).** Do not add a field to `MeechieStudioTextOutputSchema` or any other
 contract. Do not touch the tool seam, the mode routes, `MeechieTools.svelte` or
