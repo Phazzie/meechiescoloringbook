@@ -9746,8 +9746,9 @@ first, which would have let a future run mark it `Closed` on half the evidence:
    `Strict-Transport-Security` arrives from the edge either way and proves nothing here.
 2. **The assets** (`/service-worker.js` and an `/_app/immutable` file) — the original half of this
    Assumption, matched by the two asset rules, which carry three headers rather than five. Today
-   production returns these with **no security headers at all**, which is the gap the entry exists
-   to close.
+   production returns these **without the three headers this repository sets on assets**, which is
+   the gap the entry exists to close. Strict-Transport-Security is there, from the edge — the same
+   distinction as everywhere else in this section, and the third place I had to be told it.
 
 And one control: request an alias such as `/m/receipts`. It is server-rendered, matches no
 `vercel.json` rule, and must carry all five from `hooks.server.ts`. If the four are present there
@@ -9894,6 +9895,7 @@ mode — later passes append rather than displace, and any total is recoverable 
 | `3f412c1` | 3 | — |
 | `8af5bff` | 1 | — |
 | `552ffa6` | 2 | — |
+| `82a47c5` | 1 | — |
 
 **The P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
 A merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
@@ -9981,7 +9983,10 @@ so following it as written reproduced the stale-evidence failure this entry open
 every path back at the filesystem root — the hazard the variable was introduced to remove. And,
 twice, `/offline.html` described as carrying **no** security headers when it carries HSTS from the
 edge and is missing the other four: the same overstatement corrected two paragraphs earlier in this
-entry, reintroduced in the sentence recording the gap it applies to.
+entry, reintroduced in the sentence recording the gap it applies to. Then a **third** time, in the
+asset baseline: `/service-worker.js` described as returning no security headers when it returns HSTS
+from the edge and lacks the three the repository sets. Three passes, three separate sentences, one
+phrase — corrected each time it was pointed at and never once by me looking for the others.
 
 All the same disease: a fact restated where it cannot be checked against its source. The reason this
 section is the entry's longest is that it is the one part with no mechanical check behind it. Every
